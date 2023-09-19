@@ -10,7 +10,7 @@ import (
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	voting_group "gno.land/p/demo/teritori/daodao/voting_group"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 	registry "gno.land/r/demo/dao_registry"
 	"gno.land/r/demo/groups"
 	modboards "gno.land/r/demo/modboards"

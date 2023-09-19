@@ -3,7 +3,7 @@ package dao_interfaces
 import (
 	"std"
 
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type ModuleInfo struct {

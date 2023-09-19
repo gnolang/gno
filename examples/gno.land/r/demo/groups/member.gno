@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type MemberID uint64

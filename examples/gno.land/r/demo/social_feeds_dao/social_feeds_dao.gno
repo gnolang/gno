@@ -10,7 +10,7 @@ import (
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/teritori/daodao/proposal_single"
 	"gno.land/p/demo/teritori/daodao/voting_group"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/dao_registry"
 	"gno.land/r/demo/groups"
 	social_feeds "gno.land/r/demo/social_feeds"

@@ -1,7 +1,7 @@
 package dao_interfaces
 
 import (
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type CopyMessage struct {

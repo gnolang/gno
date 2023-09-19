@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/teritori/daodao/interfaces"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type ExecutableMessageAddMember struct {

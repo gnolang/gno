@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/havl"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type GroupID uint64

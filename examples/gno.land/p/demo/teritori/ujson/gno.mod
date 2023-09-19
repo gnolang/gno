@@ -1,4 +1,4 @@
-module gno.land/p/demo/ujson
+module gno.land/p/demo/teritori/ujson
 
 require (
     "gno.land/p/demo/avl" v0.0.0-latest

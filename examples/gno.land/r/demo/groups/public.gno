@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/users"
 )
 

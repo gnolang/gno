@@ -8,7 +8,7 @@ import (
 	dao_core "gno.land/p/demo/teritori/daodao/core"
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/groups"
 	modboards "gno.land/r/demo/modboards"
 	"gno.land/r/demo/users"

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type ExecutableMessage interface {

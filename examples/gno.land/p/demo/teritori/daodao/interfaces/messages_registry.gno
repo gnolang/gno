@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type MessagesRegistry struct {

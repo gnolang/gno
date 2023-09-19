@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 type NoopMessage struct{}

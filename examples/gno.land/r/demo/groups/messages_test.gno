@@ -3,7 +3,7 @@ package groups
 import (
 	"testing"
 
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 func TestFromJSON(t *testing.T) {

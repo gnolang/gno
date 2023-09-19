@@ -3,7 +3,7 @@ package dao_proposal_single
 import (
 	"strconv"
 
-	"gno.land/p/demo/ujson"
+	"gno.land/p/demo/teritori/ujson"
 )
 
 // ported from https://github.com/DA0-DA0/dao-contracts/blob/7776858e780f1ce9f038a3b06cce341dd41d2189/packages/dao-voting/src/threshold.rs

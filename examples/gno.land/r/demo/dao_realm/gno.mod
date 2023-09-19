@@ -8,6 +8,6 @@ require (
 	"gno.land/r/demo/groups" v0.0.0-latest
 	"gno.land/r/demo/modboards" v0.0.0-latest
 	"gno.land/r/demo/tori" v0.0.0-latest
-	"gno.land/p/demo/ujson" v0.0.0-latest
+	"gno.land/p/demo/teritori/ujson" v0.0.0-latest
 	"gno.land/r/demo/dao_registry" v0.0.0-latest
 )
