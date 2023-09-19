@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	dao_interfaces "gno.land/p/demo/daodao/interfaces"
+	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/markdown_utils"
 )
 

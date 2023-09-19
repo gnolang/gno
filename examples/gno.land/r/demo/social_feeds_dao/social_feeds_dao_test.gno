@@ -5,7 +5,7 @@ import (
 	"std"
 	"testing"
 
-	proposal_single "gno.land/p/demo/daodao/proposal_single"
+	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	social_feeds "gno.land/r/demo/social_feeds"
 )
 

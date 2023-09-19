@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/daodao/interfaces"
+	"gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/ujson"
 )
 

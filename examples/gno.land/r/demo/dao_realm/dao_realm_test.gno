@@ -5,9 +5,9 @@ import (
 	"std"
 	"testing"
 
-	dao_core "gno.land/p/demo/daodao/core"
-	dao_interfaces "gno.land/p/demo/daodao/interfaces"
-	proposal_single "gno.land/p/demo/daodao/proposal_single"
+	dao_core "gno.land/p/demo/teritori/daodao/core"
+	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
+	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	"gno.land/p/demo/ujson"
 	"gno.land/r/demo/groups"
 	modboards "gno.land/r/demo/modboards"
@@ -118,11 +118,11 @@ Offensive stuff
 func TestUpdateSettings(t *testing.T) {
 	// why is state preversed between tests??
 	{
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/daodao/proposal_single.UpdateSettings", "payload": {"threshold": {"thresholdQuorum": {"threshold": {"percent": 200}, "quorum": {"percent": 200}}}}}]}`))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/daodao/proposal_single.UpdateSettings", "payload": {"threshold": {"thresholdQuorum": {"threshold": {"percent": 200}, "quorum": {"percent": 200}}}}}]}`))
 		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
 		Execute(0, id)
 		proposalJSON := getProposalJSON(0, id)
-		expected := `{"id":3,"title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":123,"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}},"totalPower":5,"messages":[{"type":"gno.land/p/demo/daodao/proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":1,"no":0,"abstain":0},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":1,"vote":"Yes","rationale":"testing"}}}`
+		expected := `{"id":3,"title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":123,"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}},"totalPower":5,"messages":[{"type":"gno.land/p/demo/teritori/daodao/proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":1,"no":0,"abstain":0},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":1,"vote":"Yes","rationale":"testing"}}}`
 		if proposalJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, proposalJSON)
 		}

@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	dao_interfaces "gno.land/p/demo/daodao/interfaces"
+	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 )
 
 type votingModule struct {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
-	dao_interfaces "gno.land/p/demo/daodao/interfaces"
+	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/ujson"
 )
 

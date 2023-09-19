@@ -5,7 +5,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/daodao/interfaces"
+	"gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/ujson"
 )
 
@@ -18,7 +18,7 @@ type UpdateSettingsMessage struct {
 }
 
 func (usm *UpdateSettingsMessage) Type() string {
-	return "gno.land/p/demo/daodao/proposal_single.UpdateSettings"
+	return "gno.land/p/demo/teritori/daodao/proposal_single.UpdateSettings"
 }
 
 func (usm *UpdateSettingsMessage) String() string {
