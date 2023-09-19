@@ -117,20 +117,14 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	context := opts.Context
 	mm := machinePool.Get().(*Machine)
-	*mm = Machine{
-		Ops:        mm.Ops,
-		NumOps:     0,
-		Values:     mm.Values,
-		NumValues:  0,
-		Package:    pv,
-		Alloc:      alloc,
-		CheckTypes: checkTypes,
-		ReadOnly:   readOnly,
-		MaxCycles:  maxCycles,
-		Output:     output,
-		Store:      store,
-		Context:    context,
-	}
+	mm.Package = pv
+	mm.Alloc = alloc
+	mm.CheckTypes = checkTypes
+	mm.ReadOnly = readOnly
+	mm.MaxCycles = maxCycles
+	mm.Output = output
+	mm.Store = store
+	mm.Context = context
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -140,6 +134,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 
 const (
 	VMSliceSize = 1024
+)
+
+var (
+	opZeroed    [VMSliceSize]Op
+	valueZeroed [VMSliceSize]TypedValue
 )
 
 // m should not be used after this call
@@ -152,12 +151,10 @@ func (m *Machine) Release() {
 	m.NumOps = 0
 	m.NumValues = 0
 
-	m.Ops = make([]Op, VMSliceSize)
-	m.Values = make([]TypedValue, VMSliceSize)
-	m.Exprs = nil
-	m.Stmts = nil
-	m.Blocks = nil
-	m.Frames = nil
+	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
+	copy(ops, opZeroed[:])
+	copy(values, valueZeroed[:])
+	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
 }
