@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
-	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
+	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/ujson"
 )
 

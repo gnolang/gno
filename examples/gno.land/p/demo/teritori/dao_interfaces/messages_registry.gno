@@ -65,7 +65,7 @@ type RegisterHandlerExecutableMessage struct {
 }
 
 func (m *RegisterHandlerExecutableMessage) Type() string {
-	return "gno.land/p/demo/teritori/daodao/interfaces.RegisterHandler"
+	return "gno.land/p/demo/teritori/dao_interfaces.RegisterHandler"
 }
 
 func (m *RegisterHandlerExecutableMessage) FromJSON(ast *ujson.JSONASTNode) {
@@ -105,7 +105,7 @@ type RemoveHandlerExecutableMessage struct {
 }
 
 func (m *RemoveHandlerExecutableMessage) Type() string {
-	return "gno.land/p/demo/teritori/daodao/interfaces.RemoveHandler"
+	return "gno.land/p/demo/teritori/dao_interfaces.RemoveHandler"
 }
 
 func (m *RemoveHandlerExecutableMessage) FromJSON(ast *ujson.JSONASTNode) {

@@ -3,7 +3,7 @@ package dao_voting_group
 import (
 	"std"
 
-	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
+	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"
 	"gno.land/r/demo/teritori/groups"
 )
