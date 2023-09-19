@@ -12,7 +12,7 @@ import (
 	"gno.land/p/demo/teritori/daodao/voting_group"
 	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/dao_registry"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 	social_feeds "gno.land/r/demo/social_feeds"
 )
 

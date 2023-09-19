@@ -5,7 +5,7 @@ import (
 
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 )
 
 type VotingGroup struct {

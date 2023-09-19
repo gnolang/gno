@@ -20,7 +20,7 @@ type ExecutableMessageAddMember struct {
 }
 
 func (msg *ExecutableMessageAddMember) Type() string {
-	return "gno.land/r/demo/groups.AddMember"
+	return "gno.land/r/demo/teritori/groups.AddMember"
 }
 
 func (msg *ExecutableMessageAddMember) String() string {
@@ -79,7 +79,7 @@ type ExecutableMessageDeleteMember struct {
 }
 
 func (msg *ExecutableMessageDeleteMember) Type() string {
-	return "gno.land/r/demo/groups.DeleteMember"
+	return "gno.land/r/demo/teritori/groups.DeleteMember"
 }
 
 func (msg *ExecutableMessageDeleteMember) String() string {

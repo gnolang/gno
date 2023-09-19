@@ -28,8 +28,5 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Output:
-// 1
-// List of all Groups:
-//
-//  * [test_group](/r/demo/groups:test_group)
+// Error:
+// unauthorized to delete member

@@ -2,7 +2,7 @@
 package groups_test
 
 import (
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 )
 
 var gid groups.GroupID
@@ -13,5 +13,8 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Error:
-// user not found
+// Output:
+// 1
+// List of all Groups:
+//
+//  * [test_group](/r/demo/groups:test_group)

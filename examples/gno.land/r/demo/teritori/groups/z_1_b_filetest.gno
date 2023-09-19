@@ -4,11 +4,7 @@ package groups_test
 // SEND: 200000000ugnot
 
 import (
-	"std"
-	"strconv"
-
-	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 	"gno.land/r/demo/users"
 )
 
@@ -18,15 +14,9 @@ func main() {
 	users.Register("", "gnouser", "my profile")
 	gid = groups.CreateGroup("test_group")
 	println(gid)
-
-	// delete group via anon user
-	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
-
-	groups.DeleteGroup(gid)
+	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 
 // Error:
-// unauthorized to delete group
+// group id (2) does not exists

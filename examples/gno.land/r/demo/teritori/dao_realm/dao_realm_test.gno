@@ -9,7 +9,7 @@ import (
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
 	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	"gno.land/p/demo/teritori/ujson"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 	modboards "gno.land/r/demo/modboards"
 	"gno.land/r/demo/users"
 )
@@ -42,7 +42,7 @@ func TestUpdateMembers(t *testing.T) {
 					t.Fatalf("Panic AddMember: %v", r)
 				}
 			}()
-			id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/groups.AddMember", "payload": {"groupId": %d, "weight": 1, "address": "0x42", "metadata": "hello"}}]}`, groupID))
+			id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.AddMember", "payload": {"groupId": %d, "weight": 1, "address": "0x42", "metadata": "hello"}}]}`, groupID))
 			VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
 			Execute(0, id)
 			membersJSON = ujson.FormatSlice(groups.GetMembers(groupID))
@@ -66,7 +66,7 @@ func TestUpdateMembers(t *testing.T) {
 		var member groups.Member
 		children[0].ParseAny(&member)
 
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/r/demo/groups.DeleteMember", "payload": {"groupId": %d, "memberId": %d}}]}`, groupID, member.GetID()))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.DeleteMember", "payload": {"groupId": %d, "memberId": %d}}]}`, groupID, member.GetID()))
 		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
 		Execute(0, id)
 		membersJSON = ujson.FormatSlice(groups.GetMembers(groupID))

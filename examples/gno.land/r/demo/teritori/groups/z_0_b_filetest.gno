@@ -2,16 +2,18 @@
 package groups_test
 
 import (
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
+	"gno.land/r/demo/users"
 )
 
 var gid groups.GroupID
 
 func main() {
+	users.Register("", "gnouser", "my profile")
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 	println(groups.Render(""))
 }
 
 // Error:
-// user not found
+// payment must not be less than 200000000

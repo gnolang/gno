@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 )
 
 func TestVotingGroup(t *testing.T) {

@@ -26,5 +26,5 @@ func main() {
 	groups.AddMember(gid, test2.String(), 42, "metadata3")
 }
 
-// Output:
-// 1
+// Error:
+// user not found

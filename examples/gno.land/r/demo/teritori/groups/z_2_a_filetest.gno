@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/groups"
+	"gno.land/r/demo/teritori/groups"
 	"gno.land/r/demo/users"
 )
 
@@ -58,8 +58,10 @@ func main() {
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 
-	groups.AddMember(gid, test3.String(), 32, "i am from UAE")
-	println(groups.Render("test_group"))
+	groups.AddMember(gid, test2.String(), 42, "metadata3")
+
+	groups.DeleteMember(gid, 0)
+	println(groups.RenderGroup(gid))
 }
 
 // Output:
@@ -68,12 +70,12 @@ func main() {
 //
 // Group Name: test_group
 //
-// Group Creator: gnouser0
+// Group Creator: g18mmku32qwlqu3z60vgh6g9nnqcpgkuzs2r0dla
 //
 // Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
 //
 // Group Last MemberID: 0000000001
 //
-// Group Members:
+// Total Weight: 0
 //
-// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001],
+// Group Members:
