@@ -13,7 +13,7 @@ import (
 	"gno.land/p/demo/teritori/ujson"
 	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
-	modboards "gno.land/r/demo/modboards"
+	modboards "gno.land/r/demo/teritori/modboards"
 	"gno.land/r/demo/tori"
 )
 

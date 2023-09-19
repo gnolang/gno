@@ -10,7 +10,7 @@ import (
 	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/groups"
-	modboards "gno.land/r/demo/modboards"
+	modboards "gno.land/r/demo/teritori/modboards"
 	"gno.land/r/demo/users"
 )
 
@@ -101,7 +101,7 @@ Offensive stuff
 		}
 	}
 
-	id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/modboards.DeletePost", "payload": {"boardId": %d, "threadId": 1, "postId": 1, "reason": "testing"}}]}`, boardID))
+	id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/modboards.DeletePost", "payload": {"boardId": %d, "threadId": 1, "postId": 1, "reason": "testing"}}]}`, boardID))
 	VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
 	Execute(0, id)
 	{
@@ -143,7 +143,7 @@ func TestUpdateSettings(t *testing.T) {
 
 func TestCreateBoard(t *testing.T) {
 	{
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Create moderated board", "description": "", "messages": [{"type":"gno.land/r/demo/modboards.CreateBoard","payload":{"name":"test_board"}}]}`))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Create moderated board", "description": "", "messages": [{"type":"gno.land/r/demo/teritori/modboards.CreateBoard","payload":{"name":"test_board"}}]}`))
 		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
 		Execute(0, id)
 		render := modboards.Render("test_board")
