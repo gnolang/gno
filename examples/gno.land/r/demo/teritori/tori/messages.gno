@@ -19,7 +19,7 @@ type ExecutableMessageMintTori struct {
 }
 
 func (msg *ExecutableMessageMintTori) Type() string {
-	return "gno.land/r/demo/tori.Mint"
+	return "gno.land/r/demo/teritori/tori.Mint"
 }
 
 func (msg *ExecutableMessageMintTori) String() string {

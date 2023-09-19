@@ -1,4 +1,4 @@
-module gno.land/r/demo/tori
+module gno.land/r/demo/teritori/tori
 
 require (
         "gno.land/p/demo/ufmt" v0.0.0-latest

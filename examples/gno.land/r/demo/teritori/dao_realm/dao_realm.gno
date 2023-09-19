@@ -14,7 +14,7 @@ import (
 	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
 	modboards "gno.land/r/demo/teritori/modboards"
-	"gno.land/r/demo/tori"
+	"gno.land/r/demo/teritori/tori"
 )
 
 var (
