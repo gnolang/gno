@@ -43,6 +43,17 @@ type DAOProposalSingleOpts struct {
 	CloseProposalOnExecutionFailure bool
 }
 
+func (opts DAOProposalSingleOpts) ToJSON() string {
+	return ujson.FormatObject([]ujson.FormatKV{
+		{Key: "threshold", Value: opts.Threshold},
+		{Key: "maxVotingPeriod", Value: opts.MaxVotingPeriod},
+		{Key: "minVotingPeriod", Value: opts.MinVotingPeriod},
+		{Key: "onlyMembersExecute", Value: opts.OnlyMembersExecute},
+		{Key: "allowRevoting", Value: opts.AllowRevoting},
+		{Key: "closeProposalOnExecutionFailure", Value: opts.CloseProposalOnExecutionFailure},
+	})
+}
+
 type DAOProposalSingle struct {
 	dao_interfaces.IProposalModule
 
@@ -180,9 +191,13 @@ func (d *DAOProposalSingle) Core() dao_interfaces.IDAOCore {
 
 func (d *DAOProposalSingle) Info() dao_interfaces.ModuleInfo {
 	return dao_interfaces.ModuleInfo{
-		Kind:    "SingleChoice",
+		Kind:    "SingleChoiceProposal",
 		Version: "0.1.0",
 	}
+}
+
+func (d *DAOProposalSingle) ConfigJSON() string {
+	return ujson.FormatAny(d.opts)
 }
 
 func (d *DAOProposalSingle) Propose(title string, description string, messages []dao_interfaces.ExecutableMessage) int {

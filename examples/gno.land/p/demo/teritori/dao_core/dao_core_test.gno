@@ -26,6 +26,10 @@ func (vm *votingModule) Info() dao_interfaces.ModuleInfo {
 	}
 }
 
+func (vm *votingModule) ConfigJSON() string {
+	return "{}"
+}
+
 func (vm *votingModule) Render(path string) string {
 	return "# Test Voting Module"
 }
@@ -55,6 +59,10 @@ func (pm *proposalModule) Info() dao_interfaces.ModuleInfo {
 		Kind:    "TestProposal",
 		Version: "42.21",
 	}
+}
+
+func (pm *proposalModule) ConfigJSON() string {
+	return "{}"
 }
 
 func (pm *proposalModule) VoteJSON(proposalID int, voteJSON string) {

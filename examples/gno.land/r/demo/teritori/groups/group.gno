@@ -23,6 +23,10 @@ func (g *GroupID) FromJSON(ast *ujson.JSONASTNode) {
 	*g = GroupID(ujson.ParseUint64(ast.Value))
 }
 
+func (g GroupID) ToJSON() string {
+	return ujson.FormatUint64(uint64(g))
+}
+
 type Group struct {
 	id               GroupID
 	url              string

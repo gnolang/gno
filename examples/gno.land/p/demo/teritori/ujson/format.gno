@@ -56,6 +56,8 @@ func FormatAny(p interface{}) string {
 		return FormatBool(p.(bool))
 	case time.Time:
 		return FormatTime(p.(time.Time))
+	case time.Duration:
+		return FormatInt64(int64(p.(time.Duration)))
 	case users.AddressOrName:
 		return FormatString(string(p.(users.AddressOrName)))
 	default:

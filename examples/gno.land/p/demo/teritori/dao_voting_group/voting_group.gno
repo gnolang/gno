@@ -5,6 +5,7 @@ import (
 
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"
+	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/groups"
 )
 
@@ -16,6 +17,19 @@ type VotingGroup struct {
 
 func NewVotingGroup(groupID groups.GroupID) dao_interfaces.IVotingModule {
 	return &VotingGroup{groupID: groupID}
+}
+
+func (v *VotingGroup) Info() dao_interfaces.ModuleInfo {
+	return dao_interfaces.ModuleInfo{
+		Kind:    "GroupVoting",
+		Version: "0.1.0",
+	}
+}
+
+func (v *VotingGroup) ConfigJSON() string {
+	return ujson.FormatObject([]ujson.FormatKV{
+		{Key: "groupId", Value: v.groupID},
+	})
 }
 
 func (v *VotingGroup) VotingPowerAtHeight(addr std.Address, height int64) uint64 {

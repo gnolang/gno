@@ -102,6 +102,8 @@ func (ast *JSONASTNode) ParseAny(ptr *interface{}) {
 		*ptr.(**JSONASTNode) = ast
 	case *time.Time:
 		ast.ParseTime(ptr.(*time.Time))
+	case *time.Duration:
+		*ptr.(*time.Duration) = time.Duration(ParseInt64(ast.Value))
 	case *users.AddressOrName:
 		s := ParseString(ast.Value)
 		*ptr.(*users.AddressOrName) = users.AddressOrName(s)

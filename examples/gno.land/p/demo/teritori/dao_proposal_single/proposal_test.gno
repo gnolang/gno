@@ -62,3 +62,20 @@ func TestProposalJSON(t *testing.T) {
 		t.Fatalf("JSON does not match, expected %s, got %s", expected, str)
 	}
 }
+
+func TestConfig(t *testing.T) {
+	core := dao_interfaces.NewDummyCore()
+	tt := PercentageThresholdPercent(1)
+	tq := PercentageThresholdPercent(1)
+	mod := NewDAOProposalSingle(core, &DAOProposalSingleOpts{
+		Threshold: &ThresholdThresholdQuorum{
+			Threshold: &tt,
+			Quorum:    &tq,
+		},
+	})
+	conf := mod.ConfigJSON()
+	expected := `{"threshold":{"thresholdQuorum":{"threshold":{"percent":1},"quorum":{"percent":1}}},"maxVotingPeriod":0,"minVotingPeriod":0,"onlyMembersExecute":false,"allowRevoting":false,"closeProposalOnExecutionFailure":false}`
+	if expected != conf {
+		t.Fatalf("Config JSON does not match, expected %s, got %s", expected, conf)
+	}
+}
