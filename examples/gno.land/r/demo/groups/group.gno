@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/havl"
+	"gno.land/p/demo/teritori/havl"
 	"gno.land/p/demo/teritori/ujson"
 )
 
