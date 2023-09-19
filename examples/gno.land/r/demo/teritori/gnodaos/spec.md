@@ -4,6 +4,10 @@
 
 The goal of `GnoDAOs` is to support the creation and maintenance of DAOs on Gnoland as in Aragon on Ethereum or DAODAO on Juno.
 
+### Disclaimer
+
+This targets test3 avl and does not work on latest master
+
 ### DAO v0.1 :
 
 Initial version focuses on building minimum functionalities for DAOs management, and more features will be built after on.
