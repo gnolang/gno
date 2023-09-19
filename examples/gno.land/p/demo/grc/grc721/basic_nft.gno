@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-type basicNFT struct {
+type BasicNFT struct {
 	name              string
 	symbol            string
 	owners            avl.Tree // tokenId -> OwnerAddress
@@ -18,8 +18,8 @@ type basicNFT struct {
 }
 
 // Returns new basic NFT
-func NewBasicNFT(name string, symbol string) *basicNFT {
-	return &basicNFT{
+func NewBasicNFT(name string, symbol string) *BasicNFT {
+	return &BasicNFT{
 		name:   name,
 		symbol: symbol,
 
@@ -31,12 +31,12 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 	}
 }
 
-func (s *basicNFT) Name() string       { return s.name }
-func (s *basicNFT) Symbol() string     { return s.symbol }
-func (s *basicNFT) TokenCount() uint64 { return uint64(s.owners.Size()) }
+func (s *BasicNFT) Name() string       { return s.name }
+func (s *BasicNFT) Symbol() string     { return s.symbol }
+func (s *BasicNFT) TokenCount() uint64 { return uint64(s.owners.Size()) }
 
 // BalanceOf returns balance of input address
-func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
+func (s *BasicNFT) BalanceOf(addr std.Address) (uint64, error) {
 	if err := isValidAddress(addr); err != nil {
 		return 0, err
 	}
@@ -50,7 +50,7 @@ func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
 }
 
 // OwnerOf returns owner of input token id
-func (s *basicNFT) OwnerOf(tid TokenID) (std.Address, error) {
+func (s *BasicNFT) OwnerOf(tid TokenID) (std.Address, error) {
 	owner, found := s.owners.Get(string(tid))
 	if !found {
 		return "", ErrInvalidTokenId
@@ -60,7 +60,7 @@ func (s *basicNFT) OwnerOf(tid TokenID) (std.Address, error) {
 }
 
 // TokenURI returns the URI of input token id
-func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
+func (s *BasicNFT) TokenURI(tid TokenID) (string, error) {
 	uri, found := s.tokenURIs.Get(string(tid))
 	if !found {
 		return "", ErrInvalidTokenId
@@ -71,7 +71,7 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 
 // IsApprovedForAll returns true if operator is approved for all by the owner.
 // Otherwise, returns false
-func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
+func (s *BasicNFT) IsApprovedForAll(owner, operator std.Address) bool {
 	key := owner.String() + ":" + operator.String()
 	_, found := s.operatorApprovals.Get(key)
 	if !found {
@@ -82,7 +82,7 @@ func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
 }
 
 // Approve approves the input address for particular token
-func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
+func (s *BasicNFT) Approve(to std.Address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 }
 
 // GetApproved return the approved address for token
-func (s *basicNFT) GetApproved(tid TokenID) (std.Address, error) {
+func (s *BasicNFT) GetApproved(tid TokenID) (std.Address, error) {
 	addr, found := s.tokenApprovals.Get(string(tid))
 	if !found {
 		return zeroAddress, ErrTokenIdNotHasApproved
@@ -118,7 +118,7 @@ func (s *basicNFT) GetApproved(tid TokenID) (std.Address, error) {
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
-func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error {
+func (s *BasicNFT) SetApprovalForAll(operator std.Address, approved bool) error {
 	if err := isValidAddress(operator); err != nil {
 		return ErrInvalidAddress
 	}
@@ -130,7 +130,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // Safely transfers `tokenId` token from `from` to `to`, checking that
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
-func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
+func (s *BasicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 	caller := std.GetOrigCaller()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
@@ -149,7 +149,7 @@ func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 }
 
 // Transfers `tokenId` token from `from` to `to`.
-func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
+func (s *BasicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
 	caller := std.GetOrigCaller()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
@@ -164,13 +164,13 @@ func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
 }
 
 // Mints `tokenId` and transfers it to `to`.
-func (s *basicNFT) Mint(to std.Address, tid TokenID) error {
+func (s *BasicNFT) Mint(to std.Address, tid TokenID) error {
 	return s.mint(to, tid)
 }
 
 // Mints `tokenId` and transfers it to `to`. Also checks that
 // contract recipients are using GRC721 protocol
-func (s *basicNFT) SafeMint(to std.Address, tid TokenID) error {
+func (s *BasicNFT) SafeMint(to std.Address, tid TokenID) error {
 	err := s.mint(to, tid)
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (s *basicNFT) SafeMint(to std.Address, tid TokenID) error {
 	return nil
 }
 
-func (s *basicNFT) Burn(tid TokenID) error {
+func (s *BasicNFT) Burn(tid TokenID) error {
 	owner, err := s.OwnerOf(tid)
 	if err != nil {
 		return err
@@ -211,7 +211,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 /* Helper methods */
 
 // Helper for SetApprovalForAll()
-func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool) error {
+func (s *BasicNFT) setApprovalForAll(owner, operator std.Address, approved bool) error {
 	if owner == operator {
 		return ErrApprovalToCurrentOwner
 	}
@@ -226,7 +226,7 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 }
 
 // Helper for TransferFrom() and SafeTransferFrom()
-func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
+func (s *BasicNFT) transfer(from, to std.Address, tid TokenID) error {
 	if err := isValidAddress(from); err != nil {
 		return ErrInvalidAddress
 	}
@@ -281,7 +281,7 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 }
 
 // Helper for Mint() and SafeMint()
-func (s *basicNFT) mint(to std.Address, tid TokenID) error {
+func (s *BasicNFT) mint(to std.Address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	return nil
 }
 
-func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
+func (s *BasicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 	owner, found := s.owners.Get(string(tid))
 	if !found {
 		return false
@@ -332,25 +332,25 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 }
 
 // Checks if token id already exists
-func (s *basicNFT) exists(tid TokenID) bool {
+func (s *BasicNFT) exists(tid TokenID) bool {
 	_, found := s.owners.Get(string(tid))
 	return found
 }
 
-func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *BasicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *BasicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) checkOnGRC721Received(from, to std.Address, tid TokenID) bool {
+func (s *BasicNFT) checkOnGRC721Received(from, to std.Address, tid TokenID) bool {
 	// TODO: Implementation
 	return true
 }
 
-func (s *basicNFT) RenderHome() (str string) {
+func (s *BasicNFT) RenderHome() (str string) {
 	str += ufmt.Sprintf("# %s ($%s)\n\n", s.name, s.symbol)
 	str += ufmt.Sprintf("* **Total supply**: %d\n", s.TokenCount())
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
