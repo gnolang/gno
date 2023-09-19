@@ -899,7 +899,7 @@ func main() {
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "cebf76c4e3cf91d8d1cc4b6f4649d6efb5043fc2",
+//                         "Hash": "f8c2e4fe362ead246e9022c33aef87c4b08b5049",
 //                         "ObjectID": "a973285dd27436279df76e639f8819ee0b31a1cd:87"
 //                     }
 //                 }
