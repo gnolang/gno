@@ -25,25 +25,8 @@ jobs:
           owner: ${{ github.repository_owner }}
           reponame: ${{ github.event.repository.name }}
         run: |
-          docker build -t ghcr.io/${owner}/${reponame} .
-          docker tag ghcr.io/${owner}/${reponame}:gnochess-latest ghcr.io/${owner}/${reponame}:${GITHUB_SHA::8}
-
-      - name: Build slim Docker images
-        env:
-          owner: ${{ github.repository_owner }}
-          reponame: ${{ github.event.repository.name }}
-        run: |
-          docker build --target=gnoland-slim   -t ghcr.io/${owner}/${reponame}/gnoland-slim   .
-          docker build --target=gnokey-slim    -t ghcr.io/${owner}/${reponame}/gnokey-slim    .
-          docker build --target=gno-slim       -t ghcr.io/${owner}/${reponame}/gno-slim       .
-          docker build --target=gnofaucet-slim -t ghcr.io/${owner}/${reponame}/gnofaucet-slim .
-          docker build --target=gnoweb-slim    -t ghcr.io/${owner}/${reponame}/gnoweb-slim    .
-
-          docker tag ghcr.io/${owner}/${reponame}/gnoland-slim:gnochess-latest   ghcr.io/${owner}/${reponame}/gnoland-slim:${GITHUB_SHA::8}
-          docker tag ghcr.io/${owner}/${reponame}/gnokey-slim:gnochess-latest    ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
-          docker tag ghcr.io/${owner}/${reponame}/gno-slim:gnochess-latest       ghcr.io/${owner}/${reponame}/gno-slim:${GITHUB_SHA::8}
-          docker tag ghcr.io/${owner}/${reponame}/gnofaucet-slim:gnochess-latest ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}
-          docker tag ghcr.io/${owner}/${reponame}/gnoweb-slim:gnochess-latest    ghcr.io/${owner}/${reponame}/gnoweb-slim:${GITHUB_SHA::8}
+          docker build -t ghcr.io/${owner}/${reponame}/gnochess .
+          docker tag ghcr.io/${owner}/${reponame}/gnochess:latest ghcr.io/${owner}/${reponame}/gnochess:${GITHUB_SHA::8}
 
       - name: List docker images
         run: |
@@ -63,20 +46,5 @@ jobs:
           owner: ${{ github.repository_owner }}
           reponame: ${{ github.event.repository.name }}
         run: |
-            docker push ghcr.io/${owner}/${reponame}:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}:${GITHUB_SHA::8}
-
-            docker push ghcr.io/${owner}/${reponame}/gnoland-slim:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}/gnoland-slim:${GITHUB_SHA::8}
-
-            docker push ghcr.io/${owner}/${reponame}/gnokey-slim:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}/gnokey-slim:${GITHUB_SHA::8}
-
-            docker push ghcr.io/${owner}/${reponame}/gno-slim:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}/gno-slim:${GITHUB_SHA::8}
-
-            docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}/gnofaucet-slim:${GITHUB_SHA::8}
-
-            docker push ghcr.io/${owner}/${reponame}/gnoweb-slim:gnochess-latest
-            docker push ghcr.io/${owner}/${reponame}/gnoweb-slim:${GITHUB_SHA::8}
+            docker push ghcr.io/${owner}/${reponame}/gnochess:latest
+            docker push ghcr.io/${owner}/${reponame}/gnochess:${GITHUB_SHA::8}
