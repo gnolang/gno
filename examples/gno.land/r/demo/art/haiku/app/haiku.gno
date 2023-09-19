@@ -18,7 +18,7 @@ import (
 
 var (
 	// URL for the realm
-	pageURL = "/r/demo/art/haiku"
+	pageURL = "/r/demo/art/haikus"
 	// regex for sanitizer
 	nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z ]+`)
 	// definitions for the NFT

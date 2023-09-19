@@ -85,7 +85,7 @@ func createSplit(i int, lineCount int, numSplits int) (err error) {
 	if err != nil {
 		return
 	}
-	f2.WriteString(fmt.Sprintf("module gno.land/r/demo/haiku/wordlist%d\n", i))
+	f2.WriteString(fmt.Sprintf("module gno.land/r/demo/art/haiku/wordlist%d\n", i))
 	f2.Close()
 
 	f, err := os.Create(fmt.Sprintf("%swordlist.gno", realmPath))

@@ -1,1 +1,1 @@
-module gno.land/r/demo/haiku/wordlist1
+module gno.land/r/demo/art/haiku/wordlist1
