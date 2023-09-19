@@ -678,6 +678,45 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"strconv",
+		"FormatFloat",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("float64")},
+			{Name: gno.N("p1"), Type: gno.X("byte")},
+			{Name: gno.N("p2"), Type: gno.X("int")},
+			{Name: gno.N("p3"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  float64
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  int
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  int
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
+
+			r0 := libs_strconv.FormatFloat(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"strconv",
 		"Quote",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
