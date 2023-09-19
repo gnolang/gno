@@ -863,7 +863,7 @@ func gno2GoType(t Type) reflect.Type {
 			fn := string(field.Name)
 			pkgPath := ""
 			if !isUpper(fn) {
-				pkgPath = ct.PkgPath
+				fn = "X" + fn
 			}
 			gfs[i] = reflect.StructField{
 				Name:      fn,
