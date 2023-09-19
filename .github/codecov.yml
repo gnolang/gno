@@ -7,34 +7,28 @@ ignore:
   - misc
 
 comment:
-  require_changes: true
+  require_changes: false
 
 coverage:
-  #range: 50..100
   round: down
   precision: 2
-  status:
-    project:
-      default:
-        target: auto
-        threshold: 0.5%
-        #informational: true
-    patch:
-      default:
-        target: auto
 
-flags:
+flag_management:
   default_rules:
     carryforward: true
-  tm2:
-    paths:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 0.5%
+      - type: patch
+        target: auto
+  individual_flags:
+    - name: tm2
+      paths:
       - tm2
-    after_n_builds: 4
-  gnovm:
-    paths:
+    - name: gnovm
+      paths:
       - gnovm
-    after_n_builds: 9
-  gno.land:
-    paths:
+    - name: gno.land
+      paths:
       - gno.land
-    after_n_builds: 3
