@@ -6,7 +6,7 @@ import (
 	"time"
 
 	dao_interfaces "gno.land/p/demo/teritori/daodao/interfaces"
-	"gno.land/p/demo/markdown_utils"
+	"gno.land/p/demo/teritori/markdown_utils"
 )
 
 // TODO: clean this file
