@@ -3,7 +3,7 @@ name: gh-pages
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "patch/gnochess" ]
   workflow_dispatch:
 
 permissions:

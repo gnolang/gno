@@ -8,7 +8,7 @@ on:
       - "tm2/**.go"
       - ".github/workflows/tm2.yml"
   push:
-    branches: [ "master" ]
+    branches: [ "patch/gnochess" ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
