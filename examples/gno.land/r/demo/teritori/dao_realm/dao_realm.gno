@@ -11,7 +11,7 @@ import (
 	proposal_single "gno.land/p/demo/teritori/daodao/proposal_single"
 	voting_group "gno.land/p/demo/teritori/daodao/voting_group"
 	"gno.land/p/demo/teritori/ujson"
-	registry "gno.land/r/demo/dao_registry"
+	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/groups"
 	modboards "gno.land/r/demo/modboards"
 	"gno.land/r/demo/tori"
