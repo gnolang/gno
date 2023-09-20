@@ -14,31 +14,41 @@ on:
   push:
     branches: [ "master" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
-        goarch: [ "amd64" ]
-        goos: [ "linux" ]
-        program: [ "gno" ]
+        go-version: # two latest versions
+          - "1.20.x"
+          - "1.21.x"
+        goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
+          - "GOARCH=amd64 GOOS=linux"
+          - "GOARCH=wasm GOOS=js"
+        program:
+          - "gno"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: go install
         working-directory: gnovm
-        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
+        run: ${{ matrix.goenv }} go install ./cmd/${{ matrix.program }}
 
   test:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        go-version:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.cmd
           - _test.pkg
@@ -55,7 +65,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: test
         working-directory: gnovm
         run: |
@@ -67,7 +77,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: gnovm
-          flags: gnovm,gnovm-${{matrix.args}},go-${{ matrix.go-version }}
+          flags: gnovm-${{matrix.args}}
           files: ./gnovm/coverage.out
           #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
           fail_ci_if_error: false # temporarily

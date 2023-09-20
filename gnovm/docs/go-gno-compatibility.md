@@ -259,7 +259,7 @@ Additional native types:
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | partial      |
+| math                                        | partial  |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
@@ -288,7 +288,7 @@ Additional native types:
 | os/exec                                     | TBD      |
 | os/signal                                   | TBD      |
 | os/user                                     | TBD      |
-| path                                        | TBD      |
+| path                                        | full     |
 | path/filepath                               | TBD      |
 | plugin                                      | TBD      |
 | reflect                                     | TBD      |
@@ -361,6 +361,7 @@ Additional native types:
 | go list           |                  |                                                                       |
 | go mod            |                  |                                                                       |
 | + go mod download | gno mod download | same behavior                                                         |
+| + go mod init     | gno mod init     | same behavior                                                         |
 |                   | gno precompile   |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
@@ -369,3 +370,4 @@ Additional native types:
 | go tool           |                  |                                                                       |
 | go version        |                  |                                                                       |
 | go vet            |                  |                                                                       |
+| golint            | gno lint         | same intention                                                        |
