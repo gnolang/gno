@@ -313,7 +313,7 @@ func (t isType) satisfies(ast j.Ast, expectation expectation) error {
 }
 
 // [deprecated] Pseudo evaluation of expressions to test parsing
-// is now deprecated in favor of usage of bxPolishNotationIs{}.
+// is now deprecated in favor of bxPolishNotationIs{}.
 //
 // extract or eval left and right sides of BinaryExpr as int
 // supposes limitations explained in evaluateBinaryExpr,
