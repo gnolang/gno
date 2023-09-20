@@ -347,7 +347,7 @@ func evalInt(x Expr) int {
 }
 
 // [deprecated] Pseudo evaluation of expressions to test parsing
-// is now deprecated in favor of usage of bxPolishNotationIs{}.
+// is now deprecated in favor of bxPolishNotationIs{}.
 //
 // eval left and right sides of BinaryExpr as bool
 // as in a && b and a || b. No extraction is done as in vint.
