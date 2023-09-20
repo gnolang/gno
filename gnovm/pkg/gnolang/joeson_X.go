@@ -12,33 +12,14 @@ func grammar() *j.Grammar {
 		gm = j.GrammarFromLines(
 			"GNO-grammar",
 			gnoRules,
-			// j.GrammarOptions{TraceOptions: j.Mute()},
 		)
 	}
 	return gm
 }
 
-// rules and grammar for GNO
-// This is not the place to explain it in detail, but
-// we will integrate some short explaination anyway.
-
-// A convenient way to make list of subrules.
-// rules(a,b,c) is similar to []j.Line{a,b,c}.
 func rules(a ...j.Line) []j.Line { return a }
-
-// "Inline" line of rule AKA ILine. Inline rules are always named().
-// An inline rule can be referenced by its name. When it isn't
-// it is totally inert and inactive.
 func i(a ...any) j.ILine { return j.I(a...) }
-
-// "OR" rule. Inside a rank, "OR" rules (AKA OLine) are parsed one after the
-// other until one returns something other than nil. Some of them are named,
-// but they usually aren't, as it's more the point of an ILine to be
-// referenced.
 func o(a ...any) j.OLine { return j.O(a...) }
-
-// A Key-value pair, where Key is the name.
-// This is exclusively used with joeson ILine and OLine to name things.
 func named(name string, thing interface{}) j.NamedRule { return j.Named(name, thing) }
 
 // Rewrite of X() with Joeson
@@ -67,7 +48,7 @@ func Xnew(x interface{}, args ...interface{}) Expr {
 	if expr, ok := ast.(Expr); ok {
 		return expr
 	} else {
-		panic("having " + ast.String() + " into an Expr requires some manual work")
+		panic(fmt.Sprintf("%s produced by X(%T) does not implement Expr", ast.String(), x))
 	}
 }
 
@@ -90,20 +71,4 @@ func parseX(s string) (result j.Ast) {
 		result = grammar().ParseTokens(tokens)
 	}
 	return
-}
-
-func StringWithRulenames(ast j.Ast) string {
-	var b strings.Builder
-	rule := ast.GetOrigin().RuleName
-	if rule != "" {
-		b.WriteString(j.BoldBlue("«" + ast.GetOrigin().RuleName + ""))
-	}
-	b.WriteString(j.BoldBlue("•"))
-	// b.WriteString(j.Yellow(reflect.TypeOf(ast).String()))
-	b.WriteString(ast.String())
-	// b.WriteString(j.Red(ast.GetLocation().String()))
-	if rule != "" {
-		b.WriteString(j.BoldBlue("»"))
-	}
-	return b.String()
 }
