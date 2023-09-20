@@ -61,6 +61,9 @@ func (m *Machine) doOpCall() {
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+		if fv.nativeBody == nil {
+			panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
+		}
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)

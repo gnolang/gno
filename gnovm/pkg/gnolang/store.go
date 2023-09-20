@@ -609,6 +609,7 @@ func (ds *defaultStore) Fork() Store {
 		baseStore:        ds.baseStore,
 		iavlStore:        ds.iavlStore,
 		pkgInjector:      ds.pkgInjector,
+		nativeStore:      ds.nativeStore,
 		go2gnoMap:        ds.go2gnoMap,
 		go2gnoStrict:     ds.go2gnoStrict,
 		opslog:           nil, // new ops log.
