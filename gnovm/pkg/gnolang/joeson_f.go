@@ -16,18 +16,16 @@ import (
 // - fxxx(it Ast[, *ParseContext]) Ast // for a rule named "xxx".
 // - ffXxx(someArg) func(it Ast, *ParseContext) Ast // this returns a function
 
-// About panics and heart attacks:
+// About panics:
 //
 // - panic("assert") denotes an unreachable code (i.e. it's useless to elaborate).
 //
 // - panic(msg) is an unexpected error but will panic with a message to help
-//  the rule implementors. One day, those may as well become panic("assert"),
-//  they must not happen and will indeed panic.
+//  the rule implementors. One day, those may as well become panic("assert").
 //
 // - panic(ctx.Error(msg)) is for ParseError, and will not panic (recovered). It
-// will however stop parsing rules for the current expression and return
-// for an Ast the ParseError built from `msg`. A rule callback may simply
-// employ ffPanic below that uses this way but inline:
+// will stop parsing rules right away.  A rule callback may simply employ
+// ffPanic below that uses this way but inline:
 // ```
 // i(named(
 //	"octal_byte_value_err1", `a:'\\' (?octal_digit{4,})`),
@@ -35,12 +33,9 @@ import (
 // ),
 // ```
 //
-// A last word about panics.
-//
 // Rules written with joeson can produce NativeString, *NativeMap, *NativeArray
-// and NativeInt depending on the rule itself. For instance there
-// is a rule like this:
-// o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments)
+// and NativeInt depending on the rule itself. For instance for the following
+// rule: o(`p:PrimaryExpr a:Arguments`, fPrimaryExprArguments)
 //
 // The fPrimaryExprArguments parser function will receive a NativeMap
 // with keys "p" and "a". It is customary to access them in a forceful way
@@ -51,7 +46,6 @@ import (
 // (a parser function receiving an unexpected input is facing a broken grammar,
 // and there is no way to recover from this, at least from the rules + parser
 // functions themselves).
-// ∎
 
 // Panic with a ParseError made from msg string.
 // ParseErrors panics are recovered higher up, in parseX().
