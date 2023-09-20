@@ -3,6 +3,8 @@ package consensus
 import (
 	"bytes"
 	"fmt"
+	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1779,6 +1781,11 @@ func TestStateOutputVoteStats(t *testing.T) {
 	}
 }
 
+var eventid uint32
+
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
-	return events.SubscribeToEvent(evsw, testSubscriber, protoevent)
+	name := reflect.ValueOf(protoevent).Type().Name()
+	id := atomic.AddUint32(&eventid, 1)
+	listenerID := fmt.Sprintf("%s-%s-%d", testSubscriber, name, id)
+	return events.SubscribeToEvent(evsw, listenerID, protoevent)
 }
