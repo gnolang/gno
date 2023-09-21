@@ -30,6 +30,7 @@ jobs:
           path: ./misc/gendocs/godoc
 
   deploy:
+    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     environment:
       name: github-pages
