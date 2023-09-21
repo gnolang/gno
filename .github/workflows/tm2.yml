@@ -28,10 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          goversion: ${{ matrix.goversion }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: tm2
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ${{ matrix.program }}
@@ -51,10 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          goversion: ${{ matrix.goversion }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: tm2
         run: |
@@ -66,6 +66,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: tm2
+          verbose: true
           flags: tm2-${{matrix.args}}
           files: ./tm2/coverage.out
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}

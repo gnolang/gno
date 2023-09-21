@@ -34,10 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          goversion: ${{ matrix.goversion }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: gnovm
         run: ${{ matrix.goenv }} go install ./cmd/${{ matrix.program }}
@@ -62,10 +62,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          goversion: ${{ matrix.goversion }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gnovm
         run: |
@@ -77,6 +77,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: gnovm
+          verbose: true
           flags: gnovm-${{matrix.args}}
           files: ./gnovm/coverage.out
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
