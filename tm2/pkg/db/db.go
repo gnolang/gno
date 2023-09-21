@@ -70,3 +70,5 @@ func NewDB(name string, backend BackendType, dir string) (DB, error) {
 	}
 	return db, nil
 }
+
+func untested() {}
