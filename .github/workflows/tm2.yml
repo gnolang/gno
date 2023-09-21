@@ -61,6 +61,7 @@ jobs:
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+          touch coverage.out
       - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         uses: codecov/codecov-action@v3
         with:
