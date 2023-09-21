@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         tags:
@@ -32,7 +32,7 @@ jobs:
       # golang
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
 
       # leveldb
       - name: install leveldb

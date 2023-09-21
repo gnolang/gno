@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
       - uses: actions/checkout@v4
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno precompile --verbose ./examples
@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         # unittests: TODO: matrix with contracts
@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
       - uses: actions/checkout@v4
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno test --verbose ./examples
@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         # unittests: TODO: matrix with contracts
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
       - uses: actions/checkout@v4
       - run: go install -v ./gnovm/cmd/gno
       # testing official directories, basically examples/ minus examples/.../x/.
