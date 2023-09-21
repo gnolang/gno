@@ -4,3 +4,5 @@ const (
 	ModuleName = "vm"
 	RouterKey  = ModuleName
 )
+
+func untested() {}
