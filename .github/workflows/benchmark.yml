@@ -19,7 +19,7 @@ jobs:
         fetch-depth: 1
     - uses: actions/setup-go@v4
       with:
-        goversion: "1.21.x"
+        go-version: "1.21.x"
     - name: "gobenchdata publish: ${{ inputs.publish }}"
       run: go run go.bobheadxi.dev/gobenchdata@v1 action
       env:

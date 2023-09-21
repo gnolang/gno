@@ -29,10 +29,12 @@ jobs:
           - fsdb
           - boltdb
     steps:
+      - uses: actions/checkout@v4
+
       # golang
       - uses: actions/setup-go@v4
         with:
-          goversion: ${{ matrix.goversion }}
+          go-version: ${{ matrix.goversion }}
 
       # leveldb
       - name: install leveldb
@@ -46,6 +48,5 @@ jobs:
           sudo dpkg -i *.deb
 
       # test ./pkgs/db
-      - uses: actions/checkout@v4
       - name: test ./tm2/pkg/db
         run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...
