@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: # two latest versions
+        goversion: # two latest versions
           - "1.20.x"
           - "1.21.x"
         goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
       - uses: actions/checkout@v4
       - name: go install
         working-directory: gnovm
@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         args:
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          goversion: ${{ matrix.goversion }}
       - uses: actions/checkout@v4
       - name: test
         working-directory: gnovm
@@ -72,12 +72,11 @@ jobs:
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
+      - if: ${{ runner.os == 'Linux' && matrix.goversion == "1.21.x" }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: gnovm
           flags: gnovm-${{matrix.args}}
           files: ./gnovm/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
