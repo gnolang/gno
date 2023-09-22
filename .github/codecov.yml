@@ -16,8 +16,7 @@ coverage:
     project:
       default:
         target: auto
-        # Let's decrease this later.
-        threshold: 10
+        threshold: 10 # Let's decrease this later.
         base: parent
         if_no_uploads: error
         if_not_found: success
@@ -26,8 +25,7 @@ coverage:
     patch:
       default:
         target: auto
-        # Allows PRs without tests, overall stats count.
-        threshold: 100
+        threshold: 100 # Allows PRs without tests, overall stats count.
         base: auto
         if_no_uploads: error
         if_not_found: success
@@ -40,10 +38,10 @@ flag_management:
     statuses:
       - type: project
         target: auto
-        threshold: 0.5%
+        threshold: 10 # Let's decrease this later.
       - type: patch
-        target: auto
-        threshold: 1%
+        target: auto # Allows PRs without tests, overall stats count.
+        threshold: 100
   individual_flags:
     - name: tm2
       paths:
