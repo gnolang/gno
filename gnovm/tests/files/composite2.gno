@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// struct{("hello" string)}
+// (struct{("hello" string)} main.T)

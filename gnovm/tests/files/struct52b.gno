@@ -14,5 +14,5 @@ func main() {
 }
 
 // Output:
-// struct{("hello" string),(map{("1" string):(struct{("world" string),(map{} map[string]main.Node)} main.Node)} map[string]main.Node)}
-// struct{("hello" string),(map{("1" string):(struct{("world" string),(map{("1" string):(struct{("sunshine" string),(map{} map[string]main.Node)} main.Node)} map[string]main.Node)} main.Node)} map[string]main.Node)}
+// (struct{("hello" string),(map{("1" string):(struct{("world" string),(map{} map[string]main.Node)} main.Node)} map[string]main.Node)} main.Node)
+// (struct{("hello" string),(map{("1" string):(struct{("world" string),(map{("1" string):(struct{("sunshine" string),(map{} map[string]main.Node)} main.Node)} map[string]main.Node)} main.Node)} map[string]main.Node)} main.Node)
