@@ -33,33 +33,42 @@ func (f *File) Validate() error {
 	return nil
 }
 
+// Resolve takes a Require directive from File and returns any adequate replacement
+// following the Replace directives.
+func (f *File) Resolve(r *modfile.Require) module.Version {
+	mod, replaced := isReplaced(r.Mod, f.Replace)
+	if replaced {
+		return mod
+	}
+	return r.Mod
+}
+
 // FetchDeps fetches and writes gno.mod packages
 // in GOPATH/pkg/gnomod/
 func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 	for _, r := range f.Require {
-		mod, replaced := isReplaced(r.Mod, f.Replace)
-		if replaced {
+		mod := f.Resolve(r)
+		if r.Mod.Path != mod.Path {
 			if modfile.IsDirectoryPath(mod.Path) {
 				continue
 			}
-			r.Mod = *mod
 		}
 		indirect := ""
 		if r.Indirect {
 			indirect = "// indirect"
 		}
 
-		_, err := os.Stat(filepath.Join(path, r.Mod.Path))
+		_, err := os.Stat(PackageDir(path, mod))
 		if !os.IsNotExist(err) {
 			if verbose {
-				log.Println("cached", r.Mod.Path, indirect)
+				log.Println("cached", mod.Path, indirect)
 			}
 			continue
 		}
 		if verbose {
-			log.Println("fetching", r.Mod.Path, indirect)
+			log.Println("fetching", mod.Path, indirect)
 		}
-		requirements, err := writePackage(remote, path, r.Mod.Path)
+		requirements, err := writePackage(remote, path, mod.Path)
 		if err != nil {
 			return fmt.Errorf("writepackage: %w", err)
 		}
@@ -67,7 +76,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		modFile := &File{
 			Module: &modfile.Module{
 				Mod: module.Version{
-					Path: r.Mod.Path,
+					Path: mod.Path,
 				},
 			},
 		}
@@ -101,7 +110,9 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 		if err != nil {
 			return err
 		}
-		err = goMod.WriteToPath(filepath.Join(path, r.Mod.Path))
+		pkgPath := PackageDir(path, mod)
+		goModFilePath := filepath.Join(pkgPath, "go.mod")
+		err = goMod.WriteToPath(goModFilePath)
 		if err != nil {
 			return err
 		}
@@ -110,10 +121,10 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 	return nil
 }
 
-// WriteToPath writes go.mod file in the given absolute path
+// WriteToPath writes file to the given absolute file path
 // TODO: Find better way to do this. Try to use `modfile`
 // package to manage this.
-func (f *File) WriteToPath(absPath string) error {
+func (f *File) WriteToPath(absFilePath string) error {
 	if f.Module == nil {
 		return errors.New("writing go.mod: module not found")
 	}
@@ -141,10 +152,9 @@ func (f *File) WriteToPath(absPath string) error {
 		data += ")\n"
 	}
 
-	modPath := filepath.Join(absPath, "go.mod")
-	err := os.WriteFile(modPath, []byte(data), 0o644)
+	err := os.WriteFile(absFilePath, []byte(data), 0o644)
 	if err != nil {
-		return fmt.Errorf("writefile %q: %w", modPath, err)
+		return fmt.Errorf("writefile %q: %w", absFilePath, err)
 	}
 
 	return nil

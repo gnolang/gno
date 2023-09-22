@@ -113,6 +113,10 @@ func expectTraverse(t *testing.T, trav traverser, start, end string, count int) 
 }
 
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping testing in short mode")
+	}
+
 	db, err := db.NewDB("test", db.MemDBBackend, "")
 	require.NoError(b, err)
 

@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -661,7 +662,9 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 			ml.Head = item
 		}
 		item.Prev = ml.Tail
-		ml.Tail.Next = item
+		if ml.Tail != nil {
+			ml.Tail.Next = item
+		}
 		ml.Tail = item
 		ml.Size++
 	}

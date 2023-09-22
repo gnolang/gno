@@ -1,22 +1,24 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
-	goerrors "errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
+	"strings"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/term"
 )
 
 type replCfg struct {
-	verbose bool
-	rootDir string
+	verbose        bool
+	rootDir        string
+	initialImports string
+	initialCommand string
+	skipUsage      bool
 }
 
 func newReplCmd() *commands.Command {
@@ -47,7 +49,28 @@ func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
+	)
+
+	fs.StringVar(
+		&c.initialImports,
+		"imports",
+		"gno.land/p/demo/avl,gno.land/p/demo/ufmt",
+		"initial imports, separated by a comma",
+	)
+
+	fs.StringVar(
+		&c.initialCommand,
+		"command",
+		"",
+		"initial command to run",
+	)
+
+	fs.BoolVar(
+		&c.skipUsage,
+		"skip-usage",
+		false,
+		"do not print usage",
 	)
 }
 
@@ -60,59 +83,96 @@ func execRepl(cfg *replCfg, args []string) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	return runRepl(cfg.rootDir, cfg.verbose)
+	if !cfg.skipUsage {
+		fmt.Fprint(os.Stderr, `// Usage:
+//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
+//   gno> func a() string { return "a" }   // declare a new function named a
+//   gno> /src                             // print current generated source
+//   gno> /editor                          // enter in editor mode to add several lines
+//   gno> /reset                           // remove all previously inserted code
+//   gno> println(a())                     // print the result of calling a()
+//   gno> /exit
+`)
+	}
+
+	return runRepl(cfg)
 }
 
-func runRepl(rootDir string, verbose bool) error {
-	stdin := os.Stdin
-	stdout := os.Stdout
-	stderr := os.Stderr
+func runRepl(cfg *replCfg) error {
+	// init repl state
+	r := repl.NewRepl()
 
-	// init store and machine
-	testStore := tests.TestStore(rootDir, "", stdin, stdout, stderr, tests.ImportModeStdlibsOnly)
-	if verbose {
-		testStore.SetLogStoreOps(true)
+	if cfg.initialCommand != "" {
+		handleInput(r, cfg.initialCommand)
 	}
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "test",
-		Output:  stdout,
-		Store:   testStore,
-	})
 
-	defer m.Release()
+	var multiline bool
+	for {
+		fmt.Fprint(os.Stdout, "gno> ")
 
-	// init termui
-	rw := struct {
-		io.Reader
-		io.Writer
-	}{os.Stdin, os.Stderr}
-	t := term.NewTerminal(rw, "")
-
-	// main loop
-	for i := 1; ; i++ {
-		// parse line and execute
-		t.SetPrompt(fmt.Sprintf("gno:%d> ", i))
-		oldState, err := term.MakeRaw(0)
-		input, err := t.ReadLine()
+		input, err := getInput(multiline)
 		if err != nil {
-			term.Restore(0, oldState)
-			if goerrors.Is(err, io.EOF) {
-				return nil
-			}
-			return fmt.Errorf("term error: %w", err)
+			return err
 		}
-		term.Restore(0, oldState)
 
-		funcName := fmt.Sprintf("repl_%d", i)
-		src := "package test\nfunc " + funcName + "() {\n" + input + "\n}"
-		// FIXME: support ";" as line separator?
-		// FIXME: gofmt as linter + formatter
-		// FIXME: support multiline when unclosed parenthesis, etc
+		multiline = handleInput(r, input)
+	}
+}
 
-		n := gno.MustParseFile(funcName+".gno", src)
-		m.RunFiles(n)
-		m.RunStatement(gno.S(gno.Call(gno.X(funcName))))
+// handleInput reads the input string and parses it depending if it
+// is a specific command, or source code. It returns true if the following
+// input is expected to be on more than one line.
+func handleInput(r *repl.Repl, input string) bool {
+	switch strings.TrimSpace(input) {
+	case "/reset":
+		r.Reset()
+	case "/src":
+		fmt.Fprintln(os.Stdout, r.Src())
+	case "/exit":
+		os.Exit(0)
+	case "/editor":
+		fmt.Fprintln(os.Stdout, "// Entering editor mode (^D to finish)")
+		return true
+	case "":
+		// avoid to increase the repl execution counter if sending empty content
+		fmt.Fprintln(os.Stdout, "")
+		return false
+	default:
+		out, err := r.Process(input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		fmt.Fprintln(os.Stdout, out)
 	}
 
-	return nil
+	return false
+}
+
+const (
+	inputBreaker = "^D"
+	nl           = "\n"
+)
+
+func getInput(ml bool) (string, error) {
+	s := bufio.NewScanner(os.Stdin)
+	var mlOut bytes.Buffer
+	for s.Scan() {
+		line := s.Text()
+		if !ml {
+			return line, nil
+		}
+
+		if line == inputBreaker {
+			break
+		}
+
+		mlOut.WriteString(line)
+		mlOut.WriteString(nl)
+	}
+
+	if err := s.Err(); err != nil {
+		return "", err
+	}
+
+	return mlOut.String(), nil
 }

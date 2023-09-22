@@ -17,6 +17,7 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(crypto.Bech32Address("")), "std", "Address")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coins{}), "std", "Coins")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
+	store.AddGo2GnoMapping(reflect.TypeOf(Realm{}), "std", "Realm")
 }
 
 func InjectPackage(store gno.Store, pn *gno.PackageNode) {
@@ -259,6 +260,99 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				)
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("CurrentRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Realm",
+			),
+			func(m *gno.Machine) {
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
+				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					if fr.LastPackage != nil && fr.LastPackage.IsRealm() {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = fr.LastPackage.PkgPath
+						break
+					}
+				}
+
+				// Return the result
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(Realm{
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
+					}),
+				)
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
+				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("PrevRealm",
+			gno.Flds( // params
+			),
+			gno.Flds( // results
+				"", "Realm",
+			),
+			func(m *gno.Machine) {
+				var (
+					ctx = m.Context.(ExecContext)
+					// Default lastCaller is OrigCaller, the signer of the tx
+					lastCaller  = ctx.OrigCaller
+					lastPkgPath = ""
+				)
+
+				for i := m.NumFrames() - 1; i > 0; i-- {
+					fr := m.Frames[i]
+					if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+						// Ignore non-realm frame
+						continue
+					}
+					pkgPath := fr.LastPackage.PkgPath
+					// The first realm we encounter will be the one calling
+					// this function; to get the calling realm determine the first frame
+					// where fr.LastPackage changes.
+					if lastPkgPath == "" {
+						lastPkgPath = pkgPath
+					} else if lastPkgPath == pkgPath {
+						continue
+					} else {
+						lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
+						lastPkgPath = pkgPath
+						break
+					}
+				}
+
+				// Empty the pkgPath if we return a user
+				if ctx.OrigCaller == lastCaller {
+					lastPkgPath = ""
+				}
+
+				// Return the result
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(Realm{
+						addr:    lastCaller,
+						pkgPath: lastPkgPath,
+					}),
+				)
+
+				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				res0.T = realmT
 				m.PushValue(res0)
 			},
 		)

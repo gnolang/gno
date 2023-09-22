@@ -3,7 +3,9 @@ package tests
 import (
 	"std"
 
+	psubtests "gno.land/p/demo/tests/subtests"
 	"gno.land/r/demo/tests"
+	rtests "gno.land/r/demo/tests"
 )
 
 // IncCounter demonstrates that it's possible to call a realm function from
@@ -50,4 +52,21 @@ func ModifyTestRealmObject2b() {
 
 func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
+}
+
+func GetPrevRealm() std.Realm {
+	return std.PrevRealm()
+}
+
+func GetPSubtestsPrevRealm() std.Realm {
+	return psubtests.GetPrevRealm()
+}
+
+func GetRTestsGetPrevRealm() std.Realm {
+	return rtests.GetPrevRealm()
+}
+
+// Warning: unsafe pattern.
+func Exec(fn func()) {
+	fn()
 }
