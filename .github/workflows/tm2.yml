@@ -7,6 +7,12 @@ on:
       - "tm2/Makefile"
       - "tm2/**.go"
       - ".github/workflows/tm2.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -19,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         goarch: [ "amd64" ]
@@ -28,10 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: tm2
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ${{ matrix.program }}
@@ -40,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         args:
@@ -51,22 +57,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: tm2
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
+          touch coverage.out
+      - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: tm2
+          verbose: true
           flags: tm2-${{matrix.args}}
           files: ./tm2/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
