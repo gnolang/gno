@@ -283,7 +283,7 @@ Additional native types:
 | net/rpc/jsonrpc                             | TBD      |
 | net/smtp                                    | TBD      |
 | net/textproto                               | TBD      |
-| net/url                                     | TBD      |
+| net/url                                     | full     |
 | os                                          | TBD      |
 | os/exec                                     | TBD      |
 | os/signal                                   | TBD      |
