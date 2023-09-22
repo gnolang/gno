@@ -56,7 +56,7 @@ The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.19+)
+- Go (version 1.20+)
 - make (for using Makefile configurations)
 - Docker (for using the official Docker setup files)
 
@@ -79,14 +79,15 @@ Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt, see below
-    edit!
+	cexpr system('gofmt -e -w ' . expand('%')) " or replace with gofumpt, see below
+	edit!
+	set syntax=go
 endfunction
 command! GnoFmt call GnoFmt()
 augroup gno_autocmd
-    autocmd!
-    autocmd BufNewFile,BufRead *.gno set filetype=go
-    autocmd BufWritePost *.gno GnoFmt
+	autocmd!
+	autocmd BufNewFile,BufRead *.gno set syntax=go
+	autocmd BufWritePost *.gno GnoFmt
 augroup END
 ```
 
@@ -96,6 +97,9 @@ To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either ha
 cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
+There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
+developed by the community, with an installation guide for Neovim.
+
 #### Emacs Support
 
 1. Install [go-mode.el](https://github.com/dominikh/go-mode.el).
@@ -104,6 +108,11 @@ cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofump
 ```lisp
 (add-to-list 'auto-mode-alist '("\\.gno\\'" . go-mode))
 ```
+
+#### Sublime Text
+
+There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
+developed by the community, with an installation guide for Sublime Text.
 
 ### Local Setup
 

@@ -25,6 +25,7 @@ func AdminSetAdminAddr(addr std.Address) {
 }
 
 func AdminSetInPause(state bool) {
+	assertIsAdmin()
 	inPause = state
 }
 

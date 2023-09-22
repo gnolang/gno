@@ -13,34 +13,34 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.20.x
-
-      - name: Checkout code
-        uses: actions/checkout@v3
+          go-version: 1.21.x
 
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
           # sync with misc/devdeps/go.mod
-          version: v1.53
+          version: v1.54
           args:
             --config=./.github/golangci.yml
   fmt:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
 
       - name: Install make
         run: sudo apt-get install -y make
-
-      - name: Checkout code
-        uses: actions/checkout@v3
 
       # prefill dependencies so that mod messages don't show up in make output
       - name: Fetch dependencies
@@ -61,13 +61,13 @@ jobs:
   modtidy:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.20.x
-
-      - name: Checkout code
-        uses: actions/checkout@v3
+          go-version: 1.21.x
 
       - name: Check go.mods
         run: |
