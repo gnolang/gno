@@ -9,6 +9,7 @@ func Addr() std.Address {
 }
 
 func UpdateAddr(newAddr std.Address) {
+	AssertIsAdmin()
 	addr = newAddr
 }
 
