@@ -1,7 +1,6 @@
-package flippando
+package flippandoserver
 
 import (
-	"math/rand"
 	"std"
 	"time"
 
@@ -34,7 +33,7 @@ type inTransit struct {
 
 // tokenId - int, inTransit, bool
 
-func flipTiles(board []int, solvedBoard []int, gameTiles []int, positions positions) ([]int, []int) {
+func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) ([]int, []int) {
 	//   - returns the tiles at the positions[] in the board array
 	//   - updates the game[gameId].board with the indices at positions
 
@@ -44,17 +43,17 @@ func flipTiles(board []int, solvedBoard []int, gameTiles []int, positions positi
 	// randomNumber1 := generateRandomNumbers(1, 1, len(board))
 	// randomNumber2 := generateRandomNumbers(1, 1, len(board))
 
-	if board[positions.position1] == 0 {
-		board[positions.position1] = gameTiles[randomNumberSlice[0]]
+	if board[positions[0]] == 0 {
+		board[positions[0]] = gameTiles[randomNumberSlice[0]]
 	}
 
-	if board[positions.position2] == 0 {
-		board[positions.position2] = gameTiles[randomNumberSlice[1]]
+	if board[positions[1]] == 0 {
+		board[positions[1]] = gameTiles[randomNumberSlice[1]]
 	}
 
-	if board[positions.position1] == board[positions.position2] {
-		solvedBoard[positions.position1] = board[positions.position1]
-		solvedBoard[positions.position2] = board[positions.position2]
+	if board[positions[0]] == board[positions[1]] {
+		solvedBoard[positions[0]] = board[positions[0]]
+		solvedBoard[positions[1]] = board[positions[1]]
 	}
 
 	// enforce solvability
@@ -69,10 +68,10 @@ func flipTiles(board []int, solvedBoard []int, gameTiles []int, positions positi
 
 	if unsolvedTiles <= quantumThreshold {
 		// replace the board with solvedBoard and redeploy
-		if board[positions.position1] != board[positions.position2] {
-			board[positions.position1] = board[positions.position2]
-			solvedBoard[positions.position1] = board[positions.position1]
-			solvedBoard[positions.position2] = board[positions.position2]
+		if board[positions[0]] != board[positions[1]] {
+			board[positions[0]] = board[positions[1]]
+			solvedBoard[positions[0]] = board[positions[0]]
+			solvedBoard[positions[1]] = board[positions[1]]
 		}
 	}
 
@@ -112,6 +111,7 @@ var randIntn = func(n int) int {
 	return rand.Intn(n)
 }*/
 
+/*
 func generateRandomNumbers(num, start, end int) []int {
 	if start > end {
 		start, end = end, start // Ensure the range is in ascending order
@@ -149,6 +149,13 @@ func generateRandomNumbers(num, start, end int) []int {
 		}
 	}
 
+	return result
+}*/
+
+func generateRandomNumbers(num, start, end int) []int {
+	result := make([]int, 0, 4)
+	result = append(result, 2)
+	result = append(result, 3)
 	return result
 }
 

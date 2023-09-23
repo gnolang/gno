@@ -1,9 +1,7 @@
 package flippando
 
 import (
-	"fmt"
-
-	"gno.land/p/demo/flippando/flippando"
+	"gno.land/p/demo/flippandoserver"
 )
 
 type game struct {
@@ -17,14 +15,6 @@ type game struct {
 }
 
 // owner - 'address', gameId - 'string', board - [int], tileType - 'coloredSquare', 'dice', 'hexagram', gameTiles - [int], boardSize - {4, 8}, status - 'created | ongoing | solved'
-
-type positions struct {
-	position1 int
-	position2 int
-}
-
-// position1 - int, postion2 - int
-
 type inTransit struct {
 	tokenId   int
 	inTransit bool
@@ -33,7 +23,7 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func startGame(owner string, gameId string, tileType string, boardSize int) *game {
+func StartGame(owner string, gameId string, tileType string, boardSize int) *game {
 	// Initialize the board and gameTiles slices based on boardSize
 	board := make([]int, boardSize)
 
@@ -55,13 +45,14 @@ func startGame(owner string, gameId string, tileType string, boardSize int) *gam
 	return newGame
 }
 
-func flipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions positions) {
+func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) {
 	//   - returns the tiles at the positions[] in the board array
 	//   - updates the game[gameId].board with the indices at positions
-	flippando.flipTiles(gameId, board, solvedBoard, gameTiles)
+	flippandoserver.FlipTiles(gameId, board, solvedBoard, gameTiles, positions)
 }
 
 func createNFT(gameId string) {
+	// private function, called when the game ends
 	// - generates a GRC721 token with the solved board SVG as a tokenURI
 }
 
@@ -73,10 +64,11 @@ func makeArt(owner string, buildingBlocks []int) {
 	// - calls FlippandoBundler.bundleAssets() to generate a new GRC721 NFT with a standard tokenURI, and the tokenIds of the used NFT primitives
 }
 
-func resetGame(gameId string) {
+func ResetGame(gameId string) {
 	//- utility function, nullifies the game[gameId]
 }
 
+// utility, private functions
 func boardHasZeroValues(gameId string) {
 	// - utility function, checks for existing zeros in the board (game is ongoing) // do we still need this?
 }
