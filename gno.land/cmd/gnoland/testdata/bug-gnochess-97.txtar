@@ -1,0 +1,44 @@
+# test for https://github.com/gnolang/gnochess/issues/97
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/bug97 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Render' -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+stdout '("default:a,b,c\\n" string)'
+
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Bar' -args 'hello' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Render' -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+stdout '("default:a,b,c\\narr0:a,hello,c\\n" string)'
+
+
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Bar' -args 'hi' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Render' -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+stdout '("default:a,b,c\\narr0:a,hello,c\\narr1:a,hi,c\\n" string)'
+
+-- bug97.gno --
+package bug97
+
+import "strings"
+import "gno.land/p/demo/ufmt"
+
+var defaultSlice = [...]string{"a", "b", "c"}
+
+var arrays = [][...]string{}
+
+func NewSlice() [...]string { return defaultSlice }
+
+func Bar(replace string) {
+     bar := NewSlice()
+     bar[1] = replace
+     arrays = append(arrays, bar)
+}
+
+func Render(_ string) string {
+     output := ufmt.Sprintf("default:%s\n", strings.Join(defaultSlice[:], ","))
+     for idx, arr := range arrays {
+         output += ufmt.Sprintf("arr%d:%s\n", idx, strings.Join(arr[:], ","))
+     }
+     return output
+}
