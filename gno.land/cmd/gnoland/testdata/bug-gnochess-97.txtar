@@ -10,35 +10,46 @@ stdout '("default:a,b,c\\n" string)'
 
 gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Bar' -args 'hello' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Render' -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
-stdout '("default:a,b,c\\narr0:a,hello,c\\n" string)'
+stdout '("default:a,hello,c\\ninst0:a,hello,c\\n" string)'
+# WTF, '("default:a,b,c\\ninst0:a,hello,c\\n" string)' <- should be this.
 
 
 gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Bar' -args 'hi' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'Render' -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
-stdout '("default:a,b,c\\narr0:a,hello,c\\narr1:a,hi,c\\n" string)'
+stdout '("default:a,hi,c\\ninst0:a,hi,c\\ninst1:a,hi,c\\n" string)'
+# WTF, '("default:a,b,c\\ninst0:a,hello,c\\ninst1:a,hi,c\\n" string)' <- should be this.
 
 -- bug97.gno --
 package bug97
 
-import "strings"
-import "gno.land/p/demo/ufmt"
+import (
+	"strings"
 
-var defaultSlice = [...]string{"a", "b", "c"}
+	"gno.land/p/demo/ufmt"
+)
 
-var arrays = [][...]string{}
+type s struct {
+	arr [3]string
+}
 
-func NewSlice() [...]string { return defaultSlice }
+var defS = s{
+	arr: [3]string{"a", "b", "c"},
+}
+
+var instances = []s{}
+
+func NewS() s { return defS }
 
 func Bar(replace string) {
-     bar := NewSlice()
-     bar[1] = replace
-     arrays = append(arrays, bar)
+	bar := NewS()
+	bar.arr[1] = replace
+	instances = append(instances, bar)
 }
 
 func Render(_ string) string {
-     output := ufmt.Sprintf("default:%s\n", strings.Join(defaultSlice[:], ","))
-     for idx, arr := range arrays {
-         output += ufmt.Sprintf("arr%d:%s\n", idx, strings.Join(arr[:], ","))
-     }
-     return output
+	output := ufmt.Sprintf("default:%s\n", strings.Join(defS.arr[:], ","))
+	for idx, inst := range instances {
+		output += ufmt.Sprintf("inst%d:%s\n", idx, strings.Join(inst.arr[:], ","))
+	}
+	return output
 }
