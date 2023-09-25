@@ -3,7 +3,7 @@
 //
 // This file is a rapid prototype to meet immediate project needs and is not intended for long-term
 // use in its current form. It requires review, possible refactoring, and thorough testing.
-// Use at your own risk. The author(s) accept no liability for any issues arising from its use.
+// Use at your own risk.
 // ------------------------------------------------------------------------------------------------
 
 package integration
@@ -342,10 +342,10 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 			ConsensusParams: abci.ConsensusParams{
 				Block: &abci.BlockParams{
 					// TODO: update limits.
-					MaxTxBytes:   1000000,  // 1MB,
-					MaxDataBytes: 2000000,  // 2MB,
-					MaxGas:       10000000, // 10M gas
-					TimeIotaMS:   100,      // 100ms
+					MaxTxBytes:   10_000_000,  // 10MB,
+					MaxDataBytes: 20_000_000,  // 20MB,
+					MaxGas:       100_000_000, // 100M gas
+					TimeIotaMS:   100,         // 100ms
 				},
 			},
 			Validators: []bft.GenesisValidator{
