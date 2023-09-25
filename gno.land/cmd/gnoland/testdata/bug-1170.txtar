@@ -1,0 +1,76 @@
+# test for add package
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/bug/append -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+# Call Append 1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Append' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '1' test1
+# Call Append 2
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Append' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '2' test1
+# Call Append 3
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Append' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '3' test1
+
+# Call render
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Render' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '' test1
+cmp stdout render1.golden
+
+# Call Pop
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Pop' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+# Call render
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Render' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '' test1
+cmp stdout render2.golden
+# Outputs ('1</br>2</br>' string) -> WRONG! Pop removes the first item so
+# it should be ('2</br>3</br>' string)
+
+# Call Append 42
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Append' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '42' test1
+
+# Call render
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug/append' -func 'Render' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' -args '' test1
+cmp stdout render3.golden
+# Ouputs ('1</br>2</br>3</br>' string) -> WTF where is 42 ???
+
+-- append.gno --
+package append
+
+import (
+	"gno.land/p/demo/ufmt"
+)
+
+type T struct{ i int }
+
+var a []T
+
+func Append(i int) {
+	a = append(a, T{i: i})
+}
+
+func Pop() {
+	a = append(a[:0], a[1:]...)
+}
+
+func Render(_ string) string {
+	var s string
+	for i := 0; i < len(a); i++ {
+		s += ufmt.Sprintf("%d</br>", a[i].i)
+	}
+	return s
+}
+
+-- render1.golden --
+("1</br>2</br>3</br>" string)
+OK!
+GAS WANTED: 2000000
+GAS USED:   107530
+-- render2.golden --
+("1</br>2</br>" string)
+OK!
+GAS WANTED: 2000000
+GAS USED:   105888
+-- render3.golden --
+("1</br>2</br>3</br>" string)
+OK!
+GAS WANTED: 2000000
+GAS USED:   107530
