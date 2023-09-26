@@ -63,5 +63,57 @@ g1644qje5rx6jsdqfkzmgnfcegx4dxkjh6rwqd69=10000000000ugnot # @MadafakAvril14th #9
 g1mzjajymvmtksdwh3wkrndwj6zls2awl9q83dh6=10000000000ugnot # @Vanlee #89
 g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt=10000000000ugnot # @zooma
 
+g1y5q82q0sd90w2yvkur964lr3h3ltup8et3aa30=100000000000000000ugnot # @Faucet account
+g1g08734ten20mdugvtp738wfxgzzehtlntfsvhz=100000000000000000ugnot # @Faucet account
+g17k2d7udh8g8d9qn34zx62n3arnyt82svadmrs6=100000000000000000ugnot # @Faucet account
+g1x2m8gjh94dlprfelct20xl68lc89zgz5gx6mnj=100000000000000000ugnot # @Faucet account
+g1rtuzh8l44yf076rn0l8zw3z6xk3pcw7jmcw6e4=100000000000000000ugnot # @Faucet account
+g1xu3deps237dgl4vj7qjqc8gdvyfe2xmc3vrurg=100000000000000000ugnot # @Faucet account
+g1ucms7rhcl4vl0s0va7lu2qu06pq834h24ms8kr=100000000000000000ugnot # @Faucet account
+g140zdxytjlw445zmntr93n2guxyv9ze6j66w4n7=100000000000000000ugnot # @Faucet account
+g1rdk5gp0pzvg97tvqhh3efvgu2fj0cksuqrp0la=100000000000000000ugnot # @Faucet account
+g1uuxtsn2v5hwn947jpslgpyv2q8zmdcpm7h9w8f=100000000000000000ugnot # @Faucet account
+g1l28h3dhkh868lqmgw5pu0hmr62cwyk620qc26j=100000000000000000ugnot # @Faucet account
+g1spzgfhur8f02eaa74he34vpcer8tk34xpd6rqe=100000000000000000ugnot # @Faucet account
+g1c63dwc4hd82fqmtk3zcc5vsylhjlczw4r5nyh9=100000000000000000ugnot # @Faucet account
+g1ml3l0wt4e8jdu630nax3r97he42c75n8gwcjc2=100000000000000000ugnot # @Faucet account
+g1dcs7a65mljqnc0eyd5rpt9f75s3hya5ks3wzvy=100000000000000000ugnot # @Faucet account
+g1pf27vpf7k7j0gqvx2xhdj0elnwdzlk9yd8xr6z=100000000000000000ugnot # @Faucet account
+g1yg2hxxqj8ygpeyf07q76swhjcrleq22dfkh5sp=100000000000000000ugnot # @Faucet account
+g1je7tcercwz5e8nxg6mu5d8ypcd7p8nvhf0z0jh=100000000000000000ugnot # @Faucet account
+g1q6d2j3fg7h6sfqzru6kp50zdx7jg5tkkj2arpx=100000000000000000ugnot # @Faucet account
+g1stg4kd22pg4k5z65jvn0s002tppwvqufm2lmqx=100000000000000000ugnot # @Faucet account
+g1fyrpwhrzy7yy0cgh9euzqevnnqhkxdrx0mrlfe=100000000000000000ugnot # @Faucet account
+g1j8l3w6xla8wr5luhglcqpaphu9ydfmvuep4j2v=100000000000000000ugnot # @Faucet account
+g1zqqcakmptlqksgv00pxz24rswgr5dcg9c0f2wv=100000000000000000ugnot # @Faucet account
+g14v24mklsxdlcx3lwzxgkc3hduy3ep9mp3vm5du=100000000000000000ugnot # @Faucet account
+g1803r88qjuje27hv8xl4d5gdj2mg4h9srzuld5a=100000000000000000ugnot # @Faucet account
+g1z9hgg5gukl3cr6s5uhzplajclg784dwwjqjwye=100000000000000000ugnot # @Faucet account
+g1kr0sf28rua0kxyea2q0njanws8q5h2rfvtextx=100000000000000000ugnot # @Faucet account
+g1t44jp3aedkv4t8g289l84kl7gmvew7432927ne=100000000000000000ugnot # @Faucet account
+g1amf63wrv33xhsclzqxe60nymjqj9689dnf0ukg=100000000000000000ugnot # @Faucet account
+g1swqpdyttrgaswzausm0xpta6hcz9lzup62nl40=100000000000000000ugnot # @Faucet account
+g196yqlz9jwdg62e4z9uleq8t7gm2pnz09d3pr96=100000000000000000ugnot # @Faucet account
+g1tacg08pwgwzm9hmu5xhr7ppsy4sa3m8wl0zqn4=100000000000000000ugnot # @Faucet account
+g1vu870203fn3hjewn8u8pkvamqud4euz8c04rv9=100000000000000000ugnot # @Faucet account
+g19rxc4hqdgvemar9hzrk9zqy7hqtagg5hzh565w=100000000000000000ugnot # @Faucet account
+g1ye3xw4pp30nrg2csrr9j0rr8nvey9t85uvsuml=100000000000000000ugnot # @Faucet account
+g13qvy3yvf5vclcfsksmr8jvnr7yfeychqnhsey3=100000000000000000ugnot # @Faucet account
+g14cgacf8elrk5td88lls8hy76g438mw5ama0497=100000000000000000ugnot # @Faucet account
+g18tsmqxm8uwdt4lghszuuppjhuzgd344wfrk94m=100000000000000000ugnot # @Faucet account
+g1lze4dwsfwvvqxd25m06nypjrjt438zd0qrg8pz=100000000000000000ugnot # @Faucet account
+g1l7kmd98fqm8r6gn6atlhe56nsnv39vhjq8wg9h=100000000000000000ugnot # @Faucet account
+g1c8e48zmymreszxmxmku5337gekkm2xmpk5mr5c=100000000000000000ugnot # @Faucet account
+g14jtsjjl7yg6e7hyv7vvwc9waqdnpsha9w6hv8g=100000000000000000ugnot # @Faucet account
+g1ntdtsjd94vxjdunh7dp5tack8c5r6he49qryr6=100000000000000000ugnot # @Faucet account
+g12t2ydsup7cmq2tsjglejr65y9sjrfqxq3au7lg=100000000000000000ugnot # @Faucet account
+g1sr48ejjp2empsvjxnhrdaw397yghadgrqg6tp6=100000000000000000ugnot # @Faucet account
+g17awdrwerkekzadq9ky8mlxfxad0jc522syykz4=100000000000000000ugnot # @Faucet account
+g1jgr2mllunhyg3l333vggun9mctq72ldpte0uwl=100000000000000000ugnot # @Faucet account
+g18060wlm07rwa63swg904f2266ck60u85qjf2u6=100000000000000000ugnot # @Faucet account
+g1k83k6j8p9wra7tmt832pgt837zd3wsapatmw0a=100000000000000000ugnot # @Faucet account
+g1e7kxth3efnz0dyz9agfecswra6nhm6thwq45nz=100000000000000000ugnot # @Faucet account
+
+
 # NOTE: Thanks guys, no more keys through genesis this way though:
 # we now have a faucet.
