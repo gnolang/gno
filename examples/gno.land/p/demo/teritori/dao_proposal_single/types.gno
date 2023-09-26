@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
+	"gno.land/p/demo/teritori/dao_utils"
 	"gno.land/p/demo/teritori/ujson"
 )
 
@@ -68,19 +69,19 @@ func (v Votes) ToJSON() string {
 }
 
 type Proposal struct {
-	ID          int
-	Title       string
-	Description string
-	Proposer    std.Address
-	StartHeight int64
-	// TODO: min_voting_period
-	// TODO: expiration
-	Threshold     Threshold
-	TotalPower    uint64
-	Messages      []dao_interfaces.ExecutableMessage
-	Status        ProposalStatus
-	Votes         Votes
-	AllowRevoting bool
+	ID              int
+	Title           string
+	Description     string
+	Proposer        std.Address
+	StartHeight     int64
+	MinVotingPeriod dao_utils.Expiration
+	Expiration      dao_utils.Expiration
+	Threshold       Threshold
+	TotalPower      uint64
+	Messages        []dao_interfaces.ExecutableMessage
+	Status          ProposalStatus
+	Votes           Votes
+	AllowRevoting   bool
 
 	// not in DA0-DA0 implementation:
 
@@ -119,6 +120,8 @@ func (p Proposal) ToJSON() string {
 		{Key: "description", Value: p.Description},
 		{Key: "proposer", Value: p.Proposer},
 		{Key: "startHeight", Value: p.StartHeight},
+		{Key: "minVotingPeriod", Value: p.MinVotingPeriod},
+		{Key: "expiration", Value: p.Expiration},
 		{Key: "threshold", Value: p.Threshold},
 		{Key: "totalPower", Value: p.TotalPower},
 		{Key: "messages", Value: formatMessages(p.Messages), Raw: true},

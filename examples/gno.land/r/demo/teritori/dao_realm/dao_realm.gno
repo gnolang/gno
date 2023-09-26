@@ -9,6 +9,7 @@ import (
 	dao_core "gno.land/p/demo/teritori/dao_core"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	proposal_single "gno.land/p/demo/teritori/dao_proposal_single"
+	"gno.land/p/demo/teritori/dao_utils"
 	voting_group "gno.land/p/demo/teritori/dao_voting_group"
 	"gno.land/p/demo/teritori/ujson"
 	registry "gno.land/r/demo/teritori/dao_registry"
@@ -44,7 +45,7 @@ func init() {
 			tt := proposal_single.PercentageThresholdPercent(100)
 			tq := proposal_single.PercentageThresholdPercent(100)
 			return proposal_single.NewDAOProposalSingle(core, &proposal_single.DAOProposalSingleOpts{
-				MaxVotingPeriod: time.Hour * 24 * 42,
+				MaxVotingPeriod: dao_utils.DurationTime(time.Hour * 24 * 42),
 				Threshold: &proposal_single.ThresholdThresholdQuorum{
 					Threshold: &tt, // 1%
 					Quorum:    &tq, // 1%

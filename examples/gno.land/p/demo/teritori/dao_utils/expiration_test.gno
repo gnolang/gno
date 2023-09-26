@@ -1,4 +1,4 @@
-package core
+package dao_utils
 
 import (
 	"testing"

@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
+	"gno.land/p/demo/teritori/dao_interfaces"
+	"gno.land/p/demo/teritori/dao_utils"
 	"gno.land/p/demo/teritori/ujson"
 )
 
@@ -15,13 +16,13 @@ type DAOProposalSingleOpts struct {
 	Threshold Threshold
 	/// The default maximum amount of time a proposal may be voted on
 	/// before expiring.
-	MaxVotingPeriod time.Duration
+	MaxVotingPeriod dao_utils.Duration
 	/// The minimum amount of time a proposal must be open before
 	/// passing. A proposal may fail before this amount of time has
 	/// elapsed, but it will not pass. This can be useful for
 	/// preventing governance attacks wherein an attacker aquires a
 	/// large number of tokens and forces a proposal through.
-	MinVotingPeriod time.Duration // 0 means no minimum
+	MinVotingPeriod dao_utils.Duration // 0 means no minimum
 	/// If set to true only members may execute passed
 	/// proposals. Otherwise, any address may execute a passed
 	/// proposal.
@@ -81,6 +82,10 @@ func NewDAOProposalSingle(core dao_interfaces.IDAOCore, opts *DAOProposalSingleO
 
 	if opts.CloseProposalOnExecutionFailure {
 		panic("close proposal on execution failure not implemented")
+	}
+
+	if opts.MaxVotingPeriod == nil {
+		panic("max voting period cannot be nil")
 	}
 
 	// TODO: support other threshold types
@@ -205,22 +210,28 @@ func (d *DAOProposalSingle) Propose(title string, description string, messages [
 
 	totalPower := d.core.VotingModule().TotalPowerAtHeight(0)
 
+	expiration := d.opts.MaxVotingPeriod.AfterCurrentBlock()
+	minVotingPeriod := dao_utils.Expiration(nil)
+	if d.opts.MinVotingPeriod != nil {
+		minVotingPeriod = d.opts.MinVotingPeriod.AfterCurrentBlock()
+	}
+
 	id := len(d.proposals)
 
 	prop := Proposal{
-		ID:          id,
-		Title:       title,
-		Description: description,
-		Proposer:    std.PrevRealm().Addr(),
-		StartHeight: std.GetHeight(),
-		// TODO: min_voting_period
-		// TODO: expiration
-		Threshold:     d.opts.Threshold.Clone(),
-		TotalPower:    totalPower,
-		Messages:      messages,
-		Status:        ProposalStatusOpen,
-		Ballots:       avl.NewTree(),
-		AllowRevoting: d.opts.AllowRevoting,
+		ID:              id,
+		Title:           title,
+		Description:     description,
+		Proposer:        std.PrevRealm().Addr(),
+		StartHeight:     std.GetHeight(),
+		MinVotingPeriod: minVotingPeriod,
+		Expiration:      expiration,
+		Threshold:       d.opts.Threshold.Clone(),
+		TotalPower:      totalPower,
+		Messages:        messages,
+		Status:          ProposalStatusOpen,
+		Ballots:         avl.NewTree(),
+		AllowRevoting:   d.opts.AllowRevoting,
 	}
 	prop.updateStatus()
 	d.proposals = append(d.proposals, &prop)
