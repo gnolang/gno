@@ -364,7 +364,7 @@ func (proposal *Proposal) updateStatus() {
 func (proposal *Proposal) isPassed() bool {
 	switch proposal.Threshold.(type) {
 	case *ThresholdAbsolutePercentage:
-		panic("ThresholdAbsolutePercentage not implemented")
+		panic("'isPassed' not implemented for 'ThresholdAbsolutePercentage'")
 	case *ThresholdThresholdQuorum:
 		thresholdObj := proposal.Threshold.(*ThresholdThresholdQuorum)
 
@@ -381,7 +381,7 @@ func (proposal *Proposal) isPassed() bool {
 		options := totalPower - proposal.Votes.Abstain
 		return doesVoteCountPass(proposal.Votes.Yes, options, threshold)
 	case *ThresholdAbsoluteCount:
-		panic("ThresholdAbsoluteCount not implemented")
+		panic("'isPassed' not implemented for 'ThresholdAbsoluteCount'")
 	default:
 		panic("unknown Threshold type")
 	}
@@ -390,7 +390,7 @@ func (proposal *Proposal) isPassed() bool {
 func doesVoteCountPass(yesVotes uint64, options uint64, percent PercentageThreshold) bool {
 	switch percent.(type) {
 	case *PercentageThresholdMajority:
-		panic("not implemented")
+		panic("'doesVoteCountPass' not implemented for 'PercentageThresholdMajority'")
 	case *PercentageThresholdPercent:
 		if options == 0 {
 			return false
