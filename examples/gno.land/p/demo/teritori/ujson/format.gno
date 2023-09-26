@@ -137,3 +137,9 @@ func FormatAVLTree(t *avl.Tree) string {
 	})
 	return FormatObject(kv)
 }
+
+func FormatUnionMember(name string, val interface{}, raw bool) string {
+	return FormatObject([]FormatKV{
+		{Key: name, Value: val, Raw: raw},
+	})
+}

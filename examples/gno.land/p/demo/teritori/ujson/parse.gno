@@ -197,6 +197,23 @@ func (ast *JSONASTNode) ParseObject(kv []*ParseKV) {
 	}
 }
 
+func (ast *JSONASTNode) ParseUnion(kv []*ParseKV) interface{} {
+	if ast.Kind != JSONKindObject {
+		panic("union is not an object")
+	}
+	if len(ast.ObjectChildren) != 1 {
+		panic("union object does not have exactly one field")
+	}
+	k, node := ast.ObjectChildren[0].Key, ast.ObjectChildren[0].Value
+	for _, kv := range kv {
+		if kv.Key == k {
+			node.ParseAny(kv.Value)
+			return kv.Value
+		}
+	}
+	panic("unknown union type") // TODO: expected one of ...
+}
+
 func ParseSlice(s string) []*JSONASTNode {
 	ast := TokenizeAndParse(s)
 	return ast.ParseSlice()
