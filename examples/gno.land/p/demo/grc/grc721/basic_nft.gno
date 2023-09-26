@@ -131,7 +131,7 @@ func (s *BasicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
 func (s *BasicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -150,7 +150,7 @@ func (s *BasicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 
 // Transfers `tokenId` token from `from` to `to`.
 func (s *BasicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
