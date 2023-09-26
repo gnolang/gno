@@ -3,7 +3,7 @@
 //
 // This file is a rapid prototype to meet immediate project needs and is not intended for long-term
 // use in its current form. It requires review, possible refactoring, and thorough testing.
-// Use at your own risk. The author(s) accept no liability for any issues arising from its use.
+// Use at your own risk.
 // ------------------------------------------------------------------------------------------------
 
 package integration
@@ -48,6 +48,10 @@ import (
 const (
 	test1Addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	test1Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+	test2Addr = "g1m5exxkaqrsxd8ne93psljuakxzhkzcm42yg7ye"
+	test2Seed = "bid kangaroo tomorrow raccoon habit fine circle battle question push bounce dust bonus town remember diamond hill busy frozen project movie giant file ceiling"
+	test3Addr = "g13hlh3a3kygwq9g3vgjzz5zu4fy7gpkk523ex6l"
+	test3Seed = "eyebrow vote bind response vanish sad spoon few bargain quote stone recycle rail bulb force syrup menu zero disagree bread gift clump artist rebel"
 )
 
 func TestTestdata(t *testing.T) {
@@ -163,6 +167,12 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			kb.CreateAccount("test1", test1Seed, "", "", 0, 0)
 			env.Setenv("USER_SEED_test1", test1Seed)
 			env.Setenv("USER_ADDR_test1", test1Addr)
+			kb.CreateAccount("test2", test2Seed, "", "", 0, 0)
+			env.Setenv("USER_SEED_test2", test2Seed)
+			env.Setenv("USER_ADDR_test2", test2Addr)
+			kb.CreateAccount("test3", test3Seed, "", "", 0, 0)
+			env.Setenv("USER_SEED_test3", test3Seed)
+			env.Setenv("USER_ADDR_test3", test3Addr)
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -209,7 +219,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						// XXX: Use something similar to `require.Eventually` to check for node
 						// availability. For now, if this sleep duration is too short, the
 						// subsequent command might fail with an [internal error].
-						time.Sleep(time.Millisecond * 300)
+						time.Sleep(time.Second * 2)
 					}
 				case "stop":
 					n, ok := nodes[sid]
@@ -245,6 +255,12 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				defaultArgs := []string{
 					"-home", gnoHomeDir,
 					"-insecure-password-stdin=true", // there no use to not have this param by default
+					/* ideally, we'd like to have this for 'gnokey maketx call ...'.
+					"-chainid=tendermint_test",
+					"-gas-fee=1ugnot",
+					"-gas-wanted=10000000",
+					"-broadcast=true",
+					*/
 				}
 
 				if n, ok := nodes[sid]; ok {
