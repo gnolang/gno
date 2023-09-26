@@ -41,10 +41,10 @@ const (
 )
 
 func TestTestdata(t *testing.T) {
-	testscript.Run(t, setupGnolandTestScript2(t, "testdata"))
+	testscript.Run(t, setupGnolandTestScript(t, "testdata"))
 }
 
-func setupGnolandTestScript2(t *testing.T, txtarDir string) testscript.Params {
+func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	t.Helper()
 
 	goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
@@ -121,7 +121,7 @@ func setupGnolandTestScript2(t *testing.T, txtarDir string) testscript.Params {
 						// XXX: Use something similar to `require.Eventually` to check for node
 						// availability. For now, if this sleep duration is too short, the
 						// subsequent command might fail with an [internal error].
-						time.Sleep(time.Millisecond * 300)
+						time.Sleep(time.Second)
 					}
 				case "stop":
 					n, ok := nodes[sid]
