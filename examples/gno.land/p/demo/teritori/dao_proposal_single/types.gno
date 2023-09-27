@@ -103,7 +103,7 @@ func (m *messageWithType) ToJSON() string {
 }
 
 func formatMessages(messages []dao_interfaces.ExecutableMessage) string {
-	var out []*messageWithType
+	var out []interface{}
 	for _, m := range messages {
 		out = append(out, &messageWithType{
 			Type:    m.Type(),

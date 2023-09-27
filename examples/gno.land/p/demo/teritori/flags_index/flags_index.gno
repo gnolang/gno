@@ -60,7 +60,7 @@ func (fi *FlagsIndex) Flag(flagID FlagID, flaggerID string) {
 	var flagsByFlagID *avl.Tree
 	if existingFlagsByFlagID, ok := fi.flagsByFlaggerID.Get(flaggerID); ok {
 		flagsByFlagID = existingFlagsByFlagID.(*avl.Tree)
-		if flagsByFlagID.(*avl.Tree).Has(string(flagID)) {
+		if flagsByFlagID.Has(string(flagID)) {
 			panic("already flagged")
 		}
 	} else {

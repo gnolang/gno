@@ -127,7 +127,7 @@ type ExecutableMessageDeletePost struct {
 	Reason   string
 }
 
-func (msg *ExecutableMessageDeletePost) Type() string {
+func (msg ExecutableMessageDeletePost) Type() string {
 	return "gno.land/r/demo/teritori/modboards.DeletePost"
 }
 
@@ -157,7 +157,7 @@ func (h *DeletePostHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	DeletePost(msg.BoardID, msg.ThreadID, msg.PostID, msg.Reason)
 }
 
-func (h *DeletePostHandler) Type() string {
+func (h DeletePostHandler) Type() string {
 	return ExecutableMessageDeletePost{}.Type()
 }
 

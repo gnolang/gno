@@ -1,14 +1,15 @@
 package justicedao
 
 import (
-	"gno.land/p/demo/avl"
-	fmt "gno.land/p/demo/ufmt"
-	escrow "gno.land/r/demo/escrow_05"
-	vrf "gno.land/r/demo/teritori/vrf_08"
 	"std"
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/avl"
+	fmt "gno.land/p/demo/ufmt"
+	"gno.land/r/demo/teritori/escrow"
+	"gno.land/r/demo/teritori/vrf"
 )
 
 type VoteOption uint32
@@ -107,10 +108,12 @@ type JusticeProposal struct {
 }
 
 // GNODAO STATE
-var daoCreated bool
-var dao DAO
-var proposals []Proposal
-var justiceProposals []JusticeProposal
+var (
+	daoCreated       bool
+	dao              DAO
+	proposals        []Proposal
+	justiceProposals []JusticeProposal
+)
 
 func getDAOVotingPower(address string) uint64 {
 	res, ok := dao.votingPowers.Get(address)
@@ -668,7 +671,7 @@ func TallyAndExecuteJusticeSolution(proposalId uint64) {
 	}
 
 	numYesVotes := uint64(0)
-	for i, govern := range proposal.governers {
+	for i := range proposal.governers {
 		vote := justiceProposals[proposalId].votes[i]
 		if vote.option == YES {
 			numYesVotes++

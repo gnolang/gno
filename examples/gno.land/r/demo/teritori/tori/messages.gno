@@ -1,8 +1,6 @@
 package tori
 
 import (
-	"encoding/binary"
-	"std"
 	"strconv"
 	"strings"
 
@@ -18,7 +16,7 @@ type ExecutableMessageMintTori struct {
 	Amount  uint64
 }
 
-func (msg *ExecutableMessageMintTori) Type() string {
+func (msg ExecutableMessageMintTori) Type() string {
 	return "gno.land/r/demo/teritori/tori.Mint"
 }
 
@@ -58,7 +56,7 @@ func (h *MintToriHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	Mint(msg.Address, msg.Amount)
 }
 
-func (h *MintToriHandler) Type() string {
+func (h MintToriHandler) Type() string {
 	return ExecutableMessageMintTori{}.Type()
 }
 
@@ -77,7 +75,7 @@ type ExecutableMessageBurnTori struct {
 	Amount  uint64
 }
 
-func (msg *ExecutableMessageBurnTori) Type() string {
+func (msg ExecutableMessageBurnTori) Type() string {
 	return "BurnTori"
 }
 
@@ -103,6 +101,6 @@ func (h *BurnToriHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	Burn(msg.Address, msg.Amount)
 }
 
-func (h *BurnToriHandler) Type() string {
+func (h BurnToriHandler) Type() string {
 	return ExecutableMessageBurnTori{}.Type()
 }

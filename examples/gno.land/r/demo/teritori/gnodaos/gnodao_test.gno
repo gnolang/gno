@@ -427,9 +427,24 @@ func TestGetProposals(t *testing.T) {
 		t.Errorf("invalid number of proposals")
 	}
 
-	renderedProposals = RenderProposals(0, 0, 1)
-	if renderedProposals != "" {
-		t.Errorf("invalid proposal rendering")
+	renderedProposals := RenderProposals(0, 0, 1)
+	expected := `[{
+	"daoId": 0,
+	"id": 0,
+	"title": "proposal #1",
+	"summary": "Proposal to bootstrap DAO fund.",
+	"spendAmount": 0,
+	"spender": "g1rel7980x4y257yh30umy3jx223efwakvnabcde",
+	"newMetadata": "newMetadata.com",
+	"newURI": "newURI.com",
+	"submitTime": 1234567890,
+	"voteEndTime": 1234740690,
+	"status": 1,
+	"vpUpdates": [],
+	"votingPowers": [0, 0, 0, 0]
+}]`
+	if renderedProposals != expected {
+		t.Errorf("invalid proposal rendering, expected:\n%s\n, got:\n%s\n", expected, renderedProposals)
 	}
 }
 

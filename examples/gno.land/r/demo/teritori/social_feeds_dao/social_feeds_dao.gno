@@ -1,16 +1,13 @@
 package social_feeds_dao
 
 import (
-	"encoding/base64"
-	"std"
-	"strings"
 	"time"
 
 	dao_core "gno.land/p/demo/teritori/dao_core"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/dao_proposal_single"
+	"gno.land/p/demo/teritori/dao_utils"
 	"gno.land/p/demo/teritori/dao_voting_group"
-	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
 	social_feeds "gno.land/r/demo/teritori/social_feeds"
@@ -39,7 +36,7 @@ func init() {
 			tt := dao_proposal_single.PercentageThresholdPercent(1500)
 			tq := dao_proposal_single.PercentageThresholdPercent(5000)
 			return dao_proposal_single.NewDAOProposalSingle(core, &dao_proposal_single.DAOProposalSingleOpts{
-				MaxVotingPeriod: time.Second * 86400,
+				MaxVotingPeriod: dao_utils.DurationTime(time.Second * 86400),
 				Threshold: &dao_proposal_single.ThresholdThresholdQuorum{
 					Threshold: &tt, // 15%
 					Quorum:    &tq, // 50%

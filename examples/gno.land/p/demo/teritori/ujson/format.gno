@@ -31,7 +31,8 @@ func FormatAny(p interface{}) string {
 	case *avl.Tree:
 		return FormatAVLTree(p.(*avl.Tree))
 	case avl.Tree:
-		return FormatAVLTree(&p.(avl.Tree))
+		t := p.(avl.Tree)
+		return FormatAVLTree(&t)
 	case JSONAble:
 		return p.(JSONAble).ToJSON()
 	case string:

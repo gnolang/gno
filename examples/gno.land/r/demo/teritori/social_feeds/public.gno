@@ -1,7 +1,6 @@
 package social_feeds
 
 import (
-	"encoding/base64"
 	"std"
 	"strconv"
 	"strings"
@@ -9,7 +8,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/flags_index"
 	"gno.land/p/demo/ufmt"
-	ujson "gno.land/p/demo/teritori/ujson"
 )
 
 // Only registered user can create a new feed
@@ -84,7 +82,7 @@ func DeletePost(fid FeedID, pid PostID) {
 func BanPost(fid FeedID, pid PostID, reason string) {
 	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
-	post := feed.MustGetPost(pid)
+	_ = feed.MustGetPost(pid)
 
 	// For experimenting, we ban only the post for now
 	// TODO: recursive delete/ban comments
@@ -99,7 +97,6 @@ func BanPost(fid FeedID, pid PostID, reason string) {
 
 // Any one can react post
 func ReactPost(fid FeedID, pid PostID, icon string, up bool) {
-	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 	post := feed.MustGetPost(pid)
 
@@ -126,7 +123,6 @@ func GetFlaggedPosts(fid FeedID, offset uint64, limit uint8) string {
 	var postList []string
 	for _, flagCount := range flags {
 		flagID := flagCount.FlagID
-		count := flagCount.Count
 
 		feedID, postID := parseFlagID(flagID)
 		if feedID != feed.id {
@@ -225,7 +221,7 @@ func getPosts(feed *Feed, parentID PostID, callerAddrStr string, user string, ca
 			posts = append(posts, post)
 		}
 
-		if len(posts) == limit {
+		if len(posts) == int(limit) {
 			return true
 		}
 
@@ -242,7 +238,6 @@ func GetComments(fid FeedID, parentID PostID, offset uint64, limit uint8) string
 
 // Get Post
 func GetPost(fid FeedID, pid PostID) string {
-	caller := std.PrevRealm().Addr()
 	feed := mustGetFeed(fid)
 
 	data, ok := feed.posts.Get(postIDKey(pid))
@@ -306,7 +301,7 @@ func ExportFeedData(fid FeedID) string {
 }
 
 // TODO: allow only admin to call
-func ImportFeedData(fid FeedID, jsonData string) string {
+func ImportFeedData(fid FeedID, jsonData string) {
 	feed := mustGetFeed(fid)
 	feed.FromJSON(jsonData)
 }

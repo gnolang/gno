@@ -3,10 +3,7 @@ package dao_registry
 import (
 	"encoding/binary"
 	"std"
-	"strconv"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/ujson"
@@ -89,7 +86,11 @@ func List(start string, end string, limit int, reverse bool) []Registration {
 
 func ListJSON(start string, end string, limit int, reverse bool) string {
 	regs := List(start, end, limit, reverse)
-	return ujson.FormatSlice(regs)
+	iSlice := make([]interface{}, len(regs))
+	for i, v := range regs {
+		iSlice[i] = v
+	}
+	return ujson.FormatSlice(iSlice)
 }
 
 func (r Registration) ToJSON() string {

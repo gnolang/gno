@@ -1,9 +1,6 @@
 package boards
 
 import (
-	"encoding/binary"
-	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/teritori/dao_interfaces"
@@ -18,7 +15,7 @@ type ExecutableMessageCreateBoard struct {
 	Name string
 }
 
-func (msg *ExecutableMessageCreateBoard) Type() string {
+func (msg ExecutableMessageCreateBoard) Type() string {
 	return "gno.land/r/demo/teritori/modboards.CreateBoard"
 }
 
@@ -48,7 +45,7 @@ func (h *CreateBoardHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	CreateBoard(msg.Name)
 }
 
-func (h *CreateBoardHandler) Type() string {
+func (h CreateBoardHandler) Type() string {
 	return ExecutableMessageCreateBoard{}.Type()
 }
 
@@ -71,7 +68,7 @@ type ExecutableMessageDeletePost struct {
 	Reason   string
 }
 
-func (msg *ExecutableMessageDeletePost) Type() string {
+func (msg ExecutableMessageDeletePost) Type() string {
 	return "gno.land/r/demo/teritori/modboards.DeletePost"
 }
 
@@ -79,10 +76,10 @@ func (msg *ExecutableMessageDeletePost) String() string {
 	var ss []string
 	ss = append(ss, msg.Type())
 
-	board, ok := getBoard(msg.BoardID).(*Board)
+	board := getBoard(msg.BoardID)
 	s := ""
 
-	if ok {
+	if board != nil {
 		s += "Board: " + board.name + " (" + board.id.String() + ")"
 
 		thread := board.GetThread(msg.ThreadID)
@@ -133,7 +130,7 @@ func (h *DeletePostHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	DeletePost(msg.BoardID, msg.ThreadID, msg.PostID, msg.Reason)
 }
 
-func (h *DeletePostHandler) Type() string {
+func (h DeletePostHandler) Type() string {
 	return ExecutableMessageDeletePost{}.Type()
 }
 

@@ -3,7 +3,6 @@ package dao_proposal_single
 import (
 	"std"
 	"strconv"
-	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/dao_interfaces"
@@ -121,7 +120,7 @@ func NewDAOProposalSingle(core dao_interfaces.IDAOCore, opts *DAOProposalSingleO
 
 func (d *DAOProposalSingle) Render(path string) string {
 	minVotingPeriodStr := "No minimum voting period"
-	if d.opts.MinVotingPeriod != 0 {
+	if d.opts.MinVotingPeriod != nil {
 		minVotingPeriodStr = "Min voting period: " + d.opts.MinVotingPeriod.String()
 	}
 
@@ -295,8 +294,6 @@ func (d *DAOProposalSingle) VoteJSON(proposalID int, voteJSON string) {
 }
 
 func (d *DAOProposalSingle) Execute(proposalID int) {
-	executer := std.GetOrigCaller()
-
 	if len(d.proposals) <= proposalID || proposalID < 0 {
 		panic("proposal does not exist")
 	}
@@ -340,7 +337,11 @@ func (d *DAOProposalSingle) Proposals() []*Proposal {
 }
 
 func (d *DAOProposalSingle) ProposalsJSON(limit int, startAfter string, reverse bool) string {
-	return ujson.FormatSlice(d.proposals)
+	iSlice := make([]interface{}, len(d.proposals))
+	for i, p := range d.proposals {
+		iSlice[i] = p
+	}
+	return ujson.FormatSlice(iSlice)
 }
 
 func (d *DAOProposalSingle) ProposalJSON(proposalID int) string {
@@ -362,7 +363,7 @@ func (proposal *Proposal) updateStatus() {
 }
 
 func (proposal *Proposal) isPassed() bool {
-	switch proposal.Threshold.(type) {
+	switch proposal.Threshold.(interface{}).(type) {
 	case *ThresholdAbsolutePercentage:
 		panic("'isPassed' not implemented for 'ThresholdAbsolutePercentage'")
 	case *ThresholdThresholdQuorum:

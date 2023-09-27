@@ -1,8 +1,6 @@
 package groups
 
 import (
-	"encoding/binary"
-	"std"
 	"strconv"
 	"strings"
 
@@ -19,7 +17,7 @@ type ExecutableMessageAddMember struct {
 	Metadata string
 }
 
-func (msg *ExecutableMessageAddMember) Type() string {
+func (msg ExecutableMessageAddMember) Type() string {
 	return "gno.land/r/demo/teritori/groups.AddMember"
 }
 
@@ -56,7 +54,7 @@ func (h *AddMemberHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	AddMember(msg.GroupID, msg.Address, msg.Weight, msg.Metadata)
 }
 
-func (h *AddMemberHandler) Type() string {
+func (h AddMemberHandler) Type() string {
 	return ExecutableMessageAddMember{}.Type()
 }
 
@@ -78,7 +76,7 @@ type ExecutableMessageDeleteMember struct {
 	MemberID MemberID
 }
 
-func (msg *ExecutableMessageDeleteMember) Type() string {
+func (msg ExecutableMessageDeleteMember) Type() string {
 	return "gno.land/r/demo/teritori/groups.DeleteMember"
 }
 
@@ -110,7 +108,7 @@ func (h *DeleteMemberHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	DeleteMember(msg.GroupID, msg.MemberID)
 }
 
-func (h *DeleteMemberHandler) Type() string {
+func (h DeleteMemberHandler) Type() string {
 	return ExecutableMessageDeleteMember{}.Type()
 }
 

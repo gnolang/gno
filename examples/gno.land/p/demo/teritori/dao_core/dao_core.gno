@@ -2,8 +2,6 @@ package core
 
 import (
 	"std"
-	"strings"
-	"time"
 
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"

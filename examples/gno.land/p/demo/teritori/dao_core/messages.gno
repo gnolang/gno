@@ -12,7 +12,7 @@ type UpdateProposalModulesExecutableMessage struct {
 	ToDisable []int
 }
 
-func (msg *UpdateProposalModulesExecutableMessage) Type() string {
+func (msg UpdateProposalModulesExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_core.UpdateProposalModules"
 }
 
@@ -36,7 +36,7 @@ func NewUpdateProposalModulesMessageHandler(dao dao_interfaces.IDAOCore) *Update
 	return &UpdateProposalModulesMessageHandler{dao: dao}
 }
 
-func (handler *UpdateProposalModulesMessageHandler) Type() string {
+func (handler UpdateProposalModulesMessageHandler) Type() string {
 	return UpdateProposalModulesExecutableMessage{}.Type()
 }
 
@@ -55,7 +55,7 @@ type UpdateVotingModuleExecutableMessage struct {
 	Module dao_interfaces.IVotingModule
 }
 
-func (msg *UpdateVotingModuleExecutableMessage) Type() string {
+func (msg UpdateVotingModuleExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_core.UpdateVotingModule"
 }
 
@@ -79,7 +79,7 @@ func NewUpdateVotingModuleMessageHandler(dao dao_interfaces.IDAOCore) *UpdateVot
 	return &UpdateVotingModuleMessageHandler{dao: dao}
 }
 
-func (handler *UpdateVotingModuleMessageHandler) Type() string {
+func (handler UpdateVotingModuleMessageHandler) Type() string {
 	return UpdateVotingModuleExecutableMessage{}.Type()
 }
 

@@ -1,12 +1,13 @@
 package gnodao
 
 import (
-	"gno.land/p/demo/avl"
-	fmt "gno.land/p/demo/ufmt"
 	"std"
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/avl"
+	fmt "gno.land/p/demo/ufmt"
 )
 
 type VoteOption uint32
@@ -91,8 +92,10 @@ type Proposal struct {
 }
 
 // GNODAO STATE
-var daos []DAO
-var proposals [][]Proposal
+var (
+	daos      []DAO
+	proposals [][]Proposal
+)
 
 func getDAOVotingPower(daoId uint64, address string) uint64 {
 	if len(daos) <= int(daoId) {
@@ -490,10 +493,10 @@ func RenderDAO(daoId uint64) string {
 func RenderDAOMembers(daoId uint64, start string, end string) string {
 	dao := GetDAO(daoId)
 	votingPowers := []VotingPower{}
-	dao.votingPowers.Iterate(start, end, func(tree *avl.Tree) bool {
-		power := tree.Value().(uint64)
+	dao.votingPowers.Iterate(start, end, func(key string, value interface{}) bool {
+		power := value.(uint64)
 		votingPowers = append(votingPowers, VotingPower{
-			address: tree.Key(),
+			address: key,
 			power:   power,
 		})
 		return false
@@ -515,7 +518,6 @@ func RenderDAOMembers(daoId uint64, start string, end string) string {
 
 func RenderDAOs(startAfter, limit uint64) string {
 	daos := GetDAOs(startAfter, limit)
-	daoEncodes := []DAOEncode{}
 	rendered := "["
 	for index, dao := range daos {
 		rendered += RenderDAO(dao.id)

@@ -38,7 +38,7 @@ func (e ExpirationAtTime) IsExpired() bool {
 }
 
 func (e ExpirationAtTime) ToJSON() string {
-	return ujson.FormatUnionMember("atTime", int64(e), false)
+	return ujson.FormatUnionMember("atTime", time.Time(e), false)
 }
 
 func (e ExpirationAtTime) String() string {

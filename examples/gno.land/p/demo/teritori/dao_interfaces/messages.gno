@@ -1,11 +1,6 @@
 package dao_interfaces
 
 import (
-	"encoding/base64"
-	"encoding/binary"
-	"strings"
-
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/ujson"
 )
 

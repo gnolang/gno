@@ -18,14 +18,14 @@ type FromJSONAble interface {
 }
 
 // does not work for slices, use ast exploration instead
-func (ast *JSONASTNode) ParseAny(ptr *interface{}) {
+func (ast *JSONASTNode) ParseAny(ptr interface{}) {
 	switch ptr.(type) {
 	case *std.Address:
 		*ptr.(*std.Address) = std.Address(ParseString(ast.Value))
 	case **avl.Tree:
-		panic("*avl.Tree not implemented, there is no way to know the type of the tree values, use ParseAVLTree instead")
+		panic("*avl.Tree not implemented, there is no way to know the type of the tree values, use a custom parser instead")
 	case *avl.Tree:
-		panic("avl.Tree not implemented, there is no way to know the type of the tree values, use ParseAVLTree instead")
+		panic("avl.Tree not implemented, there is no way to know the type of the tree values, use a custom parser instead")
 	case *string:
 		if ast.Kind != JSONKindValue {
 			panic("not a value")
@@ -109,7 +109,7 @@ func (ast *JSONASTNode) ParseAny(ptr *interface{}) {
 		*ptr.(*users.AddressOrName) = users.AddressOrName(s)
 	default:
 		if ast.Kind == JSONKindValue && ast.ValueKind == JSONTokenKindNull {
-			*ptr = nil
+			// *ptr.(*interface{}) = nil // TODO: handle nil
 			return
 		}
 		panic("type not defined for `" + ast.String() + "`")
@@ -148,13 +148,13 @@ func ParseInt64(s string) int64 {
 
 type ParseKV struct {
 	Key          string
-	Value        *interface{}
+	Value        interface{}
 	ArrayParser  func(children []*JSONASTNode)
 	ObjectParser func(children []*JSONASTKV)
 	CustomParser func(node *JSONASTNode)
 }
 
-func ParseAny(s string, val *interface{}) {
+func ParseAny(s string, val interface{}) {
 	tokens := tokenize(s)
 	if len(tokens) == 0 {
 		panic("empty json")
@@ -373,6 +373,8 @@ func parseAST(tokens []*JSONToken) (tkn []*JSONToken, tree *JSONASTNode) {
 	default:
 		panic("unexpected token `" + tokens[0].Raw + "`")
 	}
+
+	return
 }
 
 func tokenize(s string) []*JSONToken {
@@ -385,22 +387,6 @@ func tokenize(s string) []*JSONToken {
 		}
 	}
 	return tokens
-}
-
-func (node *JSONASTNode) ParseAVLTree(t *interface{}) *avl.Tree {
-	if node.Kind != JSONKindObject {
-		panic("not an object")
-	}
-	tree := avl.NewTree()
-	for _, child := range node.ObjectChildren {
-		child.Value.ParseAny(t)
-		tree.Set(child.Key, *t)
-	}
-	return tree
-}
-
-func ParseAVLTree(s string, t *interface{}) *avl.Tree {
-	return TokenizeAndParse(s).ParseAVLTree(t)
 }
 
 func tokenizeOne(s string) (string, *JSONToken) {

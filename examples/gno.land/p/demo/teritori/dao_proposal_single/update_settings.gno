@@ -1,8 +1,6 @@
 package dao_proposal_single
 
 import (
-	"encoding/binary"
-	"std"
 	"strings"
 
 	"gno.land/p/demo/teritori/dao_interfaces"
@@ -17,7 +15,7 @@ type UpdateSettingsMessage struct {
 	Threshold Threshold
 }
 
-func (usm *UpdateSettingsMessage) Type() string {
+func (usm UpdateSettingsMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings"
 }
 
@@ -69,7 +67,7 @@ func (h *updateSettingsHandler) Execute(message dao_interfaces.ExecutableMessage
 	}
 }
 
-func (h *updateSettingsHandler) Type() string {
+func (h updateSettingsHandler) Type() string {
 	return UpdateSettingsMessage{}.Type()
 }
 

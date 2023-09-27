@@ -17,8 +17,8 @@ type PercentageThreshold interface {
 func PercentageThresholdFromJSON(ast *ujson.JSONASTNode) PercentageThreshold {
 	p := PercentageThresholdPercent(0)
 	return ast.ParseUnion([]*ujson.ParseKV{
-		{"majority", &PercentageThresholdMajority{}},
-		{"percent", &p},
+		{Key: "majority", Value: &PercentageThresholdMajority{}},
+		{Key: "percent", Value: &p},
 	}).(PercentageThreshold)
 }
 
@@ -76,15 +76,17 @@ func ThresholdFromJSON(ast *ujson.JSONASTNode) Threshold {
 	}).(Threshold)
 }
 
-type ThresholdAbsolutePercentage PercentageThreshold
-
-func (t *ThresholdAbsolutePercentage) Clone() Threshold {
-	c := (*t).(PercentageThreshold).Clone()
-	return (*ThresholdAbsolutePercentage)(c)
+type ThresholdAbsolutePercentage struct {
+	Value PercentageThreshold
 }
 
-func (t *ThresholdAbsolutePercentage) ToJSON() string {
-	return ujson.FormatUnionMember("absolutePercentage", (t).(*PercentageThreshold), false)
+func (t ThresholdAbsolutePercentage) Clone() Threshold {
+	c := t.Value.Clone()
+	return &ThresholdAbsolutePercentage{Value: c}
+}
+
+func (t ThresholdAbsolutePercentage) ToJSON() string {
+	return ujson.FormatUnionMember("absolutePercentage", t.Value, false)
 }
 
 type ThresholdThresholdQuorum struct {
@@ -120,7 +122,8 @@ func (t *ThresholdThresholdQuorum) ToJSON() string {
 type ThresholdAbsoluteCount uint64
 
 func (t *ThresholdAbsoluteCount) Clone() Threshold {
-	return &ThresholdAbsoluteCount(*t)
+	val := *t
+	return &val
 }
 
 func (t *ThresholdAbsoluteCount) ToJSON() string {

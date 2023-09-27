@@ -1,7 +1,6 @@
 package groups
 
 import (
-	"encoding/binary"
 	"std"
 	"strconv"
 	"time"

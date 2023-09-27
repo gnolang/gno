@@ -59,7 +59,11 @@ func TestProposalJSON(t *testing.T) {
 		},
 	}
 	props[0].Ballots.Set("0x1234567890", Ballot{Power: 1, Vote: VoteYes, Rationale: "test"})
-	str := ujson.FormatSlice(props)
+	iSlice := make([]interface{}, len(props))
+	for i, p := range props {
+		iSlice[i] = p
+	}
+	str := ujson.FormatSlice(iSlice)
 	expected := `[{"id":0,"title":"Prop #0","description":"Wolol0\n\t\r","proposer":"0x1234567890","startHeight":0,"minVotingPeriod":null,"expiration":{"atHeight":1000},"threshold":null,"totalPower":0,"messages":[],"status":"Open","votes":{"yes":7,"no":21,"abstain":42},"allowRevoting":false,"ballots":{"0x1234567890":{"power":1,"vote":"Yes","rationale":"test"}}},{"id":1,"title":"Prop #1","description":"Wolol1\\\"","proposer":"0x1234567890","startHeight":0,"minVotingPeriod":null,"expiration":{"atHeight":2000},"threshold":null,"totalPower":0,"messages":[{"type":"noop-type","payload":"noop"},{"type":"noop-type","payload":"noop"},{"type":"noop-type","payload":"noop"}],"status":"Executed","votes":{"yes":0,"no":0,"abstain":0},"allowRevoting":false,"ballots":{}}]`
 	if expected != str {
 		t.Fatalf("JSON does not match, expected %s, got %s", expected, str)

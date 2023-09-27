@@ -1,13 +1,12 @@
 package escrow
 
 import (
+	"std"
+	"time"
+
 	fmt "gno.land/p/demo/ufmt"
 	"gno.land/r/demo/foo20"
 	"gno.land/r/demo/users"
-	"std"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Config struct {
@@ -37,8 +36,10 @@ type Contract struct {
 }
 
 // GNODAO STATE
-var config Config
-var contracts []Contract
+var (
+	config    Config
+	contracts []Contract
+)
 
 // GNODAO FUNCTIONS
 func UpdateConfig(daoAdmin string) {

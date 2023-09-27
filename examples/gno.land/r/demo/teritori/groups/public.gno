@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/teritori/ujson"
-	"gno.land/r/demo/users"
+	// "gno.land/r/demo/users"
 )
 
 //----------------------------------------
@@ -117,5 +117,10 @@ func GetMembers(gid GroupID) []Member {
 }
 
 func GetMembersJSON(gid GroupID) string {
-	return ujson.FormatSlice(GetMembers(gid))
+	members := GetMembers(gid)
+	iSlice := make([]interface{}, len(members))
+	for i, member := range members {
+		iSlice[i] = member
+	}
+	return ujson.FormatSlice(iSlice)
 }

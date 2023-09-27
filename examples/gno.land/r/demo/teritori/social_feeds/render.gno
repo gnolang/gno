@@ -55,4 +55,6 @@ func Render(path string) string {
 		// /r/demo/social_feeds_v4:FEED_NAME/POST_ID
 		return renderPost(parts)
 	}
+
+	return "Not found"
 }

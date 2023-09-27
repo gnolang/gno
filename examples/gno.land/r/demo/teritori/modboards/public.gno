@@ -3,8 +3,6 @@ package boards
 import (
 	"std"
 	"strconv"
-
-	"gno.land/p/demo/teritori/flags_index"
 )
 
 //----------------------------------------

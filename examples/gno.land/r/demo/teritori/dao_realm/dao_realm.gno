@@ -1,9 +1,7 @@
 package dao_realm
 
 import (
-	"encoding/base64"
 	"std"
-	"strings"
 	"time"
 
 	dao_core "gno.land/p/demo/teritori/dao_core"
@@ -11,7 +9,6 @@ import (
 	proposal_single "gno.land/p/demo/teritori/dao_proposal_single"
 	"gno.land/p/demo/teritori/dao_utils"
 	voting_group "gno.land/p/demo/teritori/dao_voting_group"
-	"gno.land/p/demo/teritori/ujson"
 	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
 	modboards "gno.land/r/demo/teritori/modboards"

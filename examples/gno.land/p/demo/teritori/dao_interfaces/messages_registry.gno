@@ -1,9 +1,6 @@
 package dao_interfaces
 
 import (
-	"std"
-	"strconv"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/ujson"
 )
@@ -51,7 +48,7 @@ func (r *MessagesRegistry) Execute(msg ExecutableMessage) {
 	if !ok {
 		panic("invalid ExecutableMessage: invalid message type")
 	}
-	return h.(MessageHandler).Execute(msg)
+	h.(MessageHandler).Execute(msg)
 }
 
 func (r *MessagesRegistry) ExecuteMessages(msgs []ExecutableMessage) {
@@ -64,7 +61,7 @@ type RegisterHandlerExecutableMessage struct {
 	Handler MessageHandler
 }
 
-func (m *RegisterHandlerExecutableMessage) Type() string {
+func (m RegisterHandlerExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_interfaces.RegisterHandler"
 }
 
@@ -88,7 +85,7 @@ func NewRegisterHandlerExecutableMessageHandler(registry *MessagesRegistry) *Reg
 	return &RegisterHandlerExecutableMessageHandler{registry: registry}
 }
 
-func (h *RegisterHandlerExecutableMessageHandler) Type() string {
+func (h RegisterHandlerExecutableMessageHandler) Type() string {
 	return RegisterHandlerExecutableMessage{}.Type()
 }
 
@@ -104,7 +101,7 @@ type RemoveHandlerExecutableMessage struct {
 	HandlerType string
 }
 
-func (m *RemoveHandlerExecutableMessage) Type() string {
+func (m RemoveHandlerExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_interfaces.RemoveHandler"
 }
 
@@ -113,7 +110,7 @@ func (m *RemoveHandlerExecutableMessage) FromJSON(ast *ujson.JSONASTNode) {
 }
 
 func (m *RemoveHandlerExecutableMessage) ToJSON() string {
-	ujson.FormatAny(m.HandlerType)
+	return ujson.FormatAny(m.HandlerType)
 }
 
 func (m *RemoveHandlerExecutableMessage) String() string {
@@ -128,7 +125,7 @@ func NewRemoveHandlerExecutableMessageHandler(registry *MessagesRegistry) *Remov
 	return &RemoveHandlerExecutableMessageHandler{registry: registry}
 }
 
-func (h *RemoveHandlerExecutableMessageHandler) Type() string {
+func (h RemoveHandlerExecutableMessageHandler) Type() string {
 	return RemoveHandlerExecutableMessage{}.Type()
 }
 

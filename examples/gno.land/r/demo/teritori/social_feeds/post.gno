@@ -1,15 +1,11 @@
 package social_feeds
 
 import (
-	"encoding/base64"
-	"encoding/binary"
 	"std"
 	"strconv"
-	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 	ujson "gno.land/p/demo/teritori/ujson"
 )
 

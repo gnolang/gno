@@ -8,7 +8,7 @@ type CopyMessage struct {
 	Value string
 }
 
-func (m *CopyMessage) Type() string {
+func (m CopyMessage) Type() string {
 	return "CopyMessage"
 }
 
@@ -43,7 +43,7 @@ func (h *CopyMessageHandler) Execute(imsg ExecutableMessage) {
 	*h.ptr = msg.Value
 }
 
-func (h *CopyMessageHandler) Type() string {
+func (h CopyMessageHandler) Type() string {
 	return "CopyMessage"
 }
 
