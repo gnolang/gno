@@ -1006,16 +1006,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-						// Another special case for append: adding untyped constants to an array.
+						// Another special case for append: adding untyped constants.
 						// They must be converted to the array type for consistency.
 						for i, arg := range n.Args[1:] {
 							if _, ok := arg.(*ConstExpr); !ok {
 								// Consider only constant expressions.
 								continue
 							}
-							t1 := evalStaticTypeOf(store, last, arg)
-							if t1 != nil && !isUntyped(t1) {
-								// Consider only untyped values.
+							if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+								// Consider only untyped values (including nil).
 								continue
 							}
 							// Get the array type from the first argument and convert to it.
