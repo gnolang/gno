@@ -1006,17 +1006,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-						// Another special case for append: adding nil to an array.
-						// Untyped nil must be converted to the array type for consistency.
+						// Another special case for append: adding untyped constants to an array.
+						// They must be converted to the array type for consistency.
 						for i, arg := range n.Args[1:] {
-							if cx, ok := arg.(*ConstExpr); ok && isNilExpr(cx.Source) {
-								// We append an untyped nil value. Get the array type from
-								// the first argument and convert nil to it.
-								s0 := evalStaticTypeOf(store, last, n.Args[0])
-								tx := constType(nil, s0.Elem())
-								var arg1 Expr = Call(tx, arg)
-								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
+							if _, ok := arg.(*ConstExpr); !ok {
+								// Consider only constant expressions.
+								continue
 							}
+							t1 := evalStaticTypeOf(store, last, arg)
+							if t1 != nil && !isUntyped(t1) {
+								// Consider only untyped values.
+								continue
+							}
+							// Get the array type from the first argument and convert to it.
+							s0 := evalStaticTypeOf(store, last, n.Args[0])
+							tx := constType(arg, s0.Elem())
+							var arg1 Expr = Call(tx, arg)
+							n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
