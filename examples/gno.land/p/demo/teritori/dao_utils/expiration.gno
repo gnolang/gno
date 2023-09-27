@@ -34,7 +34,9 @@ func (e ExpirationAtHeight) String() string {
 }
 
 func (e ExpirationAtTime) IsExpired() bool {
-	return time.Now().After(time.Time(e))
+	t := time.Time(e)
+	now := time.Now()
+	return now.Equal(t) || now.After(t)
 }
 
 func (e ExpirationAtTime) ToJSON() string {

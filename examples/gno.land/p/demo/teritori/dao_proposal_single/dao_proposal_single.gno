@@ -271,7 +271,10 @@ func (d *DAOProposalSingle) VoteJSON(proposalID int, voteJSON string) {
 		panic("proposal does not exist")
 	}
 	proposal := d.proposals[proposalID]
-	// TODO: check proposal expiration
+
+	if proposal.Expiration.IsExpired() {
+		panic("proposal is expired")
+	}
 
 	votePower := d.core.VotingModule().VotingPowerAtHeight(voter, proposal.StartHeight)
 	if votePower == 0 {
