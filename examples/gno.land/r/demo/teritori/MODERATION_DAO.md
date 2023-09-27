@@ -7,7 +7,7 @@ The general flow is
 - Users flag harmful content
 - Moderators (members of the moderation DAO) can review the list of most flagged content
 - A moderator creates a proposal to ban some content
-- Moderators vote on the ban proposal, the tallying process is fully customizable using proposal modules, see the [DAO framework documentation(./DAO_TUTORIAL.md)] for details
+- Moderators vote on the ban proposal, the tallying process is fully customizable using proposal modules, see the [DAO framework documentation](./DAO_TUTORIAL.md) for details
 - Once the proposal is passed, it can be executed and the content is removed
 
 A Gno moderation DAO is comprised of two main parts
