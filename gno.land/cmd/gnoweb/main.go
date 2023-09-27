@@ -95,37 +95,22 @@ func main() {
 }
 
 func handlerHome(app gotuna.App) http.Handler {
-	rlmpath := "gno.land/r/system/home"
-	querystr := ""
-	qpath := "vm/qrender"
-	rlmName := "home"
-	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
-	res, err := makeRequest(qpath, data)
-	if err != nil {
-		// XXX: better default handler.
-		writeError(w, err)
-	}
-	// Render template.
-	tmpl := app.NewTemplatingEngine()
-	tmpl.Set("RealmName", rlmname)
-	tmpl.Set("RealmPath", rlmpath)
-	tmpl.Set("Query", querystr)
-	tmpl.Set("Contents", string(res.Data))
-	// XXX: home
-	tmpl.Render(w, r, "realm_render.html", "funcs.html")
-
-	/*
-		md := filepath.Join(flags.pagesDir, "HOME.md")
-		homeContent := osm.MustReadFile(md)
-
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			app.NewTemplatingEngine().
-				Set("Title", "Gno.land Smart Contract Platform Using Gnolang (Gno)").
-				Set("Description", "Gno.land is the only smart contract platform using the Gnolang (Gno) programming language, an interpretation of the widely-used Golang (Go).").
-				Set("HomeContent", string(homeContent)).
-				Render(w, r, "home.html", "funcs.html")
-		})
-	*/
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rlmpath := "gno.land/r/system/home"
+		querystr := "?from-home"
+		qpath := "vm/qrender"
+		data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+		res, err := makeRequest(qpath, data)
+		if err != nil {
+			writeError(w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
+			return
+		}
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("HomeContent", string(res.Data))
+		tmpl.Set("Title", "Gno.land Smart Contract Platform Using Gnolang (Gno)")
+		tmpl.Set("Description", "Gno.land is the only smart contract platform using the Gnolang (Gno) programming language, an interpretation of the widely-used Golang (Go).")
+		tmpl.Render(w, r, "home.html", "funcs.html")
+	})
 }
 
 func handlerAbout(app gotuna.App) http.Handler {
@@ -457,7 +442,15 @@ func handleNotFound(app gotuna.App, path string, w http.ResponseWriter, r *http.
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
+
+	details := errors.Unwrap(err).Error()
+	main := err.Error()
+
+	fmt.Println("main", main)
+	fmt.Println("details", details)
+
 	w.Write([]byte(err.Error()))
 }
 

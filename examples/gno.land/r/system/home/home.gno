@@ -52,6 +52,36 @@ Official channel: [Discord](https://discord.gg/S8nKUqwkPn)<br />
 Other channels: [Telegram](https://t.me/gnoland) [Twitter](https://twitter.com/_gnoland) [Youtube](https://www.youtube.com/@_gnoland)
 `
 
+var adminAddr std.Address = std.Address("")
+
 func Render(_ string) string {
+	// highest level == highest responsibility
+	// teams are responsible for components they don't owne
+	// flag : realm maintainers VS facilitators
+	// teams
+	// committee of trustees to create the directory
+	// each directory is a name, has a parent and have groups
+	// homepage team - blocks aggregating events
+		`
+# Directory
+
+* gno.land (owned by group)
+  * 
+* gnovm
+  * gnolang (language)
+  * gnovm
+    - current challenges / concerns / issues
+* tm2
+  * amino
+  * 
+
+## Contributors
+``
+
+
+	// XXX: dynamic content: contributions
+	// XXX: 
+	// XXX: community curated picks
+	// XXX: 
 	return body
 }
