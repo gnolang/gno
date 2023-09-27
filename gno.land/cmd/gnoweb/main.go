@@ -95,16 +95,37 @@ func main() {
 }
 
 func handlerHome(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "HOME.md")
-	homeContent := osm.MustReadFile(md)
+	rlmpath := "gno.land/r/system/home"
+	querystr := ""
+	qpath := "vm/qrender"
+	rlmName := "home"
+	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+	res, err := makeRequest(qpath, data)
+	if err != nil {
+		// XXX: better default handler.
+		writeError(w, err)
+	}
+	// Render template.
+	tmpl := app.NewTemplatingEngine()
+	tmpl.Set("RealmName", rlmname)
+	tmpl.Set("RealmPath", rlmpath)
+	tmpl.Set("Query", querystr)
+	tmpl.Set("Contents", string(res.Data))
+	// XXX: home
+	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("Title", "Gno.land Smart Contract Platform Using Gnolang (Gno)").
-			Set("Description", "Gno.land is the only smart contract platform using the Gnolang (Gno) programming language, an interpretation of the widely-used Golang (Go).").
-			Set("HomeContent", string(homeContent)).
-			Render(w, r, "home.html", "funcs.html")
-	})
+	/*
+		md := filepath.Join(flags.pagesDir, "HOME.md")
+		homeContent := osm.MustReadFile(md)
+
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			app.NewTemplatingEngine().
+				Set("Title", "Gno.land Smart Contract Platform Using Gnolang (Gno)").
+				Set("Description", "Gno.land is the only smart contract platform using the Gnolang (Gno) programming language, an interpretation of the widely-used Golang (Go).").
+				Set("HomeContent", string(homeContent)).
+				Render(w, r, "home.html", "funcs.html")
+		})
+	*/
 }
 
 func handlerAbout(app gotuna.App) http.Handler {
