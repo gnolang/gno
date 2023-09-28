@@ -8,8 +8,8 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/teritori/flags_index"
-	"gno.land/p/demo/ufmt"
 	ujson "gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/ufmt"
 )
 
 type FeedID uint64

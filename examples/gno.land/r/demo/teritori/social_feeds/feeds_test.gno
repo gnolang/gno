@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/testutils"
 	ujson "gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	// Fake previous version for testing
 	feedsV7 "gno.land/r/demo/teritori/social_feeds"
