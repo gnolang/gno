@@ -221,7 +221,6 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 		if path, err = filepath.Abs(filepath.Join(logdir, logname)); err != nil {
 			ts.Fatalf("uanble to get absolute path of logdir %q", logdir)
 		}
-
 	} else if workdir := ts.Getenv("WORK"); workdir != "" {
 		path = filepath.Join(workdir, logname)
 	} else {
@@ -236,7 +235,7 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 
 	ts.Defer(func() {
 		if err := f.Close(); err != nil {
-			panic(fmt.Errorf("unable to close log file %q: %s", path, err))
+			panic(fmt.Errorf("unable to close log file %q: %w", path, err))
 		}
 	})
 
