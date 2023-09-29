@@ -40,6 +40,72 @@ type IntegrationConfig struct {
 	Config                string
 }
 
+// NOTE: this is a copy of gnoland actual flags
+// XXX: a lot this make no sense for integration
+func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.SkipFailingGenesisTxs,
+		"skip-failing-genesis-txs",
+		false,
+		"don't panic when replaying invalid genesis txs",
+	)
+	fs.BoolVar(
+		&c.SkipStart,
+		"skip-start",
+		false,
+		"quit after initialization, don't start the node",
+	)
+
+	fs.StringVar(
+		&c.GenesisBalancesFile,
+		"genesis-balances-file",
+		"./genesis/genesis_balances.txt",
+		"initial distribution file",
+	)
+
+	fs.StringVar(
+		&c.GenesisTxsFile,
+		"genesis-txs-file",
+		"./genesis/genesis_txs.txt",
+		"initial txs to replay",
+	)
+
+	fs.StringVar(
+		&c.ChainID,
+		"chainid",
+		"dev",
+		"the ID of the chain",
+	)
+
+	fs.StringVar(
+		&c.RootDir,
+		"root-dir",
+		"testdir",
+		"directory for config and data",
+	)
+
+	fs.StringVar(
+		&c.GenesisRemote,
+		"genesis-remote",
+		"localhost:26657",
+		"replacement for '%%REMOTE%%' in genesis",
+	)
+
+	fs.Int64Var(
+		&c.GenesisMaxVMCycles,
+		"genesis-max-vm-cycles",
+		10_000_000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
+	)
+
+	fs.StringVar(
+		&c.Config,
+		"config",
+		"",
+		"config file (optional)",
+	)
+}
+
 func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir string, args []string) (*node.Node, error) {
 	t.Helper()
 

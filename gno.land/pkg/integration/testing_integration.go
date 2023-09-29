@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -29,79 +28,10 @@ const (
 	test1Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
-func TestTestdata(t *testing.T) {
-	testscript.Run(t, SetupGnolandTestScript(t, "testdata"))
-}
-
-func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.SkipFailingGenesisTxs,
-		"skip-failing-genesis-txs",
-		false,
-		"don't panic when replaying invalid genesis txs",
-	)
-
-	fs.BoolVar(
-		&c.SkipStart,
-		"skip-start",
-		false,
-		"quit after initialization, don't start the node",
-	)
-
-	fs.StringVar(
-		&c.GenesisBalancesFile,
-		"genesis-balances-file",
-		"./genesis/genesis_balances.txt",
-		"initial distribution file",
-	)
-
-	fs.StringVar(
-		&c.GenesisTxsFile,
-		"genesis-txs-file",
-		"./genesis/genesis_txs.txt",
-		"initial txs to replay",
-	)
-
-	fs.StringVar(
-		&c.ChainID,
-		"chainid",
-		"dev",
-		"the ID of the chain",
-	)
-
-	fs.StringVar(
-		&c.RootDir,
-		"root-dir",
-		"testdir",
-		"directory for config and data",
-	)
-
-	fs.StringVar(
-		&c.GenesisRemote,
-		"genesis-remote",
-		"localhost:26657",
-		"replacement for '%%REMOTE%%' in genesis",
-	)
-
-	fs.Int64Var(
-		&c.GenesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		10_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.Config,
-		"config",
-		"",
-		"config file (optional)",
-	)
-}
-
 type testNode struct {
 	*node.Node
-	logger     log.Logger
-	gnokeyexec uint // counter for execution of gnokey
+	logger      log.Logger
+	nGnoKeyExec uint // counter for execution of gnokey
 }
 
 func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
@@ -118,9 +48,9 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
-	bTestWork, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
+	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
-		TestWork: bTestWork,
+		TestWork: persistWorkDir,
 		Dir:      txtarDir,
 		Setup: func(env *testscript.Env) error {
 			kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
@@ -138,6 +68,17 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
+			"sleep": func(ts *testscript.TestScript, neg bool, args []string) {
+				d := time.Second
+				if len(args) > 0 {
+					var err error
+					if d, err = time.ParseDuration(args[0]); err != nil {
+						ts.Fatalf("uanble to parse duration %q: %s", args[1], err)
+					}
+				}
+
+				time.Sleep(d)
+			},
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
 				muNodes.Lock()
 				defer muNodes.Unlock()
@@ -161,7 +102,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 
 					logger := log.NewNopLogger()
-					if testing.Verbose() && (os.Getenv("LOG_DIR") != "" || bTestWork) {
+					if persistWorkDir || os.Getenv("LOG_DIR") != "" {
 						logname := fmt.Sprintf("gnoland-%s.log", sid)
 						logger = getTestingLogger(ts, logname)
 					}
@@ -231,14 +172,13 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				}
 
 				if n, ok := nodes[sid]; ok {
-
 					if raddr := n.Config().RPC.ListenAddress; raddr != "" {
 						defaultArgs = append(defaultArgs, "-remote", raddr)
 					}
 
-					n.gnokeyexec++
-					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.gnokeyexec)
-					// we error to log this even on lower level
+					n.nGnoKeyExec++
+					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
+					// log the command inside gnoland logger, so we can better scope errors
 					n.logger.Info(headerlog, strings.Join(args, " "))
 					defer n.logger.Info(headerlog, "END")
 				}
