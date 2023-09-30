@@ -289,11 +289,51 @@ var addRequireTests = []struct {
 	},
 }
 
+var addModuleStmtTests = []struct {
+	desc string
+	in   string
+	path string
+	out  string
+}{
+	{
+		`existing`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"n",
+		`
+		module n
+		require x.y/z v1.2.3
+		`,
+	},
+	{
+		`new`,
+		``,
+		"m",
+		`
+		module m
+		`,
+	},
+}
+
 func TestAddRequire(t *testing.T) {
 	for _, tt := range addRequireTests {
 		t.Run(tt.desc, func(t *testing.T) {
 			testEdit(t, tt.in, tt.out, func(f *File) error {
 				err := f.AddRequire(tt.path, tt.vers)
+				f.Syntax.Cleanup()
+				return err
+			})
+		})
+	}
+}
+
+func TestAddModuleStmt(t *testing.T) {
+	for _, tt := range addModuleStmtTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				err := f.AddModuleStmt(tt.path)
 				f.Syntax.Cleanup()
 				return err
 			})
