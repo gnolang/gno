@@ -414,6 +414,47 @@ var dropRequireTests = []struct {
 	},
 }
 
+var dropReplaceTests = []struct {
+	desc string
+	in   string
+	path string
+	vers string
+	out  string
+}{
+	{
+		`existing`,
+		`
+		module m
+		require x.y/z v1.2.3
+
+		replace x.y/z v1.2.3 => a.b/c v1.5.6
+		`,
+		"x.y/z",
+		"v1.2.3",
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+	},
+	{
+		`not_exists`,
+		`
+		module m
+		require x.y/z v1.2.3
+
+		replace x.y/z v1.2.3 => a.b/c v1.5.6
+		`,
+		"a.b/c",
+		"v3.2.1",
+		`
+		module m
+		require x.y/z v1.2.3
+
+		replace x.y/z v1.2.3 => a.b/c v1.5.6
+		`,
+	},
+}
+
 func TestAddRequire(t *testing.T) {
 	for _, tt := range addRequireTests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -455,6 +496,18 @@ func TestDropRequire(t *testing.T) {
 		t.Run(tt.desc, func(t *testing.T) {
 			testEdit(t, tt.in, tt.out, func(f *File) error {
 				err := f.DropRequire(tt.path)
+				f.Syntax.Cleanup()
+				return err
+			})
+		})
+	}
+}
+
+func TestDropReplace(t *testing.T) {
+	for _, tt := range dropReplaceTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				err := f.DropReplace(tt.path, tt.vers)
 				f.Syntax.Cleanup()
 				return err
 			})
