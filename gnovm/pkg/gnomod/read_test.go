@@ -209,3 +209,119 @@ comments before "// e"
 		})
 	}
 }
+
+var addRequireTests = []struct {
+	desc string
+	in   string
+	path string
+	vers string
+	out  string
+}{
+	{
+		`existing`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"x.y/z", "v1.5.6",
+		`
+		module m
+		require x.y/z v1.5.6
+		`,
+	},
+	{
+		`existing2`,
+		`
+		module m
+		require (
+			x.y/z v1.2.3 // first
+			x.z/a v0.1.0 // first-a
+		)
+		require x.y/z v1.4.5 // second
+		require (
+			x.y/z v1.6.7 // third
+			x.z/a v0.2.0 // third-a
+		)
+		`,
+		"x.y/z", "v1.8.9",
+		`
+		module m
+
+		require (
+			x.y/z v1.8.9 // first
+			x.z/a v0.1.0 // first-a
+		)
+
+		require x.z/a v0.2.0 // third-a
+		`,
+	},
+	{
+		`new`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"x.y/w", "v1.5.6",
+		`
+		module m
+		require (
+			x.y/z v1.2.3
+			x.y/w v1.5.6
+		)
+		`,
+	},
+	{
+		`new2`,
+		`
+		module m
+		require x.y/z v1.2.3
+		require x.y/q/v2 v2.3.4
+		`,
+		"x.y/w", "v1.5.6",
+		`
+		module m
+		require x.y/z v1.2.3
+		require (
+			x.y/q/v2 v2.3.4
+			x.y/w v1.5.6
+		)
+		`,
+	},
+}
+
+func TestAddRequire(t *testing.T) {
+	for _, tt := range addRequireTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				err := f.AddRequire(tt.path, tt.vers)
+				f.Syntax.Cleanup()
+				return err
+			})
+		})
+	}
+}
+
+func testEdit(t *testing.T, in, want string, transform func(f *File) error) *File {
+	t.Helper()
+	f, err := Parse("in", []byte(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := Parse("out", []byte(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := modfile.Format(g.Syntax)
+	if err := transform(f); err != nil {
+		t.Fatal(err)
+	}
+	out := modfile.Format(f.Syntax)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out, golden) {
+		t.Errorf("have:\n%s\nwant:\n%s", out, golden)
+	}
+
+	return f
+}
