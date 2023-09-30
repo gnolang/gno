@@ -317,6 +317,50 @@ var addModuleStmtTests = []struct {
 	},
 }
 
+var addReplaceTests = []struct {
+	desc    string
+	in      string
+	oldPath string
+	oldVers string
+	newPath string
+	newVers string
+	out     string
+}{
+	{
+		`replace_with_module`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"x.y/z",
+		"v1.5.6",
+		"a.b/c",
+		"v1.5.6",
+		`
+		module m
+		require x.y/z v1.2.3
+		replace x.y/z v1.5.6 => a.b/c v1.5.6
+		`,
+	},
+	{
+		`replace_with_dir`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"x.y/z",
+		"v1.5.6",
+		"/path/to/dir",
+		"",
+		`
+		module m
+		require x.y/z v1.2.3
+		replace x.y/z v1.5.6 => /path/to/dir
+		`,
+	},
+}
+
+
 func TestAddRequire(t *testing.T) {
 	for _, tt := range addRequireTests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -336,6 +380,18 @@ func TestAddModuleStmt(t *testing.T) {
 				err := f.AddModuleStmt(tt.path)
 				f.Syntax.Cleanup()
 				return err
+			})
+		})
+	}
+}
+
+func TestAddReplace(t *testing.T) {
+	for _, tt := range addReplaceTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				f.AddReplace(tt.oldPath, tt.oldVers, tt.newPath, tt.newVers)
+				f.Syntax.Cleanup()
+				return nil
 			})
 		})
 	}
