@@ -360,6 +360,59 @@ var addReplaceTests = []struct {
 	},
 }
 
+var dropRequireTests = []struct {
+	desc string
+	in   string
+	path string
+	out  string
+}{
+	{
+		`existing`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"x.y/z",
+		`
+		module m
+		`,
+	},
+	{
+		`existing2`,
+		`
+		module m
+		require (
+			x.y/z v1.2.3 // first
+			x.z/a v0.1.0 // first-a
+		)
+		require x.y/z v1.4.5 // second
+		require (
+			x.y/z v1.6.7 // third
+			x.z/a v0.2.0 // third-a
+		)
+		`,
+		"x.y/z",
+		`
+		module m
+
+		require x.z/a v0.1.0 // first-a
+
+		require x.z/a v0.2.0 // third-a
+		`,
+	},
+	{
+		`not_exists`,
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+		"a.b/c",
+		`
+		module m
+		require x.y/z v1.2.3
+		`,
+	},
+}
 
 func TestAddRequire(t *testing.T) {
 	for _, tt := range addRequireTests {
@@ -392,6 +445,18 @@ func TestAddReplace(t *testing.T) {
 				f.AddReplace(tt.oldPath, tt.oldVers, tt.newPath, tt.newVers)
 				f.Syntax.Cleanup()
 				return nil
+			})
+		})
+	}
+}
+
+func TestDropRequire(t *testing.T) {
+	for _, tt := range dropRequireTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				err := f.DropRequire(tt.path)
+				f.Syntax.Cleanup()
+				return err
 			})
 		})
 	}
