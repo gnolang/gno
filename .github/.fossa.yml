@@ -6,6 +6,10 @@ project:
   id: github.com/gnolang/gno
   name: gno
 
+targets:
+  only:
+    - type: gomod
+
 paths:
   exclude:
     - ./misc/
