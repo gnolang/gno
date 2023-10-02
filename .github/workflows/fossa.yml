@@ -2,6 +2,10 @@ name: Dependency License Scanning
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/.fossa.yml"
+      - ".github/workflows/fossa.yml"
   schedule:
     - cron: '0 0 * * 6' # At 00:00 on saturdays
 
