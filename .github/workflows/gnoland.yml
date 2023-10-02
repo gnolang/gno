@@ -75,13 +75,18 @@ jobs:
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
       - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
-        uses: codecov/codecov-action@v3
+        name: Upload coverage to Codecov.io
+        uses: Wandalen/wretry.action@v1.3.0
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: gno.land
-          flags: gno.land-${{matrix.args}}
-          files: ./gno.land/coverage.out
-          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          attempt_limit: 3
+          attempt_delay: 30000
+          action: codecov/codecov-action@v3
+          with: |
+            token: ${{ secrets.CODECOV_TOKEN }}
+            name: gno.land
+            flags: gno.land-${{matrix.args}}
+            files: ./gno.land/coverage.out
+            fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
     strategy:
