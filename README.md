@@ -54,6 +54,7 @@ Also, see the [quickstart guide](https://github.com/gnolang/gno/blob/master/exam
   GitHub Actions:
   
   * [![gno.land](https://github.com/gnolang/gno/actions/workflows/gnoland.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnoland.yml)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgnolang%2Fgno.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fgnolang%2Fgno?ref=badge_shield)
   * [![gnovm](https://github.com/gnolang/gno/actions/workflows/gnovm.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnovm.yml)
   * [![tm2](https://github.com/gnolang/gno/actions/workflows/tm2.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/tm2.yml)
   * [![examples](https://github.com/gnolang/gno/actions/workflows/examples.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/examples.yml)
@@ -77,3 +78,6 @@ Also, see the [quickstart guide](https://github.com/gnolang/gno/blob/master/exam
   * [![Go Reference](https://pkg.go.dev/badge/github.com/gnolang/gno.svg)](https://pkg.go.dev/github.com/gnolang/gno)
   * TODO: host custom docs on gh-pages, to bypass license limitation
 </details>
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgnolang%2Fgno.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fgnolang%2Fgno?ref=badge_large)
