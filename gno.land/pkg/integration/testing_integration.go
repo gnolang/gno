@@ -81,7 +81,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				if len(args) > 0 {
 					var err error
 					if d, err = time.ParseDuration(args[0]); err != nil {
-						ts.Fatalf("uanble to parse duration %q: %s", args[1], err)
+						ts.Fatalf("unable to parse duration %q: %s", args[1], err)
 					}
 				}
 
@@ -249,7 +249,7 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 		logger.SetLevel(log.LevelInfo)
 	case "":
 	default:
-		panic("invalid log level: " + level)
+		ts.Fatalf("invalid log level %q", level)
 	}
 
 	ts.Logf("starting logger: %q", path)
