@@ -4,14 +4,14 @@ import (
 	"gno.land/p/demo/flippandoserver"
 )
 
-type game struct {
-	owner     string
-	gameId    string
+type Game struct {
+	Owner     string
+	GameId    string
 	board     []int
 	tileType  string
 	gameTiles []int
 	boardSize int
-	status    string
+	Status    string
 }
 
 // owner - 'address', gameId - 'string', board - [int], tileType - 'coloredSquare', 'dice', 'hexagram', gameTiles - [int], boardSize - {4, 8}, status - 'created | ongoing | solved'
@@ -23,26 +23,9 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func StartGame(owner string, gameId string, tileType string, boardSize int) *game {
-	// Initialize the board and gameTiles slices based on boardSize
-	board := make([]int, boardSize)
-
-	// Initialize the gameTiles slice with a length that is the square root of boardSize
-	gameTilesLength := int(sqrt(float64(boardSize)))
-	gameTiles := make([]int, gameTilesLength)
-
-	// Create a new game instance
-	newGame := &game{
-		owner:     owner,
-		gameId:    gameId,
-		board:     board,
-		tileType:  tileType,
-		gameTiles: gameTiles,
-		boardSize: boardSize,
-		status:    "initiated",
-	}
-
-	return newGame
+func StartGame(owner string, gameId string, tileType string, boardSize int) (string, string, []int) {
+	newGameId, newGameStatus, newGameBoard := flippandoserver.StartGame(owner, gameId, tileType, boardSize)
+	return string(newGameId), string(newGameStatus), []int(newGameBoard)
 }
 
 func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) {
