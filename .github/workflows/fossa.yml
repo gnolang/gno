@@ -36,7 +36,7 @@ jobs:
           jvm: temurin:1.17
 
       - name: Set up fossa CLI
-        run: curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | bash
+        run: "curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | bash"
 
       - name: FOSSA analyze
         run: fossa analyze
