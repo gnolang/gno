@@ -78,20 +78,24 @@ jobs:
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-
-      # NOTE: Using retry action to manage occasional upload failures to codecov.io, due to API limits.
-      # Refer to issue#3954: https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
-      - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
-        name: Upload coverage to Codecov.io
-        uses: Wandalen/wretry.action@v1.3.0
+      - uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
-          attempt_limit: 3
-          attempt_delay: 30000
-          action: codecov/codecov-action@v3
-          with: |
-            token: ${{ secrets.CODECOV_TOKEN }}
-            name: gnovm
-            verbose: true
-            flags: gnovm-${{matrix.args}}
-            files: ./gnovm/coverage.out
-            fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+          name: ${{runner.os}}-coverage-gnovm-${{ matrix.args}}-${{matrix.goversion}}
+          path: ./gnovm/coverage.out
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all previous coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ${{ runner.temp }}/coverage
+      - name: Upload combined coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ${{ runner.temp }}/coverage
+          token: ${{ secrets.CODECOV_TOKEN }} 
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+
