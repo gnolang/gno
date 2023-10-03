@@ -4,17 +4,14 @@ import "github.com/gnolang/gno/tm2/pkg/std"
 
 // Archive wraps the backed-up chain data
 type Archive struct {
-	ChainData BlockData `json:"chainData"`
-	Metadata  Metadata  `json:"metadata"`
+	Metadata  *Metadata    `json:"metadata"`
+	BlockData []*BlockData `json:"blockData"`
 }
 
 // Metadata contains contextual information about the archive
 type Metadata struct {
 	EarliestBlockHeight uint64 `json:"earliestBlockHeight"`
-	EarliestTxHash      uint64 `json:"earliestTxHash"`
-
-	LatestBlockHeight uint64 `json:"latestBlockHeight"`
-	LatestTxHash      uint64 `json:"latestTxHash"`
+	LatestBlockHeight   uint64 `json:"latestBlockHeight"`
 }
 
 // BlockData contains the historical transaction data

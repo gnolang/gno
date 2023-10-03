@@ -2,6 +2,7 @@ package backup
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -64,16 +65,27 @@ func ExecuteBackup(
 		return fmt.Errorf("unable to fetch block data, %w", blockDataErr)
 	}
 
-	// Marshal the response
-	blockDataRaw, marshalErr := json.Marshal(blockData)
-	if marshalErr != nil {
-		return fmt.Errorf("unable to marshal block data JSON, %w", marshalErr)
+	// Prepare the archive
+	metadata, metadataErr := generateMetadata(blockData)
+	if metadataErr != nil {
+		return fmt.Errorf("unable to generate metadata, %w", metadataErr)
 	}
 
-	// Write the chain data to a file
-	_, writeErr := outputFile.Write(blockDataRaw)
+	archive := &types.Archive{
+		BlockData: blockData,
+		Metadata:  metadata,
+	}
+
+	// Marshal the archive data
+	archiveRaw, marshalErr := json.Marshal(archive)
+	if marshalErr != nil {
+		return fmt.Errorf("unable to marshal archive JSON, %w", marshalErr)
+	}
+
+	// Write the archive data to a file
+	_, writeErr := outputFile.Write(archiveRaw)
 	if writeErr != nil {
-		return fmt.Errorf("unable to write block data JSON, %w", writeErr)
+		return fmt.Errorf("unable to write archive JSON, %w", writeErr)
 	}
 
 	return nil
@@ -110,7 +122,7 @@ func getBlockData(
 ) ([]*types.BlockData, error) {
 	blockData := make([]*types.BlockData, 0, to-from+1)
 
-	for block := from; block < to; block++ {
+	for block := from; block <= to; block++ {
 		txs, txErr := client.GetBlockTransactions(block)
 		if txErr != nil {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
@@ -142,4 +154,15 @@ func logProgress(logger log.Logger, from, to, current uint64) {
 		"to", true,
 		"status", fmt.Sprintf("%.2f%%", status),
 	)
+}
+
+func generateMetadata(blockData []*types.BlockData) (*types.Metadata, error) {
+	if len(blockData) == 0 {
+		return nil, errors.New("unable to generate metadata, no block data")
+	}
+
+	return &types.Metadata{
+		EarliestBlockHeight: blockData[0].BlockNum,
+		LatestBlockHeight:   blockData[len(blockData)-1].BlockNum,
+	}, nil
 }

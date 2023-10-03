@@ -8,22 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// createTempFile creates a temporary file
+func createTempFile(t *testing.T) *os.File {
+	t.Helper()
+
+	f, err := os.CreateTemp("", "temp-")
+	if err != nil {
+		t.Fatalf("unable to create temporary file, %v", err)
+	}
+
+	return f
+}
+
 func TestConfig_ValidateConfig(t *testing.T) {
 	t.Parallel()
-
-	// Helper for creating a temporary file
-	createTempFile := func() *os.File {
-		f, err := os.CreateTemp("", "temp-")
-		if err != nil {
-			t.Fatalf("unable to create temporary file, %v", err)
-		}
-
-		if _, err := f.WriteString("random data"); err != nil {
-			t.Fatalf("unable to write dummy data, %v", err)
-		}
-
-		return f
-	}
 
 	t.Run("invalid output file", func(t *testing.T) {
 		t.Parallel()
@@ -38,7 +36,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		t.Parallel()
 
 		// Create temp file
-		tempFile := createTempFile()
+		tempFile := createTempFile(t)
 
 		t.Cleanup(func() {
 			require.NoError(t, tempFile.Close())
@@ -56,7 +54,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		t.Parallel()
 
 		// Create temp file
-		tempFile := createTempFile()
+		tempFile := createTempFile(t)
 
 		t.Cleanup(func() {
 			require.NoError(t, tempFile.Close())
