@@ -97,13 +97,6 @@ func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
 		10_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
-
-	fs.StringVar(
-		&c.Config,
-		"config",
-		"",
-		"config file (optional)",
-	)
 }
 
 func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir string, args []string) (*node.Node, error) {
