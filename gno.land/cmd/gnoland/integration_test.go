@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	integration "github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
