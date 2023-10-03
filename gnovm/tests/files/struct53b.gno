@@ -18,4 +18,4 @@ func main() {
 }
 
 // Output:
-// struct{(nil *main.T)}
+// (struct{(nil *main.T)} main.T2)

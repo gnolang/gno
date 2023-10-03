@@ -9,6 +9,12 @@ on:
       - "tm2/**.go"
       - "gno.land/**"
       - ".github/workflows/gnovm.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -21,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         goarch: [ "amd64" ]
@@ -35,10 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: gno.land
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
@@ -47,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         args:
@@ -58,25 +64,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gno.land
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v3
+
+      # NOTE: Using retry action to manage occasional upload failures to codecov.io, due to API limits.
+      # Refer to issue#3954: https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
+      - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+        name: Upload coverage to Codecov.io
+        uses: Wandalen/wretry.action@v1.3.0
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: gno.land
-          flags: gno.land,gno.land-${{matrix.args}},go-${{ matrix.go-version }}
-          files: ./gno.land/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          attempt_limit: 3
+          attempt_delay: 30000
+          action: codecov/codecov-action@v3
+          with: |
+            token: ${{ secrets.CODECOV_TOKEN }}
+            name: gno.land
+            flags: gno.land-${{matrix.args}}
+            files: ./gno.land/coverage.out
+            fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
     strategy:

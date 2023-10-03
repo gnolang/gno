@@ -18,4 +18,4 @@ func main() {
 }
 
 // Output:
-// struct{("bar" string)}
+// (struct{("bar" string)} main.foo)
