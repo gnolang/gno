@@ -9,6 +9,12 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 10000
 ## execute Render
 gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
 
+## NOTE: In some rare cases, the previous command hasn't finished. Wait a bit to
+## ensure that the command has been correctly executed.
+## XXX: Find a more convenient and reliable way to ensure that the previous
+## command has been executed.
+sleep 500ms
+
 ## compare render
 cmp stdout stdout.golden
 
