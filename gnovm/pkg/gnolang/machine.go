@@ -3,6 +3,7 @@ package gnolang
 // XXX rename file to machine.go.
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -80,8 +81,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() interface{} {
 		return &Machine{
-			Ops:    make([]Op, OpSize),
-			Values: make([]TypedValue, ValueSize),
+			Ops:    make([]Op, VMSliceSize),
+			Values: make([]TypedValue, VMSliceSize),
 		}
 	},
 }
@@ -116,20 +117,14 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	context := opts.Context
 	mm := machinePool.Get().(*Machine)
-	*mm = Machine{
-		Ops:        mm.Ops,
-		NumOps:     0,
-		Values:     mm.Values,
-		NumValues:  0,
-		Package:    pv,
-		Alloc:      alloc,
-		CheckTypes: checkTypes,
-		ReadOnly:   readOnly,
-		MaxCycles:  maxCycles,
-		Output:     output,
-		Store:      store,
-		Context:    context,
-	}
+	mm.Package = pv
+	mm.Alloc = alloc
+	mm.CheckTypes = checkTypes
+	mm.ReadOnly = readOnly
+	mm.MaxCycles = maxCycles
+	mm.Output = output
+	mm.Store = store
+	mm.Context = context
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -138,13 +133,12 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 }
 
 const (
-	OpSize    = 1024
-	ValueSize = 1024
+	VMSliceSize = 1024
 )
 
 var (
-	opZeroed    [OpSize]Op
-	valueZeroed [ValueSize]TypedValue
+	opZeroed    [VMSliceSize]Op
+	valueZeroed [VMSliceSize]TypedValue
 )
 
 // m should not be used after this call
@@ -153,13 +147,14 @@ var (
 // and prevent objects that were not taken from
 // the pool, to call Release
 func (m *Machine) Release() {
-	// copy()
 	// here we zero in the values for the next user
 	m.NumOps = 0
 	m.NumValues = 0
-	// this is the fastest way to zero-in a slice in Go
-	copy(m.Ops, opZeroed[:])
-	copy(m.Values, valueZeroed[:])
+
+	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
+	copy(ops, opZeroed[:])
+	copy(values, valueZeroed[:])
+	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
 }
@@ -251,10 +246,6 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
 	DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
-	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing", false)
-	testingtv := TypedValue{T: gPackageType, V: testingpv}
-	testingcx := &ConstExpr{TypedValue: testingtv}
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
@@ -266,25 +257,8 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		m.RunFiles(tfiles.Files...)
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
-			tv := &pvBlock.Values[i]
-			if !(tv.T.Kind() == FuncKind &&
-				strings.HasPrefix(
-					string(tv.V.(*FuncValue).Name),
-					"Test")) {
-				continue // not a test function.
-			}
-			// XXX ensure correct func type.
-			name := tv.V.(*FuncValue).Name
-			t.Run(string(name), func(t *testing.T) {
-				defer m.injectLocOnPanic()
-				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
-				res := m.Eval(x)
-				if len(res) != 0 {
-					panic(fmt.Sprintf(
-						"expected no results but got %d",
-						len(res)))
-				}
-			})
+			tv := pvBlock.Values[i]
+			m.TestFunc(t, tv)
 		}
 	}
 	{ // run all (import) tests in test files.
@@ -299,28 +273,75 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
-			tv := &pvBlock.Values[i]
-			if !(tv.T.Kind() == FuncKind &&
-				strings.HasPrefix(
-					string(tv.V.(*FuncValue).Name),
-					"Test")) {
-				continue // not a test function.
-			}
-			// XXX ensure correct func type.
-			name := tv.V.(*FuncValue).Name
-			t.Run(string(name), func(t *testing.T) {
-				defer m.injectLocOnPanic()
-				x := Call(name, Call(Sel(testingcx, "NewT"), Str(string(name))))
-				res := m.Eval(x)
-				if len(res) != 0 {
-					fmt.Println("ERROR")
-					panic(fmt.Sprintf(
-						"expected no results but got %d",
-						len(res)))
-				}
-			})
+			tv := pvBlock.Values[i]
+			m.TestFunc(t, tv)
 		}
 	}
+}
+
+// TestFunc calls tv with testing.RunTest, if tv is a function with a name that
+// starts with `Test`.
+func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
+	if !(tv.T.Kind() == FuncKind &&
+		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+		return // not a test function.
+	}
+	// XXX ensure correct func type.
+	name := string(tv.V.(*FuncValue).Name)
+	// prefetch the testing package.
+	testingpv := m.Store.GetPackage("testing", false)
+	testingtv := TypedValue{T: gPackageType, V: testingpv}
+	testingcx := &ConstExpr{TypedValue: testingtv}
+
+	t.Run(name, func(t *testing.T) {
+		defer m.injectLocOnPanic()
+		x := Call(
+			Sel(testingcx, "RunTest"), // Call testing.RunTest
+			Str(name),                 // First param, the name of the test
+			X("true"),                 // Second Param, verbose bool
+			&CompositeLitExpr{ // Third param, the testing.InternalTest
+				Type: Sel(testingcx, "InternalTest"),
+				Elts: KeyValueExprs{
+					{Key: X("Name"), Value: Str(name)},
+					{Key: X("F"), Value: X(name)},
+				},
+			},
+		)
+		res := m.Eval(x)
+		ret := res[0].GetString()
+		if ret == "" {
+			t.Errorf("failed to execute unit test: %q", name)
+			return
+		}
+
+		// mirror of stdlibs/testing.Report
+		var report struct {
+			Name     string
+			Verbose  bool
+			Failed   bool
+			Skipped  bool
+			Filtered bool
+			Output   string
+		}
+		err := json.Unmarshal([]byte(ret), &report)
+		if err != nil {
+			t.Errorf("failed to parse test output %q", name)
+			return
+		}
+
+		switch {
+		case report.Filtered:
+			// noop
+		case report.Skipped:
+			t.SkipNow()
+		case report.Failed:
+			t.Fail()
+		}
+
+		if report.Output != "" && (report.Verbose || report.Failed) {
+			t.Log(report.Output)
+		}
+	})
 }
 
 // in case of panic, inject location information to exception.

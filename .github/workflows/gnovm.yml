@@ -11,6 +11,12 @@ on:
       - "gnovm/Makefile"
       - "tm2/**.go"
       - ".github/workflows/gnovm.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -23,26 +29,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
-        goarch: [ "amd64" ]
-        goos: [ "linux" ]
-        program: [ "gno" ]
+        goversion: # two latest versions
+          - "1.20.x"
+          - "1.21.x"
+        goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
+          - "GOARCH=amd64 GOOS=linux"
+          - "GOARCH=wasm GOOS=js"
+        program:
+          - "gno"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: gnovm
-        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
+        run: ${{ matrix.goenv }} go install ./cmd/${{ matrix.program }}
 
   test:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        goversion:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.cmd
           - _test.pkg
@@ -56,22 +68,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gnovm
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v3
+
+      # NOTE: Using retry action to manage occasional upload failures to codecov.io, due to API limits.
+      # Refer to issue#3954: https://community.codecov.com/t/upload-issues-unable-to-locate-build-via-github-actions-api/3954
+      - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+        name: Upload coverage to Codecov.io
+        uses: Wandalen/wretry.action@v1.3.0
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: gnovm
-          flags: gnovm,gnovm-${{matrix.args}},go-${{ matrix.go-version }}
-          files: ./gnovm/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          attempt_limit: 3
+          attempt_delay: 30000
+          action: codecov/codecov-action@v3
+          with: |
+            token: ${{ secrets.CODECOV_TOKEN }}
+            name: gnovm
+            verbose: true
+            flags: gnovm-${{matrix.args}}
+            files: ./gnovm/coverage.out
+            fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}

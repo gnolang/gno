@@ -97,15 +97,20 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					// NOTE: see also pkgs/sdk/vm/builtins.go
-					// XXX: why does this fail when just pkgPath?
-					PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-					Output:  stdout,
-					Store:   store,
-				})
-				save := pkgPath != "testing" // never save the "testing" package
-				return m2.RunMemPackage(memPkg, save)
+				if !memPkg.IsEmpty() {
+					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+						// NOTE: see also pkgs/sdk/vm/builtins.go
+						// XXX: why does this fail when just pkgPath?
+						PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+						Output:  stdout,
+						Store:   store,
+					})
+					save := pkgPath != "testing" // never save the "testing" package
+					return m2.RunMemPackage(memPkg, save)
+				}
+
+				// There is no package there, but maybe we have a
+				// native counterpart below.
 			}
 		}
 
@@ -139,7 +144,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 				pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 					// NOTE: uncomment to debug long running tests
-					fmt.Println(a...)
+					// fmt.Println(a...)
 					res := fmt.Sprintln(a...)
 					return stdout.Write([]byte(res))
 				})
@@ -413,6 +418,10 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
 			if osm.DirExists(stdlibPath) {
 				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+				if memPkg.IsEmpty() {
+					panic(fmt.Sprintf("found an empty package %q", pkgPath))
+				}
+
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -427,6 +436,10 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			if memPkg.IsEmpty() {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			}
+
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
