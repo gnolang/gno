@@ -92,7 +92,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          # token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }} 
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
     strategy:
