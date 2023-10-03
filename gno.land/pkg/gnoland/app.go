@@ -202,6 +202,7 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	}
 }
 
+// XXX: This helper will need to be relocated in the future.
 func guessGnoRootDir() string {
 	var rootdir string
 

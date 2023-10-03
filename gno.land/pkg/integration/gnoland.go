@@ -343,7 +343,7 @@ func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
 	}
 }
 
-// XXX: This helper will need to be moved elsewhere later
+// XXX: This helper will need to be relocated in the future.
 func guessGnoRootDir() string {
 	var rootdir string
 
