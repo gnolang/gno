@@ -40,8 +40,8 @@ type IntegrationConfig struct {
 	Config                string
 }
 
-// NOTE: this is a copy of gnoland actual flags
-// XXX: a lot this make no sense for integration
+// NOTE: This is a copy of gnoland actual flags.
+// XXX: A lot this make no sense for integration.
 func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.SkipFailingGenesisTxs,
@@ -102,13 +102,13 @@ func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
 func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir string, args []string) (*node.Node, error) {
 	t.Helper()
 
-	// Setup start config
+	// Setup start config.
 	icfg := &IntegrationConfig{}
 	{
 		fs := flag.NewFlagSet("start", flag.ExitOnError)
 		icfg.RegisterFlags(fs)
 
-		// Override default value for flags
+		// Override default value for flags.
 		fs.VisitAll(func(f *flag.Flag) {
 			switch f.Name {
 			case "root-dir":
@@ -131,7 +131,7 @@ func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir 
 		}
 	}
 
-	// Setup testing config
+	// Setup testing config.
 	cfg := config.TestConfig().SetRootDir(gnoDataDir)
 	{
 		cfg.EnsureDirs()
@@ -141,12 +141,12 @@ func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir 
 		cfg.P2P.ListenAddress = "tcp://127.0.0.1:0"
 	}
 
-	// Prepare genesis
+	// Prepare genesis.
 	if err := setupTestingGenesis(gnoDataDir, cfg, icfg, gnoRootDir); err != nil {
 		return nil, err
 	}
 
-	// Create application and node
+	// Create application and node.
 	return createAppAndNode(cfg, logger, gnoRootDir, icfg)
 }
 
@@ -187,13 +187,12 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 		balances := loadGenesisBalances(icfg.GenesisBalancesFile)
 
 		// Load initial packages from examples.
-		// XXX: we should be able to config this
+		// XXX: We should be able to config this.
 		test1 := crypto.MustAddressFromString(test1Addr)
 		txs := []std.Tx{}
 
 		// List initial packages to load from examples.
 		// println(filepath.Join(gnoRootDir, "examples"))
-
 		pkgs, err := gnomod.ListPkgs(filepath.Join(gnoRootDir, "examples"))
 		if err != nil {
 			return fmt.Errorf("listing gno packages: %w", err)
@@ -209,7 +208,7 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 		nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 
 		for _, pkg := range nonDraftPkgs {
-			// open files in directory as MemPackage.
+			// Open files in directory as MemPackage.
 			memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
 
 			var tx std.Tx
@@ -221,17 +220,17 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 				},
 			}
 
-			// XXX: add fee flag ?
-			// or maybe reduce fee to the minimum ?
+			// XXX: Add fee flag ?
+			// Or maybe reduce fee to the minimum ?
 			tx.Fee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 			tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 			txs = append(txs, tx)
 		}
 
-		// load genesis txs from file.
+		// Load genesis txs from file.
 		txs = append(txs, genesisTxs...)
 
-		// construct genesis AppState.
+		// Construct genesis AppState.
 		gen.AppState = gnoland.GnoGenesisState{
 			Balances: balances,
 			Txs:      txs,
@@ -287,10 +286,10 @@ func loadGenesisTxs(
 	txsLines := strings.Split(string(txsBz), "\n")
 	for _, txLine := range txsLines {
 		if txLine == "" {
-			continue // skip empty line
+			continue // Skip empty line.
 		}
 
-		// patch the TX
+		// Patch the TX.
 		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
@@ -303,18 +302,18 @@ func loadGenesisTxs(
 }
 
 func loadGenesisBalances(path string) []string {
-	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
+	// Each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot.
 	balances := []string{}
 	content := osm.MustReadFile(path)
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		// remove comments.
+		// Remove comments.
 		line = strings.Split(line, "#")[0]
 		line = strings.TrimSpace(line)
 
-		// skip empty lines.
+		// Skip empty lines.
 		if line == "" {
 			continue
 		}

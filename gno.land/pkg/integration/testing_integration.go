@@ -22,7 +22,7 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// XXX: should be centralize somewhere
+// XXX: This should be centralize somewhere.
 const (
 	test1Addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	test1Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
@@ -31,7 +31,7 @@ const (
 type testNode struct {
 	*node.Node
 	logger      log.Logger
-	nGnoKeyExec uint // counter for execution of gnokey
+	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
 func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
@@ -65,6 +65,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				return err
 			}
 
+			// XXX: Add a command to add custom account.
 			kb.CreateAccount("test1", test1Seed, "", "", 0, 0)
 			env.Setenv("USER_SEED_test1", test1Seed)
 			env.Setenv("USER_ADDR_test1", test1Addr)
@@ -130,11 +131,11 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 							}
 						})
 
-						// get listen addr environement
-						// should have been updated with the right port on start
+						// Get listen address environment.
+						// It should have been updated with the right port on start.
 						laddr := node.Config().RPC.ListenAddress
 
-						// add default environement
+						// Add default environements.
 						ts.Setenv("RPC_ADDR", laddr)
 						ts.Setenv("GNODATA", gnoDataDir)
 
@@ -153,7 +154,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					if err = n.Stop(); err != nil {
 						delete(nodes, sid)
 
-						// unset env dirs
+						// Unset gnoland environements.
 						ts.Setenv("RPC_ADDR", "")
 						ts.Setenv("GNODATA", "")
 					}
@@ -167,16 +168,16 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				sid := getSessionID(ts)
 
-				// Setup io command
+				// Setup IO command.
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
 				io.SetErr(commands.WriteNopCloser(ts.Stderr()))
 				cmd := client.NewRootCmd(io)
 
-				io.SetIn(strings.NewReader("\n")) // inject empty password to stdin
+				io.SetIn(strings.NewReader("\n")) // Inject empty password to stdin.
 				defaultArgs := []string{
 					"-home", gnoHomeDir,
-					"-insecure-password-stdin=true", // there no use to not have this param by default
+					"-insecure-password-stdin=true", // There no use to not have this param by default.
 				}
 
 				if n, ok := nodes[sid]; ok {
@@ -186,14 +187,14 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					n.nGnoKeyExec++
 					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
-					// log the command inside gnoland logger, so we can better scope errors
+					// Log the command inside gnoland logger, so we can better scope errors.
 					n.logger.Info(headerlog, strings.Join(args, " "))
 					defer n.logger.Info(headerlog, "END")
 				}
 
-				// inject default argument, if duplicate
+				// Inject default argument, if duplicate
 				// arguments, it should be override by the ones
-				// user provided
+				// user provided.
 				args = append(defaultArgs, args...)
 
 				err := cmd.ParseAndRun(context.Background(), args)
@@ -227,7 +228,6 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 		return log.NewNopLogger()
 	}
 
-	// create the file
 	f, err := os.Create(path)
 	if err != nil {
 		ts.Fatalf("unable to create log file %q: %s", path, err.Error())

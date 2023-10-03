@@ -206,13 +206,13 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 func guessGnoRootDir() string {
 	var rootdir string
 
-	// first try to get the root directory from the GNOROOT environment variable.
+	// First try to get the root directory from the GNOROOT environment variable.
 	if rootdir = os.Getenv("GNOROOT"); rootdir != "" {
 		return filepath.Clean(rootdir)
 	}
 
 	if gobin, err := exec.LookPath("go"); err == nil {
-		// if GNOROOT is not set, try to guess the root directory using the `go list` command.
+		// If GNOROOT is not set, try to guess the root directory using the `go list` command.
 		cmd := exec.Command(gobin, "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
