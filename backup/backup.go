@@ -133,13 +133,13 @@ func getBlockData(
 // logProgress logs the backup progress
 func logProgress(logger log.Logger, from, to, current uint64) {
 	total := to - from
-	progress := 100 * (float64(current) - float64(from)) / float64(total)
+	status := (float64(current) - float64(from)) / float64(total) * 100
 
 	logger.Info(
 		fmt.Sprintf("Total of %d blocks backed up", current-from+1),
 		"total", total,
 		"from", from,
 		"to", true,
-		"status", fmt.Sprintf("%.2f%%", progress),
+		"status", fmt.Sprintf("%.2f%%", status),
 	)
 }
