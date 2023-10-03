@@ -23,7 +23,9 @@ import (
 )
 
 type CustomAppConfig struct {
-	DB                    dbm.DB
+	DB dbm.DB
+	// `gnoRootDir` should point to the local location of the gno repository.
+	// It serves as the gno equivalent of GOROOT.
 	GnoRootDir            string
 	SkipFailingGenesisTxs bool
 	Logger                log.Logger
