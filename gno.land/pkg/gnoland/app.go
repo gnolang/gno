@@ -32,17 +32,11 @@ type AppOptions struct {
 	MaxCycles             int64
 }
 
-func (c *AppOptions) ApplyDefault() {
-	if c.Logger == nil {
-		c.Logger = log.NewNopLogger()
-	}
-
-	if c.DB == nil {
-		c.DB = dbm.NewMemDB()
-	}
-
-	if c.GnoRootDir == "" {
-		c.GnoRootDir = GuessGnoRootDir()
+func NewAppOptions() *AppOptions {
+	return &AppOptions{
+		Logger:     log.NewNopLogger(),
+		DB:         dbm.NewMemDB(),
+		GnoRootDir: GuessGnoRootDir(),
 	}
 }
 
@@ -59,7 +53,7 @@ func (c *AppOptions) validate() error {
 }
 
 // NewApp creates the GnoLand application.
-func NewAppWithOptions(cfg AppOptions) (abci.Application, error) {
+func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -128,8 +122,7 @@ func NewAppWithOptions(cfg AppOptions) (abci.Application, error) {
 func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
 	var err error
 
-	var cfg AppOptions
-	cfg.ApplyDefault()
+	cfg := NewAppOptions()
 
 	// Get main DB.
 	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
