@@ -6,5 +6,5 @@ import "github.com/gnolang/gno/tm2/pkg/std"
 type Client interface {
 	// SendTransaction executes a broadcast sync send
 	// of the specified transaction to the chain
-	SendTransaction(std.Tx) error
+	SendTransaction(*std.Tx) error
 }

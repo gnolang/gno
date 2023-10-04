@@ -1,0 +1,62 @@
+package http
+
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+// Client is the TM2 HTTP client
+type Client struct {
+	client rpcClient.Client
+}
+
+// NewClient creates a new TM2 HTTP client
+func NewClient(remote string) *Client {
+	return &Client{
+		client: rpcClient.NewHTTP(remote, ""),
+	}
+}
+
+func (c *Client) GetLatestBlockNumber() (uint64, error) {
+	status, err := c.client.Status()
+	if err != nil {
+		return 0, fmt.Errorf(
+			"unable to fetch latest block number, %w",
+			err,
+		)
+	}
+
+	return uint64(status.SyncInfo.LatestBlockHeight), nil
+}
+
+func (c *Client) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+	// Fetch the block
+	blockNumInt64 := int64(blockNum)
+
+	block, err := c.client.Block(&blockNumInt64)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"unable to fetch block, %w",
+			err,
+		)
+	}
+
+	// Decode amino transactions
+	txs := make([]std.Tx, 0, len(block.Block.Txs))
+
+	for _, encodedTx := range block.Block.Txs {
+		var tx std.Tx
+
+		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
+			return nil, fmt.Errorf(
+				"unable to unmarshal amino tx, %w",
+				err,
+			)
+		}
+	}
+
+	return txs, nil
+}

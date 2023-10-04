@@ -35,7 +35,7 @@ func ExecuteRestore(
 	}()
 
 	var (
-		tx      std.Tx
+		tx      *std.Tx
 		nextErr error
 
 		totalTxs uint64
