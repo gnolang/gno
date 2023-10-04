@@ -36,8 +36,8 @@ node started successfully
 -- gnoland-already-start.stderr.golden --
 "gnoland start" error: node already started
 -- gnoland-stop.stdout.golden --
-node stoped successfully
+node stopped successfully
 -- gnoland-stop.stderr.golden --
 -- gnoland-already-stop.stdout.golden --
 -- gnoland-already-stop.stderr.golden --
-"gnoland stop" error: node not started cannot be stop
+"gnoland stop" error: node not started cannot be stopped
