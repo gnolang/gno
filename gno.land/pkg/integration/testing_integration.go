@@ -138,10 +138,16 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Setenv("RPC_ADDR", laddr)
 						ts.Setenv("GNODATA", gnoDataDir)
 
-						// XXX: Use something similar to `require.Eventually` to check for node
-						// availability. For now, if this sleep duration is too short, the
-						// subsequent command might fail with an [internal error].
-						time.Sleep(time.Second * 2)
+						// Wait for first block by pulling height.
+						timeout := time.After(time.Second * 5)
+						for node.BlockStore().Height() == 0 {
+							select {
+							case <-time.After(time.Millisecond * 50): // poll interval
+							case <-timeout:
+								ts.Fatalf("unable to start node: timeout")
+							}
+						}
+
 						fmt.Fprintln(ts.Stdout(), "node started successfully")
 					}
 				case "stop":
