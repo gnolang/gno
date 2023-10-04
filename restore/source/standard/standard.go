@@ -35,7 +35,8 @@ func NewStandardSource(filePath string) (*Standard, error) {
 }
 
 func (s *Standard) Next(ctx context.Context) (*std.Tx, error) {
-	for s.scanner.Scan() {
+	// Read the line
+	if s.scanner.Scan() {
 		select {
 		case <-ctx.Done():
 			return nil, io.EOF
