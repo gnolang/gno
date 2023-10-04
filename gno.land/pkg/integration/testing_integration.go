@@ -158,7 +158,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 							select {
 							case <-nb: // ok
 							case <-time.After(time.Second * 6):
-								ts.Fatalf("timeout while wait for the node to start")
+								ts.Fatalf("timeout while waiting for the node to start")
 							}
 						}
 
@@ -169,7 +169,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
-						err = fmt.Errorf("node not started cannot be stop")
+						err = fmt.Errorf("node not started cannot be stopped")
 						break
 					}
 
@@ -179,7 +179,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						// Unset gnoland environements.
 						ts.Setenv("RPC_ADDR", "")
 						ts.Setenv("GNODATA", "")
-						fmt.Fprintln(ts.Stdout(), "node stoped successfully")
+						fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 					}
 				default:
 					err = fmt.Errorf("invalid gnoland subcommand: %q", cmd)

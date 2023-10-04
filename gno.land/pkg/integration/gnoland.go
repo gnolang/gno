@@ -154,94 +154,96 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
 
 	genesisFilePath := filepath.Join(gnoDataDir, cfg.Genesis)
-	osm.EnsureDir(filepath.Dir(genesisFilePath), 0o700)
-	if !osm.FileExists(genesisFilePath) {
-		genesisTxs := loadGenesisTxs(icfg.GenesisTxsFile, icfg.ChainID, icfg.GenesisRemote)
-		pvPub := priv.GetPubKey()
-
-		gen := &bft.GenesisDoc{
-			GenesisTime: time.Now(),
-			ChainID:     icfg.ChainID,
-			ConsensusParams: abci.ConsensusParams{
-				Block: &abci.BlockParams{
-					// TODO: update limits.
-					MaxTxBytes:   1000000,  // 1MB,
-					MaxDataBytes: 2000000,  // 2MB,
-					MaxGas:       10000000, // 10M gas
-					TimeIotaMS:   100,      // 100ms
-				},
-			},
-			Validators: []bft.GenesisValidator{
-				{
-					Address: pvPub.Address(),
-					PubKey:  pvPub,
-					Power:   10,
-					Name:    "testvalidator",
-				},
-			},
-		}
-
-		// Load distribution.
-		balances := loadGenesisBalances(icfg.GenesisBalancesFile)
-
-		// Load initial packages from examples.
-		// XXX: We should be able to config this.
-		test1 := crypto.MustAddressFromString(test1Addr)
-		txs := []std.Tx{}
-
-		// List initial packages to load from examples.
-		// println(filepath.Join(gnoRootDir, "examples"))
-		pkgs, err := gnomod.ListPkgs(filepath.Join(gnoRootDir, "examples"))
-		if err != nil {
-			return fmt.Errorf("listing gno packages: %w", err)
-		}
-
-		// Sort packages by dependencies.
-		sortedPkgs, err := pkgs.Sort()
-		if err != nil {
-			return fmt.Errorf("sorting packages: %w", err)
-		}
-
-		// Filter out draft packages.
-		nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-
-		for _, pkg := range nonDraftPkgs {
-			// Open files in directory as MemPackage.
-			memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-
-			var tx std.Tx
-			tx.Msgs = []std.Msg{
-				vmm.MsgAddPackage{
-					Creator: test1,
-					Package: memPkg,
-					Deposit: nil,
-				},
-			}
-
-			// XXX: Add fee flag ?
-			// Or maybe reduce fee to the minimum ?
-			tx.Fee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-			tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-			txs = append(txs, tx)
-		}
-
-		// Load genesis txs from file.
-		txs = append(txs, genesisTxs...)
-
-		// Construct genesis AppState.
-		gen.AppState = gnoland.GnoGenesisState{
-			Balances: balances,
-			Txs:      txs,
-		}
-
-		writeGenesisFile(gen, genesisFilePath)
+	genesisDirPath := filepath.Dir(genesisFilePath)
+	if err := osm.EnsureDir(genesisDirPath, 0o700); err != nil {
+		return fmt.Errorf("unable to ensure directory %q: %w", genesisDirPath, err)
 	}
+
+	genesisTxs := loadGenesisTxs(icfg.GenesisTxsFile, icfg.ChainID, icfg.GenesisRemote)
+	pvPub := priv.GetPubKey()
+
+	gen := &bft.GenesisDoc{
+		GenesisTime: time.Now(),
+		ChainID:     icfg.ChainID,
+		ConsensusParams: abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				// TODO: update limits.
+				MaxTxBytes:   1000000,  // 1MB,
+				MaxDataBytes: 2000000,  // 2MB,
+				MaxGas:       10000000, // 10M gas
+				TimeIotaMS:   100,      // 100ms
+			},
+		},
+		Validators: []bft.GenesisValidator{
+			{
+				Address: pvPub.Address(),
+				PubKey:  pvPub,
+				Power:   10,
+				Name:    "testvalidator",
+			},
+		},
+	}
+
+	// Load distribution.
+	balances := loadGenesisBalances(icfg.GenesisBalancesFile)
+
+	// Load initial packages from examples.
+	// XXX: We should be able to config this.
+	test1 := crypto.MustAddressFromString(test1Addr)
+	txs := []std.Tx{}
+
+	// List initial packages to load from examples.
+	// println(filepath.Join(gnoRootDir, "examples"))
+	pkgs, err := gnomod.ListPkgs(filepath.Join(gnoRootDir, "examples"))
+	if err != nil {
+		return fmt.Errorf("listing gno packages: %w", err)
+	}
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
+		return fmt.Errorf("sorting packages: %w", err)
+	}
+
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+
+	for _, pkg := range nonDraftPkgs {
+		// Open files in directory as MemPackage.
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+
+		var tx std.Tx
+		tx.Msgs = []std.Msg{
+			vmm.MsgAddPackage{
+				Creator: test1,
+				Package: memPkg,
+				Deposit: nil,
+			},
+		}
+
+		// XXX: Add fee flag ?
+		// Or maybe reduce fee to the minimum ?
+		tx.Fee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		txs = append(txs, tx)
+	}
+
+	// Load genesis txs from file.
+	txs = append(txs, genesisTxs...)
+
+	// Construct genesis AppState.
+	gen.AppState = gnoland.GnoGenesisState{
+		Balances: balances,
+		Txs:      txs,
+	}
+
+	writeGenesisFile(gen, genesisFilePath)
 
 	return nil
 }
 
 func createAppAndNode(cfg *config.Config, logger log.Logger, gnoRootDir string, icfg *IntegrationConfig) (*node.Node, error) {
-	gnoApp, err := gnoland.NewAppWithOptions(gnoland.AppOptions{
+	gnoApp, err := gnoland.NewAppWithOptions(&gnoland.AppOptions{
 		Logger:                logger,
 		GnoRootDir:            gnoRootDir,
 		SkipFailingGenesisTxs: icfg.SkipFailingGenesisTxs,
