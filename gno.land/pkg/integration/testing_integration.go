@@ -85,22 +85,10 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
-			env.Setenv("GNODATA", gnoDataDir)
 
 			return nil
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"sleep": func(ts *testscript.TestScript, neg bool, args []string) {
-				d := time.Second
-				if len(args) > 0 {
-					var err error
-					if d, err = time.ParseDuration(args[0]); err != nil {
-						ts.Fatalf("unable to parse duration %q: %s", args[1], err)
-					}
-				}
-
-				time.Sleep(d)
-			},
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
 				muNodes.Lock()
 				defer muNodes.Unlock()
@@ -158,7 +146,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						// XXX: Use something similar to `require.Eventually` to check for node
 						// availability. For now, if this sleep duration is too short, the
 						// subsequent command might fail with an [internal error].
-						time.Sleep(time.Second)
+						time.Sleep(time.Second * 2)
 					}
 				case "stop":
 					n, ok := nodes[sid]
