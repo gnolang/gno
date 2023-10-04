@@ -19,7 +19,7 @@ These are our custom file-based tests tailored specifically for this project.
 
 **Execution:** 
 
-There are two main commands to run Gno filetests:
+From the gnovm directory, There are two main commands to run Gno filetests:
 
 1. To test native files, use:
 ```
@@ -49,12 +49,12 @@ make _test.gnolang.stdlibs.sync
 
 **Location:** `gno.land/**/testdata`
 
-Integration tests are designed to ensure different parts of the project work cohesively. Specifically:
+From the gno.land directory, Integration tests are designed to ensure different parts of the project work cohesively. Specifically:
 
-1. **Real Node Integration Testing:**  
+1. **InMemory Node Integration Testing:**  
    Found in `gno.land/cmd/gnoland/testdata`, these are dedicated to running integration tests against a genuine `gnoland` node.
 
-2. **System Features Testing:**  
+2. **Integration Features Testing:**  
    Located in `gno.land/pkg/integration/testdata`, these tests target integrations specific commands.
 
 These integration tests utilize the `testscript` package and follow the `txtar` file specifications. 
