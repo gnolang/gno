@@ -150,7 +150,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					if err = n.Stop(); err != nil {
+					if err = n.Stop(); err == nil {
 						delete(nodes, sid)
 
 						// Unset gnoland environements.
