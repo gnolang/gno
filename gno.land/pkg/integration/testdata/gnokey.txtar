@@ -1,0 +1,32 @@
+# test basic gnokey integrations commands
+# golden files have been generated using UPDATE_SCRIPTS=true
+
+# start gnoland
+gnoland start
+
+## test1 account should be available on default
+gnokey query auth/accounts/${USER_ADDR_test1}
+cmp stdout gnokey-query-valid.stdout.golden
+cmp stderr gnokey-query-valid.stderr.golden
+
+## invalid gnokey command should raise an error
+! gnokey query foo/bar
+cmp stdout gnokey-query-invalid.stdout.golden
+cmp stderr gnokey-query-invalid.stderr.golden
+
+-- gnokey-query-valid.stdout.golden --
+height: 0
+data: {
+  "BaseAccount": {
+    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+    "coins": "9999892000000ugnot",
+    "public_key": null,
+    "account_number": "0",
+    "sequence": "0"
+  }
+}
+-- gnokey-query-valid.stderr.golden --
+-- gnokey-query-invalid.stdout.golden --
+Log: 
+-- gnokey-query-invalid.stderr.golden --
+"gnokey" error: unknown request error

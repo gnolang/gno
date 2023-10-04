@@ -263,9 +263,9 @@ func createAppAndNode(cfg *config.Config, logger log.Logger, gnoRootDir string, 
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
 	if err != nil {
-		ts.Logf("%s error: %v\n", cmd, err)
+		fmt.Fprintf(ts.Stderr(), "%q error: %v\n", cmd, err)
 		if !neg {
-			ts.Fatalf("unexpected %s command failure", cmd)
+			ts.Fatalf("unexpected %q command failure: %s", cmd, err)
 		}
 	} else {
 		if neg {

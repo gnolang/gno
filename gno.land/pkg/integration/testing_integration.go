@@ -61,10 +61,10 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
-	updatesCripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
+	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
-		UpdateScripts: updatesCripts,
+		UpdateScripts: updateScripts,
 		TestWork:      persistWorkDir,
 		Dir:           txtarDir,
 		Setup: func(env *testscript.Env) error {
@@ -102,7 +102,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				switch cmd {
 				case "start":
 					if _, ok := nodes[sid]; ok {
-						err = fmt.Errorf("node %q already started", sid)
+						err = fmt.Errorf("node already started")
 						break
 					}
 
@@ -142,11 +142,12 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						// availability. For now, if this sleep duration is too short, the
 						// subsequent command might fail with an [internal error].
 						time.Sleep(time.Second * 2)
+						fmt.Fprintln(ts.Stdout(), "node started successfully")
 					}
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
-						err = fmt.Errorf("node %q not started cannot be stop", sid)
+						err = fmt.Errorf("node not started cannot be stop")
 						break
 					}
 
@@ -156,6 +157,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						// Unset gnoland environements.
 						ts.Setenv("RPC_ADDR", "")
 						ts.Setenv("GNODATA", "")
+						fmt.Fprintln(ts.Stdout(), "node stoped successfully")
 					}
 				default:
 					err = fmt.Errorf("invalid gnoland subcommand: %q", cmd)
