@@ -157,6 +157,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Setenv("RPC_ADDR", "")
 						ts.Setenv("GNODATA", "")
 					}
+				default:
+					err = fmt.Errorf("invalid gnoland subcommand: %q", cmd)
 				}
 
 				tsValidateError(ts, "gnoland "+cmd, neg, err)
