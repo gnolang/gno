@@ -60,7 +60,6 @@ jobs:
           - _test.gnoland
           - _test.gnokey
           - _test.pkgs
-          - _test.wip.integration
           #- _test.gnoweb # this test should be rewritten to run an inmemory localnode
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -83,7 +82,7 @@ jobs:
           name: logs-test-gnoland-go${{ matrix.goversion }}
           path: ${{ runner.temp }}/logs/**/*.log
       - uses: actions/upload-artifact@v3
-        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' && matrix.args != '_test.wip.integration' }}
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
           name: ${{runner.os}}-coverage-gnoland-${{ matrix.args}}-${{matrix.goversion}}
           path: ./gno.land/coverage.out

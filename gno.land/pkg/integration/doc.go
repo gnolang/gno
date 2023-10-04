@@ -26,7 +26,7 @@
 //
 // Accounts:
 //
-// Only the test1 user will be created in the default keybase directory,
+// Initially, only the test1 user will be created in the default keybase directory,
 // with no password set. The default gnoland genesis balance file and the genesis
 // transaction file are also registered by default.
 //
