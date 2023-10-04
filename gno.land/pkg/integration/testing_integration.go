@@ -41,16 +41,18 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 
+	tmpdir := t.TempDir()
+
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
 	gnoRootDir := strings.TrimSpace(string(out))
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
-	gnoHomeDir := filepath.Join(t.TempDir(), "gno")
+	gnoHomeDir := filepath.Join(tmpdir, "gno")
 
 	// `gnoDataDir` should refer to the local location where the gnoland node
 	// stores its configuration and data.
-	gnoDataDir := filepath.Join(t.TempDir(), "data")
+	gnoDataDir := filepath.Join(tmpdir, "data")
 
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
