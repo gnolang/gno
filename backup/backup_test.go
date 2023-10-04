@@ -2,6 +2,7 @@ package backup
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -119,7 +120,16 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 	cfg.ToBlock = &toBlock
 
 	// Run the backup procedure
-	require.NoError(t, ExecuteBackup(mockClient, tempFile, noop.New(), cfg))
+	require.NoError(
+		t,
+		ExecuteBackup(
+			context.Background(),
+			mockClient,
+			tempFile,
+			noop.New(),
+			cfg,
+		),
+	)
 
 	// Read the output file
 	fileRaw, err := os.Open(tempFile.Name())

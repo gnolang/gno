@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 // ExecuteBackup executes the node backup process
 func ExecuteBackup(
+	ctx context.Context,
 	client client.Client,
 	writer io.Writer,
 	logger log.Logger,
@@ -30,26 +32,33 @@ func ExecuteBackup(
 
 	// Gather the chain data from the node
 	for block := cfg.FromBlock; block <= toBlock; block++ {
-		txs, txErr := client.GetBlockTransactions(block)
-		if txErr != nil {
-			return fmt.Errorf("unable to fetch block transactions, %w", txErr)
-		}
+		select {
+		case <-ctx.Done():
+			logger.Info("export procedure stopped")
 
-		// Save the block transaction data, if any
-		for _, tx := range txs {
-			data := &types.TxData{
-				Tx:       tx,
-				BlockNum: block,
+			return nil
+		default:
+			txs, txErr := client.GetBlockTransactions(block)
+			if txErr != nil {
+				return fmt.Errorf("unable to fetch block transactions, %w", txErr)
 			}
 
-			// Write the tx data to the file
-			if writeErr := writeTxData(writer, data); writeErr != nil {
-				return fmt.Errorf("unable to write tx data, %w", writeErr)
-			}
-		}
+			// Save the block transaction data, if any
+			for _, tx := range txs {
+				data := &types.TxData{
+					Tx:       tx,
+					BlockNum: block,
+				}
 
-		// Log the progress
-		logProgress(logger, cfg.FromBlock, toBlock, block)
+				// Write the tx data to the file
+				if writeErr := writeTxData(writer, data); writeErr != nil {
+					return fmt.Errorf("unable to write tx data, %w", writeErr)
+				}
+			}
+
+			// Log the progress
+			logProgress(logger, cfg.FromBlock, toBlock, block)
+		}
 	}
 
 	return nil

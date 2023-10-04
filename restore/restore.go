@@ -14,17 +14,13 @@ import (
 
 // ExecuteRestore executes the node restore process
 func ExecuteRestore(
+	ctx context.Context,
 	client client.Client,
 	source source.Source,
 	logger log.Logger,
-	cfg Config,
 ) error {
-	// Verify the config
-	if cfgErr := ValidateConfig(cfg); cfgErr != nil {
-		return fmt.Errorf("invalid config, %w", cfgErr)
-	}
-
-	defer func() {
+	// Set up the teardown
+	teardown := func() {
 		if closeErr := source.Close(); closeErr != nil {
 			logger.Error(
 				"unable to gracefully close source",
@@ -32,7 +28,9 @@ func ExecuteRestore(
 				closeErr.Error(),
 			)
 		}
-	}()
+	}
+
+	defer teardown()
 
 	var (
 		tx      *std.Tx
@@ -42,8 +40,12 @@ func ExecuteRestore(
 	)
 
 	// Fetch next transactions
-	// TODO add ctx
-	for tx, nextErr = source.Next(context.Background()); nextErr == nil; {
+	for nextErr == nil {
+		tx, nextErr = source.Next(ctx)
+		if nextErr != nil {
+			break
+		}
+
 		// Send the transaction
 		if sendErr := client.SendTransaction(tx); sendErr != nil {
 			// Invalid transaction sends are only logged,
@@ -61,16 +63,16 @@ func ExecuteRestore(
 	}
 
 	// Check if this is the end of the road
-	if errors.Is(nextErr, io.EOF) {
-		// No more transactions to apply
-		logger.Info(
-			"restore process finished",
-			"total",
-			totalTxs,
-		)
-
-		return nil
+	if !errors.Is(nextErr, io.EOF) {
+		return fmt.Errorf("unable to get next transaction, %w", nextErr)
 	}
 
-	return fmt.Errorf("unable to get next transaction, %w", nextErr)
+	// No more transactions to apply
+	logger.Info(
+		"restore process finished",
+		"total",
+		totalTxs,
+	)
+
+	return nil
 }
