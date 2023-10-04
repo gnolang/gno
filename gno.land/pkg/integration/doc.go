@@ -1,9 +1,10 @@
 // Package integration offers utilities to run txtar-based tests against the gnoland system
-// by extending the functionalities provided by the standard testscript package.
+// by extending the functionalities provided by the standard testscript package. This package is
+// currently in an experimental phase and may undergo significant changes in the future.
 //
-// The primary utility, SetupGnolandTestScript, sets up the environment for running txtar
-// tests, introducing additional commands like "gnoland" and "gnokey" into the test script ecosystem.
-// This will let you launch an in-memory gnoland node and interact with it with the `gnokey` command
+// SetupGnolandTestScript, sets up the environment for running txtar tests, introducing additional
+// commands like "gnoland" and "gnokey" into the test script ecosystem. Specifically, it allows the
+// user to initiate an in-memory gnoland node and interact with it via the `gnokey` command.
 //
 // Additional Command Overview:
 //
@@ -18,7 +19,7 @@
 //
 // Logging:
 //
-// The gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
+// Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
 // information. Instead, a log directory can be specified with `LOG_DIR`, or you
 // can set `TESTWORK=true`
 // to persist logs in the txtar working directory. In any case, the log file should be printed
@@ -26,13 +27,13 @@
 //
 // Accounts:
 //
-// Only the test1 user will be created in the default keybase directory,
+// By default, only the test1 user will be created in the default keybase directory,
 // with no password set. The default gnoland genesis balance file and the genesis
 // transaction file are also registered by default.
 //
 // Examples:
 //
-// Examples can be found in the testdata directory of this package.
+// Examples can be found in the `testdata` directory of this package.
 //
 // Environment Variables:
 //
