@@ -57,10 +57,12 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
+	updatesCripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
-		TestWork: persistWorkDir,
-		Dir:      txtarDir,
+		UpdateScripts: updatesCripts,
+		TestWork:      persistWorkDir,
+		Dir:           txtarDir,
 		Setup: func(env *testscript.Env) error {
 			kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
 			if err != nil {
