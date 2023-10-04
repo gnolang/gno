@@ -76,7 +76,7 @@ func execQuery(cfg *queryCfg, args []string, io *commands.IO) error {
 
 	if qres.Response.Error != nil {
 		io.Printf("Log: %s\n",
-			qres.Response)
+			qres.Response.Log)
 		return qres.Response.Error
 	}
 
