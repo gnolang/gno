@@ -22,7 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
-type CustomAppConfig struct {
+type AppOptions struct {
 	DB dbm.DB
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
@@ -32,7 +32,7 @@ type CustomAppConfig struct {
 	MaxCycles             int64
 }
 
-func (c *CustomAppConfig) ApplyDefault() {
+func (c *AppOptions) ApplyDefault() {
 	if c.Logger == nil {
 		c.Logger = log.NewNopLogger()
 	}
@@ -46,7 +46,7 @@ func (c *CustomAppConfig) ApplyDefault() {
 	}
 }
 
-func (c *CustomAppConfig) validate() error {
+func (c *AppOptions) validate() error {
 	if c.Logger == nil {
 		return fmt.Errorf("no logger provided")
 	}
@@ -59,7 +59,7 @@ func (c *CustomAppConfig) validate() error {
 }
 
 // NewApp creates the GnoLand application.
-func NewCustomApp(cfg CustomAppConfig) (abci.Application, error) {
+func NewAppWithOptions(cfg AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func NewCustomApp(cfg CustomAppConfig) (abci.Application, error) {
 func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
 	var err error
 
-	var cfg CustomAppConfig
+	var cfg AppOptions
 	cfg.ApplyDefault()
 
 	// Get main DB.
@@ -139,7 +139,7 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, m
 
 	cfg.Logger = logger
 
-	return NewCustomApp(cfg)
+	return NewAppWithOptions(cfg)
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.

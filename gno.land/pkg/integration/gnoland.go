@@ -241,7 +241,7 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 }
 
 func createAppAndNode(cfg *config.Config, logger log.Logger, gnoRootDir string, icfg *IntegrationConfig) (*node.Node, error) {
-	gnoApp, err := gnoland.NewCustomApp(gnoland.CustomAppConfig{
+	gnoApp, err := gnoland.NewAppWithOptions(gnoland.AppOptions{
 		Logger:                logger,
 		GnoRootDir:            gnoRootDir,
 		SkipFailingGenesisTxs: icfg.SkipFailingGenesisTxs,
