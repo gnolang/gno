@@ -124,6 +124,9 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 							logger: logger,
 						}
 						ts.Defer(func() {
+							muNodes.Lock()
+							defer muNodes.Unlock()
+
 							if n := nodes[sid]; n != nil {
 								if err := n.Stop(); err != nil {
 									panic(fmt.Errorf("node %q was unable to stop: %w", sid, err))
