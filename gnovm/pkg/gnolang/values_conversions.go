@@ -1261,9 +1261,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		if err != nil {
 			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
 		}
-		if f64 == 0 && !bd.IsZero() {
-			panic("cannot convert untyped bigdec to float64 -- too close to zero")
-		} else if math.IsInf(f64, 0) {
+		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
 		dst.SetFloat64(f64)
