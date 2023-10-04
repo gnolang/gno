@@ -13,11 +13,23 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/cover/coverage"
 	"github.com/gnolang/gno/gnovm/pkg/cover/edit"
 	"github.com/gnolang/gno/gnovm/pkg/cover/encodemeta"
 	"github.com/gnolang/gno/gnovm/pkg/cover/slicewriter"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+type Mode string
+
+const (
+	Set      Mode = "set"
+	Count    Mode = "count"
+	Atomic   Mode = "atomic"
+	Regonly  Mode = "regonly"
+	Testmain Mode = "testmain"
 )
 
 // TODO: remove it. Temporary func to get string pointer
@@ -28,6 +40,9 @@ func getStringPointer(m string) *string {
 const (
 	atomicPackagePath = "sync/atomic"
 	atomicPackageName = "_cover_atomic_"
+
+	// name of coverage variable to generate
+	varVar = "GnoCover"
 )
 
 // Package holds package-specific state.
@@ -69,17 +84,15 @@ type Func struct {
 //
 // coverage mode: set, count, atomic
 var (
-	mode   = getStringPointer("atomic")
-	varVar = getStringPointer("GnoCover")
 	output = getStringPointer("")
 	pkgcfg = getStringPointer("")
 )
 
+var mode *Mode
+
 var pkgconfig coverage.CoverPkgConfig
 
 var counterStmt func(*File, string) string
-
-var outputfiles []string
 
 // setCounterStmt returns the expression: __count[23] = 1.
 func setCounterStmt(f *File, counter string) string {
@@ -96,22 +109,23 @@ func atomicCounterStmt(f *File, counter string) string {
 	return fmt.Sprintf("%sAddUint32(&%s, 1)", atomicPackagePrefix(), counter)
 }
 
-func Annotate(names []string) {
+func Annotate(memPkg *std.MemPackage, m *Mode) {
+	mode = m
+
 	/* TODO: Set somewhere else */
 	switch *mode {
-	case "set":
+	case Set:
 		counterStmt = setCounterStmt
-	case "count":
+	case Count:
 		counterStmt = incCounterStmt
-	case "atomic":
+	case Atomic:
 		counterStmt = atomicCounterStmt
-	case "regonly", "testmain":
+	case Regonly, Testmain:
 		counterStmt = nil
 	default:
-		log.Fatalf("unknown -mode %v", *mode)
+		log.Fatalf("unknown mode %v", *mode)
 		return
 	}
-	/* TODO END */
 
 	var p *Package
 	if *pkgcfg != "" {
@@ -126,55 +140,49 @@ func Annotate(names []string) {
 			mdb: mdb,
 		}
 	}
+
+	memfiles := memPkg.Files
+
+	// Filter gno files
+	// TODO: Find better way
+	gnoFileIdx := []int{}
+	for i, memfile := range memfiles {
+		ext := filepath.Ext(memfile.Name)
+		if ext != ".gno" {
+			continue
+		}
+		if strings.HasSuffix(memfile.Name, "_test.gno") || strings.HasSuffix(memfile.Name, "_filetest.gno") {
+			continue
+		}
+		gnoFileIdx = append(gnoFileIdx, i)
+	}
+
 	// TODO: process files in parallel here if it matters.
-	for k, name := range names {
+	for k, idx := range gnoFileIdx {
 		last := false
-		if k == len(names)-1 {
+		if k == len(gnoFileIdx)-1 {
 			last = true
 		}
 
-		fd := os.Stdout
-		isStdout := true
-		if *pkgcfg != "" {
-			var err error
-			fd, err = os.Create(outputfiles[k])
-			if err != nil {
-				log.Fatalf("cover: %s", err)
-			}
-			isStdout = false
-		} else if *output != "" {
-			var err error
-			fd, err = os.Create(*output)
-			if err != nil {
-				log.Fatalf("cover: %s", err)
-			}
-			isStdout = false
-		}
-		p.annotateFile(name, fd, last)
-		if !isStdout {
-			if err := fd.Close(); err != nil {
-				log.Fatalf("cover: %s", err)
-			}
-		}
+		var buffer bytes.Buffer
+		w := &buffer
+		p.annotateFile(*memfiles[idx], w, last)
+		memfiles[idx].Body = w.String()
 	}
 }
 
-func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
+func (p *Package) annotateFile(memfile std.MemFile, w io.Writer, last bool) {
 	fset := token.NewFileSet()
-	content, err := os.ReadFile(name)
+	parsedFile, err := parser.ParseFile(fset, memfile.Name, memfile.Body, parser.ParseComments)
 	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
-	}
-	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments)
-	if err != nil {
-		log.Fatalf("cover: %s: %s", name, err)
+		log.Fatalf("cover: %s: %s", memfile.Name, err)
 	}
 
 	file := &File{
 		fset:    fset,
-		name:    name,
-		content: content,
-		edit:    edit.NewBuffer(content),
+		name:    memfile.Name,
+		content: []byte(memfile.Body),
+		edit:    edit.NewBuffer([]byte(memfile.Body)),
 		astFile: parsedFile,
 	}
 	if p != nil {
@@ -205,23 +213,23 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	}
 	newContent := file.edit.Bytes()
 
-	fmt.Fprintf(fd, "//line %s:1:1\n", name)
-	fd.Write(newContent)
+	fmt.Fprintf(w, "//line %s:1:1\n", memfile.Name)
+	w.Write(newContent)
 
 	// After printing the source tree, add some declarations for the
 	// counters etc. We could do this by adding to the tree, but it's
 	// easier just to print the text.
-	file.addVariables(fd)
+	file.addVariables(w)
 
 	// Emit a reference to the atomic package to avoid
 	// import and not used error when there's no code in a file.
 	if *mode == "atomic" {
-		fmt.Fprintf(fd, "var _ = %sLoadUint32\n", atomicPackagePrefix())
+		fmt.Fprintf(w, "var _ = %sLoadUint32\n", atomicPackagePrefix())
 	}
 
 	// Last file? Emit meta-data and converage config.
 	if last {
-		p.emitMetaData(fd)
+		p.emitMetaData(w)
 	}
 }
 
@@ -453,7 +461,7 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
 		}
 		f.fn.units = append(f.fn.units, unit)
 	} else {
-		stmt = counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar,
+		stmt = counterStmt(f, fmt.Sprintf("%s.Count[%d]", varVar,
 			len(f.blocks)))
 		f.blocks = append(f.blocks, Block{start, end, numStmt})
 	}
@@ -810,7 +818,7 @@ func (f *File) addVariables(w io.Writer) {
 	}
 
 	// Declare the coverage struct as a package-level variable.
-	fmt.Fprintf(w, "\nvar %s = struct {\n", *varVar)
+	fmt.Fprintf(w, "\nvar %s = struct {\n", varVar)
 	fmt.Fprintf(w, "\tCount     [%d]uint32\n", len(f.blocks))
 	fmt.Fprintf(w, "\tPos       [3 * %d]uint32\n", len(f.blocks))
 	fmt.Fprintf(w, "\tNumStmt   [%d]uint16\n", len(f.blocks))
@@ -905,7 +913,7 @@ func (p *Package) emitMetaData(w io.Writer) {
 	}
 
 	// Emit package ID var.
-	fmt.Fprintf(w, "\nvar %sP uint32\n", *varVar)
+	fmt.Fprintf(w, "\nvar %sP uint32\n", varVar)
 
 	// Emit all of the counter variables.
 	for k := range p.counterLengths {
@@ -936,9 +944,9 @@ func (p *Package) emitMetaData(w io.Writer) {
 		MetaLen:            len(payload),
 		MetaHash:           fmt.Sprintf("%x", digest),
 		PkgIdVar:           mkPackageIdVar(),
-		CounterPrefix:      *varVar,
+		CounterPrefix:      varVar,
 		CounterGranularity: pkgconfig.Granularity,
-		CounterMode:        *mode,
+		CounterMode:        string(*mode),
 	}
 	fixdata, err := json.Marshal(fixcfg)
 	if err != nil {
@@ -967,15 +975,15 @@ func atomicPackagePrefix() string {
 }
 
 func mkCounterVarName(idx int) string {
-	return fmt.Sprintf("%s_%d", *varVar, idx)
+	return fmt.Sprintf("%s_%d", varVar, idx)
 }
 
 func mkPackageIdVar() string {
-	return *varVar + "P"
+	return varVar + "P"
 }
 
 func mkMetaVar() string {
-	return *varVar + "M"
+	return varVar + "M"
 }
 
 func mkPackageIdExpression() string {
