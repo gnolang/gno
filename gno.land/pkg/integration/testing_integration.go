@@ -94,7 +94,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				defer muNodes.Unlock()
 
 				if len(args) == 0 {
-					tsValidateError(ts, "gnoland", neg, fmt.Errorf("use gnoland [start|stop] command"))
+					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop]"))
 					return
 				}
 
