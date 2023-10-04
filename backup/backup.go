@@ -2,9 +2,8 @@ package backup
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/log"
@@ -14,6 +13,7 @@ import (
 // ExecuteBackup executes the node backup process
 func ExecuteBackup(
 	client client.Client,
+	writer io.Writer,
 	logger log.Logger,
 	cfg Config,
 ) error {
@@ -22,37 +22,6 @@ func ExecuteBackup(
 		return fmt.Errorf("invalid config, %w", cfgErr)
 	}
 
-	// Open the file for writing
-	outputFile, openErr := os.OpenFile(
-		cfg.OutputFile,
-		os.O_RDWR|os.O_CREATE|os.O_TRUNC,
-		0o755,
-	)
-	if openErr != nil {
-		return fmt.Errorf("unable to open file %s, %w", cfg.OutputFile, openErr)
-	}
-
-	closeFile := func() error {
-		if err := outputFile.Close(); err != nil {
-			logger.Error("unable to close output file", "err", err.Error())
-
-			return err
-		}
-
-		return nil
-	}
-
-	teardown := func() {
-		if err := closeFile(); err != nil {
-			if removeErr := os.Remove(outputFile.Name()); removeErr != nil {
-				logger.Error("unable to remove file", "err", err.Error())
-			}
-		}
-	}
-
-	// Set up the teardown
-	defer teardown()
-
 	// Determine the right bound
 	toBlock, boundErr := determineRightBound(client, cfg.ToBlock)
 	if boundErr != nil {
@@ -60,32 +29,27 @@ func ExecuteBackup(
 	}
 
 	// Gather the chain data from the node
-	blockData, blockDataErr := getBlockData(client, logger, cfg.FromBlock, toBlock)
-	if blockDataErr != nil {
-		return fmt.Errorf("unable to fetch block data, %w", blockDataErr)
-	}
+	for block := cfg.FromBlock; block <= toBlock; block++ {
+		txs, txErr := client.GetBlockTransactions(block)
+		if txErr != nil {
+			return fmt.Errorf("unable to fetch block transactions, %w", txErr)
+		}
 
-	// Prepare the archive
-	metadata, metadataErr := generateMetadata(blockData)
-	if metadataErr != nil {
-		return fmt.Errorf("unable to generate metadata, %w", metadataErr)
-	}
+		// Save the block transaction data, if any
+		for _, tx := range txs {
+			data := &types.TxData{
+				Tx:       tx,
+				BlockNum: block,
+			}
 
-	archive := &types.Archive{
-		BlockData: blockData,
-		Metadata:  metadata,
-	}
+			// Write the tx data to the file
+			if writeErr := writeTxData(writer, data); writeErr != nil {
+				return fmt.Errorf("unable to write tx data, %w", writeErr)
+			}
+		}
 
-	// Marshal the archive data
-	archiveRaw, marshalErr := json.Marshal(archive)
-	if marshalErr != nil {
-		return fmt.Errorf("unable to marshal archive JSON, %w", marshalErr)
-	}
-
-	// Write the archive data to a file
-	_, writeErr := outputFile.Write(archiveRaw)
-	if writeErr != nil {
-		return fmt.Errorf("unable to write archive JSON, %w", writeErr)
+		// Log the progress
+		logProgress(logger, cfg.FromBlock, toBlock, block)
 	}
 
 	return nil
@@ -113,33 +77,27 @@ func determineRightBound(
 	return latestBlockNumber, nil
 }
 
-// getBlockData fetches the block data from the chain
-func getBlockData(
-	client client.Client,
-	logger log.Logger,
-	from,
-	to uint64,
-) ([]*types.BlockData, error) {
-	blockData := make([]*types.BlockData, 0, to-from+1)
-
-	for block := from; block <= to; block++ {
-		txs, txErr := client.GetBlockTransactions(block)
-		if txErr != nil {
-			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
-		}
-
-		// Save the block transaction data
-		data := &types.BlockData{
-			Txs:      txs,
-			BlockNum: block,
-		}
-		blockData = append(blockData, data)
-
-		// Log the progress
-		logProgress(logger, from, to, block)
+// writeTxData outputs the tx data to the writer
+func writeTxData(writer io.Writer, txData *types.TxData) error {
+	// Marshal tx data into JSON
+	jsonData, err := json.Marshal(txData)
+	if err != nil {
+		return fmt.Errorf("unable to marshal JSON data, %w", err)
 	}
 
-	return blockData, nil
+	// Write the JSON data as a line to the file
+	_, err = writer.Write(jsonData)
+	if err != nil {
+		return fmt.Errorf("unable to write to output, %w", err)
+	}
+
+	// Write a newline character to separate JSON objects
+	_, err = writer.Write([]byte("\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write newline output, %w", err)
+	}
+
+	return nil
 }
 
 // logProgress logs the backup progress
@@ -154,15 +112,4 @@ func logProgress(logger log.Logger, from, to, current uint64) {
 		"to", true,
 		"status", fmt.Sprintf("%.2f%%", status),
 	)
-}
-
-func generateMetadata(blockData []*types.BlockData) (*types.Metadata, error) {
-	if len(blockData) == 0 {
-		return nil, errors.New("unable to generate metadata, no block data")
-	}
-
-	return &types.Metadata{
-		EarliestBlockHeight: blockData[0].BlockNum,
-		LatestBlockHeight:   blockData[len(blockData)-1].BlockNum,
-	}, nil
 }

@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"os"
@@ -102,7 +103,7 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 					t.Fatal("invalid block number requested")
 				}
 
-				return []std.Tx{exampleTx}, nil
+				return []std.Tx{exampleTx}, nil // 1 tx per block
 			},
 		}
 	)
@@ -120,27 +121,34 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 	cfg.Overwrite = true
 
 	// Run the backup procedure
-	require.NoError(t, ExecuteBackup(mockClient, noop.New(), cfg))
+	require.NoError(t, ExecuteBackup(mockClient, tempFile, noop.New(), cfg))
 
 	// Read the output file
-	archiveRaw, err := os.ReadFile(tempFile.Name())
+	fileRaw, err := os.Open(tempFile.Name())
 	require.NoError(t, err)
 
-	// Unmarshal the raw archive output
-	var archive types.Archive
+	// Set up a line-by-line scanner
+	scanner := bufio.NewScanner(fileRaw)
 
-	require.NoError(t, json.Unmarshal(archiveRaw, &archive))
+	expectedBlock := fromBlock
 
-	// Validate the archive
-	assert.Equal(t, fromBlock, archive.Metadata.EarliestBlockHeight)
-	assert.Equal(t, toBlock, archive.Metadata.LatestBlockHeight)
-	assert.Equal(t, int(toBlock-fromBlock+1), len(archive.BlockData))
+	// Iterate over each line in the file
+	for scanner.Scan() {
+		var txData types.TxData
 
-	for index, block := range archive.BlockData {
-		assert.Equal(t, uint64(index)+fromBlock, block.BlockNum)
-
-		for _, tx := range block.Txs {
-			assert.Equal(t, exampleTx, tx)
+		// Unmarshal the JSON data into the Person struct
+		if err := json.Unmarshal(scanner.Bytes(), &txData); err != nil {
+			t.Fatalf("unable to unmarshal JSON line, %v", err)
 		}
+
+		assert.Equal(t, expectedBlock, txData.BlockNum)
+		assert.Equal(t, exampleTx, txData.Tx)
+
+		expectedBlock++
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("error encountered during scan, %v", err)
 	}
 }
