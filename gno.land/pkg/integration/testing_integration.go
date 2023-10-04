@@ -14,9 +14,11 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/rogpeppe/go-internal/testscript"
 )
@@ -138,15 +140,28 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Setenv("RPC_ADDR", laddr)
 						ts.Setenv("GNODATA", gnoDataDir)
 
-						// Wait for first block by pulling height.
-						timeout := time.After(time.Second * 5)
-						for node.BlockStore().Height() == 0 {
+						const listenerID = "testing_listener"
+
+						// Wait for first block by waiting for `EventNewBlock` event.
+						nb := make(chan struct{}, 1)
+						node.EventSwitch().AddListener(listenerID, func(ev events.Event) {
+							if _, ok := ev.(types.EventNewBlock); ok {
+								select {
+								case nb <- struct{}{}:
+								default:
+								}
+							}
+						})
+
+						if node.BlockStore().Height() == 0 {
 							select {
-							case <-time.After(time.Millisecond * 50): // poll interval
-							case <-timeout:
-								ts.Fatalf("unable to start node: timeout")
+							case <-nb: // ok
+							case <-time.After(time.Second * 6):
+								ts.Fatalf("timeout while wait for the node to start")
 							}
 						}
+
+						node.EventSwitch().RemoveListener(listenerID)
 
 						fmt.Fprintln(ts.Stdout(), "node started successfully")
 					}
