@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/jaekwon/testify/require"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -46,15 +45,11 @@ type testNode struct {
 func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	t.Helper()
 
-	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-
 	tmpdir := t.TempDir()
 
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
-	gnoRootDir := strings.TrimSpace(string(out))
+	gnoRootDir := gnoland.GuessGnoRootDir()
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
 	gnoHomeDir := filepath.Join(tmpdir, "gno")

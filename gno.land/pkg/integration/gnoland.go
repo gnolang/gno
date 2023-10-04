@@ -334,26 +334,3 @@ func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
 		panic(err)
 	}
 }
-
-// XXX: This helper will need to be relocated in the future.
-func guessGnoRootDir() string {
-	var rootdir string
-
-	// first try to get the root directory from the GNOROOT environment variable.
-	if rootdir = os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir)
-	}
-
-	if gobin, err := exec.LookPath("go"); err == nil {
-		// if GNOROOT is not set, try to guess the root directory using the `go list` command.
-		cmd := exec.Command(gobin, "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			panic(fmt.Errorf("invalid gno directory %q: %w", rootdir, err))
-		}
-
-		return strings.TrimSpace(string(out))
-	}
-
-	panic("no go binary available, unable to determine gno root-dir path")
-}

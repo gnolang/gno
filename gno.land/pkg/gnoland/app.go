@@ -42,7 +42,7 @@ func (c *CustomAppConfig) ApplyDefault() {
 	}
 
 	if c.GnoRootDir == "" {
-		c.GnoRootDir = guessGnoRootDir()
+		c.GnoRootDir = GuessGnoRootDir()
 	}
 }
 
@@ -202,8 +202,7 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	}
 }
 
-// XXX: This helper will need to be relocated in the future.
-func guessGnoRootDir() string {
+func GuessGnoRootDir() string {
 	var rootdir string
 
 	// First try to get the root directory from the GNOROOT environment variable.
