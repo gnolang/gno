@@ -1,42 +1,57 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	//	"context"
+
+	"flag"
 	"os"
 
+	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/peterbourgon/ff/v3"
-	"github.com/peterbourgon/ff/v3/fftoml"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-func main() {
-	io := commands.NewDefaultIO()
-	cmd := newRootCmd(io)
+var logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+type baseCfg struct {
+	rootDir  string
+	tmConfig tmcfg.Config
 }
 
-func newRootCmd(io *commands.IO) *commands.Command {
+func (bc *baseCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&bc.rootDir,
+		"root-dir",
+		"testdir",
+		"directory for config and data",
+	)
+}
+
+func newRootCmd() *commands.Command {
+	bc := baseCfg{}
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "Starts the gnoland blockchain node",
-			Options: []ff.Option{
-				ff.WithConfigFileFlag("config"),
-				ff.WithConfigFileParser(fftoml.Parser),
-			},
+			ShortHelp:  "The gnoland blockchain node",
 		},
-		commands.NewEmptyConfig(),
+		&bc,
 		commands.HelpExec,
 	)
 
+	initTmConfig(&bc)
 	cmd.AddSubCommands(
-		newStartCmd(io),
+		newStartCmd(bc),
+		newResetAllCmd(bc),
 	)
 
 	return cmd
+}
+
+// we relies on the flag option to pass in the root directory before we can identify where
+func initTmConfig(bc *baseCfg) error {
+	bc.tmConfig = *tmcfg.LoadOrMakeConfigWithOptions(bc.rootDir, func(cfg *tmcfg.Config) {
+	})
+
+	return nil
 }
