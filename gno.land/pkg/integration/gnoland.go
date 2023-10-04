@@ -3,8 +3,6 @@ package integration
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
