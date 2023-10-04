@@ -117,8 +117,6 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 	// Set the config
 	cfg.FromBlock = fromBlock
 	cfg.ToBlock = &toBlock
-	cfg.OutputFile = tempFile.Name()
-	cfg.Overwrite = true
 
 	// Run the backup procedure
 	require.NoError(t, ExecuteBackup(mockClient, tempFile, noop.New(), cfg))
