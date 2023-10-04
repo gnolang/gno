@@ -34,6 +34,15 @@ type testNode struct {
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
+// SetupGnolandTestScript prepares the test environment to execute txtar tests
+// using a partial InMemory gnoland node. It initializes key storage, sets up the gnoland node,
+// and provides custom commands like "gnoland" and "gnokey" for txtar script execution.
+//
+// The function returns testscript.Params which contain the test setup and command
+// executions to be used with the testscript package.
+//
+// For a detailed explanation of the commands and their behaviors, as well as
+// example txtar scripts, refer to the package documentation in doc.go.
 func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	t.Helper()
 
