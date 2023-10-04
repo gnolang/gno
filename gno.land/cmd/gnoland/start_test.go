@@ -23,6 +23,7 @@ func TestStartInitialize(t *testing.T) {
 	for _, tc := range cases {
 		name := strings.Join(tc.args, " ")
 		in, err := NewMockStdin(name)
+		defer in.Close()
 		if err != nil {
 			t.Fatal("failed creating test io pipe")
 		}

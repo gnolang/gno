@@ -8,9 +8,11 @@ import (
 	"os"
 )
 
-// This is for testing purpose only. We don't need to or should not use IOpipe in normal flow.
-// We redirect os.Stdin for mocking tests so that we don't need to pass commands.IO, which
-// included an os.Stdin, to all the server command. It is not safe to expose os.Stdin in the blockchain node
+// This is for testing purposes only.
+// For mocking tests, we redirect os.Stdin so that we don't need to pass commands.IO,
+// which includes os.Stdin, to all the server commands. Exposing os.Stdin in a blockchain node is not safe.
+// This replaces the global variable and should not be used in concurrent tests. It's intended to simulate CLI input.
+// We purposely avoid using a mutex to prevent giving the wrong impression that it's suitable for parallel tests.
 
 type MockStdin struct {
 	origStdout   *os.File
@@ -94,4 +96,21 @@ func (i *MockStdin) ReadAndClose() ([]byte, error) {
 	}
 
 	return out, nil
+}
+
+// Call this in a defer function to restore and close os.Stdout and os.Stdin.
+// This acts as a safeguard.
+func (i *MockStdin) Close() {
+	os.Stdout = i.origStdout
+	os.Stdin = i.origStdin
+
+	if i.stdoutReader != nil {
+		i.stdoutReader.Close()
+		i.stdoutReader = nil
+	}
+
+	if i.stdinWriter != nil {
+		i.stdinWriter.Close()
+		i.stdinWriter = nil
+	}
 }
