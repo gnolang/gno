@@ -60,6 +60,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// stores its configuration and data.
 	gnoDataDir := filepath.Join(tmpdir, "data")
 
+	// Testscripts run concurrently by default, so we need to be prepared for that.
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
