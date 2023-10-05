@@ -68,12 +68,24 @@ jobs:
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
           touch coverage.out
-      - if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+      - uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+        with:
+          name: ${{runner.os}}-coverage-tm2-${{ matrix.args}}-${{matrix.goversion}}
+          path: ./tm2/coverage.out
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all previous coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ${{ runner.temp }}/coverage
+      - name: Upload combined coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: tm2
-          verbose: true
-          flags: tm2-${{matrix.args}}
-          files: ./tm2/coverage.out
+          directory: ${{ runner.temp }}/coverage
+          token: ${{ secrets.CODECOV_TOKEN }} 
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+
