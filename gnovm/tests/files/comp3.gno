@@ -1,22 +1,21 @@
 package main
 
 func main() {
+	// test against uninitialized value: https://github.com/gnolang/gno/pull/1132
 	var x string
 	y := "Hello"
-	if x < y {
-		println("x < y")
+	results := [...]bool{
+		x < y,
+		x <= y,
+		x >= y,
+		x > y,
+
+		x == y,
+		x == "",
+		y == "",
 	}
-	if y < x {
-		println("y < x")
-	}
-	if x == "" {
-		println("x empty")
-	}
-	if y == "" {
-		println("y empty")
-	}
+	println(results)
 }
 
 // Output:
-// x < y
-// x empty
+// array[(true bool),(true bool),(false bool),(false bool),(false bool),(true bool),(false bool)]
