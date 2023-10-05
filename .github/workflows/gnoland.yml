@@ -73,7 +73,14 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          export LOG_DIR="${{ runner.temp }}/logs/test-${{ matrix.goversion }}-gnoland"
           make ${{ matrix.args }}
+      - name: Upload Test Log
+        if: always() 
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs-test-gnoland-go${{ matrix.goversion }}
+          path: ${{ runner.temp }}/logs/**/*.log
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:

@@ -22,7 +22,7 @@ type callCfg struct {
 	args     commands.StringArr
 }
 
-func newCallCmd(rootCfg *makeTxCfg) *commands.Command {
+func newCallCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 	cfg := &callCfg{
 		rootCfg: rootCfg,
 	}
@@ -35,7 +35,7 @@ func newCallCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execCall(cfg, args, commands.NewDefaultIO())
+			return execCall(cfg, args, io)
 		},
 	)
 }

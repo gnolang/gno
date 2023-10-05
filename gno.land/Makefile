@@ -47,7 +47,10 @@ test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
-_test.gnoland:; go test $(GOTEST_FLAGS) ./cmd/gnoland
-_test.gnoweb:;  go test $(GOTEST_FLAGS) ./cmd/gnoweb
-_test.gnokey:;  go test $(GOTEST_FLAGS) ./cmd/gnokey
-_test.pkgs:;    go test $(GOTEST_FLAGS) ./pkg/...
+_test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
+_test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
+_test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey
+_test.pkgs:;         go test $(GOTEST_FLAGS) ./pkg/...
+_test.pkgs.sync:;    UPDATE_SCRIPTS=true go test $(GOTEST_FLAGS) ./pkg/...
+
+
