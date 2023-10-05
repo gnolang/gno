@@ -17,7 +17,8 @@ RUN         rm -rf /opt/gno/src/.git
 
 # runtime-base + runtime-tls
 FROM        debian:stable-slim AS runtime-base
-ENV         PATH="${PATH}:/opt/gno/bin"
+ENV         PATH="${PATH}:/opt/gno/bin" \
+            GNOROOT="/opt/gno/src"
 WORKDIR     /opt/gno/src
 FROM        runtime-base AS runtime-tls
 RUN         apt-get update && apt-get install -y expect ca-certificates && update-ca-certificates

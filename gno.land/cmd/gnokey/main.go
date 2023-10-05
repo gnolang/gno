@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
 func main() {
-	cmd := client.NewRootCmd()
+	cmd := client.NewRootCmd(commands.NewDefaultIO())
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
