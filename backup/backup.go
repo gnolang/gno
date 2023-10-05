@@ -8,24 +8,41 @@ import (
 
 	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/log"
+	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/types"
 )
 
+// Service is the chain backup service
+type Service struct {
+	client client.Client
+	writer io.Writer
+	logger log.Logger
+}
+
+// NewService creates a new backup service
+func NewService(client client.Client, writer io.Writer, opts ...Option) *Service {
+	s := &Service{
+		client: client,
+		writer: writer,
+		logger: noop.New(),
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
 // ExecuteBackup executes the node backup process
-func ExecuteBackup(
-	ctx context.Context,
-	client client.Client,
-	writer io.Writer,
-	logger log.Logger,
-	cfg Config,
-) error {
+func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 	// Verify the config
 	if cfgErr := ValidateConfig(cfg); cfgErr != nil {
 		return fmt.Errorf("invalid config, %w", cfgErr)
 	}
 
 	// Determine the right bound
-	toBlock, boundErr := determineRightBound(client, cfg.ToBlock)
+	toBlock, boundErr := determineRightBound(s.client, cfg.ToBlock)
 	if boundErr != nil {
 		return fmt.Errorf("unable to determine right bound, %w", boundErr)
 	}
@@ -34,11 +51,11 @@ func ExecuteBackup(
 	for block := cfg.FromBlock; block <= toBlock; block++ {
 		select {
 		case <-ctx.Done():
-			logger.Info("export procedure stopped")
+			s.logger.Info("export procedure stopped")
 
 			return nil
 		default:
-			txs, txErr := client.GetBlockTransactions(block)
+			txs, txErr := s.client.GetBlockTransactions(block)
 			if txErr != nil {
 				return fmt.Errorf("unable to fetch block transactions, %w", txErr)
 			}
@@ -51,13 +68,13 @@ func ExecuteBackup(
 				}
 
 				// Write the tx data to the file
-				if writeErr := writeTxData(writer, data); writeErr != nil {
+				if writeErr := writeTxData(s.writer, data); writeErr != nil {
 					return fmt.Errorf("unable to write tx data, %w", writeErr)
 				}
 			}
 
 			// Log the progress
-			logProgress(logger, cfg.FromBlock, toBlock, block)
+			logProgress(s.logger, cfg.FromBlock, toBlock, block)
 		}
 	}
 
@@ -111,14 +128,14 @@ func writeTxData(writer io.Writer, txData *types.TxData) error {
 
 // logProgress logs the backup progress
 func logProgress(logger log.Logger, from, to, current uint64) {
-	total := to - from
+	total := to - from + 1
 	status := (float64(current) - float64(from)) / float64(total) * 100
 
 	logger.Info(
 		fmt.Sprintf("Total of %d blocks backed up", current-from+1),
 		"total", total,
 		"from", from,
-		"to", true,
+		"to", to,
 		"status", fmt.Sprintf("%.2f%%", status),
 	)
 }

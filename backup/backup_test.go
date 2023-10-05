@@ -119,14 +119,13 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 	cfg.FromBlock = fromBlock
 	cfg.ToBlock = &toBlock
 
+	s := NewService(mockClient, tempFile, WithLogger(noop.New()))
+
 	// Run the backup procedure
 	require.NoError(
 		t,
-		ExecuteBackup(
+		s.ExecuteBackup(
 			context.Background(),
-			mockClient,
-			tempFile,
-			noop.New(),
 			cfg,
 		),
 	)

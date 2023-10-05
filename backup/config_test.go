@@ -37,6 +37,15 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		assert.ErrorIs(t, ValidateConfig(cfg), errInvalidRange)
 	})
 
+	t.Run("invalid from block", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultConfig()
+		cfg.FromBlock = 0 // genesis
+
+		assert.ErrorIs(t, ValidateConfig(cfg), errInvalidFromBlock)
+	})
+
 	t.Run("valid configuration", func(t *testing.T) {
 		t.Parallel()
 

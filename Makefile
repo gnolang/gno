@@ -1,3 +1,10 @@
+all: build
+
+.PHONY: build
+build:
+	@echo "Building archive binary"
+	go build -o build/archive ./cmd
+
 .PHONY: lint
 lint:
 	golangci-lint run --config .github/golangci.yaml

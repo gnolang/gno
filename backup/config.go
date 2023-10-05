@@ -4,7 +4,10 @@ import (
 	"errors"
 )
 
-var errInvalidRange = errors.New("invalid backup block range")
+var (
+	errInvalidRange     = errors.New("invalid backup block range")
+	errInvalidFromBlock = errors.New("from block must be after genesis (0)")
+)
 
 // Config is the base chain backup configuration
 type Config struct {
@@ -16,7 +19,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		ToBlock:   nil, // to latest block by default
-		FromBlock: 0,   // from genesis by default
+		FromBlock: 1,   // from genesis + 1 by default
 	}
 }
 
@@ -25,6 +28,11 @@ func ValidateConfig(cfg Config) error {
 	// Make sure the backup limits are correct
 	if cfg.ToBlock != nil && *cfg.ToBlock < cfg.FromBlock {
 		return errInvalidRange
+	}
+
+	// Make sure the from-block is after genesis
+	if cfg.FromBlock == 0 {
+		return errInvalidFromBlock
 	}
 
 	return nil

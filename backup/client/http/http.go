@@ -6,6 +6,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
+
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 // Client is the TM2 HTTP client
@@ -45,9 +47,9 @@ func (c *Client) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 	}
 
 	// Decode amino transactions
-	txs := make([]std.Tx, 0, len(block.Block.Txs))
+	txs := make([]std.Tx, 0, len(block.Block.Data.Txs))
 
-	for _, encodedTx := range block.Block.Txs {
+	for _, encodedTx := range block.Block.Data.Txs {
 		var tx std.Tx
 
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
@@ -56,6 +58,8 @@ func (c *Client) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 				err,
 			)
 		}
+
+		txs = append(txs, tx)
 	}
 
 	return txs, nil
