@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// struct{("test" string)}
+// (struct{("test" string)} gno.land/r/demo/tests.TestRealmObject)

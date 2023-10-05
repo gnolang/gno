@@ -108,7 +108,7 @@ func printVars(phase string) {
 }
 
 // Output:
-// preinit  16 true 22 16.16 16.16 16 16 16 16 16 97 hello slice[("A" string)] A struct{(16 int),("A" string)} 16 16 16 16 16 struct{(16 float32)} A
-// postinit 32 false 44 32.32 32.32 32 32 32 32 32 66 helloB slice[("A" string),("B" string)] A struct{(32 int),("B" string)} 32 32 32 32 32 struct{("B" string)} B
-// premain  32 false 44 32.32 32.32 32 32 32 32 32 66 helloB slice[("A" string),("B" string)] A struct{(32 int),("B" string)} 32 32 32 32 32 struct{("B" string)} B
-// postmain 64 true 88 64.64 64.64 64 64 64 64 64 67 helloBC slice[("A" string),("B" string),("C" string)] A struct{(64 int),("C" string)} 64 64 64 64 64 struct{("C" string)} C
+// preinit  16 true 22 16.16 16.16 16 16 16 16 16 97 hello slice[("A" string)] A (struct{(16 int),("A" string)} gno.land/r/demo/tests_test.myStruct) 16 16 16 16 16 struct{(16 float32)} A
+// postinit 32 false 44 32.32 32.32 32 32 32 32 32 66 helloB slice[("A" string),("B" string)] A (struct{(32 int),("B" string)} gno.land/r/demo/tests_test.myStruct) 32 32 32 32 32 struct{("B" string)} B
+// premain  32 false 44 32.32 32.32 32 32 32 32 32 66 helloB slice[("A" string),("B" string)] A (struct{(32 int),("B" string)} gno.land/r/demo/tests_test.myStruct) 32 32 32 32 32 struct{("B" string)} B
+// postmain 64 true 88 64.64 64.64 64 64 64 64 64 67 helloBC slice[("A" string),("B" string),("C" string)] A (struct{(64 int),("C" string)} gno.land/r/demo/tests_test.myStruct) 64 64 64 64 64 struct{("C" string)} C
