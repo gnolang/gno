@@ -3,11 +3,11 @@ package standard
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/tx-archive/types"
 )
@@ -44,9 +44,12 @@ func (s *Standard) Next(ctx context.Context) (*std.Tx, error) {
 			// Parse the JSON
 			var tx types.TxData
 
-			if err := json.Unmarshal(s.scanner.Bytes(), &tx); err != nil {
+			txt := s.scanner.Text()
+			fmt.Println(txt)
+
+			if err := amino.UnmarshalJSON([]byte(txt), &tx); err != nil {
 				return nil, fmt.Errorf(
-					"unable to unmarshal JSON, %w",
+					"unable to unmarshal amino JSON, %w",
 					err,
 				)
 			}

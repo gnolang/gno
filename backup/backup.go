@@ -1,15 +1,18 @@
 package backup
 
+//nolint:revive // See https://github.com/gnolang/gno/issues/1197
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/log"
 	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/types"
+
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 // Service is the chain backup service
@@ -60,6 +63,11 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 				return fmt.Errorf("unable to fetch block transactions, %w", txErr)
 			}
 
+			// Skip empty blocks
+			if len(txs) == 0 {
+				continue
+			}
+
 			// Save the block transaction data, if any
 			for _, tx := range txs {
 				data := &types.TxData{
@@ -77,6 +85,8 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 			logProgress(s.logger, cfg.FromBlock, toBlock, block)
 		}
 	}
+
+	s.logger.Info("Backup complete")
 
 	return nil
 }
@@ -106,7 +116,7 @@ func determineRightBound(
 // writeTxData outputs the tx data to the writer
 func writeTxData(writer io.Writer, txData *types.TxData) error {
 	// Marshal tx data into JSON
-	jsonData, err := json.Marshal(txData)
+	jsonData, err := amino.MarshalJSON(txData)
 	if err != nil {
 		return fmt.Errorf("unable to marshal JSON data, %w", err)
 	}
@@ -128,12 +138,12 @@ func writeTxData(writer io.Writer, txData *types.TxData) error {
 
 // logProgress logs the backup progress
 func logProgress(logger log.Logger, from, to, current uint64) {
-	total := to - from + 1
+	total := to - from
 	status := (float64(current) - float64(from)) / float64(total) * 100
 
 	logger.Info(
 		fmt.Sprintf("Total of %d blocks backed up", current-from+1),
-		"total", total,
+		"total", total+1,
 		"from", from,
 		"to", to,
 		"status", fmt.Sprintf("%.2f%%", status),

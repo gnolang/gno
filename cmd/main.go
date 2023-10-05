@@ -25,7 +25,7 @@ func main() {
 	// Add the subcommands
 	cmd.Subcommands = []*ffcli.Command{
 		newBackupCmd(),
-		// newRestoreCmd(),
+		newRestoreCmd(),
 	}
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {

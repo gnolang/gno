@@ -43,15 +43,12 @@ func TestRestore_ExecuteRestore(t *testing.T) {
 		}
 	)
 
+	s := NewService(mockClient, mockSource, WithLogger(noop.New()))
+
 	// Execute the restore
 	assert.NoError(
 		t,
-		ExecuteRestore(
-			context.Background(),
-			mockClient,
-			mockSource,
-			noop.New(),
-		),
+		s.ExecuteRestore(context.Background()),
 	)
 
 	// Verify the restore was correct

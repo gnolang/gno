@@ -8,30 +8,35 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/tx-archive/log"
+	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/restore/client"
 	"github.com/gnolang/tx-archive/restore/source"
 )
 
-// ExecuteRestore executes the node restore process
-func ExecuteRestore(
-	ctx context.Context,
-	client client.Client,
-	source source.Source,
-	logger log.Logger,
-) error {
-	// Set up the teardown
-	teardown := func() {
-		if closeErr := source.Close(); closeErr != nil {
-			logger.Error(
-				"unable to gracefully close source",
-				"err",
-				closeErr.Error(),
-			)
-		}
+// Service is the chain restore service
+type Service struct {
+	client client.Client
+	source source.Source
+	logger log.Logger
+}
+
+// NewService creates a new restore service
+func NewService(client client.Client, source source.Source, opts ...Option) *Service {
+	s := &Service{
+		client: client,
+		source: source,
+		logger: noop.New(),
 	}
 
-	defer teardown()
+	for _, opt := range opts {
+		opt(s)
+	}
 
+	return s
+}
+
+// ExecuteRestore executes the node restore process
+func (s *Service) ExecuteRestore(ctx context.Context) error {
 	var (
 		tx      *std.Tx
 		nextErr error
@@ -41,16 +46,16 @@ func ExecuteRestore(
 
 	// Fetch next transactions
 	for nextErr == nil {
-		tx, nextErr = source.Next(ctx)
+		tx, nextErr = s.source.Next(ctx)
 		if nextErr != nil {
 			break
 		}
 
 		// Send the transaction
-		if sendErr := client.SendTransaction(tx); sendErr != nil {
+		if sendErr := s.client.SendTransaction(tx); sendErr != nil {
 			// Invalid transaction sends are only logged,
 			// and do not stop the restore process
-			logger.Error(
+			s.logger.Error(
 				"unable to send transaction",
 				"err",
 				sendErr.Error(),
@@ -60,6 +65,12 @@ func ExecuteRestore(
 		}
 
 		totalTxs++
+
+		s.logger.Info(
+			"sent transaction",
+			"total",
+			totalTxs,
+		)
 	}
 
 	// Check if this is the end of the road
@@ -68,7 +79,7 @@ func ExecuteRestore(
 	}
 
 	// No more transactions to apply
-	logger.Info(
+	s.logger.Info(
 		"restore process finished",
 		"total",
 		totalTxs,
