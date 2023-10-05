@@ -212,7 +212,7 @@ func execModTidy(args []string, io *commands.IO) error {
 	}
 	gm.Require = requires
 
-	gm.WriteToPath(fname)
+	gm.Write(fname)
 	return nil
 }
 
