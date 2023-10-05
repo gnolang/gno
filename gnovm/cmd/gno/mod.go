@@ -14,8 +14,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 )
 
 type modDownloadCfg struct {
@@ -199,18 +197,9 @@ func execModTidy(args []string, io *commands.IO) error {
 		return err
 	}
 
-	// TODO: Use gm.AddRequire()
-	// Blocked by PR#1077
-	var requires []*modfile.Require
 	for _, im := range imports {
-		requires = append(requires, &modfile.Require{
-			Mod: module.Version{
-				Path:    im,
-				Version: "v0.0.0-latest",
-			},
-		})
+		gm.AddRequire(im, "v0.0.0-latest")
 	}
-	gm.Require = requires
 
 	gm.Write(fname)
 	return nil
