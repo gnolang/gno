@@ -1,14 +1,17 @@
 package gnoland
 
 import (
+	"encoding/base64"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -143,6 +146,65 @@ func parseBalance(bal string) (crypto.Address, std.Coins) {
 // XXX not used yet.
 func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: loadValidatorsFromVM(ctx, vmk),
+		}
 	}
+}
+
+func loadValidatorsFromVM(ctx sdk.Context, vmk vm.VMKeeperI) []abci.ValidatorUpdate {
+	res, err := vmk.Call(ctx, vm.MsgCall{
+		Caller:  crypto.Address{},
+		Send:    std.Coins{},
+		PkgPath: "gno.land/r/system/validators",
+		Func:    "ValidatorSet",
+		Args:    []string{},
+	})
+	if err != nil {
+		panic(fmt.Errorf("load validators from vm: %w", err))
+	}
+	//TODO: res is string, we need to typed value for it.
+
+	vsetStr := strings.TrimRight(strings.TrimLeft(res, `("`), `" string)`)
+	vsetStr = strings.ReplaceAll(vsetStr, " ", "")
+	var vset []string
+	if vsetStr != "" {
+		vset = strings.Split(vsetStr, ",")
+	}
+
+	var updates []abci.ValidatorUpdate
+	for _, v := range vset {
+		vinfo := strings.Split(v, ":")
+		pubkeyStr := vinfo[0]
+		powerStr := vinfo[1]
+
+		var pubkey ed25519.PubKeyEd25519
+		{
+			pubBytes, err := base64.StdEncoding.DecodeString(pubkeyStr)
+			if err != nil {
+				panic(err)
+			}
+			var pubkeyBytes [ed25519.PubKeyEd25519Size]byte
+			copy(pubkeyBytes[:], pubBytes[:32])
+
+			pubkey = ed25519.PubKeyEd25519(pubkeyBytes)
+		}
+
+		var power int64
+		{
+			var err error
+			power, err = strconv.ParseInt(powerStr, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		val := abci.ValidatorUpdate{
+			Address: pubkey.Address(),
+			PubKey:  pubkey,
+			Power:   power,
+		}
+		updates = append(updates, val)
+	}
+	return updates
 }
