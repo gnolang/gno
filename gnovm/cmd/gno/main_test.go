@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -153,10 +154,13 @@ func setupTestScript(t *testing.T, txtarDir string) testscript.Params {
 	rootDir := filepath.Dir(string(goModPath))
 	// Build a fresh gno binary in a temp directory
 	gnoBin := filepath.Join(t.TempDir(), "gno")
+
 	err = exec.Command("go", "build", "-o", gnoBin, filepath.Join(rootDir, "gnovm", "cmd", "gno")).Run()
 	require.NoError(t, err)
 	// Define script params
+	updateSripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	return testscript.Params{
+		UpdateScripts: updateSripts,
 		Setup: func(env *testscript.Env) error {
 			env.Vars = append(env.Vars,
 				"GNOROOT="+rootDir, // thx PR 1014 :)
