@@ -154,12 +154,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("--- preprocess stack ---")
-				for i := len(stack) - 1; i >= 0; i-- {
-					sbn := stack[i]
-					fmt.Printf("stack %d: %s\n", i, sbn.String())
-				}
-				fmt.Println("------------------------")
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
