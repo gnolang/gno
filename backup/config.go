@@ -13,13 +13,16 @@ var (
 type Config struct {
 	ToBlock   *uint64 // the right bound for the block range; latest if not specified
 	FromBlock uint64  // the left bound for the block range
+
+	Watch bool // flag indicating if incoming tx data should be backed up
 }
 
 // DefaultConfig returns the default backup configuration
 func DefaultConfig() Config {
 	return Config{
-		ToBlock:   nil, // to latest block by default
-		FromBlock: 1,   // from genesis + 1 by default
+		ToBlock:   nil,   // to latest block by default
+		FromBlock: 1,     // from genesis + 1 by default
+		Watch:     false, // no tracking by default
 	}
 }
 

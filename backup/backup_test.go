@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -80,7 +81,7 @@ func TestBackup_DetermineRightBound(t *testing.T) {
 	})
 }
 
-func TestBackup_ExecuteBackup(t *testing.T) {
+func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 	t.Parallel()
 
 	var (
@@ -127,6 +128,100 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 		t,
 		s.ExecuteBackup(
 			context.Background(),
+			cfg,
+		),
+	)
+
+	// Read the output file
+	fileRaw, err := os.Open(tempFile.Name())
+	require.NoError(t, err)
+
+	// Set up a line-by-line scanner
+	scanner := bufio.NewScanner(fileRaw)
+
+	expectedBlock := fromBlock
+
+	// Iterate over each line in the file
+	for scanner.Scan() {
+		var txData types.TxData
+
+		// Unmarshal the JSON data into the Person struct
+		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
+			t.Fatalf("unable to unmarshal JSON line, %v", err)
+		}
+
+		assert.Equal(t, expectedBlock, txData.BlockNum)
+		assert.Equal(t, exampleTx, txData.Tx)
+
+		expectedBlock++
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("error encountered during scan, %v", err)
+	}
+}
+
+func TestBackup_ExecuteBackup_Watch(t *testing.T) {
+	t.Parallel()
+
+	// Set up the context that is controlled by the test
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	var (
+		tempFile = createTempFile(t)
+
+		fromBlock uint64 = 10
+		toBlock          = fromBlock + 10
+
+		requestToBlock = toBlock / 2
+
+		exampleTx = std.Tx{
+			Memo: "example transaction",
+		}
+
+		cfg = DefaultConfig()
+
+		mockClient = &mockClient{
+			getLatestBlockNumberFn: func() (uint64, error) {
+				return toBlock, nil
+			},
+			getBlockTransactionsFn: func(blockNum uint64) ([]std.Tx, error) {
+				// Sanity check
+				if blockNum < fromBlock && blockNum > toBlock {
+					t.Fatal("invalid block number requested")
+				}
+
+				if blockNum == toBlock {
+					// End of the road, close the watch process
+					cancelFn()
+				}
+
+				return []std.Tx{exampleTx}, nil // 1 tx per block
+			},
+		}
+	)
+
+	// Temp file cleanup
+	t.Cleanup(func() {
+		require.NoError(t, tempFile.Close())
+		require.NoError(t, os.Remove(tempFile.Name()))
+	})
+
+	// Set the config
+	cfg.FromBlock = fromBlock
+	cfg.ToBlock = &requestToBlock
+	cfg.Watch = true
+
+	s := NewService(mockClient, standard.NewWriter(tempFile), WithLogger(noop.New()))
+	s.watchInterval = 10 * time.Millisecond // make the interval almost instant for the test
+
+	// Run the backup procedure
+	require.NoError(
+		t,
+		s.ExecuteBackup(
+			ctx,
 			cfg,
 		),
 	)

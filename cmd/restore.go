@@ -20,9 +20,11 @@ var errInvalidInputPath = errors.New("invalid file input path")
 
 // restoreCfg is the restore command configuration
 type restoreCfg struct {
-	inputPath    string
-	remote       string
+	inputPath string
+	remote    string
+
 	legacyBackup bool
+	watch        bool
 }
 
 // newRestoreCmd creates the restore command
@@ -62,6 +64,13 @@ func (c *restoreCfg) registerFlags(fs *flag.FlagSet) {
 		"legacy",
 		false,
 		"flag indicating if the input file is legacy amino JSON",
+	)
+
+	fs.BoolVar(
+		&c.watch,
+		"watch",
+		false,
+		"flag indicating if the restore should watch incoming tx data",
 	)
 }
 
@@ -131,7 +140,7 @@ func (c *restoreCfg) exec(ctx context.Context, _ []string) error {
 	)
 
 	// Run the backup service
-	if backupErr := service.ExecuteRestore(ctx); backupErr != nil {
+	if backupErr := service.ExecuteRestore(ctx, c.watch); backupErr != nil {
 		return fmt.Errorf("unable to execute restore, %w", backupErr)
 	}
 

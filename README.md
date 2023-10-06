@@ -25,6 +25,7 @@ Runs the chain backup service
 
 FLAGS
   -from-block 1                   the starting block number for the backup (inclusive)
+  -legacy=false                   flag indicating if the legacy output format should be used (tx-per-line)
   -output-path ./backup.jsonl     the output path for the JSONL chain data
   -overwrite=false                flag indicating if the output file should be overwritten during backup
   -remote http://127.0.0.1:26657  the JSON-RPC URL of the chain to be backed up
