@@ -45,7 +45,6 @@ func (s *Standard) Next(ctx context.Context) (*std.Tx, error) {
 			var tx types.TxData
 
 			txt := s.scanner.Text()
-			fmt.Println(txt)
 
 			if err := amino.UnmarshalJSON([]byte(txt), &tx); err != nil {
 				return nil, fmt.Errorf(

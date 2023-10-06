@@ -2,10 +2,10 @@ package standard
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/tx-archive/types"
 	"github.com/stretchr/testify/assert"
@@ -81,7 +81,7 @@ func TestSource_Standard(t *testing.T) {
 			BlockNum: 10,
 		}
 
-		txDataRaw, err := json.Marshal(txData)
+		txDataRaw, err := amino.MarshalJSON(txData)
 		require.NoError(t, err)
 
 		_, err = tempFile.Write(txDataRaw)

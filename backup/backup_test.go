@@ -3,11 +3,11 @@ package backup
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/types"
@@ -144,7 +144,7 @@ func TestBackup_ExecuteBackup(t *testing.T) {
 		var txData types.TxData
 
 		// Unmarshal the JSON data into the Person struct
-		if err := json.Unmarshal(scanner.Bytes(), &txData); err != nil {
+		if err := amino.UnmarshalJSON(scanner.Bytes(), &txData); err != nil {
 			t.Fatalf("unable to unmarshal JSON line, %v", err)
 		}
 
