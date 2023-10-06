@@ -2,6 +2,8 @@ package std
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
+
+	_ "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
