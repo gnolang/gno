@@ -9,6 +9,9 @@ import (
 
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/http"
+	"github.com/gnolang/tx-archive/backup/writer"
+	"github.com/gnolang/tx-archive/backup/writer/legacy"
+	"github.com/gnolang/tx-archive/backup/writer/standard"
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"go.uber.org/zap"
 )
@@ -36,6 +39,7 @@ type backupCfg struct {
 	fromBlock uint64
 
 	overwrite bool
+	legacy    bool
 }
 
 // newBackupCmd creates the backup command
@@ -89,6 +93,13 @@ func (c *backupCfg) registerFlags(fs *flag.FlagSet) {
 		"overwrite",
 		false,
 		"flag indicating if the output file should be overwritten during backup",
+	)
+
+	fs.BoolVar(
+		&c.legacy,
+		"legacy",
+		false,
+		"flag indicating if the legacy output format should be used (tx-per-line)",
 	)
 }
 
@@ -162,10 +173,18 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 	// Set up the teardown
 	defer teardown()
 
+	var w writer.Writer
+
+	if c.legacy {
+		w = legacy.NewWriter(outputFile)
+	} else {
+		w = standard.NewWriter(outputFile)
+	}
+
 	// Create the backup service
 	service := backup.NewService(
 		client,
-		outputFile,
+		w,
 		backup.WithLogger(logger),
 	)
 

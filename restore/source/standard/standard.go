@@ -12,13 +12,13 @@ import (
 	"github.com/gnolang/tx-archive/types"
 )
 
-type Standard struct {
+type Source struct {
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-// NewStandardSource creates a new standard JSON source
-func NewStandardSource(filePath string) (*Standard, error) {
+// NewSource creates a new standard JSON source
+func NewSource(filePath string) (*Source, error) {
 	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -28,13 +28,13 @@ func NewStandardSource(filePath string) (*Standard, error) {
 		)
 	}
 
-	return &Standard{
+	return &Source{
 		file:    file,
 		scanner: bufio.NewScanner(file),
 	}, nil
 }
 
-func (s *Standard) Next(ctx context.Context) (*std.Tx, error) {
+func (s *Source) Next(ctx context.Context) (*std.Tx, error) {
 	// Read the line
 	if s.scanner.Scan() {
 		select {
@@ -68,7 +68,7 @@ func (s *Standard) Next(ctx context.Context) (*std.Tx, error) {
 	return nil, io.EOF
 }
 
-func (s *Standard) Close() error {
+func (s *Source) Close() error {
 	// Attempt to gracefully close the file
 	if closeErr := s.file.Close(); closeErr != nil {
 		return fmt.Errorf(

@@ -30,7 +30,7 @@ func TestSource_Standard(t *testing.T) {
 	t.Run("no source found", func(t *testing.T) {
 		t.Parallel()
 
-		source, err := NewStandardSource("./dummy-file.txt")
+		source, err := NewSource("./dummy-file.txt")
 		require.Nil(t, source)
 		require.Error(t, err)
 	})
@@ -52,7 +52,7 @@ func TestSource_Standard(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the standard source
-		source, err := NewStandardSource(tempFile.Name())
+		source, err := NewSource(tempFile.Name())
 		require.NoError(t, err)
 
 		// Try to parse the file
@@ -88,7 +88,7 @@ func TestSource_Standard(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the standard source
-		source, err := NewStandardSource(tempFile.Name())
+		source, err := NewSource(tempFile.Name())
 		require.NoError(t, err)
 
 		// Try to parse the file

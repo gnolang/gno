@@ -11,13 +11,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type Legacy struct {
+type Source struct {
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-// NewLegacySource creates a new legacy amino JSON source
-func NewLegacySource(filePath string) (*Legacy, error) {
+// NewSource creates a new legacy amino JSON source
+func NewSource(filePath string) (*Source, error) {
 	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -27,13 +27,13 @@ func NewLegacySource(filePath string) (*Legacy, error) {
 		)
 	}
 
-	return &Legacy{
+	return &Source{
 		file:    file,
 		scanner: bufio.NewScanner(file),
 	}, nil
 }
 
-func (l *Legacy) Next(ctx context.Context) (*std.Tx, error) {
+func (l *Source) Next(ctx context.Context) (*std.Tx, error) {
 	for l.scanner.Scan() {
 		select {
 		case <-ctx.Done():
@@ -64,7 +64,7 @@ func (l *Legacy) Next(ctx context.Context) (*std.Tx, error) {
 	return nil, io.EOF
 }
 
-func (l *Legacy) Close() error {
+func (l *Source) Close() error {
 	// Attempt to gracefully close the file
 	if closeErr := l.file.Close(); closeErr != nil {
 		return fmt.Errorf(

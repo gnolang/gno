@@ -101,9 +101,9 @@ func (c *restoreCfg) exec(ctx context.Context, _ []string) error {
 	)
 
 	if c.legacyBackup {
-		src, srcErr = legacy.NewLegacySource(c.inputPath)
+		src, srcErr = legacy.NewSource(c.inputPath)
 	} else {
-		src, srcErr = standard.NewStandardSource(c.inputPath)
+		src, srcErr = standard.NewSource(c.inputPath)
 	}
 
 	if srcErr != nil {
