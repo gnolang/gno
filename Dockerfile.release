@@ -1,0 +1,5 @@
+FROM scratch
+
+COPY /tx-archive /tx-archive
+
+ENTRYPOINT ["/tx-archive"]
