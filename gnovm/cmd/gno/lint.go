@@ -15,8 +15,6 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-var reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
-
 type lintCfg struct {
 	verbose       bool
 	rootDir       string
@@ -76,93 +74,83 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 			fmt.Fprintf(io.Err, "Linting %q...\n", pkgPath)
 		}
 
-		// 'gno.mod' exists?
-		{
-			gnoModPath := filepath.Join(pkgPath, "gno.mod")
-			if !osm.FileExists(gnoModPath) {
-				addIssue(lintIssue{
-					Code:       lintNoGnoMod,
-					Confidence: 1,
-					Location:   pkgPath,
-					Msg:        "missing 'gno.mod' file",
-				})
-			}
+		// Check if 'gno.mod' exists
+		gnoModPath := filepath.Join(pkgPath, "gno.mod")
+		if !osm.FileExists(gnoModPath) {
+			addIssue(lintIssue{
+				Code:       lintNoGnoMod,
+				Confidence: 1,
+				Location:   pkgPath,
+				Msg:        "missing 'gno.mod' file",
+			})
 		}
 
-		// run gno machine to detect basic package errors
-		{
-			var (
-				stdout = io.Out
-				stdin  = io.In
-				stderr = io.Err
+		// Use `RunMemPackage` to detect basic package errors
+		var (
+			stdout = io.Out
+			stdin  = io.In
+			stderr = io.Err
 
-				testStore = tests.TestStore(
-					rootDir, "",
-					stdin, stdout, stderr,
-					tests.ImportModeStdlibsOnly,
-				)
+			testStore = tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				tests.ImportModeStdlibsOnly,
 			)
 
-			catchError := func() {
-				r := recover()
-				if r == nil {
-					return
-				}
+			reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
+		)
 
-				if err, ok := r.(error); ok {
-					loc := strings.TrimSpace(err.Error())
-					// XXX: this should not happen, loc should not contain package path
-					loc = strings.TrimPrefix(loc, pkgPath+"/")
-					subm := reParseRecover.FindStringSubmatch(loc)
-					if len(subm) > 0 {
-						// subm[1]: file
-						// subm[2]: line
-						// subm[3]: error
+		handleError := func() {
+			// Errors here mostly come from: gnovm/pkg/gnolang/preprocess.go
+			if r := recover(); r != nil {
+				if recErr, ok := r.(error); ok {
+					parsedError := strings.TrimSpace(recErr.Error())
+					parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+					matches := reParseRecover.FindStringSubmatch(parsedError)
+					if len(matches) > 0 {
 						addIssue(lintIssue{
 							Code:       lintGnoError,
 							Confidence: 1,
-							Location:   fmt.Sprintf("%s:%s", subm[1], subm[2]),
-							Msg:        strings.TrimSpace(subm[3]),
+							Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
+							Msg:        strings.TrimSpace(matches[3]),
 						})
 					}
 				}
 			}
-
-			// run the machine on the target package
-			func() {
-				defer catchError()
-
-				// reuse test run files
-				memPkg := gno.ReadMemPackage(filepath.Dir(pkgPath), pkgPath)
-				m := tests.TestMachine(testStore, stdout, memPkg.Name)
-
-				// check package
-				m.RunMemPackage(memPkg, true)
-
-				// check test files
-				{
-					testfiles := &gno.FileSet{}
-					for _, mfile := range memPkg.Files {
-						if !strings.HasSuffix(mfile.Name, ".gno") {
-							continue // skip this file.
-						}
-
-						n, _ := gno.ParseFile(mfile.Name, mfile.Body)
-						if n == nil {
-							continue
-						}
-
-						if strings.HasSuffix(mfile.Name, "_test.gno") {
-							testfiles.AddFiles(n)
-						}
-					}
-
-					m.RunFiles(testfiles.Files...)
-				}
-			}()
 		}
 
-		// XXX: add more checkers
+		// Run the machine on the target package
+		func() {
+			defer handleError()
+
+			memPkg := gno.ReadMemPackage(filepath.Dir(pkgPath), pkgPath)
+			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
+
+			// Check package
+			tm.RunMemPackage(memPkg, true)
+
+			// Check test files
+			testfiles := &gno.FileSet{}
+			for _, mfile := range memPkg.Files {
+				if !strings.HasSuffix(mfile.Name, ".gno") {
+					continue // Skip non-GNO files
+				}
+
+				n, _ := gno.ParseFile(mfile.Name, mfile.Body)
+				if n == nil {
+					continue // Skip empty files
+				}
+
+				if strings.HasSuffix(mfile.Name, "_test.gno") {
+					// Keep only test files
+					testfiles.AddFiles(n)
+				}
+			}
+
+			tm.RunFiles(testfiles.Files...)
+		}()
+
+		// TODO: Add more checkers here
 	}
 
 	if hasError && cfg.setExitStatus != 0 {
