@@ -3,21 +3,21 @@ package flippandoserver
 import (
 	"std"
 	"time"
+	"bytes"
+	"strings"
+	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
 
 type Game struct {
-	Owner     string
-	GameId    string
-	board     []int
-	tileType  string
-	gameTiles []int
-	boardSize int
-	Status    string
+	GameId    string `json:"id"`
+	Board     []int  `json:"board"`
+	TileType  string `json:"tileType"`
+	GameTiles []int  `json:"gameTiles"`
+	BoardSize int    `json:"boardSize"`
+	Status    string `json:"status"`
 }
-
-// owner - 'address', gameId - 'string', board - [int], tileType - 'coloredSquare', 'dice', 'hexagram', gameTiles - [int], boardSize - {4, 8}, status - 'created | ongoing | solved'
 
 type positions struct {
 	position1 int
@@ -34,7 +34,7 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func StartGame(owner string, gameId string, tileType string, boardSize int) (string, string, []int) {
+func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
 	// Initialize the board and gameTiles slices based on boardSize
 	board := make([]int, boardSize)
 
@@ -44,17 +44,68 @@ func StartGame(owner string, gameId string, tileType string, boardSize int) (str
 
 	// Create a new game instance
 	newGame := &Game{
-		Owner:     owner,
 		GameId:    gameId,
-		board:     board,
-		tileType:  tileType,
-		gameTiles: gameTiles,
-		boardSize: boardSize,
+		Board:     board,
+		TileType:  tileType,
+		GameTiles: gameTiles,
+		BoardSize: boardSize,
 		Status:    "initiated",
 	}
 
-	return newGame.GameId, newGame.Status, newGame.board
+	// Convert game to JSON
+	gameJSON, err := newGame.MarshalJSON()
+	if err != nil {
+		return "error";
+	}
+
+	return string(gameJSON)
 }
+
+func (g Game) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"GameId":"`)
+	b.WriteString(g.GameId)
+	b.WriteString(`",`)
+
+	b.WriteString(`"TileType":"`)
+	b.WriteString(g.TileType)
+	b.WriteString(`",`)
+
+	b.WriteString(`"Status":"`)
+	b.WriteString(g.Status)
+	b.WriteString(`",`)
+
+	b.WriteString(`"BoardSize":`)
+	b.WriteString(strconv.Itoa(g.BoardSize)) // converting int to string
+	b.WriteString(`,`)
+
+	b.WriteString(`"Board":[`)
+	b.WriteString(writeIntSlice(g.Board))
+	b.WriteString(`],`)
+
+	b.WriteString(`"GameTiles":[`)
+	b.WriteString(writeIntSlice(g.GameTiles))
+	b.WriteString(`]`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func writeIntSlice(slice []int) string {
+    var b strings.Builder
+    for i, v := range slice {
+        if i > 0 {
+            b.WriteString(",")
+        }
+        b.WriteString(strconv.Itoa(v)) // converting int to string
+    }
+    return b.String()
+}
+
 
 func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) ([]int, []int) {
 	//   - returns the tiles at the positions[] in the board array
@@ -174,6 +225,7 @@ func generateRandomNumbers(num, start, end int) []int {
 
 	return result
 }*/
+
 
 func generateRandomNumbers(num, start, end int) []int {
 	result := make([]int, 0, 4)
