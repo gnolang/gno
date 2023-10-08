@@ -3,6 +3,7 @@ package flippando
 import (
 	"bytes"
 	"errors"
+	"gno.land/p/demo/ufmt"
 
 	"gno.land/p/demo/flippandoserver"
 )
@@ -16,7 +17,10 @@ type inTransit struct {
 
 // creates game object and initializes board
 func StartGame(gameId string, tileType string, boardSize int) string {
-	return flippandoserver.CreateGameBoard(gameId, tileType, boardSize)
+	newGame := flippandoserver.CreateGameBoard(gameId, tileType, boardSize)
+	ufmt.Sprintf("new Game %s\n", newGame)
+	//return flippandoserver.CreateGameBoard(gameId, tileType, boardSize)
+	return newGame
 }
 
 func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) {

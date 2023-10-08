@@ -45,10 +45,10 @@ func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
 	// Create a new game instance
 	newGame := &Game{
 		GameId:    gameId,
-		Board:     board,
-		TileType:  tileType,
-		GameTiles: gameTiles,
-		BoardSize: boardSize,
+		//Board:     board,
+		//TileType:  tileType,
+		//GameTiles: gameTiles,
+		//BoardSize: boardSize,
 		Status:    "initiated",
 	}
 
@@ -61,7 +61,8 @@ func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
 	return string(gameJSON)
 }
 
-func (g Game) MarshalJSON() ([]byte, error) {
+//func (g Game) MarshalJSON() ([]byte, error) {
+func (g Game) MarshalJSON() (_ []byte, err error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
@@ -70,26 +71,33 @@ func (g Game) MarshalJSON() ([]byte, error) {
 	b.WriteString(g.GameId)
 	b.WriteString(`",`)
 
-	b.WriteString(`"TileType":"`)
-	b.WriteString(g.TileType)
-	b.WriteString(`",`)
+	//b.WriteString(`"TileType":"`)
+	//b.WriteString(g.TileType)
+	//b.WriteString(`",`)
 
 	b.WriteString(`"Status":"`)
 	b.WriteString(g.Status)
 	b.WriteString(`",`)
 
-	b.WriteString(`"BoardSize":`)
-	b.WriteString(strconv.Itoa(g.BoardSize)) // converting int to string
-	b.WriteString(`,`)
+	
+	//b.WriteString(`"BoardSize":`)
+	//b.WriteString(strconv.Itoa(g.BoardSize)) // converting int to string
+	//b.WriteString(`,`)
+	
+	
+	//b.WriteString(`"Board":[`)
+	//b.WriteString(writeIntSlice(g.Board))
+	//b.WriteString(`],`)
+	
+	//b.WriteString(`"GameTiles":[`)
+	//b.WriteString(writeIntSlice(g.GameTiles))
+	//b.WriteString(`]`)
+	
 
-	b.WriteString(`"Board":[`)
-	b.WriteString(writeIntSlice(g.Board))
-	b.WriteString(`],`)
-
-	b.WriteString(`"GameTiles":[`)
-	b.WriteString(writeIntSlice(g.GameTiles))
-	b.WriteString(`]`)
-
+	//b.WriteString(`"Board":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],`)
+	
+	//b.WriteString(`"GameTiles":[2,5,8,6]`)
+	
 	b.WriteByte('}')
 
 	return b.Bytes(), nil
