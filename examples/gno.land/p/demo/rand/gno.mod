@@ -1,3 +1,3 @@
 // Draft
 
-module gno.land/p/demo/rand 
+module gno.land/p/demo/rand
