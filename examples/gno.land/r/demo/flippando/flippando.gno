@@ -1,20 +1,12 @@
 package flippando
 
 import (
+	"bytes"
+	"errors"
+
 	"gno.land/p/demo/flippandoserver"
 )
 
-type Game struct {
-	Owner     string
-	GameId    string
-	board     []int
-	tileType  string
-	gameTiles []int
-	boardSize int
-	Status    string
-}
-
-// owner - 'address', gameId - 'string', board - [int], tileType - 'coloredSquare', 'dice', 'hexagram', gameTiles - [int], boardSize - {4, 8}, status - 'created | ongoing | solved'
 type inTransit struct {
 	tokenId   int
 	inTransit bool
@@ -23,9 +15,8 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func StartGame(owner string, gameId string, tileType string, boardSize int) (string, string, []int) {
-	newGameId, newGameStatus, newGameBoard := flippandoserver.StartGame(owner, gameId, tileType, boardSize)
-	return string(newGameId), string(newGameStatus), []int(newGameBoard)
+func StartGame(gameId string, tileType string, boardSize int) string {
+	return flippandoserver.CreateGameBoard(gameId, tileType, boardSize)
 }
 
 func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) {
