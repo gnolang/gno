@@ -1,0 +1,43 @@
+# test basic gnoland integrations commands
+# golden files have been generated using UPDATE_SCRIPTS=true
+
+## no arguments should fail
+! gnoland
+cmp stdout gnoland-no-arguments.stdout.golden
+cmp stderr gnoland-no-arguments.stderr.golden
+
+## should be able to start
+gnoland start
+cmp stdout gnoland-start.stdout.golden
+cmp stderr gnoland-start.stderr.golden
+
+## should not be able to start a node twice
+! gnoland start
+cmp stdout gnoland-already-start.stdout.golden
+cmp stderr gnoland-already-start.stderr.golden
+
+## should be able to stop default
+gnoland stop
+cmp stdout gnoland-stop.stdout.golden
+cmp stderr gnoland-stop.stderr.golden
+
+## should not be able to stop a node twice
+! gnoland stop
+cmp stdout gnoland-already-stop.stdout.golden
+cmp stderr gnoland-already-stop.stderr.golden
+
+-- gnoland-no-arguments.stdout.golden --
+-- gnoland-no-arguments.stderr.golden --
+"gnoland" error: syntax: gnoland [start|stop]
+-- gnoland-start.stdout.golden --
+node started successfully
+-- gnoland-start.stderr.golden --
+-- gnoland-already-start.stdout.golden --
+-- gnoland-already-start.stderr.golden --
+"gnoland start" error: node already started
+-- gnoland-stop.stdout.golden --
+node stopped successfully
+-- gnoland-stop.stderr.golden --
+-- gnoland-already-stop.stdout.golden --
+-- gnoland-already-stop.stderr.golden --
+"gnoland stop" error: node not started cannot be stopped
