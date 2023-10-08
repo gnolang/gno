@@ -181,22 +181,21 @@ func execModTidy(args []string, io *commands.IO) error {
 	if err != nil {
 		return err
 	}
-	rd, err := gnomod.FindRootDir(wd)
-	if err != nil {
-		return err
-	}
-	fname := filepath.Join(rd, "gno.mod")
-
+	fname := filepath.Join(wd, "gno.mod")
 	gm, err := gnomod.ParseGnoMod(fname)
 	if err != nil {
 		return err
 	}
 
-	imports, err := getGnoImports(rd)
+	// Drop all existing requires
+	for _, r := range gm.Require {
+		gm.DropRequire(r.Mod.Path)
+	}
+
+	imports, err := getGnoImports(wd)
 	if err != nil {
 		return err
 	}
-
 	for _, im := range imports {
 		gm.AddRequire(im, "v0.0.0-latest")
 	}
@@ -205,22 +204,31 @@ func execModTidy(args []string, io *commands.IO) error {
 	return nil
 }
 
-// getGnoImports returns the list of gno imports from a given path recursively.
+// getGnoImports returns the list of gno imports from a given path.
+// Note: It ignores subdirs. Since right now we are still deciding on
+// how to handle subdirs.
+// See:
+// - https://github.com/gnolang/gno/issues/1024
+// - https://github.com/gnolang/gno/issues/852
+//
 // TODO: move this to better location.
 func getGnoImports(path string) ([]string, error) {
-	paths, err := gnoFilesFromArgs([]string{path})
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
 	allImports := make([]string, 0)
 	seen := make(map[string]struct{})
-	for _, path := range paths {
-		filename := filepath.Base(path)
+	for _, e := range entries {
+		filename := e.Name()
+		if ext := filepath.Ext(filename); ext != ".gno" {
+			continue
+		}
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(filepath.Join(path, filename))
 		if err != nil {
 			return nil, err
 		}
