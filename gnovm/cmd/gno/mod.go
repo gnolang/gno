@@ -197,6 +197,10 @@ func execModTidy(args []string, io *commands.IO) error {
 		return err
 	}
 	for _, im := range imports {
+		// skip if importpath is modulepath
+		if im == gm.Module.Mod.Path {
+			continue
+		}
 		gm.AddRequire(im, "v0.0.0-latest")
 	}
 
