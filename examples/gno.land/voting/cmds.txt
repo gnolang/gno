@@ -1,0 +1,39 @@
+Poll cmds
+
+gnokey maketx addpkg \
+--pkgpath "gno.land/p/demo/poll" \
+--pkgdir "./p/" \
+--gas-fee 10000000ugnot \
+--gas-wanted 800000 \
+--broadcast \
+--chainid dev \
+--remote localhost:26657 \
+lol && gnokey maketx addpkg \
+--pkgpath "gno.land/r/demo/poll" \
+--pkgdir "./r/" \
+--gas-fee 10000000ugnot \
+--gas-wanted 800000 \
+--broadcast \
+--chainid dev \
+--remote localhost:26657 \
+lol && gnokey maketx call \
+--pkgpath "gno.land/r/demo/poll" \
+--func "NewPoll" \
+--args "Is Gno good?" \
+--args "vibe check" \
+--args 1000 \
+--gas-fee 10000000ugnot \
+--gas-wanted 800000 \
+--broadcast  \
+--remote localhost:26657 \
+lol && gnokey maketx call \
+--pkgpath "gno.land/r/demo/poll" \
+--func "Vote" \
+--args 0 \
+--args true \
+--gas-fee 10000000ugnot \
+--gas-wanted 800000 \
+--broadcast  \
+--remote localhost:26657 \
+lol
+
