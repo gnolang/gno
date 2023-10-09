@@ -204,7 +204,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 		p3Field := P3Field{
 			Repeated: fp3IsRepeated,
 			Type:     fp3,
-			Name:     field.Name,
+			Name:     ToLowerSnakeCase(field.Name),
 			Number:   field.FieldOptions.BinFieldNum,
 		}
 		p3msg.Fields = append(p3msg.Fields, p3Field)
