@@ -15,10 +15,10 @@ builds:
 dockers:
   - dockerfile: Dockerfile.release
     image_templates:
-      - "ghcr.io/gno/tx-archive:latest"
-      - "ghcr.io/gno/tx-archive:{{ .Tag }}"
-      - "ghcr.io/gno/tx-archive:v{{ .Major }}"
-      - "ghcr.io/gno/tx-archive:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/gnolang/tx-archive:latest"
+      - "ghcr.io/gnolang/tx-archive:{{ .Tag }}"
+      - "ghcr.io/gnolang/tx-archive:v{{ .Major }}"
+      - "ghcr.io/gnolang/tx-archive:v{{ .Major }}.{{ .Minor }}"
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of `uname`.
