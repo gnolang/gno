@@ -36,4 +36,3 @@ lol && gnokey maketx call \
 --broadcast  \
 --remote localhost:26657 \
 lol
-

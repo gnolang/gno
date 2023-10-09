@@ -90,6 +90,13 @@ func renderHome() string {
 		ddl := p.Deadline()
 
 		yay, nay := p.VoteCount()
+		yayPercent := 0
+		nayPercent := 0
+
+		if yay+nay != 0 {
+			yayPercent = yay * 100 / (yay + nay)
+			nayPercent = nay * 100 / (yay + nay)
+		}
 
 		b.WriteString(
 			ufmt.Sprintf(
@@ -99,18 +106,24 @@ func renderHome() string {
 			),
 		)
 
+		dropdown := "<details>\n<summary>Poll details</summary><br>"
+
+		b.WriteString(dropdown + "Description: " + p.Description())
+
 		b.WriteString(
-			ufmt.Sprintf("Voting until block: %d, current vote count: %d\n\n", p.Deadline(), p.Voters().Size()),
+			ufmt.Sprintf("<br>Voting until block: %d<br>Current vote count: %d",
+				p.Deadline(),
+				p.Voters().Size()),
 		)
 
 		b.WriteString(
-			ufmt.Sprintf("YAY votes: %d\n\n", yay),
+			ufmt.Sprintf("<br>YAY votes: %d (%d%%)", yay, yayPercent),
 		)
 		b.WriteString(
-			ufmt.Sprintf("NAY votes: %d\n\n", nay),
+			ufmt.Sprintf("<br>NAY votes: %d (%d%%)</details>", nay, nayPercent),
 		)
 
-		dropdown := "<details>\n<summary>Voter details</summary><br>"
+		dropdown = "<br><details>\n<summary>Vote details</summary>"
 		b.WriteString(dropdown)
 
 		p.Voters().Iterate("", "", func(key string, value interface{}) bool {
@@ -128,7 +141,7 @@ func renderHome() string {
 				)
 			}
 
-			b.WriteString("</details>\n")
+			b.WriteString("</details>\n\n")
 			return false
 		})
 
