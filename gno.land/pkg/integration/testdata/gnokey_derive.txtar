@@ -21,7 +21,7 @@ cmp stdout gnokey-derive-invalid-num-accounts.stdout.golden
 cmp stderr gnokey-derive-invalid-num-accounts.stderr.golden
 
 -- gnokey-derive-valid.stdout.golden --
-[Generated Accounts]
+[Derived Accounts]
 
 Account Index: 0
 

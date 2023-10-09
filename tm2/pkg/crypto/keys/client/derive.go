@@ -88,7 +88,7 @@ func execDerive(cfg *deriveCfg, io *commands.IO) error {
 		cfg.numAccounts,
 	)
 
-	io.Printf("[Generated Accounts]\n\n")
+	io.Printf("[Derived Accounts]\n\n")
 	io.Printf("Account Index: %d\n\n", cfg.accountIndex)
 
 	// Print them out
