@@ -46,6 +46,7 @@ func NewRootCmd(io *commands.IO) *commands.Command {
 		newQueryCmd(cfg, io),
 		newBroadcastCmd(cfg, io),
 		newMakeTxCmd(cfg, io),
+		newDeriveCmd(io),
 	)
 
 	return cmd
