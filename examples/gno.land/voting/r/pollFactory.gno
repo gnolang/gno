@@ -6,8 +6,6 @@ import (
 	"gno.land/p/demo/poll"
 	"gno.land/p/demo/ufmt"
 	"std"
-
-	"strconv"
 )
 
 // state variables
@@ -22,16 +20,19 @@ func init() {
 }
 
 func NewPoll(title, description string, deadline int64) string {
-	// Get block height
+	// get block height
 	if deadline <= std.GetHeight() {
 		return "Error: Deadline has to be in the future."
 	}
 
+	// convert int ID to string used in AVL tree
 	id := ufmt.Sprintf("%d", pollIDCounter)
 	p := poll.NewPoll(title, description, deadline)
 
-	// set new poll in avl tree
+	// add new poll in avl tree
 	polls.Set(id, p)
+
+	// increment ID counter
 	pollIDCounter = pollIDCounter + 1
 
 	return ufmt.Sprintf("Successfully created poll #%s!", id)
@@ -40,7 +41,8 @@ func NewPoll(title, description string, deadline int64) string {
 func Vote(pollID int, vote bool) string {
 	txSender := std.GetOrigCaller()
 
-	pollRaw, exists := polls.Get(strconv.Itoa(pollID))
+	id := ufmt.Sprintf("%d", pollID)
+	pollRaw, exists := polls.Get(id)
 
 	if !exists {
 		return "Error: Poll with specified doesn't exist."
@@ -58,13 +60,12 @@ func Vote(pollID int, vote bool) string {
 	}
 
 	poll.Vote(txSender, vote)
-	polls.Set(strconv.Itoa(pollID), poll)
+	polls.Set(id, poll)
 
 	if vote == true {
-		return ufmt.Sprintf("Successfully voted YAY for poll #%d!", pollID)
+		return ufmt.Sprintf("Successfully voted YAY for poll #%s!", id)
 	}
-	return ufmt.Sprintf("Successfully voted NAY for poll #%d!", pollID)
-
+	return ufmt.Sprintf("Successfully voted NAY for poll #%s!", id)
 }
 
 func Render(path string) string {
@@ -133,20 +134,19 @@ func renderHome() string {
 
 			if vote == true {
 				b.WriteString(
-					ufmt.Sprintf("<br>1. Voter %s voted YAY!\n", voter),
+					ufmt.Sprintf("<br>%s voted YAY!", voter),
 				)
 			} else {
 				b.WriteString(
-					ufmt.Sprintf("<br>1. Voter %s voted NAY!\n", voter),
+					ufmt.Sprintf("<br>%s voted NAY!", voter),
 				)
 			}
 
-			b.WriteString("</details>\n\n")
 			return false
 		})
 
+		b.WriteString("</details>\n\n")
 		return false
 	})
-
 	return b.String()
 }
