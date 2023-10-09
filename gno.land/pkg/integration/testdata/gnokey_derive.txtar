@@ -1,0 +1,47 @@
+# Verifies the gnokey derive subcommand outputs
+
+# Run the derivation subcommand on an example mnemonic
+gnokey derive -mnemonic 'coyote brisk wagon cable quit opera mesh replace response scheme jelly adult income avoid box mass coil crash sort float salad dolphin blouse humor'
+cmp stdout gnokey-derive-valid.stdout.golden
+cmp stderr gnokey-derive-valid.stderr.golden
+
+# Run the derivation subcommand with an invalid mnemonic
+! gnokey derive -mnemonic "one two three"
+cmp stdout gnokey-derive-invalid-mnemonic.stdout.golden
+cmp stderr gnokey-derive-invalid-mnemonic.stderr.golden
+
+# Run the derivation subcommand with an invalid account index (>uint32)
+! gnokey derive --account-index 4294967296
+cmp stdout gnokey-derive-invalid-account-index.stdout.golden
+cmp stderr gnokey-derive-invalid-account-index.stderr.golden
+
+# Run the derivation subcommand with an invalid number of accounts (>uint32)
+! gnokey derive --num-accounts 4294967296
+cmp stdout gnokey-derive-invalid-num-accounts.stdout.golden
+cmp stderr gnokey-derive-invalid-num-accounts.stderr.golden
+
+-- gnokey-derive-valid.stdout.golden --
+[Generated Accounts]
+
+Account Index: 0
+
+0. g1laeayqanrlqlrm3rfgfx9fa5zstct3mcxehe5s
+1. g197zj3t30ag9p0szcqpq53stprh8vnvtu9xtw4w
+2. g1zhrdmurv3yqwpct7s09rgk0l3yj6kgtyf7hd2f
+3. g1ml8awz3pt0xamvawszsg0l4p2g7u93d356ypar
+4. g1tq27aeelggyaa8cracgyq9pvzwleq82gtulx96
+5. g1u6ut7k2lz4tuhm73vt4cdfraj6uaja7xl9rz8s
+6. g19fke4tu3nz04sxc342mqfgwhedjfllpmplva3s
+7. g1g54regr9ce5yg8yzmhylpkwwg34fw0k9upk2vh
+8. g1wmgd638xnnly7jagmnd8vvkvag74j0ykkkr0ut
+9. g174t9ts3g5gx8a8u2wkx2xdppa8ymsfv7nm42j7
+-- gnokey-derive-valid.stderr.golden --
+-- gnokey-derive-invalid-account-index.stdout.golden --
+-- gnokey-derive-invalid-account-index.stderr.golden --
+"gnokey" error: invalid account index
+-- gnokey-derive-invalid-num-accounts.stdout.golden --
+-- gnokey-derive-invalid-num-accounts.stderr.golden --
+"gnokey" error: invalid number of accounts
+-- gnokey-derive-invalid-mnemonic.stdout.golden --
+-- gnokey-derive-invalid-mnemonic.stderr.golden --
+"gnokey" error: invalid bip39 mnemonic
