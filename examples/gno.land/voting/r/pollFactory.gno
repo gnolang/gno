@@ -69,13 +69,6 @@ func Vote(pollID int, vote bool) string {
 }
 
 func Render(path string) string {
-	if path == "" {
-		return renderHome()
-	}
-	return "tf"
-}
-
-func renderHome() string {
 	var b bytes.Buffer
 
 	b.WriteString("# Polls!\n\n")
@@ -141,7 +134,6 @@ func renderHome() string {
 					ufmt.Sprintf("<br>%s voted NAY!", voter),
 				)
 			}
-
 			return false
 		})
 
