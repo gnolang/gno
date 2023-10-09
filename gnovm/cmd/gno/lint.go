@@ -150,7 +150,7 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 			tm.RunFiles(testfiles.Files...)
 		}()
 
-		// TODO: Add more checkers here
+		// TODO: Add more checkers
 	}
 
 	if hasError && cfg.setExitStatus != 0 {
