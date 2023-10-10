@@ -1,5 +1,12 @@
 package gnolang
 
+import (
+	"fmt"
+	"math/big"
+
+	"github.com/cockroachdb/apd"
+)
+
 func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)
 
@@ -42,8 +49,26 @@ func (m *Machine) doOpInc() {
 		lv.SetUint32(lv.GetUint32() + 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
+	case Float32Type:
+		lv.SetFloat32(lv.GetFloat32() + 1)
+	case Float64Type:
+		lv.SetFloat64(lv.GetFloat64() + 1)
+	case BigintType, UntypedBigintType:
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Add(lb, big.NewInt(1))
+		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		sum := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, apd.New(1, 0))
+		if err != nil {
+			panic(fmt.Sprintf("bigdec addition error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
+		}
+		lv.V = BigdecValue{V: sum}
 	default:
-		panic("unexpected type in in operation")
+		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
 
 	// Mark dirty in realm.
@@ -94,8 +119,26 @@ func (m *Machine) doOpDec() {
 		lv.SetUint32(lv.GetUint32() - 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
+	case Float32Type:
+		lv.SetFloat32(lv.GetFloat32() - 1)
+	case Float64Type:
+		lv.SetFloat64(lv.GetFloat64() - 1)
+	case BigintType, UntypedBigintType:
+		lb := lv.GetBigInt()
+		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
+		lv.V = BigintValue{V: lb}
+	case BigdecType, UntypedBigdecType:
+		lb := lv.GetBigDec()
+		sum := apd.New(0, 0)
+		cond, err := apd.BaseContext.WithPrecision(0).Sub(sum, lb, apd.New(1, 0))
+		if err != nil {
+			panic(fmt.Sprintf("bigdec addition error: %v", err))
+		} else if cond.Inexact() {
+			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
+		}
+		lv.V = BigdecValue{V: sum}
 	default:
-		panic("unexpected type in in operation")
+		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
 
 	// Mark dirty in realm.
