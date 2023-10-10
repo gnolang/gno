@@ -108,6 +108,34 @@ func TestNodeDelayedStart(t *testing.T) {
 	assert.Equal(t, true, startTime.After(n.GenesisDoc().GenesisTime))
 }
 
+func TestNodeFirstBlockSignal(t *testing.T) {
+	config := cfg.ResetTestRoot("node_node_test")
+	defer os.RemoveAll(config.RootDir)
+	now := tmtime.Now()
+
+	// create & start node
+	n, err := DefaultNewNode(config, log.TestingLogger())
+	require.NoError(t, err)
+
+	// add a small delay to genesis time
+	n.GenesisDoc().GenesisTime = now.Add(time.Second)
+	require.NoError(t, err)
+
+	err = n.Start()
+	require.NoError(t, err)
+
+	defer n.Stop()
+
+	select {
+	case <-n.FirstBlockReceived():
+	case <-time.After(time.Second * 6):
+		require.FailNow(t, "timeout while waiting for first block signal")
+	}
+
+	// Check that blockstore have at last 1 height size.
+	require.GreaterOrEqual(t, n.BlockStore().Height(), int64(1))
+}
+
 func TestNodeSetAppVersion(t *testing.T) {
 	config := cfg.ResetTestRoot("node_app_version_test")
 	defer os.RemoveAll(config.RootDir)

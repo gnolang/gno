@@ -9,6 +9,7 @@ import (
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/cors"
@@ -166,6 +167,7 @@ type Node struct {
 	rpcListeners     []net.Listener       // rpc servers
 	txIndexer        txindex.TxIndexer
 	indexerService   *txindex.IndexerService
+	firstBlockSignal <-chan struct{}
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -437,6 +439,20 @@ func NewNode(config *cfg.Config,
 	// but before it indexed the txs, or, endblocker panicked)
 	evsw := events.NewEventSwitch()
 
+	// Signal readiness when receiving the first block.
+	const readinessListenerID = "first_block_listener"
+
+	cFirstBlock := make(chan struct{})
+	var once sync.Once
+	evsw.AddListener(readinessListenerID, func(ev events.Event) {
+		if _, ok := ev.(types.EventNewBlock); ok {
+			once.Do(func() {
+				close(cFirstBlock)
+				evsw.RemoveListener(readinessListenerID)
+			})
+		}
+	})
+
 	// Transaction indexing
 	indexerService, txIndexer, err := createAndStartIndexerService(config, dbProvider, evsw, logger)
 	if err != nil {
@@ -552,6 +568,8 @@ func NewNode(config *cfg.Config,
 		proxyApp:         proxyApp,
 		txIndexer:        txIndexer,
 		indexerService:   indexerService,
+
+		firstBlockSignal: cFirstBlock,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -649,6 +667,11 @@ func (n *Node) OnStop() {
 	if pvsc, ok := n.privValidator.(service.Service); ok {
 		pvsc.Stop()
 	}
+}
+
+// FirstBlockReceived returns a channel that gets closed when the node receives its first block.
+func (n *Node) FirstBlockReceived() <-chan struct{} {
+	return n.firstBlockSignal
 }
 
 // ConfigureRPC sets all variables in rpccore so they will serve
