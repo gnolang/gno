@@ -9,7 +9,7 @@ func TestModApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		},
 
-		// test gno.mod download
+		// test `gno mod download`
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty-dir",
@@ -73,7 +73,7 @@ func TestModApp(t *testing.T) {
 			errShouldContain:     "fetch: writepackage: querychain",
 		},
 
-		// test gno.mod init with no module name
+		// test `gno mod init` with no module name
 		{
 			args:                 []string{"mod", "init"},
 			testDir:              "../../tests/integ/valid1",
@@ -110,7 +110,7 @@ func TestModApp(t *testing.T) {
 			errShouldBe:          "create gno.mod file: gno.mod file already exists",
 		},
 
-		// test gno.mod init with module name
+		// test `gno mod init` with module name
 		{
 			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty-dir",
@@ -136,6 +136,41 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/empty-gnomod",
 			simulateExternalRepo: true,
 			errShouldBe:          "create gno.mod file: gno.mod file already exists",
+		},
+
+		// test `gno mod tidy` with module name
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/empty-dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "could not read gno.mod file",
+		},
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/invalid-module-version1",
+			simulateExternalRepo: true,
+			errShouldContain:     "error parsing gno.mod file at",
+		},
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/minimalist-gnomod",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/require-remote-module",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/valid2",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"mod", "tidy"},
+			testDir:              "../../tests/integ/invalid-gno-file",
+			simulateExternalRepo: true,
+			errShouldContain:     "expected 'package', found packag",
 		},
 	}
 	testMainCaseRun(t, tc)
