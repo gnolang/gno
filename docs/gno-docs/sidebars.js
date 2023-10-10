@@ -44,10 +44,42 @@ const sidebars = {
                 'reference/rpc-endpoints',
                 'reference/node-configuration',
                 'reference/standard-library',
-                /*
-                TODO: add tm2-js-client
-                TODO: add gno-js-client
-                 */
+                {
+                    type: 'category',
+                    label: 'tm2-js-client',
+                    items: [
+                        'reference/tm2-js-client/tm2-js-getting-started',
+                        'reference/tm2-js-client/tm2-js-wallet',
+                        {
+                            type: 'category',
+                            label: 'Provider',
+                            items: [
+                                'reference/tm2-js-client/Provider/tm2-js-provider',
+                                'reference/tm2-js-client/Provider/tm2-js-json-rpc-provider',
+                                'reference/tm2-js-client/Provider/tm2-js-ws-provider',
+                                'reference/tm2-js-client/Provider/tm2-js-utility',
+                            ]
+                        },
+                        {
+                            type: 'category',
+                            label: 'Signer',
+                            items: [
+                                'reference/tm2-js-client/Signer/tm2-js-signer',
+                                'reference/tm2-js-client/Signer/tm2-js-key',
+                                'reference/tm2-js-client/Signer/tm2-js-ledger',
+                            ]
+                        },
+                    ]
+                },
+                {
+                    type: 'category',
+                    label: 'gno-js-client',
+                    items: [
+                        'reference/gno-js-client/gno-js-getting-started',
+                        'reference/gno-js-client/gno-js-provider',
+                        'reference/gno-js-client/gno-js-wallet',
+                    ]
+                },
             ],
         },
         {
@@ -60,7 +92,6 @@ const sidebars = {
                 'explanation/gnovm',
                 'explanation/ibc',
                 'explanation/gno-language',
-                'explanation/gno-tooling',
                 'explanation/gno-modules',
                 'explanation/gno-test',
                 'explanation/gno-doc',

@@ -1,7 +1,0 @@
----
-id: gnofaucet
----
-
-# gnofaucet
-
-TODO

@@ -1,7 +1,0 @@
----
-id: gnokey
----
-
-# gnokey
-
-TODO

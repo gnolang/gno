@@ -1,7 +1,0 @@
----
-id: gnoweb
----
-
-# gnoweb
-
-TODO
