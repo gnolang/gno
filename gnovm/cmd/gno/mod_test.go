@@ -288,7 +288,7 @@ func TestGetGnoImports(t *testing.T) {
 	}
 
 	// Create subpkg dir
-	err = os.Mkdir("subtmp", 0700)
+	err = os.Mkdir("subtmp", 0o700)
 	require.NoError(t, err)
 
 	// Create files
