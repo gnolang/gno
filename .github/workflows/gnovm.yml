@@ -77,11 +77,15 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          # prefix check
+          case "${{ matrix.args }}" in _test.gnolang*)
+            GOTEST_FLAGS="$GOTEST_FLAGS -coverpkg github.com/gnolang/gno/gnovm/tests,github.com/gnolang/gno/gnovm/pkg/gnolang"
+          esac
           make ${{ matrix.args }}
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
-          name: ${{runner.os}}-coverage-gnovm-${{ matrix.args}}-${{matrix.goversion}}
+          name: ${{ runner.os }}-coverage-gnovm-${{ matrix.args }}-${{ matrix.goversion }}
           path: ./gnovm/coverage.out
 
   upload-coverage:
@@ -96,6 +100,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 

@@ -71,7 +71,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
-          name: ${{runner.os}}-coverage-tm2-${{ matrix.args}}-${{matrix.goversion}}
+          name: ${{runner.os }}-coverage-tm2-${{ matrix.args }}-${{matrix.goversion }}
           path: ./tm2/coverage.out
 
   upload-coverage:
@@ -86,6 +86,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 

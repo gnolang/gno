@@ -76,7 +76,7 @@ jobs:
           export LOG_DIR="${{ runner.temp }}/logs/test-${{ matrix.goversion }}-gnoland"
           make ${{ matrix.args }}
       - name: Upload Test Log
-        if: always() 
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: logs-test-gnoland-go${{ matrix.goversion }}
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
-          name: ${{runner.os}}-coverage-gnoland-${{ matrix.args}}-${{matrix.goversion}}
+          name: ${{ runner.os }}-coverage-gnoland-${{ matrix.args }}-${{ matrix.goversion }}
           path: ./gno.land/coverage.out
 
   upload-coverage:
@@ -99,7 +99,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
