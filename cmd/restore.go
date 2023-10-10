@@ -16,7 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
-var errInvalidInputPath = errors.New("invalid file input path")
+var (
+	errInvalidInputPath  = errors.New("invalid file input path")
+	errInvalidFileSource = errors.New("invalid input file source")
+)
 
 // restoreCfg is the restore command configuration
 type restoreCfg struct {
@@ -86,10 +89,10 @@ func (c *restoreCfg) exec(ctx context.Context, _ []string) error {
 		return errInvalidInputPath
 	}
 
-	// Make sure the output file can be overwritten, if it exists
+	// Make sure the input file exists
 	if _, err := os.Stat(c.inputPath); err != nil {
-		// File already exists, and the overwrite flag is not set
-		return errOutputFileExists
+		// Unable to verify input file existence
+		return fmt.Errorf("%w, %w", errInvalidFileSource, err)
 	}
 
 	// Set up the client
