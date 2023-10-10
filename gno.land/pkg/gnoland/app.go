@@ -1,11 +1,14 @@
 package gnoland
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -36,7 +39,7 @@ func NewAppOptions() *AppOptions {
 	return &AppOptions{
 		Logger:     log.NewNopLogger(),
 		DB:         dbm.NewMemDB(),
-		GnoRootDir: GuessGnoRootDir(),
+		GnoRootDir: MustGuessGnoRootDir(),
 	}
 }
 
@@ -73,6 +76,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
+
+	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
@@ -195,24 +200,56 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	}
 }
 
-func GuessGnoRootDir() string {
-	var rootdir string
+var (
+	guessOnce sync.Once
+	gnoroot   string
+)
 
-	// First try to get the root directory from the GNOROOT environment variable.
-	if rootdir = os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir)
+func MustGuessGnoRootDir() string {
+	root, err := guessGnoRootDir()
+	if err != nil {
+		panic(err)
 	}
 
+	return root
+}
+
+func GuessGnoRootDir() (string, error) {
+	var err error
+	guessOnce.Do(func() {
+		gnoroot, err = guessGnoRootDir()
+	})
+
+	return gnoroot, err
+}
+
+func guessGnoRootDir() (string, error) {
+	// First try to get the root directory from the GNOROOT environment variable.
+	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
+		return filepath.Clean(rootdir), nil
+	}
+
+	// Try to guess GNOROOT using the nearest go.mod.
 	if gobin, err := exec.LookPath("go"); err == nil {
 		// If GNOROOT is not set, try to guess the root directory using the `go list` command.
 		cmd := exec.Command(gobin, "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
 		out, err := cmd.CombinedOutput()
-		if err != nil {
-			panic(fmt.Errorf("invalid gno directory %q: %w", rootdir, err))
+		if err == nil {
+			return strings.TrimSpace(string(out)), nil
 		}
-
-		return strings.TrimSpace(string(out))
 	}
 
-	panic("no go binary available, unable to determine gno root-dir path")
+	// Try to guess GNOROOT using caller stack.
+	if _, filename, _, ok := runtime.Caller(1); ok && filepath.IsAbs(filename) {
+		if currentDir := filepath.Dir(filename); currentDir != "" {
+			// Gno root directory relative from `app.go` path:
+			// gno/ .. /gno.land/ .. /pkg/ .. /gnoland/app.go
+			rootdir, err := filepath.Abs(filepath.Join(currentDir, "..", "..", ".."))
+			if err == nil {
+				return rootdir, nil
+			}
+		}
+	}
+
+	return "", errors.New("unable to guess gno's root-directory")
 }
