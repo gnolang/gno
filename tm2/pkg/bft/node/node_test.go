@@ -116,13 +116,13 @@ func TestNodeFirstBlockSignal(t *testing.T) {
 	n, err := DefaultNewNode(config, log.TestingLogger())
 	require.NoError(t, err)
 
-	// Assert that blockstore is 0 before waiting for the first block
+	// Assert that blockstore has zero block before waiting for the first block
 	require.Equal(t, int64(0), n.BlockStore().Height())
 
 	// Assert that first block signal is not alreay received
 	select {
 	case <-n.FirstBlockReceived():
-		require.FailNow(t, "firstblock signal should not be close before starting the node")
+		require.FailNow(t, "first block signal should not be close before starting the node")
 	default: // ok
 	}
 
@@ -130,13 +130,14 @@ func TestNodeFirstBlockSignal(t *testing.T) {
 	require.NoError(t, err)
 	defer n.Stop()
 
+	// Wait until we got the first block or timeout
 	select {
-	case <-n.FirstBlockReceived(): // ready
 	case <-time.After(time.Second):
 		require.FailNow(t, "timeout while waiting for first block signal")
+	case <-n.FirstBlockReceived(): // ready
 	}
 
-	// Check that blockstore have at last 1 height size
+	// Check that blockstore have at last one block
 	require.GreaterOrEqual(t, n.BlockStore().Height(), int64(1))
 }
 
