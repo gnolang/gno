@@ -16,7 +16,7 @@
 // the expected spelling of a message field name. It is a copy of:
 // https://github.com/bufbuild/buf/blob/main/private/pkg/stringutil/stringutil.go
 
-package genproto
+package stringutil
 
 import (
 	"sort"
