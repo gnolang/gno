@@ -13,6 +13,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -109,7 +110,7 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-func guessRootDir() string {
+func guesRootDir() string {
 	// try to get the root directory from the GNOROOT environment variable.
 	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
 		return filepath.Clean(rootdir)
@@ -158,7 +159,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoroot.MustGuessGnoRootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }

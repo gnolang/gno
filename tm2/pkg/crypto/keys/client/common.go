@@ -25,11 +25,19 @@ var DefaultBaseOptions = BaseOptions{
 func HomeDir() string {
 	// if environment variable is set, always use that.
 	// otherwise, use config dir (varies depending on OS) + "gno"
-	var err error
-	dir := os.Getenv("GNO_HOME")
+
+	dir := os.Getenv("GNOHOME")
 	if dir != "" {
 		return dir
 	}
+
+	// XXX: GNO_HOME is deprecated and should be replaced by GNOHOME
+	dir = os.Getenv("GNO_HOME")
+	if dir != "" {
+		return dir
+	}
+
+	var err error
 	dir, err = os.UserConfigDir()
 	if err != nil {
 		panic(fmt.Errorf("couldn't get user config dir: %w", err))

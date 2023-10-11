@@ -1,3 +1,7 @@
+GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
+
+LDFLAGS := -X github.com/gnolang/gno/gnovm/pkg/gnoroot._GNOROOT=$(GNOROOT_DIR)
+
 .PHONY: help
 help:
 	@echo "Available make commands:"
@@ -5,13 +9,16 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+# We can't use '-trimpath' yet as amino use absolute path from call stack
+# to find some directory
+GOBUILD_FLAGS := -ldflags "$(LDFLAGS)"
 .PHONY: build
 build:
-	go build -o build/gno ./cmd/gno
+	go build $(GOBUILD_FLAGS) -o build/gno ./cmd/gno
 
 .PHONY: install
 install:
-	go install ./cmd/gno
+	go install $(GOBUILD_FLAGS) ./cmd/gno
 
 .PHONY: clean
 clean:

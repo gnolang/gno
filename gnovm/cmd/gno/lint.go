@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
@@ -51,7 +52,7 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 		rootDir = cfg.rootDir
 	)
 	if rootDir == "" {
-		rootDir = guessRootDir()
+		rootDir = gnoroot.MustGuessGnoRootDir()
 	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)

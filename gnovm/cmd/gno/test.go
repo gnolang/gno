@@ -18,6 +18,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -179,7 +180,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoroot.MustGuessGnoRootDir()
 	}
 
 	paths, err := gnoPackagesFromArgs(args)
