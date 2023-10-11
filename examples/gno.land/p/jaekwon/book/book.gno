@@ -1,0 +1,3 @@
+type Book struct {
+	// XXX
+}
