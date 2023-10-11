@@ -171,7 +171,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			} else {
 				// realm case.
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
-				gno.DisableDebug()                 // until main call.
+				enableDebug := gno.DisableDebug()
 				// save package using realm crawl procedure.
 				memPkg := &std.MemPackage{
 					Name: string(pkgName),
@@ -217,7 +217,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				pv2 := store.GetPackage(pkgPath, false)
 				m.SetActivePackage(pv2)
-				gno.EnableDebug()
+				enableDebug()
 				if rops != "" {
 					// clear store.opslog from init function(s),
 					// and PreprocessAllFilesAndSaveBlockNodes().

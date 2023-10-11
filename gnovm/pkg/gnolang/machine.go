@@ -225,6 +225,11 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 		m.Store.SetCachePackage(pv)
 	}
 	m.SetActivePackage(pv)
+	// unicode is terribly slow at printing debug logs.
+	if debug && memPkg.Path == "unicode" {
+		// disable debug until end of function
+		defer DisableDebug()()
+	}
 	// run files.
 	m.RunFiles(files.Files...)
 	// maybe save package value and mempackage.
@@ -244,7 +249,7 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
-	DisableDebug()
+	enableDebug := DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
@@ -270,7 +275,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
 		pn.PrepareNewValues(pv)
-		EnableDebug()
+		enableDebug()
 		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]

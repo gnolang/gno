@@ -100,10 +100,14 @@ func IsDebugEnabled() bool {
 	return bool(debug) && enabled
 }
 
-func DisableDebug() {
+func DisableDebug() (rollback func()) {
+	prev := enabled
 	enabled = false
+	return func() { enabled = prev }
 }
 
-func EnableDebug() {
+func EnableDebug() (rollback func()) {
+	prev := enabled
 	enabled = true
+	return func() { enabled = prev }
 }
