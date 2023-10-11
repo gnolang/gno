@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -51,7 +51,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
-	gnoRootDir := gnoroot.MustGuessGnoRootDir()
+	gnoenvDir := gnoenv.MustGuessGnoRootDir()
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
 	gnoHomeDir := filepath.Join(tmpdir, "gno")

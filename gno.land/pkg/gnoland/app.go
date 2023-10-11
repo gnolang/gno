@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -35,7 +35,7 @@ func NewAppOptions() *AppOptions {
 	return &AppOptions{
 		Logger:     log.NewNopLogger(),
 		DB:         dbm.NewMemDB(),
-		GnoRootDir: gnoroot.MustGuessGnoRootDir(),
+		GnoRootDir: gnoenv.MustGuessGnoRootDir(),
 	}
 }
 

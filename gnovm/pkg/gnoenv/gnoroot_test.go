@@ -1,7 +1,6 @@
-package gnoroot
+package gnoenv
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -13,8 +12,7 @@ func TestGuessGnoRootDir_WithSetGnoRoot(t *testing.T) {
 	originalGnoRoot := _GNOROOT
 	defer func() { _GNOROOT = originalGnoRoot }() // Restore after test
 
-	restoreGnoroot := tBackupEnvironement("GNOROOT")
-	defer restoreGnoroot()
+	tBackupEnvironement(t, "GNOROOT")
 
 	const testPath = "/path/to/gnoRoot"
 
@@ -28,17 +26,13 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 	originalGnoRoot := _GNOROOT
 	defer func() { _GNOROOT = originalGnoRoot }()
 
-	restoreGnoroot := tBackupEnvironement("GNOROOT")
-	defer restoreGnoroot()
-
-	// Should prevent GuessGnoRootDir to find go binary
-	restorePath := tBackupEnvironement("PATH")
-	defer restorePath()
+	// Unset PATH should prevent InferGnoRootFromGoMod to works
+	tBackupEnvironement(t, "GNOROOT", "PATH")
 
 	_, err := exec.LookPath("go")
 	require.Error(t, err)
 
-	// gno/ .. /gnovm/ .. /pkg/ .. /gnoroot/gnoroot.go
+	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 	root, err := GuessGnoRootDir()
 	require.NoError(t, err)
@@ -60,24 +54,21 @@ func TestGuessGnoRootDir_WithGoModList(t *testing.T) {
 }
 
 func TestInferGnoRootFromGoMod(t *testing.T) {
-	// gno/ .. /gnovm/ .. /pkg/ .. /gnoroot/gnoroot.go
+	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 
-	root, err := inferGnoRootFromGoMod()
-	require.NoError(t, err)
-	require.Equal(t, root, testPath)
+	t.Run("go is present", func(t *testing.T) {
+		root, err := inferGnoRootFromGoMod()
+		require.NoError(t, err)
+		require.Equal(t, root, testPath)
+	})
 
-	restorePath := tBackupEnvironement("PATH")
-	defer restorePath()
+	t.Run("go is not present", func(t *testing.T) {
+		// Unset PATH should prevent `inferGnoRootFromGoMod` to works
+		tBackupEnvironement(t, "PATH")
+		root, err := inferGnoRootFromGoMod()
+		require.Error(t, err)
+		require.Empty(t, root)
+	})
 
-	root, err = inferGnoRootFromGoMod()
-	require.Error(t, err)
-	require.Empty(t, root)
-
-}
-
-func tBackupEnvironement(key string) (restore func()) {
-	value := os.Getenv(key)
-	os.Unsetenv(key)
-	return func() { os.Setenv(key, value) }
 }

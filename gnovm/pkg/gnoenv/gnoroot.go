@@ -1,4 +1,4 @@
-package gnoroot
+package gnoenv
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 )
 
 // Can be set manually at build time using:
-// -ldflags="-X github.com/gnolang/gno/gnovm/pkg/gnoroot._GNOROOT"
+// -ldflags="-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT"
 var _GNOROOT string
 
 // MustGuessGnoRootDir guesses the Gno root directory and panics if it fails.
@@ -61,7 +61,7 @@ func guessGnoRootDir() (string, error) {
 	if _, filename, _, ok := runtime.Caller(1); ok && filepath.IsAbs(filename) {
 		if currentDir := filepath.Dir(filename); currentDir != "" {
 			// Deduce Gno root directory relative from the current file's path.
-			// gno/ .. /gnovm/ .. /pkg/ .. /gnoroot/gnoroot.go
+			// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoenv.go
 			rootdir, err := filepath.Abs(filepath.Join(currentDir, "..", "..", ".."))
 			if err == nil {
 				return rootdir, nil

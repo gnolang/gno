@@ -16,9 +16,9 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -180,7 +180,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoroot.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
 	}
 
 	paths, err := gnoPackagesFromArgs(args)

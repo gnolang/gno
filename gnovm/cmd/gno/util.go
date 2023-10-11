@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -159,7 +159,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, gnoroot.MustGuessGnoRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.MustGuessGnoRootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }

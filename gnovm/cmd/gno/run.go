@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -66,7 +66,7 @@ func execRun(cfg *runCfg, args []string, io *commands.IO) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoroot.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
 	}
 
 	stdin := io.In

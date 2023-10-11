@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -81,7 +81,7 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoroot.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
 	}
 
 	if !cfg.skipUsage {

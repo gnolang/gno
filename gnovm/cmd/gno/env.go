@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoroot"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
@@ -81,7 +81,7 @@ func (vars envVars) Get(key string) string {
 type envPrinter func(vars envVars, io *commands.IO)
 
 func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
-	gnorootVar, _ := gnoroot.GuessGnoRootDir()
+	gnoenvVar, _ := gnoenv.GuessGnoRootDir()
 
 	envs := envVars{}
 
