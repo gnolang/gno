@@ -8,7 +8,7 @@ While sharing contracts here can enhance engine testing, it's not mandatory. If 
 
 **Prioritizing Shared Content:** As we expand our examples and use-cases, it's essential to prioritize shared content that benefits the broader community. These examples serve as a foundation and reference for all users.
 
-**Accepting Personal Realms:** We're now open to accepting personal realms. However, with the vision of maintaining a streamlined and universally helpful main repository, personal realms should pave the way for others. They should act as exemplary models and encourage best practices.
+**Personal Realms Inclusion:** We're open to personal realms, but they must exemplify best practices and inspire others. To maintain our repository's organization, we may decline some realms. If so, consider uploading onchain and keeping source code separately. For higher acceptance odds, offer useful or original examples.
 
 **Recommended Approach:** 
 - Use `r/demo` and `p/demo` for generic examples and components that can be imported by others. These are meant to be easily referenced and utilized by the community.
