@@ -12,7 +12,6 @@ import (
 )
 
 func TestRoutes(t *testing.T) {
-	t.Skip("depends on an inmemory gnoland node.")
 	ok := http.StatusOK
 	routes := []struct {
 		route     string
