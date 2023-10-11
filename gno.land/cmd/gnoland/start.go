@@ -34,7 +34,6 @@ type startCfg struct {
 	genesisRemote         string
 	rootDir               string
 	genesisMaxVMCycles    int64
-	config                string
 }
 
 func newStartCmd(io *commands.IO) *commands.Command {
@@ -108,13 +107,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-max-vm-cycles",
 		10_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.config,
-		"config",
-		"",
-		"config file (optional)",
 	)
 }
 
