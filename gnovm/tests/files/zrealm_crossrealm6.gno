@@ -18,4 +18,4 @@ func main() {
 }
 
 // Output:
-// struct{("modified" string)}
+// (struct{("modified" string)} gno.land/p/demo/tests.TestRealmObject2)

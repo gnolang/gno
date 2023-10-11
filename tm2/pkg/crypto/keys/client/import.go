@@ -18,7 +18,7 @@ type importCfg struct {
 	unsafe    bool
 }
 
-func newImportCmd(rootCfg *baseCfg) *commands.Command {
+func newImportCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &importCfg{
 		rootCfg: rootCfg,
 	}
@@ -31,7 +31,7 @@ func newImportCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
-			return execImport(cfg, commands.NewDefaultIO())
+			return execImport(cfg, io)
 		},
 	)
 }
