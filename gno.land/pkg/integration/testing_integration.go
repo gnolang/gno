@@ -51,7 +51,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
-	gnoenvDir := gnoenv.MustGuessGnoRootDir()
+	gnoRootDir := gnoenv.MustGuessGnoRootDir()
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
 	gnoHomeDir := filepath.Join(tmpdir, "gno")
