@@ -2,6 +2,9 @@ package pkg
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -11,8 +14,10 @@ import (
 
 type Type struct {
 	Type             reflect.Type
-	Name             string // proto3 name (override)
-	PointerPreferred bool   // whether pointer is preferred for decoding interface.
+	Name             string            // proto3 name (override)
+	PointerPreferred bool              // whether pointer is preferred for decoding interface.
+	Comment          string            // optional doc comment for the type
+	FieldComments    map[string]string // If not nil, the optional doc comment for each field name
 }
 
 func (t *Type) FullName(pkg *Package) string {
@@ -194,6 +199,59 @@ func (pkg *Package) WithP3ImportPath(path string) *Package {
 func (pkg *Package) WithP3SchemaFile(file string) *Package {
 	pkg.P3SchemaFile = file
 	return pkg
+}
+
+// Parse the Go code in filename and scan the AST looking for struct doc comments.
+// Find the Type in pkg.Types and set its Comment and FieldComments, which are
+// used by genproto.GenerateProto3MessagePartial to set the Comment in the P3Doc
+// and related P3Field objects.
+func (pkg *Package) WithComments(filename string) *Package {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		panic(err)
+	}
+
+	ast.Inspect(f, func(node ast.Node) bool {
+		if genDecl, ok := node.(*ast.GenDecl); ok {
+			for _, spec := range genDecl.Specs {
+				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+					if pkgType := pkg.getTypeByName(typeSpec.Name.Name); pkgType != nil {
+						if genDecl.Doc != nil {
+							// Set the type comment.
+							pkgType.Comment = strings.TrimSpace(genDecl.Doc.Text())
+						}
+						if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+							for _, field := range structType.Fields.List {
+								if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+									// Set the field comment.
+									if pkgType.FieldComments == nil {
+										pkgType.FieldComments = make(map[string]string)
+									}
+
+									pkgType.FieldComments[field.Names[0].Name] = strings.TrimSpace(field.Doc.Text())
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	return pkg
+}
+
+// Get the Type by name. If not found, return nil.
+func (pkg *Package) getTypeByName(name string) *Type {
+	for _, t := range pkg.Types {
+		if t.Name == name {
+			return t
+		}
+	}
+
+	return nil
 }
 
 // Result cannot be modified.
