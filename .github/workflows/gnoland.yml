@@ -60,9 +60,7 @@ jobs:
           - _test.gnoland
           - _test.gnokey
           - _test.pkgs
-          # XXX: test broken, should be rewritten to run an inmemory localnode
-          # Re-add to makefile when fixed. Tracked here: https://github.com/gnolang/gno/issues/1222
-          #- _test.gnoweb
+          #- _test.gnoweb # this test should be rewritten to run an inmemory localnode
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -78,7 +76,7 @@ jobs:
           export LOG_DIR="${{ runner.temp }}/logs/test-${{ matrix.goversion }}-gnoland"
           make ${{ matrix.args }}
       - name: Upload Test Log
-        if: always()
+        if: always() 
         uses: actions/upload-artifact@v3
         with:
           name: logs-test-gnoland-go${{ matrix.goversion }}
@@ -101,7 +99,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }} 
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
