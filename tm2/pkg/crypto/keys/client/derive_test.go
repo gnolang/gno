@@ -2,6 +2,8 @@ package client
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"math"
 	"testing"
 
@@ -11,7 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_execDerive(t *testing.T) {
+// generateTestMnemonic generates a random mnemonic
+func generateTestMnemonic(t *testing.T) string {
+	t.Helper()
+
+	entropy, entropyErr := bip39.NewEntropy(256)
+	require.NoError(t, entropyErr)
+
+	mnemonic, mnemonicErr := bip39.NewMnemonic(entropy)
+	require.NoError(t, mnemonicErr)
+
+	return mnemonic
+}
+
+func TestDerive_InvalidDerive(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid number of accounts, no accounts requested", func(t *testing.T) {
@@ -56,43 +71,52 @@ func Test_execDerive(t *testing.T) {
 
 		assert.ErrorIs(t, execDerive(cfg, nil), errInvalidMnemonic)
 	})
+}
 
-	t.Run("valid accounts generated", func(t *testing.T) {
-		t.Parallel()
+func TestDerive_ValidDerive(t *testing.T) {
+	t.Parallel()
 
-		// Generate a dummy mnemonic
-		entropy, entropyErr := bip39.NewEntropy(mnemonicEntropySize)
-		require.NoError(t, entropyErr)
+	// Generate a dummy mnemonic
+	var (
+		mnemonic            = generateTestMnemonic(t)
+		accountIndex uint64 = 0
+		numAccounts  uint64 = 10
+	)
 
-		mnemonic, mnemonicErr := bip39.NewMnemonic(entropy)
-		require.NoError(t, mnemonicErr)
+	// Set up the IO
+	mockOut := bytes.NewBufferString("")
 
-		cfg := &deriveCfg{
-			numAccounts:  1,
-			accountIndex: 0,
-			mnemonic:     mnemonic,
-		}
+	io := commands.NewTestIO()
+	io.SetOut(commands.WriteNopCloser(mockOut))
 
-		// Create a test IO so we can capture output
-		mockOut := bytes.NewBufferString("")
+	// Create the root command
+	cmd := newDeriveCmd(io)
 
-		testIO := commands.NewTestIO()
-		testIO.SetOut(commands.WriteNopCloser(mockOut))
+	// Prepare the args
+	args := []string{
+		"derive",
+		"--mnemonic",
+		mnemonic,
+		"--num-accounts",
+		fmt.Sprintf("%d", numAccounts),
+		"--account-index",
+		fmt.Sprintf("%d", accountIndex),
+	}
 
-		require.NoError(t, execDerive(cfg, testIO))
+	// Run the command
+	require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		// Grab the output
-		deriveOutput := mockOut.String()
+	// Verify the addresses are derived correctly
+	expectedAccounts := generateAccounts(
+		mnemonic,
+		accountIndex,
+		numAccounts,
+	)
 
-		// Verify the addresses are derived correctly
-		expectedAccounts := generateAccounts(
-			mnemonic,
-			cfg.accountIndex,
-			cfg.numAccounts,
-		)
+	// Grab the output
+	deriveOutput := mockOut.String()
 
-		for _, expectedAccount := range expectedAccounts {
-			assert.Contains(t, deriveOutput, expectedAccount.String())
-		}
-	})
+	for _, expectedAccount := range expectedAccounts {
+		assert.Contains(t, deriveOutput, expectedAccount.String())
+	}
 }
