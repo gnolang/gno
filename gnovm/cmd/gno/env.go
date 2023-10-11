@@ -6,7 +6,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
 type envCfg struct {
@@ -81,7 +80,7 @@ func (vars envVars) Get(key string) string {
 type envPrinter func(vars envVars, io *commands.IO)
 
 func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
-	gnoenvVar, _ := gnoenv.GuessGnoRootDir()
+	gnorootVar, _ := gnoenv.GuessGnoRootDir()
 
 	envs := envVars{}
 
@@ -91,7 +90,7 @@ func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
 	envs.Set("GNOROOT", gnorootVar)
 
 	// GNOHOME:
-	envs.Set("GNOHOME", client.HomeDir())
+	envs.Set("GNOHOME", gnoenv.HomeDir())
 
 	// Setup filters
 	filters := envVars{}

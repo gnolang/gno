@@ -9,7 +9,7 @@ type BaseOptions struct {
 }
 
 var DefaultBaseOptions = BaseOptions{
-	Home:                  HomeDir(),
+	Home:                  "",
 	Remote:                "127.0.0.1:26657",
 	Quiet:                 false,
 	InsecurePasswordStdin: false,
