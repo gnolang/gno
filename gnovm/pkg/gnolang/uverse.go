@@ -550,7 +550,7 @@ func UverseNode() *PackageNode {
 					if xt.Elem().Kind() == Uint8Kind {
 						// TODO this might be faster if reflect supports
 						// appending this way without first converting to a slice.
-						argrv := reflect.ValueOf([]byte(arg1.TV.V.(StringValue)))
+						argrv := reflect.ValueOf([]byte(arg1.TV.GetString()))
 						resrv := reflect.AppendSlice(sv, argrv)
 						m.PushValue(TypedValue{
 							T: xt,

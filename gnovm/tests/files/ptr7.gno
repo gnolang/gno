@@ -23,4 +23,4 @@ func main() {
 }
 
 // Output:
-// struct{(nil github.com/gnolang/gno/_test/net.IP),(nil github.com/gnolang/gno/_test/net.IPMask)}
+// (struct{(nil github.com/gnolang/gno/_test/net.IP),(nil github.com/gnolang/gno/_test/net.IPMask)} main.ipNetValue)

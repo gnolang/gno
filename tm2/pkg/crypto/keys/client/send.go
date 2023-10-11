@@ -21,7 +21,7 @@ type sendCfg struct {
 	to   string
 }
 
-func newSendCmd(rootCfg *makeTxCfg) *commands.Command {
+func newSendCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 	cfg := &sendCfg{
 		rootCfg: rootCfg,
 	}
@@ -34,7 +34,7 @@ func newSendCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSend(cfg, args, commands.NewDefaultIO())
+			return execSend(cfg, args, io)
 		},
 	)
 }

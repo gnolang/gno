@@ -11,6 +11,12 @@ on:
       - "gnovm/Makefile"
       - "tm2/**.go"
       - ".github/workflows/gnovm.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -23,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: # two latest versions
+        goversion: # two latest versions
           - "1.20.x"
           - "1.21.x"
         goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
@@ -34,10 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: gnovm
         run: ${{ matrix.goenv }} go install ./cmd/${{ matrix.program }}
@@ -46,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.20.x"
           - "1.21.x"
         args:
@@ -62,22 +68,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gnovm
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
+      - uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+        with:
+          name: ${{runner.os}}-coverage-gnovm-${{ matrix.args}}-${{matrix.goversion}}
+          path: ./gnovm/coverage.out
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all previous coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ${{ runner.temp }}/coverage
+      - name: Upload combined coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: gnovm
-          flags: gnovm,gnovm-${{matrix.args}},go-${{ matrix.go-version }}
-          files: ./gnovm/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          directory: ${{ runner.temp }}/coverage
+          token: ${{ secrets.CODECOV_TOKEN }} 
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+

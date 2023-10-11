@@ -126,7 +126,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error 
 	}
 
 	// write go.mod file
-	err = gomod.WriteToPath(filepath.Join(path, "go.mod"))
+	err = gomod.Write(filepath.Join(path, "go.mod"))
 	if err != nil {
 		return fmt.Errorf("write go.mod file: %w", err)
 	}

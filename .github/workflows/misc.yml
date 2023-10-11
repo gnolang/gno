@@ -8,6 +8,12 @@ on:
       - "misc/genstd/**.go"
       - "misc/Makefile"
       - ".github/workflows/misc.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, misc, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -20,17 +26,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: # two latest versions
+        goversion:
           - "1.21.x"
         program:
           - "genstd"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/setup-go@v4
+      - name: Install Go
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+          go-version: ${{ matrix.goversion }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: go install
         working-directory: misc
         run: go install ./${{ matrix.program }}
@@ -39,28 +48,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version:
+        goversion:
           - "1.21.x"
         args:
           - _test.genstd
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/setup-go@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
-      - name: test
+          go-version: ${{ matrix.goversion }}
+
+      - name: Test
         working-directory: misc
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
+
       - if: runner.os == 'Linux'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: misc
-          flags: misc,misc-${{matrix.args}},go-${{ matrix.go-version }}
+          flags: misc,misc-${{matrix.args}},go-${{ matrix.goversion }}
           files: ./misc/coverage.out
-          fail_ci_if_error: false # temporarily
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}

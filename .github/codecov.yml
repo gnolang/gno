@@ -1,46 +1,57 @@
 codecov:
   require_ci_to_pass: false
-  require_changes: true
   notify:
-    wait_for_ci: false
+    wait_for_ci: true
 
 ignore:
   - misc
 
 comment:
-  require_changes: true
+  require_changes: false
 
 coverage:
-  #range: 50..100
   round: down
   precision: 2
   status:
     project:
       default:
         target: auto
-        threshold: 0.5%
-        #informational: true
+        threshold: 10 # Let's decrease this later.
+        base: parent
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
     patch:
       default:
         target: auto
-    changes:
+        threshold: 100 # Allows PRs without tests, overall stats count.
+        base: auto
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
 
-flags:
+flag_management:
   default_rules:
     carryforward: true
-  tm2:
-    paths:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 10 # Let's decrease this later.
+      - type: patch
+        target: auto # Allows PRs without tests, overall stats count.
+        threshold: 100
+  individual_flags:
+    - name: tm2
+      paths:
       - tm2
-    after_n_builds: 4
-  gnovm:
-    paths:
+    - name: gnovm
+      paths:
       - gnovm
-    after_n_builds: 9
-  gno.land:
-    paths:
+    - name: gno.land
+      paths:
       - gno.land
-    after_n_builds: 3
-  misc:
-    paths:
+    - name: misc
+      paths:
       - misc
-    after_n_builds: 1

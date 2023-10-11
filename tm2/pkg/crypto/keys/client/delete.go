@@ -16,7 +16,7 @@ type deleteCfg struct {
 	force bool
 }
 
-func newDeleteCmd(rootCfg *baseCfg) *commands.Command {
+func newDeleteCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &deleteCfg{
 		rootCfg: rootCfg,
 	}
@@ -29,7 +29,7 @@ func newDeleteCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execDelete(cfg, args, commands.NewDefaultIO())
+			return execDelete(cfg, args, io)
 		},
 	)
 }
