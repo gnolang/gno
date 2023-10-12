@@ -1,0 +1,19 @@
+# Run gno build in a dir without go files
+
+! gno build .
+
+! stdout .+
+stderr -count=2 'no Go files in '$WORK
+stderr '\./\.: build pkg: std go compiler: exit status 1'
+stderr '\./sub: build pkg: std go compiler: exit status 1'
+
+-- go.mod --
+module gnobuild
+
+-- main.gno --
+package main
+
+func main() {}
+
+-- sub/sub.gno --
+package sub
