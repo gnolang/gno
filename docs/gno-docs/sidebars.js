@@ -34,7 +34,6 @@ const sidebars = {
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
                 'how-to-guides/connect-wallet-dapp',
-                'how-to-guides/sync-gno-nodes',
             ],
         },
         {
@@ -42,7 +41,6 @@ const sidebars = {
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
-                'reference/node-configuration',
                 'reference/standard-library',
                 {
                     type: 'category',
@@ -87,14 +85,11 @@ const sidebars = {
             label: 'Explanation',
             items: [
                 'explanation/realms',
-                'explanation/explain-standard-library',
                 'explanation/tendermint2',
                 'explanation/gnovm',
-                'explanation/ibc',
                 'explanation/gno-language',
                 'explanation/gno-modules',
                 'explanation/gno-test',
-                'explanation/gno-doc',
             ],
         },
     ],
