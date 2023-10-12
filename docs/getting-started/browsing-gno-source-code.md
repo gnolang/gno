@@ -42,7 +42,7 @@ you can specify the remote URL with the `gnoweb` flag named `--remote`
 
 We should be able to access the website locally on http://127.0.0.1:8888/.
 
-![gnoweb screen](../../static/img/getting-started/browsing-gno-source-code/gnoweb.png)
+![gnoweb screen](../assets/getting-started/browsing-gno-source-code/gnoweb.png)
 
 ## 3. Browse Package source code
 
@@ -58,7 +58,7 @@ To access the source code of the `avl` package, we can append the `/p/demo/avl` 
 The final URL for the `avl` package source could be viewable at http://127.0.0.1:8888/p/demo/avl, if we followed
 default setup params, as we did in this guide.
 
-![gnoweb avl](../../static/img/getting-started/browsing-gno-source-code/gnoweb-avl.png)
+![gnoweb avl](../assets/getting-started/browsing-gno-source-code/gnoweb-avl.png)
 
 From here, we can open any source code file of the deployed on-chain package and inspect its API.
 
@@ -80,7 +80,7 @@ The final URL for the `boards` Realm internal state could be viewable at http://
 followed
 default setup params, as we did in this guide.
 
-![gnoweb boards](../../static/img/getting-started/browsing-gno-source-code/gnoweb-boards.png)
+![gnoweb boards](../assets/getting-started/browsing-gno-source-code/gnoweb-boards.png)
 
 :::info Render() is not required
 
@@ -93,4 +93,4 @@ Additionally, to view the source code for the realm, we simply need to append th
 
 http://127.0.0.1:8888/r/demo/boards/
 
-![gnoweb boards source](../../static/img/getting-started/browsing-gno-source-code/gnoweb-boards-source.png)
+![gnoweb boards source](../assets/getting-started/browsing-gno-source-code/gnoweb-boards-source.png)

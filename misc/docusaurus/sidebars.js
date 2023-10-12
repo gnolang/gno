@@ -4,6 +4,7 @@
 const sidebars = {
     tutorialSidebar: [
         'overview',
+        'peace',
         {
             type: 'category',
             label: 'Getting Started',
@@ -42,6 +43,7 @@ const sidebars = {
             items: [
                 'reference/rpc-endpoints',
                 'reference/standard-library',
+                'reference/go-gno-compatibility',
                 {
                     type: 'category',
                     label: 'tm2-js-client',
@@ -87,9 +89,23 @@ const sidebars = {
                 'explanation/realms',
                 'explanation/tendermint2',
                 'explanation/gnovm',
+                'explanation/proof-of-contribution',
                 'explanation/gno-language',
                 'explanation/gno-modules',
                 'explanation/gno-test',
+                'explanation/from-go-to-gno',
+                {
+                    type: 'category',
+                    label: 'Gno Tooling',
+                    items: [
+                        'explanation/gno-tooling/cli/gno-tooling-common-params',
+                        'explanation/gno-tooling/cli/gno-tooling-gno',
+                        'explanation/gno-tooling/cli/gno-tooling-gnokey',
+                        'explanation/gno-tooling/cli/gno-tooling-gnofaucet',
+                        'explanation/gno-tooling/cli/gno-tooling-gnoland',
+                        'explanation/gno-tooling/cli/gno-tooling-tm2txsync',
+                    ]
+                },
             ],
         },
     ],

@@ -16,8 +16,6 @@ To address this issue, Gnolang implements the [AVL Tree](https://en.wikipedia.or
 
 The `avl` package comprises a set of functions that can manipulate the leaves and nodes of the AVL Tree.
 
-Click on [this link](building-a-realm/realm-examples/types.gno.md) for a sample usage of the `avl` package.
-
 ## `grc20`
 
 Gnolang includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:

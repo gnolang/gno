@@ -16,7 +16,7 @@ Our _GRC721_ Realm will have the following functionality:
 
 ## Prerequisites
 
-We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC721 interface](../../../../examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within this guide.
+We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC721 interface](../../examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within this guide.
 
 ## 1. Importing token package
 For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token factory realm.
@@ -51,7 +51,7 @@ In this code preview, we have:
 
 ## 2. Adding token functionality
 
-The following section will be about introducing Public functions to expose functionality imported from the [grc721 package](../../../../examples/gno.land/p/demo/grc/grc721).
+The following section will be about introducing Public functions to expose functionality imported from the [grc721 package](../../examples/gno.land/p/demo/grc/grc721).
 
 ```go
 func mintNNFT(owner std.Address, n uint64) {

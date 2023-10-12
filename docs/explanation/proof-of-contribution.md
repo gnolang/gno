@@ -1,3 +1,7 @@
+---
+id: proof-of-contribution
+---
+
 # Proof of Contribution
 
 The gno.land chain utilizes a reputation-based consensus mechanism instead of proof-of-stake.

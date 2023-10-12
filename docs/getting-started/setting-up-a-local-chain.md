@@ -25,7 +25,7 @@ gnoland start
 The command will trigger a chain initialization process (if you haven't run the node before), and start the Gno node,
 which is ready to accept transactions and interact with other Gno nodes.
 
-![gnoland start](../../static/img/getting-started/setting-up-a-local-chain/gnoland-start.gif)
+![gnoland start](../assets/getting-started/setting-up-a-local-chain/gnoland-start.gif)
 
 To view the command defaults, simply run the `help` command:
 
@@ -37,7 +37,7 @@ Let's break down the most important default settings:
 
 - `chainid` - the ID of the Gno chain. This is used for Gno clients, and distinguishing the chain from other Gno
   chains (ex. through IBC)
-- `config` - the custom node configuration file. See [Changing the node configuration](#changing-the-node-configuration)
+- `config` - the custom node configuration file
   for more details on utilizing this file
 - `genesis-balances-file` - the initial premine balances file, which contains initial native currency allocations for
   the chain. By default, the genesis balances file is located in `gno.land/genesis/genesis_txs.txt`, this is also the
@@ -108,8 +108,7 @@ have no effect.
 
 ## Changing the node configuration
 
-You can specify a node configuration file using the `--config` flag. To learn more about the node configuration options,
-check out the [Node Configuration](../reference/node-configuration.md) reference.
+You can specify a node configuration file using the `--config` flag.
 
 ```bash
 gnoland start --config config.toml

@@ -7,7 +7,7 @@ id: gno-test
 There are two methods for testing a realm or package during the development phase:
 
 1. Calling the realm/package after deploying it on a local network (or testnet).
-2. Using the `test` option within the [`gno`](../cli/gno.md) CLI.
+2. Using the `test` option within the [`gno`](./gno-tooling/cli/gno.md) CLI.
 
 While the first method is recommended for its accuracy and similarity to the actual deployment environment, it is more efficient to initially utilize the second method for composing test cases and then proceed to the first method if no errors are detected.
 

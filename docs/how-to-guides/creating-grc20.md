@@ -16,7 +16,7 @@ Our _GRC20_ Realm will have the following functionality:
 
 ## Prerequisites
 
-We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC20 interface](../../../../examples/gno.land/p/demo/grc/grc20/igrc20.gno) which we will be importing and utilizing within this guide.
+We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC20 interface](../../examples/gno.land/p/demo/grc/grc20/igrc20.gno) which we will be importing and utilizing within this guide.
 
 ## 1. Importing token package
 For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token factory realm.
@@ -57,7 +57,7 @@ In this code preview, we have:
 
 ## 2. Adding token functionality
 
-The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](../../../../examples/gno.land/p/demo/grc/grc20).
+The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](../../examples/gno.land/p/demo/grc/grc20).
 
 ```go
 func TotalSupply() uint64 {

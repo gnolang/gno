@@ -107,7 +107,7 @@ As of October 2023, you can find already-deployed packages & libraries which pro
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
-Check out the [deployment](./deploy.md) guide to learn how to do this.
+Check out the [deployment](deploy.md) guide to learn how to do this.
 :::
 
 ### Poll Factory Realm

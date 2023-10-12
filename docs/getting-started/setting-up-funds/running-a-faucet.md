@@ -50,7 +50,7 @@ The command will prompt you to enter the decryption password for the key you've 
 
 This will initialize the faucet to listen on port `5050`, by default.
 
-![gnofaucet serve](../../../static/img/getting-started/setting-up-funds/gnofaucet-serve.gif)
+![gnofaucet serve](../../assets/getting-started/setting-up-funds/gnofaucet-serve.gif)
 
 ## 4. Start the `gnoweb` interface
 
@@ -65,7 +65,7 @@ gnoweb
 
 This will initialize the `gnoweb` interface on `http://127.0.0.1:8888`.
 
-![gnoweb](../../../static/img/getting-started/setting-up-funds/gnoweb.gif)
+![gnoweb](../../assets/getting-started/setting-up-funds/gnoweb.gif)
 
 ## 5. Use the deployed faucet
 
@@ -73,7 +73,7 @@ Once `gnoweb` has been started, you can navigate to http://127.0.0.1:8888/faucet
 
 Simply input the desired address you wish to receive funds on (`1 GNOT` by default), and press the `GO` button.
 
-![gnofaucet page](../../../static/img/getting-started/setting-up-funds/faucet-page.png)
+![gnofaucet page](../../assets/getting-started/setting-up-funds/faucet-page.png)
 
 After you've added the address, you should see a success message in the browser:
 

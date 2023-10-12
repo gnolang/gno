@@ -1,1 +1,0 @@
-../gnovm/docs/go-gno-compatibility.md
