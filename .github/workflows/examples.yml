@@ -91,4 +91,4 @@ jobs:
           # Find all directories containing gno.mod file
           find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
           # Check if there are changes after running gno mod tidy
-          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'gno mod tidy'." && exit 1)
+          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'make tidy'." && exit 1)
