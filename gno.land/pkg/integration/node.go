@@ -34,7 +34,7 @@ type NodeConfig struct {
 }
 
 func NewNode(logger log.Logger, cfg NodeConfig) (*node.Node, error) {
-	// Setup setup testing config
+	// Setup setup testing config if needed
 	{
 		if cfg.BFTConfig == nil {
 			cfg.BFTConfig = config.TestConfig()
