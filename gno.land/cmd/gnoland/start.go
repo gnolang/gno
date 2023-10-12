@@ -35,6 +35,7 @@ type startCfg struct {
 	rootDir               string
 	genesisMaxVMCycles    int64
 	config                string
+	nodeConfigPath        string
 }
 
 func newStartCmd(io *commands.IO) *commands.Command {
@@ -47,8 +48,8 @@ func newStartCmd(io *commands.IO) *commands.Command {
 			ShortHelp:  "Run the full node",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
-			return execStart(cfg, args, io)
+		func(_ context.Context, _ []string) error {
+			return execStart(cfg, io)
 		},
 	)
 }
@@ -114,18 +115,42 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.config,
 		"config",
 		"",
-		"config file (optional)",
+		"the flag config file (optional)",
+	)
+
+	fs.StringVar(
+		&c.nodeConfigPath,
+		"node-config",
+		"",
+		"the node TOML config file path (optional)",
 	)
 }
 
-func execStart(c *startCfg, args []string, io *commands.IO) error {
+func execStart(c *startCfg, io *commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	rootDir := c.rootDir
 
-	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-	})
+	var (
+		cfg        *config.Config
+		loadCfgErr error
+	)
+
+	// Set the node configuration
+	if c.nodeConfigPath != "" {
+		// Load the node configuration
+		// from the specified path
+		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
+	} else {
+		// Load the node configuration
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
+			cfg.Consensus.CreateEmptyBlocks = true
+			cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
+		})
+	}
+
+	if loadCfgErr != nil {
+		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
+	}
 
 	// create priv validator first.
 	// need it to generate genesis.json

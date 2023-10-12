@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,4 +96,58 @@ func checkConfig(configFile string) bool {
 		}
 	}
 	return valid
+}
+
+func TestTOML_LoadConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("config does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		cfg, loadErr := LoadConfigFile("dummy-path")
+
+		assert.Error(t, loadErr)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("config is not valid toml", func(t *testing.T) {
+		t.Parallel()
+
+		// Create config file
+		configFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		// Write invalid TOML
+		_, writeErr := configFile.WriteString("invalid TOML")
+		require.NoError(t, writeErr)
+
+		cfg, loadErr := LoadConfigFile(configFile.Name())
+
+		assert.Error(t, loadErr)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("valid config", func(t *testing.T) {
+		t.Parallel()
+
+		// Create config file
+		configFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		// Create the default config
+		defaultConfig := DefaultConfig()
+
+		// Marshal the default config
+		defaultConfigRaw, marshalErr := toml.Marshal(defaultConfig)
+		require.NoError(t, marshalErr)
+
+		// Write valid TOML
+		_, writeErr := configFile.Write(defaultConfigRaw)
+		require.NoError(t, writeErr)
+
+		cfg, loadErr := LoadConfigFile(configFile.Name())
+
+		require.NoError(t, loadErr)
+		assert.Equal(t, defaultConfig, cfg)
+	})
 }

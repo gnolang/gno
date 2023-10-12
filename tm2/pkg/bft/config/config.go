@@ -37,19 +37,22 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Like LoadOrMakeConfigWithOptions() but without overriding any defaults.
-func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
-	return LoadOrMakeConfigWithOptions(root, nil)
-}
-
 type ConfigOptions func(cfg *Config)
 
-// LoadOrMakeConfigWithOptions() loads configuration or saves one
+// LoadOrMakeConfigWithOptions loads configuration or saves one
 // made by modifying the default config with override options
-func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Config) {
+func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, error) {
+	var cfg *Config
+
 	configPath := join(root, defaultConfigFilePath)
 	if osm.FileExists(configPath) {
-		cfg = LoadConfigFile(configPath)
+		var loadErr error
+
+		// Load the configuration
+		if cfg, loadErr = LoadConfigFile(configPath); loadErr != nil {
+			return nil, loadErr
+		}
+
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 	} else {
@@ -59,10 +62,13 @@ func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Confi
 		cfg.EnsureDirs()
 		WriteConfigFile(configPath, cfg)
 	}
-	if err := cfg.ValidateBasic(); err != nil {
-		panic(err)
+
+	// Validate the configuration
+	if validateErr := cfg.ValidateBasic(); validateErr != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
 	}
-	return cfg
+
+	return cfg, nil
 }
 
 // TestConfig returns a configuration that can be used for testing
@@ -121,7 +127,7 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BaseConfig
 
 const (
