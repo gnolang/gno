@@ -120,7 +120,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"node-config",
+		"tm2-node-config",
 		"",
 		"the node TOML config file path (optional)",
 	)
