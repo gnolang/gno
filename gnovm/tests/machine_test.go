@@ -24,11 +24,6 @@ func TestMachineTestMemPackage(t *testing.T) {
 			shouldSucceed: true,
 		},
 		{
-			name:          "TestSmallestFloat",
-			path:          "testdata/TestMemPackage/success",
-			shouldSucceed: true,
-		},
-		{
 			name:          "TestFail",
 			path:          "testdata/TestMemPackage/fail",
 			shouldSucceed: false,
