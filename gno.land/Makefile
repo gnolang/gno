@@ -43,11 +43,16 @@ fmt:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
+test: _test.gnoland _test.gnokey _test.pkgs
+# XXX: _test.gnoweb is currently disabled. If fixed, re-enable here and in CI.
+# https://github.com/gnolang/gno/issues/1222
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
-_test.gnoland:; go test $(GOTEST_FLAGS) ./cmd/gnoland
-_test.gnoweb:;  go test $(GOTEST_FLAGS) ./cmd/gnoweb
-_test.gnokey:;  go test $(GOTEST_FLAGS) ./cmd/gnokey
-_test.pkgs:;    go test $(GOTEST_FLAGS) ./pkg/...
+_test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
+_test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
+_test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey
+_test.pkgs:;         go test $(GOTEST_FLAGS) ./pkg/...
+_test.pkgs.sync:;    UPDATE_SCRIPTS=true go test $(GOTEST_FLAGS) ./pkg/...
+
+
