@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
 
@@ -40,6 +42,13 @@ func TestRoutes(t *testing.T) {
 	} else {
 		panic("os.Getwd() -> err: " + err.Error())
 	}
+
+	node := integration.TestingInMemoryNode(t, log.NewNopLogger(), nil)
+	defer node.Stop()
+
+	// XXX: this is ugly :(
+	flags.remoteAddr = node.Config().RPC.ListenAddress
+
 	app := makeApp()
 
 	for _, r := range routes {
