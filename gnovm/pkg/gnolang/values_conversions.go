@@ -1246,10 +1246,8 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		}
 
 		bf := big.NewFloat(f64)
-		f32, acc := bf.Float32()
-		if f32 == 0 && (acc == big.Below || acc == big.Above) {
-			panic("cannot convert untyped bigdec to float32 -- too close to zero")
-		} else if math.IsInf(float64(f32), 0) {
+		f32, _ := bf.Float32()
+		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
 		dst.SetFloat32(f32)
