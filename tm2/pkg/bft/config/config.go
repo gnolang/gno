@@ -61,11 +61,11 @@ func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, e
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 		WriteConfigFile(configPath, cfg)
-	}
 
-	// Validate the configuration
-	if validateErr := cfg.ValidateBasic(); validateErr != nil {
-		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+		// Validate the configuration
+		if validateErr := cfg.ValidateBasic(); validateErr != nil {
+			return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+		}
 	}
 
 	return cfg, nil
