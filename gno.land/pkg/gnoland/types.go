@@ -1,9 +1,12 @@
 package gnoland
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -16,25 +19,53 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []string `json:"balances"`
-	Txs      []std.Tx `json:"txs"`
+	Balances []Balance `json:"balances"`
+	Txs      []std.Tx  `json:"txs"`
 }
 
 type Balance struct {
 	Address bft.Address
-	Value   std.Coin
+	Value   std.Coins
+}
+
+func (b *Balance) Parse(line string) error {
+	parts := strings.Split(strings.TrimSpace(line), "=") // <address>=<coin>
+	if len(parts) != 2 {
+		return errors.New("invalid genesis_balance line: " + line)
+	}
+
+	var err error
+
+	b.Address, err = crypto.AddressFromBech32(parts[0])
+	if err != nil {
+		return fmt.Errorf("invalid balance addr %s: %w", parts[0], err)
+	}
+
+	b.Value, err = std.ParseCoins(parts[1])
+	if err != nil {
+		return fmt.Errorf("invalid balance coins %s: %w", parts[1], err)
+	}
+
+	return nil
+}
+
+func (b *Balance) UnmarshalJSON(data []byte) error {
+	return b.Parse(string(data))
+}
+func (b *Balance) Marshaljson() ([]byte, error) {
+	return []byte(b.String()), nil
 }
 
 func (b Balance) String() string {
 	return fmt.Sprintf("%s=%s", b.Address.String(), b.Value.String())
 }
 
-type Balances []Balance
+// type Balances []Balance
 
-func (bs Balances) Strings() []string {
-	bss := make([]string, len(bs))
-	for i, balance := range bs {
-		bss[i] = balance.String()
-	}
-	return bss
-}
+// func (bs Balances) Strings() []string {
+// 	bss := make([]string, len(bs))
+// 	for i, balance := range bs {
+// 		bss[i] = balance.String()
+// 	}
+// 	return bss
+// }

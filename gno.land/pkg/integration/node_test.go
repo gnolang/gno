@@ -1,4 +1,4 @@
-package gnoland
+package integration
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 func TestNewInMemory(t *testing.T) {
 	logger := log.TestingLogger()
 
-	node, err := NewInMemory(logger, InMemoryConfig{})
+	node, err := NewNode(logger, NodeConfig{})
 	require.NoError(t, err)
 	require.NotNil(t, node)
 }
