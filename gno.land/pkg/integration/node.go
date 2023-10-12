@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -36,10 +35,11 @@ type NodeConfig struct {
 func NewNode(logger log.Logger, cfg NodeConfig) (*node.Node, error) {
 	// Setup setup testing config if needed
 	{
+		const defaultListner = "tcp://127.0.0.1:0"
 		if cfg.BFTConfig == nil {
 			cfg.BFTConfig = config.TestConfig()
-			cfg.BFTConfig.RPC.ListenAddress = "tcp://127.0.0.1:0"
-			cfg.BFTConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
+			cfg.BFTConfig.RPC.ListenAddress = defaultListner
+			cfg.BFTConfig.P2P.ListenAddress = defaultListner
 		}
 
 		// XXX: we need to get ride of this, for now needed because of stdlib
@@ -56,7 +56,6 @@ func NewNode(logger log.Logger, cfg NodeConfig) (*node.Node, error) {
 	// Setup geeneis
 	gen := &bft.GenesisDoc{}
 	{
-
 		gen.GenesisTime = time.Now()
 
 		// cfg.chainID = "tendermint_test"
@@ -125,7 +124,7 @@ func NewNode(logger log.Logger, cfg NodeConfig) (*node.Node, error) {
 	)
 
 	// Create genesis factory.
-	genProvider := func() (*types.GenesisDoc, error) {
+	genProvider := func() (*bft.GenesisDoc, error) {
 		return gen, nil
 	}
 
@@ -146,7 +145,6 @@ func LoadPackages(pkgs []PackagePath) ([]std.Tx, error) {
 			return nil, fmt.Errorf("unable to load packages: %w", err)
 		}
 		txs = append(txs, tx...)
-
 	}
 	return txs, nil
 }

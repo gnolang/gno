@@ -1,7 +1,6 @@
 package gnoland
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -29,9 +28,9 @@ type Balance struct {
 }
 
 func (b *Balance) Parse(line string) error {
-	parts := strings.Split(strings.TrimSpace(line), "=") // <address>=<coin>
+	parts := strings.Split(strings.TrimSpace(line), "=") // <address>=<coins>
 	if len(parts) != 2 {
-		return errors.New("invalid genesis_balance line: " + line)
+		return fmt.Errorf("invalid balance line: %q", line)
 	}
 
 	var err error
@@ -52,6 +51,7 @@ func (b *Balance) Parse(line string) error {
 func (b *Balance) UnmarshalJSON(data []byte) error {
 	return b.Parse(string(data))
 }
+
 func (b *Balance) Marshaljson() ([]byte, error) {
 	return []byte(b.String()), nil
 }
@@ -59,13 +59,3 @@ func (b *Balance) Marshaljson() ([]byte, error) {
 func (b Balance) String() string {
 	return fmt.Sprintf("%s=%s", b.Address.String(), b.Value.String())
 }
-
-// type Balances []Balance
-
-// func (bs Balances) Strings() []string {
-// 	bss := make([]string, len(bs))
-// 	for i, balance := range bs {
-// 		bss[i] = balance.String()
-// 	}
-// 	return bss
-// }

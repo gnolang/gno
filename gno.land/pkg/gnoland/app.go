@@ -199,7 +199,8 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	}
 }
 
-// XXX: should be removed in favor of https://github.com/gnolang/gno/pull/1233
+// XXX: all the method bellow should be removed in favor of
+// https://github.com/gnolang/gno/pull/1233
 var (
 	guessOnce sync.Once
 	gnoroot   string

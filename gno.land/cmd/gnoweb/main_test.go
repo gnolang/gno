@@ -48,8 +48,8 @@ func TestRoutes(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	// XXX: this is ugly :(
-	flags.remoteAddr = node.Config().RPC.ListenAddress
+	// set the `remoteAddr` of the client to the listening address of the node, which is randomly assigned.
+	flags.remoteAddr = remoteAddr
 
 	app := makeApp()
 
