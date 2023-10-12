@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
@@ -43,7 +44,8 @@ func TestRoutes(t *testing.T) {
 		panic("os.Getwd() -> err: " + err.Error())
 	}
 
-	node := integration.TestingInMemoryNode(t, log.NewNopLogger(), nil)
+	config := integration.DefaultTestingConfig(t, gnoland.MustGuessGnoRootDir())
+	node := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
 	// XXX: this is ugly :(

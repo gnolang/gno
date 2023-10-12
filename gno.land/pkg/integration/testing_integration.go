@@ -13,17 +13,13 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -67,6 +63,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
+
+	nodeConfig := DefaultTestingConfig(t, gnoRootDir)
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
@@ -120,7 +118,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 
 					var node *node.Node
-					if node, err = execInMemoryGnoland(logger, gnoRootDir); err == nil {
+					if node, err = execInMemoryGnoland(logger, nodeConfig); err == nil {
 						nodes[sid] = &testNode{
 							Node:   node,
 							logger: logger,
@@ -285,52 +283,8 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 	return logger
 }
 
-func execInMemoryGnoland(logger log.Logger, gnoroot string) (*node.Node, error) {
-	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
-	balanceFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	exampleDir := filepath.Join(gnoroot, "examples")
-
-	genesisBalances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
-	if err != nil {
-		return nil, fmt.Errorf("unableo to laod genesis balance file: %w", err)
-	}
-
-	bftconfig := config.TestConfig().SetRootDir(gnoroot)
-	bftconfig.Consensus.CreateEmptyBlocks = true
-	bftconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
-	bftconfig.RPC.ListenAddress = "tcp://127.0.0.1:0"
-	bftconfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
-
-	// NOTE: we dont care about giving a correct address here, as it's only visual
-	// XXX: do we care loading this file ?
-	genesisTXs, err := gnoland.LoadGenesisTxsFile(txsFile, bftconfig.ChainID(), bftconfig.RPC.ListenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("unableo to laod genesis balance file: %w", err)
-	}
-
-	// Load example packages
-	pkgs := PackagePath{
-		Creator: crypto.MustAddressFromString(test1Addr),
-		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
-		Path:    exampleDir,
-	}
-
-	config := NodeConfig{
-		Balances:   genesisBalances,
-		GenesisTXs: genesisTXs,
-		BFTConfig:  bftconfig,
-		Packages:   []PackagePath{pkgs},
-	}
-
-	// XXX: make this configurable
-	config.ConsensusParams.Block = &abci.BlockParams{
-		MaxTxBytes:   1000000,  // 1MB,
-		MaxDataBytes: 2000000,  // 2MB,
-		MaxGas:       10000000, // 10M gas
-		TimeIotaMS:   100,      // 100ms
-	}
-
-	node, err := NewNode(logger, config)
+func execInMemoryGnoland(logger log.Logger, config *NodeConfig) (*node.Node, error) {
+	node, err := NewNode(logger, *config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start the node: %w", err)
 	}
