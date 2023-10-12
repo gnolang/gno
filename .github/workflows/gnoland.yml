@@ -60,7 +60,7 @@ jobs:
           - _test.gnoland
           - _test.gnokey
           - _test.pkgs
-          #- _test.gnoweb # this test should be rewritten to run an inmemory localnode
+          - _test.gnoweb # this test should be rewritten to run an inmemory localnode
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
