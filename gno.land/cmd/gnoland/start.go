@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -141,7 +143,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		// from the specified path
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
-		// Load the node configuration
+		// Load the default node configuration
 		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
 			cfg.Consensus.CreateEmptyBlocks = true
 			cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
@@ -160,13 +162,23 @@ func execStart(c *startCfg, io *commands.IO) error {
 
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
+
+	genesisTxs, genesisTxsErr := loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote)
+	if genesisTxsErr != nil {
+		return fmt.Errorf("unable to load genesis txs, %w", genesisTxsErr)
+	}
+
 	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc(
+		genDoc, genErr := makeGenesisDoc(
 			priv.GetPubKey(),
 			c.chainID,
 			c.genesisBalancesFile,
-			loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote),
+			genesisTxs,
 		)
+		if genErr != nil {
+			return fmt.Errorf("unable to generate genesis.json, %w", genErr)
+		}
+
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
@@ -211,7 +223,7 @@ func makeGenesisDoc(
 	chainID string,
 	genesisBalancesFile string,
 	genesisTxs []std.Tx,
-) *bft.GenesisDoc {
+) (*bft.GenesisDoc, error) {
 	gen := &bft.GenesisDoc{}
 
 	gen.GenesisTime = time.Now()
@@ -235,8 +247,10 @@ func makeGenesisDoc(
 	}
 
 	// Load distribution.
-	balances := loadGenesisBalances(genesisBalancesFile)
-	// debug: for _, balance := range balances { fmt.Println(balance) }
+	balances, balancesErr := loadGenesisBalances(genesisBalancesFile)
+	if balancesErr != nil {
+		return nil, fmt.Errorf("unable to load genesis balances, %w", balancesErr)
+	}
 
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -282,7 +296,7 @@ func makeGenesisDoc(
 		Balances: balances,
 		Txs:      txs,
 	}
-	return gen
+	return gen, nil
 }
 
 func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
@@ -296,11 +310,24 @@ func loadGenesisTxs(
 	path string,
 	chainID string,
 	genesisRemote string,
-) []std.Tx {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
+) ([]std.Tx, error) {
+	txs := make([]std.Tx, 0)
+
+	if !osm.FileExists(path) {
+		// No initial transactions
+		return txs, nil
+	}
+
+	txsFile, openErr := os.Open(path)
+	if openErr != nil {
+		return nil, fmt.Errorf("unable to open genesis txs file, %w", openErr)
+	}
+
+	scanner := bufio.NewScanner(txsFile)
+
+	for scanner.Scan() {
+		txLine := scanner.Text()
+
 		if txLine == "" {
 			continue // skip empty line
 		}
@@ -310,19 +337,40 @@ func loadGenesisTxs(
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
 		var tx std.Tx
-		amino.MustUnmarshalJSON([]byte(txLine), &tx)
+
+		if unmarshalErr := amino.UnmarshalJSON([]byte(txLine), &tx); unmarshalErr != nil {
+			return nil, fmt.Errorf("unable to amino unmarshal tx, %w", unmarshalErr)
+		}
+
 		txs = append(txs, tx)
 	}
 
-	return txs
+	if scanErr := scanner.Err(); scanErr != nil {
+		return nil, fmt.Errorf("error encountered while scanning, %w", scanErr)
+	}
+
+	return txs, nil
 }
 
-func loadGenesisBalances(path string) []string {
+func loadGenesisBalances(path string) ([]string, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	balances := []string{}
-	content := osm.MustReadFile(path)
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	balances := make([]string, 0)
+
+	if !osm.FileExists(path) {
+		// No initial balances
+		return balances, nil
+	}
+
+	balancesFile, openErr := os.Open(path)
+	if openErr != nil {
+		return nil, fmt.Errorf("unable to open genesis balances file, %w", openErr)
+	}
+
+	scanner := bufio.NewScanner(balancesFile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
 		line = strings.TrimSpace(line)
 
 		// remove comments.
@@ -334,12 +382,16 @@ func loadGenesisBalances(path string) []string {
 			continue
 		}
 
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
-			panic("invalid genesis_balance line: " + line)
+		if len(strings.Split(line, "=")) != 2 {
+			return nil, fmt.Errorf("invalid genesis_balance line: %s", line)
 		}
 
 		balances = append(balances, line)
 	}
-	return balances
+
+	if scanErr := scanner.Err(); scanErr != nil {
+		return nil, fmt.Errorf("error encountered while scanning, %w", scanErr)
+	}
+
+	return balances, nil
 }

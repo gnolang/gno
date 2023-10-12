@@ -39,6 +39,11 @@ func LoadConfigFile(path string) (*Config, error) {
 		return nil, unmarshalErr
 	}
 
+	// Validate the config
+	if validateErr := nodeConfig.ValidateBasic(); validateErr != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+	}
+
 	return &nodeConfig, nil
 }
 
