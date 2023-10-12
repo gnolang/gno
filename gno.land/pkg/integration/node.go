@@ -33,23 +33,23 @@ type NodeConfig struct {
 	GenesisMaxVMCycles    int64
 }
 
-func NewNode(logger log.Logger, icfg NodeConfig) (*node.Node, error) {
-	bftconfig := icfg.BFTConfig
+func NewNode(logger log.Logger, cfg NodeConfig) (*node.Node, error) {
+	// Setup setup testing config
 	{
-		// Setup setup testing config
-		if bftconfig == nil {
-			bftconfig = config.TestConfig()
-			bftconfig.RPC.ListenAddress = "tcp://127.0.0.1:0"
-			bftconfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
+		if cfg.BFTConfig == nil {
+			cfg.BFTConfig = config.TestConfig()
+			cfg.BFTConfig.RPC.ListenAddress = "tcp://127.0.0.1:0"
+			cfg.BFTConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
 		}
 
 		// XXX: we need to get ride of this, for now needed because of stdlib
-		if bftconfig.RootDir == "" {
+		if cfg.BFTConfig.RootDir == "" {
 			gnoRootDir := gnoland.MustGuessGnoRootDir()
-			bftconfig.SetRootDir(gnoRootDir)
+			cfg.BFTConfig.SetRootDir(gnoRootDir)
 		}
 	}
 
+	// generate node identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 	priv := bft.NewMockPVWithParams(nodekey.PrivKey, false, false)
 
@@ -60,7 +60,7 @@ func NewNode(logger log.Logger, icfg NodeConfig) (*node.Node, error) {
 		gen.GenesisTime = time.Now()
 
 		// cfg.chainID = "tendermint_test"
-		gen.ChainID = bftconfig.ChainID()
+		gen.ChainID = cfg.BFTConfig.ChainID()
 
 		// XXX(gfanton): Do we need some default here ?
 		// if icfg.ConsensusParams.Block == nil {
@@ -71,7 +71,7 @@ func NewNode(logger log.Logger, icfg NodeConfig) (*node.Node, error) {
 		// 		TimeIotaMS:   100,      // 100ms
 		// 	}
 		// }
-		gen.ConsensusParams = icfg.ConsensusParams
+		gen.ConsensusParams = cfg.ConsensusParams
 
 		pk := priv.GetPubKey()
 
@@ -85,43 +85,43 @@ func NewNode(logger log.Logger, icfg NodeConfig) (*node.Node, error) {
 			},
 		}
 
-		for _, validator := range icfg.GenesisValidator {
+		for _, validator := range cfg.GenesisValidator {
 			gen.Validators = append(gen.Validators, validator)
 		}
 	}
 
 	// XXX: maybe let the user do this manually and pass it to genesisTXs
-	txs, err := LoadPackages(icfg.Packages)
+	txs, err := LoadPackages(cfg.Packages)
 	if err != nil {
 		return nil, fmt.Errorf("uanble to load genesis packages: %w", err)
 	}
 
-	txs = append(txs, icfg.GenesisTXs...)
+	txs = append(txs, cfg.GenesisTXs...)
 
 	gen.AppState = gnoland.GnoGenesisState{
-		Balances: icfg.Balances,
+		Balances: cfg.Balances,
 		Txs:      txs,
 	}
 
 	gnoApp, err := gnoland.NewAppWithOptions(&gnoland.AppOptions{
 		Logger:                logger,
-		GnoRootDir:            bftconfig.RootDir,
-		SkipFailingGenesisTxs: icfg.SkipFailingGenesisTxs,
-		MaxCycles:             icfg.GenesisMaxVMCycles,
+		GnoRootDir:            cfg.BFTConfig.RootDir,
+		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
+		MaxCycles:             cfg.GenesisMaxVMCycles,
 		DB:                    db.NewMemDB(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error in creating new app: %w", err)
 	}
 
-	bftconfig.LocalApp = gnoApp
+	cfg.BFTConfig.LocalApp = gnoApp
 
 	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
-		bftconfig.LocalApp,
-		bftconfig.ProxyApp,
-		bftconfig.ABCI,
-		bftconfig.DBDir(),
+		cfg.BFTConfig.LocalApp,
+		cfg.BFTConfig.ProxyApp,
+		cfg.BFTConfig.ABCI,
+		cfg.BFTConfig.DBDir(),
 	)
 
 	// Create genesis factory.
@@ -129,7 +129,7 @@ func NewNode(logger log.Logger, icfg NodeConfig) (*node.Node, error) {
 		return gen, nil
 	}
 
-	return node.NewNode(bftconfig,
+	return node.NewNode(cfg.BFTConfig,
 		priv, nodekey,
 		appClientCreator,
 		genProvider,
