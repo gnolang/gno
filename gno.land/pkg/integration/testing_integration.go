@@ -144,6 +144,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						ts.Setenv("RPC_ADDR", laddr)
 						// ts.Setenv("GNODATA", gnoDataDir)
 
+						// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
 						const listenerID = "testing_listener"
 
 						// Wait for first block by waiting for `EventNewBlock` event.
