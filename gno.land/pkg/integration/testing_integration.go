@@ -64,7 +64,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
-	nodeConfig := DefaultTestingConfig(t, gnoRootDir)
+	nodeConfig := DefaultTestingNodeConfig(t, gnoRootDir)
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))

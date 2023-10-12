@@ -44,8 +44,8 @@ func TestRoutes(t *testing.T) {
 		panic("os.Getwd() -> err: " + err.Error())
 	}
 
-	config := integration.DefaultTestingConfig(t, gnoland.MustGuessGnoRootDir())
-	node := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
 	// XXX: this is ugly :(
