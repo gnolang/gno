@@ -17,18 +17,27 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
+const (
+	DefaultAccountName    = "test1"
+	DefaultAccountAddress = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	DefaultAccountSeed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+)
+
 // Should return an already starting node
-func TestingInMemoryNode(t *testing.T, logger log.Logger, config *NodeConfig) (*node.Node, string) {
-	node, err := NewNode(logger, *config)
+func TestingInMemoryNode(t *testing.T, logger log.Logger, config *TestingNodeConfig) (*node.Node, string) {
+	t.Helper()
+
+	node, err := NewTestingNode(logger, config)
 	require.NoError(t, err)
 
 	err = node.Start()
 	require.NoError(t, err)
 
 	// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
+	//---
+	// Wait for first block by waiting for `EventNewBlock` event.
 	const listenerID = "testing_listener"
 
-	// Wait for first block by waiting for `EventNewBlock` event.
 	nb := make(chan struct{}, 1)
 	node.EventSwitch().AddListener(listenerID, func(ev events.Event) {
 		if _, ok := ev.(bft.EventNewBlock); ok {
@@ -48,36 +57,36 @@ func TestingInMemoryNode(t *testing.T, logger log.Logger, config *NodeConfig) (*
 	}
 
 	node.EventSwitch().RemoveListener(listenerID)
+	// ---
 
 	return node, node.Config().RPC.ListenAddress
 }
 
-func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *NodeConfig {
+func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *TestingNodeConfig {
 	t.Helper()
 
 	bftconfig := DefaultTestingBFTConfig(t, gnoroot)
-
-	return &NodeConfig{
-		Balances:   LoadDefaultGenesisBalanceFile(t, gnoroot),
-		GenesisTXs: LoadDefaultGenesisTXsFile(t, bftconfig.ChainID(), gnoroot),
-		BFTConfig:  bftconfig,
-		Packages:   LoadDefaultPackages(t, crypto.MustAddressFromString(test1Addr), gnoroot),
+	return &TestingNodeConfig{
+		Balances:        LoadDefaultGenesisBalanceFile(t, gnoroot),
+		GenesisTXs:      LoadDefaultGenesisTXsFile(t, bftconfig.ChainID(), gnoroot),
+		ConsensusParams: DefaultConsensusParams(t),
+		BFTConfig:       bftconfig,
+		Packages:        LoadDefaultPackages(t, crypto.MustAddressFromString(DefaultAccountAddress), gnoroot),
 	}
 }
 
-func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []PackagePath {
+func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []gnoland.PackagePath {
 	t.Helper()
 
 	exampleDir := filepath.Join(gnoroot, "examples")
 
-	pkgs := PackagePath{
-		// Creator: crypto.MustAddressFromString(test1Addr),
+	pkgs := gnoland.PackagePath{
 		Creator: creator,
 		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
 		Path:    exampleDir,
 	}
 
-	return []PackagePath{pkgs}
+	return []gnoland.PackagePath{pkgs}
 }
 
 func LoadDefaultGenesisBalanceFile(t *testing.T, gnoroot string) []gnoland.Balance {
@@ -104,15 +113,15 @@ func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []s
 	return genesisTXs
 }
 
-func DefaultConsensusParams(t *testing.T, gnoroot string) *abci.ConsensusParams {
+func DefaultConsensusParams(t *testing.T) abci.ConsensusParams {
 	t.Helper()
 
-	return &abci.ConsensusParams{
+	return abci.ConsensusParams{
 		Block: &abci.BlockParams{
-			MaxTxBytes:   1000000,  // 1MB,
-			MaxDataBytes: 2000000,  // 2MB,
-			MaxGas:       10000000, // 10M gas
-			TimeIotaMS:   100,      // 100ms
+			MaxTxBytes:   1_000_000,  // 1MB,
+			MaxDataBytes: 2_000_000,  // 2MB,
+			MaxGas:       10_000_000, // 10M gas
+			TimeIotaMS:   100,        // 100ms
 		},
 	}
 }

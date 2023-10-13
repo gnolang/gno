@@ -10,23 +10,14 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
-	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/rogpeppe/go-internal/testscript"
-)
-
-// XXX: This should be centralize somewhere.
-const (
-	test1Addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	test1Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
 type testNode struct {
@@ -64,8 +55,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
-	nodeConfig := DefaultTestingNodeConfig(t, gnoRootDir)
-
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
@@ -79,9 +68,11 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			}
 
 			// XXX: Add a command to add custom account.
-			kb.CreateAccount("test1", test1Seed, "", "", 0, 0)
-			env.Setenv("USER_SEED_test1", test1Seed)
-			env.Setenv("USER_ADDR_test1", test1Addr)
+
+			// Setup "test1" default account
+			kb.CreateAccount(DefaultAccountName, DefaultAccountSeed, "", "", 0, 0)
+			env.Setenv("USER_SEED_"+DefaultAccountName, DefaultAccountSeed)
+			env.Setenv("USER_ADDR_"+DefaultAccountName, DefaultAccountAddress)
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -117,57 +108,32 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						logger = getTestingLogger(ts, logname)
 					}
 
-					var node *node.Node
-					if node, err = execInMemoryGnoland(logger, nodeConfig); err == nil {
-						nodes[sid] = &testNode{
-							Node:   node,
-							logger: logger,
-						}
-						ts.Defer(func() {
-							muNodes.Lock()
-							defer muNodes.Unlock()
+					// Generate node config, we can't use a uniq config, because
+					nodeConfig := DefaultTestingNodeConfig(t, gnoRootDir)
+					node, remoteAddr := TestingInMemoryNode(t, logger, nodeConfig)
 
-							if n := nodes[sid]; n != nil {
-								if err := n.Stop(); err != nil {
-									panic(fmt.Errorf("node %q was unable to stop: %w", sid, err))
-								}
-							}
-						})
+					// Setup cleanup
+					ts.Defer(func() {
+						muNodes.Lock()
+						defer muNodes.Unlock()
 
-						// Get listen address environment.
-						// It should have been updated with the right port on start.
-						laddr := node.Config().RPC.ListenAddress
-
-						// Add default environements.
-						ts.Setenv("RPC_ADDR", laddr)
-						// ts.Setenv("GNODATA", gnoDataDir)
-
-						// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
-						const listenerID = "testing_listener"
-
-						// Wait for first block by waiting for `EventNewBlock` event.
-						nb := make(chan struct{}, 1)
-						node.EventSwitch().AddListener(listenerID, func(ev events.Event) {
-							if _, ok := ev.(types.EventNewBlock); ok {
-								select {
-								case nb <- struct{}{}:
-								default:
-								}
-							}
-						})
-
-						if node.BlockStore().Height() == 0 {
-							select {
-							case <-nb: // ok
-							case <-time.After(time.Second * 6):
-								ts.Fatalf("timeout while waiting for the node to start")
+						if n := nodes[sid]; n != nil {
+							if err := node.Stop(); err != nil {
+								panic(fmt.Errorf("node %q was unable to stop: %w", sid, err))
 							}
 						}
+					})
 
-						node.EventSwitch().RemoveListener(listenerID)
-
-						fmt.Fprintln(ts.Stdout(), "node started successfully")
+					// Register cleanup.
+					nodes[sid] = &testNode{
+						Node:   node,
+						logger: logger,
 					}
+
+					// Add default environements.
+					ts.Setenv("RPC_ADDR", remoteAddr)
+
+					fmt.Fprintln(ts.Stdout(), "node started successfully")
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
@@ -180,7 +146,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 						// Unset gnoland environements.
 						ts.Setenv("RPC_ADDR", "")
-						// ts.Setenv("GNODATA", "")
 						fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 					}
 				default:
@@ -281,15 +246,6 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 
 	ts.Logf("starting logger: %q", path)
 	return logger
-}
-
-func execInMemoryGnoland(logger log.Logger, config *NodeConfig) (*node.Node, error) {
-	node, err := NewNode(logger, *config)
-	if err != nil {
-		return nil, fmt.Errorf("unable to start the node: %w", err)
-	}
-
-	return node, node.Start()
 }
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {

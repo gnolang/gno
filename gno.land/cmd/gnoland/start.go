@@ -5,14 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -26,13 +21,14 @@ import (
 )
 
 type startCfg struct {
+	gnoRootDir            string
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
 	chainID               string
 	genesisRemote         string
-	rootDir               string
+	dataDir               string
 	genesisMaxVMCycles    int64
 	config                string
 }
@@ -54,6 +50,10 @@ func newStartCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+	gnoroot := gnoland.MustGuessGnoRootDir()
+	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land/genesis/genesis_balances.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land/genesis/genesis_txs.txt")
+
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -71,14 +71,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
-		"./genesis/genesis_balances.txt",
+		defaultGenesisBalancesFile,
 		"initial distribution file",
 	)
 
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
-		"./genesis/genesis_txs.txt",
+		defaultGenesisTxsFile,
 		"initial txs to replay",
 	)
 
@@ -90,8 +90,16 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
+		&c.gnoRootDir,
+		"gnoroot-dir",
+		gnoroot,
+		"the root directory of the gno repository",
+	)
+
+	// XXX: Use home directory for this
+	fs.StringVar(
+		&c.dataDir,
+		"data-dir",
 		"testdir",
 		"directory for config and data",
 	)
@@ -116,37 +124,43 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"config file (optional)",
 	)
+
+	// XXX(deprecated): use data-dir instead
+	fs.StringVar(
+		&c.dataDir,
+		"root-dir",
+		"testdir",
+		"deprecated: use data-dir instead - directory for config and data",
+	)
 }
 
 func execStart(c *startCfg, args []string, io *commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
-	rootDir := c.rootDir
+	dataDir := c.dataDir
 
-	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
+	cfg := config.LoadOrMakeConfigWithOptions(dataDir, func(cfg *config.Config) {
 		cfg.Consensus.CreateEmptyBlocks = true
 		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
 	})
 
-	// create priv validator first.
-	// need it to generate genesis.json
-	newPrivValKey := cfg.PrivValidatorKeyFile()
-	newPrivValState := cfg.PrivValidatorStateFile()
-	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
-
-	// write genesis file if missing.
-	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
+	// Write genesis file if missing.
+	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc(
-			priv.GetPubKey(),
-			c.chainID,
-			c.genesisBalancesFile,
-			loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote),
-		)
-		writeGenesisFile(genDoc, genesisFilePath)
+		// Create priv validator first.
+		// Need it to generate genesis.json
+		newPrivValKey := cfg.PrivValidatorKeyFile()
+		newPrivValState := cfg.PrivValidatorStateFile()
+		priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
+		pk := priv.GetPubKey()
+
+		// Generate genesis.json file
+		if err := generateGenesisFile(genesisFilePath, pk, c); err != nil {
+			return fmt.Errorf("unable to generate genesis file: %w", err)
+		}
 	}
 
-	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	// Create application and node.
+	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
@@ -158,11 +172,10 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	io.ErrPrintln("Node created.")
 
 	if c.skipStart {
-		fmt.Fprintln(io.Err, "'--skip-start' is set. Exiting.")
-
+		io.ErrPrintln("'--skip-start' is set. Exiting.")
 		return nil
 	}
 
@@ -170,27 +183,20 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 		return fmt.Errorf("error in start node: %w", err)
 	}
 
-	// run forever
 	osm.TrapSignal(func() {
 		if gnoNode.IsRunning() {
 			_ = gnoNode.Stop()
 		}
 	})
 
-	select {} // run forever
+	// Run forever
+	select {}
 }
 
-// Makes a local test genesis doc with local privValidator.
-func makeGenesisDoc(
-	pvPub crypto.PubKey,
-	chainID string,
-	genesisBalancesFile string,
-	genesisTxs []std.Tx,
-) *bft.GenesisDoc {
+func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
 	gen := &bft.GenesisDoc{}
-
 	gen.GenesisTime = time.Now()
-	gen.ChainID = chainID
+	gen.ChainID = c.chainID
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
@@ -200,121 +206,55 @@ func makeGenesisDoc(
 			TimeIotaMS:   100,      // 100ms
 		},
 	}
+
 	gen.Validators = []bft.GenesisValidator{
 		{
-			Address: pvPub.Address(),
-			PubKey:  pvPub,
+			Address: pk.Address(),
+			PubKey:  pk,
 			Power:   10,
 			Name:    "testvalidator",
 		},
 	}
 
-	// Load distribution.
-	balances := loadGenesisBalances(genesisBalancesFile)
-	// debug: for _, balance := range balances { fmt.Println(balance) }
+	// Load balances files
+	balances, err := gnoland.LoadGenesisBalancesFile(c.genesisBalancesFile)
+	if err != nil {
+		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
+	}
 
-	// Load initial packages from examples.
+	// Load examples folder
+	examplesDir := filepath.Join(c.gnoRootDir, "examples")
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	txs := []std.Tx{}
+	examplePkgs := gnoland.PackagePath{
+		Path:    examplesDir,
+		Creator: test1,
+		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
+		Deposit: nil,
+	}
 
-	// List initial packages to load from examples.
-	pkgs, err := gnomod.ListPkgs(filepath.Join("..", "examples"))
+	pkgsTxs, err := examplePkgs.Load()
 	if err != nil {
-		panic(fmt.Errorf("listing gno packages: %w", err))
+		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
-	// Sort packages by dependencies.
-	sortedPkgs, err := pkgs.Sort()
+	// Load Genesis TXs
+	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
 	if err != nil {
-		panic(fmt.Errorf("sorting packages: %w", err))
+		return fmt.Errorf("unable to load genesis txs file: %w", err)
 	}
 
-	// Filter out draft packages.
-	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+	genesisTxs = append(pkgsTxs, genesisTxs...)
 
-	for _, pkg := range nonDraftPkgs {
-		// open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-
-		var tx std.Tx
-		tx.Msgs = []std.Msg{
-			vmm.MsgAddPackage{
-				Creator: test1,
-				Package: memPkg,
-				Deposit: nil,
-			},
-		}
-		tx.Fee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs = append(txs, tx)
-	}
-
-	// load genesis txs from file.
-	txs = append(txs, genesisTxs...)
-
-	// construct genesis AppState.
+	// Construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
-		Txs:      txs,
-	}
-	return gen
-}
-
-func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
-	err := gen.SaveAs(filePath)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func loadGenesisTxs(
-	path string,
-	chainID string,
-	genesisRemote string,
-) []std.Tx {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
-		if txLine == "" {
-			continue // skip empty line
-		}
-
-		// patch the TX
-		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
-		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
-
-		var tx std.Tx
-		amino.MustUnmarshalJSON([]byte(txLine), &tx)
-		txs = append(txs, tx)
+		Txs:      genesisTxs,
 	}
 
-	return txs
-}
-
-func loadGenesisBalances(path string) []string {
-	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	balances := []string{}
-	content := osm.MustReadFile(path)
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// remove comments.
-		line = strings.Split(line, "#")[0]
-		line = strings.TrimSpace(line)
-
-		// skip empty lines.
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
-			panic("invalid genesis_balance line: " + line)
-		}
-
-		balances = append(balances, line)
+	// Write genesis state
+	if err := gen.SaveAs(genesisFile); err != nil {
+		return fmt.Errorf("unable to write genesis file %q: %w", genesisFile, err)
 	}
-	return balances
+
+	return nil
 }

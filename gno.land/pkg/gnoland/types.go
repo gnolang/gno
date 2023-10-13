@@ -1,9 +1,13 @@
 package gnoland
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -58,4 +62,58 @@ func (b *Balance) Marshaljson() ([]byte, error) {
 
 func (b Balance) String() string {
 	return fmt.Sprintf("%s=%s", b.Address.String(), b.Value.String())
+}
+
+type PackagePath struct {
+	Creator bft.Address
+	Deposit std.Coins
+	Fee     std.Fee
+	Path    string
+}
+
+func (p PackagePath) Load() ([]std.Tx, error) {
+	if p.Creator.IsZero() {
+		return nil, errors.New("empty creator address")
+	}
+
+	if p.Path == "" {
+		return nil, errors.New("empty package path")
+	}
+
+	// list all packages from target path
+	pkgs, err := gnomod.ListPkgs(p.Path)
+	if err != nil {
+		return nil, fmt.Errorf("listing gno packages: %w", err)
+	}
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
+		return nil, fmt.Errorf("sorting packages: %w", err)
+	}
+
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+	txs := []std.Tx{}
+	for _, pkg := range nonDraftPkgs {
+		// Open files in directory as MemPackage.
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+
+		// Create transaction
+		tx := std.Tx{
+			Fee: p.Fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: p.Creator,
+					Package: memPkg,
+					Deposit: p.Deposit,
+				},
+			},
+		}
+
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }
