@@ -14,13 +14,16 @@ import (
 	"text/template"
 	"time"
 
+	"go.uber.org/multierr"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
-	"go.uber.org/multierr"
 )
 
 type testCfg struct {
@@ -42,6 +45,52 @@ func newTestCmd(io *commands.IO) *commands.Command {
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
 			ShortHelp:  "Runs the tests for the specified packages",
+			LongHelp: `Runs the tests for the specified packages.
+
+'gno test' recompiles each package along with any files with names matching the
+file pattern "*_test.gno" or "*_filetest.gno".
+
+The <package> can be directory or file path (relative or absolute).
+
+- "*_test.gno" files work like "*_test.go" files, but they contain only test
+functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
+tests that belong to the same package are supported for now (no "xxx_test").
+
+The package path used to execute the "*_test.gno" file is fetched from the
+module name found in 'gno.mod', or else it is randomly generated like
+"gno.land/r/XXXXXXXX".
+
+- "*_filetest.gno" files on the other hand are kind of unique. They exist to
+provide a way to interact and assert a gno contract, thanks to a set of
+specific instructions that can be added using code comments.
+
+"*_filetest.gno" must be declared in the 'main' package and so must have a
+'main' function, that will be executed to test the target contract.
+
+List of available instructions that can be used in "*_filetest.gno" files:
+	- "PKGPATH:" is a single line instruction that can be used to define the
+	package used to interact with the tested package. If not specified, "main" is
+	used.
+	- "MAXALLOC:" is a signle line instruction that can be used to define a limit
+	to the VM allocator. If this limit is exceeded, the VM will panic. Default to
+	0, no limit.
+	- "SEND:" is a single line instruction that can be used to send an amount of
+	token along with the transaction. The format is for example "1000000ugnot".
+	Default is empty.
+	- "Output:\n" (*) is a multiple lines instruction that can be used to assert
+	the output of the "*_filetest.gno" file. Any prints executed inside the
+	'main' function must match the lines that follows the "Output:\n"
+	instruction, or else the test fails.
+	- "Error:\n" works similarly to "Output:\n", except that it asserts the
+	stderr of the program, which in that case, comes from the VM because of a
+	panic, rather than the 'main' function.
+	- "Realm:\n" (*) is a multiple lines instruction that can be used to assert
+	what has been recorded in the store following the execution of the 'main'
+	function.
+
+(*) The 'update-golden-tests' flag can be set to fill out the content of the
+instruction with the actual content of the test instead of failing.
+`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -69,14 +118,14 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
-		"writes actual as wanted in test comments",
+		`writes actual as wanted for "Output:" and "Realm:" instructions`,
 	)
 
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -123,7 +172,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -133,9 +182,13 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgs(args)
+	paths, err := targetsFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("list packages from args: %w", err)
+		return fmt.Errorf("list targets from patterns: %w", err)
+	}
+	if len(paths) == 0 {
+		io.ErrPrintln("no packages to test")
+		return nil
 	}
 
 	if cfg.timeout > 0 {
@@ -145,21 +198,26 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		}()
 	}
 
+	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
+	if err != nil {
+		return fmt.Errorf("list sub packages: %w", err)
+	}
+
 	buildErrCount := 0
 	testErrCount := 0
-	for _, pkgPath := range pkgPaths {
+	for _, pkg := range subPkgs {
 		if cfg.precompile {
 			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkgPath)
+				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
 			}
 			precompileOpts := newPrecompileOptions(&precompileCfg{
 				output: tempdirRoot,
 			})
-			err := precompilePkg(importPath(pkgPath), precompileOpts)
+			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintfln("FAIL    %s", pkg.Dir)
 				io.ErrPrintln("FAIL")
 
 				buildErrCount++
@@ -167,9 +225,9 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			}
 
 			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkgPath)
+				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
 			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgPath))
+			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
@@ -177,7 +235,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkgPath)
+				io.ErrPrintfln("FAIL    %s", pkg.Dir)
 				io.ErrPrintln("FAIL")
 
 				buildErrCount++
@@ -185,35 +243,27 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			}
 		}
 
-		unittestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_test.gno"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		filetestFiles, err := filepath.Glob(filepath.Join(pkgPath, "*_filetest.gno"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(unittestFiles) == 0 && len(filetestFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkgPath)
+		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
 
-		sort.Strings(unittestFiles)
-		sort.Strings(filetestFiles)
+		sort.Strings(pkg.TestGnoFiles)
+		sort.Strings(pkg.FiletestGnoFiles)
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkgPath, unittestFiles, filetestFiles, cfg, io)
+		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkgPath, err)
+			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkgPath, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkgPath, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -240,10 +290,8 @@ func gnoTestPkg(
 		stdin  = io.In
 		stdout = io.Out
 		stderr = io.Err
+		errs   error
 	)
-
-	filter := splitRegexp(runFlag)
-	var errs error
 
 	mode := tests.ImportModeStdlibsOnly
 	if cfg.withNativeFallback {
@@ -267,14 +315,23 @@ func gnoTestPkg(
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
-		memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
+		// Determine gnoPkgPath by reading gno.mod
+		var gnoPkgPath string
+		modfile, err := gnomod.ParseAt(pkgPath)
+		if err == nil {
+			gnoPkgPath = modfile.Module.Mod.Path
+		} else {
+			// unable to read pkgPath from gno.mod, generate a random realm path
+			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+		}
+		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
 
 		// run test files in pkg
 		{
-			m := tests.TestMachine(testStore, stdout, "main")
+			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -305,6 +362,7 @@ func gnoTestPkg(
 
 	// testing with *_filetest.gno
 	{
+		filter := splitRegexp(runFlag)
 		for _, testFile := range filetestFiles {
 			testFileName := filepath.Base(testFile)
 			testName := "file/" + testFileName
@@ -377,7 +435,7 @@ func runTestFiles(
 	}
 
 	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("testmain.go", testmain)
+	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {

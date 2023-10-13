@@ -2,6 +2,7 @@ package iavl
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -230,7 +231,7 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 		}
 		// may be invalid... errors are okay
 		if err == nil {
-			assert.Errorf(t, badProof.Verify(root),
+			assert.Errorf(t, rangeProofVerify(badProof, root),
 				"Proof was still valid after a random mutation:\n%X\n%X",
 				proofBytes, badProofBytes)
 		}
@@ -238,6 +239,16 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 }
 
 // ----------------------------------------
+
+func rangeProofVerify(rangeProof *RangeProof, root []byte) (namedError error) {
+	defer func() {
+		if e := recover(); e != nil {
+			namedError = errors.New(e.(string))
+		}
+	}()
+	namedError = rangeProof.Verify(root)
+	return
+}
 
 func flatten(bzz [][]byte) (res []byte) {
 	for _, bz := range bzz {

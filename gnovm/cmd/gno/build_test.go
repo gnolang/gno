@@ -1,17 +1,11 @@
 package main
 
-import "testing"
+import (
+	"testing"
 
-func TestBuildApp(t *testing.T) {
-	tc := []testMainCase{
-		{
-			args:        []string{"build"},
-			errShouldBe: "flag: help requested",
-		},
+	"github.com/rogpeppe/go-internal/testscript"
+)
 
-		// {args: []string{"build", "..."}, stdoutShouldContain: "..."},
-		// TODO: auto precompilation
-		// TODO: error handling
-	}
-	testMainCaseRun(t, tc)
+func TestBuild(t *testing.T) {
+	testscript.Run(t, setupTestScript(t, "testdata/gno_build"))
 }
