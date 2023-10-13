@@ -1,6 +1,6 @@
 package greet
 
-func Greet(name string, country string, age int, isSomething bool) string {
+func Greet(name string, country string, age int8, isSomething bool) string {
 
 	//chainID := std.GetChainID()
 	//call := std.EncodeMsgCall(chainID, "gno.land/r/demo/x/calls/await/hola", "Hola", []string{"hola"})

@@ -453,16 +453,11 @@ func (vm *VMKeeper) InnerCall(ctx sdk.Context, msg vmh.MsgCall) (res string, err
 	var schema string
 
 	println("calling func: ", msg.Func)
-	for i, arg := range msg.Args {
+	for i, _ := range msg.Args {
 		argType := ft.Params[i].Type
 		schema = schema + fmt.Sprintf("p_%s: %s \n", strconv.Itoa(i), argType.String())
 		println("-----schema is:-------------")
 		println(schema)
-
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i] = &gno.ConstExpr{
-			TypedValue: atv,
-		}
 	}
 	// generate input val
 	input := generateInputVal(msg.Args)
@@ -477,6 +472,14 @@ func (vm *VMKeeper) InnerCall(ctx sdk.Context, msg vmh.MsgCall) (res string, err
 
 	//   try out different validation schemes
 	printErr("loose error", loose(v))
+
+	for i, arg := range msg.Args {
+		argType := ft.Params[i].Type
+		atv := convertArgToGno(arg, argType)
+		cx.Args[i] = &gno.ConstExpr{
+			TypedValue: atv,
+		}
+	}
 
 	// Make context.
 	// NOTE: if this is too expensive,
