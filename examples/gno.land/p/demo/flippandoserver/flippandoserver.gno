@@ -10,13 +10,11 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-type Game struct {
-	GameId    string `json:"id"`
+type GameBoard struct {
 	Board     []int  `json:"board"`
 	TileType  string `json:"tileType"`
 	GameTiles []int  `json:"gameTiles"`
 	BoardSize int    `json:"boardSize"`
-	Status    string `json:"status"`
 }
 
 type positions struct {
@@ -34,7 +32,7 @@ type inTransit struct {
 // tokenId - int, inTransit, bool
 
 // creates game object and initializes board
-func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
+func CreateGameBoard(tileType string, boardSize int) (string) {
 	// Initialize the board and gameTiles slices based on boardSize
 	board := make([]int, boardSize)
 
@@ -43,17 +41,15 @@ func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
 	gameTiles := make([]int, gameTilesLength)
 
 	// Create a new game instance
-	newGame := &Game{
-		GameId:    gameId,
-		//Board:     board,
-		//TileType:  tileType,
-		//GameTiles: gameTiles,
-		//BoardSize: boardSize,
-		Status:    "initiated",
+	newGameBoard := &GameBoard{
+		Board:     board,
+		TileType:  tileType,
+		GameTiles: gameTiles,
+		BoardSize: boardSize,
 	}
 
 	// Convert game to JSON
-	gameJSON, err := newGame.MarshalJSON()
+	gameJSON, err := newGameBoard.MarshalJSON()
 	if err != nil {
 		return "error";
 	}
@@ -61,42 +57,28 @@ func CreateGameBoard(gameId string, tileType string, boardSize int) (string) {
 	return string(gameJSON)
 }
 
-//func (g Game) MarshalJSON() ([]byte, error) {
-func (g Game) MarshalJSON() (_ []byte, err error) {
+func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
 	
-	b.WriteString(`"GameId":"`)
-	b.WriteString(g.GameId)
-	b.WriteString(`",`)
-
-	//b.WriteString(`"TileType":"`)
-	//b.WriteString(g.TileType)
-	//b.WriteString(`",`)
-
-	b.WriteString(`"Status":"`)
-	b.WriteString(g.Status)
+	b.WriteString(`"TileType":"`)
+	b.WriteString(gb.TileType)
 	b.WriteString(`",`)
 
 	
-	//b.WriteString(`"BoardSize":`)
-	//b.WriteString(strconv.Itoa(g.BoardSize)) // converting int to string
-	//b.WriteString(`,`)
+	b.WriteString(`"BoardSize":`)
+	b.WriteString(strconv.Itoa(gb.BoardSize)) // converting int to string
+	b.WriteString(`,`)
 	
 	
-	//b.WriteString(`"Board":[`)
-	//b.WriteString(writeIntSlice(g.Board))
-	//b.WriteString(`],`)
+	b.WriteString(`"Board":[`)
+	b.WriteString(writeIntSlice(gb.Board))
+	b.WriteString(`],`)
 	
-	//b.WriteString(`"GameTiles":[`)
-	//b.WriteString(writeIntSlice(g.GameTiles))
-	//b.WriteString(`]`)
-	
-
-	//b.WriteString(`"Board":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],`)
-	
-	//b.WriteString(`"GameTiles":[2,5,8,6]`)
+	b.WriteString(`"GameTiles":[`)
+	b.WriteString(writeIntSlice(gb.GameTiles))
+	b.WriteString(`]`)
 	
 	b.WriteByte('}')
 

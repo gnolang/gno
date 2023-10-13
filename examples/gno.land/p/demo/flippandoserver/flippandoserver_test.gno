@@ -6,22 +6,21 @@ import (
 	"testing"
 	"time"
 	"encoding/json"
-	"fmt"
+	"errors"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
 )
 
 func TestCreateGameBoard(t *testing.T) {
-    gameId := "testGameId"
     tileType := "testTileType"
     boardSize := 16  // Assuming a 4x4 board
 
     //expectedGameTilesLength := int(math.Sqrt(float64(boardSize)))
 	expectedGameTilesLength := int(sqrt(float64(boardSize)))
 
-    gameBoardStr := CreateGameBoard(gameId, tileType, boardSize)
-	fmt.Sprint(gameBoardStr)
+    gameBoardStr := CreateGameBoard(tileType, boardSize)
+	ufmt.Sprintf(`game board: %s`, gameBoardStr)
 	//ufmt.Sprintf("Generated JSON: %s\n", gameBoardStr)
 	/*
 	var game Game
@@ -30,6 +29,57 @@ func TestCreateGameBoard(t *testing.T) {
     if game.GameId != gameId || game.TileType != tileType || game.BoardSize != boardSize {
         t.Error("Game object fields do not match expected values")
     }*/
+}
+
+func TestUintToString(t *testing.T) {
+	tests := []struct {
+		input uint
+		want  string
+	}{
+		{0, "0"},
+		{25, "25"},
+		{100, "100"},
+	}
+
+	for _, test := range tests {
+		got := uintToString(test.input)
+		if got != test.want {
+			t.Errorf("uintToString(%v) = %v; want %v", test.input, got, test.want)
+		}
+	}
+}
+
+func TestGetColorFromKey(t *testing.T) {
+	tests := []struct {
+		input uint8
+		want  string
+		err   error
+	}{
+		{1, "#D9362A", nil},
+		{2, "#BE185D", nil},
+	}
+
+	for _, test := range tests {
+		got, err := getColorFromKey(test.input)
+		if got != test.want || err != test.err {
+			t.Errorf("getColorFromKey(%v) = %v, %v; want %v, %v", test.input, got, err, test.want, test.err)
+		}
+	}
+}
+
+func TestGenerateColorSquareGrid(t *testing.T) {
+	solvedBoard := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	size := uint(4)
+	expectedOutput, _ := generateColorSquareGrid(solvedBoard, size)
+
+	output, err := generateColorSquareGrid(solvedBoard, size)
+	if err != nil {
+		t.Errorf("generateColorSquareGrid() error = %v", err)
+		return
+	}
+	if output != expectedOutput {
+		t.Errorf("generateColorSquareGrid() = %v; want %v", output, expectedOutput)
+	}
 }
 
 /*
