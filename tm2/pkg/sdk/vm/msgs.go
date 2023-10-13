@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -161,6 +162,8 @@ func DecodeMsg(msg string) (call GnoMsg, err error) {
 
 	as := strings.Split(cs[3], "&")
 	call.Args = as
+
+	fmt.Printf("gno msg is:  %+#v \n", call)
 
 	// TODO: return parse error
 	return call, nil

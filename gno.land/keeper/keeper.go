@@ -1,8 +1,12 @@
 package vmk
 
 import (
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	cueErrors "cuelang.org/go/cue/errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -195,7 +199,7 @@ func (vmk *VMKeeper) HandleMsg(msg vmh.GnoMsg) {
 		println("in VM call")
 		println("msgCall: ", msgCall.Caller.String(), msgCall.PkgPath, msgCall.Func, msgCall.Args[0])
 
-		r, err := vmk.Call(vmk.ctx, msgCall)
+		r, err := vmk.InnerCall(vmk.ctx, msgCall)
 		println("call finished, res: ", r)
 		// have an return
 		if err == nil {
@@ -273,6 +277,33 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg vmh.MsgAddPackage) error {
 	return nil
 }
 
+func generateInputVal(args []string) string {
+	var r string
+	for i, v := range args {
+		r += fmt.Sprintf("p_%d: %s \n", i, v)
+	}
+	return r
+}
+
+func printErr(prefix string, err error) {
+	if err != nil {
+		msg := cueErrors.Details(err, nil)
+		fmt.Printf("%s:\n%s\n", prefix, msg)
+		panic(err.Error())
+	}
+}
+
+func loose(v cue.Value) error {
+	return v.Validate(
+		// not final or concrete
+		cue.Concrete(false),
+		// check minimally
+		cue.Definitions(false),
+		cue.Hidden(false),
+		cue.Optional(false),
+	)
+}
+
 // Calls calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
 	// println("vmk call, msg.Caller: ", msg.Caller.String())
@@ -317,13 +348,136 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg vmh.MsgCall) (res string, err erro
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
+
 	for i, arg := range msg.Args {
 		argType := ft.Params[i].Type
+
 		atv := convertArgToGno(arg, argType)
 		cx.Args[i] = &gno.ConstExpr{
 			TypedValue: atv,
 		}
 	}
+
+	// Make context.
+	// NOTE: if this is too expensive,
+	// could it be safely partially memoized?
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		Msg:           msg,
+		OrigCaller:    caller.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
+	}
+	// Construct machine and evaluate.
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: 10 * 1000 * 1000, // 10M cycles // XXX
+		})
+	m.SetActivePackage(mpv)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+		m.Release()
+		vm.PopCall()
+	}()
+	rtvs := m.Eval(xn)
+	fmt.Println("CPUCYCLES call", m.Cycles)
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
+	return res, nil
+	// TODO pay for gas? TODO see context?
+}
+
+// Calls calls a public Gno function (for delivertx).
+func (vm *VMKeeper) InnerCall(ctx sdk.Context, msg vmh.MsgCall) (res string, err error) {
+	// println("vmk call, msg.Caller: ", msg.Caller.String())
+	vm.ctx = ctx
+	vm.PushCall(&msg)
+
+	pkgPath := msg.PkgPath // to import
+	fnc := msg.Func
+	store := vm.getGnoStore(ctx)
+	// Get the package and function type.
+	pv := store.GetPackage(pkgPath, false)
+	pl := gno.PackageNodeLocation(pkgPath)
+	pn := store.GetBlockNode(pl).(*gno.PackageNode)
+	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
+	// Make main Package with imports.
+	mpn := gno.NewPackageNode("main", "main", nil)
+	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
+	mpv := mpn.NewPackage()
+	// Parse expression.
+	argslist := ""
+	for i := range msg.Args {
+		if i > 0 {
+			argslist += ","
+		}
+		argslist += fmt.Sprintf("arg%d", i)
+	}
+	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
+	xn := gno.MustParseExpr(expr)
+	// Send send-coins to pkg from caller.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	// caller := msg.Caller
+	// EOA caller, spend gas, send coins
+	caller := vm.GetOrigCaller()
+	// println("caller: ", caller.String())
+	send := msg.Send
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	if err != nil {
+		return "", err
+	}
+	// Convert Args to gno values.
+	cx := xn.(*gno.CallExpr)
+	if cx.Varg {
+		panic("variadic calls not yet supported")
+	}
+
+	//schema
+	var schema string
+
+	println("calling func: ", msg.Func)
+	for i, arg := range msg.Args {
+		argType := ft.Params[i].Type
+		schema = schema + fmt.Sprintf("p_%s: %s \n", strconv.Itoa(i), argType.String())
+		println("-----schema is:-------------")
+		println(schema)
+
+		atv := convertArgToGno(arg, argType)
+		cx.Args[i] = &gno.ConstExpr{
+			TypedValue: atv,
+		}
+	}
+	// generate input val
+	input := generateInputVal(msg.Args)
+
+	val := schema + input
+
+	println("val---------------------")
+	println(val)
+
+	c := cuecontext.New()
+	v := c.CompileString(val)
+
+	//   try out different validation schemes
+	printErr("loose error", loose(v))
+
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?

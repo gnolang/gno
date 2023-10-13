@@ -5,7 +5,7 @@ import "std"
 func Hello() string {
 
 	chainID := std.GetChainID()
-	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/x/calls/await/greet", "Greet", []string{"hey"})
+	call := std.EncodeMsgCall(chainID, "gno.land/r/demo/x/calls/await/greet", "Greet", []string{"\"first\"", "\"hey\"", "0", "false"})
 
 	r, err := std.Await(call)
 	println("done ")
