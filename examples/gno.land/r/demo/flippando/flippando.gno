@@ -5,6 +5,7 @@ import (
 	"errors"
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
@@ -21,7 +22,12 @@ type GameBoard struct {
 type Game struct {
 	ID 			string `json:"id"`
 	GameStatus 	string	`json:"gameStatus"`
-	GameBoard 	string	`json:"gameBoard"`
+	GameBoard 	[]int	`json:"gameBoard"`
+}
+
+type BasicNFT struct {
+	gameId	string`json:"gameId"`
+	svgData	string `json:"svgData"`
 }
 
 type inTransit struct {
@@ -39,6 +45,24 @@ var (
 	user2Games avl.Tree // std.Address -> []*Game
 )
 
+// test functions
+func TileTest(solvedBoard string, size int) string {
+	solveBoardArray, err := ParseString(solvedBoard);
+	if (err != nil){
+		panic("error in parsing args")
+	}
+
+	testSVGData := flippandoserver.TestTiles(solveBoardArray, size);
+	testBasicNFT := &BasicNFT{
+		gameId: "testGameId",
+		svgData: testSVGData,
+	}
+	testBasicNFTJSON, err := testBasicNFT.MarshalJSON()
+	if err != nil {
+		panic("error in marhasling testBasicNFT");
+	}
+	return testBasicNFTJSON
+}
 
 // creates game object and initializes board
 func StartGame(player std.Address, tileType string, boardSize int) string {
@@ -46,12 +70,13 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	games := getUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
-	newBoardGameJSON := flippandoserver.CreateGameBoard(tileType, boardSize)
+	board, tileType, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
+	
 	// id is zero-padded to work well with avl's alphabetic order.
 	id := zeroPad9(strconv.FormatUint(gameIDCounter, 10))
 	g := &Game{
 		ID:        id,
-		GameBoard: newBoardGameJSON,
+		GameBoard: board,
 		GameStatus: "initialized",
 	}
 
@@ -66,33 +91,21 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	return string(newGameJSON)
 }
 
-func (g Game) MarshalJSON() (_ []byte, err error) {
-	var b bytes.Buffer
+func FlipTiles(player std.Address, gameID string, positions string) (string) {
+	// get the current game of the player
+	games := getUserGames(player)
+	currentGame := games[0]
+	currentGamePositions, err := ParseString(positions)
+	currentGameBoard = currentGame.Board;
+	// call real FlipTiles on flippandoserver, which does the game mechanics
+	// and returns an []int board
+	//currentGame.Board := flippandoserver.FlipTiles(currentGameBoard, currentGamePositions)
 
-	b.WriteByte('{')
-	
-	b.WriteString(`"id":"`)
-	b.WriteString(g.ID)
-	b.WriteString(`",`)
-
-	b.WriteString(`"gameBoard":`)
-	b.WriteString(g.GameBoard) 
-	b.WriteString(`,`)
-	
-	b.WriteString(`"gameStatus":"`)
-	b.WriteString(g.GameStatus)
-	b.WriteString(`"`)
-	
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-}
-
-
-func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) {
-	//   - returns the tiles at the positions[] in the board array
-	//   - updates the game[gameId].board with the indices at positions
-	flippandoserver.FlipTiles(gameId, board, solvedBoard, gameTiles, positions)
+	currentGameJSON, err := currentGame.MarshalJSON()
+	if err != nil {
+		return "error";
+	}
+	return string(currentGameJSON)
 }
 
 func addToUser2Games(addr std.Address, game *Game) {
@@ -115,6 +128,8 @@ func getUserGames(user std.Address) []*Game {
 	return val.([]*Game)
 }
 
+const zeroes = "000000000"
+
 func zeroPad9(s string) string {
 	n := 9 - len(s)
 	if n < 0 {
@@ -122,7 +137,103 @@ func zeroPad9(s string) string {
 	}
 	return zeroes[:n] + s
 }
-const zeroes = "000000000"
+
+func (g Game) MarshalJSON() (_ []byte, err error) {
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"id":"`)
+	b.WriteString(g.ID)
+	b.WriteString(`",`)
+
+	b.WriteString(`"gameBoard":[`)
+	b.WriteString(writeIntSlice(g.GameBoard))
+	b.WriteString(`],`)
+	
+	b.WriteString(`"gameStatus":"`)
+	b.WriteString(g.GameStatus)
+	b.WriteString(`"`)
+	
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"TileType":"`)
+	b.WriteString(gb.TileType)
+	b.WriteString(`",`)
+
+	
+	b.WriteString(`"BoardSize":`)
+	b.WriteString(strconv.Itoa(gb.BoardSize)) // converting int to string
+	b.WriteString(`,`)
+	
+	
+	b.WriteString(`"Board":[`)
+	b.WriteString(writeIntSlice(gb.Board))
+	b.WriteString(`],`)
+	
+	b.WriteString(`"GameTiles":[`)
+	b.WriteString(writeIntSlice(gb.GameTiles))
+	b.WriteString(`]`)
+	
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func (bn BasicNFT) MarshalJSON() (_ []byte, err error) {
+	
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"gameId":"`)
+	b.WriteString(bn.gameId)
+	b.WriteString(`",`)
+
+	
+	b.WriteString(`"svgData":`)
+	b.WriteString(bn.svgData) 
+	b.WriteString(`,`)
+	
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+	
+}
+
+func writeIntSlice(slice []int) string {
+    var b strings.Builder
+    for i, v := range slice {
+        if i > 0 {
+            b.WriteString(",")
+        }
+        b.WriteString(strconv.Itoa(v)) // converting int to string
+    }
+    return b.String()
+}
+
+
+func ParseString(s string) ([]int, error) {
+	s = strings.Trim(s, "[]")
+	parts := strings.Split(s, ",")
+	ints := make([]int, len(parts))
+	for i, part := range parts {
+		val, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			return nil, err
+		}
+		ints[i] = val
+	}
+	return ints, nil
+}
 
 func createNFT(gameId string) {
 	// private function, called when the game ends

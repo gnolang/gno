@@ -13,14 +13,14 @@ import (
 )
 
 
-func GenerateColorSquareGrid(solvedBoard []uint8, size uint) (string, error) {
+func GenerateColorSquareGrid(solvedBoard []int, size int) (string, error) {
 	svgSquare := "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">"
-	for i := uint(0); i < size; i++ {
-		for j := uint(0); j < size; j++ {
+	for i := int(0); i < size; i++ {
+		for j := int(0); j < size; j++ {
 			index := i*size + j
 			key := solvedBoard[index]
 			color, _ := getColorFromKey(key)
-			rect := ufmt.Sprintf(`<rect width="25" height="25" fill="%s" x="%s" y="%s" />`, color, uintToString(j*25), uintToString(i*25))
+			rect := ufmt.Sprintf(`<rect width="25" height="25" fill="%s" x="%s" y="%s" />`, color, intToString(j*25), intToString(i*25))
 			svgSquare += rect
 		}
 	}
@@ -30,11 +30,12 @@ func GenerateColorSquareGrid(solvedBoard []uint8, size uint) (string, error) {
 }
 
 // util
-func uintToString(value uint) string {
-	return strconv.FormatUint(uint64(value), 10)
+func intToString(value int) string {
+	formatted := strconv.FormatUint(uint64(value), 10)
+	return formatted;
 }
 
-func getColorFromKey(key uint8) (string, error) {
+func getColorFromKey(key int) (string, error) {
     switch key {
     case 1:
         return "#D9362A", nil

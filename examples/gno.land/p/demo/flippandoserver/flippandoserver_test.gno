@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 	"encoding/json"
+	"strconv"
 	"errors"
 
 	"gno.land/p/demo/testutils"
@@ -19,8 +20,8 @@ func TestCreateGameBoard(t *testing.T) {
     //expectedGameTilesLength := int(math.Sqrt(float64(boardSize)))
 	expectedGameTilesLength := int(sqrt(float64(boardSize)))
 
-    gameBoardStr := CreateGameBoard(tileType, boardSize)
-	ufmt.Sprintf(`game board: %s`, gameBoardStr)
+    board, tileType, gameTiles, boardSize := CreateGameBoard(tileType, boardSize)
+	ufmt.Sprintf(`game board: %s`, tileType)
 	//ufmt.Sprintf("Generated JSON: %s\n", gameBoardStr)
 	/*
 	var game Game
@@ -31,9 +32,9 @@ func TestCreateGameBoard(t *testing.T) {
     }*/
 }
 
-func TestUintToString(t *testing.T) {
+func TestintToString(t *testing.T) {
 	tests := []struct {
-		input uint
+		input int
 		want  string
 	}{
 		{0, "0"},
@@ -42,16 +43,16 @@ func TestUintToString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := uintToString(test.input)
+		got := intToString(test.input)
 		if got != test.want {
-			t.Errorf("uintToString(%v) = %v; want %v", test.input, got, test.want)
+			t.Errorf("intToString(%v) = %v; want %v", test.input, got, test.want)
 		}
 	}
 }
 
 func TestGetColorFromKey(t *testing.T) {
 	tests := []struct {
-		input uint8
+		input int
 		want  string
 		err   error
 	}{
@@ -68,21 +69,41 @@ func TestGetColorFromKey(t *testing.T) {
 }
 
 func TestGenerateColorSquareGrid(t *testing.T) {
-	solvedBoard := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	size := uint(4)
-	expectedOutput, _ := generateColorSquareGrid(solvedBoard, size)
+	solvedBoard := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	size := int(4)
+	expectedOutput, _ := GenerateColorSquareGrid(solvedBoard, size)
 
-	output, err := generateColorSquareGrid(solvedBoard, size)
+	output, err := GenerateColorSquareGrid(solvedBoard, size)
 	if err != nil {
-		t.Errorf("generateColorSquareGrid() error = %v", err)
+		t.Errorf("GenerateColorSquareGrid() error = %v", err)
 		return
 	}
 	if output != expectedOutput {
-		t.Errorf("generateColorSquareGrid() = %v; want %v", output, expectedOutput)
+		t.Errorf("GenerateColorSquareGrid() = %v; want %v", output, expectedOutput)
 	}
 }
 
 /*
+func TestParseString(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []int
+		err      error
+	}{
+		{"[2,3,5,3,3,5,6,7,2,4,8,6,5,4,7]", []int{2, 3, 5, 3, 3, 5, 6, 7, 2, 4, 8, 6, 5, 4, 7}, nil},
+		{"[1,2,3]", []int{1, 2, 3}, nil},
+		{"[a,b,c]", nil, nil},
+	}
+
+	for _, test := range tests {
+		output, err := ParseString(test.input)
+		if !reflect.DeepEqual(output, test.expected) || !reflect.DeepEqual(err, test.err) {
+			t.Errorf("For input '%s', expected %v, got %v with error %v", test.input, test.expected, output, err)
+		}
+	}
+}
+
+
 func TestGenerateRandomNumbers(t *testing.T) {
 	tests := []struct {
 		num, start, end int
