@@ -79,15 +79,17 @@ type DelegationDB struct{ tree avl.Tree } // owner(std.Address) -> delegates(avl
 // It maps delegate addresses to their respective permissions.
 type delegates struct{ tree avl.Tree } // delegate(std.Address) -> perms([]Perm)
 
-func (d *DelegationDB) Approve(addr std.Address, newPerms []string) {
+func (d *DelegationDB) Approve(delegateAddr std.Address, newPerms ...string) {
 	std.AssertOriginCall()
 	owner := std.GetOrigCaller()
 	delegations, _ := d.delegationsByOwner(owner)
-	perms, _ := delegations.permsByAddr(addr)
+	perms, _ := delegations.permsByAddr(delegateAddr)
 	for _, newPerm := range newPerms {
 		// TODO: check for duplicate perms
 		perms = append(perms, newPerm)
 	}
+	delegations.tree.Set(string(delegateAddr), perms)
+	d.tree.Set(string(owner), delegations)
 }
 
 func (d DelegationDB) delegationsByOwner(owner std.Address) (delegates, bool) {
@@ -122,11 +124,11 @@ func (d DelegationDB) NewPrevDelegatedAuth(owner std.Address) Auth {
 func (d DelegationDB) newDelegatedAuth(caller, owner std.Address) Auth {
 	delegations, found := d.delegationsByOwner(owner)
 	if !found {
-		panic("unauthorized")
+		return nil
 	}
 	perms, found := delegations.permsByAddr(caller)
 	if !found {
-		panic("unauthorized")
+		return nil
 	}
 
 	return &delegatedAuth{
@@ -134,4 +136,11 @@ func (d DelegationDB) newDelegatedAuth(caller, owner std.Address) Auth {
 		caller: caller,
 		perms:  perms,
 	}
+}
+
+func Must(auth Auth) Auth {
+	if auth == nil {
+		panic("unauthorized")
+	}
+	return auth
 }
