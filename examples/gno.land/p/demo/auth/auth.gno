@@ -62,7 +62,7 @@ func (a delegatedAuth) String() string {
 
 func (a delegatedAuth) HasPerm(perm string) bool {
 	for _, p := range a.perms {
-		if p == PermAll || p == perm {
+		if p == string(PermAll) || p == perm {
 			return true
 		}
 	}
