@@ -227,11 +227,29 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	case *ArrayType:
 		return tv.V.(*ArrayValue).String()
 	case *SliceType:
-		return tv.V.(*SliceValue).String()
+		switch sv := tv.V.(type) {
+		case nil:
+			return tv.String()
+		case *SliceValue:
+			return sv.String()
+		default:
+			panic(fmt.Sprintf(
+				"unexpected slice type %v",
+				reflect.TypeOf(tv.V)))
+		}
 	case *StructType:
 		return tv.V.(*StructValue).String()
 	case *MapType:
-		return tv.V.(*MapValue).String()
+		switch mv := tv.V.(type) {
+		case nil:
+			return tv.String()
+		case *MapValue:
+			return mv.String()
+		default:
+			panic(fmt.Sprintf(
+				"unexpected slice type %v",
+				reflect.TypeOf(tv.V)))
+		}
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
