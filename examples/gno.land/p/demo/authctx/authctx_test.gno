@@ -34,44 +34,146 @@ func TestNewPrevAuthContext(t *testing.T) {
 }
 
 func TestPackage(t *testing.T) {
-	// table test
-	// - NewOrig
-	// - NewPrev
-	// - NewScoped
-	// - owner is a contract
-	// - non-address (ID, not Addr)
+	var (
+		test1 = testutils.TestAddress("test1")
+		test2 = testutils.TestAddress("test2")
+	)
 
-	/*	test1 := testutils.TestAddress("test1")
-		test2 := testutils.TestAddress("test2")
-		test3 := testutils.TestAddress("test3")
-		test4 := testutils.TestAddress("test4")
-
-		var db authctx.DelegationDB
-
-		std.TestSetOrigCaller(test1)
-		var customAuthFn authctx.AuthFunc = func(action string) bool { return action == "fooperm" }
-		db.Approve(test2, customAuthFn)
-		db.Approve(test2, authctx.AuthorizeAll())
-		db.Approve(test3, authctx.AuthorizeNone())
-		db.Approve(test4, authctx.AuthorizeActions("fooperm", "barperm"))
-
+	tt := []struct {
+		name          string
+		init          func() AuthContext
+		expNilAddr    bool
+		expAddr       std.Address
+		expAuthorized bool
+	}{
 		{
-			std.TestSetOrigCaller(test2)
-			delegation := db.NewOrigDelegatedAuthContext(test1)
-			println("test2", delegation, delegation.IsAuthorized("bazperm"))
-		}
-
+			name: "nil",
+			init: func() AuthContext {
+				var ctx AuthContext = nil
+				return ctx
+			},
+			expNilAddr: true,
+		},
 		{
-			std.TestSetOrigCaller(test3)
-			delegation := db.NewOrigDelegatedAuthContext(test1)
-			println("test3", delegation, delegation.IsAuthorized("bazperm"))
-		}
+			name: "orig",
+			init: func() AuthContext {
+				std.TestSetOrigCaller(test1)
+				return NewOrigAuthContext()
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
+		{
+			name: "orig-scoped-authorized",
+			init: func() AuthContext {
+				std.TestSetOrigCaller(test1)
+				ctx := NewOrigAuthContext()
+				scoped := NewScopedAuthContext(ctx, func(action string) bool { return true })
+				return scoped
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
+		{
+			name: "orig-scoped-unauthorized",
+			init: func() AuthContext {
+				std.TestSetOrigCaller(test1)
+				ctx := NewOrigAuthContext()
+				scoped := NewScopedAuthContext(ctx, func(action string) bool { return false })
+				return scoped
+			},
+			expAddr:       test1,
+			expAuthorized: false,
+		},
+		{
+			name: "delegated-orig-authorized",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test1)
+				db.Approve(test2, AuthorizeAll())
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
+		{
+			name: "delegated-orig-authorized",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test1)
+				db.Approve(test2, AuthorizeAll())
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
+		{
+			name: "delegated-orig-unauthorized",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test1)
+				db.Approve(test2, AuthorizeNone())
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expAddr:       test1,
+			expAuthorized: false,
+		},
+		{
+			name: "delegated-orig-conditional-authorized",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test1)
+				db.Approve(test2, AuthorizeActions("foo", "bar", "foobar"))
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
+		{
+			name: "delegated-orig-custom-authfn",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test1)
+				var customAuthFn AuthFunc = func(action string) bool { return action == "foobar" }
+				db.Approve(test2, customAuthFn)
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expAddr:       test1,
+			expAuthorized: true,
+		},
 
-		// TODO: test db.NewPrevDelegatedAuthContext
-	*/
+		// TODO: {name: "prev"} // depends on TestSetPrevRealm
+		// TODO: {name: "owner-is-a-realm"},
+		// TODO: {name: "non-address-owner"},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := tc.init()
+			if tc.expAddr == nil && ctx != nil {
+				t.Errorf("expected AuthContext to be nil, but is %q", ctx)
+			}
+			if ctx == nil {
+				return
+			}
+			if tc.expAddr != ctx.Addr() {
+				t.Errorf("invalid addr, expected %q, got %q", tc.expAddr, ctx.Addr())
+			}
+			isAuthorized := ctx.IsAuthorized("foobar")
+			if isAuthorized && !tc.expAuthorized {
+				t.Errorf("expected unauthorized but was authorized")
+			}
+			if !isAuthorized && tc.expAuthorized {
+				t.Errorf("expected authorized but was unauthorized")
+			}
+		})
+	}
 }
-
-// TODO: TestDelegations
 
 func assertSameStrings(t *testing.T, expected, got string) {
 	t.Helper()
