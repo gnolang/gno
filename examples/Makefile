@@ -39,6 +39,5 @@ fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
 
 .PHONY: tidy
-GNO_CMD = $(realpath ../gnovm/cmd/gno)
 tidy:
-	find . -name "gno.mod" -execdir go run $(GNO_CMD) mod tidy \;
+	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;
