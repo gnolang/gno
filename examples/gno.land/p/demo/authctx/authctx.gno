@@ -102,8 +102,10 @@ type DelegationDB struct{ tree avl.Tree } // owner(std.Address) -> delegates(avl
 
 // delegates is a type that represents a group of delegates.
 // It maps delegate addresses to their respective isAuthorizedFn.
-type delegates struct{ tree avl.Tree } // delegate(std.Address) -> AuthFunc
-type delegate struct{ authFn AuthFunc }
+type (
+	delegates struct{ tree avl.Tree } // delegate(std.Address) -> AuthFunc
+	delegate  struct{ authFn AuthFunc }
+)
 
 func (d *DelegationDB) Approve(delegateAddr std.Address, authFn AuthFunc) {
 	// std.AssertOriginCall() // TODO: re-enable when compatible with `go test`
