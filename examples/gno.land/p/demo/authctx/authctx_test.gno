@@ -146,6 +146,15 @@ func TestPackage(t *testing.T) {
 			expAddr:       test1,
 			expAuthorized: true,
 		},
+		{
+			name: "delegated-non-preapproved",
+			init: func() AuthContext {
+				var db DelegationDB
+				std.TestSetOrigCaller(test2)
+				return db.NewOrigDelegatedAuthContext(test1)
+			},
+			expNilAddr: true,
+		},
 
 		// TODO: {name: "prev"} // depends on TestSetPrevRealm
 		// TODO: {name: "owner-is-a-realm"},
