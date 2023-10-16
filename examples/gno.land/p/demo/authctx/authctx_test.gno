@@ -1,4 +1,4 @@
-package auth
+package authctx
 
 import (
 	"std"
@@ -7,13 +7,12 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func TestNewOrigAuth(t *testing.T) {
+func TestNewOrigAuthContext(t *testing.T) {
 	var test1 std.Address = testutils.TestAddress("test1")
 	std.TestSetOrigCaller(test1)
 
-	auth := NewOrigAuth()
+	auth := NewOrigAuthContext()
 
-	assertSameStrings(t, "orig", auth.Kind())
 	assertSameAddresses(t, test1, auth.Addr())
 	assertSameStrings(t, "orig:"+string(test1), auth.String())
 	if !auth.HasPerm("foo") {
@@ -21,13 +20,12 @@ func TestNewOrigAuth(t *testing.T) {
 	}
 }
 
-func TestNewPrevAuth(t *testing.T) {
+func TestNewPrevAuthContext(t *testing.T) {
 	var test1 std.Address = testutils.TestAddress("test1")
 	std.TestSetOrigCaller(test1)
 
-	auth := NewPrevAuth()
+	auth := NewPrevAuthContext()
 
-	assertSameStrings(t, "prev", auth.Kind())
 	assertSameAddresses(t, test1, auth.Addr())
 	assertSameStrings(t, "prev:"+string(test1), auth.String())
 	if !auth.HasPerm("foo") {
