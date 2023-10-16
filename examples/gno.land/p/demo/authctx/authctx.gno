@@ -1,6 +1,6 @@
-// Package authctx provides a unified way of representing authentication context.
-// It supports various workflows and allows the calling package to configure AuthContext as needed.
-// For instance, some realms might disable OrigCaller or only keep DelegatedAuthContext.
+// Package authctx offers a versatile framework for handling authentication contexts.
+// It empowers the management of authentication contexts for users, realms, delegated calls,
+// and potentially extends its capabilities to non-address entities and more.
 package authctx
 
 import (
