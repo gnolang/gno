@@ -1,12 +1,11 @@
-package integration
+package gnoland
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	bftconfig "github.com/gnolang/gno/tm2/pkg/bft/config"
+	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -17,20 +16,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type TestingNodeConfig struct {
-	BFTConfig             *bftconfig.Config
+type InMemoryNodeConfig struct {
+	TMConfig              *tmcfg.Config
 	ConsensusParams       abci.ConsensusParams
 	GenesisValidator      []bft.GenesisValidator
-	Packages              []gnoland.PackagePath
-	Balances              []gnoland.Balance
+	Packages              []PackagePath
+	Balances              []Balance
 	GenesisTXs            []std.Tx
 	SkipFailingGenesisTxs bool
 	GenesisMaxVMCycles    int64
 }
 
-func NewTestingNodeConfig() *TestingNodeConfig {
-	return &TestingNodeConfig{
-		BFTConfig: bftconfig.TestConfig(),
+func NewInMemoryNodeConfig(tmcfg *tmcfg.Config) *InMemoryNodeConfig {
+	return &InMemoryNodeConfig{
+		TMConfig: tmcfg,
 		ConsensusParams: abci.ConsensusParams{
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
@@ -43,11 +42,16 @@ func NewTestingNodeConfig() *TestingNodeConfig {
 	}
 }
 
-func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, error) {
-	if cfg.BFTConfig == nil {
-		return nil, fmt.Errorf("no BFTConfig given")
+// NewInMemoryNode create an inMemeory gnoland node. In this mode, the node will
+// not persist any data using an InMemory Database. For now the only indirect
+// requirement is that `InMemoryNodeConfig.TMConfig.RootDir` is pointing to
+// correct gno repository so that the node can load stdlibs
+func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
+	if cfg.TMConfig == nil {
+		return nil, fmt.Errorf("no TMConfig given")
 	}
 
+	// Create Identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 	pv := bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
 
@@ -56,7 +60,7 @@ func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, erro
 	{
 		gen.GenesisTime = time.Now()
 
-		gen.ChainID = cfg.BFTConfig.ChainID()
+		gen.ChainID = cfg.TMConfig.ChainID()
 
 		gen.ConsensusParams = cfg.ConsensusParams
 
@@ -76,7 +80,7 @@ func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, erro
 		}
 	}
 
-	// XXX: maybe let the user do this manually and pass it to genesisTXs
+	// XXX: Maybe let the user do this manually and pass it to genesisTXs
 	txs, err := LoadPackages(cfg.Packages)
 	if err != nil {
 		return nil, fmt.Errorf("uanble to load genesis packages: %w", err)
@@ -84,14 +88,14 @@ func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, erro
 
 	txs = append(txs, cfg.GenesisTXs...)
 
-	gen.AppState = gnoland.GnoGenesisState{
+	gen.AppState = GnoGenesisState{
 		Balances: cfg.Balances,
 		Txs:      txs,
 	}
 
-	gnoApp, err := gnoland.NewAppWithOptions(&gnoland.AppOptions{
+	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:                logger,
-		GnoRootDir:            cfg.BFTConfig.RootDir,
+		GnoRootDir:            cfg.TMConfig.RootDir,
 		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
 		MaxCycles:             cfg.GenesisMaxVMCycles,
 		DB:                    db.NewMemDB(),
@@ -100,22 +104,22 @@ func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, erro
 		return nil, fmt.Errorf("error in creating new app: %w", err)
 	}
 
-	cfg.BFTConfig.LocalApp = gnoApp
+	cfg.TMConfig.LocalApp = gnoApp
 
-	// Get app client creator.
+	// Get app client creator
 	appClientCreator := proxy.DefaultClientCreator(
-		cfg.BFTConfig.LocalApp,
-		cfg.BFTConfig.ProxyApp,
-		cfg.BFTConfig.ABCI,
-		cfg.BFTConfig.DBDir(),
+		cfg.TMConfig.LocalApp,
+		cfg.TMConfig.ProxyApp,
+		cfg.TMConfig.ABCI,
+		cfg.TMConfig.DBDir(),
 	)
 
-	// Create genesis factory.
+	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) {
 		return gen, nil
 	}
 
-	return node.NewNode(cfg.BFTConfig,
+	return node.NewNode(cfg.TMConfig,
 		pv, nodekey,
 		appClientCreator,
 		genProvider,
@@ -124,7 +128,7 @@ func NewTestingNode(logger log.Logger, cfg *TestingNodeConfig) (*node.Node, erro
 	)
 }
 
-func LoadPackages(pkgs []gnoland.PackagePath) ([]std.Tx, error) {
+func LoadPackages(pkgs []PackagePath) ([]std.Tx, error) {
 	txs := []std.Tx{}
 	for _, pkg := range pkgs {
 		tx, err := pkg.Load()

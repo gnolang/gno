@@ -2,12 +2,13 @@ package integration
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -24,53 +25,33 @@ const (
 )
 
 // Should return an already starting node
-func TestingInMemoryNode(t *testing.T, logger log.Logger, config *TestingNodeConfig) (*node.Node, string) {
+func TestingInMemoryNode(t *testing.T, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
 	t.Helper()
 
-	node, err := NewTestingNode(logger, config)
+	node, err := gnoland.NewInMemoryNode(logger, config)
 	require.NoError(t, err)
 
 	err = node.Start()
 	require.NoError(t, err)
 
-	// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
-	//---
-	// Wait for first block by waiting for `EventNewBlock` event.
-	const listenerID = "testing_listener"
-
-	nb := make(chan struct{}, 1)
-	node.EventSwitch().AddListener(listenerID, func(ev events.Event) {
-		if _, ok := ev.(bft.EventNewBlock); ok {
-			select {
-			case nb <- struct{}{}:
-			default:
-			}
-		}
-	})
-
-	if node.BlockStore().Height() == 0 {
-		select {
-		case <-nb: // ok
-		case <-time.After(time.Second * 6):
-			t.Fatal("timeout while waiting for the node to start")
-		}
+	select {
+	case <-waitForNodeReadiness(node):
+	case <-time.After(time.Second * 6):
+		require.FailNow(t, "timeout while waiting for the node to start")
 	}
-
-	node.EventSwitch().RemoveListener(listenerID)
-	// ---
 
 	return node, node.Config().RPC.ListenAddress
 }
 
-func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *TestingNodeConfig {
+func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNodeConfig {
 	t.Helper()
 
-	bftconfig := DefaultTestingBFTConfig(t, gnoroot)
-	return &TestingNodeConfig{
+	tmconfig := DefaultTestingTMConfig(t, gnoroot)
+	return &gnoland.InMemoryNodeConfig{
 		Balances:        LoadDefaultGenesisBalanceFile(t, gnoroot),
-		GenesisTXs:      LoadDefaultGenesisTXsFile(t, bftconfig.ChainID(), gnoroot),
+		GenesisTXs:      LoadDefaultGenesisTXsFile(t, tmconfig.ChainID(), gnoroot),
 		ConsensusParams: DefaultConsensusParams(t),
-		BFTConfig:       bftconfig,
+		TMConfig:        tmconfig,
 		Packages:        LoadDefaultPackages(t, crypto.MustAddressFromString(DefaultAccountAddress), gnoroot),
 	}
 }
@@ -105,8 +86,8 @@ func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []s
 
 	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
 
-	// NOTE: we dont care about giving a correct address here, as it's only visual
-	// XXX: do we care loading this file ?
+	// NOTE: We dont care about giving a correct address here, as it's only for display
+	// XXX: Do we care loading this TXs for testing ?
 	genesisTXs, err := gnoland.LoadGenesisTxsFile(txsFile, chainid, "https://127.0.0.1:26657")
 	require.NoError(t, err)
 
@@ -126,15 +107,40 @@ func DefaultConsensusParams(t *testing.T) abci.ConsensusParams {
 	}
 }
 
-func DefaultTestingBFTConfig(t *testing.T, gnoroot string) *config.Config {
+func DefaultTestingTMConfig(t *testing.T, gnoroot string) *tmcfg.Config {
 	t.Helper()
 
 	const defaultListner = "tcp://127.0.0.1:0"
 
-	bftconfig := config.TestConfig().SetRootDir(gnoroot)
-	bftconfig.Consensus.CreateEmptyBlocks = true
-	bftconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
-	bftconfig.RPC.ListenAddress = defaultListner
-	bftconfig.P2P.ListenAddress = defaultListner
-	return bftconfig
+	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
+	tmconfig.Consensus.CreateEmptyBlocks = true
+	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
+	tmconfig.RPC.ListenAddress = defaultListner
+	tmconfig.P2P.ListenAddress = defaultListner
+	return tmconfig
+}
+
+// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
+func waitForNodeReadiness(n *node.Node) <-chan struct{} {
+	const listenerID = "first_block_listener"
+
+	var once sync.Once
+
+	nb := make(chan struct{})
+	ready := func() {
+		close(nb)
+		n.EventSwitch().RemoveListener(listenerID)
+	}
+
+	n.EventSwitch().AddListener(listenerID, func(ev events.Event) {
+		if _, ok := ev.(bft.EventNewBlock); ok {
+			once.Do(ready)
+		}
+	})
+
+	if n.BlockStore().Height() > 0 {
+		once.Do(ready)
+	}
+
+	return nb
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -46,10 +47,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
 	gnoHomeDir := filepath.Join(tmpdir, "gno")
-
-	// `gnoDataDir` should refer to the local location where the gnoland node
-	// stores its configuration and data.
-	// gnoDataDir := filepath.Join(tmpdir, "data")
 
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	var muNodes sync.Mutex
@@ -108,9 +105,21 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						logger = getTestingLogger(ts, logname)
 					}
 
-					// Generate node config, we can't use a uniq config, because
-					nodeConfig := DefaultTestingNodeConfig(t, gnoRootDir)
-					node, remoteAddr := TestingInMemoryNode(t, logger, nodeConfig)
+					// Generate node config
+					cfg := config.TestConfig().SetRootDir(gnoRootDir)
+
+					// Use random port be able to run test in parallel without conflict
+					cfg.P2P.ListenAddress = "tcp://127.0.0.1:0"
+					cfg.RPC.ListenAddress = "tcp://127.0.0.1:0"
+
+					// Create the Node
+					nodecfg := gnoland.NewInMemoryNodeConfig(cfg)
+
+					node, err := gnoland.NewInMemoryNode(logger, nodecfg)
+					if err != nil {
+						err = fmt.Errorf("unable to start node: %w", err)
+						break
+					}
 
 					// Setup cleanup
 					ts.Defer(func() {
@@ -129,6 +138,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						Node:   node,
 						logger: logger,
 					}
+
+					remoteAddr := node.Config().RPC.ListenAddress
 
 					// Add default environements.
 					ts.Setenv("RPC_ADDR", remoteAddr)
@@ -256,7 +267,7 @@ func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error)
 		}
 	} else {
 		if neg {
-			ts.Fatalf("unexpected %s command success", cmd)
+			ts.Fatalf("unexpected %q command success", cmd)
 		}
 	}
 }
