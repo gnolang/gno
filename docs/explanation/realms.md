@@ -21,6 +21,7 @@ A realm refers to a specific instance of a smart contract that can be written in
 * Packages are stateless.
 * The default import path is `gno.land/p/~~~`.
 * Can be imported to other realms or packages.
+* Cannot import realms.
 
 #### [**Realms**](https://github.com/gnolang/gno/tree/master/examples/gno.land/r)
 
