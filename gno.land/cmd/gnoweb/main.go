@@ -96,7 +96,7 @@ func main() {
 
 func handlerHome(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rlmpath := "gno.land/r/system/home"
+		rlmpath := "gno.land/r/gnoland/home"
 		querystr := "?from-home"
 		qpath := "vm/qrender"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
