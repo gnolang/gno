@@ -38,28 +38,60 @@ type Attributes struct {
 }
 
 //----------------------------------------
-// ActionBook
+// PrivActionBook
 
 // This is a thought experiment to make books work for auth.
-// Actions are considered authorized if appended in ActionBook.
+// Actions are considered authorized if appended in PrivActionBook.
+//
+// An PrivActionBook is meant to be owned privately by an account.
+// This is similar to PrivKey in crypto; privileged data.
 //
 // Actions need not necessarily be signed cryptographically
-// to be authenticated in an ActionBook, because the test of
-// authorization *IS* inclusion by language capabilities.
+// to be authenticated in an PrivActionBook, because the test of
+// authorization is merely inclusion.
 //
-// XXX what if sequece requires > keep records?
-// XXX implement type PubKeyActionBook struct { PubKey, ActionBook }
-// XXX or refactor these ideas somehow.
-type ActionBook struct {
+// XXX consider:
+// type CryptoActionBook struct { PubKey, PrivActionBook }
+// A CryptoActionBook need not be privileged,
+// perhaps anyone can append a signed action,
+// XXX but how to guarantee execution?
+// XXX without something like `Everything.Execute(Action)`??
+//
+// XXX consider:
+// type ReadActionBook, a readonly ActionBook??
+type PrivActionBook struct {
+
+	// Maybe PrivActionBook *is* Book?
+	// not sure yet.
 	book *Book
-	keep int // last n actions to keep around
+
+	// Number of actions to keep around.
+	capacity int
+
+	// Validates sequences based on sequenceAccum,
+	// which is accumulated from sequences seen.
+	sequenceStrategy SequenceStrategy
+
+	// Typically the last sequence value.
+	// The type of value depends on SequenceStrategy.
+	// This field allows the PrivActionBook to prune
+	// all previous Actions while preserving sequencing.
+	sequenceAccum interface{}
 }
 
-// If the action is valid, append to ActionBook,
+func NewPrivActionBook() *PrivActionBook {
+	// XXX
+}
+
+// If the action is valid, append to PrivActionBook,
 // thereby making it officially authorized.
-// The execution should happen atomically with authorization.
-// e.g. if err := ab.Authorize(); err != nil { execute(action) }
-func (ab *ActionBook) Authorize(action Action) error {
+// The execution of action generally should happen
+// atomically with authorization by caller.
+//
+//	if err := ab.Authorize(); err != nil {
+//	    execute(action)
+//	}
+func (pab *PrivActionBook) Append(action Action) error {
 	// XXX check action.sequence against ab.last
 	// XXX if good, append and return nil
 	// XXX otherwise return error
