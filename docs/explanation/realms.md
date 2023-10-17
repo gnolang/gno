@@ -29,7 +29,7 @@ A realm refers to a specific instance of a smart contract that can be written in
 * Realms are stateful.
 * Realms can own assets (tokens).
 * The default import path is `gno.land/r/~~~`.
-* Each realm has the capability to publicly export the function `Render(path string) string`, which performs rendering when passed a valid markdown as a parameter for the specified `path`.
+* Realms can implement `Render(path string) string` to simplify dapp frontend development by allowing users to request markdown renderings from validators and full nodes without a transaction.
 
 A notable feature of realms is the `Render()` function.
 
