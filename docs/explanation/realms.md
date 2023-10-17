@@ -27,6 +27,7 @@ A realm refers to a specific instance of a smart contract that can be written in
 
 * Smart contracts in Gnolang.
 * Realms are stateful.
+* Realms can own assets (tokens).
 * The default import path is `gno.land/r/~~~`.
 * Each realm has the capability to publicly export the function `Render(path string) string`, which performs rendering when passed a valid markdown as a parameter for the specified `path`.
 
