@@ -75,7 +75,7 @@ Replacing the second test case with the following will successfully fix the issu
   {
   	got := Hello("")
   	expected := "Hello !"
-  	if got != expected {
+  	if expected != got {
   		t.Fatalf("expected %q, got %q.", expected, got)
   	}
   }
