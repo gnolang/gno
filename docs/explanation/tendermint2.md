@@ -10,7 +10,7 @@ id: tendermint2
 
 ## Mission
 
-* Make awesome software with modular components.
+* Make stable software with modular components.
 * Crypto P2P Swiss armyknife for human liberation.
 
 ## Problems
