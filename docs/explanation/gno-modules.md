@@ -24,7 +24,7 @@ It's important to note that Gno Modules do not include subdirectories. Each dire
 
 The gno command-line tool provides several commands to work with the gno.mod file and manage dependencies in Gno Modules:
 
-- **gno mod init**: Initializes a new gno.mod file. Allowing you to specify dependencies.
+- `gno mod init`: Initializes a new `gno.mod` file. Allowing you to specify dependencies.
 
 - **gno mod download**: Downloads the dependencies specified in the gno.mod file. This command fetches the required dependencies from chain and ensures they are available for local testing and development.
 
