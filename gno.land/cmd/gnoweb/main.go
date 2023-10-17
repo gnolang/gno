@@ -68,7 +68,20 @@ func makeApp() gotuna.App {
 	app.Router.Handle("/about", handlerAbout(app))
 	app.Router.Handle("/game-of-realms", handlerGor(app))
 	app.Router.Handle("/faucet", handlerFaucet(app))
-	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
+	// Redirects
+	redirects := map[string]string{
+		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
+		"/blog":                    "/r/gnoland/blog",
+		"/gor":                     "/r/gnoland/gor",
+		"/game-of-realms":          "/r/gnoland/gor",
+		"/language":                "/r/gnoland/pages:gnolang",
+		"/gnolang":                 "/r/gnoland/pages:gnolang",
+		"/start":                   "/r/gnoland/pages:start",
+		"/events":                  "/r/gnoland/events",
+	}
+	for from, to := range redirects {
+		app.Router.Handle(from, handlerRedirect(app, to))
+	}
 	// NOTE: see rePathPart.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(app))
@@ -198,12 +211,9 @@ func handlerStatusJSON(app gotuna.App) http.Handler {
 	})
 }
 
-// XXX temporary.
-func handlerRedirect(app gotuna.App) http.Handler {
+func handlerRedirect(app gotuna.App, to string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/r/boards:gnolang/3", http.StatusFound)
-		app.NewTemplatingEngine().
-			Render(w, r, "home.html", "funcs.html")
+		http.Redirect(w, r, to, http.StatusFound)
 	})
 }
 

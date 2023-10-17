@@ -13,6 +13,7 @@ import (
 
 func TestRoutes(t *testing.T) {
 	ok := http.StatusOK
+	found := http.StatusFound
 	routes := []struct {
 		route     string
 		status    int
@@ -32,6 +33,8 @@ func TestRoutes(t *testing.T) {
 		{"/r/demo/deep/very/deep?help", ok, "exposed"},
 		{"/r/demo/deep/very/deep/", ok, "render.gno"},
 		{"/r/demo/deep/very/deep/render.gno", ok, "func Render("},
+		{"/gor", found, "/r/gnoland/gor"},
+		{"/blog", found, "/r/gnoland/blog"},
 	}
 	if wd, err := os.Getwd(); err == nil {
 		if strings.HasSuffix(wd, "cmd/gnoweb") {
@@ -49,7 +52,7 @@ func TestRoutes(t *testing.T) {
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
 			assert.Equal(t, strings.Contains(response.Body.String(), r.substring), true)
-			println(response.Body.String())
+			// println(response.Body.String())
 		})
 	}
 }

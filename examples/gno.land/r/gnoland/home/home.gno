@@ -4,7 +4,7 @@ import "std"
 
 var body = `# Welcome to **Gno.land**
 
-- [About Gno.land](/about)
+- [About Gno.land](/r/gnoland/pages:about)
 - [Blogs](/r/gnoland/blog)
 - [Install ` + "`" + `gnokey` + "`" + `](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnokey)
 - [Acquire testnet tokens](/faucet)
