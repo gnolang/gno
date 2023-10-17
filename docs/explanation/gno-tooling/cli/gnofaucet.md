@@ -30,7 +30,7 @@ gnofaucet serve
 
 ## Example
 
-### **Step 1. Create an account named `test1` with the test seed phrase below.**
+### Step 1. Create an account named `test1` with the test seed phrase below.
 
 ```bash
 gnokey add test1 --recover
