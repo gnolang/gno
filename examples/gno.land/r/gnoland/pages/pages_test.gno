@@ -15,7 +15,7 @@ func TestHome(t *testing.T) {
 		"/r/gnoland/pages:p/start",
 		"/r/gnoland/pages:p/gor",
 		"/r/gnoland/pages:p/about",
-		"/r/gnoland/pages:p/language",
+		"/r/gnoland/pages:p/gnolang",
 	}
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {

@@ -1,13 +1,20 @@
 package gnopages
 
 func init() {
-	var (
-		path  = "gor"
-		title = "Game of Realms Content For The Best Contributors"
-		// XXX: description = "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool."
-		body = `# Game of Realms
+	path := "gor"
+	title := "Game of Realms Content For The Best Contributors"
+	// XXX: description := "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool."
+	body := `# Game of Realms
 
-The worldwide competition to find the best contributors to Gno.land is currently in phase one – for advanced developers only.
+<div class="jumbotron">
+
+### Game of Realms
+
+The first high-stakes contest will see participants compete for tiered membership to co-own the Gno.land blockchain. A series of complex technical and non-technical tasks will challenge contributors to create innovative patterns that push the chain to new limits. Start building the foundation for tomorrow through key smart contracts and other contributions that change our understanding of the world.
+
+</div><!-- end jumbotron-->
+
+The competition is currently in phase one – for advanced developers only.
 
 Once the necessary tools to start phase two are ready, we’ll open up the competition to newer devs and non-technical contributors.
 
@@ -210,6 +217,5 @@ Game of Realms participants and core contributors have made significant progress
 </div>
 <!-- /mailchimp -->
 `
-	)
 	_ = b.NewPost("", path, title, body, nil)
 }

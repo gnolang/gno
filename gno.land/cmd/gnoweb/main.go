@@ -70,6 +70,7 @@ func makeApp() gotuna.App {
 		"/about":          "/r/gnoland/pages:p/about",
 		"/gnolang":        "/r/gnoland/pages:p/gnolang",
 		"/ecosystem":      "/r/gnoland/pages:p/ecosystem",
+		"/partners":       "/r/gnoland/pages:p/partners",
 		"/testnets":       "/r/gnoland/pages:p/testnets",
 		"/start":          "/r/gnoland/pages:p/start",
 		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
@@ -83,6 +84,7 @@ func makeApp() gotuna.App {
 		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
 		"/blog":                    "/r/gnoland/blog",
 		"/gor":                     "/game-of-realms",
+		"/grants":                  "/partners",
 		"/language":                "/gnolang",
 		"/getting-started":         "/start",
 	}
