@@ -39,11 +39,30 @@ type Attributes struct {
 
 //----------------------------------------
 // ActionBook
-// XXX thought experiment
 
-// XXX this doesn't make sense.
+// This is a thought experiment to make books work for auth.
+// Actions are considered authorized if appended in ActionBook.
+//
+// Actions need not necessarily be signed cryptographically
+// to be authenticated in an ActionBook, because the test of
+// authorization *IS* inclusion by language capabilities.
+//
+// XXX what if sequece requires > keep records?
+// XXX implement type PubKeyActionBook struct { PubKey, ActionBook }
+// XXX or refactor these ideas somehow.
+type ActionBook struct {
+	book *Book
+	keep int // last n actions to keep around
+}
+
+// If the action is valid, append to ActionBook,
+// thereby making it officially authorized.
+// The execution should happen atomically with authorization.
+// e.g. if err := ab.Authorize(); err != nil { execute(action) }
 func (ab *ActionBook) Authorize(action Action) error {
 	// XXX check action.sequence against ab.last
+	// XXX if good, append and return nil
+	// XXX otherwise return error
 }
 
 //----------------------------------------
