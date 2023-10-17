@@ -12,6 +12,7 @@ import (
 // AuthContext is an interface that represents an authentication context.
 type AuthContext interface {
 	Addr() std.Address
+	// String returns a unique and human-readable identifier, typically in the format "<type>:<addr>[/opts]".
 	String() string
 	IsAuthorized(action string) bool
 }
