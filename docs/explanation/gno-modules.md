@@ -30,7 +30,7 @@ The gno command-line tool provides several commands to work with the gno.mod fil
 
 - **gno mod tidy**: This command helps maintain the cleanliness of the gno.mod file by removing any unused dependencies and automatically adds any dependencies that are required but not yet listed in the gno.mod file. It ensures that your gno.mod file remains up-to-date and free from unnecessary clutter, eliminating the need for manual maintenance.
 
-## Sample gno.mod file
+## Sample `gno.mod` file
 
 ```
 module gno.land/p/demo/sample
