@@ -1,3 +1,5 @@
+package book
+
 /*
 
 This is a concept for a book (basically a list).
@@ -24,12 +26,15 @@ type Attributes struct {
 
 //----------------------------------------
 
-// object has an action verb (method), which takes arguments
+// A subject acts upon an object with a verb and arguments.
+// As if subject is calling object.verb(args...).
+// The sequence is usually an incrementing number.
 type Action struct {
-	subject   // is this an id?
-	verb      // i guess a string or Name type?
-	object    // is this an id?
-	arguments // are these primitive strings or any
+	sequence string   // must match previous
+	subject  string   // subject path
+	object   string   // object path
+	verb     string   // verb name
+	args     []string // legible args
 }
 
 // Authorization struct is only needed for Actions that require
