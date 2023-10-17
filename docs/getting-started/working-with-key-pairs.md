@@ -47,7 +47,7 @@ SUBCOMMANDS
 
 FLAGS
   -config ...                                          config file (optional)
-  -home /Users/zmilos/Library/Application Support/gno  home directory
+  -home $XDG_CONFIG/gno  home directory
   -insecure-password-stdin=false                       WARNING! take password from stdin
   -quiet=false                                         suppress output during execution
   -remote 127.0.0.1:26657                              remote node URL
