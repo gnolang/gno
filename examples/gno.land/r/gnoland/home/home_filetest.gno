@@ -1,6 +1,6 @@
 package main
 
-import "gno.land/r/system/home"
+import "gno.land/r/gnoland/home"
 
 func main() {
 	println(home.Render(""))

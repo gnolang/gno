@@ -1,5 +1,7 @@
 package home
 
+import "std"
+
 var body = `# Welcome to **Gno.land**
 
 - [About Gno.land](/about)
@@ -62,26 +64,26 @@ func Render(_ string) string {
 	// committee of trustees to create the directory
 	// each directory is a name, has a parent and have groups
 	// homepage team - blocks aggregating events
-		`
-# Directory
 
-* gno.land (owned by group)
-  * 
-* gnovm
-  * gnolang (language)
-  * gnovm
-    - current challenges / concerns / issues
-* tm2
-  * amino
-  * 
+	/*`
+	# Directory
 
-## Contributors
-``
+	* gno.land (owned by group)
+	  *
+	* gnovm
+	  * gnolang (language)
+	  * gnovm
+	    - current challenges / concerns / issues
+	* tm2
+	  * amino
+	  *
 
+	## Contributors
+	``*/
 
 	// XXX: dynamic content: contributions
-	// XXX: 
+	// XXX:
 	// XXX: community curated picks
-	// XXX: 
+	// XXX:
 	return body
 }
