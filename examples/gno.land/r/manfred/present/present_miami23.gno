@@ -5,9 +5,9 @@ func init() {
 	title := "Portal Loop Demo (Miami 2023)"
 	body := `# Portal Loop Demo (Miami 2023)
 
-- subject A
-- subject B
-- subject C
+- roadmap
+- portal loop
+- screenshot github project
 `
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost(adminAddr, path, title, body, []string{"demo", "portal-loop", "miami"})
 }
