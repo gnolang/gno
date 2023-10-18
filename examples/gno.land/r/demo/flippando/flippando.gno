@@ -14,7 +14,6 @@ import (
 
 type GameBoard struct {
 	Board     []int  `json:"board"`
-	TileType  string `json:"tileType"`
 	GameTiles []int  `json:"gameTiles"`
 	BoardSize int    `json:"boardSize"`
 }
@@ -23,6 +22,9 @@ type Game struct {
 	ID 			string `json:"id"`
 	GameStatus 	string	`json:"gameStatus"`
 	GameBoard 	[]int	`json:"gameBoard"`
+	SolvedGameBoard	[]int	`json:"-"`
+	GameTiles	[]int	`json:"gameTiles"`
+	TileType	string	`json:"-"`
 }
 
 type BasicNFT struct {
@@ -61,7 +63,7 @@ func TileTest(solvedBoard string, size int) string {
 	if err != nil {
 		panic("error in marhasling testBasicNFT");
 	}
-	return testBasicNFTJSON
+	return string(testBasicNFTJSON)
 }
 
 // creates game object and initializes board
@@ -70,13 +72,16 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	games := getUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
-	board, tileType, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
+	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
 	
 	// id is zero-padded to work well with avl's alphabetic order.
 	id := zeroPad9(strconv.FormatUint(gameIDCounter, 10))
 	g := &Game{
 		ID:        id,
 		GameBoard: board,
+		SolvedGameBoard: board,
+		GameTiles: gameTiles,
+		TileType: tileType,
 		GameStatus: "initialized",
 	}
 
@@ -96,11 +101,16 @@ func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	games := getUserGames(player)
 	currentGame := games[0]
 	currentGamePositions, err := ParseString(positions)
-	currentGameBoard = currentGame.Board;
+	
 	// call real FlipTiles on flippandoserver, which does the game mechanics
-	// and returns an []int board
-	//currentGame.Board := flippandoserver.FlipTiles(currentGameBoard, currentGamePositions)
-
+	// and returns 2 []int boards: the GameBoard, and the SolvedGameBoard
+	// we only send to the user the SolvedGameBoard
+	board, solvedBoard := flippandoserver.FlipTiles(currentGame.GameBoard, 
+		currentGame.SolvedGameBoard, 
+		currentGame.GameTiles, 
+		currentGamePositions)
+	currentGame.GameBoard = board
+	currentGame.SolvedGameBoard = solvedBoard
 	currentGameJSON, err := currentGame.MarshalJSON()
 	if err != nil {
 		return "error";
@@ -148,7 +158,11 @@ func (g Game) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(`",`)
 
 	b.WriteString(`"gameBoard":[`)
-	b.WriteString(writeIntSlice(g.GameBoard))
+	b.WriteString(writeIntSlice(g.SolvedGameBoard))
+	b.WriteString(`],`)
+
+	b.WriteString(`"gameTiles":[`)
+	b.WriteString(writeIntSlice(g.GameTiles))
 	b.WriteString(`],`)
 	
 	b.WriteString(`"gameStatus":"`)
@@ -164,11 +178,6 @@ func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
-	
-	b.WriteString(`"TileType":"`)
-	b.WriteString(gb.TileType)
-	b.WriteString(`",`)
-
 	
 	b.WriteString(`"BoardSize":`)
 	b.WriteString(strconv.Itoa(gb.BoardSize)) // converting int to string
@@ -199,9 +208,9 @@ func (bn BasicNFT) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(`",`)
 
 	
-	b.WriteString(`"svgData":`)
+	b.WriteString(`"svgData":"`)
 	b.WriteString(bn.svgData) 
-	b.WriteString(`,`)
+	b.WriteString(`"`)
 	
 	b.WriteByte('}')
 

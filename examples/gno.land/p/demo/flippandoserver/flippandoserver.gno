@@ -1,8 +1,8 @@
 package flippandoserver
 
 import (
-	"std"
 	"time"
+	"std"
 	"bytes"
 	"strings"
 	"strconv"
@@ -31,82 +31,40 @@ type inTransit struct {
 
 // tokenId - int, inTransit, bool
 
+func TestTiles(solvedBoard []int, size int) string {
+	solvedSVG, err := GenerateColorSquareGrid(solvedBoard, size)
+	if (err != nil){
+		panic("error in GenerateColorSquareGrid")
+	}
+	return solvedSVG;
+}
+
 // creates game object and initializes board
-func CreateGameBoard(tileType string, boardSize int) (string) {
+func CreateGameBoard(tileType string, boardSize int) ([]int, []int, int) {
 	// Initialize the board and gameTiles slices based on boardSize
 	board := make([]int, boardSize)
 
 	// Initialize the gameTiles slice with a length that is the square root of boardSize
 	gameTilesLength := int(sqrt(float64(boardSize)))
 	gameTiles := make([]int, gameTilesLength)
-
-	// Create a new game instance
-	newGameBoard := &GameBoard{
-		Board:     board,
-		TileType:  tileType,
-		GameTiles: gameTiles,
-		BoardSize: boardSize,
+	// @todo make call to generateRandomNumbers, so you can create the actual gameTiles array,
+	rng := 4
+	if tileType == "squareGrid" || tileType == "hexagrams" {
+		rng = 16
+	} else if tileType == "dice" {
+		rng := 6
 	}
+	gameTiles = generateRandomNumbers(4, rng)
 
-	// Convert game to JSON
-	gameJSON, err := newGameBoard.MarshalJSON()
-	if err != nil {
-		return "error";
-	}
-
-	return string(gameJSON)
+	// we're returning discrete value, and do the json marshaling in realm
+	return board, gameTiles, boardSize;
 }
 
-func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
-	var b bytes.Buffer
-
-	b.WriteByte('{')
+func FlipTiles(board []int, solvedBoard []int, gameTiles []int, positions []int) ([]int, []int) {
+	//   - returns the current game board, and the solved game board
 	
-	b.WriteString(`"TileType":"`)
-	b.WriteString(gb.TileType)
-	b.WriteString(`",`)
-
+	randomNumberSlice := generateRandomNumbers(2, len(board))
 	
-	b.WriteString(`"BoardSize":`)
-	b.WriteString(strconv.Itoa(gb.BoardSize)) // converting int to string
-	b.WriteString(`,`)
-	
-	
-	b.WriteString(`"Board":[`)
-	b.WriteString(writeIntSlice(gb.Board))
-	b.WriteString(`],`)
-	
-	b.WriteString(`"GameTiles":[`)
-	b.WriteString(writeIntSlice(gb.GameTiles))
-	b.WriteString(`]`)
-	
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-}
-
-func writeIntSlice(slice []int) string {
-    var b strings.Builder
-    for i, v := range slice {
-        if i > 0 {
-            b.WriteString(",")
-        }
-        b.WriteString(strconv.Itoa(v)) // converting int to string
-    }
-    return b.String()
-}
-
-
-func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, positions []int) ([]int, []int) {
-	//   - returns the tiles at the positions[] in the board array
-	//   - updates the game[gameId].board with the indices at positions
-
-	// pos := positions
-	// optimize for one call, and use the tuple?
-	randomNumberSlice := generateRandomNumbers(2, 1, len(board))
-	// randomNumber1 := generateRandomNumbers(1, 1, len(board))
-	// randomNumber2 := generateRandomNumbers(1, 1, len(board))
-
 	if board[positions[0]] == 0 {
 		board[positions[0]] = gameTiles[randomNumberSlice[0]]
 	}
@@ -158,6 +116,8 @@ func FlipTiles(gameId string, board []int, solvedBoard []int, gameTiles []int, p
 	   }*/
 }
 
+
+
 func createNFT(gameId string) {
 	// - generates a GRC721 token with the solved board SVG as a tokenURI
 }
@@ -175,54 +135,26 @@ var randIntn = func(n int) int {
 	return rand.Intn(n)
 }*/
 
+func generateRandomNumbers(x int, r int) []int {
+	//time.Sleep(10 * time.Millisecond)
+	now := time.Now().UnixNano()
+	numbers := make([]int, x)
+
+	for i := 0; i < x; i++ {
+		now = (now*1664525 + 1013904223) % (1 << 32) // Linear congruential generator (LCG)
+		numbers[i] = int(now % int64(r))
+	}
+
+	return numbers
+}
+
 /*
-func generateRandomNumbers(num, start, end int) []int {
-	if start > end {
-		start, end = end, start // Ensure the range is in ascending order
-	}
-
-	if num < 0 {
-		ufmt.Sprintf("The number of random values (num) must be non-negative")
-		return nil
-	}
-
-	if num > end-start+1 {
-		ufmt.Sprintf("The number of random values (num) cannot exceed the range size")
-		return nil
-	}
-
-	// Seed the random number generator with the current time
-	rand.Seed(time.Now().UnixNano())
-	// Generate num unique random values within the range
-	result := make([]int, 0, num)
-	for len(result) < num {
-		randomValue := rand.Intn(end-start+1) + start
-
-		// Check if the value already exists in the result slice
-		// If not, append it to the result slice
-		unique := true
-		for _, val := range result {
-			if val == randomValue {
-				unique = false
-				break
-			}
-		}
-
-		if unique {
-			result = append(result, randomValue)
-		}
-	}
-
-	return result
-}*/
-
-
 func generateRandomNumbers(num, start, end int) []int {
 	result := make([]int, 0, 4)
 	result = append(result, 2)
 	result = append(result, 3)
 	return result
-}
+}*/
 
 func sqrt(x float64) float64 {
 	if x == 0 || x == 1 {
