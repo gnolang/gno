@@ -15,7 +15,59 @@ import "gno.land/p/demo/avl"
 // Usage example
 
 func main() {
-	// XXX TODO fill out basic examples.
+	// main usage flow
+	action := Action{...}
+
+	//----------------------------------------
+	// CASES
+	// Here are some usage examples.
+
+	// CASE 1A: dummy "priv" user.
+	// access to privUser is like access to keys.
+	err := privUser.AppendAction(action)
+	if err != nil { panic(err) }
+	err := object.Receive(action)
+	if err != nil {panic(err)}
+
+	// CASE 1B: ActionRunner with no signing
+	// This is just a wrapper around CASE 1A. 
+	ar := ActionRunner()
+	err := sar.RunWith(action, privUser)
+	if err != nil {panic(err) }
+	// sar.RunWith() above calls the following:
+	if false {
+		err := privUser.AppendAction(action)
+		if err != nil { panic(err) }
+		// or ar.GetObject(action.Object).Receive(action).
+		err := action.object.Receive(action)
+		if err != nil { panic(err) }
+	}
+
+	// CASE 2A: public crypto key user.
+	// This is incomplete because 
+	// anyone can call user.Authenticate(),
+	// but not anyone would complete the tx.
+	// For this, see CASE 2B below.
+	priv := _ // imagine we have the key
+	signed := SignAction(action, priv)
+	err := user.Authenticate(signed)
+	if err != nil { panic(err) }
+	err := object.Receive(action)
+	if err != nil {panic(err)}
+
+	// CASE 2B: SignedActionRunner
+	// SignedActionRunner embeds an ActionRunner.
+	sar := SignedActionRunner()
+	err := sar.Run(signed)
+	if err != nil { panic(err) }
+	// sar.Run() above calls the following:
+	if false {
+		err := signed.subject.Authenticate(signed)
+		if err != nil { panic(err) }
+		// or sar.GetObject(signed.Object).Receive(action).
+		err := signed.object.Receive(action)
+		if err != nil { panic(err) }
+	}
 }
 
 //----------------------------------------
@@ -45,6 +97,50 @@ type Attributes struct {
 	meta   avl.Tree // catchall
 	author Author
 	// TODO
+}
+
+//----------------------------------------
+// Action
+
+// A subject acts upon an object with a verb and arguments.
+// As if subject is calling object.verb(args...).
+//
+// The sequence is usually an incrementing number,
+// but could be something else tracked by an action book.
+//
+// The subject and object are denoted by their respective
+// paths (or URIs?).
+type Action struct {
+	sequence string   // typically an incrementing number
+	subject  string   // subject path
+	object   string   // object path
+	verb     string   // verb name
+	args     []string // legible args
+}
+
+func (a Action) Sequence() string { return a.sequence }
+func (a Action) Subject() string  { return a.subject }
+func (a Action) Object() string   { return a.object }
+func (a Action) Verb() string     { return a.verb }
+func (a Action) NumArgs() int     { return len(a.args) }
+func (a action) Arg(n int) string { return a.args[n] }
+
+// Authorization struct is only needed for Actions that
+// require cryptographic authorization, where the Action's
+// subject has a pubkey to verify signatures with.
+//
+// Presumably once Authorization is validated (signature
+// checked) the Action becomes committed, and given a index
+// number.
+type Authorization struct {
+	action     Action
+	signatures []Signature
+}
+
+type Signature struct {
+	account   number // or address with some extra data unknown
+	sequence  number // or alternative to sequence
+	signature []byte
 }
 
 //----------------------------------------
@@ -151,44 +247,10 @@ func (pab *PrivActionBook) SequenceAccum() string {
 }
 
 //----------------------------------------
-// Action
+// User
 
-// A subject acts upon an object with a verb and arguments.
-// As if subject is calling object.verb(args...).
-//
-// The sequence is usually an incrementing number,
-// but could be something else tracked by an action book.
-//
-// The subject and object are denoted by their respective
-// paths (or URIs?).
-type Action struct {
-	sequence string   // typically an incrementing number
-	subject  string   // subject path
-	object   string   // object path
-	verb     string   // verb name
-	args     []string // legible args
-}
-
-func (a Action) Sequence() string { return a.sequence }
-func (a Action) Subject() string  { return a.subject }
-func (a Action) Object() string   { return a.object }
-func (a Action) Verb() string     { return a.verb }
-func (a Action) NumArgs() int     { return len(a.args) }
-func (a action) Arg(n int) string { return a.args[n] }
-
-// Authorization struct is only needed for Actions that require
-// cryptographic authorization, where the Action's subject has
-// a pubkey to verify signatures with.
-//
-// Presumably once Authorization is validated (signature checked)
-// the Action becomes committed, and given a index number.
-type Authorization struct {
-	action     Action
-	signatures []Signature
-}
-
-type Signature struct {
-	account   number // or address with some extra data unknown
-	sequence  number // or alternative to sequence
-	signature []byte
+type User struct {
+	// each user has an associated pab
+	// XXX or, users have devices, each with a pab.
+	pab *PrivActionBook
 }
