@@ -11,6 +11,16 @@ Books can be components of a virtual Person (where a Person is an interface).
 
 import "gno.land/p/demo/avl"
 
+//----------------------------------------
+// Usage example
+
+func main() {
+	// XXX TODO fill out basic examples.
+}
+
+//----------------------------------------
+// Book
+
 type Book struct {
 	attrs   Attributes
 	entries avl.Tree
@@ -104,12 +114,22 @@ func (pab *PrivActionBook) Append(action Action) error {
 
 	// XXX match action.object with pab.object.
 	// XXX set action.object = nil for space.
+
+	// XXX check capacity
 }
 
 func (pab *PrivActionBook) Len() int {
 	return pab.book.Len()
 }
 
+func (pab *PrivActionBook) Cap() int {
+	return pab.book.Cap()
+}
+
+// XXX Not sure why this would be useful,
+// XXX except to show clients previous actions,
+// XXX but either way developers should not rely on it
+// XXX for transactional logic.
 func (pab *PrivActionBook) Get(idx int) Action {
 	// XXX fetch action from pab.book.Get()
 	// XXX copy action
