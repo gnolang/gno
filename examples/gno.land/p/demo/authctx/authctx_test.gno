@@ -15,7 +15,7 @@ func TestNewOrigAuthContext(t *testing.T) {
 
 	assertSameAddresses(t, test1, auth.Addr())
 	assertSameStrings(t, "orig:"+string(test1), auth.String())
-	if !auth.IsAuthorized("foo") {
+	if !auth.HasRole("foo") {
 		t.Errorf("should be authorized")
 	}
 }
@@ -28,7 +28,7 @@ func TestNewPrevAuthContext(t *testing.T) {
 
 	assertSameAddresses(t, test1, auth.Addr())
 	assertSameStrings(t, "prev:"+string(test1), auth.String())
-	if !auth.IsAuthorized("foo") {
+	if !auth.HasRole("foo") {
 		t.Errorf("should be authorized")
 	}
 }
@@ -68,7 +68,7 @@ func TestPackage(t *testing.T) {
 			init: func() AuthContext {
 				std.TestSetOrigCaller(test1)
 				ctx := NewOrigAuthContext()
-				scoped := NewScopedAuthContext(ctx, func(action string) bool { return true })
+				scoped := NewScopedAuthContext(ctx, func(role string) bool { return true })
 				return scoped
 			},
 			expAddr:       test1,
@@ -79,7 +79,7 @@ func TestPackage(t *testing.T) {
 			init: func() AuthContext {
 				std.TestSetOrigCaller(test1)
 				ctx := NewOrigAuthContext()
-				scoped := NewScopedAuthContext(ctx, func(action string) bool { return false })
+				scoped := NewScopedAuthContext(ctx, func(role string) bool { return false })
 				return scoped
 			},
 			expAddr:       test1,
@@ -126,7 +126,7 @@ func TestPackage(t *testing.T) {
 			init: func() AuthContext {
 				var db DelegationDB
 				std.TestSetOrigCaller(test1)
-				db.Approve(test2, AuthorizeActions("foo", "bar", "foobar"))
+				db.Approve(test2, AuthorizeRoles("foo", "bar", "foobar"))
 				std.TestSetOrigCaller(test2)
 				return db.NewOrigDelegatedAuthContext(test1)
 			},
@@ -138,7 +138,7 @@ func TestPackage(t *testing.T) {
 			init: func() AuthContext {
 				var db DelegationDB
 				std.TestSetOrigCaller(test1)
-				var customAuthFn AuthFunc = func(action string) bool { return action == "foobar" }
+				var customAuthFn AuthFunc = func(role string) bool { return role == "foobar" }
 				db.Approve(test2, customAuthFn)
 				std.TestSetOrigCaller(test2)
 				return db.NewOrigDelegatedAuthContext(test1)
@@ -173,7 +173,7 @@ func TestPackage(t *testing.T) {
 			if tc.expAddr != ctx.Addr() {
 				t.Errorf("invalid addr, expected %q, got %q", tc.expAddr, ctx.Addr())
 			}
-			isAuthorized := ctx.IsAuthorized("foobar")
+			isAuthorized := ctx.HasRole("foobar")
 			if isAuthorized && !tc.expAuthorized {
 				t.Errorf("expected unauthorized but was authorized")
 			}

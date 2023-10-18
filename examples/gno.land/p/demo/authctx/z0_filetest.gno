@@ -17,31 +17,31 @@ func main() {
 	var db authctx.DelegationDB
 
 	std.TestSetOrigCaller(test1)
-	var customAuthFn authctx.AuthFunc = func(action string) bool { return action == "fooperm" }
+	var customAuthFn authctx.AuthFunc = func(role string) bool { return role == "fooperm" }
 	db.Approve(test2, customAuthFn)
 	db.Approve(test3, authctx.AuthorizeAll())
 	db.Approve(test4, authctx.AuthorizeNone())
-	db.Approve(test5, authctx.AuthorizeActions("fooperm", "barperm"))
+	db.Approve(test5, authctx.AuthorizeRoles("fooperm", "barperm"))
 
 	{
 		std.TestSetOrigCaller(test2)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test2", delegation, delegation.IsAuthorized("bazperm"))
+		println("test2", delegation, delegation.HasRole("bazperm"))
 	}
 	{
 		std.TestSetOrigCaller(test3)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test3", delegation, delegation.IsAuthorized("bazperm"))
+		println("test3", delegation, delegation.HasRole("bazperm"))
 	}
 	{
 		std.TestSetOrigCaller(test4)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test4", delegation, delegation.IsAuthorized("bazperm"))
+		println("test4", delegation, delegation.HasRole("bazperm"))
 	}
 	{
 		std.TestSetOrigCaller(test5)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test5", delegation, delegation.IsAuthorized("bazperm"))
+		println("test5", delegation, delegation.HasRole("bazperm"))
 	}
 
 	// TODO: test db.NewPrevDelegatedAuthContext

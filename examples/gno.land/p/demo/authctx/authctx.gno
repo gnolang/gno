@@ -12,19 +12,20 @@ import (
 // AuthContext is an interface that represents an authentication context.
 type AuthContext interface {
 	Addr() std.Address
-	// String returns a unique and human-readable identifier, typically in the format "<type>:<addr>[/opts]".
+	// String returns a unique and human-readable identifier, typically in
+	// the format "<type>:<addr>[/opts]".
 	String() string
-	IsAuthorized(action string) bool
+	HasRole(role string) bool
 }
 
-// AuthFunc signature should always match AuthContext.IsAuthorized.
-type AuthFunc func(action string) bool // TODO: switch to PBAC?
-func AuthorizeAll() AuthFunc           { return func(_ string) bool { return true } }
-func AuthorizeNone() AuthFunc          { return func(_ string) bool { return false } }
-func AuthorizeActions(actions ...string) AuthFunc {
+// AuthFunc signature should always match AuthContext.HasRole.
+type AuthFunc func(role string) bool // TODO: switch to PBAC?
+func AuthorizeAll() AuthFunc         { return func(_ string) bool { return true } }
+func AuthorizeNone() AuthFunc        { return func(_ string) bool { return false } }
+func AuthorizeRoles(roles ...string) AuthFunc {
 	whitelist := map[string]bool{}
-	for _, action := range actions {
-		whitelist[action] = true
+	for _, role := range roles {
+		whitelist[role] = true
 	}
 	return func(check string) bool {
 		return whitelist[check]
@@ -40,8 +41,8 @@ type scopedAuthContext struct {
 
 func (s scopedAuthContext) Addr() std.Address { return s.parent.Addr() }
 func (s scopedAuthContext) String() string    { return s.parent.String() } // XXX: +"/scoped"?
-func (s scopedAuthContext) IsAuthorized(action string) bool {
-	return s.authOverlay(action) && s.parent.IsAuthorized(action)
+func (s scopedAuthContext) HasRole(role string) bool {
+	return s.authOverlay(role) && s.parent.HasRole(role)
 }
 
 func NewScopedAuthContext(ctx AuthContext, authOverlay AuthFunc) AuthContext {
@@ -54,7 +55,7 @@ func NewScopedAuthContext(ctx AuthContext, authOverlay AuthFunc) AuthContext {
 // TODO: Add a helper to create an exposed helper allowing remote contracts to compose their authentication context.
 
 // origAuthContext represents an authentication context based on `std.GetOrigCaller`.
-// It represents the address of the account used to create the transaction.
+// It represents the address of the account used to create the transrole.
 // This is true even if there are multiple packages and realms called in between.
 type origAuthContext struct {
 	addr std.Address
@@ -63,9 +64,9 @@ type origAuthContext struct {
 func NewOrigAuthContext() AuthContext {
 	return origAuthContext{addr: std.GetOrigCaller()}
 }
-func (a origAuthContext) Addr() std.Address               { return a.addr }
-func (a origAuthContext) String() string                  { return "orig:" + string(a.Addr()) }
-func (a origAuthContext) IsAuthorized(action string) bool { return true }
+func (a origAuthContext) Addr() std.Address        { return a.addr }
+func (a origAuthContext) String() string           { return "orig:" + string(a.Addr()) }
+func (a origAuthContext) HasRole(role string) bool { return true }
 
 // prevAuthContext represents an authentication context based on `std.PrevRealm()`.
 // It represents the address of the previous realm in the stack.
@@ -78,9 +79,9 @@ type prevAuthContext struct {
 func NewPrevAuthContext() AuthContext {
 	return prevAuthContext{std.PrevRealm().Addr()}
 }
-func (a prevAuthContext) Addr() std.Address               { return a.addr }
-func (a prevAuthContext) String() string                  { return "prev:" + string(a.Addr()) }
-func (a prevAuthContext) IsAuthorized(action string) bool { return true }
+func (a prevAuthContext) Addr() std.Address        { return a.addr }
+func (a prevAuthContext) String() string           { return "prev:" + string(a.Addr()) }
+func (a prevAuthContext) HasRole(role string) bool { return true }
 
 // delegatedAuthContext represents an authentication context that allows someone to approve other addresses to post on its behalf.
 type delegatedAuthContext struct {
@@ -93,7 +94,7 @@ func (a delegatedAuthContext) Addr() std.Address { return a.owner }
 func (a delegatedAuthContext) String() string {
 	return "delegated:" + string(a.Addr()) + "/" + string(a.caller)
 }
-func (a delegatedAuthContext) IsAuthorized(action string) bool { return a.authFn(action) }
+func (a delegatedAuthContext) HasRole(role string) bool { return a.authFn(role) }
 
 // DelegationDB is a type that represents a database of delegations.
 // It maps owner addresses to their respective delegates.
