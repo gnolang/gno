@@ -18,7 +18,7 @@ func newEnvCmd(io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "env",
 			ShortUsage: "env [flags] <pkgsym>",
-			ShortHelp:  "Env prints Gno environment information",
+			ShortHelp:  "`env` prints Gno environment information",
 		},
 		c,
 		func(_ context.Context, args []string) error {
@@ -28,28 +28,12 @@ func newEnvCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *envCfg) RegisterFlags(fs *flag.FlagSet) {
-	// XXX: add flags
 	fs.BoolVar(
 		&c.json,
 		"json",
 		false,
-		"prints the environment in JSON format instead of as a shell script.",
+		"Prints the environment in JSON format instead of as a shell script.",
 	)
-
-	// XXX: does those go orignal flags make sense here ?
-	// fs.BoolVar(
-	// 	&c.unset,
-	// 	"u",
-	// 	false,
-	// 	"unsets the default setting for the named environment variables",
-	// )
-
-	// fs.BoolVar(
-	// 	&c.warp,
-	// 	"w",
-	// 	false,
-	// 	"changes the default settings of the named environment variables to the given values",
-	// )
 }
 
 type envVar struct {
@@ -80,16 +64,15 @@ func (vars envVars) Get(key string) string {
 type envPrinter func(vars envVars, io *commands.IO)
 
 func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
-	gnorootVar, _ := gnoenv.GuessGnoRootDir()
-
 	envs := envVars{}
 
 	// GNOROOT:
 	// Should point to the local location of the GNO repository.
 	// It serves as the gno equivalent of `GOROOT`.
-	envs.Set("GNOROOT", gnorootVar)
+	envs.Set("GNOROOT", gnoenv.MustGuessGnoRootDir())
 
 	// GNOHOME:
+	// Should point
 	envs.Set("GNOHOME", gnoenv.HomeDir())
 
 	// Setup filters
