@@ -81,11 +81,11 @@ jobs:
         run: |
           mkdir -p $COVERAGE_DIR
 
-          # setup testing environements variables
+          # Setup testing environements variables
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -args -test.gocoverdir=$COVERAGE_DIR"
 
-          # run target test
+          # Run target test
           make ${{ matrix.args }}
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
@@ -112,14 +112,20 @@ jobs:
       - name: Merge coverages
         working-directory: ${{ env.COVERAGE_DATA }}
         run: |
-          # create coverage directory list separate by coma.
+          # Create coverage directory list separate by coma
           export COVERAGE_DIRS="$(ls | tr '\n' ',' | sed s/,$//)"
 
-          # merge all directory coverages
-          go tool covdata merge -i="$COVERAGE_DIRS" -o $COVERAGE_OUTPUT
+          # Merge all coverage data directories from previous tests
+          echo "merging coverage data from: $COVERAGE_DIRS to '$COVERAGE_OUTPUT'"
+          go tool covdata merge -v 1 -i="$COVERAGE_DIRS" -o $COVERAGE_OUTPUT
 
-          # generate coverage profile
-          go tool covdata textfmt -i=$COVERAGE_OUTPUT -o $COVERAGE_PROFILE
+          # Print coverage percent for debug purpose if needed
+          echo 'coverage results:'
+          go tool covdata percent -i=$COVERAGE_OUTPUT
+
+          # Generating coverage profile
+          echo "coverting $COVERAGE_OUTPUT to legacy profile: '$COVERAGE_PROFILE'"
+          go tool covdata textfmt -v 1 -i=$COVERAGE_OUTPUT -o $COVERAGE_PROFILE
 
       - name: Upload combined coverage to Codecov
         uses: codecov/codecov-action@v3
