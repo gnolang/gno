@@ -14,7 +14,7 @@ GOALS:
 // XXX open questions
 // * Do we want a directory?
 // * Should action memoize object/subject/args?
-// * Should args be interface{}? 
+// * Should args be interface{}?
 //   - NOTE: Amino *can* encode anything registered.
 //   - XXX: could one pass in a pointer ref as arg?
 //     - not without a directory, conflicts with GC system.
@@ -26,7 +26,7 @@ GOALS:
 //   - CON: malleability becomes user problem.
 //     - so how do you sign an object? SignBytes()?
 //   - CON: requires some reflection call system.
-// 
+//
 
 import "gno.land/p/demo/avl"
 
@@ -35,9 +35,9 @@ import "gno.land/p/demo/avl"
 
 func main() {
 	// directory of subjects/objects.
-	directory := Directory{...}
+	directory := NewDirectory("test")
 	// action to perform.
-	action := Action{...}
+	action := Action{}
 
 	//----------------------------------------
 	// CASES
@@ -46,15 +46,15 @@ func main() {
 
 	// CASE 1A: dummy "priv" account.
 	// Access to privAccount is like access to priv keys.
-	privAccount.CommitAction(action)
+	privAccount.AppendAction(action)
 	directory.GetObject(action.object).Receive(action)
 
 	// CASE 1B: ActionRunner with no signing
-	// This is just a wrapper around CASE 1A. 
+	// This is just a wrapper around CASE 1A.
 	ar := ActionRunner(directory)
 	sar.RunWith(action, privAccount)
 	// sar.RunWith() impl:
-	//   privAccount.CommitAction(action)
+	//   privAccount.AppendAction(action)
 	//   ar.dir.GetObject(action.object).Receive(action)
 
 	// CASE 2A: public crypto key account.
@@ -73,6 +73,94 @@ func main() {
 	// sar.Run() impl:
 	//   signed.subject.Authenticate(signed)
 	//   sar.dir.GetObject(action.object).Receive(action)
+}
+
+//----------------------------------------
+// Object
+
+type ObjectKey int
+
+func (key ObjectKey) String() string {
+	// XXX itoa
+}
+
+type Object interface {
+	// The primary key of the object.
+	GetKey() ObjectKey
+	// Set the prmiary key.
+	// Panics if key exists.
+	SetKey(ObjectKey)
+	// Receive performs action on object.
+	// Panics if action is not permitted.
+	Receive(Action)
+}
+
+//----------------------------------------
+// Directory
+
+type Directory struct {
+	name    string   // name of directory
+	lastKey int64    // last key used
+	objects avl.Tree // id -> Object
+}
+
+func NewDirectory(name string) *Directory {
+	return &Directory{
+		name:    name,
+		lastKey: 0,
+		objects: nil,
+	}
+}
+
+func (dir *Directory) GetName() string {
+	return dir.name
+}
+
+func (dir *Directory) GetObject(key ObjectKey) Object {
+	keystr := key.String()
+	obj, exists := dir.objects.Get(keystr)
+	if !exists {
+		panic("object not found: invalid key")
+	}
+	return obj
+}
+
+func (dir *Directory) AddObject(obj Object) {
+	nextKey := dir.nextKey()
+	obj.SetKey(nextKey)
+	keystr := nextKey.String()
+	updated := dir.objects.Set(keystr, obj)
+	if updated == true {
+		panic("duplicate object key")
+	}
+}
+
+func (dir *Directory) RemoveObject(obj Object) {
+	keystr := obj.GetKey().String()
+	old, removed := dir.objects.Remove(keystr)
+	if !removed {
+		panic("cannot remove object: not found")
+	}
+	if old != obj {
+		panic("cannot remove conflicting object")
+	}
+}
+
+func (dir *Directory) RemoveObjectByKey(key ObjectKey) {
+	keystr := key.String()
+	_, removed := dir.objects.Remove(keystr)
+	if !removed {
+		panic("cannot remove object: not found")
+	}
+}
+
+func (dir *Directory) nextKey() ObjectKey {
+	nextKey := dir.lastKey + 1
+	if nextKey < 0 {
+		panic("key overflow")
+	}
+	dir.lastKey = nextKey
+	return ObjectKey(nextKey)
 }
 
 //----------------------------------------
