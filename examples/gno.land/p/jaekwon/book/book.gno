@@ -2,10 +2,12 @@ package book
 
 /*
 
-This is a concept for a book (basically a list).
-A Book has a title, owner, etc.
-A Book can be forked.
-Books can be components of a virtual Person (where a Person is an interface).
+GOALS:
+
+1. Create a Book (aka List) of text,
+   that is owned by a Book of Persons.
+
+2. Allow a Book of Persons to split/fork.
 
 */
 
@@ -15,59 +17,45 @@ import "gno.land/p/demo/avl"
 // Usage example
 
 func main() {
-	// main usage flow
+	// directory of subjects/objects.
+	directory := Directory{...}
+	// action to perform.
 	action := Action{...}
 
 	//----------------------------------------
 	// CASES
 	// Here are some usage examples.
+	// For simplicity all methods panic on error.
 
-	// CASE 1A: dummy "priv" user.
-	// access to privUser is like access to keys.
-	err := privUser.AppendAction(action)
-	if err != nil { panic(err) }
-	err := object.Receive(action)
-	if err != nil {panic(err)}
+	// CASE 1A: dummy "priv" account.
+	// Access to privAccount is like access to priv keys.
+	privAccount.CommitAction(action)
+	directory.GetObject(action.object).Receive(action)
 
 	// CASE 1B: ActionRunner with no signing
 	// This is just a wrapper around CASE 1A. 
-	ar := ActionRunner()
-	err := sar.RunWith(action, privUser)
-	if err != nil {panic(err) }
-	// sar.RunWith() above calls the following:
-	if false {
-		err := privUser.AppendAction(action)
-		if err != nil { panic(err) }
-		// or ar.GetObject(action.Object).Receive(action).
-		err := action.object.Receive(action)
-		if err != nil { panic(err) }
-	}
+	ar := ActionRunner(directory)
+	sar.RunWith(action, privAccount)
+	// sar.RunWith() impl:
+	//   privAccount.CommitAction(action)
+	//   ar.dir.GetObject(action.object).Receive(action)
 
-	// CASE 2A: public crypto key user.
-	// This is incomplete because 
-	// anyone can call user.Authenticate(),
+	// CASE 2A: public crypto key account.
+	// NOTE: This is NOT secure because
+	// anyone can call account.Authenticate(),
 	// but not anyone would complete the tx.
-	// For this, see CASE 2B below.
-	priv := _ // imagine we have the key
-	signed := SignAction(action, priv)
-	err := user.Authenticate(signed)
-	if err != nil { panic(err) }
-	err := object.Receive(action)
-	if err != nil {panic(err)}
+	privKey := _ // imagine we have the key
+	signed := SignAction(action, privKey)
+	account.Authenticate(signed)
+	directory.GetObject(action.object).Receive(action)
 
 	// CASE 2B: SignedActionRunner
 	// SignedActionRunner embeds an ActionRunner.
 	sar := SignedActionRunner()
-	err := sar.Run(signed)
-	if err != nil { panic(err) }
-	// sar.Run() above calls the following:
-	if false {
-		err := signed.subject.Authenticate(signed)
-		if err != nil { panic(err) }
-		// or sar.GetObject(signed.Object).Receive(action).
-		err := signed.object.Receive(action)
-		if err != nil { panic(err) }
-	}
+	sar.Run(signed)
+	// sar.Run() impl:
+	//   signed.subject.Authenticate(signed)
+	//   sar.dir.GetObject(action.object).Receive(action)
 }
 
 //----------------------------------------
@@ -247,10 +235,11 @@ func (pab *PrivActionBook) SequenceAccum() string {
 }
 
 //----------------------------------------
-// User
+// Account
 
-type User struct {
-	// each user has an associated pab
-	// XXX or, users have devices, each with a pab.
+// XXX incomplete.
+type Account struct {
+	// each account has an associated pab
+	// XXX or, accounts have devices, each with a pab.
 	pab *PrivActionBook
 }
