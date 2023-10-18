@@ -28,10 +28,9 @@ FROM        runtime-tls AS gnoland-slim
 ADD         ./gno.land/genesis /opt/gno/src/gno.land/genesis
 ADD         ./examples /opt/gno/src/examples
 ADD         ./gnovm/stdlibs /opt/gno/src/gnovm/stdlibs
+ADD         ./misc/docker-compose/default-config.toml /opt/gno/src/gno.land/config/config.toml
 WORKDIR     /opt/gno/src/gno.land/
 COPY        --from=build /opt/build/build/gnoland /opt/gno/bin/
-RUN         mkdir config
-#TODO: RUN         echo '[rpc]\nladdr = "tcp://0.0.0.0:26657"' > config/config.toml
 ENTRYPOINT  ["gnoland"]
 EXPOSE      26657 36657
 
