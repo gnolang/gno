@@ -15,7 +15,7 @@ func TestFixOldDefaultGnoHome(t *testing.T) {
 	newGnoHome := filepath.Join(tempDir, "gno")
 
 	// Create a dummy old GNO_HOME
-	os.Mkdir(oldGnoHome, 0755)
+	os.Mkdir(oldGnoHome, 0o755)
 
 	// Test migration
 	fixOldDefaultGnoHome(newGnoHome)

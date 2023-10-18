@@ -26,7 +26,6 @@ func TestHomeDir(t *testing.T) {
 		expected := "/test/gno_home"
 		os.Setenv("GNO_HOME", expected)
 		require.Equal(t, expected, HomeDir())
-
 	})
 
 	t.Run("use UserConfigDir with gno", func(t *testing.T) {

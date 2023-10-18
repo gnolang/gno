@@ -6,6 +6,8 @@ import (
 )
 
 func tBackupEnvironement(t *testing.T, keys ...string) {
+	t.Helper()
+
 	for _, key := range keys {
 		value, ok := os.LookupEnv(key)
 		if ok {
@@ -13,6 +15,5 @@ func tBackupEnvironement(t *testing.T, keys ...string) {
 		} else {
 			t.Cleanup(func() { os.Unsetenv(key) })
 		}
-		os.Unsetenv(key)
 	}
 }

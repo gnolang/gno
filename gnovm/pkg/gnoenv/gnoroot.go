@@ -69,7 +69,7 @@ func guessGnoRootDir() (string, error) {
 		}
 	}
 
-	return "", errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable.")
+	return "", errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable")
 }
 
 func inferGnoRootFromGoMod() (string, error) {
