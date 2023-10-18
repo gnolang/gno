@@ -57,7 +57,6 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		}
 	} else if err != nil {
 		return err
-
 	}
 
 	// Define setup scripts
