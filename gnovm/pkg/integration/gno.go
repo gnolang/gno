@@ -6,17 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
 )
-
-var gnoEnv struct {
-	err    error
-	gnoBin string
-	once   sync.Once
-}
 
 func SetupGno(p *testscript.Params, buildDir string) error {
 	gnoroot := os.Getenv("GNOROOT")
@@ -56,10 +49,11 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 			return fmt.Errorf("uanble to build gno binary: %w", err)
 		}
 	} else if err != nil {
+		// Return any other errors
 		return err
 	}
 
-	// Define setup scripts
+	// Wrap setup scripts
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
 		if origSetup != nil {
@@ -72,6 +66,9 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		if err != nil {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
 		}
+		env.Defer(func() {
+			os.RemoveAll(home)
+		})
 
 		env.Vars = append(env.Vars,
 			"GNOROOT="+gnoroot, // thx PR 1014 :)
@@ -101,5 +98,6 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 			}
 		}
 	}
+
 	return nil
 }

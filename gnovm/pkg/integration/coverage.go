@@ -52,7 +52,7 @@ func SetupCoverage(p *testscript.Params) error {
 			origSetup(env)
 		}
 
-		// override GOCOVEDIR directory
+		// Override `GOCOVEDIR` directory
 		env.Setenv("GOCOVERDIR", coverdir)
 		return nil
 	}
