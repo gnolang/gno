@@ -141,18 +141,22 @@ func (msg MsgCall) GetReceived() std.Coins {
 
 // MsgExec - executes arbitrary Gno code.
 type MsgExec struct {
-	Caller crypto.Address `json:"caller" yaml:"caller"`
-	Send   std.Coins      `json:"send" yaml:"send"`
-	Source string         `json:"source" yaml:"source"`
+	Caller  crypto.Address  `json:"caller" yaml:"caller"`
+	Send    std.Coins       `json:"send" yaml:"send"`
+	Package *std.MemPackage `json:"package" yaml:"package"`
 }
 
 var _ std.Msg = MsgExec{}
 
-func NewMsgExec(caller crypto.Address, send std.Coins, source string) MsgExec {
+func NewMsgExec(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgExec {
 	return MsgExec{
 		Caller: caller,
 		Send:   send,
-		Source: source,
+		Package: &std.MemPackage{
+			Name:  "main",
+			Path:  "gno.land/r/main", // XXX
+			Files: files,
+		},
 	}
 }
 
@@ -167,8 +171,8 @@ func (msg MsgExec) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.Source == "" { // XXX
-		return ErrInvalidExpr("missing source to exec")
+	if msg.Package.Path == "" { // XXX
+		return ErrInvalidPkgPath("missing package path")
 	}
 	return nil
 }

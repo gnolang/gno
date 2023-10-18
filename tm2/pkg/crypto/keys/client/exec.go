@@ -4,8 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -16,7 +19,6 @@ import (
 type execCfg struct {
 	rootCfg *makeTxCfg
 	send    string
-	source  string
 }
 
 func newExecCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
@@ -27,7 +29,7 @@ func newExecCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "exec",
-			ShortUsage: "exec [flags] <key-name or address>",
+			ShortUsage: "exec [flags] <key-name or address> <file or - or dir>",
 			ShortHelp:  "Executes arbitrary Gno code",
 		},
 		cfg,
@@ -40,7 +42,7 @@ func newExecCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 func (c *execCfg) RegisterFlags(fs *flag.FlagSet) {}
 
 func execExec(cfg *execCfg, args []string, io *commands.IO) error {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return flag.ErrHelp
 	}
 	if cfg.rootCfg.gasWanted == 0 {
@@ -50,17 +52,10 @@ func execExec(cfg *execCfg, args []string, io *commands.IO) error {
 		return errors.New("gas-fee not specified")
 	}
 
-	// read statement.
-	// TODO: parse stdin
-	source := cfg.source
-	source = "package main\nfunc main() {println(\"42\")}"
-	if source == "" {
-		return errors.New("empty source")
-	}
-	// TODO: validate source
+	nameOrBech32 := args[0]
+	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
 
 	// read account pubkey.
-	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.rootCfg.Home)
 	if err != nil {
 		return err
@@ -78,10 +73,53 @@ func execExec(cfg *execCfg, args []string, io *commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
+	var memPkg = &std.MemPackage{}
+	if sourcePath == "-" { // stdin
+		data, err := ioutil.ReadAll(io.In)
+		if err != nil {
+			return fmt.Errorf("could not read stdin: %w", err)
+		}
+		memPkg.Files = []*std.MemFile{
+			{
+				Name: "stdin.gno",
+				Body: string(data),
+			},
+		}
+	} else {
+		info, err := os.Stat(sourcePath)
+		if err != nil {
+			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
+		}
+		if info.IsDir() {
+			memPkg = gno.ReadMemPackage(sourcePath, "")
+		} else { // is file
+			b, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return fmt.Errorf("could not read %q: %w", sourcePath, err)
+			}
+			memPkg.Files = []*std.MemFile{
+				{
+					Name: info.Name(),
+					Body: string(b),
+				},
+			}
+		}
+	}
+	memPkg.Name = "main"
+	memPkg.Path = "gno.land/r/main"
+	if memPkg.IsEmpty() {
+		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
+	}
+	// precompile and validate syntax
+	err = gno.PrecompileAndCheckMempkg(memPkg)
+	if err != nil {
+		panic(err)
+	}
+
 	// construct msg & tx and marshal.
 	msg := vm.MsgExec{
-		Caller: caller,
-		Source: source,
+		Caller:  caller,
+		Package: memPkg,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

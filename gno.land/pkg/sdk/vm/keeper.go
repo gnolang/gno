@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -283,9 +284,108 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// TODO pay for gas? TODO see context?
 }
 
-// Exec executes Gno code.
+// Exec executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
-	panic("NOT IMPLEMENTED")
+	//pkgPath := "gno.land/r/main" // special user realm
+	caller := msg.Caller
+	pkgAddr := caller
+	store := vm.getGnoStore(ctx)
+	send := msg.Send
+
+	/* addpkg */
+	memPkg := msg.Package
+
+	// Validate arguments.
+	callerAcc := vm.acck.GetAccount(ctx, caller)
+	if callerAcc == nil {
+		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
+	}
+	if err := msg.Package.Validate(); err != nil {
+		return "", ErrInvalidPkgPath(err.Error())
+	}
+	/*if pv := store.GetPackage(pkgPath, false); pv != nil {
+		return "", ErrInvalidPkgPath("package already exists: " + pkgPath)
+	}*/
+
+	// Send send-coins to pkg from caller.
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse and run the files, construct *PV.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		Msg:           msg,
+		OrigCaller:    caller.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
+	}
+	// Parse and run the files, construct *PV.
+	buf := new(bytes.Buffer)
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			//Output:    os.Stdout, // XXX
+			PkgPath:   "",
+			Output:    buf,
+			Store:     store,
+			Alloc:     store.GetAllocator(),
+			Context:   msgCtx,
+			MaxCycles: vm.maxCycles,
+		})
+	defer m.Release()
+	_, pv := m.RunMemPackage(memPkg, true) // XXX: just save the contract, not the state
+
+	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
+	/* /addpkg */
+
+	// Get the package and function type.
+	// pv := store.GetPackage(pkgPath, false)
+	// Make main Package with imports.
+	//mpn := gno.NewPackageNode("main", "main", nil)
+	//mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
+	//mpv := mpn.NewPackage()
+	// Parse expression.
+	expr := fmt.Sprintf(`pkg.Main()`)
+	xn := gno.MustParseExpr(expr)
+	// Convert Args to gno values.
+	cx := xn.(*gno.CallExpr)
+	if cx.Varg {
+		panic("variadic calls not yet supported")
+	}
+	// Construct machine and evaluate.
+	/*m := gno.NewMachineWithOptions(
+	gno.MachineOptions{
+		PkgPath:   "",
+		Output:    os.Stdout, // XXX
+		Store:     store,
+		Context:   msgCtx,
+		Alloc:     store.GetAllocator(),
+		MaxCycles: vm.maxCycles,
+	})*/
+
+	//fset := gno.ParseMemPackage(memPkg)
+	mpn := gno.NewPackageNode("main", "main", nil) //fset)
+	// pv := mpn.NewPackage()
+	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
+	mpv := mpn.NewPackage()
+	m.SetActivePackage(mpv)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
+				r, m.String())
+			return
+		}
+		m.Release()
+	}()
+	m.Eval(xn)
+	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+	res = buf.String()
+	return res, nil
 }
 
 // QueryFuncs returns public facing function signatures.
