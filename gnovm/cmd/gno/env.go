@@ -109,7 +109,6 @@ func getPrinterShell(printkeys bool) envPrinter {
 			} else {
 				io.Printf("%s\n", env.Value)
 			}
-
 		}
 	}
 }

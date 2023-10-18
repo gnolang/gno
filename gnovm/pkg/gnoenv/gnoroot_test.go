@@ -70,5 +70,4 @@ func TestInferGnoRootFromGoMod(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, root)
 	})
-
 }
