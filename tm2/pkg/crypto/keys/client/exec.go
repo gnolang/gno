@@ -5,11 +5,11 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -19,7 +19,7 @@ type execCfg struct {
 	source  string
 }
 
-func newExecCmd(rootCfg *makeTxCfg) *commands.Command {
+func newExecCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 	cfg := &execCfg{
 		rootCfg: rootCfg,
 	}
@@ -32,7 +32,7 @@ func newExecCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execExec(cfg, args, commands.NewDefaultIO())
+			return execExec(cfg, args, io)
 		},
 	)
 }
