@@ -11,6 +11,23 @@ GOALS:
 
 */
 
+// XXX open questions
+// * Do we want a directory?
+// * Should action memoize object/subject/args?
+// * Should args be interface{}? 
+//   - NOTE: Amino *can* encode anything registered.
+//   - XXX: could one pass in a pointer ref as arg?
+//     - not without a directory, conflicts with GC system.
+//     - with directory, any ObjectID() can be looked up.
+//   - PRO: less duplicate string conversion work
+//   - PRO: more flexible
+//   - CON: args are mutable, potentially confusing.
+//     - object/subject *should* be mutable.
+//   - CON: malleability becomes user problem.
+//     - so how do you sign an object? SignBytes()?
+//   - CON: requires some reflection call system.
+// 
+
 import "gno.land/p/demo/avl"
 
 //----------------------------------------
