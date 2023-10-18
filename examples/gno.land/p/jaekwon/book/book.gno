@@ -78,10 +78,13 @@ func main() {
 //----------------------------------------
 // Object
 
-type ObjectKey int
+type ObjectKey string
 
-func (key ObjectKey) String() string {
-	// XXX itoa
+func (key ObjectKey) Validate() {
+	if len(key) == "" {
+		panic("invalid key")
+	}
+	// XXX make sure key is alphanumeric.
 }
 
 type Object interface {
@@ -100,15 +103,19 @@ type Object interface {
 
 type Directory struct {
 	name    string   // name of directory
-	lastKey int64    // last key used
-	objects avl.Tree // id -> Object
+	objects avl.Tree // key -> Object
+	auto    bool     // use automatic numeric keys
+	lastKey int64    // last auto numeric key used
+	prefix  string   // key prefix, if any
 }
 
-func NewDirectory(name string) *Directory {
+func NewDirectory(name string, auto bool, prefix string) *Directory {
 	return &Directory{
 		name:    name,
-		lastKey: 0,
 		objects: nil,
+		auto:    auto,
+		lastKey: 0,
+		prefix:  prefix,
 	}
 }
 
@@ -117,8 +124,7 @@ func (dir *Directory) GetName() string {
 }
 
 func (dir *Directory) GetObject(key ObjectKey) Object {
-	keystr := key.String()
-	obj, exists := dir.objects.Get(keystr)
+	obj, exists := dir.objects.Get(key)
 	if !exists {
 		panic("object not found: invalid key")
 	}
@@ -126,18 +132,26 @@ func (dir *Directory) GetObject(key ObjectKey) Object {
 }
 
 func (dir *Directory) AddObject(obj Object) {
-	nextKey := dir.nextKey()
-	obj.SetKey(nextKey)
-	keystr := nextKey.String()
-	updated := dir.objects.Set(keystr, obj)
+	key := ObjectKey("")
+	if dir.auto {
+		key = dir.nextKey()
+		obj.SetKey(key)
+	} else {
+		key = obj.GetKey()
+		key.ValidateBasic()
+		if !hasPrefix(string(key), dir.prefix) {
+			panic("invalid key: prefix mismatch")
+		}
+	}
+	updated := dir.objects.Set(string(key), obj)
 	if updated == true {
 		panic("duplicate object key")
 	}
 }
 
 func (dir *Directory) RemoveObject(obj Object) {
-	keystr := obj.GetKey().String()
-	old, removed := dir.objects.Remove(keystr)
+	key := obj.GetKey()
+	old, removed := dir.objects.Remove(string(key))
 	if !removed {
 		panic("cannot remove object: not found")
 	}
@@ -147,20 +161,25 @@ func (dir *Directory) RemoveObject(obj Object) {
 }
 
 func (dir *Directory) RemoveObjectByKey(key ObjectKey) {
-	keystr := key.String()
-	_, removed := dir.objects.Remove(keystr)
+	if !hasPrefix(key, dir.prefix) {
+		panic("invalid key: prefix mismatch")
+	}
+	_, removed := dir.objects.Remove(string(key))
 	if !removed {
 		panic("cannot remove object: not found")
 	}
 }
 
 func (dir *Directory) nextKey() ObjectKey {
+	if !dir.auto {
+		panic("cannot generate key: not auto keyed")
+	}
 	nextKey := dir.lastKey + 1
 	if nextKey < 0 {
 		panic("key overflow")
 	}
 	dir.lastKey = nextKey
-	return ObjectKey(nextKey)
+	return ObjectKey(dir.prefix + itoa(nextKey))
 }
 
 //----------------------------------------
@@ -347,4 +366,14 @@ type Account struct {
 	// each account has an associated pab
 	// XXX or, accounts have devices, each with a pab.
 	pab *PrivActionBook
+}
+
+//----------------------------------------
+// misc
+
+func hasPrefix(str, prefix string) bool {
+	if len(str) <= len(prefix) {
+		return false
+	}
+	return str[:len(prefix)] == prefix
 }
