@@ -23,32 +23,60 @@ func main() {
 	db.Approve(test4, authctx.AuthorizeNone())
 	db.Approve(test5, authctx.AuthorizeRoles("fooperm", "barperm"))
 
+	println("------------- checking various AuthFunc")
 	{
 		std.TestSetOrigCaller(test2)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test2", delegation, delegation.HasRole("bazperm"))
+		println("test2", delegation, delegation.HasRole("bazperm"), authctx.IsNative(delegation))
 	}
 	{
 		std.TestSetOrigCaller(test3)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test3", delegation, delegation.HasRole("bazperm"))
+		println("test3", delegation, delegation.HasRole("bazperm"), authctx.IsNative(delegation))
 	}
 	{
 		std.TestSetOrigCaller(test4)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test4", delegation, delegation.HasRole("bazperm"))
+		println("test4", delegation, delegation.HasRole("bazperm"), authctx.IsNative(delegation))
 	}
 	{
 		std.TestSetOrigCaller(test5)
 		delegation := db.NewOrigDelegatedAuthContext(test1)
-		println("test5", delegation, delegation.HasRole("bazperm"))
+		println("test5", delegation, delegation.HasRole("bazperm"), authctx.IsNative(delegation))
+	}
+
+	println("------------- checking IsNative")
+	{
+		myctx := myAuthCtxImpl{}
+		println("myctx", authctx.IsNative(myctx))
+
+		scopedMyctx := authctx.NewScopedAuthContext(myctx, authctx.AuthorizeRoles("fooperm"))
+		println("scopedMyctx", authctx.IsNative(scopedMyctx))
+
+		orig := authctx.NewOrigAuthContext()
+		println("orig", authctx.IsNative(orig))
+
+		scopedOrig := authctx.NewScopedAuthContext(orig, authctx.AuthorizeRoles("fooperm"))
+		println("scopedOrig", authctx.IsNative(scopedOrig))
 	}
 
 	// TODO: test db.NewPrevDelegatedAuthContext
 }
 
+type myAuthCtxImpl struct{}
+
+func (myAuthCtxImpl) String() string           { return "foo" }
+func (myAuthCtxImpl) HasRole(role string) bool { return true }
+func (myAuthCtxImpl) Addr() std.Address        { return std.Address("foobar") }
+
 // Output:
-// test2 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 false
-// test3 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt true
-// test4 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxap5ta047h6lta047h6lta047h6ldlnrjr false
-// test5 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxap4ta047h6lta047h6lta047h6ljkuwga false
+// ------------- checking various AuthFunc
+// test2 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxapjta047h6lta047h6lta047h6laqcyu4 false true
+// test3 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxapnta047h6lta047h6lta047h6lzfhfxt true true
+// test4 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxap5ta047h6lta047h6lta047h6ldlnrjr false true
+// test5 delegated:g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7/g1w3jhxap4ta047h6lta047h6lta047h6ljkuwga false true
+// ------------- checking IsNative
+// myctx false
+// scopedMyctx false
+// orig true
+// scopedOrig true

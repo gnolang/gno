@@ -162,3 +162,17 @@ func Must(ctx AuthContext) AuthContext {
 	}
 	return ctx
 }
+
+// IsNative checks if the AuthContext implementation originates from this package.
+// It returns true if the AuthContext is native to this package and false if it's from an external source.
+func IsNative(ctx AuthContext) bool {
+	switch typed := ctx.(type) {
+	case origAuthContext, prevAuthContext, delegatedAuthContext, *origAuthContext, *prevAuthContext, *delegatedAuthContext:
+		return true
+	case scopedAuthContext:
+		return IsNative(typed.parent)
+	case *scopedAuthContext:
+		return IsNative(typed.parent)
+	}
+	return false
+}
