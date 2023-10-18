@@ -13,7 +13,7 @@ func TestHomeDir(t *testing.T) {
 		// Backup any related environment variables
 		tBackupEnvironement(t, "GNOHOME", "GNO_HOME")
 
-		expected := "/test/gnohome"
+		expected := "/test/gno_home"
 		os.Setenv("GNOHOME", expected)
 		require.Equal(t, expected, HomeDir())
 	})
@@ -23,7 +23,7 @@ func TestHomeDir(t *testing.T) {
 		tBackupEnvironement(t, "GNOHOME", "GNO_HOME")
 		t.Log("`GNO_HOME` is deprecated")
 
-		expected := "/test/gno_home"
+		expected := "/test/gnohome"
 		os.Setenv("GNO_HOME", expected)
 		require.Equal(t, expected, HomeDir())
 	})

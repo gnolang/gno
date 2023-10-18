@@ -16,7 +16,7 @@ func HomeDir() string {
 	}
 
 	// XXX: `GNO_HOME` is deprecated and should be replaced by `GNOHOME`
-	// keeping support for compatibility
+	// keeping for compatibility support
 	dir = os.Getenv("GNO_HOME")
 	if dir != "" {
 		return dir
