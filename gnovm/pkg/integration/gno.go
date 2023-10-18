@@ -11,6 +11,11 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
+// SetupGno sets up the given testscripts environment for tests that use the gno
+// command. It build `gno` using `go build` command into the given buildDir if
+// not existing already.
+// It will add `gno` command to p.Cmds. It also wraps p.Setup to set up the environment
+// variables for running the go command appropriately.
 func SetupGno(p *testscript.Params, buildDir string) error {
 	gnoroot := os.Getenv("GNOROOT")
 	if gnoroot == "" {
@@ -62,6 +67,10 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 			}
 		}
 
+		env.Setenv("GNOROOT", gnoroot) // thx PR 1014 :)
+
+		// by default, $HOME=/no-home, but we need an existing $HOME directory
+		// because some commands needs to access $HOME/.cache/go-build
 		home, err := os.MkdirTemp("", "gno")
 		if err != nil {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
@@ -69,13 +78,7 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		env.Defer(func() {
 			os.RemoveAll(home)
 		})
-
-		env.Vars = append(env.Vars,
-			"GNOROOT="+gnoroot, // thx PR 1014 :)
-			// by default, $HOME=/no-home, but we need an existing $HOME directory
-			// because some commands needs to access $HOME/.cache/go-build
-			"HOME="+home,
-		)
+		env.Setenv("HOME", home)
 
 		return nil
 	}

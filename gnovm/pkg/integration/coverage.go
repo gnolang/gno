@@ -16,7 +16,9 @@ var coverageEnv struct {
 	once     sync.Once
 }
 
-// SetupCoverage sets up the given test environment for coverage
+// SetupCoverage sets up the given testscripts environment for coverage.
+// It will need both, covermode and a target directory defined with
+// `GOCOVERDIR_TXTAR` environements variable to be set to be effective
 func SetupCoverage(p *testscript.Params) error {
 	coverdir := os.Getenv("GOCOVERDIR_TXTAR")
 	if testing.CoverMode() == "" || coverdir == "" {
@@ -25,6 +27,8 @@ func SetupCoverage(p *testscript.Params) error {
 
 	var err error
 
+	// We need to have an absolute path here, because current directory
+	// context will change while execution test scripts.
 	if !filepath.IsAbs(coverdir) {
 		coverdir, err = filepath.Abs(coverdir)
 		if err != nil {
@@ -32,6 +36,7 @@ func SetupCoverage(p *testscript.Params) error {
 		}
 	}
 
+	// If the given coverage directory doesn't exist, create it
 	info, err := os.Stat(coverdir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -52,7 +57,7 @@ func SetupCoverage(p *testscript.Params) error {
 			origSetup(env)
 		}
 
-		// Override `GOCOVEDIR` directory
+		// Override `GOCOVEDIR` directory for sub-execution
 		env.Setenv("GOCOVERDIR", coverdir)
 		return nil
 	}
