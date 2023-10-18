@@ -43,8 +43,8 @@ type Attributes struct {
 // This is a thought experiment to make books work for auth.
 // Actions are considered authorized if appended in PrivActionBook.
 //
-// An PrivActionBook is meant to be owned privately by an account.
-// This is similar to PrivKey in crypto; privileged data.
+// An PrivActionBook is meant to be owned privately by the object.
+// This is similar to PrivKey in crypto; it is privileged.
 //
 // Actions need not necessarily be signed cryptographically
 // to be authenticated in an PrivActionBook, because the test of
@@ -61,6 +61,9 @@ type Attributes struct {
 // type ReadActionBook, a readonly ActionBook??
 type PrivActionBook struct {
 
+	// All actions must have this object.
+	object string
+
 	// Maybe PrivActionBook *is* Book?
 	// not sure yet.
 	book *Book
@@ -76,7 +79,8 @@ type PrivActionBook struct {
 	// The type of value depends on SequenceStrategy.
 	// This field allows the PrivActionBook to prune
 	// all previous Actions while preserving sequencing.
-	sequenceAccum interface{}
+	// XXX string or TextMarshaller() or Stringer() or?
+	sequenceAccum string
 }
 
 func NewPrivActionBook() *PrivActionBook {
@@ -88,13 +92,42 @@ func NewPrivActionBook() *PrivActionBook {
 // The execution of action generally should happen
 // atomically with authorization by caller.
 //
-//	if err := ab.Authorize(); err != nil {
+//	if err := pab.Append(action); err != nil {
 //	    execute(action)
 //	}
 func (pab *PrivActionBook) Append(action Action) error {
+	// XXX copy action.
+
 	// XXX check action.sequence against ab.last
 	// XXX if good, append and return nil
 	// XXX otherwise return error
+
+	// XXX match action.object with pab.object.
+	// XXX set action.object = nil for space.
+}
+
+func (pab *PrivActionBook) Len() int {
+	return pab.book.Len()
+}
+
+func (pab *PrivActionBook) Get(idx int) Action {
+	// XXX fetch action from pab.book.Get()
+	// XXX copy action
+	// XXX set copy.object = pab.object
+	// XXX return copy
+}
+
+// XXX SequenceStragegy.Name()?
+// XXX or just make enums?
+// XXX Either way need to make globally unique lookup.
+func (pab *PrivActionBook) SequenceStrategy() SequenceStrategy {
+	// XXX
+}
+
+// XXX clients will need this to sign,
+// XXX especially after device reset.
+func (pab *PrivActionBook) SequenceAccum() string {
+	// XXX
 }
 
 //----------------------------------------
