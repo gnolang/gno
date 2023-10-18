@@ -1,11 +1,12 @@
 #!/bin/bash
+# Heavily modified version of the following script:
+# https://gist.github.com/Kegsay/84ce060f237cb9ab4e0d2d321a91d920
 set -u
 
 DOC_DIR=godoc
 PKG=github.com/gnolang/gno
 
-# Run a godoc server which we will scrape. Clobber the GOPATH to include
-# only our dependencies.
+# Run a pkgsite server which we will scrape. Use env to run it from our repo's root directory.
 env -C ../.. pkgsite &
 DOC_PID=$!
 
@@ -20,9 +21,18 @@ do
 done
 
 # Scrape the pkg directory for the API docs. Scrap lib for the CSS/JS. Ignore everything else.
-wget -v -r -m -k -E -p -erobots=off --accept-regex='8080/((search|license-policy|about|)$|(static|images)/|github.com/gnolang/)' "http://localhost:8080/"
+wget \
+	--verbose \
+	--recursive \
+	--mirror \
+	--convert-links \
+	--adjust-extension \
+	--page-requisites \
+	-erobots=off \
+	--accept-regex='8080/((search|license-policy|about|)$|(static|images)/|github.com/gnolang/)' \
+	http://localhost:8080/
 
-# Stop the godoc server
+# Stop the pkgsite server
 kill -9 $DOC_PID
 
 # Delete the old directory or else mv will put the localhost dir into
@@ -30,6 +40,9 @@ kill -9 $DOC_PID
 rm -rf $DOC_DIR
 mv localhost\:8080 $DOC_DIR
 
+# Perform various replacements to fix broken links/UI.
+# /files/ will point to their github counterparts; we make links to importedby/version go nowhere;
+# any other link will point to pkg.go.dev, and fix the /files/... text when viewing a pkg.
 find godoc -type f -exec sed -ri 's#http://localhost:8080/files/[^"]*/github.com/gnolang/([^/"]+)/([^"]*)#https://github.com/gnolang/\1/blob/master/\2#g
 s#http://localhost:8080/[^"?]*\?tab=(importedby|versions)#\##g
 s#http://localhost:8080([^")]*)#https://pkg.go.dev\1#g
