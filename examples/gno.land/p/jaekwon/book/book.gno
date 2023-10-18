@@ -15,7 +15,7 @@ GOALS:
 // * Do we want a directory?
 // * Should action memoize object/subject/args?
 // * Should args be interface{}?
-//   - NOTE: Amino *can* encode anything registered.
+//   - NOTE: Amino *can* encode almost anything registered.
 //   - XXX: could one pass in a pointer ref as arg?
 //     - not without a directory, conflicts with GC system.
 //     - with directory, any ObjectID() can be looked up.
@@ -47,7 +47,7 @@ func main() {
 	// CASE 1A: dummy "priv" account.
 	// Access to privAccount is like access to priv keys.
 	privAccount.AppendAction(action)
-	directory.GetObject(action.object).Receive(action)
+	directory.GetObject(action.object).Fulfill(action)
 
 	// CASE 1B: ActionRunner with no signing
 	// This is just a wrapper around CASE 1A.
@@ -55,7 +55,7 @@ func main() {
 	sar.RunWith(action, privAccount)
 	// sar.RunWith() impl:
 	//   privAccount.AppendAction(action)
-	//   ar.dir.GetObject(action.object).Receive(action)
+	//   ar.dir.GetObject(action.object).Fulfill(action)
 
 	// CASE 2A: public crypto key account.
 	// NOTE: This is NOT secure because
@@ -64,7 +64,7 @@ func main() {
 	privKey := _ // imagine we have the key
 	signed := SignAction(action, privKey)
 	account.Authenticate(signed)
-	directory.GetObject(action.object).Receive(action)
+	directory.GetObject(action.object).Fulfill(action)
 
 	// CASE 2B: SignedActionRunner
 	// SignedActionRunner embeds an ActionRunner.
@@ -72,7 +72,7 @@ func main() {
 	sar.Run(signed)
 	// sar.Run() impl:
 	//   signed.subject.Authenticate(signed)
-	//   sar.dir.GetObject(action.object).Receive(action)
+	//   sar.dir.GetObject(action.object).Fulfill(action)
 }
 
 //----------------------------------------
@@ -93,9 +93,10 @@ type Object interface {
 	// Set the prmiary key.
 	// Panics if key exists.
 	SetKey(ObjectKey)
-	// Receive performs action on object.
+	// Fulfill performs action on self.
 	// Panics if action is not permitted.
-	Receive(Action)
+	// XXX what about return values? (prob ignore)
+	Fulfill(Action)
 }
 
 //----------------------------------------
