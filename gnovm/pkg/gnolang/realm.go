@@ -70,8 +70,6 @@ func (pid PkgID) Bytes() []byte {
 }
 
 func PkgIDFromPkgPath(path string) PkgID {
-	fmt.Printf("PkgPath %s -> PkgID %v", path,
-		PkgID{HashBytes([]byte(path))})
 	return PkgID{HashBytes([]byte(path))}
 }
 
@@ -154,10 +152,12 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		fmt.Println("PO", po.String())
-		fmt.Println("PO.PKGID", po.GetObjectID().PkgID)
-		fmt.Println("rlm", rlm)
-		fmt.Println("rlm.ID", rlm.ID)
+		/*
+			fmt.Println("PO", po.String())
+			fmt.Println("PO.PKGID", po.GetObjectID().PkgID)
+			fmt.Println("rlm", rlm)
+			fmt.Println("rlm.ID", rlm.ID)
+		*/
 		panic("cannot modify external-realm or non-realm object")
 	}
 	// From here on, po is real (not new-real).

@@ -1630,12 +1630,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	} else if rlm == nil && recv.V != nil { // XXX maybe improve this part.
-		// maybe this is a bound method of a recv of a realm.
-		// in that case, inherit the realm of the receiver.
+		// A bound method declared in a pure package.
 		obj, ok := recv.V.(Object)
 		if ok {
 			recvOID := obj.GetObjectInfo().ID
 			if !recvOID.IsZero() {
+				panic("qwe")
+				// Receiver declared from pure package is stored in realm.
+				// Inherit the realm of the receiver.
 				recvPVOID := ObjectIDFromPkgID(recvOID.PkgID)
 				pv := m.Store.GetObject(recvPVOID).(*PackageValue)
 				rlm := pv.GetRealm()
