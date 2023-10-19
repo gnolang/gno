@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	blog "gno.land/r/gnoland/blog"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -20,6 +21,14 @@ func Render(_ string) string {
 	dom.Body.Append(introSection()...)
 	dom.Body.Append(ui.Jumbotron(worxDAO()...))
 	dom.Body.Append(packageStaffPicks()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(
+		ui.Columns{3, []ui.Element{
+			lastBlogposts(4),
+			upcomingEvents(4),
+			lastContributions(4),
+		}},
+	)
 	dom.Body.Append(ui.Jumbotron(discoverLinks()...))
 
 	// footer
@@ -38,6 +47,29 @@ func Render(_ string) string {
 	)
 
 	return dom.String()
+}
+
+func lastBlogposts(limit int) ui.Element {
+	posts := blog.RenderLastPostsWidget(limit)
+	return ui.Element{
+		ui.H3("Last Blogposts"),
+		ui.Text(posts),
+	}
+}
+
+func lastContributions(limit int) ui.Element {
+	return ui.Element{
+		ui.H3("Last Contributions"),
+		ui.Text("TODO: import r/gh"),
+		ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+	}
+}
+
+func upcomingEvents(limit int) ui.Element {
+	return ui.Element{
+		ui.H3("Upcoming Events"),
+		ui.Text("TODO: import r/gnoland/events"),
+	}
 }
 
 func introSection() ui.Element {

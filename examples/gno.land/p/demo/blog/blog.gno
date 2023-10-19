@@ -19,6 +19,18 @@ type Blog struct {
 	NoBreadcrumb bool
 }
 
+func (b Blog) RenderLastPostsWidget(limit int) string {
+	output := ""
+	i := 0
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		p := value.(*Post)
+		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
+		i++
+		return i >= limit
+	})
+	return output
+}
+
 func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	if !b.NoBreadcrumb {
 		res.Write(breadcrumb([]string{b.Title}))

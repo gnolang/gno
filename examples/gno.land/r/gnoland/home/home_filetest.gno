@@ -19,16 +19,16 @@ func main() {
 //
 // <div class="jumbotron">
 //
-// ### WorxDAO
+// ### WorxDAO (WIP)
 //
 // - A
-// - A1
-// - A1A
-// - A1B
-// - A2
-// - A3
-// - A3A
-// - A3A1
+//   - A1
+//     - A1A
+//     - A1B
+//   - A2
+//   - A3
+//     - A3A
+//       - A3A1
 // - B
 // - C
 // </div><!-- /jumbotron -->
@@ -86,6 +86,31 @@ func main() {
 // - [p/demo/grc/grc721](p/demo/grc/grc721)
 // - ...
 //
+// </div><!-- /column-->
+// </div><!-- /columns-3 -->
+//
+//
+// ---
+//
+// <div class="columns-3">
+// <div class="column">
+//
+// ### Last Blogposts
+//
+//
+// </div><!-- /column-->
+// <div class="column">
+//
+// ### Upcoming Events
+//
+// TODO: import r/gnoland/events
+// </div><!-- /column-->
+// <div class="column">
+//
+// ### Last Contributions
+//
+// TODO: import r/gh
+// [#1134](https://github.com/gnolang/gno/pull/1134)
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
 //
