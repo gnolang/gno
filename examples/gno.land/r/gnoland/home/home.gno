@@ -3,7 +3,6 @@ package home
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
@@ -19,7 +18,7 @@ func Render(_ string) string {
 
 	// body
 	dom.Body.Append(introSection()...)
-	dom.Body.Append(ui.Jumbotron(worxDAO()...))
+	dom.Body.Append(ui.Jumbotron(worxDAO()))
 	dom.Body.Append(packageStaffPicks()...)
 	dom.Body.Append(ui.HR{})
 	dom.Body.Append(
@@ -29,7 +28,7 @@ func Render(_ string) string {
 			lastContributions(4),
 		}},
 	)
-	dom.Body.Append(ui.Jumbotron(discoverLinks()...))
+	dom.Body.Append(ui.Jumbotron(discoverLinks()))
 
 	// footer
 	dom.Footer.Append(
