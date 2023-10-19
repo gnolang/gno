@@ -1,4 +1,4 @@
-module github.com/gnolang/gno3/contribs/gno-render
+module github.com/gnolang/gno/contribs/gnomd
 
 go 1.20
 
