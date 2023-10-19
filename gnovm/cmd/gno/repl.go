@@ -89,6 +89,7 @@ func execRepl(cfg *replCfg, args []string) error {
 //   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
 //   gno> func a() string { return "a" }   // declare a new function named a
 //   gno> /src                             // print current generated source
+//   gno> /editor                          // enter in multi-line mode, end with ';'
 //   gno> /reset                           // remove all previously inserted code
 //   gno> println(a())                     // print the result of calling a()
 //   gno> /exit                            // alternative to <Ctrl-D>
@@ -107,31 +108,44 @@ func runRepl(cfg *replCfg) error {
 
 	fmt.Fprint(os.Stdout, "gno> ")
 
-	prevline := ""
+	inEdit := false
+	prev := ""
 	liner := bufio.NewScanner(os.Stdin)
 
 	for liner.Scan() {
 		line := liner.Text()
-		if prevline != "" {
-			line = prevline + "\n" + line
-			prevline = ""
+
+		if l := strings.TrimSpace(line); l == ";" {
+			line, inEdit = "", false
+		} else if l == "/editor" {
+			line, inEdit = "", true
+			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
+		}
+		if prev != "" {
+			line = prev + "\n" + line
+			prev = ""
+		}
+		if inEdit {
+			fmt.Fprint(os.Stdout, "...  ")
+			prev = line
+			continue
 		}
 
 		if err := handleInput(r, line); err != nil {
 			var goScanError scanner.ErrorList
 			if errors.As(err, &goScanError) {
-				// We assume that a Go scanner error indicates an incomplete Go statement.
+				// We assune that a Go scanner error indicates an incomplete Go statement.
 				// Append next line and retry.
-				prevline = line
+				prev = line
 			} else {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 
-		if prevline == "" {
+		if prev == "" {
 			fmt.Fprint(os.Stdout, "gno> ")
 		} else {
-			fmt.Fprint(os.Stdout, "... ")
+			fmt.Fprint(os.Stdout, "...  ")
 		}
 	}
 	return nil
