@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/ui"
 )
 
+// XXX: p/demo/ui API is crappy, we need to make it more idiomatic
 // XXX: use an updatable block system to update content from a DAO
 // XXX: var blocks avl.Tree
 
@@ -49,6 +50,7 @@ func introSection() ui.Element {
 
 func worxDAO() ui.Element {
 	// WorxDAO
+	// XXX(manfred): please, let me finish a v0, then we can iterate
 	// highest level == highest responsibility
 	// teams are responsible for components they don't owne
 	// flag : realm maintainers VS facilitators
@@ -73,15 +75,15 @@ func worxDAO() ui.Element {
 	## Contributors
 	``*/
 	return ui.Element{
-		ui.H3("WorxDAO"),
+		ui.H3("WorxDAO (WIP)"),
 		ui.Text(`- A
-- A1
-- A1A
-- A1B
-- A2
-- A3
-- A3A
-- A3A1
+  - A1
+    - A1A
+    - A1B
+  - A2
+  - A3
+    - A3A
+      - A3A1
 - B
 - C`),
 	}

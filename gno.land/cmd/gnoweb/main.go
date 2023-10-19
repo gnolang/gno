@@ -260,6 +260,7 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 				writeError(w, err)
 				return
 			}
+			println(string(res.Data))
 			var fsigs vm.FunctionSignatures
 			amino.MustUnmarshalJSON(res.Data, &fsigs)
 			// Fill fsigs with query parameters.
