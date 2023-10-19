@@ -22,6 +22,7 @@ var (
 
 //----------------------------------------
 
+// Contract: Left and Right can never both be set. Will result in a empty `[]` roothash
 type proofInnerNode struct {
 	Height  int8   `json:"height"`
 	Size    int64  `json:"size"`
@@ -60,6 +61,10 @@ func (pin proofInnerNode) Hash(childHash []byte) []byte {
 	}
 	if err == nil {
 		err = amino.EncodeVarint(buf, pin.Version)
+	}
+
+	if len(pin.Left) > 0 && len(pin.Right) > 0 {
+		panic(fmt.Sprintf("both left and right child hashes are set"))
 	}
 
 	if len(pin.Left) == 0 {

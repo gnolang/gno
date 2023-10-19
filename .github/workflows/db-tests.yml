@@ -20,17 +20,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        goversion:
+          - "1.20.x"
+          - "1.21.x"
         tags:
           - cleveldb
           - memdb
           - fsdb
           - boltdb
     steps:
+      - uses: actions/checkout@v4
+
       # golang
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: ${{ matrix.goversion }}
 
       # leveldb
       - name: install leveldb
@@ -44,6 +48,5 @@ jobs:
           sudo dpkg -i *.deb
 
       # test ./pkgs/db
-      - uses: actions/checkout@v3
       - name: test ./tm2/pkg/db
         run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...

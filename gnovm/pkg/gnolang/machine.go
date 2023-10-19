@@ -81,8 +81,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() interface{} {
 		return &Machine{
-			Ops:    make([]Op, OpSize),
-			Values: make([]TypedValue, ValueSize),
+			Ops:    make([]Op, VMSliceSize),
+			Values: make([]TypedValue, VMSliceSize),
 		}
 	},
 }
@@ -117,20 +117,14 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	context := opts.Context
 	mm := machinePool.Get().(*Machine)
-	*mm = Machine{
-		Ops:        mm.Ops,
-		NumOps:     0,
-		Values:     mm.Values,
-		NumValues:  0,
-		Package:    pv,
-		Alloc:      alloc,
-		CheckTypes: checkTypes,
-		ReadOnly:   readOnly,
-		MaxCycles:  maxCycles,
-		Output:     output,
-		Store:      store,
-		Context:    context,
-	}
+	mm.Package = pv
+	mm.Alloc = alloc
+	mm.CheckTypes = checkTypes
+	mm.ReadOnly = readOnly
+	mm.MaxCycles = maxCycles
+	mm.Output = output
+	mm.Store = store
+	mm.Context = context
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -139,13 +133,12 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 }
 
 const (
-	OpSize    = 1024
-	ValueSize = 1024
+	VMSliceSize = 1024
 )
 
 var (
-	opZeroed    [OpSize]Op
-	valueZeroed [ValueSize]TypedValue
+	opZeroed    [VMSliceSize]Op
+	valueZeroed [VMSliceSize]TypedValue
 )
 
 // m should not be used after this call
@@ -154,13 +147,14 @@ var (
 // and prevent objects that were not taken from
 // the pool, to call Release
 func (m *Machine) Release() {
-	// copy()
 	// here we zero in the values for the next user
 	m.NumOps = 0
 	m.NumValues = 0
-	// this is the fastest way to zero-in a slice in Go
-	copy(m.Ops, opZeroed[:])
-	copy(m.Values, valueZeroed[:])
+
+	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
+	copy(ops, opZeroed[:])
+	copy(values, valueZeroed[:])
+	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
 }

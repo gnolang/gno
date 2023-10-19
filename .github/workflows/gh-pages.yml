@@ -17,9 +17,10 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: "cd misc/devdeps && make install"
       - run: "cd misc/gendocs && make gen"
       - run: "find docs/ -type f -ls"
@@ -30,6 +31,7 @@ jobs:
           path: ./misc/gendocs/godoc
 
   deploy:
+    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     environment:
       name: github-pages

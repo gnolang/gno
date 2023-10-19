@@ -9,6 +9,12 @@ on:
       - "tm2/**.go"
       - "gno.land/**"
       - ".github/workflows/gnovm.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -21,7 +27,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        goversion:
+          - "1.20.x"
+          - "1.21.x"
         goarch: [ "amd64" ]
         goos: [ "linux" ]
         program:
@@ -29,13 +37,14 @@ jobs:
           - gnokey
           - gnoweb
           - gnofaucet
+          - gnotxsync
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+          go-version: ${{ matrix.goversion }}
       - name: go install
         working-directory: gno.land
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ./cmd/${{ matrix.program }}
@@ -44,34 +53,56 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
+        goversion:
+          - "1.20.x"
+          - "1.21.x"
         args:
           - _test.gnoland
           - _test.gnokey
           - _test.pkgs
-          #- _test.gnoweb # this test should be rewritten to run an inmemory localnode
+          # XXX: test broken, should be rewritten to run an inmemory localnode
+          # Re-add to makefile when fixed. Tracked here: https://github.com/gnolang/gno/issues/1222
+          #- _test.gnoweb
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+          go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gno.land
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          export LOG_DIR="${{ runner.temp }}/logs/test-${{ matrix.goversion }}-gnoland"
           make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
+      - name: Upload Test Log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs-test-gnoland-go${{ matrix.goversion }}
+          path: ${{ runner.temp }}/logs/**/*.log
+      - uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+        with:
+          name: ${{runner.os}}-coverage-gnoland-${{ matrix.args}}-${{matrix.goversion}}
+          path: ./gno.land/coverage.out
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all previous coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ${{ runner.temp }}/coverage
+      - name: Upload combined coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          directory: ${{ runner.temp }}/coverage
           token: ${{ secrets.CODECOV_TOKEN }}
-          name: gno.land
-          flags: gno.land,gno.land-${{matrix.args}},go-${{ matrix.go-version }}
-          files: ./gno.land/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
     strategy:
@@ -79,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # TODO: setup docker caching
       - run: make test.docker
       - run: docker logs int_gnoland || true

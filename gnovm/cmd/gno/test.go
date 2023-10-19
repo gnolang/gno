@@ -50,7 +50,7 @@ func newTestCmd(io *commands.IO) *commands.Command {
 'gno test' recompiles each package along with any files with names matching the
 file pattern "*_test.gno" or "*_filetest.gno".
 
-The only <package> supported for now is a directory (relative or absolute).
+The <package> can be directory or file path (relative or absolute).
 
 - "*_test.gno" files work like "*_test.go" files, but they contain only test
 functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
@@ -172,7 +172,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
+	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -182,9 +182,9 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	paths, err := gnoPackagesFromArgs(args)
+	paths, err := targetsFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("list package paths from args: %w", err)
+		return fmt.Errorf("list targets from patterns: %w", err)
 	}
 	if len(paths) == 0 {
 		io.ErrPrintln("no packages to test")

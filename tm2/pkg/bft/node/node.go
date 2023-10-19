@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/cors"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
