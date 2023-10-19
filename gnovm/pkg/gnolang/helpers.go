@@ -211,7 +211,8 @@ func X(x interface{}, args ...interface{}) Expr {
 		}
 		x = string(cx)
 	default:
-		panic("unexpected input type for X()")
+		panic(fmt.Sprintf("unexpected input type for Xold(): %T", x))
+		// panic("unexpected input type for X()")
 	}
 	expr := x.(string)
 	expr = fmt.Sprintf(expr, args...)
@@ -516,6 +517,8 @@ func Bx(lx interface{}, op string, rx interface{}) Expr {
 		Right: X(rx),
 	}
 }
+
+func newBx(l Expr, op Word, r Expr) Expr { return &BinaryExpr{Left: l, Op: op, Right: r} }
 
 func Call(fn interface{}, args ...interface{}) *CallExpr {
 	argz := make([]Expr, len(args))

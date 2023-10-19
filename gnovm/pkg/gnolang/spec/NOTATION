@@ -1,0 +1,10 @@
+EBNF. The syntax is specified using a variant of Extended Backus-Naur Form:
+
+Syntax      = { Production } .
+Production  = production_name "=" [ Expression ] "." .
+Expression  = Term { "|" Term } .
+Term        = Factor { Factor } .
+Factor      = production_name | token [ "…" token ] | Group | Option | Repetition .
+Group       = "(" Expression ")" .
+Option      = "[" Expression "]" .
+Repetition  = "{" Expression "}" .
