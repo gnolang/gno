@@ -93,7 +93,7 @@ func (b *Breadcrumb) Append(elems ...DomStringer) {
 
 func (b Breadcrumb) String(dom DOM) string {
 	output := ""
-	for _, entry := range b {
+	for idx, entry := range b {
 		if idx > 0 {
 			output += " / "
 		}
@@ -113,7 +113,7 @@ func (c *Columns) Append(elems ...Element) {
 
 func (c Columns) String(dom DOM) string {
 	output := `<div class="columns-` + strconv.Itoa(c.MaxWidth) + `">` + "\n"
-	for idx, entry := range c.Columns {
+	for _, entry := range c.Columns {
 		output += `<div class="column">` + "\n\n"
 		output += entry.String(dom)
 		output += "</div><!-- /column-->\n"
