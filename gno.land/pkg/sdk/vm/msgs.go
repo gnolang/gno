@@ -80,7 +80,7 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 //----------------------------------------
 // MsgCall
 
-// MsgCall - runutes a Gno statement.
+// MsgCall - executes a Gno statement.
 type MsgCall struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	Send    std.Coins      `json:"send" yaml:"send"`
@@ -139,7 +139,7 @@ func (msg MsgCall) GetReceived() std.Coins {
 //----------------------------------------
 // MsgRun
 
-// MsgRun - runutes arbitrary Gno code.
+// MsgRun - executes arbitrary Gno code.
 type MsgRun struct {
 	Caller  crypto.Address  `json:"caller" yaml:"caller"`
 	Send    std.Coins       `json:"send" yaml:"send"`

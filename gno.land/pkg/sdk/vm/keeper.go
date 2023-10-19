@@ -44,7 +44,7 @@ type VMKeeper struct {
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 
-	maxCycles int64 // max allowed cylces on VM runutions
+	maxCycles int64 // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -284,7 +284,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// TODO pay for gas? TODO see context?
 }
 
-// Run runutes arbitrary Gno code in the context of the caller's realm.
+// Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
 	pkgAddr := caller
