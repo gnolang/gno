@@ -332,7 +332,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		})
 	defer m.Release()
 	// memPkg.Path = "gno.land/r/main"
-	_, pv := m.RunMemPackage(memPkg, true) // XXX: just save the state, not the contract
+	_, pv := m.RunMemPackage(memPkg, false)
 
 	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
 
