@@ -142,7 +142,6 @@ but that looks ugly.
 
       You just need to indent an additional four spaces.
 
-
 Even More
 =========
 
@@ -166,7 +165,6 @@ Images work exactly like links, but they have exclamation points in front. They 
 
 [Happy]: https://wpclipart.com/smiley/happy/simple_colors/smiley_face_simple_green_small.png ("Smiley face")
 
-
 Inline HTML
 -----------
 
@@ -175,6 +173,391 @@ If markdown is too limiting, you can just insert your own <strike>crazy</strike>
 <div style='font-family: "Comic Sans MS", "Comic Sans", cursive;'>
 It is a pity, but markdown does **not** work in here for most markdown parsers.
 [Marked] handles it pretty well.
-</div>`
+</div>
+
+Components
+==========
+
+Jumbotron component
+-------------------
+
+A Jumbotron is a layout component used to showcase key messages.
+
+
+:::jumbotron
+
+## Jumbotron title
+
+This is a Jumbotron component you can fill with regular markdown.
+
+:::/jumbotron
+
+Stack component
+---------------
+
+Stack is a layout component used to group elements together and apply a space between them. For example, it is usefull with grouped links.
+
+:::stack
+[Stack link 1](/)
+[Stack link 2](/)
+:::/stack
+
+Box component
+-------------
+
+Box is the most abstract component that renders a div element. It is used as a group component.
+
+:::box
+**This content is in a box**
+:::/box
+
+
+Columns component
+-----------------
+
+Columns is a layout for managing columns layouts. It takes the numb of cols you want (*from 1 to 6 columns*) to create as argument and need to be filled with as much content as you mentioned in this argument. You can manage multiple element by grouping them in box components. 
+
+*Nested columns are not currently allowed*
+
+:::columns(2)
+:::box
+
+### Col 1
+
+Content 1
+
+:::/box
+:::box
+
+### Col 2
+
+Content 2
+
+:::/box
+:::/columns
+
+:::columns(3)
+:::box
+
+### Col 1
+
+Content 1
+
+:::/box
+:::box
+
+### Col 2
+
+Content 2
+
+:::/box
+:::box
+
+### Col 3
+
+Content 3
+
+:::/box
+:::/columns
+
+:::columns(4)
+:::box
+
+### Col 1
+
+Content 1
+
+:::/box
+:::box
+
+### Col 2
+
+Content 2
+
+:::/box
+:::box
+
+### Col 3
+
+Content 3
+
+:::/box
+:::box
+
+### Col 4
+
+Content 4
+
+:::/box
+:::/columns
+
+:::columns(5)
+:::box
+
+### Col 1
+
+Content 1
+
+:::/box
+:::box
+
+### Col 2
+
+Content 2
+
+:::/box
+:::box
+
+### Col 3
+
+Content 3
+
+:::/box
+:::box
+
+### Col 4
+
+Content 4
+
+:::/box
+:::box
+
+### Col 5
+
+Content 5
+
+:::/box
+:::/columns
+
+:::columns(6)
+:::box
+
+### Col 1
+
+Content 1
+
+:::/box
+:::box
+
+### Col 2
+
+Content 2
+
+:::/box
+:::box
+
+### Col 3
+
+Content 3
+
+:::/box
+:::box
+
+### Col 4
+
+Content 4
+
+:::/box
+:::box
+
+### Col 5
+
+Content 5
+
+:::/box
+:::box
+
+### Col 6
+
+Content 6
+
+:::/box
+:::/columns
+
+Button component
+----------------
+
+Button component is used as CTA (for a link) or to display a button element that you will be able to use to trigger an action or event through Javascript.
+Button is single line component that takes few arguments: the content value as first argument and an optional url as second argument. 
+
+_Note that arguments are separated by comas and you can use quotes to include comas within argument._
+
+:::button("Link button with comma, needs quotes", https://gno.land)/
+
+:::button(Plain button)/
+
+Accordion component
+-------------------
+
+Accordions display a list of high-level options that can expand/collapse to reveal more information. It takes the button text as argument.
+
+*Todo: add argument to set the state at first (open or closed)*
+
+:::accordion(Accordion open/close button)
+Accordion content
+:::/accordion
+
+Tabs component
+--------------
+
+A component to create accessible tabs. It takes the button text as arguments.
+
+:::tabs(1st tab button text, 2nd tab button text)
+:::box
+
+## 1st Tab Title
+
+1st tab Content
+:::/box
+
+:::box
+
+## 2nd Tab Title
+
+2nd tab Content
+:::/box
+:::/tabs
+
+
+Alert component
+---------------
+
+Alerts are used to communicate a state that affects a system, feature or page. The component take the alert style as argument: "warning", "info", "danger", "success".
+
+:::alert(warning)
+Warning content
+:::/alert
+
+:::alert(info)
+Info content
+:::/alert
+
+:::alert(danger)
+Danger content
+:::/alert
+
+:::alert(success)
+Success content
+:::/alert
+
+Breadcrumb component
+--------------------
+
+Breadcrumbs is a navigation pattern that helps users understand the hierarchy of a website. It requires to be filled by an ordered list.
+
+:::breadcrumb
+
+1. [Home](https://gno.land)
+2. [Foo](https://gno.land)
+3. [Bar](https://gno.land)
+
+:::/breadcrumb
+
+Dropdown component
+------------------
+
+Dropdowns are toggleable, contextual overlays for displaying lists of links and more. It requires to be filled by a list and takes the dropdown text button as argument.
+
+:::dropdown(Dropdown - click here)
+
+- [Home](https://gno.land)
+- [Foo](https://gno.land)
+- [Bar](https://gno.land)
+
+:::/dropdown
+
+Pagination component
+--------------------
+
+Breadcrumbs is a navigation component that helps users navigate between website pages. It requires to be filled by an ordered list and can take the description of the navigation (for a11y purpose) as argument.
+
+:::pagination(Article pages)
+
+- [1](/)
+- [2](/)
+- [3](/)
+
+:::/pagination
+
+Form component
+--------------
+
+This form component help you create forms. It has to be filled with dedicated components listed bellow. It takes several argument that are used to customize the form settings: 
+
+- First argument is the Action (eg. link: "https://gno.land") 
+- Second argument is the Method  (eg. "post", "get", ...)
+
+:::form(/, get)
+
+### Form inputs components
+
+Input component is a component that is used to get user input in a text field. It takes 2 arguments.
+
+- First argument is the input type (eg. "text", "date", "password", "number"...)
+- Second argument (optional) is the label text content
+- Third argument (optional) is the placeholer
+- Fourth argument (optional) is the value content
+
+You can insert text inside the component and it will be used as placeholder content. If not, you can use the shorthand component declaration by adding a "/" direclty after the arguments (see date input component declaration bellow).
+
+:::input(text, Label, Text)/
+
+:::input(number, Label, 10, 3)/
+
+:::input(date, Label)/
+
+:::input(password, Password)/
+
+
+### Form textarea component
+
+The Textarea component allows you to easily create multi-line text inputs. The arguments are the optional label text content and placeholder.
+
+:::textarea(Label, Placeholder)/
+
+### Form check components
+
+Checkbox component is used in forms when a user needs to select multiple values from several options. By using the first parameter, you can choose whether you want a "radio" or a "checkbox" list. The second argument (optional) is the label text content.
+
+*Todo: add a way to preselect options*
+
+:::check(radio, Radio Label)
+
+- Radio 1
+- Radio 2
+- Radio 3
+
+:::/check
+
+:::check(checkbox)
+
+- Checkbox 1
+- Checkbox 2
+- Checkbox 3
+
+:::/check
+
+### Form select component
+
+Similar to the previous one, select component is a component that allows users pick a value from predefined options. The argument (optional) is the label text content.
+
+:::select(Select Label)
+
+- Select 1
+- Select 2
+- Select 3
+
+:::/select
+
+### Form button component
+
+This component is a button component dedicated to form control. Depending on the argument, it can be used to submit, reset... a form. The component takes the button type as firt argument and the button value as second argument.
+
+:::action("reset", "Reset")/
+
+:::action("submit", "Submit")/
+
+:::/form
+`
 	return output
 }
