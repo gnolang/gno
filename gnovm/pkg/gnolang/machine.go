@@ -1627,32 +1627,24 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
-	} else if rlm == nil && recv.V != nil { // XXX maybe improve this part.
-		// maybe this is a bound method of a recv of a realm.
-		// in that case, inherit the realm of the receiver.
-		recvv := recv.V
-		// deref if pointer.
-		// XXX I guess we want to deref as much as possible.
-		for {
-			if pv, ok := recvv.(PointerValue); ok {
-				recvv = pv.Deref().V
-			} else {
-				break
-			}
-		}
-		// Now check if it is an object.
-		obj, ok := recvv.(Object)
-		if ok {
+	if rlm == nil && recv.IsDefined() {
+		// if bound method, get realm from receiver.
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil {
+			// panic("XXX not sure why this would be")
+			fmt.Println("XXX XXX", recv.String())
+		} else {
 			recvOID := obj.GetObjectInfo().ID
 			if !recvOID.IsZero() {
-				recvPVOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv := m.Store.GetObject(recvPVOID).(*PackageValue)
-				rlm := pv.GetRealm()
-				m.Realm = rlm
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				pv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = pv.GetRealm() // done
 			}
 		}
+	}
+	if rlm != nil && m.Realm != rlm {
+		// enter new realm
+		m.Realm = rlm
 	}
 }
 
