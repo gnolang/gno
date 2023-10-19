@@ -352,7 +352,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 		{"script.gno", `
 package main
 
-func Main() {
+func main() {
 	println("hello world!")
 }
 `},
@@ -381,7 +381,7 @@ package main
 
 import "std"
 
-func Main() {
+func main() {
 	addr := std.GetOrigCaller()
 	println("hello world!", addr)
 }
