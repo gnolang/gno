@@ -164,7 +164,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 func (msg MsgRun) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgRun) Type() string { return "run" }
+func (msg MsgRun) Type() string { return "exec" }
 
 // Implements Msg.
 func (msg MsgRun) ValidateBasic() error {
