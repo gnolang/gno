@@ -75,10 +75,8 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		if err != nil {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
 		}
-		env.Defer(func() {
-			os.RemoveAll(home)
-		})
 		env.Setenv("HOME", home)
+		env.Defer(func() { os.RemoveAll(home) }) // cleanup
 
 		return nil
 	}
