@@ -30,7 +30,7 @@ func newRunCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <key-name or address> <file or - or dir>",
-			ShortHelp:  "Runutes arbitrary Gno code",
+			ShortHelp:  "utes arbitrary Gno code",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
