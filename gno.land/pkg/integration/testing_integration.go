@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -10,20 +11,22 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
 type testNode struct {
 	*node.Node
-	logger      log.Logger
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
@@ -64,10 +67,33 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				return err
 			}
 
-			// XXX: Add a command to add custom account.
+			// create sessions ID
+			var sid string
+			{
+				works := env.Getenv("WORK")
+				sum := crc32.ChecksumIEEE([]byte(works))
+				sid = strconv.FormatUint(uint64(sum), 16)
+				env.Setenv("SID", sid)
+			}
+
+			// setup logger
+			var logger log.Logger
+			{
+				logger = log.NewNopLogger()
+				if persistWorkDir || os.Getenv("LOG_DIR") != "" {
+					logname := fmt.Sprintf("gnoland-%s.log", sid)
+					logger, err = getTestingLogger(env, logname)
+					if err != nil {
+						return fmt.Errorf("unable to setup logger: %w", err)
+					}
+				}
+
+				env.Values["_logger"] = logger
+			}
 
 			// Setup "test1" default account
 			kb.CreateAccount(DefaultAccountName, DefaultAccountSeed, "", "", 0, 0)
+
 			env.Setenv("USER_SEED_"+DefaultAccountName, DefaultAccountSeed)
 			env.Setenv("USER_ADDR_"+DefaultAccountName, DefaultAccountAddress)
 
@@ -86,7 +112,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					return
 				}
 
-				sid := getSessionID(ts)
+				logger := ts.Value("_logger").(log.Logger) // grab logger
+				sid := ts.Getenv("SID")                    // grab session id
 
 				var cmd string
 				cmd, args = args[0], args[1:]
@@ -99,12 +126,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					logger := log.NewNopLogger()
-					if persistWorkDir || os.Getenv("LOG_DIR") != "" {
-						logname := fmt.Sprintf("gnoland-%s.log", sid)
-						logger = getTestingLogger(ts, logname)
-					}
-
 					// Generate node config
 					cfg := config.TestConfig().SetRootDir(gnoRootDir)
 
@@ -115,31 +136,21 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Create the Node
 					nodecfg := gnoland.NewInMemoryNodeConfig(cfg)
 
-					node, err := gnoland.NewInMemoryNode(logger, nodecfg)
-					if err != nil {
-						err = fmt.Errorf("unable to start node: %w", err)
+					// Setup balance for default account
+					nodecfg.Balances = append(nodecfg.Balances, gnoland.Balance{
+						Address: crypto.MustAddressFromString(DefaultAccountAddress),
+						Value:   std.MustParseCoins("10000000000000ugnot"),
+					})
+
+					var n *node.Node
+					if n, err = execInMemoryGnoland(ts, logger, nodecfg); err != nil {
 						break
 					}
 
-					// Setup cleanup
-					ts.Defer(func() {
-						muNodes.Lock()
-						defer muNodes.Unlock()
-
-						if n := nodes[sid]; n != nil {
-							if err := node.Stop(); err != nil {
-								panic(fmt.Errorf("node %q was unable to stop: %w", sid, err))
-							}
-						}
-					})
-
 					// Register cleanup.
-					nodes[sid] = &testNode{
-						Node:   node,
-						logger: logger,
-					}
+					nodes[sid] = &testNode{Node: n}
 
-					remoteAddr := node.Config().RPC.ListenAddress
+					remoteAddr := n.Config().RPC.ListenAddress
 
 					// Add default environements.
 					ts.Setenv("RPC_ADDR", remoteAddr)
@@ -169,7 +180,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				muNodes.Lock()
 				defer muNodes.Unlock()
 
-				sid := getSessionID(ts)
+				logger := ts.Value("_logger").(log.Logger) // grab logger
+				sid := ts.Getenv("SID")                    // grab session id
 
 				// Setup IO command.
 				io := commands.NewTestIO()
@@ -190,9 +202,10 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					n.nGnoKeyExec++
 					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
+
 					// Log the command inside gnoland logger, so we can better scope errors.
-					n.logger.Info(headerlog, strings.Join(args, " "))
-					defer n.logger.Info(headerlog, "END")
+					logger.Info(headerlog, strings.Join(args, " "))
+					defer logger.Info(headerlog, "END")
 				}
 
 				// Inject default argument, if duplicate
@@ -208,35 +221,50 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	}
 }
 
-func getSessionID(ts *testscript.TestScript) string {
-	works := ts.Getenv("WORK")
-	sum := crc32.ChecksumIEEE([]byte(works))
-	return strconv.FormatUint(uint64(sum), 16)
+func execInMemoryGnoland(ts *testscript.TestScript, logger log.Logger, nodecfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
+	n, err := gnoland.NewInMemoryNode(logger, nodecfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create node: %w", err)
+	}
+
+	if err = n.Start(); err != nil {
+		return nil, fmt.Errorf("unable to start node: %w", err)
+	}
+
+	select {
+	case <-time.After(time.Second * 6):
+		return nil, errors.New("timeout while waiting for the node to start")
+	case <-waitForNodeReadiness(n): // ok
+	}
+
+	return n, nil
 }
 
-func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
+func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 	var path string
+
 	if logdir := os.Getenv("LOG_DIR"); logdir != "" {
 		if err := os.MkdirAll(logdir, 0o755); err != nil {
-			ts.Fatalf("unable to make log directory %q", logdir)
+			return nil, fmt.Errorf("unable to make log directory %q", logdir)
+
 		}
 
 		var err error
 		if path, err = filepath.Abs(filepath.Join(logdir, logname)); err != nil {
-			ts.Fatalf("uanble to get absolute path of logdir %q", logdir)
+			return nil, fmt.Errorf("uanble to get absolute path of logdir %q", logdir)
 		}
-	} else if workdir := ts.Getenv("WORK"); workdir != "" {
+	} else if workdir := env.Getenv("WORK"); workdir != "" {
 		path = filepath.Join(workdir, logname)
 	} else {
-		return log.NewNopLogger()
+		return log.NewNopLogger(), nil
 	}
 
 	f, err := os.Create(path)
 	if err != nil {
-		ts.Fatalf("unable to create log file %q: %s", path, err.Error())
+		return nil, fmt.Errorf("unable to create log file %q: %w", path, err)
 	}
 
-	ts.Defer(func() {
+	env.Defer(func() {
 		if err := f.Close(); err != nil {
 			panic(fmt.Errorf("unable to close log file %q: %w", path, err))
 		}
@@ -252,11 +280,11 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 		logger.SetLevel(log.LevelInfo)
 	case "":
 	default:
-		ts.Fatalf("invalid log level %q", level)
+		return nil, fmt.Errorf("invalid log level %q", level)
 	}
 
-	ts.Logf("starting logger: %q", path)
-	return logger
+	env.T().Log("starting logger: %q", path)
+	return logger, nil
 }
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {

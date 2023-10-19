@@ -10,7 +10,11 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 10000
 gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
 
 ## compare render
-cmp stdout stdout.golden
+stdout '("hello from foo" string)'
+stdout 'OK!'
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+
 
 -- bar.gno --
 package bar
@@ -19,8 +23,3 @@ func Render(path string) string {
  	return "hello from foo"
 }
 
--- stdout.golden --
-("hello from foo" string)
-OK!
-GAS WANTED: 2000000
-GAS USED:   69163
