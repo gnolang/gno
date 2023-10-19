@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -130,6 +131,10 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+const (
+	reReservedPath = `gno\.land/r/g[a-z0-9]+/run`
+)
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
@@ -152,6 +157,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
+
+	if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
+		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	}
+
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
