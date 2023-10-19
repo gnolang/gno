@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var errInvalidGenesisState = errors.New("invalid genesis state type")
 
 type verifyCfg struct {
 	genesisPath string
@@ -55,7 +58,10 @@ func execVerify(cfg *verifyCfg, io *commands.IO) error {
 
 	// Validate the genesis state
 	if genesis.AppState != nil {
-		state := genesis.AppState.(gnoland.GnoGenesisState)
+		state, ok := genesis.AppState.(gnoland.GnoGenesisState)
+		if !ok {
+			return errInvalidGenesisState
+		}
 
 		// Validate the initial transactions
 		for _, tx := range state.Txs {

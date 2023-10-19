@@ -143,4 +143,27 @@ func TestGenesis_Verify(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 	})
+
+	t.Run("invalid genesis state", func(t *testing.T) {
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+		g.AppState = "Totally invalid state"
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"verify",
+			"--genesis-path",
+			tempFile.Name(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.Error(t, cmdErr)
+	})
 }
