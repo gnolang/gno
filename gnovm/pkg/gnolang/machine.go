@@ -221,7 +221,11 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	} else {
 		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
 		pv = pn.NewPackage()
-		m.Store.SetBlockNode(pn)
+		if true { // TODO finish SetBlockNode()
+			m.Store.SetBlockNode(pn)
+		} else {
+			// TODO m.Store.SetCacheBlockNode(pn)
+		}
 		m.Store.SetCachePackage(pv)
 	}
 	m.SetActivePackage(pv)
