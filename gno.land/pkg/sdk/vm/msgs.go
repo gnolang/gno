@@ -149,6 +149,14 @@ type MsgRun struct {
 var _ std.Msg = MsgRun{}
 
 func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".gno") {
+			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			if pkgName != "main" {
+				panic("package name should be 'main'")
+			}
+		}
+	}
 	return MsgRun{
 		Caller: caller,
 		Send:   send,

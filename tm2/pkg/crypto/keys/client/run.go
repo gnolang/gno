@@ -105,8 +105,6 @@ func runRun(cfg *runCfg, args []string, io *commands.IO) error {
 			}
 		}
 	}
-	memPkg.Name = "main"
-	memPkg.Path = "gno.land/r/main"
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
@@ -115,6 +113,8 @@ func runRun(cfg *runCfg, args []string, io *commands.IO) error {
 	if err != nil {
 		panic(err)
 	}
+	memPkg.Name = "main"
+	memPkg.Path = "gno.land/r/main"
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
