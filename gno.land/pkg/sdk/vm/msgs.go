@@ -105,7 +105,7 @@ func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args
 func (msg MsgCall) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgCall) Type() string { return "run" }
+func (msg MsgCall) Type() string { return "exec" }
 
 // Implements Msg.
 func (msg MsgCall) ValidateBasic() error {
@@ -164,7 +164,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 func (msg MsgRun) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgRun) Type() string { return "exec" }
+func (msg MsgRun) Type() string { return "run" }
 
 // Implements Msg.
 func (msg MsgRun) ValidateBasic() error {
