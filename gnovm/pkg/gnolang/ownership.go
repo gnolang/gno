@@ -332,6 +332,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		// something in it; in that case, ignore the base.  That will
 		// likely require maybe a preparation step in persistence
 		// ( or unlikely, a second type of ref-counting).
+		// XXX is there an issue with Base=nil pointers here cross realm?
 		if cv.Base != nil {
 			return cv.Base.(Object)
 		} else {
