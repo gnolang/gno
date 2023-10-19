@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -19,6 +20,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
+	eventstorecfg "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -37,7 +41,10 @@ type startCfg struct {
 	rootDir               string
 	genesisMaxVMCycles    int64
 	config                string
-	nodeConfigPath        string
+
+	txEventStoreType string
+	txEventStorePath string
+	nodeConfigPath   string
 }
 
 func newStartCmd(io *commands.IO) *commands.Command {
@@ -126,6 +133,29 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"the node TOML config file path (optional)",
 	)
+
+	fs.StringVar(
+		&c.txEventStoreType,
+		"tx-event-store-type",
+		null.EventStoreType,
+		fmt.Sprintf(
+			"type of transaction event store [%s]",
+			strings.Join(
+				[]string{
+					null.EventStoreType,
+					file.EventStoreType,
+				},
+				", ",
+			),
+		),
+	)
+
+	fs.StringVar(
+		&c.txEventStorePath,
+		"tx-event-store-path",
+		"",
+		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
+	)
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
@@ -179,6 +209,14 @@ func execStart(c *startCfg, io *commands.IO) error {
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
 
+	// Initialize the indexer config
+	txEventStoreCfg, err := getTxEventStoreConfig(c)
+	if err != nil {
+		return fmt.Errorf("unable to parse indexer config, %w", err)
+	}
+
+	cfg.TxEventStore = txEventStoreCfg
+
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
@@ -212,6 +250,30 @@ func execStart(c *startCfg, io *commands.IO) error {
 	})
 
 	select {} // run forever
+}
+
+// getTxEventStoreConfig constructs an event store config from provided user options
+func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
+	var cfg *eventstorecfg.Config
+
+	switch c.txEventStoreType {
+	case file.EventStoreType:
+		if c.txEventStorePath == "" {
+			return nil, errors.New("unspecified file transaction indexer path")
+		}
+
+		// Fill out the configuration
+		cfg = &eventstorecfg.Config{
+			EventStoreType: file.EventStoreType,
+			Params: map[string]any{
+				file.Path: c.txEventStorePath,
+			},
+		}
+	default:
+		cfg = eventstorecfg.DefaultEventStoreConfig()
+	}
+
+	return cfg, nil
 }
 
 // Makes a local test genesis doc with local privValidator.

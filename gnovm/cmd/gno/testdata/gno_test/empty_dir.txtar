@@ -3,4 +3,9 @@
 gno test .
 
 ! stdout .+
+stderr '[no test files]'
+
+gno test ./...
+
+! stdout .+
 stderr 'no packages to test'

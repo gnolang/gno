@@ -9,6 +9,7 @@ import (
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
+	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -20,20 +21,22 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC       *rpc.RPCConfig       `toml:"rpc"`
-	P2P       *p2p.P2PConfig       `toml:"p2p"`
-	Mempool   *mem.MempoolConfig   `toml:"mempool"`
-	Consensus *cns.ConsensusConfig `toml:"consensus"`
+	RPC          *rpc.RPCConfig       `toml:"rpc"`
+	P2P          *p2p.P2PConfig       `toml:"p2p"`
+	Mempool      *mem.MempoolConfig   `toml:"mempool"`
+	Consensus    *cns.ConsensusConfig `toml:"consensus"`
+	TxEventStore *eventstore.Config   `toml:"tx_event_store"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig: DefaultBaseConfig(),
-		RPC:        rpc.DefaultRPCConfig(),
-		P2P:        p2p.DefaultP2PConfig(),
-		Mempool:    mem.DefaultMempoolConfig(),
-		Consensus:  cns.DefaultConsensusConfig(),
+		BaseConfig:   DefaultBaseConfig(),
+		RPC:          rpc.DefaultRPCConfig(),
+		P2P:          p2p.DefaultP2PConfig(),
+		Mempool:      mem.DefaultMempoolConfig(),
+		Consensus:    cns.DefaultConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
 }
 
@@ -70,11 +73,12 @@ func LoadOrMakeConfig(root string) (*Config, error) {
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig: TestBaseConfig(),
-		RPC:        rpc.TestRPCConfig(),
-		P2P:        p2p.TestP2PConfig(),
-		Mempool:    mem.TestMempoolConfig(),
-		Consensus:  cns.TestConsensusConfig(),
+		BaseConfig:   TestBaseConfig(),
+		RPC:          rpc.TestRPCConfig(),
+		P2P:          p2p.TestP2PConfig(),
+		Mempool:      mem.TestMempoolConfig(),
+		Consensus:    cns.TestConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
 }
 
