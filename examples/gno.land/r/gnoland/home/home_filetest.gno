@@ -165,7 +165,7 @@ func main() {
 //
 // ### Socials
 //
-// - Check out our [community projects](https://github.com/gnolang/awesome-gno).)
+// - Check out our [community projects](https://github.com/gnolang/awesome-gno)
 // - ![Discord](static/img/ico-discord.svg) [Discord](https://discord.gg/S8nKUqwkPn)
 // - ![Twitter](static/img/ico-twitter.svg) [Twitter](https://twitter.com/_gnoland)
 // - ![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)

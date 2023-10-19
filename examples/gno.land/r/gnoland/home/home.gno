@@ -144,7 +144,7 @@ func socialLinks() ui.Element {
 		ui.H3("Socials"),
 		ui.BulletList{
 			// XXX: improve UI to support a nice GO api for such links
-			ui.Text("Check out our [community projects](https://github.com/gnolang/awesome-gno).)"),
+			ui.Text("Check out our [community projects](https://github.com/gnolang/awesome-gno)"),
 			ui.Text("![Discord](static/img/ico-discord.svg) [Discord](https://discord.gg/S8nKUqwkPn)"),
 			ui.Text("![Twitter](static/img/ico-twitter.svg) [Twitter](https://twitter.com/_gnoland)"),
 			ui.Text("![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)"),
