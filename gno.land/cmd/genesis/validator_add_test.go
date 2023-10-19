@@ -14,27 +14,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// getDummyKey generates a random public key,
+// and returns the key info
+func getDummyKey(t *testing.T) keys.Info {
+	t.Helper()
+
+	mnemonic, err := client.GenerateMnemonic(256)
+	require.NoError(t, err)
+
+	kb := keys.NewInMemory()
+
+	info, err := kb.CreateAccount(
+		"dummy",
+		mnemonic,
+		"",
+		"",
+		uint32(0),
+		uint32(0),
+	)
+	require.NoError(t, err)
+
+	return info
+}
+
 func TestGenesis_Validator_Add(t *testing.T) {
 	t.Parallel()
-
-	getDummyKey := func() keys.Info {
-		mnemonic, err := client.GenerateMnemonic(256)
-		require.NoError(t, err)
-
-		kb := keys.NewInMemory()
-
-		info, err := kb.CreateAccount(
-			"dummy",
-			mnemonic,
-			"",
-			"",
-			uint32(0),
-			uint32(0),
-		)
-		require.NoError(t, err)
-
-		return info
-	}
 
 	t.Run("invalid genesis file", func(t *testing.T) {
 		t.Parallel()
@@ -87,7 +91,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		genesis := getDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := getDummyKey()
+		key := getDummyKey(t)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -116,7 +120,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		genesis := getDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := getDummyKey()
+		key := getDummyKey(t)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -145,7 +149,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		genesis := getDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		key := getDummyKey()
+		key := getDummyKey(t)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -177,8 +181,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		dummyKeys := []keys.Info{
-			getDummyKey(),
-			getDummyKey(),
+			getDummyKey(t),
+			getDummyKey(t),
 		}
 
 		// Create the command
@@ -208,8 +212,8 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		t.Cleanup(cleanup)
 
 		dummyKeys := []keys.Info{
-			getDummyKey(),
-			getDummyKey(),
+			getDummyKey(t),
+			getDummyKey(t),
 		}
 
 		genesis := getDefaultGenesis()
@@ -250,7 +254,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		key := getDummyKey()
+		key := getDummyKey(t)
 		genesis := getDefaultGenesis()
 
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))

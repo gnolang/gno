@@ -17,7 +17,6 @@ var (
 	errInvalidName       = errors.New("invalid validator name")
 	errPublicKeyMismatch = errors.New("provided public key and address do not match")
 	errAddressPresent    = errors.New("validator with same address already present in genesis.json")
-	errPubKeyPresent     = errors.New("validator with same public key already present in genesis.json")
 )
 
 type validatorAddCfg struct {
@@ -124,7 +123,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io *commands.IO) error {
 	// Add the validator
 	genesis.Validators = append(genesis.Validators, validator)
 
-	// Save the updated
+	// Save the updated genesis
 	if err := genesis.SaveAs(cfg.validatorCfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}

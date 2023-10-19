@@ -27,6 +27,7 @@ func newValidatorCmd(io *commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newValidatorAddCmd(cfg, io),
+		newValidatorRemoveCmd(cfg, io),
 	)
 
 	return cmd
