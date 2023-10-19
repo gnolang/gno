@@ -1632,7 +1632,18 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	} else if rlm == nil && recv.V != nil { // XXX maybe improve this part.
 		// maybe this is a bound method of a recv of a realm.
 		// in that case, inherit the realm of the receiver.
-		obj, ok := recv.V.(Object)
+		recvv := recv.V
+		// deref if pointer.
+		// XXX I guess we want to deref as much as possible.
+		for {
+			if pv, ok := recvv.(PointerValue); ok {
+				recvv = pv.Deref().V
+			} else {
+				break
+			}
+		}
+		// Now check if it is an object.
+		obj, ok := recvv.(Object)
 		if ok {
 			recvOID := obj.GetObjectInfo().ID
 			if !recvOID.IsZero() {
