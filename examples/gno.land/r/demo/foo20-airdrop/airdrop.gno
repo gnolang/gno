@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	token grc20.IGRC20 = foo20.GRC20()
+	token grc20.IGRC20
 
 	// admin std.Address = "g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr" // albttx.gno
 

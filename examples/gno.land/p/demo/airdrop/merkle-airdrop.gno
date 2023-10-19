@@ -71,9 +71,10 @@ func (ma *MerkleAirdrop) Claim(data AirdropData, proofs []merkle.Node) error {
 
 	// THIS WORKS
 	// foo20.Transfer(users.AddressOrName(data.Address), data.Amount)
-	// foo20.GRC20().Transfer(data.Address, data.Amount)
 
 	// THIS DOES NOT WORK
+	// foo20.GRC20().Transfer(data.Address, data.Amount)
+
 	err := ma.token.Transfer(data.Address, data.Amount)
 	if err != nil {
 		return err
