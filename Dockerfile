@@ -21,10 +21,14 @@ ENV         PATH="${PATH}:/opt/gno/bin" \
             GNOROOT="/opt/gno/src"
 WORKDIR     /opt/gno/src
 FROM        runtime-base AS runtime-tls
-RUN         apt-get update && apt-get install -y expect ca-certificates && update-ca-certificates
+RUN         apt-get update && apt-get install -y expect ca-certificates curl && update-ca-certificates
 
 # slim images
-FROM        runtime-base AS gnoland-slim
+FROM        runtime-tls AS gnoland-slim
+ADD         ./gno.land/genesis /opt/gno/src/gno.land/genesis
+ADD         ./examples /opt/gno/src/examples
+ADD         ./gnovm/stdlibs /opt/gno/src/gnovm/stdlibs
+ADD         ./misc/docker-compose/default-config.toml /opt/gno/src/gno.land/config/config.toml
 WORKDIR     /opt/gno/src/gno.land/
 COPY        --from=build /opt/build/build/gnoland /opt/gno/bin/
 ENTRYPOINT  ["gnoland"]

@@ -1,7 +1,6 @@
 .dockerignore
 build/
 Dockerfile
-misc/
 docker-compose.yml
 tests/docker-integration/
 
