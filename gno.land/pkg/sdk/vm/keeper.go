@@ -338,7 +338,7 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
 
 	expr := fmt.Sprintf(`pkg.Main()`)
 	xn := gno.MustParseExpr(expr)
-	mpn := gno.NewPackageNode("main", "main", nil) //fset)
+	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
 
@@ -351,7 +351,6 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
 		})
-	//defer m2.Release()
 
 	m2.SetActivePackage(mpv)
 	defer func() {

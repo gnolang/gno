@@ -73,7 +73,7 @@ func execExec(cfg *execCfg, args []string, io *commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	var memPkg = &std.MemPackage{}
+	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
 		data, err := ioutil.ReadAll(io.In)
 		if err != nil {
