@@ -21,7 +21,7 @@ func TestHomeDir(t *testing.T) {
 	t.Run("fallback to GNO_HOME if set", func(t *testing.T) {
 		// Backup any related environment variables
 		tBackupEnvironement(t, "GNOHOME", "GNO_HOME")
-		t.Log("`GNO_HOME` is deprecated")
+		t.Log("`GNO_HOME` is deprecated, use `GNOHOME` instead")
 
 		expected := "/test/gnohome"
 		os.Setenv("GNO_HOME", expected)

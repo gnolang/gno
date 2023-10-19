@@ -12,7 +12,7 @@ func TestGuessGnoRootDir_WithSetGnoRoot(t *testing.T) {
 	originalGnoRoot := _GNOROOT
 	defer func() { _GNOROOT = originalGnoRoot }() // Restore after test
 
-	tBackupEnvironement(t, "GNOROOT")
+	t.Setenv("GNOROOT", "")
 
 	const testPath = "/path/to/gnoRoot"
 
@@ -27,7 +27,8 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 	defer func() { _GNOROOT = originalGnoRoot }()
 
 	// Unset PATH should prevent InferGnoRootFromGoMod to works
-	tBackupEnvironement(t, "GNOROOT", "PATH")
+	t.Setenv("GNOROOT", "")
+	t.Setenv("PATH", "")
 
 	_, err := exec.LookPath("go")
 	require.Error(t, err)
@@ -65,7 +66,8 @@ func TestInferGnoRootFromGoMod(t *testing.T) {
 
 	t.Run("go is not present", func(t *testing.T) {
 		// Unset PATH should prevent `inferGnoRootFromGoMod` to works
-		tBackupEnvironement(t, "PATH")
+		t.Setenv("PATH", "")
+
 		root, err := inferGnoRootFromGoMod()
 		require.Error(t, err)
 		require.Empty(t, root)

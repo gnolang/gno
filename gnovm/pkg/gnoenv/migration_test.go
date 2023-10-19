@@ -9,10 +9,11 @@ import (
 )
 
 func TestFixOldDefaultGnoHome(t *testing.T) {
-	tempDir := t.TempDir()
+	tempHomeDir := t.TempDir()
+	t.Setenv("HOME", tempHomeDir)
 
-	oldGnoHome := filepath.Join(tempDir, ".gno")
-	newGnoHome := filepath.Join(tempDir, "gno")
+	oldGnoHome := filepath.Join(tempHomeDir, ".gno")
+	newGnoHome := filepath.Join(tempHomeDir, "gno")
 
 	// Create a dummy old GNO_HOME
 	os.Mkdir(oldGnoHome, 0o755)
@@ -21,7 +22,8 @@ func TestFixOldDefaultGnoHome(t *testing.T) {
 	fixOldDefaultGnoHome(newGnoHome)
 
 	_, errOld := os.Stat(oldGnoHome)
+	require.NotNil(t, errOld)
 	_, errNew := os.Stat(newGnoHome)
-	require.True(t, os.IsNotExist(errOld))
+	require.True(t, os.IsNotExist(errOld), "invalid errors", errOld)
 	require.NoError(t, errNew)
 }
