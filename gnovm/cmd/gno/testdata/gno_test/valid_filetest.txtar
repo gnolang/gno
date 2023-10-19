@@ -3,14 +3,14 @@
 gno test .
 
 ! stdout .+ 
-stderr 'ok      \./\. 	\d\.\d\ds'
+stderr 'ok      \. 	\d\.\d\ds'
 
 gno test -verbose .
 
 ! stdout .+ 
 stderr '=== RUN   file/valid_filetest.gno'
 stderr '--- PASS: file/valid_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \./\. 	\d\.\d\ds'
+stderr 'ok      \. 	\d\.\d\ds'
 
 -- valid.gno --
 package valid
