@@ -27,8 +27,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgAddPackage(ctx, msg)
 	case MsgCall:
 		return vh.handleMsgCall(ctx, msg)
-	case MsgExec:
-		return vh.handleMsgExec(ctx, msg)
+	case MsgRun:
+		return vh.handleMsgRun(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -79,8 +79,8 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	*/
 }
 
-// Handle MsgExec.
-func (vh vmHandler) handleMsgExec(ctx sdk.Context, msg MsgExec) (res sdk.Result) {
+// Handle MsgRun.
+func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
 	if err != nil {
 		return abciResult(err)
@@ -90,7 +90,7 @@ func (vh vmHandler) handleMsgExec(ctx sdk.Context, msg MsgExec) (res sdk.Result)
 		return abciResult(err)
 	}
 	resstr := ""
-	resstr, err = vh.vm.Exec(ctx, msg)
+	resstr, err = vh.vm.Run(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}

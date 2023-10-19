@@ -80,7 +80,7 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 //----------------------------------------
 // MsgCall
 
-// MsgCall - executes a Gno statement.
+// MsgCall - runutes a Gno statement.
 type MsgCall struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	Send    std.Coins      `json:"send" yaml:"send"`
@@ -105,7 +105,7 @@ func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args
 func (msg MsgCall) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgCall) Type() string { return "exec" }
+func (msg MsgCall) Type() string { return "run" }
 
 // Implements Msg.
 func (msg MsgCall) ValidateBasic() error {
@@ -137,19 +137,19 @@ func (msg MsgCall) GetReceived() std.Coins {
 }
 
 //----------------------------------------
-// MsgExec
+// MsgRun
 
-// MsgExec - executes arbitrary Gno code.
-type MsgExec struct {
+// MsgRun - runutes arbitrary Gno code.
+type MsgRun struct {
 	Caller  crypto.Address  `json:"caller" yaml:"caller"`
 	Send    std.Coins       `json:"send" yaml:"send"`
 	Package *std.MemPackage `json:"package" yaml:"package"`
 }
 
-var _ std.Msg = MsgExec{}
+var _ std.Msg = MsgRun{}
 
-func NewMsgExec(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgExec {
-	return MsgExec{
+func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+	return MsgRun{
 		Caller: caller,
 		Send:   send,
 		Package: &std.MemPackage{
@@ -161,13 +161,13 @@ func NewMsgExec(caller crypto.Address, send std.Coins, files []*std.MemFile) Msg
 }
 
 // Implements Msg.
-func (msg MsgExec) Route() string { return RouterKey }
+func (msg MsgRun) Route() string { return RouterKey }
 
 // Implements Msg.
-func (msg MsgExec) Type() string { return "exec" }
+func (msg MsgRun) Type() string { return "run" }
 
 // Implements Msg.
-func (msg MsgExec) ValidateBasic() error {
+func (msg MsgRun) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
@@ -178,16 +178,16 @@ func (msg MsgExec) ValidateBasic() error {
 }
 
 // Implements Msg.
-func (msg MsgExec) GetSignBytes() []byte {
+func (msg MsgRun) GetSignBytes() []byte {
 	return std.MustSortJSON(amino.MustMarshalJSON(msg))
 }
 
 // Implements Msg.
-func (msg MsgExec) GetSigners() []crypto.Address {
+func (msg MsgRun) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
 // Implements ReceiveMsg.
-func (msg MsgExec) GetReceived() std.Coins {
+func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
 }

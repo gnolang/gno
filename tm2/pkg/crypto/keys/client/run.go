@@ -16,32 +16,32 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type execCfg struct {
+type runCfg struct {
 	rootCfg *makeTxCfg
 	send    string
 }
 
-func newExecCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
-	cfg := &execCfg{
+func newRunCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
+	cfg := &runCfg{
 		rootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "exec",
-			ShortUsage: "exec [flags] <key-name or address> <file or - or dir>",
-			ShortHelp:  "Executes arbitrary Gno code",
+			Name:       "run",
+			ShortUsage: "run [flags] <key-name or address> <file or - or dir>",
+			ShortHelp:  "Runutes arbitrary Gno code",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execExec(cfg, args, io)
+			return runRun(cfg, args, io)
 		},
 	)
 }
 
-func (c *execCfg) RegisterFlags(fs *flag.FlagSet) {}
+func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execExec(cfg *execCfg, args []string, io *commands.IO) error {
+func runRun(cfg *runCfg, args []string, io *commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
@@ -117,7 +117,7 @@ func execExec(cfg *execCfg, args []string, io *commands.IO) error {
 	}
 
 	// construct msg & tx and marshal.
-	msg := vm.MsgExec{
+	msg := vm.MsgRun{
 		Caller:  caller,
 		Package: memPkg,
 	}

@@ -28,7 +28,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	Exec(ctx sdk.Context, msg MsgExec) (res string, err error)
+	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -44,7 +44,7 @@ type VMKeeper struct {
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 
-	maxCycles int64 // max allowed cylces on VM executions
+	maxCycles int64 // max allowed cylces on VM runutions
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -284,8 +284,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// TODO pay for gas? TODO see context?
 }
 
-// Exec executes arbitrary Gno code in the context of the caller's realm.
-func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
+// Run runutes arbitrary Gno code in the context of the caller's realm.
+func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
 	pkgAddr := caller
 	store := vm.getGnoStore(ctx)

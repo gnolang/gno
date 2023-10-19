@@ -338,8 +338,8 @@ func GetAdmin() string {
 	assert.Equal(t, res, addrString)
 }
 
-// Call Exec without imports, without variables.
-func TestVMKeeperExecSimple(t *testing.T) {
+// Call Run without imports, without variables.
+func TestVMKeeperRunSimple(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -359,14 +359,14 @@ func Main() {
 	}
 
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgExec(addr, coins, files)
-	res, err := env.vmk.Exec(ctx, msg2)
+	msg2 := NewMsgRun(addr, coins, files)
+	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, "hello world!\n")
 }
 
-// Call Exec with stdlibs.
-func TestVMKeeperExecImportStdlibs(t *testing.T) {
+// Call Run with stdlibs.
+func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -389,8 +389,8 @@ func Main() {
 	}
 
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgExec(addr, coins, files)
-	res, err := env.vmk.Exec(ctx, msg2)
+	msg2 := NewMsgRun(addr, coins, files)
+	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
 	assert.Equal(t, res, expectedString)

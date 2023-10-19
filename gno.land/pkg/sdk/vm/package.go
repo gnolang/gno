@@ -13,7 +13,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	std.Package,
 ).WithTypes(
 	MsgCall{}, "m_call",
-	MsgExec{}, "m_exec",
+	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
 
 	// errors
