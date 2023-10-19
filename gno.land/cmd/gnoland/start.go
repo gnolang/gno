@@ -169,14 +169,14 @@ func execStart(c *startCfg, io *commands.IO) error {
 	}
 
 	if !osm.FileExists(genesisFilePath) {
-		genDoc, genErr := makeGenesisDoc(
+		genDoc, err := makeGenesisDoc(
 			priv.GetPubKey(),
 			c.chainID,
 			c.genesisBalancesFile,
 			genesisTxs,
 		)
-		if genErr != nil {
-			return fmt.Errorf("unable to generate genesis.json, %w", genErr)
+		if err != nil {
+			return fmt.Errorf("unable to generate genesis.json, %w", err)
 		}
 
 		writeGenesisFile(genDoc, genesisFilePath)
@@ -247,9 +247,9 @@ func makeGenesisDoc(
 	}
 
 	// Load distribution.
-	balances, balancesErr := loadGenesisBalances(genesisBalancesFile)
-	if balancesErr != nil {
-		return nil, fmt.Errorf("unable to load genesis balances, %w", balancesErr)
+	balances, err := loadGenesisBalances(genesisBalancesFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load genesis balances, %w", err)
 	}
 
 	// Load initial packages from examples.
