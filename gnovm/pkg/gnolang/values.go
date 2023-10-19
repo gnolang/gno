@@ -500,7 +500,10 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-	copy(fields, sv.Fields)
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+
 	return alloc.NewStruct(fields)
 }
 

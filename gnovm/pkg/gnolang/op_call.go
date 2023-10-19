@@ -154,7 +154,7 @@ func (m *Machine) doOpCall() {
 		}
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
-		b.Values[i] = pv
+		b.Values[i] = pv.Copy(m.Alloc)
 	}
 }
 
