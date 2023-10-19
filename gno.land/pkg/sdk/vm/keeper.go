@@ -341,7 +341,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 		})
 	defer m.Release()
-	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
 	_, pv := m.RunMemPackage(memPkg, false)
 	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
 

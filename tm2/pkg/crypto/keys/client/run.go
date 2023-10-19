@@ -114,7 +114,7 @@ func runRun(cfg *runCfg, args []string, io *commands.IO) error {
 		panic(err)
 	}
 	memPkg.Name = "main"
-	memPkg.Path = "gno.land/r/main"
+	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{

@@ -162,7 +162,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 		Send:   send,
 		Package: &std.MemPackage{
 			Name:  "main",
-			Path:  "gno.land/r/main", // XXX
+			Path:  "gno.land/r/" + caller.String() + "/run",
 			Files: files,
 		},
 	}
