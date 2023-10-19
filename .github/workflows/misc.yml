@@ -71,8 +71,9 @@ jobs:
 
       - name: Check go.mods
         run: |
-          sums="$(sha256sum go.mod misc/devdeps/go.mod)"
-          for path in . ./misc/devdeps; do
+          gomods=$(find . -type f -name go.mod)
+          sums="$(sha256sum $(gomods))"
+          for path in $(dirname $(gomods)); do
             env -C $path go mod tidy -v || exit 1
           done
           echo "$sums" | sha256sum -c
