@@ -1629,6 +1629,19 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	rlm := pv.GetRealm()
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
+	} else if rlm == nil && recv.V != nil { // XXX maybe improve this part.
+		// maybe this is a bound method of a recv of a realm.
+		// in that case, inherit the realm of the receiver.
+		obj, ok := recv.V.(Object)
+		if ok {
+			recvOID := obj.GetObjectInfo().ID
+			if !recvOID.IsZero() {
+				recvPVOID := ObjectIDFromPkgID(recvOID.PkgID)
+				pv := m.Store.GetObject(recvPVOID).(*PackageValue)
+				rlm := pv.GetRealm()
+				m.Realm = rlm
+			}
+		}
 	}
 }
 
