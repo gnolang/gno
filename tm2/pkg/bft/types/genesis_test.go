@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -126,4 +127,121 @@ func randomGenesisDoc() *GenesisDoc {
 		Validators:      []GenesisValidator{{pubkey.Address(), pubkey, 10, "myval"}},
 		ConsensusParams: DefaultConsensusParams(),
 	}
+}
+
+func TestGenesis_Validate(t *testing.T) {
+	t.Parallel()
+
+	getValidTestGenesis := func() *GenesisDoc {
+		key := randPubKey()
+
+		return &GenesisDoc{
+			GenesisTime:     time.Now(),
+			ChainID:         "valid-chain-id",
+			ConsensusParams: DefaultConsensusParams(),
+			Validators: []GenesisValidator{
+				{
+					Address: key.Address(),
+					PubKey:  key,
+					Power:   1,
+					Name:    "valid validator",
+				},
+			},
+		}
+	}
+
+	t.Run("valid genesis", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+
+		require.NoError(t, g.Validate())
+	})
+
+	t.Run("invalid chain ID (zero)", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.ChainID = ""
+
+		assert.ErrorIs(t, g.Validate(), ErrEmptyChainID)
+	})
+
+	t.Run("invalid chain ID (long)", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.ChainID = "thischainidisunusuallylongsoitwillcausethetesttofail"
+
+		assert.ErrorIs(t, g.Validate(), ErrLongChainID)
+	})
+
+	t.Run("invalid genesis time", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.GenesisTime = time.Time{}
+
+		assert.ErrorIs(t, g.Validate(), ErrInvalidGenesisTime)
+	})
+
+	t.Run("invalid consensus params", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.ConsensusParams.Block.MaxTxBytes = -1 // invalid value
+
+		assert.ErrorContains(t, g.Validate(), "MaxTxBytes")
+	})
+
+	t.Run("no validators", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.Validators = []GenesisValidator{}
+
+		assert.ErrorIs(t, g.Validate(), ErrNoValidators)
+	})
+
+	t.Run("invalid validator, no voting power", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.Validators = []GenesisValidator{
+			{
+				Power: 0, // no voting power
+			},
+		}
+
+		assert.ErrorIs(t, g.Validate(), ErrInvalidValidatorVotingPower)
+	})
+
+	t.Run("invalid validator, zero address", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.Validators = []GenesisValidator{
+			{
+				Power:   1,
+				Address: Address{}, // zero address
+			},
+		}
+
+		assert.ErrorIs(t, g.Validate(), ErrInvalidValidatorAddress)
+	})
+
+	t.Run("invalid validator, public key mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		g.Validators = []GenesisValidator{
+			{
+				Power:   1,
+				Address: Address{1},
+				PubKey:  randPubKey(),
+			},
+		}
+
+		assert.ErrorIs(t, g.Validate(), ErrValidatorPubKeyMismatch)
+	})
 }
