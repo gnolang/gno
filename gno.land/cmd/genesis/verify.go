@@ -54,19 +54,21 @@ func execVerify(cfg *verifyCfg, io *commands.IO) error {
 	}
 
 	// Validate the genesis state
-	state := genesis.AppState.(gnoland.GnoGenesisState)
+	if genesis.AppState != nil {
+		state := genesis.AppState.(gnoland.GnoGenesisState)
 
-	// Validate the initial transactions
-	for _, tx := range state.Txs {
-		if validateErr := tx.ValidateBasic(); validateErr != nil {
-			return fmt.Errorf("invalid transacton, %w", validateErr)
+		// Validate the initial transactions
+		for _, tx := range state.Txs {
+			if validateErr := tx.ValidateBasic(); validateErr != nil {
+				return fmt.Errorf("invalid transacton, %w", validateErr)
+			}
 		}
-	}
 
-	// Validate the initial balances
-	for _, balance := range state.Balances {
-		if _, parseErr := std.ParseCoins(balance); parseErr != nil {
-			return fmt.Errorf("invalid balance %s, %w", balance, parseErr)
+		// Validate the initial balances
+		for _, balance := range state.Balances {
+			if _, parseErr := std.ParseCoins(balance); parseErr != nil {
+				return fmt.Errorf("invalid balance %s, %w", balance, parseErr)
+			}
 		}
 	}
 
