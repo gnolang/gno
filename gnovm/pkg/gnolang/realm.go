@@ -73,9 +73,23 @@ func PkgIDFromPkgPath(path string) PkgID {
 	return PkgID{HashBytes([]byte(path))}
 }
 
+// func ObjectIDFromPkgPath(path string) ObjectID {
+// 	return ObjectID{
+// 		PkgID:   PkgIDFromPkgPath(path),
+// 		NewTime: 1, // by realm logic.
+// 	}
+// }
+
+// Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
+	pkgID := PkgIDFromPkgPath(path)
+	return ObjectIDFromPkgID(pkgID)
+}
+
+// Returns the ObjectID of the PackageValue associated with pkgID.
+func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
-		PkgID:   PkgIDFromPkgPath(path),
+		PkgID:   pkgID,
 		NewTime: 1, // by realm logic.
 	}
 }
