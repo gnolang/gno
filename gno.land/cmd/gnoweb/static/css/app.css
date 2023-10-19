@@ -310,6 +310,8 @@ textarea {
 }
 
 blockquote {
+  margin: 0;
+  padding: 0.5em 1em;
   background-color: var(--quote-background, #ddd);
 }
 
@@ -321,7 +323,7 @@ blockquote blockquote {
 pre {
   background-color: var(--code-background, #d7d9db);
   margin: 1rem 0;
-  padding: 0.5rem;
+  padding: 1em;
 }
 
 label {
@@ -923,6 +925,7 @@ code.hljs {
   -ms-flex-wrap: wrap;
   flex-wrap: wrap;
   padding: 0;
+  padding-inline-start: 0;
   margin-block-end: 1rem;
   list-style: none;
 }
@@ -934,6 +937,7 @@ code.hljs {
 #realm_render .gno-pagination ol,
 #realm_help .gno-pagination ol {
   list-style: none;
+  padding: 0;
 }
 
 .gno-pagination li:not(:last-child) {

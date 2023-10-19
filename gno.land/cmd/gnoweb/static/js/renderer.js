@@ -19,22 +19,24 @@ const components = [
   { name: "box", controller: "ui", toRender: (content) => `<div data-gno="ui" class="gno-box">${content}</div>` },
   { name: "alert", controller: "ui", toRender: (content, attrs) => `<div class="gno-alert gno-alert-${attrs[0]}" role="alert" data-gno="element">${content}</div>` },
   { name: "form", controller: "ui", toRender: (content, attrs) => `<form action="${attrs[0]}" method="${attrs[1] ?? "get"}" data-gno="element">${content}</form>` },
-  { name: "form-button", controller: "input", isPlain: true, toRender: (content, attrs) => `<input data-gno="input" class="gno-btn" type="${attrs[0]}" value="${content ?? ""}">` },
+  { name: "action", controller: "input", isPlain: true, toRender: (_, attrs) => `<input data-gno="input" class="gno-btn" type="${attrs[0]}" value="${attrs[1] ?? ""}">` },
   {
-    name: "form-input",
+    name: "input",
     controller: "input",
     isPlain: true,
     toRender: (content, attrs) =>
-      `<div class="gno-input">${attrs[1] ? "<label>" + attrs[1] + "</label>" : ""}<input data-gno="input" type="${attrs[0]}" placeholder="${content ?? ""}" autocomplete="on"></div>`,
+      `<div class="gno-input">${attrs[1] ? "<label>" + attrs[1] + "</label>" : ""}<input data-gno="input" type="${attrs[0]}" placeholder="${attrs[2] ?? ""}" autocomplete="on" ${
+        attrs[3] && 'value="' + attrs[3] + '"'
+      } ></div>`,
   },
   {
-    name: "form-textarea",
+    name: "textarea",
     controller: "input",
     isPlain: true,
-    toRender: (content, attrs) => `<div class="gno-input">${attrs[0] ? "<label>" + attrs[0] + "</label>" : ""}<textarea data-gno="input">${content}</textarea></div>`,
+    toRender: (_, attrs) => `<div class="gno-input">${attrs[0] ? "<label>" + attrs[0] + "</label>" : ""}<textarea data-gno="input">${attrs[1]}</textarea></div>`,
   },
   {
-    name: "form-check",
+    name: "check",
     controller: "selector",
     isPlain: true,
     toRender: (content, attrs) => {
@@ -46,7 +48,7 @@ const components = [
     },
   },
   {
-    name: "form-select",
+    name: "select",
     controller: "selector",
     isPlain: true,
     toRender: (content, attrs) => {
@@ -95,7 +97,7 @@ const components = [
     name: "button",
     controller: "ui",
     isPlain: true,
-    toRender: (content, attrs) => (attrs[0] ? `<a class="gno-btn" role="button" href="${attrs[0]}" data-gno="ui">${content}</a>` : `<button class="gno-btn" data-gno="ui">${content}</button>`),
+    toRender: (_, attrs) => (attrs[1] ? `<a class="gno-btn" role="button" href="${attrs[1]}" data-gno="ui">${attrs[0]}</a>` : `<button class="gno-btn" data-gno="ui">${attrs[0]}</button>`),
   },
 ];
 
@@ -377,7 +379,7 @@ class GnoTabs extends GnoUi {
 const extensionBuilder = (comp) => {
   const { name, toRender, isPlain } = comp;
   const startReg = RegExp(`:::${name}`);
-  const tokenizerReg = RegExp(`^:::${name}(\\s\\([^\r\n]*?\\))?(\n([\\s\\S]*?)\n?:::${name})?\/`);
+  const tokenizerReg = RegExp(`^:::${name}(\\([^\r\n]*?\\))?((\n([\\s\\S]*?)\n?:::\/${name})|\/)`); // ^:::${name}(\\s\\([^\r\n]*?\\))?(\n([\\s\\S]*?)\n?:::${name})?\/
   const variablesReg = /\(([^()]+)\)/g;
   return {
     name: name,
@@ -391,8 +393,17 @@ const extensionBuilder = (comp) => {
         const token = {
           type: name,
           raw: match[0],
-          text: match[3]?.trim(),
-          attrs: match[1]?.match(variablesReg)?.map((attr) => attr.substring(1, attr.length - 1)) ?? [],
+          text: match[4]?.trim(),
+          attrs:
+            match[1]
+              ?.match(variablesReg)
+              ?.map((attr) =>
+                attr
+                  .substring(1, attr.length - 1)
+                  .split(/,\s*(?=(?:"[^"]*")|(?:[^"]*[^"]$))/)
+                  .map((text) => text.replace(/"/g, "").trim())
+              )
+              .flat() ?? [],
           tokens: [],
         };
         this.lexer.blockTokens(token.text ?? "", token.tokens);
@@ -432,6 +443,7 @@ window.addEventListener("load", function () {
   const controllers = [...new Set(components.map((comp) => comp.controller))];
   for (const comp of controllers) {
     if (comp === undefined) continue;
+
     const els = Array.from(document.querySelectorAll(`[data-gno="${comp}"]`));
     const ClassName = `Gno${comp.charAt(0).toUpperCase() + comp.slice(1)}`;
 
