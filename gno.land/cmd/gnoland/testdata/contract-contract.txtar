@@ -1,0 +1,61 @@
+# test for add package
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/ownership -pkgpath gno.land/r/ownership -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/registry -pkgpath gno.land/r/registry -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/app -pkgpath gno.land/r/app -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/registry -func Invoke -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+-- registry/registry.gno --
+package registry
+
+import "std"
+import "gno.land/r/ownership"
+
+type callback func() string
+
+var cb callback
+
+func Register(newCb callback) {
+	  cb = newCb
+}
+
+func Invoke() string {
+    output := ""
+    output += "registry.Addr=" + std.CurrentRealm().Addr().String() + "\n"
+    output += "registry.PrevRealm=" + std.PrevRealm().Addr().String() + "\n"
+    output += "registry.ownership.PrevRealm=" + ownership.PrevRealm().Addr().String() + "\n"
+    output += cb()
+    return output
+}
+
+-- app/app.gno --
+package app
+
+import "gno.land/r/registry"
+import "gno.land/r/ownership"
+import "std"
+
+func init() {
+	  registry.Register(MyImplementation)	
+}
+
+func MyImplementation() string {
+    output := ""
+    output += "app.Addr=" + std.CurrentRealm().Addr().String() + "\n"
+    output += "app.PrevRealm=" + std.PrevRealm().Addr().String() + "\n"
+    output += "app.ownership.PrevRealm=" + ownership.PrevRealm().Addr().String() + "\n"
+    return output
+}
+
+-- ownership/ownership.gno --
+package ownership
+
+import "std"
+
+func PrevRealm() std.Realm {
+    return std.PrevRealm()
+}
