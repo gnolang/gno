@@ -13,7 +13,7 @@ import (
 var errValidatorNotPresent = errors.New("validator not present in genesis.json")
 
 // newValidatorRemoveCmd creates the genesis validator remove subcommand
-func newValidatorRemoveCmd(validatorCfg *validatorCfg, io *commands.IO) *commands.Command {
+func newValidatorRemoveCmd(rootCfg *validatorCfg, io *commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "remove",
@@ -22,7 +22,7 @@ func newValidatorRemoveCmd(validatorCfg *validatorCfg, io *commands.IO) *command
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, _ []string) error {
-			return execValidatorRemove(validatorCfg, io)
+			return execValidatorRemove(rootCfg, io)
 		},
 	)
 }
