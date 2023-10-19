@@ -93,7 +93,7 @@ func (b *Breadcrumb) Append(elems ...DomStringer) {
 
 func (b Breadcrumb) String(dom DOM) string {
 	output := ""
-	for idx, entry := range b {
+	for _, entry := range b {
 		if idx > 0 {
 			output += " / "
 		}
