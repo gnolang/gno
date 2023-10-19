@@ -8,7 +8,7 @@ gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/foobar/bar -gas-fee 1
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
 
 ## compare render
-stdout '--- hello from foo ---'
+stdout 'main: --- hello from foo ---'
 stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
@@ -23,6 +23,6 @@ func Render(path string) string {
 -- script/script.gno --
 package main
 import "gno.land/r/foobar/bar"
-func Main() {
-	println("---", bar.Render(""), "---")
+func main() {
+	println("main: ---", bar.Render(""), "---")
 }

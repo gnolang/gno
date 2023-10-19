@@ -331,16 +331,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 		})
 	defer m.Release()
-	// memPkg.Path = "gno.land/r/main"
+	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
 	_, pv := m.RunMemPackage(memPkg, false)
-
 	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
-
-	expr := fmt.Sprintf(`pkg.Main()`)
-	xn := gno.MustParseExpr(expr)
-	mpn := gno.NewPackageNode("main", "main", nil)
-	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	mpv := mpn.NewPackage()
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -351,8 +344,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
 		})
-
-	m2.SetActivePackage(mpv)
+	m2.SetActivePackage(pv)
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
@@ -361,7 +353,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		}
 		m2.Release()
 	}()
-	m2.Eval(xn)
+	m2.RunMain()
 	ctx.Logger().Info("CPUCYCLES call: ", m2.Cycles)
 	res = buf.String()
 	return res, nil
