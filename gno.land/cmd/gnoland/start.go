@@ -144,10 +144,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-			cfg.Consensus.CreateEmptyBlocks = true
-			cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-		})
+		cfg, loadCfgErr = config.LoadOrMakeConfig(rootDir)
 	}
 
 	if loadCfgErr != nil {

@@ -37,11 +37,8 @@ func DefaultConfig() *Config {
 	}
 }
 
-type ConfigOptions func(cfg *Config)
-
-// LoadOrMakeConfigWithOptions loads configuration or saves one
-// made by modifying the default config with override options
-func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, error) {
+// LoadOrMakeConfig loads configuration or saves one
+func LoadOrMakeConfig(root string) (*Config, error) {
 	var cfg *Config
 
 	configPath := join(root, defaultConfigFilePath)
@@ -57,7 +54,6 @@ func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, e
 		cfg.EnsureDirs()
 	} else {
 		cfg = DefaultConfig()
-		options(cfg)
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 		WriteConfigFile(configPath, cfg)

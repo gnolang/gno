@@ -133,8 +133,6 @@ func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir 
 	cfg := config.TestConfig().SetRootDir(gnoDataDir)
 	{
 		cfg.EnsureDirs()
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
 		cfg.RPC.ListenAddress = "tcp://127.0.0.1:0"
 		cfg.P2P.ListenAddress = "tcp://127.0.0.1:0"
 	}
