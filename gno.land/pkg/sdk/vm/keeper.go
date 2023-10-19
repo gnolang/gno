@@ -286,13 +286,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 // Exec executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
-	//pkgPath := "gno.land/r/main" // special user realm
 	caller := msg.Caller
 	pkgAddr := caller
 	store := vm.getGnoStore(ctx)
 	send := msg.Send
-
-	/* addpkg */
 	memPkg := msg.Package
 
 	// Validate arguments.
@@ -303,9 +300,6 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
-	/*if pv := store.GetPackage(pkgPath, false); pv != nil {
-		return "", ErrInvalidPkgPath("package already exists: " + pkgPath)
-	}*/
 
 	// Send send-coins to pkg from caller.
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
@@ -329,7 +323,6 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
 	buf := new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			//Output:    os.Stdout, // XXX
 			PkgPath:   "",
 			Output:    buf,
 			Store:     store,
@@ -338,52 +331,39 @@ func (vm *VMKeeper) Exec(ctx sdk.Context, msg MsgExec) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 		})
 	defer m.Release()
-	_, pv := m.RunMemPackage(memPkg, true) // XXX: just save the contract, not the state
+	// memPkg.Path = "gno.land/r/main"
+	_, pv := m.RunMemPackage(memPkg, true) // XXX: just save the state, not the contract
 
 	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
-	/* /addpkg */
 
-	// Get the package and function type.
-	// pv := store.GetPackage(pkgPath, false)
-	// Make main Package with imports.
-	//mpn := gno.NewPackageNode("main", "main", nil)
-	//mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	//mpv := mpn.NewPackage()
-	// Parse expression.
 	expr := fmt.Sprintf(`pkg.Main()`)
 	xn := gno.MustParseExpr(expr)
-	// Convert Args to gno values.
-	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
-	}
-	// Construct machine and evaluate.
-	/*m := gno.NewMachineWithOptions(
-	gno.MachineOptions{
-		PkgPath:   "",
-		Output:    os.Stdout, // XXX
-		Store:     store,
-		Context:   msgCtx,
-		Alloc:     store.GetAllocator(),
-		MaxCycles: vm.maxCycles,
-	})*/
-
-	//fset := gno.ParseMemPackage(memPkg)
 	mpn := gno.NewPackageNode("main", "main", nil) //fset)
-	// pv := mpn.NewPackage()
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
-	m.SetActivePackage(mpv)
+
+	m2 := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    buf,
+			Store:     store,
+			Alloc:     store.GetAllocator(),
+			Context:   msgCtx,
+			MaxCycles: vm.maxCycles,
+		})
+	//defer m2.Release()
+
+	m2.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m.String())
+				r, m2.String())
 			return
 		}
-		m.Release()
+		m2.Release()
 	}()
-	m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+	m2.Eval(xn)
+	ctx.Logger().Info("CPUCYCLES call: ", m2.Cycles)
 	res = buf.String()
 	return res, nil
 }

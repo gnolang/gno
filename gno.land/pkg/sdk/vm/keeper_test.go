@@ -364,3 +364,34 @@ func Main() {
 	assert.NoError(t, err)
 	assert.Equal(t, res, "hello world!\n")
 }
+
+// Call Exec with stdlibs.
+func TestVMKeeperExecImportStdlibs(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	files := []*std.MemFile{
+		{"script.gno", `
+package main
+
+import "std"
+
+func Main() {
+	addr := std.GetOrigCaller()
+	println("hello world!", addr)
+}
+`},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgExec(addr, coins, files)
+	res, err := env.vmk.Exec(ctx, msg2)
+	assert.NoError(t, err)
+	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
+	assert.Equal(t, res, expectedString)
+}
