@@ -246,7 +246,6 @@ func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 	if logdir := os.Getenv("LOG_DIR"); logdir != "" {
 		if err := os.MkdirAll(logdir, 0o755); err != nil {
 			return nil, fmt.Errorf("unable to make log directory %q", logdir)
-
 		}
 
 		var err error
