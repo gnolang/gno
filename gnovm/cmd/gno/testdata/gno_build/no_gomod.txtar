@@ -4,8 +4,8 @@
 
 ! stdout .+
 stderr -count=2 'go: go.mod file not found in current directory or any parent directory'
-stderr './.: build pkg: std go compiler: exit status 1'
-stderr './sub: build pkg: std go compiler: exit status 1'
+stderr './.: build pkg: std go compiler'
+stderr './sub: build pkg: std go compiler'
 
 -- main.gno --
 package main

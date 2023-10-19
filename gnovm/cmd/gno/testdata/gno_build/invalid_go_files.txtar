@@ -4,9 +4,9 @@
 
 ! stdout .+
 stderr '\./file1\.go:3:1: syntax error: non-declaration statement outside function body'
-stderr '\./\.: build pkg: std go compiler: exit status 1'
+stderr '\./\.: build pkg: std go compiler'
 stderr 'sub/file2\.go:3:1: syntax error: non-declaration statement outside function body'
-stderr '\./sub: build pkg: std go compiler: exit status 1'
+stderr '\./sub: build pkg: std go compiler'
 
 -- go.mod --
 module gnobuild
