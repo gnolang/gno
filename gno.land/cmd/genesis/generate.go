@@ -33,7 +33,7 @@ func newGenerateCmd(io *commands.IO) *commands.Command {
 			LongHelp:   "Generates a node's genesis.json",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
+		func(_ context.Context, _ []string) error {
 			return execGenerate(cfg, io)
 		},
 	)
