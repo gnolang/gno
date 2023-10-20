@@ -9,21 +9,42 @@ import (
 
 // IO holds settable command
 // input, output and error buffers
-type IO struct {
-	In    io.Reader
+type IO interface {
+	// getters
+	In() io.Reader
+	Out() io.WriteCloser
+	Err() io.WriteCloser
+
+	// setters and helpers
+	SetIn(in io.Reader)
+	SetOut(out io.WriteCloser)
+	SetErr(err io.WriteCloser)
+	Println(args ...interface{})
+	Printf(format string, args ...interface{})
+	Printfln(format string, args ...interface{})
+	ErrPrintln(args ...interface{})
+	ErrPrintfln(format string, args ...interface{})
+	GetCheckPassword(prompts [2]string, insecure bool) (string, error)
+	GetConfirmation(prompt string) (bool, error)
+	GetPassword(prompt string, insecure bool) (string, error)
+	GetString(prompt string) (string, error)
+}
+
+type IOImpl struct {
+	in    io.Reader
 	inBuf *bufio.Reader
 
-	Out    io.WriteCloser
+	out    io.WriteCloser
 	outBuf *bufio.Writer
 
-	Err    io.WriteCloser
+	err    io.WriteCloser
 	errBuf *bufio.Writer
 }
 
 // NewDefaultIO returns a default command io
 // that utilizes standard input / output / error
-func NewDefaultIO() *IO {
-	c := &IO{}
+func NewDefaultIO() IO {
+	c := &IOImpl{}
 
 	c.SetIn(os.Stdin)
 	c.SetOut(os.Stdout)
@@ -34,17 +55,21 @@ func NewDefaultIO() *IO {
 
 // NewTestIO returns a test command io
 // that only sets standard input (to avoid panics)
-func NewTestIO() *IO {
-	c := &IO{}
+func NewTestIO() IO {
+	c := &IOImpl{}
 	c.SetIn(os.Stdin)
 
 	return c
 }
 
+func (io *IOImpl) In() io.Reader       { return io.in }
+func (io *IOImpl) Out() io.WriteCloser { return io.out }
+func (io *IOImpl) Err() io.WriteCloser { return io.err }
+
 // SetIn sets the input reader for the command io
-func (io *IO) SetIn(in io.Reader) {
-	io.In = in
-	if inbuf, ok := io.In.(*bufio.Reader); ok {
+func (io *IOImpl) SetIn(in io.Reader) {
+	io.in = in
+	if inbuf, ok := io.in.(*bufio.Reader); ok {
 		io.inBuf = inbuf
 
 		return
@@ -54,19 +79,19 @@ func (io *IO) SetIn(in io.Reader) {
 }
 
 // SetOut sets the output writer for the command io
-func (io *IO) SetOut(out io.WriteCloser) {
-	io.Out = out
-	io.outBuf = bufio.NewWriter(io.Out)
+func (io *IOImpl) SetOut(out io.WriteCloser) {
+	io.out = out
+	io.outBuf = bufio.NewWriter(io.out)
 }
 
 // SetErr sets the error writer for the command io
-func (io *IO) SetErr(err io.WriteCloser) {
-	io.Err = err
-	io.errBuf = bufio.NewWriter(io.Err)
+func (io *IOImpl) SetErr(err io.WriteCloser) {
+	io.err = err
+	io.errBuf = bufio.NewWriter(io.err)
 }
 
 // Println prints a line terminated by a newline
-func (io *IO) Println(args ...interface{}) {
+func (io *IOImpl) Println(args ...interface{}) {
 	if io.outBuf == nil {
 		return
 	}
@@ -76,7 +101,7 @@ func (io *IO) Println(args ...interface{}) {
 }
 
 // Printf prints a formatted string without trailing newline
-func (io *IO) Printf(format string, args ...interface{}) {
+func (io *IOImpl) Printf(format string, args ...interface{}) {
 	if io.outBuf == nil {
 		return
 	}
@@ -86,7 +111,7 @@ func (io *IO) Printf(format string, args ...interface{}) {
 }
 
 // Printfln prints a formatted string terminated by a newline
-func (io *IO) Printfln(format string, args ...interface{}) {
+func (io *IOImpl) Printfln(format string, args ...interface{}) {
 	if io.outBuf == nil {
 		return
 	}
@@ -97,7 +122,7 @@ func (io *IO) Printfln(format string, args ...interface{}) {
 
 // ErrPrintln prints a line terminated by a newline to
 // cmd.Err(Buf)
-func (io *IO) ErrPrintln(args ...interface{}) {
+func (io *IOImpl) ErrPrintln(args ...interface{}) {
 	if io.errBuf == nil {
 		return
 	}
@@ -107,7 +132,7 @@ func (io *IO) ErrPrintln(args ...interface{}) {
 }
 
 // ErrPrintfln prints a formatted string terminated by a newline to cmd.Err(Buf)
-func (io *IO) ErrPrintfln(format string, args ...interface{}) {
+func (io *IOImpl) ErrPrintfln(format string, args ...interface{}) {
 	if io.errBuf == nil {
 		return
 	}
