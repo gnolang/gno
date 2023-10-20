@@ -26,7 +26,8 @@ func (u *UnprivilegedSet) ForceDel(addr std.Address) {
 	u.Set.ForceDel(addr)
 }
 
-func (u *UnprivilegedSet) ReplaceAll(addr std.Address) {
+func (u *UnprivilegedSet) Replace(addr std.Address) {
 	u.AssertCurrentHasAccess()
-	u.Set.ReplaceAll(addr)
+	addrs := []std.Address{addr}
+	u.Set.Replace(addrs)
 }

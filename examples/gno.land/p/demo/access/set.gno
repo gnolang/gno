@@ -95,6 +95,6 @@ func (s *Set) Del(addr std.Address) (success bool) {
 
 // ReplaceAll removes all existing authorized addresses and replaces them with a new one.
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
-func (s *Set) Replace(addr []std.Address) {
-	s.addrs = []std.Address{addr}
+func (s *Set) Replace(addrs []std.Address) {
+	s.addrs = addrs
 }
