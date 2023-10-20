@@ -3,7 +3,7 @@
 gno test .
 
 ! stdout .+ 
-stderr '\?       \./\. 	\[no test files\]'
+stderr '\?       \. 	\[no test files\]'
 
 -- minim.gno --
 package minim
