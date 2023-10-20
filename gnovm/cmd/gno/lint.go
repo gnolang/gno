@@ -124,7 +124,6 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 						Msg:        strings.TrimSpace(matches[3]),
 					})
 				}
-
 			}
 		}
 
