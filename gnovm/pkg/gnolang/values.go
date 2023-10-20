@@ -500,6 +500,11 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer.
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
