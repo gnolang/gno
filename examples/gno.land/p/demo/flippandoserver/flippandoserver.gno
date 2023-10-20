@@ -2,6 +2,7 @@ package flippandoserver
 
 import (
 	"time"
+	"math"
 	"std"
 	"bytes"
 	"strings"
@@ -11,9 +12,9 @@ import (
 )
 
 type GameBoard struct {
-	Board     []int  `json:"board"`
+	Board     []int64  `json:"board"`
 	TileType  string `json:"tileType"`
-	GameTiles []int  `json:"gameTiles"`
+	GameTiles []int64  `json:"gameTiles"`
 	BoardSize int    `json:"boardSize"`
 }
 
@@ -31,7 +32,7 @@ type inTransit struct {
 
 // tokenId - int, inTransit, bool
 
-func TestTiles(solvedBoard []int, size int) string {
+func TestTiles(solvedBoard []int64, size int) string {
 	solvedSVG, err := GenerateColorSquareGrid(solvedBoard, size)
 	if (err != nil){
 		panic("error in GenerateColorSquareGrid")
@@ -40,30 +41,34 @@ func TestTiles(solvedBoard []int, size int) string {
 }
 
 // creates game object and initializes board
-func CreateGameBoard(tileType string, boardSize int) ([]int, []int, int) {
+func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
 	// Initialize the board and gameTiles slices based on boardSize
-	board := make([]int, boardSize)
+	board := make([]int64, boardSize)
 
 	// Initialize the gameTiles slice with a length that is the square root of boardSize
 	gameTilesLength := int(sqrt(float64(boardSize)))
-	gameTiles := make([]int, gameTilesLength)
+	gameTiles := make([]int64, gameTilesLength)
 	// @todo make call to generateRandomNumbers, so you can create the actual gameTiles array,
-	rng := 4
-	if tileType == "squareGrid" || tileType == "hexagrams" {
-		rng = 16
+	rng := int64(4)
+	if tileType == "squareGrid" {
+		rng = int64(16)
+	} else if tileType == "hexagrams" {
+		rng = int64(4)
 	} else if tileType == "dice" {
-		rng := 6
+		rng = int64(6)
 	}
-	gameTiles = generateRandomNumbers(4, rng)
+	gameTiles = generateRandomNumbers(4, int64(1), rng)
+	// test
+	//gameTiles := [1, 5, 3, 8]
 
 	// we're returning discrete value, and do the json marshaling in realm
 	return board, gameTiles, boardSize;
 }
 
-func FlipTiles(board []int, solvedBoard []int, gameTiles []int, positions []int) ([]int, []int) {
+func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
-	randomNumberSlice := generateRandomNumbers(2, len(board))
+	randomNumberSlice := generateRandomNumbers(2, 1, int64(len(board)/4))
 	
 	if board[positions[0]] == 0 {
 		board[positions[0]] = gameTiles[randomNumberSlice[0]]
@@ -116,44 +121,55 @@ func FlipTiles(board []int, solvedBoard []int, gameTiles []int, positions []int)
 	   }*/
 }
 
-
-
-func createNFT(gameId string) {
-	// - generates a GRC721 token with the solved board SVG as a tokenURI
-}
-
-func makeArt(owner string, buildingBlocks []int) {
-	// - checks if any of the tokenIds in the buildingBlocks[] are belonging to the user (not allowed)
-	// - checks if any of the tokenIds in the buildingBlocks[] are in transit
-	// - unlocks and sends the locked Flips in each used NFT
-	// - transfers the NFTs to the new owner (the art creator)
-	// - calls FlippandoBundler.bundleAssets() to generate a new GRC721 NFT with a standard tokenURI, and the tokenIds of the used NFT primitives
-}
-
 /*
-var randIntn = func(n int) int {
-	return rand.Intn(n)
+func generateRandomNumbers(howMany int, min int64, max int64) []int64 {
+	var rng = &rngSource{}
+	rng.Seed(int64(time.Now()) + std.GetHeight())
+    numbers := make([]int64, howMany)
+    rangeSize := max - min + 1
+    for i := 0; i < howMany; i++ {
+        r := rng.Int63() 
+        numbers[i] = min + (r % rangeSize)
+    }
+    return numbers
 }*/
 
-func generateRandomNumbers(x int, r int) []int {
+func generateRandomNumbers(howMany int, min int64, max int64) []int64 {
+	var numbers []int64
+	/*
+	var rng = &rngSource{}
+	rng.Seed(int64(time.Now()) + std.GetHeight(),)
+	l := int64(0)
+	rangeSize := max - min + 1
+	for i := 0; i < howMany; i++ {
+		r := rng.Int63() % l
+		numbers[i] = min + (r % rangeSize)
+	}*/
+	numbers = []int64{1, 2, 3, 4}
+	return numbers
+}
+/*
+func generateRandomNumbers(howMany int, min, max int64) []int64 {
+    // Mockup: just returning a slice of fixed values
+    numbers := []int64{1, 2, 3, 4}  // Adjust these values as needed
+    return numbers
+}*/
+
+/*func generateRandomNumbers(x int, r int) []int64 {
 	//time.Sleep(10 * time.Millisecond)
 	now := time.Now().UnixNano()
-	numbers := make([]int, x)
+	numbers := make([]int64, x)
 
 	for i := 0; i < x; i++ {
-		now = (now*1664525 + 1013904223) % (1 << 32) // Linear congruential generator (LCG)
-		numbers[i] = int(now % int64(r))
+		height := std.GetHeight()
+		now = (now*1664525 + 1013904223) % (1 << 32) + (height*255) // Linear congruential generator (LCG)
+		//numbers[i] = int(now % int64(r))
+		numbers[i] = int(int64(now) % int64(r))
+		//numbers[i] = int(math.Abs(float64(now)) % float64(r))
+
 	}
 
 	return numbers
-}
-
-/*
-func generateRandomNumbers(num, start, end int) []int {
-	result := make([]int, 0, 4)
-	result = append(result, 2)
-	result = append(result, 3)
-	return result
 }*/
 
 func sqrt(x float64) float64 {
