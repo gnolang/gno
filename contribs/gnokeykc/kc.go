@@ -4,13 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/zalando/go-keyring"
 )
 
-func newKcCmd(io *commands.IO) *commands.Command {
+const (
+	kcService = "gnokey"
+	kcName    = "encryption"
+)
+
+func newKcCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "kc",
@@ -22,17 +26,17 @@ func newKcCmd(io *commands.IO) *commands.Command {
 	)
 	cmd.AddSubCommands(
 		newKcSetCmd(io),
-		newKcDeleteCmd(io),
+		newKcUnsetCmd(io),
 	)
 	return cmd
 }
 
-func newKcSetCmd(io *commands.IO) *commands.Command {
+func newKcSetCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "set",
-			ShortUsage: "set <name>",
-			ShortHelp:  "set password for name in OS keychain",
+			ShortUsage: "set",
+			ShortHelp:  "set encryption password in OS keychain",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
@@ -41,14 +45,8 @@ func newKcSetCmd(io *commands.IO) *commands.Command {
 	)
 }
 
-func execKcSet(args []string, io *commands.IO) error {
-	if len(args) != 1 {
-		return flag.ErrHelp
-	}
-
-	// XXX: check if name is an already existing key
-	name := strings.TrimSpace(args[0])
-	if name == "" {
+func execKcSet(args []string, io commands.IO) error {
+	if len(args) != 0 {
 		return flag.ErrHelp
 	}
 
@@ -58,44 +56,39 @@ func execKcSet(args []string, io *commands.IO) error {
 		return fmt.Errorf("cannot read password: %w", err)
 	}
 
-	err = keyring.Set("gnokey", name, password)
+	err = keyring.Set(kcService, kcName, password)
 	if err != nil {
 		return fmt.Errorf("cannot set password is OS keychain")
 	}
 
-	io.Printfln("Successfully added password for key %q.", name)
+	io.Printfln("Successfully added password for key.")
 	return nil
 }
 
-func newKcDeleteCmd(io *commands.IO) *commands.Command {
+func newKcUnsetCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "delete",
-			ShortUsage: "delete <name>",
-			ShortHelp:  "delete password for name in OS keychain",
+			Name:       "unset",
+			ShortUsage: "unset",
+			ShortHelp:  "unset password in OS keychain",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
-			return execKcDelete(args, io)
+			return execKcUnset(args, io)
 		},
 	)
 }
 
-func execKcDelete(args []string, io *commands.IO) error {
-	if len(args) != 1 {
+func execKcUnset(args []string, io commands.IO) error {
+	if len(args) != 0 {
 		return flag.ErrHelp
 	}
 
-	name := strings.TrimSpace(args[0])
-	if name == "" {
-		return flag.ErrHelp
-	}
-
-	err := keyring.Delete("gnokey", name)
+	err := keyring.Delete(kcService, kcName)
 	if err != nil {
-		return fmt.Errorf("cannot delete password from OS keychain")
+		return fmt.Errorf("cannot unset password from OS keychain")
 	}
 
-	io.Printfln("Successfully deleted password for key %q.", name)
+	io.Printfln("Successfully unset password")
 	return nil
 }
