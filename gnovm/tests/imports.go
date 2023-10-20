@@ -440,10 +440,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
+			send := std.Coins{}
+			ctx := testContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
 				Store:   store,
+				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
