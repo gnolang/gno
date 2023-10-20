@@ -23,7 +23,7 @@ type broadcastCfg struct {
 	tx *std.Tx
 }
 
-func newBroadcastCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newBroadcastCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &broadcastCfg{
 		rootCfg: rootCfg,
 	}
@@ -50,7 +50,7 @@ func (c *broadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBroadcast(cfg *broadcastCfg, args []string, io *commands.IO) error {
+func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}

@@ -29,7 +29,7 @@ type addCfg struct {
 	index             uint64
 }
 
-func newAddCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newAddCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &addCfg{
 		rootCfg: rootCfg,
 	}
@@ -131,7 +131,7 @@ input
 output
   - armor encrypted private key (saved to file)
 */
-func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
+func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 	var (
 		kb              keys.Keybase
 		err             error
@@ -280,7 +280,7 @@ func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 	return printCreate(info, showMnemonic, mnemonic, io)
 }
 
-func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io *commands.IO) error {
+func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) error {
 	io.Println("")
 	printNewInfo(info, io)
 
@@ -296,7 +296,7 @@ It is the only way to recover your account if you ever forget your password.
 	return nil
 }
 
-func printNewInfo(info keys.Info, io *commands.IO) {
+func printNewInfo(info keys.Info, io commands.IO) {
 	keyname := info.GetName()
 	keytype := info.GetType()
 	keypub := info.GetPubKey()

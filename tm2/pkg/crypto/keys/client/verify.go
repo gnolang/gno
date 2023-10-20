@@ -16,7 +16,7 @@ type verifyCfg struct {
 	docPath string
 }
 
-func newVerifyCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newVerifyCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &verifyCfg{
 		rootCfg: rootCfg,
 	}
@@ -43,7 +43,7 @@ func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execVerify(cfg *verifyCfg, args []string, io *commands.IO) error {
+func execVerify(cfg *verifyCfg, args []string, io commands.IO) error {
 	var (
 		kb  keys.Keybase
 		err error

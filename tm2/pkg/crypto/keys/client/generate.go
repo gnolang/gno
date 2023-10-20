@@ -16,7 +16,7 @@ type generateCfg struct {
 	customEntropy bool
 }
 
-func newGenerateCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newGenerateCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &generateCfg{
 		rootCfg: rootCfg,
 	}
@@ -43,7 +43,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execGenerate(cfg *generateCfg, args []string, io *commands.IO) error {
+func execGenerate(cfg *generateCfg, args []string, io commands.IO) error {
 	customEntropy := cfg.customEntropy
 
 	if len(args) != 0 {

@@ -18,7 +18,7 @@ type baseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd(io *commands.IO) *commands.Command {
+func NewRootCmd(io commands.IO) *commands.Command {
 	cfg := &baseCfg{}
 
 	cmd := commands.NewCommand(

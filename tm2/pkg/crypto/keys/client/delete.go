@@ -16,7 +16,7 @@ type deleteCfg struct {
 	force bool
 }
 
-func newDeleteCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newDeleteCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &deleteCfg{
 		rootCfg: rootCfg,
 	}
@@ -50,7 +50,7 @@ func (c *deleteCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execDelete(cfg *deleteCfg, args []string, io *commands.IO) error {
+func execDelete(cfg *deleteCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -101,7 +101,7 @@ func execDelete(cfg *deleteCfg, args []string, io *commands.IO) error {
 	return nil
 }
 
-func confirmDeletion(io *commands.IO) error {
+func confirmDeletion(io commands.IO) error {
 	answer, err := io.GetConfirmation("Key reference will be deleted. Continue?")
 	if err != nil {
 		return err
