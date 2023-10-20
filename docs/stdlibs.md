@@ -141,10 +141,10 @@ standard libaries in Gno.
 
 There are three components to a natively bound function in Gno:
 
-1. The Gno function definition, which must be a top-level function with no body
+1. The Gno function declaration, which must be a top-level function with no body
    (and no brackets).\
    For example: `crypto/sha256/sha256.gno`.
-2. The Go function declaration, which must be a top-level function with the same
+2. The Go function definition, which must be a top-level function with the same
    name and signature.\
    For example: `crypto/sha256/sha256.go`.
 3. When the two above are present and valid, the native binding can be created
