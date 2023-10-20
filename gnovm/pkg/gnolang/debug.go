@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -76,6 +77,40 @@ func (d debugging) Errorf(format string, args ...interface{}) {
 	}
 }
 
+// PreprocessStackError wraps a processing error along with its associated
+// preprocessing stack for enhanced error reporting.
+type PreprocessStackError struct {
+	Err   error
+	Stack []BlockNode
+}
+
+// PreprocessError returns the encapsulated error message.
+func (p *PreprocessStackError) PreprocessError() string {
+	return p.Err.Error()
+}
+
+// PreprocessStack produces a string representation of the preprocessing stack
+// trace that was associated with the error occurrence.
+func (p *PreprocessStackError) PreprocessStack() string {
+	var stacktrace strings.Builder
+	for i := len(p.Stack) - 1; i >= 0; i-- {
+		sbn := p.Stack[i]
+		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
+	}
+	return stacktrace.String()
+}
+
+// Error consolidates and returns the full error message, including
+// the actual error followed by its associated preprocessing stack.
+func (p *PreprocessStackError) Error() string {
+	var err strings.Builder
+	fmt.Fprintln(&err, p.PreprocessError()+":")
+	fmt.Fprintln(&err, "--- preprocess stack ---")
+	fmt.Fprint(&err, p.PreprocessStack())
+	fmt.Fprintf(&err, "------------------------")
+	return err.String()
+}
+
 // ----------------------------------------
 // Exposed errors accessors
 // File tests may access debug errors.
@@ -106,4 +141,13 @@ func DisableDebug() {
 
 func EnableDebug() {
 	enabled = true
+}
+
+type DebugError struct {
+	error
+	Metas interface{}
+}
+
+func (d *DebugError) Error() string {
+	return d.Error()
 }

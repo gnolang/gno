@@ -103,19 +103,28 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 		handleError := func() {
 			// Errors here mostly come from: gnovm/pkg/gnolang/preprocess.go
 			if r := recover(); r != nil {
-				if recErr, ok := r.(error); ok {
-					parsedError := strings.TrimSpace(recErr.Error())
-					parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-					matches := reParseRecover.FindStringSubmatch(parsedError)
-					if len(matches) > 0 {
-						addIssue(lintIssue{
-							Code:       lintGnoError,
-							Confidence: 1,
-							Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
-							Msg:        strings.TrimSpace(matches[3]),
-						})
-					}
+				var err error
+				switch v := r.(type) {
+				case *gno.PreprocessStackError:
+					err = v.Err
+				case error:
+					err = v
+				default:
+					panic(r)
 				}
+
+				parsedError := strings.TrimSpace(err.Error())
+				parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+				matches := reParseRecover.FindStringSubmatch(parsedError)
+				if len(matches) > 0 {
+					addIssue(lintIssue{
+						Code:       lintGnoError,
+						Confidence: 1,
+						Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
+						Msg:        strings.TrimSpace(matches[3]),
+					})
+				}
+
 			}
 		}
 

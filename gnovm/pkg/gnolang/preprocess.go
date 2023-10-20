@@ -159,13 +159,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if nline := n.GetLine(); nline > 0 {
 					loc.Line = nline
 				}
-				if rerr, ok := r.(error); ok {
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.Wrap(rerr, loc.String()))
+					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+					err = errors.New(fmt.Sprintf("%s: %v", loc.String(), r))
 				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessStackError{
+					Err:   err,
+					Stack: stack,
+				})
 			}
 		}()
 		if debug {
