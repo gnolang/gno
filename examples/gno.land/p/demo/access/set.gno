@@ -84,6 +84,10 @@ func (s *Set) ForceDel(addr std.Address) (success bool) {
 // Del removes an address from the list of authorized addresses.
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) Del(addr std.Address) (success bool) {
+	if len(s.addrs) == 0 {
+		panic("should not happen")
+	}
+
 	// XXX: should we prevent deleting self?
 
 	// Prevent deleting the last authorized address.
