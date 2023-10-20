@@ -1,0 +1,27 @@
+# Run gno build with invalid gno files (still success)
+
+gno build .
+
+! stdout .+
+! stderr .+
+
+-- go.mod --
+module gnobuild
+
+-- file1.go --
+package file1
+
+-- main.gno --
+package main
+
+invalid
+
+func main() {}
+
+-- sub/sub.gno --
+package sub
+
+invalid
+
+-- sub/file2.go --
+package file2
