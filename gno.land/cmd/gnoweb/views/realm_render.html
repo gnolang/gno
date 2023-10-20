@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Gno.land</title>
-    {{ template "html_head" }}
+    {{ template "html_head" . }}
+    <title>Gno.land - {{.Data.RealmName}}</title>
   </head>
   <body onload="main()">
     <div id="root">
@@ -26,10 +26,7 @@
       </div>
       {{ template "footer" }}
     </div>
-    {{ template "js" }}
-    <script type="text/javascript" src="/static/js/marked.min.js"></script>
-    <script type="text/javascript" src="/static/js/umbrella.min.js"></script>
-    <script type="text/javascript" src="/static/js/renderer.js"></script>
+    {{ template "js" .}}
   </body>
 </html>
 {{- end -}}
