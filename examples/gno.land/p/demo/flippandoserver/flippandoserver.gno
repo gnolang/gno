@@ -31,14 +31,14 @@ type inTransit struct {
 }
 
 // tokenId - int, inTransit, bool
-
+/*
 func TestTiles(solvedBoard []int64, size int) string {
 	solvedSVG, err := GenerateColorSquareGrid(solvedBoard, size)
 	if (err != nil){
 		panic("error in GenerateColorSquareGrid")
 	}
 	return solvedSVG;
-}
+}*/
 
 // creates game object and initializes board
 func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {

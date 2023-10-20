@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc721"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
 )
 
@@ -47,10 +47,12 @@ type inTransit struct {
 var (	
 	gameStore     avl.Tree // string (game ID) -> *Game
 	gameIDCounter uint64
+	tokenIDCounter	uint64
 
 	user2Games avl.Tree // std.Address -> []*Game
 )
 
+/*
 // test functions
 func TileTest(solvedBoard string, size int) string {
 	solveBoardArray, err := ParseString(solvedBoard);
@@ -71,7 +73,7 @@ func TileTest(solvedBoard string, size int) string {
 		panic("error in marhasling testBasicNFT");
 	}
 	return string(testBasicNFTJSON)
-}
+}*/
 
 // creates game object and initializes board
 func StartGame(player std.Address, tileType string, boardSize int) string {
@@ -288,25 +290,28 @@ func ParseString(s string) ([]int64, error) {
 	return ints, nil
 }
 
-func createNFT(gameId string) {
+func createNFT(player std.Address, gameId string) {
 	// private function, called when the game ends
+	
 	// - generates a GRC721 token with the solved board SVG as a tokenURI
 	basicNFT := grc721.NewBasicNFT(gameId, "FLPP")
+	games := getUserGames(player)
 	currentGame := games[0]
-	gameSVGData := GenerateColorSquareGrid(game.SolvedGameBoard, game.SolvedGameBoard/4)
+	gameSVGData, err := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
 	flippandoBasicNFT := &FlippandoBasicNFT{
 		name: "Flippando - the Game",
 		version: "1.0.0",
 		gameId: currentGame.ID,
-		gameType: currentGame.GameType,
+		gameType: currentGame.TileType,
 		svgData: gameSVGData,
 	}
 	flippandoBasicNFTJSON, err := flippandoBasicNFT.MarshalJSON()
 	if err != nil {
 		panic("error in marhasling testBasicNFT");
 	}
-	basicNFT.tokenURIs := flippandoBasicNFTJSON
-	basicNFT.SafeMint()
+	basicNFT.SafeMint(player, grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)))
+	basicNFT.SetTokenURI(grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)), string(flippandoBasicNFTJSON))
+	tokenIDCounter++
 }
 
 func makeArt(owner string, buildingBlocks []int64) {

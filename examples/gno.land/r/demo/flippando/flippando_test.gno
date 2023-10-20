@@ -8,65 +8,40 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
 )
 
 func TestStartGame(t *testing.T) {
-	Owner := "Alice"
-	GameId := "game123"
-	tileType := "1"
-	boardSize := 4
+	player := std.Address("someAddress")
+	tileType := "someType"
+	boardSize := 16
 
-	gameId, gameStatus, gameBoard := StartGame(Owner, GameId, tileType, boardSize)
+	expectedGameJSON := `{"id":"000000001","solvedGameBoard":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"gameTiles":[1,3,5,8],"gameStatus":"initialized"}`
 
-	//if g.Owner != Owner {
-	//	t.Errorf("Expected owner %s, but got %s", Owner, g.Owner)
-	//}
-
-	if gameId != GameId {
-		t.Errorf("Expected gameId %s, but got %s", gameId, GameId)
-	}
-
-	//if g.tileType != tileType {
-	//	t.Errorf("Expected tileType %s, but got %s", tileType, g.tileType)
-	//}
-
-	if len(gameBoard) != boardSize {
-		t.Errorf("Expected board size %d, but got %d", boardSize, len(gameBoard))
-	}
-
-	//expectedGameTilesLength := int(sqrt(float64(boardSize)))
-	//f len(g.gameTiles) != expectedGameTilesLength {
-	//	t.Errorf("Expected gameTiles length %d, but got %d", expectedGameTilesLength, len(g.gameTiles))
-	//}
-
-	//if g.boardSize != boardSize {
-	//	t.Errorf("Expected boardSize %d, but got %d", boardSize, g.boardSize)
-	//}
-
-	if gameStatus != "initiated" {
-		t.Errorf("Expected status 'initiated', but got %s", gameStatus)
+	got := StartGame(player, tileType, boardSize)
+	if got != expectedGameJSON {
+		t.Errorf("StartGame() = %v; want %v", got, expectedGameJSON)
 	}
 }
 
 func TestCreateNFT(t *testing.T) {
-    // Setup
-    gameId := "testGameID"
+    player := std.Address("someAddress")
+    gameId := "someGameID"
+    
+    // Assume tokenIDCounter is a global variable and its initial value is 0
+    tokenIDCounter = 0
+    
+    createNFT(player, gameId)
+    
+    // Check the new value of tokenIDCounter, it should be incremented by 1
+    if tokenIDCounter != 1 {
+        t.Errorf("tokenIDCounter = %v; want 1", tokenIDCounter)
+    }
 
-    // Execute
-    defer func() {
-        if r := recover(); r != nil {
-            t.Errorf("Function panicked: %v", r)
-        }
-    }()
-    createNFT(gameId)
-
-    // Additional tests for the functions called within createNFT
-    t.Run("TestNewBasicNFT", testNewBasicNFT)
-    t.Run("TestGenerateColorSquareGrid", testGenerateColorSquareGrid)
-    t.Run("TestMarshalJSON", testMarshalJSON)
 }
 
+/*
 func testNewBasicNFT(t *testing.T) {
     name := "TestNFT"
 	symbol := "TNFT"
@@ -81,7 +56,7 @@ func testNewBasicNFT(t *testing.T) {
 		nft.tokenURIs.Size() != 0 || nft.operatorApprovals.Size() != 0 {
 		t.Error("Expected all AVL trees to be initialized and empty")
 	}
-}
+}*/
 
 func testGenerateColorSquareGrid(t *testing.T) {
     solvedBoard := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}

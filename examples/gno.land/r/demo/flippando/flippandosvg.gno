@@ -1,4 +1,4 @@
-package flippandoserver
+package flippando
 
 import (
 	"std"
