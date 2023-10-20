@@ -3,8 +3,7 @@
 <html>
   <head>
     <title>Gno.land - {{ .Data.Title }}</title>
-    <meta name="description" content="{{ .Data.Description }}" />
-    {{ template "html_head" }}
+    {{ template "html_head" . }}
   </head>
   <body onload="main()">
     <div id="root">
@@ -16,7 +15,7 @@
       </div>
       {{ template "footer" }}
     </div>
-    {{ template "js" }}
+    {{ template "js" .}}
   </body>
 </html>
 {{- end -}}
