@@ -156,7 +156,7 @@ func TestSetApprovalForAll(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr.Resolve())
@@ -193,7 +193,7 @@ func TestApprove(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -223,7 +223,7 @@ func TestTransferFrom(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -268,7 +268,7 @@ func TestSafeTransferFrom(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))

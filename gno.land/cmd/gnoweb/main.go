@@ -18,13 +18,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
 	"github.com/gnolang/gno/gno.land/cmd/gnoweb/static" // for static files
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm"             // for error types
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"        // for error types
 	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
 
@@ -32,59 +31,93 @@ const (
 	qFileStr = "vm/qfile"
 )
 
-var flags struct {
-	bindAddr    string
-	remoteAddr  string
-	captchaSite string
-	faucetURL   string
-	viewsDir    string
-	pagesDir    string
-	helpChainID string
-	helpRemote  string
-}
-
 var startedAt time.Time
 
+var flags struct {
+	BindAddr      string
+	RemoteAddr    string
+	CaptchaSite   string
+	FaucetURL     string
+	ViewsDir      string
+	HelpChainID   string
+	HelpRemote    string
+	WithAnalytics bool
+}
+
 func init() {
-	flag.StringVar(&flags.remoteAddr, "remote", "127.0.0.1:26657", "remote gnoland node address")
-	flag.StringVar(&flags.bindAddr, "bind", "127.0.0.1:8888", "server listening address")
-	flag.StringVar(&flags.captchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
-	flag.StringVar(&flags.faucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
-	flag.StringVar(&flags.viewsDir, "views-dir", "./cmd/gnoweb/views", "views directory location")
-	flag.StringVar(&flags.pagesDir, "pages-dir", "./cmd/gnoweb/pages", "pages directory location")
-	flag.StringVar(&flags.helpChainID, "help-chainid", "dev", "help page's chainid")
-	flag.StringVar(&flags.helpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
+	flag.StringVar(&flags.RemoteAddr, "remote", "127.0.0.1:26657", "remote gnoland node address")
+	flag.StringVar(&flags.BindAddr, "bind", "127.0.0.1:8888", "server listening address")
+	flag.StringVar(&flags.CaptchaSite, "captcha-site", "", "recaptcha site key (if empty, captcha are disabled)")
+	flag.StringVar(&flags.FaucetURL, "faucet-url", "http://localhost:5050", "faucet server URL")
+	flag.StringVar(&flags.ViewsDir, "views-dir", "./cmd/gnoweb/views", "views directory location") // XXX: replace with goembed
+	flag.StringVar(&flags.HelpChainID, "help-chainid", "dev", "help page's chainid")
+	flag.StringVar(&flags.HelpRemote, "help-remote", "127.0.0.1:26657", "help page's remote addr")
+	flag.BoolVar(&flags.WithAnalytics, "with-analytics", false, "enable privacy-first analytics")
 	startedAt = time.Now()
 }
 
 func makeApp() gotuna.App {
 	app := gotuna.App{
-		ViewFiles: os.DirFS(flags.viewsDir),
+		ViewFiles: os.DirFS(flags.ViewsDir),
 		Router:    gotuna.NewMuxRouter(),
 		Static:    static.EmbeddedStatic,
 		// StaticPrefix: "static/",
 	}
-	app.Router.Handle("/", handlerHome(app))
-	app.Router.Handle("/about", handlerAbout(app))
-	app.Router.Handle("/game-of-realms", handlerGor(app))
-	app.Router.Handle("/faucet", handlerFaucet(app))
-	app.Router.Handle("/r/demo/boards:gnolang/6", handlerRedirect(app))
+
+	// realm aliases
+	aliases := map[string]string{
+		"/":               "/r/gnoland/home",
+		"/about":          "/r/gnoland/pages:p/about",
+		"/gnolang":        "/r/gnoland/pages:p/gnolang",
+		"/ecosystem":      "/r/gnoland/pages:p/ecosystem",
+		"/partners":       "/r/gnoland/pages:p/partners",
+		"/testnets":       "/r/gnoland/pages:p/testnets",
+		"/start":          "/r/gnoland/pages:p/start",
+		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
+		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
+	}
+	for from, to := range aliases {
+		app.Router.Handle(from, handlerRealmAlias(app, to))
+	}
+	// http redirects
+	redirects := map[string]string{
+		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
+		"/blog":                    "/r/gnoland/blog",
+		"/gor":                     "/game-of-realms",
+		"/grants":                  "/partners",
+		"/language":                "/gnolang",
+		"/getting-started":         "/start",
+	}
+	for from, to := range redirects {
+		app.Router.Handle(from, handlerRedirect(app, to))
+	}
+	// realm routes
 	// NOTE: see rePathPart.
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(app))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(app))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app))
+
+	// other
+	app.Router.Handle("/faucet", handlerFaucet(app))
 	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app))
 	app.Router.Handle("/favicon.ico", handlerFavicon(app))
+
+	// api
 	app.Router.Handle("/status.json", handlerStatusJSON(app))
+
+	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.RequestURI
+		handleNotFound(app, path, w, r)
+	})
 	return app
 }
 
 func main() {
 	flag.Parse()
-	fmt.Printf("Running on http://%s\n", flags.bindAddr)
+	fmt.Printf("Running on http://%s\n", flags.BindAddr)
 	server := &http.Server{
-		Addr:              flags.bindAddr,
+		Addr:              flags.BindAddr,
 		ReadHeaderTimeout: 60 * time.Second,
 		Handler:           makeApp().Router,
 	}
@@ -94,46 +127,59 @@ func main() {
 	}
 }
 
-func handlerHome(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "HOME.md")
-	homeContent := osm.MustReadFile(md)
-
+// handlerRealmAlias is used to render official pages from realms.
+// url is intended to be shorter.
+// UX is intended to be more minimalistic.
+// A link to the realm realm is added.
+func handlerRealmAlias(app gotuna.App, rlmpath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("HomeContent", string(homeContent)).
-			Render(w, r, "home.html", "funcs.html")
-	})
-}
+		rlmfullpath := "gno.land" + rlmpath
+		querystr := "" // XXX: "?gnoweb-alias=1"
+		parts := strings.Split(rlmpath, ":")
+		switch len(parts) {
+		case 1: // continue
+		case 2: // r/realm:querystr
+			rlmfullpath = "gno.land" + parts[0]
+			querystr = parts[1] + querystr
+		default:
+			panic("should not happen")
+		}
+		rlmname := strings.TrimPrefix(rlmfullpath, "gno.land/r/")
+		qpath := "vm/qrender"
+		data := []byte(fmt.Sprintf("%s\n%s", rlmfullpath, querystr))
+		res, err := makeRequest(qpath, data)
+		if err != nil {
+			writeError(w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
+			return
+		}
 
-func handlerAbout(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "ABOUT.md")
-	mainContent := osm.MustReadFile(md)
+		queryParts := strings.Split(querystr, "/")
+		pathLinks := []pathLink{}
+		for i, part := range queryParts {
+			pathLinks = append(pathLinks, pathLink{
+				URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
+				Text: part,
+			})
+		}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("Title", "About").
-			Set("MainContent", string(mainContent)).
-			Render(w, r, "generic.html", "funcs.html")
-	})
-}
-
-func handlerGor(app gotuna.App) http.Handler {
-	md := filepath.Join(flags.pagesDir, "GOR.md")
-	mainContent := osm.MustReadFile(md)
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.NewTemplatingEngine().
-			Set("MainContent", string(mainContent)).
-			Set("Title", "About").
-			Render(w, r, "generic.html", "funcs.html")
+		tmpl := app.NewTemplatingEngine()
+		// XXX: extract title from realm's output
+		// XXX: extract description from realm's output
+		tmpl.Set("RealmName", rlmname)
+		tmpl.Set("RealmPath", rlmpath)
+		tmpl.Set("Query", querystr)
+		tmpl.Set("PathLinks", pathLinks)
+		tmpl.Set("Contents", string(res.Data))
+		tmpl.Set("Flags", flags)
+		tmpl.Set("IsAlias", true)
+		tmpl.Render(w, r, "realm_render.html", "funcs.html")
 	})
 }
 
 func handlerFaucet(app gotuna.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
-			Set("captchaSite", flags.captchaSite).
-			Set("faucetURL", flags.faucetURL).
+			Set("Flags", flags).
 			Render(w, r, "faucet.html", "funcs.html")
 	})
 }
@@ -188,12 +234,13 @@ func handlerStatusJSON(app gotuna.App) http.Handler {
 	})
 }
 
-// XXX temporary.
-func handlerRedirect(app gotuna.App) http.Handler {
+func handlerRedirect(app gotuna.App, to string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/r/boards:gnolang/3", http.StatusFound)
-		app.NewTemplatingEngine().
-			Render(w, r, "home.html", "funcs.html")
+		http.Redirect(w, r, to, http.StatusFound)
+		tmpl := app.NewTemplatingEngine()
+		tmpl.Set("To", to)
+		tmpl.Set("Flags", flags)
+		tmpl.Render(w, r, "redirect.html", "funcs.html")
 	})
 }
 
@@ -228,10 +275,9 @@ func handlerRealmMain(app gotuna.App) http.Handler {
 			tmpl := app.NewTemplatingEngine()
 			tmpl.Set("FuncName", funcName)
 			tmpl.Set("RealmPath", rlmpath)
-			tmpl.Set("Remote", flags.helpRemote)
-			tmpl.Set("ChainID", flags.helpChainID)
 			tmpl.Set("DirPath", pathOf(rlmpath))
 			tmpl.Set("FunctionSignatures", fsigs)
+			tmpl.Set("Flags", flags)
 			tmpl.Render(w, r, "realm_help.html", "funcs.html")
 		} else {
 			// Ensure realm exists. TODO optimize.
@@ -293,12 +339,14 @@ func handleRealmRender(app gotuna.App, w http.ResponseWriter, r *http.Request) {
 	}
 	// Render template.
 	tmpl := app.NewTemplatingEngine()
-
+	// XXX: extract title from realm's output
+	// XXX: extract description from realm's output
 	tmpl.Set("RealmName", rlmname)
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
+	tmpl.Set("Flags", flags)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
@@ -341,6 +389,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("DirURI", diruri)
 		tmpl.Set("DirPath", pathOf(diruri))
 		tmpl.Set("Files", files)
+		tmpl.Set("Flags", flags)
 		tmpl.Render(w, r, "package_dir.html", "funcs.html")
 	} else {
 		// Request is for a file.
@@ -358,6 +407,7 @@ func renderPackageFile(app gotuna.App, w http.ResponseWriter, r *http.Request, d
 		tmpl.Set("DirPath", pathOf(diruri))
 		tmpl.Set("FileName", filename)
 		tmpl.Set("FileContents", string(res.Data))
+		tmpl.Set("Flags", flags)
 		tmpl.Render(w, r, "package_file.html", "funcs.html")
 	}
 }
@@ -367,7 +417,7 @@ func makeRequest(qpath string, data []byte) (res *abci.ResponseQuery, err error)
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	remote := flags.remoteAddr
+	remote := flags.RemoteAddr
 	cli := client.NewHTTP(remote, "/websocket")
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
@@ -428,11 +478,20 @@ func handleNotFound(app gotuna.App, path string, w http.ResponseWriter, r *http.
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
 		Set("path", path).
+		Set("Flags", flags).
 		Render(w, r, "404.html", "funcs.html")
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
+
+	details := errors.Unwrap(err).Error()
+	main := err.Error()
+
+	fmt.Println("main", main)
+	fmt.Println("details", details)
+
 	w.Write([]byte(err.Error()))
 }
 

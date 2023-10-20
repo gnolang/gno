@@ -8,96 +8,120 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 )
 
 type Blog struct {
-	Title  string
-	Prefix string   // i.e. r/gnoland/blog:
-	Posts  avl.Tree // slug -> Post
+	Title        string
+	Prefix       string   // i.e. r/gnoland/blog:
+	Posts        avl.Tree // slug -> Post
+	NoBreadcrumb bool
 }
 
-func (b Blog) Render(path string) string {
-	parts := strings.Split(path, "/")
+func (b Blog) RenderLastPostsWidget(limit int) string {
+	output := ""
+	i := 0
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		p := value.(*Post)
+		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
+		i++
+		return i >= limit
+	})
+	return output
+}
 
-	isHome := path == ""
-	isViewPost := len(parts) == 2 && parts[0] == "p" && len(parts[1]) > 0
-	isViewTag := len(parts) == 2 && parts[0] == "t" && len(parts[1]) > 0
+func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+	if !b.NoBreadcrumb {
+		res.Write(breadcrumb([]string{b.Title}))
+	}
 
-	switch {
-	case isHome:
-		output := breadcrumb([]string{b.Title})
+	if b.Posts.Size() == 0 {
+		res.Write("No posts.")
+		return
+	}
 
-		if b.Posts.Size() == 0 {
-			output += "No posts."
-			return output
-		}
+	res.Write("<div class='columns-3'>")
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		post := value.(*Post)
+		res.Write(post.RenderListItem())
+		return false
+	})
+	res.Write("</div>")
 
-		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-			post := value.(*Post)
-			output += post.RenderListItem()
-			return false
-		})
+	// FIXME: tag list/cloud.
+}
 
-		// FIXME: tag list/cloud.
-		return output
+func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
+	slug := req.GetVar("slug")
 
-	case isViewPost:
-		slug := parts[1]
+	post, found := b.Posts.Get(slug)
+	if !found {
+		res.Write("404")
+		return
+	}
+	p := post.(*Post)
 
-		post, found := b.Posts.Get(slug)
-		if !found {
-			return "404"
-		}
-		p := post.(*Post)
-
-		output := breadcrumb([]string{
+	if !b.NoBreadcrumb {
+		breadStr := breadcrumb([]string{
 			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
 			"p",
 			p.Title,
 		})
-
-		// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-		output += p.Body + "\n\n"
-		output += p.RenderTagList() + "\n\n"
-		output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
-		output += "\n"
-
-		// comments
-		p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
-			comment := value.(*Comment)
-			output += comment.RenderListItem()
-			return false
-		})
-
-		return output
-
-	case isViewTag:
-		tagSlug := parts[1]
-
-		output := breadcrumb([]string{
-			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-			"t",
-			tagSlug,
-		})
-
-		nb := 0
-		b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-			post := value.(*Post)
-			if !post.HasTag(tagSlug) {
-				return false
-			}
-			output += post.RenderListItem()
-			nb++
-			return false
-		})
-		if nb == 0 {
-			output += "No posts."
-		}
-		return output
+		res.Write(breadStr)
 	}
 
-	return "404"
+	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	res.Write(p.Body + "\n\n")
+	res.Write(p.RenderTagList() + "\n\n")
+	res.Write(formatAuthorAndDate(p.Author, p.CreatedAt) + "\n\n")
+
+	// comments
+	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+		comment := value.(*Comment)
+		res.Write(comment.RenderListItem())
+		return false
+	})
+}
+
+func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
+	slug := req.GetVar("slug")
+
+	if slug == "" {
+		res.Write("404")
+		return
+	}
+
+	if !b.NoBreadcrumb {
+		breadStr := breadcrumb([]string{
+			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+			"t",
+			slug,
+		})
+		res.Write(breadStr)
+	}
+
+	nb := 0
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		post := value.(*Post)
+		if !post.HasTag(slug) {
+			return false
+		}
+		res.Write(post.RenderListItem())
+		nb++
+		return false
+	})
+	if nb == 0 {
+		res.Write("No posts.")
+	}
+}
+
+func (b Blog) Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("", b.RenderHome)
+	router.HandleFunc("p/{slug}", b.RenderPost)
+	router.HandleFunc("t/{slug}", b.RenderTag)
+	return router.Render(path)
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
@@ -209,12 +233,14 @@ func (p *Post) RenderListItem() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := ""
-	output += ufmt.Sprintf("## [&#9656; %s](%s)\n", p.Title, p.URL())
+	output := "<div>\n\n"
+	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	output += ufmt.Sprintf("**[Learn More](%s)**\n", p.URL())
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
+	output += "</div>"
 	return output
 }
 

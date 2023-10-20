@@ -30,6 +30,7 @@ func newModCmd(io *commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
+		newModInitCmd(),
 	)
 
 	return cmd
@@ -47,6 +48,20 @@ func newModDownloadCmd(io *commands.IO) *commands.Command {
 		cfg,
 		func(_ context.Context, args []string) error {
 			return execModDownload(cfg, args, io)
+		},
+	)
+}
+
+func newModInitCmd() *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "init",
+			ShortUsage: "init [module-path]",
+			ShortHelp:  "Initialize gno.mod file in current directory",
+		},
+		commands.NewEmptyConfig(),
+		func(_ context.Context, args []string) error {
+			return execModInit(args)
 		},
 	)
 }
@@ -111,9 +126,28 @@ func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error 
 	}
 
 	// write go.mod file
-	err = gomod.WriteToPath(path)
+	err = gomod.Write(filepath.Join(path, "go.mod"))
 	if err != nil {
 		return fmt.Errorf("write go.mod file: %w", err)
+	}
+
+	return nil
+}
+
+func execModInit(args []string) error {
+	if len(args) > 1 {
+		return flag.ErrHelp
+	}
+	var modPath string
+	if len(args) == 1 {
+		modPath = args[0]
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if err := gnomod.CreateGnoModFile(dir, modPath); err != nil {
+		return fmt.Errorf("create gno.mod file: %w", err)
 	}
 
 	return nil

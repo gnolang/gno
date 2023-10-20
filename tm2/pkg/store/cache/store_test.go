@@ -150,6 +150,50 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.Equal(t, 4, i)
 }
 
+func TestCacheKVReverseIteratorBounds(t *testing.T) {
+	st := newCacheStore()
+
+	// set some items
+	nItems := 5
+	for i := 0; i < nItems; i++ {
+		st.Set(keyFmt(i), valFmt(i))
+	}
+
+	// iterate over all of them in reverse
+	i := nItems - 1
+	for itr := st.ReverseIterator(nil, nil); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, -1, i)
+
+	// iterate over none
+	i = 0
+	for itr := st.ReverseIterator(bz("money"), nil); itr.Valid(); itr.Next() {
+		i++
+	}
+	require.Equal(t, 0, i)
+
+	// iterate over lower
+	i = 2
+	for itr := st.ReverseIterator(keyFmt(0), keyFmt(3)); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, -1, i)
+
+	// iterate over upper
+	i = 3
+	for itr := st.ReverseIterator(keyFmt(2), keyFmt(4)); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, 1, i)
+}
+
 func TestCacheKVMergeIteratorBasics(t *testing.T) {
 	st := newCacheStore()
 

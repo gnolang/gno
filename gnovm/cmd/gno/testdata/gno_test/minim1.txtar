@@ -1,0 +1,9 @@
+# Test minimalist 1
+
+gno test .
+
+! stdout .+ 
+stderr '\?       \. 	\[no test files\]'
+
+-- minim.gno --
+package minim

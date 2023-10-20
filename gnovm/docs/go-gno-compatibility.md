@@ -45,12 +45,12 @@ Legend: full, partial, missing, TBD.
 | `rune`                                        | full                   | full                                                       |
 | `interface{}`                                 | full                   | full                                                       |
 | `[]T` (slices)                                | full                   | full*                                                      |
-| `map[T1]T2`                                   | full                   | missing (in progress, will be for launch)                  |
+| `map[T1]T2`                                   | full                   | full*                                                      |
 | `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
 | `*T` (pointers)                               | full                   | full*                                                      |
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
 
-**\*:** depends on `T`
+**\*:** depends on `T`/`T1`/`T2`
 
 Additional native types:
 
@@ -259,7 +259,7 @@ Additional native types:
 | log/slog/internal                           | TBD      |
 | log/syslog                                  | TBD      |
 | maps                                        | TBD      |
-| math                                        | partial      |
+| math                                        | partial  |
 | math/big                                    | TBD      |
 | math/bits                                   | TBD      |
 | math/cmplx                                  | TBD      |
@@ -283,12 +283,12 @@ Additional native types:
 | net/rpc/jsonrpc                             | TBD      |
 | net/smtp                                    | TBD      |
 | net/textproto                               | TBD      |
-| net/url                                     | TBD      |
+| net/url                                     | full     |
 | os                                          | TBD      |
 | os/exec                                     | TBD      |
 | os/signal                                   | TBD      |
 | os/user                                     | TBD      |
-| path                                        | TBD      |
+| path                                        | full     |
 | path/filepath                               | TBD      |
 | plugin                                      | TBD      |
 | reflect                                     | TBD      |
@@ -361,6 +361,7 @@ Additional native types:
 | go list           |                  |                                                                       |
 | go mod            |                  |                                                                       |
 | + go mod download | gno mod download | same behavior                                                         |
+| + go mod init     | gno mod init     | same behavior                                                         |
 |                   | gno precompile   |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
@@ -369,3 +370,4 @@ Additional native types:
 | go tool           |                  |                                                                       |
 | go version        |                  |                                                                       |
 | go vet            |                  |                                                                       |
+| golint            | gno lint         | same intention                                                        |
