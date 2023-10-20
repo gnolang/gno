@@ -53,7 +53,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	return balances, nil
 }
 
-// XXX: we can do something better here
+// XXX: Improve the way we generate and load this file
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
 	txs := []std.Tx{}
 	txsBz := osm.MustReadFile(path)

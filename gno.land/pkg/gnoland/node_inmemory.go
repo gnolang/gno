@@ -27,6 +27,7 @@ type InMemoryNodeConfig struct {
 	GenesisMaxVMCycles    int64
 }
 
+// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
 func NewInMemoryNodeConfig(tmcfg *tmcfg.Config) *InMemoryNodeConfig {
 	return &InMemoryNodeConfig{
 		TMConfig: tmcfg,
@@ -42,57 +43,52 @@ func NewInMemoryNodeConfig(tmcfg *tmcfg.Config) *InMemoryNodeConfig {
 	}
 }
 
-// NewInMemoryNode create an inMemeory gnoland node. In this mode, the node will
-// not persist any data using an InMemory Database. For now the only indirect
-// requirement is that `InMemoryNodeConfig.TMConfig.RootDir` is pointing to
-// correct gno repository so that the node can load stdlibs
+// NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
+// persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
+// should point to the correct gno repository to load the stdlibs.
 func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if cfg.TMConfig == nil {
-		return nil, fmt.Errorf("no TMConfig given")
+		return nil, fmt.Errorf("no `TMConfig` given")
+	}
+
+	if cfg.TMConfig.RootDir == "" {
+		return nil, fmt.Errorf("`TMConfig.RootDir` is required but not provided")
 	}
 
 	// Create Identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 	pv := bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
 
-	// Setup geeneis
-	gen := &bft.GenesisDoc{}
-	{
-		gen.GenesisTime = time.Now()
-
-		gen.ChainID = cfg.TMConfig.ChainID()
-
-		gen.ConsensusParams = cfg.ConsensusParams
-
-		// Register self first
-		pk := pv.GetPubKey()
-		gen.Validators = []bft.GenesisValidator{
+	// Set up genesis with default values and additional validators
+	gen := &bft.GenesisDoc{
+		GenesisTime:     time.Now(),
+		ChainID:         cfg.TMConfig.ChainID(),
+		ConsensusParams: cfg.ConsensusParams,
+		Validators: []bft.GenesisValidator{
 			{
-				Address: pk.Address(),
-				PubKey:  pk,
+				Address: pv.GetPubKey().Address(),
+				PubKey:  pv.GetPubKey(),
 				Power:   10,
 				Name:    "self",
 			},
-		}
-
-		for _, validator := range cfg.GenesisValidator {
-			gen.Validators = append(gen.Validators, validator)
-		}
+		},
 	}
+	gen.Validators = append(gen.Validators, cfg.GenesisValidator...)
 
 	// XXX: Maybe let the user do this manually and pass it to genesisTXs
 	txs, err := LoadPackages(cfg.Packages)
 	if err != nil {
-		return nil, fmt.Errorf("uanble to load genesis packages: %w", err)
+		return nil, fmt.Errorf("error loading genesis packages: %w", err)
 	}
 
+	// Combine loaded packages with provided genesis transactions
 	txs = append(txs, cfg.GenesisTXs...)
-
 	gen.AppState = GnoGenesisState{
 		Balances: cfg.Balances,
 		Txs:      txs,
 	}
 
+	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:                logger,
 		GnoRootDir:            cfg.TMConfig.RootDir,
@@ -101,12 +97,12 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		DB:                    db.NewMemDB(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error in creating new app: %w", err)
+		return nil, fmt.Errorf("error initializing new app: %w", err)
 	}
 
 	cfg.TMConfig.LocalApp = gnoApp
 
-	// Get app client creator
+	// Setup app client creator
 	appClientCreator := proxy.DefaultClientCreator(
 		cfg.TMConfig.LocalApp,
 		cfg.TMConfig.ProxyApp,
@@ -119,21 +115,23 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		return gen, nil
 	}
 
+	// Create and return the in-memory node instance
 	return node.NewNode(cfg.TMConfig,
 		pv, nodekey,
 		appClientCreator,
 		genProvider,
 		node.DefaultDBProvider,
-		logger,
+		logger
 	)
 }
 
+// LoadPackages loads and returns transactions from provided package paths.
 func LoadPackages(pkgs []PackagePath) ([]std.Tx, error) {
-	txs := []std.Tx{}
+	var txs []std.Tx
 	for _, pkg := range pkgs {
 		tx, err := pkg.Load()
 		if err != nil {
-			return nil, fmt.Errorf("unable to load packages: %w", err)
+			return nil, fmt.Errorf("error loading package from path %s: %w", pkg.Path, err)
 		}
 		txs = append(txs, tx...)
 	}

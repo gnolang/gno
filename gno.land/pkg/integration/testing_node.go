@@ -24,7 +24,8 @@ const (
 	DefaultAccountSeed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
-// Should return an already starting node
+// TestingInMemoryNode initializes and starts an in-memory node for testing.
+// It returns the node instance and its RPC remote address.
 func TestingInMemoryNode(t *testing.T, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
 	t.Helper()
 
@@ -43,6 +44,7 @@ func TestingInMemoryNode(t *testing.T, logger log.Logger, config *gnoland.InMemo
 	return node, node.Config().RPC.ListenAddress
 }
 
+// DefaultTestingNodeConfig constructs the default in-memory node configuration for testing.
 func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNodeConfig {
 	t.Helper()
 
@@ -56,6 +58,7 @@ func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNod
 	}
 }
 
+// LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
 func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []gnoland.PackagePath {
 	t.Helper()
 
@@ -70,6 +73,7 @@ func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []gn
 	return []gnoland.PackagePath{pkgs}
 }
 
+// LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.
 func LoadDefaultGenesisBalanceFile(t *testing.T, gnoroot string) []gnoland.Balance {
 	t.Helper()
 
@@ -81,6 +85,7 @@ func LoadDefaultGenesisBalanceFile(t *testing.T, gnoroot string) []gnoland.Balan
 	return genesisBalances
 }
 
+// LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
 func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []std.Tx {
 	t.Helper()
 
@@ -94,6 +99,7 @@ func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []s
 	return genesisTXs
 }
 
+// DefaultConsensusParams constructs the default consensus parameters for testing.
 func DefaultConsensusParams(t *testing.T) abci.ConsensusParams {
 	t.Helper()
 
@@ -107,6 +113,7 @@ func DefaultConsensusParams(t *testing.T) abci.ConsensusParams {
 	}
 }
 
+// DefaultTestingTMConfig constructs the default Tendermint configuration for testing.
 func DefaultTestingTMConfig(t *testing.T, gnoroot string) *tmcfg.Config {
 	t.Helper()
 
@@ -120,6 +127,7 @@ func DefaultTestingTMConfig(t *testing.T, gnoroot string) *tmcfg.Config {
 	return tmconfig
 }
 
+// waitForNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
 // XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
 func waitForNodeReadiness(n *node.Node) <-chan struct{} {
 	const listenerID = "first_block_listener"
