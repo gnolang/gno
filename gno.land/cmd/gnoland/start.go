@@ -174,7 +174,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfig(rootDir)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(rootDir, nil)
 	}
 
 	if loadCfgErr != nil {
