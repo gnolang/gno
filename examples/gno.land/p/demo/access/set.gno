@@ -61,9 +61,6 @@ func (s *Set) AssertCurrentHasAccess() {
 // Add adds an address to the list of authorized addresses.
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) Add(addr std.Address) {
-	if s.addrs == nil {
-		s.addrs = make([]std.Address, 0)
-	}
 	if s.HasAccess(addr) {
 		// XXX: Consider panicking or handling duplicate addition differently.
 		return
