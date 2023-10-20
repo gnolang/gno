@@ -1,14 +1,14 @@
-package gnopages
+package present
 
 import (
 	"gno.land/p/demo/blog"
 )
 
-// TODO: switch from p/blog to p/pages
+// TODO: switch from p/blog to p/present
 
 var b = &blog.Blog{
-	Title:        "Gnoland's Pages",
-	Prefix:       "/r/gnoland/pages:",
+	Title:        "Manfred's Presentations",
+	Prefix:       "/r/manfred/present:",
 	NoBreadcrumb: true,
 }
 

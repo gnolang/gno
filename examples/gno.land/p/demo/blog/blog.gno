@@ -13,13 +13,28 @@ import (
 )
 
 type Blog struct {
-	Title  string
-	Prefix string   // i.e. r/gnoland/blog:
-	Posts  avl.Tree // slug -> Post
+	Title        string
+	Prefix       string   // i.e. r/gnoland/blog:
+	Posts        avl.Tree // slug -> Post
+	NoBreadcrumb bool
+}
+
+func (b Blog) RenderLastPostsWidget(limit int) string {
+	output := ""
+	i := 0
+	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		p := value.(*Post)
+		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
+		i++
+		return i >= limit
+	})
+	return output
 }
 
 func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(breadcrumb([]string{b.Title}))
+	if !b.NoBreadcrumb {
+		res.Write(breadcrumb([]string{b.Title}))
+	}
 
 	if b.Posts.Size() == 0 {
 		res.Write("No posts.")
@@ -47,12 +62,14 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
-	breadStr := breadcrumb([]string{
-		ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-		"p",
-		p.Title,
-	})
-	res.Write(breadStr)
+	if !b.NoBreadcrumb {
+		breadStr := breadcrumb([]string{
+			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+			"p",
+			p.Title,
+		})
+		res.Write(breadStr)
+	}
 
 	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	res.Write(p.Body + "\n\n")
@@ -75,12 +92,14 @@ func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	breadStr := breadcrumb([]string{
-		ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-		"t",
-		slug,
-	})
-	res.Write(breadStr)
+	if !b.NoBreadcrumb {
+		breadStr := breadcrumb([]string{
+			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
+			"t",
+			slug,
+		})
+		res.Write(breadStr)
+	}
 
 	nb := 0
 	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
