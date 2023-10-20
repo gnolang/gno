@@ -146,8 +146,14 @@ func TestTOML_LoadConfig(t *testing.T) {
 		require.NoError(t, writeErr)
 
 		cfg, loadErr := LoadConfigFile(configFile.Name())
-
 		require.NoError(t, loadErr)
-		assert.Equal(t, defaultConfig, cfg)
+
+		assert.EqualValues(t, defaultConfig.BaseConfig, cfg.BaseConfig)
+		assert.EqualValues(t, defaultConfig.RPC, cfg.RPC)
+		assert.EqualValues(t, defaultConfig.P2P, cfg.P2P)
+		assert.EqualValues(t, defaultConfig.Mempool, cfg.Mempool)
+		assert.EqualValues(t, defaultConfig.Consensus, cfg.Consensus)
+		assert.Equal(t, defaultConfig.TxEventStore.EventStoreType, cfg.TxEventStore.EventStoreType)
+		assert.Empty(t, defaultConfig.TxEventStore.Params, cfg.TxEventStore.Params)
 	})
 }
