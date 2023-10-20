@@ -13,9 +13,9 @@ func New() Set {
 
 // NewWithAddress returns a Set object initialized with the provided address as authorized.
 func NewWithAddress(addr std.Address) Set {
-	s := New()
-	s.ReplaceAll(addr)
-	return s
+	return Set{
+		addrs: []std.Address{addr},
+	}
 }
 
 // Set is an object containing the configuration and allowing the application of filters.
