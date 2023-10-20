@@ -103,6 +103,6 @@ We look forward to seeing your first PR!
 
   Pkg.go.dev
 
-  * [![Go Reference](https://pkg.go.dev/badge/github.com/gnolang/gno.svg)](https://pkg.go.dev/github.com/gnolang/gno)
-  * TODO: host custom docs on gh-pages, to bypass license limitation
+  * [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
+    (pkg.go.dev will not show our repository as it has a license it doesn't recognise)
 </details>
