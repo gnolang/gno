@@ -13,7 +13,8 @@ version of the Go programming language called Gnolang (Gno for short).
 ### Key Features and Technology
 
 1. **Interpreted Gnolang**: Gno.land utilizes the Gnolang programming language, which is based on Go. It is executed
-   through a specialized virtual machine called the GnoVM, purpose-built for the Gno.land blockchain. While Gnolang
+   through a specialized virtual machine called the GnoVM, purpose-built for blockchain development with built-in
+   determinism and a modified standard library. While Gnolang
    shares similarities with Go in terms of syntax, it currently lacks go routine support. However, this feature is
    planned for future development, ensuring deterministic GnoVM executions.
 2. **Consensus Protocol - Tendermint2**: Gno.land achieves consensus between blockchain nodes using the Tendermint2
