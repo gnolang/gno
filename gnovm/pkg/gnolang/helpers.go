@@ -105,6 +105,12 @@ func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
 	}
 }
 
+// FuncD creates a new function declaration.
+//
+// There is a difference between passing nil to body or passing []Stmt{}:
+// nil means that the curly brackets are missing in the source code, indicating
+// a declaration for an externally-defined function, while []Stmt{} is simply a
+// functions with no statements (func() {}).
 func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),
