@@ -28,7 +28,7 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to load genesis")
+		assert.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
 	})
 
 	t.Run("invalid validator address", func(t *testing.T) {

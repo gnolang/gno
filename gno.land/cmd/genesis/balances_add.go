@@ -89,11 +89,17 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	}
 
 	// Validate the source is set correctly
+	var (
+		singleEntriesSet = len(cfg.singleEntries) != 0
+		balanceSheetSet  = cfg.balanceSheet != ""
+		txFileSet        = cfg.parseExport != ""
+	)
+
 	if err := validateSetModes(
 		[]bool{
-			cfg.parseExport != "",
-			len(cfg.singleEntries) != 0,
-			cfg.balanceSheet != "",
+			singleEntriesSet,
+			balanceSheetSet,
+			txFileSet,
 		},
 	); err != nil {
 		return fmt.Errorf("invalid modes set, %w", err)
@@ -106,9 +112,9 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 
 	// Get the balance sheet from the source
 	switch {
-	case len(cfg.singleEntries) != 0:
+	case singleEntriesSet:
 		balances, err = getBalancesFromEntries(cfg.singleEntries)
-	case cfg.balanceSheet != "":
+	case balanceSheetSet:
 		// Open the balance sheet
 		file, loadErr := os.Open(cfg.balanceSheet)
 		if loadErr != nil {
@@ -136,18 +142,10 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	}
 
 	// Construct the initial genesis balance sheet
-	var (
-		genesisBalances = make(accountBalances)
-		state           = genesis.AppState.(gnoland.GnoGenesisState)
-	)
-
-	for _, entry := range state.Balances {
-		accountBalance, err := getBalanceFromEntry(entry)
-		if err != nil {
-			return fmt.Errorf("invalid genesis balance entry, %w", err)
-		}
-
-		genesisBalances[accountBalance.address] = accountBalance.amount
+	state := genesis.AppState.(gnoland.GnoGenesisState)
+	genesisBalances, err := extractGenesisBalances(state)
+	if err != nil {
+		return err
 	}
 
 	// Merge the two balance sheets, with the input

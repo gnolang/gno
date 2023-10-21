@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -58,4 +59,22 @@ func getBalanceFromEntry(entry string) (*accountBalance, error) {
 		address: address,
 		amount:  amount,
 	}, nil
+}
+
+// extractGenesisBalances extracts the initial account balances from the
+// genesis app state
+func extractGenesisBalances(state gnoland.GnoGenesisState) (accountBalances, error) {
+	// Construct the initial genesis balance sheet
+	genesisBalances := make(accountBalances)
+
+	for _, entry := range state.Balances {
+		accountBalance, err := getBalanceFromEntry(entry)
+		if err != nil {
+			return nil, fmt.Errorf("invalid genesis balance entry, %w", err)
+		}
+
+		genesisBalances[accountBalance.address] = accountBalance.amount
+	}
+
+	return genesisBalances, nil
 }

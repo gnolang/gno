@@ -12,7 +12,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-var errAddressNotFound = errors.New("genesis balances entry does not exist")
+var (
+	errUnableToLoadGenesis = errors.New("unable to load genesis")
+	errBalanceNotFound     = errors.New("genesis balances entry does not exist")
+	errAppStateNotSet      = errors.New("genesis app state not set")
+)
 
 type balancesRemoveCfg struct {
 	rootCfg *balancesCfg
@@ -52,7 +56,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io *commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {
-		return fmt.Errorf("unable to load genesis, %w", loadErr)
+		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, loadErr)
 	}
 
 	// Validate the address
@@ -61,25 +65,22 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io *commands.IO) error {
 		return fmt.Errorf("%w, %w", errInvalidAddress, err)
 	}
 
+	// Check if the genesis state is set at all
+	if genesis.AppState == nil {
+		return errAppStateNotSet
+	}
+
 	// Construct the initial genesis balance sheet
-	var (
-		genesisBalances = make(accountBalances)
-		state           = genesis.AppState.(gnoland.GnoGenesisState)
-	)
-
-	for _, entry := range state.Balances {
-		accountBalance, err := getBalanceFromEntry(entry)
-		if err != nil {
-			return fmt.Errorf("invalid genesis balance entry, %w", err)
-		}
-
-		genesisBalances[accountBalance.address] = accountBalance.amount
+	state := genesis.AppState.(gnoland.GnoGenesisState)
+	genesisBalances, err := extractGenesisBalances(state)
+	if err != nil {
+		return err
 	}
 
 	// Check if the genesis balance for the account is present
 	_, exists := genesisBalances[address]
 	if !exists {
-		return errAddressNotFound
+		return errBalanceNotFound
 	}
 
 	// Drop the account pre-mine

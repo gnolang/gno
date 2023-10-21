@@ -28,7 +28,35 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		require.ErrorContains(t, cmdErr, "unable to load genesis")
+		require.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
+	})
+
+	t.Run("genesis app state not set", func(t *testing.T) {
+		t.Parallel()
+
+		dummyKey := getDummyKey(t)
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := getDefaultGenesis()
+		genesis.AppState = nil // not set
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"balances",
+			"remove",
+			"--genesis-path",
+			tempGenesis.Name(),
+			"--address",
+			dummyKey.Address().String(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.ErrorContains(t, cmdErr, errAppStateNotSet.Error())
 	})
 
 	t.Run("address is present", func(t *testing.T) {
@@ -108,6 +136,6 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		require.ErrorContains(t, cmdErr, errAddressNotFound.Error())
+		require.ErrorContains(t, cmdErr, errBalanceNotFound.Error())
 	})
 }
