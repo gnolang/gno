@@ -496,6 +496,8 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	_ = enc.decodeMap
 
 	si := 0
+	// XXX: Go source checks for strconv.IntSize >= 64 as well in this loop.
+	// In the gnovm, int size is always guaranteed to be 64 bits.
 	for len(src)-si >= 8 && len(dst)-n >= 8 {
 		src2 := src[si : si+8]
 		if dn, ok := assemble64(
