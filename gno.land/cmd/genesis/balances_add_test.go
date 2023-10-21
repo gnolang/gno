@@ -22,6 +22,21 @@ import (
 func TestGenesis_Balances_Add(t *testing.T) {
 	t.Parallel()
 
+	t.Run("invalid genesis", func(t *testing.T) {
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"balances",
+			"add",
+			"--genesis-path",
+			"dummy-path",
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.ErrorContains(t, cmdErr, "unable to load genesis")
+	})
+
 	t.Run("no sources selected", func(t *testing.T) {
 		t.Parallel()
 
