@@ -7,8 +7,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,25 +18,42 @@ import (
 
 // getDummyKey generates a random public key,
 // and returns the key info
-func getDummyKey(t *testing.T) keys.Info {
+func getDummyKey(t *testing.T) crypto.PubKey {
 	t.Helper()
 
 	mnemonic, err := client.GenerateMnemonic(256)
 	require.NoError(t, err)
 
-	kb := keys.NewInMemory()
+	seed := bip39.NewSeed(mnemonic, "")
 
-	info, err := kb.CreateAccount(
-		"dummy",
-		mnemonic,
-		"",
-		"",
-		uint32(0),
-		uint32(0),
-	)
-	require.NoError(t, err)
+	return generateKeyFromSeed(seed, 0).PubKey()
+}
 
-	return info
+// generateKeyFromSeed generates a private key from
+// the provided seed and index
+func generateKeyFromSeed(seed []byte, index uint32) crypto.PrivKey {
+	pathParams := hd.NewFundraiserParams(0, crypto.CoinType, index)
+
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+
+	//nolint:errcheck // This derivation can never error out, since the path params
+	// are always going to be valid
+	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, pathParams.String())
+
+	return secp256k1.PrivKeySecp256k1(derivedPriv)
+}
+
+// getDummyKeys generates random keys for testing
+func getDummyKeys(t *testing.T, count int) []crypto.PubKey {
+	t.Helper()
+
+	dummyKeys := make([]crypto.PubKey, count)
+
+	for i := 0; i < count; i++ {
+		dummyKeys[i] = getDummyKey(t)
+	}
+
+	return dummyKeys
 }
 
 func TestGenesis_Validator_Add(t *testing.T) {
@@ -101,7 +120,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			key.GetPubKey().Address().String(),
+			key.Address().String(),
 			"--power",
 			"-1", // invalid voting power
 		}
@@ -130,7 +149,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			key.GetPubKey().Address().String(),
+			key.Address().String(),
 			"--name",
 			"", // invalid validator name
 		}
@@ -159,7 +178,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			key.GetPubKey().Address().String(),
+			key.Address().String(),
 			"--name",
 			"example",
 			"--pub-key",
@@ -180,10 +199,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		genesis := getDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		dummyKeys := []keys.Info{
-			getDummyKey(t),
-			getDummyKey(t),
-		}
+		dummyKeys := getDummyKeys(t, 2)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -193,11 +209,11 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			dummyKeys[0].GetPubKey().Address().String(),
+			dummyKeys[0].Address().String(),
 			"--name",
 			"example",
 			"--pub-key",
-			crypto.PubKeyToBech32(dummyKeys[1].GetPubKey()), // another key
+			crypto.PubKeyToBech32(dummyKeys[1]), // another key
 		}
 
 		// Run the command
@@ -211,17 +227,13 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKeys := []keys.Info{
-			getDummyKey(t),
-			getDummyKey(t),
-		}
-
+		dummyKeys := getDummyKeys(t, 2)
 		genesis := getDefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
-			Address: dummyKeys[0].GetAddress(),
-			PubKey:  dummyKeys[0].GetPubKey(),
+			Address: dummyKeys[0].Address(),
+			PubKey:  dummyKeys[0],
 			Power:   1,
 			Name:    "example",
 		})
@@ -236,11 +248,11 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			dummyKeys[0].GetPubKey().Address().String(),
+			dummyKeys[0].Address().String(),
 			"--name",
 			"example",
 			"--pub-key",
-			crypto.PubKeyToBech32(dummyKeys[0].GetPubKey()), // another key
+			crypto.PubKeyToBech32(dummyKeys[0]), // another key
 		}
 
 		// Run the command
@@ -267,11 +279,11 @@ func TestGenesis_Validator_Add(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			key.GetPubKey().Address().String(),
+			key.Address().String(),
 			"--name",
 			"example",
 			"--pub-key",
-			crypto.PubKeyToBech32(key.GetPubKey()), // another key
+			crypto.PubKeyToBech32(key), // another key
 		}
 
 		// Run the command

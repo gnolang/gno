@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -16,11 +17,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
+
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 var (
 	balanceRegex = regexp.MustCompile(`^([A-Za-z0-9]+)=([0-9]+)ugnot$`)
 	amountRegex  = regexp.MustCompile(`^(\d+)ugnot$`)
+)
+
+var (
+	errNoBalanceSource        = errors.New("at least one balance source must be set")
+	errMultipleBalanceSources = errors.New("only one mode can be set at a time")
+	errBalanceParsingAborted  = errors.New("balance parsing aborted")
 )
 
 type balancesAddCfg struct {
@@ -73,6 +82,12 @@ func (c *balancesAddCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) error {
+	// Load the genesis
+	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
+	if loadErr != nil {
+		return fmt.Errorf("unable to load genesis, %w", loadErr)
+	}
+
 	// Validate the source is set correctly
 	if err := validateSetModes(
 		[]bool{
@@ -82,12 +97,6 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 		},
 	); err != nil {
 		return fmt.Errorf("invalid modes set, %w", err)
-	}
-
-	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
-	if loadErr != nil {
-		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
 
 	var (
@@ -100,9 +109,21 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	case len(cfg.singleEntries) != 0:
 		balances, err = getBalancesFromEntries(cfg.singleEntries)
 	case cfg.balanceSheet != "":
-		balances, err = getBalancesFromSheet(cfg.balanceSheet)
+		// Open the balance sheet
+		file, err := os.Open(cfg.balanceSheet)
+		if err != nil {
+			return fmt.Errorf("unable to open balance sheet, %w", err)
+		}
+
+		balances, err = getBalancesFromSheet(file)
 	default:
-		balances, err = getBalancesFromTransactions(ctx, cfg.parseExport)
+		// Open the transactions file
+		file, err := os.Open(cfg.parseExport)
+		if err != nil {
+			return fmt.Errorf("unable to open transactions file, %w", err)
+		}
+
+		balances, err = getBalancesFromTransactions(ctx, file)
 	}
 
 	if err != nil {
@@ -167,14 +188,14 @@ func validateSetModes(modes []bool) error {
 		}
 
 		if anySet {
-			return errors.New("only one mode can be set at a time")
+			return errMultipleBalanceSources
 		}
 
 		anySet = true
 	}
 
 	if !anySet {
-		return errors.New("at least one balance source must be set")
+		return errNoBalanceSource
 	}
 
 	return nil
@@ -199,16 +220,10 @@ func getBalancesFromEntries(entries []string) (accountBalances, error) {
 
 // getBalancesFromSheet extracts the balance sheet from the passed in
 // balance sheet file, that has the format of <address>=<amount>ugnot
-func getBalancesFromSheet(sheetPath string) (accountBalances, error) {
-	// Open the balance sheet
-	file, err := os.Open(sheetPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open balance sheet, %w", err)
-	}
-
+func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
 	// Parse the balances
 	balances := make(accountBalances)
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(sheet)
 
 	for scanner.Scan() {
 		entry := scanner.Text()
@@ -244,20 +259,15 @@ func getBalancesFromSheet(sheetPath string) (accountBalances, error) {
 // The right way to do this sort of initialization is to spin up an in-memory node
 // and execute the entire transaction history to determine touched accounts and final balances,
 // and construct a balance sheet based off of this information
-func getBalancesFromTransactions(ctx context.Context, txFilePath string) (accountBalances, error) {
+func getBalancesFromTransactions(ctx context.Context, reader io.Reader) (accountBalances, error) {
 	balances := make(accountBalances)
 
-	file, err := os.Open(txFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open transactions file, %w", err)
-	}
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("balance parsing aborted")
+			return nil, errBalanceParsingAborted
 		default:
 			// Parse the amino JSON
 			var tx std.Tx
@@ -278,7 +288,7 @@ func getBalancesFromTransactions(ctx context.Context, txFilePath string) (accoun
 			}
 
 			for _, msg := range tx.Msgs {
-				if msg.Type() != "/bank.MsgSend" {
+				if msg.Type() != "send" {
 					continue
 				}
 
@@ -287,7 +297,8 @@ func getBalancesFromTransactions(ctx context.Context, txFilePath string) (accoun
 				sendAmount, err := getAmountFromEntry(msgSend.Amount.String())
 				if err != nil {
 					return nil, fmt.Errorf(
-						"invalid send amount, %s",
+						"%s, %s",
+						"invalid send amount",
 						msgSend.Amount.String(),
 					)
 				}

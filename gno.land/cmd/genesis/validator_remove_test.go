@@ -6,7 +6,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,17 +62,13 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		dummyKeys := []keys.Info{
-			getDummyKey(t),
-			getDummyKey(t),
-		}
-
+		dummyKeys := getDummyKeys(t, 2)
 		genesis := getDefaultGenesis()
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
-			Address: dummyKeys[0].GetAddress(),
-			PubKey:  dummyKeys[0].GetPubKey(),
+			Address: dummyKeys[0].Address(),
+			PubKey:  dummyKeys[0],
 			Power:   1,
 			Name:    "example",
 		})
@@ -88,7 +83,7 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			dummyKeys[1].GetPubKey().Address().String(),
+			dummyKeys[1].Address().String(),
 		}
 
 		// Run the command
@@ -108,8 +103,8 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 
 		// Set an existing validator
 		genesis.Validators = append(genesis.Validators, types.GenesisValidator{
-			Address: dummyKey.GetAddress(),
-			PubKey:  dummyKey.GetPubKey(),
+			Address: dummyKey.Address(),
+			PubKey:  dummyKey,
 			Power:   1,
 			Name:    "example",
 		})
@@ -124,7 +119,7 @@ func TestGenesis_Validator_Remove(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--address",
-			dummyKey.GetPubKey().Address().String(),
+			dummyKey.Address().String(),
 		}
 
 		// Run the command
