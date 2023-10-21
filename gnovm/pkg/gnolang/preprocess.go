@@ -2895,6 +2895,59 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	}
 	switch cd := d.(type) {
 	case *FuncDecl:
+		// *FuncValue/*FuncType is mostly empty still; here
+		// we just fill the func type (and recv if method).
+		// NOTE: unlike the *ValueDecl case, this case doesn't
+		// preprocess d itself (only d.Type).
+		if cd.IsMethod {
+			if cd.Recv.Name == "" || cd.Recv.Name == "_" {
+				// create a hidden var with leading dot.
+				// NOTE: document somewhere.
+				cd.Recv.Name = ".recv"
+			}
+			cd.Recv = *Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
+			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
+			rft := evalStaticType(store, last, &cd.Recv).(FieldType)
+			rt := rft.Type
+			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
+			ft = ft.UnboundType(rft)
+			dt := (*DeclaredType)(nil)
+			if pt, ok := rt.(*PointerType); ok {
+				dt = pt.Elem().(*DeclaredType)
+			} else {
+				dt = rt.(*DeclaredType)
+			}
+			dt.DefineMethod(&FuncValue{
+				Type:       ft,
+				IsMethod:   true,
+				Source:     cd,
+				Name:       cd.Name,
+				Closure:    nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				body:       cd.Body,
+				nativeBody: nil,
+			})
+		} else {
+			ftv := pkg.GetValueRef(store, cd.Name)
+			ft := ftv.T.(*FuncType)
+			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
+			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
+			if !ft.IsZero() {
+				// redefining function.
+				// make sure the type is the sae.
+				if ft.TypeID() != ft2.TypeID() {
+					panic(fmt.Sprintf(
+						"Redefinition (%s) cannot change .T; was %v, new %v",
+						cd, ft, ft2))
+				}
+				// keep the orig type.
+			} else {
+				*ft = *ft2
+			}
+			// XXX replace attr w/ ft?
+			// return Preprocess(store, last, cd).(Decl), true
+		}
 		// Full type declaration/preprocessing already done in tryPredefine
 		return d, false
 	case *ValueDecl:
@@ -3095,42 +3148,47 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				return
 			}
 
-			pkg := packageOf(last)
+			/*
+				pkg := packageOf(last)
 
-			// d.Recv's type is defined; add method to DeclaredType.
-			if d.Recv.Name == "" || d.Recv.Name == "_" {
-				// create a hidden var with leading dot.
-				// TODO: document somewhere.
-				d.Recv.Name = ".recv"
-			}
+				// d.Recv's type is defined; add method to DeclaredType.
+				if d.Recv.Name == "" || d.Recv.Name == "_" {
+					// create a hidden var with leading dot.
+					// TODO: document somewhere.
+					d.Recv.Name = ".recv"
+				}
 
-			d.Recv = *Preprocess(store, last, &d.Recv).(*FieldTypeExpr)
-			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-			rft := evalStaticType(store, last, &d.Recv).(FieldType)
-			rt := rft.Type
-			ft := evalStaticType(store, last, &d.Type).(*FuncType)
-			ft = ft.UnboundType(rft)
-			var dt *DeclaredType
-			if pt, ok := rt.(*PointerType); ok {
-				dt = pt.Elem().(*DeclaredType)
-			} else {
-				dt = rt.(*DeclaredType)
-			}
-			dt.DefineMethod(&FuncValue{
-				Type:       ft,
-				IsMethod:   true,
-				Source:     d,
-				Name:       d.Name,
-				Closure:    nil, // set lazily.
-				FileName:   fileNameOf(last),
-				PkgPath:    pkg.PkgPath,
-				body:       d.Body,
-				nativeBody: nil,
-			})
+				d.Recv = *Preprocess(store, last, &d.Recv).(*FieldTypeExpr)
+				d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
+				rft := evalStaticType(store, last, &d.Recv).(FieldType)
+				rt := rft.Type
+				ft := evalStaticType(store, last, &d.Type).(*FuncType)
+				ft = ft.UnboundType(rft)
+				var dt *DeclaredType
+				if pt, ok := rt.(*PointerType); ok {
+					dt = pt.Elem().(*DeclaredType)
+				} else {
+					dt = rt.(*DeclaredType)
+				}
+				dt.DefineMethod(&FuncValue{
+					Type:       ft,
+					IsMethod:   true,
+					Source:     d,
+					Name:       d.Name,
+					Closure:    nil, // set lazily.
+					FileName:   fileNameOf(last),
+					PkgPath:    pkg.PkgPath,
+					body:       d.Body,
+					nativeBody: nil,
+				})
+			*/
 		} else {
 			// define package-level function.
-			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-			ft := evalStaticType(store, last, &d.Type).(*FuncType)
+			ft := &FuncType{}
+			/*
+				d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
+				ft := evalStaticType(store, last, &d.Type).(*FuncType)
+			*/
 			pkg := skipFile(last).(*PackageNode)
 			// special case: if d.Name == "init", assign unique suffix.
 			if d.Name == "init" {
@@ -3142,6 +3200,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
+			// XXX how can this work upon restart?
+			// XXX that is, are upgrades saved/loaded? how?
+			// XXX doesn't matter for tests...
 			fv := &FuncValue{
 				Type:       ft,
 				IsMethod:   false,

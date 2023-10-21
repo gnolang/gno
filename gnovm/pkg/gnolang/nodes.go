@@ -1731,12 +1731,11 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 // values, which are pre-computeed in the preprocessor.
 // Once a typed value is defined, it cannot be changed.
 //
-// NOTE: Currently tv.V is only set when the value
-// represents a Type(Value). The purpose of tv is to describe
-// the invariant of a named value, at the minimum its type,
-// but also sometimes the typeval value; but we could go
-// further and store preprocessed constant results here
-// too.  See "anyValue()" and "asValue()" for usage.
+// NOTE: Currently tv.V is only set when the value represents a Type(Value) or
+// a FuncValue.  The purpose of tv is to describe the invariant of a named
+// value, at the minimum its type, but also sometimes the typeval value; but we
+// could go further and store preprocessed constant results here too.  See
+// "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
@@ -1779,10 +1778,23 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
-			if tv.T.TypeID() != old.T.TypeID() {
-				panic(fmt.Sprintf(
-					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
-					n, old.T, tv.T))
+			if tv.T.Kind() == FuncKind && tv.T.(*FuncType).IsZero() {
+				// special case,
+				// allow re-predefining for func upgrades.
+				// keep the old type so we can check it at preprocessor.
+				tv.T = old.T
+				st = old.T
+			} else {
+				if tv.T.TypeID() != old.T.TypeID() {
+					panic(fmt.Sprintf(
+						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
+						n, old.T, tv.T))
+				}
+				if tv.V != old.V {
+					panic(fmt.Sprintf(
+						"StaticBlock.Define2(%s) cannot change .V",
+						n))
+				}
 			}
 			// Allow re-definitions if they have the same type.
 			// (In normal scenarios, duplicate declarations are "caught" by RunMemPackage.)
