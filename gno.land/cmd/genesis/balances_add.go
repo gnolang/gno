@@ -145,7 +145,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	state := genesis.AppState.(gnoland.GnoGenesisState)
 	genesisBalances, err := extractGenesisBalances(state)
 	if err != nil {
-		return err
+
 	}
 
 	// Merge the two balance sheets, with the input
@@ -337,7 +337,7 @@ func getBalancesFromTransactions(ctx context.Context, reader io.Reader) (account
 	// Check for scanning errors
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf(
-			"unable to read legacy input file, %w",
+			"error encountered while reading file, %w",
 			err,
 		)
 	}
