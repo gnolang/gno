@@ -33,6 +33,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 		newGenerateCmd(io),
 		newValidatorCmd(io),
 		newVerifyCmd(io),
+		newTxsCmd(io),
 	)
 
 	return cmd
