@@ -1785,7 +1785,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 					n, old.T, tv.T))
 			}
 			// Allow re-definitions if they have the same type.
-			// (In normal scenarios, duplicate declarations are "caught" by RunMemPackage.
+			// (In normal scenarios, duplicate declarations are "caught" by RunMemPackage.)
 		}
 		sb.Block.Values[idx] = tv
 		sb.Types[idx] = st
