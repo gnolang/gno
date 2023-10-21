@@ -110,17 +110,17 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 		balances, err = getBalancesFromEntries(cfg.singleEntries)
 	case cfg.balanceSheet != "":
 		// Open the balance sheet
-		file, err := os.Open(cfg.balanceSheet)
-		if err != nil {
-			return fmt.Errorf("unable to open balance sheet, %w", err)
+		file, loadErr := os.Open(cfg.balanceSheet)
+		if loadErr != nil {
+			return fmt.Errorf("unable to open balance sheet, %w", loadErr)
 		}
 
 		balances, err = getBalancesFromSheet(file)
 	default:
 		// Open the transactions file
-		file, err := os.Open(cfg.parseExport)
-		if err != nil {
-			return fmt.Errorf("unable to open transactions file, %w", err)
+		file, loadErr := os.Open(cfg.parseExport)
+		if loadErr != nil {
+			return fmt.Errorf("unable to open transactions file, %w", loadErr)
 		}
 
 		balances, err = getBalancesFromTransactions(ctx, file)
@@ -170,8 +170,8 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 
 	io.Println()
 
-	for _, balance := range balances {
-		io.Println(balance)
+	for address, balance := range balances {
+		io.Printfln("%s:%dugnot", address.String(), balance)
 	}
 
 	return nil

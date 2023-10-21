@@ -15,10 +15,10 @@ type (
 )
 
 // toList linearizes the account balances map
-func (a *accountBalances) toList() []string {
-	balances := make([]string, 0, len(*a))
+func (a accountBalances) toList() []string {
+	balances := make([]string, 0, len(a))
 
-	for address, balance := range *a {
+	for address, balance := range a {
 		balances = append(
 			balances,
 			fmt.Sprintf("%s=%dugnot", address, balance),
@@ -29,10 +29,10 @@ func (a *accountBalances) toList() []string {
 }
 
 // leftMerge left-merges the two maps
-func (a *accountBalances) leftMerge(b accountBalances) {
+func (a accountBalances) leftMerge(b accountBalances) {
 	for key, bVal := range b {
-		if _, present := (*a)[key]; !present {
-			(*a)[key] = bVal
+		if _, present := (a)[key]; !present {
+			(a)[key] = bVal
 		}
 	}
 }
