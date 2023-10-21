@@ -1085,6 +1085,12 @@ type FuncType struct {
 	bound  *FuncType
 }
 
+// true for predefined func types that are not filled in yet.
+func (ft *FuncType) IsZero() bool {
+	// XXX be explicit.
+	return ft.Params == nil && ft.Results == nil && ft.typeid.IsZero() && ft.bound == nil
+}
+
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
 	if debug {
