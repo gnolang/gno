@@ -5,6 +5,9 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+.PHONY: gnoland.start
+gnoland.start:; go run ./cmd/gnoland start
+
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync
 
@@ -43,7 +46,9 @@ fmt:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
+test: _test.gnoland _test.gnokey _test.pkgs
+# XXX: _test.gnoweb is currently disabled. If fixed, re-enable here and in CI.
+# https://github.com/gnolang/gno/issues/1222
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
