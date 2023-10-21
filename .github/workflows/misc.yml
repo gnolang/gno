@@ -72,7 +72,7 @@ jobs:
       - name: Check go.mods
         run: |
           gomods=$(find . -type f -name go.mod)
-          sums="$(sha256sum $(gomods))"
+          sums="$(sha256sum ${gomods})"
           for path in $(dirname $(gomods)); do
             env -C $path go mod tidy -v || exit 1
           done
