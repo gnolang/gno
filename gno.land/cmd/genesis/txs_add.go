@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -15,9 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	errTxsParsingAborted = errors.New("transaction parsing aborted")
-)
+var errTxsParsingAborted = errors.New("transaction parsing aborted")
 
 type txsAddCfg struct {
 	rootCfg *txsCfg
@@ -60,8 +59,13 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
 
-	// Get the transactions
-	txs, err := getTransactionsFromFile(ctx, nil)
+	// Open the transactions file
+	file, loadErr := os.Open(cfg.parseExport)
+	if loadErr != nil {
+		return fmt.Errorf("unable to open transactions file, %w", loadErr)
+	}
+
+	txs, err := getTransactionsFromFile(ctx, file)
 	if err != nil {
 		return fmt.Errorf("unable to read file, %w", err)
 	}
@@ -71,11 +75,31 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 		genesis.AppState = gnoland.GnoGenesisState{}
 	}
 
-	// TODO merge with existing txs
-
-	// Save the transactions
 	state := genesis.AppState.(gnoland.GnoGenesisState)
-	state.Txs = txs
+
+	// Build out the hashes for the file txs
+	fileTxHashes, err := getSeenTxs(txs)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to generate transaction hash map, %w",
+			err,
+		)
+	}
+
+	// Build out the hashes for the existing genesis txs
+	genesisTxsHashes, err := getSeenTxs(state.Txs)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to generate transaction hash map, %w",
+			err,
+		)
+	}
+
+	// Left merge the transactions
+	fileTxHashes.leftMerge(genesisTxsHashes)
+
+	state.Txs = fileTxHashes.toList()
+	genesis.AppState = state
 
 	// Save the updated genesis
 	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
@@ -125,4 +149,21 @@ func getTransactionsFromFile(ctx context.Context, reader io.Reader) ([]std.Tx, e
 	}
 
 	return txs, nil
+}
+
+// getSeenTxs returns a map of input transaction hashes (seen map)
+func getSeenTxs(input []std.Tx) (txMap, error) {
+	seenTxHashes := make(txMap, len(input))
+
+	for _, tx := range input {
+		encodedTx, err := amino.Marshal(tx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal transaction, %w", err)
+		}
+
+		txHash := types.Tx(encodedTx).Hash()
+		seenTxHashes[fmt.Sprintf("%X", txHash)] = tx
+	}
+
+	return seenTxHashes, nil
 }
