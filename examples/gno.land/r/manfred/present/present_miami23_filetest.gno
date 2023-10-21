@@ -54,4 +54,4 @@ func main() {
 //
 // [#demo](/r/manfred/present:t/demo) [#portal-loop](/r/manfred/present:t/portal-loop) [#miami](/r/manfred/present:t/miami)
 //
-// by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 1970-01-01 12:00am UTC
+// by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
