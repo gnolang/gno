@@ -30,7 +30,8 @@ func newGenerateCmd(io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "generate",
 			ShortUsage: "generate [flags]",
-			LongHelp:   "Generates a node's genesis.json",
+			LongHelp:   "Generates a node's genesis.json based on specified parameters",
+			ShortHelp:  "Generates a fresh genesis.json",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {

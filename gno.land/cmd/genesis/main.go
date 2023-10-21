@@ -23,7 +23,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "TM2 Genesis manipulation suite",
+			LongHelp:   "Gno Genesis manipulation suite",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,

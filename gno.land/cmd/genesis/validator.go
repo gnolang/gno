@@ -20,6 +20,7 @@ func newValidatorCmd(io *commands.IO) *commands.Command {
 			Name:       "validator",
 			ShortUsage: "validator <subcommand> [flags]",
 			LongHelp:   "Manipulates the genesis.json validator set",
+			ShortHelp:  "Validator set management in genesis.json",
 		},
 		cfg,
 		commands.HelpExec,

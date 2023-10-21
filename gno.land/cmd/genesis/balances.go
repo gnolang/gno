@@ -19,6 +19,7 @@ func newBalancesCmd(io *commands.IO) *commands.Command {
 			Name:       "balances",
 			ShortUsage: "balances <subcommand> [flags]",
 			LongHelp:   "Manipulates the initial genesis.json account balances (pre-mines)",
+			ShortHelp:  "Manages genesis.json account balances",
 		},
 		cfg,
 		commands.HelpExec,
