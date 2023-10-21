@@ -66,6 +66,11 @@ For Gno, there is no specific tooling that needs to be installed, that’s not a
 You can utilize the `gno` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
 with `make install_gno`.
 
+If you are working on Go source code on this repository, `pkg.go.dev` will not
+render our documentation as it has a license it does not recognise. Instead, use
+the `go doc` command, or use our statically-generated documentation:
+https://gnolang.github.io/gno/github.com/gnolang/gno.html
+
 Additionally, you can also configure your editor to recognize `.gno` files as `.go` files, to get the benefit of syntax
 highlighting.
 
