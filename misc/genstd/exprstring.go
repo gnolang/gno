@@ -1,4 +1,5 @@
 // Forked from go/types (go 1.20.3) to implement support for *linkedIdent.
+// It cannot be easily split from the original as WriteExpr is highly recursive.
 
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
