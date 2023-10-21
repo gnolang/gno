@@ -146,6 +146,10 @@ func (loc Location) IsZero() bool {
 		loc.Nonce == 0
 }
 
+func (loc Location) Equal(other Location) bool {
+	return loc == other
+}
+
 // ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.

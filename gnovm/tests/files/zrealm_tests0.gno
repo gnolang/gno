@@ -271,64 +271,6 @@ func main() {
 //                                     "Results": []
 //                                 }
 //                             }
-//                         },
-//                         {
-//                             "T": {
-//                                 "@type": "/gno.FuncType",
-//                                 "Params": [
-//                                     {
-//                                         "Embedded": false,
-//                                         "Name": "t",
-//                                         "Tag": "",
-//                                         "Type": {
-//                                             "@type": "/gno.PointerType",
-//                                             "Elt": {
-//                                                 "@type": "/gno.RefType",
-//                                                 "ID": "gno.land/r/demo/tests.TestRealmObject"
-//                                             }
-//                                         }
-//                                     }
-//                                 ],
-//                                 "Results": []
-//                             },
-//                             "V": {
-//                                 "@type": "/gno.FuncValue",
-//                                 "Closure": null,
-//                                 "FileName": "tests.gno",
-//                                 "IsMethod": true,
-//                                 "Name": "Modify",
-//                                 "NativeName": "",
-//                                 "NativePkg": "",
-//                                 "PkgPath": "gno.land/r/demo/tests",
-//                                 "Source": {
-//                                     "@type": "/gno.RefNode",
-//                                     "BlockNode": null,
-//                                     "Location": {
-//                                         "File": "tests.gno",
-//                                         "Line": "42",
-//                                         "Nonce": "0",
-//                                         "PkgPath": "gno.land/r/demo/tests"
-//                                     }
-//                                 },
-//                                 "Type": {
-//                                     "@type": "/gno.FuncType",
-//                                     "Params": [
-//                                         {
-//                                             "Embedded": false,
-//                                             "Name": "t",
-//                                             "Tag": "",
-//                                             "Type": {
-//                                                 "@type": "/gno.PointerType",
-//                                                 "Elt": {
-//                                                     "@type": "/gno.RefType",
-//                                                     "ID": "gno.land/r/demo/tests.TestRealmObject"
-//                                                 }
-//                                             }
-//                                         }
-//                                     ],
-//                                     "Results": []
-//                                 }
-//                             }
 //                         }
 //                     ],
 //                     "Name": "TestRealmObject",

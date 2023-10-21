@@ -1454,12 +1454,20 @@ func (dt *DeclaredType) GetPkgPath() string {
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	name := fv.Name
 	if fv.FileName == "addr_set.gno" && fv.Name == "Size" {
-		panic("QWE")
+		//panic("QWE")
 	}
 	// error for redeclarations
 	for i, tv := range dt.Methods {
 		ofv := tv.V.(*FuncValue)
 		if ofv.Name == name {
+			// if the type and location are the same,
+			// this is due to PreprocessAllFilesAndSaveBlockNodes.
+			// XXX this is silly, don't even do this.
+			if fv.Type.TypeID() == ofv.Type.TypeID() &&
+				fv.Source.GetLocation().Equal(ofv.Source.GetLocation()) {
+				// keep the old value
+				return
+			}
 			// as an exception, allow defining a native body.
 			if fv.Type.TypeID() == ofv.Type.TypeID() &&
 				!ofv.IsNative() && fv.IsNative() {
@@ -1469,6 +1477,7 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 				}
 				return
 			} else {
+				// XXX because the type was stored.
 				fmt.Println("FV.Type>>>>", fv.Type.TypeID())
 				fmt.Println("OFV.Type>>>>", ofv.Type.TypeID())
 				fmt.Println(">>>>", fv.Type.TypeID() == ofv.Type.TypeID())
