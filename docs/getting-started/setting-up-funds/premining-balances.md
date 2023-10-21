@@ -65,7 +65,7 @@ desired `ugnot` balance.
 
 ## 3. Start the local chain
 
-Now that our address and the desired premine balance is located in the `genesis_balances.txt` file, we can start the
+Now that our address and the desired premine balance are located in the `genesis_balances.txt` file, we can start the
 local Gno node.
 
 To run the local Gno node, make sure you are in the `gno.land` sub-folder, and run the appropriate make command:
