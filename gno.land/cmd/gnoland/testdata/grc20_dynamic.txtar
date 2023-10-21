@@ -1,0 +1,21 @@
+# test for calling grc20 token's function with registering interface
+
+## start gnoland node
+gnoland start
+
+## faucet foo token by test1
+gnokey maketx call -pkgpath gno.land/r/x/grc20_dynamic_call/foo -func Faucet -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## check test1 foo balance
+gnokey maketx call -pkgpath gno.land/r/x/grc20_dynamic_call/registry -func BalanceOfByInterfaceName -args 'gno.land/r/x/grc20_dynamic_call/foo' -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(10000000 uint64)'
+
+## approve
+gnokey maketx call -pkgpath gno.land/r/x/grc20_dynamic_call/foo -func Approve -args 'g1tkmrcu9m0xjddxh0c29r3zac8m2yjwaytlvh6u' -args '12345' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## transferFrom foo token using registered interface
+gnokey maketx call -pkgpath gno.land/r/x/grc20_dynamic_call/registry -func TransferFromByInterfaceName -args 'gno.land/r/x/grc20_dynamic_call/foo' -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -args 'g12345' -args '12345' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## check balance after TransferByInterfaceName
+gnokey maketx call -pkgpath gno.land/r/x/grc20_dynamic_call/registry -func BalanceOfByInterfaceName -args 'gno.land/r/x/grc20_dynamic_call/foo' -args 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(9987655 uint64)'
