@@ -189,12 +189,6 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
-		// Implicitly do filterDuplicates for stdlibs.
-		// This is done as this function is at the time of writing only used
-		// in tests, ie. where we use the "override" feature for stdlibs.
-		if !strings.HasPrefix(memPkg.Path, "gno.land/") {
-			filterDuplicates(fset)
-		}
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -239,8 +233,8 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) 
 func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if overrides {
-		filterDuplicates(files)
+	if !overrides && checkDuplicates(files) {
+		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
 	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
@@ -268,19 +262,11 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	return pn, pv
 }
 
-func filterDuplicates(fset *FileSet) {
+// checkDuplicates returns true if there duplicate declarations in the fset.
+func checkDuplicates(fset *FileSet) bool {
 	defined := make(map[Name]struct{}, 128)
 	for _, f := range fset.Files {
-		// returns true if name already defined
-		addName := func(n Name) bool {
-			if _, ok := defined[n]; ok {
-				return true // i--
-			}
-			defined[n] = struct{}{}
-			return false
-		}
-		for i := 0; i < len(f.Decls); i++ {
-			d := f.Decls[i]
+		for _, d := range f.Decls {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
@@ -291,37 +277,23 @@ func filterDuplicates(fset *FileSet) {
 			case *TypeDecl:
 				name = d.Name
 			case *ValueDecl:
-				// simpler, most common case
-				if len(d.NameExprs) == 1 {
-					name = d.NameExprs[0].Name
-					break
-				}
-
-				// more complex: filter out the NameExprs which are not
-				// redeclarations, and set them in d.NameExprs
-				newNames := make([]NameExpr, 0, len(d.NameExprs))
 				for _, nx := range d.NameExprs {
-					if !addName(nx.Name) {
-						newNames = append(newNames, nx)
+					if _, ok := defined[nx.Name]; ok {
+						return true
 					}
+					defined[nx.Name] = struct{}{}
 				}
-				// all new names are re-declarations, remove
-				if len(newNames) == 0 {
-					f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
-					i--
-					continue
-				}
-				d.NameExprs = newNames
 				continue
 			default:
 				continue
 			}
-			if addName(name) {
-				f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
-				i--
+			if _, ok := defined[name]; ok {
+				return true
 			}
+			defined[name] = struct{}{}
 		}
 	}
+	return false
 }
 
 func derefStar(x Expr) Expr {

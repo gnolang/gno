@@ -3,7 +3,10 @@ package gnolang
 import (
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -1817,8 +1820,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, vx := range n.Values {
 						if cx, ok := vx.(*ConstExpr); ok &&
 							!cx.TypedValue.IsUndefined() {
-							// if value is non-nil const expr:
-							tvs[i] = cx.TypedValue
+							if n.Const {
+								// const _ = <const_expr>: static block should contain value
+								tvs[i] = cx.TypedValue
+							} else {
+								// var _ = <const_expr>: static block should NOT contain value
+								tvs[i] = anyValue(cx.TypedValue.T)
+							}
 						} else {
 							// for var decls of non-const expr.
 							st := sts[i]
@@ -2887,48 +2895,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	}
 	switch cd := d.(type) {
 	case *FuncDecl:
-		// *FuncValue/*FuncType is mostly empty still; here
-		// we just fill the func type (and recv if method).
-		// NOTE: unlike the *ValueDecl case, this case doesn't
-		// preprocess d itself (only d.Type).
-		if cd.IsMethod {
-			if cd.Recv.Name == "" || cd.Recv.Name == "_" {
-				// create a hidden var with leading dot.
-				// NOTE: document somewhere.
-				cd.Recv.Name = ".recv"
-			}
-			cd.Recv = *Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
-			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
-			rft := evalStaticType(store, last, &cd.Recv).(FieldType)
-			rt := rft.Type
-			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
-			ft = ft.UnboundType(rft)
-			dt := (*DeclaredType)(nil)
-			if pt, ok := rt.(*PointerType); ok {
-				dt = pt.Elem().(*DeclaredType)
-			} else {
-				dt = rt.(*DeclaredType)
-			}
-			dt.DefineMethod(&FuncValue{
-				Type:       ft,
-				IsMethod:   true,
-				Source:     cd,
-				Name:       cd.Name,
-				Closure:    nil, // set lazily.
-				FileName:   fileNameOf(last),
-				PkgPath:    pkg.PkgPath,
-				body:       cd.Body,
-				nativeBody: nil,
-			})
-		} else {
-			ftv := pkg.GetValueRef(store, cd.Name)
-			ft := ftv.T.(*FuncType)
-			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
-			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
-			*ft = *ft2
-			// XXX replace attr w/ ft?
-			// return Preprocess(store, last, cd).(Decl), true
-		}
+		// Full type declaration/preprocessing already done in tryPredefine
 		return d, false
 	case *ValueDecl:
 		return Preprocess(store, last, cd).(Decl), true
@@ -2936,6 +2903,25 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		return Preprocess(store, last, cd).(Decl), true
 	default:
 		return d, false
+	}
+}
+
+func smallStacktrace() {
+	pc := make([]uintptr, 10) // adjust max number of lines to print
+	pc = pc[:runtime.Callers(2, pc)]
+	frames := runtime.CallersFrames(pc)
+	for {
+		f, more := frames.Next()
+
+		if idx := strings.LastIndexByte(f.Function, '/'); idx >= 0 {
+			f.Function = f.Function[idx+1:]
+		}
+
+		fmt.Printf("%-25s %s\n", fmt.Sprintf("%s:%d", filepath.Base(f.File), f.Line), f.Function)
+
+		if !more {
+			return
+		}
 	}
 }
 
@@ -3108,9 +3094,43 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if un != "" {
 				return
 			}
+
+			pkg := packageOf(last)
+
+			// d.Recv's type is defined; add method to DeclaredType.
+			if d.Recv.Name == "" || d.Recv.Name == "_" {
+				// create a hidden var with leading dot.
+				// TODO: document somewhere.
+				d.Recv.Name = ".recv"
+			}
+
+			d.Recv = *Preprocess(store, last, &d.Recv).(*FieldTypeExpr)
+			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
+			rft := evalStaticType(store, last, &d.Recv).(FieldType)
+			rt := rft.Type
+			ft := evalStaticType(store, last, &d.Type).(*FuncType)
+			ft = ft.UnboundType(rft)
+			var dt *DeclaredType
+			if pt, ok := rt.(*PointerType); ok {
+				dt = pt.Elem().(*DeclaredType)
+			} else {
+				dt = rt.(*DeclaredType)
+			}
+			dt.DefineMethod(&FuncValue{
+				Type:       ft,
+				IsMethod:   true,
+				Source:     d,
+				Name:       d.Name,
+				Closure:    nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				body:       d.Body,
+				nativeBody: nil,
+			})
 		} else {
 			// define package-level function.
-			ft := &FuncType{}
+			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
+			ft := evalStaticType(store, last, &d.Type).(*FuncType)
 			pkg := skipFile(last).(*PackageNode)
 			// special case: if d.Name == "init", assign unique suffix.
 			if d.Name == "init" {
