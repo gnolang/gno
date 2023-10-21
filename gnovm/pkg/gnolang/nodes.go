@@ -1257,7 +1257,11 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 
 func (fs *FileSet) GetDeclForSafe(n Name) (*FileNode, *Decl, bool) {
 	// XXX index to bound to linear time.
-	for _, fn := range fs.Files {
+
+	// Iteration happens reversing fs.Files; this is because the LAST declaration
+	// of n is what we are looking for.
+	for i := len(fs.Files) - 1; i >= 0; i-- {
+		fn := fs.Files[i]
 		for i, dn := range fn.Decls {
 			if _, isImport := dn.(*ImportDecl); isImport {
 				// imports in other files don't count.

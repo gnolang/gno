@@ -270,6 +270,9 @@ func checkDuplicates(fset *FileSet) bool {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
+				if d.Name == "init" {
+					continue
+				}
 				name = d.Name
 				if d.IsMethod {
 					name = Name(derefStar(d.Recv.Type).String()) + "." + name
