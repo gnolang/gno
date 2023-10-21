@@ -12,26 +12,41 @@ type Y [8]int
 func main() {
 	x := X{}
 	x.Array[1] = 888
-	println(x)
+	println(x.Array[1])
+	println(x.Array[2])
+	println(x.Test)
+
 	x.manip()
-	println(x)
+	println(x.Array[1])
+	println(x.Array[2])
+	println(x.Test)
 
 	println("-----")
 
 	y := Y{}
 	y[1] = 888
-	println(y)
-	y.manip()
-	println(y)
+	println(y[1])
+	println(y[2])
 
+	y.manip()
+	println(y[1])
+	println(y[2])
 	println("-----")
 
 	x = X{}
-	println(x)
+	println(x.Array[1])
+	println(x.Array[2])
+	println(x.Test)
+
 	x.Array[1] = 888
-	println(x)
+	println(x.Array[1])
+	println(x.Array[2])
+	println(x.Test)
+
 	manip(x)
-	println(x)
+	println(x.Array[1])
+	println(x.Array[2])
+	println(x.Test)
 }
 
 func (x X) manip() {
@@ -49,12 +64,24 @@ func (y Y) manip() {
 }
 
 // Output:
-// (struct{(array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] [8]int),(false bool)} main.X)
-// (struct{(array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] [8]int),(false bool)} main.X)
+// 888
+// 0
+// false
+// 888
+// 0
+// false
 // -----
-// (array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] main.Y)
-// (array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] main.Y)
+// 888
+// 0
+// 888
+// 0
 // -----
-// (struct{(array[(0 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] [8]int),(false bool)} main.X)
-// (struct{(array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] [8]int),(false bool)} main.X)
-// (struct{(array[(0 int),(888 int),(0 int),(0 int),(0 int),(0 int),(0 int),(0 int)] [8]int),(false bool)} main.X)
+// 0
+// 0
+// false
+// 888
+// 0
+// false
+// 888
+// 0
+// false
