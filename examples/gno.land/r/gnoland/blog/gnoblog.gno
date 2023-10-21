@@ -23,3 +23,7 @@ func AddComment(postSlug, comment string) {
 func Render(path string) string {
 	return b.Render(path)
 }
+
+func RenderLastPostsWidget(limit int) string {
+	return b.RenderLastPostsWidget(limit)
+}
