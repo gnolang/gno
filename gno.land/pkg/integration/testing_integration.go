@@ -92,10 +92,10 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			}
 
 			// Setup "test1" default account
-			kb.CreateAccount(DefaultAccountName, DefaultAccountSeed, "", "", 0, 0)
+			kb.CreateAccount(DefaultAccount_Name,DefaultAccount_Seedd, "", "", 0, 0)
 
-			env.Setenv("USER_SEED_"+DefaultAccountName, DefaultAccountSeed)
-			env.Setenv("USER_ADDR_"+DefaultAccountName, DefaultAccountAddress)
+			env.Setenv("USER_SEED_"+DefaultAccount_Name,DefaultAccount_Seedd)
+			env.Setenv("USER_ADDR_"+DefaultAccount_Name,DefaultAccount_Addresss)
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -138,7 +138,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// Setup balance for default account
 					nodecfg.Balances = append(nodecfg.Balances, gnoland.Balance{
-						Address: crypto.MustAddressFromString(DefaultAccountAddress),
+						Address: crypto.MustAddressFromString(DefaultAccount_Address),
 						Value:   std.MustParseCoins("10000000000000ugnot"),
 					})
 

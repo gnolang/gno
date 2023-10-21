@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	DefaultAccountName    = "test1"
-	DefaultAccountAddress = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	DefaultAccountSeed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+	DefaultAccount_Name    = "test1"
+	DefaultAccount_Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	DefaultAccount_Seed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
@@ -49,28 +49,71 @@ func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNod
 	t.Helper()
 
 	tmconfig := DefaultTestingTMConfig(t, gnoroot)
+
+	// Create Mocked Identity
+	pv := gnoland.NewMockedPrivValidator()
+
+	// Generate genesis config
+	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
+
 	return &gnoland.InMemoryNodeConfig{
-		Balances:        LoadDefaultGenesisBalanceFile(t, gnoroot),
-		GenesisTXs:      LoadDefaultGenesisTXsFile(t, tmconfig.ChainID(), gnoroot),
-		ConsensusParams: DefaultConsensusParams(t),
-		TMConfig:        tmconfig,
-		Packages:        LoadDefaultPackages(t, crypto.MustAddressFromString(DefaultAccountAddress), gnoroot),
+		PrivValidator: pv,
+		Genesis:       genesis,
+		TMConfig:      tmconfig,
+	}
+}
+
+func DefaultTestingGenesisConfig(t *testing.T, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	pkgCreator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+
+	// Load genesis packages
+	genesisPackagesTxs := LoadDefaultPackages(t, pkgCreator, gnoroot)
+
+	return &bft.GenesisDoc{
+		GenesisTime: time.Now(),
+		ChainID:     tmconfig.ChainID(),
+		ConsensusParams: abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1_000_000,   // 1MB,
+				MaxDataBytes: 2_000_000,   // 2MB,
+				MaxGas:       10_0000_000, // 10M gas
+				TimeIotaMS:   100,         // 100ms
+			},
+		},
+		Validators: []bft.GenesisValidator{
+			{
+				Address: self.Address(),
+				PubKey:  self,
+				Power:   10,
+				Name:    "self",
+			},
+		},
+		AppState: gnoland.GnoGenesisState{
+			Balances: []gnoland.Balance{
+				{
+					Address: pkgCreator,
+					Value:   std.MustParseCoins("10000000000000ugnot"),
+				},
+			},
+			Txs: genesisPackagesTxs,
+		},
 	}
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []gnoland.PackagePath {
+func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []std.Tx {
 	t.Helper()
 
 	exampleDir := filepath.Join(gnoroot, "examples")
 
-	pkgs := gnoland.PackagePath{
+	txs, err := gnoland.LoadPackages(gnoland.PackagePath{
 		Creator: creator,
 		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
 		Path:    exampleDir,
-	}
+	})
+	require.NoError(t, err)
 
-	return []gnoland.PackagePath{pkgs}
+	return txs
 }
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.
@@ -97,20 +140,6 @@ func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []s
 	require.NoError(t, err)
 
 	return genesisTXs
-}
-
-// DefaultConsensusParams constructs the default consensus parameters for testing.
-func DefaultConsensusParams(t *testing.T) abci.ConsensusParams {
-	t.Helper()
-
-	return abci.ConsensusParams{
-		Block: &abci.BlockParams{
-			MaxTxBytes:   1_000_000,  // 1MB,
-			MaxDataBytes: 2_000_000,  // 2MB,
-			MaxGas:       10_000_000, // 10M gas
-			TimeIotaMS:   100,        // 100ms
-		},
-	}
 }
 
 // DefaultTestingTMConfig constructs the default Tendermint configuration for testing.
