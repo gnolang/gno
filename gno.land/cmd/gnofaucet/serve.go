@@ -152,7 +152,7 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execServe(cfg *config, args []string, io *commands.IO) error {
+func execServe(cfg *config, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -345,7 +345,7 @@ func execServe(cfg *config, args []string, io *commands.IO) error {
 func sendAmountTo(
 	cfg *config,
 	cli rpcclient.Client,
-	io *commands.IO,
+	io commands.IO,
 	name,
 	pass string,
 	toAddr crypto.Address,

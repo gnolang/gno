@@ -19,7 +19,7 @@ type lintCfg struct {
 	// auto-fix: apply suggested fixes automatically.
 }
 
-func newLintCmd(io *commands.IO) *commands.Command {
+func newLintCmd(io commands.IO) *commands.Command {
 	cfg := &lintCfg{}
 
 	return commands.NewCommand(
@@ -41,7 +41,7 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.IntVar(&c.setExitStatus, "set_exit_status", 1, "set exit status to 1 if any issues are found")
 }
 
-func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
+func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -62,12 +62,12 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 	hasError := false
 	addIssue := func(issue lintIssue) {
 		hasError = true
-		fmt.Fprint(io.Err, issue.String()+"\n")
+		fmt.Fprint(io.Err(), issue.String()+"\n")
 	}
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
-			fmt.Fprintf(io.Err, "Linting %q...\n", pkgPath)
+			fmt.Fprintf(io.Err(), "Linting %q...\n", pkgPath)
 		}
 
 		// 'gno.mod' exists?
