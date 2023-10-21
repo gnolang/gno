@@ -2935,8 +2935,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
 			if !ft.IsZero() {
 				// redefining function.
-				// make sure the type is the sae.
+				// make sure the type is the same.
 				if ft.TypeID() != ft2.TypeID() {
+					// revert all(????) new values.
+					pkg.StaticBlock.revertToOld()
+					// XXX what about new names?!
 					panic(fmt.Sprintf(
 						"Redefinition (%s) cannot change .T; was %v, new %v",
 						cd, ft, ft2))

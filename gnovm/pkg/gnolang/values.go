@@ -532,6 +532,22 @@ type FuncValue struct {
 	nativeBody func(*Machine) // alternative to Body
 }
 
+func (fv *FuncValue) IsNative() bool {
+	if fv.NativePkg == "" {
+		if fv.NativeName == "" {
+			return false
+		} else {
+			panic("should not happen")
+		}
+	} else {
+		if fv.NativeName == "" {
+			panic("should not happen")
+		} else {
+			return true
+		}
+	}
+}
+
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
 	return &FuncValue{
