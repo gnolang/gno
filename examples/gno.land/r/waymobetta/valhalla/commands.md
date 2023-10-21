@@ -65,3 +65,11 @@ gnokey query \
 -data "gno.land/r/waymobetta/valhalla
 MemberCount()" \
 -remote localhost:26657
+
+#### query admin
+
+gnokey query \
+"vm/qeval" \
+-data "gno.land/r/waymobetta/valhalla
+GetAdmin()" \
+-remote localhost:26657

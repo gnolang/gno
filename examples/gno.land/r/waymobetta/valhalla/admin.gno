@@ -10,8 +10,7 @@ var (
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1c74t34ukg2lq39nxx5cddlkvjtfrm3zchnzvk6"
+	adminAddr = std.GetOrigCaller()
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -39,4 +38,8 @@ func assertNotInPause() {
 	if inPause {
 		panic("access restricted (pause)")
 	}
+}
+
+func GetAdmin() string {
+	return adminAddr.String()
 }
