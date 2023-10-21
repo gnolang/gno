@@ -1782,7 +1782,11 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 				// special case,
 				// allow re-predefining for func upgrades.
 				// keep the old type so we can check it at preprocessor.
+				//fmt.Println("QWEQWEQWE>>>", old.String())
+				//fmt.Println("QWEQWEQWE>>>", tv.String())
 				tv.T = old.T
+				fv := tv.V.(*FuncValue)
+				fv.Type = old.T
 				st = old.T
 			} else {
 				if tv.T.TypeID() != old.T.TypeID() {
