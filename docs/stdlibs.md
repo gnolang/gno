@@ -114,6 +114,10 @@ Some things to keep in mind:
   reduced while we figure out the details on how to implement reflection.
   Aside from the `reflect` package itself, this also translates to very common
   packages still not available in Gno, such as `fmt` or `encoding/json`.
+- In the package documentation, specify the Go version from which the library
+  was taken.
+- All changes from the Go standard libaries must be explicitly marked, possibly
+  with `// XXX` comments as needed.
 
 If you intend to create a PR to add a new standard library, remember to update
 [Go\<\>Gno compatibility](go-gno-compatibility.md) accordingly.
@@ -126,7 +130,7 @@ in Go. There are generally three reasons why a function should be natively
 defined:
 
 1. It relies on inspecting the Gno Virtual Machine itself.\
-   For example: `std.AssertOriginCall`, `std.GetBanker`.
+   For example: `std.AssertOriginCall`, `std.CurrentRealmPath`.
 2. It relies on `unsafe`, or other features which are not planned to be
    available in the GnoVM.\
    For example: `math.Float64frombits`.
@@ -177,11 +181,9 @@ bindings, which are the following:
   version to their Go counterpart. Notable omissions at the time of writing
   include struct and map literals. If you intend to use these, modify the code
   generator to support them.
-- The code generator does not inspect any imported packages from the Go native code;
-  as a consequence, either the import contains an identifier (ie.
-  `import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"`), or the last element
-  in the import path is assumed to be the identifier used in the file. Note that
-  this is not always the case (the default identifier is the same as the
-  declared package name in the `package` clause of each Go file), so when the
-  last element and the package name differ, remember to specify an identifier in
-  the import.
+- The code generator does not inspect any imported packages from the Go native code
+  to determine the default package identifier (ie. the `package` clause).
+  Ie. if a package is in `foo/bar`, but declares `package xyz`, when importing
+  foo/bar the generator will assume the name to be `bar` instead of `xyz`.
+  You can add an identifier to the import to fix this and use the identifier
+  you want/need, ie.: `import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"`.
