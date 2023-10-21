@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -158,9 +157,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 
-	if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
-		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
-	}
+	// XXX: if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
+	// XXX: return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	// XXX: }
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
