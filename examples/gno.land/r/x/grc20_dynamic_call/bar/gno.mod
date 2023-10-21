@@ -1,0 +1,1 @@
+module gno.land/r/x/grc20_dynamic_call/bar
