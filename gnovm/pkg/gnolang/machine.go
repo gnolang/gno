@@ -281,6 +281,9 @@ func checkDuplicates(fset *FileSet) bool {
 				name = d.Name
 			case *ValueDecl:
 				for _, nx := range d.NameExprs {
+					if nx.Name == "_" {
+						continue
+					}
 					if _, ok := defined[nx.Name]; ok {
 						return true
 					}
@@ -288,6 +291,9 @@ func checkDuplicates(fset *FileSet) bool {
 				}
 				continue
 			default:
+				continue
+			}
+			if name == "_" {
 				continue
 			}
 			if _, ok := defined[name]; ok {
