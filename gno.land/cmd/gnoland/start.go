@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -12,6 +14,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
+	eventstorecfg "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -31,6 +36,10 @@ type startCfg struct {
 	dataDir               string
 	genesisMaxVMCycles    int64
 	config                string
+
+	txEventStoreType string
+	txEventStorePath string
+	nodeConfigPath   string
 }
 
 func newStartCmd(io *commands.IO) *commands.Command {
@@ -43,8 +52,8 @@ func newStartCmd(io *commands.IO) *commands.Command {
 			ShortHelp:  "Run the full node",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
-			return execStart(cfg, args, io)
+		func(_ context.Context, _ []string) error {
+			return execStart(cfg, io)
 		},
 	)
 }
@@ -122,7 +131,37 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.config,
 		"config",
 		"",
-		"config file (optional)",
+		"the flag config file (optional)",
+	)
+
+	fs.StringVar(
+		&c.nodeConfigPath,
+		"tm2-node-config",
+		"",
+		"the node TOML config file path (optional)",
+	)
+
+	fs.StringVar(
+		&c.txEventStoreType,
+		"tx-event-store-type",
+		null.EventStoreType,
+		fmt.Sprintf(
+			"type of transaction event store [%s]",
+			strings.Join(
+				[]string{
+					null.EventStoreType,
+					file.EventStoreType,
+				},
+				", ",
+			),
+		),
+	)
+
+	fs.StringVar(
+		&c.txEventStorePath,
+		"tx-event-store-path",
+		"",
+		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 
 	// XXX(deprecated): use data-dir instead
@@ -134,14 +173,28 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(c *startCfg, args []string, io *commands.IO) error {
+func execStart(c *startCfg, io *commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	dataDir := c.dataDir
 
-	cfg := config.LoadOrMakeConfigWithOptions(dataDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-	})
+	var (
+		cfg        *config.Config
+		loadCfgErr error
+	)
+
+	// Set the node configuration
+	if c.nodeConfigPath != "" {
+		// Load the node configuration
+		// from the specified path
+		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
+	} else {
+		// Load the default node configuration
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir, nil)
+	}
+
+	if loadCfgErr != nil {
+		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
+	}
 
 	// Write genesis file if missing.
 	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
@@ -159,20 +212,24 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 		}
 	}
 
+	// Initialize the indexer config
+	txEventStoreCfg, err := getTxEventStoreConfig(c)
+	if err != nil {
+		return fmt.Errorf("unable to parse indexer config, %w", err)
+	}
+	cfg.TxEventStore = txEventStoreCfg
+
 	// Create application and node.
 	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
-
 	cfg.LocalApp = gnoApp
 
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	io.ErrPrintln("Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -200,10 +257,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1000000,  // 1MB,
-			MaxDataBytes: 2000000,  // 2MB,
-			MaxGas:       10000000, // 10M gas
-			TimeIotaMS:   100,      // 100ms
+			MaxTxBytes:   1_000_000,  // 1MB,
+			MaxDataBytes: 2_000_000,  // 2MB,
+			MaxGas:       10_0000_00, // 10M gas
+			TimeIotaMS:   100,        // 100ms
 		},
 	}
 
@@ -257,4 +314,28 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	}
 
 	return nil
+}
+
+// getTxEventStoreConfig constructs an event store config from provided user options
+func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
+	var cfg *eventstorecfg.Config
+
+	switch c.txEventStoreType {
+	case file.EventStoreType:
+		if c.txEventStorePath == "" {
+			return nil, errors.New("unspecified file transaction indexer path")
+		}
+
+		// Fill out the configuration
+		cfg = &eventstorecfg.Config{
+			EventStoreType: file.EventStoreType,
+			Params: map[string]any{
+				file.Path: c.txEventStorePath,
+			},
+		}
+	default:
+		cfg = eventstorecfg.DefaultEventStoreConfig()
+	}
+
+	return cfg, nil
 }

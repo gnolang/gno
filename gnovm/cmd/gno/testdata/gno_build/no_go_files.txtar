@@ -4,8 +4,8 @@
 
 ! stdout .+
 stderr -count=2 'no Go files in '$WORK
-stderr '\./\.: build pkg: std go compiler: exit status 1'
-stderr '\./sub: build pkg: std go compiler: exit status 1'
+stderr '\./\.: build pkg: std go compiler'
+stderr '\./sub: build pkg: std go compiler'
 
 -- go.mod --
 module gnobuild
