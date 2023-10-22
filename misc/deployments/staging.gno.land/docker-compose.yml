@@ -37,6 +37,7 @@ services:
       - --help-chainid=staging
       - --help-remote=staging.gno.land:36657
       - --views-dir=./gno.land/cmd/gnoweb/views
+      - --with-analytics
     volumes:
       - "./overlay:/overlay:ro"
     links:
