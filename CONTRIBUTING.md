@@ -80,7 +80,7 @@ There currently is an unofficial [Visual Studio Code](https://marketplace.visual
 extension (primarily developed by a core team member) for working with `*.gno`
 files.
 
-#### ViM Support
+#### ViM Support (without LSP)
 
 Add to your `.vimrc` file:
 
@@ -104,8 +104,63 @@ To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either ha
 cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
+### ViM Support (with LSP)
+
 There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
 developed by the community, with an installation guide for Neovim.
+
+For ViM purists, you have to install the [`vim-lsp`](https://github.com/prabirshrestha/vim-lsp)
+plugin and then register the LSP server in your `.vimrc` file:
+
+```vim
+augroup gno_autocmd
+    autocmd!
+    autocmd BufNewFile,BufRead *.gno {
+        set filetype=gno
+        set syntax=go
+    }
+augroup END
+
+if (executable('gnols'))
+    au User lsp_setup call lsp#register_server({
+        \ 'name': 'gnols',
+        \ 'cmd': ['gnols'],
+        \ 'allowlist': ['gno'],
+        \ 'config': {},
+        \ 'workspace_config': {
+        \   'root' : '/path/to/gno_repo',
+        \	'gno'  : '/path/to/gno_bin',
+        \   'precompileOnSave' : v:true,
+        \   'buildOnSave'      : v:false,
+        \ },
+        \ 'languageId': {server_info->'gno'},
+    \ })
+endif
+	
+function! s:on_lsp_buffer_enabled() abort
+    " Autocompletion
+    setlocal omnifunc=lsp#complete
+    setlocal signcolumn=yes
+    " Format on save
+    autocmd BufWritePre <buffer> LspDocumentFormatSync
+    " Some optionnal mappings
+    nmap <buffer> <leader>i <Plug>(lsp-hover) 
+    " Following mappings are not supported yet by gnols
+    " nmap <buffer> gd <plug>(lsp-definition)     
+    " nmap <buffer> <leader>rr <plug>(lsp-rename)
+endfunction
+augroup lsp_install
+    au!
+    autocmd User lsp_buffer_enabled call s:on_lsp_buffer_enabled()
+augroup END
+```
+
+Note that unlike the previous ViM setup without LSP, here it is required by
+`vim-lsp` to have a specific `filetype=gno`. Syntax highlighting is preserved
+thanks to `syntax=go`.
+
+Additionaly, it's not possible to use `gofumpt` for code formatting with
+`gnols` for now.
 
 #### Emacs Support
 
