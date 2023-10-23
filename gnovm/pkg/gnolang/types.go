@@ -1453,44 +1453,45 @@ func (dt *DeclaredType) GetPkgPath() string {
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	name := fv.Name
-	if fv.FileName == "addr_set.gno" && fv.Name == "Size" {
-		//panic("QWE")
-	}
-	// error for redeclarations
+
+	// Handle redeclarations.
 	for i, tv := range dt.Methods {
 		ofv := tv.V.(*FuncValue)
 		if ofv.Name == name {
-			// if the type and location are the same,
-			// this is due to PreprocessAllFilesAndSaveBlockNodes.
-			// XXX this is silly, don't even do this.
+			// Do not allow redeclaring (override) a method.
+			// In the future we may allow this, just like we
+			// allow package-level function overrides.
+
+			// Special case: if the type and location are the same,
+			// ignore and do not redefine.
+			// This is due to PreprocessAllFilesAndSaveBlocknodes,
+			// and because the preprocessor fills some of the
+			// method's FuncValue. Since the method was already
+			// filled in prior to PreprocessAllFilesAndSaveBlocks,
+			// there is no need to re-set it.
+			// Keep this or move this check outside.
 			if fv.Type.TypeID() == ofv.Type.TypeID() &&
 				fv.Source.GetLocation().Equal(ofv.Source.GetLocation()) {
-				// keep the old value
 				return
 			}
-			// as an exception, allow defining a native body.
+
+			// Special case: allow defining a native body.
 			if fv.Type.TypeID() == ofv.Type.TypeID() &&
 				!ofv.IsNative() && fv.IsNative() {
 				dt.Methods[i] = TypedValue{
-					T: fv.Type, // XXX shouldn't matter
+					T: fv.Type, // keep old type.
 					V: fv,
 				}
 				return
-			} else {
-				// XXX because the type was stored.
-				fmt.Println("FV.Type>>>>", fv.Type.TypeID())
-				fmt.Println("OFV.Type>>>>", ofv.Type.TypeID())
-				fmt.Println(">>>>", fv.Type.TypeID() == ofv.Type.TypeID())
-				fmt.Println(">>>>", fv.IsNative())
-				fmt.Println(">>>>", ofv.IsNative())
-				fmt.Printf("FV>>>> %#v\n", fv)
-				fmt.Printf("OFV>>>> %#v\n", ofv)
-				panic(fmt.Sprintf("redeclaration of method %s.%s",
-					dt.Name, name))
 			}
+
+			// Otherwise panic.
+			panic(fmt.Sprintf("redeclaration of method %s.%s",
+				dt.Name, name))
 		}
 	}
-	// XXX maybe need to update in place for redefinitions?
+
+	// If not redeclaring, just append.
 	dt.Methods = append(dt.Methods, TypedValue{
 		T: fv.Type,
 		V: fv,
