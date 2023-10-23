@@ -16,7 +16,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var errTxsParsingAborted = errors.New("transaction parsing aborted")
+var (
+	errInvalidTxsFile    = errors.New("unable to open transactions file")
+	errTxsParsingAborted = errors.New("transaction parsing aborted")
+)
 
 type txsAddCfg struct {
 	rootCfg *txsCfg
@@ -62,7 +65,7 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 	// Open the transactions file
 	file, loadErr := os.Open(cfg.parseExport)
 	if loadErr != nil {
-		return fmt.Errorf("unable to open transactions file, %w", loadErr)
+		return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
 	}
 
 	txs, err := getTransactionsFromFile(ctx, file)
