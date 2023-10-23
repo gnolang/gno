@@ -145,7 +145,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	state := genesis.AppState.(gnoland.GnoGenesisState)
 	genesisBalances, err := extractGenesisBalances(state)
 	if err != nil {
-
+		return err
 	}
 
 	// Merge the two balance sheets, with the input
