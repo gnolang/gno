@@ -69,7 +69,7 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:  "importasdasd",
-				Error: "recovered from panic: test/test1.gno:7: name importasdasd not declared",
+				Error: "test/test1.gno:7: name importasdasd not declared",
 			},
 			{
 				Line: "var a := 1",
