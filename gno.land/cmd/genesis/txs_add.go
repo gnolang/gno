@@ -80,28 +80,15 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 
 	state := genesis.AppState.(gnoland.GnoGenesisState)
 
-	// Build out the hashes for the file txs
-	fileTxHashes, err := getSeenTxs(txs)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to generate transaction hash map, %w",
-			err,
-		)
-	}
-
-	// Build out the hashes for the existing genesis txs
-	genesisTxsHashes, err := getSeenTxs(state.Txs)
-	if err != nil {
-		return fmt.Errorf(
-			"unable to generate transaction hash map, %w",
-			err,
-		)
-	}
-
 	// Left merge the transactions
-	fileTxHashes.leftMerge(genesisTxsHashes)
+	fileTxStore := txStore(txs)
+	genesisTxStore := txStore(state.Txs)
 
-	state.Txs = fileTxHashes.toList()
+	if err := genesisTxStore.leftMerge(fileTxStore); err != nil {
+		return err
+	}
+
+	state.Txs = genesisTxStore
 	genesis.AppState = state
 
 	// Save the updated genesis
@@ -152,21 +139,4 @@ func getTransactionsFromFile(ctx context.Context, reader io.Reader) ([]std.Tx, e
 	}
 
 	return txs, nil
-}
-
-// getSeenTxs returns a map of input transaction hashes (seen map)
-func getSeenTxs(input []std.Tx) (txMap, error) {
-	seenTxHashes := make(txMap, len(input))
-
-	for _, tx := range input {
-		encodedTx, err := amino.Marshal(tx)
-		if err != nil {
-			return nil, fmt.Errorf("unable to marshal transaction, %w", err)
-		}
-
-		txHash := types.Tx(encodedTx).Hash()
-		seenTxHashes[fmt.Sprintf("%X", txHash)] = tx
-	}
-
-	return seenTxHashes, nil
 }

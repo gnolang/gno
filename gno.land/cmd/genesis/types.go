@@ -1,23 +1,49 @@
 package main
 
-import "github.com/gnolang/gno/tm2/pkg/std"
+import (
+	"fmt"
 
-type txMap map[string]std.Tx
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
 
-func (m txMap) leftMerge(b txMap) {
-	for key, bVal := range b {
-		if _, present := (m)[key]; !present {
-			(m)[key] = bVal
+type txStore []std.Tx
+
+func (i *txStore) leftMerge(b txStore) error {
+	// Build out the tx hash map
+	txHashMap := make(map[string]struct{}, len(*i))
+
+	getTxHash := func(tx std.Tx) (string, error) {
+		encodedTx, err := amino.Marshal(tx)
+		if err != nil {
+			return "", fmt.Errorf("unable to marshal transaction, %w", err)
+		}
+
+		txHash := types.Tx(encodedTx).Hash()
+
+		return fmt.Sprintf("%X", txHash), nil
+	}
+
+	for _, tx := range *i {
+		txHash, err := getTxHash(tx)
+		if err != nil {
+			return err
+		}
+
+		txHashMap[txHash] = struct{}{}
+	}
+
+	for _, tx := range b {
+		txHash, err := getTxHash(tx)
+		if err != nil {
+			return err
+		}
+
+		if _, exists := txHashMap[txHash]; !exists {
+			*i = append(*i, tx)
 		}
 	}
-}
 
-func (m txMap) toList() []std.Tx {
-	txs := make([]std.Tx, 0, len(m))
-
-	for _, tx := range m {
-		txs = append(txs, tx)
-	}
-
-	return txs
+	return nil
 }

@@ -179,14 +179,8 @@ func TestGenesis_Txs_Add(t *testing.T) {
 
 		assert.Len(t, state.Txs, len(txs))
 
-		for _, tx := range state.Txs {
-			// Find the appropriate tx, since
-			// the transactions are jumbled in the genesis.json
-			for _, expectedTx := range txs {
-				if expectedTx.Memo == tx.Memo {
-					assert.Equal(t, expectedTx, tx)
-				}
-			}
+		for index, tx := range state.Txs {
+			assert.Equal(t, txs[index], tx)
 		}
 	})
 
@@ -244,14 +238,8 @@ func TestGenesis_Txs_Add(t *testing.T) {
 
 		assert.Len(t, state.Txs, len(txs))
 
-		for _, tx := range state.Txs {
-			// Find the appropriate tx, since
-			// the transactions are jumbled in the genesis.json
-			for _, expectedTx := range txs {
-				if expectedTx.Memo == tx.Memo {
-					assert.Equal(t, expectedTx, tx)
-				}
-			}
+		for index, tx := range state.Txs {
+			assert.Equal(t, txs[index], tx)
 		}
 	})
 }
