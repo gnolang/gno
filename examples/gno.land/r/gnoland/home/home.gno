@@ -80,31 +80,6 @@ func introSection() ui.Element {
 }
 
 func worxDAO() ui.Element {
-	// WorxDAO
-	// XXX(manfred): please, let me finish a v0, then we can iterate
-	// highest level == highest responsibility
-	// teams are responsible for components they don't owne
-	// flag : realm maintainers VS facilitators
-	// teams
-	// committee of trustees to create the directory
-	// each directory is a name, has a parent and have groups
-	// homepage team - blocks aggregating events
-	// XXX: TODO
-	/*`
-	# Directory
-
-	* gno.land (owned by group)
-	  *
-	* gnovm
-	  * gnolang (language)
-	  * gnovm
-	    - current challenges / concerns / issues
-	* tm2
-	  * amino
-	  *
-
-	## Contributors
-	``*/
 	return ui.Element{
 		ui.H3("WorxDAO (WIP)"),
 		ui.Text(`- A
