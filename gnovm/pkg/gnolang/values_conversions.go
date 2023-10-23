@@ -1240,12 +1240,14 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bd.Float64()
+		f64, err := bd.Float64()
+		if err != nil {
+			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
+		}
+
 		bf := big.NewFloat(f64)
-		f32, acc := bf.Float32()
-		if f32 == 0 && (acc == big.Below || acc == big.Above) {
-			panic("cannot convert untyped bigdec to float32 -- too close to zero")
-		} else if math.IsInf(float64(f32), 0) {
+		f32, _ := bf.Float32()
+		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
 		dst.SetFloat32(f32)
@@ -1253,10 +1255,11 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bd.Float64()
-		if f64 == 0 && !bd.IsZero() {
-			panic("cannot convert untyped bigdec to float64 -- too close to zero")
-		} else if math.IsInf(f64, 0) {
+		f64, err := bd.Float64()
+		if err != nil {
+			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
+		}
+		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
 		dst.SetFloat64(f64)

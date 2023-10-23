@@ -1,4 +1,4 @@
-{{ define "header_buttons" }}
+{{- define "header_buttons" -}}
 <div id="header_buttons">
   <nav role="navigation">
     <div id="menu-toggle">
@@ -12,10 +12,10 @@
       <div class="navigation">
         <ul>
           <li><a href="/about">About</a></li>
-          <li><a href="/r/gnoland/blog">Blog</a></li>
-          <li><a href="/r/demo/boards:testboard/5">Install</a></li>
-          <li><a href="https://test2.gno.land/">Testnet</a></li>
-          <li><a href="/game-of-realms">Game of Realms</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/start">Start</a></li>
+          <li><a href="/testnets">Testnets</a></li>
+          <li><a href="/gor">Game of Realms</a></li>
         </ul>
 
         <div class="buttons">
@@ -74,18 +74,18 @@
     </div>
   </nav>
 </div>
-{{ end }} {{ define "html_head" }}
+{{- end -}}
+
+{{- define "html_head" -}}
+<meta charset="utf-8" />
+{{if .Data.Description}}<meta name="description" content="{{ .Data.Description }}" />{{end}}
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <link rel="stylesheet" href="/static/css/normalize.css" />
 <link rel="stylesheet" href="/static/css/app.css" />
 <noscript>
   <style type="text/css">
-    #source {
-      display: block;
-    }
-    #theme-toggle {
-      display: none;
-    }
+    #source { display: block; }
+    #theme-toggle { display: none; }
   </style>
 </noscript>
 <script>
@@ -115,16 +115,23 @@
     });
   })();
 </script>
-{{ end }} {{ define "header_logo" }}
+{{- end -}}
+
+{{- define "header_logo" -}}
 <a id="logo" href="/">
   <img src="/static/img/logo.png" alt="Gno.land" title="Gno.land" height="38" />
 </a>
-{{ end }} {{ define "footer" }}
+{{- end -}}
+
+{{- define "footer" -}}
 <footer class="footer">
   <img src="/static/img/logo.png" alt="Gno.land" width="70" />
 </footer>
-{{ end }} {{ define "js" }}
+{{- end -}}
+
+{{- define "js" -}}
 <script type="text/javascript" src="/static/js/marked.min.js"></script>
+<script type="text/javascript" src="/static/js/umbrella.min.js"></script>
 <script type="text/javascript" src="/static/js/purify.min.js"></script>
 <script type="text/javascript" src="/static/js/renderer.js"></script>
 <script type="text/javascript">
@@ -144,7 +151,18 @@
     }
   }
 </script>
-{{ end }} {{ define "subscribe" }}
+{{ template "analytics" .}}
+{{- end -}}
+
+{{- define "analytics" -}}
+{{- if .Data.Flags.WithAnalytics -}}
+<!-- 100% privacy-first analytics -->
+<script async defer src="https://sa.gno.services/latest.js"></script>
+<noscript><img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade" /></noscript>
+{{- end -}}
+{{- end -}}
+
+{{- define "subscribe" -}}
 <!-- mailchimp -->
 <div id="mc_embed_signup" class="container">
   <form
@@ -173,4 +191,4 @@
   </form>
 </div>
 <!-- /mailchimp -->
-{{ end }}
+{{- end -}}

@@ -36,8 +36,8 @@ services:
       - --faucet-url=https://faucet-staging.gno.land/
       - --help-chainid=staging
       - --help-remote=staging.gno.land:36657
-      - --pages-dir=/overlay/pages
       - --views-dir=./gno.land/cmd/gnoweb/views
+      - --with-analytics
     volumes:
       - "./overlay:/overlay:ro"
     links:
