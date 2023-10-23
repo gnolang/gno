@@ -2,119 +2,130 @@ package govdao
 
 import "std"
 
-// DIRECTORY
-var head Project
-
-// Node is a safe object.
-type Node interface {
-	SetAssociation(association)
-	Directory() string
-	Project // embeds a project
-	Parent  //
+func main() {
+	println(govDAO.Directory())
 }
-
-// helpers
-func GetParent()
-func SetParent(node, parent)
-func AddChild(node, child)
-func RemoveChild(node, child)
-
-/*
-- gov/directory        -> explore DAOs and Actors in the network
-- gov/govdao           -> top-level DAO node with tiered members
-- gov/types,interfaces ->
-	- worx/profiles        -> portfolios built around contributions, endorsements, fact oracles and personal presentations
-- worx/evaluation      -> contributions management
-- worx/dao
-
-- dxteam/dao
-- berty/dao
-- teritori/dao
-- onbloc/dao
-*/
 
 // GOVDAO
+
+var govDAO = GovDAO{}
+
 type GovDAO struct{}
 
-func (d *GovDAO) Tiers() []Tier
+func (d GovDAO) Directory() string {
+	output := "## GovDAO"
 
-func (d *GovDAO) Directory(level int) string {
-	for _, tier := range d.tiers {
-		prefix(level*2+1, tier.Directory())
-	}
+	// tiers
+
+	// children
+
+	return output
 }
 
-type Tier struct{}
+// func (d *GovDAO) Tiers() []Tier
+//
+// func (d *GovDAO) Directory(level int) string {
+// 	for _, tier := range d.tiers {
+// 		prefix(level*2+1, tier.Directory())
+// 	}
+// }
+//
+// type Tier struct{}
+//
+// func (t *Tier) Promote()
+// func (t *Tier) Demote()
 
-func (t *Tier) Promote()
-func (t *Tier) Demote()
+// DIRECTORY
+// var head Project
+
+// Node is a safe object.
+// type Node interface {
+// 	SetAssociation(association)
+// 	Directory() string
+// 	Project // embeds a project
+// }
+
+// helpers
+// func GetParent()
+// func SetParent(node, parent)
+// func AddChild(node, child)
+// func RemoveChild(node, child)
+
+// - gov/directory        -> explore DAOs and Actors in the network
+// - gov/govdao           -> top-level DAO node with tiered members
+// - gov/types,interfaces ->
+// 	- worx/profiles        -> portfolios built around contributions, endorsements, fact oracles and personal presentations
+// - worx/evaluation      -> contributions management
+// - worx/dao
+//
+// - dxteam/dao
+// - berty/dao
+// - teritori/dao
+// - onbloc/dao
 
 // GOVTYPES
 
-type Project interface {
-	Children() []Project
-}
+// type Project interface {
+// 	Children() []Project
+// }
 
 // Actor XXX
 // Actor can represent a blockchain account (std.Address), a realm (PkgPath), or a go object.
-type Actor interface {
-	Do(Action)
-	Verify()
-}
+// type Actor interface {
+// 	Do(Action)
+// 	Verify()
+// }
 
-type Action interface{}
+// type Action interface{}
 
 // GOVTPL
 
 // - permissionless: anyone can create a project or an actor; top down adding children
 // - an object COULD be Project AND Actor
 
-func NewTeamAnyActor() Actor                 {}
-func NewRealmActor(pkgpath string) Actor     {} // realm
-func NewAccountActor(addr std.Address) Actor {}
-func NewGoObjActor(impl interface{}) Actor   {} // it is advised to create its own implementation matching a specific interface; human, multisig, oracles
-func NewGovProposal(Action) Proposal         {}
+// func NewTeamAnyActor() Actor                 {}
+// func NewRealmActor(pkgpath string) Actor     {} // realm
+// func NewAccountActor(addr std.Address) Actor {}
+// func NewGoObjActor(impl interface{}) Actor   {} // it is advised to create its own implementation matching a specific interface; human, multisig, oracles
+// func NewGovProposal(Action) Proposal         {}
 
-type CommonProject struct {
-	Forkable
-}
+// type CommonProject struct {
+// 	Forkable
+// }
 
-func (p *CommonProject) Owners() []Actor
-func (p *CommonProject) Facilitators() []Actor
+// func (p *CommonProject) Owners() []Actor
+// func (p *CommonProject) Facilitators() []Actor
 
-/*
- */
-
-var directory Node
+// var directory Node
 
 // govdao
 //   worxdao -> autonomous but also mandated by govdao; HR; "paying salaries"
 //   anotherchain
 
-func init() {
-	var govdao Node
-	var personJae Node
-	var personManfred Node
-	var worxDAO Node
-	var companyNT Node // distribute treasury to employees
-	var chainCosmos Node
-	var projTM2 Node
-	var projTM2Amino Node
-	var projGnovm Node
-	var projGnoland Node
+// func init() {
+// 	var govdao Node
+// 	var personJae Node
+// 	var personManfred Node
+// 	var worxDAO Node
+// 	var companyNT Node // distribute treasury to employees
+// 	var chainCosmos Node
+// 	var projTM2 Node
+// 	var projTM2Amino Node
+// 	var projGnovm Node
+// 	var projGnoland Node
+//
+// 	// govdao.AttachChild(worxDAO)
+// 	// govdao.Proposal(addNewChild)
+// }
 
-	// govdao.AttachChild(worxDAO)
-	// govdao.Proposal(addNewChild)
-}
+// type Contribution struct {
+// 	Links []string
+// }
 
-type Contribution struct {
-	Links []string
-}
-
-type Contributor struct {
-	Tier  int
-	Score int
-}
+// type Contributor struct {
+// 	Tier  int
+// 	Score int
+// }
 
 // worxdao -> HR => bonus, hire, investment, fire, promote, demote,
 // earn points/money to review
@@ -127,27 +138,16 @@ type Contributor struct {
 // tokens $gnot
 // tokens ^gov
 
-type Directory interface {
-	Node // embeds a Node
-	// ...
-}
-
-type Node interface {
-	// Owner Node
-	// Facilitator Node
-}
-
-func main() {
-	println("TEST2")
-}
-
-type EvaluationDAO struct{}
-
-type GovDAO struct{}
-
-type Manfred struct{}
-
-type NT struct{}
+// type Directory interface {
+// 	Node // embeds a Node
+// 	// ...
+// }
+//
+// type EvaluationDAO struct{}
+//
+// type Manfred struct{}
+//
+// type NT struct{}
 
 // XXX: switch to Book
 // split
@@ -158,27 +158,24 @@ type NT struct{}
 // 5% contracts
 // 5% holders / freezer
 
-/*var (
-	projects []Project
-	teams    []Team
-	people   []Person
-        )
-*/
+// var (
+// 	projects []Project
+// 	teams    []Team
+// 	people   []Person
+//         )
 
-/*
-type Project interface {
-	owner   Team
-	members Team
-}
-
-type Team struct {
-	people []Person
-}
-
-type Person struct {
-	addr std.Address
-}
-*/
+// type Project interface {
+// 	owner   Team
+// 	members Team
+// }
+//
+// type Team struct {
+// 	people []Person
+// }
+//
+// type Person struct {
+// 	addr std.Address
+// }
 
 // worxdao -> distribute work, money
 // govdao -> own everything
