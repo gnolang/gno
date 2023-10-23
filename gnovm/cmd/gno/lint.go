@@ -102,29 +102,33 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 
 		handleError := func() {
 			// Errors here mostly come from: gnovm/pkg/gnolang/preprocess.go
-			if r := recover(); r != nil {
-				var err error
-				switch v := r.(type) {
-				case *gno.PreprocessStackError:
-					err = v.Err
-				case error:
-					err = v
-				default:
-					panic(r)
-				}
-
-				parsedError := strings.TrimSpace(err.Error())
-				parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-				matches := reParseRecover.FindStringSubmatch(parsedError)
-				if len(matches) > 0 {
-					addIssue(lintIssue{
-						Code:       lintGnoError,
-						Confidence: 1,
-						Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
-						Msg:        strings.TrimSpace(matches[3]),
-					})
-				}
+			r := recover()
+			if r == nil {
+				return
 			}
+
+			var err error
+			switch verr := r.(type) {
+			case *gno.PreprocessError:
+				err = verr.Unwrap()
+			case error:
+				err = verr
+			default:
+				panic(r)
+			}
+
+			parsedError := strings.TrimSpace(err.Error())
+			parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+			matches := reParseRecover.FindStringSubmatch(parsedError)
+			if len(matches) > 0 {
+				addIssue(lintIssue{
+					Code:       lintGnoError,
+					Confidence: 1,
+					Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
+					Msg:        strings.TrimSpace(matches[3]),
+				})
+			}
+
 		}
 
 		// Run the machine on the target package
@@ -163,10 +167,6 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 
 	if hasError && cfg.setExitStatus != 0 {
 		os.Exit(cfg.setExitStatus)
-	}
-
-	if verbose {
-		fmt.Println("no lint errors")
 	}
 
 	return nil

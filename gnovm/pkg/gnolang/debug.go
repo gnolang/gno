@@ -77,24 +77,24 @@ func (d debugging) Errorf(format string, args ...interface{}) {
 	}
 }
 
-// PreprocessStackError wraps a processing error along with its associated
+// PreprocessError wraps a processing error along with its associated
 // preprocessing stack for enhanced error reporting.
-type PreprocessStackError struct {
-	Err   error
-	Stack []BlockNode
+type PreprocessError struct {
+	err   error
+	stack []BlockNode
 }
 
-// PreprocessError returns the encapsulated error message.
-func (p *PreprocessStackError) PreprocessError() string {
-	return p.Err.Error()
+// Unwrap returns the encapsulated error message.
+func (p *PreprocessError) Unwrap() error {
+	return p.err
 }
 
-// PreprocessStack produces a string representation of the preprocessing stack
+// Stack produces a string representation of the preprocessing stack
 // trace that was associated with the error occurrence.
-func (p *PreprocessStackError) PreprocessStack() string {
+func (p *PreprocessError) Stack() string {
 	var stacktrace strings.Builder
-	for i := len(p.Stack) - 1; i >= 0; i-- {
-		sbn := p.Stack[i]
+	for i := len(p.stack) - 1; i >= 0; i-- {
+		sbn := p.stack[i]
 		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
 	}
 	return stacktrace.String()
@@ -102,11 +102,11 @@ func (p *PreprocessStackError) PreprocessStack() string {
 
 // Error consolidates and returns the full error message, including
 // the actual error followed by its associated preprocessing stack.
-func (p *PreprocessStackError) Error() string {
+func (p *PreprocessError) Error() string {
 	var err strings.Builder
-	fmt.Fprintf(&err, "%s:", p.PreprocessError())
+	fmt.Fprintf(&err, "%s:\n", p.Unwrap())
 	fmt.Fprintln(&err, "--- preprocess stack ---")
-	fmt.Fprint(&err, p.PreprocessStack())
+	fmt.Fprint(&err, p.Stack())
 	fmt.Fprintf(&err, "------------------------")
 	return err.String()
 }

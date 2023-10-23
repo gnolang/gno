@@ -171,9 +171,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessStackError{
-					Err:   err,
-					Stack: stack,
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
 				})
 			}
 		}()
