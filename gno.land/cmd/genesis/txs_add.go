@@ -37,6 +37,7 @@ func newTxsAddCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "txs add [flags]",
+			ShortHelp:  "Imports transactions into the genesis.json",
 			LongHelp:   "Imports the transactions from a tx-archive backup to the genesis.json",
 		},
 		cfg,

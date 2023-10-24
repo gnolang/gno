@@ -33,7 +33,8 @@ func newTxsRemoveCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "remove",
 			ShortUsage: "txs remove [flags]",
-			LongHelp:   "Removes the transaction from the genesis.json",
+			ShortHelp:  "Removes the transaction from the genesis.json",
+			LongHelp:   "Removes the transaction using the transaction hash",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -63,15 +64,19 @@ func execTxsRemove(cfg *txsRemoveCfg, io *commands.IO) error {
 		return errAppStateNotSet
 	}
 
-	state := genesis.AppState.(gnoland.GnoGenesisState)
-	index := -1
+	var (
+		state = genesis.AppState.(gnoland.GnoGenesisState)
+		index = -1
+	)
 
 	for indx, tx := range state.Txs {
+		// Find the hash of the transaction
 		hash, err := getTxHash(tx)
 		if err != nil {
 			return fmt.Errorf("unable to generate tx hash, %w", err)
 		}
 
+		// Check if the hashes match
 		if strings.ToLower(hash) == strings.ToLower(cfg.hash) {
 			index = indx
 

@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// generateDummyTxs generates dummy transactions
 func generateDummyTxs(t *testing.T, count int) []std.Tx {
 	t.Helper()
 
@@ -43,6 +44,7 @@ func generateDummyTxs(t *testing.T, count int) []std.Tx {
 	return txs
 }
 
+// encodeDummyTxs encodes the transactions into amino JSON
 func encodeDummyTxs(t *testing.T, txs []std.Tx) []string {
 	t.Helper()
 

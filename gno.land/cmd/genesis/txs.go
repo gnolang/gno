@@ -18,7 +18,8 @@ func newTxsCmd(io *commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "txs",
 			ShortUsage: "txs <subcommand> [flags]",
-			LongHelp:   "Manipulates the genesis.json validator set",
+			ShortHelp:  "Manages the initial genesis transactions",
+			LongHelp:   "Manages genesis transactions through input files",
 		},
 		cfg,
 		commands.HelpExec,
