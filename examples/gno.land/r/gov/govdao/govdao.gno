@@ -12,29 +12,42 @@ func main() {
 var govDAO = GovDAO{}
 
 func init() {
-	govDAO.tiers = append(govDAO.tiers, Tier{idx: 0})
-	govDAO.tiers = append(govDAO.tiers, Tier{idx: 1})
-	govDAO.tiers = append(govDAO.tiers, Tier{idx: 2})
-	govDAO.children = []DAO{
-		BaseDAO{name: "treasurydao"},
-		BaseDAO{
-			name: "worxdao",
-			children: []DAO{
-				BaseDAO{name: "tm2", children: []DAO{
-					BaseDAO{name: "amino"},
-					BaseDAO{name: "bft"},
-				}},
-				BaseDAO{name: "gnovm"},
-				BaseDAO{name: "gno.land"},
-			},
-			// grantees: ...
-		},
+	govDAO.tiers = []Tier{
+		{idx: 0}, {idx: 1}, {idx: 2},
 	}
+	treasuryDAO := BaseDAO{name: "treasurydao", parent: govDAO}
+	worxDAO := BaseDAO{name: "worxdao", parent: govDAO}
+	govDAO.children = []DAO{treasuryDAO, worxDAO}
+	worxDAO.children = []DAO{
+		BaseDAO{name: "tm2", children: []DAO{
+			BaseDAO{name: "amino"},
+			BaseDAO{name: "bft"},
+		}},
+		BaseDAO{name: "gnovm"},
+		BaseDAO{name: "gno.land"},
+	}
+	// grantees: ...
 }
 
 type GovDAO struct {
 	tiers    []Tier
 	children []DAO
+}
+
+type DAO interface {
+	Directory(prefix string) string
+	Parent() DAO
+	HasChild(DAO) bool
+}
+
+func (d GovDAO) Parent() DAO { return nil }
+func (d GovDAO) HasChild(c DAO) bool {
+	for _, child := range d.children {
+		if child == c {
+			return true
+		}
+	}
+	return false
 }
 
 func (d GovDAO) Directory(prefix string) string {
@@ -54,6 +67,8 @@ func (d GovDAO) Directory(prefix string) string {
 	return output
 }
 
+var _ DAO = &GovDAO{}
+
 type Tier struct {
 	idx int
 }
@@ -65,13 +80,10 @@ func (t Tier) Directory(prefix string) string {
 	return output
 }
 
-type DAO interface {
-	Directory(prefix string) string
-}
-
 type BaseDAO struct {
 	name     string
 	children []DAO
+	parent   DAO
 }
 
 func (d BaseDAO) Directory(prefix string) string {
@@ -85,6 +97,20 @@ func (d BaseDAO) Directory(prefix string) string {
 	return output
 }
 
+func (d BaseDAO) Parent() DAO {
+	return d.parent
+}
+
+func (d BaseDAO) HasChild(c DAO) bool {
+	for _, child := range d.children {
+		if child == c {
+			return true
+		}
+	}
+	return false
+}
+
+/*
 // Directory: play with hierarchy by verifying reciprocal permissionless claims
 // XXX: move to p/... and make API super short.
 type DirectoryEntry interface {
@@ -113,6 +139,11 @@ func DirectoryHasChild(e, c DirectoryEntry) bool {
 	}
 	return c.Parent() == e
 }
+
+// HasRecursiveChild
+// HasRecursiveParent
+   // recursiveTreeWithoutDuplicates (once)
+*/
 
 // func (d *GovDAO) Tiers() []Tier
 //
