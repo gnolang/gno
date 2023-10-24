@@ -41,18 +41,7 @@ type envVar struct {
 	Value string
 }
 
-type envVars []envVar
-
-func (vars *envVars) Set(key, value string) {
-	for _, env := range *vars {
-		if env.Key == key {
-			env.Value = value
-		}
-	}
-	*vars = append(*vars, envVar{Key: key, Value: value})
-}
-
-func (vars envVars) Get(key string) string {
+func getEnvVar(vars []envVar, key string) string {
 	for _, env := range vars {
 		if env.Key == key {
 			return env.Value
@@ -61,34 +50,39 @@ func (vars envVars) Get(key string) string {
 	return ""
 }
 
-type envPrinter func(vars envVars, io *commands.IO)
+func findEnv(env []envVar, name string) string {
+	for _, e := range env {
+		if e.Key == name {
+			return e.Value
+		}
+	}
+	return ""
+}
+
+type envPrinter func(vars []envVar, io *commands.IO)
 
 func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
-	envs := envVars{}
-
-	// GNOROOT:
-	// Should point to the local location of the GNO repository.
-	// It serves as the gno equivalent of `GOROOT`.
-	envs.Set("GNOROOT", gnoenv.MustGuessGnoRootDir())
-
-	// GNOHOME:
-	// Should point
-	envs.Set("GNOHOME", gnoenv.HomeDir())
+	envs := []envVar{
+		// GNOROOT Should point to the local location of the GNO repository.
+		// It serves as the gno equivalent of `GOROOT`.
+		{Key: "GNOROOT", Value: gnoenv.MustGuessGnoRootDir()},
+		// GNOHOME Should point to the local directory where gnokey stores keys.
+		// The most common place for this should be $HOME/gno.
+		{Key: "GNOHOME", Value: gnoenv.HomeDir()},
+	}
 
 	// Setup filters
-	filters := envVars{}
-	for _, arg := range args {
-		filters.Set(arg, envs.Get(arg))
+	filters := make([]envVar, len(args))
+	for i, arg := range args {
+		filters[i] = envVar{Key: arg, Value: findEnv(envs, arg)}
 	}
 
 	// Setup printer
 	var printerEnv envPrinter
-	{
-		if cfg.json {
-			printerEnv = printJSON
-		} else {
-			printerEnv = getPrinterShell(len(args) == 0)
-		}
+	if cfg.json {
+		printerEnv = printJSON
+	} else {
+		printerEnv = getPrinterShell(len(args) == 0)
 	}
 
 	// Print environements
@@ -102,7 +96,7 @@ func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
 }
 
 func getPrinterShell(printkeys bool) envPrinter {
-	return func(vars envVars, io *commands.IO) {
+	return func(vars []envVar, io *commands.IO) {
 		for _, env := range vars {
 			if printkeys {
 				io.Printf("%s=%q\n", env.Key, env.Value)
@@ -113,7 +107,7 @@ func getPrinterShell(printkeys bool) envPrinter {
 	}
 }
 
-func printJSON(vars envVars, io *commands.IO) {
+func printJSON(vars []envVar, io *commands.IO) {
 	io.Println("{")
 	for i, env := range vars {
 		io.Printf("\t%q: %q", env.Key, env.Value)

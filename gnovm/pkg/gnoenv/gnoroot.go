@@ -11,6 +11,10 @@ import (
 	"sync"
 )
 
+var (
+	ErrUnableToGuessGnoRoot = errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable")
+)
+
 // Can be set manually at build time using:
 // -ldflags="-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT"
 var _GNOROOT string
@@ -28,22 +32,22 @@ func MustGuessGnoRootDir() string {
 var muGnoRoot sync.Mutex
 
 // GuessGnoRootDir attempts to determine the Gno root directory using various strategies:
-// 1. It checks if _GNOROOT has been previously determined or set with -ldflags.
-// 2. If not, it tries to obtain it from the GNOROOT environment variable.
-// 3. If the env variable isn't set, it uses the `go list` command to infer from go.mod.
-// 4. As a last resort, it determines GNOROOT based on the caller stack's file path.
+// 1. First, It tries to obtain it from the `GNOROOT` environment variable.
+// 2. If the env variable isn't set, It checks if `_GNOROOT` has been previously determined or set with -ldflags.
+// 3. If not, it uses the `go list` command to infer from go.mod.
+// 4. As a last resort, it determines `GNOROOT` based on the caller stack's file path.
 func GuessGnoRootDir() (string, error) {
 	muGnoRoot.Lock()
 	defer muGnoRoot.Unlock()
 
-	// First try to get the root directory from the GNOROOT environment variable.
+	// First try to get the root directory from the `GNOROOT` environment variable.
 	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
 		return strings.TrimSpace(rootdir), nil
 	}
 
 	var err error
 	if _GNOROOT == "" {
-		// Try to guess GNOROOT using various strategies
+		// Try to guess `GNOROOT` using various strategies
 		_GNOROOT, err = guessGnoRootDir()
 	}
 
@@ -51,13 +55,15 @@ func GuessGnoRootDir() (string, error) {
 }
 
 func guessGnoRootDir() (string, error) {
-	// Attempt to guess GNOROOT from go.mod by using the `go list` command.
+	// Attempt to guess `GNOROOT` from go.mod by using the `go list` command.
 	if rootdir, err := inferGnoRootFromGoMod(); err == nil {
-		return rootdir, nil
+		return filepath.Clean(rootdir), nil
 	}
 
-	// If the above method fails, ultimately try to determine GNOROOT based
+	// If the above method fails, ultimately try to determine `GNOROOT` based
 	// on the caller stack's file path.
+	// Path need to be absolute here, that mostly mean that if `-trimpath`
+	// as been passed this method will not works.
 	if _, filename, _, ok := runtime.Caller(1); ok && filepath.IsAbs(filename) {
 		if currentDir := filepath.Dir(filename); currentDir != "" {
 			// Deduce Gno root directory relative from the current file's path.
@@ -69,7 +75,7 @@ func guessGnoRootDir() (string, error) {
 		}
 	}
 
-	return "", errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable")
+	return "", ErrUnableToGuessGnoRoot
 }
 
 func inferGnoRootFromGoMod() (string, error) {
