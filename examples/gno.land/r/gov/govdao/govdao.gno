@@ -15,18 +15,34 @@ func init() {
 	govDAO.tiers = []Tier{
 		{idx: 0}, {idx: 1}, {idx: 2},
 	}
-	treasuryDAO := BaseDAO{name: "treasurydao", parent: govDAO}
-	worxDAO := BaseDAO{name: "worxdao", parent: govDAO}
+	treasuryDAO := BaseDAO{name: "TreasuryDAO", parent: govDAO}
+	worxDAO := BaseDAO{name: "WorxDAO", parent: govDAO}
+	engineeringDAO := BaseDAO{name: "engineeringDAO", parent: worxDAO}
+	investmentDAO := BaseDAO{name: "investmentDAO", parent: worxDAO}
+	projectsDAO := BaseDAO{name: "projectsDAO", parent: worxDAO}
 	govDAO.children = []DAO{treasuryDAO, worxDAO}
-	worxDAO.children = []DAO{
-		BaseDAO{name: "tm2", children: []DAO{
-			BaseDAO{name: "amino"},
-			BaseDAO{name: "bft"},
-		}},
-		BaseDAO{name: "gnovm"},
-		BaseDAO{name: "gno.land"},
+	worxDAO.children = []DAO{engineeringDAO, investmentDAO, projectsDAO}
+	projectsDAO.children = []DAO{BaseDAO{name: "team-retreat-2023"}}
+	engineeringDAO.children = []DAO{
+		BaseDAO{
+			name: "tm2", parent: worxDAO, children: []DAO{
+				BaseDAO{name: "amino"},
+				BaseDAO{name: "bft"},
+			},
+		},
+		BaseDAO{
+			name: "gnovm", parent: worxDAO, children: []DAO{
+				BaseDAO{name: "gnolang"},
+				BaseDAO{name: "stdlibs"},
+			},
+		},
+		BaseDAO{name: "gno.land", parent: worxDAO},
 	}
-	// grantees: ...
+	investmentDAO.children = []DAO{
+		BaseDAO{name: "onbloc"},
+		BaseDAO{name: "berty"},
+		BaseDAO{name: "teritori"},
+	}
 }
 
 type GovDAO struct {
@@ -87,7 +103,7 @@ type BaseDAO struct {
 }
 
 func (d BaseDAO) Directory(prefix string) string {
-	output := prefix + "- dao#" + d.name + "\n"
+	output := prefix + "- " + d.name + "\n"
 	childPrefix := prefix + "  "
 
 	for _, child := range d.children {
