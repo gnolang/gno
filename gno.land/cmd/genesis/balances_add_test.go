@@ -158,8 +158,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			// Find the appropriate key
-			// (the genesis is saved as amino JSON, which is sorted,
-			// meaning the order is not guaranteed)
+			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == accountBalance.address.String() {
@@ -189,6 +188,9 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		amount := int64(10)
 
 		balances := make([]string, len(dummyKeys))
+
+		// Add a random comment to the balances file output
+		balances = append(balances, "#comment\n")
 
 		for index, key := range dummyKeys {
 			balances[index] = fmt.Sprintf(
@@ -236,8 +238,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			// Find the appropriate key
-			// (the genesis is saved as amino JSON, which is sorted,
-			// meaning the order is not guaranteed)
+			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == accountBalance.address.String() {
@@ -339,8 +340,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			// Find the appropriate key
-			// (the genesis is saved as amino JSON, which is sorted,
-			// meaning the order is not guaranteed)
+			// (the genesis is saved with randomized balance order)
 			found := false
 			for index, dummyKey := range dummyKeys {
 				checkAmount := amount
@@ -429,8 +429,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			require.NoError(t, err)
 
 			// Find the appropriate key
-			// (the genesis is saved as amino JSON, which is sorted,
-			// meaning the order is not guaranteed)
+			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == accountBalance.address.String() {

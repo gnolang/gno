@@ -232,7 +232,6 @@ func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
 		entry := scanner.Text()
 
 		// Remove comments
-		entry = strings.TrimSpace(entry)
 		entry = strings.Split(entry, "#")[0]
 		entry = strings.TrimSpace(entry)
 
