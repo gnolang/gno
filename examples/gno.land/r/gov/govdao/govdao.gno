@@ -85,6 +85,35 @@ func (d BaseDAO) Directory(prefix string) string {
 	return output
 }
 
+// Directory: play with hierarchy by verifying reciprocal permissionless claims
+// XXX: move to p/... and make API super short.
+type DirectoryEntry interface {
+	Parent() DirectoryEntry
+	HasChild(DirectoryEntry) bool
+}
+
+func DirectorySafeParent(e DirectoryEntry) DirectoryEntry {
+	if e == nil {
+		return nil
+	}
+	parent := e.Parent()
+	agreement := parent.HasChild(e)
+	if agreement {
+		return parent
+	}
+	return nil
+}
+
+func DirectoryHasChild(e, c DirectoryEntry) bool {
+	if e == nil || c == nil {
+		return false
+	}
+	if !e.HasChild(c) {
+		return false
+	}
+	return c.Parent() == e
+}
+
 // func (d *GovDAO) Tiers() []Tier
 //
 // func (d *GovDAO) Directory(level int) string {
