@@ -134,7 +134,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 			return fmt.Errorf("unable to open transactions file, %w", loadErr)
 		}
 
-		balances, err = getBalancesFromTransactions(ctx, file)
+		balances, err = getBalancesFromTransactions(ctx, io, file)
 	}
 
 	if err != nil {
@@ -261,7 +261,11 @@ func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
 // The right way to do this sort of initialization is to spin up an in-memory node
 // and execute the entire transaction history to determine touched accounts and final balances,
 // and construct a balance sheet based off of this information
-func getBalancesFromTransactions(ctx context.Context, reader io.Reader) (accountBalances, error) {
+func getBalancesFromTransactions(
+	ctx context.Context,
+	io *commands.IO,
+	reader io.Reader,
+) (accountBalances, error) {
 	balances := make(accountBalances)
 
 	scanner := bufio.NewScanner(reader)
@@ -274,19 +278,25 @@ func getBalancesFromTransactions(ctx context.Context, reader io.Reader) (account
 			// Parse the amino JSON
 			var tx std.Tx
 
-			if err := amino.UnmarshalJSON(scanner.Bytes(), &tx); err != nil {
-				return nil, fmt.Errorf(
-					"unable to unmarshal amino JSON, %w",
-					err,
+			line := scanner.Bytes()
+
+			if err := amino.UnmarshalJSON(line, &tx); err != nil {
+				io.ErrPrintfln(
+					"invalid amino JSON encountered: %s",
+					string(line),
 				)
+
+				continue
 			}
 
 			feeAmount, err := getAmountFromEntry(tx.Fee.GasFee.String())
 			if err != nil {
-				return nil, fmt.Errorf(
-					"invalid gas fee amount, %s",
+				io.ErrPrintfln(
+					"invalid gas fee amount encountered: %s",
 					tx.Fee.GasFee.String(),
 				)
+
+				continue
 			}
 
 			for _, msg := range tx.Msgs {
@@ -298,11 +308,12 @@ func getBalancesFromTransactions(ctx context.Context, reader io.Reader) (account
 
 				sendAmount, err := getAmountFromEntry(msgSend.Amount.String())
 				if err != nil {
-					return nil, fmt.Errorf(
-						"%s, %s",
-						"invalid send amount",
+					io.ErrPrintfln(
+						"invalid send amount encountered: %s",
 						msgSend.Amount.String(),
 					)
+
+					continue
 				}
 
 				// This way of determining final account balances is not really valid,

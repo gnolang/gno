@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -620,8 +621,12 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
+		mockErr := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetErr(commands.WriteNopCloser(mockErr))
+
 		reader := strings.NewReader(strings.Join(marshalledTxs, "\n"))
-		balanceMap, err := getBalancesFromTransactions(context.Background(), reader)
+		balanceMap, err := getBalancesFromTransactions(context.Background(), io, reader)
 		require.NoError(t, err)
 
 		// Validate the balance map
@@ -674,11 +679,16 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
-		reader := strings.NewReader(strings.Join(marshalledTxs, "\n"))
-		balanceMap, err := getBalancesFromTransactions(context.Background(), reader)
+		mockErr := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetErr(commands.WriteNopCloser(mockErr))
 
-		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, "invalid gas fee amount")
+		reader := strings.NewReader(strings.Join(marshalledTxs, "\n"))
+		balanceMap, err := getBalancesFromTransactions(context.Background(), io, reader)
+		require.NoError(t, err)
+
+		assert.NotNil(t, balanceMap)
+		assert.Contains(t, mockErr.String(), "invalid gas fee amount")
 	})
 
 	t.Run("malformed transaction, invalid send amount", func(t *testing.T) {
@@ -722,10 +732,15 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
-		reader := strings.NewReader(strings.Join(marshalledTxs, "\n"))
-		balanceMap, err := getBalancesFromTransactions(context.Background(), reader)
+		mockErr := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetErr(commands.WriteNopCloser(mockErr))
 
-		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, "invalid send amount")
+		reader := strings.NewReader(strings.Join(marshalledTxs, "\n"))
+		balanceMap, err := getBalancesFromTransactions(context.Background(), io, reader)
+		require.NoError(t, err)
+
+		assert.NotNil(t, balanceMap)
+		assert.Contains(t, mockErr.String(), "invalid send amount")
 	})
 }
