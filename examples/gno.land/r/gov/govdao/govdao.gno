@@ -38,18 +38,17 @@ type GovDAO struct {
 }
 
 func (d GovDAO) Directory(prefix string) string {
-	childPrefix := prefix + "  "
-
 	output := prefix + "- GovDAO\n"
 
 	// tiers
+	output += prefix + "  - Tiers\n"
 	for _, tier := range d.tiers {
-		output += tier.Directory(childPrefix)
+		output += tier.Directory(prefix + "    ")
 	}
 
 	// children
 	for _, child := range d.children {
-		output += child.Directory(childPrefix)
+		output += child.Directory(prefix + "  ")
 	}
 
 	return output
