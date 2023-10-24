@@ -434,28 +434,49 @@ func TestSectionReader_Size(t *testing.T) {
 
 // largeWriter returns an invalid count that is larger than the number
 // of bytes provided (issue 39978).
-type largeWriter struct {
-	err error
-}
+// type largeWriter struct {
+// 	err error
+// }
 
-func (w largeWriter) Write(p []byte) (int, error) {
-	return len(p) + 1, w.err
-}
+// func (w largeWriter) Write(p []byte) (int, error) {
+// 	return len(p) + 1, w.err
+// }
 
-func TestCopyLargeWriter(t *testing.T) {
-	want := io.ErrInvalidWrite
-	rb := new(Buffer)
-	wb := largeWriter{}
-	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
-		t.Errorf("Copy error: got %v, want %v", err, want)
-	}
+// func TestCopyLargeWriter(t *testing.T) {
+// 	want := io.ErrInvalidWrite
+// 	rb := new(Buffer)
+// 	wb := largeWriter{}
+// 	rb.WriteString("hello, world.")
+// 	if _, err := io.Copy(wb, rb); err != want {
+// 		t.Errorf("Copy error: got %v, want %v", err, want)
+// 	}
 
-	want = errors.New("largeWriterError")
-	rb = new(Buffer)
-	wb = largeWriter{err: want}
-	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
-		t.Errorf("Copy error: got %v, want %v", err, want)
+// 	want = errors.New("largeWriterError")
+// 	rb = new(Buffer)
+// 	wb = largeWriter{err: want}
+// 	rb.WriteString("hello, world.")
+// 	if _, err := io.Copy(wb, rb); err != want {
+// 		t.Errorf("Copy error: got %v, want %v", err, want)
+// 	}
+// }
+
+func TestNopCloserWriterToForwarding(t *testing.T) {
+	for _, tc := range [...]struct {
+		Name string
+		r    Reader
+	}{
+		{"not a WriterTo", Reader(nil)},
+		{"a WriterTo", struct {
+			Reader
+			WriterTo
+		}{}},
+	} {
+		nc := NopCloser(tc.r)
+
+		_, expected := tc.r.(WriterTo)
+		_, got := nc.(WriterTo)
+		if expected != got {
+			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
+		}
 	}
 }

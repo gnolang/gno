@@ -16,6 +16,8 @@ import (
 	"errors"
 )
 
+// TODO: implement rest of io package after sync package added.
+
 // Seek whence values.
 const (
 	SeekStart   = 0 // seek relative to the origin of the file
@@ -614,7 +616,12 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
 
 // NopCloser returns a ReadCloser with a no-op Close method wrapping
 // the provided Reader r.
+// If r implements WriterTo, the returned ReadCloser will also implement WriterTo
+// by forwarding the call to r.
 func NopCloser(r Reader) ReadCloser {
+	if _, ok := r.(WriterTo); ok {
+		return nopCloserWriterTo{r}
+	}
 	return nopCloser{r}
 }
 
@@ -623,6 +630,16 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
+
+type nopCloserWriterTo struct {
+	Reader
+}
+
+func (nopCloserWriterTo) Close() error { return nil }
+
+func (c *nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
+	return c.Reader.(WriterTo).WriteTo(w)
+}
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
 // A successful call returns err == nil, not err == EOF. Because ReadAll is
