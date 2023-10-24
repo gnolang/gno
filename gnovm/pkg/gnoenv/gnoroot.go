@@ -11,9 +11,7 @@ import (
 	"sync"
 )
 
-var (
-	ErrUnableToGuessGnoRoot = errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable")
-)
+var ErrUnableToGuessGnoRoot = errors.New("gno was unable to determine GNOROOT. Please set the GNOROOT environment variable")
 
 // Can be set manually at build time using:
 // -ldflags="-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT"
