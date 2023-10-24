@@ -12,9 +12,15 @@ func main() {
 var govDAO = GovDAO{}
 
 func init() {
-	govDAO.tiers = []Tier{
+	govDAO.tiers = []*Tier{
 		{idx: 0}, {idx: 1}, {idx: 2},
 	}
+	govDAO.tiers[0].parent = nil
+	govDAO.tiers[0].child = govDAO.tiers[1]
+	govDAO.tiers[1].parent = govDAO.tiers[0]
+	govDAO.tiers[1].child = govDAO.tiers[2]
+	govDAO.tiers[2].parent = govDAO.tiers[1]
+	govDAO.tiers[2].child = nil
 	treasuryDAO := BaseDAO{name: "TreasuryDAO", parent: govDAO}
 	worxDAO := BaseDAO{name: "WorxDAO", parent: govDAO}
 	engineeringDAO := BaseDAO{name: "engineeringDAO", parent: worxDAO}
@@ -46,7 +52,7 @@ func init() {
 }
 
 type GovDAO struct {
-	tiers    []Tier
+	tiers    []*Tier
 	children []DAO
 }
 
@@ -86,7 +92,9 @@ func (d GovDAO) Directory(prefix string) string {
 var _ DAO = &GovDAO{}
 
 type Tier struct {
-	idx int
+	idx    int
+	parent *Tier
+	child  *Tier
 }
 
 // func (t *Tier) Promote()
