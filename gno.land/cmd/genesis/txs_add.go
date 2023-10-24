@@ -85,10 +85,13 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 	fileTxStore := txStore(txs)
 	genesisTxStore := txStore(state.Txs)
 
+	// The genesis transactions have preference with the order
+	// in the genesis.json
 	if err := genesisTxStore.leftMerge(fileTxStore); err != nil {
 		return err
 	}
 
+	// Save the state
 	state.Txs = genesisTxStore
 	genesis.AppState = state
 
