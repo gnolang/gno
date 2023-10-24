@@ -18,7 +18,7 @@ func init() {
 		// engineeringDAO   = EngineeringDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}
 		engineeringDAO   = EngineeringDAO{BaseDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}}
 		grantsDAO        = EngineeringDAO{BaseDAO{name: " grantsDAO", parent: worxDAO, comment: "manages grants"}}
-		projectsDAO      = EngineeringDAO{BaseDAO{name: "ProjectsDAO", parent: worxDAO, comment: "reverse of a grant: we lock money for a cause, then it can be used by a selected committee"}}
+		projectsDAO      = EngineeringDAO{BaseDAO{name: "ProjectsDAO", parent: worxDAO}}
 		growthDAO        = ProjectDAO{BaseDAO{name: "growthDAO"}}
 		savethecosmosDAO = ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
 	)
@@ -48,7 +48,7 @@ func init() {
 		EngineeringDAO{BaseDAO{name: "gno.land", parent: worxDAO}},
 	}
 	grantsDAO.children = []DAO{
-		ProjectDAO{BaseDAO{name: "onbloc"}},
+		ProjectDAO{BaseDAO{name: "onbloc", parent: grantsDAO}},
 		ProjectDAO{BaseDAO{name: "berty"}},
 		ProjectDAO{BaseDAO{name: "teritori"}},
 		ProjectDAO{BaseDAO{name: "grant1"}},
@@ -71,7 +71,10 @@ type DAO interface {
 	HasChild(DAO) bool
 }
 
-func (d GovDAO) Parent() DAO { return nil }
+func (d GovDAO) Parent() DAO {
+	return nil // top-level
+}
+
 func (d GovDAO) HasChild(c DAO) bool {
 	for _, child := range d.children {
 		if child == c {
@@ -92,9 +95,11 @@ func (d GovDAO) Directory(prefix string) string {
 
 	// children
 	for _, child := range d.children {
+		if child.Parent() != d {
+			output += prefix + "  <!-- WARN: child claims that we're not their parent:-->\n"
+		}
 		output += child.Directory(prefix + "  ")
 	}
-
 	return output
 }
 
@@ -111,6 +116,14 @@ type Tier struct {
 func (t Tier) Directory(prefix string) string {
 	output := prefix + "- tier#" + strconv.Itoa(t.idx) + "\n"
 	return output
+}
+
+func (t Tier) Parent() DAO {
+	return t.parent
+}
+
+func (t Tier) HasChild(c DAO) bool {
+	return t.child == c
 }
 
 type BaseDAO struct {
@@ -137,6 +150,14 @@ func (d BaseDAO) Directory(prefix string) string {
 	childPrefix := prefix + "  "
 
 	for _, child := range d.children {
+		//_ = child.Parent()
+		//parent := child.Parent()
+		//if parent != d {
+		//}
+		//if child.Parent() != d {
+		// output += prefix + "  <!-- WARN: child claims that we're not their parent:-->\n"
+		//output += "TTT"
+		//}
 		output += child.Directory(childPrefix)
 	}
 
