@@ -66,7 +66,7 @@ func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
 		// GNOROOT Should point to the local location of the GNO repository.
 		// It serves as the gno equivalent of `GOROOT`.
 		{Key: "GNOROOT", Value: gnoenv.MustGuessGnoRootDir()},
-		// GNOHOME Should point to the local directory where gnokey stores keys.
+		// GNOHOME Should point to the user local configuration.
 		// The most common place for this should be $HOME/gno.
 		{Key: "GNOHOME", Value: gnoenv.HomeDir()},
 	}
