@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	balanceRegex = regexp.MustCompile(`^([A-Za-z0-9]+)=([0-9]+)ugnot$`)
+	balanceRegex = regexp.MustCompile(`^(\w+)=(\d+)ugnot$`)
 	amountRegex  = regexp.MustCompile(`^(\d+)ugnot$`)
 )
 
