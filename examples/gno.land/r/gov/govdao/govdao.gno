@@ -1,23 +1,87 @@
 package govdao
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 func main() {
-	println(govDAO.Directory())
+	println(govDAO.Directory(""))
 }
-
-// GOVDAO
 
 var govDAO = GovDAO{}
 
-type GovDAO struct{}
+func init() {
+	govDAO.tiers = append(govDAO.tiers, Tier{idx: 0})
+	govDAO.tiers = append(govDAO.tiers, Tier{idx: 1})
+	govDAO.tiers = append(govDAO.tiers, Tier{idx: 2})
+	govDAO.children = []DAO{
+		BaseDAO{name: "treasurydao"},
+		BaseDAO{
+			name: "worxdao",
+			children: []DAO{
+				BaseDAO{name: "tm2", children: []DAO{
+					BaseDAO{name: "amino"},
+					BaseDAO{name: "bft"},
+				}},
+				BaseDAO{name: "gnovm"},
+				BaseDAO{name: "gno.land"},
+			},
+			// grantees: ...
+		},
+	}
+}
 
-func (d GovDAO) Directory() string {
-	output := "## GovDAO"
+type GovDAO struct {
+	tiers    []Tier
+	children []DAO
+}
+
+func (d GovDAO) Directory(prefix string) string {
+	childPrefix := prefix + "  "
+
+	output := prefix + "- GovDAO\n"
 
 	// tiers
+	for _, tier := range d.tiers {
+		output += tier.Directory(childPrefix)
+	}
 
 	// children
+	for _, child := range d.children {
+		output += child.Directory(childPrefix)
+	}
+
+	return output
+}
+
+type Tier struct {
+	idx int
+}
+
+// func (t *Tier) Promote()
+// func (t *Tier) Demote()
+func (t Tier) Directory(prefix string) string {
+	output := prefix + "- tier#" + strconv.Itoa(t.idx) + "\n"
+	return output
+}
+
+type DAO interface {
+	Directory(prefix string) string
+}
+
+type BaseDAO struct {
+	name     string
+	children []DAO
+}
+
+func (d BaseDAO) Directory(prefix string) string {
+	output := prefix + "- dao#" + d.name + "\n"
+	childPrefix := prefix + "  "
+
+	for _, child := range d.children {
+		output += child.Directory(childPrefix)
+	}
 
 	return output
 }
@@ -30,10 +94,6 @@ func (d GovDAO) Directory() string {
 // 	}
 // }
 //
-// type Tier struct{}
-//
-// func (t *Tier) Promote()
-// func (t *Tier) Demote()
 
 // DIRECTORY
 // var head Project
