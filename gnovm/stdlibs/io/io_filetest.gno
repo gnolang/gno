@@ -471,7 +471,7 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 			WriterTo
 		}{}},
 	} {
-		nc := NopCloser(tc.r)
+		nc := io.NopCloser(tc.r)
 
 		_, expected := tc.r.(WriterTo)
 		_, got := nc.(WriterTo)

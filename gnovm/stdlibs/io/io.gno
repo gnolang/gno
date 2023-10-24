@@ -660,5 +660,9 @@ func ReadAll(r Reader) ([]byte, error) {
 			}
 			return b, err
 		}
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
+		}
 	}
 }
