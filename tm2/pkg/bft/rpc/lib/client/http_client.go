@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -201,7 +201,7 @@ func (c *JSONRPCClient) Call(method string, params map[string]interface{}, resul
 		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
+	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interfa
 		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
+	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (c *URIClient) Call(method string, params map[string]interface{}, result in
 		return nil, errors.New("server at '%s' returned %s", c.address, resp.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@ package log_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -21,11 +21,11 @@ func TestLoggerLogsItsErrors(t *testing.T) {
 }
 
 func BenchmarkTMLoggerSimple(b *testing.B) {
-	benchmarkRunner(b, log.NewTMLogger(ioutil.Discard), baseInfoMessage)
+	benchmarkRunner(b, log.NewTMLogger(io.Discard), baseInfoMessage)
 }
 
 func BenchmarkTMLoggerContextual(b *testing.B) {
-	benchmarkRunner(b, log.NewTMLogger(ioutil.Discard), withInfoMessage)
+	benchmarkRunner(b, log.NewTMLogger(io.Discard), withInfoMessage)
 }
 
 func benchmarkRunner(b *testing.B, logger log.Logger, f func(log.Logger)) {
