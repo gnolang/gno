@@ -13,16 +13,15 @@ var govDAO = GovDAO{}
 
 func init() {
 	var (
-		treasuryDAO      = BaseDAO{name: "TreasuryDAO", parent: govDAO}
-		worxDAO          = BaseDAO{name: "WorxDAO", parent: govDAO}
-		evaluationDAO    = BaseDAO{name: "EvaluationDAO", parent: worxDAO, comment: ""}
-		engineeringDAO   = BaseDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}
-		grantsDAO        = BaseDAO{name: "grantsDAO", parent: worxDAO, comment: "manages grants"}
-		projectsDAO      = BaseDAO{name: "ProjectsDAO", parent: worxDAO, comment: "reverse of a grant: we lock money for a cause, then it can be used by a selected committee"}
-		marketingDAO     = BaseDAO{name: "marketingDAO"}
-		savethecosmosDAO = BaseDAO{name: "savethecosmosDAO"}
+		worxDAO       = BaseDAO{name: "WorxDAO", parent: govDAO}
+		evaluationDAO = BaseDAO{name: "EvaluationDAO", parent: worxDAO, comment: ""}
+		// engineeringDAO   = EngineeringDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}
+		engineeringDAO   = EngineeringDAO{BaseDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}}
+		grantsDAO        = EngineeringDAO{BaseDAO{name: " grantsDAO", parent: worxDAO, comment: "manages grants"}}
+		projectsDAO      = EngineeringDAO{BaseDAO{name: "ProjectsDAO", parent: worxDAO, comment: "reverse of a grant: we lock money for a cause, then it can be used by a selected committee"}}
+		growthDAO        = ProjectDAO{BaseDAO{name: "growthDAO"}}
+		savethecosmosDAO = ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
 	)
-
 	govDAO.tiers = []*Tier{{idx: 0}, {idx: 1}, {idx: 2}}
 	govDAO.tiers[0].parent = nil
 	govDAO.tiers[0].child = govDAO.tiers[1]
@@ -30,30 +29,34 @@ func init() {
 	govDAO.tiers[1].child = govDAO.tiers[2]
 	govDAO.tiers[2].parent = govDAO.tiers[1]
 	govDAO.tiers[2].child = nil
-	govDAO.children = []DAO{treasuryDAO, worxDAO}
+	govDAO.children = []DAO{worxDAO}
 	worxDAO.children = []DAO{evaluationDAO, engineeringDAO, projectsDAO}
-	projectsDAO.children = []DAO{savethecosmosDAO, grantsDAO}
+	projectsDAO.children = []DAO{savethecosmosDAO, grantsDAO, growthDAO}
 	engineeringDAO.children = []DAO{
-		BaseDAO{
+		EngineeringDAO{BaseDAO{
 			name: "tm2", parent: worxDAO, children: []DAO{
 				BaseDAO{name: "amino"},
 				BaseDAO{name: "bft"},
 			},
-		},
-		BaseDAO{
+		}},
+		EngineeringDAO{BaseDAO{
 			name: "gnovm", parent: worxDAO, children: []DAO{
-				BaseDAO{name: "gnolang"},
-				BaseDAO{name: "stdlibs"},
+				EngineeringDAO{BaseDAO{name: "gnolang"}},
+				EngineeringDAO{BaseDAO{name: "stdlibs"}},
 			},
-		},
-		BaseDAO{name: "gno.land", parent: worxDAO},
+		}},
+		EngineeringDAO{BaseDAO{name: "gno.land", parent: worxDAO}},
 	}
 	grantsDAO.children = []DAO{
-		BaseDAO{name: "onbloc"},
-		BaseDAO{name: "berty"},
-		BaseDAO{name: "teritori"},
-		BaseDAO{name: "grant1"},
-		BaseDAO{name: "grant2"},
+		ProjectDAO{BaseDAO{name: "onbloc"}},
+		ProjectDAO{BaseDAO{name: "berty"}},
+		ProjectDAO{BaseDAO{name: "teritori"}},
+		ProjectDAO{BaseDAO{name: "grant1"}},
+		ProjectDAO{BaseDAO{name: "grant2"}},
+	}
+	growthDAO.children = []DAO{
+		ProjectDAO{BaseDAO{name: "student-program"}},
+		ProjectDAO{BaseDAO{name: "builders-program"}},
 	}
 }
 
@@ -115,6 +118,14 @@ type BaseDAO struct {
 	children []DAO
 	parent   DAO
 	comment  string
+}
+
+type EngineeringDAO struct {
+	BaseDAO
+}
+
+type ProjectDAO struct {
+	BaseDAO
 }
 
 func (d BaseDAO) Directory(prefix string) string {
