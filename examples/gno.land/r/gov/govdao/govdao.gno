@@ -12,23 +12,27 @@ func main() {
 var govDAO = GovDAO{}
 
 func init() {
-	govDAO.tiers = []*Tier{
-		{idx: 0}, {idx: 1}, {idx: 2},
-	}
+	var (
+		treasuryDAO      = BaseDAO{name: "TreasuryDAO", parent: govDAO}
+		worxDAO          = BaseDAO{name: "WorxDAO", parent: govDAO}
+		evaluationDAO    = BaseDAO{name: "EvaluationDAO", parent: worxDAO, comment: ""}
+		engineeringDAO   = BaseDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}
+		grantsDAO        = BaseDAO{name: "grantsDAO", parent: worxDAO, comment: "manages grants"}
+		projectsDAO      = BaseDAO{name: "ProjectsDAO", parent: worxDAO, comment: "reverse of a grant: we lock money for a cause, then it can be used by a selected committee"}
+		marketingDAO     = BaseDAO{name: "marketingDAO"}
+		savethecosmosDAO = BaseDAO{name: "savethecosmosDAO"}
+	)
+
+	govDAO.tiers = []*Tier{{idx: 0}, {idx: 1}, {idx: 2}}
 	govDAO.tiers[0].parent = nil
 	govDAO.tiers[0].child = govDAO.tiers[1]
 	govDAO.tiers[1].parent = govDAO.tiers[0]
 	govDAO.tiers[1].child = govDAO.tiers[2]
 	govDAO.tiers[2].parent = govDAO.tiers[1]
 	govDAO.tiers[2].child = nil
-	treasuryDAO := BaseDAO{name: "TreasuryDAO", parent: govDAO}
-	worxDAO := BaseDAO{name: "WorxDAO", parent: govDAO}
-	engineeringDAO := BaseDAO{name: "engineeringDAO", parent: worxDAO}
-	investmentDAO := BaseDAO{name: "investmentDAO", parent: worxDAO}
-	projectsDAO := BaseDAO{name: "projectsDAO", parent: worxDAO}
 	govDAO.children = []DAO{treasuryDAO, worxDAO}
-	worxDAO.children = []DAO{engineeringDAO, investmentDAO, projectsDAO}
-	projectsDAO.children = []DAO{BaseDAO{name: "team-retreat-2023"}}
+	worxDAO.children = []DAO{evaluationDAO, engineeringDAO, projectsDAO}
+	projectsDAO.children = []DAO{savethecosmosDAO, grantsDAO}
 	engineeringDAO.children = []DAO{
 		BaseDAO{
 			name: "tm2", parent: worxDAO, children: []DAO{
@@ -44,10 +48,12 @@ func init() {
 		},
 		BaseDAO{name: "gno.land", parent: worxDAO},
 	}
-	investmentDAO.children = []DAO{
+	grantsDAO.children = []DAO{
 		BaseDAO{name: "onbloc"},
 		BaseDAO{name: "berty"},
 		BaseDAO{name: "teritori"},
+		BaseDAO{name: "grant1"},
+		BaseDAO{name: "grant2"},
 	}
 }
 
@@ -108,10 +114,15 @@ type BaseDAO struct {
 	name     string
 	children []DAO
 	parent   DAO
+	comment  string
 }
 
 func (d BaseDAO) Directory(prefix string) string {
-	output := prefix + "- " + d.name + "\n"
+	output := prefix + "- " + d.name
+	if d.comment != "" {
+		output += " // " + d.comment
+	}
+	output += "\n"
 	childPrefix := prefix + "  "
 
 	for _, child := range d.children {
