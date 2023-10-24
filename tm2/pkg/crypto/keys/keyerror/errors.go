@@ -1,6 +1,7 @@
 package keyerror
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -40,7 +41,8 @@ func IsErrKeyNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	if keyErr, ok := err.(keybaseError); ok {
+	var keyErr keybaseError
+	if errors.As(err, &keyErr) {
 		if keyErr.Code() == codeKeyNotFound {
 			return true
 		}
@@ -72,7 +74,8 @@ func IsErrWrongPassword(err error) bool {
 	if err == nil {
 		return false
 	}
-	if keyErr, ok := err.(keybaseError); ok {
+	var keyErr keybaseError
+	if errors.As(err, &keyErr) {
 		if keyErr.Code() == codeWrongPassword {
 			return true
 		}
