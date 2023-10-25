@@ -30,7 +30,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 const (
@@ -700,15 +699,6 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 			app.Close()
 		}
 	}
-}
-
-func getSwitchIndex(switches []*p2p.Switch, peer p2p.Peer) int {
-	for i, s := range switches {
-		if peer.NodeInfo().ID() == s.NodeInfo().ID() {
-			return i
-		}
-	}
-	panic("didnt find peer in switches")
 }
 
 // -------------------------------------------------------------------------------
