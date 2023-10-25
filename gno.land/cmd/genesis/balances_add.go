@@ -100,45 +100,50 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 		txFileSet        = cfg.parseExport != ""
 	)
 
-	if err := validateSetModes(
-		[]bool{
-			singleEntriesSet,
-			balanceSheetSet,
-			txFileSet,
-		},
-	); err != nil {
-		return fmt.Errorf("invalid modes set, %w", err)
+	if !singleEntriesSet && !balanceSheetSet && !txFileSet {
+		return errNoBalanceSource
 	}
 
-	var (
-		balances accountBalances
-		err      error
-	)
+	finalBalances := make(accountBalances)
 
 	// Get the balance sheet from the source
-	switch {
-	case singleEntriesSet:
-		balances, err = getBalancesFromEntries(cfg.singleEntries)
-	case balanceSheetSet:
+	if singleEntriesSet {
+		balances, err := getBalancesFromEntries(cfg.singleEntries)
+		if err != nil {
+			return fmt.Errorf("unable to get balances from entries, %w", err)
+		}
+
+		finalBalances.leftMerge(balances)
+	}
+
+	if balanceSheetSet {
 		// Open the balance sheet
 		file, loadErr := os.Open(cfg.balanceSheet)
 		if loadErr != nil {
 			return fmt.Errorf("unable to open balance sheet, %w", loadErr)
 		}
 
-		balances, err = getBalancesFromSheet(file)
-	default:
+		balances, err := getBalancesFromSheet(file)
+		if err != nil {
+			return fmt.Errorf("unable to get balances from balance sheet, %w", err)
+		}
+
+		finalBalances.leftMerge(balances)
+	}
+
+	if txFileSet {
 		// Open the transactions file
 		file, loadErr := os.Open(cfg.parseExport)
 		if loadErr != nil {
 			return fmt.Errorf("unable to open transactions file, %w", loadErr)
 		}
 
-		balances, err = getBalancesFromTransactions(ctx, io, file)
-	}
+		balances, err := getBalancesFromTransactions(ctx, io, file)
+		if err != nil {
+			return fmt.Errorf("unable to get balances from tx file, %w", err)
+		}
 
-	if err != nil {
-		return fmt.Errorf("unable to get balances, %w", err)
+		finalBalances.leftMerge(balances)
 	}
 
 	// Initialize genesis app state if it is not initialized already
@@ -154,11 +159,11 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	}
 
 	// Merge the two balance sheets, with the input
-	// having precedence over the genesis transactions
-	balances.leftMerge(genesisBalances)
+	// having precedence over the genesis balances
+	finalBalances.leftMerge(genesisBalances)
 
 	// Save the balances
-	state.Balances = balances.toList()
+	state.Balances = finalBalances.toList()
 	genesis.AppState = state
 
 	// Save the updated genesis
@@ -168,12 +173,12 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 
 	io.Printfln(
 		"%d pre-mines saved",
-		len(balances),
+		len(finalBalances),
 	)
 
 	io.Println()
 
-	for address, balance := range balances {
+	for address, balance := range finalBalances {
 		io.Printfln("%s:%dugnot", address.String(), balance)
 	}
 

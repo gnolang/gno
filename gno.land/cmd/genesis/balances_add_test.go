@@ -61,33 +61,6 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		assert.ErrorContains(t, cmdErr, errNoBalanceSource.Error())
 	})
 
-	t.Run("more than one source selected", func(t *testing.T) {
-		t.Parallel()
-
-		tempGenesis, cleanup := testutils.NewTestFile(t)
-		t.Cleanup(cleanup)
-
-		genesis := getDefaultGenesis()
-		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"balances",
-			"add",
-			"--genesis-path",
-			tempGenesis.Name(),
-			"--balance-sheet",
-			"dummy-sheet",
-			"--single",
-			"single-entry",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errMultipleBalanceSources.Error())
-	})
-
 	t.Run("invalid genesis path", func(t *testing.T) {
 		t.Parallel()
 
