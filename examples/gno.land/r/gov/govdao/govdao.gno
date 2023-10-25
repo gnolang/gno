@@ -6,83 +6,116 @@ import (
 )
 
 func main() {
-	println(govDAO.Directory(""))
-}
+	govDAO := GovDAO{}
 
-var govDAO = GovDAO{}
+	worxDAO := BaseDAO{name: "WorxDAO"}
+	evaluationDAO := BaseDAO{name: "EvaluationDAO", comment: ""}
+	engineeringDAO := EngineeringDAO{BaseDAO{name: "EngineeringDAO", comment: "responsible for high-level architecture"}}
+	grantsDAO := EngineeringDAO{BaseDAO{name: "GrantsDAO", comment: "manages grants"}}
+	projectsDAO := EngineeringDAO{BaseDAO{name: "ProjectsDAO"}}
+	growthDAO := ProjectDAO{BaseDAO{name: "growthDAO"}}
+	savethecosmosDAO := ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
+	dxDAO := ProjectDAO{BaseDAO{name: "dxDAO", comment: "DevX team"}}
+	localCommunityDAO := LocalCommunityDAO{BaseDAO{name: "localCommunityDAO"}}
+	{
+		usa := localCommunityDAO.AddChild("USA")
+		california := usa.AddChild("California")
+		sf := california.AddChild("SanFrancisco")
+		palo := california.AddChild("PaloAlto")
+		california.AddChild("...")
+		europe := localCommunityDAO.AddChild("Europe")
+		fr := europe.AddChild("France")
+		paris := fr.AddChild("Paris")
+		asia := localCommunityDAO.AddChild("Asia")
+		localCommunityDAO.AddChild("...")
+		// ...
+	}
 
-func init() {
-	var (
-		worxDAO       = BaseDAO{name: "WorxDAO", parent: govDAO}
-		evaluationDAO = BaseDAO{name: "EvaluationDAO", parent: worxDAO, comment: ""}
-		// engineeringDAO   = EngineeringDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}
-		engineeringDAO   = EngineeringDAO{BaseDAO{name: "EngineeringDAO", parent: worxDAO, comment: "responsible for high-level architecture"}}
-		grantsDAO        = EngineeringDAO{BaseDAO{name: " grantsDAO", parent: worxDAO, comment: "manages grants"}}
-		projectsDAO      = EngineeringDAO{BaseDAO{name: "ProjectsDAO", parent: worxDAO}}
-		growthDAO        = ProjectDAO{BaseDAO{name: "growthDAO"}}
-		savethecosmosDAO = ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
-	)
-	govDAO.tiers = []*Tier{{idx: 0}, {idx: 1}, {idx: 2}}
+	// govdao tiers
+	tier0 := Tier{idx: 0}
+	tier1 := Tier{idx: 1}
+	tier2 := Tier{idx: 2}
+	govDAO.tiers = []*Tier{&tier0, &tier1, &tier2}
 	govDAO.tiers[0].parent = nil
 	govDAO.tiers[0].child = govDAO.tiers[1]
 	govDAO.tiers[1].parent = govDAO.tiers[0]
 	govDAO.tiers[1].child = govDAO.tiers[2]
 	govDAO.tiers[2].parent = govDAO.tiers[1]
 	govDAO.tiers[2].child = nil
-	govDAO.children = []DAO{worxDAO}
-	worxDAO.children = []DAO{evaluationDAO, engineeringDAO, projectsDAO}
-	projectsDAO.children = []DAO{savethecosmosDAO, grantsDAO, growthDAO}
-	engineeringDAO.children = []DAO{
-		EngineeringDAO{BaseDAO{
-			name: "tm2", parent: worxDAO, children: []DAO{
-				BaseDAO{name: "amino"},
-				BaseDAO{name: "bft"},
-			},
-		}},
-		EngineeringDAO{BaseDAO{
-			name: "gnovm", parent: worxDAO, children: []DAO{
-				EngineeringDAO{BaseDAO{name: "gnolang"}},
-				EngineeringDAO{BaseDAO{name: "stdlibs"}},
-			},
-		}},
-		EngineeringDAO{BaseDAO{name: "gno.land", parent: worxDAO}},
-	}
+
+	govDAO.children = []DAO{&worxDAO, &localCommunityDAO}
+	worxDAO.children = []DAO{&evaluationDAO, &engineeringDAO, &projectsDAO}
+	projectsDAO.children = []DAO{&savethecosmosDAO, &grantsDAO, &growthDAO}
+	engTm2DAO := EngineeringDAO{BaseDAO{
+		name: "tm2", children: []DAO{
+			&BaseDAO{name: "amino"},
+			&BaseDAO{name: "bft"},
+		},
+	}}
+	engGnovmDAO := EngineeringDAO{BaseDAO{name: "gnovm"}}
+	//&EngineeringDAO{BaseDAO{name: "gnolang"}},
+	//&EngineeringDAO{BaseDAO{name: "stdlibs"}},
+	engGnolandDAO := EngineeringDAO{BaseDAO{name: "gno.land"}}
+
+	engineeringDAO.children = []DAO{&engTm2DAO, &engGnovmDAO, &engGnolandDAO}
 	grantsDAO.children = []DAO{
-		ProjectDAO{BaseDAO{name: "onbloc", parent: grantsDAO}},
-		ProjectDAO{BaseDAO{name: "berty"}},
-		ProjectDAO{BaseDAO{name: "teritori"}},
-		ProjectDAO{BaseDAO{name: "grant1"}},
-		ProjectDAO{BaseDAO{name: "grant2"}},
+		&ProjectDAO{BaseDAO{name: "onbloc"}},
+		&ProjectDAO{BaseDAO{name: "berty"}},
+		&ProjectDAO{BaseDAO{name: "teritori"}},
+		&ProjectDAO{BaseDAO{name: "grant1"}},
+		&ProjectDAO{BaseDAO{name: "grant2"}},
+		&dxDAO,
 	}
 	growthDAO.children = []DAO{
-		ProjectDAO{BaseDAO{name: "student-program"}},
-		ProjectDAO{BaseDAO{name: "builders-program"}},
+		&ProjectDAO{BaseDAO{name: "student-program"}},
+		&ProjectDAO{BaseDAO{name: "builders-program"}},
 	}
+	// growthDAO.teams = []Team{marketingTeam, devrelTeam}
+	println(govDAO.Directory(""))
+}
+
+// Person can be a person, a team, an organization, a country.
+type Person interface {
+	Actor
+	ID() string
+}
+
+// Actor is a Person who can make actions.
+type Actor interface {
+	Receive(Action)
+}
+
+// Action defines rules and action.
+type Action interface {
+	Verify(Actor) error
+	Execute(Actor) error
 }
 
 type GovDAO struct {
-	tiers    []*Tier
-	children []DAO
+	BaseDAO
+	tiers []*Tier
 }
 
 type DAO interface {
 	Directory(prefix string) string
 	Parent() DAO
 	HasChild(DAO) bool
+	Owner() Person
+	Facilitator() Person
 }
 
 func (d GovDAO) Parent() DAO {
 	return nil // top-level
 }
 
-func (d GovDAO) HasChild(c DAO) bool {
+/*func (d GovDAO) HasChild(c DAO) bool {
 	for _, child := range d.children {
 		if child == c {
 			return true
 		}
 	}
 	return false
-}
+        }*/
 
 func (d GovDAO) Directory(prefix string) string {
 	output := prefix + "- GovDAO\n"
@@ -95,9 +128,9 @@ func (d GovDAO) Directory(prefix string) string {
 
 	// children
 	for _, child := range d.children {
-		if child.Parent() != d {
-			output += prefix + "  <!-- WARN: child claims that we're not their parent:-->\n"
-		}
+		// if child.Parent() != d {
+		// 	output += prefix + "  <!-- WARN: child claims that we're not their parent:-->\n"
+		// }
 		output += child.Directory(prefix + "  ")
 	}
 	return output
@@ -110,6 +143,9 @@ type Tier struct {
 	parent *Tier
 	child  *Tier
 }
+
+func (t Tier) Owner() Person       { return nil } // not relevant for tiers
+func (t Tier) Facilitator() Person { return nil } // not relevant for tiers
 
 // func (t *Tier) Promote()
 // func (t *Tier) Demote()
@@ -126,13 +162,6 @@ func (t Tier) HasChild(c DAO) bool {
 	return t.child == c
 }
 
-type BaseDAO struct {
-	name     string
-	children []DAO
-	parent   DAO
-	comment  string
-}
-
 type EngineeringDAO struct {
 	BaseDAO
 }
@@ -140,6 +169,29 @@ type EngineeringDAO struct {
 type ProjectDAO struct {
 	BaseDAO
 }
+
+type LocalCommunityDAO struct {
+	BaseDAO
+}
+
+func (d *LocalCommunityDAO) AddChild(name string) *LocalCommunityDAO {
+	child := LocalCommunityDAO{BaseDAO{name: name}}
+	d.BaseDAO.children = append(d.children, &child)
+	// child.parent = d
+	return &child
+}
+
+type BaseDAO struct {
+	name        string
+	children    []DAO
+	parent      DAO
+	comment     string
+	owner       Person
+	facilitator Person
+}
+
+func (d BaseDAO) Owner() Person       { return d.owner }
+func (d BaseDAO) Facilitator() Person { return d.facilitator }
 
 func (d BaseDAO) Directory(prefix string) string {
 	output := prefix + "- " + d.name
@@ -150,12 +202,13 @@ func (d BaseDAO) Directory(prefix string) string {
 	childPrefix := prefix + "  "
 
 	for _, child := range d.children {
+		// BUG: https://github.com/gnolang/gno/issues/1291
 		//_ = child.Parent()
 		//parent := child.Parent()
 		//if parent != d {
 		//}
 		//if child.Parent() != d {
-		// output += prefix + "  <!-- WARN: child claims that we're not their parent:-->\n"
+		// output += prefix + "  <!-- WARN9: child claims that we're not their parent:-->\n"
 		//output += "TTT"
 		//}
 		output += child.Directory(childPrefix)
