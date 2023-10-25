@@ -523,6 +523,29 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.PushValue(res0)
 			},
 		)
+		pn.DefineNative("DerivePkgObject",
+			gno.Flds( // params
+				"pkgPath", "string",
+				"key", "string",
+			),
+			gno.Flds( // results
+				"addr", "Address",
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2().TV
+				pkgPath := arg0.TV.GetString()
+				key := arg1.TV.GetString()
+				pkgAddr := gno.DerivePkgAddr(pkgPath + ":" + key).Bech32()
+				res0 := gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(pkgAddr),
+				)
+				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				res0.T = addrT
+				m.PushValue(res0)
+			},
+		)
 	}
 }
 
