@@ -1,8 +1,8 @@
+package csv
+
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-package csv
 
 import (
 	"bytes"
@@ -80,7 +80,6 @@ func TestError(t *testing.T) {
 	f.Write([]string{"abc"})
 	f.Flush()
 	err := f.Error()
-
 	if err != nil {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
