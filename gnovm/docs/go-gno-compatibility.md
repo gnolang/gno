@@ -234,8 +234,8 @@ Additional native types:
 | go/types                                    | TBD      |
 | go/types/testdata                           | TBD      |
 | go/types/testdata/local                     | TBD      |
-| hash                                        | TBD      |
-| hash/adler32                                | TBD      |
+| hash                                        | partial  |
+| hash/adler32                                | full     |
 | hash/crc32                                  | TBD      |
 | hash/crc64                                  | TBD      |
 | hash/fnv                                    | TBD      |
