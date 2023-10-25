@@ -5,12 +5,15 @@ package book
 GOALS:
 
 1. Create a Book (aka List) of text,
-   that is owned by a Book of Persons.
+   that is owned by a Book of Actors.
 
-2. Allow a Book of Persons to split/fork.
+2. Allow a Book of Actors to split/fork.
+
+3. Later, a Person is interface { Actor ...}.
 
 */
 
+// TODO use this for Tiers.
 // XXX open questions
 // * Do we want a directory?
 // * Should action memoize object/subject/args?
@@ -47,15 +50,15 @@ func main() {
 	// CASE 1A: dummy "priv" account.
 	// Access to privAccount is like access to priv keys.
 	privAccount.AppendAction(action)
-	directory.GetObject(action.object).Fulfill(action)
+	directory.GetObject(action.object).Receive(action)
 
-	// CASE 1B: ActionRunner with no signing
+	// CASE 1B: ActionReceiveer with no signing
 	// This is just a wrapper around CASE 1A.
-	ar := ActionRunner(directory)
-	sar.RunWith(action, privAccount)
-	// sar.RunWith() impl:
+	ar := ActionReceiveer(directory)
+	sar.ReceiveBy(action, privAccount)
+	// sar.ReceiveBy() impl:
 	//   privAccount.AppendAction(action)
-	//   ar.dir.GetObject(action.object).Fulfill(action)
+	//   ar.dir.GetObject(action.object).Receive(action)
 
 	// CASE 2A: public crypto key account.
 	// NOTE: This is NOT secure because
@@ -64,123 +67,15 @@ func main() {
 	privKey := _ // imagine we have the key
 	signed := SignAction(action, privKey)
 	account.Authenticate(signed)
-	directory.GetObject(action.object).Fulfill(action)
+	directory.GetObject(action.object).Receive(action)
 
-	// CASE 2B: SignedActionRunner
-	// SignedActionRunner embeds an ActionRunner.
-	sar := SignedActionRunner()
-	sar.Run(signed)
-	// sar.Run() impl:
+	// CASE 2B: SignedActionReceiveer
+	// SignedActionReceiveer embeds an ActionReceiveer.
+	sar := SignedActionReceiveer()
+	sar.Receive(signed)
+	// sar.Receive() impl:
 	//   signed.subject.Authenticate(signed)
-	//   sar.dir.GetObject(action.object).Fulfill(action)
-}
-
-//----------------------------------------
-// Object
-
-type ObjectKey string
-
-func (key ObjectKey) Validate() {
-	if len(key) == "" {
-		panic("invalid key")
-	}
-	// XXX make sure key is alphanumeric.
-}
-
-type Object interface {
-	// The primary key of the object.
-	GetKey() ObjectKey
-	// Set the prmiary key.
-	// Panics if key exists.
-	SetKey(ObjectKey)
-	// Fulfill performs action on self.
-	// Panics if action is not permitted.
-	// XXX what about return values? (prob ignore)
-	Fulfill(Action)
-}
-
-//----------------------------------------
-// Directory
-
-type Directory struct {
-	name    string   // name of directory
-	objects avl.Tree // key -> Object
-	auto    bool     // use automatic numeric keys
-	lastKey int64    // last auto numeric key used
-	prefix  string   // key prefix, if any
-}
-
-func NewDirectory(name string, auto bool, prefix string) *Directory {
-	return &Directory{
-		name:    name,
-		objects: nil,
-		auto:    auto,
-		lastKey: 0,
-		prefix:  prefix,
-	}
-}
-
-func (dir *Directory) GetName() string {
-	return dir.name
-}
-
-func (dir *Directory) GetObject(key ObjectKey) Object {
-	obj, exists := dir.objects.Get(key)
-	if !exists {
-		panic("object not found: invalid key")
-	}
-	return obj
-}
-
-func (dir *Directory) AddObject(obj Object) {
-	key := ObjectKey("")
-	if dir.auto {
-		key = dir.nextKey()
-		obj.SetKey(key)
-	} else {
-		key = obj.GetKey()
-		key.ValidateBasic()
-		if !hasPrefix(string(key), dir.prefix) {
-			panic("invalid key: prefix mismatch")
-		}
-	}
-	updated := dir.objects.Set(string(key), obj)
-	if updated == true {
-		panic("duplicate object key")
-	}
-}
-
-func (dir *Directory) RemoveObject(obj Object) {
-	key := obj.GetKey()
-	old, removed := dir.objects.Remove(string(key))
-	if !removed {
-		panic("cannot remove object: not found")
-	}
-	if old != obj {
-		panic("cannot remove conflicting object")
-	}
-}
-
-func (dir *Directory) RemoveObjectByKey(key ObjectKey) {
-	if !hasPrefix(key, dir.prefix) {
-		panic("invalid key: prefix mismatch")
-	}
-	_, removed := dir.objects.Remove(string(key))
-	if !removed {
-		panic("cannot remove object: not found")
-	}
-}
-
-func (dir *Directory) nextKey() ObjectKey {
-	if !dir.auto {
-		panic("cannot generate key: not auto keyed")
-	}
-	nextKey := dir.lastKey + 1
-	if nextKey < 0 {
-		panic("key overflow")
-	}
-	dir.lastKey = nextKey
-	return ObjectKey(dir.prefix + itoa(nextKey))
+	//   sar.dir.GetObject(action.object).Receive(action)
 }
 
 //----------------------------------------
@@ -201,59 +96,6 @@ func (bk *Book) Size() int {
 
 func (bk *Book) Get(n int) XXX {
 	XXX
-}
-
-//----------------------------------------
-// Attributes
-
-type Attributes struct {
-	meta   avl.Tree // catchall
-	author Author
-	// TODO
-}
-
-//----------------------------------------
-// Action
-
-// A subject acts upon an object with a verb and arguments.
-// As if subject is calling object.verb(args...).
-//
-// The sequence is usually an incrementing number,
-// but could be something else tracked by an action book.
-//
-// The subject and object are denoted by their respective
-// paths (or URIs?).
-type Action struct {
-	sequence string   // typically an incrementing number
-	subject  string   // subject path
-	object   string   // object path
-	verb     string   // verb name
-	args     []string // legible args
-}
-
-func (a Action) Sequence() string { return a.sequence }
-func (a Action) Subject() string  { return a.subject }
-func (a Action) Object() string   { return a.object }
-func (a Action) Verb() string     { return a.verb }
-func (a Action) NumArgs() int     { return len(a.args) }
-func (a action) Arg(n int) string { return a.args[n] }
-
-// Authorization struct is only needed for Actions that
-// require cryptographic authorization, where the Action's
-// subject has a pubkey to verify signatures with.
-//
-// Presumably once Authorization is validated (signature
-// checked) the Action becomes committed, and given a index
-// number.
-type Authorization struct {
-	action     Action
-	signatures []Signature
-}
-
-type Signature struct {
-	account   number // or address with some extra data unknown
-	sequence  number // or alternative to sequence
-	signature []byte
 }
 
 //----------------------------------------
@@ -357,16 +199,6 @@ func (pab *PrivActionBook) SequenceStrategy() SequenceStrategy {
 // XXX especially after device reset.
 func (pab *PrivActionBook) SequenceAccum() string {
 	// XXX
-}
-
-//----------------------------------------
-// Account
-
-// XXX incomplete.
-type Account struct {
-	// each account has an associated pab
-	// XXX or, accounts have devices, each with a pab.
-	pab *PrivActionBook
 }
 
 //----------------------------------------

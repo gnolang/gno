@@ -502,6 +502,8 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 			},
 		)
+		// XXX TO DEPRECATE.
+		// TODO migrate as native function std.AddrFromPkgPath().
 		pn.DefineNative("DerivePkgAddr",
 			gno.Flds( // params
 				"pkgPath", "string",
