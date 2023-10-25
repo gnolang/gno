@@ -68,5 +68,30 @@
     "name": "investigating",
     "color": "8c008c",
     "description": "This behavior is still being tested out"
+  },
+  {
+    "name": "worx-XS",
+    "color": "888888",
+    "description": "extra-small worx"
+  },
+  {
+    "name": "worx-S",
+    "color": "888888",
+    "description": "small worx"
+  },
+  {
+    "name": "worx-M",
+    "color": "888888",
+    "description": "medium worx"
+  },
+  {
+    "name": "worx-L",
+    "color": "888888",
+    "description": "large worx"
+  },
+  {
+    "name": "worx-XL",
+    "color": "888888",
+    "description": "extra-large worx"
   }
 ]
