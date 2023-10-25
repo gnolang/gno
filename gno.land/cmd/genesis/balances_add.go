@@ -185,30 +185,6 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 	return nil
 }
 
-// validateSetModes validates a good mode was
-// set for the balance addition
-func validateSetModes(modes []bool) error {
-	anySet := false
-
-	for _, mode := range modes {
-		if !mode {
-			continue
-		}
-
-		if anySet {
-			return errMultipleBalanceSources
-		}
-
-		anySet = true
-	}
-
-	if !anySet {
-		return errNoBalanceSource
-	}
-
-	return nil
-}
-
 // getBalancesFromEntries extracts the balance entries
 // from the array of balance
 func getBalancesFromEntries(entries []string) (accountBalances, error) {
