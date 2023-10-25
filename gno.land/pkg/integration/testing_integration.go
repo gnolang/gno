@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -11,17 +10,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -92,10 +87,10 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			}
 
 			// Setup "test1" default account
-			kb.CreateAccount(DefaultAccount_Name,DefaultAccount_Seedd, "", "", 0, 0)
+			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
 
-			env.Setenv("USER_SEED_"+DefaultAccount_Name,DefaultAccount_Seedd)
-			env.Setenv("USER_ADDR_"+DefaultAccount_Name,DefaultAccount_Addresss)
+			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
+			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -126,33 +121,17 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					// Generate node config
-					cfg := config.TestConfig().SetRootDir(gnoRootDir)
+					// Warp up `ts` so we can pass it to other testing method
+					t := TSTestingT(ts)
 
-					// Use random port be able to run test in parallel without conflict
-					cfg.P2P.ListenAddress = "tcp://127.0.0.1:0"
-					cfg.RPC.ListenAddress = "tcp://127.0.0.1:0"
+					// Generate config and node
+					cfg := DefaultTestingNodeConfig(t, gnoRootDir)
+					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
-					// Create the Node
-					nodecfg := gnoland.NewInMemoryNodeConfig(cfg)
-
-					// Setup balance for default account
-					nodecfg.Balances = append(nodecfg.Balances, gnoland.Balance{
-						Address: crypto.MustAddressFromString(DefaultAccount_Address),
-						Value:   std.MustParseCoins("10000000000000ugnot"),
-					})
-
-					var n *node.Node
-					if n, err = execInMemoryGnoland(ts, logger, nodecfg); err != nil {
-						break
-					}
-
-					// Register cleanup.
+					// Register cleanup
 					nodes[sid] = &testNode{Node: n}
 
-					remoteAddr := n.Config().RPC.ListenAddress
-
-					// Add default environements.
+					// Add default environements
 					ts.Setenv("RPC_ADDR", remoteAddr)
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
@@ -166,7 +145,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					if err = n.Stop(); err == nil {
 						delete(nodes, sid)
 
-						// Unset gnoland environements.
+						// Unset gnoland environements
 						ts.Setenv("RPC_ADDR", "")
 						fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 					}
@@ -183,7 +162,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				logger := ts.Value("_logger").(log.Logger) // grab logger
 				sid := ts.Getenv("SID")                    // grab session id
 
-				// Setup IO command.
+				// Setup IO command
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
 				io.SetErr(commands.WriteNopCloser(ts.Stderr()))
@@ -221,24 +200,24 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	}
 }
 
-func execInMemoryGnoland(ts *testscript.TestScript, logger log.Logger, nodecfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	n, err := gnoland.NewInMemoryNode(logger, nodecfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create node: %w", err)
-	}
+// func execInMemoryGnoland(ts *testscript.TestScript, logger log.Logger, nodecfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
+// 	n, err := gnoland.NewInMemoryNode(logger, nodecfg)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("unable to create node: %w", err)
+// 	}
 
-	if err = n.Start(); err != nil {
-		return nil, fmt.Errorf("unable to start node: %w", err)
-	}
+// 	if err = n.Start(); err != nil {
+// 		return nil, fmt.Errorf("unable to start node: %w", err)
+// 	}
 
-	select {
-	case <-time.After(time.Second * 6):
-		return nil, errors.New("timeout while waiting for the node to start")
-	case <-waitForNodeReadiness(n): // ok
-	}
+// 	select {
+// 	case <-time.After(time.Second * 6):
+// 		return nil, errors.New("timeout while waiting for the node to start")
+// 	case <-waitForNodeReadiness(n): // ok
+// 	}
 
-	return n, nil
-}
+// 	return n, nil
+// }
 
 func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 	var path string

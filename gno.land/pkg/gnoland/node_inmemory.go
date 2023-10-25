@@ -14,10 +14,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator         bft.PrivValidator
+	PrivValidator         bft.PrivValidator // identity of the validator
 	Genesis               *bft.GenesisDoc
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
@@ -42,6 +43,10 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 				TimeIotaMS:   100,         // 100ms
 			},
 		},
+		AppState: &GnoGenesisState{
+			Balances: []Balance{},
+			Txs:      []std.Tx{},
+		},
 	}
 }
 
@@ -57,6 +62,7 @@ func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
 	pv := NewMockedPrivValidator()
 	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
 
+	// Add self as validator
 	self := pv.GetPubKey()
 	genesis.Validators = []bft.GenesisValidator{
 		{

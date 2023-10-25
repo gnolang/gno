@@ -3,7 +3,6 @@ package integration
 import (
 	"path/filepath"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -26,9 +25,7 @@ const (
 
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
 // It returns the node instance and its RPC remote address.
-func TestingInMemoryNode(t *testing.T, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
-	t.Helper()
-
+func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
 	node, err := gnoland.NewInMemoryNode(logger, config)
 	require.NoError(t, err)
 
@@ -45,10 +42,8 @@ func TestingInMemoryNode(t *testing.T, logger log.Logger, config *gnoland.InMemo
 }
 
 // DefaultTestingNodeConfig constructs the default in-memory node configuration for testing.
-func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNodeConfig {
-	t.Helper()
-
-	tmconfig := DefaultTestingTMConfig(t, gnoroot)
+func DefaultTestingNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNodeConfig {
+	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
@@ -63,7 +58,7 @@ func DefaultTestingNodeConfig(t *testing.T, gnoroot string) *gnoland.InMemoryNod
 	}
 }
 
-func DefaultTestingGenesisConfig(t *testing.T, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	pkgCreator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 
 	// Load genesis packages
@@ -101,9 +96,7 @@ func DefaultTestingGenesisConfig(t *testing.T, gnoroot string, self crypto.PubKe
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []std.Tx {
-	t.Helper()
-
+func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
 	exampleDir := filepath.Join(gnoroot, "examples")
 
 	txs, err := gnoland.LoadPackages(gnoland.PackagePath{
@@ -117,9 +110,7 @@ func LoadDefaultPackages(t *testing.T, creator bft.Address, gnoroot string) []st
 }
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.
-func LoadDefaultGenesisBalanceFile(t *testing.T, gnoroot string) []gnoland.Balance {
-	t.Helper()
-
+func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balance {
 	balanceFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 
 	genesisBalances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
@@ -129,9 +120,7 @@ func LoadDefaultGenesisBalanceFile(t *testing.T, gnoroot string) []gnoland.Balan
 }
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
-func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []std.Tx {
-	t.Helper()
-
+func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
 	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display
@@ -143,9 +132,7 @@ func LoadDefaultGenesisTXsFile(t *testing.T, chainid string, gnoroot string) []s
 }
 
 // DefaultTestingTMConfig constructs the default Tendermint configuration for testing.
-func DefaultTestingTMConfig(t *testing.T, gnoroot string) *tmcfg.Config {
-	t.Helper()
-
+func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	const defaultListner = "tcp://127.0.0.1:0"
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)

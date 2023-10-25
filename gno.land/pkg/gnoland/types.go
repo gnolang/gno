@@ -119,7 +119,7 @@ func (p PackagePath) Load() ([]std.Tx, error) {
 }
 
 // LoadPackages loads and returns transactions from provided package paths.
-func LoadPackages(pkgs []PackagePath) ([]std.Tx, error) {
+func LoadPackages(pkgs ...PackagePath) ([]std.Tx, error) {
 	var txs []std.Tx
 	for _, pkg := range pkgs {
 		tx, err := pkg.Load()
