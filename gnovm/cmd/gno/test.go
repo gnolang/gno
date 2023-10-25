@@ -210,9 +210,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if verbose {
 				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
 			}
-			precompileOpts := newPrecompileOptions(&precompileCfg{
+			precompileCfg := &precompileCfg{
 				output: tempdirRoot,
-			})
+			}
+			precompileOpts := newPrecompileOptions(precompileCfg)
 			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
@@ -231,7 +232,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
+			err = goBuildFileOrPkg(tempDir, precompileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
