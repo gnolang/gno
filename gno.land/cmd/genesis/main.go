@@ -34,6 +34,7 @@ func newRootCmd(io *commands.IO) *commands.Command {
 		newValidatorCmd(io),
 		newVerifyCmd(io),
 		newBalancesCmd(io),
+		newTxsCmd(io),
 	)
 
 	return cmd

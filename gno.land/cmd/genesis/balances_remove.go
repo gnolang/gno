@@ -15,7 +15,6 @@ import (
 var (
 	errUnableToLoadGenesis = errors.New("unable to load genesis")
 	errBalanceNotFound     = errors.New("genesis balances entry does not exist")
-	errAppStateNotSet      = errors.New("genesis app state not set")
 )
 
 type balancesRemoveCfg struct {
