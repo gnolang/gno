@@ -155,15 +155,15 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		for i, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
-				ctx.Logger().Error("LOG", res.Log)
-				ctx.Logger().Error("#", i, string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Error("LOG", "log", res.Log)
+				ctx.Logger().Error(fmt.Sprintf("#%d", i), "value", string(amino.MustMarshalJSON(tx)))
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
 					panic(res.Error)
 				}
 			} else {
-				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Info("SUCCESS:", "value", string(amino.MustMarshalJSON(tx)))
 			}
 		}
 		// Done!

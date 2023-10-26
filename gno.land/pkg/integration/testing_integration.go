@@ -216,8 +216,8 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					n.nGnoKeyExec++
 					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
 					// Log the command inside gnoland logger, so we can better scope errors.
-					n.logger.Info(headerlog, strings.Join(args, " "))
-					defer n.logger.Info(headerlog, "END")
+					n.logger.Info(headerlog, "args", strings.Join(args, " "))
+					defer n.logger.Info(headerlog, "delimiter", "END")
 				}
 
 				// Inject default argument, if duplicate
