@@ -1,6 +1,7 @@
 package govdao
 
 import (
+	"errors"
 	"std"
 	"strconv"
 )
@@ -16,7 +17,7 @@ func main() {
 	growthDAO := ProjectDAO{BaseDAO{name: "growthDAO"}}
 	savethecosmosDAO := ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
 	dxDAO := ProjectDAO{BaseDAO{name: "dxDAO", comment: "DevX team"}}
-	localCommunityDAO := LocalCommunityDAO{BaseDAO{name: "localCommunityDAO"}}
+	localCommunityDAO := LocalCommunityDAO{BaseDAO{name: "LocalCommunityDAO"}}
 	{
 		usa := localCommunityDAO.AddChild("USA")
 		california := usa.AddChild("California")
@@ -59,11 +60,9 @@ func main() {
 
 	engineeringDAO.children = []DAO{&engTm2DAO, &engGnovmDAO, &engGnolandDAO}
 	grantsDAO.children = []DAO{
-		&ProjectDAO{BaseDAO{name: "onbloc"}},
-		&ProjectDAO{BaseDAO{name: "berty"}},
-		&ProjectDAO{BaseDAO{name: "teritori"}},
-		&ProjectDAO{BaseDAO{name: "grant1"}},
-		&ProjectDAO{BaseDAO{name: "grant2"}},
+		&ProjectDAO{BaseDAO{name: "onblocDAO"}},
+		&ProjectDAO{BaseDAO{name: "bertyDAO"}},
+		&ProjectDAO{BaseDAO{name: "teritoriDAO"}},
 		&dxDAO,
 	}
 	growthDAO.children = []DAO{
@@ -71,19 +70,85 @@ func main() {
 		&ProjectDAO{BaseDAO{name: "builders-program"}},
 	}
 	// growthDAO.teams = []Team{marketingTeam, devrelTeam}
+
+	var (
+		manfred           = &AccountPerson{NotimplementedActor{}, "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"}
+		jae               = &NoopPerson{NotimplementedActor{}, "jae"}
+		guilhem           = &NoopPerson{NotimplementedActor{}, "guilhem"}
+		morgan            = &NoopPerson{NotimplementedActor{}, "morgan"}
+		milos             = &NoopPerson{NotimplementedActor{}, "milos"}
+		petar             = &NoopPerson{NotimplementedActor{}, "petar"}
+		antonio           = &NoopPerson{NotimplementedActor{}, "antonio"}
+		marc              = &NoopPerson{NotimplementedActor{}, "marc"}
+		hariom            = &NoopPerson{NotimplementedActor{}, "hariom"}
+		ilker             = &NoopPerson{NotimplementedActor{}, "ilker"}
+		adriana           = &NoopPerson{NotimplementedActor{}, "adriana"}
+		alex              = &NoopPerson{NotimplementedActor{}, "alex"}
+		alexis            = &NoopPerson{NotimplementedActor{}, "alexis"}
+		thomas            = &NoopPerson{NotimplementedActor{}, "thomas"}
+		michelle          = &NoopPerson{NotimplementedActor{}, "michelle"}
+		johnny            = &NoopPerson{NotimplementedActor{}, "johnny"}
+		albert            = &NoopPerson{NotimplementedActor{}, "albert"}
+		ray               = &NoopPerson{NotimplementedActor{}, "ray"}
+		dylan             = &NoopPerson{NotimplementedActor{}, "dylan"}
+		valeh             = &NoopPerson{NotimplementedActor{}, "valeh"}
+		techStaff         = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, guilhem, morgan, milos, petar, antonio, marc, hariom}}
+		coreContribs      = TeamPerson{NotimplementedActor{}, []Person{}}
+		marketingContribs = TeamPerson{NotimplementedActor{}, []Person{}}
+		techCommittee     = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, milos, ray}}
+	)
+
 	println(govDAO.Directory(""))
 }
 
-// Person can be a person, a team, an organization, a country.
+type NoopPerson struct {
+	Actor
+	name string
+}
+
+func (p NoopPerson) String() string { return p.name }
+
+type AccountPerson struct {
+	Actor
+	addr std.Address
+}
+
+func (p AccountPerson) String() string { return p.addr.String() }
+
+type TeamPerson struct {
+	Actor
+	members []Person
+}
+
+func (p TeamPerson) String() string {
+	output := ""
+	for i, m := range p.members {
+		if i > 0 {
+			output += "+"
+		}
+		output == m.String()
+	}
+	return output
+}
+
+// Person can be a person, a team, an organization, a country, an object?
 type Person interface {
 	Actor
-	ID() string
+	String() string
 }
 
 // Actor is a Person who can make actions.
 type Actor interface {
-	Receive(Action)
+	Receive(Action) error
 }
+
+type NoopActor struct{}
+
+func (a *NoopActor) Receive(Action) error { return nil }
+
+type NotimplementedActor struct{}
+
+func (a NotimplementedActor) Receive(Action) error { return errors.New("not implemented actor") }
 
 // Action defines rules and action.
 type Action interface {
