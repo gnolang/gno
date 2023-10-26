@@ -140,7 +140,6 @@ endif
 function! s:on_lsp_buffer_enabled() abort
     " Autocompletion
     setlocal omnifunc=lsp#complete
-    setlocal signcolumn=yes
     " Format on save
     autocmd BufWritePre <buffer> LspDocumentFormatSync
     " Some optionnal mappings
