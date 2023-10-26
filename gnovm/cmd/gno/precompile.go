@@ -31,6 +31,11 @@ type precompileOptions struct {
 	precompiled map[importPath]struct{}
 }
 
+var defaultPrecompileCfg = &precompileCfg{
+	verbose:  false,
+	goBinary: "go",
+}
+
 func newPrecompileOptions(cfg *precompileCfg) *precompileOptions {
 	return &precompileOptions{cfg, map[importPath]struct{}{}}
 }
