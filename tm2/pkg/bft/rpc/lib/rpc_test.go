@@ -104,7 +104,7 @@ var colorFn = func(keyvals ...interface{}) colors.Color {
 
 // launch unix and tcp servers
 func setup() {
-	logger, err := log.NewTMLogger(os.Stdout, slog.LevelError)
+	logger, err := log.NewTMLogger(os.Stdout, slog.LevelDebug)
 	if err != nil {
 		panic(err)
 	}

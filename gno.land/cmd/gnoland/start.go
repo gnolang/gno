@@ -160,7 +160,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
-	logger, err := log.NewTMLogger(io.Out, slog.LevelError)
+	logger, err := log.NewTMLogger(io.Out, slog.LevelDebug)
 	if err != nil {
 		return err
 	}

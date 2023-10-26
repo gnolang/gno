@@ -116,7 +116,7 @@ var (
 
 func TestMain(m *testing.M) {
 	var cleanup cleanupFunc
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelError)
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -135,7 +135,7 @@ func TestMain(m *testing.M) {
 // TODO: This test should be simplified ...
 
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelError)
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +395,7 @@ func TestLoadBlockMeta(t *testing.T) {
 }
 
 func TestBlockFetchAtHeight(t *testing.T) {
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelError)
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
 	if err != nil {
 		t.Fatal(err)
 	}

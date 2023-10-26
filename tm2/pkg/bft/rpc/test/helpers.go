@@ -122,7 +122,7 @@ func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	if opts.suppressStdout {
 		logger = slog.New(log.NewNoopHandler())
 	} else {
-		logger, err = log.NewTMLogger(os.Stdout, slog.LevelError)
+		logger, err = log.NewTMLogger(os.Stdout, slog.LevelDebug)
 	}
 	pvKeyFile := config.PrivValidatorKeyFile()
 	pvKeyStateFile := config.PrivValidatorStateFile()
