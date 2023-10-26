@@ -105,7 +105,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 	}
 	dpbote_ := pbote_[1:]
 
-	// // -----------
+	// -----------
 	// ToPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -127,7 +127,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	// // -----------
+	// -----------
 	// EmptyPBMessage()
 	// Use to create the pbm to proto.Unmarshal to before FromPBMessage.
 	{
@@ -148,7 +148,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	// // -----------
+	// -----------
 	// FromPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -169,7 +169,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	// // -----------
+	// -----------
 	// TypeUrl()
 	{
 		methods = append(methods, _func("GetTypeURL",
@@ -182,7 +182,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	// // -----------
+	// -----------
 	// Is*ReprEmpty()
 	{
 		rinfo := info.ReprType
