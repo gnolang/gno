@@ -28,7 +28,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
         goarch: [ "amd64" ]
         goos: [ "linux" ]
@@ -54,7 +53,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
         args:
           - _test.gnoland

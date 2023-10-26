@@ -30,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion: # two latest versions
-          - "1.20.x"
           - "1.21.x"
         goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
           - "GOARCH=amd64 GOOS=linux"
@@ -53,7 +52,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
         args:
           - _test.cmd

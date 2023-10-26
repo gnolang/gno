@@ -22,7 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -39,7 +38,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
@@ -56,7 +54,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
