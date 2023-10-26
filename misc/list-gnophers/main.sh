@@ -1,6 +1,7 @@
 #!/bin/sh
 
 main() {
+	cd "$(dirname "$0")"
     cd ../..
     for file in $(list_gno_files); do
         extract_file_metadata $file
