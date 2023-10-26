@@ -159,6 +159,10 @@ Note that unlike the previous ViM setup without LSP, here it is required by
 `vim-lsp` to have a specific `filetype=gno`. Syntax highlighting is preserved
 thanks to `syntax=go`.
 
+Inside `lsp#register_server()`, you also have to replace
+`workspace_config.root` and `workspace_config.gno` with the correct directories
+from your machine.
+
 Additionaly, it's not possible to use `gofumpt` for code formatting with
 `gnols` for now.
 
