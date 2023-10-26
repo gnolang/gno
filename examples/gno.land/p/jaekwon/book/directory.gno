@@ -1,6 +1,8 @@
 package book
 
 import (
+	"std"
+
 	"gno.land/r/demo/avl"
 )
 
@@ -9,19 +11,13 @@ import (
 
 type Directory struct {
 	name    string   // name of directory
-	objects avl.Tree // key -> Object
-	auto    bool     // use automatic numeric keys
-	lastKey int64    // last auto numeric key used
-	prefix  string   // key prefix, if any
+	objects avl.Tree // std.Address -> Addressable
 }
 
-func NewDirectory(name string, auto bool, prefix string) *Directory {
+func NewDirectory(name string) *Directory {
 	return &Directory{
 		name:    name,
 		objects: nil,
-		auto:    auto,
-		lastKey: 0,
-		prefix:  prefix,
 	}
 }
 
@@ -29,35 +25,29 @@ func (dir *Directory) GetName() string {
 	return dir.name
 }
 
-func (dir *Directory) GetObject(key ObjectKey) Object {
-	obj, exists := dir.objects.Get(key)
+func (dir *Directory) Get(addr std.Address) std.Addressable {
+	obj, exists := dir.objects.Get(addr)
 	if !exists {
-		panic("object not found: invalid key")
+		panic("object not found: invalid address")
 	}
 	return obj
 }
 
-func (dir *Directory) AddObject(obj Object) {
-	key := ObjectKey("")
-	if dir.auto {
-		key = dir.nextKey()
-		obj.SetKey(key)
-	} else {
-		key = obj.GetKey()
-		key.ValidateBasic()
-		if !hasPrefix(string(key), dir.prefix) {
-			panic("invalid key: prefix mismatch")
-		}
-	}
-	updated := dir.objects.Set(string(key), obj)
+func (dir *Directory) Has(addr std.Address) bool {
+	return dir.objects.Has(addr)
+}
+
+func (dir *Directory) Add(obj std.Addressable) {
+	addr := obj.GetAddress()
+	updated := dir.objects.Set(string(addr), obj)
 	if updated == true {
-		panic("duplicate object key")
+		panic("duplicate address")
 	}
 }
 
-func (dir *Directory) RemoveObject(obj Object) {
-	key := obj.GetKey()
-	old, removed := dir.objects.Remove(string(key))
+func (dir *Directory) Remove(obj std.Addressable) {
+	addr := obj.GetAddress()
+	old, removed := dir.objects.Remove(string(addr))
 	if !removed {
 		panic("cannot remove object: not found")
 	}
@@ -66,24 +56,9 @@ func (dir *Directory) RemoveObject(obj Object) {
 	}
 }
 
-func (dir *Directory) RemoveObjectByKey(key ObjectKey) {
-	if !hasPrefix(key, dir.prefix) {
-		panic("invalid key: prefix mismatch")
-	}
-	_, removed := dir.objects.Remove(string(key))
+func (dir *Directory) RemoveByAddress(addr std.Address) {
+	_, removed := dir.objects.Remove(string(addr))
 	if !removed {
 		panic("cannot remove object: not found")
 	}
-}
-
-func (dir *Directory) nextKey() ObjectKey {
-	if !dir.auto {
-		panic("cannot generate key: not auto keyed")
-	}
-	nextKey := dir.lastKey + 1
-	if nextKey < 0 {
-		panic("key overflow")
-	}
-	dir.lastKey = nextKey
-	return ObjectKey(dir.prefix + itoa(nextKey))
 }

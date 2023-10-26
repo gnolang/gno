@@ -50,7 +50,7 @@ func main() {
 	// CASE 1A: dummy "priv" account.
 	// Access to privAccount is like access to priv keys.
 	privAccount.AppendAction(action)
-	directory.GetObject(action.object).Receive(action)
+	directory.Get(action.object).Receive(action)
 
 	// CASE 1B: ActionReceiveer with no signing
 	// This is just a wrapper around CASE 1A.
@@ -67,7 +67,7 @@ func main() {
 	privKey := _ // imagine we have the key
 	signed := SignAction(action, privKey)
 	account.Authenticate(signed)
-	directory.GetObject(action.object).Receive(action)
+	directory.Get(action.object).Receive(action)
 
 	// CASE 2B: SignedActionReceiveer
 	// SignedActionReceiveer embeds an ActionReceiveer.
@@ -123,7 +123,7 @@ func (bk *Book) Get(n int) XXX {
 type PrivActionBook struct {
 
 	// All actions must have this object.
-	object string
+	object std.FullAddress
 
 	// Maybe PrivActionBook *is* Book?
 	// not sure yet.

@@ -28,3 +28,9 @@ func AddrFromAddressable(pkgPath, subpath string) Address {
 	// hash(pkgPath + "/" + subpath)
 	panic("not yet implemented")
 }
+
+// A standard structure for storing Subpath and Address.
+type SubpathAddress struct {
+	Subpath string
+	Address std.Address
+}

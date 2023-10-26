@@ -39,24 +39,11 @@ type Actor interface {
 // Object
 
 type Object interface {
-	// The primary key of the object.
-	GetObjectKey() ObjectKey
-	// Set the prmiary key.
-	// Panics if key exists.
-	SetObjectKey(ObjectKey)
+	std.Addressable
 	// Receive performs action on self.
 	// Panics if action is not permitted.
 	// NOTE: no return value, like a one way channel.
 	ReceiveFrom(*Action, Actor)
-}
-
-type ObjectKey string
-
-func (key ObjectKey) Validate() {
-	if len(key) == "" {
-		panic("invalid key")
-	}
-	// XXX make sure key is alphanumeric.
 }
 
 //----------------------------------------
