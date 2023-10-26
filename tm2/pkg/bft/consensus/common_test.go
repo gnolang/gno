@@ -282,7 +282,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 
 	// Make Mempool
 	mempool := mempl.NewCListMempool(thisConfig.Mempool, proxyAppConnMem, 0, state.ConsensusParams.Block.MaxTxBytes)
-	mempool.SetLogger(log.TestingLogger().With("module", "mempool"))
+	mempool.SetLogger(log.NewNoopLogger().With("module", "mempool"))
 	if thisConfig.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()
 	}
@@ -290,13 +290,13 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 	// Make ConsensusState
 	stateDB := blockDB
 	sm.SaveState(stateDB, state) // for save height 1's validators info
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyAppConnCon, mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyAppConnCon, mempool)
 	cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool)
-	cs.SetLogger(log.TestingLogger().With("module", "consensus"))
+	cs.SetLogger(log.NewNoopLogger().With("module", "consensus"))
 	cs.SetPrivValidator(pv)
 
 	evsw := events.NewEventSwitch()
-	evsw.SetLogger(log.TestingLogger().With("module", "events"))
+	evsw.SetLogger(log.NewNoopLogger().With("module", "events"))
 	evsw.Start()
 	cs.SetEventSwitch(evsw)
 	return cs
@@ -574,7 +574,7 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 	genDoc, privVals := randGenesisDoc(nValidators, false, 30)
 	css := make([]*ConsensusState, nValidators)
 	apps := make([]abci.Application, nValidators)
-	logger := log.TestingLogger()
+	logger := log.NewNoopLogger()
 	configRootDirs := make([]string, 0, nValidators)
 	for i := 0; i < nValidators; i++ {
 		stateDB := dbm.NewMemDB() // each state needs its own db
@@ -613,7 +613,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 	genDoc, privVals := randGenesisDoc(nValidators, false, testMinPower)
 	css := make([]*ConsensusState, nPeers)
 	apps := make([]abci.Application, nPeers)
-	logger := log.TestingLogger()
+	logger := log.NewNoopLogger()
 	var peer0Config *cfg.Config
 	configRootDirs := make([]string, 0, nPeers)
 	for i := 0; i < nPeers; i++ {

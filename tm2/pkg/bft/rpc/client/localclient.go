@@ -39,7 +39,7 @@ type Local struct {
 func NewLocal(node *nm.Node) *Local {
 	node.ConfigureRPC()
 	return &Local{
-		Logger: slog.New(log.NewNoopHandler()),
+		Logger: log.NewNoopLogger(),
 		ctx:    &rpctypes.Context{},
 	}
 }

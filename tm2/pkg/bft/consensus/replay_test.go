@@ -72,7 +72,7 @@ func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *
 ) {
 	t.Helper()
 
-	logger := log.TestingLogger()
+	logger := log.NewNoopLogger()
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
@@ -167,7 +167,7 @@ LOOP:
 		t.Logf("====== LOOP %d\n", i)
 
 		// create consensus state from a clean slate
-		logger := slog.New(log.NewNoopHandler())
+		logger := log.NewNoopLogger()
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
@@ -558,7 +558,7 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 
 // Test mockProxyApp should not panic when app return ABCIResponses with some empty ResponseDeliverTx
 func TestMockProxyApp(t *testing.T) {
-	logger := log.TestingLogger()
+	logger := log.NewNoopLogger()
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
 
@@ -650,7 +650,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 		wal, err := walm.NewWAL(walFile, maxMsgSize)
 		require.NoError(t, err)
-		wal.SetLogger(log.TestingLogger())
+		wal.SetLogger(log.NewNoopLogger())
 		err = wal.Start()
 		require.NoError(t, err)
 		defer wal.Stop()
@@ -721,7 +721,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp proxy.AppConns) sm.State {
 	testPartSize := types.BlockPartSizeBytes
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 
 	blkID := types.BlockID{Hash: blk.Hash(), PartsHeader: blk.MakePartSet(testPartSize).Header()}
 	newState, err := blockExec.ApplyBlock(st, blkID, blk)

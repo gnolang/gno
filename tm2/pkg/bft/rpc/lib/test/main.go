@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -27,8 +25,8 @@ type Result struct {
 
 func main() {
 	var (
-		mux         = http.NewServeMux()
-		logger, err = log.NewTMLogger(os.Stdout, slog.LevelInfo)
+		mux    = http.NewServeMux()
+		logger = log.NewNoopLogger()
 	)
 
 	// Stop upon receiving SIGTERM or CTRL-C.

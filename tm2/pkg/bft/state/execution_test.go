@@ -37,7 +37,7 @@ func TestApplyBlock(t *testing.T) {
 
 	state, stateDB, _ := makeState(1, 1)
 
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
 	evsw := events.NewEventSwitch()
 	blockExec.SetEventSwitch(evsw)
 
@@ -86,7 +86,7 @@ func TestBeginBlockValidators(t *testing.T) {
 		// block for height 2
 		block, _ := state.MakeBlock(2, makeTxs(2), lastCommit, state.Validators.GetProposer().Address)
 
-		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, log.TestingLogger(), stateDB)
+		_, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, log.NewNoopLogger(), stateDB)
 		require.Nil(t, err, tc.desc)
 
 		// -> app receives a list of validators with a bool indicating if they signed
@@ -259,7 +259,7 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 
 	state, stateDB, _ := makeState(1, 1)
 
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
 
 	evsw := events.NewEventSwitch()
 	err = evsw.Start()
@@ -324,7 +324,7 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, _ := makeState(1, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
 
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}

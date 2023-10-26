@@ -109,7 +109,7 @@ type BaseService struct {
 // NewBaseService creates a new BaseService.
 func NewBaseService(logger *slog.Logger, name string, impl Service) *BaseService {
 	if logger == nil {
-		logger = slog.New(log.NewNoopHandler())
+		logger = log.NewNoopLogger()
 	}
 
 	return &BaseService{

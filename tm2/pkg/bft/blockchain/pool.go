@@ -441,7 +441,7 @@ func newBPPeer(pool *BlockPool, peerID p2p.ID, height int64) *bpPeer {
 		id:         peerID,
 		height:     height,
 		numPending: 0,
-		logger:     slog.New(log.NewNoopHandler()),
+		logger:     log.NewNoopLogger(),
 	}
 	return peer
 }

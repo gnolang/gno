@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -27,7 +28,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -160,7 +160,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
-	logger, err := log.NewTMLogger(io.Out, slog.LevelDebug)
+	logger, err := log.NewLogger(io.Out, slog.LevelDebug)
 	if err != nil {
 		return err
 	}

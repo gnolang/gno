@@ -2,7 +2,6 @@ package rpctest
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,7 +28,6 @@ type Options struct {
 var (
 	globalConfig   *cfg.Config
 	defaultOptions = Options{
-		suppressStdout: false,
 		recreateConfig: false,
 	}
 )
@@ -115,15 +113,7 @@ func StopTendermint(node *nm.Node) {
 func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config := GetConfig(opts.recreateConfig)
-	var (
-		logger *slog.Logger
-		err    error
-	)
-	if opts.suppressStdout {
-		logger = slog.New(log.NewNoopHandler())
-	} else {
-		logger, err = log.NewTMLogger(os.Stdout, slog.LevelDebug)
-	}
+
 	pvKeyFile := config.PrivValidatorKeyFile()
 	pvKeyStateFile := config.PrivValidatorStateFile()
 	pv := privval.LoadOrGenFilePV(pvKeyFile, pvKeyStateFile)
@@ -135,7 +125,7 @@ func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	node, err := nm.NewNode(config, pv, nodeKey, papp,
 		nm.DefaultGenesisDocProviderFunc(config),
 		nm.DefaultDBProvider,
-		logger)
+		log.NewNoopLogger())
 	if err != nil {
 		panic(err)
 	}

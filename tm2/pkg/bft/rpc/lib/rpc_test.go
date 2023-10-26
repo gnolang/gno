@@ -6,7 +6,6 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -104,13 +103,10 @@ var colorFn = func(keyvals ...interface{}) colors.Color {
 
 // launch unix and tcp servers
 func setup() {
-	logger, err := log.NewTMLogger(os.Stdout, slog.LevelDebug)
-	if err != nil {
-		panic(err)
-	}
+	logger := log.NewNoopLogger()
 
 	cmd := exec.Command("rm", "-f", unixSocket)
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		panic(err)
 	}
@@ -295,7 +291,7 @@ func TestServersAndClientsBasic(t *testing.T) {
 		testWithHTTPClient(t, cl2)
 
 		cl3 := client.NewWSClient(addr, websocketEndpoint)
-		cl3.SetLogger(log.TestingLogger())
+		cl3.SetLogger(log.NewNoopLogger())
 		err := cl3.Start()
 		require.Nil(t, err)
 		fmt.Printf("=== testing server on %s using WS client", addr)
@@ -332,7 +328,7 @@ func TestQuotedStringArg(t *testing.T) {
 
 func TestWSNewWSRPCFunc(t *testing.T) {
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewNoopLogger())
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -357,7 +353,7 @@ func TestWSNewWSRPCFunc(t *testing.T) {
 
 func TestWSHandlesArrayParams(t *testing.T) {
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewNoopLogger())
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -382,7 +378,7 @@ func TestWSHandlesArrayParams(t *testing.T) {
 // & pongs so connection stays alive.
 func TestWSClientPingPong(t *testing.T) {
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewNoopLogger())
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()

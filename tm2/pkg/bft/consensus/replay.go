@@ -214,7 +214,7 @@ func NewHandshaker(stateDB dbm.DB, state sm.State,
 		store:        store,
 		evsw:         events.NilEventSwitch(),
 		genDoc:       genDoc,
-		logger:       slog.New(log.NewNoopHandler()),
+		logger:       log.NewNoopLogger(),
 		nBlocks:      0,
 	}
 }

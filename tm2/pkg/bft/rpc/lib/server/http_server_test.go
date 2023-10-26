@@ -1,12 +1,10 @@
 package rpcserver
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +39,7 @@ func TestMaxOpenConnections(t *testing.T) {
 	l, err := Listen("tcp://127.0.0.1:0", config)
 	require.NoError(t, err)
 	defer l.Close()
-	go StartHTTPServer(l, mux, log.TestingLogger(), config)
+	go StartHTTPServer(l, mux, log.NewNoopLogger(), config)
 
 	// Make N GET calls to the server.
 	attempts := max * 2
@@ -81,7 +79,7 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 		fmt.Fprint(w, "some body")
 	})
 
-	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.TestingLogger(), DefaultConfig())
+	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.NewNoopLogger(), DefaultConfig())
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -166,9 +164,9 @@ func TestRecoverAndLogHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				req, _    = http.NewRequest(http.MethodGet, "", nil)
-				resp      = httptest.NewRecorder()
-				logger, _ = log.NewTMLogger(&bytes.Buffer{}, slog.LevelDebug)
+				req, _ = http.NewRequest(http.MethodGet, "", nil)
+				resp   = httptest.NewRecorder()
+				logger = log.NewNoopLogger()
 				// Create a handler that will always panic with argument tt.panicArg
 				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					panic(tt.panicArg)

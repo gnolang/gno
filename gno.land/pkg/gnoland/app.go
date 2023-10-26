@@ -35,7 +35,7 @@ type AppOptions struct {
 
 func NewAppOptions() *AppOptions {
 	return &AppOptions{
-		Logger:     slog.New(log.NewNoopHandler()),
+		Logger:     log.NewNoopLogger(),
 		DB:         dbm.NewMemDB(),
 		GnoRootDir: GuessGnoRootDir(),
 	}

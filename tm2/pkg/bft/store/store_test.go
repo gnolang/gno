@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
@@ -116,12 +115,8 @@ var (
 
 func TestMain(m *testing.M) {
 	var cleanup cleanupFunc
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
-	if err != nil {
-		os.Exit(1)
-	}
 
-	state, _, cleanup = makeStateAndBlockStore(logger)
+	state, _, cleanup = makeStateAndBlockStore(log.NewNoopLogger())
 	block = makeBlock(1, state, new(types.Commit))
 	partSet = block.MakePartSet(2)
 	part1 = partSet.GetPart(0)
@@ -135,12 +130,7 @@ func TestMain(m *testing.M) {
 // TODO: This test should be simplified ...
 
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	state, bs, cleanup := makeStateAndBlockStore(logger)
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 
@@ -395,12 +385,7 @@ func TestLoadBlockMeta(t *testing.T) {
 }
 
 func TestBlockFetchAtHeight(t *testing.T) {
-	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	state, bs, cleanup := makeStateAndBlockStore(logger)
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 	block := makeBlock(bs.Height()+1, state, new(types.Commit))

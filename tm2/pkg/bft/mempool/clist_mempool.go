@@ -92,7 +92,7 @@ func NewCListMempool(
 		rechecking:    0,
 		recheckCursor: nil,
 		recheckEnd:    nil,
-		logger:        slog.New(log.NewNoopHandler()),
+		logger:        log.NewNoopLogger(),
 	}
 	if config.CacheSize > 0 {
 		mempool.cache = newMapTxCache(config.CacheSize)

@@ -22,7 +22,7 @@ func createTestMConnection(conn net.Conn) *MConnection {
 	onError := func(r interface{}) {
 	}
 	c := createMConnectionWithCallbacks(conn, onReceive, onError)
-	c.SetLogger(log.TestingLogger())
+	c.SetLogger(log.NewNoopLogger())
 	return c
 }
 
@@ -32,7 +32,7 @@ func createMConnectionWithCallbacks(conn net.Conn, onReceive func(chID byte, msg
 	cfg.PongTimeout = 45 * time.Millisecond
 	chDescs := []*ChannelDescriptor{{ID: 0x01, Priority: 1, SendQueueCapacity: 1}}
 	c := NewMConnectionWithConfig(conn, chDescs, onReceive, onError, cfg)
-	c.SetLogger(log.TestingLogger())
+	c.SetLogger(log.NewNoopLogger())
 	return c
 }
 
@@ -394,13 +394,13 @@ func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (
 		{ID: 0x02, Priority: 1, SendQueueCapacity: 1},
 	}
 	mconnClient := NewMConnection(client, chDescs, onReceive, onError)
-	mconnClient.SetLogger(log.TestingLogger().With("module", "client"))
+	mconnClient.SetLogger(log.NewNoopLogger().With("module", "client"))
 	err := mconnClient.Start()
 	require.Nil(t, err)
 
 	// create server conn with 1 channel
 	// it fires on chOnErr when there's an error
-	serverLogger := log.TestingLogger().With("module", "server")
+	serverLogger := log.NewNoopLogger().With("module", "server")
 	onError = func(r interface{}) {
 		chOnErr <- struct{}{}
 	}

@@ -38,7 +38,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
 	defer app.Close()
 
-	logger := log.TestingLogger().With("wal_generator", "wal_generator")
+	logger := log.NewNoopLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
 
 	// ///////////////////////////////////////////////////////////////////////////
@@ -76,7 +76,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	}
 	defer evsw.Stop()
 	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
 	consensusState.SetLogger(logger)
 	consensusState.SetEventSwitch(evsw)

@@ -200,7 +200,7 @@ func startClient(t *testing.T, addr net.Addr) *WSClient {
 	c := NewWSClient(addr.String(), "/websocket")
 	err := c.Start()
 	require.Nil(t, err)
-	c.SetLogger(log.TestingLogger())
+	c.SetLogger(log.NewNoopLogger())
 	return c
 }
 

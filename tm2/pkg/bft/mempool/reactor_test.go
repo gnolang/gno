@@ -32,7 +32,7 @@ func (ps peerState) GetHeight() int64 {
 // connect N mempool reactors through N switches
 func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
-	logger := log.TestingLogger()
+	logger := log.NewNoopLogger()
 	for i := 0; i < n; i++ {
 		app := kvstore.NewKVStoreApplication()
 		cc := proxy.NewLocalClientCreator(app)

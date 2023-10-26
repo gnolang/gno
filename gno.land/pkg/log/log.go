@@ -17,16 +17,14 @@ type customWriter struct {
 }
 
 func (cw customWriter) Close() error {
-	// modify as preferred
 	return nil
 }
 
 func (cw customWriter) Sync() error {
-	// modify as preferred
 	return nil
 }
 
-func NewTMLogger(w io.Writer, level slog.Level) (*slog.Logger, error) {
+func NewLogger(w io.Writer, level slog.Level) (*slog.Logger, error) {
 	config := zap.NewDevelopmentConfig()
 
 	switch level {

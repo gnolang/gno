@@ -901,7 +901,7 @@ func (pss peerStateStats) String() string {
 func NewPeerState(peer p2p.Peer) *PeerState {
 	return &PeerState{
 		peer:   peer,
-		logger: slog.New(log.NewNoopHandler()),
+		logger: log.NewNoopLogger(),
 		PRS: cstypes.PeerRoundState{
 			Round:              -1,
 			ProposalPOLRound:   -1,

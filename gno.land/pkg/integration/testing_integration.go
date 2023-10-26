@@ -14,13 +14,14 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -110,7 +111,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					logger := slog.New(log.NewNoopHandler())
+					logger := tm2Log.NewNoopLogger()
 					if persistWorkDir || os.Getenv("LOG_DIR") != "" {
 						logname := fmt.Sprintf("gnoland-%s.log", sid)
 						logger = getTestingLogger(ts, logname)
@@ -251,7 +252,7 @@ func getTestingLogger(ts *testscript.TestScript, logname string) *slog.Logger {
 	} else if workdir := ts.Getenv("WORK"); workdir != "" {
 		path = filepath.Join(workdir, logname)
 	} else {
-		return slog.New(log.NewNoopHandler())
+		return tm2Log.NewNoopLogger()
 	}
 
 	f, err := os.Create(path)
@@ -278,7 +279,7 @@ func getTestingLogger(ts *testscript.TestScript, logname string) *slog.Logger {
 		level = slog.LevelInfo
 	}
 
-	logger, _ := log.NewTMLogger(f, level)
+	logger, _ := log.NewLogger(f, level)
 
 	ts.Logf("starting logger: %q", path)
 	return logger

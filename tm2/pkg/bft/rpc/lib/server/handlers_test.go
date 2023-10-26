@@ -1,10 +1,8 @@
 package rpcserver_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,10 +29,8 @@ func testMux() *http.ServeMux {
 		"c": rs.NewRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
 	mux := http.NewServeMux()
-	buf := new(bytes.Buffer)
-	logger, _ := log.NewTMLogger(buf, slog.LevelDebug)
 
-	rs.RegisterRPCFuncs(mux, funcMap, logger)
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
 
 	return mux
 }
@@ -264,7 +260,7 @@ func newWSServer() *httptest.Server {
 		"c": rs.NewWSRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
 	wm := rs.NewWebsocketManager(funcMap)
-	wm.SetLogger(log.TestingLogger())
+	wm.SetLogger(log.NewNoopLogger())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)

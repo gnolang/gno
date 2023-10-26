@@ -774,7 +774,7 @@ func NewWebsocketManager(funcMap map[string]*RPCFunc, wsConnOptions ...func(*wsC
 				return true
 			},
 		},
-		logger:        slog.New(log.NewNoopHandler()),
+		logger:        log.NewNoopLogger(),
 		wsConnOptions: wsConnOptions,
 	}
 }

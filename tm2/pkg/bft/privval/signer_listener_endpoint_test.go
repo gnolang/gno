@@ -61,7 +61,7 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	}(ln, attemptCh)
 
 	dialerEndpoint := NewSignerDialerEndpoint(
-		log.TestingLogger(),
+		log.NewNoopLogger(),
 		DialTCPFn(ln.Addr().String(), testTimeoutReadWrite, ed25519.GenPrivKey()),
 	)
 	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
@@ -86,7 +86,7 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 func TestRetryConnToRemoteSigner(t *testing.T) {
 	for _, tc := range getDialerTestCases(t) {
 		var (
-			logger           = log.TestingLogger()
+			logger           = log.NewNoopLogger()
 			chainID          = random.RandStr(12)
 			mockPV           = types.NewMockPV()
 			endpointIsOpenCh = make(chan struct{})
@@ -169,7 +169,7 @@ func getMockEndpoints(
 	t.Helper()
 
 	var (
-		logger           = log.TestingLogger()
+		logger           = log.NewNoopLogger()
 		endpointIsOpenCh = make(chan struct{})
 
 		dialerEndpoint = NewSignerDialerEndpoint(

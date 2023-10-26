@@ -24,7 +24,7 @@ func TestValidateBlockHeader(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(3, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 
 	// some bad values
@@ -85,7 +85,7 @@ func TestValidateBlockCommit(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(1, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 	wrongPrecommitsCommit := types.NewCommit(types.BlockID{}, nil)
 	badPrivVal := types.NewMockPV()

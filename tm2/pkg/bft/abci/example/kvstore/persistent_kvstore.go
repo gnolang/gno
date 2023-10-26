@@ -46,7 +46,7 @@ func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication
 
 	return &PersistentKVStoreApplication{
 		app:    &KVStoreApplication{state: state},
-		logger: slog.New(log.NewNoopHandler()),
+		logger: log.NewNoopLogger(),
 	}
 }
 

@@ -16,7 +16,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -57,7 +56,7 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 }
 
 func defaultLogger() *slog.Logger {
-	logger, _ := log.NewTMLogger(os.Stdout, slog.LevelDebug)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	return logger.With("module", "sdk/app")
 }
