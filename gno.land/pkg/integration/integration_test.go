@@ -7,5 +7,7 @@ import (
 )
 
 func TestTestdata(t *testing.T) {
+	t.Parallel()
+
 	testscript.Run(t, SetupGnolandTestScript(t, "testdata"))
 }

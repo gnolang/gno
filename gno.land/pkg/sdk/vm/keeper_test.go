@@ -15,6 +15,8 @@ import (
 )
 
 func TestVMKeeperAddPackage(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -55,6 +57,8 @@ func Echo() string {
 
 // Sending total send amount succeeds.
 func TestVMKeeperOrigSend1(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -100,6 +104,8 @@ func Echo(msg string) string {
 
 // Sending too much fails
 func TestVMKeeperOrigSend2(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -154,6 +160,8 @@ func GetAdmin() string {
 
 // Sending more than tx send fails.
 func TestVMKeeperOrigSend3(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -198,6 +206,8 @@ func Echo(msg string) string {
 
 // Sending realm package coins succeeds.
 func TestVMKeeperRealmSend1(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -242,6 +252,8 @@ func Echo(msg string) string {
 
 // Sending too much realm package coins fails.
 func TestVMKeeperRealmSend2(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -286,6 +298,8 @@ func Echo(msg string) string {
 
 // Assign admin as OrigCaller on deploying the package.
 func TestVMKeeperOrigCallerInit(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
