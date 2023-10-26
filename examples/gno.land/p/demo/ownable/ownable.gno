@@ -24,9 +24,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) string {
 		return "unauthorized; caller is not owner"
 	}
 
-	_, _, ok := std.DecodeBech32(newOwner)
-
-	if !ok {
+	if !newOwner.Valid() {
 		return "new owner address is not valid"
 	}
 
