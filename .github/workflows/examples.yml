@@ -32,7 +32,7 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno precompile --verbose --build ./examples
+      - run: go run ./gnovm/cmd/gno precompile --verbose --gobuild ./examples
   test:
     strategy:
       fail-fast: false
