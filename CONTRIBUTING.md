@@ -134,6 +134,8 @@ if (executable('gnols'))
         \ },
         \ 'languageId': {server_info->'gno'},
     \ })
+else
+	echomsg 'gnols binary not found: LSP disabled for Gno files'
 endif
 	
 function! s:on_lsp_buffer_enabled() abort
