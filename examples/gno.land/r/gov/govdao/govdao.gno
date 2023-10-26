@@ -58,7 +58,8 @@ func main() {
 	govDAO.children = []DAO{&worxDAO, &worldDAO, &orgsDAO}
 	worxDAO.children = []DAO{&evaluationDAO, &engineeringDAO, &projectsDAO, &opsDAO}
 	opsDAO.children = []DAO{&marketingDAO, &legalDAO}
-	projectsDAO.children = []DAO{&savethecosmosDAO, &growthDAO}
+	gameOfRealmsDAO := ProjectDAO{BaseDAO{name: "GameOfRealmsDAO"}}
+	projectsDAO.children = []DAO{&savethecosmosDAO, &growthDAO, &gameOfRealmsDAO}
 	engTm2DAO := EngineeringDAO{BaseDAO{
 		name: "tm2", children: []DAO{
 			&BaseDAO{name: "amino"},
@@ -81,6 +82,7 @@ func main() {
 		&grantsDAO,
 		&ProjectDAO{BaseDAO{name: "student-program"}},
 		&ProjectDAO{BaseDAO{name: "builders-program"}},
+		&ProjectDAO{BaseDAO{name: "tinkerers-program"}},
 	}
 	// growthDAO.teams = []Team{marketingTeam, devrelTeam}
 
