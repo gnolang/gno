@@ -115,10 +115,9 @@ plugin and then register the LSP server in your `.vimrc` file:
 ```vim
 augroup gno_autocmd
     autocmd!
-    autocmd BufNewFile,BufRead *.gno {
-        set filetype=gno
-        set syntax=go
-    }
+    autocmd BufNewFile,BufRead *.gno
+        \ set filetype=gno |
+        \ set syntax=go
 augroup END
 
 if (executable('gnols'))
