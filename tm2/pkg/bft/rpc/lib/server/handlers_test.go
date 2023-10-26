@@ -18,11 +18,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // HTTP REST API
 // TODO
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // JSON-RPC over HTTP
 
 func testMux() *http.ServeMux {
@@ -229,7 +229,7 @@ func TestUnknownRPCPath(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode, "should always return 404")
 }
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // JSON-RPC over WEBSOCKETS
 
 func TestWebsocketManagerHandler(t *testing.T) {
