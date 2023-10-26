@@ -96,6 +96,11 @@ type GovDAO struct {
 	tiers []*Tier
 }
 
+// XXX: implement
+type ForkableDAO interface {
+	Fork()
+}
+
 type DAO interface {
 	Directory(prefix string) string
 	Parent() DAO
@@ -108,14 +113,14 @@ func (d GovDAO) Parent() DAO {
 	return nil // top-level
 }
 
-/*func (d GovDAO) HasChild(c DAO) bool {
+func (d GovDAO) HasChild(c DAO) bool {
 	for _, child := range d.children {
 		if child == c {
 			return true
 		}
 	}
 	return false
-        }*/
+}
 
 func (d GovDAO) Directory(prefix string) string {
 	output := prefix + "- GovDAO\n"
