@@ -50,7 +50,7 @@ type Call struct {
 	Error    error
 }
 
-// GetResponse will generate the apporiate response for us, when
+// GetResponse will generate the appropriate response for us, when
 // using the Call struct to configure a Mock handler.
 //
 // When configuring a response, if only one of Response or Error is
