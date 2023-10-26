@@ -234,7 +234,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
 	genNodeRunner := func(id string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
 		return func(_ int) (interface{}, error, bool) {
-			// Initiate cryptographic private key and secret connection trhough nodeConn.
+			// Initiate cryptographic private key and secret connection through nodeConn.
 			nodePrvKey := ed25519.GenPrivKey()
 			nodeSecretConn, err := MakeSecretConnection(nodeConn, nodePrvKey)
 			if err != nil {
