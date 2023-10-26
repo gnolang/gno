@@ -3,6 +3,7 @@ package integration
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,7 +21,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -97,7 +97,7 @@ func (c *IntegrationConfig) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTestingGnoland(t *testing.T, logger log.Logger, gnoDataDir, gnoRootDir string, args []string) (*node.Node, error) {
+func execTestingGnoland(t *testing.T, logger *slog.Logger, gnoDataDir, gnoRootDir string, args []string) (*node.Node, error) {
 	t.Helper()
 
 	// Setup start config.
@@ -240,7 +240,7 @@ func setupTestingGenesis(gnoDataDir string, cfg *config.Config, icfg *Integratio
 	return nil
 }
 
-func createAppAndNode(cfg *config.Config, logger log.Logger, gnoRootDir string, icfg *IntegrationConfig) (*node.Node, error) {
+func createAppAndNode(cfg *config.Config, logger *slog.Logger, gnoRootDir string, icfg *IntegrationConfig) (*node.Node, error) {
 	gnoApp, err := gnoland.NewAppWithOptions(&gnoland.AppOptions{
 		Logger:                logger,
 		GnoRootDir:            gnoRootDir,

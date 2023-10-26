@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,7 +160,10 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+	logger, err := log.NewTMLogger(io.Out, slog.LevelDebug)
+	if err != nil {
+		return err
+	}
 	rootDir := c.rootDir
 
 	var (

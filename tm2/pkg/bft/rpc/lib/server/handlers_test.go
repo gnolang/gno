@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,11 +19,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // HTTP REST API
 // TODO
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // JSON-RPC over HTTP
 
 func testMux() *http.ServeMux {
@@ -31,7 +32,8 @@ func testMux() *http.ServeMux {
 	}
 	mux := http.NewServeMux()
 	buf := new(bytes.Buffer)
-	logger := log.NewTMLogger(buf)
+	logger, _ := log.NewTMLogger(buf, slog.LevelDebug)
+
 	rs.RegisterRPCFuncs(mux, funcMap, logger)
 
 	return mux
@@ -229,7 +231,7 @@ func TestUnknownRPCPath(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode, "should always return 404")
 }
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // JSON-RPC over WEBSOCKETS
 
 func TestWebsocketManagerHandler(t *testing.T) {

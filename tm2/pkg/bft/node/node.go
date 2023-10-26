@@ -5,6 +5,7 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	_ "net/http/pprof" //nolint:gosec
@@ -36,7 +37,6 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -74,12 +74,12 @@ func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
 }
 
 // NodeProvider takes a config and a logger and returns a ready to go Node.
-type NodeProvider func(*cfg.Config, log.Logger) (*Node, error)
+type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
+func DefaultNewNode(config *cfg.Config, logger *slog.Logger) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -185,7 +185,7 @@ func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.Block
 	return
 }
 
-func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
+func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -197,7 +197,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 func createAndStartEventStoreService(
 	cfg *cfg.Config,
 	evsw events.EventSwitch,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (*eventstore.Service, eventstore.TxEventStore, error) {
 	var (
 		err          error
@@ -227,7 +227,7 @@ func createAndStartEventStoreService(
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
-	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger log.Logger,
+	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger *slog.Logger,
 ) error {
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
@@ -238,7 +238,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	return nil
 }
 
-func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger log.Logger) {
+func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger *slog.Logger) {
 	// Log the version info.
 	logger.Info("Version info",
 		"version", version.Version,
@@ -262,7 +262,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, logger log.Logger,
+	state sm.State, logger *slog.Logger,
 ) (*mempl.Reactor, *mempl.CListMempool) {
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
@@ -286,7 +286,7 @@ func createBlockchainReactor(config *cfg.Config,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (bcReactor p2p.Reactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 
@@ -302,7 +302,7 @@ func createConsensusReactor(config *cfg.Config,
 	privValidator types.PrivValidator,
 	fastSync bool,
 	evsw events.EventSwitch,
-	consensusLogger log.Logger,
+	consensusLogger *slog.Logger,
 ) (*cs.ConsensusReactor, *cs.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
@@ -387,7 +387,7 @@ func createSwitch(config *cfg.Config,
 	consensusReactor *cs.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger,
+	p2pLogger *slog.Logger,
 ) *p2p.Switch {
 	sw := p2p.NewSwitch(
 		config.P2P,
@@ -413,7 +413,7 @@ func NewNode(config *cfg.Config,
 	clientCreator proxy.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
-	logger log.Logger,
+	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
 	blockStore, stateDB, err := initDBs(config, dbProvider)
@@ -938,7 +938,7 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 
 func createAndStartPrivValidatorSocketClient(
 	listenAddr string,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (types.PrivValidator, error) {
 	pve, err := privval.NewSignerListener(listenAddr, logger)
 	if err != nil {

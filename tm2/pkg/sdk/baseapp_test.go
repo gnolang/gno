@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
@@ -55,8 +56,10 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	return tx
 }
 
-func defaultLogger() log.Logger {
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
+func defaultLogger() *slog.Logger {
+	logger, _ := log.NewTMLogger(os.Stdout, slog.LevelDebug)
+
+	return logger.With("module", "sdk/app")
 }
 
 func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
@@ -477,7 +480,7 @@ func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, cou
 	return
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Tx processing - CheckTx, DeliverTx, SimulateTx.
 // These tests use the serialized tx as input, while most others will use the
 // Check(), Deliver(), Simulate() methods directly.

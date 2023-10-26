@@ -6,6 +6,7 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -103,10 +104,13 @@ var colorFn = func(keyvals ...interface{}) colors.Color {
 
 // launch unix and tcp servers
 func setup() {
-	logger := log.NewTMLoggerWithColorFn(log.NewSyncWriter(os.Stdout), colorFn)
+	logger, err := log.NewTMLogger(os.Stdout, slog.LevelDebug)
+	if err != nil {
+		panic(err)
+	}
 
 	cmd := exec.Command("rm", "-f", unixSocket)
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		panic(err)
 	}

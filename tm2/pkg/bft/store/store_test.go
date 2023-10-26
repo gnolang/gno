@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -44,7 +45,7 @@ func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Bl
 	return block
 }
 
-func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore, cleanupFunc) {
+func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
 	config := cfg.ResetTestRoot("blockchain_reactor_test")
 	// blockDB := dbm.NewDebugDB("blockDB", dbm.NewMemDB())
 	// stateDB := dbm.NewDebugDB("stateDB", dbm.NewMemDB())
@@ -115,7 +116,12 @@ var (
 
 func TestMain(m *testing.M) {
 	var cleanup cleanupFunc
-	state, _, cleanup = makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	state, _, cleanup = makeStateAndBlockStore(logger)
 	block = makeBlock(1, state, new(types.Commit))
 	partSet = block.MakePartSet(2)
 	part1 = partSet.GetPart(0)
@@ -129,7 +135,12 @@ func TestMain(m *testing.M) {
 // TODO: This test should be simplified ...
 
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
-	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state, bs, cleanup := makeStateAndBlockStore(logger)
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 
@@ -384,7 +395,12 @@ func TestLoadBlockMeta(t *testing.T) {
 }
 
 func TestBlockFetchAtHeight(t *testing.T) {
-	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+	logger, err := log.NewTMLogger(new(bytes.Buffer), slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state, bs, cleanup := makeStateAndBlockStore(logger)
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 	block := makeBlock(bs.Height()+1, state, new(types.Commit))

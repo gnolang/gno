@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -67,7 +68,7 @@ func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-c
 	return reactors, blocksSubs, eventSwitches, p2pSwitches
 }
 
-func stopConsensusNet(logger log.Logger, reactors []*ConsensusReactor, eventSwitches []events.EventSwitch, p2pSwitches []*p2p.Switch) {
+func stopConsensusNet(logger *slog.Logger, reactors []*ConsensusReactor, eventSwitches []events.EventSwitch, p2pSwitches []*p2p.Switch) {
 	logger.Info("stopConsensusNet", "n", len(reactors))
 	for i, r := range reactors {
 		logger.Info("stopConsensusNet: Stopping ConsensusReactor", "i", i)

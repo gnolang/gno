@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -165,9 +166,9 @@ func TestRecoverAndLogHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var (
-				req, _ = http.NewRequest(http.MethodGet, "", nil)
-				resp   = httptest.NewRecorder()
-				logger = log.NewTMLogger(&bytes.Buffer{})
+				req, _    = http.NewRequest(http.MethodGet, "", nil)
+				resp      = httptest.NewRecorder()
+				logger, _ = log.NewTMLogger(&bytes.Buffer{}, slog.LevelDebug)
 				// Create a handler that will always panic with argument tt.panicArg
 				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					panic(tt.panicArg)

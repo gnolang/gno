@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"log/slog"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -58,7 +60,7 @@ func setupTestEnv() testEnv {
 	acck := NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, slog.New(log.NewNoopHandler()))
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
 		Block: &abci.BlockParams{

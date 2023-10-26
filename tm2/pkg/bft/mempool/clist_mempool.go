@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,7 +64,7 @@ type CListMempool struct {
 	// A log of mempool txs
 	wal *auto.AutoFile
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 var _ Mempool = &CListMempool{}
@@ -91,7 +92,7 @@ func NewCListMempool(
 		rechecking:    0,
 		recheckCursor: nil,
 		recheckEnd:    nil,
-		logger:        log.NewNopLogger(),
+		logger:        slog.New(log.NewNoopHandler()),
 	}
 	if config.CacheSize > 0 {
 		mempool.cache = newMapTxCache(config.CacheSize)
@@ -111,7 +112,7 @@ func (mem *CListMempool) EnableTxsAvailable() {
 }
 
 // SetLogger sets the Logger.
-func (mem *CListMempool) SetLogger(l log.Logger) {
+func (mem *CListMempool) SetLogger(l *slog.Logger) {
 	mem.logger = l
 }
 
