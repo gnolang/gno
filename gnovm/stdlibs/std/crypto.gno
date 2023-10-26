@@ -6,12 +6,9 @@ func (a Address) String() string {
 	return string(a)
 }
 
-// Valid prevents most human errors. Doesn't check prefix or checksum for the address
+// Valid checks if the address is of specific length. Doesn't check prefix or checksum for the address
 func (a Address) Valid() bool {
-	if len(a) != 40 || len(a) == 0 {
-		return false
-	}
-	return true
+	return len(a) == RawAddressSize*2 // hex length
 }
 
 const RawAddressSize = 20
