@@ -153,14 +153,26 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 	if co != nil {
 		co.IncRefCount()
-		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
-				rlm.MarkNewEscaped(co)
-			}
+		if co.GetRefCount() > 1 && !co.GetIsEscaped() {
+			rlm.MarkNewEscaped(co)
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
+
+			// A lot of slices are assigned to themselves using the append function. When this assignment happens,
+			// the underlying array may not need to be reallocated if it has the required capacity. In such a case,
+			// the array itself would be marked as dirty, but none of the elements that have been appended. This
+			// is a unique case that requires the solution below -- traverse the array's elements and call `DidUpdate`
+			// for any of the newly allocated values. We know if they are newly allocated by checking for the
+			// presence of an object ID.
+			if value, ok := co.(*ArrayValue); ok {
+				for _, elem := range value.List {
+					if obj, ok := elem.V.(Object); ok {
+						if obj.GetObjectID().IsZero() {
+							rlm.DidUpdate(co, nil, obj)
+						}
+					}
+				}
+			}
 		} else {
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
