@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type Pkg struct {
@@ -13,17 +12,6 @@ type Pkg struct {
 	Name     string   // package name
 	Requires []string // dependencies
 	Draft    bool     // whether the package is a draft
-}
-
-type SubPkg struct {
-	Dir        string   // absolute path to package dir
-	ImportPath string   // import path of package
-	Root       string   // Root dir containing this package, i.e dir containing gno.mod file
-	Imports    []string // imports used by this package
-
-	GnoFiles         []string // .gno source files (excluding TestGnoFiles, FiletestGnoFiles)
-	TestGnoFiles     []string // _test.gno source files
-	FiletestGnoFiles []string // _filetest.gno source files
 }
 
 type (
@@ -156,95 +144,4 @@ func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
 		}
 	}
 	return res
-}
-
-// SubPkgsFromPaths returns a list of subpackages from the given paths.
-func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
-	for _, path := range paths {
-		fi, err := os.Stat(path)
-		if err != nil {
-			return nil, err
-		}
-		if fi.IsDir() {
-			continue
-		}
-		if filepath.Ext(path) != ".gno" {
-			return nil, fmt.Errorf("files must be .gno files: %s", path)
-		}
-
-		subPkg, err := GnoFileSubPkg(paths)
-		if err != nil {
-			return nil, err
-		}
-		return []*SubPkg{subPkg}, nil
-	}
-
-	subPkgs := make([]*SubPkg, 0, len(paths))
-	for _, path := range paths {
-		subPkg := SubPkg{}
-
-		matches, err := filepath.Glob(filepath.Join(path, "*.gno"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to match pattern: %w", err)
-		}
-
-		subPkg.Dir = path
-		for _, match := range matches {
-			if strings.HasSuffix(match, "_test.gno") {
-				subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, match)
-				continue
-			}
-
-			if strings.HasSuffix(match, "_filetest.gno") {
-				subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, match)
-				continue
-			}
-			subPkg.GnoFiles = append(subPkg.GnoFiles, match)
-		}
-
-		subPkgs = append(subPkgs, &subPkg)
-	}
-
-	return subPkgs, nil
-}
-
-// GnoFileSubPkg returns a subpackage from the given .gno files.
-func GnoFileSubPkg(files []string) (*SubPkg, error) {
-	subPkg := SubPkg{}
-	firstDir := ""
-	for _, file := range files {
-		if filepath.Ext(file) != ".gno" {
-			return nil, fmt.Errorf("files must be .gno files: %s", file)
-		}
-
-		fi, err := os.Stat(file)
-		if err != nil {
-			return nil, err
-		}
-		if fi.IsDir() {
-			return nil, fmt.Errorf("%s is a directory, should be a Gno file", file)
-		}
-
-		dir := filepath.Dir(file)
-		if firstDir == "" {
-			firstDir = dir
-		}
-		if dir != firstDir {
-			return nil, fmt.Errorf("all files must be in one directory; have %s and %s", firstDir, dir)
-		}
-
-		if strings.HasSuffix(file, "_test.gno") {
-			subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, file)
-			continue
-		}
-
-		if strings.HasSuffix(file, "_filetest.gno") {
-			subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, file)
-			continue
-		}
-		subPkg.GnoFiles = append(subPkg.GnoFiles, file)
-	}
-	subPkg.Dir = firstDir
-
-	return &subPkg, nil
 }

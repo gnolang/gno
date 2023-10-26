@@ -1,11 +1,9 @@
 # Run gno build in a dir without go files
 
-! gno build .
+! gno build ...
 
 ! stdout .+
-stderr -count=2 'no Go files in '$WORK
-stderr '\./\.: build pkg: std go compiler'
-stderr '\./sub: build pkg: std go compiler'
+stderr -count=2 'dir .*: no matching files'
 
 -- go.mod --
 module gnobuild

@@ -1,6 +1,6 @@
 # Run gno build on an empty dir
 
-gno build .
+! gno build .
 
 ! stdout .+
-! stderr .+
+stderr 'no valid gno files'

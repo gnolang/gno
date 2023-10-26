@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -18,6 +18,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -164,33 +165,36 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 
 	verbose := cfg.verbose
 
+	// Create temporary directory for precompilation output.
 	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(tempdirRoot)
 
-	// go.mod
+	// Create go.mod to build the precompiled files.
 	modPath := filepath.Join(tempdirRoot, "go.mod")
 	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
 
-	// guess opts.RootDir
+	// Determine root directory.
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoutil.DefaultRootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	// Find targets for test.
+	targets, err := gnoutil.Match(args)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
-	if len(paths) == 0 {
+	if len(targets) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
 
+	// Set timeout
 	if cfg.timeout > 0 {
 		go func() {
 			time.Sleep(cfg.timeout)
@@ -198,26 +202,30 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	buildErrCount := 0
 	testErrCount := 0
-	for _, pkg := range subPkgs {
+	for _, target := range targets {
+		pkgFiles, err := gnoutil.Match([]string{target}, gnoutil.MatchFiles())
+		if err != nil {
+			return err
+		}
+		pkgDir := target
+		if len(pkgFiles) == 1 && pkgFiles[0] == target {
+			// single-file
+			pkgDir = path.Dir(target)
+		}
 		if cfg.precompile {
 			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
+				io.ErrPrintfln("=== PREC  %s", pkgDir)
 			}
 			precompileOpts := newPrecompileOptions(&precompileCfg{
 				output: tempdirRoot,
 			})
-			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
+			err := precompilePkg(importPath(pkgDir), precompileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
+				io.ErrPrintfln("FAIL    %s", pkgDir)
 				io.ErrPrintln("FAIL")
 
 				buildErrCount++
@@ -225,9 +233,9 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			}
 
 			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
+				io.ErrPrintfln("=== BUILD %s", pkgDir)
 			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
+			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgDir))
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
@@ -235,35 +243,34 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
+				io.ErrPrintfln("FAIL    %s", pkgDir)
 				io.ErrPrintln("FAIL")
 
 				buildErrCount++
 				continue
 			}
 		}
+		testFiles := gnoutil.Filter(pkgFiles, "*_test.gno")
+		ftestFiles := gnoutil.Filter(pkgFiles, "*_filetest.gno")
 
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+		if len(testFiles) == 0 && len(ftestFiles) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", pkgDir)
 			continue
 		}
 
-		sort.Strings(pkg.TestGnoFiles)
-		sort.Strings(pkg.FiletestGnoFiles)
-
 		startedAt := time.Now()
-		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
+		err = gnoTestPkg(pkgDir, testFiles, ftestFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+			io.ErrPrintfln("%s: test pkg: %v", pkgDir, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkgDir, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkgDir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -597,11 +604,8 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
+		if !gnoutil.IsGnoFile("!*_filetest.gno") {
 			continue // skip this file.
-		}
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
-			continue
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
