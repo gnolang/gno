@@ -592,7 +592,7 @@ func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
 	case SeekCurrent:
 		offset += o.off
 	}
-	
+
 	if offset < o.base {
 		return 0, errOffset
 	}
