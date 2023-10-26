@@ -8,9 +8,11 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
+	"go.uber.org/zap/zapcore"
+	"moul.io/zapconfig"
 )
 
-const customWriterKey = "tm2"
+const customWriterKey = "gno"
 
 type customWriter struct {
 	io.Writer
@@ -24,39 +26,33 @@ func (cw customWriter) Sync() error {
 	return nil
 }
 
-func NewLogger(w io.Writer, level slog.Level) (*slog.Logger, error) {
-	config := zap.NewDevelopmentConfig()
-
-	switch level {
-	case slog.LevelInfo:
-		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	case slog.LevelDebug:
-		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-	case slog.LevelError:
-		config.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
-	case slog.LevelWarn:
-		config.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
-	}
-
-	err := zap.RegisterSink(customWriterKey, func(u *url.URL) (zap.Sink, error) {
-		return customWriter{w}, nil
-	})
-	if err != nil {
+func NewLogger(w io.Writer, level zapcore.Level) (*slog.Logger, error) {
+	if err := zap.RegisterSink(
+		customWriterKey,
+		func(u *url.URL) (zap.Sink, error) {
+			return customWriter{w}, nil
+		}); err != nil {
 		return nil, fmt.Errorf("unable to register sink, %w", err)
 	}
 
-	config.OutputPaths = []string{
-		fmt.Sprintf("%s:", customWriterKey),
-	}
-
-	zapLogger, err := config.Build()
+	zapLogger, err := zapconfig.New().
+		SetOutputPath(fmt.Sprintf("%s:", customWriterKey)).
+		EnableStacktrace().
+		SetLevel(level).
+		SetPreset("console").
+		Build()
 	if err != nil {
-		return nil, fmt.Errorf("unable to build logger config, %w", err)
+		return nil, fmt.Errorf("unable to build logger, %w", err)
 	}
 
 	defer zapLogger.Sync()
 
-	handler := zapslog.NewHandler(zapLogger.Core(), &zapslog.HandlerOptions{LoggerName: "tm2"})
+	handler := zapslog.NewHandler(
+		zapLogger.Core(),
+		&zapslog.HandlerOptions{
+			LoggerName: "gno.land",
+		},
+	)
 
 	return slog.New(handler), nil
 }

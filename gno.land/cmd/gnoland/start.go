@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/zap/zapcore"
 )
 
 type startCfg struct {
@@ -160,7 +160,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
-	logger, err := log.NewLogger(io.Out, slog.LevelDebug)
+	logger, err := log.NewLogger(io.Out, zapcore.DebugLevel)
 	if err != nil {
 		return err
 	}

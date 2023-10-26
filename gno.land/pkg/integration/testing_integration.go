@@ -23,6 +23,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/rogpeppe/go-internal/testscript"
+	"go.uber.org/zap/zapcore"
 )
 
 // XXX: This should be centralize somewhere.
@@ -266,17 +267,17 @@ func getTestingLogger(ts *testscript.TestScript, logname string) *slog.Logger {
 		}
 	})
 
-	level := slog.LevelInfo
+	var level zapcore.Level
 
 	switch lvl := os.Getenv("LOG_LEVEL"); strings.ToLower(lvl) {
 	case "error":
-		level = slog.LevelError
+		level = zapcore.ErrorLevel
 	case "debug":
-		level = slog.LevelDebug
+		level = zapcore.DebugLevel
 	case "warn":
-		level = slog.LevelWarn
+		level = zapcore.WarnLevel
 	default:
-		level = slog.LevelInfo
+		level = zapcore.InfoLevel
 	}
 
 	logger, _ := log.NewLogger(f, level)
