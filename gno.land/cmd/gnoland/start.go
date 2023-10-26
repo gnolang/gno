@@ -160,10 +160,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io *commands.IO) error {
-	logger, err := log.NewLogger(io.Out, zapcore.DebugLevel)
-	if err != nil {
-		return err
-	}
 	rootDir := c.rootDir
 
 	var (
@@ -183,6 +179,26 @@ func execStart(c *startCfg, io *commands.IO) error {
 
 	if loadCfgErr != nil {
 		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
+	}
+
+	var level zapcore.Level
+
+	switch strings.ToLower(cfg.LogLevel) {
+	case "info":
+		level = zapcore.InfoLevel
+	case "error":
+		level = zapcore.ErrorLevel
+	case "debug":
+		level = zapcore.DebugLevel
+	case "warn":
+		level = zapcore.WarnLevel
+	default:
+		level = zapcore.DebugLevel
+	}
+
+	logger, err := log.NewLogger(io.Out, level)
+	if err != nil {
+		return err
 	}
 
 	// create priv validator first.
