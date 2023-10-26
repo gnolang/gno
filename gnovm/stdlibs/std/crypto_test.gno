@@ -21,7 +21,7 @@ func TestValid(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := tc.inputAddress.Valid()
+		result := tc.inputAddress.IsValid()
 
 		if result != tc.expected {
 			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
