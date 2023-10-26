@@ -25,8 +25,6 @@ type Encoding struct {
 	padChar   rune
 }
 
-// XXX This is a hack to make the tests work. 
-// I think rune type is not working properly when grouping constants, like `const ( ... )`.`
 const StdPadding rune = '=' // Standard padding character
 
 const NoPadding rune = -1 // No padding
@@ -115,29 +113,30 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 func (enc *Encoding) Encode(dst, src []byte) {
 	for len(src) > 0 {
 		var b [8]byte
-
-		// Unpack 8x 5-bit source blocks into a 5 byte
-		// destination quantum
-		switch len(src) {
-		default:
+		switch {
+		case len(src) >= 5:
 			b[7] = src[4] & 0x1F
 			b[6] = src[4] >> 5
-			fallthrough
-		case 4:
+		}
+
+		if len(src) >= 4 {
 			b[6] |= (src[3] << 3) & 0x1F
 			b[5] = (src[3] >> 2) & 0x1F
 			b[4] = src[3] >> 7
-			fallthrough
-		case 3:
+		}
+
+		if len(src) >= 3 {
 			b[4] |= (src[2] << 1) & 0x1F
 			b[3] = (src[2] >> 4) & 0x1F
-			fallthrough
-		case 2:
+		}
+
+		if len(src) >= 2 {
 			b[3] |= (src[1] << 4) & 0x1F
 			b[2] = (src[1] >> 1) & 0x1F
 			b[1] = (src[1] >> 6) & 0x1F
-			fallthrough
-		case 1:
+		}
+
+		if len(src) >= 1 {
 			b[1] |= (src[0] << 2) & 0x1F
 			b[0] = src[0] >> 3
 		}
@@ -244,8 +243,9 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 
 	// Trailing fringe.
 	copy(e.buf[:], p)
-	e.nbuf = len(p)
+	e.nbuf += len(p)
 	n += len(p)
+
 	return
 }
 
@@ -355,19 +355,19 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		case 8:
 			dst[dsti+4] = dbuf[6]<<5 | dbuf[7]
 			n++
-			fallthrough
+
 		case 7:
 			dst[dsti+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
 			n++
-			fallthrough
+
 		case 5:
 			dst[dsti+2] = dbuf[3]<<4 | dbuf[4]>>1
 			n++
-			fallthrough
+
 		case 4:
 			dst[dsti+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
 			n++
-			fallthrough
+
 		case 2:
 			dst[dsti+0] = dbuf[0]<<3 | dbuf[1]>>2
 			n++
