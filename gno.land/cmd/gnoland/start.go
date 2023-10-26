@@ -60,7 +60,7 @@ func newStartCmd(io *commands.IO) *commands.Command {
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoland.MustGuessGnoRootDir()
-	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land/genesis/genesis_balances.txt")
+	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land/genesis/genesis_txs.txt")
 
 	fs.BoolVar(
