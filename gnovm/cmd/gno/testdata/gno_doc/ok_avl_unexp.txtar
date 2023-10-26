@@ -1,0 +1,6 @@
+# Test getting an unexported struct field from avl
+
+gno doc -u avl.Tree
+
+stdout 'node \*Node'
+! stderr .+

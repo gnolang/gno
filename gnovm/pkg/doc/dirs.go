@@ -43,13 +43,23 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 		scan: make(chan bfsDir),
 	}
 
+	// to perform de-duplication.
+	added := make(map[bfsDir]struct{}, 256)
+
 	roots := make([]bfsDir, 0, len(dirs)+len(modDirs))
 	for _, dir := range dirs {
-		roots = append(roots, bfsDir{
+		d := bfsDir{
 			dir:        dir,
 			importPath: "",
-		})
+		}
+		if _, ok := added[d]; !ok {
+			roots = append(roots, d)
+			added[d] = struct{}{}
+		}
 	}
+
+	// enforce putting first "explicit" dirs, then dirs imported through gno.mod.
+	var modDirRoots []bfsDir
 
 	for _, mdir := range modDirs {
 		gm, err := parseGnoMod(filepath.Join(mdir, "gno.mod"))
@@ -57,14 +67,24 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 			log.Printf("%v", err)
 			continue
 		}
-		roots = append(roots, bfsDir{
+		d := bfsDir{
 			dir:        mdir,
 			importPath: gm.Module.Mod.Path,
-		})
-		roots = append(roots, getGnoModDirs(gm)...)
+		}
+		if _, ok := added[d]; ok {
+			continue
+		}
+		roots = append(roots, d)
+		added[d] = struct{}{}
+		for _, rt := range getGnoModDirs(gm) {
+			if _, ok := added[rt]; !ok {
+				modDirRoots = append(modDirRoots, rt)
+				added[rt] = struct{}{}
+			}
+		}
 	}
 
-	go d.walk(roots)
+	go d.walk(append(roots, modDirRoots...))
 	return d
 }
 

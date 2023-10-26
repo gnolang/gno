@@ -1,0 +1,6 @@
+# Test with an invalid syntax for gno doc
+
+! gno doc There.Are.Too.Many.Dots
+
+! stdout .+
+stderr 'invalid arguments'

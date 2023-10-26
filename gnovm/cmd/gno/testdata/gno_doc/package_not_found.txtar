@@ -1,0 +1,6 @@
+# query an invalid package
+
+! gno doc ajfdhalksdsadkj
+
+! stdout .+
+stderr 'package not found'

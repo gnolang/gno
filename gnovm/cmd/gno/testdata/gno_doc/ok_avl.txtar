@@ -1,0 +1,6 @@
+# Test getting documentation for package avl
+
+gno doc avl
+
+stdout 'func NewTree'
+! stderr .+

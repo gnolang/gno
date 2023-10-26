@@ -1,0 +1,6 @@
+# Gno doc on a standard library function
+
+gno doc io.Writer
+
+stdout 'Writer is the interface that wraps'
+! stderr .+

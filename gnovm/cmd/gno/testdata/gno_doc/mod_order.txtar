@@ -1,0 +1,53 @@
+# Ensure that imported gno.mods are processed after a first run through modDirs
+# Underlying cause of https://github.com/gnolang/gno/pull/1301
+
+env GNOROOT=${WORK}
+env GNO_HOME=${WORK}/home
+
+gno doc pkg1
+
+stdout Pkg1\(\)
+! stderr .+
+
+gno doc pkg2
+
+stdout Pkg2\(\)
+! stderr .+
+
+gno doc pkg3
+
+stdout Pkg3\(\)
+! stderr .+
+
+-- gnovm/stdlibs/pkg1/hello.gno --
+package pkg1
+
+func Pkg1() {}
+
+-- examples/pkg2/gno.mod --
+module pkg2
+
+require (
+	pkg3 v0.0.0-latest
+)
+
+-- examples/pkg2/pkg2.gno --
+package pkg2
+
+func Pkg2() {}
+
+-- examples/pkg3/gno.mod --
+module pkg3
+
+-- examples/pkg3/pkg3.gno --
+package pkg3
+
+func Pkg3() {}
+
+-- home/pkg/mod/pkg3/gno.mod --
+module pkg3
+
+-- home/pkg/mod/pkg3/pkg3.gno --
+package pkg3
+
+func Pkg3Mod() {}
