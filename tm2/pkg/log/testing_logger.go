@@ -2,14 +2,10 @@ package log
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"testing"
-
-	"github.com/gnolang/gno/tm2/pkg/colors"
 )
-
-// reuse the same logger across all tests
-var _testingLogger Logger
 
 // TestingLogger returns a TMLogger which writes to STDOUT if testing being run
 // with the verbose (-v) flag, NopLogger otherwise.
@@ -17,42 +13,22 @@ var _testingLogger Logger
 // Note that the call to TestingLogger() must be made
 // inside a test (not in the init func) because
 // verbose flag only set at the time of testing.
-func TestingLogger() Logger {
+func TestingLogger() *slog.Logger {
 	return TestingLoggerWithOutput(os.Stdout)
 }
 
-// TestingLoggerWOutput returns a TMLogger which writes to (w io.Writer) if testing being run
+// TestingLoggerWithOutput returns a TMLogger which writes to (w io.Writer) if testing being run
 // with the verbose (-v) flag, NopLogger otherwise.
 //
 // Note that the call to TestingLoggerWithOutput(w io.Writer) must be made
 // inside a test (not in the init func) because
 // verbose flag only set at the time of testing.
-func TestingLoggerWithOutput(w io.Writer) Logger {
-	if _testingLogger != nil {
-		return _testingLogger
-	}
-
+func TestingLoggerWithOutput(w io.Writer) *slog.Logger {
 	if testing.Verbose() {
-		_testingLogger = NewTMLogger(NewSyncWriter(w))
-	} else {
-		_testingLogger = NewNopLogger()
+		logger, _ := NewTMLogger(w, slog.LevelDebug)
+
+		return logger
 	}
 
-	return _testingLogger
-}
-
-// TestingLoggerWithColorFn allow you to provide your own color function. See
-// TestingLogger for documentation.
-func TestingLoggerWithColorFn(colorFn func(keyvals ...interface{}) colors.Color) Logger {
-	if _testingLogger != nil {
-		return _testingLogger
-	}
-
-	if testing.Verbose() {
-		_testingLogger = NewTMLoggerWithColorFn(NewSyncWriter(os.Stdout), colorFn)
-	} else {
-		_testingLogger = NewNopLogger()
-	}
-
-	return _testingLogger
+	return slog.New(NewNoopHandler())
 }

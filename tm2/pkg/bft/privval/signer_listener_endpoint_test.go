@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"log/slog"
 	"net"
 	"testing"
 	"time"
@@ -132,7 +133,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 
 // /////////////////////////////////
 
-func newSignerListenerEndpoint(logger log.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
+func newSignerListenerEndpoint(logger *slog.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	var listener net.Listener
 
 	if ln.Addr().Network() == "unix" {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -166,7 +167,7 @@ LOOP:
 		t.Logf("====== LOOP %d\n", i)
 
 		// create consensus state from a clean slate
-		logger := log.NewNopLogger()
+		logger := slog.New(log.NewNoopHandler())
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
@@ -250,7 +251,7 @@ func (e ReachedLastBlockHeightError) Error() string {
 	return fmt.Sprintf("reached height to stop %d", e.height)
 }
 
-func (w *crashingWAL) SetLogger(logger log.Logger) {
+func (w *crashingWAL) SetLogger(logger *slog.Logger) {
 	w.next.SetLogger(logger)
 }
 

@@ -2,6 +2,7 @@ package rpctest
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,12 +115,14 @@ func StopTendermint(node *nm.Node) {
 func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config := GetConfig(opts.recreateConfig)
-	var logger log.Logger
+	var (
+		logger *slog.Logger
+		err    error
+	)
 	if opts.suppressStdout {
-		logger = log.NewNopLogger()
+		logger = slog.New(log.NewNoopHandler())
 	} else {
-		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-		logger.SetLevel(log.LevelError)
+		logger, err = log.NewTMLogger(os.Stdout, slog.LevelError)
 	}
 	pvKeyFile := config.PrivValidatorKeyFile()
 	pvKeyStateFile := config.PrivValidatorStateFile()

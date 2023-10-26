@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/crc32"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,7 @@ const (
 
 type testNode struct {
 	*node.Node
-	logger      log.Logger
+	logger      *slog.Logger
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
@@ -109,7 +110,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					logger := log.NewNopLogger()
+					logger := slog.New(log.NewNoopHandler())
 					if persistWorkDir || os.Getenv("LOG_DIR") != "" {
 						logname := fmt.Sprintf("gnoland-%s.log", sid)
 						logger = getTestingLogger(ts, logname)
@@ -236,7 +237,7 @@ func getSessionID(ts *testscript.TestScript) string {
 	return strconv.FormatUint(uint64(sum), 16)
 }
 
-func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
+func getTestingLogger(ts *testscript.TestScript, logname string) *slog.Logger {
 	var path string
 	if logdir := os.Getenv("LOG_DIR"); logdir != "" {
 		if err := os.MkdirAll(logdir, 0o755); err != nil {
@@ -250,7 +251,7 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 	} else if workdir := ts.Getenv("WORK"); workdir != "" {
 		path = filepath.Join(workdir, logname)
 	} else {
-		return log.NewNopLogger()
+		return slog.New(log.NewNoopHandler())
 	}
 
 	f, err := os.Create(path)
@@ -264,18 +265,20 @@ func getTestingLogger(ts *testscript.TestScript, logname string) log.Logger {
 		}
 	})
 
-	logger := log.NewTMLogger(f)
-	switch level := os.Getenv("LOG_LEVEL"); strings.ToLower(level) {
+	level := slog.LevelInfo
+
+	switch lvl := os.Getenv("LOG_LEVEL"); strings.ToLower(lvl) {
 	case "error":
-		logger.SetLevel(log.LevelError)
+		level = slog.LevelError
 	case "debug":
-		logger.SetLevel(log.LevelDebug)
-	case "info":
-		logger.SetLevel(log.LevelInfo)
-	case "":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
 	default:
-		ts.Fatalf("invalid log level %q", level)
+		level = slog.LevelInfo
 	}
+
+	logger, _ := log.NewTMLogger(f, level)
 
 	ts.Logf("starting logger: %q", path)
 	return logger

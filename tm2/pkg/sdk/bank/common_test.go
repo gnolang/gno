@@ -3,6 +3,8 @@ package bank
 // DONTCOVER
 
 import (
+	"log/slog"
+
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -29,7 +31,7 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, slog.New(log.NewNoopHandler()))
 	acck := auth.NewAccountKeeper(
 		authCapKey, std.ProtoBaseAccount,
 	)

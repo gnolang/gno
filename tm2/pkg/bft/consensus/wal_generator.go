@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	logger := log.TestingLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
 
-	/////////////////////////////////////////////////////////////////////////////
+	// ///////////////////////////////////////////////////////////////////////////
 	// COPY PASTE FROM node.go WITH A FEW MODIFICATIONS
 	// NOTE: we can't import node package because of circular dependency.
 	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
@@ -83,7 +84,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		consensusState.SetPrivValidator(privValidator)
 	}
 	// END OF COPY PASTE
-	/////////////////////////////////////////////////////////////////////////////
+	// ///////////////////////////////////////////////////////////////////////////
 
 	// set consensus wal to buffered WAL, which will write all incoming msgs to buffer
 	numBlocksWritten := make(chan struct{})
@@ -159,13 +160,13 @@ type heightStopWAL struct {
 	heightToStop      int64
 	signalWhenStopsTo chan<- struct{}
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 // needed for determinism
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
 
-func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
+func newHeightStopWAL(logger *slog.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
 	return &heightStopWAL{
 		enc:               enc,
 		heightToStop:      nBlocks,
@@ -174,7 +175,7 @@ func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, sig
 	}
 }
 
-func (w *heightStopWAL) SetLogger(logger log.Logger) {
+func (w *heightStopWAL) SetLogger(logger *slog.Logger) {
 	w.logger = logger
 }
 

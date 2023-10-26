@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"log/slog"
 	"os"
 	"sort"
 	"testing"
@@ -50,7 +51,7 @@ type BlockchainReactorPair struct {
 	app     proxy.AppConns
 }
 
-func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
+func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}
@@ -324,7 +325,7 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	}
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // utility funcs
 
 func makeTxs(height int64) (txs []types.Tx) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -26,8 +27,8 @@ type Result struct {
 
 func main() {
 	var (
-		mux    = http.NewServeMux()
-		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+		mux         = http.NewServeMux()
+		logger, err = log.NewTMLogger(os.Stdout, slog.LevelInfo)
 	)
 
 	// Stop upon receiving SIGTERM or CTRL-C.

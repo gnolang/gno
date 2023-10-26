@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,7 +25,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
-	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -568,46 +568,13 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 // -------------------------------------------------------------------------------
 // consensus nets
 
-// consensusLogger is a TestingLogger which uses a different
-// color for each validator ("validator" key must exist).
-func consensusLogger() log.Logger {
-	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) colors.Color {
-		for i := 0; i < len(keyvals)-1; i += 2 {
-			if keyvals[i] == "validator" {
-				num := keyvals[i+1].(int)
-				switch num % 8 {
-				case 0:
-					return colors.Red
-				case 1:
-					return colors.Green
-				case 2:
-					return colors.Yellow
-				case 3:
-					return colors.Blue
-				case 4:
-					return colors.Magenta
-				case 5:
-					return colors.Cyan
-				case 6:
-					return colors.White
-				case 7:
-					return colors.Gray
-				default:
-					panic("should not happen")
-				}
-			}
-		}
-		return colors.None
-	}).With("module", "consensus")
-}
-
 func randConsensusNet(nValidators int, testName string, tickerFunc func() TimeoutTicker,
 	appFunc func() abci.Application, configOpts ...func(*cfg.Config),
 ) ([]*ConsensusState, cleanupFunc) {
 	genDoc, privVals := randGenesisDoc(nValidators, false, 30)
 	css := make([]*ConsensusState, nValidators)
 	apps := make([]abci.Application, nValidators)
-	logger := consensusLogger()
+	logger := log.TestingLogger()
 	configRootDirs := make([]string, 0, nValidators)
 	for i := 0; i < nValidators; i++ {
 		stateDB := dbm.NewMemDB() // each state needs its own db
@@ -646,7 +613,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 	genDoc, privVals := randGenesisDoc(nValidators, false, testMinPower)
 	css := make([]*ConsensusState, nPeers)
 	apps := make([]abci.Application, nPeers)
-	logger := consensusLogger()
+	logger := log.TestingLogger()
 	var peer0Config *cfg.Config
 	configRootDirs := make([]string, 0, nPeers)
 	for i := 0; i < nPeers; i++ {
@@ -786,7 +753,7 @@ func (m *mockTicker) Chan() <-chan timeoutInfo {
 	return m.c
 }
 
-func (*mockTicker) SetLogger(log.Logger) {}
+func (*mockTicker) SetLogger(_ *slog.Logger) {}
 
 // ------------------------------------
 

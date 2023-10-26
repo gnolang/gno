@@ -3,6 +3,7 @@ package vm
 // DONTCOVER
 
 import (
+	"log/slog"
 	"path/filepath"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -35,7 +36,7 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, slog.New(log.NewNoopHandler()))
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")

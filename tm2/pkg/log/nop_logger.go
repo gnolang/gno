@@ -1,19 +1,28 @@
 package log
 
-type nopLogger struct{}
+import (
+	"context"
+	"log/slog"
+)
 
-// Interface assertions
-var _ Logger = (*nopLogger)(nil)
+type NoopHandler struct{}
 
-// NewNopLogger returns a logger that doesn't do anything.
-func NewNopLogger() Logger { return &nopLogger{} }
-
-func (nopLogger) Info(string, ...interface{})  {}
-func (nopLogger) Debug(string, ...interface{}) {}
-func (nopLogger) Error(string, ...interface{}) {}
-
-func (l *nopLogger) With(...interface{}) Logger {
-	return l
+func NewNoopHandler() *NoopHandler {
+	return &NoopHandler{}
 }
 
-func (l *nopLogger) SetLevel(LogLevel) {}
+func (n *NoopHandler) Enabled(_ context.Context, _ slog.Level) bool {
+	return false
+}
+
+func (n *NoopHandler) Handle(_ context.Context, _ slog.Record) error {
+	return nil
+}
+
+func (n *NoopHandler) WithAttrs(_ []slog.Attr) slog.Handler {
+	return n
+}
+
+func (n *NoopHandler) WithGroup(_ string) slog.Handler {
+	return n
+}

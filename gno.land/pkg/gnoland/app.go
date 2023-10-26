@@ -2,6 +2,7 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,13 +29,13 @@ type AppOptions struct {
 	// It serves as the gno equivalent of GOROOT.
 	GnoRootDir            string
 	SkipFailingGenesisTxs bool
-	Logger                log.Logger
+	Logger                *slog.Logger
 	MaxCycles             int64
 }
 
 func NewAppOptions() *AppOptions {
 	return &AppOptions{
-		Logger:     log.NewNopLogger(),
+		Logger:     slog.New(log.NewNoopHandler()),
 		DB:         dbm.NewMemDB(),
 		GnoRootDir: GuessGnoRootDir(),
 	}
@@ -119,7 +120,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()

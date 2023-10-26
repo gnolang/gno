@@ -2,11 +2,11 @@ package sdk
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
 )
@@ -26,7 +26,7 @@ type Context struct {
 	header        abci.Header
 	chainID       string
 	txBytes       []byte
-	logger        log.Logger
+	logger        *slog.Logger
 	voteInfo      []abci.VoteInfo
 	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
@@ -46,7 +46,7 @@ func (c Context) BlockHeight() int64            { return c.header.GetHeight() }
 func (c Context) BlockTime() time.Time          { return c.header.GetTime() }
 func (c Context) ChainID() string               { return c.chainID }
 func (c Context) TxBytes() []byte               { return c.txBytes }
-func (c Context) Logger() log.Logger            { return c.logger }
+func (c Context) Logger() *slog.Logger          { return c.logger }
 func (c Context) VoteInfos() []abci.VoteInfo    { return c.voteInfo }
 func (c Context) GasMeter() store.GasMeter      { return c.gasMeter }
 func (c Context) BlockGasMeter() store.GasMeter { return c.blockGasMeter }
@@ -65,7 +65,7 @@ func (c Context) ConsensusParams() *abci.ConsensusParams {
 }
 
 // create a new context
-func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger log.Logger) Context {
+func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger *slog.Logger) Context {
 	if header.GetChainID() == "" {
 		panic("header chain id cannot be empty")
 	}
@@ -112,7 +112,7 @@ func (c Context) WithTxBytes(txBytes []byte) Context {
 	return c
 }
 
-func (c Context) WithLogger(logger log.Logger) Context {
+func (c Context) WithLogger(logger *slog.Logger) Context {
 	c.logger = logger
 	return c
 }
