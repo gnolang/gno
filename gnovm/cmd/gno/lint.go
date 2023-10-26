@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
@@ -25,7 +26,7 @@ func newLintCmd(io *commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "lint",
-			ShortUsage: "lint [flags] <package> [<package>...]",
+			ShortUsage: "lint [flags] <file|pkg> [<file|pkg>...]",
 			ShortHelp:  "Runs the linter for the specified packages",
 		},
 		cfg,
@@ -51,10 +52,10 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 		rootDir = cfg.rootDir
 	)
 	if rootDir == "" {
-		rootDir = guessRootDir()
+		rootDir = gnoutil.DefaultRootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgs(args)
+	pkgPaths, err := gnoutil.Match(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}

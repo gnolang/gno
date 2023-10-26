@@ -7,17 +7,16 @@ import (
 	"os"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type buildCfg struct {
-	verbose  bool
-	goBinary string
+	verbose bool
 }
 
 var defaultBuildOptions = &buildCfg{
-	verbose:  false,
-	goBinary: "go",
+	verbose: false,
 }
 
 func newBuildCmd(io *commands.IO) *commands.Command {
@@ -26,7 +25,7 @@ func newBuildCmd(io *commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "build",
-			ShortUsage: "build [flags] <package>",
+			ShortUsage: "build [flags] <file|pkg> [<file|pkg>]",
 			ShortHelp:  "Builds the specified gno package",
 		},
 		cfg,
@@ -43,13 +42,6 @@ func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultBuildOptions.verbose,
 		"verbose output when building",
 	)
-
-	fs.StringVar(
-		&c.goBinary,
-		"go-binary",
-		defaultBuildOptions.goBinary,
-		"go binary to use for building",
-	)
 }
 
 func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
@@ -57,7 +49,7 @@ func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	paths, err := gnoPackagesFromArgs(args)
+	paths, err := gnoutil.Match(args)
 	if err != nil {
 		return fmt.Errorf("list packages: %w", err)
 	}
@@ -82,11 +74,10 @@ func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
 
 func goBuildFileOrPkg(fileOrPkg string, cfg *buildCfg) error {
 	verbose := cfg.verbose
-	goBinary := cfg.goBinary
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
 	}
 
-	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
+	return gno.PrecompileBuildPackage(fileOrPkg)
 }

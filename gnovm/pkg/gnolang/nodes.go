@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -1150,18 +1151,14 @@ func PrecompileMemPackage(memPkg *std.MemPackage) error {
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
+		if !gnoutil.IsGnoFile(mfile.Name, "!*_filetest.gno", "!*_test.gno") {
 			continue // skip spurious file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			panic(errors.Wrap(err, "parsing file "+mfile.Name))
 		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// skip test file.
-		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
-			// skip test file.
-		} else if memPkg.Name == string(n.PkgName) {
+		if memPkg.Name == string(n.PkgName) {
 			// add package file.
 			fset.AddFiles(n)
 		} else {
@@ -1177,7 +1174,7 @@ func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
+		if !gnoutil.IsGnoFile(mfile.Name, "!*_filetest.gno") {
 			continue // skip this file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)

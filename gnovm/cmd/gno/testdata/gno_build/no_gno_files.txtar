@@ -1,9 +1,9 @@
 # Run gno build on a dir w/o gno files
 
-gno build .
+! gno build .
 
 ! stdout .+
-! stderr .+
+stderr 'no valid gno files'
 
 -- README --
 Hello world

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 )
 
 // A bfsDir describes a directory holding code by specifying
@@ -188,7 +189,7 @@ func (d *bfsDirs) bfsWalkRoot(root bfsDir) {
 				// For plain files, remember if this directory contains any .gno
 				// source files, but ignore them otherwise.
 				if !entry.IsDir() {
-					if !hasGnoFiles && strings.HasSuffix(name, ".gno") {
+					if !hasGnoFiles && gnoutil.IsGnoFile(name) {
 						hasGnoFiles = true
 					}
 					continue

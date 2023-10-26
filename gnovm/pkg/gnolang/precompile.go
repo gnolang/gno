@@ -11,9 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
@@ -76,22 +76,6 @@ type precompileResult struct {
 // TODO: func PrecompileFile: supports caching.
 // TODO: func PrecompilePkg: supports directories.
 
-func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
-	abs, err := filepath.Abs(fileOrPkg)
-	if err != nil {
-		return "", err
-	}
-	args := []string{"list", "-m", "-mod=mod", "-f", "{{.Dir}}", ImportPrefix}
-	cmd := exec.Command(goBinary, args...)
-	cmd.Dir = abs
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("can't guess --root-dir")
-	}
-	rootDir := strings.TrimSpace(string(out))
-	return rootDir, nil
-}
-
 // GetPrecompileFilenameAndTags returns the filename and tags for precompiled files.
 func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
 	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
@@ -120,7 +104,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 
 	var errs error
 	for _, mfile := range mempkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
+		if !gnoutil.IsGnoFile(mfile.Name) {
 			continue // skip spurious file.
 		}
 		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
@@ -156,7 +140,7 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 
-	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
+	isTestFile := gnoutil.IsGnoFile(filename, `/_(file)?test\.gno$/`)
 	shouldCheckWhitelist := !isTestFile
 
 	transformed, err := precompileAST(fset, f, shouldCheckWhitelist)
@@ -202,49 +186,31 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 //
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
-func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
+func PrecompileBuildPackage(fileOrPkg string) error {
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
 	// TODO: automatically precompile if not yet done.
 
-	files := []string{}
-
-	info, err := os.Stat(fileOrPkg)
+	files, err := gnoutil.Match([]string{fileOrPkg},
+		// no go/gno tests. disable ellipsis (must be exactly 1 package or file).
+		gnoutil.MatchFiles(`*.go`, `!/_(file)?test\.{go,gno\.gen\.go}$/`),
+		gnoutil.MatchEllipsis(false),
+		gnoutil.MatchNoImplicit(),
+	)
 	if err != nil {
-		return fmt.Errorf("invalid file or package path: %w", err)
+		return err
 	}
-	if !info.IsDir() {
-		file := fileOrPkg
-		files = append(files, file)
-	} else {
-		pkgDir := fileOrPkg
-		goGlob := filepath.Join(pkgDir, "*.go")
-		goMatches, err := filepath.Glob(goGlob)
-		if err != nil {
-			return fmt.Errorf("glob: %w", err)
-		}
-		for _, goMatch := range goMatches {
-			switch {
-			case strings.HasPrefix(goMatch, "."): // skip
-			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-			default:
-				files = append(files, goMatch)
-			}
+	for i, file := range files {
+		if !filepath.IsAbs(file) {
+			// go otherwise interprets the file as a pkg path
+			files[i] = "." + string(filepath.Separator) + file
 		}
 	}
 
-	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
-	cmd := exec.Command(goBinary, args...)
-	rootDir, err := guessRootDir(fileOrPkg, goBinary)
-	if err == nil {
-		cmd.Dir = rootDir
-	}
+	cmd := exec.Command("go", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))

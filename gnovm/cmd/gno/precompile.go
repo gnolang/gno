@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -113,7 +114,7 @@ func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
 	}
 
 	// precompile .gno files.
-	paths, err := gnoFilesFromArgs(args)
+	paths, err := gnoutil.Match(args, gnoutil.MatchFiles())
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
@@ -143,7 +144,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 	}
 	opts.markAsPrecompiled(pkgPath)
 
-	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
+	files, err := gnoutil.Match([]string{string(pkgPath)}, gnoutil.MatchFiles())
 	if err != nil {
 		log.Fatal(err)
 	}

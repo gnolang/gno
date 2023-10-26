@@ -3,17 +3,15 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
 	// "go/build"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoutil"
 	"github.com/jaekwon/testify/require"
 )
 
@@ -23,36 +21,26 @@ func TestPackages(t *testing.T) {
 		filepath.Join("..", "stdlibs"),
 		filepath.Join("..", "..", "examples"),
 	}
-	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
-	pkgPaths := []string{}
-	for _, rootDir := range rootDirs {
-		fileSystem := os.DirFS(rootDir)
-		fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				log.Fatal(err)
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if strings.HasSuffix(path, "_test.gno") {
-				dirPath := filepath.Dir(path)
-				if _, exists := testDirs[dirPath]; exists {
-					// already exists.
-				} else {
-					testDirs[dirPath] = filepath.Join(rootDir, dirPath)
-					pkgPaths = append(pkgPaths, dirPath)
-				}
-			}
-			return nil
-		})
+	dirs, err := gnoutil.Match([]string{
+		filepath.Join(rootDirs[0], "..."),
+		filepath.Join(rootDirs[1], "..."),
+	}, gnoutil.MatchPackages("*_test.gno"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	// Sort pkgPaths for determinism.
-	sort.Strings(pkgPaths)
+	paths := make([]string, len(dirs))
+	for i, pkg := range dirs {
+		for _, pref := range rootDirs {
+			pkg = strings.TrimPrefix(pkg, pref)
+		}
+		pkg = strings.ReplaceAll(pkg, string(os.PathSeparator), "/")
+		paths[i] = pkg
+	}
+
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
-	for _, pkgPath := range pkgPaths {
-		testDir := testDirs[pkgPath]
+	for i, pkgPath := range paths {
 		t.Run(pkgPath, func(t *testing.T) {
-			runPackageTest(t, testDir, pkgPath)
+			runPackageTest(t, dirs[i], pkgPath)
 		})
 	}
 }
