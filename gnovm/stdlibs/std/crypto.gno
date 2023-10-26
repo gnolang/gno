@@ -6,7 +6,7 @@ func (a Address) String() string {
 	return string(a)
 }
 
-// Valid checks if the address is of specific length. Doesn't check prefix or checksum for the address
+// IsValid checks if the address is of specific length. Doesn't check prefix or checksum for the address
 func (a Address) IsValid() bool {
 	return len(a) == RawAddressSize*2 // hex length
 }
