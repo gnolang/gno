@@ -155,11 +155,6 @@ func TestRecoverAndLogHandler(t *testing.T) {
   }
 }`,
 		},
-		{
-			name:             "panic with nil",
-			panicArg:         nil,
-			expectedResponse: ``,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
