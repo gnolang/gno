@@ -1,13 +1,13 @@
 #!/bin/sh
 
 main() {
-	cd "$(dirname "$0")"
+    cd "$(dirname "$0")"
     cd ../..
+    fname="$(mktemp --tmpdir gno_file_commits.XXXXXXXXXX.csv)"
     for file in $(list_gno_files); do
         extract_file_metadata $file
-    done > gno_file_commits.csv
-    echo
-    cat gno_file_commits.csv | sort_by_date | unique_by_author
+    done > "$fname"
+    cat "$fname" | sort_by_date | unique_by_author
 }
 
 list_gno_files() {
