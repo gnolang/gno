@@ -14,22 +14,33 @@ func main() {
 	engineeringDAO := EngineeringDAO{BaseDAO{name: "EngineeringDAO", comment: "responsible for high-level architecture"}}
 	grantsDAO := EngineeringDAO{BaseDAO{name: "GrantsDAO", comment: "manages grants"}}
 	projectsDAO := EngineeringDAO{BaseDAO{name: "ProjectsDAO"}}
-	growthDAO := ProjectDAO{BaseDAO{name: "growthDAO"}}
-	savethecosmosDAO := ProjectDAO{BaseDAO{name: "savethecosmosDAO"}}
+	growthDAO := ProjectDAO{BaseDAO{name: "GrowthDAO"}}
+	marketingDAO := ProjectDAO{BaseDAO{name: "MarketingDAO"}}
+	legalDAO := ProjectDAO{BaseDAO{name: "LegalDAO"}}
+	savethecosmosDAO := ProjectDAO{BaseDAO{name: "SaveTheCosmosDAO"}}
 	dxDAO := ProjectDAO{BaseDAO{name: "dxDAO", comment: "DevX team"}}
-	localCommunityDAO := LocalCommunityDAO{BaseDAO{name: "LocalCommunityDAO"}}
+	opsDAO := ProjectDAO{BaseDAO{name: "OpsDAO"}}
+	worldDAO := LocalCommunityDAO{BaseDAO{name: "WorldDAO", comment: "local communities"}}
 	{
-		usa := localCommunityDAO.AddChild("USA")
+		usa := worldDAO.AddChild("USA")
 		california := usa.AddChild("California")
 		sf := california.AddChild("SanFrancisco")
 		palo := california.AddChild("PaloAlto")
 		california.AddChild("...")
-		europe := localCommunityDAO.AddChild("Europe")
+		europe := worldDAO.AddChild("Europe")
 		fr := europe.AddChild("France")
 		paris := fr.AddChild("Paris")
-		asia := localCommunityDAO.AddChild("Asia")
-		localCommunityDAO.AddChild("...")
+		asia := worldDAO.AddChild("Asia")
+		worldDAO.AddChild("...")
 		// ...
+	}
+
+	// XXX: use orgsdao to show conflict of interests etc
+	orgsDAO := OrgDAO{BaseDAO{name: "OrgsDAO"}}
+	orgsDAO.children = []DAO{
+		&OrgDAO{BaseDAO{name: "AiB"}},
+		&OrgDAO{BaseDAO{name: "NT"}},
+		&OrgDAO{BaseDAO{name: "..."}},
 	}
 
 	// govdao tiers
@@ -44,9 +55,10 @@ func main() {
 	govDAO.tiers[2].parent = govDAO.tiers[1]
 	govDAO.tiers[2].child = nil
 
-	govDAO.children = []DAO{&worxDAO, &localCommunityDAO}
-	worxDAO.children = []DAO{&evaluationDAO, &engineeringDAO, &projectsDAO}
-	projectsDAO.children = []DAO{&savethecosmosDAO, &grantsDAO, &growthDAO}
+	govDAO.children = []DAO{&worxDAO, &worldDAO, &orgsDAO}
+	worxDAO.children = []DAO{&evaluationDAO, &engineeringDAO, &projectsDAO, &opsDAO}
+	opsDAO.children = []DAO{&marketingDAO, &legalDAO}
+	projectsDAO.children = []DAO{&savethecosmosDAO, &growthDAO}
 	engTm2DAO := EngineeringDAO{BaseDAO{
 		name: "tm2", children: []DAO{
 			&BaseDAO{name: "amino"},
@@ -60,42 +72,44 @@ func main() {
 
 	engineeringDAO.children = []DAO{&engTm2DAO, &engGnovmDAO, &engGnolandDAO}
 	grantsDAO.children = []DAO{
+		&dxDAO,
 		&ProjectDAO{BaseDAO{name: "onblocDAO"}},
 		&ProjectDAO{BaseDAO{name: "bertyDAO"}},
 		&ProjectDAO{BaseDAO{name: "teritoriDAO"}},
-		&dxDAO,
 	}
 	growthDAO.children = []DAO{
+		&grantsDAO,
 		&ProjectDAO{BaseDAO{name: "student-program"}},
 		&ProjectDAO{BaseDAO{name: "builders-program"}},
 	}
 	// growthDAO.teams = []Team{marketingTeam, devrelTeam}
 
 	var (
-		manfred           = &AccountPerson{NotimplementedActor{}, "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"}
-		jae               = &NoopPerson{NotimplementedActor{}, "jae"}
-		guilhem           = &NoopPerson{NotimplementedActor{}, "guilhem"}
-		morgan            = &NoopPerson{NotimplementedActor{}, "morgan"}
-		milos             = &NoopPerson{NotimplementedActor{}, "milos"}
-		petar             = &NoopPerson{NotimplementedActor{}, "petar"}
-		antonio           = &NoopPerson{NotimplementedActor{}, "antonio"}
-		marc              = &NoopPerson{NotimplementedActor{}, "marc"}
-		hariom            = &NoopPerson{NotimplementedActor{}, "hariom"}
-		ilker             = &NoopPerson{NotimplementedActor{}, "ilker"}
-		adriana           = &NoopPerson{NotimplementedActor{}, "adriana"}
-		alex              = &NoopPerson{NotimplementedActor{}, "alex"}
-		alexis            = &NoopPerson{NotimplementedActor{}, "alexis"}
-		thomas            = &NoopPerson{NotimplementedActor{}, "thomas"}
-		michelle          = &NoopPerson{NotimplementedActor{}, "michelle"}
-		johnny            = &NoopPerson{NotimplementedActor{}, "johnny"}
-		albert            = &NoopPerson{NotimplementedActor{}, "albert"}
-		ray               = &NoopPerson{NotimplementedActor{}, "ray"}
-		dylan             = &NoopPerson{NotimplementedActor{}, "dylan"}
-		valeh             = &NoopPerson{NotimplementedActor{}, "valeh"}
-		techStaff         = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, guilhem, morgan, milos, petar, antonio, marc, hariom}}
-		coreContribs      = TeamPerson{NotimplementedActor{}, []Person{}}
-		marketingContribs = TeamPerson{NotimplementedActor{}, []Person{}}
-		techCommittee     = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, milos, ray}}
+		manfred       = &AccountPerson{NotimplementedActor{}, "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"}
+		jae           = &NoopPerson{NotimplementedActor{}, "jae"}
+		guilhem       = &NoopPerson{NotimplementedActor{}, "guilhem"}
+		morgan        = &NoopPerson{NotimplementedActor{}, "morgan"}
+		milos         = &NoopPerson{NotimplementedActor{}, "milos"}
+		petar         = &NoopPerson{NotimplementedActor{}, "petar"}
+		antonio       = &NoopPerson{NotimplementedActor{}, "antonio"}
+		marc          = &NoopPerson{NotimplementedActor{}, "marc"}
+		hariom        = &NoopPerson{NotimplementedActor{}, "hariom"}
+		ilker         = &NoopPerson{NotimplementedActor{}, "ilker"}
+		adriana       = &NoopPerson{NotimplementedActor{}, "adriana"}
+		alex          = &NoopPerson{NotimplementedActor{}, "alex"}
+		alexis        = &NoopPerson{NotimplementedActor{}, "alexis"}
+		thomas        = &NoopPerson{NotimplementedActor{}, "thomas"}
+		michelle      = &NoopPerson{NotimplementedActor{}, "michelle"}
+		johnny        = &NoopPerson{NotimplementedActor{}, "johnny"}
+		albert        = &NoopPerson{NotimplementedActor{}, "albert"}
+		ray           = &NoopPerson{NotimplementedActor{}, "ray"}
+		dylan         = &NoopPerson{NotimplementedActor{}, "dylan"}
+		valeh         = &NoopPerson{NotimplementedActor{}, "valeh"}
+		techStaff     = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, guilhem, morgan, milos, petar, antonio, marc, hariom}}
+		coreContribs  = TeamPerson{NotimplementedActor{}, []Person{}}
+		marketingTeam = TeamPerson{NotimplementedActor{}, []Person{}}
+		growthTeam    = TeamPerson{}
+		techCommittee = TeamPerson{NotimplementedActor{}, []Person{manfred, jae, milos, ray}}
 	)
 
 	println(govDAO.Directory(""))
@@ -159,6 +173,10 @@ type Action interface {
 type GovDAO struct {
 	BaseDAO
 	tiers []*Tier
+}
+
+type OrgDAO struct {
+	BaseDAO
 }
 
 // XXX: implement
