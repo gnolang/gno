@@ -486,6 +486,7 @@ func writeError(w http.ResponseWriter, err error) {
 	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
 
+	panic(err)
 	details := errors.Unwrap(err).Error()
 	main := err.Error()
 

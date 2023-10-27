@@ -41,8 +41,29 @@ func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemor
 	return node, node.Config().RPC.ListenAddress
 }
 
-// DefaultTestingNodeConfig constructs the default in-memory node configuration for testing.
-func DefaultTestingNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNodeConfig {
+// TestingNodeConfig constructs an in-memory node configuration
+// with default packages and genesis transactions already loaded.
+// It will return the default creator address of the loaded packages.
+func TestingNodeConfig(t TestingTS, gnoroot string) (*gnoland.InMemoryNodeConfig, bft.Address) {
+	cfg := TestingMinimalNodeConfig(t, gnoroot)
+
+	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+
+	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
+	txs := []std.Tx{}
+	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
+	txs = append(txs, LoadDefaultGenesisTXsFile(t, cfg.Genesis.ChainID, gnoroot)...)
+
+	cfg.Genesis.AppState = gnoland.GnoGenesisState{
+		Balances: balances,
+		Txs:      txs,
+	}
+
+	return cfg, creator
+}
+
+// TestingMinimalNodeConfig constructs the default minimal in-memory node configuration for testing.
+func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
@@ -59,11 +80,6 @@ func DefaultTestingNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 }
 
 func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
-	pkgCreator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-
-	// Load genesis packages
-	genesisPackagesTxs := LoadDefaultPackages(t, pkgCreator, gnoroot)
-
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -84,13 +100,8 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			},
 		},
 		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{
-				{
-					Address: pkgCreator,
-					Value:   std.MustParseCoins("10000000000000ugnot"),
-				},
-			},
-			Txs: genesisPackagesTxs,
+			Balances: []gnoland.Balance{},
+			Txs:      []std.Tx{},
 		},
 	}
 }

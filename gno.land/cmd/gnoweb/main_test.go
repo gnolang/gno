@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,7 +11,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
-	"github.com/jaekwon/testify/require"
 )
 
 func TestRoutes(t *testing.T) {
@@ -47,16 +44,7 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	// XXX: The following block should be Replace by testscripts tests
-	{
-		currentPwd, err := filepath.Abs(".")
-		require.NoError(t, err)
-		err = os.Chdir("../..")
-		require.NoError(t, err)
-		defer os.Chdir(currentPwd)
-	}
-
-	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
@@ -65,7 +53,7 @@ func TestRoutes(t *testing.T) {
 	flags.RemoteAddr = remoteAddr
 	flags.HelpChainID = "dev"
 	flags.CaptchaSite = ""
-	flags.ViewsDir = "./cmd/gnoweb/views"
+	flags.ViewsDir = "../../cmd/gnoweb/views"
 	flags.WithAnalytics = false
 	app := makeApp()
 
@@ -104,19 +92,11 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	// XXX: The following block is really bad and should be Replace by testscripts tests
-	{
-		currentPwd, err := filepath.Abs("../..")
-		require.NoError(t, err)
-		err = os.Chdir("../..")
-		require.NoError(t, err)
-		defer os.Chdir(currentPwd)
-	}
-
+	flags.ViewsDir = "../../cmd/gnoweb/views"
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
