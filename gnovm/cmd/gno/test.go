@@ -321,8 +321,11 @@ func gnoTestPkg(
 		if err == nil {
 			gnoPkgPath = modfile.Module.Mod.Path
 		} else {
-			// unable to read pkgPath from gno.mod, generate a random realm path
-			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
+			if gnoPkgPath == "" {
+				// unable to read pkgPath from gno.mod, generate a random realm path
+				gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
@@ -406,6 +409,35 @@ func gnoTestPkg(
 	}
 
 	return errs
+}
+
+// attempts to determine the full gno pkg path by analyzing the directory.
+func pkgPathFromRootDir(pkgPath, rootDir string) string {
+	abPkgPath, err := filepath.Abs(pkgPath)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir += string(filepath.Separator)
+	if !strings.HasPrefix(abPkgPath, abRootDir) {
+		return ""
+	}
+	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
+	for _, prefix := range [...]string{
+		"examples/",
+		"gnovm/stdlibs/",
+		"gnovm/tests/stdlibs/",
+	} {
+		if strings.HasPrefix(impPath, prefix) {
+			return impPath[len(prefix):]
+		}
+	}
+	return ""
 }
 
 func runTestFiles(
