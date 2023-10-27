@@ -109,7 +109,6 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Txs: []std.Tx{},
 		},
 	}
-
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
