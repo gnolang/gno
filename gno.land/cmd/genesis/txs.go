@@ -28,6 +28,7 @@ func newTxsCmd(io *commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newTxsAddCmd(cfg, io),
 		newTxsRemoveCmd(cfg, io),
+		newTxsExportCmd(cfg, io),
 	)
 
 	return cmd
