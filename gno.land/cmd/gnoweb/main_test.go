@@ -131,7 +131,7 @@ func TestAnalytics(t *testing.T) {
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
-				assert.Contains(t, response.Body.String(), "simpleanalytics")
+				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
 	})
@@ -144,7 +144,7 @@ func TestAnalytics(t *testing.T) {
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
-				assert.Equal(t, strings.Contains(response.Body.String(), "simpleanalytics"), false)
+				assert.Equal(t, strings.Contains(response.Body.String(), "sa.gno.services"), false)
 			})
 		}
 	})
