@@ -47,19 +47,13 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	// XXX: The following block is really bad and should be Replace by testscripts tests
+	// XXX: The following block should be Replace by testscripts tests
 	{
-		if wd, err := os.Getwd(); err == nil {
-			if strings.HasSuffix(wd, "cmd/gnoweb") {
-
-				currentPwd, err := filepath.Abs(".")
-				require.NoError(t, err)
-				os.Chdir("../..")
-				defer os.Chdir(currentPwd)
-			}
-		} else {
-			panic("os.Getwd() -> err: " + err.Error())
-		}
+		currentPwd, err := filepath.Abs(".")
+		require.NoError(t, err)
+		err = os.Chdir("../..")
+		require.NoError(t, err)
+		defer os.Chdir(currentPwd)
 	}
 
 	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
@@ -118,7 +112,8 @@ func TestAnalytics(t *testing.T) {
 	{
 		currentPwd, err := filepath.Abs("../..")
 		require.NoError(t, err)
-		os.Chdir("../..")
+		err = os.Chdir("../..")
+		require.NoError(t, err)
 		defer os.Chdir(currentPwd)
 	}
 
