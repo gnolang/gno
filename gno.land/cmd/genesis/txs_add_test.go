@@ -98,13 +98,35 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--parse-export",
 			"dummy-tx-file",
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorContains(t, cmdErr, errInvalidTxsFile.Error())
+	})
+
+	t.Run("no txs file", func(t *testing.T) {
+		t.Parallel()
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := getDefaultGenesis()
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"txs",
+			"add",
+			"--genesis-path",
+			tempGenesis.Name(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorContains(t, cmdErr, errNoTxsFileSpecified.Error())
 	})
 
 	t.Run("malformed txs file", func(t *testing.T) {
@@ -123,7 +145,6 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--parse-export",
 			tempGenesis.Name(), // invalid txs file
 		}
 
@@ -163,7 +184,6 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--parse-export",
 			txsFile.Name(),
 		}
 
@@ -222,7 +242,6 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"add",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--parse-export",
 			txsFile.Name(),
 		}
 

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -17,61 +16,57 @@ import (
 )
 
 var (
-	errInvalidTxsFile    = errors.New("unable to open transactions file")
-	errTxsParsingAborted = errors.New("transaction parsing aborted")
+	errInvalidTxsFile     = errors.New("unable to open transactions file")
+	errNoTxsFileSpecified = errors.New("no txs file specified")
+	errTxsParsingAborted  = errors.New("transaction parsing aborted")
 )
-
-type txsAddCfg struct {
-	rootCfg *txsCfg
-
-	parseExport string
-}
 
 // newTxsAddCmd creates the genesis txs add subcommand
 func newTxsAddCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
-	cfg := &txsAddCfg{
-		rootCfg: txsCfg,
-	}
-
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "add",
-			ShortUsage: "txs add [flags]",
+			ShortUsage: "txs add <tx-file ...>",
 			ShortHelp:  "Imports transactions into the genesis.json",
 			LongHelp:   "Imports the transactions from a tx-archive backup to the genesis.json",
 		},
-		cfg,
-		func(ctx context.Context, _ []string) error {
-			return execTxsAdd(ctx, cfg, io)
+		commands.NewEmptyConfig(),
+		func(ctx context.Context, args []string) error {
+			return execTxsAdd(ctx, txsCfg, io, args)
 		},
 	)
 }
 
-func (c *txsAddCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.parseExport,
-		"parse-export",
-		"",
-		"the path to the transactions export containing a list of transactions",
-	)
-}
-
-func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
+func execTxsAdd(
+	ctx context.Context,
+	cfg *txsCfg,
+	io *commands.IO,
+	args []string,
+) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
 
-	// Open the transactions file
-	file, loadErr := os.Open(cfg.parseExport)
-	if loadErr != nil {
-		return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
+	// Open the transactions files
+	if len(args) == 0 {
+		return errNoTxsFileSpecified
 	}
 
-	txs, err := getTransactionsFromFile(ctx, file)
-	if err != nil {
-		return fmt.Errorf("unable to read file, %w", err)
+	parsedTxs := make([]std.Tx, 0)
+	for _, file := range args {
+		file, loadErr := os.Open(file)
+		if loadErr != nil {
+			return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
+		}
+
+		txs, err := getTransactionsFromFile(ctx, file)
+		if err != nil {
+			return fmt.Errorf("unable to read file, %w", err)
+		}
+
+		parsedTxs = append(parsedTxs, txs...)
 	}
 
 	// Initialize the app state if it's not present
@@ -82,7 +77,7 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 	state := genesis.AppState.(gnoland.GnoGenesisState)
 
 	// Left merge the transactions
-	fileTxStore := txStore(txs)
+	fileTxStore := txStore(parsedTxs)
 	genesisTxStore := txStore(state.Txs)
 
 	// The genesis transactions have preference with the order
@@ -96,13 +91,13 @@ func execTxsAdd(ctx context.Context, cfg *txsAddCfg, io *commands.IO) error {
 	genesis.AppState = state
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 
 	io.Printfln(
 		"Saved %d transactions to genesis.json",
-		len(txs),
+		len(parsedTxs),
 	)
 
 	return nil

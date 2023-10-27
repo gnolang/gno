@@ -55,8 +55,7 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorContains(t, cmdErr, errAppStateNotSet.Error())
 	})
-
-	t.Run("transaction not found", func(t *testing.T) {
+	t.Run("no transaction hash specified", func(t *testing.T) {
 		t.Parallel()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
@@ -78,13 +77,11 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--hash",
-			"dummy hash",
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errTxNotFound.Error())
+		assert.ErrorContains(t, cmdErr, errNoTxHashSpecified.Error())
 	})
 
 	t.Run("transaction removed", func(t *testing.T) {
@@ -112,7 +109,6 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
-			"--hash",
 			txHash,
 		}
 
