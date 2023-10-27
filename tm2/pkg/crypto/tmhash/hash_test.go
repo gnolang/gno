@@ -9,6 +9,8 @@ import (
 )
 
 func TestHash(t *testing.T) {
+	t.Parallel()
+
 	testVector := []byte("abc")
 	hasher := tmhash.New()
 	hasher.Write(testVector)
@@ -25,6 +27,8 @@ func TestHash(t *testing.T) {
 }
 
 func TestHashTruncated(t *testing.T) {
+	t.Parallel()
+
 	testVector := []byte("abc")
 	hasher := tmhash.NewTruncated()
 	hasher.Write(testVector)

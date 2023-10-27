@@ -63,9 +63,11 @@ func (dop DominoOp) GetKey() []byte {
 	return []byte(dop.key)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func TestProofOperators(t *testing.T) {
+	t.Parallel()
+
 	var err error
 
 	// ProofRuntime setup
