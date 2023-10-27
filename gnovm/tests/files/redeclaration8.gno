@@ -1,6 +1,6 @@
 package main
 
-import _ "gno.land/p/demo/tests/invalid/redeclaration2"
+import _ "github.com/gnolang/gno/_test/redeclaration2"
 
 func main() {
 	println("should not happen")
@@ -9,4 +9,4 @@ func main() {
 // XXX show what was redeclared.
 
 // Error:
-// running package "gno.land/p/demo/tests/invalid/redeclaration2": duplicate declarations not allowed
+// running package "github.com/gnolang/gno/_test/redeclaration2": duplicate declarations not allowed
