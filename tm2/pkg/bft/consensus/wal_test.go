@@ -53,6 +53,8 @@ func makeTempWAL(t *testing.T, walChunkSize int64) (wal walm.WAL) {
 // ----------------------------------------
 
 func TestWALTruncate(t *testing.T) {
+	t.Parallel()
+
 	const maxTestMsgSize = 1024 * 1024 // 1MB
 	const walChunkSize = 409610        // 4KB
 	wal := makeTempWAL(t, walChunkSize)

@@ -124,6 +124,8 @@ func sendTxs(ctx context.Context, cs *ConsensusState) {
 
 // TestWALCrash uses crashing WAL to test we can recover from any WAL failure.
 func TestWALCrash(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name            string
 		initFn          func(dbm.DB, *ConsensusState, context.Context)
@@ -147,6 +149,8 @@ func TestWALCrash(t *testing.T) {
 		tc := tc
 		consensusReplayConfig := ResetConfig(fmt.Sprintf("%s_%d", t.Name(), i))
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			crashWALandCheckLiveness(t, consensusReplayConfig, tc.initFn, tc.lastBlockHeight)
 		})
 	}
@@ -507,6 +511,8 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 
 // Sync from scratch
 func TestHandshakeReplayAll(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 0, m, nil)
 	}
@@ -519,6 +525,8 @@ func TestHandshakeReplayAll(t *testing.T) {
 
 // Sync many, not from scratch
 func TestHandshakeReplaySome(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 1, m, nil)
 	}
@@ -531,6 +539,8 @@ func TestHandshakeReplaySome(t *testing.T) {
 
 // Sync from lagging by one
 func TestHandshakeReplayOne(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks-1, m, nil)
 	}
@@ -543,6 +553,8 @@ func TestHandshakeReplayOne(t *testing.T) {
 
 // Sync from caught up
 func TestFlappyHandshakeReplayNone(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, m := range modes {
@@ -557,6 +569,8 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 
 // Test mockProxyApp should not panic when app return ABCIResponses with some empty ResponseDeliverTx
 func TestMockProxyApp(t *testing.T) {
+	t.Parallel()
+
 	logger := log.TestingLogger()
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
@@ -811,6 +825,8 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 }
 
 func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
+	t.Parallel()
+
 	// 1. Initialize tendermint and commit 3 blocks with the following app hashes:
 	//		- 0x01
 	//		- 0x02
@@ -1090,6 +1106,8 @@ func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
 // Test handshake/init chain
 
 func TestHandshakeUpdatesValidators(t *testing.T) {
+	t.Parallel()
+
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
 	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}

@@ -24,6 +24,8 @@ func assertMempool(txn txNotifier) mempl.Mempool {
 }
 
 func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
+	t.Parallel()
+
 	config := ResetConfig("consensus_mempool_no_progress_until_txs_available")
 	defer os.RemoveAll(config.RootDir)
 	config.Consensus.CreateEmptyBlocks = false
@@ -49,6 +51,8 @@ func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
 }
 
 func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
+	t.Parallel()
+
 	config := ResetConfig("consensus_mempool_progress_after_create_empty_blocks_interval")
 	defer os.RemoveAll(config.RootDir)
 	config.Consensus.CreateEmptyBlocksInterval = ensureTimeout
@@ -71,6 +75,8 @@ func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
 }
 
 func TestMempoolProgressInHigherRound(t *testing.T) {
+	t.Parallel()
+
 	config := ResetConfig("consensus_mempool_progress_in_higher_round")
 	defer os.RemoveAll(config.RootDir)
 	config.Consensus.CreateEmptyBlocks = false
@@ -138,6 +144,8 @@ func deliverTxsRange(cs *ConsensusState, start, end int) {
 }
 
 func TestMempoolTxConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
 	state, privVals := randGenesisState(1, false, 10)
 	blockDB := dbm.NewMemDB()
 	app := NewCounterApplication()
@@ -169,6 +177,8 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 }
 
 func TestMempoolRmBadTx(t *testing.T) {
+	t.Parallel()
+
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
 	blockDB := dbm.NewMemDB()

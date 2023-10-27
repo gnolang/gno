@@ -18,11 +18,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // HTTP REST API
 // TODO
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // JSON-RPC over HTTP
 
 func testMux() *http.ServeMux {
@@ -43,6 +43,8 @@ func statusOK(code int) bool { return code >= 200 && code <= 299 }
 // do not crash our RPC handlers.
 // See Issue https://github.com/gnolang/gno/tm2/pkg/bft/issues/708.
 func TestRPCParams(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -91,6 +93,8 @@ func TestRPCParams(t *testing.T) {
 }
 
 func TestJSONRPCID(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -138,6 +142,8 @@ func TestJSONRPCID(t *testing.T) {
 }
 
 func TestRPCNotification(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	body := strings.NewReader(`{"jsonrpc": "2.0", "id": ""}`)
 	req, _ := http.NewRequest("POST", "http://localhost/", body)
@@ -153,6 +159,8 @@ func TestRPCNotification(t *testing.T) {
 }
 
 func TestRPCNotificationInBatch(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload     string
@@ -219,6 +227,8 @@ func TestRPCNotificationInBatch(t *testing.T) {
 }
 
 func TestUnknownRPCPath(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	req, _ := http.NewRequest("GET", "http://localhost/unknownrpcpath", nil)
 	rec := httptest.NewRecorder()
@@ -229,10 +239,12 @@ func TestUnknownRPCPath(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode, "should always return 404")
 }
 
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // JSON-RPC over WEBSOCKETS
 
 func TestWebsocketManagerHandler(t *testing.T) {
+	t.Parallel()
+
 	s := newWSServer()
 	defer s.Close()
 
