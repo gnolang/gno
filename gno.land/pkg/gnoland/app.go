@@ -2,6 +2,8 @@ package gnoland
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -20,12 +22,40 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
+type AppOptions struct {
+	DB dbm.DB
+	// `gnoRootDir` should point to the local location of the gno repository.
+	// It serves as the gno equivalent of GOROOT.
+	GnoRootDir            string
+	SkipFailingGenesisTxs bool
+	Logger                log.Logger
+	MaxCycles             int64
+}
+
+func NewAppOptions() *AppOptions {
+	return &AppOptions{
+		Logger:     log.NewNopLogger(),
+		DB:         dbm.NewMemDB(),
+		GnoRootDir: GuessGnoRootDir(),
+	}
+}
+
+func (c *AppOptions) validate() error {
+	if c.Logger == nil {
+		return fmt.Errorf("no logger provided")
+	}
+
+	if c.DB == nil {
+		return fmt.Errorf("no db provided")
+	}
+
+	return nil
+}
+
 // NewApp creates the GnoLand application.
-func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
-	// Get main DB.
-	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, rootDir, err)
+func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	// Capabilities keys.
@@ -33,21 +63,21 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCy
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
-	baseApp := sdk.NewBaseApp("gnoland", logger, db, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
-	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	stdlibsDir := filepath.Join("..", "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, maxCycles)
+	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
+	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, skipFailingGenesisTxs))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.SkipFailingGenesisTxs))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -88,6 +118,23 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCy
 	return baseApp, nil
 }
 
+// NewApp creates the GnoLand application.
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
+	var err error
+
+	cfg := NewAppOptions()
+
+	// Get main DB.
+	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
+	if err != nil {
+		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
+	}
+
+	cfg.Logger = logger
+
+	return NewAppWithOptions(cfg)
+}
+
 // InitChainer returns a function that can initialize the chain with genesis.
 func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
@@ -107,14 +154,15 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		for i, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
-				fmt.Println("ERROR LOG:", res.Log)
-				fmt.Println("#", i, string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Error("LOG", res.Log)
+				ctx.Logger().Error("#", i, string(amino.MustMarshalJSON(tx)))
+
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
 					panic(res.Error)
 				}
 			} else {
-				fmt.Println("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))
 			}
 		}
 		// Done!
@@ -145,4 +193,26 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		return abci.ResponseEndBlock{}
 	}
+}
+
+func GuessGnoRootDir() string {
+	var rootdir string
+
+	// First try to get the root directory from the GNOROOT environment variable.
+	if rootdir = os.Getenv("GNOROOT"); rootdir != "" {
+		return filepath.Clean(rootdir)
+	}
+
+	if gobin, err := exec.LookPath("go"); err == nil {
+		// If GNOROOT is not set, try to guess the root directory using the `go list` command.
+		cmd := exec.Command(gobin, "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			panic(fmt.Errorf("invalid gno directory %q: %w", rootdir, err))
+		}
+
+		return strings.TrimSpace(string(out))
+	}
+
+	panic("no go binary available, unable to determine gno root-dir path")
 }

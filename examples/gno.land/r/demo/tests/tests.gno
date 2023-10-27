@@ -44,7 +44,7 @@ func (t *TestRealmObject) Modify() {
 }
 
 //----------------------------------------
-// Test helpers to test a particualr realm bug.
+// Test helpers to test a particular realm bug.
 
 type TestNode struct {
 	Name  string

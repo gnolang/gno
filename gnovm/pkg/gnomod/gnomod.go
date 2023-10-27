@@ -100,7 +100,7 @@ func GnoToGoMod(f File) (*File, error) {
 
 	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
 		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
-		f.Module.Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path
+		f.AddModuleStmt(gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path)
 	}
 
 	for i := range f.Require {
@@ -113,20 +113,17 @@ func GnoToGoMod(f File) (*File, error) {
 		path := f.Require[i].Mod.Path
 		if strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
 			strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoPackagePrefixBefore) {
-			f.Require[i].Mod.Path = gnolang.ImportPrefix + "/examples/" + f.Require[i].Mod.Path
+			// Add dependency with a modified import path
+			f.AddRequire(gnolang.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
 		}
-
-		f.Replace = append(f.Replace, &modfile.Replace{
-			Old: module.Version{
-				Path:    f.Require[i].Mod.Path,
-				Version: f.Require[i].Mod.Version,
-			},
-			New: module.Version{
-				Path: filepath.Join(gnoModPath, path),
-			},
-		})
+		f.AddReplace(f.Require[i].Mod.Path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
+		// Remove the old require since the new dependency was added above
+		f.DropRequire(f.Require[i].Mod.Path)
 	}
 
+	// Remove replacements that are not replaced by directories.
+	//
+	// Explanation:
 	// By this stage every replacement should be replace by dir.
 	// If not replaced by dir, remove it.
 	//
@@ -153,14 +150,11 @@ func GnoToGoMod(f File) (*File, error) {
 	// ```
 	//
 	// Remove `gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1`.
-	repl := make([]*modfile.Replace, 0, len(f.Replace))
 	for _, r := range f.Replace {
 		if !modfile.IsDirectoryPath(r.New.Path) {
-			continue
+			f.DropReplace(r.Old.Path, r.Old.Version)
 		}
-		repl = append(repl, r)
 	}
-	f.Replace = repl
 
 	return &f, nil
 }
@@ -215,14 +209,9 @@ func CreateGnoModFile(rootDir, modPath string) error {
 		return err
 	}
 
-	modFile := &File{
-		Module: &modfile.Module{
-			Mod: module.Version{
-				Path: modPath,
-			},
-		},
-	}
-	modFile.WriteToPath(filepath.Join(rootDir, "gno.mod"))
+	modfile := new(File)
+	modfile.AddModuleStmt(modPath)
+	modfile.Write(filepath.Join(rootDir, "gno.mod"))
 
 	return nil
 }
