@@ -26,6 +26,8 @@ func (c *mockConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func TestCommandParseAndRun(t *testing.T) {
+	t.Parallel()
+
 	type flags struct {
 		b bool
 		s string
@@ -215,7 +217,10 @@ func TestCommandParseAndRun(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				invokedCmd string
 				args       []string
@@ -416,6 +421,8 @@ func TestCommand_AddSubCommands(t *testing.T) {
 
 // Forked from peterbourgon/ff/ffcli
 func TestHelpUsage(t *testing.T) {
+	t.Parallel()
+
 	fs, _ := fftest.Pair()
 	var buf bytes.Buffer
 	fs.SetOutput(&buf)
@@ -494,7 +501,10 @@ FLAGS
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			buf.Reset()
 
 			err := tt.command.ParseAndRun(context.Background(), []string{"-h"})
@@ -507,6 +517,8 @@ FLAGS
 
 // Forked from peterbourgon/ff/ffcli
 func TestNestedOutput(t *testing.T) {
+	t.Parallel()
+
 	var (
 		rootHelpOutput = "USAGE\n  \n\nSUBCOMMANDS\n  foo\n\n"
 		fooHelpOutput  = "USAGE\n  foo\n\nSUBCOMMANDS\n  bar\n\n"
@@ -572,6 +584,8 @@ func TestNestedOutput(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				rootfs = flag.NewFlagSet("root", flag.ContinueOnError)
 				foofs  = flag.NewFlagSet("foo", flag.ContinueOnError)

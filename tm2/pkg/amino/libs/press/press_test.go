@@ -7,11 +7,15 @@ import (
 )
 
 func TestEmpty(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	assert.Equal(t, p.Print(), "")
 }
 
 func TestBasic(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("this ")
 	p.P("is ")
@@ -20,6 +24,8 @@ func TestBasic(t *testing.T) {
 }
 
 func TestBasicLn(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("this ")
 	p.P("is ")
@@ -28,6 +34,8 @@ func TestBasicLn(t *testing.T) {
 }
 
 func TestNewlineStr(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress().SetNewlineStr("\r\n")
 	p.P("this ")
 	p.P("is ")
@@ -38,6 +46,8 @@ func TestNewlineStr(t *testing.T) {
 }
 
 func TestIndent(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("first line ")
 	p.Pl("{").I(func(p *Press) {
@@ -51,6 +61,8 @@ func TestIndent(t *testing.T) {
 }
 
 func TestIndent2(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("first line ")
 	p.Pl("{").I(func(p *Press) {
@@ -66,6 +78,8 @@ func TestIndent2(t *testing.T) {
 }
 
 func TestIndent3(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("first line ")
 	p.Pl("{").I(func(p *Press) {
@@ -78,6 +92,8 @@ func TestIndent3(t *testing.T) {
 }
 
 func TestIndentLn(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("first line ")
 	p.Pl("{").I(func(p *Press) {
@@ -92,6 +108,8 @@ func TestIndentLn(t *testing.T) {
 }
 
 func TestNestedIndent(t *testing.T) {
+	t.Parallel()
+
 	p := NewPress()
 	p.P("first line ")
 	p.Pl("{").I(func(p *Press) {
