@@ -45,6 +45,7 @@ Generics are currently not implemented.
 | `rune`                                        | full                   | full                                                       |
 | `interface{}`                                 | full                   | full                                                       |
 | `[]T` (slices)                                | full                   | full\*                                                     |
+| `[N]T` (arrays)                               | full                   | full\*                                                     |
 | `map[T1]T2`                                   | full                   | full\*                                                     |
 | `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
 | `*T` (pointers)                               | full                   | full\*                                                     |
