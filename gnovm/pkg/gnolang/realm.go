@@ -151,15 +151,17 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
+
 	if co != nil {
+		// If this is a self assignment, then the reference count is decremented again below
+		// when xo's reference count is decremented.
 		co.IncRefCount()
-		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
-				rlm.MarkNewEscaped(co)
-			}
-		} else if co.GetIsReal() {
+		if co.GetRefCount() > 1 && !co.GetIsEscaped() {
+			rlm.MarkNewEscaped(co)
+		}
+
+		// Marking a value as dirty and increasing its reference count are mutually exclusive operations.
+		if co.GetIsReal() {
 			rlm.MarkDirty(co)
 
 			// A lot of slices are assigned to themselves using the append function. When this assignment happens,
@@ -182,6 +184,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			rlm.MarkNewReal(co)
 		}
 	}
+
 	if xo != nil {
 		xo.DecRefCount()
 		if xo.GetRefCount() == 0 {
