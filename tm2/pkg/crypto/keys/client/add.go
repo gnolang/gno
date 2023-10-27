@@ -156,8 +156,7 @@ func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 			return err
 		}
 
-		_, err = kb.GetByName(name)
-		if err == nil {
+		if has, err := kb.HasByName(name); err == nil && has {
 			// account exists, ask for user confirmation
 			response, err2 := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
 			if err2 != nil {
