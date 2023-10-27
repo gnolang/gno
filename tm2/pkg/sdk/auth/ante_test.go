@@ -729,7 +729,7 @@ func TestCountSubkeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(T *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			require.Equal(t, tt.want, std.CountSubKeys(tt.args.pub))

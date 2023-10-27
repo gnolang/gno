@@ -423,10 +423,6 @@ func TestCommand_AddSubCommands(t *testing.T) {
 func TestHelpUsage(t *testing.T) {
 	t.Parallel()
 
-	fs, _ := fftest.Pair()
-	var buf bytes.Buffer
-	fs.SetOutput(&buf)
-
 	tests := []struct {
 		name           string
 		command        *Command
@@ -439,7 +435,6 @@ func TestHelpUsage(t *testing.T) {
 				shortUsage: "TestHelpUsage [flags] <args>",
 				shortHelp:  "Some short help",
 				longHelp:   "Some long help.",
-				flagSet:    fs,
 			},
 			expectedOutput: strings.TrimSpace(`
 USAGE
@@ -462,7 +457,6 @@ FLAGS
 				name:       "TestHelpUsage",
 				shortUsage: "TestHelpUsage [flags] <args>",
 				shortHelp:  "Some short help",
-				flagSet:    fs,
 			},
 			expectedOutput: strings.TrimSpace(`
 USAGE
@@ -484,7 +478,6 @@ FLAGS
 			command: &Command{
 				name:       "TestHelpUsage",
 				shortUsage: "TestHelpUsage [flags] <args>",
-				flagSet:    fs,
 			},
 			expectedOutput: strings.TrimSpace(`
 USAGE
@@ -505,7 +498,11 @@ FLAGS
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			buf.Reset()
+			fs, _ := fftest.Pair()
+			var buf bytes.Buffer
+			fs.SetOutput(&buf)
+
+			tt.command.flagSet = fs
 
 			err := tt.command.ParseAndRun(context.Background(), []string{"-h"})
 

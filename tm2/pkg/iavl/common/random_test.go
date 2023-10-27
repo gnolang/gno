@@ -29,8 +29,6 @@ func TestRandBytes(t *testing.T) {
 // Test to make sure that we never call math.rand().
 // We do this by ensuring that outputs are deterministic.
 func TestDeterminism(t *testing.T) {
-	t.Parallel()
-
 	var firstOutput string
 
 	// Set math/rand's seed for the sake of debugging this test.
