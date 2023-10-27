@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -17,6 +20,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
+	eventstorecfg "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -35,6 +41,10 @@ type startCfg struct {
 	rootDir               string
 	genesisMaxVMCycles    int64
 	config                string
+
+	txEventStoreType string
+	txEventStorePath string
+	nodeConfigPath   string
 }
 
 func newStartCmd(io *commands.IO) *commands.Command {
@@ -47,8 +57,8 @@ func newStartCmd(io *commands.IO) *commands.Command {
 			ShortHelp:  "Run the full node",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
-			return execStart(cfg, args, io)
+		func(_ context.Context, _ []string) error {
+			return execStart(cfg, io)
 		},
 	)
 }
@@ -114,18 +124,62 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.config,
 		"config",
 		"",
-		"config file (optional)",
+		"the flag config file (optional)",
+	)
+
+	fs.StringVar(
+		&c.nodeConfigPath,
+		"tm2-node-config",
+		"",
+		"the node TOML config file path (optional)",
+	)
+
+	fs.StringVar(
+		&c.txEventStoreType,
+		"tx-event-store-type",
+		null.EventStoreType,
+		fmt.Sprintf(
+			"type of transaction event store [%s]",
+			strings.Join(
+				[]string{
+					null.EventStoreType,
+					file.EventStoreType,
+				},
+				", ",
+			),
+		),
+	)
+
+	fs.StringVar(
+		&c.txEventStorePath,
+		"tx-event-store-path",
+		"",
+		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 }
 
-func execStart(c *startCfg, args []string, io *commands.IO) error {
+func execStart(c *startCfg, io *commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	rootDir := c.rootDir
 
-	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-	})
+	var (
+		cfg        *config.Config
+		loadCfgErr error
+	)
+
+	// Set the node configuration
+	if c.nodeConfigPath != "" {
+		// Load the node configuration
+		// from the specified path
+		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
+	} else {
+		// Load the default node configuration
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(rootDir, nil)
+	}
+
+	if loadCfgErr != nil {
+		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
+	}
 
 	// create priv validator first.
 	// need it to generate genesis.json
@@ -135,15 +189,33 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 
 	// write genesis file if missing.
 	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
+
+	genesisTxs, genesisTxsErr := loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote)
+	if genesisTxsErr != nil {
+		return fmt.Errorf("unable to load genesis txs, %w", genesisTxsErr)
+	}
+
 	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc(
+		genDoc, err := makeGenesisDoc(
 			priv.GetPubKey(),
 			c.chainID,
 			c.genesisBalancesFile,
-			loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote),
+			genesisTxs,
 		)
+		if err != nil {
+			return fmt.Errorf("unable to generate genesis.json, %w", err)
+		}
+
 		writeGenesisFile(genDoc, genesisFilePath)
 	}
+
+	// Initialize the indexer config
+	txEventStoreCfg, err := getTxEventStoreConfig(c)
+	if err != nil {
+		return fmt.Errorf("unable to parse indexer config, %w", err)
+	}
+
+	cfg.TxEventStore = txEventStoreCfg
 
 	// create application and node.
 	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
@@ -180,13 +252,37 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 	select {} // run forever
 }
 
+// getTxEventStoreConfig constructs an event store config from provided user options
+func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
+	var cfg *eventstorecfg.Config
+
+	switch c.txEventStoreType {
+	case file.EventStoreType:
+		if c.txEventStorePath == "" {
+			return nil, errors.New("unspecified file transaction indexer path")
+		}
+
+		// Fill out the configuration
+		cfg = &eventstorecfg.Config{
+			EventStoreType: file.EventStoreType,
+			Params: map[string]any{
+				file.Path: c.txEventStorePath,
+			},
+		}
+	default:
+		cfg = eventstorecfg.DefaultEventStoreConfig()
+	}
+
+	return cfg, nil
+}
+
 // Makes a local test genesis doc with local privValidator.
 func makeGenesisDoc(
 	pvPub crypto.PubKey,
 	chainID string,
 	genesisBalancesFile string,
 	genesisTxs []std.Tx,
-) *bft.GenesisDoc {
+) (*bft.GenesisDoc, error) {
 	gen := &bft.GenesisDoc{}
 
 	gen.GenesisTime = time.Now()
@@ -210,8 +306,10 @@ func makeGenesisDoc(
 	}
 
 	// Load distribution.
-	balances := loadGenesisBalances(genesisBalancesFile)
-	// debug: for _, balance := range balances { fmt.Println(balance) }
+	balances, err := loadGenesisBalances(genesisBalancesFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load genesis balances, %w", err)
+	}
 
 	// Load initial packages from examples.
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -257,7 +355,7 @@ func makeGenesisDoc(
 		Balances: balances,
 		Txs:      txs,
 	}
-	return gen
+	return gen, nil
 }
 
 func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
@@ -271,11 +369,24 @@ func loadGenesisTxs(
 	path string,
 	chainID string,
 	genesisRemote string,
-) []std.Tx {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
+) ([]std.Tx, error) {
+	txs := make([]std.Tx, 0)
+
+	if !osm.FileExists(path) {
+		// No initial transactions
+		return txs, nil
+	}
+
+	txsFile, openErr := os.Open(path)
+	if openErr != nil {
+		return nil, fmt.Errorf("unable to open genesis txs file, %w", openErr)
+	}
+
+	scanner := bufio.NewScanner(txsFile)
+
+	for scanner.Scan() {
+		txLine := scanner.Text()
+
 		if txLine == "" {
 			continue // skip empty line
 		}
@@ -285,19 +396,40 @@ func loadGenesisTxs(
 		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
 
 		var tx std.Tx
-		amino.MustUnmarshalJSON([]byte(txLine), &tx)
+
+		if unmarshalErr := amino.UnmarshalJSON([]byte(txLine), &tx); unmarshalErr != nil {
+			return nil, fmt.Errorf("unable to amino unmarshal tx, %w", unmarshalErr)
+		}
+
 		txs = append(txs, tx)
 	}
 
-	return txs
+	if scanErr := scanner.Err(); scanErr != nil {
+		return nil, fmt.Errorf("error encountered while scanning, %w", scanErr)
+	}
+
+	return txs, nil
 }
 
-func loadGenesisBalances(path string) []string {
+func loadGenesisBalances(path string) ([]string, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	balances := []string{}
-	content := osm.MustReadFile(path)
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	balances := make([]string, 0)
+
+	if !osm.FileExists(path) {
+		// No initial balances
+		return balances, nil
+	}
+
+	balancesFile, openErr := os.Open(path)
+	if openErr != nil {
+		return nil, fmt.Errorf("unable to open genesis balances file, %w", openErr)
+	}
+
+	scanner := bufio.NewScanner(balancesFile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
 		line = strings.TrimSpace(line)
 
 		// remove comments.
@@ -309,12 +441,16 @@ func loadGenesisBalances(path string) []string {
 			continue
 		}
 
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
-			panic("invalid genesis_balance line: " + line)
+		if len(strings.Split(line, "=")) != 2 {
+			return nil, fmt.Errorf("invalid genesis_balance line: %s", line)
 		}
 
 		balances = append(balances, line)
 	}
-	return balances
+
+	if scanErr := scanner.Err(); scanErr != nil {
+		return nil, fmt.Errorf("error encountered while scanning, %w", scanErr)
+	}
+
+	return balances, nil
 }

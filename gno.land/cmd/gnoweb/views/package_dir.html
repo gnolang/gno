@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Gno.land</title>
-    {{ template "html_head" }}
+    {{ template "html_head" . }}
+    <title>Gno.land - {{.Data.DirPath}}</title>
   </head>
   <body onload="main()">
     <div id="root">
@@ -12,13 +12,14 @@
         <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>/* </span>
       </div>
       <div id="packge_dir" class="container">{{ template "dir_contents" . }}</div>
-
       {{ template "footer" }}
     </div>
-    {{ template "js" }}
+    {{ template "js" . }}
   </body>
 </html>
-{{- end -}} {{ define "dir_contents" }}
+{{- end -}}
+
+{{- define "dir_contents" -}}
 <div class="dir_contents">
   {{ $dirPath := .Data.DirPath }}
   <ul>
@@ -29,4 +30,4 @@
     {{ end }}
   </ul>
 </div>
-{{ end }}
+{{- end -}}
