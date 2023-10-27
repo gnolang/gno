@@ -97,13 +97,11 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
 func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
-	exampleDir := filepath.Join(gnoroot, "examples")
+	examplesDir := filepath.Join(gnoroot, "examples")
 
-	txs, err := gnoland.LoadPackages(gnoland.PackagePath{
-		Creator: creator,
-		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
-		Path:    exampleDir,
-	})
+	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+	defaultCreator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+	txs, err := gnoland.LoadPackagesFromDir(examplesDir, defaultCreator, defaultFee, nil)
 	require.NoError(t, err)
 
 	return txs

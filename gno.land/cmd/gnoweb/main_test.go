@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestRoutes(t *testing.T) {
@@ -44,12 +46,20 @@ func TestRoutes(t *testing.T) {
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
-	if wd, err := os.Getwd(); err == nil {
-		if strings.HasSuffix(wd, "cmd/gnoweb") {
-			os.Chdir("../..")
+
+	// XXX: The following block is really bad and should be Replace by testscripts tests
+	{
+		if wd, err := os.Getwd(); err == nil {
+			if strings.HasSuffix(wd, "cmd/gnoweb") {
+
+				currentPwd, err := filepath.Abs(".")
+				require.NoError(t, err)
+				os.Chdir("../..")
+				defer os.Chdir(currentPwd)
+			}
+		} else {
+			panic("os.Getwd() -> err: " + err.Error())
 		}
-	} else {
-		panic("os.Getwd() -> err: " + err.Error())
 	}
 
 	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
@@ -96,9 +106,22 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
+	config := integration.DefaultTestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	defer node.Stop()
+
+	// XXX: The following block is really bad and should be Replace by testscripts tests
+	{
+		currentPwd, err := filepath.Abs("../..")
+		require.NoError(t, err)
+		os.Chdir("../..")
+		defer os.Chdir(currentPwd)
+	}
+
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
+				flags.RemoteAddr = remoteAddr
 				flags.WithAnalytics = true
 				app := makeApp()
 				request := httptest.NewRequest(http.MethodGet, route, nil)
@@ -111,6 +134,7 @@ func TestAnalytics(t *testing.T) {
 	t.Run("without", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
+				flags.RemoteAddr = remoteAddr
 				flags.WithAnalytics = false
 				app := makeApp()
 				request := httptest.NewRequest(http.MethodGet, route, nil)

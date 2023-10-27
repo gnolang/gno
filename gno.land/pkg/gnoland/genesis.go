@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"strings"
 
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	content := osm.MustReadFile(path)
@@ -53,6 +58,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	return balances, nil
 }
 
+// LoadGenesisTxsFile loads genesis transactions from the provided file path.
 // XXX: Improve the way we generate and load this file
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
 	txs := []std.Tx{}
@@ -72,6 +78,47 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 			return nil, fmt.Errorf("unable to Unmarshall txs file: %w", err)
 		}
 
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
+// LoadPackagesFromDir loads gno packages from a directory.
+// It creates and returns a list of transactions based on these packages.
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	// list all packages from target path
+	pkgs, err := gnomod.ListPkgs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("listing gno packages: %w", err)
+	}
+
+	// Sort packages by dependencies.
+	sortedPkgs, err := pkgs.Sort()
+	if err != nil {
+		return nil, fmt.Errorf("sorting packages: %w", err)
+	}
+
+	// Filter out draft packages.
+	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
+	txs := []std.Tx{}
+	for _, pkg := range nonDraftPkgs {
+		// Open files in directory as MemPackage.
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+
+		// Create transaction
+		tx := std.Tx{
+			Fee: fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: creator,
+					Package: memPkg,
+					Deposit: deposit,
+				},
+			},
+		}
+
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 		txs = append(txs, tx)
 	}
 

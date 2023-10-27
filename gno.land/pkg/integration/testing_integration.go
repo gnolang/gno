@@ -200,25 +200,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	}
 }
 
-// func execInMemoryGnoland(ts *testscript.TestScript, logger log.Logger, nodecfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-// 	n, err := gnoland.NewInMemoryNode(logger, nodecfg)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unable to create node: %w", err)
-// 	}
-
-// 	if err = n.Start(); err != nil {
-// 		return nil, fmt.Errorf("unable to start node: %w", err)
-// 	}
-
-// 	select {
-// 	case <-time.After(time.Second * 6):
-// 		return nil, errors.New("timeout while waiting for the node to start")
-// 	case <-waitForNodeReadiness(n): // ok
-// 	}
-
-// 	return n, nil
-// }
-
 func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 	var path string
 

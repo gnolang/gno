@@ -198,6 +198,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 
 	// Write genesis file if missing.
 	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
+
 	if !osm.FileExists(genesisFilePath) {
 		// Create priv validator first.
 		// Need it to generate genesis.json
@@ -230,6 +231,8 @@ func execStart(c *startCfg, io *commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
+
+	fmt.Fprintln(io.Err, "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -282,14 +285,8 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
 	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	examplePkgs := gnoland.PackagePath{
-		Path:    examplesDir,
-		Creator: test1,
-		Fee:     std.NewFee(50000, std.MustParseCoin("1000000ugnot")),
-		Deposit: nil,
-	}
-
-	pkgsTxs, err := examplePkgs.Load()
+	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, test1, defaultFee, nil)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
