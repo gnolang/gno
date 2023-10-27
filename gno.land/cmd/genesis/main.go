@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -38,4 +39,20 @@ func newRootCmd(io *commands.IO) *commands.Command {
 	)
 
 	return cmd
+}
+
+// commonCfg is the common
+// configuration for genesis commands
+// that require a genesis.json
+type commonCfg struct {
+	genesisPath string
+}
+
+func (c *commonCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.genesisPath,
+		"genesis-path",
+		"./genesis.json",
+		"the path to the genesis.json",
+	)
 }

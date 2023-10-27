@@ -7,7 +7,7 @@ import (
 )
 
 type balancesCfg struct {
-	genesisPath string
+	commonCfg
 }
 
 // newBalancesCmd creates the genesis balances subcommand
@@ -34,10 +34,5 @@ func newBalancesCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *balancesCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.genesisPath,
-		"genesis-path",
-		"./genesis.json",
-		"the path to the genesis.json",
-	)
+	c.commonCfg.RegisterFlags(fs)
 }

@@ -7,13 +7,16 @@ import (
 )
 
 type validatorCfg struct {
-	genesisPath string
-	address     string
+	commonCfg
+
+	address string
 }
 
 // newValidatorCmd creates the genesis validator subcommand
 func newValidatorCmd(io *commands.IO) *commands.Command {
-	cfg := &validatorCfg{}
+	cfg := &validatorCfg{
+		commonCfg: commonCfg{},
+	}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -35,12 +38,7 @@ func newValidatorCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *validatorCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.genesisPath,
-		"genesis-path",
-		"./genesis.json",
-		"the path to the genesis.json",
-	)
+	c.commonCfg.RegisterFlags(fs)
 
 	fs.StringVar(
 		&c.address,

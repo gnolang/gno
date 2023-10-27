@@ -29,12 +29,11 @@ var (
 )
 
 var (
-	errNoBalanceSource        = errors.New("at least one balance source must be set")
-	errMultipleBalanceSources = errors.New("only one mode can be set at a time")
-	errBalanceParsingAborted  = errors.New("balance parsing aborted")
-	errInvalidBalanceFormat   = errors.New("invalid balance format encountered")
-	errInvalidAddress         = errors.New("invalid address encountered")
-	errInvalidAmount          = errors.New("invalid amount encountered")
+	errNoBalanceSource       = errors.New("at least one balance source must be set")
+	errBalanceParsingAborted = errors.New("balance parsing aborted")
+	errInvalidBalanceFormat  = errors.New("invalid balance format encountered")
+	errInvalidAddress        = errors.New("invalid address encountered")
+	errInvalidAmount         = errors.New("invalid amount encountered")
 )
 
 type balancesAddCfg struct {

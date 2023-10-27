@@ -15,7 +15,7 @@ import (
 var errInvalidGenesisState = errors.New("invalid genesis state type")
 
 type verifyCfg struct {
-	genesisPath string
+	commonCfg
 }
 
 // newVerifyCmd creates the genesis verify subcommand
@@ -37,12 +37,7 @@ func newVerifyCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.genesisPath,
-		"genesis-path",
-		"./genesis.json",
-		"the path to the genesis.json",
-	)
+	c.commonCfg.RegisterFlags(fs)
 }
 
 func execVerify(cfg *verifyCfg, io *commands.IO) error {

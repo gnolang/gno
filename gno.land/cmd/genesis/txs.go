@@ -7,7 +7,7 @@ import (
 )
 
 type txsCfg struct {
-	genesisPath string
+	commonCfg
 }
 
 // newTxsCmd creates the genesis txs subcommand
@@ -34,10 +34,5 @@ func newTxsCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *txsCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.genesisPath,
-		"genesis-path",
-		"./genesis.json",
-		"the path to the genesis.json",
-	)
+	c.commonCfg.RegisterFlags(fs)
 }
