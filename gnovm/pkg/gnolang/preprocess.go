@@ -121,6 +121,19 @@ var preprocessing int
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+
+	// When panic, revert any package updates.
+	defer func() {
+		// Revert all new values.
+		// this is needed to revert top level
+		// function redeclarations.
+		if r := recover(); r != nil {
+			pkg := packageOf(ctx)
+			pkg.StaticBlock.revertToOld()
+			panic(r)
+		}
+	}()
+
 	// Increment preprocessing counter while preprocessing.
 	{
 		preprocessing += 1
@@ -2935,7 +2948,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
 			if !ft.IsZero() {
 				// redefining function.
-				// make sure the type is the sae.
+				// make sure the type is the same.
 				if ft.TypeID() != ft2.TypeID() {
 					panic(fmt.Sprintf(
 						"Redefinition (%s) cannot change .T; was %v, new %v",

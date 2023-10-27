@@ -146,6 +146,10 @@ func (loc Location) IsZero() bool {
 		loc.Nonce == 0
 }
 
+func (loc Location) Equal(other Location) bool {
+	return loc == other
+}
+
 // ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
@@ -1483,6 +1487,22 @@ type StaticBlock struct {
 	Consts   []Name // TODO consider merging with Names.
 	Externs  []Name
 	Loc      Location
+
+	// temporary storage for rolling back redefinitions.
+	oldValues []oldValue
+}
+
+type oldValue struct {
+	idx   uint16
+	value Value
+}
+
+// revert values upon failure of redefinitions.
+func (sb *StaticBlock) revertToOld() {
+	for _, ov := range sb.oldValues {
+		sb.Block.Values[ov.idx].V = ov.value
+	}
+	sb.oldValues = nil
 }
 
 // Implements BlockNode
@@ -1788,6 +1808,8 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 				fv := tv.V.(*FuncValue)
 				fv.Type = old.T
 				st = old.T
+				sb.oldValues = append(sb.oldValues,
+					oldValue{idx, old.V})
 			} else {
 				if tv.T.TypeID() != old.T.TypeID() {
 					panic(fmt.Sprintf(
