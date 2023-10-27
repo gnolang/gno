@@ -533,19 +533,15 @@ type FuncValue struct {
 }
 
 func (fv *FuncValue) IsNative() bool {
-	if fv.NativePkg == "" {
-		if fv.NativeName == "" {
-			return false
-		} else {
-			panic("should not happen")
-		}
-	} else {
-		if fv.NativeName == "" {
-			panic("should not happen")
-		} else {
-			return true
-		}
+	if fv.NativePkg == "" && fv.NativeName == "" {
+		return false
 	}
+	if fv.NativePkg == "" || fv.NativeName == "" {
+		panic(fmt.Sprintf("function (%q).%s has invalid native pkg/name ((%q).%s)",
+			fv.Source.GetLocation().PkgPath, fv.Name,
+			fv.NativePkg, fv.NativeName))
+	}
+	return true
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
