@@ -121,7 +121,6 @@ var preprocessing int
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-
 	// When panic, revert any package updates.
 	defer func() {
 		// Revert all new values.
