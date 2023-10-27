@@ -15,8 +15,6 @@ import (
 )
 
 func TestWriteFileAtomic(t *testing.T) {
-	t.Parallel()
-
 	var (
 		data             = []byte(random.RandStr(random.RandIntn(2048)))
 		old              = random.RandBytes(random.RandIntn(2048))
@@ -59,8 +57,6 @@ func TestWriteFileAtomic(t *testing.T) {
 // This tests atomic write file when there is a single duplicate file.
 // Expected behavior is for a new file to be created, and the original write file to be unaltered.
 func TestWriteFileAtomicDuplicateFile(t *testing.T) {
-	t.Parallel()
-
 	var (
 		defaultSeed    uint64 = 1
 		testString            = "This is a glorious test string"
