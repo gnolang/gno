@@ -466,6 +466,7 @@ func BenchmarkDecode(b *testing.B) {
 		StdEncoding.Decode(buf, data)
 	}
 }
+
 func BenchmarkDecodeString(b *testing.B) {
 	data := StdEncoding.EncodeToString(make([]byte, 8192))
 	b.SetBytes(int64(len(data)))
@@ -542,6 +543,7 @@ func TestDecodeWithWrongPadding(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
 // XXX `go` is not implemented yet
 // func TestBufferedDecodingSameError(t *testing.T) {
 // 	testcases := []struct {

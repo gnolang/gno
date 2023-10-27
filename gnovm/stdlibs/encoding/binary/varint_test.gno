@@ -6,6 +6,7 @@ package binary
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math"
 	"testing"
@@ -25,8 +26,7 @@ func TestConstants(t *testing.T) {
 	testConstant(t, 64, MaxVarintLen64)
 }
 
-// XXX panic: runtime error: invalid memory address or nil pointer dereference
-//
+// XXX SIGSEGV in test
 // func testVarint(t *testing.T, x int64) {
 // 	buf := make([]byte, MaxVarintLen64)
 // 	n := PutVarint(buf, x)
@@ -100,45 +100,134 @@ func TestConstants(t *testing.T) {
 // 	1<<63 - 1,
 // }
 
-// func TestVarint(t *testing.T) {
-// 	for _, x := range tests {
-// 		testVarint(t, x)
-// 		testVarint(t, -x)
-// 	}
-// 	for x := int64(0x7); x != 0; x <<= 1 {
-// 		testVarint(t, x)
-// 		testVarint(t, -x)
-// 	}
-// }
+// ref: https://pkg.go.dev/encoding/binary@go1.21.3#example-PutVarint
+func TestPutVarint(t *testing.T) {
+	buf := make([]byte, MaxVarintLen64)
 
-// func TestUvarint(t *testing.T) {
-// 	for _, x := range tests {
-// 		testUvarint(t, uint64(x))
-// 	}
-// 	for x := uint64(0x7); x != 0; x <<= 1 {
-// 		testUvarint(t, x)
-// 	}
-// }
+	// testCases := []int64{
+	// 	-1 << 63,
+	// 	-1<<63 + 1,
+	// 	-2,
+	// 	-1,
+	// 	0,
+	// 	1,
+	// 	2,
+	// 	63,
+	// 	64,
+	// 	1<<63 - 1,
+	// }
+	// for _, tc := range testCases {
+	// 	n := PutUvarint(buf, uint64(tc))
+	// 	fmt.Printf("%x\n", buf[:n])
+	// }
+	// fmt.Printf("\n")
 
-// func TestBufferTooSmall(t *testing.T) {
-// 	buf := []byte{0x80, 0x80, 0x80, 0x80}
-// 	for i := 0; i <= len(buf); i++ {
-// 		buf := buf[0:i]
-// 		x, n := Uvarint(buf)
-// 		if x != 0 || n != 0 {
-// 			t.Errorf("Uvarint(%v): got x = %d, n = %d", buf, x, n)
-// 		}
+	testCases := []struct {
+		input   int64
+		expected string
+	}{
+		{-1<<63, "ffffffffffffffffff01"},
+		{-1<<63+1, "fdffffffffffffffff01"},
+		{-65, "8101"},
+		{-64, "7f"},
+		{-2, "03"},
+		{-1, "01"},
+		{0, "00"},
+		{1, "02"},
+		{2, "04"},
+		{63, "7e"},
+		{64, "8001"},
+		{1<<63-1, "feffffffffffffffff01"},
+	}
 
-// 		x, err := ReadUvarint(bytes.NewReader(buf))
-// 		wantErr := io.EOF
-// 		if i > 0 {
-// 			wantErr = io.ErrUnexpectedEOF
-// 		}
-// 		if x != 0 || err != wantErr {
-// 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
-// 		}
-// 	}
-// }
+	for _, tc := range testCases {
+		n := PutVarint(buf, tc.input)
+		actual := ""
+		for j := 0; j < n; j++ {
+			actual += fmt.Sprintf("%02x", buf[j])
+		}
+
+		if actual != tc.expected {
+			t.Errorf("PutVarint(%d): expected %s, got %s", tc.input, tc.expected, actual)
+		}
+	}
+}
+
+// ref: https://pkg.go.dev/encoding/binary@go1.21.3#example-PutUvarint
+func TestPutUvarint(t *testing.T) {
+	buf := make([]byte, MaxVarintLen64)
+
+	testCases := []struct {
+		input    uint64
+		expected string
+	}{
+		{1, "01"},
+		{2, "02"},
+		{127, "7f"},
+		{128, "8001"},
+		{255, "ff01"},
+		{256, "8002"},
+		{1<<63 - 1, "ffffffffffffffff7f"},
+	}
+
+	for _, tc := range testCases {
+		n := PutUvarint(buf, tc.input)
+		actual := ""
+		for j := 0; j < n; j++ {
+			actual += fmt.Sprintf("%02x", buf[j])
+		}
+
+		if actual != tc.expected {
+			t.Errorf("PutUvarint(%d): expected %s, got %s", tc.input, tc.expected, actual)
+		}
+	}
+}
+
+// ref: https://pkg.go.dev/encoding/binary@go1.21.3#example-Uvarint
+func TestUvarint(t *testing.T) {
+	testCases := []struct {
+		input   []byte
+		results uint64
+	}{
+		{[]byte{0x01}, 1},
+		{[]byte{0x02}, 2},
+		{[]byte{0x7f}, 127},
+		{[]byte{0x80, 0x01}, 128},
+		{[]byte{0xff, 0x01}, 255},
+		{[]byte{0x80, 0x02}, 256},
+	}
+
+	for _, tc := range testCases {
+		x, n := Uvarint(tc.input)
+		if n != len(tc.input) {
+			t.Errorf("Uvarint did not consume all bytes")
+		}
+
+		if x != tc.results {
+			t.Errorf("Uvarint(%v): got x = %d, want %d", tc.input, x, tc.results)
+		}
+	}
+}
+
+func TestBufferTooSmall(t *testing.T) {
+	buf := []byte{0x80, 0x80, 0x80, 0x80}
+	for i := 0; i <= len(buf); i++ {
+		buf := buf[0:i]
+		x, n := Uvarint(buf)
+		if x != 0 || n != 0 {
+			t.Errorf("Uvarint(%v): got x = %d, n = %d", buf, x, n)
+		}
+
+		x, err := ReadUvarint(bytes.NewReader(buf))
+		wantErr := io.EOF
+		if i > 0 {
+			wantErr = io.ErrUnexpectedEOF
+		}
+		if x != 0 || err != wantErr {
+			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
+		}
+	}
+}
 
 // XXX panic: reflect: reflect.Value.SetString using value obtained using unexported field
 //
@@ -235,22 +324,22 @@ func TestNonCanonicalZero(t *testing.T) {
 	}
 }
 
-// func BenchmarkPutUvarint32(b *testing.B) {
-// 	buf := make([]byte, MaxVarintLen32)
-// 	b.SetBytes(4)
-// 	for i := 0; i < b.N; i++ {
-// 		for j := uint(0); j < MaxVarintLen32; j++ {
-// 			PutUvarint(buf, 1<<(j*7))
-// 		}
-// 	}
-// }
+func BenchmarkPutUvarint32(b *testing.B) {
+	buf := make([]byte, MaxVarintLen32)
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < MaxVarintLen32; j++ {
+			PutUvarint(buf, 1<<(j*7))
+		}
+	}
+}
 
-// func BenchmarkPutUvarint64(b *testing.B) {
-// 	buf := make([]byte, MaxVarintLen64)
-// 	b.SetBytes(8)
-// 	for i := 0; i < b.N; i++ {
-// 		for j := uint(0); j < MaxVarintLen64; j++ {
-// 			PutUvarint(buf, 1<<(j*7))
-// 		}
-// 	}
-// }
+func BenchmarkPutUvarint64(b *testing.B) {
+	buf := make([]byte, MaxVarintLen64)
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < MaxVarintLen64; j++ {
+			PutUvarint(buf, 1<<(j*7))
+		}
+	}
+}
