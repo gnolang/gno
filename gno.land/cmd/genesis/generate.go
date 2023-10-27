@@ -135,7 +135,10 @@ func execGenerate(cfg *generateCfg, io *commands.IO) error {
 		return fmt.Errorf("unable to save genesis, %w", saveErr)
 	}
 
-	io.Printfln("Genesis successfully generated at %s", cfg.outputPath)
+	io.Printfln("Genesis successfully generated at %s\n", cfg.outputPath)
+
+	// Log the empty validator set warning
+	io.Printfln("WARN: Genesis is generated with an empty validator set")
 
 	return nil
 }
