@@ -100,10 +100,16 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			},
 		},
 		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{},
-			Txs:      []std.Tx{},
+			Balances: []gnoland.Balance{
+				{
+					Address: crypto.MustAddressFromString(DefaultAccount_Address),
+					Value:   std.MustParseCoins("10000000000000ugnot"),
+				},
+			},
+			Txs: []std.Tx{},
 		},
 	}
+
 }
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
