@@ -7,7 +7,12 @@ import (
 	"gno.land/p/demo/avl"
 )
 
+// var MemberList *avl.Tree
 var MemberList avl.Tree
+
+// func init() {
+// 	Memberlist := avl.NewTree()
+// }
 
 func AddMember(memberKey string) error {
 	assertIsAdmin()
