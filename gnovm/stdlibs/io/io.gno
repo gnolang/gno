@@ -554,7 +554,7 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
 
-// And OffsetWriter maps writers at offset base to offset base + off in the underlying writer.
+// An OffsetWriter maps writers at offset base to offset base + off in the underlying writer.
 type OffsetWriter struct {
 	w    WriterAt
 	base int64 // the original offset
