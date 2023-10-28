@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const recursed string = "<recursed>"
+
 func (v StringValue) String() string {
 	return strconv.Quote(string(v))
 }
@@ -24,10 +26,19 @@ func (dbv DataByteValue) String() string {
 }
 
 func (av *ArrayValue) String() string {
+	return av.ProtectedString(map[Value]struct{}{})
+}
+
+func (av *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[av]; ok {
+		return recursed
+	}
+
+	seen[av] = struct{}{}
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
-			ss[i] = e.String()
+			ss[i] = e.ProtectedString(seen)
 		}
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
@@ -41,17 +52,28 @@ func (av *ArrayValue) String() string {
 }
 
 func (sv *SliceValue) String() string {
+	return sv.ProtectedString(map[Value]struct{}{})
+}
+
+func (sv *SliceValue) ProtectedString(seen map[Value]struct{}) string {
 	if sv.Base == nil {
 		return "nil-slice"
 	}
+
+	if _, ok := seen[sv]; ok {
+		return recursed
+	}
+
 	if ref, ok := sv.Base.(RefValue); ok {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
+
+	seen[sv] = struct{}{}
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.String()
+			ss[i] = e.ProtectedString(seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
@@ -62,16 +84,31 @@ func (sv *SliceValue) String() string {
 }
 
 func (pv PointerValue) String() string {
-	// NOTE: cannot do below, due to recursion problems.
-	// TODO: create a different String2(...) function.
-	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p.(*%s)", pv.TV, pv.TV.T.String())
+	return pv.ProtectedString(map[Value]struct{}{})
+}
+
+func (pv PointerValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[pv]; ok {
+		return recursed
+	}
+
+	seen[pv] = struct{}{}
+	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
 }
 
 func (sv *StructValue) String() string {
+	return sv.ProtectedString(map[Value]struct{}{})
+}
+
+func (sv *StructValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[sv]; ok {
+		return recursed
+	}
+
+	seen[sv] = struct{}{}
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
-		ss[i] = f.String()
+		ss[i] = f.ProtectedString(seen)
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
@@ -104,9 +141,19 @@ func (v *BoundMethodValue) String() string {
 }
 
 func (mv *MapValue) String() string {
+	return mv.ProtectedString(map[Value]struct{}{})
+}
+
+func (mv *MapValue) ProtectedString(seen map[Value]struct{}) string {
 	if mv.List == nil {
 		return "zero-map"
 	}
+
+	if _, ok := seen[mv]; ok {
+		return recursed
+	}
+
+	seen[mv] = struct{}{}
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
@@ -176,10 +223,21 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
-	// print declared type
-	if _, ok := tv.T.(*DeclaredType); ok {
-		return tv.String()
+
+	return tv.ProtectedSprint(map[Value]struct{}{}, true)
+}
+
+func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredType bool) string {
+
+	if _, ok := seen[tv.V]; ok {
+		return recursed
 	}
+
+	// print declared type
+	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
+		return tv.ProtectedString(seen)
+	}
+
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
@@ -223,15 +281,15 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		if tv.V == nil {
 			return "invalid-pointer"
 		}
-		return tv.V.(PointerValue).String()
+		return tv.V.(PointerValue).ProtectedString(seen)
 	case *ArrayType:
-		return tv.V.(*ArrayValue).String()
+		return tv.V.(*ArrayValue).ProtectedString(seen)
 	case *SliceType:
-		return tv.V.(*SliceValue).String()
+		return tv.V.(*SliceValue).ProtectedString(seen)
 	case *StructType:
-		return tv.V.(*StructValue).String()
+		return tv.V.(*StructValue).ProtectedString(seen)
 	case *MapType:
-		return tv.V.(*MapValue).String()
+		return tv.V.(*MapValue).ProtectedString(seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -281,6 +339,10 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
+	return tv.ProtectedString(map[Value]struct{}{})
+}
+
+func (tv TypedValue) ProtectedString(seen map[Value]struct{}) string {
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
@@ -317,12 +379,15 @@ func (tv TypedValue) String() string {
 			vs = fmt.Sprintf("%v", tv.GetFloat32())
 		case Float64Type:
 			vs = fmt.Sprintf("%v", tv.GetFloat64())
+		// Complex types that require recusion protection.
 		default:
 			vs = nilStr
 		}
 	} else {
-		vs = fmt.Sprintf("%v", tv.V)
+		// vs = fmt.Sprintf("%v", tv.V)
+		vs = tv.ProtectedSprint(seen, false)
 	}
+
 	ts := tv.T.String()
 	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
 }
