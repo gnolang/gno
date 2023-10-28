@@ -489,7 +489,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 func isLss(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) < rv.V.(StringValue))
+		return (lv.GetString() < rv.GetString())
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -533,7 +533,7 @@ func isLss(lv, rv *TypedValue) bool {
 func isLeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) <= rv.V.(StringValue))
+		return (lv.GetString() <= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -577,7 +577,7 @@ func isLeq(lv, rv *TypedValue) bool {
 func isGtr(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) > rv.V.(StringValue))
+		return (lv.GetString() > rv.GetString())
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -621,7 +621,7 @@ func isGtr(lv, rv *TypedValue) bool {
 func isGeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) >= rv.V.(StringValue))
+		return (lv.GetString() >= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:

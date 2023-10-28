@@ -24,7 +24,7 @@ type addPkgCfg struct {
 	deposit string
 }
 
-func newAddPkgCmd(rootCfg *makeTxCfg) *commands.Command {
+func newAddPkgCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 	cfg := &addPkgCfg{
 		rootCfg: rootCfg,
 	}
@@ -37,7 +37,7 @@ func newAddPkgCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAddPkg(cfg, args, commands.NewDefaultIO())
+			return execAddPkg(cfg, args, io)
 		},
 	)
 }

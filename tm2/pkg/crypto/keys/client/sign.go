@@ -28,7 +28,7 @@ type signCfg struct {
 	pass         string
 }
 
-func newSignCmd(rootCfg *baseCfg) *commands.Command {
+func newSignCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &signCfg{
 		rootCfg: rootCfg,
 	}
@@ -41,7 +41,7 @@ func newSignCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSign(cfg, args, commands.NewDefaultIO())
+			return execSign(cfg, args, io)
 		},
 	)
 }

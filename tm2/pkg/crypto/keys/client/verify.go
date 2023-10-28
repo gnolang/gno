@@ -16,7 +16,7 @@ type verifyCfg struct {
 	docPath string
 }
 
-func newVerifyCmd(rootCfg *baseCfg) *commands.Command {
+func newVerifyCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &verifyCfg{
 		rootCfg: rootCfg,
 	}
@@ -29,7 +29,7 @@ func newVerifyCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execVerify(cfg, args, commands.NewDefaultIO())
+			return execVerify(cfg, args, io)
 		},
 	)
 }

@@ -1,0 +1,12 @@
+# Run gno build on a dir w/o gno files
+
+gno build .
+
+! stdout .+
+! stderr .+
+
+-- README --
+Hello world
+
+-- sub/README --
+Hello world

@@ -18,7 +18,7 @@ type baseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd() *commands.Command {
+func NewRootCmd(io *commands.IO) *commands.Command {
 	cfg := &baseCfg{}
 
 	cmd := commands.NewCommand(
@@ -35,17 +35,17 @@ func NewRootCmd() *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newAddCmd(cfg),
-		newDeleteCmd(cfg),
-		newGenerateCmd(cfg),
-		newExportCmd(cfg),
-		newImportCmd(cfg),
-		newListCmd(cfg),
-		newSignCmd(cfg),
-		newVerifyCmd(cfg),
-		newQueryCmd(cfg),
-		newBroadcastCmd(cfg),
-		newMakeTxCmd(cfg),
+		newAddCmd(cfg, io),
+		newDeleteCmd(cfg, io),
+		newGenerateCmd(cfg, io),
+		newExportCmd(cfg, io),
+		newImportCmd(cfg, io),
+		newListCmd(cfg, io),
+		newSignCmd(cfg, io),
+		newVerifyCmd(cfg, io),
+		newQueryCmd(cfg, io),
+		newBroadcastCmd(cfg, io),
+		newMakeTxCmd(cfg, io),
 	)
 
 	return cmd

@@ -29,7 +29,7 @@ type addCfg struct {
 	index             uint64
 }
 
-func newAddCmd(rootCfg *baseCfg) *commands.Command {
+func newAddCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &addCfg{
 		rootCfg: rootCfg,
 	}
@@ -42,7 +42,7 @@ func newAddCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAdd(cfg, args, commands.NewDefaultIO())
+			return execAdd(cfg, args, io)
 		},
 	)
 }
@@ -259,7 +259,7 @@ func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 	}
 
 	if len(mnemonic) == 0 {
-		mnemonic, err = generateMnemonic(mnemonicEntropySize)
+		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
 		if err != nil {
 			return err
 		}

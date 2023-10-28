@@ -23,7 +23,7 @@ type broadcastCfg struct {
 	tx *std.Tx
 }
 
-func newBroadcastCmd(rootCfg *baseCfg) *commands.Command {
+func newBroadcastCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
 	cfg := &broadcastCfg{
 		rootCfg: rootCfg,
 	}
