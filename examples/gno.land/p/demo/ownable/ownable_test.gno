@@ -5,55 +5,58 @@ import (
 	"testing"
 )
 
+var (
+	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+)
+
 func TestNew(t *testing.T) {
-	std.TestSetOrigCaller("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	std.TestSetOrigCaller(firstCaller)
 
 	expected := Ownable{
-		owner: "g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de",
+		owner: firstCaller,
 	}
 
 	result := New()
 	if expected.owner != result.owner {
-		t.Fatalf("Expected %s, got: %s\n", expected.owner.String(), result.owner.String())
+		t.Fatalf("Expected %s, got: %s\n", expected.owner, result.owner)
 	}
 }
 
 func TestGetOwner(t *testing.T) {
-	std.TestSetOrigCaller("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	std.TestSetOrigCaller(firstCaller)
 
 	result := New()
 	resultOwner := result.GetOwner()
 
-	expected := "g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de"
-	if resultOwner.String() != expected {
+	expected := firstCaller
+	if resultOwner != expected {
 		t.Fatalf("Expected %s, got: %s\n", expected, result)
 	}
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetOrigCaller("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-
+	std.TestSetOrigCaller(firstCaller)
 	o := New()
-	secondOwner := "g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa"
 
-	err := o.TransferOwnership(std.Address(secondOwner))
+	err := o.TransferOwnership(secondCaller)
 	if err != nil {
 		t.Fatalf("TransferOwnership failed, %v", err)
 	}
 
 	result := o.GetOwner()
-	if secondOwner != result {
-		t.Fatalf("Expected: %s, got: %s\n", secondOwner, result)
+	if secondCaller != result {
+		t.Fatalf("Expected: %s, got: %s\n", secondCaller, result)
 	}
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetOrigCaller("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	std.TestSetOrigCaller(firstCaller)
 
 	o := New()
-	unauthorizedCaller := "g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa"
+	unauthorizedCaller := secondCaller
 
-	std.TestSetOrigCaller(std.Address(unauthorizedCaller))
+	std.TestSetOrigCaller(unauthorizedCaller)
 
 	if o.CallerIsOwner() {
 		t.Fatalf("Expected: %s to not be owner\n", unauthorizedCaller)
@@ -61,7 +64,7 @@ func TestCallerIsOwner(t *testing.T) {
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetOrigCaller("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	std.TestSetOrigCaller(firstCaller)
 
 	o := New()
 
@@ -76,6 +79,41 @@ func TestDropOwnership(t *testing.T) {
 	}
 }
 
-func TestErrors(t *testing.T) {
+// TODO add embedded Tests?
 
+// Errors
+
+func TestErrUnauthorized(t *testing.T) {
+	std.TestSetOrigCaller(firstCaller)
+
+	o := New()
+
+	std.TestSetOrigCaller(secondCaller)
+
+	err := o.TransferOwnership(firstCaller)
+	if err != ErrUnauthorized { // TODO errors.Is doesnt work
+		t.Fatalf("Shoud've been ErrUnauthorized, was %v", err)
+	}
+
+	err = o.DropOwnership()
+	if err != ErrUnauthorized {
+		t.Fatalf("Shoud've been ErrUnauthorized, was %v", err)
+	}
+}
+
+func TestErrInvalidAddress(t *testing.T) {
+	std.TestSetOrigCaller(firstCaller)
+
+	o := New()
+
+	err := o.TransferOwnership("")
+
+	if err != ErrInvalidAddress {
+		t.Fatalf("Shoud've been ErrInvalidAddress, was %v", err)
+	}
+
+	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
+	if err != ErrInvalidAddress {
+		t.Fatalf("Shoud've been ErrInvalidAddress, was %v", err)
+	}
 }

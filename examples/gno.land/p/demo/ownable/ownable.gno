@@ -46,7 +46,7 @@ func (o *Ownable) DropOwnership() error {
 // CallerIsOwner checks if the caller of the function is the Realm's owner
 func (o *Ownable) CallerIsOwner() bool {
 	if std.GetOrigCaller() == o.owner {
-		return true
+		return true // TODO figure out why it panics if you switch bools
 	}
 	return false
 }
