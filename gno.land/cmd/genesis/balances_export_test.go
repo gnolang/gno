@@ -1,18 +1,39 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenesis_Txs_Remove(t *testing.T) {
+// getDummyBalanceLines generates dummy balance lines
+func getDummyBalanceLines(t *testing.T, count int) []string {
+	t.Helper()
+
+	dummyKeys := getDummyKeys(t, count)
+	amount := int64(10)
+
+	balances := make([]string, len(dummyKeys))
+
+	for index, key := range dummyKeys {
+		balances[index] = fmt.Sprintf(
+			"%s=%dugnot",
+			key.Address().String(),
+			amount,
+		)
+	}
+
+	return balances
+}
+
+func TestGenesis_Balances_Export(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis file", func(t *testing.T) {
@@ -21,8 +42,8 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
-			"remove",
+			"balances",
+			"export",
 			"--genesis-path",
 			"dummy-path",
 		}
@@ -45,8 +66,8 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
-			"remove",
+			"balances",
+			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
 		}
@@ -55,82 +76,80 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorContains(t, cmdErr, errAppStateNotSet.Error())
 	})
-	t.Run("no transaction hash specified", func(t *testing.T) {
+
+	t.Run("no output file specified", func(t *testing.T) {
 		t.Parallel()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		// Generate dummy txs
-		txs := generateDummyTxs(t, 10)
-
 		genesis := getDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: txs,
+			Balances: getDummyBalanceLines(t, 1),
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
-			"remove",
+			"balances",
+			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errNoTxHashSpecified.Error())
+		assert.ErrorContains(t, cmdErr, errNoOutputFile.Error())
 	})
 
-	t.Run("transaction removed", func(t *testing.T) {
+	t.Run("valid balances export", func(t *testing.T) {
 		t.Parallel()
+
+		// Generate dummy balances
+		balances := getDummyBalanceLines(t, 10)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		// Generate dummy txs
-		txs := generateDummyTxs(t, 10)
-
 		genesis := getDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: txs,
+			Balances: balances,
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		txHash, err := getTxHash(txs[0])
-		require.NoError(t, err)
+		// Prepare the output file
+		outputFile, outputCleanup := testutils.NewTestFile(t)
+		t.Cleanup(outputCleanup)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
-			"remove",
+			"balances",
+			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
-			txHash,
+			outputFile.Name(),
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 
-		// Validate the transaction was removed
-		updatedGenesis, err := types.GenesisDocFromFile(tempGenesis.Name())
-		require.NoError(t, err)
-		require.NotNil(t, updatedGenesis.AppState)
+		// Validate the transactions were written down
+		scanner := bufio.NewScanner(outputFile)
 
-		// Fetch the state
-		state := updatedGenesis.AppState.(gnoland.GnoGenesisState)
+		outputBalances := make([]string, 0)
+		for scanner.Scan() {
+			outputBalances = append(outputBalances, scanner.Text())
+		}
 
-		assert.Len(t, state.Txs, len(txs)-1)
+		require.NoError(t, scanner.Err())
 
-		for _, tx := range state.Txs {
-			genesisTxHash, err := getTxHash(tx)
-			require.NoError(t, err)
+		assert.Len(t, outputBalances, len(balances))
 
-			assert.NotEqual(t, txHash, genesisTxHash)
+		for index, balance := range outputBalances {
+			assert.Equal(t, balances[index], balance)
 		}
 	})
 }

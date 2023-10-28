@@ -19,8 +19,8 @@ func newTxsExportCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "export",
-			ShortUsage: "txs export [flags]",
-			ShortHelp:  "Exports transactions from the genesis.json",
+			ShortUsage: "txs export [flags] <output-path>",
+			ShortHelp:  "Exports the transactions from the genesis.json",
 			LongHelp:   "Exports the transactions from the genesis.json to an output file",
 		},
 		commands.NewEmptyConfig(),
@@ -78,7 +78,7 @@ func execTxsExport(cfg *txsCfg, io *commands.IO, args []string) error {
 		}
 
 		// Write a newline character to separate JSON objects
-		if _, err = outputFile.Write([]byte("\n")); err != nil {
+		if _, err = outputFile.WriteString("\n"); err != nil {
 			return fmt.Errorf("unable to write newline output, %w", err)
 		}
 	}
