@@ -386,6 +386,9 @@ func (tv TypedValue) ProtectedString(seen map[Value]struct{}) string {
 	} else {
 		// vs = fmt.Sprintf("%v", tv.V)
 		vs = tv.ProtectedSprint(seen, false)
+		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			vs = strconv.Quote(vs)
+		}
 	}
 
 	ts := tv.T.String()
