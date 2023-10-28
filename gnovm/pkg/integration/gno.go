@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -28,17 +29,12 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		gnoroot = filepath.Dir(string(goModPath))
 	}
 
-	info, err := os.Stat(buildDir)
-	if err != nil {
-		return fmt.Errorf("unable to stat: %q", buildDir)
-	}
-
-	if !info.IsDir() {
-		return fmt.Errorf("given buildDir is not a directory: %q", buildDir)
+	if !osm.DirExists(buildDir) {
+		return fmt.Errorf("%q does not exist or is not a directory", buildDir)
 	}
 
 	gnoBin := filepath.Join(buildDir, "gno")
-	if _, err = os.Stat(gnoBin); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(gnoBin); errors.Is(err, os.ErrNotExist) {
 		// Build a fresh gno binary in a temp directory
 		gnoArgsBuilder := []string{"build", "-o", gnoBin}
 
