@@ -5,6 +5,9 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+.PHONY: gnoland.start
+gnoland.start:; go run ./cmd/gnoland start
+
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync
 
