@@ -23,7 +23,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 		return ErrUnauthorized
 	}
 
-	if len(string(newOwner)) != 40 {
+	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}
 
