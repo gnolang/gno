@@ -135,3 +135,67 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 func (msg MsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
+
+//----------------------------------------
+// MsgRun
+
+// MsgRun - executes arbitrary Gno code.
+type MsgRun struct {
+	Caller  crypto.Address  `json:"caller" yaml:"caller"`
+	Send    std.Coins       `json:"send" yaml:"send"`
+	Package *std.MemPackage `json:"package" yaml:"package"`
+}
+
+var _ std.Msg = MsgRun{}
+
+func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".gno") {
+			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			if pkgName != "main" {
+				panic("package name should be 'main'")
+			}
+		}
+	}
+	return MsgRun{
+		Caller: caller,
+		Send:   send,
+		Package: &std.MemPackage{
+			Name:  "main",
+			Path:  "gno.land/r/" + caller.String() + "/run",
+			Files: files,
+		},
+	}
+}
+
+// Implements Msg.
+func (msg MsgRun) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgRun) Type() string { return "run" }
+
+// Implements Msg.
+func (msg MsgRun) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+	if msg.Package.Path == "" { // XXX
+		return ErrInvalidPkgPath("missing package path")
+	}
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgRun) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgRun) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// Implements ReceiveMsg.
+func (msg MsgRun) GetReceived() std.Coins {
+	return msg.Send
+}

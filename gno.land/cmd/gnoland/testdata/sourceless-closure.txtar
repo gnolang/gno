@@ -1,0 +1,43 @@
+## This example demonstrates how to store a closure, represented as a variable with its state and logic, in a contract. It also showcases the ability to upgrade the implementation of a closure between versions 1 and 2 of a realm while maintaining compatibility with the stored implementation in version 1.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -pkgpath gno.land/r/foo -func RunClosure test1
+stdout 'aaa'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+
+#gnokey maketx call -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -pkgpath gno.land/r/foo -func RunClosure test1
+#stderr 'package value missing in store: gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run'
+
+gnokey maketx addpkg -pkgdir $WORK/dummy -pkgpath gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+#gnokey maketx call -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -pkgpath gno.land/r/foo -func RunClosure test1
+#stderr 'package value missing in store: gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run'
+
+#gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+
+gnokey maketx call -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -pkgpath gno.land/r/foo -func RunClosure test1
+stdout 'bbb42'
+
+-- foo/foo.gno --
+package foo
+func init() { clos = func() string {return "aaa"} }
+var clos func() string
+func SetClosure(c func() string) {clos = c}
+func RunClosure() string {return clos()}
+
+-- script/script.gno --
+package main
+import "gno.land/r/foo"
+import "strconv"
+func stuff() string { return "stuff" }
+func main() {
+	var i = 42
+	foo.SetClosure(func() string { return "bbb" + strconv.Itoa(i) + stuff() })
+}
+
+-- dummy/dummy.gno --
+package dummy
