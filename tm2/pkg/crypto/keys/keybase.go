@@ -189,7 +189,7 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
 	ik := kb.db.Get(addrKey(address))
 	if len(ik) == 0 {
-		return nil, fmt.Errorf("key with address %s not found", address)
+		return nil, keyerror.NewErrKeyNotFound(fmt.Sprintf("key with address %s not found", address))
 	}
 	bs := kb.db.Get(ik)
 	return readInfo(bs)
