@@ -2967,7 +2967,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
-				"unknown import path %s",
+				"hov unknown import path %s",
 				d.PkgPath))
 		}
 		if d.Name == "" { // use default

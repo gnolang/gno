@@ -433,21 +433,21 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		}
 
 		// if examples package...
-		examplePath := filepath.Join(rootDir, "examples", pkgPath)
-		if osm.DirExists(examplePath) {
-			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
-			if memPkg.IsEmpty() {
-				panic(fmt.Sprintf("found an empty package %q", pkgPath))
-			}
+		// examplePath := filepath.Join(rootDir, "examples", pkgPath)
+		// if osm.DirExists(examplePath) {
+		// 	memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+		// 	if memPkg.IsEmpty() {
+		// 		panic(fmt.Sprintf("found an empty package %q", pkgPath))
+		// 	}
 
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath: "test",
-				Output:  stdout,
-				Store:   store,
-			})
-			pn, pv = m2.RunMemPackage(memPkg, true)
-			return
-		}
+		// 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		// 		PkgPath: "test",
+		// 		Output:  stdout,
+		// 		Store:   store,
+		// 	})
+		// 	pn, pv = m2.RunMemPackage(memPkg, true)
+		// 	return
+		// }
 		return nil, nil
 	}
 	// NOTE: store is also used in closure above.

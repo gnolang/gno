@@ -16,6 +16,7 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/gnolang/gno/gnovm/pkg/cover"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
@@ -339,6 +340,9 @@ func gnoTestPkg(
 
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
+			mode := cover.Set
+			cover.Annotate(memPkg, &mode)
+			fmt.Println(memPkg.Files[1].Body)
 			m.RunMemPackage(memPkg, true)
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
