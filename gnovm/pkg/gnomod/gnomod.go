@@ -156,6 +156,23 @@ func GnoToGoMod(f File) (*File, error) {
 		}
 	}
 
+	// Always require and replace std
+	f.Require = append(f.Require, &modfile.Require{
+		Mod: module.Version{
+			Path:    gnolang.GnoStdPkgAfter,
+			Version: "v0.0.0",
+		},
+	})
+	f.Replace = append(f.Replace, &modfile.Replace{
+		Old: module.Version{
+			Path:    gnolang.GnoStdPkgAfter,
+			Version: "v0.0.0",
+		},
+		New: module.Version{
+			Path: filepath.Join(gnoModPath, "stdlibs", "stdshim"),
+		},
+	})
+
 	return &f, nil
 }
 

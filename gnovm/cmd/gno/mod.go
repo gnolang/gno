@@ -70,7 +70,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
 		"remote",
-		"test3.gno.land:36657",
+		"localhost:26657",
 		"remote for fetching gno modules",
 	)
 
