@@ -107,6 +107,30 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	return string(newGameJSON)
 }
 
+func FlipTilesClient(player std.Address, gameID string, positions string, randomNumbers string) (string) {
+	// get the current game of the player
+	games := getUserGames(player)
+	currentGame := games[0]
+	currentGamePositions, err := ParseString(positions)
+	currentRandomNumbers, err := ParseString(randomNumbers)
+	
+	// call real FlipTiles on flippandoserver, which does the game mechanics
+	// and returns 2 []int64 boards: the GameBoard, and the SolvedGameBoard
+	// we only send to the user the SolvedGameBoard
+	board, solvedBoard := flippandoserver.FlipTilesClient(currentGame.GameBoard, 
+		currentGame.SolvedGameBoard, 
+		currentGame.GameTiles, 
+		currentGamePositions,
+		currentRandomNumbers)
+	currentGame.GameBoard = board
+	currentGame.SolvedGameBoard = solvedBoard
+	currentGameJSON, err := currentGame.MarshalJSON()
+	if err != nil {
+		return "error";
+	}
+	return string(currentGameJSON)
+}
+
 func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	// get the current game of the player
 	games := getUserGames(player)

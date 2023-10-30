@@ -65,6 +65,62 @@ func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
 	return board, gameTiles, boardSize;
 }
 
+func FlipTilesClient(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64, randomNumbers []int64) ([]int64, []int64) {
+	//   - returns the current game board, and the solved game board
+	
+	//randomNumberSlice := generateRandomNumbers(2, 1, int64(len(board)/4))
+	
+	if board[positions[0]] == 0 {
+		board[positions[0]] = gameTiles[randomNumbers[0]]
+	}
+
+	if board[positions[1]] == 0 {
+		board[positions[1]] = gameTiles[randomNumbers[1]]
+	}
+
+	if board[positions[0]] == board[positions[1]] {
+		solvedBoard[positions[0]] = board[positions[0]]
+		solvedBoard[positions[1]] = board[positions[1]]
+	}
+
+	// enforce solvability
+	quantumThreshold := int(sqrt(float64(len(board))))
+	unsolvedTiles := 0
+
+	for j := 0; j < len(board); j++ {
+		if solvedBoard[j] == 0 {
+			unsolvedTiles++
+		}
+	}
+
+	if unsolvedTiles <= quantumThreshold {
+		// replace the board with solvedBoard and redeploy
+		if board[positions[0]] != board[positions[1]] {
+			board[positions[0]] = board[positions[1]]
+			solvedBoard[positions[0]] = board[positions[0]]
+			solvedBoard[positions[1]] = board[positions[1]]
+		}
+	}
+
+	return board, solvedBoard
+
+	// check for game solved
+	// todo: promote this check to the realm? that's where we send user events
+	/*
+	   unsolvedTiles = 0
+
+	   for j := 0; j < len(board); j++ {
+	       if(solvedBoard[j] == 0){
+	           unsolvedTiles = unsolvedTiles + 1
+	       }
+	   }
+	   if(unsolvedTiles == 0){
+	       // call flippandoGameMaster finishGame
+	       flippandoGameMaster.finishGame(id, games[id].player);
+	       emit GameSolved(id, games[id])
+	   }*/
+}
+
 func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
