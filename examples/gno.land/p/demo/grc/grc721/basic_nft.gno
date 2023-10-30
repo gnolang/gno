@@ -2,7 +2,7 @@ package grc721
 
 import (
 	"std"
-	"errors"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
@@ -69,23 +69,24 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 	return uri.(string), nil
 }
 
-func (s *basicNFT) SetTokenURI(tid TokenID, tokenURI string) (string, error) {
+func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
+	// check for invalid TokenID
 	owner, found := s.owners.Get(string(tid))
 	if !found {
-		return "", ErrInvalidTokenId
+		return false, ErrInvalidTokenId
 	}
-	/*
-	owner, error = s.OwnerOf(tid)
-	if error != nil {
-		return error
-	}*/
-	s.tokenURIs.Set(string(tid), tokenURI)
+	
+	// check for the right owner
+	owner, err := s.OwnerOf(tid)
+	if err != nil {
+		return false, ErrCallerIsNotOwner
+	}
+	s.tokenURIs.Set(string(tid), string(tURI))
 	storedURI, added := s.tokenURIs.Get(string(tid))
 	if !added {
-		return "", ErrTokenURINotSet
+		return false, ErrTokenURINotSet
 	}
-	tokenURIData := storedURI.(string)
-	return tokenURIData, nil
+	return true, nil
 }
 
 // IsApprovedForAll returns true if operator is approved for all by the owner.
