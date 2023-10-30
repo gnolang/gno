@@ -17,7 +17,7 @@ func New() *Ownable {
 	return &o
 }
 
-// TransferOwnership transfers ownership of the Ownable object to a new address
+// TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	if !o.CallerIsOwner() {
 		return ErrUnauthorized

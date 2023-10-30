@@ -13,13 +13,9 @@ var (
 func TestNew(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
-	expected := Ownable{
-		owner: firstCaller,
-	}
-
 	result := New()
-	if expected.owner != result.owner {
-		t.Fatalf("Expected %s, got: %s\n", expected.owner, result.owner)
+	if firstCaller != result.owner {
+		t.Fatalf("Expected %s, got: %s\n", firstCaller, result.owner)
 	}
 }
 
