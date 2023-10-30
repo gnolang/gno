@@ -98,7 +98,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			tempGenesis.Name(),
 		}
 
-		amount := int64(10)
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		for _, dummyKey := range dummyKeys {
 			args = append(args, "--single")
@@ -107,7 +107,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 				fmt.Sprintf(
 					"%s=%dugnot",
 					dummyKey.Address().String(),
-					amount,
+					amount.AmountOf("ugnot"),
 				),
 			)
 		}
@@ -127,16 +127,13 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		require.Equal(t, len(dummyKeys), len(state.Balances))
 
-		for _, entry := range state.Balances {
-			accountBalance, err := getBalanceFromEntry(entry)
-			require.NoError(t, err)
-
+		for _, balance := range state.Balances {
 			// Find the appropriate key
 			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
-				if dummyKey.Address().String() == accountBalance.address.String() {
-					assert.Equal(t, amount, accountBalance.amount)
+				if dummyKey.Address().String() == balance.Address.String() {
+					assert.Equal(t, amount, balance.Value)
 
 					found = true
 					break
@@ -144,7 +141,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("unexpected entry with address %s found", accountBalance.address.String())
+				t.Fatalf("unexpected entry with address %s found", balance.Address.String())
 			}
 		}
 	})
@@ -159,7 +156,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		dummyKeys := getDummyKeys(t, 10)
-		amount := int64(10)
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		balances := make([]string, len(dummyKeys))
 
@@ -170,7 +167,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			balances[index] = fmt.Sprintf(
 				"%s=%dugnot",
 				key.Address().String(),
-				amount,
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -207,16 +204,13 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		require.Equal(t, len(dummyKeys), len(state.Balances))
 
-		for _, entry := range state.Balances {
-			accountBalance, err := getBalanceFromEntry(entry)
-			require.NoError(t, err)
-
+		for _, balance := range state.Balances {
 			// Find the appropriate key
 			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
-				if dummyKey.Address().String() == accountBalance.address.String() {
-					assert.Equal(t, amount, accountBalance.amount)
+				if dummyKey.Address().String() == balance.Address.String() {
+					assert.Equal(t, amount, balance.Value)
 
 					found = true
 					break
@@ -224,7 +218,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("unexpected entry with address %s found", accountBalance.address.String())
+				t.Fatalf("unexpected entry with address %s found", balance.Address.String())
 			}
 		}
 	})
@@ -240,8 +234,8 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = int64(10)
-			amountCoins = std.NewCoins(std.NewCoin("ugnot", amount))
+			amount      = std.NewCoins(std.NewCoin("ugnot", 10))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
 			gasFee      = std.NewCoin("ugnot", 1000000)
 			txs         = make([]std.Tx, 0)
 		)
@@ -309,10 +303,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		require.Equal(t, len(dummyKeys), len(state.Balances))
 
-		for _, entry := range state.Balances {
-			accountBalance, err := getBalanceFromEntry(entry)
-			require.NoError(t, err)
-
+		for _, balance := range state.Balances {
 			// Find the appropriate key
 			// (the genesis is saved with randomized balance order)
 			found := false
@@ -321,11 +312,11 @@ func TestGenesis_Balances_Add(t *testing.T) {
 				if index == 0 {
 					// the first address should
 					// have a balance of 0
-					checkAmount = 0
+					checkAmount = std.NewCoins(std.NewCoin("ugnot", 0))
 				}
 
-				if dummyKey.Address().String() == accountBalance.address.String() {
-					assert.Equal(t, checkAmount, accountBalance.amount)
+				if dummyKey.Address().String() == balance.Address.String() {
+					assert.True(t, balance.Value.IsEqual(checkAmount))
 
 					found = true
 					break
@@ -333,7 +324,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("unexpected entry with address %s found", accountBalance.address.String())
+				t.Fatalf("unexpected entry with address %s found", balance.Address.String())
 			}
 		}
 	})
@@ -349,12 +340,11 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		genesis := getDefaultGenesis()
 		state := gnoland.GnoGenesisState{
 			// Set an initial balance value
-			Balances: []string{
-				fmt.Sprintf(
-					"%s=%dugnot",
-					dummyKeys[0].Address().String(),
-					100,
-				),
+			Balances: []gnoland.Balance{
+				{
+					Address: dummyKeys[0].Address(),
+					Value:   std.NewCoins(std.NewCoin("ugnot", 100)),
+				},
 			},
 		}
 		genesis.AppState = state
@@ -369,7 +359,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			tempGenesis.Name(),
 		}
 
-		amount := int64(10)
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		for _, dummyKey := range dummyKeys {
 			args = append(args, "--single")
@@ -378,7 +368,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 				fmt.Sprintf(
 					"%s=%dugnot",
 					dummyKey.Address().String(),
-					amount,
+					amount.AmountOf("ugnot"),
 				),
 			)
 		}
@@ -398,16 +388,13 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		require.Equal(t, len(dummyKeys), len(state.Balances))
 
-		for _, entry := range state.Balances {
-			accountBalance, err := getBalanceFromEntry(entry)
-			require.NoError(t, err)
-
+		for _, balance := range state.Balances {
 			// Find the appropriate key
 			// (the genesis is saved with randomized balance order)
 			found := false
 			for _, dummyKey := range dummyKeys {
-				if dummyKey.Address().String() == accountBalance.address.String() {
-					assert.Equal(t, amount, accountBalance.amount)
+				if dummyKey.Address().String() == balance.Address.String() {
+					assert.Equal(t, amount, balance.Value)
 
 					found = true
 					break
@@ -415,7 +402,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("unexpected entry with address %s found", accountBalance.address.String())
+				t.Fatalf("unexpected entry with address %s found", balance.Address.String())
 			}
 		}
 	})
@@ -429,7 +416,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 
 		// Generate dummy keys
 		dummyKeys := getDummyKeys(t, 2)
-		amount := int64(10)
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		balances := make([]string, len(dummyKeys))
 
@@ -437,7 +424,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 			balances[index] = fmt.Sprintf(
 				"%s=%dugnot",
 				key.Address().String(),
-				amount,
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -447,7 +434,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()])
+			assert.Equal(t, amount, balanceMap[key.Address()].Value)
 		}
 	})
 
@@ -461,7 +448,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		balanceMap, err := getBalancesFromEntries(balances)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, errInvalidBalanceFormat.Error())
+		assert.ErrorContains(t, err, "malformed entry")
 	})
 
 	t.Run("malformed balance, invalid address", func(t *testing.T) {
@@ -474,7 +461,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		balanceMap, err := getBalancesFromEntries(balances)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, errInvalidAddress.Error())
+		assert.ErrorContains(t, err, "invalid address")
 	})
 
 	t.Run("malformed balance, invalid amount", func(t *testing.T) {
@@ -493,7 +480,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		balanceMap, err := getBalancesFromEntries(balances)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, errInvalidAmount.Error())
+		assert.ErrorContains(t, err, "invalid amount")
 	})
 }
 
@@ -505,7 +492,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 
 		// Generate dummy keys
 		dummyKeys := getDummyKeys(t, 2)
-		amount := int64(10)
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		balances := make([]string, len(dummyKeys))
 
@@ -513,7 +500,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 			balances[index] = fmt.Sprintf(
 				"%s=%dugnot",
 				key.Address().String(),
-				amount,
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -524,7 +511,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()])
+			assert.Equal(t, amount, balanceMap[key.Address()].Value)
 		}
 	})
 
@@ -546,7 +533,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		balanceMap, err := getBalancesFromSheet(reader)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, errInvalidAmount.Error())
+		assert.ErrorContains(t, err, "invalid amount")
 	})
 }
 
@@ -558,8 +545,8 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = int64(10)
-			amountCoins = std.NewCoins(std.NewCoin("ugnot", amount))
+			amount      = std.NewCoins(std.NewCoin("ugnot", 10))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
 			gasFee      = std.NewCoin("ugnot", 1000000)
 			txs         = make([]std.Tx, 0)
 		)
@@ -605,10 +592,10 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys[1:] {
-			assert.Equal(t, amount, balanceMap[key.Address()])
+			assert.Equal(t, amount, balanceMap[key.Address()].Value)
 		}
 
-		assert.Equal(t, int64(0), balanceMap[sender.Address()])
+		assert.Equal(t, std.Coins{}, balanceMap[sender.Address()].Value)
 	})
 
 	t.Run("malformed transaction, invalid fee amount", func(t *testing.T) {
@@ -616,8 +603,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = int64(10)
-			amountCoins = std.NewCoins(std.NewCoin("ugnot", amount))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
 			gasFee      = std.NewCoin("gnos", 1) // invalid fee
 			txs         = make([]std.Tx, 0)
 		)
@@ -669,8 +655,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = int64(10)
-			amountCoins = std.NewCoins(std.NewCoin("gnogno", amount)) // invalid send amount
+			amountCoins = std.NewCoins(std.NewCoin("gnogno", 10)) // invalid send amount
 			gasFee      = std.NewCoin("ugnot", 1)
 			txs         = make([]std.Tx, 0)
 		)

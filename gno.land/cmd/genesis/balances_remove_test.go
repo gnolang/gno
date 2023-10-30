@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -70,12 +70,11 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 		genesis := getDefaultGenesis()
 		state := gnoland.GnoGenesisState{
 			// Set an initial balance value
-			Balances: []string{
-				fmt.Sprintf(
-					"%s=%dugnot",
-					dummyKey.Address().String(),
-					100,
-				),
+			Balances: []gnoland.Balance{
+				{
+					Address: dummyKey.Address(),
+					Value:   std.NewCoins(std.NewCoin("ugnot", 100)),
+				},
 			},
 		}
 		genesis.AppState = state
@@ -118,7 +117,7 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 
 		genesis := getDefaultGenesis()
 		state := gnoland.GnoGenesisState{
-			Balances: []string{}, // Empty initial balance
+			Balances: []gnoland.Balance{}, // Empty initial balance
 		}
 		genesis.AppState = state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))

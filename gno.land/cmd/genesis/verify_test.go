@@ -44,7 +44,7 @@ func TestGenesis_Verify(t *testing.T) {
 		g := getValidTestGenesis()
 
 		g.AppState = gnoland.GnoGenesisState{
-			Balances: []string{},
+			Balances: []gnoland.Balance{},
 			Txs: []std.Tx{
 				{},
 			},
@@ -74,8 +74,8 @@ func TestGenesis_Verify(t *testing.T) {
 		g := getValidTestGenesis()
 
 		g.AppState = gnoland.GnoGenesisState{
-			Balances: []string{
-				"dummybalance",
+			Balances: []gnoland.Balance{
+				{},
 			},
 			Txs: []std.Tx{},
 		}
@@ -103,7 +103,7 @@ func TestGenesis_Verify(t *testing.T) {
 
 		g := getValidTestGenesis()
 		g.AppState = gnoland.GnoGenesisState{
-			Balances: []string{},
+			Balances: []gnoland.Balance{},
 			Txs:      []std.Tx{},
 		}
 
