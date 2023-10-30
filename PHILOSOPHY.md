@@ -5,7 +5,7 @@
  * Readability is paramount - beautiful is better than fast.
  * Minimal code - keep total footprint small.
  * Minimal dependencies - all dependencies must get audited, and become part of the repo.
- * Modular dependencies - whereever reasonable, make components modular.
+ * Modular dependencies - wherever reasonable, make components modular.
  * Finished - software projects that don't become finished are projects that
    are forever vulnerable. One of the primary goals of the Gno language and
    related works is to become finished within a reasonable timeframe.
@@ -26,7 +26,7 @@
 
 * Correct, debuggable software is more important than extreme performance.
 * Multicore concurrency makes Tendermint within the range of theoretical performance.
-* Go is chosen for faster development of modular components, not for maximum speed.
+* Go is chosen for the faster development of modular components, not for maximum speed.
 * Real bottleneck is in the application layer, not in supporting large validator sets.
 * Focus on feature completeness, debuggability, and maintainability over extreme performance.
 
