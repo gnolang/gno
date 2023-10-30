@@ -52,7 +52,7 @@ func (b *Balance) UnmarshalJSON(data []byte) error {
 	return b.Parse(string(data))
 }
 
-func (b *Balance) Marshaljson() ([]byte, error) {
+func (b *Balance) MarshalJSON() ([]byte, error) {
 	return []byte(b.String()), nil
 }
 

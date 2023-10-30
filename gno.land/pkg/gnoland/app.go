@@ -207,7 +207,7 @@ var (
 )
 
 func MustGuessGnoRootDir() string {
-	root, err := guessGnoRootDir()
+	root, err := GuessGnoRootDir()
 	if err != nil {
 		panic(err)
 	}
@@ -217,6 +217,12 @@ func MustGuessGnoRootDir() string {
 
 func GuessGnoRootDir() (string, error) {
 	var err error
+
+	// First try to get the root directory from the GNOROOT environment variable.
+	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
+		return filepath.Clean(rootdir), nil
+	}
+
 	guessOnce.Do(func() {
 		gnoroot, err = guessGnoRootDir()
 	})
@@ -225,11 +231,6 @@ func GuessGnoRootDir() (string, error) {
 }
 
 func guessGnoRootDir() (string, error) {
-	// First try to get the root directory from the GNOROOT environment variable.
-	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir), nil
-	}
-
 	// Try to guess GNOROOT using the nearest go.mod.
 	if gobin, err := exec.LookPath("go"); err == nil {
 		// If GNOROOT is not set, try to guess the root directory using the `go list` command.
