@@ -14,5 +14,4 @@ var (
 	ErrTransferToNonGRC721Receiver = errors.New("transfer to non GRC721Receiver implementer")
 	ErrCallerIsNotOwnerOrApproved  = errors.New("caller is not token owner or approved")
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
-	ErrTokenURINotSet              = errors.New("tokenURI could not be set")
 )
