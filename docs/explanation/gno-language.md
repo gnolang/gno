@@ -30,4 +30,4 @@ Gno makes imports as easy as they are in web2 with runtime-based imports for sea
 
 Using Gno, developers can rapidly accelerate application development and adopt a modular structure by reusing and reassembling existing modules without building from scratch. They can embed one structure inside another in an intuitive way while preserving localism, and the language specification is simple, successfully balancing practicality and minimalism.
 
-The Go language is so well designed that the Gno smart contract system will become the new gold standard for smart contract development and other blockchain applications. As a programming language that is universally adopted, secure, composable, and complete, Gno is essential for the broader adoption of web3 and its sustainable growth.
+Building on top of the excellent design of Go, the aim for Gno programming is to become the new gold standard for smart contract development, not just in our ecosystem but blockchain as a whole. Combining Go's large success, together with type safety and composability, Gno aims to kickstart a broader adoption of Web3 and its growth.
