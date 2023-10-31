@@ -11,10 +11,9 @@ type Ownable struct {
 }
 
 func New() *Ownable {
-	o := Ownable{}
-	caller := std.GetOrigCaller()
-	o.setOwner(caller)
-	return &o
+	return &Ownable{
+		owner: std.GetOrigCaller(),
+	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
@@ -27,7 +26,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 		return ErrInvalidAddress
 	}
 
-	o.setOwner(newOwner)
+	o.owner = newOwner
 	return nil
 }
 
@@ -53,8 +52,4 @@ func (o *Ownable) CallerIsOwner() bool {
 
 func (o *Ownable) GetOwner() std.Address {
 	return o.owner
-}
-
-func (o *Ownable) setOwner(newOwner std.Address) {
-	o.owner = newOwner
 }

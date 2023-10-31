@@ -75,8 +75,6 @@ func TestDropOwnership(t *testing.T) {
 	}
 }
 
-// TODO add embedded Tests?
-
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
