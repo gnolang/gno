@@ -326,3 +326,19 @@ func prettySize(nb int64) string {
 	}
 	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
 }
+
+// isExecutionSuccessfulWithinTimeout checks if the execution of a given exec.Cmd
+// is successful within a specified timeout.
+func isExecutionSuccessfulWithinTimeout(cmd *exec.Cmd, timeout time.Duration) bool {
+	errc := make(chan error, 1)
+	go func() {
+		errc <- cmd.Wait()
+	}()
+
+	select {
+	case <-time.After(timeout):
+		return true
+	case err := <-errc:
+		return err == nil
+	}
+}
