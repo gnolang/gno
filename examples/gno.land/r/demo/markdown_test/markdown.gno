@@ -178,15 +178,32 @@ It is a pity, but markdown does **not** work in here for most markdown parsers.
 Components
 ==========
 
+Components are customized extended markdown markups that help you to enrich your content with more containers and styles. Components must be started with three colons ` + "`:::`" + `. As you'll see, some may be inline and other need a colon closing tag. Markdown components are rendered in plain HTML/CSS, meaning you can use only HTML with CSS classes to emulate these components, without using the extended markdown syntax.
+
 Jumbotron component
 -------------------
 
 A Jumbotron is a layout component used to showcase key messages.
 
+_Using makdown:_
+
+<pre>` + ":::jumbotron" + `
+` + "your content" + `
+` + ":::/jumbotron" + `
+</pre>
+
+
+_Using HTML:_
+
+    <div class="gno-jumbotron">
+    your content
+    </div>
+
+_Render:_
 
 :::jumbotron
 
-## Jumbotron title
+### Jumbotron title
 
 This is a Jumbotron component you can fill with regular markdown.
 
@@ -197,6 +214,21 @@ Stack component
 
 Stack is a layout component used to group elements together and apply a space between them. For example, it is usefull with grouped links.
 
+_Using makdown:_
+
+<pre>` + ":::stack" + `
+` + "your content" + `
+` + ":::/stack" + `
+</pre>
+
+_Using HTML:_
+
+    <div class="gno-stack">
+    your content
+    </div>
+
+_Render:_
+
 :::stack
 [Stack link 1](/)
 [Stack link 2](/)
@@ -206,6 +238,22 @@ Box component
 -------------
 
 Box is the most abstract component that renders a div element. It is used as a group component.
+
+_Using makdown:_
+
+<pre>` + ":::box" + `
+` + "your content" + `
+` + ":::/box" + `
+</pre>
+
+
+_Using HTML:_
+
+    <div class="gno-box">
+    your content
+    </div>
+
+_Render:_
 
 :::box
 **This content is in a box**
@@ -218,6 +266,31 @@ Columns component
 Columns is a layout for managing columns layouts. It takes the numb of cols you want (*from 1 to 6 columns*) to create as argument and need to be filled with as much content as you mentioned in this argument. You can manage multiple element by grouping them in box components. 
 
 *Nested columns are not currently allowed*
+
+_Using makdown:_
+
+<pre>` + ":::columns(2)" + `
+
+` + ":::box" + `
+` + "your 1st col content" + `
+` + ":::/box" + `
+
+` + ":::box" + `
+` + "your 2nd col content" + `
+` + ":::/box" + `
+
+` + ":::/columns" + `
+</pre>
+
+
+_Using HTML:_
+
+    <div class="gno-columns gno-columns-2">
+        <div>your 1st col content</div>
+        <div>your 2nd col content</div>
+    </div>
+
+_Render:_
 
 :::columns(2)
 :::box
@@ -382,6 +455,22 @@ Button is single line component that takes few arguments: the content value as f
 
 _Note that arguments are separated by comas and you can use quotes to include comas within argument._
 
+_Using makdown:_
+
+<pre>` + ":::button(about, https://gno.land)/" + `</pre>
+
+or 
+
+<pre>` + ":::button(Plain button)/" + `</pre>
+
+
+
+_Using HTML:_
+
+    <button class="gno-btn">Button content</button>
+
+_Render:_
+
 :::button("Link button with comma, needs quotes", https://gno.land)/
 
 :::button(Plain button)/
@@ -393,6 +482,22 @@ Accordions display a list of high-level options that can expand/collapse to reve
 
 *Todo: add argument to set the state at first (open or closed)*
 
+_Using makdown:_
+
+<pre>` + ":::accordion(Accordion open/close button)" + `
+` + "Accordion content" + `
+` + ":::/accordion" + `
+</pre>
+
+_Using HTML:_
+
+    <button class="gno-btn gno-accordion-trigger" aria-expanded="true" type="button" id="gno-accordion-[UNIQUE-ID]">Accordion title</button>
+    <div class="gno-accordion-panel" role="region">
+        <p>Accordion content</p>
+    </div>
+
+_Render:_
+
 :::accordion(Accordion open/close button)
 Accordion content
 :::/accordion
@@ -401,6 +506,45 @@ Tabs component
 --------------
 
 A component to create accessible tabs. It takes the button text as arguments.
+
+_Using makdown:_
+
+<pre>` + ":::tabs(1st tab button text, 2nd tab button text)" + `
+
+` + ":::box" + `
+` + "1st tab content" + `
+` + ":::/box" + `
+
+` + ":::box" + `
+` + "2nd tab content" + `
+` + ":::/box" + `
+` + ":::/tabs" + `
+</pre>
+
+_Using HTML:_
+
+    <div class="gno-tabs" aria-labelledby="tablist" role="tablist">
+      <nav>
+        <ul>
+          <li><button id="tabs-[UNIQUE-ID-1]" aria-controls="tabs-[UNIQUE-ID-1]" aria-selected="true" role="tab">1st tab button text</button></li>
+          <li><button id="tabs-[UNIQUE-ID-2]" aria-controls="tabs-[UNIQUE-ID-2]" aria-selected="false" role="tab" tabindex="-1">2nd tab button text</button></li>
+        </ul>
+      </nav>
+
+      <div class="gno-jumbotron js-panel">
+        <div class="gno-box" aria-labelledby="tabs-[UNIQUE-ID-1]">
+          <h2>1st Tab Title</h2>
+          <p>1st tab Content</p>
+        </div>
+       
+        <div class="gno-box is-hidden" aria-labelledby="tabs-[UNIQUE-ID-2]">
+          <h2>2nd Tab Title</h2>
+          <p>2nd tab Content</p>
+        </div>
+      </div>
+    </div>
+
+_Render:_
 
 :::tabs(1st tab button text, 2nd tab button text)
 :::box
@@ -424,6 +568,21 @@ Alert component
 
 Alerts are used to communicate a state that affects a system, feature or page. The component take the alert style as argument: "warning", "info", "danger", "success".
 
+_Using makdown:_
+
+<pre>` + ":::alert(warning)" + `
+` + "Warning content" + `
+` + ":::/alert" + `
+</pre>
+
+_Using HTML:_
+
+    <div role="alert" class="gno-alert gno-alert-danger">
+      <p>Danger content</p>
+    </div>
+
+_Render:_
+
 :::alert(warning)
 Warning content
 :::/alert
@@ -445,6 +604,25 @@ Breadcrumb component
 
 Breadcrumbs is a navigation pattern that helps users understand the hierarchy of a website. It requires to be filled by an ordered list.
 
+_Using makdown:_
+
+<pre>` + ":::breadcrumb" + `
+` + "1. [Home](https://gno.land)" + `
+` + "2. [Foo](https://foo.land)" + `
+` + "3. [Bar](https://bar.land)" + `
+` + ":::/breadcrumb" + `
+</pre>
+
+_Using HTML:_
+
+    <ol>
+      <li><a href="https://gno.land">Home</a></li>
+      <li><a href="https://gno.land">Foo</a></li>
+      <li aria-current="page"><a href="https://gno.land">Bar</a></li>
+    </ol>
+
+_Render:_
+
 :::breadcrumb
 
 1. [Home](https://gno.land)
@@ -458,6 +636,29 @@ Dropdown component
 
 Dropdowns are toggleable, contextual overlays for displaying lists of links and more. It requires to be filled by a list and takes the dropdown text button as argument.
 
+_Using makdown:_
+
+<pre>` + ":::dropdown(Dropdown - click here)" + `
+` + "- [Home](https://gno.land)" + `
+` + "- [Foo](https://foo.land)" + `
+` + "- [Bar](https://bar.land)" + `
+` + ":::/dropdown" + `
+</pre>
+
+_Using HTML:_
+
+    <div class="gno-dropdown">
+      <button aria-expanded="false" aria-haspopup="true" class="gno-btn" type="button" id="gno-dropdown-[UNIQUE-ID]">Dropdown - click here</button>
+      
+      <ul class="is-hidden" aria-labelledby="gno-dropdown-[UNIQUE-ID]">
+        <li><a href="https://gno.land">Home</a></li>
+        <li><a href="https://gno.land">Foo</a></li>
+        <li><a href="https://gno.land">Bar</a></li>
+      </ul>
+    </div>
+
+_Render:_
+
 :::dropdown(Dropdown - click here)
 
 - [Home](https://gno.land)
@@ -470,6 +671,27 @@ Pagination component
 --------------------
 
 Breadcrumbs is a navigation component that helps users navigate between website pages. It requires to be filled by an ordered list and can take the description of the navigation (for a11y purpose) as argument.
+
+_Using makdown:_
+
+<pre>` + ":::pagination(Article pages)" + `
+` + "- [1](/)" + `
+` + "- [2](/)" + `
+` + "- [3](/)" + `
+` + ":::/pagination" + `
+</pre>
+
+_Using HTML:_
+
+    <nav class="gno-pagination" aria-label="Navigation">
+      <ul>
+        <li><a href="/">1</a></li>
+        <li><a href="/">2</a></li>
+        <li><a href="/">3</a></li>
+      </ul>
+    </nav>
+
+_Render:_
 
 :::pagination(Article pages)
 
@@ -487,6 +709,20 @@ This form component help you create forms. It has to be filled with dedicated co
 - First argument is the Action (eg. link: "https://gno.land") 
 - Second argument is the Method  (eg. "post", "get", ...)
 
+_Using makdown:_
+
+<pre>` + ":::form(/, get)" + `
+` + "your form inputs" + `
+` + ":::/form" + `
+</pre>
+
+_Using HTML:_
+
+    <form method="get" action="/">
+    </form>
+
+_Render (check bellow):_
+
 :::form(/, get)
 
 ### Form inputs components
@@ -499,6 +735,20 @@ Input component is a component that is used to get user input in a text field. I
 - Fourth argument (optional) is the value content
 
 You can insert text inside the component and it will be used as placeholder content. If not, you can use the shorthand component declaration by adding a "/" direclty after the arguments (see date input component declaration bellow).
+
+_Using makdown:_
+
+<pre>` + ":::input(text, Label, Text)/" + `</pre>
+<pre>` + ":::input(number, Label, 10, 3)/" + `</pre>
+
+_Using HTML:_
+
+    <div class="gno-input">
+      <label>Label</label>
+      <input autocomplete="on" placeholder="" type="date" name="[NAME]">
+    </div>
+
+_Render:_
 
 :::input(text, Label, Text)/
 
@@ -513,6 +763,19 @@ You can insert text inside the component and it will be used as placeholder cont
 
 The Textarea component allows you to easily create multi-line text inputs. The arguments are the optional label text content and placeholder.
 
+_Using makdown:_
+
+<pre>` + ":::textarea(Label, Placeholder)/" + `</pre>
+
+_Using HTML:_
+
+    <div class="gno-input">
+      <label>Label</label>
+      <textarea name="[NAME]">Placeholder</textarea>
+    </div>
+
+_Render:_
+
 :::textarea(Label, Placeholder)/
 
 ### Form check components
@@ -520,6 +783,37 @@ The Textarea component allows you to easily create multi-line text inputs. The a
 Checkbox component is used in forms when a user needs to select multiple values from several options. By using the first parameter, you can choose whether you want a "radio" or a "checkbox" list. The second argument (optional) is the label text content.
 
 *Todo: add a way to preselect options*
+
+_Using makdown:_
+
+<pre>` + ":::check(radio, Radio Label)" + `
+` + "- [1](/)" + `
+` + "- [2](/)" + `
+` + "- [3](/)" + `
+` + ":::/check" + `
+</pre>
+
+_Using HTML:_
+
+    <div class="gno-checkboxes gno-input">
+      <label>Radio Label</label>
+      <div>
+        <input id="Radio-1" value="Radio 1" type="radio" name="[NAME]">
+        <label for="Radio-1">Radio 1</label>
+      </div>
+    
+      <div>
+        <input id="Radio-2" value="Radio 2" type="radio" name="[NAME]">
+        <label for="Radio-2">Radio 2</label>
+      </div>
+      
+      <div>
+        <input id="Radio-3" value="Radio 3" type="radio" name="[NAME]">
+        <label for="Radio-3">Radio 3</label>
+      </div>
+    </div>
+
+_Render:_
 
 :::check(radio, Radio Label)
 
@@ -541,6 +835,28 @@ Checkbox component is used in forms when a user needs to select multiple values 
 
 Similar to the previous one, select component is a component that allows users pick a value from predefined options. The argument (optional) is the label text content.
 
+_Using makdown:_
+
+<pre>` + ":::select(Select Label)" + `
+` + "Select 1" + `
+` + "Select 2" + `
+` + "Select 3" + `
+` + ":::/select" + `
+</pre>
+
+_Using HTML:_
+
+    <div class="gno-input">
+      <label>Select Label</label>
+      <select class="gno-select">
+        <option value="Select 1">Select 1</option>
+        <option value="Select 2">Select 2</option>
+        <option value="Select 3">Select 3</option>
+      </select>
+    </div>
+
+_Render:_
+
 :::select(Select Label)
 
 - Select 1
@@ -552,6 +868,16 @@ Similar to the previous one, select component is a component that allows users p
 ### Form button component
 
 This component is a button component dedicated to form control. Depending on the argument, it can be used to submit, reset... a form. The component takes the button type as firt argument and the button value as second argument.
+
+_Using makdown:_
+
+<pre>` + ":::action(submit, Submit)/" + `</pre>
+
+_Using HTML:_
+
+    <input value="Submit" type="submit" class="gno-btn" name="[NAME]">
+
+_Render:_
 
 :::action("reset", "Reset")/
 

@@ -337,6 +337,8 @@ label > img {
 
 code {
   white-space: pre-wrap;
+  background: var(--code-background);
+  padding: 0.1rem 0.2rem;
 }
 /*** COMPOSITION ***/
 .container {
