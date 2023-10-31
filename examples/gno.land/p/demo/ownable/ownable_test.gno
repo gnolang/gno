@@ -54,8 +54,10 @@ func TestCallerIsOwner(t *testing.T) {
 
 	std.TestSetOrigCaller(unauthorizedCaller)
 
-	if o.CallerIsOwner() {
-		t.Fatalf("Expected: %s to not be owner\n", unauthorizedCaller)
+	err := o.CallerIsOwner()
+
+	if err == nil {
+		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
 	}
 }
 
