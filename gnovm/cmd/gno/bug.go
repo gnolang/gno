@@ -53,6 +53,7 @@ func execBug(args []string, io commands.IO) error {
 const bugHeader = `<!-- Please answer these questions before submitting your issue. Thanks! -->
 
 `
+
 const bugFooter = `### What did you do?
 
 <!--
