@@ -163,22 +163,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		// Marking a value as dirty and increasing its reference count are mutually exclusive operations.
 		if co.GetIsReal() {
 			rlm.MarkDirty(co)
-
-			// A lot of slices are assigned to themselves using the append function. When this assignment happens,
-			// the underlying array may not need to be reallocated if it has the required capacity. In such a case,
-			// the array itself would be marked as dirty, but none of the elements that have been appended. This
-			// is a unique case that requires the solution below -- traverse the array's elements and call `DidUpdate`
-			// for any of the newly allocated values. We know if they are newly allocated by checking for the
-			// presence of an object ID.
-			if value, ok := co.(*ArrayValue); ok {
-				for _, elem := range value.List {
-					if obj, ok := elem.V.(Object); ok {
-						if obj.GetObjectID().IsZero() {
-							rlm.DidUpdate(co, nil, obj)
-						}
-					}
-				}
-			}
 		} else {
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
@@ -703,10 +687,12 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	for _, uch := range unsaved {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
-		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch)
+			continue
 		}
+
+		rlm.saveUnsavedObjectRecursively(store, uch)
 	}
+
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
@@ -715,6 +701,13 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 				panic("should not happen")
 			}
 		}
+
+		// This is a nested object that hasn't been created yet.
+		// Assign of object ID so it can be saved properly.
+		if oo.GetObjectID().IsZero() {
+			rlm.assignNewObjectID(oo)
+		}
+
 		rlm.saveObject(store, oo)
 		oo.SetIsNewReal(false)
 	} else {
@@ -932,6 +925,12 @@ func getUnsavedChildObjects(val Value) []Object {
 		} else if obj, ok := val.(Object); ok {
 			// if object...
 			if isUnsaved(obj) {
+				// This is likely a nested composite type that was never "created", so mark it
+				// at this point so that an ID is assigned and it gets saved correctly.
+				if obj.GetObjectID().IsZero() {
+					obj.SetIsNewReal(true)
+				}
+
 				unsaved = append(unsaved, obj)
 			}
 		} else {
@@ -1525,7 +1524,7 @@ func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
 }
 
 func isUnsaved(oo Object) bool {
-	return oo.GetIsNewReal() || oo.GetIsDirty()
+	return oo.GetIsNewReal() || oo.GetIsDirty() || oo.GetObjectID().IsZero()
 }
 
 func IsRealmPath(pkgPath string) bool {
