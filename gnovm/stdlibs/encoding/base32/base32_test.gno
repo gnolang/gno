@@ -1,4 +1,4 @@
-package base32
+package base32_test
 
 import (
 	"bytes"

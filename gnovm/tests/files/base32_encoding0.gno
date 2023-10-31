@@ -12,3 +12,7 @@ func main() {
 	base32.StdEncoding.Encode(dst, data)
 	fmt.Println(string(dst))
 }
+
+// Output:
+// 24
+// JBSWY3DPFQQHO33SNRSCC===
