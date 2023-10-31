@@ -1524,7 +1524,23 @@ func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
 }
 
 func isUnsaved(oo Object) bool {
-	return oo.GetIsNewReal() || oo.GetIsDirty() || oo.GetObjectID().IsZero()
+	return oo.GetIsNewReal() || oo.GetIsDirty() ||
+		(oo.GetObjectID().IsZero() && objCanBeSavedDynamically(oo))
+}
+
+// objCanBeSavedDynamically returns true if the object's underlying type is one
+// that can consist of additional levels of composite typed members; it is not always
+// the case that marking parent object as dirty will cause new child objects to be
+// created and saved correctly.
+func objCanBeSavedDynamically(oo Object) bool {
+	switch oo.(type) {
+	case *ArrayValue:
+		return true
+	case *StructValue:
+		return true
+	}
+
+	return false
 }
 
 func IsRealmPath(pkgPath string) bool {
