@@ -334,7 +334,7 @@ func createNFT(player std.Address, gameId string) {
 		panic("error in marhasling testBasicNFT");
 	}
 	basicNFT.SafeMint(player, grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)))
-	basicNFT.SetTokenURI(grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)), string(flippandoBasicNFTJSON))
+	basicNFT.SetTokenURI(grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)), grc721.TokenURI(flippandoBasicNFTJSON))
 	tokenIDCounter++
 }
 
