@@ -6,7 +6,6 @@
 package base32
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 )
@@ -355,19 +354,19 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		case 8:
 			dst[dsti+4] = dbuf[6]<<5 | dbuf[7]
 			n++
-
+			fallthrough
 		case 7:
 			dst[dsti+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
 			n++
-
+			fallthrough
 		case 5:
 			dst[dsti+2] = dbuf[3]<<4 | dbuf[4]>>1
 			n++
-
+			fallthrough
 		case 4:
 			dst[dsti+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
 			n++
-
+			fallthrough
 		case 2:
 			dst[dsti+0] = dbuf[0]<<3 | dbuf[1]>>2
 			n++
