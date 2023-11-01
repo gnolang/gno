@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-const recursed string = "<recursed>"
-
 func (v StringValue) String() string {
 	return strconv.Quote(string(v))
 }
@@ -31,7 +29,7 @@ func (v *ArrayValue) String() string {
 
 func (v *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
 	if _, ok := seen[v]; ok {
-		return recursed
+		return fmt.Sprintf("%p", v)
 	}
 
 	seen[v] = struct{}{}
@@ -61,7 +59,7 @@ func (v *SliceValue) ProtectedString(seen map[Value]struct{}) string {
 	}
 
 	if _, ok := seen[v]; ok {
-		return recursed
+		return fmt.Sprintf("%p", v)
 	}
 
 	if ref, ok := v.Base.(RefValue); ok {
@@ -89,7 +87,7 @@ func (v PointerValue) String() string {
 
 func (v PointerValue) ProtectedString(seen map[Value]struct{}) string {
 	if _, ok := seen[v]; ok {
-		return recursed
+		return fmt.Sprintf("%p", &v)
 	}
 
 	seen[v] = struct{}{}
@@ -102,7 +100,7 @@ func (v *StructValue) String() string {
 
 func (v *StructValue) ProtectedString(seen map[Value]struct{}) string {
 	if _, ok := seen[v]; ok {
-		return recursed
+		return fmt.Sprintf("%p", v)
 	}
 
 	seen[v] = struct{}{}
@@ -150,7 +148,7 @@ func (v *MapValue) ProtectedString(seen map[Value]struct{}) string {
 	}
 
 	if _, ok := seen[v]; ok {
-		return recursed
+		return fmt.Sprintf("%p", v)
 	}
 
 	seen[v] = struct{}{}
@@ -230,7 +228,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredType bool) string {
 
 	if _, ok := seen[tv.V]; ok {
-		return recursed
+		return fmt.Sprintf("%p", tv)
 	}
 
 	// print declared type
