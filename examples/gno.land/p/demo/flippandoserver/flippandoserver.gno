@@ -177,56 +177,17 @@ func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions 
 	   }*/
 }
 
-/*
-func generateRandomNumbers(howMany int, min int64, max int64) []int64 {
-	var rng = &rngSource{}
-	rng.Seed(int64(time.Now()) + std.GetHeight())
-    numbers := make([]int64, howMany)
-    rangeSize := max - min + 1
-    for i := 0; i < howMany; i++ {
-        r := rng.Int63() 
-        numbers[i] = min + (r % rangeSize)
-    }
-    return numbers
-}*/
-
-func generateRandomNumbers(howMany int, min int64, max int64) []int64 {
-	var numbers []int64
-	/*
-	var rng = &rngSource{}
-	rng.Seed(int64(time.Now()) + std.GetHeight(),)
-	l := int64(0)
-	rangeSize := max - min + 1
-	for i := 0; i < howMany; i++ {
-		r := rng.Int63() % l
-		numbers[i] = min + (r % rangeSize)
-	}*/
-	numbers = []int64{1, 2, 3, 4}
-	return numbers
-}
-/*
-func generateRandomNumbers(howMany int, min, max int64) []int64 {
-    // Mockup: just returning a slice of fixed values
-    numbers := []int64{1, 2, 3, 4}  // Adjust these values as needed
-    return numbers
-}*/
-
-/*func generateRandomNumbers(x int, r int) []int64 {
-	//time.Sleep(10 * time.Millisecond)
-	now := time.Now().UnixNano()
-	numbers := make([]int64, x)
-
-	for i := 0; i < x; i++ {
-		height := std.GetHeight()
-		now = (now*1664525 + 1013904223) % (1 << 32) + (height*255) // Linear congruential generator (LCG)
-		//numbers[i] = int(now % int64(r))
-		numbers[i] = int(int64(now) % int64(r))
-		//numbers[i] = int(math.Abs(float64(now)) % float64(r))
-
+func GenerateRandomNumbers(min, max int, seed int64) []int {
+	if min > max {
+		return nil
 	}
 
-	return numbers
-}*/
+	r := New(seed)
+	firstNumber := r.Intn(max-min+1) + min
+	secondNumber := r.Intn(max-min+1) + min
+
+	return []int{firstNumber, secondNumber}
+}
 
 func sqrt(x float64) float64 {
 	if x == 0 || x == 1 {
