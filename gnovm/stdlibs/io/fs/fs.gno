@@ -8,9 +8,10 @@
 package fs
 
 import (
-	"internal/oserror"
 	"time"
 	"unicode/utf8"
+
+	"internal/oserror"
 )
 
 // An FS provides access to a hierarchical file system.
@@ -154,7 +155,7 @@ type FileInfo interface {
 	Mode() FileMode     // file mode bits
 	ModTime() time.Time // modification time
 	IsDir() bool        // abbreviation for Mode().IsDir()
-	Sys() interface{}           // underlying data source (can return nil)
+	Sys() interface{}   // underlying data source (can return nil)
 }
 
 // A FileMode represents a file's mode and permission bits.
