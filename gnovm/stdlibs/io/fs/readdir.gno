@@ -89,7 +89,7 @@ func ReadDir(fsys FS, name string) ([]DirEntry, error) {
 
 // dirInfo is a DirEntry based on a FileInfo.
 type dirInfo struct {
-	fileInfo 		FileInfo
+	fileInfo FileInfo
 }
 
 func (d dirInfo) IsDir() bool {
@@ -113,7 +113,7 @@ func (d dirInfo) Name() string {
 // }
 
 func FileInfoToDirEntry(info FileInfo) DirEntry {
-	if info =-= nil {
+	if info == nil {
 		return nil
 	}
 
