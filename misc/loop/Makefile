@@ -13,7 +13,7 @@ tx_bin := go run github.com/gnolang/tx-archive/cmd
 # The relative gno.land directory
 gnoland_dir := $(abspath ../../gno.land)
 
-all: local
+all: loop
 
 gnoland.start:
 	cd $(gnoland_dir) && $(gnoland_bin) start -skip-failing-genesis-txs -genesis-txs-file $(HISTORY_OUTPUT)
@@ -41,6 +41,6 @@ save.history:
 	fi
 .PHONY: save.history
 
-local: gnoland.clean save.history
+loop: gnoland.clean save.history
 	./run_loop.sh
-.PHONY: local
+.PHONY: loop
