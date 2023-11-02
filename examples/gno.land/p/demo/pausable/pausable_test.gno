@@ -1,9 +1,10 @@
 package pausable
 
 import (
-	"gno.land/p/demo/ownable"
 	"std"
 	"testing"
+
+	"gno.land/p/demo/ownable"
 )
 
 var (
