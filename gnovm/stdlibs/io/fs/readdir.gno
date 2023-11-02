@@ -96,8 +96,8 @@ func (d dirInfo) IsDir() bool {
 	return d.fileInfo.IsDir()
 }
 
-func (d dirInfo) Typer() Typer {
-	return d.fileInfo.Typer()
+func (d dirInfo) Type() FileMode {
+	return d.fileInfo.Mode().Type()
 }
 
 func (d dirInfo) Info() (FileInfo, error) {

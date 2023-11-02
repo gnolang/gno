@@ -16,13 +16,14 @@ func Sub(fsys FS, dir string) (FS, error) {
 	}
 
 	if dir == "." {
+		return fsys, nil
+	}
+
+	if fsys, ok := fsys.(SubFS); ok {
 		return fsys.Sub(dir)
 	}
 
-	return &SubFS{
-		FS:  fsys,
-		dir: dir,
-	}, nil
+	return &subFS{fsys, dir}, nil
 }
 
 type subFS struct {
@@ -44,13 +45,12 @@ func (f *subFS) shorten(name string) (rel string, ok bool) {
 	if name == f.dir {
 		return ".", true
 	}
-
-	if len(name) >= len(f.dir)+2 && name[len(f.dir)] == "/" && name[:len(f.dir)] == f.dir {
+	if len(name) >= len(f.dir)+2 && name[len(f.dir)] == '/' && name[:len(f.dir)] == f.dir {
 		return name[len(f.dir)+1:], true
 	}
-
 	return "", false
 }
+
 
 // fixErr shortens any reported names in PathErrors by tripping f.dir.
 func (f *subFS) fixErr(err error) error {
@@ -79,7 +79,9 @@ func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
 		return nil, err
 	}
 
-	return dir, f.fileErr(err)
+	dir, err := ReadDir(f.fsys, full)
+
+	return dir, f.fixErr(err)
 }
 
 func (f *subFS) ReadFile(name string) ([]byte, error) {
@@ -88,7 +90,7 @@ func (f *subFS) ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 
-	data, err := ReadFile(f.sys, full)
+	data, err := ReadFile(f.fsys, full)
 	return data, f.fixErr(err)
 }
 
