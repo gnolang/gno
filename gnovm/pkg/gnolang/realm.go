@@ -176,10 +176,29 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 						if obj.GetObjectID().IsZero() {
 							rlm.DidUpdate(co, nil, obj)
 						}
+					} else if sv, ok := elem.V.(*SliceValue); ok {
+						if av, ok := sv.Base.(*ArrayValue); ok {
+							if av.GetObjectID().IsZero() {
+								// An array has no owner. This is a new instance so increase the reference count and
+								// mark it as new real so that it and all of its elements get persisted.
+								av.IncRefCount()
+								rlm.MarkNewReal(av)
+							}
+						}
 					}
 				}
 			}
 		} else {
+			if co.GetIsNewEscaped() {
+				panic("should not happen")
+			}
+			if co.GetIsEscaped() {
+				panic("should not happen")
+			}
+			if co.GetRefCount() >= 2 {
+				panic("should not happen")
+			}
+
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
