@@ -59,7 +59,6 @@ Additional native types:
 | `bigint` | Based on `math/big.Int`                                                                    |
 | `bigdec` | Based on https://github.com/cockroachdb/apd, (see https://github.com/gnolang/gno/pull/306) |
 
-
 ## Stdlibs
 
 <!-- generated with: find . -name "*.go" | grep -v _test.go | grep -v internal/ | grep -v vendor/ | xargs dirname | sort | uniq -->
@@ -251,7 +250,7 @@ Additional native types:
 | image/png                                   | TBD      |
 | index/suffixarray                           | TBD      |
 | io                                          | TBD      |
-| io/fs                                       | TBD      |
+| io/fs                                       | partial  |
 | io/ioutil                                   | TBD      |
 | log                                         | TBD      |
 | log/internal                                | TBD      |
@@ -319,7 +318,7 @@ Additional native types:
 | runtime/testdata/testwinsignal              | TBD      |
 | runtime/trace                               | TBD      |
 | slices                                      | TBD      |
-| sort                                        | TBD      |
+| sort                                        | Partial  |
 | strconv                                     | TBD      |
 | strings                                     | TBD      |
 | sync                                        | TBD      |
@@ -327,21 +326,19 @@ Additional native types:
 | syscall                                     | TBD      |
 | syscall/js                                  | TBD      |
 | testing                                     | TBD      |
-| testing/fstest                              | TBD      |
+| testing/fstest                              | partial  |
 | testing/iotest                              | TBD      |
 | testing/quick                               | TBD      |
 | text/scanner                                | TBD      |
 | text/tabwriter                              | TBD      |
 | text/template                               | TBD      |
 | text/template/parse                         | TBD      |
-| time                                        | TBD      |
+| time                                        | partial  |
 | time/tzdata                                 | TBD      |
 | unicode                                     | TBD      |
 | unicode/utf16                               | TBD      |
 | unicode/utf8                                | TBD      |
 | unsafe                                      | TBD      |
-
-
 
 ## Tooling (`gno` binary)
 
