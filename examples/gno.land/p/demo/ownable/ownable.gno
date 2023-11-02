@@ -19,7 +19,6 @@ func New() *Ownable {
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	err := o.CallerIsOwner()
-
 	if err != nil {
 		return err
 	}
@@ -37,7 +36,6 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *Ownable) DropOwnership() error {
 	err := o.CallerIsOwner()
-
 	if err != nil {
 		return err
 	}
