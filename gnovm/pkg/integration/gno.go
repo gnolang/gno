@@ -12,15 +12,15 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-// SetupGno sets up the given testscripts environment for tests that use the gno
-// command. It build `gno` using `go build` command into the given buildDir if
-// not existing already.
-// It will add `gno` command to p.Cmds. It also wraps p.Setup to set up the environment
-// variables for running the go command appropriately.
+// SetupGno prepares the given testscript environment for tests that utilize the gno command.
+// If the `gno` binary doesn't exist, it's built using the `go build` command into the specified buildDir.
+// The function also include the `gno` command into `p.Cmds` to and wrap environment into p.Setup
+// to correctly set up the environment variables needed for the `gno` command.
 func SetupGno(p *testscript.Params, buildDir string) error {
+	// Try to fetch `GNOROOT` from the environment variables
 	gnoroot := os.Getenv("GNOROOT")
 	if gnoroot == "" {
-		// Get root location of github.com/gnolang/gno
+		// If `GNOROOT` isn't set, determine the root directory of github.com/gnolang/gno
 		goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("unable to determine gno root directory")
@@ -33,55 +33,58 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		return fmt.Errorf("%q does not exist or is not a directory", buildDir)
 	}
 
+	// Determine the path to the gno binary within the build directory
 	gnoBin := filepath.Join(buildDir, "gno")
 	if _, err := os.Stat(gnoBin); errors.Is(err, os.ErrNotExist) {
 		// Build a fresh gno binary in a temp directory
 		gnoArgsBuilder := []string{"build", "-o", gnoBin}
 
-		// Add coverage if needed
+		// Forward `-covermode` settings if set
 		if coverMode := testing.CoverMode(); coverMode != "" {
 			gnoArgsBuilder = append(gnoArgsBuilder, "-covermode", coverMode)
 		}
 
-		// Add target command
+		// Append the path to the gno command source
 		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot, "gnovm", "cmd", "gno"))
 
 		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
-			return fmt.Errorf("uanble to build gno binary: %w", err)
+			return fmt.Errorf("unable to build gno binary: %w", err)
 		}
 	} else if err != nil {
-		// Return any other errors
+		// Handle other potential errors from os.Stat
 		return err
 	}
 
-	// Wrap setup scripts
+	// Store the original setup scripts for potential wrapping
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
+		// If there's an original setup, execute it
 		if origSetup != nil {
 			if err := origSetup(env); err != nil {
 				return err
 			}
 		}
 
-		env.Setenv("GNOROOT", gnoroot) // thx PR 1014 :)
+		// Set the GNOROOT environment variable
+		env.Setenv("GNOROOT", gnoroot)
 
-		// by default, $HOME=/no-home, but we need an existing $HOME directory
-		// because some commands needs to access $HOME/.cache/go-build
+		// Create a temporary home directory because certain commands require access to $HOME/.cache/go-build
 		home, err := os.MkdirTemp("", "gno")
 		if err != nil {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
 		}
 		env.Setenv("HOME", home)
-		env.Defer(func() { os.RemoveAll(home) }) // cleanup
+		env.Defer(func() { os.RemoveAll(home) })
 
 		return nil
 	}
 
+	// Initialize cmds map if needed
 	if p.Cmds == nil {
 		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
 	}
 
-	// Set gno command
+	// Register the gno command for testscripts
 	p.Cmds["gno"] = func(ts *testscript.TestScript, neg bool, args []string) {
 		err := ts.Exec(gnoBin, args...)
 		if err != nil {

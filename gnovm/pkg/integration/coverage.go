@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
 )
@@ -17,23 +16,19 @@ var coverageEnv struct {
 }
 
 // SetupCoverage sets up the given testscripts environment for coverage.
-// It will need both, covermode and a target directory defined with
-// `GOCOVERDIR_TXTAR` environements variable to be set to be effective
-func SetupCoverage(p *testscript.Params) error {
-	coverdir := os.Getenv("GOCOVERDIR_TXTAR")
-	if testing.CoverMode() == "" || coverdir == "" {
-		return nil
-	}
-
+// It will mostly override `GOCOVERDIR` with the target cover directory
+func SetupCoverage(p *testscript.Params, coverdir string) error {
 	var err error
 
 	// We need to have an absolute path here, because current directory
-	// context will change while execution test scripts.
+	// context will change while executing testscripts.
 	if !filepath.IsAbs(coverdir) {
-		coverdir, err = filepath.Abs(coverdir)
+		abspath, err := filepath.Abs(coverdir)
 		if err != nil {
 			return fmt.Errorf("unable to determine absolute path of %q: %w", coverdir, err)
 		}
+		coverdir = abspath
+
 	}
 
 	// If the given coverage directory doesn't exist, create it
