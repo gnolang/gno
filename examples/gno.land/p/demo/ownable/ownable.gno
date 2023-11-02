@@ -31,7 +31,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	return nil
 }
 
-// DropOwnership Removes the owner, effectively disabling any owner-related actions
+// DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *Ownable) DropOwnership() error {

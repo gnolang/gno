@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestGetOwner(t *testing.T) {
+func TestOwner(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
 	result := New()
@@ -87,12 +87,12 @@ func TestErrUnauthorized(t *testing.T) {
 
 	err := o.TransferOwnership(firstCaller)
 	if err != ErrUnauthorized {
-		t.Fatalf("Shoud've been ErrUnauthorized, was %v", err)
+		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
 
 	err = o.DropOwnership()
 	if err != ErrUnauthorized {
-		t.Fatalf("Shoud've been ErrUnauthorized, was %v", err)
+		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
 }
 
@@ -103,11 +103,11 @@ func TestErrInvalidAddress(t *testing.T) {
 
 	err := o.TransferOwnership("")
 	if err != ErrInvalidAddress {
-		t.Fatalf("Shoud've been ErrInvalidAddress, was %v", err)
+		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
 	}
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
 	if err != ErrInvalidAddress {
-		t.Fatalf("Shoud've been ErrInvalidAddress, was %v", err)
+		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
 	}
 }
