@@ -55,7 +55,6 @@ func TestCallerIsOwner(t *testing.T) {
 	std.TestSetOrigCaller(unauthorizedCaller)
 
 	err := o.CallerIsOwner()
-
 	if err == nil {
 		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
 	}
@@ -87,7 +86,7 @@ func TestErrUnauthorized(t *testing.T) {
 	std.TestSetOrigCaller(secondCaller)
 
 	err := o.TransferOwnership(firstCaller)
-	if err != ErrUnauthorized { // TODO errors.Is doesnt work
+	if err != ErrUnauthorized {
 		t.Fatalf("Shoud've been ErrUnauthorized, was %v", err)
 	}
 
@@ -103,7 +102,6 @@ func TestErrInvalidAddress(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership("")
-
 	if err != ErrInvalidAddress {
 		t.Fatalf("Shoud've been ErrInvalidAddress, was %v", err)
 	}
