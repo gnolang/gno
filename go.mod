@@ -3,8 +3,7 @@ module github.com/gnolang/gno
 go 1.20
 
 require (
-	github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c
-	github.com/btcsuite/btcd/btcutil v1.0.0
+	github.com/btcsuite/btcd/btcutil v1.1.0
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/cockroachdb/apd v1.1.0
 	github.com/davecgh/go-spew v1.1.1
@@ -42,6 +41,12 @@ require (
 )
 
 require (
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+)
+
+require (
+	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
