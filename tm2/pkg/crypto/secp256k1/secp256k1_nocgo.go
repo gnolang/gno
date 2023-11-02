@@ -4,8 +4,8 @@ package secp256k1
 
 import (
 	"github.com/btcsuite/btcd/btcec/v2"
-	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -13,7 +13,7 @@ import (
 // Sign creates an ECDSA signature on curve Secp256k1, using SHA256 on the msg.
 // The returned signature will be of the form R || S (in lower-S form).
 func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
-	priv, _ := secp256k1.PrivKeyFromBytes(privKey[:])
+	priv, _ := btcec.PrivKeyFromBytes(privKey[:])
 
 	sig, err := ecdsa.SignCompact(priv, crypto.Sha256(msg), false) // ref uncompressed pubkey
 	if err != nil {
@@ -48,7 +48,7 @@ func (pubKey PubKeySecp256k1) VerifyBytes(msg []byte, sigStr []byte) bool {
 // that len(sigStr) == 64.
 func signatureFromBytes(sigStr []byte) (*ecdsa.Signature, bool) {
 	// parse the signature:
-	var r, s btcec.ModNScalar
+	var r, s secp256k1.ModNScalar
 	if r.SetByteSlice(sigStr[:32]) {
 		return nil, false // overflow
 	}
