@@ -57,74 +57,30 @@ func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
 	} else if tileType == "dice" {
 		rng = int64(6)
 	}
-	gameTiles = generateRandomNumbers(4, int64(1), rng)
-	// test
-	//gameTiles := [1, 5, 3, 8]
+	// Generating random numbers for gameTiles
+    generatedNumbers := generateRandomNumbers(gameTilesLength, 1, int(rng), time.Now().Unix())
+    for i, num := range generatedNumbers {
+        gameTiles[i] = int64(num)
+    }
 
 	// we're returning discrete value, and do the json marshaling in realm
 	return board, gameTiles, boardSize;
 }
 
-func FlipTilesClient(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64, randomNumbers []int64) ([]int64, []int64) {
-	//   - returns the current game board, and the solved game board
-	
-	//randomNumberSlice := generateRandomNumbers(2, 1, int64(len(board)/4))
-	
-	if board[positions[0]] == 0 {
-		board[positions[0]] = gameTiles[randomNumbers[0]]
-	}
-
-	if board[positions[1]] == 0 {
-		board[positions[1]] = gameTiles[randomNumbers[1]]
-	}
-
-	if board[positions[0]] == board[positions[1]] {
-		solvedBoard[positions[0]] = board[positions[0]]
-		solvedBoard[positions[1]] = board[positions[1]]
-	}
-
-	// enforce solvability
-	quantumThreshold := int(sqrt(float64(len(board))))
-	unsolvedTiles := 0
-
-	for j := 0; j < len(board); j++ {
-		if solvedBoard[j] == 0 {
-			unsolvedTiles++
-		}
-	}
-
-	if unsolvedTiles <= quantumThreshold {
-		// replace the board with solvedBoard and redeploy
-		if board[positions[0]] != board[positions[1]] {
-			board[positions[0]] = board[positions[1]]
-			solvedBoard[positions[0]] = board[positions[0]]
-			solvedBoard[positions[1]] = board[positions[1]]
-		}
-	}
-
-	return board, solvedBoard
-
-	// check for game solved
-	// todo: promote this check to the realm? that's where we send user events
-	/*
-	   unsolvedTiles = 0
-
-	   for j := 0; j < len(board); j++ {
-	       if(solvedBoard[j] == 0){
-	           unsolvedTiles = unsolvedTiles + 1
-	       }
-	   }
-	   if(unsolvedTiles == 0){
-	       // call flippandoGameMaster finishGame
-	       flippandoGameMaster.finishGame(id, games[id].player);
-	       emit GameSolved(id, games[id])
-	   }*/
-}
-
 func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
-	randomNumberSlice := generateRandomNumbers(2, 1, int64(len(board)/4))
+	randomNumberSlice := generateRandomNumbers(2, 1, len(board)/4, time.Now().Unix())
+
+	// Safety check for 'positions' slice
+    if len(positions) < 2 {
+        return nil, nil  
+    }
+
+    // Safety check for 'randomNumberSlice'
+    if randomNumberSlice == nil || len(randomNumberSlice) < 2 {
+        return nil, nil  
+    }
 	
 	if board[positions[0]] == 0 {
 		board[positions[0]] = gameTiles[randomNumberSlice[0]]
@@ -177,17 +133,28 @@ func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions 
 	   }*/
 }
 
-func GenerateRandomNumbers(min, max int, seed int64) []int {
-	if min > max {
+func generateRandomNumbers(howMany, min, max int, seed int64) []int {
+	if min > max || howMany <= 0 || (max-min+1) < howMany {
 		return nil
 	}
 
 	r := New(seed)
-	firstNumber := r.Intn(max-min+1) + min
-	secondNumber := r.Intn(max-min+1) + min
+	numbers := make([]int, 0, howMany)
+	seen := make(map[int]bool)
 
-	return []int{firstNumber, secondNumber}
+	for len(numbers) < howMany {
+		randomNumber := r.Intn(max-min+1) + min
+
+		// If the number hasn't been generated before, add it to the slice and the map
+		if !seen[randomNumber] {
+			seen[randomNumber] = true
+			numbers = append(numbers, randomNumber)
+		}
+	}
+
+	return numbers
 }
+
 
 func sqrt(x float64) float64 {
 	if x == 0 || x == 1 {

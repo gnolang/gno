@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/grc/grc721f"
 	"gno.land/p/demo/flippandoserver"
 )
 
@@ -22,7 +22,7 @@ type GameBoard struct {
 type Game struct {
 	ID 			string `json:"id"`
 	GameStatus 	string	`json:"gameStatus"`
-	GameBoard 	[]int64	`json:"-"`
+	GameBoard 	[]int64	`json:"gameBoard"`
 	SolvedGameBoard	[]int64	`json:"solvedGameBoard"`
 	GameTiles	[]int64	`json:"gameTiles"`
 	TileType	string	`json:"-"`
@@ -81,10 +81,8 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	games := getUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
-	//board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
-	var board = []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	var gameTiles = []int64{1, 3, 5, 8}
-	var generatedBoardSize = 16
+	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
+	
 	// id is zero-padded to work well with avl's alphabetic order.
 	id := zeroPad9(strconv.FormatUint(gameIDCounter, 10))
 	g := &Game{
@@ -107,29 +105,6 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	return string(newGameJSON)
 }
 
-func FlipTilesClient(player std.Address, gameID string, positions string, randomNumbers string) (string) {
-	// get the current game of the player
-	games := getUserGames(player)
-	currentGame := games[0]
-	currentGamePositions, err := ParseString(positions)
-	currentRandomNumbers, err := ParseString(randomNumbers)
-	
-	// call real FlipTiles on flippandoserver, which does the game mechanics
-	// and returns 2 []int64 boards: the GameBoard, and the SolvedGameBoard
-	// we only send to the user the SolvedGameBoard
-	board, solvedBoard := flippandoserver.FlipTilesClient(currentGame.GameBoard, 
-		currentGame.SolvedGameBoard, 
-		currentGame.GameTiles, 
-		currentGamePositions,
-		currentRandomNumbers)
-	currentGame.GameBoard = board
-	currentGame.SolvedGameBoard = solvedBoard
-	currentGameJSON, err := currentGame.MarshalJSON()
-	if err != nil {
-		return "error";
-	}
-	return string(currentGameJSON)
-}
 
 func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	// get the current game of the player
@@ -191,6 +166,10 @@ func (g Game) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(`"id":"`)
 	b.WriteString(g.ID)
 	b.WriteString(`",`)
+
+	b.WriteString(`"gameBoard":[`)
+	b.WriteString(writeIntSlice(g.GameBoard))
+	b.WriteString(`],`)
 
 	b.WriteString(`"solvedGameBoard":[`)
 	b.WriteString(writeIntSlice(g.SolvedGameBoard))
@@ -274,30 +253,6 @@ func writeIntSlice(slice []int64) string {
     }
     return b.String()
 }
-/*
-func writeIntSlice(slice []int64) string {
-    var b strings.Builder
-    switch v := slice.(type) {
-    case []int:
-        for i, val := range v {
-            if i > 0 {
-                b.WriteString(",")
-            }
-            b.WriteString(strconv.Itoa(val))  // converting int to string
-        }
-    case []int64:
-        for i, val := range v {
-            if i > 0 {
-                b.WriteString(",")
-            }
-            b.WriteString(strconv.FormatInt(val, 10))  // converting int64 to string
-        }
-    default:
-        panic("unsupported slice type")
-    }
-    return b.String()
-}*/
-
 
 
 func ParseString(s string) ([]int64, error) {

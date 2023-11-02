@@ -9,7 +9,7 @@ package flippandoserver
 // We use the Bernstein's hash djb2 to be CPU-cycle efficient.
 
 import (
-	"math/rand"
+	"gno.land/p/demo/math_rand"
 	"std"
 	"time"
 )
