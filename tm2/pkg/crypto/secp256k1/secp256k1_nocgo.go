@@ -20,7 +20,7 @@ func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// remove compact sig recovery code byte at the beggining
+	// remove compact sig recovery code byte at the beginning
 	return sig[1:], nil
 }
 
