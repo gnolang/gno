@@ -52,6 +52,6 @@ func (o *Ownable) CallerIsOwner() error {
 	return ErrUnauthorized
 }
 
-func (o *Ownable) GetOwner() std.Address {
+func (o *Ownable) Owner() std.Address {
 	return o.owner
 }

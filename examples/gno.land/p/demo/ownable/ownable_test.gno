@@ -23,7 +23,7 @@ func TestGetOwner(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
 	result := New()
-	resultOwner := result.GetOwner()
+	resultOwner := result.Owner()
 
 	expected := firstCaller
 	if resultOwner != expected {
@@ -40,7 +40,7 @@ func TestTransferOwnership(t *testing.T) {
 		t.Fatalf("TransferOwnership failed, %v", err)
 	}
 
-	result := o.GetOwner()
+	result := o.Owner()
 	if secondCaller != result {
 		t.Fatalf("Expected: %s, got: %s\n", secondCaller, result)
 	}
@@ -70,7 +70,7 @@ func TestDropOwnership(t *testing.T) {
 		t.Fatalf("DropOwnership failed, %v", err)
 	}
 
-	owner := o.GetOwner()
+	owner := o.Owner()
 	if owner != "" {
 		t.Fatalf("Expected owner to be empty, not %s\n", owner)
 	}
