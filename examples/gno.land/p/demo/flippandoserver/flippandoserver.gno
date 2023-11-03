@@ -82,14 +82,16 @@ func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions 
         return nil, nil  
     }
 	
+	// position hasn't been discovered before
 	if board[positions[0]] == 0 {
-		board[positions[0]] = gameTiles[randomNumberSlice[0]]
+		board[positions[0]] = gameTiles[randomNumberSlice[0] - 1]
 	}
 
 	if board[positions[1]] == 0 {
-		board[positions[1]] = gameTiles[randomNumberSlice[1]]
+		board[positions[1]] = gameTiles[randomNumberSlice[1] -1]
 	}
 
+	// values are equal, update solved board
 	if board[positions[0]] == board[positions[1]] {
 		solvedBoard[positions[0]] = board[positions[0]]
 		solvedBoard[positions[1]] = board[positions[1]]

@@ -17,7 +17,7 @@ func TestStartGame(t *testing.T) {
 	tileType := "someType"
 	boardSize := 16
 
-	expectedGameJSON := `{"id":"000000001","solvedGameBoard":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"gameTiles":[1,3,5,8],"gameStatus":"initialized"}`
+	expectedGameJSON := `{"id":"000000001","gameBoard":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"solvedGameBoard":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"gameTiles":[1,3,5,8],"gameStatus":"initialized"}`
 
 	got := StartGame(player, tileType, boardSize)
 	if got != expectedGameJSON {
@@ -30,9 +30,9 @@ func TestCreateNFT(t *testing.T) {
     gameId := "someGameID"
     
     // Assume tokenIDCounter is a global variable and its initial value is 0
-    tokenIDCounter = 0
+    tokenIDCounter := 0
     
-    createNFT(player, gameId)
+    CreateNFT(player, gameId)
     
     // Check the new value of tokenIDCounter, it should be incremented by 1
     if tokenIDCounter != 1 {
