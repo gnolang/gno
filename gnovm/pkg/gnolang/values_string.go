@@ -332,8 +332,7 @@ func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredT
 		panic("not yet implemented")
 		// return tv.V.(*ChanValue).String()
 	case *NativeType:
-		return fmt.Sprintf("%v",
-			tv.V.(*NativeValue).Value.Interface())
+		return tv.V.(*NativeValue).String()
 	default:
 		if debug {
 			panic(fmt.Sprintf(
