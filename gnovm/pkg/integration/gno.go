@@ -35,7 +35,12 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 
 	// Determine the path to the gno binary within the build directory
 	gnoBin := filepath.Join(buildDir, "gno")
-	if _, err := os.Stat(gnoBin); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(gnoBin); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			// Handle other potential errors from os.Stat
+			return err
+		}
+
 		// Build a fresh gno binary in a temp directory
 		gnoArgsBuilder := []string{"build", "-o", gnoBin}
 
@@ -50,9 +55,6 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
 			return fmt.Errorf("unable to build gno binary: %w", err)
 		}
-	} else if err != nil {
-		// Handle other potential errors from os.Stat
-		return err
 	}
 
 	// Store the original setup scripts for potential wrapping
@@ -74,6 +76,8 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 			return fmt.Errorf("unable to create temporary home directory: %w", err)
 		}
 		env.Setenv("HOME", home)
+
+		// Cleanup home folder
 		env.Defer(func() { os.RemoveAll(home) })
 
 		return nil
@@ -88,14 +92,15 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 	p.Cmds["gno"] = func(ts *testscript.TestScript, neg bool, args []string) {
 		err := ts.Exec(gnoBin, args...)
 		if err != nil {
-			ts.Logf("[%v]\n", err)
-			if !neg {
-				ts.Fatalf("unexpected gno command failure")
-			}
-		} else {
-			if neg {
-				ts.Fatalf("unexpected gno command success")
-			}
+			ts.Logf("gno command error: %v", err)
+		}
+
+		commandSucceeded := (err == nil)
+		successExpected := !neg
+
+		// Compare the command's success status with the expected outcome.
+		if commandSucceeded != successExpected {
+			ts.Fatalf("unexpected gno command outcome (err=%t expected=%t)", commandSucceeded, successExpected)
 		}
 	}
 
