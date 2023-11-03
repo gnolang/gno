@@ -76,12 +76,14 @@ jobs:
           go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gnovm
+        env:
+          TXTARCOVERDIR: ${{ env.COVERAGE_DIR }}
         run: |
           mkdir -p $COVERAGE_DIR
 
           # Setup testing environements variables
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir-txtar=$COVERAGE_DIR -test.gocoverdir=$COVERAGE_DIR" 
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir=$COVERAGE_DIR" 
 
           # Run target test
           make ${{ matrix.args }}

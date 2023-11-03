@@ -15,19 +15,20 @@ var coverageEnv struct {
 
 func init() {
 	flag.StringVar(&coverageEnv.coverdir,
-		"test.gocoverdir-txtar", "", "write testscripts coverage intermediate files to this directory")
+		"txtarcoverdir", "", "write testscripts coverage intermediate files to this directory")
 }
 
-// SetupTestscriptsCoverageFromFlag checks the `test.gocoverdir-txtar` flag to determine
-// whether to configure testscript parameters for coverage analysis. If the flag is not set,
-// it will skip the setup process.
-func SetupTestscriptsCoverageFromFlag(p *testscript.Params) error {
-	if coverageEnv.coverdir == "" {
-		// Skip coverage setup if `test.gocoverdir-txtar` flag wasn't specified
-		return nil
+// ResolveCoverageDir attempts to resolve the coverage directory from the 'TXTARCOVERDIR'
+// environment variable first, and if not set, from the 'test.txtarcoverdir' flag.
+// It returns the resolved directory and a boolean indicating if the resolution was successful.
+func ResolveCoverageDir() (string, bool) {
+	// Attempt to resolve the cover directory from the environment variable or flag
+	coverdir := os.Getenv("TXTARCOVERDIR")
+	if coverdir == "" {
+		coverdir = coverageEnv.coverdir
 	}
 
-	return SetupTestscriptsCoverage(p, coverageEnv.coverdir)
+	return coverdir, coverdir != ""
 }
 
 // SetupTestscriptsCoverage sets up the given testscripts environment for coverage.
@@ -38,7 +39,7 @@ func SetupTestscriptsCoverage(p *testscript.Params, coverdir string) error {
 	if err != nil {
 		return fmt.Errorf("output directory %q inaccessible: %w", coverdir, err)
 	} else if !info.IsDir() {
-		return fmt.Errorf("output directory %q not a directory", coverdir)
+		return fmt.Errorf("output %q not a directory", coverdir)
 	}
 
 	// We need to have an absolute path here, because current directory

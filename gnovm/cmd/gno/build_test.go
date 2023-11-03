@@ -13,10 +13,12 @@ func Test_ScriptsBuild(t *testing.T) {
 		Dir: "testdata/gno_build",
 	}
 
-	err := integration.SetupTestscriptsCoverageFromFlag(&p)
-	require.NoError(t, err)
+	if coverdir, ok := integration.ResolveCoverageDir(); ok {
+		err := integration.SetupTestscriptsCoverage(&p, coverdir)
+		require.NoError(t, err)
+	}
 
-	err = integration.SetupGno(&p, t.TempDir())
+	err := integration.SetupGno(&p, t.TempDir())
 	require.NoError(t, err)
 
 	testscript.Run(t, p)
