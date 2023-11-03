@@ -91,6 +91,14 @@ func (pv PointerValue) ProtectedString(seen map[Value]struct{}) string {
 	}
 
 	seen[pv] = struct{}{}
+
+	// This method was limited and not working correctly previously. Allowing for it to work as
+	// intended means that it needs to ensure the type value is not nil before attempting to
+	// convert it to a string.
+	if pv.TV == nil {
+		return "&<nil>"
+	}
+
 	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
 }
 
@@ -226,7 +234,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredType bool) string {
-
 	if _, ok := seen[tv.V]; ok {
 		return fmt.Sprintf("%p", tv)
 	}
@@ -234,6 +241,12 @@ func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredT
 	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
 		return tv.ProtectedString(seen)
+	}
+
+	// This is a special case that became necessary after adding `ProtectedString()` methods to
+	// reliably prevent recursive print loops.
+	if v, ok := tv.V.(RefValue); ok {
+		return v.String()
 	}
 
 	// otherwise, default behavior.
