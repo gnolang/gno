@@ -76,14 +76,12 @@ jobs:
           go-version: ${{ matrix.goversion }}
       - name: test
         working-directory: gnovm
-        env:
-          GOCOVERDIR_TXTAR: ${{ env.COVERAGE_DIR }}
         run: |
           mkdir -p $COVERAGE_DIR
 
           # Setup testing environements variables
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -args -test.gocoverdir=$COVERAGE_DIR"
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir-txtar=$COVERAGE_DIR -test.gocoverdir=$COVERAGE_DIR" 
 
           # Run target test
           make ${{ matrix.args }}
@@ -122,7 +120,7 @@ jobs:
           echo 'coverage results:'
           go tool covdata percent -i=$COVERAGE_OUTPUT
 
-          # Generating coverage profile
+          # Generate coverage profile
           go tool covdata textfmt -v 1 -i=$COVERAGE_OUTPUT -o $COVERAGE_PROFILE
 
       - name: Upload combined coverage to Codecov

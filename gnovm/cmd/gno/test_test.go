@@ -13,8 +13,9 @@ func Test_ScriptsTest(t *testing.T) {
 		Dir: "testdata/gno_test",
 	}
 
-	err := integration.SetupCoverage(&p)
+	err := integration.SetupTestscriptsCoverageFromFlag(&p)
 	require.NoError(t, err)
+
 	err = integration.SetupGno(&p, t.TempDir())
 	require.NoError(t, err)
 
