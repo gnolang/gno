@@ -34,3 +34,10 @@ type SubpathAddress struct {
 	Subpath string
 	Address std.Address
 }
+
+// A standard structure for storing all addr related fields.
+type FullAddress struct {
+	PkgPath string
+	Subpath string
+	Address std.Address
+}

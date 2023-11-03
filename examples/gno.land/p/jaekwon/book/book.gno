@@ -86,6 +86,15 @@ type Book struct {
 	entries avl.Tree
 }
 
+var _ Object = &Book{}
+
+func (bk *Book) ReceiveFrom(action *Action, actor Actor) {
+	// XXX how does Book know
+	// XXX whether actor authenticated it?
+	// XXX
+	XXX
+}
+
 func (bk *Book) Append(XXX) XXX {
 	XXX
 }

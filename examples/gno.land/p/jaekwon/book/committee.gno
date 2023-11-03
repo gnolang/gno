@@ -5,10 +5,24 @@ package book
 
 // XXX incomplete.
 type Committee struct {
+
+	// full addr.
+	faddr std.FullAddress
+
 	// each account has an associated pab
-	// XXX or, accounts have devices, each with a pab.
 	pab *PrivActionBook
 }
 
 // A Committee is an actor
 var _ Actor = *Committee{}
+
+func NewCommittee(pkgPath, subpath string) *Committee {
+	return &Committee{
+		faddr: xxx,
+		pab:   xxx,
+	}
+}
+
+func (cm *Committee) GetAddress() std.Address {
+	XXX
+}
