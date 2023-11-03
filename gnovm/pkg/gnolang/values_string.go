@@ -11,31 +11,31 @@ func (v StringValue) String() string {
 	return strconv.Quote(string(v))
 }
 
-func (v BigintValue) String() string {
-	return v.V.String()
+func (bv BigintValue) String() string {
+	return bv.V.String()
 }
 
-func (v BigdecValue) String() string {
-	return v.V.String()
+func (bv BigdecValue) String() string {
+	return bv.V.String()
 }
 
-func (v DataByteValue) String() string {
-	return fmt.Sprintf("(%0X)", (v.GetByte()))
+func (dbv DataByteValue) String() string {
+	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
 }
 
-func (v *ArrayValue) String() string {
-	return v.ProtectedString(map[Value]struct{}{})
+func (av *ArrayValue) String() string {
+	return av.ProtectedString(map[Value]struct{}{})
 }
 
-func (v *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[v]; ok {
-		return fmt.Sprintf("%p", v)
+func (av *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[av]; ok {
+		return fmt.Sprintf("%p", av)
 	}
 
-	seen[v] = struct{}{}
-	ss := make([]string, len(v.List))
-	if v.Data == nil {
-		for i, e := range v.List {
+	seen[av] = struct{}{}
+	ss := make([]string, len(av.List))
+	if av.Data == nil {
+		for i, e := range av.List {
 			ss[i] = e.ProtectedString(seen)
 		}
 		// NOTE: we may want to unify the representation,
@@ -43,77 +43,77 @@ func (v *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
 		// This may be helpful for testing implementation behavior.
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
-	if len(v.Data) > 256 {
-		return fmt.Sprintf("array[0x%X...]", v.Data[:256])
+	if len(av.Data) > 256 {
+		return fmt.Sprintf("array[0x%X...]", av.Data[:256])
 	}
-	return fmt.Sprintf("array[0x%X]", v.Data)
+	return fmt.Sprintf("array[0x%X]", av.Data)
 }
 
-func (v *SliceValue) String() string {
-	return v.ProtectedString(map[Value]struct{}{})
+func (sv *SliceValue) String() string {
+	return sv.ProtectedString(map[Value]struct{}{})
 }
 
-func (v *SliceValue) ProtectedString(seen map[Value]struct{}) string {
-	if v.Base == nil {
+func (sv *SliceValue) ProtectedString(seen map[Value]struct{}) string {
+	if sv.Base == nil {
 		return "nil-slice"
 	}
 
-	if _, ok := seen[v]; ok {
-		return fmt.Sprintf("%p", v)
+	if _, ok := seen[sv]; ok {
+		return fmt.Sprintf("%p", sv)
 	}
 
-	if ref, ok := v.Base.(RefValue); ok {
+	if ref, ok := sv.Base.(RefValue); ok {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
 
-	seen[v] = struct{}{}
-	vbase := v.Base.(*ArrayValue)
+	seen[sv] = struct{}{}
+	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
-		ss := make([]string, v.Length)
-		for i, e := range vbase.List[v.Offset : v.Offset+v.Length] {
+		ss := make([]string, sv.Length)
+		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
 			ss[i] = e.ProtectedString(seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
-	if v.Length > 256 {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[v.Offset:v.Offset+256], v.Length)
+	if sv.Length > 256 {
+		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
 	}
-	return fmt.Sprintf("slice[0x%X]", vbase.Data[v.Offset:v.Offset+v.Length])
+	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
 
-func (v PointerValue) String() string {
-	return v.ProtectedString(map[Value]struct{}{})
+func (pv PointerValue) String() string {
+	return pv.ProtectedString(map[Value]struct{}{})
 }
 
-func (v PointerValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[v]; ok {
-		return fmt.Sprintf("%p", &v)
-	}
-
-	seen[v] = struct{}{}
-	return fmt.Sprintf("&%s", v.TV.ProtectedString(seen))
-}
-
-func (v *StructValue) String() string {
-	return v.ProtectedString(map[Value]struct{}{})
-}
-
-func (v *StructValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[v]; ok {
-		return fmt.Sprintf("%p", v)
+func (pv PointerValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[pv]; ok {
+		return fmt.Sprintf("%p", &pv)
 	}
 
-	seen[v] = struct{}{}
-	ss := make([]string, len(v.Fields))
-	for i, f := range v.Fields {
+	seen[pv] = struct{}{}
+	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
+}
+
+func (sv *StructValue) String() string {
+	return sv.ProtectedString(map[Value]struct{}{})
+}
+
+func (sv *StructValue) ProtectedString(seen map[Value]struct{}) string {
+	if _, ok := seen[sv]; ok {
+		return fmt.Sprintf("%p", sv)
+	}
+
+	seen[sv] = struct{}{}
+	ss := make([]string, len(sv.Fields))
+	for i, f := range sv.Fields {
 		ss[i] = f.ProtectedString(seen)
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
 
-func (v *FuncValue) String() string {
-	name := string(v.Name)
-	if v.Type == nil {
+func (fv *FuncValue) String() string {
+	name := string(fv.Name)
+	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
 	return name
@@ -138,22 +138,22 @@ func (v *BoundMethodValue) String() string {
 		recvT, name, params, results)
 }
 
-func (v *MapValue) String() string {
-	return v.ProtectedString(map[Value]struct{}{})
+func (mv *MapValue) String() string {
+	return mv.ProtectedString(map[Value]struct{}{})
 }
 
-func (v *MapValue) ProtectedString(seen map[Value]struct{}) string {
-	if v.List == nil {
+func (mv *MapValue) ProtectedString(seen map[Value]struct{}) string {
+	if mv.List == nil {
 		return "zero-map"
 	}
 
-	if _, ok := seen[v]; ok {
-		return fmt.Sprintf("%p", v)
+	if _, ok := seen[mv]; ok {
+		return fmt.Sprintf("%p", mv)
 	}
 
-	seen[v] = struct{}{}
-	ss := make([]string, 0, v.GetLength())
-	next := v.List.Head
+	seen[mv] = struct{}{}
+	ss := make([]string, 0, mv.GetLength())
+	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
 			next.Key.String()+":"+
@@ -178,13 +178,13 @@ func (v TypeValue) String() string {
 		v.Type.String(), ptr)
 }
 
-func (v *PackageValue) String() string {
-	return fmt.Sprintf("package(%s %s)", v.PkgName, v.PkgPath)
+func (pv *PackageValue) String() string {
+	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (v *NativeValue) String() string {
+func (nv *NativeValue) String() string {
 	return fmt.Sprintf("gonative{%v}",
-		v.Value.Interface())
+		nv.Value.Interface())
 	/*
 		return fmt.Sprintf("gonative{%v (%s)}",
 			v.Value.Interface(),
