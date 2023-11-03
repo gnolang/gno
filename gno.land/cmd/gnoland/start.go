@@ -14,31 +14,35 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 type startCfg struct {
+	baseCfg
 	skipFailingGenesisTxs bool
 	skipStart             bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
 	chainID               string
 	genesisRemote         string
-	rootDir               string
 	genesisMaxVMCycles    int64
+	pruneStrategy         string
+	persistentPeers       string
 	config                string
 }
 
-func newStartCmd(io *commands.IO) *commands.Command {
-	cfg := &startCfg{}
+func newStartCmd(bc baseCfg) *commands.Command {
+	cfg := startCfg{
+		baseCfg: bc,
+	}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -46,9 +50,9 @@ func newStartCmd(io *commands.IO) *commands.Command {
 			ShortUsage: "start [flags]",
 			ShortHelp:  "Run the full node",
 		},
-		cfg,
+		&cfg,
 		func(_ context.Context, args []string) error {
-			return execStart(cfg, args, io)
+			return execStart(cfg, args)
 		},
 	)
 }
@@ -90,13 +94,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"testdir",
-		"directory for config and data",
-	)
-
-	fs.StringVar(
 		&c.genesisRemote,
 		"genesis-remote",
 		"localhost:26657",
@@ -109,32 +106,33 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		10_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
+	fs.StringVar(
+		&c.pruneStrategy,
+		"prune",
+		"syncable",
+		"set the state prune strategy: nothing | everything | syncable",
+	)
 
 	fs.StringVar(
-		&c.config,
-		"config",
+		&c.persistentPeers,
+		"peers",
 		"",
-		"config file (optional)",
+		"persistent peers: node_id@host:port,...",
 	)
 }
 
-func execStart(c *startCfg, args []string, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+func execStart(c startCfg, args []string) error {
 	rootDir := c.rootDir
-
-	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-	})
+	tmcfg := &c.baseCfg.tmConfig
 
 	// create priv validator first.
 	// need it to generate genesis.json
-	newPrivValKey := cfg.PrivValidatorKeyFile()
-	newPrivValState := cfg.PrivValidatorStateFile()
+	newPrivValKey := tmcfg.PrivValidatorKeyFile()
+	newPrivValState := tmcfg.PrivValidatorStateFile()
 	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
 
 	// write genesis file if missing.
-	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
+	genesisFilePath := filepath.Join(rootDir, tmcfg.Genesis)
 	if !osm.FileExists(genesisFilePath) {
 		genDoc := makeGenesisDoc(
 			priv.GetPubKey(),
@@ -151,17 +149,25 @@ func execStart(c *startCfg, args []string, io *commands.IO) error {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
 
-	cfg.LocalApp = gnoApp
+	// prune nothing is the archive node setting
+	// prune syncable is the default node setting. It keeps the lastest 100 transactions and everything 1000th tx
+	prune := store.NewPruningOptionsFromString(c.pruneStrategy)
+	pruningOpt := sdk.SetPruningOptions(prune)
+	gnoBaseApp := gnoApp.(*sdk.BaseApp)
+	pruningOpt(gnoBaseApp)
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	tmcfg.LocalApp = gnoBaseApp
+	tmcfg.P2P.PersistentPeers = c.persistentPeers
+
+	gnoNode, err := node.DefaultNewNode(tmcfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	fmt.Println("Node created.")
 
 	if c.skipStart {
-		fmt.Fprintln(io.Err, "'--skip-start' is set. Exiting.")
+		fmt.Println("'--skip-start' is set. Exiting.")
 
 		return nil
 	}
