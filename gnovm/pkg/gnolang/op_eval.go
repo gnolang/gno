@@ -56,6 +56,8 @@ func (m *Machine) doOpEval() {
 					_, ok = bi.SetString(x.Value[2:], 8)
 				case 'x', 'X':
 					_, ok = bi.SetString(x.Value[2:], 16)
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					_, ok = bi.SetString(x.Value, 8)
 				default:
 					ok = false
 				}
