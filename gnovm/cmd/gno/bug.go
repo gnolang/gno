@@ -43,7 +43,8 @@ func execBug(args []string, io commands.IO) error {
 	url := "https://github.com/gnolang/gno/issues/new?body=" + url.QueryEscape(body)
 
 	if !openBrowser(url) {
-		io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:\n")
+		io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
+		io.Println()
 		io.Println(body)
 	}
 
