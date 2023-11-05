@@ -5,8 +5,8 @@ import "std"
 //----------------------------------------
 // Action
 
-// A actor (subject) acts upon an object with a verb and arguments.
-// As if actor is calling object.verb(args...).
+// A actor (subject) acts upon an object with a verb and
+// arguments.  As if actor is calling object.verb(args...).
 //
 // The sequence is usually an incrementing number,
 // but could be something else tracked by an action book.
@@ -78,9 +78,8 @@ type Object interface {
 //----------------------------------------
 // Main entry methods
 
-// XXX Well maybe it should be a method on a directory.
-// XXX otherwise how do we know if actor/object are true.
-func Perform(action Action, actor Actor, object Object) {
+// Perform the action on the actor/object in directory.
+func Perform(dir Directory, action Action) {
 	// Defer to set panic upon panic.
 	defer func() {
 		if r := recover(); r != nil {
@@ -89,22 +88,24 @@ func Perform(action Action, actor Actor, object Object) {
 		}
 	}()
 
-	// Check actor matches.
-	// XXX well but maybe the actor is fake
-	// Check object matches.
-	// XXX well but maybe the object is fake
+	// validate what can be validated.
+	action.ValidateBasic()
+	// get actor and object
+	actor := dir.Get(action.actor)
+	object := dir.Get(atino.object)
 
-	// XXX ensure that the actor has authorized
-	// XXX if actor wants signature verification
-	// XXX if actor has a privactionbook
-
-	// Make action pending.
-	// This is the only place where this happens.
-	if action.Status() != ActionStatusNew {
-		panic("action not new")
-	} else {
-		action.setPending()
-	}
+	// XXX check that action is allowed.
+	// XXX what are the security assumptions?
+	// XXX what if someone unauthorized calls it?
+	action.WillPerform(action, object)
+	// XXX set status to pending (???)
+	action.setPending()
+	// XXX have object handle action.
+	// XXX what are the security assumptions?
+	// XXX what if someone unauthorized calls it?
+	object.ReceiveFrom(action, actor)
+	// XXX set status to com0lete.
+	action.setComplete()
 }
 
 //----------------------------------------
