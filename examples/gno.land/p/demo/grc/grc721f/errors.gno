@@ -1,0 +1,18 @@
+package grc721f
+
+import "errors"
+
+var (
+	ErrInvalidTokenId              = errors.New("invalid token id")
+	ErrInvalidAddress              = errors.New("invalid address")
+	ErrTokenIdNotHasApproved       = errors.New("token id not approved for anyone")
+	ErrApprovalToCurrentOwner      = errors.New("approval to current owner")
+	ErrCallerIsNotOwner            = errors.New("caller is not token owner")
+	ErrCallerNotApprovedForAll     = errors.New("caller is not approved for all")
+	ErrCannotTransferToSelf        = errors.New("cannot send transfer to self")
+	ErrTransferFromIncorrectOwner  = errors.New("transfer from incorrect owner")
+	ErrTransferToNonGRC721Receiver = errors.New("transfer to non GRC721Receiver implementer")
+	ErrCallerIsNotOwnerOrApproved  = errors.New("caller is not token owner or approved")
+	ErrTokenURINotSet			   = errors.New("tokeURIs not set")
+	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
+)

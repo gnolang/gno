@@ -2,60 +2,24 @@ package flippando
 
 import (
 	"strconv"
-	"bytes"
 	"errors"
 	"std"
-	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/flippandoserver"
 )
-
-type GameBoard struct {
-	Board     []int64  `json:"board"`
-	GameTiles []int64  `json:"gameTiles"`
-	BoardSize int    `json:"boardSize"`
-}
-
-type Game struct {
-	ID 			string `json:"id"`
-	GameStatus 	string	`json:"gameStatus"`
-	GameBoard 	[]int64	`json:"gameBoard"`
-	SolvedGameBoard	[]int64	`json:"solvedGameBoard"`
-	GameTiles	[]int64	`json:"gameTiles"`
-	TileType	string	`json:"-"`
-}
-
-type FlippandoBasicNFT struct {
-	name	string `json:"name"`
-	version	string	`json:"version"`
-	gameId	string`json:"gameId"`
-	gameType string `json:"gameType"`
-	svgData	string `json:"svgData"`
-}
-
-type nftResult struct {
-	result	string `json:"result"`
-	nftError	string	`json:"error"`
-}
-
-type inTransit struct {
-	tokenId   int
-	inTransit bool
-}
-
-// tokenId - int, inTransit, bool
 
 // realm state
 var (	
 	gameStore     avl.Tree // string (game ID) -> *Game
 	gameIDCounter uint64
-	tokenIDCounter	uint64
 
 	user2Games avl.Tree // std.Address -> []*Game
+	nft2Flip	avl.Tree // nft.TokenId -> Flip fungioble token
 )
+
+const zeroes = "000000000"
 
 /*
 // test functions
@@ -139,85 +103,22 @@ func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	return string(currentGameJSON)
 }
 
-func CreateNFT(player std.Address, gameId string) (string) {
-	result := ""
-	nftError := ""
-	// - generates a GRC721 token with the solved board SVG as a tokenURI
-	basicNFT := grc721.NewBasicNFT("Flippando Basic Board", "FLPP")
-	games := GetUserGames(player)
-	// safety checks
-	if(len(games) == 0){
-		result = "{failedSafetyCheck: userHasGames}"
-		nftError = "{error: user has zero games}"
+func CreateBasicNFT(player std.Address, gameId string) string {
+	// call CreateBasicFlipNFT from basicNFT.gno
+	// call MintFlipFungibleToken from token,gno
+	// lock the Flip fungible token inside the basicNFT in nft2Flip avl.tree
+	tokenID, metadata, error := CreateBasicFlipNFT(player, gameId)
+	if error != "" {
+		return error
 	}
-	currentGame := games[0]
-	hasZeroValues := func(s []int64) bool { for _, v := range s { if v == 0 { return true } }; return false }(currentGame.SolvedGameBoard)
-	if(hasZeroValues){
-		result := "{failedSafetyCheck: gameCompletion}"
-		nftError := "{error: game is not finished}"
-	}
-	gameSVGData, errSVG := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
-	if(errSVG != nil){
-		result := "{failedSafetyCheck: svgDataCorrupted}"
-		nftError := "{error: SVG data not generated}"
-	}
-	flippandoBasicNFT := &FlippandoBasicNFT{
-		name: "Flippando - the Game",
-		version: "1.0.0",
-		gameId: currentGame.ID,
-		gameType: currentGame.TileType,
-		svgData: gameSVGData,
-	}
-	flippandoBasicNFTJSON, err := flippandoBasicNFT.MarshalJSON()
-	if err != nil {
-		panic("error in marhasling flippandoBasicNFT");
-	}
-	mintResultError := basicNFT.SafeMint(player, grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)))
-	if(mintResultError == nil){
-		basicNFT.SetTokenURI(grc721.TokenID(strconv.FormatUint(tokenIDCounter, 10)), grc721.TokenURI(flippandoBasicNFTJSON))
-		tokenIDCounter++
-		
-		result = string(flippandoBasicNFTJSON)
-		nftError = "{error: false}"
-	}
-	res := &nftResult{
-		result: result,
-		nftError: nftError,
-	}
-	
-	createNFTResult, err := res.MarshalJSON()
-	if(err != nil){
-		return "error"
-	}
-	return string(createNFTResult)
+	return metadata
 }
 
-func GetUserNFTs(addr std.Address) string {
-	tokenCount := grc721.BalanceOf(addr)
-	tokenIDs := make([]int64, 0, tokenCount) 
-
-	// Assuming there's a function to get the token ID by index for the given address
-	for i := int64(0); i < tokenCount; i++ {
-		owner, err := basicNFT.OwnerOf(i)
-		if err != nil {
-			if err == ErrInvalidTokenId {
-				// do we need to do smth else here?
-				continue
-			} else {
-				// resort to nil
-				return nil, err
-			}
-		}
-		
-		// If the owner matches the address we're looking for, add the TokenID to the slice.
-		if owner == addr {
-			tokenIDs = append(tokenIDs, i)
-		}
-	}
-
-	return tokenIDs
+func GetUserBasicNFTs(addr std.Address) string {
+	// call GetUserBasicFlipNFTs from basicNFT.gno
+	userNFTs := GetUserBasicFlipNFTs(addr)
+	return userNFTs
 }
-
 
     
 func GetUserGames(user std.Address) []*Game {
@@ -240,164 +141,18 @@ func addToUser2Games(addr std.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
-const zeroes = "000000000"
 
-func zeroPad9(s string) string {
-	n := 9 - len(s)
-	if n < 0 {
-		return s
-	}
-	return zeroes[:n] + s
-}
-
-func (g Game) MarshalJSON() (_ []byte, err error) {
-	var b bytes.Buffer
-
-	b.WriteByte('{')
-	
-	b.WriteString(`"id":"`)
-	b.WriteString(g.ID)
-	b.WriteString(`",`)
-
-	b.WriteString(`"gameBoard":[`)
-	b.WriteString(writeIntSlice(g.GameBoard))
-	b.WriteString(`],`)
-
-	b.WriteString(`"solvedGameBoard":[`)
-	b.WriteString(writeIntSlice(g.SolvedGameBoard))
-	b.WriteString(`],`)
-
-	b.WriteString(`"gameTiles":[`)
-	b.WriteString(writeIntSlice(g.GameTiles))
-	b.WriteString(`],`)
-	
-	b.WriteString(`"gameStatus":"`)
-	b.WriteString(g.GameStatus)
-	b.WriteString(`"`)
-	
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-}
-
-func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
-	var b bytes.Buffer
-
-	b.WriteByte('{')
-	
-	b.WriteString(`"BoardSize":`)
-	b.WriteString(strconv.Itoa(gb.BoardSize)) // converting int to string
-	b.WriteString(`,`)
-	
-	
-	b.WriteString(`"Board":[`)
-	b.WriteString(writeIntSlice(gb.Board))
-	b.WriteString(`],`)
-	
-	b.WriteString(`"GameTiles":[`)
-	b.WriteString(writeIntSlice(gb.GameTiles))
-	b.WriteString(`]`)
-	
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-}
-
-func (fbn FlippandoBasicNFT) MarshalJSON() (_ []byte, err error) {
-	
-	var b bytes.Buffer
-
-	b.WriteByte('{')
-	
-	b.WriteString(`"name":"`)
-	b.WriteString(fbn.name)
-	b.WriteString(`",`)
-
-	b.WriteString(`"version":"`)
-	b.WriteString(fbn.version)
-	b.WriteString(`",`)
-
-	b.WriteString(`"gameId":"`)
-	b.WriteString(fbn.gameId)
-	b.WriteString(`",`)
-
-	b.WriteString(`"gameType":"`)
-	b.WriteString(fbn.gameType)
-	b.WriteString(`",`)
-	
-	b.WriteString(`"svgData":"`)
-	b.WriteString(fbn.svgData) 
-	b.WriteString(`"`)
-	
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-	
-}
-
-func (n nftResult)MarshalJSON() (_ []byte, err error) {
-	
-	var b bytes.Buffer
-
-	b.WriteByte('{')
-
-	b.WriteString(`"result":"`)
-	b.WriteString(n.result)
-	b.WriteString(`",`)
-
-	b.WriteString(`"error":"`)
-	b.WriteString(n.nftError)
-	b.WriteString(`",`)
-
-	b.WriteByte('}')
-
-	return b.Bytes(), nil
-
-}
-
-func writeIntSlice(slice []int64) string {
-    var b strings.Builder
-    for i, v := range slice {
-        if i > 0 {
-            b.WriteString(",")
-        }
-        b.WriteString(strconv.FormatInt(v, 10))  // converting int64 to string
-    }
-    return b.String()
-}
-
-
-func ParseString(s string) ([]int64, error) {
-	s = strings.Trim(s, "[]")
-	parts := strings.Split(s, ",")
-	ints := make([]int64, len(parts))
-	for i, part := range parts {
-		val, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil {
-			return nil, err
-		}
-		ints[i] = int64(val)
-	}
-	return ints, nil
-}
-
-
-
-func makeArt(owner string, buildingBlocks []int64) {
+func MakeArt(player std.Address, buildingBlocks []int64) {
 	// - checks if any of the tokenIds in the buildingBlocks[] are belonging to the user (not allowed)
 	// - checks if any of the tokenIds in the buildingBlocks[] are in transit
-	// - unlocks and sends the locked Flips in each used NFT
+	// - unlocks and sends the locked Flips in each used NFT to the creator of the NFT
 	// - transfers the NFTs to the new owner (the art creator)
-	// - calls FlippandoBundler.bundleAssets() to generate a new GRC721 NFT with a standard tokenURI, and the tokenIds of the used NFT primitives
+	// - calls CreateCompositeFlipNFT in compositeNFT.gno to generate a new GRC721 NFT with a standard tokenURI, 
+	// and the tokenIds of the used NFT primitives -> apply from the new GRC6150 interface
 }
 
 func ResetGame(gameId string) {
 	//- utility function, nullifies the game[gameId]
-}
-
-// utility, private functions
-func boardHasZeroValues(gameId string) {
-	// - utility function, checks for existing zeros in the board (game is ongoing) // do we still need this?
 }
 
 func isValidGameLevel(boardSize int) {
@@ -412,31 +167,4 @@ func RenderHome() string {
 	return "render path"
 }
 
-// utils, to move into a separate package?
 
-func sqrt(x float64) float64 {
-	if x == 0 || x == 1 {
-		return x
-	}
-
-	// Start with an initial guess
-	guess := x / 2.0
-	prevGuess := 0.0
-
-	// Use a small threshold to determine when to stop the approximation
-	const threshold = 0.00001
-
-	for abs(guess-prevGuess) > threshold {
-		prevGuess = guess
-		guess = 0.5 * (guess + x/guess)
-	}
-
-	return guess
-}
-
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}

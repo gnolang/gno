@@ -32,7 +32,7 @@ func TestCreateNFT(t *testing.T) {
     // Assume tokenIDCounter is a global variable and its initial value is 0
     tokenIDCounter := 0
     
-    CreateNFT(player, gameId)
+    CreateBasicNFT(player, gameId)
     
     // Check the new value of tokenIDCounter, it should be incremented by 1
     if tokenIDCounter != 1 {
@@ -77,7 +77,7 @@ func testGenerateColorSquareGrid(t *testing.T) {
 }
 
 func testMarshalJSON(t *testing.T) {
-    fbn := FlippandoBasicNFT{
+    fbn := basicNFTMetaData{
 		name:     "Flippando - the Game",
 		version:  "1.0.0",
 		gameId:   "game123",
