@@ -68,13 +68,12 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (int64, string, strin
 }
 
 func GetUserBasicFlipNFTs(addr std.Address) string {
-	tokenCount, err := flipBasicNFT.BalanceOf(addr)
 	tokenCount := flipBasicNFT.TokenCount()
+	tokenIDs := []int64{}
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
-	//for i := int64(0); i < int64(tokenCount); i++ {
-	for i := int64(0); i < int64(10); i++ {		
+	for i := int64(1); i < int64(tokenCount); i++ {		
 		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(i))
 		if err != nil {
 			if err == ErrInvalidTokenId {
@@ -83,9 +82,8 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 			} 
 		}
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
-		if owner == addr {
+		if owner.String() == addr.String() {
 			tokenIDs = append(tokenIDs, i)
-			userNFTsError = "false"
 		}
 	}
 
@@ -100,4 +98,28 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 	}
 
 	return string(userNFTsResult)
+}
+
+func GetAllBasicFlipNFTs() string {
+	tokenCount := flipBasicNFT.TokenCount()
+	tokenIDs := []int64{}
+	userNFTsError := ""
+
+	// Assuming there's a function to get the token ID by index for the given address
+	for i := int64(0); i < int64(tokenCount); i++ {		
+		tokenIDs = append(tokenIDs, i)
+		userNFTsError = "false"
+	}
+
+	allFetchedNFTs := &userNFTs{
+		tokenIDs: tokenIDs,
+		nftError: userNFTsError,
+	}
+
+	allNFTsResult, err := allFetchedNFTs.MarshalJSON() 
+	if(err != nil){
+		panic("error in fetching all NFTs")
+	}
+
+	return string(allNFTsResult)
 }

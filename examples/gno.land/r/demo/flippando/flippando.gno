@@ -120,6 +120,11 @@ func GetUserBasicNFTs(addr std.Address) string {
 	return userNFTs
 }
 
+func GetAllBasicNFTs() string {
+	allNFTs := GetAllBasicFlipNFTs()
+	return allNFTs
+}
+
     
 func GetUserGames(user std.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
