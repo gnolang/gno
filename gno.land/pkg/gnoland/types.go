@@ -66,12 +66,12 @@ func (b *Balance) Parse(entry string) error {
 	return nil
 }
 
-func (b *Balance) UnmarshalJSON(data []byte) error {
-	return b.Parse(string(data))
+func (b *Balance) UnmarshalAmino(rep string) error {
+	return b.Parse(rep)
 }
 
-func (b *Balance) MarshalJSON() ([]byte, error) {
-	return []byte(b.String()), nil
+func (b Balance) MarshalAmino() (string, error) {
+	return b.String(), nil
 }
 
 func (b Balance) String() string {
