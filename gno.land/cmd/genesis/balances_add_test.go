@@ -133,7 +133,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == balance.Address.String() {
-					assert.Equal(t, amount, balance.Value)
+					assert.Equal(t, amount, balance.Amount)
 
 					found = true
 					break
@@ -210,7 +210,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == balance.Address.String() {
-					assert.Equal(t, amount, balance.Value)
+					assert.Equal(t, amount, balance.Amount)
 
 					found = true
 					break
@@ -316,7 +316,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 				}
 
 				if dummyKey.Address().String() == balance.Address.String() {
-					assert.True(t, balance.Value.IsEqual(checkAmount))
+					assert.True(t, balance.Amount.IsEqual(checkAmount))
 
 					found = true
 					break
@@ -343,7 +343,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{
 					Address: dummyKeys[0].Address(),
-					Value:   std.NewCoins(std.NewCoin("ugnot", 100)),
+					Amount:   std.NewCoins(std.NewCoin("ugnot", 100)),
 				},
 			},
 		}
@@ -394,7 +394,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			found := false
 			for _, dummyKey := range dummyKeys {
 				if dummyKey.Address().String() == balance.Address.String() {
-					assert.Equal(t, amount, balance.Value)
+					assert.Equal(t, amount, balance.Amount)
 
 					found = true
 					break
@@ -434,7 +434,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()].Value)
+			assert.Equal(t, amount, balanceMap[key.Address()].Amount)
 		}
 	})
 
@@ -511,7 +511,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys {
-			assert.Equal(t, amount, balanceMap[key.Address()].Value)
+			assert.Equal(t, amount, balanceMap[key.Address()].Amount)
 		}
 	})
 
@@ -592,10 +592,10 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		// Validate the balance map
 		assert.Len(t, balanceMap, len(dummyKeys))
 		for _, key := range dummyKeys[1:] {
-			assert.Equal(t, amount, balanceMap[key.Address()].Value)
+			assert.Equal(t, amount, balanceMap[key.Address()].Amount)
 		}
 
-		assert.Equal(t, std.Coins{}, balanceMap[sender.Address()].Value)
+		assert.Equal(t, std.Coins{}, balanceMap[sender.Address()].Amount)
 	})
 
 	t.Run("malformed transaction, invalid fee amount", func(t *testing.T) {

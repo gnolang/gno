@@ -22,9 +22,9 @@ func TestBalance_Verify(t *testing.T) {
 		balance   Balance
 		expectErr bool
 	}{
-		{"empty coins", Balance{Address: validAddress, Value: emptyCoins}, true},
-		{"empty address", Balance{Address: bft.Address{}, Value: nonEmptyCoins}, true},
-		{"valid balance", Balance{Address: validAddress, Value: nonEmptyCoins}, false},
+		{"empty coins", Balance{Address: validAddress, Amount: emptyCoins}, true},
+		{"empty address", Balance{Address: bft.Address{}, Amount: nonEmptyCoins}, true},
+		{"valid balance", Balance{Address: validAddress, Amount: nonEmptyCoins}, false},
 	}
 
 	for _, tc := range tests {
@@ -41,7 +41,7 @@ func TestBalance_Verify(t *testing.T) {
 
 func TestBalance_Parse(t *testing.T) {
 	validAddress := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	validBalance := Balance{Address: validAddress, Value: std.NewCoins(std.NewCoin("test", 100))}
+	validBalance := Balance{Address: validAddress, Amount: std.NewCoins(std.NewCoin("test", 100))}
 
 	tests := []struct {
 		name      string
@@ -71,7 +71,7 @@ func TestBalance_Parse(t *testing.T) {
 func TestBalance_AminoUnmarshalJSON(t *testing.T) {
 	expected := Balance{
 		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Value:   std.MustParseCoins("100ugnot"),
+		Amount:  std.MustParseCoins("100ugnot"),
 	}
 	value := fmt.Sprintf("[%q]", expected.String())
 
@@ -82,13 +82,13 @@ func TestBalance_AminoUnmarshalJSON(t *testing.T) {
 
 	balance := balances[0]
 	require.Equal(t, expected.Address, balance.Address)
-	require.True(t, expected.Value.IsEqual(balance.Value))
+	require.True(t, expected.Amount.IsEqual(balance.Amount))
 }
 
 func TestBalance_AminoMarshalJSON(t *testing.T) {
 	expected := Balance{
 		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Value:   std.MustParseCoins("100ugnot"),
+		Amount:  std.MustParseCoins("100ugnot"),
 	}
 	expectedJSON := fmt.Sprintf("[%q]", expected.String())
 

@@ -149,7 +149,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		for _, bal := range genState.Balances {
 			acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
 			acctKpr.SetAccount(ctx, acc)
-			err := bankKpr.SetCoins(ctx, bal.Address, bal.Value)
+			err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
 			if err != nil {
 				panic(err)
 			}

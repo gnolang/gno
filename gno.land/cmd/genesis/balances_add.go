@@ -291,8 +291,8 @@ func getBalancesFromTransactions(
 				// we initialize the account (it is present in the balance sheet), but
 				// with the balance of 0
 
-				from := balances[msgSend.FromAddress].Value
-				to := balances[msgSend.ToAddress].Value
+				from := balances[msgSend.FromAddress].Amount
+				to := balances[msgSend.ToAddress].Amount
 
 				to = to.Add(sendAmount)
 
@@ -313,11 +313,11 @@ func getBalancesFromTransactions(
 				// Set new balance
 				balances[msgSend.FromAddress] = gnoland.Balance{
 					Address: msgSend.FromAddress,
-					Value:   from,
+					Amount:  from,
 				}
 				balances[msgSend.ToAddress] = gnoland.Balance{
 					Address: msgSend.ToAddress,
-					Value:   to,
+					Amount:  to,
 				}
 			}
 		}

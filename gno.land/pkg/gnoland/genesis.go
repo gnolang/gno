@@ -51,7 +51,7 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 
 		balances = append(balances, Balance{
 			Address: addr,
-			Value:   coins,
+			Amount:   coins,
 		})
 	}
 

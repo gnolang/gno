@@ -25,7 +25,7 @@ func getDummyBalances(t *testing.T, count int) []gnoland.Balance {
 	for index, key := range dummyKeys {
 		balances[index] = gnoland.Balance{
 			Address: key.Address(),
-			Value:   amount,
+			Amount:   amount,
 		}
 	}
 

@@ -30,7 +30,7 @@ type GnoGenesisState struct {
 
 type Balance struct {
 	Address bft.Address
-	Value   std.Coins
+	Amount  std.Coins
 }
 
 func (b *Balance) Verify() error {
@@ -38,7 +38,7 @@ func (b *Balance) Verify() error {
 		return ErrBalanceEmptyAddress
 	}
 
-	if b.Value.Len() == 0 {
+	if b.Amount.Len() == 0 {
 		return ErrBalanceEmptyAmount
 	}
 
@@ -58,7 +58,7 @@ func (b *Balance) Parse(entry string) error {
 		return fmt.Errorf("invalid address %q: %w", parts[0], err)
 	}
 
-	b.Value, err = std.ParseCoins(parts[1])
+	b.Amount, err = std.ParseCoins(parts[1])
 	if err != nil {
 		return fmt.Errorf("invalid amount %q: %w", parts[1], err)
 	}
@@ -75,5 +75,5 @@ func (b Balance) MarshalAmino() (string, error) {
 }
 
 func (b Balance) String() string {
-	return fmt.Sprintf("%s=%s", b.Address.String(), b.Value.String())
+	return fmt.Sprintf("%s=%s", b.Address.String(), b.Amount.String())
 }
