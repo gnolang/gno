@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -201,11 +200,6 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 
 // XXX: all the method bellow should be removed in favor of
 // https://github.com/gnolang/gno/pull/1233
-var (
-	guessOnce sync.Once
-	gnoroot   string
-)
-
 func MustGuessGnoRootDir() string {
 	root, err := GuessGnoRootDir()
 	if err != nil {
@@ -223,11 +217,7 @@ func GuessGnoRootDir() (string, error) {
 		return filepath.Clean(rootdir), nil
 	}
 
-	guessOnce.Do(func() {
-		gnoroot, err = guessGnoRootDir()
-	})
-
-	return gnoroot, err
+	return guessGnoRootDir()
 }
 
 func guessGnoRootDir() (string, error) {
