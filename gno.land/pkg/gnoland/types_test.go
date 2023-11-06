@@ -14,17 +14,17 @@ import (
 
 func TestBalance_Verify(t *testing.T) {
 	validAddress := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	emptyCoins := std.Coins{}
-	nonEmptyCoins := std.NewCoins(std.NewCoin("test", 100))
+	emptyAmount := std.Coins{}
+	nonEmptyAmount := std.NewCoins(std.NewCoin("test", 100))
 
 	tests := []struct {
 		name      string
 		balance   Balance
 		expectErr bool
 	}{
-		{"empty coins", Balance{Address: validAddress, Amount: emptyCoins}, true},
-		{"empty address", Balance{Address: bft.Address{}, Amount: nonEmptyCoins}, true},
-		{"valid balance", Balance{Address: validAddress, Amount: nonEmptyCoins}, false},
+		{"empty amount", Balance{Address: validAddress, Amount: emptyAmount}, true},
+		{"empty address", Balance{Address: bft.Address{}, Amount: nonEmptyAmount}, true},
+		{"valid balance", Balance{Address: validAddress, Amount: nonEmptyAmount}, false},
 	}
 
 	for _, tc := range tests {
