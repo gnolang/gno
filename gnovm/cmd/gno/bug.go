@@ -75,14 +75,14 @@ func openBrowser(url string) bool {
 	var cmdArgs []string
 	switch runtime.GOOS {
 	case "windows":
-		cmdArgs = []string{"cmd", "/c", "start"}
+		cmdArgs = []string{"cmd", "/c", "start", url}
 	case "darwin":
-		cmdArgs = []string{"/usr/bin/open"}
+		cmdArgs = []string{"/usr/bin/open", url}
 	default: // "linux"
-		cmdArgs = []string{"xdg-open"}
+		cmdArgs = []string{"xdg-open", url}
 	}
 
-	cmd := exec.Command(cmdArgs[0], append(cmdArgs[1:], url)...)
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	if cmd.Start() == nil && isExecutionSuccessfulWithinTimeout(cmd, 3*time.Second) {
 		return true
 	}
