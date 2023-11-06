@@ -7,9 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
@@ -45,7 +44,7 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
@@ -56,7 +55,6 @@ func TestRoutes(t *testing.T) {
 	cfg.RemoteAddr = remoteAddr
 	cfg.HelpChainID = "dev"
 	cfg.CaptchaSite = ""
-	cfg.ViewsDir = "../../cmd/gnoweb/views"
 	cfg.WithAnalytics = false
 	app := MakeApp(cfg)
 
@@ -66,7 +64,6 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
-
 			assert.Contains(t, response.Body.String(), r.substring)
 			// println(response.Body.String())
 		})
@@ -96,11 +93,11 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	cfg := gnoweb.NewDefaultConfig(rootdir)
+	cfg := NewDefaultConfig()
 	cfg.RemoteAddr = remoteAddr
 
 	t.Run("with", func(t *testing.T) {
