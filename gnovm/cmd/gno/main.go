@@ -38,6 +38,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newReplCmd(),
 		newDocCmd(io),
 		newEnvCmd(io),
+		newDevCmd(io),
 		// fmt -- gofmt
 		// graph
 		// vendor -- download deps from the chain in vendor/

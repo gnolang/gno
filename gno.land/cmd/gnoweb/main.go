@@ -17,7 +17,6 @@ func parseConfigFlags(fs *flag.FlagSet, args []string) (gnoweb.Config, error) {
 	cfg := gnoweb.NewDefaultConfig()
 
 	fs.StringVar(&cfg.RemoteAddr, "remote", cfg.RemoteAddr, "remote gnoland node address")
-	fs.StringVar(&cfg.BindAddr, "bind", cfg.BindAddr, "server listening address")
 	fs.StringVar(&cfg.CaptchaSite, "captcha-site", cfg.CaptchaSite, "recaptcha site key (if empty, captcha are disabled)")
 	fs.StringVar(&cfg.FaucetURL, "faucet-url", cfg.FaucetURL, "faucet server URL")
 	fs.StringVar(&cfg.ViewsDir, "views-dir", cfg.ViewsDir, "views directory location") // XXX: replace with goembed
@@ -30,6 +29,9 @@ func parseConfigFlags(fs *flag.FlagSet, args []string) (gnoweb.Config, error) {
 
 func main() {
 	fs := flag.NewFlagSet("gnoweb", flag.PanicOnError)
+
+	var bindAddress string
+	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
 
 	cfg, err := parseConfigFlags(fs, os.Args)
 	if err != nil {

@@ -35,7 +35,6 @@ const (
 var defaultViewsFiles embed.FS
 
 type Config struct {
-	BindAddr      string
 	RemoteAddr    string
 	CaptchaSite   string
 	FaucetURL     string
@@ -43,12 +42,13 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
+
+	BindAddr string
 }
 
 func NewDefaultConfig() Config {
 	return Config{
 		RemoteAddr:    "127.0.0.1:26657",
-		BindAddr:      "127.0.0.1:8888",
 		CaptchaSite:   "",
 		FaucetURL:     "http://localhost:5050",
 		ViewsDir:      "",

@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -28,6 +29,7 @@ func ResolveCoverageDir() (string, bool) {
 		coverdir = coverageEnv.coverdir
 	}
 
+	context.Canceled
 	return coverdir, coverdir != ""
 }
 

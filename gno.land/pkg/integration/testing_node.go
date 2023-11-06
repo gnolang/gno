@@ -2,7 +2,6 @@ package integration
 
 import (
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -11,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/require"
@@ -33,7 +31,7 @@ func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemor
 	require.NoError(t, err)
 
 	select {
-	case <-waitForNodeReadiness(node):
+	case <-gnoland.WaitForNodeReadiness(node):
 	case <-time.After(time.Second * 6):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
@@ -155,30 +153,4 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig
-}
-
-// waitForNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
-// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
-func waitForNodeReadiness(n *node.Node) <-chan struct{} {
-	const listenerID = "first_block_listener"
-
-	var once sync.Once
-
-	nb := make(chan struct{})
-	ready := func() {
-		close(nb)
-		n.EventSwitch().RemoveListener(listenerID)
-	}
-
-	n.EventSwitch().AddListener(listenerID, func(ev events.Event) {
-		if _, ok := ev.(bft.EventNewBlock); ok {
-			once.Do(ready)
-		}
-	})
-
-	if n.BlockStore().Height() > 0 {
-		once.Do(ready)
-	}
-
-	return nb
 }
