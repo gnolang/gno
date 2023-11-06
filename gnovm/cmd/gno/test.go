@@ -328,9 +328,10 @@ func gnoTestPkg(
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
+		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
-		{
+		if !strings.HasSuffix(testPkgName, "_test") {
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
@@ -344,18 +345,12 @@ func gnoTestPkg(
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
-		}
-
-		// run test files in xxx_test pkg
-		{
-			testPkgName := getPkgNameFromFileset(ifiles)
-			if testPkgName != "" {
-				m := tests.TestMachine(testStore, stdout, testPkgName)
-				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
-				if err != nil {
-					errs = multierr.Append(errs, err)
-				}
+		} else { // run xxx_test
+			m := tests.TestMachine(testStore, stdout, testPkgName)
+			m.RunMemPackage(memPkg, true)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			if err != nil {
+				errs = multierr.Append(errs, err)
 			}
 		}
 	}
