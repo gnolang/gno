@@ -403,14 +403,14 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// if there is one.
 	for _, fn := range fns {
 		var (
-			notEmptyName = fn.Pkgname != ""
+			notEmptyName = fn.PkgName != ""
 			notBaseName    = fn.PkgName != m.Package.PkgName
 			notTestName     = m.Package.PkgName+"_test" != fn.PkgName
 		)
 		
 		if notEmptyName && notBaseName && notTestName {
 			panic(fmt.Sprintf("expected package name [%s] or [%s_test] but got [%s]",
-				m.Package.PkgName, fn.PkgName))
+				m.Package.PkgName, m.Package.PkgName, fn.PkgName))
 		}
 	}
 	// Add files to *PackageNode.FileSet.
