@@ -2,6 +2,7 @@ package flippando
 
 import (
 	"errors"
+	"strconv"
 	"std"
 
 	"gno.land/p/demo/ufmt"
@@ -49,9 +50,10 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (int64, string, strin
 	}
 	count := flipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
-	tid := grc721f.TokenID(ufmt.Sprintf("%d", basicNFTtokenIDCounter))
-	mintResultError := flipBasicNFT.SafeMint(player, tid)
-	if(mintResultError == nil){
+	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
+	tid := grc721f.TokenID(tidString)
+	mintResultError := flipBasicNFT.Mint(player, tid)
+	if mintResultError == nil {
 		flipBasicNFT.SetTokenURI(tid, grc721f.TokenURI(flipBasicNFTMetaDataJSON))
 		result = string(flipBasicNFTMetaDataJSON)
 	}
@@ -73,17 +75,24 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
-	for i := int64(1); i < int64(tokenCount); i++ {		
-		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(i))
+	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
+		tidString := strconv.FormatUint(i, 10)
+		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
+		// debug
+		if err != nil {
+			userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Error: " + err.Error()
+			//userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Owner: " + owner.String()
+		}
 		if err != nil {
 			if err == ErrInvalidTokenId {
 				// do we need to do smth else here?
 				return "invalid token"
 			} 
 		}
+		
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
-		if owner.String() == addr.String() {
-			tokenIDs = append(tokenIDs, i)
+		if owner == addr {
+			tokenIDs = append(tokenIDs, int64(i))
 		}
 	}
 
@@ -106,9 +115,18 @@ func GetAllBasicFlipNFTs() string {
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
-	for i := int64(0); i < int64(tokenCount); i++ {		
-		tokenIDs = append(tokenIDs, i)
-		userNFTsError = "false"
+	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
+		tokenIDs = append(tokenIDs, int64(i))
+		// debug
+		tidString := strconv.FormatUint(i, 10)
+		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
+		tokenURI, terr := flipBasicNFT.TokenURI(grc721f.TokenID(tidString))
+		name := flipBasicNFT.Name()
+		symbol := flipBasicNFT.Symbol()
+		userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Owner: " + owner.String()
+		userNFTsError += " | TokenURI Error: " + ", TokenURI: " + tokenURI
+		userNFTsError += " | Name: " + name + ", Symbol: " + symbol
+
 	}
 
 	allFetchedNFTs := &userNFTs{

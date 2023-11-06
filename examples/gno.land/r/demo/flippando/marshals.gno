@@ -22,6 +22,10 @@ type Game struct {
 	TileType	string	`json:"-"`
 }
 
+type flippandoBasicNFT struct {
+	name	string `json:"id"`
+}
+
 type basicNFTMetaData struct {
 	name	string `json:"name"`
 	version	string	`json:"version"`
