@@ -247,7 +247,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			return mv.String()
 		default:
 			panic(fmt.Sprintf(
-				"unexpected slice type %v",
+				"unexpected map type %v",
 				reflect.TypeOf(tv.V)))
 		}
 	case *FuncType:
