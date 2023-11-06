@@ -28,8 +28,8 @@ func (p *Pausable) IsPaused() bool {
 	return p.paused
 }
 
-// SetPaused sets the state of Pausable to true, meaning all pausable functions are paused
-func (p *Pausable) SetPaused() error {
+// Pause sets the state of Pausable to true, meaning all pausable functions are paused
+func (p *Pausable) Pause() error {
 	if err := p.CallerIsOwner(); err != nil {
 		return err
 	}
@@ -38,8 +38,8 @@ func (p *Pausable) SetPaused() error {
 	return nil
 }
 
-// SetUnpaused sets the state of Pausable to false, meaning all pausable functions are resumed
-func (p *Pausable) SetUnpaused() error {
+// Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
+func (p *Pausable) Unpause() error {
 	if err := p.CallerIsOwner(); err != nil {
 		return err
 	}

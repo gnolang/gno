@@ -1,1 +1,1 @@
-gno.land/p/demo/pausable
+module gno.land/p/demo/pausable

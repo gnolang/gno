@@ -42,7 +42,7 @@ func TestSetUnpaused(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
 	result := New()
-	result.SetUnpaused()
+	result.Unpause()
 
 	if result.IsPaused() {
 		t.Fatalf("Expected result to be unpaused, got %t\n", result.IsPaused())
@@ -53,7 +53,7 @@ func TestSetPaused(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
 	result := New()
-	result.SetPaused()
+	result.Pause()
 
 	if !result.IsPaused() {
 		t.Fatalf("Expected result to be paused, got %t\n", result.IsPaused())
@@ -69,7 +69,7 @@ func TestIsPaused(t *testing.T) {
 		t.Fatalf("Expected result to be unpaused, got %t\n", result.IsPaused())
 	}
 
-	result.SetPaused()
+	result.Pause()
 
 	if !result.IsPaused() {
 		t.Fatalf("Expected result to be paused, got %t\n", result.IsPaused())
