@@ -8,7 +8,7 @@ import (
 	rtests "gno.land/r/demo/tests"
 )
 
-var World = "world"
+const World = "world"
 
 // IncCounter demonstrates that it's possible to call a realm function from
 // a package. So a package can potentially write into the store, by calling
