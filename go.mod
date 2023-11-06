@@ -16,7 +16,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/websocket v1.5.1
 	github.com/gotuna/gotuna v0.6.0
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
