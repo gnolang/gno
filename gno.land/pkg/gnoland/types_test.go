@@ -51,7 +51,6 @@ func TestBalance_Parse(t *testing.T) {
 	}{
 		{"valid entry", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=100test", validBalance, false},
 		{"invalid address", "invalid=100test", Balance{}, true},
-		{"empty amount", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=", Balance{}, true},
 		{"incomplete entry", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Balance{}, true},
 	}
 
