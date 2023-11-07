@@ -343,7 +343,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{
 					Address: dummyKeys[0].Address(),
-					Amount:   std.NewCoins(std.NewCoin("ugnot", 100)),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100)),
 				},
 			},
 		}

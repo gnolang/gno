@@ -210,17 +210,11 @@ func MustGuessGnoRootDir() string {
 }
 
 func GuessGnoRootDir() (string, error) {
-	var err error
-
 	// First try to get the root directory from the GNOROOT environment variable.
 	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
 		return filepath.Clean(rootdir), nil
 	}
 
-	return guessGnoRootDir()
-}
-
-func guessGnoRootDir() (string, error) {
 	// Try to guess GNOROOT using the nearest go.mod.
 	if gobin, err := exec.LookPath("go"); err == nil {
 		// If GNOROOT is not set, try to guess the root directory using the `go list` command.

@@ -73,7 +73,7 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{
 					Address: dummyKey.Address(),
-					Amount:   std.NewCoins(std.NewCoin("ugnot", 100)),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100)),
 				},
 			},
 		}
