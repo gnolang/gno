@@ -1,1 +1,1 @@
-module "gno.land/p/demo/gnode"
+module gno.land/p/demo/gnode
