@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# This script is meant to orchestrate
+# a parallel execution of a gno.land node
+# and a backup tool that preserves
+# transactions that happen on-chain while
+# the node is running. Additionally, the
+# script also closes down any hanging process
+# if either the node / backup tool fail
+
 set -e # exit on error
 
 # Set up the kill signal callback

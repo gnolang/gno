@@ -31,8 +31,6 @@ tx.backup:
 
 # Saves the history from previous iterations into
 # a temporary transactions log
-# Saves the history from previous iterations into
-# a temporary transactions log
 save.history:
 	@test -e $(BACKUP_FILE) || (echo "No existing backup file not found: '$(BACKUP_FILE)'"; exit 1)
 	cat $(BACKUP_FILE) >> $(HISTORY_OUTPUT)
