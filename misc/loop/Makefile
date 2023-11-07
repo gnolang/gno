@@ -31,16 +31,16 @@ tx.backup:
 
 # Saves the history from previous iterations into
 # a temporary transactions log
+# Saves the history from previous iterations into
+# a temporary transactions log
 save.history:
-	@if [ -e $(BACKUP_FILE) ]; then \
-  		touch $(HISTORY_OUTPUT); \
-		cat $(HISTORY_OUTPUT) $(BACKUP_FILE) > $(HISTORY_OUTPUT).tmp; \
-		mv $(HISTORY_OUTPUT).tmp $(HISTORY_OUTPUT); \
-	else \
-		echo "No existing backup file not found: $(BACKUP_FILE)"; \
-	fi
+	@test -e $(BACKUP_FILE) || (echo "No existing backup file not found: '$(BACKUP_FILE)'"; exit 1)
+	cat $(BACKUP_FILE) >> $(HISTORY_OUTPUT)
 .PHONY: save.history
 
-loop: gnoland.clean save.history
+loop: gnoland.clean
+	# backup history, if needed
+	$(MAKE) save.history || true
+	# run our dev loop
 	./run_loop.sh
 .PHONY: loop
