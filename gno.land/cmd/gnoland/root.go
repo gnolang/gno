@@ -11,8 +11,7 @@ import (
 )
 
 func main() {
-	io := commands.NewDefaultIO()
-	cmd := newRootCmd(io)
+	cmd := newRootCmd(commands.NewDefaultIO())
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
