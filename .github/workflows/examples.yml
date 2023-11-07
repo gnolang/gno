@@ -85,7 +85,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           GNO_CMD="$(pwd)/gnovm/cmd/gno"
           # Find all directories containing gno.mod file
