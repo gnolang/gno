@@ -2,9 +2,9 @@ package client
 
 import "github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 
-// generateMnemonic generates a new BIP39 mnemonic using the
+// GenerateMnemonic generates a new BIP39 mnemonic using the
 // provided entropy size
-func generateMnemonic(entropySize int) (string, error) {
+func GenerateMnemonic(entropySize int) (string, error) {
 	// Generate the entropy seed
 	entropySeed, err := bip39.NewEntropy(entropySize)
 	if err != nil {

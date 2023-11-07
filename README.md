@@ -9,7 +9,7 @@
 > simulated by the Gnomes of the Greater Resistance.
 
 Gno is an interpreted and fully-deterministic implementation of the Go
-programming language, designed to build succint and composable smart contracts.
+programming language, designed to build succinct and composable smart contracts.
 The first blockchain to use it is Gno.land, a
 [Proof of Contribution](./docs/proof-of-contribution.md)-based chain, backed by
 a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
@@ -103,6 +103,6 @@ We look forward to seeing your first PR!
 
   Pkg.go.dev
 
-  * [![Go Reference](https://pkg.go.dev/badge/github.com/gnolang/gno.svg)](https://pkg.go.dev/github.com/gnolang/gno)
-  * TODO: host custom docs on gh-pages, to bypass license limitation
+  * [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
+    (pkg.go.dev will not show our repository as it has a license it doesn't recognise)
 </details>
