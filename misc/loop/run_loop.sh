@@ -16,15 +16,6 @@ teardown() {
   kill 0
 }
 
-# Helper for checking the local exit code
-check_exit_code() {
-  local exit_code=$?
-  if [ $exit_code -ne 0 ]; then
-    echo "Error: Process failed with exit code $exit_code"
-    teardown
-  fi
-}
-
 echo "Running local development setup"
 
 # Start the gnoland node (fresh chain), and in parallel
@@ -32,12 +23,12 @@ echo "Running local development setup"
 (
   echo "Starting Gno node..."
   make gnoland.start
-  check_exit_code
+  teardown
 ) &
 (
   echo "Starting backup..."
   make tx.backup
-  check_exit_code
+  teardown
 ) &
 
 # Trap all kill signals
