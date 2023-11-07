@@ -79,6 +79,9 @@ type Object interface {
 // Main entry methods
 
 // Perform the action on the actor/object in directory.
+// XXX but first, who composed the action?
+// XXX only the actor should compose it.
+// XXX but anyone can call this?!
 func Perform(dir Directory, action Action) {
 	// Defer to set panic upon panic.
 	defer func() {
@@ -88,16 +91,18 @@ func Perform(dir Directory, action Action) {
 		}
 	}()
 
-	// validate what can be validated.
+	// Validate what can be validated.
 	action.ValidateBasic()
-	// get actor and object
+	// Get actor and object.
 	actor := dir.Get(action.actor)
-	object := dir.Get(atino.object)
-
+	object := dir.Get(action.object)
+	//
 	// XXX check that action is allowed.
 	// XXX what are the security assumptions?
 	// XXX what if someone unauthorized calls it?
-	action.WillPerform(action, object)
+	// set actor
+	action.setActor(actor)
+	actor.WillPerform(action, object)
 	// XXX set status to pending (???)
 	action.setPending()
 	// XXX have object handle action.
