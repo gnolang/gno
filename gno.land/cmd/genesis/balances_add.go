@@ -8,15 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
@@ -24,16 +21,9 @@ import (
 )
 
 var (
-	balanceRegex = regexp.MustCompile(`^(\w+)=(\d+)ugnot$`)
-	amountRegex  = regexp.MustCompile(`^(\d+)ugnot$`)
-)
-
-var (
 	errNoBalanceSource       = errors.New("at least one balance source must be set")
 	errBalanceParsingAborted = errors.New("balance parsing aborted")
-	errInvalidBalanceFormat  = errors.New("invalid balance format encountered")
 	errInvalidAddress        = errors.New("invalid address encountered")
-	errInvalidAmount         = errors.New("invalid amount encountered")
 )
 
 type balancesAddCfg struct {
@@ -152,7 +142,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) 
 
 	// Construct the initial genesis balance sheet
 	state := genesis.AppState.(gnoland.GnoGenesisState)
-	genesisBalances, err := extractGenesisBalances(state)
+	genesisBalances, err := mapGenesisBalancesFromState(state)
 	if err != nil {
 		return err
 	}
@@ -190,12 +180,11 @@ func getBalancesFromEntries(entries []string) (accountBalances, error) {
 	balances := make(accountBalances)
 
 	for _, entry := range entries {
-		accountBalance, err := getBalanceFromEntry(entry)
-		if err != nil {
-			return nil, fmt.Errorf("unable to extract balance data, %w", err)
+		var balance gnoland.Balance
+		if err := balance.Parse(entry); err != nil {
+			return nil, fmt.Errorf("unable to parse balance entry: %w", err)
 		}
-
-		balances[accountBalance.address] = accountBalance.amount
+		balances[balance.Address] = balance
 	}
 
 	return balances, nil
@@ -220,12 +209,12 @@ func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
 			continue
 		}
 
-		accountBalance, err := getBalanceFromEntry(entry)
-		if err != nil {
+		var balance gnoland.Balance
+		if err := balance.Parse(entry); err != nil {
 			return nil, fmt.Errorf("unable to extract balance data, %w", err)
 		}
 
-		balances[accountBalance.address] = accountBalance.amount
+		balances[balance.Address] = balance
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -262,21 +251,19 @@ func getBalancesFromTransactions(
 
 			if err := amino.UnmarshalJSON(line, &tx); err != nil {
 				io.ErrPrintfln(
-					"invalid amino JSON encountered: %s",
+					"invalid amino JSON encountered: %q",
 					string(line),
 				)
 
 				continue
 			}
 
-			feeAmount, err := getAmountFromEntry(tx.Fee.GasFee.String())
-			if err != nil {
+			feeAmount := std.NewCoins(tx.Fee.GasFee)
+			if feeAmount.AmountOf("ugnot") <= 0 {
 				io.ErrPrintfln(
-					"invalid gas fee amount encountered: %s",
+					"invalid gas fee amount encountered: %q",
 					tx.Fee.GasFee.String(),
 				)
-
-				continue
 			}
 
 			for _, msg := range tx.Msgs {
@@ -286,13 +273,12 @@ func getBalancesFromTransactions(
 
 				msgSend := msg.(bank.MsgSend)
 
-				sendAmount, err := getAmountFromEntry(msgSend.Amount.String())
-				if err != nil {
+				sendAmount := msgSend.Amount
+				if sendAmount.AmountOf("ugnot") <= 0 {
 					io.ErrPrintfln(
 						"invalid send amount encountered: %s",
 						msgSend.Amount.String(),
 					)
-
 					continue
 				}
 
@@ -304,27 +290,35 @@ func getBalancesFromTransactions(
 				// causes an accounts balance to go < 0. In these cases,
 				// we initialize the account (it is present in the balance sheet), but
 				// with the balance of 0
-				from := balances[msgSend.FromAddress]
-				to := balances[msgSend.ToAddress]
 
-				to += sendAmount
+				from := balances[msgSend.FromAddress].Amount
+				to := balances[msgSend.ToAddress].Amount
 
-				if from < sendAmount || from < feeAmount {
+				to = to.Add(sendAmount)
+
+				if from.IsAllLT(sendAmount) || from.IsAllLT(feeAmount) {
 					// Account cannot cover send amount / fee
 					// (see message above)
-					from = 0
+					from = std.NewCoins(std.NewCoin("ugnot", 0))
 				}
 
-				if from > sendAmount {
-					from -= sendAmount
+				if from.IsAllGT(sendAmount) {
+					from = from.Sub(sendAmount)
 				}
 
-				if from > feeAmount {
-					from -= feeAmount
+				if from.IsAllGT(feeAmount) {
+					from = from.Sub(feeAmount)
 				}
 
-				balances[msgSend.FromAddress] = from
-				balances[msgSend.ToAddress] = to
+				// Set new balance
+				balances[msgSend.FromAddress] = gnoland.Balance{
+					Address: msgSend.FromAddress,
+					Amount:  from,
+				}
+				balances[msgSend.ToAddress] = gnoland.Balance{
+					Address: msgSend.ToAddress,
+					Amount:  to,
+				}
 			}
 		}
 	}
@@ -340,65 +334,14 @@ func getBalancesFromTransactions(
 	return balances, nil
 }
 
-// getAmountFromEntry
-func getAmountFromEntry(entry string) (int64, error) {
-	matches := amountRegex.FindStringSubmatch(entry)
-
-	// Check if there is a match
-	if len(matches) != 2 {
-		return 0, fmt.Errorf(
-			"invalid amount, %s",
-			entry,
-		)
-	}
-
-	amount, err := strconv.ParseInt(matches[1], 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid amount, %s", matches[1])
-	}
-
-	return amount, nil
-}
-
-// getBalanceFromEntry extracts the account balance information
-// from a single line in the form of: <address>=<amount>ugnot
-func getBalanceFromEntry(entry string) (*accountBalance, error) {
-	matches := balanceRegex.FindStringSubmatch(entry)
-	if len(matches) != 3 {
-		return nil, fmt.Errorf("%w, %s", errInvalidBalanceFormat, entry)
-	}
-
-	// Validate the address
-	address, err := crypto.AddressFromString(matches[1])
-	if err != nil {
-		return nil, fmt.Errorf("%w, %w", errInvalidAddress, err)
-	}
-
-	// Validate the amount
-	amount, err := strconv.ParseInt(matches[2], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("%w, %w", errInvalidAmount, err)
-	}
-
-	return &accountBalance{
-		address: address,
-		amount:  amount,
-	}, nil
-}
-
-// extractGenesisBalances extracts the initial account balances from the
+// mapGenesisBalancesFromState extracts the initial account balances from the
 // genesis app state
-func extractGenesisBalances(state gnoland.GnoGenesisState) (accountBalances, error) {
+func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (accountBalances, error) {
 	// Construct the initial genesis balance sheet
 	genesisBalances := make(accountBalances)
 
-	for _, entry := range state.Balances {
-		accountBalance, err := getBalanceFromEntry(entry)
-		if err != nil {
-			return nil, fmt.Errorf("invalid genesis balance entry, %w", err)
-		}
-
-		genesisBalances[accountBalance.address] = accountBalance.amount
+	for _, balance := range state.Balances {
+		genesisBalances[balance.Address] = balance
 	}
 
 	return genesisBalances, nil

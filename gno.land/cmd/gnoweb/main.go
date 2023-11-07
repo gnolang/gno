@@ -486,11 +486,11 @@ func writeError(w http.ResponseWriter, err error) {
 	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
 
-	details := errors.Unwrap(err).Error()
-	main := err.Error()
+	fmt.Println("main", err.Error())
 
-	fmt.Println("main", main)
-	fmt.Println("details", details)
+	if details := errors.Unwrap(err); details != nil {
+		fmt.Println("details", details.Error())
+	}
 
 	w.Write([]byte(err.Error()))
 }
