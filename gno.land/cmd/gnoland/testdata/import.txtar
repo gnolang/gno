@@ -14,7 +14,7 @@ stdout OK!
 -- gno.mod --
 module gno.land/r/importtest
 
--- bar.gno --
+-- import.gno --
 package importtest
 
 import (
