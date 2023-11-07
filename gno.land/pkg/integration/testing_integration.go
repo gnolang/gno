@@ -125,7 +125,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					t := TSTestingT(ts)
 
 					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					cfg, _ := TestingNodeConfig(t, gnoRootDir)
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
