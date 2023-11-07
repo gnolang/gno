@@ -355,7 +355,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "io":
 				pkg := gno.NewPackageNode("io", pkgPath, nil)
 				pkg.DefineGoNativeValue("EOF", io.EOF)
+				pkg.DefineGoNativeValue("NopCloser", io.NopCloser)
 				pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
+				pkg.DefineGoNativeValue("ReadAll", io.ReadAll)
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
