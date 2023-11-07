@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/rogpeppe/go-internal/testscript"
 )
@@ -18,16 +19,7 @@ import (
 // to correctly set up the environment variables needed for the `gno` command.
 func SetupGno(p *testscript.Params, buildDir string) error {
 	// Try to fetch `GNOROOT` from the environment variables
-	gnoroot := os.Getenv("GNOROOT")
-	if gnoroot == "" {
-		// If `GNOROOT` isn't set, determine the root directory of github.com/gnolang/gno
-		goModPath, err := exec.Command("go", "env", "GOMOD").CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("unable to determine gno root directory")
-		}
-
-		gnoroot = filepath.Dir(string(goModPath))
-	}
+	gnoroot := gnoenv.MustGuessGnoRootDir()
 
 	if !osm.DirExists(buildDir) {
 		return fmt.Errorf("%q does not exist or is not a directory", buildDir)
