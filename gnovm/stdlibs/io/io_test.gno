@@ -444,11 +444,11 @@ func (w largeWriter) Write(p []byte) (int, error) {
 }
 
 func TestCopyLargeWriter(t *testing.T) {
-	want := errInvalidWrite
+	want := io.ErrInvalidWrite
 	rb := new(Buffer)
 	wb := largeWriter{}
 	rb.WriteString("hello, world.")
-	if _, err := Copy(wb, rb); err != want {
+	if _, err := io.Copy(wb, rb); err != want {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 
@@ -456,7 +456,7 @@ func TestCopyLargeWriter(t *testing.T) {
 	rb = new(Buffer)
 	wb = largeWriter{err: want}
 	rb.WriteString("hello, world.")
-	if _, err := Copy(wb, rb); err != want {
+	if _, err := io.Copy(wb, rb); err != want {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }
@@ -464,18 +464,18 @@ func TestCopyLargeWriter(t *testing.T) {
 func TestNopCloserWriterToForwarding(t *testing.T) {
 	for _, tc := range [...]struct {
 		Name string
-		r    Reader
+		r    io.Reader
 	}{
-		{"not a WriterTo", Reader(nil)},
+		{"not a WriterTo", io.Reader(nil)},
 		{"a WriterTo", struct {
-			Reader
-			WriterTo
+			io.Reader
+			io.WriterTo
 		}{}},
 	} {
-		nc := NopCloser(tc.r)
+		nc := io.NopCloser(tc.r)
 
-		_, expected := tc.r.(WriterTo)
-		_, got := nc.(WriterTo)
+		_, expected := tc.r.(io.WriterTo)
+		_, got := nc.(io.WriterTo)
 		if expected != got {
 			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
 		}
