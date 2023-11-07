@@ -39,7 +39,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	tid := grc721f.TokenID(tidString)
 	mintResultError := flipBasicNFT.Mint(player, tid)
 	if mintResultError == nil {
-		gameSVGData, errSVG := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
+		gameSVGData, errSVG := GenerateGrid(currentGame.SolvedGameBoard, currentGame.TileType)
 		if errSVG != nil {
 			result = "{failedSafetyCheck: svgDataCorrupted}"
 			nftError = "SVG data not generated"

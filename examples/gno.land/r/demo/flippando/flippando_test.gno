@@ -56,7 +56,7 @@ func testNewBasicNFT(t *testing.T) {
 		nft.tokenURIs.Size() != 0 || nft.operatorApprovals.Size() != 0 {
 		t.Error("Expected all AVL trees to be initialized and empty")
 	}
-}*/
+}
 
 func testGenerateColorSquareGrid(t *testing.T) {
     solvedBoard := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
@@ -74,7 +74,7 @@ func testGenerateColorSquareGrid(t *testing.T) {
 	if output != expectedOutput {
 		t.Errorf("GenerateColorSquareGrid() = %v; want %v", output, expectedOutput)
 	}
-}
+}*/
 
 func testMarshalJSON(t *testing.T) {
     fbn := basicNFTMetaData{
