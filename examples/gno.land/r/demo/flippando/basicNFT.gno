@@ -14,7 +14,7 @@ var (
 	basicNFTtokenIDCounter	uint64
 )
 
-func CreateBasicFlipNFT(player std.Address, gameId string) (int64, string, string) {
+func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	// - generates a GRC721 token with the solved board SVG as a tokenURI
 	// - returns tokenID as int64, to be used in lockgin the fungible token in nft2flip
 	result := ""
@@ -32,28 +32,30 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (int64, string, strin
 		result = "{failedSafetyCheck: gameCompletion}"
 		nftError = "{error: game is not finished}"
 	}
-	gameSVGData, errSVG := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
-	if(errSVG != nil){
-		result = "{failedSafetyCheck: svgDataCorrupted}"
-		nftError = "{error: SVG data not generated}"
-	}
-	flipBasicNFTMetaData := &basicNFTMetaData{
-		name: "Flippando - the Game",
-		version: "1.0.0",
-		gameId: currentGame.ID,
-		gameType: currentGame.TileType,
-		svgData: gameSVGData,
-	}
-	flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
-	if err != nil {
-		panic("error in marhasling flipBasicNFTMetaData");
-	}
+	
 	count := flipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
 	tid := grc721f.TokenID(tidString)
 	mintResultError := flipBasicNFT.Mint(player, tid)
 	if mintResultError == nil {
+		gameSVGData, errSVG := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
+		if errSVG != nil {
+			result = "{failedSafetyCheck: svgDataCorrupted}"
+			nftError = "SVG data not generated"
+		}
+		flipBasicNFTMetaData := &basicNFTMetaData{
+			tokenID: tidString,
+			name: "Flippando - the Game",
+			version: "1.0.0",
+			gameId: currentGame.ID,
+			gameType: currentGame.TileType,
+			svgData: gameSVGData,
+		}
+		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
+		if err != nil {
+			panic("error in marhasling flipBasicNFTMetaData");
+		}
 		flipBasicNFT.SetTokenURI(tid, grc721f.TokenURI(flipBasicNFTMetaDataJSON))
 		result = string(flipBasicNFTMetaDataJSON)
 	}
@@ -66,12 +68,21 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (int64, string, strin
 	if(err != nil){
 		panic("error in minting")
 	}
-	return int64(basicNFTtokenIDCounter), result, nftError
+	return result, nftError
+}
+
+func GetTokenURI(tokenID string) string {
+	tid := grc721f.TokenID(tokenID)
+	tokenURI, err := flipBasicNFT.TokenURI(tid)
+	if err != nil {
+		return "error"
+	}
+	return string(tokenURI);
 }
 
 func GetUserBasicFlipNFTs(addr std.Address) string {
 	tokenCount := flipBasicNFT.TokenCount()
-	tokenIDs := []int64{}
+	tokenURIs := []string{}
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
@@ -80,8 +91,7 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
 		// debug
 		if err != nil {
-			userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Error: " + err.Error()
-			//userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Owner: " + owner.String()
+			userNFTsError += err.Error()
 		}
 		if err != nil {
 			if err == ErrInvalidTokenId {
@@ -92,21 +102,21 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 		
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
 		if owner == addr {
-			tokenIDs = append(tokenIDs, int64(i))
+			tokenURI := GetTokenURI(tidString)
+			tokenURIs = append(tokenURIs, tokenURI)
 		}
 	}
 
-	fetchedUserNFTs := &userNFTs{
-		tokenIDs: tokenIDs,
-		nftError: userNFTsError,
+	fetchedUserNFTs := &userNFTsResult{
+		UserNFTs: tokenURIs,
 	}
 
-	userNFTsResult, err := fetchedUserNFTs.MarshalJSON() 
+	userNFTs, err := fetchedUserNFTs.MarshalJSON() 
 	if(err != nil){
 		panic("error in fetching user NFTs")
 	}
 
-	return string(userNFTsResult)
+	return string(userNFTs)
 }
 
 func GetAllBasicFlipNFTs() string {

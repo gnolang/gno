@@ -22,11 +22,8 @@ type Game struct {
 	TileType	string	`json:"-"`
 }
 
-type flippandoBasicNFT struct {
-	name	string `json:"id"`
-}
-
 type basicNFTMetaData struct {
+	tokenID	string	`json:"tokenID"`
 	name	string `json:"name"`
 	version	string	`json:"version"`
 	gameId	string`json:"gameId"`
@@ -48,6 +45,10 @@ type nftResult struct {
 type userNFTs struct {
 	tokenIDs	[]int64 `json:"tokenIDs"`
 	nftError	string	`json:"error"`
+}
+
+type userNFTsResult struct {
+	UserNFTs	[]string `json:"userNFTs"`
 }
 
 type inTransit struct {
@@ -115,6 +116,10 @@ func (fbn basicNFTMetaData) MarshalJSON() (_ []byte, err error) {
 
 	b.WriteByte('{')
 	
+	b.WriteString(`"tokenID":"`)
+	b.WriteString(fbn.tokenID)
+	b.WriteString(`",`)
+
 	b.WriteString(`"name":"`)
 	b.WriteString(fbn.name)
 	b.WriteString(`",`)
@@ -199,4 +204,19 @@ func (t userNFTs)MarshalJSON() (_ []byte, err error) {
 
 	return b.Bytes(), nil
 
+}
+
+func (r userNFTsResult) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+
+	b.WriteString(`{"userNFTs":[`)
+	for i, nft := range r.UserNFTs {
+		if i > 0 {
+			b.WriteString(`,`)
+		}
+		b.WriteString(nft)
+	}
+	b.WriteString(`]}`)
+
+	return b.Bytes(), nil
 }
