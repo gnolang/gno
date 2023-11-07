@@ -189,14 +189,16 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 				}
 			}
 		} else {
-			if co.GetIsNewEscaped() {
-				panic("should not happen")
-			}
-			if co.GetIsEscaped() {
-				panic("should not happen")
-			}
-			if co.GetRefCount() >= 2 {
-				panic("should not happen")
+			if debug {
+				if co.GetIsNewEscaped() {
+					panic("should not happen")
+				}
+				if co.GetIsEscaped() {
+					panic("should not happen")
+				}
+				if co.GetRefCount() >= 2 {
+					panic("should not happen")
+				}
 			}
 
 			co.SetOwner(po)
