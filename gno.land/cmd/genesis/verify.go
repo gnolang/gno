@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var errInvalidGenesisState = errors.New("invalid genesis state type")
@@ -68,8 +67,8 @@ func execVerify(cfg *verifyCfg, io *commands.IO) error {
 
 		// Validate the initial balances
 		for _, balance := range state.Balances {
-			if _, parseErr := std.ParseCoins(balance); parseErr != nil {
-				return fmt.Errorf("invalid balance %s, %w", balance, parseErr)
+			if err := balance.Verify(); err != nil {
+				return fmt.Errorf("invalid balance: %w", err)
 			}
 		}
 	}

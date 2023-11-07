@@ -72,6 +72,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
+
+	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
@@ -141,10 +143,9 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		genState := req.AppState.(GnoGenesisState)
 		// Parse and set genesis state balances.
 		for _, bal := range genState.Balances {
-			addr, coins := parseBalance(bal)
-			acc := acctKpr.NewAccountWithAddress(ctx, addr)
+			acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
 			acctKpr.SetAccount(ctx, acc)
-			err := bankKpr.SetCoins(ctx, addr, coins)
+			err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
 			if err != nil {
 				panic(err)
 			}
