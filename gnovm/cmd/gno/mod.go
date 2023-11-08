@@ -71,7 +71,7 @@ func newModInitCmd() *commands.Command {
 	)
 }
 
-func newModTidy(io *commands.IO) *commands.Command {
+func newModTidy(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "tidy",
@@ -172,7 +172,7 @@ func execModInit(args []string) error {
 	return nil
 }
 
-func execModTidy(args []string, io *commands.IO) error {
+func execModTidy(args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
