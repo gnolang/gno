@@ -4,7 +4,7 @@ id: gno-modules
 
 # Gno Modules
 
-The packages and realms containing `gno.mod` file can be reffered as Gno modules. `gno.mod` file is introduced to enhance local testing and handle dependency management while testing Gno packages/realms locally. While it primarily serves local development and testing purposes, blockchain do not recognize or utilize this file directly.
+The packages and realms containing `gno.mod` file can be reffered as Gno modules. `gno.mod` file is introduced to enhance local testing and handle dependency management while testing Gno packages/realms locally. At the time of writing, `gno.mod` is only used by the `gno` tool for local development, and it is disregarded on the Gno.land chain.
 
 ## What is the gno.mod file for?
 
