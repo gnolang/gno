@@ -33,7 +33,7 @@ func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error 
 	return nil
 }
 
-func UnlockAndTransfer(recipient std.Address, tokenId string) error {
+func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 	
 	flipAmount, ferr := userLockedBalances.Get(tokenId)
 	// add extra check by calling userFlipNFTs
@@ -44,4 +44,9 @@ func UnlockAndTransfer(recipient std.Address, tokenId string) error {
 	totalUnlockedSupply =+ flipAmount.(uint64)
 
 	return nil
+}
+
+func GetFLIPBalance(user std.Address) uint64 {
+	flipBalance, err := flipToken.BalanceOf(user)
+	return flipBalance
 }

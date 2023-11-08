@@ -82,6 +82,20 @@ func GetTokenURI(tokenID string) string {
 	return string(tokenURI);
 }
 
+func UnlockAndTransferNFT(from, to std.Address, tid string){
+	tokenId := grc721f.TokenID(tid)
+	flipBasicNFT.TransferFrom(from, to, tokenId)
+}
+
+func GetOwnerOfBasicNFT(tid string) std.Address {
+	tokenId := grc721f.TokenID(tid)
+	owner, err := flipBasicNFT.OwnerOf(tokenId)
+	if err != nil {
+		return "can't get owner"
+	}
+	return owner
+}
+
 func GetUserBasicFlipNFTs(addr std.Address) string {
 	tokenCount := flipBasicNFT.TokenCount()
 	tokenURIs := []string{}
@@ -121,35 +135,45 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 	return string(userNFTs)
 }
 
-func GetAllBasicFlipNFTs() string {
+func GetAllBasicFlipNFTs(excludePlayer std.Address) string {
 	tokenCount := flipBasicNFT.TokenCount()
-	tokenIDs := []int64{}
+	tokenURIs := []string{}
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
-		tokenIDs = append(tokenIDs, int64(i))
-		// debug
 		tidString := strconv.FormatUint(i, 10)
 		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
-		tokenURI, terr := flipBasicNFT.TokenURI(grc721f.TokenID(tidString))
-		name := flipBasicNFT.Name()
-		symbol := flipBasicNFT.Symbol()
-		userNFTsError += " | TokenID: " + strconv.FormatUint(i, 10) + ", Owner: " + owner.String()
-		userNFTsError += " | TokenURI Error: " + ", TokenURI: " + tokenURI
-		userNFTsError += " | Name: " + name + ", Symbol: " + symbol
-
+		// debug
+		if err != nil {
+			userNFTsError += err.Error()
+			if err == ErrInvalidTokenId {
+				// do we need to do smth else here?
+				return "invalid token"
+			} 
+		}
+		
+		// If excludePlayer is "" return all nfts
+		if len(excludePlayer) == 0 {
+			tokenURI := GetTokenURI(tidString)
+			tokenURIs = append(tokenURIs, tokenURI)
+		} else {
+			// if excludePlayer is set, return nfts not belonging to excludePlayer
+			if owner != excludePlayer {
+				tokenURI := GetTokenURI(tidString)
+				tokenURIs = append(tokenURIs, tokenURI)
+			}
+		}
 	}
 
-	allFetchedNFTs := &userNFTs{
-		tokenIDs: tokenIDs,
-		nftError: userNFTsError,
+	fetchedUserNFTs := &userNFTsResult{
+		UserNFTs: tokenURIs,
 	}
 
-	allNFTsResult, err := allFetchedNFTs.MarshalJSON() 
+	userNFTs, err := fetchedUserNFTs.MarshalJSON() 
 	if(err != nil){
-		panic("error in fetching all NFTs")
+		panic("error in fetching user NFTs")
 	}
 
-	return string(allNFTsResult)
+	return string(userNFTs)
 }

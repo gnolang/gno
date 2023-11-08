@@ -2,58 +2,55 @@ package flippando
 
 import (
 	"errors"
+	"strconv"
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/grc/grc721f"
 )
 
 var (
-	flipCompositeNFT	= grc721.NewBasicNFT("Flippando Composite NFT", "CFLP")
+	flipCompositeNFT	= grc721f.NewBasicNFT("Flippando Composite NFT", "CFLP")
 	compositeNFTtokenIDCounter	uint64
 )
-/*
-func CreateCompositeFlipNFT(player std.Address, buildingBlocks []int64) string {
-	// - generates a GRC721 token with the buildingBlocks as tokenIDs in metadata
+
+/** 
+* generates the composite NFT for the player, with a canvas havong cWidth and cHeight, and tokenIds
+* in an array "[1,7,3,8]""
+*/
+func CreateCompositeNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) (string, string) {
 	result := ""
 	nftError := ""
-	
-	games := GetUserGames(player)
-	// safety checks
-	if(len(games) == 0){
-		result = "{failedSafetyCheck: userHasGames}"
-		nftError = "{error: user has zero games}"
-	}
-	currentGame := games[0]
-	hasZeroValues := func(s []int64) bool { for _, v := range s { if v == 0 { return true } }; return false }(currentGame.SolvedGameBoard)
-	if(hasZeroValues){
-		result := "{failedSafetyCheck: gameCompletion}"
-		nftError := "{error: game is not finished}"
-	}
-	gameSVGData, errSVG := GenerateColorSquareGrid(currentGame.SolvedGameBoard, 4)
-	if(errSVG != nil){
-		result := "{failedSafetyCheck: svgDataCorrupted}"
-		nftError := "{error: SVG data not generated}"
-	}
-	flipBasicNFTMetaData := &basicNFTMetaData{
-		name: "Flippando - the Game",
-		version: "1.0.0",
-		gameId: currentGame.ID,
-		gameType: currentGame.TileType,
-		svgData: gameSVGData,
-	}
-	flipBasicNFTMetaDataJSON, err := basicNFTMetaData.MarshalJSON()
-	if err != nil {
-		panic("error in marhasling flipBasicNFTMetaData");
-	}
-	
-	basicNFTtokenIDCounter = flipBasicNFT.TokenCount() + 1
-	tid := grc721.TokenID(ufmt.Sprintf("%d", i))
-	mintResultError := flipBasicNFT.SafeMint(player, tid)
-	if(mintResultError == nil){
-		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flippandoBasicNFTJSON))
-		result = string(flipBasicNFTMetaDataJSON)
-		nftError = "{error: false}"
+	bTokenIDs, perr := ParseString(bTokenIDsArray)
+
+	count := flipCompositeNFT.TokenCount()
+	compositeNFTtokenIDCounter = count + 1
+	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
+	tid := grc721f.TokenID(tidString)
+	mintResultError := flipCompositeNFT.Mint(player, tid)
+	if mintResultError == nil {
+		flipCompositeNFTMetaData := &compositeNFTMetaData{
+			tokenID: tidString,
+			name: "Flippando - the Art Gallery",
+			version: "1.0.0",
+			canvasWidth: cWidth,
+			canvasHeight: cHeight,
+			bTokenIDs: bTokenIDsArray,
+		}
+		flipCompositeNFTMetaDataJSON, err := flipCompositeNFTMetaData.MarshalJSON()
+		if err != nil {
+			panic("error in marhasling flipCompositeNFTMetaData");
+		}
+		for _, t := range bTokenIDs {
+			tidString := strconv.FormatInt(t, 10)
+			flipBasicOwner := GetOwnerOfBasicNFT(tidString)
+			UnlockAndTransferNFT(flipBasicOwner, player, tidString)
+			UnlockAndTransferFLIP(flipBasicOwner, tidString)
+		}
+		// iterate through the array and transfer the nft with tokenID to player
+		// unlock the token and transfer it to basic nftOwner FLIP balance
+		MintLocked(player, tidString, uint64(1))
+		result = string(flipCompositeNFTMetaDataJSON)
 	}
 	res := &nftResult{
 		result: result,
@@ -62,13 +59,14 @@ func CreateCompositeFlipNFT(player std.Address, buildingBlocks []int64) string {
 	
 	createNFTResult, err := res.MarshalJSON()
 	if(err != nil){
-		return "error"
+		panic("error in minting")
 	}
-	return string(createNFTResult)
+	return result, nftError
 }
+/*
 
-func GetUserBasicFlipNFTs(addr std.Address) string {
-	tokenCount := flipBasicNFT.BalanceOf(addr)
+func GetUserCompositeFlipNFTs(addr std.Address) string {
+	tokenCount := flipCompositeNFT.BalanceOf(addr)
 	tokenIDs := make([]int64, 0, tokenCount) 
 
 	// Assuming there's a function to get the token ID by index for the given address

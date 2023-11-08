@@ -32,9 +32,12 @@ type basicNFTMetaData struct {
 }
 
 type compositeNFTMetaData struct {
+	tokenID string `json:"tokenID"`
 	name	string `json:"name"`
 	version	string	`json:"version"`
-	tokenIDs []int64  `json:"tokenIDs"`
+	canvasWidth	string `json:canvasWidth"`
+	canvasHeight string `json:canvasHeight"`
+	bTokenIDs string  `json:"bTokenIDs"`
 }
 
 type nftResult struct {
@@ -152,6 +155,10 @@ func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
 
 	b.WriteByte('{')
 	
+	b.WriteString(`"tokenID":"`)
+	b.WriteString(cbn.tokenID)
+	b.WriteString(`",`)
+
 	b.WriteString(`"name":"`)
 	b.WriteString(cbn.name)
 	b.WriteString(`",`)
@@ -160,9 +167,17 @@ func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(cbn.version)
 	b.WriteString(`",`)
 
-	b.WriteString(`"tokenIDs":[`)
-	b.WriteString(writeIntSlice(cbn.tokenIDs))
-	b.WriteString(`]`)
+	b.WriteString(`"canvasWidth":"`)
+	b.WriteString(cbn.canvasWidth)
+	b.WriteString(`",`)
+
+	b.WriteString(`"canvasHeight":"`)
+	b.WriteString(cbn.canvasHeight)
+	b.WriteString(`",`)
+	
+	b.WriteString(`"bTokenIDs":"`)
+	b.WriteString(cbn.bTokenIDs) 
+	b.WriteString(`"`)
 	
 	b.WriteByte('}')
 

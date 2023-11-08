@@ -119,19 +119,13 @@ func GetUserBasicNFTs(addr std.Address) string {
 	return userNFTs
 }
 
-func GetAllBasicNFTs() string {
-	allNFTs := GetAllBasicFlipNFTs()
+// if excludePlayer is != "" return all nfts except those of excludePlayer
+// used in displaying available nfts for art
+// if excludePlayer == "" return all nfts, used for stats, etc
+func GetAllBasicNFTs(excludePlayer std.Address) string {
+	allNFTs := GetAllBasicFlipNFTs(excludePlayer)
 	return allNFTs
 }
-
-func getFlipBalances(user std.Address) uint64 {
-	balances, err := flipToken.BalanceOf(user)
-	if err != nil {
-		panic(err)
-	}
-	return balances
-}
-
     
 func GetUserGames(user std.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
