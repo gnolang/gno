@@ -41,6 +41,8 @@ func (t tSeqShim) Verbose() bool {
 //
 // Refer to package documentation in doc.go for more information on commands and example txtar scripts.
 func RunGnolandTestscripts(t *testing.T, txtarDir string) {
+	t.Helper()
+
 	p := setupGnolandTestScript(t, txtarDir)
 	if deadline, ok := t.Deadline(); ok && p.Deadline.IsZero() {
 		p.Deadline = deadline
