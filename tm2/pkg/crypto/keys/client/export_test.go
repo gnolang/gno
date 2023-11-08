@@ -64,11 +64,9 @@ func addRandomKeyToKeybase(
 }
 
 type testCmdKeyOptsBase struct {
-	kbHome          string
-	keyName         string
-	decryptPassword string
-	encryptPassword string
-	unsafe          bool
+	kbHome  string
+	keyName string
+	unsafe  bool
 }
 
 type testExportKeyOpts struct {

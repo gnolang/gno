@@ -1290,7 +1290,7 @@ func TestLoadVersionForOverwriting(t *testing.T) {
 	require.NoError(err, "SaveVersion should not fail.")
 }
 
-//////////////////////////// BENCHMARKS ///////////////////////////////////////
+// ----------- BENCHMARKS // -----------
 
 func BenchmarkTreeLoadAndDelete(b *testing.B) {
 	if testing.Short() {

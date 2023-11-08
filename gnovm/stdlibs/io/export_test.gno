@@ -5,4 +5,8 @@
 package io
 
 // exported for test
-var ErrInvalidWrite = errInvalidWrite
+var (
+	ErrInvalidWrite = errInvalidWrite
+	ErrWhence       = errWhence
+	ErrOffset       = errOffset
+)
