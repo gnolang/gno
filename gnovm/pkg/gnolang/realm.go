@@ -164,6 +164,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		if co.GetIsReal() {
 			rlm.MarkDirty(co)
 
+			// XX: there may be a more efficient way to do this; to be revisited.
+			//
 			// A lot of slices are assigned to themselves using the append function. When this assignment happens,
 			// the underlying array may not need to be reallocated if it has the required capacity. In such a case,
 			// the array itself would be marked as dirty, but none of the elements that have been appended. This
