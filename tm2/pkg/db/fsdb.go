@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -189,7 +189,7 @@ func read(path string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	d, err := ioutil.ReadAll(f)
+	d, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
