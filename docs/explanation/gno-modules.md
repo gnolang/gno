@@ -8,7 +8,7 @@ The packages and realms containing `gno.mod` file can be reffered as Gno modules
 
 ## What is the gno.mod file for?
 
-`gno.mod` file is a critical for local testing and development. Its primary purposes include:
+`gno.mod` file is very useful for local testing and development. Its primary purposes include:
 
 - **Local Dependency Management**: The gno.mod file allows you to manage local dependencies effectively when developing God Modules. This facilitates testing and iterative development.
 
