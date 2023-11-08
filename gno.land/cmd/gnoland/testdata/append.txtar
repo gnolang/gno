@@ -2,33 +2,42 @@
 gnoland start
 
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/append -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
 
 # Call Append 1
 gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 2000000 -args '1' -broadcast -chainid=tendermint_test test1
+stdout OK!
+
 # Call Append 2
 gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 2000000 -args '2' -broadcast -chainid=tendermint_test test1
+stdout OK!
+
 # Call Append 3
 gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 2000000 -args '3' -broadcast -chainid=tendermint_test test1
+stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-
-cmp stdout stdout.golden.1
+stdout '("1-2-3-" string)'
+stdout OK!
 
 # Call Pop
 gnokey maketx call -pkgpath gno.land/r/append -func Pop -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-
-cmp stdout stdout.golden.2
+stdout '("2-3-" string)'
+stdout OK!
 
 # Call Append 42
 gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 2000000 -args '42' -broadcast -chainid=tendermint_test test1
+stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-
-cmp stdout stdout.golden.3
+stdout '("2-3-42-" string)'
+stdout OK!
 
 -- append.gno --
 package append
@@ -60,18 +69,3 @@ func Render(path string) string {
 	}
 	return s
 }
--- stdout.golden.1 --
-("1-2-3-" string)
-OK!
-GAS WANTED: 2000000
-GAS USED:   95179
--- stdout.golden.2 --
-("2-3-" string)
-OK!
-GAS WANTED: 2000000
-GAS USED:   93546
--- stdout.golden.3 --
-("2-3-42-" string)
-OK!
-GAS WANTED: 2000000
-GAS USED:   95191
