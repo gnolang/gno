@@ -42,6 +42,5 @@ require (
 
 ```
 
-- **`module gno.land/p/demo/sample`**: Specifies the package/realm import path.
-
-- **`require` Block**: Lists the required dependencies. Here using the latest available versions of "gno.land/p/demo/avl" and "gno.land/p/demo/testutils". These dependencies should be specified with the version "v0.0.0-latest" since as of now on-chain packages do not support versioning.
+- **`module gno.land/p/demo/sample`**: specifies the package/realm import path.
+- **`require` Block**: lists the required dependencies. Here using the latest available versions of "gno.land/p/demo/avl" and "gno.land/p/demo/testutils". These dependencies should be specified with the version "v0.0.0-latest" since on-chain packages currently do not support versioning.
