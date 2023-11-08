@@ -32,7 +32,7 @@ counter-app/
 
 We would like to deploy the realm found in `counter.gno`. To do this, open a terminal at `counter-app/` and use the following `gnokey` command:
 
-```go
+```bash
 gnokey maketx addpkg \
 --pkgpath "gno.land/r/demo/counter" \
 --pkgdir "./r/counter" \

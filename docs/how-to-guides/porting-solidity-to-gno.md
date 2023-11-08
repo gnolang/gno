@@ -178,6 +178,7 @@ Below is a test case helper that will help implement each condition.
 
 ### Gnolang - Testcase Helper
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-1.gno go)
 ```go
 func shouldEqual(t *testing.T, got interface{}, expected interface{}) {
 	t.Helper()
@@ -222,6 +223,7 @@ func shouldNoPanic(t *testing.T, f func()) {
 
 ## Variable init - Solidity
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-2.sol solidity)
 ```solidity
 // Parameters of the auction. Times are either
 // absolute unix timestamps (seconds since 1970-01-01)
@@ -281,14 +283,15 @@ constructor(
 
 ### Variable init - Gnolang
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-3.gno go)
 ```go
 var (
-	receiver 	= std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	receiver        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	auctionEndBlock = std.GetHeight() + uint(300) // in blocks
-	highestBidder	std.Address
-	highestBid	= uint(0)
-	pendingReturns	avl.Tree
-	ended		= false
+	highestBidder   std.Address
+	highestBid      = uint(0)
+	pendingReturns  avl.Tree
+	ended           = false
 )
 ```
 
@@ -298,6 +301,7 @@ var (
 
 ## bid() - Solidity
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-4.sol solidity)
 ```solidity
 function bid() external payable {
     // No arguments are necessary, all
@@ -342,9 +346,10 @@ function bid() external payable {
 
 ### bid() - Gnolang
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-5.gno go)
 ```go
-func Bid()  {
-	if (std.GetHeight() > auctionEndBlock) {
+func Bid() {
+	if std.GetHeight() > auctionEndBlock {
 		panic("Exceeded auction end block")
 	}
 
@@ -354,14 +359,14 @@ func Bid()  {
 	}
 
 	sentAmount := uint(sentCoins[0].Amount)
-	if (sentAmount <= highestBid) {
+	if sentAmount <= highestBid {
 		panic("Too few coins sent")
 	}
 
 	// A new bid is higher than the current highest bid
-	if (sentAmount > highestBid) { 
+	if sentAmount > highestBid {
 		// If the highest bid is greater than 0,
-		if (highestBid > 0) {
+		if highestBid > 0 {
 			// Need to return the bid amount to the existing highest bidder
 			// Create an AVL tree and save
 			pendingReturns.Set(highestBidder.String(), highestBid)
@@ -377,6 +382,7 @@ func Bid()  {
 
 ### bid() - Gnolang Testcase
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-6.gno go)
 ```go
 // Bid Function Test - Send Coin
 func TestBidCoins(t *testing.T) {
@@ -393,7 +399,7 @@ func TestBidCoins(t *testing.T) {
 	// Sending more amount than the current highest bid (exceeded)
 	std.TestSetOrigCaller(bidder01)
 	std.TestSetOrigSend(std.Coins{{"ugnot", 1}}, nil)
-	shouldNoPanic(t, Bid)	
+	shouldNoPanic(t, Bid)
 }
 
 // Bid Function Test - Bid by two or more people
@@ -425,6 +431,7 @@ func TestBidCoins(t *testing.T) {
 
 ## withdraw() - Solidity
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-7.sol solidity)
 ```solidity
 /// Withdraw a bid that was overbid.
 function withdraw() external returns (bool) {
@@ -455,9 +462,10 @@ function withdraw() external returns (bool) {
 
 ### withdraw() - Gnolang
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-8.gno go)
 ```go
 func Withdraw() {
-	// Query the return amount to non-higest bidders
+	// Query the return amount to non-highest bidders
 	amount, _ := pendingReturns.Get(std.GetOrigCaller().String())
 
 	if amount > 0 {
@@ -477,6 +485,7 @@ func Withdraw() {
 
 ### withdraw() - Gnolang Testcase
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-9.gno go)
 ```go
 // Withdraw Function Test
 func TestWithdraw(t *testing.T) {
@@ -495,11 +504,11 @@ func TestWithdraw(t *testing.T) {
 	banker.SendCoins(pkgAddr, std.Address(returnAddr), std.Coins{{"ugnot", returnAmount}})
 	shouldEqual(t, banker.GetCoins(std.Address(returnAddr)).String(), "3ugnot")
 }
-
 ```
 
 ## auctionEnd() - Solidity
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-10.sol solidity)
 ```solidity
 /// End the auction and send the highest bid
 /// to the beneficiary.
@@ -541,18 +550,19 @@ function auctionEnd() external {
 
 ### auctionEnd() - Gnolang
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-11.gno go)
 ```go
 func AuctionEnd() {
-	if (std.GetHeight() < auctionEndBlock) {
+	if std.GetHeight() < auctionEndBlock {
 		panic("Auction hasn't ended")
 	}
 
-	if (ended) {
+	if ended {
 		panic("Auction has ended")
-		 
+
 	}
 	ended = true
-	
+
 	// Send the highest bid to the recipient
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	pkgAddr := std.GetOrigPkgAddr()
@@ -563,6 +573,7 @@ func AuctionEnd() {
 
 ### auctionEnd() - Gnolang Testcase
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-12.gno go)
 ```go
 // AuctionEnd() Function Test
 func TestAuctionEnd(t *testing.T) {
@@ -590,12 +601,13 @@ func TestAuctionEnd(t *testing.T) {
 * Same as Golang, Gnolang doesn't support `setup()` & `teardown()` functions. So running two or more test functions simultaneously can result in tainted data.
 * If you want to do the whole test at once, make it into a single function as below:
 
+[embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-13.gno go)
 ```go
 // The whole test
 func TestFull(t *testing.T) {
 	bidder01 := testutils.TestAddress("bidder01") // g1vf5kger9wgcrzh6lta047h6lta047h6lufftkw
 	bidder02 := testutils.TestAddress("bidder02") // g1vf5kger9wgcryh6lta047h6lta047h6lnhe2x2
-	
+
 	// Variables test
 	{
 		shouldEqual(t, highestBidder, "")
@@ -650,8 +662,8 @@ func TestFull(t *testing.T) {
 		shouldEqual(t, pendingReturns.Size(), 1) // Return to the existing bidder
 		shouldEqual(t, pendingReturns.Has("g1vf5kger9wgcrzh6lta047h6lta047h6lufftkw"), true)
 	}
-	
-	// Auction ends 
+
+	// Auction ends
 	{
 		std.TestSkipHeights(150)
 		shouldPanic(t, AuctionEnd)

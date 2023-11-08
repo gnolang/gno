@@ -48,6 +48,7 @@ mkdir p
 ```
 
 Additionally, we will create another subdirectory that will house our Package code, named `tapas`:
+
 ```bash
 cd p
 mkdir tapas
@@ -74,6 +75,7 @@ touch tapas.gno
 
 Inside `tapas.gno`, we will define our library logic:
 
+[embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
 ```go
 package tapas
 

@@ -21,30 +21,27 @@ We will proceed using the typical directory structure for a Realm found within t
 ## 1. Importing token package
 For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token factory realm.
 
-mytoken.gno
+[embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go
 package mytoken
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
 )
 
 var (
-	mytoken   *grc20.AdminToken
-	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // set admin account
+	mytoken *grc20.AdminToken
+	admin   std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // set admin account
 )
 
 // init is a constructor function that runs only once (at time of deployment)
 func init() {
-    // provision the token's name, symbol and number of decimals
+	// provision the token's name, symbol and number of decimals
 	mytoken = grc20.NewAdminToken("Mytoken", "MTKN", 4)
 
-    // set the total supply
+	// set the total supply
 	mytoken.Mint(admin, 1000000*10000) // @administrator (supply = 1 million)
 }
 ```
@@ -59,6 +56,7 @@ In this code preview, we have:
 
 The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](../../examples/gno.land/p/demo/grc/grc20).
 
+[embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()

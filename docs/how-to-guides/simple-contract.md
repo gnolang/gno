@@ -87,6 +87,7 @@ This file extension is required for existing gno tools and processes to work.
 
 We can finally write out the logic of the _Counter_ Smart Contract in `counter.gno`:
 
+[embedmd]:# (../assets/how-to-guides/simple-contract/counter.gno go)
 ```go
 package counter
 
@@ -122,6 +123,7 @@ Gno Realms support a concept taken from other programming languages - _construct
 For example, to initialize the `count` variable with custom logic, we can specify that
 logic within an `init` method, that is run **only once** on Realm deployment:
 
+[embedmd]:# (../assets/how-to-guides/simple-contract/init.gno go)
 ```go
 package counter
 

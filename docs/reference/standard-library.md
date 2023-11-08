@@ -22,6 +22,7 @@ Let's explore some of the most commonly used modules in the library.
 
 A library for manipulating `Coins`. Interfaces that must be implemented when using this library are as follows:
 
+[embedmd]:# (../assets/reference/standard-library/std-1.gno go)
 ```go
 // returns the list of coins owned by the address
 GetCoins(addr Address) (dst Coins)
@@ -43,10 +44,11 @@ RemoveCoin(addr Address, denom string, amount int64)
 
 A library that declares structs for expressing `Coins`. The struct looks like the following:
 
+[embedmd]:# (../assets/reference/standard-library/std-2.gno go)
 ```go
 type Coin struct {
-    Denom    string   `json:"denom"`     // the symbol of the coin
-    Amount   int64    `json:"amount"`    // the quantity of the coin
+	Denom  string `json:"denom"`  // the symbol of the coin
+	Amount int64  `json:"amount"` // the quantity of the coin
 }
 ```
 

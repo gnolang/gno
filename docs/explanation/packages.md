@@ -20,13 +20,14 @@ The `avl` package comprises a set of functions that can manipulate the leaves an
 
 Gnolang includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:
 
+[embedmd]:# (../assets/explanation/packages/pkg-1.gno go)
 ```go
-TotalSupply() uint64
-BalanceOf(account std.Address) uint64
-Transfer(to std.Address, amount uint64)
-Approve(spender std.Address, amount uint64)
-TransferFrom(from, to std.Address, amount uint64)
-Allowance(owner, spender std.Address) uint64
+func TotalSupply() uint64
+func BalanceOf(account std.Address) uint64
+func Transfer(to std.Address, amount uint64)
+func Approve(spender std.Address, amount uint64)
+func TransferFrom(from, to std.Address, amount uint64)
+func Allowance(owner, spender std.Address) uint64
 ```
 
 The role of each function is as follows:
@@ -51,18 +52,19 @@ Two types of contracts exist in`grc20`:
 
 Gnolang includes an implementation of the `erc721` non-fungible token standard referred to as `grc721`. The interfaces of `grc721` are as follows:
 
+[embedmd]:# (../assets/explanation/packages/pkg-2.gno go)
 ```go
 // functions that work similarly to those of grc20
-BalanceOf(owner std.Address) (uint64, error)
-Approve(approved std.Address, tid TokenID) error
-TransferFrom(from, to std.Address, tid TokenID) error
+func BalanceOf(owner std.Address) (uint64, error)
+func Approve(approved std.Address, tid TokenID) error
+func TransferFrom(from, to std.Address, tid TokenID) error
 
 // functions unique to grc721
-OwnerOf(tid TokenID) (std.Address, error)
-SafeTransferFrom(from, to std.Address, tid TokenID) error
-SetApprovalForAll(operator std.Address, approved bool) error
-GetApproved(tid TokenID) (std.Address, error)
-IsApprovedForAll(owner, operator std.Address) bool
+func OwnerOf(tid TokenID) (std.Address, error)
+func SafeTransferFrom(from, to std.Address, tid TokenID) error
+func SetApprovalForAll(operator std.Address, approved bool) error
+func GetApproved(tid TokenID) (std.Address, error)
+func IsApprovedForAll(owner, operator std.Address) bool
 ```
 
 `grc721` contains a new set of functions:
@@ -80,6 +82,7 @@ IsApprovedForAll(owner, operator std.Address) bool
 
 The `testutils` package contains a set of functions that comes in handy when testing realms. The sample function below is the commonly used `TestAddress` function that generates a random address.
 
+[embedmd]:# (../assets/explanation/packages/pkg-3.gno go)
 ```go
 func TestAddress(name string) std.Address {
 	if len(name) > std.RawAddressSize {
@@ -97,6 +100,7 @@ func TestAddress(name string) std.Address {
 
 The code takes the `name` as the input and creates a random address. Below is a list of examples where it's used in the test case of the `foo20` realm.
 
+[embedmd]:# (../assets/explanation/packages/pkg-4.gno go)
 ```go
 admin := users.AddressOrName("g1tntwtvzrkt2gex69f0pttan0fp05zmeg5yykv8")
 test2 := users.AddressOrName(testutils.TestAddress("test2"))

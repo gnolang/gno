@@ -6,11 +6,12 @@ id: write-simple-dapp
 
 ## Overview
 
-This guide will show you how to write a complete dApp that combines both a package and a realm. 
-Our app will allow any user to create a poll, and subsequently vote 
+This guide will show you how to write a complete dApp that combines both a package and a realm.
+Our app will allow any user to create a poll, and subsequently vote
 YAY or NAY for any poll that has not exceeded the voting deadline.
 
 ## Prerequisites
+
 - **Text editor**
 
 ## Defining dApp functionality
@@ -21,19 +22,22 @@ and a Poll Factory realm, which will handle the user-facing functionality and re
 For simplicity, we will define the functionality in plain text, and leave comments explaining the code.
 
 ### Poll Package
+
 - Defines a `Poll` struct
 - Defines a `NewPoll` constructor
-- Defines `Poll` field getters  
+- Defines `Poll` field getters
 - Defines a `Vote` function
 - Defines a `HasVoted` check method
 - Defines a `VoteCount` getter method
 
-```go 
+[embedmd]:# (../assets/how-to-guides/write-simple-dapp/poll-1.gno go)
+```go
 package poll
 
 import (
-	"gno.land/p/demo/avl"
 	"std"
+
+	"gno.land/p/demo/avl"
 )
 
 // Main struct
@@ -98,12 +102,17 @@ func (p Poll) VoteCount() (int, int) {
 	return yay, p.Voters().Size() - yay
 }
 ```
+
 A few remarks:
+
 - We are using the `std` library for accessing blockchain-related functionality and types, such as `std.Address`.
-- Since the `map` data type is not deterministic in Go, we need to use the AVL tree structure, defined under `p/demo/avl`.
-It behaves similarly to a map; it maps a key of type `string` onto a value of any type - `interface{}`.
-- We are importing the `p/demo/avl` package directly from on-chain storage, which can be accessed through the path `gno.land/`. 
-As of October 2023, you can find already-deployed packages & libraries which provide additional Gno functionality in the [monorepo](https://github.com/gnolang/gno), under the `examples/gno.land` folder. 
+- Since the `map` data type is not deterministic in Go, we need to use the AVL tree structure, defined
+  under `p/demo/avl`.
+  It behaves similarly to a map; it maps a key of type `string` onto a value of any type - `interface{}`.
+- We are importing the `p/demo/avl` package directly from on-chain storage, which can be accessed through the
+  path `gno.land/`.
+  As of October 2023, you can find already-deployed packages & libraries which provide additional Gno functionality in
+  the [monorepo](https://github.com/gnolang/gno), under the `examples/gno.land` folder.
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
@@ -115,19 +124,21 @@ Check out the [deployment](deploy.md) guide to learn how to do this.
 Moving on, we can create the Poll Factory realm.
 
 The realm will contain the following functionality:
+
 - An exported `NewPoll` method, to allow users to create polls
-- An exported `Vote` method, to allow users to pledge votes for any active poll 
+- An exported `Vote` method, to allow users to pledge votes for any active poll
 - A `Render` function to display the realm state
 
+[embedmd]:# (../assets/how-to-guides/write-simple-dapp/poll-2.gno go)
 ```go
 package poll
 
 import (
-	"bytes"
+	"std"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/poll"
 	"gno.land/p/demo/ufmt"
-	"std"
 )
 
 // state variables
@@ -199,9 +210,12 @@ func Vote(pollID int, vote bool) string {
 	return ufmt.Sprintf("Successfully voted NAY for poll #%s!", id)
 }
 ```
-With that we have written the core functionality of the realm, and all that is left is the [Render function](http://localhost:3000/explanation/realms). 
+
+With that we have written the core functionality of the realm, and all that is left is
+the [Render function](http://localhost:3000/explanation/realms).
 Its purpose is to help us display the state of the realm in Markdown, by formatting the state into a string buffer:
 
+[embedmd]:# (../assets/how-to-guides/write-simple-dapp/poll-3.gno go)
 ```go
 func Render(path string) string {
 	var b bytes.Buffer

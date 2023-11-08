@@ -20,6 +20,7 @@ testing techniques that involve data mocking.
 For the purpose of this guide, we will be testing the simple *Counter* Realm created in
 the [How to write a simple Gno Smart Contract (Realm)](simple-contract.md) guide.
 
+[embedmd]:# (../assets/how-to-guides/testing-gno/counter-1.gno go)
 ```go
 // counter-app/r/counter/counter.gno
 
@@ -70,6 +71,7 @@ Mainly, we want to verify that:
 
 Let's write the required unit tests:
 
+[embedmd]:# (../assets/how-to-guides/testing-gno/counter-2.gno go)
 ```go
 // counter-app/r/counter/counter_test.gno
 
