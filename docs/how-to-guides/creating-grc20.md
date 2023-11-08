@@ -6,7 +6,7 @@ id: creating-grc20
 
 ## Overview
 
-This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../explanation/realms.md), in [Gnolang (Gno)](../explanation/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
+This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../explanation/realms.md), in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
 Our _GRC20_ Realm will have the following functionality:
 

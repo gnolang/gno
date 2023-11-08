@@ -7,7 +7,7 @@ id: simple-contract
 ## Overview
 
 This guide shows you how to write a simple _Counter_ Smart Contract, or rather a [Realm](../explanation/realms.md),
-in [Gnolang (Gno)](../explanation/gno-language.md). For actually deploying the Realm, please see
+in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see
 the [deployment](deploy.md) guide.
 
 Our _Counter_ Realm will have the following functionality:
@@ -80,7 +80,7 @@ touch counter.gno
 ```
 
 :::info Gno file extension
-All Gnolang (Gno) source code has the file extension `.gno`.
+All Gno (Gnolang) source code has the file extension `.gno`.
 
 This file extension is required for existing gno tools and processes to work.
 :::
