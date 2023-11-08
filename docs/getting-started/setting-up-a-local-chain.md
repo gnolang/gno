@@ -11,7 +11,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 ## Prerequisites
 
-- **`gnoland` set up. Reference the [Installation](installation.md#3-installing-other-gno-tools) guide for steps**
+- [`gnoland` installed](installation.md#3-installing-other-gno-tools).
 
 ## Starting a node with a default configuration
 
