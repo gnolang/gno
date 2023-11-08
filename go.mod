@@ -41,10 +41,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
-
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
