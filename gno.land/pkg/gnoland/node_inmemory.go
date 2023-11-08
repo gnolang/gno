@@ -128,9 +128,9 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 	)
 
 	// Create genesis factory
-	genProvider := func() (*bft.GenesisDoc, error) {
-		return cfg.Genesis, nil
-	}
+	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
+
+	dbProvider := func(*node.DBContext) (db.DB, error) { return db.NewMemDB(), nil }
 
 	// generate p2p node identity
 	// XXX: do we need to configur
@@ -141,7 +141,7 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		cfg.PrivValidator, nodekey,
 		appClientCreator,
 		genProvider,
-		node.DefaultDBProvider,
+		dbProvider,
 		logger,
 	)
 }
