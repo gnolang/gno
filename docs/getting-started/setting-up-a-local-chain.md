@@ -59,6 +59,9 @@ to delete this directory and start the node up again. If you are using the defau
 - It affects how the Gno node communicates with other Gno nodes / chains
 - Gno clients that communicate through JSON-RPC need to match this value
 
+It's important to configure your node properly before launching it in a distributed network.
+Keep in mind that changes may not be applicable once connected.
+
 :::
 
 To change the Gno chain ID, run the following command:
