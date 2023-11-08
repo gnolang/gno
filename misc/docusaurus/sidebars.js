@@ -98,7 +98,6 @@ const sidebars = {
                     type: 'category',
                     label: 'Gno Tooling',
                     items: [
-                        'explanation/gno-tooling/cli/gno-tooling-common-params',
                         'explanation/gno-tooling/cli/gno-tooling-gno',
                         'explanation/gno-tooling/cli/gno-tooling-gnokey',
                         'explanation/gno-tooling/cli/gno-tooling-gnofaucet',
