@@ -1,8 +1,8 @@
 ---
-id: installation
+id: local-setup
 ---
 
-# Installation
+# Local Setup
 
 ## Overview
 
@@ -39,7 +39,7 @@ make build
 
 This will build out the necessary `gno` binary into the `gnovm/cmd` sub-folder:
 
-![gno tool build](../assets/getting-started/installation/make-build-gnovm.gif)
+![gno tool build](../assets/getting-started/local-setup/make-build-gnovm.gif)
 
 Next, to make development easier, we need to make the binary available system-wide.
 From the same `gnovm` sub-folder, you can run:
@@ -56,7 +56,7 @@ gno --help
 
 You should get the help output from the command:
 
-![gno help](../assets/getting-started/installation/gno-help.gif)
+![gno help](../assets/getting-started/local-setup/gno-help.gif)
 
 Alternatively, if you don't want to have the binary callable system-wide, you can run the binary directly:
 
@@ -83,7 +83,7 @@ make build
 
 This will build out the necessary binaries into the `gno.land/cmd` sub-folder:
 
-![gno tools build](../assets/getting-started/installation/make-build-gnoland.gif)
+![gno tools build](../assets/getting-started/local-setup/make-build-gnoland.gif)
 
 Same as with the `gno` tool, we can make these binaries available system-wide.
 From the same `gno.land` sub-folder, you can run:
@@ -100,7 +100,7 @@ gnokey --help
 
 You should get the help output from the command:
 
-![gnokey help](../assets/getting-started/installation/gnokey-help.gif)
+![gnokey help](../assets/getting-started/local-setup/gnokey-help.gif)
 
 ## Conclusion
 

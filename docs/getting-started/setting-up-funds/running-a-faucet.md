@@ -13,7 +13,7 @@ haven't [premined a balance beforehand](premining-balances.md).
 ## Prerequisites
 
 - **`gnoland`, `gnofaucet` and `gnoweb` set up. Reference
-  the [Installation](../installation.md#3-installing-other-gno-tools) guide for steps**
+  the [Installation](../local-setup.md#3-installing-other-gno-tools) guide for steps**
 
 ## 1. Ensure a topped-up faucet address
 

@@ -9,7 +9,7 @@ const sidebars = {
             type: 'category',
             label: 'Getting Started',
             items: [
-                'getting-started/installation',
+                'getting-started/local-setup',
                 'getting-started/working-with-key-pairs',
                 {
                     type: 'category',
