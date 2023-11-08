@@ -16,7 +16,6 @@ var (
 	gameIDCounter uint64
 
 	user2Games avl.Tree // std.Address -> []*Game
-	nft2Flip	avl.Tree // nft.TokenId -> Flip fungioble token
 )
 
 const zeroes = "000000000"
@@ -123,6 +122,14 @@ func GetUserBasicNFTs(addr std.Address) string {
 func GetAllBasicNFTs() string {
 	allNFTs := GetAllBasicFlipNFTs()
 	return allNFTs
+}
+
+func getFlipBalances(user std.Address) uint64 {
+	balances, err := flipToken.BalanceOf(user)
+	if err != nil {
+		panic(err)
+	}
+	return balances
 }
 
     

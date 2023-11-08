@@ -57,6 +57,8 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			panic("error in marhasling flipBasicNFTMetaData");
 		}
 		flipBasicNFT.SetTokenURI(tid, grc721f.TokenURI(flipBasicNFTMetaDataJSON))
+		// mint fungible FLIP token
+		MintLocked(player, tidString, uint64(1))
 		result = string(flipBasicNFTMetaDataJSON)
 	}
 	res := &nftResult{
