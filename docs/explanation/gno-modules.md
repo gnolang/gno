@@ -10,11 +10,9 @@ The packages and realms containing `gno.mod` file can be reffered as Gno modules
 
 `gno.mod` file is very useful for local testing and development. Its primary purposes include:
 
-- **Local Dependency Management**: The gno.mod file allows you to manage local dependencies effectively when developing God Modules. This facilitates testing and iterative development.
-
-- **Module Sorting while Publishing**: Additionally, the gno.mod file is used to sort and automatically publish modules that are located within the `/examples` directory to the blockchain when the chain starts.
-
-- **Configuration and Metadata (Potential Future Use)**: While the gno.mod file is currently used for specifying dependencies, it's worth noting that in the future, it might also serve as a container for additional configuration and metadata related to Gno Modules. This could include information such as module descriptions, veriosn, authorship details, or licensing information. (See: https://github.com/gnolang/gno/issues/498)
+- **Working outside of the monorepo**: by adding a `gno.mod` file to your directory, all gno tooling will recognise it and understand the implicit import path of your current directory (marked by the `module` directive in your `gno.mod` file).
+- **Local dependency management**: the gno.mod file allows you to manage and download local dependencies effectively when developing Go Modules.
+- **Configuration and metadata (WIP)**: while the gno.mod file is currently used for specifying dependencies, it's worth noting that in the future, it might also serve as a container for additional configuration and metadata related to Gno Modules. For more information, see: [issue #498](https://github.com/gnolang/gno/issues/498).
 
 ## Gno Modules and Subdirectories
 
