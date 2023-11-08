@@ -17,7 +17,7 @@ transparency, and censorship resistance. Here are some ideas of what you can bui
 
 ## Packages vs Realms
 
-#### [**Packages**](https://github.com/gnolang/gno/tree/master/examples/gno.land/p)
+#### [**Pure Packages**](https://github.com/gnolang/gno/tree/master/examples/gno.land/p)
 
 * A unit that contains functionalities and utilities that can be used in realms.
 * Packages are stateless.
