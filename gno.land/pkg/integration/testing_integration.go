@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -20,21 +19,44 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
+type tSeqShim struct{ *testing.T }
+
+// noop Parallel method allow us to run test sequentially
+func (tSeqShim) Parallel() {}
+
+func (t tSeqShim) Run(name string, f func(testscript.T)) {
+	t.T.Run(name, func(t *testing.T) {
+		f(tSeqShim{t})
+	})
+}
+
+func (t tSeqShim) Verbose() bool {
+	return testing.Verbose()
+}
+
+// RunGnolandTestscripts sets up and runs txtar integration tests for gnoland nodes.
+// It prepares an in-memory gnoland node and initializes the necessary environment and custom commands.
+// The function adapts the test setup for use with the testscript package, enabling
+// the execution of gnoland and gnokey commands within txtar scripts.
+//
+// Refer to package documentation in doc.go for more information on commands and example txtar scripts.
+func RunGnolandTestscripts(t *testing.T, txtarDir string) {
+	t.Helper()
+
+	p := setupGnolandTestScript(t, txtarDir)
+	if deadline, ok := t.Deadline(); ok && p.Deadline.IsZero() {
+		p.Deadline = deadline
+	}
+
+	testscript.RunT(tSeqShim{t}, p)
+}
+
 type testNode struct {
 	*node.Node
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
-// SetupGnolandTestScript prepares the test environment to execute txtar tests
-// using a partial InMemory gnoland node. It initializes key storage, sets up the gnoland node,
-// and provides custom commands like "gnoland" and "gnokey" for txtar script execution.
-//
-// The function returns testscript.Params which contain the test setup and command
-// executions to be used with the testscript package.
-//
-// For a detailed explanation of the commands and their behaviors, as well as
-// example txtar scripts, refer to the package documentation in doc.go.
-func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
+func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	t.Helper()
 
 	tmpdir := t.TempDir()
@@ -47,7 +69,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	gnoHomeDir := filepath.Join(tmpdir, "gno")
 
 	// Testscripts run concurrently by default, so we need to be prepared for that.
-	var muNodes sync.Mutex
 	nodes := map[string]*testNode{}
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
@@ -99,9 +120,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 		},
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
-				muNodes.Lock()
-				defer muNodes.Unlock()
-
 				if len(args) == 0 {
 					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop]"))
 					return
@@ -125,7 +143,7 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					t := TSTestingT(ts)
 
 					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					cfg, _ := TestingNodeConfig(t, gnoRootDir)
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
@@ -156,9 +174,6 @@ func SetupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				tsValidateError(ts, "gnoland "+cmd, neg, err)
 			},
 			"gnokey": func(ts *testscript.TestScript, neg bool, args []string) {
-				muNodes.Lock()
-				defer muNodes.Unlock()
-
 				logger := ts.Value("_logger").(log.Logger) // grab logger
 				sid := ts.Getenv("SID")                    // grab session id
 
