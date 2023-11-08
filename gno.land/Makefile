@@ -9,22 +9,24 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 gnoland.start:; go run ./cmd/gnoland start
 
 .PHONY: build
-build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync
+build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync build.genesis
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
 build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 build.gnotxsync:;  go build -o build/gnotxsync  ./cmd/gnotxsync
+build.genesis:;  go build -o build/genesis  ./cmd/genesis
 
 .PHONY: install
-install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync
+install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync install.genesis
 
 install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnofaucet:;  go install ./cmd/gnofaucet
 install.gnokey:;     go install ./cmd/gnokey
 install.gnotxsync:;  go install ./cmd/gnotxsync
+install.genesis:;  go install ./cmd/genesis
 
 .PHONY: fclean
 fclean: clean
@@ -46,9 +48,7 @@ fmt:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.gnoland _test.gnokey _test.pkgs
-# XXX: _test.gnoweb is currently disabled. If fixed, re-enable here and in CI.
-# https://github.com/gnolang/gno/issues/1222
+test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
