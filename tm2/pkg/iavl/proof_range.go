@@ -299,7 +299,7 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 	return rootHash, treeEnd, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// -----------
 
 // keyStart is inclusive and keyEnd is exclusive.
 // If keyStart or keyEnd don't exist, the leaf before keyStart
@@ -442,7 +442,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	}, keys, values, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 // GetWithProof gets the value under the key if it exists, or returns nil.
 // A proof of existence or absence is returned alongside the value.

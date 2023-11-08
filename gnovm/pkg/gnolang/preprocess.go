@@ -3338,23 +3338,6 @@ func elideCompositeExpr(vx *Expr, vt Type) {
 	}
 }
 
-// returns true of x is exactly `nil`.
-func isNilExpr(x Expr) bool {
-	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == nilStr
-	}
-	return false
-}
-
-func isNilComparableKind(k Kind) bool {
-	switch k {
-	case SliceKind, MapKind, FuncKind:
-		return true
-	default:
-		return false
-	}
-}
-
 // returns number of args, or if arg is a call result,
 // the number of results of the return tuple type.
 func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
@@ -3372,13 +3355,6 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	} else {
 		return 1
 	}
-}
-
-func mergeNames(a, b []Name) []Name {
-	c := make([]Name, len(a)+len(b))
-	copy(c, a)
-	copy(c[len(a):], b)
-	return c
 }
 
 // This is to be run *after* preprocessing is done,
