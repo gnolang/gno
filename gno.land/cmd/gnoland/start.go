@@ -175,7 +175,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execStart(c *startCfg, io commands.IO) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(io.Out()))
-	rootDir := c.dataDir
+	dataDir := c.dataDir
 
 	var (
 		cfg        *config.Config
