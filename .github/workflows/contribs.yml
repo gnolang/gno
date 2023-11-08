@@ -1,0 +1,35 @@
+name: contribs
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    paths:
+      - "contribs/**"
+      - ".github/workflows/contribs.yml"
+      - "gnovm/**.go"
+      - "gno.land/**.go"
+      - "tm2/**.go"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: # two latest versions
+          - "1.21.x"
+        program:
+          - "gnomd"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.goversion }}
+      - run: make install ${{ matrix.program }}
+        working-directory: contribs

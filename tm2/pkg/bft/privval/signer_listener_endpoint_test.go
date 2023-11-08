@@ -130,7 +130,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	}
 }
 
-// /////////////////////////////////
+// -----------
 
 func newSignerListenerEndpoint(logger log.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	var listener net.Listener

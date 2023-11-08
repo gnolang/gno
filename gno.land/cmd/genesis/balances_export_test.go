@@ -3,31 +3,30 @@ package main
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// getDummyBalanceLines generates dummy balance lines
-func getDummyBalanceLines(t *testing.T, count int) []string {
+// getDummyBalances generates dummy balance lines
+func getDummyBalances(t *testing.T, count int) []gnoland.Balance {
 	t.Helper()
 
 	dummyKeys := getDummyKeys(t, count)
-	amount := int64(10)
+	amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
-	balances := make([]string, len(dummyKeys))
+	balances := make([]gnoland.Balance, len(dummyKeys))
 
 	for index, key := range dummyKeys {
-		balances[index] = fmt.Sprintf(
-			"%s=%dugnot",
-			key.Address().String(),
-			amount,
-		)
+		balances[index] = gnoland.Balance{
+			Address: key.Address(),
+			Amount:  amount,
+		}
 	}
 
 	return balances
@@ -85,7 +84,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 
 		genesis := getDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
-			Balances: getDummyBalanceLines(t, 1),
+			Balances: getDummyBalances(t, 1),
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -107,7 +106,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 		t.Parallel()
 
 		// Generate dummy balances
-		balances := getDummyBalanceLines(t, 10)
+		balances := getDummyBalances(t, 10)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
@@ -139,9 +138,13 @@ func TestGenesis_Balances_Export(t *testing.T) {
 		// Validate the transactions were written down
 		scanner := bufio.NewScanner(outputFile)
 
-		outputBalances := make([]string, 0)
+		outputBalances := make([]gnoland.Balance, 0)
 		for scanner.Scan() {
-			outputBalances = append(outputBalances, scanner.Text())
+			var balance gnoland.Balance
+			err := balance.Parse(scanner.Text())
+			require.NoError(t, err)
+
+			outputBalances = append(outputBalances, balance)
 		}
 
 		require.NoError(t, scanner.Err())

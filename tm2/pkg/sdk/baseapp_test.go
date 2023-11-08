@@ -444,10 +444,6 @@ func (mch msgCounterHandler) Query(ctx Context, req abci.RequestQuery) abci.Resp
 	panic("should not happen")
 }
 
-func i2b(i int64) []byte {
-	return []byte{byte(i)}
-}
-
 func getIntFromStore(store store.Store, key []byte) int64 {
 	bz := store.Get(key)
 	if len(bz) == 0 {
@@ -477,7 +473,7 @@ func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, cou
 	return
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Tx processing - CheckTx, DeliverTx, SimulateTx.
 // These tests use the serialized tx as input, while most others will use the
 // Check(), Deliver(), Simulate() methods directly.
