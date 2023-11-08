@@ -42,7 +42,7 @@ func execBug(args []string, io commands.IO) error {
 	body := buf.String()
 	url := "https://github.com/gnolang/gno/issues/new?body=" + url.QueryEscape(body)
 
-	if !openBrowser(url) {
+	if len(url) > 2048 || !openBrowser(url) {
 		io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
 		io.Println()
 		io.Println(body)
