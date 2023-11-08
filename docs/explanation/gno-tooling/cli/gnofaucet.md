@@ -49,6 +49,11 @@ gnofaucet serve test1 --chain-id dev --send 500000000ugnot
 
 ### **Step 3. Receive GNOTs from the faucet**
 
+To receive funds through the `gnoweb` form GUI, you can request them on:
+`http://localhost:8888/faucet` (given `http://localhost:8888/` is the location where `gnoweb` is serving pages).
+
+Alternatively, you can request funds from the faucet by directly invoking a CURL command:
+
 ```bash
 curl --location --request POST 'http://localhost:5050' \
 --header 'Content-Type: application/x-www-form-urlencoded' \
