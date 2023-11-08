@@ -49,7 +49,7 @@ and its EVM has a stack limit and computational inefficiencies.
 Solidity is designed for one purpose only (writing smart contracts) and is bound by the limitations of the EVM. In
 addition, developers have to learn several languages if they want to understand the whole stack or work across different
 ecosystems. Gno aspires to exceed Solidity on multiple fronts (and other smart contract languages like CosmWasm or
-Substrate) as every part of the stack is written in Gno. It’s easy for developers to understand the entire system just
+Substrate) as every part of the stack is written in Go (or Gno!). It’s easy for developers to understand the entire system just
 by studying a relatively small code base.
 
 ## Gno Is Essential for the Wider Adoption of Web3
