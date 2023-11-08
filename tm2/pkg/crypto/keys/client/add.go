@@ -259,7 +259,7 @@ func execAdd(cfg *addCfg, args []string, io *commands.IO) error {
 	}
 
 	if len(mnemonic) == 0 {
-		mnemonic, err = generateMnemonic(mnemonicEntropySize)
+		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
 		if err != nil {
 			return err
 		}

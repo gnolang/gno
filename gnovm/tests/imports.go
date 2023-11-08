@@ -20,7 +20,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"math/big"
@@ -356,15 +355,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "io":
 				pkg := gno.NewPackageNode("io", pkgPath, nil)
 				pkg.DefineGoNativeValue("EOF", io.EOF)
+				pkg.DefineGoNativeValue("NopCloser", io.NopCloser)
 				pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
+				pkg.DefineGoNativeValue("ReadAll", io.ReadAll)
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
-				return pkg, pkg.NewPackage()
-			case "io/ioutil":
-				pkg := gno.NewPackageNode("ioutil", pkgPath, nil)
-				pkg.DefineGoNativeValue("NopCloser", ioutil.NopCloser)
-				pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
 				return pkg, pkg.NewPackage()
 			case "log":
 				pkg := gno.NewPackageNode("log", pkgPath, nil)

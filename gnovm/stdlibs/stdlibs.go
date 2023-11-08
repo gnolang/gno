@@ -581,13 +581,3 @@ func typedByteArray(ln int, bz *gno.ArrayValue) gno.TypedValue {
 	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.Uint8Type}, V: bz}
 	return tv
 }
-
-func typedByteSlice(bz *gno.SliceValue) gno.TypedValue {
-	tv := gno.TypedValue{T: &gno.SliceType{Elt: gno.Uint8Type}, V: bz}
-	return tv
-}
-
-func typedNil(t gno.Type) gno.TypedValue {
-	tv := gno.TypedValue{T: t, V: nil}
-	return tv
-}
