@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// If no arguments are provided, read from stdin
-	if len(os.Args) == 1 {
+	if len(os.Args) <= 1 {
 		fileContent, err := ioutil.ReadAll(os.Stdin)
 		checkErr(err)
 		renderMarkdown("stdin.gno", fileContent)
