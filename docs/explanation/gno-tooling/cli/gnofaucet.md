@@ -4,7 +4,9 @@ id: gno-tooling-gnofaucet
 
 # gnofaucet
 
-`gnofaucet` is a server for distributing GNOT, the gas currency of Gnoland, to specific addresses in a local chain. Interact with the `gnofaucet` from an address with an empty balance in your locally built testnet to fuel it with GNOT to pay for transactions.
+`gnofaucet` is a server for distributing GNOT, the gas currency of Gnoland, to specific addresses in a local chain.
+Interact with the `gnofaucet` from an address with an empty balance in your locally built testnet to fuel it with GNOT
+to pay for transactions.
 
 ## Run `gnofaucet` Commands
 
@@ -17,12 +19,12 @@ gnofaucet serve
 #### **Options**
 
 | Name                      | Type    | Description                                                                          |
-| ------------------------- | ------- | ------------------------------------------------------------------------------------ |
+|---------------------------|---------|--------------------------------------------------------------------------------------|
 | `chain-id`                | String  | The id of the chain (required).                                                      |
 | `gas-wanted`              | Int64   | The maximum amount of gas to use for the transaction (default: `50000`)              |
 | `gas-fee`                 | String  | The gas fee to pay for the transaction.                                              |
 | `memo`                    | String  | Any descriptive text (default: `""`)                                                 |
-| `test-to`                 | String  | Test address (optional) 부연설명 필요                                                |
+| `test-to`                 | String  | Test address (optional)                                                              |
 | `send`                    | String  | Coins to send (default: `"1000000ugnot"`).                                           |
 | `captcha-secret`          | String  | The secret key for the recaptcha. If empty, the captcha is disabled (default: `""`). |
 | `is-behind-proxy`         | Boolean | Uses X-Forwarded-For IP for throttling (default: `false`).                           |
@@ -36,7 +38,8 @@ gnofaucet serve
 gnokey add test1 --recover
 ```
 
-> **Test Seed Phrase:** source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
+> **Test Seed Phrase:** source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate
+> oppose farm nothing bullet exhibit title speed wink action roast
 
 ### **Step 2. Run `gnofaucet`**
 
