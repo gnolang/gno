@@ -226,7 +226,7 @@ func (c *WSClient) CallWithArrayParams(ctx context.Context, method string, param
 	return c.Send(ctx, request)
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// -----------
 // Private methods
 
 func (c *WSClient) dial() error {
