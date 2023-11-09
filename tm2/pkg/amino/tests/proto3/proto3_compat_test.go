@@ -36,6 +36,8 @@ func init() {
 }
 
 func TestFixed32Roundtrip(t *testing.T) {
+	t.Parallel()
+
 	// amino fixed32 (int32) <-> protbuf fixed32 (uint32)
 	type testi32 struct {
 		Int32 int32 `binary:"fixed32"`
@@ -61,6 +63,8 @@ func TestFixed32Roundtrip(t *testing.T) {
 }
 
 func TestVarintZigzagRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("zigzag encoding isn't default anymore for (unsigned) ints")
 	// amino varint (int) <-> protobuf zigzag32 (int32 in go sint32 in proto file)
 	type testInt32Varint struct {
@@ -85,6 +89,8 @@ func TestVarintZigzagRoundtrip(t *testing.T) {
 }
 
 func TestFixedU64Roundtrip(t *testing.T) {
+	t.Parallel()
+
 	type testFixed64Uint struct {
 		Int64 uint64 `binary:"fixed64"`
 	}
@@ -111,6 +117,8 @@ func TestFixedU64Roundtrip(t *testing.T) {
 }
 
 func TestMultidimensionalSlices(t *testing.T) {
+	t.Parallel()
+
 	s := [][]int8{
 		{1, 2},
 		{3, 4, 5},
@@ -121,6 +129,8 @@ func TestMultidimensionalSlices(t *testing.T) {
 }
 
 func TestMultidimensionalArrays(t *testing.T) {
+	t.Parallel()
+
 	arr := [2][2]int8{
 		{1, 2},
 		{3, 4},
@@ -131,6 +141,8 @@ func TestMultidimensionalArrays(t *testing.T) {
 }
 
 func TestMultidimensionalByteArraysAndSlices(t *testing.T) {
+	t.Parallel()
+
 	arr := [2][2]byte{
 		{1, 2},
 		{3, 4},
@@ -157,6 +169,8 @@ func TestMultidimensionalByteArraysAndSlices(t *testing.T) {
 }
 
 func TestProto3CompatPtrsRoundtrip(t *testing.T) {
+	t.Parallel()
+
 	s := p3.SomeStruct{}
 
 	ab, err := cdc.Marshal(s)
@@ -214,6 +228,8 @@ type goAminoGotTime struct {
 }
 
 func TestProto3CompatEmptyTimestamp(t *testing.T) {
+	t.Parallel()
+
 	empty := p3.ProtoGotTime{}
 	// protobuf also marshals to empty bytes here:
 	pb, err := proto.Marshal(&empty)
@@ -235,6 +251,8 @@ func TestProto3CompatEmptyTimestamp(t *testing.T) {
 }
 
 func TestProto3CompatTimestampNow(t *testing.T) {
+	t.Parallel()
+
 	// test with current time:
 	now := time.Now()
 	ptts, err := ptypes.TimestampProto(now)
@@ -267,6 +285,8 @@ func TestProto3CompatTimestampNow(t *testing.T) {
 }
 
 func TestProto3EpochTime(t *testing.T) {
+	t.Parallel()
+
 	pbRes := p3.ProtoGotTime{}
 	// amino encode epoch (1970) and decode using proto; expect the resulting time to be epoch again:
 	ab, err := cdc.Marshal(goAminoGotTime{T: &epoch})
@@ -279,6 +299,8 @@ func TestProto3EpochTime(t *testing.T) {
 }
 
 func TestProtoNegativeSeconds(t *testing.T) {
+	t.Parallel()
+
 	pbRes := p3.ProtoGotTime{}
 	// test with negative seconds (0001-01-01 -> seconds = -62135596800, nanos = 0):
 	ntm, err := time.Parse("2006-01-02 15:04:05 +0000 UTC", "0001-01-01 00:00:00 +0000 UTC")
@@ -296,6 +318,8 @@ func TestProtoNegativeSeconds(t *testing.T) {
 }
 
 func TestIntVarintCompat(t *testing.T) {
+	t.Parallel()
+
 	tcs := []struct {
 		val32 int32
 		val64 int64
@@ -382,6 +406,8 @@ func TestIntVarintCompat(t *testing.T) {
 
 // See if encoding of type def types matches the proto3 encoding
 func TestTypeDefCompatibility(t *testing.T) {
+	t.Parallel()
+
 	pNow := ptypes.TimestampNow()
 	now, err := ptypes.Timestamp(pNow)
 	require.NoError(t, err)

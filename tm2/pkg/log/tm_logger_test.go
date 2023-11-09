@@ -10,6 +10,8 @@ import (
 )
 
 func TestLoggerLogsItsErrors(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 
 	logger := log.NewTMLogger(&buf)

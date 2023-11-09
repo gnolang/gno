@@ -12,6 +12,8 @@ import (
 )
 
 func TestCreateAccountInvalidMnemonic(t *testing.T) {
+	t.Parallel()
+
 	kb := NewInMemory()
 	_, err := kb.CreateAccount(
 		"some_account",
@@ -22,6 +24,8 @@ func TestCreateAccountInvalidMnemonic(t *testing.T) {
 }
 
 func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
+	t.Parallel()
+
 	kb := NewInMemory()
 	_, err := kb.CreateLedger("some_account", Ed25519, "cosmos", 0, 1)
 	assert.Error(t, err)
@@ -29,6 +33,8 @@ func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
 }
 
 func TestCreateLedger(t *testing.T) {
+	t.Parallel()
+
 	kb := NewInMemory()
 
 	// test_cover and test_unit will result in different answers
@@ -65,6 +71,8 @@ func TestCreateLedger(t *testing.T) {
 
 // TestKeyManagement makes sure we can manipulate these keys well
 func TestKeyManagement(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -147,6 +155,8 @@ func TestKeyManagement(t *testing.T) {
 // TestSignVerify does some detailed checks on how we sign and validate
 // signatures
 func TestSignVerify(t *testing.T) {
+	t.Parallel()
+
 	cstore := NewInMemory()
 
 	n1, n2, n3 := "some dude", "a dudette", "dude-ish"
@@ -233,6 +243,8 @@ func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
 
 // TestExportImport tests exporting and importing
 func TestExportImport(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -263,6 +275,8 @@ func TestExportImport(t *testing.T) {
 }
 
 func TestExportImportPubKey(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -304,6 +318,8 @@ func TestExportImportPubKey(t *testing.T) {
 
 // TestAdvancedKeyManagement verifies update, import, export functionality
 func TestAdvancedKeyManagement(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -352,6 +368,8 @@ func TestAdvancedKeyManagement(t *testing.T) {
 
 // TestSeedPhrase verifies restoring from a seed phrase
 func TestSeedPhrase(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 

@@ -9,6 +9,8 @@ import (
 )
 
 func TestBasic(t *testing.T) {
+	t.Parallel()
+
 	p3c := NewP3Context()
 	p3c.RegisterPackage(sm1.Package)
 	p3doc := P3Doc{PackageName: "test"}

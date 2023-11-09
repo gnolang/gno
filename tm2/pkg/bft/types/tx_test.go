@@ -25,6 +25,8 @@ func randInt(low, high int) int {
 }
 
 func TestTxIndex(t *testing.T) {
+	t.Parallel()
+
 	for i := 0; i < 20; i++ {
 		txs := makeTxs(15, 60)
 		for j := 0; j < len(txs); j++ {
@@ -38,6 +40,8 @@ func TestTxIndex(t *testing.T) {
 }
 
 func TestTxIndexByHash(t *testing.T) {
+	t.Parallel()
+
 	for i := 0; i < 20; i++ {
 		txs := makeTxs(15, 60)
 		for j := 0; j < len(txs); j++ {
@@ -51,6 +55,8 @@ func TestTxIndexByHash(t *testing.T) {
 }
 
 func TestValidTxProof(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		txs Txs
 	}{
@@ -90,6 +96,8 @@ func TestValidTxProof(t *testing.T) {
 }
 
 func TestTxProofUnchangable(t *testing.T) {
+	t.Parallel()
+
 	// run the other test a bunch...
 	for i := 0; i < 40; i++ {
 		testTxProofUnchangable(t)
