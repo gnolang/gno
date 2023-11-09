@@ -107,6 +107,102 @@ func main() {
 }`, `aaa,bbb`)
 }
 
+func TestVarDeclTypeConversion(t *testing.T) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	var x float64 = 10.5
+	println(int(x))
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
+func TestShortenVarDeclTypeConversion(t *testing.T) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	x := 10.5			// default type is float64
+	println(int(x))
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
+
+func TestInvalidTypeConversion(t *testing.T) {
+    m := NewMachine("test", nil)
+    testCases := []struct {
+        name string
+        code string
+    }{
+		{
+			name: "UndefinedIntType",
+			code: `package test
+			func main(){
+				println(int(10.5))
+			}`,
+		},
+        {
+            name: "NilToInt",
+            code: `package test
+            func main(){
+                println(int(nil))
+            }`,
+        },
+		{
+			name: "NilToFloat",
+			code: `package test
+			func main(){
+				println(float64(nil))
+			}`,
+		},
+        {
+            name: "NilToBool",
+            code: `package test
+            func main(){
+                println(bool(nil))
+            }`,
+        },
+		{
+			name: "BoolToInt",
+			code: `package test
+			func main(){
+				println(int(true))
+			}`,
+		},
+		{
+			name: "IntToBool",
+			code: `package test
+			func main(){
+				x := 1
+				println(bool(x))
+			}`,
+		},
+    }
+
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            n := MustParseFile("main.go", tc.code)
+            defer func() {
+                if r := recover(); r != nil {
+                    t.Logf("Recovered from panic as expected: %v", r)
+                } else {
+                    t.Errorf("Expected a panic for invalid type conversion")
+                }
+            }()
+            m.RunFiles(n)
+            m.RunMain()
+
+			if err := m.CheckEmpty(); err != nil {
+				t.Fatal(err)
+			}
+        })
+    }
+}
+
 // ----------------------------------------
 // Benchmarks
 

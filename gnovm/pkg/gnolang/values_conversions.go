@@ -77,8 +77,10 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
-		tv.T = t
-		return
+		panic(fmt.Sprintf(
+			"cannot convert %s (untyped %s constant) to type %s",
+			tv.String(), tv.T.String(), t.String()),
+		)
 	}
 	// general case
 	tvk := tv.T.Kind()
