@@ -3,28 +3,28 @@ package pausable
 import "gno.land/p/demo/ownable"
 
 type Pausable struct {
-	paused bool
 	*ownable.Ownable
+	paused bool
 }
 
 // New returns a new Pausable struct with non-paused state as default
 func New() *Pausable {
 	return &Pausable{
-		paused:  false,
 		Ownable: ownable.New(),
+		paused:  false,
 	}
 }
 
 // NewFromOwnable is the same as New, but with a pre-existing top-level ownable
 func NewFromOwnable(ownable *ownable.Ownable) *Pausable {
 	return &Pausable{
-		paused:  false,
 		Ownable: ownable,
+		paused:  false,
 	}
 }
 
 // IsPaused checks if Pausable is paused
-func (p *Pausable) IsPaused() bool {
+func (p Pausable) IsPaused() bool {
 	return p.paused
 }
 
