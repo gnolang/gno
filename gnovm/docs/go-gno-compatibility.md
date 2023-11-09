@@ -296,8 +296,9 @@ Legend:
 | go install        |                  |                                                                       |
 | go list           |                  |                                                                       |
 | go mod            | gno mod          |                                                                       |
-| + go mod download | gno mod download | same behavior                                                         |
 | + go mod init     | gno mod init     | same behavior                                                         |
+| + go mod download | gno mod download | same behavior                                                         |
+| + go mod tidy     | gno mod tidy     | same behavior                                                         |
 |                   | gno precompile   |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
