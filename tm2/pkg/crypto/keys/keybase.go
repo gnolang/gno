@@ -160,14 +160,32 @@ func (kb dbKeybase) List() ([]Info, error) {
 	return res, nil
 }
 
+// HasByNameOrAddress checks if a key with the name or bech32 string address is in the keybase.
+func (kb dbKeybase) HasByNameOrAddress(nameOrBech32 string) (bool, error) {
+	address, err := crypto.AddressFromBech32(nameOrBech32)
+	if err != nil {
+		return kb.HasByName(nameOrBech32)
+	}
+	return kb.HasByAddress(address)
+}
+
+// HasByName checks if a key with the name is in the keybase.
+func (kb dbKeybase) HasByName(name string) (bool, error) {
+	return kb.db.Has(infoKey(name)), nil
+}
+
+// HasByAddress checks if a key with the address is in the keybase.
+func (kb dbKeybase) HasByAddress(address crypto.Address) (bool, error) {
+	return kb.db.Has(addrKey(address)), nil
+}
+
 // Get returns the public information about one key.
 func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 	addr, err := crypto.AddressFromBech32(nameOrBech32)
 	if err != nil {
 		return kb.GetByName(nameOrBech32)
-	} else {
-		return kb.GetByAddress(addr)
 	}
+	return kb.GetByAddress(addr)
 }
 
 func (kb dbKeybase) GetByName(name string) (Info, error) {
