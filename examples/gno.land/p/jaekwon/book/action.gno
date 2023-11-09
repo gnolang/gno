@@ -25,29 +25,37 @@ type Action struct {
 	status   ActionStatus // new, pending, etc
 }
 
-func (a Action) Sequence() string     { return a.sequence }
-func (a Action) Actor() std.Address   { return a.actor }
-func (a Action) Object() std.Address  { return a.object }
-func (a Action) Verb() string         { return a.verb }
-func (a Action) NumArgs() int         { return len(a.args) }
-func (a action) Arg(n int) string     { return a.args[n] }
-func (a Action) Status() ActionStatus { return a.status }
+func (a *Action) Sequence() string     { return a.sequence }
+func (a *Action) Actor() std.Address   { return a.actor }
+func (a *Action) Object() std.Address  { return a.object }
+func (a *Action) Verb() string         { return a.verb }
+func (a *Action) NumArgs() int         { return len(a.args) }
+func (a *Action) Arg(n int) string     { return a.args[n] }
+func (a *Action) Status() ActionStatus { return a.status }
 
-func (a Action) setPending() {
+func (a *Action) setPending() {
 	if a.status != ActionStatusNew {
 		panic("should not happen")
 	}
 	a.status = ActionStatusPending
 }
 
-func (a Action) setComplete() {
+func (a *Action) SetReceived() {
 	if a.status != ActionStatusPending {
+		panic("should not happen")
+	}
+	a.status = ActionStatusReceived
+}
+
+func (a *Action) setComplete() {
+	if a.status != ActionStatusPending &&
+		s.status != ActionStatusReceived {
 		panic("should not happen")
 	}
 	a.status = ActionStatusComplete
 }
 
-func (a Action) setError() {
+func (a *Action) setError() {
 	a.status = ActionStatusError
 }
 
@@ -150,6 +158,8 @@ func Perform(dir Directory, action Action) (err error) {
 	// (action.status == pending|received)
 	// Set status as complete.
 	action.setComplete()
+
+	return nil
 }
 
 //----------------------------------------
