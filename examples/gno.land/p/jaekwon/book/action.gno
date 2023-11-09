@@ -1,6 +1,9 @@
 package book
 
-import "std"
+import (
+	"errors"
+	"std"
+)
 
 //----------------------------------------
 // Action
@@ -44,8 +47,8 @@ func (a Action) setComplete() {
 	a.status = ActionStatusComplete
 }
 
-func (a Action) setPanic() {
-	a.status = ActionStatusPanic
+func (a Action) setError() {
+	a.status = ActionStatusError
 }
 
 type ActionStatus int
@@ -53,8 +56,9 @@ type ActionStatus int
 const (
 	ActionStatusNew = iota
 	ActionStatusPending
+	ActionStatusReceived
 	ActionStatusComplete
-	ActionStatusPanic
+	ActionStatusError
 )
 
 //----------------------------------------
@@ -62,6 +66,10 @@ const (
 
 type Actor interface {
 	std.Addressable
+	// CheckAction verifies that action is
+	// valid as the next action for Actor.
+	// It should have no side effect.
+	CheckAction(action) error
 }
 
 //----------------------------------------
@@ -70,46 +78,77 @@ type Actor interface {
 type Object interface {
 	std.Addressable
 	// Receive performs action on self.
-	// Panics if action is not permitted.
-	// NOTE: no return value, like a one way channel.
-	ReceiveFrom(*Action, Actor)
+	// Returns an error if action is not permitted.
+	ReceiveFrom(*Action, Actor) error
 }
 
 //----------------------------------------
 // Main entry methods
 
 // Perform the action on the actor/object in directory.
-// XXX but first, who composed the action?
-// XXX only the actor should compose it.
-// XXX but anyone can call this?!
-func Perform(dir Directory, action Action) {
+// How an action is authenticated is determined by the
+// implementation of the actor; one could use cryptographic
+// private key to authenticate an action, or, one could use
+// a object (capabilities) private key, or any other method.
+//
+// In the implementations provided here, the action is
+// first either added to a CryptoActionBook or a
+// PrivateActionBook, each backed by an ActionBook (but an
+// actor is not required to have an ActionBook).
+//
+// Case 1 w/ signatures
+//  1. caller adds Action to CryptoActionBook.
+//  2. CryptoActionBook checks signature & sequence.
+//  3. CryptoActionBook calls Perform().
+//  4. Perform asks Actor to verify Action.
+//  5. Actor's ActionBook says it is good.
+//  6. Perform makes object receive action.
+//
+// Case 2 w/o signatures
+//  1. caller adds Action to PrivActionBook.
+//  2. PrivActionBook checks sequence.
+//  3. PrivActionBook calls Perform().
+//  4. Perform asks Actor to verify Action.
+//  5. Actor's ActionBook says it is good.
+//  6. Perform makes object receive action.
+func Perform(dir Directory, action Action) (err error) {
 	// Defer to set panic upon panic.
 	defer func() {
 		if r := recover(); r != nil {
-			action.setPanic()
+			action.setError()
 			panic(r)
+		} else if err != nil {
+			action.setError()
 		}
 	}()
 
 	// Validate what can be validated.
-	action.ValidateBasic()
+	err = action.ValidateBasic()
+	if err != nil {
+		return
+	}
+	// Check that status is new.
+	if action.Status() != ActionStatusNew {
+		return errors.New("expected a new action")
+	}
 	// Get actor and object.
 	actor := dir.Get(action.actor)
 	object := dir.Get(action.object)
-	//
-	// XXX check that action is allowed.
-	// XXX what are the security assumptions?
-	// XXX what if someone unauthorized calls it?
-	// set actor
-	action.setActor(actor)
-	actor.WillPerform(action, object)
-	// XXX set status to pending (???)
+	// Ask Actor to verify action.
+	err = actor.CheckAction(action)
+	if err != nil {
+		return
+	}
+	// Set status as pending.
 	action.setPending()
-	// XXX have object handle action.
-	// XXX what are the security assumptions?
-	// XXX what if someone unauthorized calls it?
-	object.ReceiveFrom(action, actor)
-	// XXX set status to com0lete.
+	// Let object handle action.
+	// (action.status == pending)
+	err = object.ReceiveFrom(action, actor)
+	if err != nil {
+		return
+	}
+	// (action.status == pending|received)
+	// Set status as complete.
 	action.setComplete()
 }
 
