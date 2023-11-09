@@ -51,8 +51,6 @@ func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
 }
 
 func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
-	t.Parallel()
-
 	config := ResetConfig("consensus_mempool_progress_after_create_empty_blocks_interval")
 	defer os.RemoveAll(config.RootDir)
 	config.Consensus.CreateEmptyBlocksInterval = ensureTimeout
