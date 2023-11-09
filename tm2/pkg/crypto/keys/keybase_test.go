@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 )
 
 func TestCreateAccountInvalidMnemonic(t *testing.T) {
@@ -104,9 +105,9 @@ func TestKeyManagement(t *testing.T) {
 	require.True(t, has)
 	addr, err := crypto.AddressFromBech32("g1frtkxv37nq7arvyz5p0mtjqq7hwuvd4dnt892p")
 	require.NoError(t, err)
-	has, err = cstore.HasByAddress(addr)
-	require.NoError(t, err)
-	require.False(t, has)
+	_, err = cstore.GetByAddress(addr)
+	require.NotNil(t, err)
+	require.True(t, keyerror.IsErrKeyNotFound(err))
 
 	// list shows them in order
 	keyS, err := cstore.List()
