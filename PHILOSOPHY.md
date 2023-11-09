@@ -26,7 +26,7 @@
 
 * Correct, debuggable software is more important than extreme performance.
 * Multicore concurrency makes Tendermint within the range of theoretical performance.
-* Go is chosen for the faster development of modular components, not for maximum speed.
+* Go is chosen for faster development of modular components, not for maximum speed.
 * Real bottleneck is in the application layer, not in supporting large validator sets.
 * Focus on feature completeness, debuggability, and maintainability over extreme performance.
 
