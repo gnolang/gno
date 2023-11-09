@@ -3,7 +3,7 @@ package rpcserver_test
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,11 +18,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // HTTP REST API
 // TODO
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // JSON-RPC over HTTP
 
 func testMux() *http.ServeMux {
@@ -43,6 +43,8 @@ func statusOK(code int) bool { return code >= 200 && code <= 299 }
 // do not crash our RPC handlers.
 // See Issue https://github.com/gnolang/gno/tm2/pkg/bft/issues/708.
 func TestRPCParams(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -70,7 +72,7 @@ func TestRPCParams(t *testing.T) {
 		res := rec.Result()
 		// Always expecting back a JSONRPCResponse
 		assert.True(t, statusOK(res.StatusCode), "#%d: should always return 2XX", i)
-		blob, err := ioutil.ReadAll(res.Body)
+		blob, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
 			continue
@@ -91,6 +93,8 @@ func TestRPCParams(t *testing.T) {
 }
 
 func TestJSONRPCID(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -118,7 +122,7 @@ func TestJSONRPCID(t *testing.T) {
 		res := rec.Result()
 		// Always expecting back a JSONRPCResponse
 		assert.True(t, statusOK(res.StatusCode), "#%d: should always return 2XX", i)
-		blob, err := ioutil.ReadAll(res.Body)
+		blob, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
 			continue
@@ -138,6 +142,8 @@ func TestJSONRPCID(t *testing.T) {
 }
 
 func TestRPCNotification(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	body := strings.NewReader(`{"jsonrpc": "2.0", "id": ""}`)
 	req, _ := http.NewRequest("POST", "http://localhost/", body)
@@ -147,12 +153,14 @@ func TestRPCNotification(t *testing.T) {
 
 	// Always expecting back a JSONRPCResponse
 	require.True(t, statusOK(res.StatusCode), "should always return 2XX")
-	blob, err := ioutil.ReadAll(res.Body)
+	blob, err := io.ReadAll(res.Body)
 	require.Nil(t, err, "reading from the body should not give back an error")
 	require.Equal(t, len(blob), 0, "a notification SHOULD NOT be responded to by the server")
 }
 
 func TestRPCNotificationInBatch(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload     string
@@ -182,7 +190,7 @@ func TestRPCNotificationInBatch(t *testing.T) {
 		res := rec.Result()
 		// Always expecting back a JSONRPCResponse
 		assert.True(t, statusOK(res.StatusCode), "#%d: should always return 2XX", i)
-		blob, err := ioutil.ReadAll(res.Body)
+		blob, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Errorf("#%d: err reading body: %v", i, err)
 			continue
@@ -219,6 +227,8 @@ func TestRPCNotificationInBatch(t *testing.T) {
 }
 
 func TestUnknownRPCPath(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	req, _ := http.NewRequest("GET", "http://localhost/unknownrpcpath", nil)
 	rec := httptest.NewRecorder()
@@ -229,10 +239,12 @@ func TestUnknownRPCPath(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, res.StatusCode, "should always return 404")
 }
 
-//////////////////////////////////////////////////////////////////////////////
+// -----------
 // JSON-RPC over WEBSOCKETS
 
 func TestWebsocketManagerHandler(t *testing.T) {
+	t.Parallel()
+
 	s := newWSServer()
 	defer s.Close()
 

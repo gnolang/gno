@@ -9,6 +9,8 @@ import (
 )
 
 func TestIterateKeysWithValues(t *testing.T) {
+	t.Parallel()
+
 	cmap := NewCMap()
 
 	for i := 1; i <= 10; i++ {
@@ -39,6 +41,8 @@ func TestIterateKeysWithValues(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
+
 	cmap := NewCMap()
 
 	cmap.Set("key1", "value1")

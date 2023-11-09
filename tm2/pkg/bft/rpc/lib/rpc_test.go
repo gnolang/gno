@@ -280,6 +280,8 @@ func testWithWSClient(t *testing.T, cl *client.WSClient) {
 // -------------
 
 func TestServersAndClientsBasic(t *testing.T) {
+	t.Parallel()
+
 	serverAddrs := [...]string{tcpAddr, unixAddr}
 	for _, addr := range serverAddrs {
 		cl1 := client.NewURIClient(addr)
@@ -309,6 +311,8 @@ func TestServersAndClientsBasic(t *testing.T) {
 }
 
 func TestHexStringArg(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewURIClient(tcpAddr)
 	// should NOT be handled as hex
 	val := "0xabc"
@@ -318,6 +322,8 @@ func TestHexStringArg(t *testing.T) {
 }
 
 func TestQuotedStringArg(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewURIClient(tcpAddr)
 	// should NOT be unquoted
 	val := "\"abc\""
@@ -327,6 +333,8 @@ func TestQuotedStringArg(t *testing.T) {
 }
 
 func TestWSNewWSRPCFunc(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
 	cl.SetLogger(log.TestingLogger())
 	err := cl.Start()
@@ -352,6 +360,8 @@ func TestWSNewWSRPCFunc(t *testing.T) {
 }
 
 func TestWSHandlesArrayParams(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
 	cl.SetLogger(log.TestingLogger())
 	err := cl.Start()
@@ -377,6 +387,8 @@ func TestWSHandlesArrayParams(t *testing.T) {
 // TestWSClientPingPong checks that a client & server exchange pings
 // & pongs so connection stays alive.
 func TestWSClientPingPong(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
 	cl.SetLogger(log.TestingLogger())
 	err := cl.Start()

@@ -14,6 +14,8 @@ import (
 )
 
 func TestProofForgery(t *testing.T) {
+	t.Parallel()
+
 	source := rand.NewSource(0)
 	r := rand.New(source)
 	cacheSize := 0

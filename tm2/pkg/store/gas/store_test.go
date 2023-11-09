@@ -13,18 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newGasKVStore() types.Store {
-	meter := types.NewGasMeter(10000)
-	mem := dbadapter.Store{dbm.NewMemDB()}
-	return gas.New(mem, meter, types.DefaultGasConfig())
-}
-
 func bz(s string) []byte { return []byte(s) }
 
 func keyFmt(i int) []byte { return bz(fmt.Sprintf("key%0.8d", i)) }
 func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 
 func TestGasKVStoreBasic(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
@@ -37,6 +33,8 @@ func TestGasKVStoreBasic(t *testing.T) {
 }
 
 func TestGasKVStoreIterator(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
@@ -61,6 +59,8 @@ func TestGasKVStoreIterator(t *testing.T) {
 }
 
 func TestGasKVStoreOutOfGasSet(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(0)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
@@ -68,6 +68,8 @@ func TestGasKVStoreOutOfGasSet(t *testing.T) {
 }
 
 func TestGasKVStoreOutOfGasIterator(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	meter := types.NewGasMeter(20000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())

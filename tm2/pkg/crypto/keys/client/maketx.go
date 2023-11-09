@@ -17,7 +17,7 @@ type makeTxCfg struct {
 	chainID   string
 }
 
-func newMakeTxCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newMakeTxCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &makeTxCfg{
 		rootCfg: rootCfg,
 	}
