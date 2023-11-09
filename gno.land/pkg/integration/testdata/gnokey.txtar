@@ -6,27 +6,19 @@ gnoland start
 
 ## test1 account should be available on default
 gnokey query auth/accounts/${USER_ADDR_test1}
-cmp stdout gnokey-query-valid.stdout.golden
-cmp stderr gnokey-query-valid.stderr.golden
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "coins": "[0-9]*ugnot",' # dynamic
+stdout '    "public_key": null,'
+stdout '    "account_number": "0",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
 
 ## invalid gnokey command should raise an error
 ! gnokey query foo/bar
-cmp stdout gnokey-query-invalid.stdout.golden
-cmp stderr gnokey-query-invalid.stderr.golden
-
--- gnokey-query-valid.stdout.golden --
-height: 0
-data: {
-  "BaseAccount": {
-    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-    "coins": "9999892000000ugnot",
-    "public_key": null,
-    "account_number": "0",
-    "sequence": "0"
-  }
-}
--- gnokey-query-valid.stderr.golden --
--- gnokey-query-invalid.stdout.golden --
-Log: 
--- gnokey-query-invalid.stderr.golden --
-"gnokey" error: unknown request error
+stdout 'Log:'
+stderr '"gnokey" error: unknown request error'

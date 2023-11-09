@@ -214,9 +214,6 @@ func TestEncodeDecodeString(t *testing.T) {
 }
 
 func TestCodecSeal(t *testing.T) {
-	type Foo interface{}
-	type Bar interface{}
-
 	cdc := amino.NewCodec()
 	cdc.Seal()
 
