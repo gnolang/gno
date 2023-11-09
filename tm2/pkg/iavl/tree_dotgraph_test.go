@@ -1,7 +1,7 @@
 package iavl
 
 import (
-	"io/ioutil"
+	"io"
 	"testing"
 
 	db "github.com/gnolang/gno/tm2/pkg/db"
@@ -17,5 +17,5 @@ func TestWriteDOTGraph(t *testing.T) {
 		key := []byte{ikey}
 		tree.Set(key, key)
 	}
-	WriteDOTGraph(ioutil.Discard, tree.ImmutableTree, []PathToLeaf{})
+	WriteDOTGraph(io.Discard, tree.ImmutableTree, []PathToLeaf{})
 }

@@ -29,7 +29,7 @@ type TestMessage struct {
 
 func (TestMessage) AssertWALMessage() {}
 
-var testPackage = amino.RegisterPackage(amino.NewPackage(
+var _ = amino.RegisterPackage(amino.NewPackage(
 	"github.com/gnolang/gno/tm2/pkg/bft/wal",
 	"wal",
 	amino.GetCallersDirname(),

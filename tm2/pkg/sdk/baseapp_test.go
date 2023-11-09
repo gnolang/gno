@@ -462,10 +462,6 @@ func (mch msgCounterHandler) Query(ctx Context, req abci.RequestQuery) abci.Resp
 	panic("should not happen")
 }
 
-func i2b(i int64) []byte {
-	return []byte{byte(i)}
-}
-
 func getIntFromStore(store store.Store, key []byte) int64 {
 	bz := store.Get(key)
 	if len(bz) == 0 {

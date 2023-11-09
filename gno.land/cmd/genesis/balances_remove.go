@@ -71,7 +71,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io *commands.IO) error {
 
 	// Construct the initial genesis balance sheet
 	state := genesis.AppState.(gnoland.GnoGenesisState)
-	genesisBalances, err := extractGenesisBalances(state)
+	genesisBalances, err := mapGenesisBalancesFromState(state)
 	if err != nil {
 		return err
 	}

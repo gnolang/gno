@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -618,7 +617,7 @@ func TestMockProxyApp(t *testing.T) {
 }
 
 func tempWALWithData(data []byte) string {
-	walFile, err := ioutil.TempFile("", "wal")
+	walFile, err := os.CreateTemp("", "wal")
 	if err != nil {
 		panic(fmt.Sprintf("failed to create temp WAL file: %v", err))
 	}

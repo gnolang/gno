@@ -1,7 +1,6 @@
 package types
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -94,7 +93,7 @@ func TestGenesisGood(t *testing.T) {
 func TestGenesisSaveAs(t *testing.T) {
 	t.Parallel()
 
-	tmpfile, err := ioutil.TempFile("", "genesis")
+	tmpfile, err := os.CreateTemp("", "genesis")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 

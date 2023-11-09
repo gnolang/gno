@@ -15,8 +15,8 @@ require (
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.3
 	github.com/google/gofuzz v1.2.0
-	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.1
 	github.com/gotuna/gotuna v0.6.0
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
@@ -30,10 +30,10 @@ require (
 	github.com/rs/cors v1.10.1
 	github.com/stretchr/testify v1.8.4
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	go.etcd.io/bbolt v1.3.7
+	go.etcd.io/bbolt v1.3.8
 	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.14.0
-	golang.org/x/mod v0.13.0
+	golang.org/x/mod v0.14.0
 	golang.org/x/net v0.17.0
 	golang.org/x/term v0.13.0
 	golang.org/x/tools v0.13.0

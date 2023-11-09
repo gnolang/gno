@@ -46,14 +46,6 @@ const (
 	infoSuffix    = "info"
 )
 
-const (
-	// used for deriving seed from mnemonic
-	DefaultBIP39Passphrase = ""
-
-	// bits of entropy to draw when creating a mnemonic
-	defaultEntropySize = 256
-)
-
 var (
 	// ErrUnsupportedSigningAlgo is raised when the caller tries to use a
 	// different signing scheme than secp256k1.

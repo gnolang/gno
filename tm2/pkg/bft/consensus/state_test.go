@@ -427,7 +427,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	// but with invalid args. then we enterPrecommitWait, and the timeout to new round
 	ensureNewTimeout(timeoutWaitCh, height, round, cs1.config.Precommit(round).Nanoseconds())
 
-	// /
+	// -----------
 
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)

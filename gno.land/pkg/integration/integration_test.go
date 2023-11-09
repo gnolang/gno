@@ -2,12 +2,10 @@ package integration
 
 import (
 	"testing"
-
-	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestTestdata(t *testing.T) {
 	t.Parallel()
 
-	testscript.Run(t, SetupGnolandTestScript(t, "testdata"))
+	RunGnolandTestscripts(t, "testdata")
 }
