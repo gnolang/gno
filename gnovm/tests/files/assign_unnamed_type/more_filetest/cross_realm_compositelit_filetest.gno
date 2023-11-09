@@ -6,7 +6,6 @@ import (
 )
 
 func main() {
-
 	println(tests.GetZeroType())
 }
 

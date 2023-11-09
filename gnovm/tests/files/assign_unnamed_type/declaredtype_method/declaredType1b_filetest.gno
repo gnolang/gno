@@ -1,25 +1,27 @@
 package main
 
- type word uint
- type nat []word
+type (
+	word uint
+	nat  []word
+)
 
- type Int struct {
- 	neg bool
- 	abs nat
- }
+type Int struct {
+	neg bool
+	abs nat
+}
 
- func (n nat) add() bool {
- 	return true
- }
+func (n nat) add() bool {
+	return true
+}
 
- func main() {
- 	z := &Int{
- 		neg: true,
- 	}
+func main() {
+	z := &Int{
+		neg: true,
+	}
 
- 	z.abs = []word{0}
- 	println(z.abs.add())
- }
+	z.abs = []word{0}
+	println(z.abs.add())
+}
 
- // Output:
- // true
+// Output:
+// true

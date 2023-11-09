@@ -1,13 +1,13 @@
 package main
 
 type nat []int
+
 func main() {
-	var nlist = nat{0}
-	var ulist = []int{1}
+	nlist := nat{0}
+	ulist := []int{1}
 
 	a := append(nlist, nlist[0], ulist[0])
-  println(a)
-
+	println(a)
 }
 
 // Output:

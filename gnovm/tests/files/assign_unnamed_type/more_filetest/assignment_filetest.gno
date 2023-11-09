@@ -17,7 +17,6 @@ func main() {
 
 	println(a)
 	println(b)
-
 }
 
 // Output:

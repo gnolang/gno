@@ -1,24 +1,26 @@
 package main
 
- type word uint
- type nat []word
+type (
+	word uint
+	nat  []word
+)
 
- func (n nat) add() bool {
- 	return true
- }
+func (n nat) add() bool {
+	return true
+}
 
- // slice append
- func main() {
- 	var items []nat
+// slice append
+func main() {
+	var items []nat
 
- 	n := []word{0}
+	n := []word{0}
 
- 	items = append(items, n)
+	items = append(items, n)
 
- 	r := items[0]
+	r := items[0]
 
- 	println(r.add())
- }
+	println(r.add())
+}
 
- // Output:
- // true 
+// Output:
+// true

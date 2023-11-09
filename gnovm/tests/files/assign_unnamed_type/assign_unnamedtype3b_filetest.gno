@@ -5,12 +5,10 @@ type nat struct {
 }
 
 func (n nat) zero() nat {
-
 	return struct{ num int }{0}
 }
 
 func (n nat) one() struct{ num int } {
-
 	return nat{1}
 }
 
@@ -22,7 +20,6 @@ func main() {
 	println(a.zero().zero())
 	println(a.zero().one())
 	println(a.one())
-
 }
 
 // Output:

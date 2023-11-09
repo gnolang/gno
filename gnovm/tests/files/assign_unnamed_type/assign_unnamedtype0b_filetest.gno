@@ -1,7 +1,9 @@
 package main
 
-type nat []int
-type word int
+type (
+	nat  []int
+	word int
+)
 
 func main() {
 	var a nat
@@ -12,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/assign_unnamedtype0b_filetest.gno:9: cannot use main.word as int without explicit conversion
+// main/files/assign_unnamed_type/assign_unnamedtype0b_filetest.gno:11: cannot use main.word as int without explicit conversion

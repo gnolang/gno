@@ -1,7 +1,9 @@
 package main
 
-type word int
-type nat []word
+type (
+	word int
+	nat  []word
+)
 
 func (n nat) add() bool {
 	return true

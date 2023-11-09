@@ -5,8 +5,10 @@ import (
 	"fmt"
 )
 
-type word uint
-type nat []word
+type (
+	word uint
+	nat  []word
+)
 
 var zero *Int
 
@@ -16,7 +18,6 @@ type Int struct {
 }
 
 func main() {
-
 	zero = &Int{
 		abs: []word{0},
 	}
@@ -184,7 +185,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "18",
+//                         "Line": "20",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

@@ -3,12 +3,10 @@ package main
 type nat [1]int
 
 func (n nat) zero() interface{} {
-
 	return [1]int{0}
 }
 
 func (n nat) one() interface{} {
-
 	return nat{1}
 }
 
@@ -19,7 +17,6 @@ func main() {
 	println(a.zero())
 	println(a.one())
 	println(a.one().(nat).zero())
-
 }
 
 // Output:

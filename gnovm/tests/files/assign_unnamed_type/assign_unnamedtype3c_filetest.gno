@@ -5,12 +5,10 @@ type nat struct {
 }
 
 func (n nat) zero() interface{} {
-
 	return struct{ num int }{0}
 }
 
 func (n nat) one() interface{} {
-
 	return nat{1}
 }
 
@@ -21,7 +19,6 @@ func main() {
 	println(a.zero())
 	println(a.one())
 	println(a.one().(nat).zero())
-
 }
 
 // Output:

@@ -3,7 +3,6 @@ package main
 type nat []int
 
 func main() {
-
 	var b []int
 	b = nat{1}
 	println(b)
@@ -14,10 +13,9 @@ func main() {
 
 	b = a
 	println(b)
-
 }
 
-//Output:
+// Output:
 // slice[(1 int)]
 // (slice[(0 int)] main.nat)
 // slice[(0 int)]

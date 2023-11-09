@@ -3,12 +3,11 @@ package main
 type op func(int) int
 
 func inc(n int) int {
-
 	n = n + 1
 	return n
 }
-func dec(n int) int {
 
+func dec(n int) int {
 	n = n - 1
 	return n
 }
@@ -18,7 +17,6 @@ func main() {
 	a = inc
 
 	b := func(n int) int {
-
 		return n
 	}
 	c := dec
@@ -32,7 +30,6 @@ func main() {
 	println(a(0), a)
 	println(b(0), b)
 	println(c(0), c)
-
 }
 
 // Output:

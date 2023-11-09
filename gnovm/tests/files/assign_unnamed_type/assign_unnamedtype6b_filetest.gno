@@ -4,7 +4,6 @@ type nat []interface{}
 
 func (n nat) zero() nat {
 	return []interface{}{0}
-
 }
 
 func (n nat) one() []interface{} {
@@ -12,7 +11,6 @@ func (n nat) one() []interface{} {
 }
 
 func main() {
-
 	var a nat
 	a = []interface{}{}
 
@@ -20,7 +18,6 @@ func main() {
 	println(a.zero().zero())
 	println(a.zero().one())
 	println(a.one())
-
 }
 
 // Output:

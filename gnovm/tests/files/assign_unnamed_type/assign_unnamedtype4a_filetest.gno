@@ -4,11 +4,9 @@ type nat map[string]int
 
 func (n nat) zero(num map[string]int) {
 	println(num)
-
 }
 
 func (n nat) one(num nat) {
-
 	println(num)
 }
 
@@ -22,7 +20,6 @@ func main() {
 	a.one(map[string]int{
 		"zero": 1,
 	})
-
 }
 
 // Output:

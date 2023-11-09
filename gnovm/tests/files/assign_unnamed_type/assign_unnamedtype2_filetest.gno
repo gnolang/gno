@@ -3,7 +3,6 @@ package main
 type nat [1]int
 
 func main() {
-
 	var a nat
 	a = [1]int{0}
 	b := [1]int{1}
@@ -15,7 +14,6 @@ func main() {
 
 	println(a)
 	println(b)
-
 }
 
 // Output:

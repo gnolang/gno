@@ -3,12 +3,10 @@ package main
 type nat map[string]int
 
 func (n nat) zero() nat {
-
 	return map[string]int{"zero": 0}
 }
 
 func (n nat) one() map[string]int {
-
 	return nat{"one": 1}
 }
 
@@ -20,7 +18,6 @@ func main() {
 	println(a.zero().zero())
 	println(a.zero().one())
 	println(a.one())
-
 }
 
 // Output:

@@ -12,9 +12,7 @@ func main() {
 func f(dopanic bool) (err error) {
 	defer func() {
 		if x := recover(); x != nil {
-
 			err = x.(error)
-
 		}
 	}()
 	q(dopanic)

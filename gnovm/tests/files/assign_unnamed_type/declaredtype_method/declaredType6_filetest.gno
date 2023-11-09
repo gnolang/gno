@@ -1,8 +1,10 @@
 package main
 
-type c uint
-type word c
-type nat []word
+type (
+	c    uint
+	word c
+	nat  []word
+)
 
 func (n nat) add() bool {
 	return true
@@ -17,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/declaredtype_method/declaredType6_filetest.gno:14: cannot use main.c as main.word without explicit conversion
+// main/files/assign_unnamed_type/declaredtype_method/declaredType6_filetest.gno:16: cannot use main.c as main.word without explicit conversion

@@ -9,7 +9,6 @@ func main() {
 	var a uint
 	a = x1() // should fail
 	println("1")
-
 }
 
 // Error:

@@ -5,7 +5,6 @@ type nat struct {
 }
 
 func main() {
-
 	var a nat
 	a = struct{ num int }{0}
 	b := struct{ num int }{1}
@@ -17,7 +16,6 @@ func main() {
 
 	println(a)
 	println(b)
-
 }
 
 // Output:

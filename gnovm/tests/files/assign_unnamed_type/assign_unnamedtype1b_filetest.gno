@@ -3,12 +3,10 @@ package main
 type nat []int
 
 func (n nat) zero() nat {
-
 	return []int{0}
 }
 
 func (n nat) one() []int {
-
 	return nat{1}
 }
 
@@ -20,7 +18,6 @@ func main() {
 	println(a.zero().zero())
 	println(a.zero().one())
 	println(a.one())
-
 }
 
 // Output:

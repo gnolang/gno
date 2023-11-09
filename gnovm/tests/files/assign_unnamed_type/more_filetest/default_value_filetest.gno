@@ -1,7 +1,10 @@
 package main
-type nat []int
-type nmap map[int]int
-type nfunc func()
+
+type (
+	nat   []int
+	nmap  map[int]int
+	nfunc func()
+)
 
 func main() {
 	var u1 []int
@@ -11,14 +14,12 @@ func main() {
 	var f func()
 	var f2 nfunc
 
-
 	println(u1)
 	println(n2)
 	println(m)
 	println(m2)
 	println(f)
 	println(f2)
-
 }
 
 // Output:

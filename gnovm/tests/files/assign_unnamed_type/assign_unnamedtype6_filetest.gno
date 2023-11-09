@@ -3,7 +3,6 @@ package main
 type nat []interface{}
 
 func main() {
-
 	var a nat
 	a = []interface{}{0}
 	b := []interface{}{1}
@@ -16,7 +15,6 @@ func main() {
 
 	println(a)
 	println(b)
-
 }
 
 // Output:

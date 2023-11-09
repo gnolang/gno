@@ -4,11 +4,9 @@ type nat []int
 
 func (n nat) zero(num []int) {
 	println(num)
-
 }
 
 func (n nat) one(num nat) {
-
 	println(num)
 }
 
@@ -18,7 +16,6 @@ func main() {
 
 	a.zero(nat{0})
 	a.one([]int{1})
-
 }
 
 // Output:

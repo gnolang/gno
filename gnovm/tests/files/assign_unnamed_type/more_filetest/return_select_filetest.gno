@@ -8,10 +8,8 @@ func x() interface{} {
 }
 
 func (n nat) double() nat {
-
 	m := append(n, n...)
 	return m
-
 }
 
 func main() {
@@ -20,7 +18,6 @@ func main() {
 	b := a.(nat).double().double()
 	println(a)
 	println(b)
-
 }
 
 // Output:

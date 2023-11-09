@@ -1,7 +1,6 @@
 package main
 
 func x() (int, int) {
-
 	return 1, 2
 }
 
@@ -10,7 +9,6 @@ func main() {
 	a, b = x()
 	println(a)
 	println(b)
-
 }
 
 // Output:

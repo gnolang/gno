@@ -13,7 +13,6 @@ func main() {
 	a = x()
 
 	println(a)
-
 }
 
 // Error:

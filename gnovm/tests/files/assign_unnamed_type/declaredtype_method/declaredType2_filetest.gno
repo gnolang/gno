@@ -1,22 +1,24 @@
 package main
 
- type word uint
- type nat []word
+type (
+	word uint
+	nat  []word
+)
 
- func (n nat) add() bool {
- 	return true
- }
+func (n nat) add() bool {
+	return true
+}
 
- // map 
- func main() {
- 	items := map[string]nat{}
+// map
+func main() {
+	items := map[string]nat{}
 
- 	n := []word{0}
+	n := []word{0}
 
- 	// this is assignment
- 	items["test"] = n
+	// this is assignment
+	items["test"] = n
 
- 	r := items["test"]
+	r := items["test"]
 
- 	println(r.add())
- }
+	println(r.add())
+}

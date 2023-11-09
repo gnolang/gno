@@ -1,10 +1,11 @@
 package main
 
-type nat []Word
-type Word uint
+type (
+	nat  []Word
+	Word uint
+)
 
 func (n nat) add() nat {
-
 	return []Word{0}
 }
 

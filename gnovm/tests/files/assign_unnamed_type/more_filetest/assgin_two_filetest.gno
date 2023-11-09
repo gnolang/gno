@@ -1,7 +1,9 @@
 package main
 
-type nat []int
-type nat2 []int
+type (
+	nat  []int
+	nat2 []int
+)
 
 func main() {
 	a := nat{0}
@@ -13,4 +15,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/more_filetest/assgin_two_filetest.gno:9: cannot use main.nat2 as main.nat without explicit conversion
+// main/files/assign_unnamed_type/more_filetest/assgin_two_filetest.gno:11: cannot use main.nat2 as main.nat without explicit conversion

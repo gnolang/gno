@@ -3,7 +3,6 @@ package main
 type nat map[string]int
 
 func main() {
-
 	var a nat
 
 	a = map[string]int{
@@ -19,7 +18,6 @@ func main() {
 	b = a
 	println(a)
 	println(b)
-
 }
 
 // Output:

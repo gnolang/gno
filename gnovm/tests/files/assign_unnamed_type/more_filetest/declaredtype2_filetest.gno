@@ -1,7 +1,9 @@
 package main
 
-type nat []Word
-type Word uint
+type (
+	nat  []Word
+	Word uint
+)
 
 func main() {
 	var abs []Word
@@ -19,7 +21,6 @@ func main() {
 	println(c)
 	println(d)
 	println(e)
-
 }
 
 // Output:

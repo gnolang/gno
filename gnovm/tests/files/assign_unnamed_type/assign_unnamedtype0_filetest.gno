@@ -1,7 +1,9 @@
 package main
 
-type nat []word
-type word int
+type (
+	nat  []word
+	word int
+)
 
 func main() {
 	var a nat

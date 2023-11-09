@@ -6,11 +6,9 @@ type nat struct {
 
 func (n nat) zero(num struct{ num int }) {
 	println(num)
-
 }
 
 func (n nat) one(num nat) {
-
 	println(num)
 }
 
@@ -20,7 +18,6 @@ func main() {
 
 	a.zero(nat{0})
 	a.one(struct{ num int }{1})
-
 }
 
 // Output:

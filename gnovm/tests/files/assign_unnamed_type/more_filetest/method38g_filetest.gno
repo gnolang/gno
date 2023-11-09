@@ -1,18 +1,22 @@
 package main
 
-type nat []Word
-type Word uint
+type (
+	nat  []Word
+	Word uint
+)
 
 func (n nat) add(ws []Word) interface{} {
 	println(ws)
 
 	return ws
 }
+
 func (n nat) add2(ws nat) interface{} {
 	println(ws)
 
 	return ws
 }
+
 func main() {
 	var abs nat
 	abs = []Word{0}
