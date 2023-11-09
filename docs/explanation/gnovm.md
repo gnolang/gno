@@ -6,7 +6,7 @@ id: gnovm
 
 GnoVM is a virtual machine that interprets Gnolang, a custom version of Golang optimized for blockchains, featuring automatic state management, full determinism, and idiomatic Go.
 It works with Tendermint2 and enables smarter, more modular, and transparent appchains with embedded smart-contracts.
-It can be used in TendermintCore, forks, and non-Cosmos blockchains.
+It can be adapted for use in TendermintCore, forks, and non-Cosmos blockchains.
 
 Read the ["Intro to Gnoland"](https://staging.gno.land/r/gnoland/blog:p/intro) blogpost.
 
