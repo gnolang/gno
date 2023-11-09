@@ -6,7 +6,10 @@ import (
 	"gno.land/p/demo/tests"
 )
 
+var World = "WORLD"
+
 func TestGetHelloWorld(t *testing.T) {
-	s := "hello " + tests.World
+	// tests.World is 'world'
+	s := "hello " + tests.World + World
 	println(s)
 }

@@ -322,7 +322,7 @@ func gnoTestPkg(
 		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
-		{
+		if len(tfiles.Files) > 0 {
 			testStore := tests.TestStore(
 				rootDir, "",
 				stdin, stdout, stderr,
@@ -348,7 +348,7 @@ func gnoTestPkg(
 		}
 
 		// test xxx_test pkg
-		{
+		if len(ifiles.Files) > 0 {
 			testStore := tests.TestStore(
 				rootDir, "",
 				stdin, stdout, stderr,
@@ -359,6 +359,20 @@ func gnoTestPkg(
 			}
 
 			m := tests.TestMachine(testStore, stdout, testPkgName)
+
+			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames()) + 1)
+			for _, f := range memPkg.Files {
+				for _, ifileName := range ifiles.FileNames() {
+					if f.Name == "gno.mod" || f.Name == ifileName {
+						memFiles = append(memFiles, f)
+						break
+					}
+				}
+			}
+			memPkg.Files = memFiles
+			memPkg.Name = testPkgName
+			memPkg.Path = memPkg.Path + "_test"
+
 			m.RunMemPackage(memPkg, true)
 			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
