@@ -1,4 +1,8 @@
-# Go<>Gno compatibility
+---
+id: go-gno-compatibility
+---
+
+# Go - Gno compatibility
 
 ## Native keywords
 
