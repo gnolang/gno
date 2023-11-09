@@ -12,7 +12,7 @@ Gno.
 
 ## Prerequisites
 
-- **`gnokey` set up. Reference the [Installation](installation.md#3-installing-other-gno-tools) guide for steps**
+- **`gnokey` set up. Reference the [Local Setup](local-setup.md#3-installing-other-gno-tools) guide for steps**
 
 ## Listing available keys
 

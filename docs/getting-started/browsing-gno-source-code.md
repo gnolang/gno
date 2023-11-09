@@ -12,7 +12,7 @@ to achieve Realm state visibility.
 
 ## Prerequisites
 
-- **`gnoweb` set up. Reference the [Installation](installation.md#3-installing-other-gno-tools) guide for steps**
+- **`gnoweb` set up. Reference the [Local Setup](local-setup.md#3-installing-other-gno-tools) guide for steps**
 
 ## 1. Start the local chain
 
