@@ -1,10 +1,6 @@
 # Go<>Gno compatibility
 
-**WIP: does not reflect the current state yet.**
-
 ## Native keywords
-
-Legend: full, partial, missing, TBD.
 
 | keyword     | support                |
 |-------------|------------------------|
@@ -32,22 +28,27 @@ Legend: full, partial, missing, TBD.
 | type        | full                   |
 | var         | full                   |
 
+Generics are currently not implemented.
+
 ## Native types
 
 | type                                          | usage                  | persistency                                                |
 |-----------------------------------------------|------------------------|------------------------------------------------------------|
 | `bool`                                        | full                   | full                                                       |
 | `byte`                                        | full                   | full                                                       |
-| `float32`, `float64`                          | full                   | full                                                       |
 | `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
 | `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
+| `float32`, `float64`                          | full                   | full                                                       |
+| `complex64`, `complex128`                     | missing (TBD)          | missing                                                    |
+| `uintptr`, `unsafe.Pointer`                   | missing                | missing                                                    |
 | `string`                                      | full                   | full                                                       |
 | `rune`                                        | full                   | full                                                       |
 | `interface{}`                                 | full                   | full                                                       |
-| `[]T` (slices)                                | full                   | full*                                                      |
-| `map[T1]T2`                                   | full                   | full*                                                      |
+| `[]T` (slices)                                | full                   | full\*                                                     |
+| `[N]T` (arrays)                               | full                   | full\*                                                     |
+| `map[T1]T2`                                   | full                   | full\*                                                     |
 | `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
-| `*T` (pointers)                               | full                   | full*                                                      |
+| `*T` (pointers)                               | full                   | full\*                                                     |
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
 
 **\*:** depends on `T`/`T1`/`T2`
@@ -62,286 +63,221 @@ Additional native types:
 
 ## Stdlibs
 
-<!-- generated with: find . -name "*.go" | grep -v _test.go | grep -v internal/ | grep -v vendor/ | xargs dirname | sort | uniq -->
+Legend:
+
+* `nondet`: the standard library in question would require non-deterministic
+  behaviour to implement as in Go, such as cryptographical randomness or
+  os/network access. The library may still be implemented at one point, with a
+  different API.
+* `gospec`: the standard library is very Go-specific -- for instance, it is used
+  for debugging information or for parsing/build Go source code. A Gno version
+  may exist at one point, likely with a different package name or semantics.
+* `gnics`: the standard library requires generics.
+* `test`: the standard library is currently available for use exclusively in
+  test contexts, and may have limited functionality.
+* `cmd`: the Go standard library is a command -- a direct equivalent in Gno
+  would not be useful.
+* `tbd`: whether to include the standard library or not is still up for
+  discussion.
+* `todo`: the standard libary is to be added, and
+  [contributions are welcome.](https://github.com/gnolang/gno/issues/1267)
+* `part`: the standard library is partially implemented in Gno, and contributions are
+  welcome to add the missing functionality.
+* `full`: the standard library is fully implemented in Gno.
+
+<!-- generated with: env -C /usr/lib/go/src find -name '*.go' | grep -v _test.go | grep -vE '(internal|vendor|testdata)/' | xargs dirname | sort | uniq | cut -d/ -f2 -->
 
 | package                                     | status   |
 |---------------------------------------------|----------|
-| archive/tar                                 | TBD      |
-| archive/zip                                 | TBD      |
-| arena                                       | TBD      |
-| bufio                                       | TBD      |
-| builtin                                     | TBD      |
-| bytes                                       | TBD      |
-| cmd/addr2line                               | TBD      |
-| cmd/api                                     | TBD      |
-| cmd/api/testdata/src/issue21181/dep         | TBD      |
-| cmd/api/testdata/src/issue21181/indirect    | TBD      |
-| cmd/api/testdata/src/issue21181/p           | TBD      |
-| cmd/api/testdata/src/pkg/p1                 | TBD      |
-| cmd/api/testdata/src/pkg/p2                 | TBD      |
-| cmd/api/testdata/src/pkg/p3                 | TBD      |
-| cmd/api/testdata/src/pkg/p4                 | TBD      |
-| cmd/asm                                     | TBD      |
-| cmd/buildid                                 | TBD      |
-| cmd/cgo                                     | TBD      |
-| cmd/compile                                 | TBD      |
-| cmd/covdata                                 | TBD      |
-| cmd/covdata/testdata                        | TBD      |
-| cmd/cover                                   | TBD      |
-| cmd/cover/testdata                          | TBD      |
-| cmd/cover/testdata/html                     | TBD      |
-| cmd/cover/testdata/pkgcfg/a                 | TBD      |
-| cmd/cover/testdata/pkgcfg/b                 | TBD      |
-| cmd/cover/testdata/pkgcfg/main              | TBD      |
-| cmd/dist                                    | TBD      |
-| cmd/distpack                                | TBD      |
-| cmd/doc                                     | TBD      |
-| cmd/doc/testdata                            | TBD      |
-| cmd/doc/testdata/merge                      | TBD      |
-| cmd/doc/testdata/nested                     | TBD      |
-| cmd/doc/testdata/nested/empty               | TBD      |
-| cmd/doc/testdata/nested/nested              | TBD      |
-| cmd/fix                                     | TBD      |
-| cmd/go                                      | TBD      |
-| cmd/gofmt                                   | TBD      |
-| cmd/go/testdata                             | TBD      |
-| cmd/link                                    | TBD      |
-| cmd/link/testdata/pe-binutils               | TBD      |
-| cmd/link/testdata/pe-llvm                   | TBD      |
-| cmd/link/testdata/testBuildFortvOS          | TBD      |
-| cmd/link/testdata/testHashedSyms            | TBD      |
-| cmd/link/testdata/testIndexMismatch         | TBD      |
-| cmd/link/testdata/testRO                    | TBD      |
-| cmd/nm                                      | TBD      |
-| cmd/objdump                                 | TBD      |
-| cmd/objdump/testdata                        | TBD      |
-| cmd/objdump/testdata/testfilenum            | TBD      |
-| cmd/pack                                    | TBD      |
-| cmd/pprof                                   | TBD      |
-| cmd/pprof/testdata                          | TBD      |
-| cmd/test2json                               | TBD      |
-| cmd/trace                                   | TBD      |
-| cmd/vet                                     | TBD      |
-| cmd/vet/testdata/asm                        | TBD      |
-| cmd/vet/testdata/assign                     | TBD      |
-| cmd/vet/testdata/atomic                     | TBD      |
-| cmd/vet/testdata/bool                       | TBD      |
-| cmd/vet/testdata/buildtag                   | TBD      |
-| cmd/vet/testdata/cgo                        | TBD      |
-| cmd/vet/testdata/composite                  | TBD      |
-| cmd/vet/testdata/copylock                   | TBD      |
-| cmd/vet/testdata/deadcode                   | TBD      |
-| cmd/vet/testdata/directive                  | TBD      |
-| cmd/vet/testdata/httpresponse               | TBD      |
-| cmd/vet/testdata/lostcancel                 | TBD      |
-| cmd/vet/testdata/method                     | TBD      |
-| cmd/vet/testdata/nilfunc                    | TBD      |
-| cmd/vet/testdata/print                      | TBD      |
-| cmd/vet/testdata/rangeloop                  | TBD      |
-| cmd/vet/testdata/shift                      | TBD      |
-| cmd/vet/testdata/structtag                  | TBD      |
-| cmd/vet/testdata/tagtest                    | TBD      |
-| cmd/vet/testdata/testingpkg                 | TBD      |
-| cmd/vet/testdata/unmarshal                  | TBD      |
-| cmd/vet/testdata/unsafeptr                  | TBD      |
-| cmd/vet/testdata/unused                     | TBD      |
-| compress/bzip2                              | TBD      |
-| compress/flate                              | TBD      |
-| compress/gzip                               | TBD      |
-| compress/lzw                                | TBD      |
-| compress/zlib                               | TBD      |
-| container/heap                              | TBD      |
-| container/list                              | TBD      |
-| container/ring                              | TBD      |
-| context                                     | TBD      |
-| crypto                                      | TBD      |
-| crypto/aes                                  | TBD      |
-| crypto/boring                               | TBD      |
-| crypto/cipher                               | TBD      |
-| crypto/des                                  | TBD      |
-| crypto/dsa                                  | TBD      |
-| crypto/ecdh                                 | TBD      |
-| crypto/ecdsa                                | TBD      |
-| crypto/ed25519                              | TBD      |
-| crypto/elliptic                             | TBD      |
-| crypto/hmac                                 | TBD      |
-| crypto/md5                                  | TBD      |
-| crypto/rand                                 | TBD      |
-| crypto/rc4                                  | TBD      |
-| crypto/rsa                                  | TBD      |
-| crypto/sha1                                 | TBD      |
-| crypto/sha256                               | TBD      |
-| crypto/sha512                               | TBD      |
-| crypto/subtle                               | TBD      |
-| crypto/tls                                  | TBD      |
-| crypto/tls/fipsonly                         | TBD      |
-| crypto/x509                                 | TBD      |
-| crypto/x509/pkix                            | TBD      |
-| database/sql                                | TBD      |
-| database/sql/driver                         | TBD      |
-| debug/buildinfo                             | TBD      |
-| debug/dwarf                                 | TBD      |
-| debug/elf                                   | TBD      |
-| debug/gosym                                 | TBD      |
-| debug/gosym/testdata                        | TBD      |
-| debug/macho                                 | TBD      |
-| debug/pe                                    | TBD      |
-| debug/plan9obj                              | TBD      |
-| embed                                       | TBD      |
-| encoding                                    | TBD      |
-| encoding/ascii85                            | TBD      |
-| encoding/asn1                               | TBD      |
-| encoding/base32                             | TBD      |
-| encoding/base64                             | TBD      |
-| encoding/binary                             | partial  |
-| encoding/csv                                | TBD      |
-| encoding/gob                                | TBD      |
-| encoding/hex                                | TBD      |
-| encoding/json                               | TBD      |
-| encoding/pem                                | TBD      |
-| encoding/xml                                | TBD      |
-| errors                                      | TBD      |
-| expvar                                      | TBD      |
-| flag                                        | TBD      |
-| fmt                                         | TBD      |
-| go/ast                                      | TBD      |
-| go/build                                    | TBD      |
-| go/build/constraint                         | TBD      |
-| go/build/testdata/alltags                   | TBD      |
-| go/build/testdata/cgo_disabled              | TBD      |
-| go/build/testdata/directives                | TBD      |
-| go/build/testdata/doc                       | TBD      |
-| go/build/testdata/multi                     | TBD      |
-| go/build/testdata/non_source_tags           | TBD      |
-| go/build/testdata/other                     | TBD      |
-| go/build/testdata/other/file                | TBD      |
-| go/constant                                 | TBD      |
-| go/doc                                      | TBD      |
-| go/doc/comment                              | TBD      |
-| go/doc/testdata                             | TBD      |
-| go/doc/testdata/examples                    | TBD      |
-| go/doc/testdata/pkgdoc                      | TBD      |
-| go/format                                   | TBD      |
-| go/importer                                 | TBD      |
-| go/parser                                   | TBD      |
-| go/parser/testdata/goversion                | TBD      |
-| go/parser/testdata/issue42951               | TBD      |
-| go/parser/testdata/issue42951/not_a_file.go | TBD      |
-| go/printer                                  | TBD      |
-| go/printer/testdata                         | TBD      |
-| go/scanner                                  | TBD      |
-| go/token                                    | TBD      |
-| go/types                                    | TBD      |
-| go/types/testdata                           | TBD      |
-| go/types/testdata/local                     | TBD      |
-| hash                                        | partial  |
-| hash/adler32                                | full     |
-| hash/crc32                                  | TBD      |
-| hash/crc64                                  | TBD      |
-| hash/fnv                                    | TBD      |
-| hash/maphash                                | TBD      |
-| html                                        | TBD      |
-| html/template                               | TBD      |
-| image                                       | TBD      |
-| image/color                                 | TBD      |
-| image/color/palette                         | TBD      |
-| image/draw                                  | TBD      |
-| image/gif                                   | TBD      |
-| image/jpeg                                  | TBD      |
-| image/png                                   | TBD      |
-| index/suffixarray                           | TBD      |
-| io                                          | TBD      |
-| io/fs                                       | TBD      |
-| io/ioutil                                   | TBD      |
-| log                                         | TBD      |
-| log/internal                                | TBD      |
-| log/slog                                    | TBD      |
-| log/slog/internal                           | TBD      |
-| log/syslog                                  | TBD      |
-| maps                                        | TBD      |
-| math                                        | partial  |
-| math/big                                    | TBD      |
-| math/bits                                   | TBD      |
-| math/cmplx                                  | TBD      |
-| math/rand                                   | TBD      |
-| mime                                        | TBD      |
-| mime/multipart                              | TBD      |
-| mime/quotedprintable                        | TBD      |
-| net                                         | TBD      |
-| net/http                                    | TBD      |
-| net/http/cgi                                | TBD      |
-| net/http/cookiejar                          | TBD      |
-| net/http/fcgi                               | TBD      |
-| net/http/httptest                           | TBD      |
-| net/http/httptrace                          | TBD      |
-| net/http/httputil                           | TBD      |
-| net/http/internal                           | TBD      |
-| net/http/pprof                              | TBD      |
-| net/mail                                    | TBD      |
-| net/netip                                   | TBD      |
-| net/rpc                                     | TBD      |
-| net/rpc/jsonrpc                             | TBD      |
-| net/smtp                                    | TBD      |
-| net/textproto                               | TBD      |
-| net/url                                     | full     |
-| os                                          | TBD      |
-| os/exec                                     | TBD      |
-| os/signal                                   | TBD      |
-| os/user                                     | TBD      |
-| path                                        | full     |
-| path/filepath                               | TBD      |
-| plugin                                      | TBD      |
-| reflect                                     | TBD      |
-| regexp                                      | TBD      |
-| regexp/syntax                               | TBD      |
-| runtime                                     | TBD      |
-| runtime/asan                                | TBD      |
-| runtime/cgo                                 | TBD      |
-| runtime/coverage                            | TBD      |
-| runtime/coverage/testdata                   | TBD      |
-| runtime/coverage/testdata/issue56006        | TBD      |
-| runtime/debug                               | TBD      |
-| runtime/metrics                             | TBD      |
-| runtime/msan                                | TBD      |
-| runtime/pprof                               | TBD      |
-| runtime/pprof/testdata/mappingtest          | TBD      |
-| runtime/race                                | TBD      |
-| runtime/race/testdata                       | TBD      |
-| runtime/testdata/testexithooks              | TBD      |
-| runtime/testdata/testfaketime               | TBD      |
-| runtime/testdata/testprog                   | TBD      |
-| runtime/testdata/testprogcgo                | TBD      |
-| runtime/testdata/testprogcgo/windows        | TBD      |
-| runtime/testdata/testprognet                | TBD      |
-| runtime/testdata/testwinlib                 | TBD      |
-| runtime/testdata/testwinlibsignal           | TBD      |
-| runtime/testdata/testwinlibthrow            | TBD      |
-| runtime/testdata/testwinsignal              | TBD      |
-| runtime/trace                               | TBD      |
-| slices                                      | TBD      |
-| sort                                        | TBD      |
-| strconv                                     | TBD      |
-| strings                                     | TBD      |
-| sync                                        | TBD      |
-| sync/atomic                                 | TBD      |
-| syscall                                     | TBD      |
-| syscall/js                                  | TBD      |
-| testing                                     | TBD      |
-| testing/fstest                              | TBD      |
-| testing/iotest                              | TBD      |
-| testing/quick                               | TBD      |
-| text/scanner                                | TBD      |
-| text/tabwriter                              | TBD      |
-| text/template                               | TBD      |
-| text/template/parse                         | TBD      |
-| time                                        | TBD      |
-| time/tzdata                                 | TBD      |
-| unicode                                     | TBD      |
-| unicode/utf16                               | TBD      |
-| unicode/utf8                                | TBD      |
-| unsafe                                      | TBD      |
+| archive/tar                                 | `tbd`    |
+| archive/zip                                 | `tbd`    |
+| arena                                       | `improb` |
+| bufio                                       | `full`   |
+| builtin                                     | `full`[^1] |
+| bytes                                       | `full`   |
+| cmd/\*                                      | `cmd`    |
+| compress/bzip2                              | `tbd`    |
+| compress/flate                              | `tbd`    |
+| compress/gzip                               | `tbd`    |
+| compress/lzw                                | `tbd`    |
+| compress/zlib                               | `tbd`    |
+| container/heap                              | `tbd`    |
+| container/list                              | `tbd`    |
+| container/ring                              | `tbd`    |
+| context                                     | `tbd`    |
+| crypto                                      | `todo`   |
+| crypto/aes                                  | `todo`   |
+| crypto/boring                               | `tbd`    |
+| crypto/cipher                               | `part`   |
+| crypto/des                                  | `tbd`    |
+| crypto/dsa                                  | `tbd`    |
+| crypto/ecdh                                 | `tbd`    |
+| crypto/ecdsa                                | `tbd`    |
+| crypto/ed25519                              | `tbd`    |
+| crypto/elliptic                             | `tbd`    |
+| crypto/hmac                                 | `todo`   |
+| crypto/md5                                  | `test`[^2] |
+| crypto/rand                                 | `nondet` |
+| crypto/rc4                                  | `tbd`    |
+| crypto/rsa                                  | `tbd`    |
+| crypto/sha1                                 | `test`[^2] |
+| crypto/sha256                               | `part`[^3] |
+| crypto/sha512                               | `tbd`    |
+| crypto/subtle                               | `tbd`    |
+| crypto/tls                                  | `nondet` |
+| crypto/tls/fipsonly                         | `nondet` |
+| crypto/x509                                 | `tbd`    |
+| crypto/x509/pkix                            | `tbd`    |
+| database/sql                                | `nondet` |
+| database/sql/driver                         | `nondet` |
+| debug/buildinfo                             | `gospec` |
+| debug/dwarf                                 | `gospec` |
+| debug/elf                                   | `gospec` |
+| debug/gosym                                 | `gospec` |
+| debug/macho                                 | `gospec` |
+| debug/pe                                    | `gospec` |
+| debug/plan9obj                              | `gospec` |
+| embed                                       | `tbd`    |
+| encoding                                    | `full`   |
+| encoding/ascii85                            | `todo`   |
+| encoding/asn1                               | `todo`   |
+| encoding/base32                             | `todo`   |
+| encoding/base64                             | `full`   |
+| encoding/binary                             | `part`   |
+| encoding/csv                                | `todo`   |
+| encoding/gob                                | `tbd`    |
+| encoding/hex                                | `full`   |
+| encoding/json                               | `todo`   |
+| encoding/pem                                | `todo`   |
+| encoding/xml                                | `todo`   |
+| errors                                      | `part`   |
+| expvar                                      | `tbd`    |
+| flag                                        | `nondet` |
+| fmt                                         | `test`[^4] |
+| go/ast                                      | `gospec` |
+| go/build                                    | `gospec` |
+| go/build/constraint                         | `gospec` |
+| go/constant                                 | `gospec` |
+| go/doc                                      | `gospec` |
+| go/doc/comment                              | `gospec` |
+| go/format                                   | `gospec` |
+| go/importer                                 | `gospec` |
+| go/parser                                   | `gospec` |
+| go/printer                                  | `gospec` |
+| go/scanner                                  | `gospec` |
+| go/token                                    | `gospec` |
+| go/types                                    | `gospec` |
+| hash                                        | `full`   |
+| hash/adler32                                | `full`   |
+| hash/crc32                                  | `todo`   |
+| hash/crc64                                  | `todo`   |
+| hash/fnv                                    | `todo`   |
+| hash/maphash                                | `todo`   |
+| html                                        | `todo`   |
+| html/template                               | `todo`   |
+| image                                       | `tbd`    |
+| image/color                                 | `tbd`    |
+| image/color/palette                         | `tbd`    |
+| image/draw                                  | `tbd`    |
+| image/gif                                   | `tbd`    |
+| image/jpeg                                  | `tbd`    |
+| image/png                                   | `tbd`    |
+| index/suffixarray                           | `tbd`    |
+| io                                          | `full`   |
+| io/fs                                       | `tbd`    |
+| io/ioutil                                   | removed[^5] |
+| log                                         | `tbd`    |
+| log/slog                                    | `tbd`    |
+| log/syslog                                  | `nondet` |
+| maps                                        | `gnics`  |
+| math                                        | `part`   |
+| math/big                                    | `tbd`    |
+| math/bits                                   | `todo`   |
+| math/cmplx                                  | `tbd`    |
+| math/rand                                   | `todo`   |
+| mime                                        | `tbd`    |
+| mime/multipart                              | `tbd`    |
+| mime/quotedprintable                        | `tbd`    |
+| net                                         | `nondet` |
+| net/http                                    | `nondet` |
+| net/http/cgi                                | `nondet` |
+| net/http/cookiejar                          | `nondet` |
+| net/http/fcgi                               | `nondet` |
+| net/http/httptest                           | `nondet` |
+| net/http/httptrace                          | `nondet` |
+| net/http/httputil                           | `nondet` |
+| net/http/internal                           | `nondet` |
+| net/http/pprof                              | `nondet` |
+| net/mail                                    | `nondet` |
+| net/netip                                   | `nondet` |
+| net/rpc                                     | `nondet` |
+| net/rpc/jsonrpc                             | `nondet` |
+| net/smtp                                    | `nondet` |
+| net/textproto                               | `nondet` |
+| net/url                                     | `full`   |
+| os                                          | `nondet` |
+| os/exec                                     | `nondet` |
+| os/signal                                   | `nondet` |
+| os/user                                     | `nondet` |
+| path                                        | `full`   |
+| path/filepath                               | `nondet` |
+| plugin                                      | `nondet` |
+| reflect                                     | `todo`   |
+| regexp                                      | `full`   |
+| regexp/syntax                               | `full`   |
+| runtime                                     | `gospec` |
+| runtime/asan                                | `gospec` |
+| runtime/cgo                                 | `gospec` |
+| runtime/coverage                            | `gospec` |
+| runtime/debug                               | `gospec` |
+| runtime/metrics                             | `gospec` |
+| runtime/msan                                | `gospec` |
+| runtime/pprof                               | `gospec` |
+| runtime/race                                | `gospec` |
+| runtime/trace                               | `gospec` |
+| slices                                      | `gnics`  |
+| sort                                        | `part`[^6] |
+| strconv                                     | `part`   |
+| strings                                     | `full`   |
+| sync                                        | `tbd`    |
+| sync/atomic                                 | `tbd`    |
+| syscall                                     | `nondet` |
+| syscall/js                                  | `nondet` |
+| testing                                     | `part`   |
+| testing/fstest                              | `tbd`    |
+| testing/iotest                              | `tbd`    |
+| testing/quick                               | `tbd`    |
+| text/scanner                                | `todo`   |
+| text/tabwriter                              | `todo`   |
+| text/template                               | `todo`   |
+| text/template/parse                         | `todo`   |
+| time                                        | `full`[^7] |
+| time/tzdata                                 | `tbd`    |
+| unicode                                     | `full`   |
+| unicode/utf16                               | `tbd`    |
+| unicode/utf8                                | `full`   |
+| unsafe                                      | `nondet` |
 
-
+[^1]: `builtin` is a "fake" package that exists to document the behaviour of
+  some builtin functions. The "fake" package does not currently exist in Gno,
+  but [all functions up to Go 1.17 exist](https://pkg.go.dev/builtin@go1.17),
+  except for those relating to complex or channel types.
+[^2]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
+  algorithms, widely considered unsafe for cryptographic hashing. Decision on
+  whether to include these as part of the official standard libraries is still
+  pending.
+[^3]: `crypto/sha256` is currently only implemented for `Sum256`, which should
+  still cover a majority of use cases. A full implementation is welcome.
+[^4]: like many other encoding packages, `fmt` depends on `reflect` to be added.
+  For now, package `gno.land/p/demo/ufmt` may do what you need. In test
+  functions, `fmt` works.
+[^5]: `io/ioutil` [is deprecated in Go.](https://pkg.go.dev/io/ioutil)
+  Its functionality has been moved to packages `os` and `io`. The functions
+  which have been moved in `io` are implemented in that package.
+[^6]: `sort` has the notable omission of `sort.Slice`. You'll need to write a
+  bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`!
+[^7]: `time.Now` returns the block time rather than the system time, for
+  determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
 
 ## Tooling (`gno` binary)
 
@@ -353,15 +289,16 @@ Additional native types:
 | go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
 | go env            |                  |                                                                       |
 | go fix            |                  |                                                                       |
-| go fmt            |                  |                                                                       |
+| go fmt            |                  | gofmt (& similar tools, like gofumpt) works on gno code.              |
 | go generate       |                  |                                                                       |
-| go get            |                  |                                                                       |
-| go help           |                  |                                                                       |
+| go get            |                  | see `gno mod download`.                                               |
+| go help           | gno $cmd --help  | ie. `gno doc --help`                                                  |
 | go install        |                  |                                                                       |
 | go list           |                  |                                                                       |
-| go mod            |                  |                                                                       |
-| + go mod download | gno mod download | same behavior                                                         |
+| go mod            | gno mod          |                                                                       |
 | + go mod init     | gno mod init     | same behavior                                                         |
+| + go mod download | gno mod download | same behavior                                                         |
+| + go mod tidy     | gno mod tidy     | same behavior                                                         |
 |                   | gno precompile   |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
