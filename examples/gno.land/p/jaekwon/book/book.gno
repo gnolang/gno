@@ -4,8 +4,12 @@ package book
 
 GOALS:
 
-1. Create a Book (aka List) of text,
+0. Define Action, Actor, Object.
+
+1.a Create a Book (aka List) of text,
    that is owned by a Book of Actors.
+
+1.b Create ActionBook.
 
 2. Allow a Book of Actors to split/fork.
 
@@ -14,22 +18,6 @@ GOALS:
 */
 
 // TODO use this for Tiers.
-// XXX open questions
-// * Do we want a directory?
-// * Should action memoize object/subject/args?
-// * Should args be interface{}?
-//   - NOTE: Amino *can* encode almost anything registered.
-//   - XXX: could one pass in a pointer ref as arg?
-//     - not without a directory, conflicts with GC system.
-//     - with directory, any ObjectID() can be looked up.
-//   - PRO: less duplicate string conversion work
-//   - PRO: more flexible
-//   - CON: args are mutable, potentially confusing.
-//     - object/subject *should* be mutable.
-//   - CON: malleability becomes user problem.
-//     - so how do you sign an object? SignBytes()?
-//   - CON: requires some reflection call system.
-//
 
 import "gno.land/p/demo/avl"
 
@@ -41,59 +29,23 @@ func main() {
 	directory := NewDirectory("test")
 	// action to perform.
 	action := Action{}
-
-	//----------------------------------------
-	// CASES
-	// Here are some usage examples.
-	// For simplicity all methods panic on error.
-
-	// CASE 1A: dummy "priv" account.
-	// Access to privAccount is like access to priv keys.
-	privAccount.AppendAction(action)
-	directory.Get(action.object).Receive(action)
-
-	// CASE 1B: ActionReceiveer with no signing
-	// This is just a wrapper around CASE 1A.
-	ar := ActionReceiveer(directory)
-	sar.ReceiveBy(action, privAccount)
-	// sar.ReceiveBy() impl:
-	//   privAccount.AppendAction(action)
-	//   ar.dir.GetObject(action.object).Receive(action)
-
-	// CASE 2A: public crypto key account.
-	// NOTE: This is NOT secure because
-	// anyone can call account.Authenticate(),
-	// but not anyone would complete the tx.
-	privKey := _ // imagine we have the key
-	signed := SignAction(action, privKey)
-	account.Authenticate(signed)
-	directory.Get(action.object).Receive(action)
-
-	// CASE 2B: SignedActionReceiveer
-	// SignedActionReceiveer embeds an ActionReceiveer.
-	sar := SignedActionReceiveer()
-	sar.Receive(signed)
-	// sar.Receive() impl:
-	//   signed.subject.Authenticate(signed)
-	//   sar.dir.GetObject(action.object).Receive(action)
+	// XXX
 }
 
 //----------------------------------------
 // Book
 
+// A Book is a basic data structure.
+// It is like a linked list, but indexable from 0.
+// XXX XXX how to do this w/ avl.Tree?
+// TODO book merges?
+// TODO flesh out book.
 type Book struct {
 	attrs   Attributes
 	entries avl.Tree
 }
 
 var _ Object = &Book{}
-
-func (bk *Book) ReceiveFrom(action *Action, actor Actor) {
-	// XXX how does Book know
-	// XXX whether actor authenticated it?
-	// XXX
-	XXX
-}
 
 func (bk *Book) Append(XXX) XXX {
 	XXX
@@ -110,25 +62,26 @@ func (bk *Book) Get(n int) XXX {
 //----------------------------------------
 // PrivActionBook
 
-// This is a thought experiment to make books work for auth.
-// Actions are considered authorized if appended in PrivActionBook.
+// This is a thought experiment to make books work for
+// auth.  Actions are considered authorized if appended in
+// PrivActionBook.
 //
-// An PrivActionBook is meant to be owned privately by the object.
-// This is similar to PrivKey in crypto; it is privileged.
+// An PrivActionBook is meant to be owned privately by the
+// object.  This is similar to PrivKey in crypto; it is
+// privileged.
 //
 // Actions need not necessarily be signed cryptographically
-// to be authenticated in an PrivActionBook, because the test of
-// authorization is merely inclusion.
+// to be authenticated in an PrivActionBook, because the
+// test of authorization is merely inclusion.
 //
-// XXX consider:
+// TODO implement:
 // type CryptoActionBook struct { PubKey, PrivActionBook }
 // A CryptoActionBook need not be privileged,
 // perhaps anyone can append a signed action,
-// XXX but how to guarantee execution?
-// XXX without something like `Everything.Execute(Action)`??
 //
-// XXX consider:
-// type ReadActionBook, a readonly ActionBook??
+// Also, PrivActionBook.
+// Also, ReadActionBook.
+// All of these are backed by the same underlying "book".
 type PrivActionBook struct {
 
 	// All actions must have this object.

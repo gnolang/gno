@@ -87,7 +87,7 @@ type Object interface {
 	std.Addressable
 	// Receive performs action on self.
 	// Returns an error if action is not permitted.
-	ReceiveFrom(*Action, Actor) error
+	ReceiveAction(*Action, Actor) error
 }
 
 //----------------------------------------
@@ -148,16 +148,18 @@ func Perform(dir Directory, action Action) (err error) {
 		return
 	}
 	// Set status as pending.
+	// (action.status == new)
 	action.setPending()
-	// Let object handle action.
 	// (action.status == pending)
-	err = object.ReceiveFrom(action, actor)
+	// Let object handle action.
+	err = object.ReceiveAction(action, actor)
 	if err != nil {
 		return
 	}
 	// (action.status == pending|received)
 	// Set status as complete.
 	action.setComplete()
+	// (action.status == complete)
 
 	return nil
 }
