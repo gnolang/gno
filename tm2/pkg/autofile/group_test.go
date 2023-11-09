@@ -47,6 +47,8 @@ func assertGroupInfo(t *testing.T, gInfo GroupInfo, minIndex, maxIndex int, tota
 }
 
 func TestCheckHeadSizeLimit(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 1000*1000)
 
 	// At first, there are no files.
@@ -93,6 +95,8 @@ func TestCheckHeadSizeLimit(t *testing.T) {
 }
 
 func TestRotateFile(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 	g.WriteLine("Line 1")
 	g.WriteLine("Line 2")
@@ -123,6 +127,8 @@ func TestRotateFile(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 
 	written := []byte("Medusa")
@@ -144,6 +150,8 @@ func TestWrite(t *testing.T) {
 // test that Read reads the required amount of bytes from all the files in the
 // group and returns no error if n == size of the given slice.
 func TestGroupReaderRead(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 
 	professor := []byte("Professor Monster")
@@ -173,6 +181,8 @@ func TestGroupReaderRead(t *testing.T) {
 // test that Read returns an error if number of bytes read < size of
 // the given slice. Subsequent call should return 0, io.EOF.
 func TestGroupReaderRead2(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 
 	professor := []byte("Professor Monster")
@@ -204,6 +214,8 @@ func TestGroupReaderRead2(t *testing.T) {
 }
 
 func TestMinIndex(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 
 	assert.Zero(t, g.MinIndex(), "MinIndex should be zero at the beginning")
@@ -213,6 +225,8 @@ func TestMinIndex(t *testing.T) {
 }
 
 func TestMaxIndex(t *testing.T) {
+	t.Parallel()
+
 	g := createTestGroupWithHeadSizeLimit(t, 0)
 
 	assert.Zero(t, g.MaxIndex(), "MaxIndex should be zero at the beginning")

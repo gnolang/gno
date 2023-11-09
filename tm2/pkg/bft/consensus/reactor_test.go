@@ -86,6 +86,8 @@ func stopConsensusNet(logger log.Logger, reactors []*ConsensusReactor, eventSwit
 
 // Ensure a testnet makes blocks
 func TestReactorBasic(t *testing.T) {
+	t.Parallel()
+
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
@@ -101,6 +103,8 @@ func TestReactorBasic(t *testing.T) {
 
 // Ensure a testnet makes blocks when there are txs
 func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
+	t.Parallel()
+
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter,
 		func(c *cfg.Config) {
@@ -122,6 +126,8 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 }
 
 func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
+	t.Parallel()
+
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
@@ -144,6 +150,8 @@ func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
 }
 
 func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
+	t.Parallel()
+
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
@@ -166,6 +174,8 @@ func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
 
 // Test we record stats about votes and block parts from other peers.
 func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	N := 4
@@ -192,6 +202,8 @@ func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
 // ensure we can make blocks despite cycling a validator set
 
 func TestReactorVotingPowerChange(t *testing.T) {
+	t.Parallel()
+
 	nVals := 4
 	logger := log.TestingLogger()
 	css, cleanup := randConsensusNet(nVals, "consensus_voting_power_changes_test", newMockTickerFunc(true), newPersistentKVStore)
@@ -254,6 +266,8 @@ func TestReactorVotingPowerChange(t *testing.T) {
 }
 
 func TestReactorValidatorSetChanges(t *testing.T) {
+	t.Parallel()
+
 	nPeers := 7
 	nVals := 4
 	css, _, _, cleanup := randConsensusNetWithPeers(nVals, nPeers, "consensus_val_set_changes_test", newMockTickerFunc(true), newPersistentKVStoreWithPath)
@@ -350,6 +364,8 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 
 // Check we can make blocks with skip_timeout_commit=false
 func TestReactorWithTimeoutCommit(t *testing.T) {
+	t.Parallel()
+
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newCounter)
 	defer cleanup()
@@ -510,6 +526,8 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 // Ensure basic validation of structs is functioning
 
 func TestNewRoundStepMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName               string
 		messageHeight          int64
@@ -529,6 +547,8 @@ func TestNewRoundStepMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			message := NewRoundStepMessage{
 				Height:          tc.messageHeight,
 				Round:           tc.messageRound,
@@ -542,6 +562,8 @@ func TestNewRoundStepMessageValidateBasic(t *testing.T) {
 }
 
 func TestNewValidBlockMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		malleateFn func(*NewValidBlockMessage)
 		expErr     string
@@ -569,6 +591,8 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			t.Parallel()
+
 			msg := &NewValidBlockMessage{
 				Height: 1,
 				Round:  0,
@@ -588,6 +612,8 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 }
 
 func TestProposalPOLMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		malleateFn func(*ProposalPOLMessage)
 		expErr     string
@@ -605,6 +631,8 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			t.Parallel()
+
 			msg := &ProposalPOLMessage{
 				Height:           1,
 				ProposalPOLRound: 1,
@@ -621,6 +649,8 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 }
 
 func TestBlockPartMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testPart := new(types.Part)
 	testPart.Proof.LeafHash = tmhash.Sum([]byte("leaf"))
 	testCases := []struct {
@@ -638,6 +668,8 @@ func TestBlockPartMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			message := BlockPartMessage{
 				Height: tc.messageHeight,
 				Round:  tc.messageRound,
@@ -655,6 +687,8 @@ func TestBlockPartMessageValidateBasic(t *testing.T) {
 }
 
 func TestHasVoteMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	const (
 		validSignedMsgType   types.SignedMsgType = 0x01
 		invalidSignedMsgType types.SignedMsgType = 0x03
@@ -678,6 +712,8 @@ func TestHasVoteMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			message := HasVoteMessage{
 				Height: tc.messageHeight,
 				Round:  tc.messageRound,
@@ -691,6 +727,8 @@ func TestHasVoteMessageValidateBasic(t *testing.T) {
 }
 
 func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	const (
 		validSignedMsgType   types.SignedMsgType = 0x01
 		invalidSignedMsgType types.SignedMsgType = 0x03
@@ -723,6 +761,8 @@ func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			message := VoteSetMaj23Message{
 				Height:  tc.messageHeight,
 				Round:   tc.messageRound,
@@ -736,6 +776,8 @@ func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
 }
 
 func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct { //nolint: maligned
 		malleateFn func(*VoteSetBitsMessage)
 		expErr     string
@@ -762,6 +804,8 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			t.Parallel()
+
 			msg := &VoteSetBitsMessage{
 				Height:  1,
 				Round:   0,

@@ -47,7 +47,7 @@ func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
-func newPrecompileCmd(io *commands.IO) *commands.Command {
+func newPrecompileCmd(io commands.IO) *commands.Command {
 	cfg := &precompileCfg{}
 
 	return commands.NewCommand(
@@ -107,7 +107,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
+func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}

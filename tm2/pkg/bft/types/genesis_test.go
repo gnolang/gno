@@ -1,7 +1,6 @@
 package types
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -15,6 +14,8 @@ import (
 )
 
 func TestGenesisBad(t *testing.T) {
+	t.Parallel()
+
 	// test some bad ones from raw json
 	testCases := [][]byte{
 		{},              // empty
@@ -38,6 +39,8 @@ func TestGenesisBad(t *testing.T) {
 }
 
 func TestGenesisGood(t *testing.T) {
+	t.Parallel()
+
 	// test a good one by raw json
 	genDocBytes := []byte(`{"genesis_time":"0001-01-01T00:00:00Z","chain_id":"test-chain-QDKdJr","consensus_params":null,"validators":[{"pub_key":{"@type":"/tm.PubKeyEd25519","value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="},"power":"10","name":""}],"app_hash":"","app_state":{"@type":"/tm.MockAppState","account_owner":"Bob"}}`)
 	_, err := GenesisDocFromJSON(genDocBytes)
@@ -88,7 +91,9 @@ func TestGenesisGood(t *testing.T) {
 }
 
 func TestGenesisSaveAs(t *testing.T) {
-	tmpfile, err := ioutil.TempFile("", "genesis")
+	t.Parallel()
+
+	tmpfile, err := os.CreateTemp("", "genesis")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 
@@ -115,6 +120,8 @@ func TestGenesisSaveAs(t *testing.T) {
 }
 
 func TestGenesisValidatorHash(t *testing.T) {
+	t.Parallel()
+
 	genDoc := randomGenesisDoc()
 	assert.NotEmpty(t, genDoc.ValidatorHash())
 }

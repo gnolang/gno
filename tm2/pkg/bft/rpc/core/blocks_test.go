@@ -8,6 +8,8 @@ import (
 )
 
 func TestBlockchainInfo(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		min, max     int64
 		height       int64

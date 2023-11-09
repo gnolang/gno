@@ -440,18 +440,6 @@ var (
 	precs = [][]string{prec1, prec2, prec3, prec4, prec5}
 )
 
-// 0 for prec1... -1 if no match.
-func lowestMatch(op string) int {
-	for i, prec := range precs {
-		for _, op2 := range prec {
-			if op == op2 {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
 func Ss(b ...Stmt) []Stmt {
 	return b
 }

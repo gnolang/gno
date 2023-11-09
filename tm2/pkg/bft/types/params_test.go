@@ -16,6 +16,8 @@ var (
 )
 
 func TestConsensusParamsValidation(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		params abci.ConsensusParams
 		valid  bool
@@ -63,6 +65,8 @@ func makeParams(
 }
 
 func TestConsensusParamsHash(t *testing.T) {
+	t.Parallel()
+
 	params := []abci.ConsensusParams{
 		makeParams(4, 1024, 2, 10, valEd25519),
 		makeParams(1, 1024, 4, 10, valEd25519),
@@ -90,6 +94,8 @@ func TestConsensusParamsHash(t *testing.T) {
 }
 
 func TestConsensusParamsUpdate(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		params        abci.ConsensusParams
 		updates       abci.ConsensusParams
