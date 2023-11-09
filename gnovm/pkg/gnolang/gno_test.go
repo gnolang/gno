@@ -35,6 +35,40 @@ func main() {
 	m.RunMain()
 }
 
+func TestIntegerBaseConversion(t *testing.T) {
+	m := NewMachine("p", nil)
+	c := `package p
+func main() {
+	vals := []int{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 42, 12345,
+
+		00, 01, 07, 007, 010, 012345, 02001,
+		000, 001, 007, 0007, 0010, 0012345, 002001,
+		0o1, 0o2, 0o3, 0o4, 0o5, 0o6, 0o7,
+		0o10, 0o12, 0o12345, 0o2001,
+		0O1, 0O2, 0O3, 0O4, 0O5, 0O6, 0O7,
+		0O10, 0O12, 0O12345, 0O2001,
+
+		0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+		0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd,
+		0xbeefcafe, 0Xbeefcafe, 0xBeEfCaFe, 0XBeEfCaFe, 0xbEeFcAfE, 0xC0FFEE,
+
+		0b0, 0b1, 0b10, 0b11, 0b100, 0b101,
+		0b110, 0b111, 0b1000, 0b1001, 0b1010,
+		0b1011, 0b1100, 0b1101, 0b1111,
+		0B0, 0B1, 0B10, 0B11, 0B100, 0B101,
+		0B110, 0B111, 0B1000, 0B1001, 0B1010,
+	}
+
+	for _, v := range vals {
+		println(v)
+	}
+}`
+
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+}
+
 func TestEval(t *testing.T) {
 	m := NewMachine("test", nil)
 	c := `package test

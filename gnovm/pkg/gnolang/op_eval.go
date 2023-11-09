@@ -47,8 +47,8 @@ func (m *Machine) doOpEval() {
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			if len(x.Value) > 2 && x.Value[0] == '0' {
-				var ok bool = false
+			var ok bool
+			if len(x.Value) >= 2 && x.Value[0] == '0' {
 				switch x.Value[1] {
 				case 'b', 'B':
 					_, ok = bi.SetString(x.Value[2:], 2)
