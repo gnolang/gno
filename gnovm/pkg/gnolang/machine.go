@@ -407,7 +407,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			notBaseName  = fn.PkgName != m.Package.PkgName
 		)
 
-		if notEmptyName && notBaseName  {
+		if notEmptyName && notBaseName {
 			panic(fmt.Sprintf("expected package name [%s] but got [%s]",
 				m.Package.PkgName, fn.PkgName))
 		}

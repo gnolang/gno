@@ -360,7 +360,7 @@ func gnoTestPkg(
 
 			m := tests.TestMachine(testStore, stdout, testPkgName)
 
-			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames()) + 1)
+			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames())+1)
 			for _, f := range memPkg.Files {
 				for _, ifileName := range ifiles.FileNames() {
 					if f.Name == "gno.mod" || f.Name == ifileName {
