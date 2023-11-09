@@ -15,7 +15,7 @@ import (
 var errNoOutputFile = errors.New("no output file path specified")
 
 // newTxsExportCmd creates the genesis txs export subcommand
-func newTxsExportCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
+func newTxsExportCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "export",
@@ -30,7 +30,7 @@ func newTxsExportCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 	)
 }
 
-func execTxsExport(cfg *txsCfg, io *commands.IO, args []string) error {
+func execTxsExport(cfg *txsCfg, io commands.IO, args []string) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {

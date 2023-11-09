@@ -140,6 +140,8 @@ const (
 )
 
 func TestReactorBroadcastTxMessage(t *testing.T) {
+	t.Parallel()
+
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := p2pcfg.TestP2PConfig()
 	const N = 4
@@ -162,6 +164,8 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 }
 
 func TestReactorNoBroadcastToSender(t *testing.T) {
+	t.Parallel()
+
 	mconfig := memcfg.TestMempoolConfig()
 	pconfig := p2pcfg.TestP2PConfig()
 	const N = 2
@@ -179,6 +183,8 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 }
 
 func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	if testing.Short() {
@@ -205,6 +211,8 @@ func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 }
 
 func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	if testing.Short() {
@@ -227,6 +235,8 @@ func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 }
 
 func TestMempoolIDsBasic(t *testing.T) {
+	t.Parallel()
+
 	ids := newMempoolIDs()
 
 	peer := mock.NewPeer(net.IP{127, 0, 0, 1})
@@ -241,6 +251,8 @@ func TestMempoolIDsBasic(t *testing.T) {
 }
 
 func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
+	t.Parallel()
+
 	if testing.Short() {
 		return
 	}

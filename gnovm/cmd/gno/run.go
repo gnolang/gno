@@ -20,7 +20,7 @@ type runCfg struct {
 	expr    string
 }
 
-func newRunCmd(io *commands.IO) *commands.Command {
+func newRunCmd(io commands.IO) *commands.Command {
 	cfg := &runCfg{}
 
 	return commands.NewCommand(
@@ -59,7 +59,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execRun(cfg *runCfg, args []string, io *commands.IO) error {
+func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
 	}
@@ -68,9 +68,9 @@ func execRun(cfg *runCfg, args []string, io *commands.IO) error {
 		cfg.rootDir = guessRootDir()
 	}
 
-	stdin := io.In
-	stdout := io.Out
-	stderr := io.Err
+	stdin := io.In()
+	stdout := io.Out()
+	stderr := io.Err()
 
 	// init store and machine
 	testStore := tests.TestStore(cfg.rootDir,

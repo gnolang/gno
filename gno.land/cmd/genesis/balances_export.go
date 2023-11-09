@@ -11,7 +11,7 @@ import (
 )
 
 // newBalancesExportCmd creates the genesis balances export subcommand
-func newBalancesExportCmd(balancesCfg *balancesCfg, io *commands.IO) *commands.Command {
+func newBalancesExportCmd(balancesCfg *balancesCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "export",
@@ -26,7 +26,7 @@ func newBalancesExportCmd(balancesCfg *balancesCfg, io *commands.IO) *commands.C
 	)
 }
 
-func execBalancesExport(cfg *balancesCfg, io *commands.IO, args []string) error {
+func execBalancesExport(cfg *balancesCfg, io commands.IO, args []string) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {

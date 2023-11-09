@@ -28,7 +28,7 @@ type validatorAddCfg struct {
 }
 
 // newValidatorAddCmd creates the genesis validator add subcommand
-func newValidatorAddCmd(validatorCfg *validatorCfg, io *commands.IO) *commands.Command {
+func newValidatorAddCmd(validatorCfg *validatorCfg, io commands.IO) *commands.Command {
 	cfg := &validatorAddCfg{
 		rootCfg: validatorCfg,
 	}
@@ -69,7 +69,7 @@ func (c *validatorAddCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execValidatorAdd(cfg *validatorAddCfg, io *commands.IO) error {
+func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {

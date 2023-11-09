@@ -13,7 +13,7 @@ import (
 var errValidatorNotPresent = errors.New("validator not present in genesis.json")
 
 // newValidatorRemoveCmd creates the genesis validator remove subcommand
-func newValidatorRemoveCmd(rootCfg *validatorCfg, io *commands.IO) *commands.Command {
+func newValidatorRemoveCmd(rootCfg *validatorCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "remove",
@@ -27,7 +27,7 @@ func newValidatorRemoveCmd(rootCfg *validatorCfg, io *commands.IO) *commands.Com
 	)
 }
 
-func execValidatorRemove(cfg *validatorCfg, io *commands.IO) error {
+func execValidatorRemove(cfg *validatorCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {
