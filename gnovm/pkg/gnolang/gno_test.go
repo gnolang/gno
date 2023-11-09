@@ -67,6 +67,7 @@ func main() {
 
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
+	m.RunMain()
 }
 
 func TestEval(t *testing.T) {
