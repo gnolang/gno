@@ -61,7 +61,7 @@ func execGenerate(cfg *generateCfg, args []string, io *commands.IO) error {
 			return err
 		}
 		if len(inputEntropy) < 43 {
-			return fmt.Errorf("256-bits is 43 characters in Base-64, and 100 in Base-6. You entered %v, and probably want more", len(inputEntropy))
+			return fmt.Errorf("256-bits is 43 characters in Base-64, and 100 in Base-6. You entered %d, and probably want more", len(inputEntropy))
 		}
 		conf, err := io.GetConfirmation(
 			fmt.Sprintf("Input length: %d", len(inputEntropy)),
