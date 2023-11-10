@@ -10,7 +10,7 @@ import (
 
 var (
 	// wugnot is the admin token, able to mint and burn.
-	wugnot *grc20.AdminToken = grc20.NewAdminToken("wrapped GNOT", "wugnot", 6)
+	wugnot *grc20.AdminToken = grc20.NewAdminToken("wrapped GNOT", "wugnot", 0)
 	// WUGNOT is the banker usable by users directly.
 	WUGNOT = wugnot.GRC20()
 )
@@ -54,9 +54,26 @@ func Withdraw(amount uint64) {
 	wugnot.Burn(caller, amount)
 }
 
-// XXX: WithdrawFrom
+// render.
+//
 
-// XXX: add the helper to create a dedicated banker module from another contract (depends unmerged PRs).
+func Render(path string) string {
+	parts := strings.Split(path, "/")
+	c := len(parts)
+
+	switch {
+	case path == "":
+		return wugnot.RenderHome()
+	case c == 2 && parts[0] == "balance":
+		owner := std.Address(parts[1])
+		balance, _ := wugnot.BalanceOf(owner)
+		return ufmt.Sprintf("%d\n", balance)
+	default:
+		return "404\n"
+	}
+}
+
+// XXX: if we could call WUGNOT.XXX instead of XXX from gnokey, then, all the following lines would not be needed.
 
 // direct getters.
 // XXX: remove them in favor of q_call wugnot.XXX
@@ -105,24 +122,5 @@ func TransferFrom(from, to std.Address, amount uint64) {
 	err := wugnot.TransferFrom(caller, from, to, amount)
 	if err != nil {
 		panic(err)
-	}
-}
-
-// render.
-//
-
-func Render(path string) string {
-	parts := strings.Split(path, "/")
-	c := len(parts)
-
-	switch {
-	case path == "":
-		return wugnot.RenderHome()
-	case c == 2 && parts[0] == "balance":
-		owner := std.Address(parts[1])
-		balance, _ := wugnot.BalanceOf(owner)
-		return ufmt.Sprintf("%d\n", balance)
-	default:
-		return "404\n"
 	}
 }

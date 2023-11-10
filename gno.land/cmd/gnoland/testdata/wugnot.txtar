@@ -2,7 +2,7 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '# wrapped GNOT \(\$wugnot\)'
-stdout 'Decimals..: 6'
+stdout 'Decimals..: 0'
 stdout 'Total supply..: 0'
 stdout 'Known accounts..: 0'
 stdout 'OK!'
