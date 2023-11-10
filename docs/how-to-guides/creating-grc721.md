@@ -20,7 +20,7 @@ Our _GRC721_ Realm will have the following functionality:
 
 We will proceed using the typical directory structure for a Realm found within
 the [simple-contract guide](simple-contract.md). It is also worthwhile to consult
-the [GRC721 interface](../../examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within
+the [GRC721 interface](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within
 this guide.
 
 ## 1. Importing token package
@@ -59,7 +59,7 @@ In this code preview, we have:
 ## 2. Adding token functionality
 
 The following section will be about introducing Public functions to expose functionality imported from
-the [grc721 package](../../examples/gno.land/p/demo/grc/grc721).
+the [grc721 package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/grc/grc721).
 
 [embedmd]:# (../assets/how-to-guides/creating-grc721/mynonfungibletoken-2.gno go)
 ```go
