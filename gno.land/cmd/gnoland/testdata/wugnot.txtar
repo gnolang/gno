@@ -34,10 +34,10 @@ stdout 'Known accounts..: 2' # should be 3 once we can use test2
 stdout 'OK!'
 
 # XXX: use test3 instead (depends on https://github.com/gnolang/gno/issues/1269#issuecomment-1806386069)
-#gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 100000 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-#stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 10000000 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
 
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout 'Total supply..: 24691356'
+stdout 'Total supply..: 14691356'
 stdout 'Known accounts..: 2' # should be 3 once we can use test2
 stdout 'OK!'

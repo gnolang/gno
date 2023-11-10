@@ -48,7 +48,7 @@ func Withdraw(amount uint64) {
 	}
 
 	// send swapped ugnots to caller
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.GetBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 	banker.SendCoins(pkgaddr, caller, send)
 	wugnot.Burn(caller, amount)
