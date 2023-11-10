@@ -6,9 +6,9 @@ id: simple-contract
 
 ## Overview
 
-This guide shows you how to write a simple _Counter_ Smart Contract, or rather a [Realm](../explanation/realms.md),
-in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see
-the [deployment](deploy.md) guide.
+This guide shows you how to write a simple _Counter_ Smart Contract, or rather a [Realm](/docs/explanation/realms.md),
+in [Gno (Gnolang)](/docs/explanation/gno-language.md). For actually deploying the Realm, please see
+the [deployment](/docs/how-to-guides/deploy.md) guide.
 
 Our _Counter_ Realm will have the following functionality:
 
@@ -50,8 +50,8 @@ cd counter-app
 mkdir r
 ```
 
-Alternatively, if we were writing a [Gno Package](../explanation/packages.md), we would denote this directory name
-as `p` (for `package`). You can learn more about Packages in our [Package development guide](simple-library.md).
+Alternatively, if we were writing a [Gno Package](/docs/explanation/packages.md), we would denote this directory name
+as `p` (for `package`). You can learn more about Packages in our [Package development guide](/docs/how-to-guides/simple-library.md).
 
 Additionally, we will create another sub-folder that will house our Realm code, named `counter`:
 
@@ -115,7 +115,7 @@ There are a few things happening here, so let's dissect them:
 - `Increment` and `Decrement` are public Realm (Smart Contract) methods, and as such are callable by users.
 - `Increment` and `Decrement` directly modify the `count` value by making it go up or down (change state).
 - Calling the `Render` method would return the `count` value as a formatted string. Learn more about the `Render`
-  method and how it's used [here](../explanation/realms.md).
+  method and how it's used [here](/docs/explanation/realms.md).
 
 :::info A note on constructors
 Gno Realms support a concept taken from other programming languages - _constructors_.

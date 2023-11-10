@@ -5,7 +5,7 @@ id: realms
 # Realms
 
 A realm refers to a specific instance of a smart contract that can be written
-in [Gnolang](./gno-language.md). The potentials of realms are endless - you can create virtually any
+in [Gnolang](/docs/explanation/gno-language.md). The potentials of realms are endless - you can create virtually any
 application in your mind with built-in composability,
 transparency, and censorship resistance. Here are some ideas of what you can build with realms:
 

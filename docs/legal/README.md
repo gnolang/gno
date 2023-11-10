@@ -1,4 +1,4 @@
- * [eris_agreement.pdf](./eris_agreement.pdf) - This 2015 agreement was
+ * [eris_agreement.pdf](/docs/legal/eris_agreement.pdf) - This 2015 agreement was
    necessary to publish Tendermint under Apache2.0. Since then Eris Industries
    has become Monax.  Ethan Buchman at the time was an external contributor
    from Eris Industries to the Tendermint project. Due to intermixing of

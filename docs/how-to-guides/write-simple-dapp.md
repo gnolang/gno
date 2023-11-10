@@ -116,7 +116,7 @@ A few remarks:
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
-Check out the [deployment](deploy.md) guide to learn how to do this.
+Check out the [deployment](/docs/how-to-guides/deploy.md) guide to learn how to do this.
 :::
 
 ### Poll Factory Realm

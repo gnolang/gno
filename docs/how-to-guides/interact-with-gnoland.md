@@ -8,7 +8,7 @@ This tutorial will teach you how to interact with the gno.land blockchain by cre
 
 ## Prerequisites
 
-- [Installation](../getting-started/local-setup.md)
+- [Installation](/docs/getting-started/local-setup.md)
 
 ## Create an Account
 

@@ -9,8 +9,8 @@ signing data, verifying signatures, and getting metadata associated with the key
 
 Currently, the `tm2-js-client` package provides support for two `Signer` implementations:
 
-- [Key](key.md): a signer that is based on a raw Secp256k1 key pair.
-- [Ledger](ledger.md): a signer that is based on a Ledger device, with all interaction flowing through the user's
+- [Key](/docs/reference/tm2-js-client/Signer/key.md): a signer that is based on a raw Secp256k1 key pair.
+- [Ledger](/docs/reference/tm2-js-client/Signer/ledger.md): a signer that is based on a Ledger device, with all interaction flowing through the user's
   device.
 
 ## API
