@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	underlyingSecp256k1 "github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
