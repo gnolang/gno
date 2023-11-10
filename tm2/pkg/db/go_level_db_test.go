@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/goleveldb/leveldb/opt"
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	name := fmt.Sprintf("test_%x", randStr(12))
 

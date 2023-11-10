@@ -972,7 +972,7 @@ func main() {
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
-//                 "Name": "GetPSubtestsPrevRealm",
+//                 "Name": "GetRSubtestsPrevRealm",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

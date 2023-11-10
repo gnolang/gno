@@ -67,6 +67,7 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	// dependency lookup by dirs.
 	old, ex := os.LookupEnv("GNO_HOME")
 	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
+
 	t.Cleanup(func() {
 		if ex {
 			os.Setenv("GNO_HOME", old)

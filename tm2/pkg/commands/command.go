@@ -252,6 +252,8 @@ func usage(c *Command) string {
 
 	if c.longHelp != "" {
 		fmt.Fprintf(&b, "%s\n\n", c.longHelp)
+	} else if c.shortHelp != "" {
+		fmt.Fprintf(&b, "%s.\n\n", c.shortHelp)
 	}
 
 	if len(c.subcommands) > 0 {

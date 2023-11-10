@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // RPCConfig
 
 const (
@@ -89,8 +89,8 @@ type RPCConfig struct {
 func DefaultRPCConfig() *RPCConfig {
 	return &RPCConfig{
 		ListenAddress:          "tcp://127.0.0.1:26657",
-		CORSAllowedOrigins:     []string{},
-		CORSAllowedMethods:     []string{http.MethodHead, http.MethodGet, http.MethodPost},
+		CORSAllowedOrigins:     []string{"*"},
+		CORSAllowedMethods:     []string{http.MethodHead, http.MethodGet, http.MethodPost, http.MethodOptions},
 		CORSAllowedHeaders:     []string{"Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"},
 		GRPCListenAddress:      "",
 		GRPCMaxOpenConnections: 900,

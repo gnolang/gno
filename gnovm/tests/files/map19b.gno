@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// struct{(nil map[int64]*main.server)}
+// (struct{(nil map[int64]*main.server)} main.cmap)

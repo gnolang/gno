@@ -1121,6 +1121,10 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
+		if strings.HasSuffix(source.Location.File, "_test.gno") {
+			// Ignore _test files
+			return nil
+		}
 		var closure Value
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
@@ -1341,7 +1345,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesTV(store, &cv.Receiver)
 		return cv
 	case *MapValue:
-		cv.MakeMap(cv.List.Size) // TODO move out.
+		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
@@ -1502,7 +1506,7 @@ func isUnsaved(oo Object) bool {
 
 func IsRealmPath(pkgPath string) bool {
 	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, "gno.land/r/") {
+	if strings.HasPrefix(pkgPath, GnoRealmPkgsPrefixBefore) {
 		return true
 	} else {
 		return false

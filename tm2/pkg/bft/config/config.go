@@ -9,6 +9,7 @@ import (
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
+	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -20,59 +21,70 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC       *rpc.RPCConfig       `toml:"rpc"`
-	P2P       *p2p.P2PConfig       `toml:"p2p"`
-	Mempool   *mem.MempoolConfig   `toml:"mempool"`
-	Consensus *cns.ConsensusConfig `toml:"consensus"`
+	RPC          *rpc.RPCConfig       `toml:"rpc"`
+	P2P          *p2p.P2PConfig       `toml:"p2p"`
+	Mempool      *mem.MempoolConfig   `toml:"mempool"`
+	Consensus    *cns.ConsensusConfig `toml:"consensus"`
+	TxEventStore *eventstore.Config   `toml:"tx_event_store"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig: DefaultBaseConfig(),
-		RPC:        rpc.DefaultRPCConfig(),
-		P2P:        p2p.DefaultP2PConfig(),
-		Mempool:    mem.DefaultMempoolConfig(),
-		Consensus:  cns.DefaultConsensusConfig(),
+		BaseConfig:   DefaultBaseConfig(),
+		RPC:          rpc.DefaultRPCConfig(),
+		P2P:          p2p.DefaultP2PConfig(),
+		Mempool:      mem.DefaultMempoolConfig(),
+		Consensus:    cns.DefaultConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
-}
-
-// Like LoadOrMakeConfigWithOptions() but without overriding any defaults.
-func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
-	return LoadOrMakeConfigWithOptions(root, nil)
 }
 
 type ConfigOptions func(cfg *Config)
 
-// LoadOrMakeConfigWithOptions() loads configuration or saves one
+// LoadOrMakeConfigWithOptions loads configuration or saves one
 // made by modifying the default config with override options
-func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Config) {
+func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, error) {
+	var cfg *Config
+
 	configPath := join(root, defaultConfigFilePath)
 	if osm.FileExists(configPath) {
-		cfg = LoadConfigFile(configPath)
+		var loadErr error
+
+		// Load the configuration
+		if cfg, loadErr = LoadConfigFile(configPath); loadErr != nil {
+			return nil, loadErr
+		}
+
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 	} else {
 		cfg = DefaultConfig()
-		options(cfg)
+		if options != nil {
+			options(cfg)
+		}
 		cfg.SetRootDir(root)
 		cfg.EnsureDirs()
 		WriteConfigFile(configPath, cfg)
+
+		// Validate the configuration
+		if validateErr := cfg.ValidateBasic(); validateErr != nil {
+			return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+		}
 	}
-	if err := cfg.ValidateBasic(); err != nil {
-		panic(err)
-	}
-	return cfg
+
+	return cfg, nil
 }
 
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig: TestBaseConfig(),
-		RPC:        rpc.TestRPCConfig(),
-		P2P:        p2p.TestP2PConfig(),
-		Mempool:    mem.TestMempoolConfig(),
-		Consensus:  cns.TestConsensusConfig(),
+		BaseConfig:   TestBaseConfig(),
+		RPC:          rpc.TestRPCConfig(),
+		P2P:          p2p.TestP2PConfig(),
+		Mempool:      mem.TestMempoolConfig(),
+		Consensus:    cns.TestConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
 }
 
@@ -121,7 +133,7 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BaseConfig
 
 const (
@@ -174,7 +186,7 @@ type BaseConfig struct {
 	FastSyncMode bool `toml:"fast_sync"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
-	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
 	// * cleveldb (uses levigo wrapper)

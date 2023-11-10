@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -78,12 +78,6 @@ func parseRemoteAddr(remoteAddr string) (network string, s string, err error) {
 		return "", "", fmt.Errorf("invalid addr: %s", remoteAddr)
 	}
 
-	// accept http(s) as an alias for tcp
-	switch protocol {
-	case protoHTTP, protoHTTPS:
-		protocol = protoTCP
-	}
-
 	return protocol, address, nil
 }
 
@@ -97,6 +91,12 @@ func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
 	protocol, address, err := parseRemoteAddr(remoteAddr)
 	if err != nil {
 		return makeErrorDialer(err)
+	}
+
+	// net.Dial doesn't understand http/https, so change it to TCP
+	switch protocol {
+	case protoHTTP, protoHTTPS:
+		protocol = protoTCP
 	}
 
 	return func(proto, addr string) (net.Conn, error) {
@@ -201,7 +201,7 @@ func (c *JSONRPCClient) Call(method string, params map[string]interface{}, resul
 		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
+	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interfa
 		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(httpResponse.Body)
+	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (c *URIClient) Call(method string, params map[string]interface{}, result in
 		return nil, errors.New("server at '%s' returned %s", c.address, resp.Status)
 	}
 
-	responseBytes, err := ioutil.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

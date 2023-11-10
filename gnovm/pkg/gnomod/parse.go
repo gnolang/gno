@@ -2,12 +2,73 @@ package gnomod
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
+
+// ParseAt parses, validates and returns a gno.mod file located at dir or at
+// dir's parents.
+func ParseAt(dir string) (*File, error) {
+	ferr := func(err error) (*File, error) {
+		return nil, fmt.Errorf("parsing gno.mod at %s: %w", dir, err)
+	}
+
+	// FindRootDir requires absolute path, make sure its the case
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return ferr(err)
+	}
+	rd, err := FindRootDir(absDir)
+	if err != nil {
+		return ferr(err)
+	}
+	fname := filepath.Join(rd, "gno.mod")
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		return ferr(err)
+	}
+	gm, err := Parse(fname, b)
+	if err != nil {
+		return ferr(err)
+	}
+	if err := gm.Validate(); err != nil {
+		return ferr(err)
+	}
+	return gm, nil
+}
+
+// tries to parse gno mod file given the filename, using Parse and Validate from
+// the gnomod package
+//
+// TODO(tb): replace by `gnomod.ParseAt` ? The key difference is the latter
+// looks for gno.mod in parent directories, while this function doesn't.
+func ParseGnoMod(fname string) (*File, error) {
+	file, err := os.Stat(fname)
+	if err != nil {
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+	}
+	if file.IsDir() {
+		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
+	}
+
+	b, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+	}
+	gm, err := Parse(fname, b)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
+	}
+	if err := gm.Validate(); err != nil {
+		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
+	}
+	return gm, nil
+}
 
 // Parse parses and returns a gno.mod file.
 //

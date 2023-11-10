@@ -1,3 +1,9 @@
+# Official packages: more reliable and tested modules, distinct from the experimentation area.
+OFFICIAL_PACKAGES = ./gno.land/p
+OFFICIAL_PACKAGES += ./gno.land/r/demo
+OFFICIAL_PACKAGES += ./gno.land/r/gnoland
+OFFICIAL_PACKAGES += ./gno.land/r/system
+
 .PHONY: help
 help:
 	@echo "Available make commands:"
@@ -13,11 +19,15 @@ build: precompile
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test --verbose .
+	go run ../gnovm/cmd/gno test --verbose ./...
+
+.PHONY: lint
+lint:
+	go run ../gnovm/cmd/gno lint $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test --verbose --update-golden-tests .
+	go run ../gnovm/cmd/gno test --verbose --update-golden-tests ./...
 
 .PHONY: clean
 clean:
@@ -27,3 +37,7 @@ clean:
 GOFMT_FLAGS ?= -w
 fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
+
+.PHONY: tidy
+tidy:
+	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;

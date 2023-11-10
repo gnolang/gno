@@ -2,9 +2,7 @@ package autofile
 
 import (
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -63,19 +61,16 @@ func OpenAutoFile(path string) (*AutoFile, error) {
 		closeTicker:      time.NewTicker(autoFileClosePeriod),
 		closeTickerStopc: make(chan struct{}),
 	}
+
 	if err := af.openFile(); err != nil {
 		af.Close()
 		return nil, err
 	}
 
-	// Close file on SIGHUP.
-	af.hupc = make(chan os.Signal, 1)
-	signal.Notify(af.hupc, syscall.SIGHUP)
-	go func() {
-		for range af.hupc {
-			af.closeFile()
-		}
-	}()
+	// see autofile_*.go implementations, following different build constraints.
+	if err := af.setupCloseHandler(); err != nil {
+		return nil, err
+	}
 
 	go af.closeFileRoutine()
 
@@ -158,10 +153,10 @@ func (af *AutoFile) openFile() error {
 	}
 	// fileInfo, err := file.Stat()
 	// if err != nil {
-	// 	return err
+	//	return err
 	// }
 	// if fileInfo.Mode() != autoFilePerms {
-	// 	return errors.NewErrPermissionsChanged(file.Name(), fileInfo.Mode(), autoFilePerms)
+	//	return errors.NewErrPermissionsChanged(file.Name(), fileInfo.Mode(), autoFilePerms)
 	// }
 	af.file = file
 	return nil

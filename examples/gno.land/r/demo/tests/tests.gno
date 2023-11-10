@@ -3,7 +3,7 @@ package tests
 import (
 	"std"
 
-	"gno.land/r/demo/tests/subtests"
+	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
 var counter int
@@ -44,7 +44,7 @@ func (t *TestRealmObject) Modify() {
 }
 
 //----------------------------------------
-// Test helpers to test a particualr realm bug.
+// Test helpers to test a particular realm bug.
 
 type TestNode struct {
 	Name  string
@@ -78,8 +78,8 @@ func GetPrevRealm() std.Realm {
 	return std.PrevRealm()
 }
 
-func GetPSubtestsPrevRealm() std.Realm {
-	return subtests.GetPrevRealm()
+func GetRSubtestsPrevRealm() std.Realm {
+	return rsubtests.GetPrevRealm()
 }
 
 func Exec(fn func()) {

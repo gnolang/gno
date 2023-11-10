@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	fmt "fmt"
 	"testing"
 
@@ -8,6 +9,8 @@ import (
 )
 
 func TestErrorPanic(t *testing.T) {
+	t.Parallel()
+
 	type pnk struct {
 		msg string
 	}
@@ -30,6 +33,8 @@ func TestErrorPanic(t *testing.T) {
 }
 
 func TestWrapSomething(t *testing.T) {
+	t.Parallel()
+
 	err := Wrap("something", "formatter%v%v", 0, 1)
 
 	assert.Equal(t, "something", err.Data())
@@ -39,6 +44,8 @@ func TestWrapSomething(t *testing.T) {
 }
 
 func TestWrapNothing(t *testing.T) {
+	t.Parallel()
+
 	err := Wrap(nil, "formatter%v%v", 0, 1)
 
 	assert.Equal(t,
@@ -50,6 +57,8 @@ func TestWrapNothing(t *testing.T) {
 }
 
 func TestErrorNew(t *testing.T) {
+	t.Parallel()
+
 	err := New("formatter%v%v", 0, 1)
 
 	assert.Equal(t,
@@ -61,6 +70,8 @@ func TestErrorNew(t *testing.T) {
 }
 
 func TestErrorNewWithDetails(t *testing.T) {
+	t.Parallel()
+
 	err := New("formatter%v%v", 0, 1)
 	err.Trace(0, "trace %v", 1)
 	err.Trace(0, "trace %v", 2)
@@ -70,6 +81,8 @@ func TestErrorNewWithDetails(t *testing.T) {
 }
 
 func TestErrorNewWithStacktrace(t *testing.T) {
+	t.Parallel()
+
 	err := New("formatter%v%v", 0, 1).Stacktrace()
 
 	assert.Equal(t,
@@ -81,6 +94,8 @@ func TestErrorNewWithStacktrace(t *testing.T) {
 }
 
 func TestErrorNewWithTrace(t *testing.T) {
+	t.Parallel()
+
 	err := New("formatter%v%v", 0, 1)
 	err.Trace(0, "trace %v", 1)
 	err.Trace(0, "trace %v", 2)
@@ -99,7 +114,15 @@ func TestErrorNewWithTrace(t *testing.T) {
 }
 
 func TestWrapError(t *testing.T) {
+	t.Parallel()
+
 	var err1 error = New("my message")
 	var err2 error = Wrap(err1, "another message")
 	assert.Equal(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
+
+	err1 = fmt.Errorf("my message")
+	err2 = Wrap(err1, "another message")
+	assert.NotEqual(t, err1, err2)
+	assert.True(t, errors.Is(err2, err1))
 }

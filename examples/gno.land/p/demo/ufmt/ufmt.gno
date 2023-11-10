@@ -1,7 +1,25 @@
+// Package ufmt provides utility functions for formatting strings, similarly
+// to the Go package "fmt", of which only a subset is currently supported
+// (hence the name µfmt - micro fmt).
 package ufmt
 
 import "strconv"
 
+// Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
+// equivalent available in many languages, including C/C++.
+// The number of args passed must exactly match the arguments consumed by the format.
+// A limited number of formatting verbs and features are currently supported,
+// hence the name ufmt (µfmt, micro-fmt).
+//
+// The currently formatted verbs are the following:
+//
+//	%s: places a string value directly.
+//	    If the value implements the interface interface{ String() string },
+//	    the String() method is called to retrieve the value.
+//	%d: formats an integer value using package "strconv".
+//	    Currently supports only uint, uint64, int, int64.
+//	%t: formats a boolean value to "true" or "false".
+//	%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
 	end := len(format)
 	argNum := 0
@@ -66,8 +84,7 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += "(unhandled)"
 			}
-		case '%':
-			buf += "%"
+		// % handled before, as it does not consume an argument
 		default:
 			buf += "(unhandled)"
 		}

@@ -1,0 +1,103 @@
+# Run test on gno.land/p/demo/ufmt
+
+gno test .
+
+stdout '=== RUN   TestRun/hello' # show that t.Run doesn't care about -verbose
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+
+gno test ./run_test.gno
+
+stdout '=== RUN   TestRun/hello' # show that t.Run doesn't care about -verbose
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+
+gno test -verbose .
+
+stdout '=== RUN   TestRun/hello'
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run .* .
+
+stdout '=== RUN   TestRun/hello'
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run NotExists .
+
+! stdout .+
+stderr '=== RUN   TestRun'
+stderr '--- FILT: TestRun'
+
+gno test -verbose -run .*/hello .
+
+stdout '=== RUN   TestRun/hello'
+! stdout '=== RUN   TestRun/hi_you'
+! stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run .*/hi .
+
+! stdout '=== RUN   TestRun/hello'
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run .*/NotExists .
+
+! stdout .+
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run Run/.* .
+
+stdout '=== RUN   TestRun/hello'
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run Run/ .
+
+stdout '=== RUN   TestRun/hello'
+stdout '=== RUN   TestRun/hi_you'
+stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -verbose -run Run/hello .
+
+stdout '=== RUN   TestRun/hello'
+! stdout '=== RUN   TestRun/hi_you'
+! stdout '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+-- run.gno --
+package run
+
+-- run_test.gno --
+package run
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestRun(t *testing.T) {
+	cases := []string {
+		"hello",
+		"hi you",
+		"hi me",
+	}
+	for _, tc := range cases {
+		t.Run(tc, func(t *testing.T) {})
+	}
+}

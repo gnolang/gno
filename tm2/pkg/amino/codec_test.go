@@ -29,6 +29,8 @@ func newSimpleStruct() SimpleStruct {
 }
 
 func TestMarshalUnmarshalPointer0(t *testing.T) {
+	t.Parallel()
+
 	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(s) // no indirection
@@ -41,6 +43,8 @@ func TestMarshalUnmarshalPointer0(t *testing.T) {
 }
 
 func TestMarshalUnmarshalPointer1(t *testing.T) {
+	t.Parallel()
+
 	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(&s) // extra indirection
@@ -53,6 +57,8 @@ func TestMarshalUnmarshalPointer1(t *testing.T) {
 }
 
 func TestMarshalUnmarshalPointer2(t *testing.T) {
+	t.Parallel()
+
 	s := newSimpleStruct()
 	ptr := &s
 	cdc := amino.NewCodec()
@@ -63,6 +69,8 @@ func TestMarshalUnmarshalPointer2(t *testing.T) {
 }
 
 func TestMarshalUnmarshalPointer3(t *testing.T) {
+	t.Parallel()
+
 	s := newSimpleStruct()
 	cdc := amino.NewCodec()
 	b, err := cdc.MarshalSized(s) // no indirection
@@ -75,6 +83,8 @@ func TestMarshalUnmarshalPointer3(t *testing.T) {
 }
 
 func TestDecodeVarint8(t *testing.T) {
+	t.Parallel()
+
 	// DecodeVarint8 uses binary.Varint so we need to make
 	// sure that all the values out of the range of [-128, 127]
 	// return an error.
@@ -122,6 +132,8 @@ func TestDecodeVarint8(t *testing.T) {
 }
 
 func TestDecodeVarint16(t *testing.T) {
+	t.Parallel()
+
 	// DecodeVarint16 uses binary.Varint so we need to make
 	// sure that all the values out of the range of [-32768, 32767]
 	// return an error.
@@ -170,6 +182,8 @@ func TestDecodeVarint16(t *testing.T) {
 }
 
 func TestEncodeDecodeString(t *testing.T) {
+	t.Parallel()
+
 	s := "🔌🎉⛵︎♠️⎍"
 	bs := []byte(s)
 	di := len(bs) * 3 / 4
@@ -214,8 +228,7 @@ func TestEncodeDecodeString(t *testing.T) {
 }
 
 func TestCodecSeal(t *testing.T) {
-	type Foo interface{}
-	type Bar interface{}
+	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.Seal()

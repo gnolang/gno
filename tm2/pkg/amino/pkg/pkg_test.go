@@ -14,6 +14,8 @@ type Foo struct {
 }
 
 func TestNewPackage(t *testing.T) {
+	t.Parallel()
+
 	// This should panic, as slashes in p3pkg is not allowed.
 	assert.Panics(t, func() {
 		NewPackage("foobar.com/some/path", "some/path", "").WithTypes(Foo{})
@@ -39,6 +41,8 @@ func TestNewPackage(t *testing.T) {
 }
 
 func TestFullNameForType(t *testing.T) {
+	t.Parallel()
+
 	// The Go package depends on how this test is invoked.
 	// Sometimes it is "github.com/gnolang/gno/tm2/pkg/amino/packagepkg_test".
 	// Sometimes it is "command-line-arguments"
@@ -55,6 +59,8 @@ func TestFullNameForType(t *testing.T) {
 
 // If the struct wasn't registered, you can't get a name or type_url for it.
 func TestFullNameForUnexpectedType(t *testing.T) {
+	t.Parallel()
+
 	gopkg := reflect.TypeOf(Foo{}).PkgPath()
 	pkg := NewPackage(gopkg, "some.path", "")
 

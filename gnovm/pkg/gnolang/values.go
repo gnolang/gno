@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/apd"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -499,7 +500,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-	copy(fields, sv.Fields)
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer.
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+
 	return alloc.NewStruct(fields)
 }
 
@@ -661,7 +670,9 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 			ml.Head = item
 		}
 		item.Prev = ml.Tail
-		ml.Tail.Next = item
+		if ml.Tail != nil {
+			ml.Tail.Next = item
+		}
 		ml.Tail = item
 		ml.Size++
 	}

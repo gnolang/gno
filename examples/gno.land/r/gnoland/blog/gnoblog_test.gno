@@ -30,9 +30,17 @@ No posts.
 		expected := `
 # Gnoland's Blog
 
-## [&#9656; title1](/r/gnoland/blog:p/slug1)
+<div class='columns-3'><div>
 
-## [&#9656; title2](/r/gnoland/blog:p/slug2)
+## [title1](/r/gnoland/blog:p/slug1)
+**[Learn More](/r/gnoland/blog:p/slug1)**
+
+</div><div>
+
+## [title2](/r/gnoland/blog:p/slug2)
+**[Learn More](/r/gnoland/blog:p/slug2)**
+
+</div></div>
 `
 		assertMDEquals(t, got, expected)
 	}
@@ -62,7 +70,12 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 		expected = `
 # [Gnoland's Blog](/r/gnoland/blog:) / t / tag2
 
-## [&#9656; title1](/r/gnoland/blog:p/slug1)
+<div>
+
+## [title1](/r/gnoland/blog:p/slug1)
+**[Learn More](/r/gnoland/blog:p/slug1)**
+
+</div>
 `
 		assertMDEquals(t, got, expected)
 	}

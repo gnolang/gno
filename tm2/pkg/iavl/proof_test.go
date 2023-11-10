@@ -2,6 +2,7 @@ package iavl
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,8 @@ import (
 )
 
 func TestTreeGetWithProof(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	require := require.New(t)
 	for _, ikey := range []byte{0x11, 0x32, 0x50, 0x72, 0x99} {
@@ -48,6 +51,8 @@ func TestTreeGetWithProof(t *testing.T) {
 }
 
 func TestTreeKeyExistsProof(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	root := tree.WorkingHash()
 
@@ -114,6 +119,8 @@ func TestTreeKeyExistsProof(t *testing.T) {
 }
 
 func TestTreeKeyInRangeProofs(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	require := require.New(t)
 	keys := []byte{0x0a, 0x11, 0x2e, 0x32, 0x50, 0x72, 0x99, 0xa1, 0xe4, 0xf7} // 10 total.
@@ -230,7 +237,7 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 		}
 		// may be invalid... errors are okay
 		if err == nil {
-			assert.Errorf(t, badProof.Verify(root),
+			assert.Errorf(t, rangeProofVerify(badProof, root),
 				"Proof was still valid after a random mutation:\n%X\n%X",
 				proofBytes, badProofBytes)
 		}
@@ -238,6 +245,16 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 }
 
 // ----------------------------------------
+
+func rangeProofVerify(rangeProof *RangeProof, root []byte) (namedError error) {
+	defer func() {
+		if e := recover(); e != nil {
+			namedError = errors.New(e.(string))
+		}
+	}()
+	namedError = rangeProof.Verify(root)
+	return
+}
 
 func flatten(bzz [][]byte) (res []byte) {
 	for _, bz := range bzz {

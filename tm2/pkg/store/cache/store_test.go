@@ -22,6 +22,8 @@ func keyFmt(i int) []byte { return bz(fmt.Sprintf("key%0.8d", i)) }
 func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 
 func TestCacheStore(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 
@@ -65,12 +67,16 @@ func TestCacheStore(t *testing.T) {
 }
 
 func TestCacheStoreNoNilSet(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
 
 func TestCacheStoreNested(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 
@@ -100,6 +106,8 @@ func TestCacheStoreNested(t *testing.T) {
 }
 
 func TestCacheKVIteratorBounds(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items
@@ -150,7 +158,55 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 	require.Equal(t, 4, i)
 }
 
+func TestCacheKVReverseIteratorBounds(t *testing.T) {
+	t.Parallel()
+
+	st := newCacheStore()
+
+	// set some items
+	nItems := 5
+	for i := 0; i < nItems; i++ {
+		st.Set(keyFmt(i), valFmt(i))
+	}
+
+	// iterate over all of them in reverse
+	i := nItems - 1
+	for itr := st.ReverseIterator(nil, nil); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, -1, i)
+
+	// iterate over none
+	i = 0
+	for itr := st.ReverseIterator(bz("money"), nil); itr.Valid(); itr.Next() {
+		i++
+	}
+	require.Equal(t, 0, i)
+
+	// iterate over lower
+	i = 2
+	for itr := st.ReverseIterator(keyFmt(0), keyFmt(3)); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, -1, i)
+
+	// iterate over upper
+	i = 3
+	for itr := st.ReverseIterator(keyFmt(2), keyFmt(4)); itr.Valid(); itr.Next() {
+		require.Equal(t, keyFmt(i), itr.Key())
+		require.Equal(t, valFmt(i), itr.Value())
+		i--
+	}
+	require.Equal(t, 1, i)
+}
+
 func TestCacheKVMergeIteratorBasics(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set and delete an item in the cache, iterator should be empty
@@ -199,6 +255,8 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items and write them
@@ -225,6 +283,8 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeletes(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 	truth := dbm.NewMemDB()
 
@@ -259,6 +319,8 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorChunks(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// Use the truth to check values on the merge iterator
@@ -290,6 +352,8 @@ func TestCacheKVMergeIteratorChunks(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorRandom(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 	truth := dbm.NewMemDB()
 

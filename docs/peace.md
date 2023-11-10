@@ -1,3 +1,7 @@
+---
+id: peace
+---
+
 # Peace!
 
 _or, Everyone is Invited to Gno.land, if you want!_

@@ -17,4 +17,4 @@ func main() {
 }
 
 // Output:
-// struct{(gonative{<nil>} gonative{*sync.Pool})}
+// (struct{(gonative{<nil>} gonative{*sync.Pool})} main.Pool)

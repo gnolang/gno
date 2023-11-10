@@ -1,5 +1,5 @@
 # build
-FROM        golang:1.20 AS build
+FROM        golang:1.21 AS build
 RUN         mkdir -p /opt/gno/src /opt/build
 WORKDIR     /opt/build
 ADD         go.mod go.sum ./
@@ -10,14 +10,15 @@ RUN         go build -o ./build/gnokey    ./gno.land/cmd/gnokey
 RUN         go build -o ./build/gnofaucet ./gno.land/cmd/gnofaucet
 RUN         go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
 RUN         go build -o ./build/gno       ./gnovm/cmd/gno
-RUN         go build -o ./build/tm2txsync  ./tm2/cmd/tm2txsync
+RUN         go build -o ./build/gnotxsync  ./gno.land/cmd/gnotxsync
 RUN         ls -la ./build
 ADD         . /opt/gno/src/
 RUN         rm -rf /opt/gno/src/.git
 
 # runtime-base + runtime-tls
 FROM        debian:stable-slim AS runtime-base
-ENV         PATH="${PATH}:/opt/gno/bin"
+ENV         PATH="${PATH}:/opt/gno/bin" \
+            GNOROOT="/opt/gno/src"
 WORKDIR     /opt/gno/src
 FROM        runtime-base AS runtime-tls
 RUN         apt-get update && apt-get install -y expect ca-certificates && update-ca-certificates
@@ -42,9 +43,9 @@ COPY        --from=build /opt/build/build/gnofaucet /opt/gno/bin/
 ENTRYPOINT  ["gnofaucet"]
 EXPOSE      5050
 
-FROM        runtime-tls AS tm2txsync-slim
-COPY        --from=build /opt/build/build/tm2txsync /opt/gno/bin/
-ENTRYPOINT  ["tm2txsync"]
+FROM        runtime-tls AS gnotxsync-slim
+COPY        --from=build /opt/build/build/gnotxsync /opt/gno/bin/
+ENTRYPOINT  ["gnotxsync"]
 
 FROM        runtime-tls AS gnoweb-slim
 COPY        --from=build /opt/build/build/gnoweb /opt/gno/bin/

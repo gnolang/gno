@@ -10,6 +10,8 @@ import (
 )
 
 func TestGRocksDBBackend(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db := NewDB(name, GRocksDBBackend, t.TempDir())
 
@@ -18,6 +20,8 @@ func TestGRocksDBBackend(t *testing.T) {
 }
 
 func TestGRocksDBStats(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db := NewDB(name, GRocksDBBackend, t.TempDir())
 

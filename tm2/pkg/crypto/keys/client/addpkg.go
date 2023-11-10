@@ -7,12 +7,12 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -24,7 +24,7 @@ type addPkgCfg struct {
 	deposit string
 }
 
-func newAddPkgCmd(rootCfg *makeTxCfg) *commands.Command {
+func newAddPkgCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 	cfg := &addPkgCfg{
 		rootCfg: rootCfg,
 	}
@@ -37,7 +37,7 @@ func newAddPkgCmd(rootCfg *makeTxCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAddPkg(cfg, args, commands.NewDefaultIO())
+			return execAddPkg(cfg, args, io)
 		},
 	)
 }
@@ -65,7 +65,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execAddPkg(cfg *addPkgCfg, args []string, io *commands.IO) error {
+func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 	if cfg.pkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -98,6 +98,9 @@ func execAddPkg(cfg *addPkgCfg, args []string, io *commands.IO) error {
 
 	// open files in directory as MemPackage.
 	memPkg := gno.ReadMemPackage(cfg.pkgDir, cfg.pkgPath)
+	if memPkg.IsEmpty() {
+		panic(fmt.Sprintf("found an empty package %q", cfg.pkgPath))
+	}
 
 	// precompile and validate syntax
 	err = gno.PrecompileAndCheckMempkg(memPkg)
@@ -139,7 +142,7 @@ func signAndBroadcast(
 	cfg *makeTxCfg,
 	args []string,
 	tx std.Tx,
-	io *commands.IO,
+	io commands.IO,
 ) error {
 	baseopts := cfg.rootCfg
 	txopts := cfg

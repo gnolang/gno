@@ -7,7 +7,7 @@ services:
       dockerfile: ../..Dockerfile
     environment:
       - LOG_LEVEL=4
-    command: [ "gnoland" ]
+    command: [ "gnoland", "start" ]
     volumes:
       - "gnonode:/opt/gno/src/testdir"
     networks:

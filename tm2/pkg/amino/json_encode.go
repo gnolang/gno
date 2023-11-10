@@ -163,7 +163,7 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 		err = errors.New("JSON bytes cannot be empty")
 		return
 	}
-	if cinfo.IsJSONAnyValueType {
+	if cinfo.IsJSONAnyValueType || (cinfo.IsAminoMarshaler && cinfo.ReprType.IsJSONAnyValueType) {
 		// Sanity check
 		if value[0] == '{' || value[len(value)-1] == '}' {
 			err = errors.New("unexpected JSON object %s", value)
@@ -397,24 +397,22 @@ func isJSONAnyValueType(rt reflect.Type) bool {
 		// {@type,value}, the latter specifically
 		// {@type:"/google.protobuf.Any",value:{@type,value}).
 		return true
-	} else {
-		// Otherwise, it depends on the kind.
-		switch rt.Kind() {
-		case
-			reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
-			reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16,
-			reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64,
-			// Primitive types get special {@type,value} treatment.  In
-			// binary form, most of these types would be encoded
-			// wrapped in an implicit struct, except for lists (both of
-			// bytes and of anything else), and for strings...
-			reflect.Array, reflect.Slice, reflect.String:
-			// ...which are all non-objects that must be encoded as
-			// {@type,value}.
-			return true
-		default:
-			return false
-		}
+	}
+	// Otherwise, it depends on the kind.
+	switch rt.Kind() {
+	case
+		reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16,
+		reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64,
+		// Primitive types get special {@type,value} treatment.  In
+		// binary form, most of these types would be encoded
+		// wrapped in an implicit struct, except for lists (both of
+		// bytes and of anything else), and for strings...
+		reflect.Array, reflect.Slice, reflect.String:
+		// ...which are all non-objects that must be encoded as
+		// {@type,value}.
+		return true
+	default:
 		return false
 	}
 }

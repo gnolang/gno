@@ -682,7 +682,8 @@ func (c *MConnection) Status() ConnectionStatus {
 	status.SendMonitor = c.sendMonitor.Status()
 	status.RecvMonitor = c.recvMonitor.Status()
 	status.Channels = make([]ChannelStatus, len(c.channels))
-	for i, channel := range c.channels {
+	for i, ch := range c.channels {
+		channel := ch
 		status.Channels[i] = ChannelStatus{
 			ID:                channel.desc.ID,
 			SendQueueCapacity: cap(channel.sendQueue),

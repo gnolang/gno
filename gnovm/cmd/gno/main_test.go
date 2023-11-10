@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func TestMain_Gnodev(t *testing.T) {
@@ -92,7 +93,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 					require.False(t, recoverShouldBeEmpty, "should panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {
-						require.Contains(t, output, test.recoverShouldContain, "recover should contain")
+						require.Regexpf(t, test.recoverShouldContain, output, "recover should contain")
 					}
 					if test.recoverShouldBe != "" {
 						require.Equal(t, test.recoverShouldBe, output, "recover should be")

@@ -16,7 +16,7 @@ Copy and paste the following mnemonic.
 
 Make sure you have started gnoland
 
-    ./build/gnoland
+    ./build/gnoland start
 
 ## Step3:
 
