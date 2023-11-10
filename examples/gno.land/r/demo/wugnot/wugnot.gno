@@ -28,7 +28,7 @@ func Deposit() {
 	sent := std.GetOrigSend()
 	amount := sent.AmountOf("ugnot")
 
-	if amount < ugnotMinDeposit {
+	if uint64(amount) < ugnotMinDeposit {
 		panic(ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
 	}
 	wugnot.Mint(caller, uint64(amount))
@@ -42,7 +42,7 @@ func Withdraw(amount uint64) {
 	caller := std.PrevRealm().Addr()
 	pkgaddr := std.GetOrigPkgAddr()
 
-	callerBal, err := wugnot.BalanceOf(caller)
+	callerBal, _ := wugnot.BalanceOf(caller)
 	if callerBal < amount {
 		panic(ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 	}
