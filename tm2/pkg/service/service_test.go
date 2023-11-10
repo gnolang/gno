@@ -16,6 +16,8 @@ func (testService) OnReset() error {
 }
 
 func TestBaseServiceWait(t *testing.T) {
+	t.Parallel()
+
 	ts := &testService{}
 	ts.BaseService = *NewBaseService(nil, "TestService", ts)
 	ts.Start()
@@ -37,6 +39,8 @@ func TestBaseServiceWait(t *testing.T) {
 }
 
 func TestBaseServiceReset(t *testing.T) {
+	t.Parallel()
+
 	ts := &testService{}
 	ts.BaseService = *NewBaseService(nil, "TestService", ts)
 	ts.Start()

@@ -11,6 +11,8 @@ import (
 )
 
 func TestLoadOrGenNodeKey(t *testing.T) {
+	t.Parallel()
+
 	filePath := filepath.Join(os.TempDir(), random.RandStr(12)+"_peer_id.json")
 
 	nodeKey, err := LoadOrGenNodeKey(filePath)
@@ -22,13 +24,15 @@ func TestLoadOrGenNodeKey(t *testing.T) {
 	assert.Equal(t, nodeKey, nodeKey2)
 }
 
-//----------------------------------------------------------
+// ----------------------------------------------------------
 
 func padBytes(bz []byte, targetBytes int) []byte {
 	return append(bz, bytes.Repeat([]byte{0xFF}, targetBytes-len(bz))...)
 }
 
 func TestPoWTarget(t *testing.T) {
+	t.Parallel()
+
 	targetBytes := 20
 	cases := []struct {
 		difficulty uint

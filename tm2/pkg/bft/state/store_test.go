@@ -15,6 +15,8 @@ import (
 )
 
 func TestStoreLoadValidators(t *testing.T) {
+	t.Parallel()
+
 	stateDB := dbm.NewMemDB()
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})

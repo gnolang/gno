@@ -14,6 +14,8 @@ type Vector struct {
 }
 
 func TestBip39(t *testing.T) {
+	t.Parallel()
+
 	for _, vector := range testVectors() {
 		entropy, err := hex.DecodeString(vector.entropy)
 		assert.NoError(t, err)
@@ -31,6 +33,8 @@ func TestBip39(t *testing.T) {
 }
 
 func TestIsMnemonicValid(t *testing.T) {
+	t.Parallel()
+
 	for _, vector := range badMnemonicSentences() {
 		assert.Equal(t, IsMnemonicValid(vector.mnemonic), false)
 	}
@@ -41,6 +45,8 @@ func TestIsMnemonicValid(t *testing.T) {
 }
 
 func TestInvalidMnemonicFails(t *testing.T) {
+	t.Parallel()
+
 	for _, vector := range badMnemonicSentences() {
 		_, err := MnemonicToByteArray(vector.mnemonic)
 		assert.NotNil(t, err)
@@ -48,6 +54,8 @@ func TestInvalidMnemonicFails(t *testing.T) {
 }
 
 func TestValidateEntropyWithChecksumBitSize(t *testing.T) {
+	t.Parallel()
+
 	// Good tests.
 	for i := 1; i <= (12*32 + 12); i++ {
 		err := validateEntropyWithChecksumBitSize(i)
@@ -74,6 +82,8 @@ func TestValidateEntropyWithChecksumBitSize(t *testing.T) {
 }
 
 func TestNewEntropy(t *testing.T) {
+	t.Parallel()
+
 	// Good tests.
 	for i := 128; i <= 256; i += 32 {
 		_, err := NewEntropy(i)

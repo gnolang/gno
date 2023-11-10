@@ -3,7 +3,6 @@ package gnomod
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,9 +171,9 @@ func CreateGnoModFile(rootDir, modPath string) error {
 	if modPath == "" {
 		// Check .gno files for package name
 		// and use it as modPath
-		files, err := ioutil.ReadDir(rootDir)
+		files, err := os.ReadDir(rootDir)
 		if err != nil {
-			fmt.Errorf("read dir %q: %w", rootDir, err)
+			return fmt.Errorf("read dir %q: %w", rootDir, err)
 		}
 
 		var pkgName gnolang.Name

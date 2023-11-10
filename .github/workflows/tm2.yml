@@ -55,7 +55,7 @@ jobs:
           - _test.pkg.bft
           - _test.pkg.others
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 21
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
@@ -65,7 +65,7 @@ jobs:
         working-directory: tm2
         run: |
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          export GOTEST_FLAGS="-v -p 1 -timeout=20m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
           touch coverage.out
       - uses: actions/upload-artifact@v3

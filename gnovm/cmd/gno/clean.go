@@ -20,7 +20,7 @@ type cleanCfg struct {
 	modCache bool // clean -modcache flag
 }
 
-func newCleanCmd(io *commands.IO) *commands.Command {
+func newCleanCmd(io commands.IO) *commands.Command {
 	cfg := &cleanCfg{}
 
 	return commands.NewCommand(
@@ -59,7 +59,7 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
+func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -96,7 +96,7 @@ func execClean(cfg *cleanCfg, args []string, io *commands.IO) error {
 }
 
 // clean removes generated files from a directory.
-func clean(dir string, cfg *cleanCfg, io *commands.IO) error {
+func clean(dir string, cfg *cleanCfg, io commands.IO) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
