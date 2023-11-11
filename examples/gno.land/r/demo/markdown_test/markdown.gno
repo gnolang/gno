@@ -471,9 +471,11 @@ _Using HTML:_
 
 _Render:_
 
+:::stack
 :::button("Link button with comma, needs quotes", https://gno.land)/
 
 :::button(Plain button)/
+:::/stack
 
 Accordion component
 -------------------
@@ -879,9 +881,10 @@ _Using HTML:_
 
 _Render:_
 
+:::stack
 :::action("reset", "Reset")/
-
 :::action("submit", "Submit")/
+:::/stack
 
 :::/form
 `
