@@ -15,11 +15,11 @@ gnoland_dir := $(abspath ../../gno.land)
 
 all: loop
 
-gnoland.start:
+start.gnoland:
 	cd $(gnoland_dir) && $(gnoland_bin) start -skip-failing-genesis-txs -genesis-txs-file $(HISTORY_OUTPUT)
-gnoland.clean:
+clean.gnoland:
 	make -C $(gnoland_dir) fclean
-.PHONY: gnoland.start gnoland.clean
+.PHONY: start.gnoland clean.gnoland
 
 # Starts the backup service
 # and backs up transactions into a file
@@ -36,7 +36,7 @@ save.history:
 	cat $(BACKUP_FILE) >> $(HISTORY_OUTPUT)
 .PHONY: save.history
 
-loop: gnoland.clean
+loop: clean.gnoland
 	# backup history, if needed
 	$(MAKE) save.history || true
 	# run our dev loop
