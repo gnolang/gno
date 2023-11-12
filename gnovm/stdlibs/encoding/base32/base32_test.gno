@@ -539,7 +539,7 @@ func TestDecodeWithWrongPadding(t *testing.T) {
 		t.Error("expected error")
 	}
 
-	_, err = base32.StdEncoding.WithPadding(NoPadding).DecodeString(encoded)
+	_, err = base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(encoded)
 	if err == nil {
 		t.Error("expected error")
 	}
