@@ -1,6 +1,7 @@
 package csv_test
 
 import (
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
