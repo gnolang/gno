@@ -69,7 +69,7 @@ func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
 		bb := &strings.Builder{}
-		encoder := base32.NewEncoder(StdEncoding, bb)
+		encoder := base32.NewEncoder(base32.StdEncoding, bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
 			if end > len(input) {
