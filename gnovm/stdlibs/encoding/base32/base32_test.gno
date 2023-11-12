@@ -494,7 +494,7 @@ func TestWithCustomPadding(t *testing.T) {
 func TestWithoutPadding(t *testing.T) {
 	for _, testcase := range pairs {
 		defaultPadding := base32.StdEncoding.EncodeToString([]byte(testcase.decoded))
-		customPadding := base32.StdEncoding.WithPadding(NoPadding).EncodeToString([]byte(testcase.decoded))
+		customPadding := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString([]byte(testcase.decoded))
 		expected := strings.TrimRight(defaultPadding, "=")
 
 		if expected != customPadding {
