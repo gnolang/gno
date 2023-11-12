@@ -688,7 +688,7 @@ func TestEncodedDecodedLen(t *testing.T) {
 	data := bytes.Repeat([]byte("x"), 100)
 	for _, test := range []struct {
 		name  string
-		enc   *Encoding
+		enc   *base32.Encoding
 		cases []test
 	}{
 		{"StdEncoding", base32.StdEncoding, []test{
