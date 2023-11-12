@@ -729,7 +729,7 @@ func TestEncodedDecodedLen(t *testing.T) {
 }
 
 func TestWithoutPaddingClose(t *testing.T) {
-	encodings := []*Encoding{
+	encodings := []*base32.Encoding{
 		base32.StdEncoding,
 		base32.StdEncoding.WithPadding(base32.NoPadding),
 	}
