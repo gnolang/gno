@@ -123,11 +123,11 @@ func TestPutVarint(t *testing.T) {
 	// fmt.Printf("\n")
 
 	testCases := []struct {
-		input   int64
+		input    int64
 		expected string
 	}{
-		{-1<<63, "ffffffffffffffffff01"},
-		{-1<<63+1, "fdffffffffffffffff01"},
+		{-1 << 63, "ffffffffffffffffff01"},
+		{-1<<63 + 1, "fdffffffffffffffff01"},
 		{-65, "8101"},
 		{-64, "7f"},
 		{-2, "03"},
@@ -137,7 +137,7 @@ func TestPutVarint(t *testing.T) {
 		{2, "04"},
 		{63, "7e"},
 		{64, "8001"},
-		{1<<63-1, "feffffffffffffffff01"},
+		{1<<63 - 1, "feffffffffffffffff01"},
 	}
 
 	for _, tc := range testCases {
