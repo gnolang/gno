@@ -2,6 +2,7 @@ package base32_test
 
 import (
 	"bytes"
+	"encoding/base32"
 	"errors"
 	"io"
 	"strings"
@@ -49,7 +50,7 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
-		got := StdEncoding.EncodeToString([]byte(p.decoded))
+		got := base32.StdEncoding.EncodeToString([]byte(p.decoded))
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
 	}
 }
@@ -57,7 +58,7 @@ func TestEncode(t *testing.T) {
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
 		bb := &strings.Builder{}
-		encoder := NewEncoder(StdEncoding, bb)
+		encoder := base32.NewEncoder(base32.StdEncoding, bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
@@ -68,7 +69,7 @@ func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
 		bb := &strings.Builder{}
-		encoder := NewEncoder(StdEncoding, bb)
+		encoder := base32.NewEncoder(StdEncoding, bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
 			if end > len(input) {
@@ -244,12 +245,12 @@ func (b *badReader) Read(p []byte) (int, error) {
 func TestDecoderError(t *testing.T) {
 	for _, readErr := range []error{io.EOF, nil} {
 		input := "MZXW6YTb"
-		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
+		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(input)))
 		br := badReader{data: []byte(input), errs: []error{readErr}}
-		decoder := NewDecoder(StdEncoding, &br)
+		decoder := base32.NewDecoder(base32.StdEncoding, &br)
 		n, err := decoder.Read(dbuf)
 		testEqual(t, "Read after EOF, n = %d, expected %d", n, 0)
-		if _, ok := err.(CorruptInputError); !ok {
+		if _, ok := err.(base32.CorruptInputError); !ok {
 			t.Errorf("Corrupt input error expected.  Found %T", err)
 		}
 	}
@@ -261,8 +262,8 @@ func TestReaderEOF(t *testing.T) {
 	for _, readErr := range []error{io.EOF, nil} {
 		input := "MZXW6YTB"
 		br := badReader{data: []byte(input), errs: []error{nil, readErr}}
-		decoder := NewDecoder(StdEncoding, &br)
-		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
+		decoder := base32.NewDecoder(base32.StdEncoding, &br)
+		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(input)))
 		n, err := decoder.Read(dbuf)
 		testEqual(t, "Decoding of %q err = %v, expected %v", input, err, error(nil))
 		n, err = decoder.Read(dbuf)
@@ -322,8 +323,8 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAAAAAAA", -1},
 	}
 	for _, tc := range testCases {
-		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
-		_, err := StdEncoding.Decode(dbuf, []byte(tc.input))
+		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(tc.input)))
+		_, err := base32.StdEncoding.Decode(dbuf, []byte(tc.input))
 		if tc.offset == -1 {
 			if err != nil {
 				t.Error("Decoder wrongly detected corruption in", tc.input)
@@ -331,7 +332,7 @@ func TestDecodeCorrupt(t *testing.T) {
 			continue
 		}
 		switch err := err.(type) {
-		case CorruptInputError:
+		case base32.CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", tc.input, int(err), tc.offset)
 		default:
 			t.Error("Decoder failed to detect corruption in", tc)
@@ -374,7 +375,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 func testStringEncoding(t *testing.T, expected string, examples []string) {
 	for _, e := range examples {
-		buf, err := StdEncoding.DecodeString(e)
+		buf, err := base32.StdEncoding.DecodeString(e)
 		if err != nil {
 			t.Errorf("Decode(%q) failed: %v", e, err)
 			continue
@@ -422,13 +423,13 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 ====`
 	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
-	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+	dec := base32.NewDecoder(base32.StdEncoding, strings.NewReader(encoded))
 	res1, err := io.ReadAll(dec)
 	if err != nil {
 		t.Errorf("ReadAll failed: %v", err)
 	}
 
-	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
+	dec = base32.NewDecoder(base32.StdEncoding, strings.NewReader(encodedShort))
 	var res2 []byte
 	res2, err = io.ReadAll(dec)
 	if err != nil {
@@ -442,10 +443,10 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 
 func BenchmarkEncode(b *testing.B) {
 	data := make([]byte, 8192)
-	buf := make([]byte, StdEncoding.EncodedLen(len(data)))
+	buf := make([]byte, base32.StdEncoding.EncodedLen(len(data)))
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		StdEncoding.Encode(buf, data)
+		base32.StdEncoding.Encode(buf, data)
 	}
 }
 
@@ -453,32 +454,32 @@ func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		StdEncoding.EncodeToString(data)
+		base32.StdEncoding.EncodeToString(data)
 	}
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data := make([]byte, StdEncoding.EncodedLen(8192))
-	StdEncoding.Encode(data, make([]byte, 8192))
+	data := make([]byte, base32.StdEncoding.EncodedLen(8192))
+	base32.StdEncoding.Encode(data, make([]byte, 8192))
 	buf := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		StdEncoding.Decode(buf, data)
+		base32.StdEncoding.Decode(buf, data)
 	}
 }
 
 func BenchmarkDecodeString(b *testing.B) {
-	data := StdEncoding.EncodeToString(make([]byte, 8192))
+	data := base32.StdEncoding.EncodeToString(make([]byte, 8192))
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		StdEncoding.DecodeString(data)
+		base32.StdEncoding.DecodeString(data)
 	}
 }
 
 func TestWithCustomPadding(t *testing.T) {
 	for _, testcase := range pairs {
-		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
-		customPadding := StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
+		defaultPadding := base32.StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := base32.StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
 		expected := strings.ReplaceAll(defaultPadding, "=", "@")
 
 		if expected != customPadding {
@@ -492,8 +493,8 @@ func TestWithCustomPadding(t *testing.T) {
 
 func TestWithoutPadding(t *testing.T) {
 	for _, testcase := range pairs {
-		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
-		customPadding := StdEncoding.WithPadding(NoPadding).EncodeToString([]byte(testcase.decoded))
+		defaultPadding := base32.StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := base32.StdEncoding.WithPadding(NoPadding).EncodeToString([]byte(testcase.decoded))
 		expected := strings.TrimRight(defaultPadding, "=")
 
 		if expected != customPadding {
@@ -531,14 +532,14 @@ func TestWithoutPadding(t *testing.T) {
 // }
 
 func TestDecodeWithWrongPadding(t *testing.T) {
-	encoded := StdEncoding.EncodeToString([]byte("foobar"))
+	encoded := base32.StdEncoding.EncodeToString([]byte("foobar"))
 
-	_, err := StdEncoding.WithPadding('-').DecodeString(encoded)
+	_, err := base32.StdEncoding.WithPadding('-').DecodeString(encoded)
 	if err == nil {
 		t.Error("expected error")
 	}
 
-	_, err = StdEncoding.WithPadding(NoPadding).DecodeString(encoded)
+	_, err = base32.StdEncoding.WithPadding(NoPadding).DecodeString(encoded)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -690,14 +691,14 @@ func TestEncodedDecodedLen(t *testing.T) {
 		enc   *Encoding
 		cases []test
 	}{
-		{"StdEncoding", StdEncoding, []test{
+		{"StdEncoding", base32.StdEncoding, []test{
 			{0, 0, 0},
 			{1, 8, 5},
 			{5, 8, 5},
 			{6, 16, 10},
 			{10, 16, 10},
 		}},
-		{"NoPadding", StdEncoding.WithPadding(NoPadding), []test{
+		{"NoPadding", base32.StdEncoding.WithPadding(base32.NoPadding), []test{
 			{0, 0, 0},
 			{1, 2, 1},
 			{2, 4, 2},
@@ -729,20 +730,20 @@ func TestEncodedDecodedLen(t *testing.T) {
 
 func TestWithoutPaddingClose(t *testing.T) {
 	encodings := []*Encoding{
-		StdEncoding,
-		StdEncoding.WithPadding(NoPadding),
+		base32.StdEncoding,
+		base32.StdEncoding.WithPadding(base32.NoPadding),
 	}
 
 	for _, encoding := range encodings {
 		for _, testpair := range pairs {
 
 			var buf strings.Builder
-			encoder := NewEncoder(encoding, &buf)
+			encoder := base32.NewEncoder(encoding, &buf)
 			encoder.Write([]byte(testpair.decoded))
 			encoder.Close()
 
 			expected := testpair.encoded
-			if encoding.padChar == NoPadding {
+			if encoding.padChar == base32.NoPadding {
 				expected = strings.ReplaceAll(expected, "=", "")
 			}
 
