@@ -18,6 +18,8 @@ import (
 // 32-character alphabet. The most common is the "base32" encoding
 // introduced for SASL GSSAPI and standardized in RFC 4648.
 // The alternate "base32hex" encoding is used in DNSSEC.
+//
+// TODO: Cannot access the `padChar` field of an Encoding, need to fix.
 type Encoding struct {
 	encode    [32]byte
 	decodeMap [256]byte
