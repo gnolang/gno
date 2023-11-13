@@ -9,7 +9,7 @@
 > simulated by the Gnomes of the Greater Resistance.
 
 Gno is an interpreted and fully-deterministic implementation of the Go
-programming language, designed to build succint and composable smart contracts.
+programming language, designed to build succinct and composable smart contracts.
 The first blockchain to use it is Gno.land, a
 [Proof of Contribution](./docs/proof-of-contribution.md)-based chain, backed by
 a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)

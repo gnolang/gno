@@ -16,6 +16,8 @@ import (
 	"errors"
 )
 
+// TODO: implement rest of io package after sync package added.
+
 // Seek whence values.
 const (
 	SeekStart   = 0 // seek relative to the origin of the file
@@ -477,6 +479,15 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 // NewSectionReader returns a SectionReader that reads from r
 // starting at offset off and stops with EOF after n bytes.
 func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+	var remaining int64
+	const maxInt64 = 1<<63 - 1
+	if off <= maxInt64-n {
+		remaining = n + off
+	} else {
+		// Overflow, with no way to return error.
+		// Assume we can read up to an offset of `1<<63 - 1` bytes in this case.
+		remaining = maxInt64
+	}
 	return &SectionReader{r, off, off, off + n}
 }
 
@@ -542,6 +553,53 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
+
+// An OffsetWriter maps writers at offset base to offset base + off in the underlying writer.
+type OffsetWriter struct {
+	w    WriterAt
+	base int64 // the original offset
+	off  int64 // the current offset
+}
+
+// NewOffsetWriter returns a new OffsetWriter that writes to w starting at offset off.
+func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
+	return &OffsetWriter{w: w, off: off}
+}
+
+func (o *OffsetWriter) Write(p []byte) (n int, err error) {
+	// n, err = o.w.WriterAt(p, o.off)
+	wa := o.w
+	n, err = wa.WriteAt(p, o.off)
+	o.off += int64(n)
+	return
+}
+
+func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errOffset
+	}
+
+	off += o.base
+	return o.w.WriteAt(p, off)
+}
+
+func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	default:
+		return 0, errWhence
+	case SeekStart:
+		offset += o.base
+	case SeekCurrent:
+		offset += o.off
+	}
+
+	if offset < o.base {
+		return 0, errOffset
+	}
+
+	o.off = offset
+	return offset - o.base, nil
+}
 
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with
@@ -614,7 +672,12 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
 
 // NopCloser returns a ReadCloser with a no-op Close method wrapping
 // the provided Reader r.
+// If r implements WriterTo, the returned ReadCloser will implement WriterTo
+// by forwarding calls to r.
 func NopCloser(r Reader) ReadCloser {
+	if _, ok := r.(WriterTo); ok {
+		return nopCloserWriterTo{r}
+	}
 	return nopCloser{r}
 }
 
@@ -623,6 +686,16 @@ type nopCloser struct {
 }
 
 func (nopCloser) Close() error { return nil }
+
+type nopCloserWriterTo struct {
+	Reader
+}
+
+func (nopCloserWriterTo) Close() error { return nil }
+
+func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
+	return c.Reader.(WriterTo).WriteTo(w)
+}
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
 // A successful call returns err == nil, not err == EOF. Because ReadAll is
@@ -642,6 +715,10 @@ func ReadAll(r Reader) ([]byte, error) {
 				err = nil
 			}
 			return b, err
+		}
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
 		}
 	}
 }

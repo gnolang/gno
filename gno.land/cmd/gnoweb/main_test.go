@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
 
@@ -41,20 +43,17 @@ func TestRoutes(t *testing.T) {
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
-	if wd, err := os.Getwd(); err == nil {
-		if strings.HasSuffix(wd, "cmd/gnoweb") {
-			os.Chdir("../..")
-		}
-	} else {
-		panic("os.Getwd() -> err: " + err.Error())
-	}
 
-	// configure default values
-	flags.RemoteAddr = "127.0.0.1:26657"
-	flags.HelpRemote = "127.0.0.1:26657"
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	defer node.Stop()
+
+	// set the `remoteAddr` of the client to the listening address of the
+	// node, which is randomly assigned.
+	flags.RemoteAddr = remoteAddr
 	flags.HelpChainID = "dev"
 	flags.CaptchaSite = ""
-	flags.ViewsDir = "./cmd/gnoweb/views"
+	flags.ViewsDir = "../../cmd/gnoweb/views"
 	flags.WithAnalytics = false
 	app := makeApp()
 
@@ -93,27 +92,34 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
+	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	defer node.Stop()
+
+	flags.ViewsDir = "../../cmd/gnoweb/views"
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
+				flags.RemoteAddr = remoteAddr
 				flags.WithAnalytics = true
 				app := makeApp()
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
-				assert.Contains(t, response.Body.String(), "simpleanalytics")
+				assert.Contains(t, response.Body.String(), "sa.gno.services")
 			})
 		}
 	})
 	t.Run("without", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
+				flags.RemoteAddr = remoteAddr
 				flags.WithAnalytics = false
 				app := makeApp()
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
-				assert.Equal(t, strings.Contains(response.Body.String(), "simpleanalytics"), false)
+				assert.Equal(t, strings.Contains(response.Body.String(), "sa.gno.services"), false)
 			})
 		}
 	})

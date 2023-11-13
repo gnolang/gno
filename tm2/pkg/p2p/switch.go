@@ -387,10 +387,6 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 // ---------------------------------------------------------------------
 // Dialing
 
-type privateAddr interface {
-	PrivateAddr() bool
-}
-
 // DialPeersAsync dials a list of peers asynchronously in random order.
 // Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
 // It ignores NetAddressLookupError. However, if there are other errors, first

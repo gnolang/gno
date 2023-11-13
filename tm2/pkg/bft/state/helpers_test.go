@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -190,24 +189,7 @@ func makeHeaderPartsResponsesParams(state sm.State, params abci.ConsensusParams)
 	return block.Header, types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}, abciResponses
 }
 
-func randomGenesisDoc() *types.GenesisDoc {
-	pubkey := ed25519.GenPrivKey().PubKey()
-	return &types.GenesisDoc{
-		GenesisTime: tmtime.Now(),
-		ChainID:     "abc",
-		Validators: []types.GenesisValidator{
-			{
-				Address: pubkey.Address(),
-				PubKey:  pubkey,
-				Power:   10,
-				Name:    "myval",
-			},
-		},
-		ConsensusParams: types.DefaultConsensusParams(),
-	}
-}
-
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 type testApp struct {
 	abci.BaseApplication

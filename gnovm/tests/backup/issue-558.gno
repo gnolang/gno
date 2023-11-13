@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io"
 	"log"
 	"strings"
 )
@@ -37,7 +37,7 @@ type pipe struct {
 
 func newReadAutoCloser(r io.Reader) readAutoCloser {
 	if _, ok := r.(io.Closer); !ok {
-		return readAutoCloser{ioutil.NopCloser(r)}
+		return readAutoCloser{io.NopCloser(r)}
 	}
 	return readAutoCloser{r.(io.ReadCloser)}
 }
@@ -45,7 +45,7 @@ func newReadAutoCloser(r io.Reader) readAutoCloser {
 func main() {
 	p := &pipe{}
 	p.Reader = newReadAutoCloser(strings.NewReader("test"))
-	b, err := ioutil.ReadAll(p.Reader)
+	b, err := io.ReadAll(p.Reader)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -18,6 +18,8 @@ func mockDBWithStuff() DB {
 }
 
 func TestPrefixDBSimple(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -36,6 +38,8 @@ func TestPrefixDBSimple(t *testing.T) {
 }
 
 func TestPrefixDBIterator1(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -54,6 +58,8 @@ func TestPrefixDBIterator1(t *testing.T) {
 }
 
 func TestPrefixDBIterator2(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -64,6 +70,8 @@ func TestPrefixDBIterator2(t *testing.T) {
 }
 
 func TestPrefixDBIterator3(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -82,6 +90,8 @@ func TestPrefixDBIterator3(t *testing.T) {
 }
 
 func TestPrefixDBIterator4(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -92,6 +102,8 @@ func TestPrefixDBIterator4(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator1(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -110,6 +122,8 @@ func TestPrefixDBReverseIterator1(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator2(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -128,6 +142,8 @@ func TestPrefixDBReverseIterator2(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator3(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -138,6 +154,8 @@ func TestPrefixDBReverseIterator3(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator4(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -148,6 +166,8 @@ func TestPrefixDBReverseIterator4(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator5(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -164,6 +184,8 @@ func TestPrefixDBReverseIterator5(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator6(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 
@@ -178,6 +200,8 @@ func TestPrefixDBReverseIterator6(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator7(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
 	pdb := NewPrefixDB(db, bz("key"))
 

@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,7 +111,7 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	gofmt := "gofmt"
 
-	tmpDir, err := ioutil.TempDir("", mempkg.Name)
+	tmpDir, err := os.MkdirTemp("", mempkg.Name)
 	if err != nil {
 		return err
 	}

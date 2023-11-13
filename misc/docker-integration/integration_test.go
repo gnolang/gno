@@ -29,6 +29,8 @@ const (
 )
 
 func TestDockerIntegration(t *testing.T) {
+	t.Parallel()
+
 	tmpdir, err := os.MkdirTemp(os.TempDir(), "*-gnoland-integration")
 	require.NoError(t, err)
 
