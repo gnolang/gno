@@ -10,6 +10,12 @@ makes it better than indexable skiplists in the presence of an adversarial user
 
 This structure like avl.Tree is not concurrency safe.  For concurrency consider
 implementing an immutable version (like the avl in Tendermint).
+
+Related reading:
+ * https://people.computing.clemson.edu/~bcdean/skip_bst.pdf
+ * https://people.computing.clemson.edu/~bcdean/skip_bst.pdf
+ * https://en.wikipedia.org/wiki/Skip_list
+ * https://stackoverflow.com/a/28270537
 */
 
 //----------------------------------------
