@@ -22,7 +22,7 @@ type callCfg struct {
 	args     commands.StringArr
 }
 
-func newCallCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
+func newCallCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 	cfg := &callCfg{
 		rootCfg: rootCfg,
 	}
@@ -69,7 +69,7 @@ func (c *callCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execCall(cfg *callCfg, args []string, io *commands.IO) error {
+func execCall(cfg *callCfg, args []string, io commands.IO) error {
 	if cfg.pkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}

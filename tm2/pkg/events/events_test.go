@@ -35,6 +35,8 @@ func TestAddListenerFireOnce(t *testing.T) {
 // TestAddListenerFireMany sets up an EventSwitch, subscribes a single
 // listener, and sends a thousand integers.
 func TestAddListenerFireMany(t *testing.T) {
+	t.Parallel()
+
 	evsw := NewEventSwitch()
 	err := evsw.Start()
 	require.NoError(t, err)
@@ -62,6 +64,8 @@ func TestAddListenerFireMany(t *testing.T) {
 // TestAddListeners sets up an EventSwitch, subscribes three
 // listeners, and sends a thousand integers for each.
 func TestAddListeners(t *testing.T) {
+	t.Parallel()
+
 	evsw := NewEventSwitch()
 	err := evsw.Start()
 	require.NoError(t, err)
@@ -100,6 +104,8 @@ func TestAddListeners(t *testing.T) {
 }
 
 func TestAddAndRemoveListenerConcurrency(t *testing.T) {
+	t.Parallel()
+
 	var (
 		stopInputEvent = false
 		roundCount     = 2000
@@ -145,6 +151,8 @@ func TestAddAndRemoveListenerConcurrency(t *testing.T) {
 }
 
 func TestAddAndRemoveListener(t *testing.T) {
+	t.Parallel()
+
 	evsw := NewEventSwitch()
 	err := evsw.Start()
 	require.NoError(t, err)
@@ -192,6 +200,8 @@ func TestAddAndRemoveListener(t *testing.T) {
 
 // TestRemoveListener does basic tests on adding and removing
 func TestRemoveListener(t *testing.T) {
+	t.Parallel()
+
 	evsw := NewEventSwitch()
 	err := evsw.Start()
 	require.NoError(t, err)
@@ -241,6 +251,8 @@ func TestRemoveListener(t *testing.T) {
 // NOTE: it is important to run this test with race conditions tracking on,
 // `go test -race`, to examine for possible race conditions.
 func TestRemoveListenersAsync(t *testing.T) {
+	t.Parallel()
+
 	evsw := NewEventSwitch()
 	err := evsw.Start()
 	require.NoError(t, err)

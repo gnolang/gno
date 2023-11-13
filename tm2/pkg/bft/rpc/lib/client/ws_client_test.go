@@ -58,6 +58,8 @@ func (h *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestWSClientReconnectsAfterReadFailure(t *testing.T) {
+	t.Parallel()
+
 	var wg sync.WaitGroup
 
 	// start server
@@ -91,6 +93,8 @@ func TestWSClientReconnectsAfterReadFailure(t *testing.T) {
 }
 
 func TestWSClientReconnectsAfterWriteFailure(t *testing.T) {
+	t.Parallel()
+
 	var wg sync.WaitGroup
 
 	// start server
@@ -121,6 +125,8 @@ func TestWSClientReconnectsAfterWriteFailure(t *testing.T) {
 }
 
 func TestWSClientReconnectFailure(t *testing.T) {
+	t.Parallel()
+
 	// start server
 	h := &myHandler{}
 	s := httptest.NewServer(h)
@@ -172,6 +178,8 @@ func TestWSClientReconnectFailure(t *testing.T) {
 }
 
 func TestNotBlockingOnStop(t *testing.T) {
+	t.Parallel()
+
 	timeout := 2 * time.Second
 	s := httptest.NewServer(&myHandler{})
 	c := startClient(t, s.Listener.Addr())

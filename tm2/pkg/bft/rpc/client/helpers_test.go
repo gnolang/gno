@@ -15,6 +15,8 @@ import (
 )
 
 func TestWaitForHeight(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 
 	// test with error result - immediate failure

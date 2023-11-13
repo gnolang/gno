@@ -20,7 +20,7 @@ var defaultBuildOptions = &buildCfg{
 	goBinary: "go",
 }
 
-func newBuildCmd(io *commands.IO) *commands.Command {
+func newBuildCmd(io commands.IO) *commands.Command {
 	cfg := &buildCfg{}
 
 	return commands.NewCommand(
@@ -52,7 +52,7 @@ func (c *buildCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBuild(cfg *buildCfg, args []string, io *commands.IO) error {
+func execBuild(cfg *buildCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}

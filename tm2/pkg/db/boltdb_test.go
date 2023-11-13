@@ -10,6 +10,8 @@ import (
 )
 
 func TestBoltDBNewBoltDB(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 
 	db, err := NewBoltDB(name, t.TempDir())
