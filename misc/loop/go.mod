@@ -29,7 +29,7 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/linxGnu/grocksdb v1.8.4 // indirect
+	github.com/linxGnu/grocksdb v1.8.5 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -42,8 +42,8 @@ require (
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/term v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/term v0.14.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
