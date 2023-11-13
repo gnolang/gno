@@ -41,7 +41,7 @@ var isValidPathTests = []struct {
 
 func TestValidPath(t *testing.T) {
 	for _, tt := range isValidPathTests {
-		ok := ValidPath(tt.name)
+		ok := fs.ValidPath(tt.name)
 		if ok != tt.ok {
 			t.Errorf("ValidPath(%q) = %v, want %v", tt.name, ok, tt.ok)
 		}

@@ -15,7 +15,7 @@ import (
 type formatTest struct {
 	name    string
 	size    int64
-	mode    FileMode
+	mode    fs.FileMode
 	modTime time.Time
 	isDir   bool
 }
@@ -28,7 +28,7 @@ func (fs *formatTest) Size() int64 {
 	return fs.size
 }
 
-func (fs *formatTest) Mode() FileMode {
+func (fs *formatTest) Mode() fs.FileMode {
 	return fs.mode
 }
 
@@ -44,11 +44,11 @@ func (fs *formatTest) Sys() interface{} {
 	return nil
 }
 
-func (fs *formatTest) Type() FileMode {
+func (fs *formatTest) Type() fs.FileMode {
 	return fs.mode.Type()
 }
 
-func (fs *formatTest) Info() (FileInfo, error) {
+func (fs *formatTest) Info() (fs.FileInfo, error) {
 	return fs, nil
 }
 
@@ -72,7 +72,7 @@ var formatTests = []struct {
 		formatTest{
 			name:    "home/gopher",
 			size:    0,
-			mode:    ModeDir | 0o755,
+			mode:    fs.ModeDir | 0o755,
 			modTime: time.Date(1970, time.January, 1, 12, 0, 0, 0, time.UTC),
 			isDir:   true,
 		},
@@ -83,7 +83,7 @@ var formatTests = []struct {
 		formatTest{
 			name:    "big",
 			size:    0x7fffffffffffffff,
-			mode:    ModeIrregular | 0o644,
+			mode:    fs.ModeIrregular | 0o644,
 			modTime: time.Date(1970, time.January, 1, 12, 0, 0, 0, time.UTC),
 			isDir:   false,
 		},
@@ -94,7 +94,7 @@ var formatTests = []struct {
 		formatTest{
 			name:    "small",
 			size:    -0x8000000000000000,
-			mode:    ModeSocket | ModeSetuid | 0o644,
+			mode:    fs.ModeSocket | fs.ModeSetuid | 0o644,
 			modTime: time.Date(1970, time.January, 1, 12, 0, 0, 0, time.UTC),
 			isDir:   false,
 		},
@@ -105,7 +105,7 @@ var formatTests = []struct {
 
 func TestFormatFileInfo(t *testing.T) {
 	for i, test := range formatTests {
-		got := FormatFileInfo(&test.input)
+		got := fs.FormatFileInfo(&test.input)
 		if got != test.wantFileInfo {
 			t.Errorf("%d: FormatFileInfo(%#v) = %q, want %q", i, test.input, got, test.wantFileInfo)
 		}
@@ -114,7 +114,7 @@ func TestFormatFileInfo(t *testing.T) {
 
 func TestFormatDirEntry(t *testing.T) {
 	for i, test := range formatTests {
-		got := FormatDirEntry(&test.input)
+		got := fs.FormatDirEntry(&test.input)
 		if got != test.wantDirEntry {
 			t.Errorf("%d: FormatDirEntry(%#v) = %q, want %q", i, test.input, got, test.wantDirEntry)
 		}
