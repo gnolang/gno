@@ -129,7 +129,7 @@ field"`,
 }, {
 	Name:   "BadDoubleQuotes",
 	Input:  `§a∑""b,c`,
-	Errors: []error{&ParseError{Err: ErrBareQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
 }, {
 	Name:             "TrimQuote",
 	Input:            ` §"a",§" b",§c`,
@@ -138,33 +138,33 @@ field"`,
 }, {
 	Name:   "BadBareQuote",
 	Input:  `§a ∑"word","b"`,
-	Errors: []error{&ParseError{Err: ErrBareQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
 }, {
 	Name:   "BadTrailingQuote",
 	Input:  `§"a word",b∑"`,
-	Errors: []error{&ParseError{Err: ErrBareQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
 }, {
 	Name:   "ExtraneousQuote",
 	Input:  `§"a ∑"word","b"`,
-	Errors: []error{&ParseError{Err: ErrQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
 }, {
 	Name:               "BadFieldCount",
 	Input:              "§a,§b,§c\n¶∑§d,§e",
-	Errors:             []error{nil, &ParseError{Err: ErrFieldCount}},
+	Errors:             []error{nil, &csv.ParseError{Err: csv.ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}, {"d", "e"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    0,
 }, {
 	Name:               "BadFieldCountMultiple",
 	Input:              "§a,§b,§c\n¶∑§d,§e\n¶∑§f",
-	Errors:             []error{nil, &ParseError{Err: ErrFieldCount}, &ParseError{Err: ErrFieldCount}},
+	Errors:             []error{nil, &csv.ParseError{Err: ErrFieldCount}, &csv.ParseError{Err: ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}, {"d", "e"}, {"f"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    0,
 }, {
 	Name:               "BadFieldCount1",
 	Input:              `§∑a,§b,§c`,
-	Errors:             []error{&ParseError{Err: ErrFieldCount}},
+	Errors:             []error{&csv.ParseError{Err: csv.ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    2,
@@ -243,11 +243,11 @@ field"`,
 }, {
 	Name:   "StartLine1", // Issue 19019
 	Input:  "§a,\"b\nc∑\"d,e",
-	Errors: []error{&ParseError{Err: ErrQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
 }, {
 	Name:   "StartLine2",
 	Input:  "§a,§b\n¶§\"d\n\n,e∑",
-	Errors: []error{nil, &ParseError{Err: ErrQuote}},
+	Errors: []error{nil, &csv.ParseError{Err: csv.ErrQuote}},
 	Output: [][]string{{"a", "b"}},
 }, {
 	Name:  "CRLFInQuotedField", // Issue 21201
@@ -270,7 +270,7 @@ field"`,
 }, {
 	Name:   "QuotedTrailingCRCR",
 	Input:  "§\"field∑\"\r\r",
-	Errors: []error{&ParseError{Err: ErrQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
 }, {
 	Name:   "FieldCR",
 	Input:  "§field\rfield\r",
@@ -342,7 +342,7 @@ field"`,
 }, {
 	Name:   "QuoteWithTrailingCRLF",
 	Input:  "§\"foo∑\"bar\"\r\n",
-	Errors: []error{&ParseError{Err: ErrQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
 }, {
 	Name:       "LazyQuoteWithTrailingCRLF",
 	Input:      "§\"foo\"bar\"\r\n",
@@ -359,7 +359,7 @@ field"`,
 }, {
 	Name:   "OddQuotes",
 	Input:  `§"""""""∑`,
-	Errors: []error{&ParseError{Err: ErrQuote}},
+	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
 }, {
 	Name:       "LazyOddQuotes",
 	Input:      `§"""""""`,
@@ -368,36 +368,36 @@ field"`,
 }, {
 	Name:   "BadComma1",
 	Comma:  '\n',
-	Errors: []error{errInvalidDelim},
+	Errors: []error{csv.errInvalidDelim},
 }, {
 	Name:   "BadComma2",
 	Comma:  '\r',
-	Errors: []error{errInvalidDelim},
+	Errors: []error{csv.errInvalidDelim},
 }, {
 	Name:   "BadComma3",
 	Comma:  '"',
-	Errors: []error{errInvalidDelim},
+	Errors: []error{csv.errInvalidDelim},
 }, {
 	Name:   "BadComma4",
 	Comma:  utf8.RuneError,
-	Errors: []error{errInvalidDelim},
+	Errors: []error{csv.errInvalidDelim},
 }, {
 	Name:    "BadComment1",
 	Comment: '\n',
-	Errors:  []error{errInvalidDelim},
+	Errors:  []error{csv.errInvalidDelim},
 }, {
 	Name:    "BadComment2",
 	Comment: '\r',
-	Errors:  []error{errInvalidDelim},
+	Errors:  []error{csv.errInvalidDelim},
 }, {
 	Name:    "BadComment3",
 	Comment: utf8.RuneError,
-	Errors:  []error{errInvalidDelim},
+	Errors:  []error{csv.errInvalidDelim},
 }, {
 	Name:    "BadCommaComment",
 	Comma:   'X',
 	Comment: 'X',
-	Errors:  []error{errInvalidDelim},
+	Errors:  []error{csv.errInvalidDelim},
 }}
 
 func TestRead(t *testing.T) {
@@ -498,7 +498,7 @@ func firstError(errs []error, positions [][][2]int, errPositions map[int][2]int)
 }
 
 func errorWithPosition(err error, recNum int, positions [][][2]int, errPositions map[int][2]int) error {
-	parseErr, ok := err.(*ParseError)
+	parseErr, ok := err.(*csv.ParseError)
 	if !ok {
 		return err
 	}
