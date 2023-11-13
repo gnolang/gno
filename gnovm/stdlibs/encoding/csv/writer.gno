@@ -49,7 +49,7 @@ func NewWriter(w io.Writer) *Writer {
 // that the record is written to the underlying [io.Writer].
 func (w *Writer) Write(record []string) error {
 	if !validDelim(w.Comma) {
-		return errInvalidDelim
+		return ErrInvalidDelim
 	}
 
 	for n, field := range record {

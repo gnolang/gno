@@ -157,7 +157,7 @@ field"`,
 }, {
 	Name:               "BadFieldCountMultiple",
 	Input:              "§a,§b,§c\n¶∑§d,§e\n¶∑§f",
-	Errors:             []error{nil, &csv.ParseError{Err: ErrFieldCount}, &csv.ParseError{Err: ErrFieldCount}},
+	Errors:             []error{nil, &csv.ParseError{Err: csv.ErrFieldCount}, &csv.ParseError{Err: csv.ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}, {"d", "e"}, {"f"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    0,
@@ -368,122 +368,123 @@ field"`,
 }, {
 	Name:   "BadComma1",
 	Comma:  '\n',
-	Errors: []error{csv.errInvalidDelim},
+	Errors: []error{csv.ErrInvalidDelim},
 }, {
 	Name:   "BadComma2",
 	Comma:  '\r',
-	Errors: []error{csv.errInvalidDelim},
+	Errors: []error{csv.ErrInvalidDelim},
 }, {
 	Name:   "BadComma3",
 	Comma:  '"',
-	Errors: []error{csv.errInvalidDelim},
+	Errors: []error{csv.ErrInvalidDelim},
 }, {
 	Name:   "BadComma4",
 	Comma:  utf8.RuneError,
-	Errors: []error{csv.errInvalidDelim},
+	Errors: []error{csv.ErrInvalidDelim},
 }, {
 	Name:    "BadComment1",
 	Comment: '\n',
-	Errors:  []error{csv.errInvalidDelim},
+	Errors:  []error{csv.ErrInvalidDelim},
 }, {
 	Name:    "BadComment2",
 	Comment: '\r',
-	Errors:  []error{csv.errInvalidDelim},
+	Errors:  []error{csv.ErrInvalidDelim},
 }, {
 	Name:    "BadComment3",
 	Comment: utf8.RuneError,
-	Errors:  []error{csv.errInvalidDelim},
+	Errors:  []error{csv.ErrInvalidDelim},
 }, {
 	Name:    "BadCommaComment",
 	Comma:   'X',
 	Comment: 'X',
-	Errors:  []error{csv.errInvalidDelim},
+	Errors:  []error{csv.ErrInvalidDelim},
 }}
 
-func TestRead(t *testing.T) {
-	newReader := func(tt readTest) (*csv.Reader, [][][2]int, map[int][2]int, string) {
-		positions, errPositions, input := makePositions(tt.Input)
-		r := csv.NewReader(strings.NewReader(input))
+// TODO: After reflect
+// func TestRead(t *testing.T) {
+// 	newReader := func(tt readTest) (*csv.Reader, [][][2]int, map[int][2]int, string) {
+// 		positions, errPositions, input := makePositions(tt.Input)
+// 		r := csv.NewReader(strings.NewReader(input))
 
-		if tt.Comma != 0 {
-			r.Comma = tt.Comma
-		}
-		r.Comment = tt.Comment
-		if tt.UseFieldsPerRecord {
-			r.FieldsPerRecord = tt.FieldsPerRecord
-		} else {
-			r.FieldsPerRecord = -1
-		}
-		r.LazyQuotes = tt.LazyQuotes
-		r.TrimLeadingSpace = tt.TrimLeadingSpace
-		r.ReuseRecord = tt.ReuseRecord
-		return r, positions, errPositions, input
-	}
+// 		if tt.Comma != 0 {
+// 			r.Comma = tt.Comma
+// 		}
+// 		r.Comment = tt.Comment
+// 		if tt.UseFieldsPerRecord {
+// 			r.FieldsPerRecord = tt.FieldsPerRecord
+// 		} else {
+// 			r.FieldsPerRecord = -1
+// 		}
+// 		r.LazyQuotes = tt.LazyQuotes
+// 		r.TrimLeadingSpace = tt.TrimLeadingSpace
+// 		r.ReuseRecord = tt.ReuseRecord
+// 		return r, positions, errPositions, input
+// 	}
 
-	for _, tt := range readTests {
-		t.Run(tt.Name, func(t *testing.T) {
-			r, positions, errPositions, input := newReader(tt)
-			out, err := r.ReadAll()
-			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
-				// if !reflect.DeepEqual(err, wantErr) {
-				// 	t.Fatalf("ReadAll() error mismatch:\ngot  %v (%#v)\nwant %v (%#v)", err, err, wantErr, wantErr)
-				// }
-				if out != nil {
-					t.Fatalf("ReadAll() output:\ngot  %q\nwant nil", out)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected Readall() error: %v", err)
-				}
-				// if !reflect.DeepEqual(out, tt.Output) {
-				// 	t.Fatalf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
-				// }
-			}
+// 	for _, tt := range readTests {
+// 		t.Run(tt.Name, func(t *testing.T) {
+// 			r, positions, errPositions, input := newReader(tt)
+// 			out, err := r.ReadAll()
+// 			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
+// 				if !reflect.DeepEqual(err, wantErr) {
+// 					t.Fatalf("ReadAll() error mismatch:\ngot  %v (%#v)\nwant %v (%#v)", err, err, wantErr, wantErr)
+// 				}
+// 				if out != nil {
+// 					t.Fatalf("ReadAll() output:\ngot  %q\nwant nil", out)
+// 				}
+// 			} else {
+// 				if err != nil {
+// 					t.Fatalf("unexpected Readall() error: %v", err)
+// 				}
+// 				if !reflect.DeepEqual(out, tt.Output) {
+// 					t.Fatalf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
+// 				}
+// 			}
 
-			// Check input offset after call ReadAll()
-			inputByteSize := len(input)
-			inputOffset := r.InputOffset()
-			if err == nil && int64(inputByteSize) != inputOffset {
-				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
-			}
+// 			// Check input offset after call ReadAll()
+// 			inputByteSize := len(input)
+// 			inputOffset := r.InputOffset()
+// 			if err == nil && int64(inputByteSize) != inputOffset {
+// 				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
+// 			}
 
-			// Check field and error positions.
-			r, _, _, _ = newReader(tt)
-			for recNum := 0; ; recNum++ {
-				rec, err := r.Read()
-				var wantErr error
-				if recNum < len(tt.Errors) && tt.Errors[recNum] != nil {
-					wantErr = errorWithPosition(tt.Errors[recNum], recNum, positions, errPositions)
-				} else if recNum >= len(tt.Output) {
-					wantErr = io.EOF
-				}
-				// if !reflect.DeepEqual(err, wantErr) {
-				// 	t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
-				// }
-				// ErrFieldCount is explicitly non-fatal.
-				if err != nil && !errors.Is(err, ErrFieldCount) {
-					if recNum < len(tt.Output) {
-						t.Fatalf("need more records; got %d want %d", recNum, len(tt.Output))
-					}
-					break
-				}
-				// if got, want := rec, tt.Output[recNum]; !reflect.DeepEqual(got, want) {
-				// 	t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
-				// }
-				pos := positions[recNum]
-				if len(pos) != len(rec) {
-					t.Fatalf("mismatched position length at record %d", recNum)
-				}
-				for i := range rec {
-					line, col := r.FieldPos(i)
-					if got, want := [2]int{line, col}, pos[i]; got != want {
-						t.Errorf("position mismatch at record %d, field %d;\ngot %v\nwant %v", recNum, i, got, want)
-					}
-				}
-			}
-		})
-	}
-}
+// 			// Check field and error positions.
+// 			r, _, _, _ = newReader(tt)
+// 			for recNum := 0; ; recNum++ {
+// 				rec, err := r.Read()
+// 				var wantErr error
+// 				if recNum < len(tt.Errors) && tt.Errors[recNum] != nil {
+// 					wantErr = errorWithPosition(tt.Errors[recNum], recNum, positions, errPositions)
+// 				} else if recNum >= len(tt.Output) {
+// 					wantErr = io.EOF
+// 				}
+// 				if !reflect.DeepEqual(err, wantErr) {
+// 					t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
+// 				}
+// 				ErrFieldCount is explicitly non-fatal.
+// 				if err != nil && !errors.Is(err, csv.ErrFieldCount) {
+// 					if recNum < len(tt.Output) {
+// 						t.Fatalf("need more records; got %d want %d", recNum, len(tt.Output))
+// 					}
+// 					break
+// 				}
+// 				if got, want := rec, tt.Output[recNum]; !reflect.DeepEqual(got, want) {
+// 					t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
+// 				}
+// 				pos := positions[recNum]
+// 				if len(pos) != len(rec) {
+// 					t.Fatalf("mismatched position length at record %d", recNum)
+// 				}
+// 				for i := range rec {
+// 					line, col := r.FieldPos(i)
+// 					if got, want := [2]int{line, col}, pos[i]; got != want {
+// 						t.Errorf("position mismatch at record %d, field %d;\ngot %v\nwant %v", recNum, i, got, want)
+// 					}
+// 				}
+// 			}
+// 		})
+// 	}
+// }
 
 // firstError returns the first non-nil error in errs,
 // with the position adjusted according to the error's
@@ -588,7 +589,7 @@ func benchmarkRead(b *testing.B, initReader func(*csv.Reader), rows string) {
 	b.ReportAllocs()
 	r := csv.Reader(&nTimes{s: rows, n: b.N})
 	if initReader != nil {
-		initReader(r)
+		initReader(&r)
 	}
 	for {
 		_, err := r.Read()

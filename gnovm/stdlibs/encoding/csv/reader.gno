@@ -92,7 +92,7 @@ var (
 	ErrTrailingComma = errors.New("extra delimiter at end of line")
 )
 
-var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
+var ErrInvalidDelim = errors.New("csv: invalid field or comment delimiter")
 
 func validDelim(r rune) bool {
 	return r != 0 && r != '"' && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
@@ -295,7 +295,7 @@ func nextRune(b []byte) rune {
 
 func (r *Reader) readRecord(dst []string) ([]string, error) {
 	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
-		return nil, errInvalidDelim
+		return nil, ErrInvalidDelim
 	}
 
 	// Read line (automatically skipping past empty lines and any comments).

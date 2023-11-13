@@ -68,7 +68,7 @@ var writeTests = []struct {
 	{Input: [][]string{{",x09\x41\xb4\x1c", "aktau"}}, Output: "\",x09\x41\xb4\x1c\",aktau\n"},
 	{Input: [][]string{{"a", "a", ""}}, Output: "a|a|\n", Comma: '|'},
 	{Input: [][]string{{",", ",", ""}}, Output: ",|,|\n", Comma: '|'},
-	{Input: [][]string{{"foo"}}, Comma: '"', Error: errInvalidDelim},
+	{Input: [][]string{{"foo"}}, Comma: '"', Error: ErrInvalidDelim},
 }
 
 func TestWrite(t *testing.T) {
