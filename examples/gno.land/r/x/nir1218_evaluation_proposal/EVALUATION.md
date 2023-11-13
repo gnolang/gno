@@ -51,7 +51,7 @@ An example of a category is a bounty, a chore, a defect, or a document.
 A contribution is associated with a pull request.
 A contribution has an evaluation life cycle.
 A submission time is set when a contribution is added.
-A last evaluation time is set when a contribution is evaluated and approved by a memeber.
+A last evaluation time is set when a contribution is evaluated and approved by a member.
 An approval time is set when a contribution is approved by all members (or when a future threshold is reached)
 
 #### Submission

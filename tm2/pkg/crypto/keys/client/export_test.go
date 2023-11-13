@@ -44,7 +44,7 @@ func addRandomKeyToKeybase(
 	encryptPassword string,
 ) (keys.Info, error) {
 	// Generate a random mnemonic
-	mnemonic, err := generateMnemonic(mnemonicEntropySize)
+	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"unable to generate a mnemonic phrase, %w",
@@ -64,11 +64,9 @@ func addRandomKeyToKeybase(
 }
 
 type testCmdKeyOptsBase struct {
-	kbHome          string
-	keyName         string
-	decryptPassword string
-	encryptPassword string
-	unsafe          bool
+	kbHome  string
+	keyName string
+	unsafe  bool
 }
 
 type testExportKeyOpts struct {

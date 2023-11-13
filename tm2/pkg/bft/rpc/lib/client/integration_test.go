@@ -19,6 +19,8 @@ import (
 )
 
 func TestWSClientReconnectWithJitter(t *testing.T) {
+	t.Parallel()
+
 	n := 8
 	maxReconnectAttempts := 3
 	// Max wait time is ceil(1+0.999) + ceil(2+0.999) + ceil(4+0.999) + ceil(...) = 2 + 3 + 5 = 10s + ...
