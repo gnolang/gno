@@ -441,7 +441,7 @@ func TestReaderRead(t *testing.T) {
 			},
 		},
 		{
-			name: "golang example",
+			name:  "golang example",
 			input: "first_name, last_name, username\n\"Rob\",\"Pike\",\"ken\"\n\"Robert\",\"Griesemer\",\"gri\"",
 			expectedOutput: [][]string{
 				{"first_name", " last_name", " username"},
