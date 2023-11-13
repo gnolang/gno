@@ -400,6 +400,79 @@ field"`,
 	Errors:  []error{csv.ErrInvalidDelim},
 }}
 
+func TestReaderRead(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedOutput [][]string
+	}{
+		{
+			name:  "simple",
+			input: "a,b,c\n1,2,3\n4,5,6\n",
+			expectedOutput: [][]string{
+				{"a", "b", "c"},
+				{"1", "2", "3"},
+				{"4", "5", "6"},
+			},
+		},
+		{
+			name:  "quoted",
+			input: "a,b,c\n\"1\",\"2\",\"3\"\n\"4\",\"5\",\"6\"\n",
+			expectedOutput: [][]string{
+				{"a", "b", "c"},
+				{"1", "2", "3"},
+				{"4", "5", "6"},
+			},
+		},
+		{
+			name:  "quoted with comma",
+			input: "a,b,c\n\"1,2\",\"3\",\"4,5,6\"\n",
+			expectedOutput: [][]string{
+				{"a", "b", "c"},
+				{"1,2", "3", "4,5,6"},
+			},
+		},
+		{
+			name:  "quoted with newline",
+			input: "a,b,c\n\"1\n2\",\"3\",\"4\n5\n6\"\n",
+			expectedOutput: [][]string{
+				{"a", "b", "c"},
+				{"1\n2", "3", "4\n5\n6"},
+			},
+		},
+		{
+			name: "golang example",
+			input: "first_name, last_name, username\n\"Rob\",\"Pike\",\"ken\"\n\"Robert\",\"Griesemer\",\"gri\"",
+			expectedOutput: [][]string{
+				{"first_name", " last_name", " username"},
+				{"Rob", "Pike", "ken"},
+				{"Robert", " Griesemer", " gri"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := csv.NewReader(strings.NewReader(tt.input))
+			var output [][]string
+			for {
+				record, err := r.Read()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				output = append(output, record)
+			}
+
+			if len(output) != len(tt.expectedOutput) {
+				t.Errorf("unexpected output:\nexpected: %v\nactual:   %v", tt.expectedOutput, output)
+			}
+		})
+	}
+}
+
 // TODO: After reflect
 // func TestRead(t *testing.T) {
 // 	newReader := func(tt readTest) (*csv.Reader, [][][2]int, map[int][2]int, string) {
