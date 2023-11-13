@@ -39,7 +39,7 @@ func TestDoOpEvalOctal(t *testing.T) {
 	m := NewMachine("test", nil)
 
 	m.PushExpr(&BasicLitExpr{
-		Kind: INT,
+		Kind:  INT,
 		Value: "0o42",
 	})
 	m.doOpEval()
@@ -47,7 +47,7 @@ func TestDoOpEvalOctal(t *testing.T) {
 	assert.Equal(t, v1.V.String(), "34")
 
 	m.PushExpr(&BasicLitExpr{
-		Kind: INT,
+		Kind:  INT,
 		Value: "0O0000042",
 	})
 
