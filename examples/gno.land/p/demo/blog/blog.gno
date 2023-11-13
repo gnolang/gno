@@ -42,11 +42,20 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("<div class='columns-3'>")
+
+	var sorted []*Post
 	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
-		res.Write(post.RenderListItem())
+		sorted = append(sorted, post)
 		return false
 	})
+
+	sorted = mergeSort(sorted)
+
+	for _, post := range sorted {
+		res.Write(post.RenderListItem())
+	}
+
 	res.Write("</div>")
 
 	// FIXME: tag list/cloud.
