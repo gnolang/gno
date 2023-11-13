@@ -1,5 +1,17 @@
 package book
 
+/*
+A Book is composed of nodes that behave much like avl nodes,
+except nodes do not have keys.
+
+Insertion, deletion, and query all have best and worst case log(n) time.  This
+makes it better than indexable skiplists in the presence of an adversarial user
+(where all the state is visible to everyone).
+
+This structure like avl.Tree is not concurrency safe.  For concurrency consider
+implementing an immutable version (like the avl in Tendermint).
+*/
+
 //----------------------------------------
 // Node
 
