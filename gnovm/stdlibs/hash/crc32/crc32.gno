@@ -39,6 +39,17 @@ var (
 	updateCastagnoli func(crc uint32, p []byte) uint32
 )
 
+func castagnoliInit() {
+	table = simpleMakeTable(Castagnoli)
+
+	// Initialize the slicing-by-8 table.
+	castagnoliTable8 = slicingMakeTable(Castagnoli)
+
+	updateCastagnoli = func(crc uint32, p []byte) uint32 {
+		return slicingUpdate(crc, castagnoliTable8, p)
+	}
+}
+
 // MakeTable returns a `Table` constructed from the specified polynomial.
 // The contents of this `Table` must not be modified.
 func MakeTable(p uint32) *Table {
@@ -56,6 +67,20 @@ func MakeTable(p uint32) *Table {
 
 // IEEETabele is the table for the [IEEE] polynomial.
 var IEEETable = simpleMakeTable(IEEE)
+
+// IEEETable8 is the slicing8Table for IEEE.
+var (
+	ieeeTable8 *slicing8Table
+	updateIEEE func(crc uint32, p []byte) uint32
+)
+
+func ieeeInit() {
+	ieeeTable8 = slicingMakeTable(IEEE)
+
+	updateIEEE = func(crc uint32, p []byte) uint32 {
+		return slicingUpdate(crc, ieeeTable8, p)
+	}
+}
 
 // New creates a new [hash.Hash32] computing the CRC-32 checksum using the
 // polynomial represented by the [Table]. Its Sum method will lay the
