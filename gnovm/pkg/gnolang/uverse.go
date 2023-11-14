@@ -294,14 +294,25 @@ func UverseNode() *PackageNode {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := xvb.List
 								if argsb.Data == nil {
-									copy(
-										list[xvo+xvl:xvo+xvl+argsl],
-										argsb.List[argso:argso+argsl])
+									for i := 0; i < argsl; i++ {
+										oldElem := list[xvo+xvl+i]
+										// DeepCopy will resolve references and copy their values to prevent
+										// reference copying rather than copying the underlying values.
+										newElem := argsb.List[argso+i].DeepCopy(m.Alloc, m.Store)
+										list[xvo+xvl+i] = newElem
+
+										m.Realm.DidUpdate(
+											xvb,
+											oldElem.GetFirstObject(m.Store),
+											newElem.GetFirstObject(m.Store),
+										)
+									}
 								} else {
 									copyDataToList(
 										list[xvo+xvl:xvo+xvl+argsl],
 										argsb.Data[argso:argso+argsl],
 										xt.Elem())
+									m.Realm.DidUpdate(xvb, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -310,6 +321,7 @@ func UverseNode() *PackageNode {
 									copyListToData(
 										data[xvo+xvl:xvo+xvl+argsl],
 										argsb.List[argso:argso+argsl])
+									m.Realm.DidUpdate(xvb, nil, nil)
 								} else {
 									copy(
 										data[xvo+xvl:xvo+xvl+argsl],
@@ -363,9 +375,9 @@ func UverseNode() *PackageNode {
 						list := make([]TypedValue, xvl+argsl)
 						if 0 < xvl {
 							if xvb.Data == nil {
-								copy(
-									list[:xvl],
-									xvb.List[xvo:xvo+xvl])
+								for i := 0; i < xvl; i++ {
+									list[i] = xvb.List[xvo+i].Copy(m.Alloc)
+								}
 							} else {
 								panic("should not happen")
 								/*
@@ -379,9 +391,9 @@ func UverseNode() *PackageNode {
 						}
 						if 0 < argsl {
 							if argsb.Data == nil {
-								copy(
-									list[xvl:xvl+argsl],
-									argsb.List[argso:argso+argsl])
+								for i := 0; i < argsl; i++ {
+									list[xvl+i] = argsb.List[argso+i].Copy(m.Alloc)
+								}
 							} else {
 								copyDataToList(
 									list[xvl:xvl+argsl],
