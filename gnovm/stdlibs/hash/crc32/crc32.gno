@@ -33,9 +33,11 @@ type Table [256]uint32
 // polynomial. MakeTable will always return this value when asked to make a
 // Castagnoli table so we can compare against it to find when the caller is
 // using this polynomial.
-var castagnoliTable *Table
-var castagnoliTable8 *slicing8Table
-var updateCastagnoli func(crc uint32, p []byte) uint32
+var (
+	castagnoliTable  *Table
+	castagnoliTable8 *slicing8Table
+	updateCastagnoli func(crc uint32, p []byte) uint32
+)
 
 // MakeTable returns a `Table` constructed from the specified polynomial.
 // The contents of this `Table` must not be modified.
@@ -44,12 +46,12 @@ func MakeTable(p uint32) *Table {
 	case IEEE:
 		// ieeeOnce.Do(ieeeInit)
 		return IEEETabele
-	}
 	case Castagnoli:
 		// castagnoliOnce.Do(castagnoliInit)
 		return castagnoliTable
 	default:
 		return simpleMakeTable(p)
+	}
 }
 
 // IEEETabele is the table for the [IEEE] polynomial.
