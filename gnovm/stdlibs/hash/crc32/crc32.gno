@@ -40,7 +40,7 @@ var (
 )
 
 func castagnoliInit() {
-	table = simpleMakeTable(Castagnoli)
+	castagnoliTable = simpleMakeTable(Castagnoli)
 
 	// Initialize the slicing-by-8 table.
 	castagnoliTable8 = slicingMakeTable(Castagnoli)
@@ -56,7 +56,7 @@ func MakeTable(p uint32) *Table {
 	switch p {
 	case IEEE:
 		// ieeeOnce.Do(ieeeInit)
-		return IEEETabele
+		return IEEETable
 	case Castagnoli:
 		// castagnoliOnce.Do(castagnoliInit)
 		return castagnoliTable
@@ -82,6 +82,12 @@ func ieeeInit() {
 	}
 }
 
+// digest represents the partial evaluation of a checksum.
+type digest struct {
+	crc uint32
+	tab *Table
+}
+
 // New creates a new [hash.Hash32] computing the CRC-32 checksum using the
 // polynomial represented by the [Table]. Its Sum method will lay the
 // value out in big-endian byte order. The returned Hash32 also
@@ -101,3 +107,66 @@ func New(tab *Table) hash.Hash32 {
 // [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to marshal
 // and unmarshal the internal state of the hash.
 func NewIEEE() hash.Hash32 { return New(IEEETable) }
+
+func (d *digest) Size() int      { return Size }
+func (d *digest) BlockSize() int { return 1 }
+func (d *digest) Reset()         { d.crc = 0 }
+
+const (
+	magic         = "crc\x01"
+	marshaledSize = len(magic) + 4 + 4
+)
+
+func (d *digetst) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, marshaledSize)
+	b = append(b, magic...)
+	b = appendUint32(b, tableSum(d.tab))
+}
+
+func appendUint32(b []byte, x uint32) []byte {
+	a := [4]byte {
+		byte(x >> 24),
+		byte(x >> 16),
+		byte(x >> 8),
+		byte(x),
+	}
+
+	return append(b, a[:]...)
+}
+
+func readUint32(b []byte) uint32 {
+	_ = b[3]
+	return uint32(b[3]) | uint32(b[2]) << 8 | uint32(b[1]) << 16 | uint32(b[0]) << 24
+}
+
+func update(crc uint32, tab *Table, p []byte, checkInitIEEE bool) uint32 {
+	switch {
+	case tab == IEEETable:
+		if checkInitIEEE {
+			ieeeInit()
+		}
+		return updateIEEE(crc, p)
+	default:
+		return simpleUpdate(crc, tab, p)
+	}
+}
+
+func tableSum(t *Table) uint32 {
+	a := make([]byte, 1024)
+	b := a[:0]
+
+	if t != nil {
+		for _, v := range t {
+			b = appendUint32(b, v)
+		}
+	}
+
+	return ChecksumIEEE(b)
+}
+
+// ChecksumIEEE returns the CRC-32 checksum of data
+// using the IEEE polynomial.
+func ChecksumIEEE(b []byte) uint32 {
+	ieeeInit()
+	return updateIEEE(0, b)
+}
