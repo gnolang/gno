@@ -105,14 +105,14 @@ func execCall(cfg *callCfg, args []string, io *commands.IO) error {
 	// Parse send amount.
 	send, err := std.ParseCoins(cfg.send)
 	if err != nil {
-		return fmt.Errorf("unable to parse send coins: %w", err)
+		return errors.Wrap(err, "parsing send coins")
 	}
 
 	// parse gas wanted & fee.
 	gaswanted := cfg.rootCfg.gasWanted
 	gasfee, err := std.ParseCoin(cfg.rootCfg.gasFee)
 	if err != nil {
-		return fmt.Errorf("unable to parse gas fee coin: %w", err)
+		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
 	// construct msg & tx and marshal.

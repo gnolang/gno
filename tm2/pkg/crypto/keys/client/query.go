@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -76,7 +75,8 @@ func execQuery(cfg *queryCfg, args []string, io *commands.IO) error {
 	}
 
 	if qres.Response.Error != nil {
-		io.ErrPrintfln("response log: %s", qres.Response.Log)
+		io.Printf("Log: %s\n",
+			qres.Response.Log)
 		return qres.Response.Error
 	}
 
@@ -105,7 +105,7 @@ func queryHandler(cfg *queryCfg) (*ctypes.ResultABCIQuery, error) {
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.path, data, opts2)
 	if err != nil {
-		return nil, fmt.Errorf("unable to query: %w", err)
+		return nil, errors.Wrap(err, "querying")
 	}
 
 	return qres, nil

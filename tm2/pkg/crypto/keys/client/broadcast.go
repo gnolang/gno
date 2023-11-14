@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -59,12 +58,12 @@ func execBroadcast(cfg *broadcastCfg, args []string, io *commands.IO) error {
 
 	jsonbz, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("unable to read tx document file %q: %w", filename, err)
+		return errors.Wrap(err, "reading tx document file "+filename)
 	}
 	var tx std.Tx
 	err = amino.UnmarshalJSON(jsonbz, &tx)
 	if err != nil {
-		return fmt.Errorf("unable tounmarshal tx json: %w", err)
+		return errors.Wrap(err, "unmarshaling tx json bytes")
 	}
 	cfg.tx = &tx
 
@@ -74,11 +73,9 @@ func execBroadcast(cfg *broadcastCfg, args []string, io *commands.IO) error {
 	}
 
 	if res.CheckTx.IsErr() {
-		io.ErrPrintln(res.CheckTx.Log)
-		return fmt.Errorf("unable to check transaction: %w", res.CheckTx.Error)
+		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
-		io.ErrPrintln(res.DeliverTx.Log)
-		return fmt.Errorf("unable to deliver transaction: %w", res.DeliverTx.Error)
+		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		io.Println(string(res.DeliverTx.Data))
 		io.Println("OK!")
@@ -100,7 +97,7 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 
 	bz, err := amino.Marshal(cfg.tx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to remarshaling tx binary: %w", err)
+		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
 	cli := client.NewHTTP(remote, "/websocket")
@@ -111,7 +108,7 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 
 	bres, err := cli.BroadcastTxCommit(bz)
 	if err != nil {
-		return nil, fmt.Errorf("unable to broadcast: %w", err)
+		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
 
 	return bres, nil
@@ -120,13 +117,13 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 func simulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
 	bres, err := cli.ABCIQuery(".app/simulate", tx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to simulate tx: %w", err)
+		return nil, errors.Wrap(err, "simulate tx")
 	}
 
 	var result abci.ResponseDeliverTx
 	err = amino.Unmarshal(bres.Response.Value, &result)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal simulate result: %w", err)
+		return nil, errors.Wrap(err, "unmarshaling simulate result")
 	}
 
 	return &ctypes.ResultBroadcastTxCommit{

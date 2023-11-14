@@ -165,7 +165,7 @@ func signAndBroadcast(
 	}
 	qres, err := queryHandler(qopts)
 	if err != nil {
-		return fmt.Errorf("unable to query account: %w", err)
+		return errors.Wrap(err, "query account")
 	}
 	var qret struct{ BaseAccount std.BaseAccount }
 	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
@@ -195,7 +195,7 @@ func signAndBroadcast(
 
 	signedTx, err := SignHandler(sopts)
 	if err != nil {
-		return fmt.Errorf("unable to sign tx: %w", err)
+		return errors.Wrap(err, "sign tx")
 	}
 
 	// broadcast signed tx
@@ -205,15 +205,13 @@ func signAndBroadcast(
 	}
 	bres, err := broadcastHandler(bopts)
 	if err != nil {
-		return fmt.Errorf("unable to broadcast tx: %w", err)
+		return errors.Wrap(err, "broadcast tx")
 	}
 	if bres.CheckTx.IsErr() {
-		io.ErrPrintfln("response log: %s", bres.CheckTx.Log)
-		return fmt.Errorf("unable to check transaction: %w", bres.CheckTx.Error)
+		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		io.ErrPrintfln("response log: %s", bres.DeliverTx.Log)
-		return fmt.Errorf("unable to deliver transaction: %w", bres.DeliverTx.Error)
+		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 	io.Println(string(bres.DeliverTx.Data))
 	io.Println("OK!")
