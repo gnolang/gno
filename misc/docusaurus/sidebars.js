@@ -26,6 +26,7 @@ const sidebars = {
             type: 'category',
             label: 'How-to Guides',
             items: [
+                'how-to-guides/effective-gno',
                 'how-to-guides/simple-contract',
                 'how-to-guides/simple-library',
                 'how-to-guides/testing-gno',
