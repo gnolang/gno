@@ -10,16 +10,17 @@ func main() {
 	govDAO := GovDAO{}
 
 	worxDAO := BaseDAO{name: "WorxDAO"}
-	evaluationDAO := BaseDAO{name: "EvaluationDAO", comment: ""}
+	evaluationDAO := BaseDAO{name: "EvaluationDAO", comment: "Evaluate contributions and characters"}
 	engineeringDAO := EngineeringDAO{BaseDAO{name: "EngineeringDAO", comment: "responsible for high-level architecture"}}
 	grantsDAO := EngineeringDAO{BaseDAO{name: "GrantsDAO", comment: "manages grants"}}
-	projectsDAO := EngineeringDAO{BaseDAO{name: "ProjectsDAO"}}
-	growthDAO := ProjectDAO{BaseDAO{name: "GrowthDAO"}}
+	projectsDAO := EngineeringDAO{BaseDAO{name: "ProjectsDAO", comment: "umbrella DAO for investments in projects and initiatives with a clear goal"}}
+	growthDAO := ProjectDAO{BaseDAO{name: "GrowthDAOsp", comment: "investing in tactics, projects, partnerships"}}
+	ecosystemDAO := ProjectDAO{BaseDAO{name: "EcosystemDAO", comment: "investing in the ecosystem"}}
 	marketingDAO := ProjectDAO{BaseDAO{name: "MarketingDAO"}}
 	legalDAO := ProjectDAO{BaseDAO{name: "LegalDAO"}}
+	financeDAO := ProjectDAO{BaseDAO{name: "FinanceDAO"}}
 	savethecosmosDAO := ProjectDAO{BaseDAO{name: "SaveTheCosmosDAO"}}
-	dxDAO := ProjectDAO{BaseDAO{name: "dxDAO", comment: "DevX team"}}
-	opsDAO := ProjectDAO{BaseDAO{name: "OpsDAO"}}
+	opsDAO := ProjectDAO{BaseDAO{name: "OpsDAO", comment: "required services. goals are to optimize KPIs"}}
 	worldDAO := LocalCommunityDAO{BaseDAO{name: "WorldDAO", comment: "local communities"}}
 	{
 		usa := worldDAO.AddChild("USA")
@@ -34,6 +35,7 @@ func main() {
 		worldDAO.AddChild("...")
 		// ...
 	}
+	dxDAO := ProjectDAO{BaseDAO{name: "dxDAO", comment: "DevX team"}}
 
 	// XXX: use orgsdao to show conflict of interests etc
 	orgsDAO := OrgDAO{BaseDAO{name: "OrgsDAO"}}
@@ -42,12 +44,15 @@ func main() {
 		&OrgDAO{BaseDAO{name: "NT"}},
 		&OrgDAO{BaseDAO{name: "..."}},
 	}
+	ecosystemDAO.children = []DAO{
+		&dxDAO,
+	}
 
 	// govdao tiers
-	tier0 := Tier{idx: 0}
 	tier1 := Tier{idx: 1}
 	tier2 := Tier{idx: 2}
-	govDAO.tiers = []*Tier{&tier0, &tier1, &tier2}
+	tier3 := Tier{idx: 3}
+	govDAO.tiers = []*Tier{&tier1, &tier2, &tier3}
 	govDAO.tiers[0].parent = nil
 	govDAO.tiers[0].child = govDAO.tiers[1]
 	govDAO.tiers[1].parent = govDAO.tiers[0]
@@ -57,15 +62,17 @@ func main() {
 
 	govDAO.children = []DAO{&worxDAO, &worldDAO, &orgsDAO}
 	worxDAO.children = []DAO{&evaluationDAO, &engineeringDAO, &projectsDAO, &opsDAO}
-	opsDAO.children = []DAO{&marketingDAO, &legalDAO}
+	opsDAO.children = []DAO{&marketingDAO, &legalDAO, &financeDAO}
 	gameOfRealmsDAO := ProjectDAO{BaseDAO{name: "GameOfRealmsDAO"}}
-	projectsDAO.children = []DAO{&savethecosmosDAO, &growthDAO, &gameOfRealmsDAO}
+	gnoHardwareDAO := ProjectDAO{BaseDAO{name: "GnoHardwareDAO"}}
+	projectsDAO.children = []DAO{&savethecosmosDAO, &growthDAO, &ecosystemDAO, &gameOfRealmsDAO, &gnoHardwareDAO}
 	engTm2DAO := EngineeringDAO{BaseDAO{
 		name: "tm2", children: []DAO{
 			&BaseDAO{name: "amino"},
 			&BaseDAO{name: "bft"},
 		},
 	}}
+
 	engGnovmDAO := EngineeringDAO{BaseDAO{name: "gnovm"}}
 	//&EngineeringDAO{BaseDAO{name: "gnolang"}},
 	//&EngineeringDAO{BaseDAO{name: "stdlibs"}},
@@ -73,16 +80,17 @@ func main() {
 
 	engineeringDAO.children = []DAO{&engTm2DAO, &engGnovmDAO, &engGnolandDAO}
 	grantsDAO.children = []DAO{
-		&dxDAO,
 		&ProjectDAO{BaseDAO{name: "onblocDAO"}},
 		&ProjectDAO{BaseDAO{name: "bertyDAO"}},
 		&ProjectDAO{BaseDAO{name: "teritoriDAO"}},
+		&ProjectDAO{BaseDAO{name: "GnoRS"}},
+		&ProjectDAO{BaseDAO{name: "Parscan"}},
 	}
 	growthDAO.children = []DAO{
 		&grantsDAO,
-		&ProjectDAO{BaseDAO{name: "student-program"}},
-		&ProjectDAO{BaseDAO{name: "builders-program"}},
-		&ProjectDAO{BaseDAO{name: "tinkerers-program"}},
+		&ProjectDAO{BaseDAO{name: "student-program", comment: "sponsor diverse junior profiles and expect feedback, diversity"}},
+		&ProjectDAO{BaseDAO{name: "builders-program", comment: "sponsor ideas we like, with due-diligenced teams or individuals"}},
+		&ProjectDAO{BaseDAO{name: "tinkerers-program", comment: "sponsor highly-creative-builder potential individuals"}},
 	}
 	// growthDAO.teams = []Team{marketingTeam, devrelTeam}
 
