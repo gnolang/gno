@@ -153,56 +153,16 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		// If this is a self assignment, then the reference count is decremented again below
-		// when xo's reference count is decremented.
 		co.IncRefCount()
-		if co.GetRefCount() > 1 && !co.GetIsEscaped() {
-			rlm.MarkNewEscaped(co)
-		}
-
-		// Marking a value as dirty and increasing its reference count are mutually exclusive operations.
-		if co.GetIsReal() {
+		if co.GetRefCount() > 1 {
+			if co.GetIsEscaped() {
+				// already escaped
+			} else {
+				rlm.MarkNewEscaped(co)
+			}
+		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
-
-			// XX: there may be a more efficient way to do this; to be revisited.
-			//
-			// A lot of slices are assigned to themselves using the append function. When this assignment happens,
-			// the underlying array may not need to be reallocated if it has the required capacity. In such a case,
-			// the array itself would be marked as dirty, but none of the elements that have been appended. This
-			// is a unique case that requires the solution below -- traverse the array's elements and call `DidUpdate`
-			// for any of the newly allocated values. We know if they are newly allocated by checking for the
-			// presence of an object ID.
-			if value, ok := co.(*ArrayValue); ok {
-				for _, elem := range value.List {
-					if obj, ok := elem.V.(Object); ok {
-						if obj.GetObjectID().IsZero() {
-							rlm.DidUpdate(co, nil, obj)
-						}
-					} else if sv, ok := elem.V.(*SliceValue); ok {
-						if av, ok := sv.Base.(*ArrayValue); ok {
-							if av.GetObjectID().IsZero() {
-								// An array has no owner. This is a new instance so increase the reference count and
-								// mark it as new real so that it and all of its elements get persisted.
-								av.IncRefCount()
-								rlm.MarkNewReal(av)
-							}
-						}
-					}
-				}
-			}
 		} else {
-			if debug {
-				if co.GetIsNewEscaped() {
-					panic("should not happen")
-				}
-				if co.GetIsEscaped() {
-					panic("should not happen")
-				}
-				if co.GetRefCount() >= 2 {
-					panic("should not happen")
-				}
-			}
-
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
