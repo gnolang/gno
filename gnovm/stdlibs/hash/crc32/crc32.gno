@@ -1,6 +1,7 @@
 package crc32
 
 import (
+	"errors"
 	"hash"
 )
 
@@ -55,10 +56,10 @@ func castagnoliInit() {
 func MakeTable(p uint32) *Table {
 	switch p {
 	case IEEE:
-		// ieeeOnce.Do(ieeeInit)
+		ieeeInit()
 		return IEEETable
 	case Castagnoli:
-		// castagnoliOnce.Do(castagnoliInit)
+		castagnoliInit()
 		return castagnoliTable
 	default:
 		return simpleMakeTable(p)
@@ -94,9 +95,9 @@ type digest struct {
 // implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash32 {
-	// if tab == IEEETable {
-	// 	ieeeOnce.Do(ieeeInit)
-	// }
+	if tab == IEEETable {
+		ieeeInit()
+	}
 
 	return &digest{0, tab}
 }
@@ -117,10 +118,26 @@ const (
 	marshaledSize = len(magic) + 4 + 4
 )
 
-func (d *digetst) MarshalBinary() ([]byte, error) {
+func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
 	b = appendUint32(b, tableSum(d.tab))
+}
+
+func (d *digest) UnmarshalBinary(b []byte) error {
+	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+		return errors.NEw("hash/crc32: invalid hash state identifier")
+	}
+	if len(b) != matshaledSize {
+		return errors.New("hash/crc32: invalid hash state size")
+	}
+	if tableSum(d.tab) != readUint32(b[4:]) {
+		return errors.New("hash/crc32: tables do not match")
+	}
+
+	d.crc = readUint32(b[8:])
+
+	return nil
 }
 
 func appendUint32(b []byte, x uint32) []byte {
