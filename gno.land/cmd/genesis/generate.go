@@ -23,7 +23,7 @@ type generateCfg struct {
 }
 
 // newGenerateCmd creates the genesis generate subcommand
-func newGenerateCmd(io *commands.IO) *commands.Command {
+func newGenerateCmd(io commands.IO) *commands.Command {
 	cfg := &generateCfg{}
 
 	return commands.NewCommand(
@@ -91,7 +91,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execGenerate(cfg *generateCfg, io *commands.IO) error {
+func execGenerate(cfg *generateCfg, io commands.IO) error {
 	// Start with the default configuration
 	genesis := getDefaultGenesis()
 

@@ -9,7 +9,7 @@ import (
 )
 
 // GetPassword fetches the password using the provided prompt, if any
-func (io *IO) GetPassword(
+func (io *IOImpl) GetPassword(
 	prompt string,
 	insecure bool,
 ) (string, error) {
@@ -27,7 +27,7 @@ func (io *IO) GetPassword(
 }
 
 // readLine reads a new line from standard input
-func (io *IO) readLine() (string, error) {
+func (io *IOImpl) readLine() (string, error) {
 	input, err := io.inBuf.ReadString('\n')
 	if err != nil {
 		return "", err
@@ -52,7 +52,7 @@ func readPassword() (string, error) {
 // GetConfirmation will request user give the confirmation from stdin.
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
 // If the input is not recognized, it returns false and a nil error.
-func (io *IO) GetConfirmation(prompt string) (bool, error) {
+func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 	// On stderr so it isn't part of bash output.
 	io.ErrPrintfln("%s [y/n]:", prompt)
 
@@ -78,7 +78,7 @@ func (io *IO) GetConfirmation(prompt string) (bool, error) {
 // match (for creating a new password).
 // It enforces the password length. Only parses password once if
 // input is piped in.
-func (io *IO) GetCheckPassword(
+func (io *IOImpl) GetCheckPassword(
 	prompts [2]string,
 	insecure bool,
 ) (string, error) {
@@ -100,7 +100,7 @@ func (io *IO) GetCheckPassword(
 }
 
 // GetString simply returns the trimmed string output of a given reader.
-func (io *IO) GetString(prompt string) (string, error) {
+func (io *IOImpl) GetString(prompt string) (string, error) {
 	if prompt != "" {
 		// On stderr so it isn't part of bash output.
 		io.ErrPrintln(prompt)

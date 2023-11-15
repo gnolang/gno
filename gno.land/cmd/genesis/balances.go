@@ -11,7 +11,7 @@ type balancesCfg struct {
 }
 
 // newBalancesCmd creates the genesis balances subcommand
-func newBalancesCmd(io *commands.IO) *commands.Command {
+func newBalancesCmd(io commands.IO) *commands.Command {
 	cfg := &balancesCfg{}
 
 	cmd := commands.NewCommand(

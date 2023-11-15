@@ -89,8 +89,9 @@ func TestKeyManagement(t *testing.T) {
 	assert.Empty(t, l)
 
 	// create some keys
-	_, err = cstore.GetByName(n1)
-	require.Error(t, err)
+	has, err := cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 	i, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, n1, i.GetName())
@@ -100,10 +101,16 @@ func TestKeyManagement(t *testing.T) {
 	// we can get these keys
 	i2, err := cstore.GetByName(n2)
 	require.NoError(t, err)
-	_, err = cstore.GetByName(n3)
-	require.NotNil(t, err)
-	_, err = cstore.GetByAddress(toAddr(i2))
+	has, err = cstore.HasByName(n3)
 	require.NoError(t, err)
+	require.False(t, has)
+	has, err = cstore.HasByAddress(toAddr(i2))
+	require.NoError(t, err)
+	require.True(t, has)
+	// Also check with HasByNameOrAddress
+	has, err = cstore.HasByNameOrAddress(crypto.AddressToBech32(toAddr(i2)))
+	require.NoError(t, err)
+	require.True(t, has)
 	addr, err := crypto.AddressFromBech32("g1frtkxv37nq7arvyz5p0mtjqq7hwuvd4dnt892p")
 	require.NoError(t, err)
 	_, err = cstore.GetByAddress(addr)
@@ -127,8 +134,9 @@ func TestKeyManagement(t *testing.T) {
 	keyS, err = cstore.List()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
-	_, err = cstore.GetByName(n1)
-	require.Error(t, err)
+	has, err = cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 
 	// create an offline key
 	o1 := "offline"
@@ -388,8 +396,9 @@ func TestSeedPhrase(t *testing.T) {
 	// now, let us delete this key
 	err = cstore.Delete(n1, p1, false)
 	require.Nil(t, err, "%+v", err)
-	_, err = cstore.GetByName(n1)
-	require.NotNil(t, err)
+	has, err := cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 }
 
 func ExampleNew() {
