@@ -126,6 +126,15 @@ func GetAllBasicNFTs(excludePlayer std.Address) string {
 	allNFTs := GetAllBasicFlipNFTs(excludePlayer)
 	return allNFTs
 }
+
+func CreateCompositeNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) string {
+	metadata, error := CreateCompositeFlipNFT(player, cWidth, cHeight, bTokenIDsArray)
+	
+	if error != "" {
+		return error
+	}
+	return metadata
+}
     
 func GetUserGames(user std.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
@@ -147,15 +156,6 @@ func addToUser2Games(addr std.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
-
-func MakeArt(player std.Address, buildingBlocks []int64) {
-	// - checks if any of the tokenIds in the buildingBlocks[] are belonging to the user (not allowed)
-	// - checks if any of the tokenIds in the buildingBlocks[] are in transit
-	// - unlocks and sends the locked Flips in each used NFT to the creator of the NFT
-	// - transfers the NFTs to the new owner (the art creator)
-	// - calls CreateCompositeFlipNFT in compositeNFT.gno to generate a new GRC721 NFT with a standard tokenURI, 
-	// and the tokenIds of the used NFT primitives -> apply from the new GRC6150 interface
-}
 
 func ResetGame(gameId string) {
 	//- utility function, nullifies the game[gameId]

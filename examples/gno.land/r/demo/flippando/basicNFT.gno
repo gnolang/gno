@@ -82,9 +82,13 @@ func GetTokenURI(tokenID string) string {
 	return string(tokenURI);
 }
 
-func UnlockAndTransferNFT(from, to std.Address, tid string){
+func UnlockAndTransferNFT(from, to std.Address, tid string) error {
 	tokenId := grc721f.TokenID(tid)
-	flipBasicNFT.TransferFrom(from, to, tokenId)
+	err := flipBasicNFT.TransferFrom(from, to, tokenId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func GetOwnerOfBasicNFT(tid string) std.Address {
@@ -130,6 +134,32 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 	userNFTs, err := fetchedUserNFTs.MarshalJSON() 
 	if(err != nil){
 		panic("error in fetching user NFTs")
+	}
+
+	return string(userNFTs)
+}
+
+func GetBasicNFTsByTokenId(bTokenIDs string) string {
+	tokenCount := flipBasicNFT.TokenCount()
+	tokenURIs := []string{}
+	bTokenIDsArray, perr := ParseString(bTokenIDs)
+	userNFTsError := ""
+
+	// Assuming there's a function to get the token ID by index for the given address
+	for i := int64(0); i < int64(len(bTokenIDsArray)); i++ {		
+		tidString := strconv.FormatUint(uint64(bTokenIDsArray[i]), 10)
+		
+		tokenURI := GetTokenURI(tidString)
+		tokenURIs = append(tokenURIs, tokenURI)		
+	}
+
+	fetchedUserNFTs := &userNFTsResult{
+		UserNFTs: tokenURIs,
+	}
+
+	userNFTs, err := fetchedUserNFTs.MarshalJSON() 
+	if(err != nil){
+		panic("error in fetching basic NFTs by tokenIDs")
 	}
 
 	return string(userNFTs)

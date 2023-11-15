@@ -37,7 +37,7 @@ type compositeNFTMetaData struct {
 	version	string	`json:"version"`
 	canvasWidth	string `json:canvasWidth"`
 	canvasHeight string `json:canvasHeight"`
-	bTokenIDs string  `json:"bTokenIDs"`
+	bTokenIDs []int64  `json:"bTokenIDs"`
 }
 
 type nftResult struct {
@@ -175,10 +175,10 @@ func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(cbn.canvasHeight)
 	b.WriteString(`",`)
 	
-	b.WriteString(`"bTokenIDs":"`)
-	b.WriteString(cbn.bTokenIDs) 
-	b.WriteString(`"`)
-	
+	b.WriteString(`"bTokenIDs":[`)
+	b.WriteString(writeIntSlice(cbn.bTokenIDs))
+	b.WriteString(`]`)
+
 	b.WriteByte('}')
 
 	return b.Bytes(), nil

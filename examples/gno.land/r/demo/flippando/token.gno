@@ -3,6 +3,7 @@ package flippando
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"std"
 
 	"gno.land/p/demo/ufmt"
@@ -23,9 +24,11 @@ var (
 
 func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error {
 	flipToken.Mint(recipient, flipAmount)
-	
+
+	strFlipAmount := strconv.FormatUint(flipAmount, 10)
+
 	userFlipNFTs.Set(tokenId, string(recipient))
-	userLockedBalances.Set(tokenId, string(flipAmount))
+	userLockedBalances.Set(tokenId, strFlipAmount)
 
 	totalLockedSupply =+ flipAmount
 	totalUnlockedSupply =- flipAmount
@@ -38,10 +41,13 @@ func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 	flipAmount, ferr := userLockedBalances.Get(tokenId)
 	// add extra check by calling userFlipNFTs
 	caller := std.PrevRealm().Addr()
-	flipToken.Transfer(caller, recipient, flipAmount.(uint64))
 
-	totalLockedSupply =- flipAmount.(uint64)
-	totalUnlockedSupply =+ flipAmount.(uint64)
+	fAmount, err := strconv.Atoi(strings.TrimSpace(string(flipAmount)))
+
+	flipToken.Transfer(caller, recipient, uint64(fAmount))
+
+	totalLockedSupply =- uint64(fAmount)
+	totalUnlockedSupply =+ uint64(fAmount)
 
 	return nil
 }
