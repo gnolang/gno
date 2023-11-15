@@ -210,9 +210,9 @@ func UverseNode() *PackageNode {
 						// append(nil, *SliceValue) new list ---------
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
-							copy(
-								list[:argsl],
-								argsb.List[argso:argso+argsl])
+							for i := 0; i < argsl; i++ {
+								list[i] = argsb.List[argso+i].DeepCopy(m.Alloc, m.Store)
+							}
 						}
 						m.PushValue(TypedValue{
 							T: xt,
@@ -469,11 +469,12 @@ func UverseNode() *PackageNode {
 						return
 					} else {
 						// append(*SliceValue, *NativeValue) new list --------
-						list := make([]TypedValue, xvl+argsl)
+						listLen := xvl + argsl
+						list := make([]TypedValue, listLen)
 						if 0 < xvl {
-							copy(
-								list[:xvl],
-								xvb.List[xvo:xvo+xvl])
+							for i := 0; i < listLen; i++ {
+								list[i] = xvb.List[xvo+i].DeepCopy(m.Alloc, m.Store)
+							}
 						}
 						if 0 < argsl {
 							copyNativeToList(
