@@ -376,7 +376,7 @@ func UverseNode() *PackageNode {
 						if 0 < xvl {
 							if xvb.Data == nil {
 								for i := 0; i < xvl; i++ {
-									list[i] = xvb.List[xvo+i].Copy(m.Alloc)
+									list[i] = xvb.List[xvo+i].DeepCopy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
@@ -392,7 +392,7 @@ func UverseNode() *PackageNode {
 						if 0 < argsl {
 							if argsb.Data == nil {
 								for i := 0; i < argsl; i++ {
-									list[xvl+i] = argsb.List[argso+i].Copy(m.Alloc)
+									list[xvl+i] = argsb.List[argso+i].DeepCopy(m.Alloc, m.Store)
 								}
 							} else {
 								copyDataToList(
