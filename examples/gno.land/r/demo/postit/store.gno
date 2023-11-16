@@ -6,6 +6,7 @@ import (
 
 var (
 	postCount uint64
+	userCount uint64
 
 	trending [10]string
 

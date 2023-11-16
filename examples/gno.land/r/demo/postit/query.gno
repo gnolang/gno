@@ -6,6 +6,10 @@ func GetPostCount() uint64 {
 	return postCount
 }
 
+func GetUserCount() uint64 {
+	return userCount
+}
+
 func GetFeed() {
 }
 

@@ -21,6 +21,7 @@ func CreateUser(username string) {
 	}
 	users.Set(username, user)
 	addressToUsername.Set(caller.String(), username)
+	userCount = userCount + 1
 }
 
 func UpdateBio(bio string) {
