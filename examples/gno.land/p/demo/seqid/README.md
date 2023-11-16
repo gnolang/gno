@@ -1,14 +1,14 @@
-# squid
+# seqid
 
 ```
-package squid // import "gno.land/p/demo/squid"
+package seqid // import "gno.land/p/demo/seqid"
 
-Package squid provides a simple way to have sequential IDs which will be ordered
+Package seqid provides a simple way to have sequential IDs which will be ordered
 correctly when inserted in an AVL tree.
 
 Sample usage:
 
-    var id squid.ID
+    var id seqid.ID
     var users avl.Tree
 
     func NewUser() {

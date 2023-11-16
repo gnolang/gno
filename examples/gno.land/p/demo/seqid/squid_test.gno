@@ -1,4 +1,4 @@
-package squid
+package seqid
 
 import (
 	"fmt"

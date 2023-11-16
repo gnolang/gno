@@ -1,15 +1,15 @@
-// Package squid provides a simple way to have sequential IDs which will be
+// Package seqid provides a simple way to have sequential IDs which will be
 // ordered correctly when inserted in an AVL tree.
 //
 // Sample usage:
 //
-//	var id squid.ID
+//	var id seqid.ID
 //	var users avl.Tree
 //
 //	func NewUser() {
 //		users.Set(id.Next().Binary(), &User{ ... })
 //	}
-package squid
+package seqid
 
 import "encoding/binary"
 
@@ -21,7 +21,7 @@ type ID uint64
 func (i *ID) Next() ID {
 	next, ok := i.TryNext()
 	if !ok {
-		panic("squid: next ID overflows uint64")
+		panic("seqid: next ID overflows uint64")
 	}
 	return next
 }
