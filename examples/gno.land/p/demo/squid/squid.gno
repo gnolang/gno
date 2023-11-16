@@ -26,13 +26,13 @@ func (i *ID) Next() ID {
 	return next
 }
 
-const maxUint64 uint64 = 1<<64 - 1
+const maxID ID = 1<<64 - 1
 
 // TryNext increases i by 1 and returns its value.
 // It returns true if successful, or false if the increment would result in
 // an overflow.
 func (i *ID) TryNext() (ID, bool) {
-	if *i == maxUint64 {
+	if *i == maxID {
 		// Addition will overflow.
 		return 0, false
 	}

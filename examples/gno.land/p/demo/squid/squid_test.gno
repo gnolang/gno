@@ -18,7 +18,7 @@ func TestID(t *testing.T) {
 }
 
 func TestID_Overflow(t *testing.T) {
-	i := ID(maxUint64)
+	i := ID(maxID)
 
 	defer func() {
 		err := recover()
