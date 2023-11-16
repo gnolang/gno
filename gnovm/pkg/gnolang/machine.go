@@ -402,12 +402,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
-		var (
-			notEmptyName = fn.PkgName != ""
-			notBaseName  = fn.PkgName != m.Package.PkgName
-		)
-
-		if notEmptyName && notBaseName {
+		if fn.PkgName != "" && fn.PkgName != m.Package.PkgName {
 			panic(fmt.Sprintf("expected package name [%s] but got [%s]",
 				m.Package.PkgName, fn.PkgName))
 		}
