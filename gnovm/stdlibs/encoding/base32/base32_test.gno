@@ -1,8 +1,11 @@
-package base32_test
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package base32
 
 import (
 	"bytes"
-	"encoding/base32"
 	"errors"
 	"io"
 	"strings"
@@ -50,7 +53,7 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
-		got := base32.StdEncoding.EncodeToString([]byte(p.decoded))
+		got := StdEncoding.EncodeToString([]byte(p.decoded))
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
 	}
 }
@@ -58,7 +61,7 @@ func TestEncode(t *testing.T) {
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
 		bb := &strings.Builder{}
-		encoder := base32.NewEncoder(base32.StdEncoding, bb)
+		encoder := NewEncoder(StdEncoding, bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
@@ -69,7 +72,7 @@ func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
 		bb := &strings.Builder{}
-		encoder := base32.NewEncoder(base32.StdEncoding, bb)
+		encoder := NewEncoder(StdEncoding, bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
 			if end > len(input) {
@@ -85,41 +88,41 @@ func TestEncoderBuffering(t *testing.T) {
 	}
 }
 
-// func TestDecode(t *testing.T) {
-// 	for _, p := range pairs {
-// 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
-// 		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
-// 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, error(nil))
-// 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
-// 		if len(p.encoded) > 0 {
-// 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
-// 		}
-// 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded,
-// 			string(dbuf[0:count]),
-// 			p.decoded)
+func TestDecode(t *testing.T) {
+	for _, p := range pairs {
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
+		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
+		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
+		if len(p.encoded) > 0 {
+			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
+		}
+		testEqual(t, "Decode(%q) = %q, want %q", p.encoded,
+			string(dbuf[0:count]),
+			p.decoded)
 
-// 		dbuf, err = StdEncoding.DecodeString(p.encoded)
-// 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
-// 		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
-// 	}
-// }
+		dbuf, err = StdEncoding.DecodeString(p.encoded)
+		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
+	}
+}
 
-// func TestDecoder(t *testing.T) {
-// 	for _, p := range pairs {
-// 		decoder := NewDecoder(StdEncoding, strings.NewReader(p.encoded))
-// 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
-// 		count, err := decoder.Read(dbuf)
-// 		if err != nil && err != io.EOF {
-// 			t.Fatal("Read failed", err)
-// 		}
-// 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded))
-// 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
-// 		if err != io.EOF {
-// 			_, err = decoder.Read(dbuf)
-// 		}
-// 		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
-// 	}
-// }
+func TestDecoder(t *testing.T) {
+	for _, p := range pairs {
+		decoder := NewDecoder(StdEncoding, strings.NewReader(p.encoded))
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
+		count, err := decoder.Read(dbuf)
+		if err != nil && err != io.EOF {
+			t.Fatal("Read failed", err)
+		}
+		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded))
+		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
+		if err != io.EOF {
+			_, err = decoder.Read(dbuf)
+		}
+		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
+	}
+}
 
 type badReader struct {
 	data   []byte
@@ -157,100 +160,100 @@ func (b *badReader) Read(p []byte) (int, error) {
 
 // TestIssue20044 tests that decoder.Read behaves correctly when the caller
 // supplied reader returns an error.
-// func TestIssue20044(t *testing.T) {
-// 	badErr := errors.New("bad reader error")
-// 	testCases := []struct {
-// 		r       badReader
-// 		res     string
-// 		err     error
-// 		dbuflen int
-// 	}{
-// 		// Check valid input data accompanied by an error is processed and the error is propagated.
-// 		{r: badReader{data: []byte("MY======"), errs: []error{badErr}},
-// 			res: "f", err: badErr},
-// 		// Check a read error accompanied by input data consisting of newlines only is propagated.
-// 		{r: badReader{data: []byte("\n\n\n\n\n\n\n\n"), errs: []error{badErr, nil}},
-// 			res: "", err: badErr},
-// 		// Reader will be called twice.  The first time it will return 8 newline characters.  The
-// 		// second time valid base32 encoded data and an error.  The data should be decoded
-// 		// correctly and the error should be propagated.
-// 		{r: badReader{data: []byte("\n\n\n\n\n\n\n\nMY======"), errs: []error{nil, badErr}},
-// 			res: "f", err: badErr, dbuflen: 8},
-// 		// Reader returns invalid input data (too short) and an error.  Verify the reader
-// 		// error is returned.
-// 		{r: badReader{data: []byte("MY====="), errs: []error{badErr}},
-// 			res: "", err: badErr},
-// 		// Reader returns invalid input data (too short) but no error.  Verify io.ErrUnexpectedEOF
-// 		// is returned.
-// 		{r: badReader{data: []byte("MY====="), errs: []error{nil}},
-// 			res: "", err: io.ErrUnexpectedEOF},
-// 		// Reader returns invalid input data and an error.  Verify the reader and not the
-// 		// decoder error is returned.
-// 		{r: badReader{data: []byte("Ma======"), errs: []error{badErr}},
-// 			res: "", err: badErr},
-// 		// Reader returns valid data and io.EOF.  Check data is decoded and io.EOF is propagated.
-// 		{r: badReader{data: []byte("MZXW6YTB"), errs: []error{io.EOF}},
-// 			res: "fooba", err: io.EOF},
-// 		// Check errors are properly reported when decoder.Read is called multiple times.
-// 		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
-// 		// valid data both times but an error on the second call.
-// 		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}},
-// 			res: "leasure.", err: badErr, dbuflen: 1},
-// 		// Check io.EOF is properly reported when decoder.Read is called multiple times.
-// 		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
-// 		// valid data both times but io.EOF on the second call.
-// 		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, io.EOF}},
-// 			res: "leasure.", err: io.EOF, dbuflen: 1},
-// 		// The following two test cases check that errors are propagated correctly when more than
-// 		// 8 bytes are read at a time.
-// 		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{io.EOF}},
-// 			res: "leasure.", err: io.EOF, dbuflen: 11},
-// 		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{badErr}},
-// 			res: "leasure.", err: badErr, dbuflen: 11},
-// 		// Check that errors are correctly propagated when the reader returns valid bytes in
-// 		// groups that are not divisible by 8.  The first read will return 11 bytes and no
-// 		// error.  The second will return 7 and an error.  The data should be decoded correctly
-// 		// and the error should be propagated.
-// 		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}, limit: 11},
-// 			res: "leasure.", err: badErr},
-// 	}
+func TestIssue20044(t *testing.T) {
+	badErr := errors.New("bad reader error")
+	testCases := []struct {
+		r       badReader
+		res     string
+		err     error
+		dbuflen int
+	}{
+		// Check valid input data accompanied by an error is processed and the error is propagated.
+		{r: badReader{data: []byte("MY======"), errs: []error{badErr}},
+			res: "f", err: badErr},
+		// Check a read error accompanied by input data consisting of newlines only is propagated.
+		{r: badReader{data: []byte("\n\n\n\n\n\n\n\n"), errs: []error{badErr, nil}},
+			res: "", err: badErr},
+		// Reader will be called twice.  The first time it will return 8 newline characters.  The
+		// second time valid base32 encoded data and an error.  The data should be decoded
+		// correctly and the error should be propagated.
+		{r: badReader{data: []byte("\n\n\n\n\n\n\n\nMY======"), errs: []error{nil, badErr}},
+			res: "f", err: badErr, dbuflen: 8},
+		// Reader returns invalid input data (too short) and an error.  Verify the reader
+		// error is returned.
+		{r: badReader{data: []byte("MY====="), errs: []error{badErr}},
+			res: "", err: badErr},
+		// Reader returns invalid input data (too short) but no error.  Verify io.ErrUnexpectedEOF
+		// is returned.
+		{r: badReader{data: []byte("MY====="), errs: []error{nil}},
+			res: "", err: io.ErrUnexpectedEOF},
+		// Reader returns invalid input data and an error.  Verify the reader and not the
+		// decoder error is returned.
+		{r: badReader{data: []byte("Ma======"), errs: []error{badErr}},
+			res: "", err: badErr},
+		// Reader returns valid data and io.EOF.  Check data is decoded and io.EOF is propagated.
+		{r: badReader{data: []byte("MZXW6YTB"), errs: []error{io.EOF}},
+			res: "fooba", err: io.EOF},
+		// Check errors are properly reported when decoder.Read is called multiple times.
+		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
+		// valid data both times but an error on the second call.
+		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}},
+			res: "leasure.", err: badErr, dbuflen: 1},
+		// Check io.EOF is properly reported when decoder.Read is called multiple times.
+		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
+		// valid data both times but io.EOF on the second call.
+		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, io.EOF}},
+			res: "leasure.", err: io.EOF, dbuflen: 1},
+		// The following two test cases check that errors are propagated correctly when more than
+		// 8 bytes are read at a time.
+		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{io.EOF}},
+			res: "leasure.", err: io.EOF, dbuflen: 11},
+		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{badErr}},
+			res: "leasure.", err: badErr, dbuflen: 11},
+		// Check that errors are correctly propagated when the reader returns valid bytes in
+		// groups that are not divisible by 8.  The first read will return 11 bytes and no
+		// error.  The second will return 7 and an error.  The data should be decoded correctly
+		// and the error should be propagated.
+		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}, limit: 11},
+			res: "leasure.", err: badErr},
+	}
 
-// 	for _, tc := range testCases {
-// 		input := tc.r.data
-// 		decoder := NewDecoder(StdEncoding, &tc.r)
-// 		var dbuflen int
-// 		if tc.dbuflen > 0 {
-// 			dbuflen = tc.dbuflen
-// 		} else {
-// 			dbuflen = StdEncoding.DecodedLen(len(input))
-// 		}
-// 		dbuf := make([]byte, dbuflen)
-// 		var err error
-// 		var res []byte
-// 		for err == nil {
-// 			var n int
-// 			n, err = decoder.Read(dbuf)
-// 			if n > 0 {
-// 				res = append(res, dbuf[:n]...)
-// 			}
-// 		}
+	for _, tc := range testCases {
+		input := tc.r.data
+		decoder := NewDecoder(StdEncoding, &tc.r)
+		var dbuflen int
+		if tc.dbuflen > 0 {
+			dbuflen = tc.dbuflen
+		} else {
+			dbuflen = StdEncoding.DecodedLen(len(input))
+		}
+		dbuf := make([]byte, dbuflen)
+		var err error
+		var res []byte
+		for err == nil {
+			var n int
+			n, err = decoder.Read(dbuf)
+			if n > 0 {
+				res = append(res, dbuf[:n]...)
+			}
+		}
 
-// 		testEqual(t, "Decoding of %q = %q, want %q", string(input), string(res), tc.res)
-// 		testEqual(t, "Decoding of %q err = %v, expected %v", string(input), err, tc.err)
-// 	}
-// }
+		testEqual(t, "Decoding of %q = %q, want %q", string(input), string(res), tc.res)
+		testEqual(t, "Decoding of %q err = %v, expected %v", string(input), err, tc.err)
+	}
+}
 
 // TestDecoderError verifies decode errors are propagated when there are no read
 // errors.
 func TestDecoderError(t *testing.T) {
 	for _, readErr := range []error{io.EOF, nil} {
 		input := "MZXW6YTb"
-		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(input)))
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
 		br := badReader{data: []byte(input), errs: []error{readErr}}
-		decoder := base32.NewDecoder(base32.StdEncoding, &br)
+		decoder := NewDecoder(StdEncoding, &br)
 		n, err := decoder.Read(dbuf)
 		testEqual(t, "Read after EOF, n = %d, expected %d", n, 0)
-		if _, ok := err.(base32.CorruptInputError); !ok {
+		if _, ok := err.(CorruptInputError); !ok {
 			t.Errorf("Corrupt input error expected.  Found %T", err)
 		}
 	}
@@ -262,8 +265,8 @@ func TestReaderEOF(t *testing.T) {
 	for _, readErr := range []error{io.EOF, nil} {
 		input := "MZXW6YTB"
 		br := badReader{data: []byte(input), errs: []error{nil, readErr}}
-		decoder := base32.NewDecoder(base32.StdEncoding, &br)
-		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(input)))
+		decoder := NewDecoder(StdEncoding, &br)
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
 		n, err := decoder.Read(dbuf)
 		testEqual(t, "Decoding of %q err = %v, expected %v", input, err, error(nil))
 		n, err = decoder.Read(dbuf)
@@ -275,23 +278,23 @@ func TestReaderEOF(t *testing.T) {
 	}
 }
 
-// func TestDecoderBuffering(t *testing.T) {
-// 	for bs := 1; bs <= 12; bs++ {
-// 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
-// 		buf := make([]byte, len(bigtest.decoded)+12)
-// 		var total int
-// 		var n int
-// 		var err error
-// 		for total = 0; total < len(bigtest.decoded) && err == nil; {
-// 			n, err = decoder.Read(buf[total : total+bs])
-// 			total += n
-// 		}
-// 		if err != nil && err != io.EOF {
-// 			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
-// 		}
-// 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
-// 	}
-// }
+func TestDecoderBuffering(t *testing.T) {
+	for bs := 1; bs <= 12; bs++ {
+		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
+		buf := make([]byte, len(bigtest.decoded)+12)
+		var total int
+		var n int
+		var err error
+		for total = 0; total < len(bigtest.decoded) && err == nil; {
+			n, err = decoder.Read(buf[total : total+bs])
+			total += n
+		}
+		if err != nil && err != io.EOF {
+			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
+		}
+		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
+	}
+}
 
 func TestDecodeCorrupt(t *testing.T) {
 	testCases := []struct {
@@ -323,8 +326,8 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAAAAAAA", -1},
 	}
 	for _, tc := range testCases {
-		dbuf := make([]byte, base32.StdEncoding.DecodedLen(len(tc.input)))
-		_, err := base32.StdEncoding.Decode(dbuf, []byte(tc.input))
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
+		_, err := StdEncoding.Decode(dbuf, []byte(tc.input))
 		if tc.offset == -1 {
 			if err != nil {
 				t.Error("Decoder wrongly detected corruption in", tc.input)
@@ -332,7 +335,11 @@ func TestDecodeCorrupt(t *testing.T) {
 			continue
 		}
 		switch err := err.(type) {
-		case base32.CorruptInputError:
+		case CorruptInputError:
+			if err == -1 {
+				// XXX: see bug comment on type CorruptInputError
+				err = 0
+			}
 			testEqual(t, "Corruption in %q at offset %v, want %v", tc.input, int(err), tc.offset)
 		default:
 			t.Error("Decoder failed to detect corruption in", tc)
@@ -340,42 +347,42 @@ func TestDecodeCorrupt(t *testing.T) {
 	}
 }
 
-// func TestBig(t *testing.T) {
-// 	n := 3*1000 + 1
-// 	raw := make([]byte, n)
-// 	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-// 	for i := 0; i < n; i++ {
-// 		raw[i] = alpha[i%len(alpha)]
-// 	}
-// 	encoded := new(bytes.Buffer)
-// 	w := NewEncoder(StdEncoding, encoded)
-// 	nn, err := w.Write(raw)
-// 	if nn != n || err != nil {
-// 		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n)
-// 	}
-// 	err = w.Close()
-// 	if err != nil {
-// 		t.Fatalf("Encoder.Close() = %v want nil", err)
-// 	}
-// 	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded))
-// 	if err != nil {
-// 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
-// 	}
+func TestBig(t *testing.T) {
+	n := 3*1000 + 1
+	raw := make([]byte, n)
+	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	for i := 0; i < n; i++ {
+		raw[i] = alpha[i%len(alpha)]
+	}
+	encoded := new(bytes.Buffer)
+	w := NewEncoder(StdEncoding, encoded)
+	nn, err := w.Write(raw)
+	if nn != n || err != nil {
+		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("Encoder.Close() = %v want nil", err)
+	}
+	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded))
+	if err != nil {
+		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+	}
 
-// 	if !bytes.Equal(raw, decoded) {
-// 		var i int
-// 		for i = 0; i < len(decoded) && i < len(raw); i++ {
-// 			if decoded[i] != raw[i] {
-// 				break
-// 			}
-// 		}
-// 		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i)
-// 	}
-// }
+	if !bytes.Equal(raw, decoded) {
+		var i int
+		for i = 0; i < len(decoded) && i < len(raw); i++ {
+			if decoded[i] != raw[i] {
+				break
+			}
+		}
+		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i)
+	}
+}
 
 func testStringEncoding(t *testing.T, expected string, examples []string) {
 	for _, e := range examples {
-		buf, err := base32.StdEncoding.DecodeString(e)
+		buf, err := StdEncoding.DecodeString(e)
 		if err != nil {
 			t.Errorf("Decode(%q) failed: %v", e, err)
 			continue
@@ -386,28 +393,28 @@ func testStringEncoding(t *testing.T, expected string, examples []string) {
 	}
 }
 
-// func TestNewLineCharacters(t *testing.T) {
-// 	// Each of these should decode to the string "sure", without errors.
-// 	examples := []string{
-// 		"ON2XEZI=",
-// 		"ON2XEZI=\r",
-// 		"ON2XEZI=\n",
-// 		"ON2XEZI=\r\n",
-// 		"ON2XEZ\r\nI=",
-// 		"ON2X\rEZ\nI=",
-// 		"ON2X\nEZ\rI=",
-// 		"ON2XEZ\nI=",
-// 		"ON2XEZI\n=",
-// 	}
-// 	testStringEncoding(t, "sure", examples)
+func TestNewLineCharacters(t *testing.T) {
+	// Each of these should decode to the string "sure", without errors.
+	examples := []string{
+		"ON2XEZI=",
+		"ON2XEZI=\r",
+		"ON2XEZI=\n",
+		"ON2XEZI=\r\n",
+		"ON2XEZ\r\nI=",
+		"ON2X\rEZ\nI=",
+		"ON2X\nEZ\rI=",
+		"ON2XEZ\nI=",
+		"ON2XEZI\n=",
+	}
+	testStringEncoding(t, "sure", examples)
 
-// 	// Each of these should decode to the string "foobar", without errors.
-// 	examples = []string{
-// 		"MZXW6YTBOI======",
-// 		"MZXW6YTBOI=\r\n=====",
-// 	}
-// 	testStringEncoding(t, "foobar", examples)
-// }
+	// Each of these should decode to the string "foobar", without errors.
+	examples = []string{
+		"MZXW6YTBOI======",
+		"MZXW6YTBOI=\r\n=====",
+	}
+	testStringEncoding(t, "foobar", examples)
+}
 
 func TestDecoderIssue4779(t *testing.T) {
 	encoded := `JRXXEZLNEBUXA43VNUQGI33MN5ZCA43JOQQGC3LFOQWCAY3PNZZWKY3UMV2HK4
@@ -423,13 +430,13 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 ====`
 	encodedShort := strings.ReplaceAll(encoded, "\n", "")
 
-	dec := base32.NewDecoder(base32.StdEncoding, strings.NewReader(encoded))
+	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
 	res1, err := io.ReadAll(dec)
 	if err != nil {
 		t.Errorf("ReadAll failed: %v", err)
 	}
 
-	dec = base32.NewDecoder(base32.StdEncoding, strings.NewReader(encodedShort))
+	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
 	var res2 []byte
 	res2, err = io.ReadAll(dec)
 	if err != nil {
@@ -443,10 +450,10 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
 
 func BenchmarkEncode(b *testing.B) {
 	data := make([]byte, 8192)
-	buf := make([]byte, base32.StdEncoding.EncodedLen(len(data)))
+	buf := make([]byte, StdEncoding.EncodedLen(len(data)))
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		base32.StdEncoding.Encode(buf, data)
+		StdEncoding.Encode(buf, data)
 	}
 }
 
@@ -454,32 +461,32 @@ func BenchmarkEncodeToString(b *testing.B) {
 	data := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		base32.StdEncoding.EncodeToString(data)
+		StdEncoding.EncodeToString(data)
 	}
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data := make([]byte, base32.StdEncoding.EncodedLen(8192))
-	base32.StdEncoding.Encode(data, make([]byte, 8192))
+	data := make([]byte, StdEncoding.EncodedLen(8192))
+	StdEncoding.Encode(data, make([]byte, 8192))
 	buf := make([]byte, 8192)
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		base32.StdEncoding.Decode(buf, data)
+		StdEncoding.Decode(buf, data)
 	}
 }
 
 func BenchmarkDecodeString(b *testing.B) {
-	data := base32.StdEncoding.EncodeToString(make([]byte, 8192))
+	data := StdEncoding.EncodeToString(make([]byte, 8192))
 	b.SetBytes(int64(len(data)))
 	for i := 0; i < b.N; i++ {
-		base32.StdEncoding.DecodeString(data)
+		StdEncoding.DecodeString(data)
 	}
 }
 
 func TestWithCustomPadding(t *testing.T) {
 	for _, testcase := range pairs {
-		defaultPadding := base32.StdEncoding.EncodeToString([]byte(testcase.decoded))
-		customPadding := base32.StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
+		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
 		expected := strings.ReplaceAll(defaultPadding, "=", "@")
 
 		if expected != customPadding {
@@ -493,8 +500,8 @@ func TestWithCustomPadding(t *testing.T) {
 
 func TestWithoutPadding(t *testing.T) {
 	for _, testcase := range pairs {
-		defaultPadding := base32.StdEncoding.EncodeToString([]byte(testcase.decoded))
-		customPadding := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString([]byte(testcase.decoded))
+		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
+		customPadding := StdEncoding.WithPadding(NoPadding).EncodeToString([]byte(testcase.decoded))
 		expected := strings.TrimRight(defaultPadding, "=")
 
 		if expected != customPadding {
@@ -506,178 +513,184 @@ func TestWithoutPadding(t *testing.T) {
 	}
 }
 
-// func TestDecodeWithPadding(t *testing.T) {
-// 	encodings := []*Encoding{
-// 		StdEncoding,
-// 		StdEncoding.WithPadding('-'),
-// 		StdEncoding.WithPadding(NoPadding),
-// 	}
+func TestDecodeWithPadding(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding('-'),
+		StdEncoding.WithPadding(NoPadding),
+	}
 
-// 	for i, enc := range encodings {
-// 		for _, pair := range pairs {
+	for i, enc := range encodings {
+		for _, pair := range pairs {
 
-// 			input := pair.decoded
-// 			encoded := enc.EncodeToString([]byte(input))
+			input := pair.decoded
+			encoded := enc.EncodeToString([]byte(input))
 
-// 			decoded, err := enc.DecodeString(encoded)
-// 			if err != nil {
-// 				t.Errorf("DecodeString Error for encoding %d (%q): %v", i, input, err)
-// 			}
+			decoded, err := enc.DecodeString(encoded)
+			if err != nil {
+				t.Errorf("DecodeString Error for encoding %d (%q): %v", i, input, err)
+			}
 
-// 			if input != string(decoded) {
-// 				t.Errorf("Unexpected result for encoding %d: got %q; want %q", i, decoded, input)
-// 			}
-// 		}
-// 	}
-// }
+			if input != string(decoded) {
+				t.Errorf("Unexpected result for encoding %d: got %q; want %q", i, decoded, input)
+			}
+		}
+	}
+}
 
 func TestDecodeWithWrongPadding(t *testing.T) {
-	encoded := base32.StdEncoding.EncodeToString([]byte("foobar"))
+	encoded := StdEncoding.EncodeToString([]byte("foobar"))
 
-	_, err := base32.StdEncoding.WithPadding('-').DecodeString(encoded)
+	_, err := StdEncoding.WithPadding('-').DecodeString(encoded)
 	if err == nil {
 		t.Error("expected error")
 	}
 
-	_, err = base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(encoded)
+	_, err = StdEncoding.WithPadding(NoPadding).DecodeString(encoded)
 	if err == nil {
 		t.Error("expected error")
 	}
 }
 
-// XXX `go` is not implemented yet
-// func TestBufferedDecodingSameError(t *testing.T) {
-// 	testcases := []struct {
-// 		prefix            string
-// 		chunkCombinations [][]string
-// 		expected          error
-// 	}{
-// 		// NBSWY3DPO5XXE3DE == helloworld
-// 		// Test with "ZZ" as extra input
-// 		{"helloworld", [][]string{
-// 			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
-// 			{"NBSWY3DPO5XXE3DE", "ZZ"},
-// 			{"NBSWY3DPO5XXE3DEZZ"},
-// 			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
-// 			{"NBSWY3DPO5XXE3", "DEZZ"},
-// 		}, io.ErrUnexpectedEOF},
+func TestBufferedDecodingSameError(t *testing.T) {
+	testcases := []struct {
+		prefix            string
+		chunkCombinations [][]string
+		expected          error
+	}{
+		// NBSWY3DPO5XXE3DE == helloworld
+		// Test with "ZZ" as extra input
+		{"helloworld", [][]string{
+			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZ"},
+			{"NBSWY3DPO5XXE3DE", "ZZ"},
+			{"NBSWY3DPO5XXE3DEZZ"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZ"},
+			{"NBSWY3DPO5XXE3", "DEZZ"},
+		}, io.ErrUnexpectedEOF},
 
-// 		// Test with "ZZY" as extra input
-// 		{"helloworld", [][]string{
-// 			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
-// 			{"NBSWY3DPO5XXE3DE", "ZZY"},
-// 			{"NBSWY3DPO5XXE3DEZZY"},
-// 			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
-// 			{"NBSWY3DPO5XXE3", "DEZZY"},
-// 		}, io.ErrUnexpectedEOF},
+		// Test with "ZZY" as extra input
+		{"helloworld", [][]string{
+			{"NBSW", "Y3DP", "O5XX", "E3DE", "ZZY"},
+			{"NBSWY3DPO5XXE3DE", "ZZY"},
+			{"NBSWY3DPO5XXE3DEZZY"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "EZZY"},
+			{"NBSWY3DPO5XXE3", "DEZZY"},
+		}, io.ErrUnexpectedEOF},
 
-// 		// Normal case, this is valid input
-// 		{"helloworld", [][]string{
-// 			{"NBSW", "Y3DP", "O5XX", "E3DE"},
-// 			{"NBSWY3DPO5XXE3DE"},
-// 			{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
-// 			{"NBSWY3DPO5XXE3", "DE"},
-// 		}, nil},
+		// Normal case, this is valid input
+		{"helloworld", [][]string{
+			{"NBSW", "Y3DP", "O5XX", "E3DE"},
+			{"NBSWY3DPO5XXE3DE"},
+			{"NBS", "WY3", "DPO", "5XX", "E3D", "E"},
+			{"NBSWY3DPO5XXE3", "DE"},
+		}, nil},
 
-// 		// MZXW6YTB = fooba
-// 		{"fooba", [][]string{
-// 			{"MZXW6YTBZZ"},
-// 			{"MZXW6YTBZ", "Z"},
-// 			{"MZXW6YTB", "ZZ"},
-// 			{"MZXW6YT", "BZZ"},
-// 			{"MZXW6Y", "TBZZ"},
-// 			{"MZXW6Y", "TB", "ZZ"},
-// 			{"MZXW6", "YTBZZ"},
-// 			{"MZXW6", "YTB", "ZZ"},
-// 			{"MZXW6", "YT", "BZZ"},
-// 		}, io.ErrUnexpectedEOF},
+		// MZXW6YTB = fooba
+		{"fooba", [][]string{
+			{"MZXW6YTBZZ"},
+			{"MZXW6YTBZ", "Z"},
+			{"MZXW6YTB", "ZZ"},
+			{"MZXW6YT", "BZZ"},
+			{"MZXW6Y", "TBZZ"},
+			{"MZXW6Y", "TB", "ZZ"},
+			{"MZXW6", "YTBZZ"},
+			{"MZXW6", "YTB", "ZZ"},
+			{"MZXW6", "YT", "BZZ"},
+		}, io.ErrUnexpectedEOF},
 
-// 		// Normal case, this is valid input
-// 		{"fooba", [][]string{
-// 			{"MZXW6YTB"},
-// 			{"MZXW6YT", "B"},
-// 			{"MZXW6Y", "TB"},
-// 			{"MZXW6", "YTB"},
-// 			{"MZXW6", "YT", "B"},
-// 			{"MZXW", "6YTB"},
-// 			{"MZXW", "6Y", "TB"},
-// 		}, nil},
-// 	}
+		// Normal case, this is valid input
+		{"fooba", [][]string{
+			{"MZXW6YTB"},
+			{"MZXW6YT", "B"},
+			{"MZXW6Y", "TB"},
+			{"MZXW6", "YTB"},
+			{"MZXW6", "YT", "B"},
+			{"MZXW", "6YTB"},
+			{"MZXW", "6Y", "TB"},
+		}, nil},
+	}
 
-// 	for _, testcase := range testcases {
-// 		for _, chunks := range testcase.chunkCombinations {
-// 			pr, pw := io.Pipe()
+	for _, testcase := range testcases {
+		for _, chunks := range testcase.chunkCombinations {
+			r := &chunkReader{chunks: chunks}
 
-// 			// Write the encoded chunks into the pipe
-// 			go func() {
-// 				for _, chunk := range chunks {
-// 					pw.Write([]byte(chunk))
-// 				}
-// 				pw.Close()
-// 			}()
+			decoder := NewDecoder(StdEncoding, r)
+			_, err := io.ReadAll(decoder)
 
-// 			decoder := NewDecoder(StdEncoding, pr)
-// 			_, err := io.ReadAll(decoder)
+			if err != testcase.expected {
+				t.Error()
+			}
+		}
+	}
+}
 
-// 			if err != testcase.expected {
-// 				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
-// 			}
-// 		}
-// 	}
-// }
+// XXX:
+// chunkReader exists as an alternative to the original behaviour of these
+// tests in go, which used io.Pipe and a separate goroutine.
+type chunkReader struct {
+	chunks []string
+	nChunk int
+	read   int
+}
 
-// XXX `go` is not implemented yet
-// func TestBufferedDecodingPadding(t *testing.T) {
-// 	testcases := []struct {
-// 		chunks        []string
-// 		expectedError string
-// 	}{
-// 		{[]string{
-// 			"I4======",
-// 			"==",
-// 		}, "unexpected EOF"},
+func (c *chunkReader) Read(b []byte) (int, error) {
+	if c.nChunk >= len(c.chunks) {
+		return 0, io.EOF
+	}
+	chunk := c.chunks[c.nChunk]
+	read := copy(b, chunk[c.read:])
+	c.read += read
+	if c.read == len(chunk) {
+		c.nChunk++
+		c.read = 0
+	}
+	return read, nil
+}
 
-// 		{[]string{
-// 			"I4======N4======",
-// 		}, "illegal base32 data at input byte 2"},
+func TestBufferedDecodingPadding(t *testing.T) {
+	testcases := []struct {
+		chunks        []string
+		expectedError string
+	}{
+		{[]string{
+			"I4======",
+			"==",
+		}, "unexpected EOF"},
 
-// 		{[]string{
-// 			"I4======",
-// 			"N4======",
-// 		}, "illegal base32 data at input byte 0"},
+		{[]string{
+			"I4======N4======",
+		}, "illegal base32 data at input byte 2"},
 
-// 		{[]string{
-// 			"I4======",
-// 			"========",
-// 		}, "illegal base32 data at input byte 0"},
+		{[]string{
+			"I4======",
+			"N4======",
+		}, "illegal base32 data at input byte 0"},
 
-// 		{[]string{
-// 			"I4I4I4I4",
-// 			"I4======",
-// 			"I4======",
-// 		}, "illegal base32 data at input byte 0"},
-// 	}
+		{[]string{
+			"I4======",
+			"========",
+		}, "illegal base32 data at input byte 0"},
 
-// 	for _, testcase := range testcases {
-// 		testcase := testcase
-// 		pr, pw := io.Pipe()
-// 		go func() {
-// 			for _, chunk := range testcase.chunks {
-// 				_, _ = pw.Write([]byte(chunk))
-// 			}
-// 			_ = pw.Close()
-// 		}()
+		{[]string{
+			"I4I4I4I4",
+			"I4======",
+			"I4======",
+		}, "illegal base32 data at input byte 0"},
+	}
 
-// 		decoder := NewDecoder(StdEncoding, pr)
-// 		_, err := io.ReadAll(decoder)
+	for _, testcase := range testcases {
+		r := &chunkReader{chunks: testcase.chunks}
 
-// 		if err == nil && len(testcase.expectedError) != 0 {
-// 			t.Errorf("case %q: got nil error, want %v", testcase.chunks, testcase.expectedError)
-// 		} else if err.Error() != testcase.expectedError {
-// 			t.Errorf("case %q: got %v, want %v", testcase.chunks, err, testcase.expectedError)
-// 		}
-// 	}
-// }
+		decoder := NewDecoder(StdEncoding, r)
+		out, err := io.ReadAll(decoder)
+
+		if err == nil && len(testcase.expectedError) != 0 {
+			t.Errorf("case %q: got nil error, want %v", testcase.chunks, testcase.expectedError)
+		} else if err.Error() != testcase.expectedError {
+			t.Errorf("case %q: got %v, want %v", testcase.chunks, err, testcase.expectedError)
+		}
+	}
+}
 
 func TestEncodedDecodedLen(t *testing.T) {
 	type test struct {
@@ -688,17 +701,17 @@ func TestEncodedDecodedLen(t *testing.T) {
 	data := bytes.Repeat([]byte("x"), 100)
 	for _, test := range []struct {
 		name  string
-		enc   *base32.Encoding
+		enc   *Encoding
 		cases []test
 	}{
-		{"StdEncoding", base32.StdEncoding, []test{
+		{"StdEncoding", StdEncoding, []test{
 			{0, 0, 0},
 			{1, 8, 5},
 			{5, 8, 5},
 			{6, 16, 10},
 			{10, 16, 10},
 		}},
-		{"NoPadding", base32.StdEncoding.WithPadding(base32.NoPadding), []test{
+		{"NoPadding", StdEncoding.WithPadding(NoPadding), []test{
 			{0, 0, 0},
 			{1, 2, 1},
 			{2, 4, 2},
@@ -728,93 +741,93 @@ func TestEncodedDecodedLen(t *testing.T) {
 	}
 }
 
-// func TestWithoutPaddingClose(t *testing.T) {
-// 	encodings := []*base32.Encoding{
-// 		base32.StdEncoding,
-// 		base32.StdEncoding.WithPadding(base32.NoPadding),
-// 	}
+func TestWithoutPaddingClose(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
 
-// 	for _, encoding := range encodings {
-// 		for _, testpair := range pairs {
+	for _, encoding := range encodings {
+		for _, testpair := range pairs {
 
-// 			var buf strings.Builder
-// 			encoder := base32.NewEncoder(encoding, &buf)
-// 			encoder.Write([]byte(testpair.decoded))
-// 			encoder.Close()
+			var buf strings.Builder
+			encoder := NewEncoder(encoding, &buf)
+			encoder.Write([]byte(testpair.decoded))
+			encoder.Close()
 
-// 			expected := testpair.encoded
-// 			if encoding.padChar == base32.NoPadding {
-// 				expected = strings.ReplaceAll(expected, "=", "")
-// 			}
+			expected := testpair.encoded
+			if encoding.padChar == NoPadding {
+				expected = strings.ReplaceAll(expected, "=", "")
+			}
 
-// 			res := buf.String()
+			res := buf.String()
 
-// 			if res != expected {
-// 				t.Errorf("Expected %s got %s; padChar=%d", expected, res, encoding.padChar)
-// 			}
-// 		}
-// 	}
-// }
+			if res != expected {
+				t.Errorf("Expected %s got %s; padChar=%d", expected, res, encoding.padChar)
+			}
+		}
+	}
+}
 
-// func TestDecodeReadAll(t *testing.T) {
-// 	encodings := []*Encoding{
-// 		StdEncoding,
-// 		StdEncoding.WithPadding(NoPadding),
-// 	}
+func TestDecodeReadAll(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
 
-// 	for _, pair := range pairs {
-// 		for encIndex, encoding := range encodings {
-// 			encoded := pair.encoded
-// 			if encoding.padChar == NoPadding {
-// 				encoded = strings.ReplaceAll(encoded, "=", "")
-// 			}
+	for _, pair := range pairs {
+		for encIndex, encoding := range encodings {
+			encoded := pair.encoded
+			if encoding.padChar == NoPadding {
+				encoded = strings.ReplaceAll(encoded, "=", "")
+			}
 
-// 			decReader, err := io.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
-// 			if err != nil {
-// 				t.Errorf("NewDecoder error: %v", err)
-// 			}
+			decReader, err := io.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
+			if err != nil {
+				t.Errorf("NewDecoder error: %v", err)
+			}
 
-// 			if pair.decoded != string(decReader) {
-// 				t.Errorf("Expected %s got %s; Encoding %d", pair.decoded, decReader, encIndex)
-// 			}
-// 		}
-// 	}
-// }
+			if pair.decoded != string(decReader) {
+				t.Errorf("Expected %s got %s; Encoding %d", pair.decoded, decReader, encIndex)
+			}
+		}
+	}
+}
 
-// func TestDecodeSmallBuffer(t *testing.T) {
-// 	encodings := []*Encoding{
-// 		StdEncoding,
-// 		StdEncoding.WithPadding(NoPadding),
-// 	}
+func TestDecodeSmallBuffer(t *testing.T) {
+	encodings := []*Encoding{
+		StdEncoding,
+		StdEncoding.WithPadding(NoPadding),
+	}
 
-// 	for bufferSize := 1; bufferSize < 200; bufferSize++ {
-// 		for _, pair := range pairs {
-// 			for encIndex, encoding := range encodings {
-// 				encoded := pair.encoded
-// 				if encoding.padChar == NoPadding {
-// 					encoded = strings.ReplaceAll(encoded, "=", "")
-// 				}
+	for bufferSize := 1; bufferSize < 200; bufferSize++ {
+		for _, pair := range pairs {
+			for encIndex, encoding := range encodings {
+				encoded := pair.encoded
+				if encoding.padChar == NoPadding {
+					encoded = strings.ReplaceAll(encoded, "=", "")
+				}
 
-// 				decoder := NewDecoder(encoding, strings.NewReader(encoded))
+				decoder := NewDecoder(encoding, strings.NewReader(encoded))
 
-// 				var allRead []byte
+				var allRead []byte
 
-// 				for {
-// 					buf := make([]byte, bufferSize)
-// 					n, err := decoder.Read(buf)
-// 					allRead = append(allRead, buf[0:n]...)
-// 					if err == io.EOF {
-// 						break
-// 					}
-// 					if err != nil {
-// 						t.Error(err)
-// 					}
-// 				}
+				for {
+					buf := make([]byte, bufferSize)
+					n, err := decoder.Read(buf)
+					allRead = append(allRead, buf[0:n]...)
+					if err == io.EOF {
+						break
+					}
+					if err != nil {
+						t.Error(err)
+					}
+				}
 
-// 				if pair.decoded != string(allRead) {
-// 					t.Errorf("Expected %s got %s; Encoding %d; bufferSize %d", pair.decoded, allRead, encIndex, bufferSize)
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+				if pair.decoded != string(allRead) {
+					t.Errorf("Expected %s got %s; Encoding %d; bufferSize %d", pair.decoded, allRead, encIndex, bufferSize)
+				}
+			}
+		}
+	}
+}

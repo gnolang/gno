@@ -18,8 +18,6 @@ import (
 // 32-character alphabet. The most common is the "base32" encoding
 // introduced for SASL GSSAPI and standardized in RFC 4648.
 // The alternate "base32hex" encoding is used in DNSSEC.
-//
-// TODO: Cannot access the `padChar` field of an Encoding, need to fix.
 type Encoding struct {
 	encode    [32]byte
 	decodeMap [256]byte
@@ -114,8 +112,12 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 func (enc *Encoding) Encode(dst, src []byte) {
 	for len(src) > 0 {
 		var b [8]byte
-		switch {
-		case len(src) >= 5:
+
+		// Unpack 8x 5-bit source blocks into a 5 byte
+		// destination quantum
+		// XXX: original Go source uses a switch with `fallthrough`; it doesn't
+		// work well here currently.
+		if len(src) >= 5 {
 			b[7] = src[4] & 0x1F
 			b[6] = src[4] >> 5
 		}
@@ -285,10 +287,31 @@ func (enc *Encoding) EncodedLen(n int) int {
  * Decoder
  */
 
+// XXX BUG(morgan): the current implementation will return CorruptInputError(-1)
+// when in the original Go it is CorruptInputError(0). This is automatically
+// fixed in the Error messages returned by Error(), but users checking the
+// underlying integer value should be aware.
+// The patch should be reverted once this issue is fixed: https://github.com/gnolang/gno/issues/1376
 type CorruptInputError int64
 
 func (e CorruptInputError) Error() string {
-	return "illegal base32 data at input byte " + strconv.FormatInt(int64(e), 10)
+	return "illegal base32 data at input byte " + strconv.FormatInt(int64(e.unfx()), 10)
+}
+
+// XXX: see bug comment
+func (e CorruptInputError) fx() CorruptInputError {
+	if e == 0 {
+		return -1
+	}
+	return e
+}
+
+// XXX: see bug comment
+func (e CorruptInputError) unfx() CorruptInputError {
+	if e == -1 {
+		return 0
+	}
+	return e
 }
 
 // decode is like Decode but returns an additional 'end' value, which
@@ -312,7 +335,8 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			if len(src) == 0 {
 				if enc.padChar != NoPadding {
 					// We have reached the end and are missing padding
-					return n, false, CorruptInputError(olen - len(src) - j)
+					// XXX: see bug comment
+					return n, false, CorruptInputError(olen - len(src) - j).fx()
 				}
 				// We have reached the end and are not expecting any padding
 				dlen, end = j, true
@@ -324,12 +348,14 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// We've reached the end and there's padding
 				if len(src)+j < 8-1 {
 					// not enough padding
-					return n, false, CorruptInputError(olen)
+					// XXX: see bug comment
+					return n, false, CorruptInputError(olen).fx()
 				}
 				for k := 0; k < 8-1-j; k++ {
 					if len(src) > k && src[k] != byte(enc.padChar) {
 						// incorrect padding
-						return n, false, CorruptInputError(olen - len(src) + k - 1)
+						// XXX: see bug comment
+						return n, false, CorruptInputError(olen - len(src) + k - 1).fx()
 					}
 				}
 				dlen, end = j, true
@@ -339,13 +365,15 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// Examples" for an illustration for how the 1st, 3rd and 6th base32
 				// src bytes do not yield enough information to decode a dst byte.
 				if dlen == 1 || dlen == 3 || dlen == 6 {
-					return n, false, CorruptInputError(olen - len(src) - 1)
+					// XXX: see bug comment
+					return n, false, CorruptInputError(olen - len(src) - 1).fx()
 				}
 				break
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(olen - len(src) - 1)
+				// XXX: see bug comment
+				return n, false, CorruptInputError(olen - len(src) - 1).fx()
 			}
 			j++
 		}
@@ -469,7 +497,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		return 0, d.err
 	}
 	if nn > 0 && d.end {
-		return 0, CorruptInputError(0)
+		// XXX: see bug comment
+		return 0, CorruptInputError(-1)
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
