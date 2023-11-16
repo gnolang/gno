@@ -1,7 +1,10 @@
-package csv_test
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package csv
 
 import (
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -129,7 +132,7 @@ field"`,
 }, {
 	Name:   "BadDoubleQuotes",
 	Input:  `§a∑""b,c`,
-	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
+	Errors: []error{&ParseError{Err: ErrBareQuote}},
 }, {
 	Name:             "TrimQuote",
 	Input:            ` §"a",§" b",§c`,
@@ -138,33 +141,33 @@ field"`,
 }, {
 	Name:   "BadBareQuote",
 	Input:  `§a ∑"word","b"`,
-	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
+	Errors: []error{&ParseError{Err: ErrBareQuote}},
 }, {
 	Name:   "BadTrailingQuote",
 	Input:  `§"a word",b∑"`,
-	Errors: []error{&csv.ParseError{Err: csv.ErrBareQuote}},
+	Errors: []error{&ParseError{Err: ErrBareQuote}},
 }, {
 	Name:   "ExtraneousQuote",
 	Input:  `§"a ∑"word","b"`,
-	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{&ParseError{Err: ErrQuote}},
 }, {
 	Name:               "BadFieldCount",
 	Input:              "§a,§b,§c\n¶∑§d,§e",
-	Errors:             []error{nil, &csv.ParseError{Err: csv.ErrFieldCount}},
+	Errors:             []error{nil, &ParseError{Err: ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}, {"d", "e"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    0,
 }, {
 	Name:               "BadFieldCountMultiple",
 	Input:              "§a,§b,§c\n¶∑§d,§e\n¶∑§f",
-	Errors:             []error{nil, &csv.ParseError{Err: csv.ErrFieldCount}, &csv.ParseError{Err: csv.ErrFieldCount}},
+	Errors:             []error{nil, &ParseError{Err: ErrFieldCount}, &ParseError{Err: ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}, {"d", "e"}, {"f"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    0,
 }, {
 	Name:               "BadFieldCount1",
 	Input:              `§∑a,§b,§c`,
-	Errors:             []error{&csv.ParseError{Err: csv.ErrFieldCount}},
+	Errors:             []error{&ParseError{Err: ErrFieldCount}},
 	Output:             [][]string{{"a", "b", "c"}},
 	UseFieldsPerRecord: true,
 	FieldsPerRecord:    2,
@@ -243,11 +246,11 @@ field"`,
 }, {
 	Name:   "StartLine1", // Issue 19019
 	Input:  "§a,\"b\nc∑\"d,e",
-	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{&ParseError{Err: ErrQuote}},
 }, {
 	Name:   "StartLine2",
 	Input:  "§a,§b\n¶§\"d\n\n,e∑",
-	Errors: []error{nil, &csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{nil, &ParseError{Err: ErrQuote}},
 	Output: [][]string{{"a", "b"}},
 }, {
 	Name:  "CRLFInQuotedField", // Issue 21201
@@ -270,7 +273,7 @@ field"`,
 }, {
 	Name:   "QuotedTrailingCRCR",
 	Input:  "§\"field∑\"\r\r",
-	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{&ParseError{Err: ErrQuote}},
 }, {
 	Name:   "FieldCR",
 	Input:  "§field\rfield\r",
@@ -342,7 +345,7 @@ field"`,
 }, {
 	Name:   "QuoteWithTrailingCRLF",
 	Input:  "§\"foo∑\"bar\"\r\n",
-	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{&ParseError{Err: ErrQuote}},
 }, {
 	Name:       "LazyQuoteWithTrailingCRLF",
 	Input:      "§\"foo\"bar\"\r\n",
@@ -359,7 +362,7 @@ field"`,
 }, {
 	Name:   "OddQuotes",
 	Input:  `§"""""""∑`,
-	Errors: []error{&csv.ParseError{Err: csv.ErrQuote}},
+	Errors: []error{&ParseError{Err: ErrQuote}},
 }, {
 	Name:       "LazyOddQuotes",
 	Input:      `§"""""""`,
@@ -368,196 +371,171 @@ field"`,
 }, {
 	Name:   "BadComma1",
 	Comma:  '\n',
-	Errors: []error{csv.ErrInvalidDelim},
+	Errors: []error{ErrInvalidDelim},
 }, {
 	Name:   "BadComma2",
 	Comma:  '\r',
-	Errors: []error{csv.ErrInvalidDelim},
+	Errors: []error{ErrInvalidDelim},
 }, {
 	Name:   "BadComma3",
 	Comma:  '"',
-	Errors: []error{csv.ErrInvalidDelim},
+	Errors: []error{ErrInvalidDelim},
 }, {
 	Name:   "BadComma4",
 	Comma:  utf8.RuneError,
-	Errors: []error{csv.ErrInvalidDelim},
+	Errors: []error{ErrInvalidDelim},
 }, {
 	Name:    "BadComment1",
 	Comment: '\n',
-	Errors:  []error{csv.ErrInvalidDelim},
+	Errors:  []error{ErrInvalidDelim},
 }, {
 	Name:    "BadComment2",
 	Comment: '\r',
-	Errors:  []error{csv.ErrInvalidDelim},
+	Errors:  []error{ErrInvalidDelim},
 }, {
 	Name:    "BadComment3",
 	Comment: utf8.RuneError,
-	Errors:  []error{csv.ErrInvalidDelim},
+	Errors:  []error{ErrInvalidDelim},
 }, {
 	Name:    "BadCommaComment",
 	Comma:   'X',
 	Comment: 'X',
-	Errors:  []error{csv.ErrInvalidDelim},
+	Errors:  []error{ErrInvalidDelim},
 }}
 
-func TestReaderRead(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedOutput [][]string
-	}{
-		{
-			name:  "simple",
-			input: "a,b,c\n1,2,3\n4,5,6\n",
-			expectedOutput: [][]string{
-				{"a", "b", "c"},
-				{"1", "2", "3"},
-				{"4", "5", "6"},
-			},
-		},
-		{
-			name:  "quoted",
-			input: "a,b,c\n\"1\",\"2\",\"3\"\n\"4\",\"5\",\"6\"\n",
-			expectedOutput: [][]string{
-				{"a", "b", "c"},
-				{"1", "2", "3"},
-				{"4", "5", "6"},
-			},
-		},
-		{
-			name:  "quoted with comma",
-			input: "a,b,c\n\"1,2\",\"3\",\"4,5,6\"\n",
-			expectedOutput: [][]string{
-				{"a", "b", "c"},
-				{"1,2", "3", "4,5,6"},
-			},
-		},
-		{
-			name:  "quoted with newline",
-			input: "a,b,c\n\"1\n2\",\"3\",\"4\n5\n6\"\n",
-			expectedOutput: [][]string{
-				{"a", "b", "c"},
-				{"1\n2", "3", "4\n5\n6"},
-			},
-		},
-		{
-			name:  "golang example",
-			input: "first_name, last_name, username\n\"Rob\",\"Pike\",\"ken\"\n\"Robert\",\"Griesemer\",\"gri\"",
-			expectedOutput: [][]string{
-				{"first_name", " last_name", " username"},
-				{"Rob", "Pike", "ken"},
-				{"Robert", " Griesemer", " gri"},
-			},
-		},
+func TestRead(t *testing.T) {
+	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int, string) {
+		positions, errPositions, input := makePositions(tt.Input)
+		r := NewReader(strings.NewReader(input))
+
+		if tt.Comma != 0 {
+			r.Comma = tt.Comma
+		}
+		r.Comment = tt.Comment
+		if tt.UseFieldsPerRecord {
+			r.FieldsPerRecord = tt.FieldsPerRecord
+		} else {
+			r.FieldsPerRecord = -1
+		}
+		r.LazyQuotes = tt.LazyQuotes
+		r.TrimLeadingSpace = tt.TrimLeadingSpace
+		r.ReuseRecord = tt.ReuseRecord
+		return r, positions, errPositions, input
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := csv.NewReader(strings.NewReader(tt.input))
-			var output [][]string
-			for {
-				record, err := r.Read()
-				if err == io.EOF {
-					break
+	for _, tt := range readTests {
+		t.Run(tt.Name, func(t *testing.T) {
+			r, positions, errPositions, input := newReader(tt)
+			out, err := r.ReadAll()
+			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
+				if !deepEqual(err, wantErr) {
+					t.Fatalf("ReadAll() error mismatch:\ngot  %v (%#v)\nwant %v (%#v)", err, err, wantErr, wantErr)
 				}
+				if out != nil {
+					t.Fatalf("ReadAll() output:\ngot  %q\nwant nil", out)
+				}
+			} else {
 				if err != nil {
-					t.Errorf("unexpected error: %v", err)
+					t.Fatalf("unexpected Readall() error: %v", err)
 				}
-				output = append(output, record)
+				if !deepEqual(out, tt.Output) {
+					t.Fatalf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
+				}
 			}
 
-			if len(output) != len(tt.expectedOutput) {
-				t.Errorf("unexpected output:\nexpected: %v\nactual:   %v", tt.expectedOutput, output)
+			// Check input offset after call ReadAll()
+			inputByteSize := len(input)
+			inputOffset := r.InputOffset()
+			if err == nil && int64(inputByteSize) != inputOffset {
+				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
+			}
+
+			// Check field and error positions.
+			r, _, _, _ = newReader(tt)
+			for recNum := 0; ; recNum++ {
+				rec, err := r.Read()
+				var wantErr error
+				if recNum < len(tt.Errors) && tt.Errors[recNum] != nil {
+					wantErr = errorWithPosition(tt.Errors[recNum], recNum, positions, errPositions)
+				} else if recNum >= len(tt.Output) {
+					wantErr = io.EOF
+				}
+				if !deepEqual(err, wantErr) {
+					t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
+				}
+				// ErrFieldCount is explicitly non-fatal.
+				if err != nil && !isErr(err, ErrFieldCount) {
+					if recNum < len(tt.Output) {
+						t.Fatalf("need more records; got %d want %d", recNum, len(tt.Output))
+					}
+					break
+				}
+				if got, want := rec, tt.Output[recNum]; !deepEqual(got, want) {
+					t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
+				}
+				pos := positions[recNum]
+				if len(pos) != len(rec) {
+					t.Fatalf("mismatched position length at record %d", recNum)
+				}
+				for i := range rec {
+					line, col := r.FieldPos(i)
+					if got, want := [2]int{line, col}, pos[i]; got != want {
+						t.Errorf("position mismatch at record %d, field %d;\ngot %v\nwant %v", recNum, i, got, want)
+					}
+				}
 			}
 		})
 	}
 }
 
-// TODO: After reflect
-// func TestRead(t *testing.T) {
-// 	newReader := func(tt readTest) (*csv.Reader, [][][2]int, map[int][2]int, string) {
-// 		positions, errPositions, input := makePositions(tt.Input)
-// 		r := csv.NewReader(strings.NewReader(input))
+// XXX: substitute for errors.Is
+func isErr(err, match error) bool {
+	if err == match {
+		return true
+	}
+	if w, ok := err.(interface{ Unwrap() error }); ok {
+		return isErr(w.Unwrap(), match)
+	}
+	return false
+}
 
-// 		if tt.Comma != 0 {
-// 			r.Comma = tt.Comma
-// 		}
-// 		r.Comment = tt.Comment
-// 		if tt.UseFieldsPerRecord {
-// 			r.FieldsPerRecord = tt.FieldsPerRecord
-// 		} else {
-// 			r.FieldsPerRecord = -1
-// 		}
-// 		r.LazyQuotes = tt.LazyQuotes
-// 		r.TrimLeadingSpace = tt.TrimLeadingSpace
-// 		r.ReuseRecord = tt.ReuseRecord
-// 		return r, positions, errPositions, input
-// 	}
-
-// 	for _, tt := range readTests {
-// 		t.Run(tt.Name, func(t *testing.T) {
-// 			r, positions, errPositions, input := newReader(tt)
-// 			out, err := r.ReadAll()
-// 			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
-// 				if !reflect.DeepEqual(err, wantErr) {
-// 					t.Fatalf("ReadAll() error mismatch:\ngot  %v (%#v)\nwant %v (%#v)", err, err, wantErr, wantErr)
-// 				}
-// 				if out != nil {
-// 					t.Fatalf("ReadAll() output:\ngot  %q\nwant nil", out)
-// 				}
-// 			} else {
-// 				if err != nil {
-// 					t.Fatalf("unexpected Readall() error: %v", err)
-// 				}
-// 				if !reflect.DeepEqual(out, tt.Output) {
-// 					t.Fatalf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
-// 				}
-// 			}
-
-// 			// Check input offset after call ReadAll()
-// 			inputByteSize := len(input)
-// 			inputOffset := r.InputOffset()
-// 			if err == nil && int64(inputByteSize) != inputOffset {
-// 				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
-// 			}
-
-// 			// Check field and error positions.
-// 			r, _, _, _ = newReader(tt)
-// 			for recNum := 0; ; recNum++ {
-// 				rec, err := r.Read()
-// 				var wantErr error
-// 				if recNum < len(tt.Errors) && tt.Errors[recNum] != nil {
-// 					wantErr = errorWithPosition(tt.Errors[recNum], recNum, positions, errPositions)
-// 				} else if recNum >= len(tt.Output) {
-// 					wantErr = io.EOF
-// 				}
-// 				if !reflect.DeepEqual(err, wantErr) {
-// 					t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
-// 				}
-// 				ErrFieldCount is explicitly non-fatal.
-// 				if err != nil && !errors.Is(err, csv.ErrFieldCount) {
-// 					if recNum < len(tt.Output) {
-// 						t.Fatalf("need more records; got %d want %d", recNum, len(tt.Output))
-// 					}
-// 					break
-// 				}
-// 				if got, want := rec, tt.Output[recNum]; !reflect.DeepEqual(got, want) {
-// 					t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
-// 				}
-// 				pos := positions[recNum]
-// 				if len(pos) != len(rec) {
-// 					t.Fatalf("mismatched position length at record %d", recNum)
-// 				}
-// 				for i := range rec {
-// 					line, col := r.FieldPos(i)
-// 					if got, want := [2]int{line, col}, pos[i]; got != want {
-// 						t.Errorf("position mismatch at record %d, field %d;\ngot %v\nwant %v", recNum, i, got, want)
-// 					}
-// 				}
-// 			}
-// 		})
-// 	}
-// }
+// XXX: substitute for reflect.DeepEqual
+func deepEqual(v, x interface{}) bool {
+	if v == nil {
+		return x == nil
+	}
+	// dumb deep equal, handling only a few cases
+	switch v := v.(type) {
+	case error:
+		return v.Error() == x.(error).Error()
+	case string:
+		return v == x.(string)
+	case []string:
+		x := x.([]string)
+		if len(v) != len(x) {
+			return false
+		}
+		for i := range v {
+			if !deepEqual(v[i], x[i]) {
+				return false
+			}
+		}
+		return true
+	case [][]string:
+		x := x.([][]string)
+		if len(v) != len(x) {
+			return false
+		}
+		for i := range v {
+			if !deepEqual(v[i], x[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		panic("not handled " + fmt.Sprintf("%T %T", v, x))
+	}
+}
 
 // firstError returns the first non-nil error in errs,
 // with the position adjusted according to the error's
@@ -572,7 +550,7 @@ func firstError(errs []error, positions [][][2]int, errPositions map[int][2]int)
 }
 
 func errorWithPosition(err error, recNum int, positions [][][2]int, errPositions map[int][2]int) error {
-	parseErr, ok := err.(*csv.ParseError)
+	parseErr, ok := err.(*ParseError)
 	if !ok {
 		return err
 	}
@@ -658,11 +636,11 @@ func (r *nTimes) Read(p []byte) (n int, err error) {
 
 // benchmarkRead measures reading the provided CSV rows data.
 // initReader, if non-nil, modifies the Reader before it's used.
-func benchmarkRead(b *testing.B, initReader func(*csv.Reader), rows string) {
+func benchmarkRead(b *testing.B, initReader func(*Reader), rows string) {
 	b.ReportAllocs()
-	r := csv.Reader(&nTimes{s: rows, n: b.N})
+	r := NewReader(&nTimes{s: rows, n: b.N})
 	if initReader != nil {
-		initReader(&r)
+		initReader(r)
 	}
 	for {
 		_, err := r.Read()
@@ -692,11 +670,11 @@ func BenchmarkRead(b *testing.B) {
 }
 
 func BenchmarkReadWithFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.FieldsPerRecord = 4 }, benchmarkCSVData)
+	benchmarkRead(b, func(r *Reader) { r.FieldsPerRecord = 4 }, benchmarkCSVData)
 }
 
 func BenchmarkReadWithoutFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.FieldsPerRecord = -1 }, benchmarkCSVData)
+	benchmarkRead(b, func(r *Reader) { r.FieldsPerRecord = -1 }, benchmarkCSVData)
 }
 
 func BenchmarkReadLargeFields(b *testing.B) {
@@ -708,19 +686,19 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzz
 }
 
 func BenchmarkReadReuseRecord(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.ReuseRecord = true }, benchmarkCSVData)
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, benchmarkCSVData)
 }
 
 func BenchmarkReadReuseRecordWithFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.ReuseRecord = true; r.FieldsPerRecord = 4 }, benchmarkCSVData)
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true; r.FieldsPerRecord = 4 }, benchmarkCSVData)
 }
 
 func BenchmarkReadReuseRecordWithoutFieldsPerRecord(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.ReuseRecord = true; r.FieldsPerRecord = -1 }, benchmarkCSVData)
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true; r.FieldsPerRecord = -1 }, benchmarkCSVData)
 }
 
 func BenchmarkReadReuseRecordLargeFields(b *testing.B) {
-	benchmarkRead(b, func(r *csv.Reader) { r.ReuseRecord = true }, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+	benchmarkRead(b, func(r *Reader) { r.ReuseRecord = true }, strings.Repeat(`xxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 xxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvv
 ,,zzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy,zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz,wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww,vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

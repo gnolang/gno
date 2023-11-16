@@ -55,8 +55,8 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
+	"strconv"
 	"unicode"
 	"unicode/utf8"
 )
@@ -72,12 +72,13 @@ type ParseError struct {
 
 func (e *ParseError) Error() string {
 	if e.Err == ErrFieldCount {
-		return fmt.Sprintf("record on line %d: %v", e.Line, e.Err)
+		return "record on line " + strconv.Itoa(e.Line) + ": " + e.Err.Error()
 	}
 	if e.StartLine != e.Line {
-		return fmt.Sprintf("record on line %d; parse error on line %d, column %d: %v", e.StartLine, e.Line, e.Column, e.Err)
+		return "record on line " + strconv.Itoa(e.StartLine) + ": parse error on line " + strconv.Itoa(e.Line) +
+			", column " + strconv.Itoa(e.Column) + ": " + e.Err.Error()
 	}
-	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
+	return "parse error on line " + strconv.Itoa(e.Line) + ", column " + strconv.Itoa(e.Column) + ": " + e.Err.Error()
 }
 
 func (e *ParseError) Unwrap() error { return e.Err }
