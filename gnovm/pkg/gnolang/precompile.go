@@ -13,9 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
@@ -150,7 +151,7 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "tmp.gno", source, parser.ParseComments)
+	f, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
