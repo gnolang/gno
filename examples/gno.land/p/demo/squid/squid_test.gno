@@ -1,9 +1,9 @@
 package squid
 
 import (
+	"fmt"
 	"strings"
 	"testing"
-	"fmt"
 )
 
 func TestID(t *testing.T) {
