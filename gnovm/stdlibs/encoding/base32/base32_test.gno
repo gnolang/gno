@@ -618,7 +618,7 @@ func TestBufferedDecodingSameError(t *testing.T) {
 			_, err := io.ReadAll(decoder)
 
 			if err != testcase.expected {
-				t.Error()
+				t.Errorf("Expected %v, got %v; case %s %+v", testcase.expected, err, testcase.prefix, chunks)
 			}
 		}
 	}
@@ -682,7 +682,7 @@ func TestBufferedDecodingPadding(t *testing.T) {
 		r := &chunkReader{chunks: testcase.chunks}
 
 		decoder := NewDecoder(StdEncoding, r)
-		out, err := io.ReadAll(decoder)
+		_, err := io.ReadAll(decoder)
 
 		if err == nil && len(testcase.expectedError) != 0 {
 			t.Errorf("case %q: got nil error, want %v", testcase.chunks, testcase.expectedError)
