@@ -11,5 +11,8 @@ var World = "WORLD"
 func TestGetHelloWorld(t *testing.T) {
 	// tests.World is 'world'
 	s := "hello " + tests.World + World
-	println(s)
+	const want = "hello worldWORLD"
+	if s != want {
+		t.Errorf("got %q want %q", s, want)
+	}
 }
