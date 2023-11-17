@@ -944,7 +944,20 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
+				// TODO: Generalize this to all types.
+				if ev.T.Kind() == SliceKind || ev.T.Kind() == StringKind {
+					if ev.V == nil {
+						ss[i] = "undefined"
+					} else {
+						ss[i] = ev.Sprint(m)
+					}
+				} else {
+					if ev.T == nil {
+						ss[i] = "undefined"
+					} else {
+						ss[i] = ev.Sprint(m)
+					}
+				}
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			if debug {
