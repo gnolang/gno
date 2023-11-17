@@ -46,7 +46,7 @@ func CreatePost(body string) {
 		Body:      body,
 		Timestamp: time.Now(),
 	}
-	posts.Set(strconv.FormatUint(postCount, 64), post)
+	posts.Set(strconv.FormatUint(postCount, 10), post)
 	user.Posts = append(user.Posts, postCount)
 	postCount = postCount + 1
 }
