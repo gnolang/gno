@@ -55,9 +55,25 @@ func TestComposite(t *testing.T) {
 	assertOutput(t, c, "slice[(0 int),(2 int),(0 int),(4 int)]\n")
 }
 
+func TestSimpleRecover(t *testing.T) {
+    m := NewMachine("test", nil)
+    c := `package test
+
+    func main() {
+        defer func() { println("recover", recover()) }()
+        panic("simple panic")
+    }`
+
+    n := MustParseFile("main.go", c)
+    m.RunFiles(n)
+    m.RunMain()
+
+    assertOutput(t, c, "recover simple panic\n")
+}
+
 // TODO: Resolve runtime error
 // current output: g recover <nil> wtf
-func TestRecover5(t *testing.T) {
+func TestRecover(t *testing.T) {
 	m := NewMachine("test", nil)
 	c := `package test
 
@@ -80,4 +96,21 @@ func TestRecover5(t *testing.T) {
 	m.RunMain()
 
 	assertOutput(t, c, "g recover wtf\nf recover wtf\n")
+}
+
+func TestNestedRecover(t *testing.T) {
+    m := NewMachine("test", nil)
+    c := `package test
+
+    func main() {
+        defer func() { println("outer recover", recover()) }()
+        defer func() { panic("nested panic") }()
+        panic("simple panic")
+    }`
+
+    n := MustParseFile("main.go", c)
+    m.RunFiles(n)
+    m.RunMain()
+
+    assertOutput(t, c, "outer recover nested panic\n")
 }
