@@ -4,7 +4,7 @@ import "std"
 
 // User
 
-func CreateUser(username string) {
+func CreateUser(username, name string) {
 	caller := std.PrevRealm().Addr()
 	if username == "" {
 		panic("username cannot be empty")
@@ -18,6 +18,7 @@ func CreateUser(username string) {
 	user := &User{
 		Address:  caller,
 		Username: username,
+		Name:     name,
 	}
 	users.Set(username, user)
 	addressToUsername.Set(caller.String(), username)
