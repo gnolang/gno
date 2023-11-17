@@ -27,7 +27,7 @@ func CreateUser(username, name string) {
 
 func UpdateBio(bio string) {
 	caller := std.PrevRealm().Addr()
-	user := GetUserByAddress(caller)
+	user := getUserRefByAddress(caller)
 	user.Bio = bio
 }
 

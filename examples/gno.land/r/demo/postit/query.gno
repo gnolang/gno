@@ -14,15 +14,7 @@ func GetFeed() {
 }
 
 func GetUserByAddress(addr std.Address) User {
-	username, ok := addressToUsername.Get(addr.String())
-	if !ok {
-		panic("user not found")
-	}
-	res, ok := users.Get(username.(string))
-	if !ok {
-		panic("user not found")
-	}
-	return *res.(*User)
+	return *getUserRefByAddress(addr)
 }
 
 func GetUserByUsername(username string) User {
