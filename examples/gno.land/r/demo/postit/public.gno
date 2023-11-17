@@ -1,6 +1,10 @@
 package postit
 
-import "std"
+import (
+	"std"
+	"strconv"
+	"time"
+)
 
 // User
 
@@ -32,5 +36,19 @@ func UpdateBio(bio string) {
 }
 
 // Post
+
+func CreatePost(body string) {
+	caller := std.PrevRealm().Addr()
+	user := getUserRefByAddress(caller)
+	post := &Post{
+		Id:        postCount,
+		Username:  user.Username,
+		Body:      body,
+		Timestamp: time.Now(),
+	}
+	posts.Set(strconv.FormatUint(postCount, 64), post)
+	user.Posts = append(user.Posts, postCount)
+	postCount = postCount + 1
+}
 
 // Test (To be removed)

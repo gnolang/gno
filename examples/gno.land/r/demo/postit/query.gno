@@ -2,15 +2,10 @@ package postit
 
 import "std"
 
-func GetPostCount() uint64 {
-	return postCount
-}
+// User
 
 func GetUserCount() uint64 {
 	return userCount
-}
-
-func GetFeed() {
 }
 
 func GetUserByAddress(addr std.Address) User {
@@ -23,4 +18,19 @@ func GetUserByUsername(username string) User {
 		panic("user not found")
 	}
 	return *res.(*User)
+}
+
+// Post
+
+func GetPostCount() uint64 {
+	return postCount
+}
+
+func ListPostsByOffset(offset, count int) (res []Post) {
+	posts.ReverseIterateByOffset(offset, count, func(key string, value interface{}) bool {
+		post := *value.(*Post)
+		res = append(res, post)
+		return false
+	})
+	return
 }
