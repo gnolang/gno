@@ -197,12 +197,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
-	store := vm.getGnoStore(ctx)
+	gnoStore := vm.getGnoStore(ctx)
 	// Get the package and function type.
-	pv := store.GetPackage(pkgPath, false)
+	pv := gnoStore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
-	pn := store.GetBlockNode(pl).(*gno.PackageNode)
-	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
+	pn := gnoStore.GetBlockNode(pl).(*gno.PackageNode)
+	ft := pn.GetStaticTypeOf(gnoStore, gno.Name(fnc)).(*gno.FuncType)
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
@@ -256,16 +256,25 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		gno.MachineOptions{
 			PkgPath:   "",
 			Output:    os.Stdout, // XXX
-			Store:     store,
+			Store:     gnoStore,
 			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
+			Alloc:     gnoStore.GetAllocator(),
 			MaxCycles: vm.maxCycles,
 		})
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m.String())
+			switch ex := r.(type) {
+			case store.OutOfGasException:
+				log := fmt.Sprintf(
+					"out of gas in location: %v;",
+					ex.Descriptor)
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s",
+					log, m.String())
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s",
+					r, m.String())
+			}
 			return
 		}
 		m.Release()

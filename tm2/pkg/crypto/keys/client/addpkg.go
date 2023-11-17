@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"strings"
 )
 
 type addPkgCfg struct {
@@ -208,10 +209,10 @@ func signAndBroadcast(
 		return errors.Wrap(err, "broadcast tx")
 	}
 	if bres.CheckTx.IsErr() {
-		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
+		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: errMsg: \n%s", indentString(bres.CheckTx.Log, "    "))
 	}
 	if bres.DeliverTx.IsErr() {
-		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: errMsg: %s", bres.DeliverTx.Log)
 	}
 	io.Println(string(bres.DeliverTx.Data))
 	io.Println("OK!")
@@ -219,4 +220,14 @@ func signAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 
 	return nil
+}
+
+// indentString indents each line of a multi-line string.
+func indentString(str, indent string) string {
+	var indentedLines []string
+	lines := strings.Split(str, "\n")
+	for _, line := range lines {
+		indentedLines = append(indentedLines, indent+line)
+	}
+	return strings.Join(indentedLines, "\n")
 }
