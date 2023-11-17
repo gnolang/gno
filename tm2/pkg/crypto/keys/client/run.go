@@ -21,7 +21,7 @@ type runCfg struct {
 	send    string
 }
 
-func newRunCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
+func newRunCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 	cfg := &runCfg{
 		rootCfg: rootCfg,
 	}
@@ -41,7 +41,7 @@ func newRunCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
 
 func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func runRun(cfg *runCfg, args []string, io *commands.IO) error {
+func runRun(cfg *runCfg, args []string, io commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
@@ -75,7 +75,7 @@ func runRun(cfg *runCfg, args []string, io *commands.IO) error {
 
 	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
-		data, err := ioutil.ReadAll(io.In)
+		data, err := ioutil.ReadAll(io.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
