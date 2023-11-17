@@ -18,7 +18,7 @@ func main() {
 	}
 }
 
-func newGnocliCmd(io *commands.IO) *commands.Command {
+func newGnocliCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -33,7 +33,6 @@ func newGnocliCmd(io *commands.IO) *commands.Command {
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
-		newBuildCmd(io),
 		newPrecompileCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),

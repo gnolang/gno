@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -24,17 +23,27 @@ func init() {
 	}
 }
 
-func LoadConfigFile(configFilePath string) *Config {
-	bz, err := os.ReadFile(configFilePath)
-	if err != nil {
-		panic(err)
+// LoadConfigFile loads the TOML node configuration from the specified path
+func LoadConfigFile(path string) (*Config, error) {
+	// Read the config file
+	content, readErr := os.ReadFile(path)
+	if readErr != nil {
+		return nil, readErr
 	}
-	var config Config
-	err = toml.Unmarshal(bz, &config)
-	if err != nil {
-		panic(err)
+
+	// Parse the node config
+	var nodeConfig Config
+
+	if unmarshalErr := toml.Unmarshal(content, &nodeConfig); unmarshalErr != nil {
+		return nil, unmarshalErr
 	}
-	return &config
+
+	// Validate the config
+	if validateErr := nodeConfig.ValidateBasic(); validateErr != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+	}
+
+	return &nodeConfig, nil
 }
 
 /****** these are for production settings ***********/
@@ -298,7 +307,7 @@ func ResetTestRoot(testName string) *Config {
 
 func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	// create a unique, concurrency-safe test directory under os.TempDir()
-	rootDir, err := ioutil.TempDir("", fmt.Sprintf("%s-%s_", chainID, testName))
+	rootDir, err := os.MkdirTemp("", fmt.Sprintf("%s-%s_", chainID, testName))
 	if err != nil {
 		panic(err)
 	}

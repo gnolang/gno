@@ -32,6 +32,8 @@ type dialerTestCase struct {
 // SignerDialerEndpoint.dialer() call inside SignerDialerEndpoint.acceptNewConnection() to return
 // successfully immediately, putting an instant stop to any retry attempts.
 func TestSignerRemoteRetryTCPOnly(t *testing.T) {
+	t.Parallel()
+
 	var (
 		attemptCh = make(chan int)
 		retries   = 10
@@ -83,6 +85,8 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 }
 
 func TestRetryConnToRemoteSigner(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getDialerTestCases(t) {
 		var (
 			logger           = log.TestingLogger()
@@ -130,7 +134,7 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	}
 }
 
-// /////////////////////////////////
+// -----------
 
 func newSignerListenerEndpoint(logger log.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	var listener net.Listener

@@ -19,6 +19,8 @@ import (
 )
 
 func TestPeerBasic(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 
 	// simulate remote peer
@@ -43,6 +45,8 @@ func TestPeerBasic(t *testing.T) {
 }
 
 func TestPeerSend(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 
 	config := cfg
