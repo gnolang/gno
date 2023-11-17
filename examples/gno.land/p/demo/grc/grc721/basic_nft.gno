@@ -85,10 +85,6 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 		return false, ErrCallerIsNotOwner
 	}
 	s.tokenURIs.Set(string(tid), string(tURI))
-	storedURI, added := s.tokenURIs.Get(string(tid))
-	if !added {
-		return false, ErrTokenURINotSet
-	}
 	return true, nil
 }
 
