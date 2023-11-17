@@ -9,5 +9,5 @@ type Post struct {
 	Username  string
 	Body      string
 	Timestamp time.Time
-	Comments  []*Comment
+	Comments  []Comment
 }
