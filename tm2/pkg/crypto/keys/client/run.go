@@ -18,7 +18,6 @@ import (
 
 type runCfg struct {
 	rootCfg *makeTxCfg
-	send    string
 }
 
 func newRunCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
