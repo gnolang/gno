@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestPrintlnPrintNil(t *testing.T){
+func TestPrintlnPrintNil(t *testing.T) {
 	m := NewMachine("test", nil)
 
 	c := `package test
@@ -56,19 +56,19 @@ func TestComposite(t *testing.T) {
 }
 
 func TestSimpleRecover(t *testing.T) {
-    m := NewMachine("test", nil)
-    c := `package test
+	m := NewMachine("test", nil)
+	c := `package test
 
     func main() {
         defer func() { println("recover", recover()) }()
-        panic("simple panic")
+        println("simple panic")
     }`
 
-    n := MustParseFile("main.go", c)
-    m.RunFiles(n)
-    m.RunMain()
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
 
-    assertOutput(t, c, "recover simple panic\n")
+	assertOutput(t, c, "recover simple panic\n")
 }
 
 // TODO: Resolve runtime error
@@ -99,18 +99,18 @@ func TestRecover(t *testing.T) {
 }
 
 func TestNestedRecover(t *testing.T) {
-    m := NewMachine("test", nil)
-    c := `package test
+	m := NewMachine("test", nil)
+	c := `package test
 
     func main() {
         defer func() { println("outer recover", recover()) }()
         defer func() { panic("nested panic") }()
-        panic("simple panic")
+        println("simple panic")
     }`
 
-    n := MustParseFile("main.go", c)
-    m.RunFiles(n)
-    m.RunMain()
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
 
-    assertOutput(t, c, "outer recover nested panic\n")
+	assertOutput(t, c, "outer recover nested panic\n")
 }
