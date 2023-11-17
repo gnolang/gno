@@ -12,3 +12,15 @@ type User struct {
 	Following []string
 	AvatarUrl string // use grc721 instead?
 }
+
+func getUserRefByAddress(addr std.Address) *User {
+	username, ok := addressToUsername.Get(addr.String())
+	if !ok {
+		panic("user not found")
+	}
+	res, ok := users.Get(username.(string))
+	if !ok {
+		panic("user not found")
+	}
+	return res.(*User)
+}
