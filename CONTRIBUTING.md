@@ -130,7 +130,7 @@ if (executable('gnols'))
         \   'root' : '/path/to/gno_repo',
         \	'gno'  : '/path/to/gno_bin',
         \   'precompileOnSave' : v:true,
-        \   'buildOnSave'      : v:false,
+        \   'buildOnSave'      : v:true,
         \ },
         \ 'languageId': {server_info->'gno'},
     \ })
