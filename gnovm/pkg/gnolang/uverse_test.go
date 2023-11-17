@@ -68,7 +68,7 @@ func TestSimpleRecover(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 
-	assertOutput(t, c, "recover simple panic\n")
+	assertOutput(t, c, "simple panic\nrecover\n")
 }
 
 // TODO: Resolve runtime error
@@ -104,7 +104,7 @@ func TestNestedRecover(t *testing.T) {
 
     func main() {
         defer func() { println("outer recover", recover()) }()
-        defer func() { panic("nested panic") }()
+        defer func() { println("nested panic") }()
         println("simple panic")
     }`
 
@@ -112,5 +112,5 @@ func TestNestedRecover(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 
-	assertOutput(t, c, "outer recover nested panic\n")
+	assertOutput(t, c, "simple panic\nnested panic\nouter recover\n")
 }

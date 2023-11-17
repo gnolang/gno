@@ -945,17 +945,21 @@ func UverseNode() *PackageNode {
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 				// TODO: Generalize this to all types.
-				if ev.T.Kind() == SliceKind || ev.T.Kind() == StringKind {
-					if ev.V == nil {
-						ss[i] = "undefined"
-					} else {
-						ss[i] = ev.Sprint(m)
-					}
+				if ev.T.Kind() == FuncKind {
+					ss[i] = ev.T.String()
 				} else {
-					if ev.T == nil {
-						ss[i] = "undefined"
+					if ev.T.Kind() == SliceKind || ev.T.Kind() == StringKind {
+						if ev.V == nil {
+							ss[i] = "undefined"
+						} else {
+							ss[i] = ev.Sprint(m)
+						}
 					} else {
-						ss[i] = ev.Sprint(m)
+						if ev.T == nil {
+							ss[i] = "undefined"
+						} else {
+							ss[i] = ev.Sprint(m)
+						}
 					}
 				}
 			}
