@@ -13,7 +13,7 @@ func GetUserCount() uint64 {
 func GetFeed() {
 }
 
-func GetUserByAddress(addr std.Address) *User {
+func GetUserByAddress(addr std.Address) User {
 	username, ok := addressToUsername.Get(addr.String())
 	if !ok {
 		panic("user not found")
@@ -22,13 +22,13 @@ func GetUserByAddress(addr std.Address) *User {
 	if !ok {
 		panic("user not found")
 	}
-	return res.(*User)
+	return *res.(*User)
 }
 
-func GetUserByUsername(username string) *User {
+func GetUserByUsername(username string) User {
 	res, ok := users.Get(username)
 	if !ok {
 		panic("user not found")
 	}
-	return res.(*User)
+	return *res.(*User)
 }
