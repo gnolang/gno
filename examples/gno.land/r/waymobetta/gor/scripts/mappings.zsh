@@ -3,17 +3,23 @@
 gnokey query \
 "vm/qeval" \
 -data "gno.land/r/waymobetta/gor
-GitGnoMapping" \
+GetGitGnoMapping(\"moul\")" \
 -remote localhost:26657
 
 gnokey query \
 "vm/qeval" \
 -data "gno.land/r/waymobetta/gor
-GnoGitMapping" \
+GetGnoGitMapping(\"g1c74t34ukg2lq39nxx5cddlkvjtfrm3zchnzvk7\")" \
 -remote localhost:26657
 
 gnokey query \
 "vm/qeval" \
 -data "gno.land/r/waymobetta/gor
-GnoPRMapping" \
+GetGitGnoMappingSize()" \
+-remote localhost:26657
+
+gnokey query \
+"vm/qeval" \
+-data "gno.land/r/waymobetta/gor
+GetGnoGitMappingSize()" \
 -remote localhost:26657
