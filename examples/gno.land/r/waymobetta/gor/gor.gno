@@ -7,6 +7,7 @@ import (
 	
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -14,7 +15,7 @@ var (
 	GnoGitMapping = avl.NewTree()
 	// github username (string) => std.Address
 	GitGnoMapping = avl.NewTree()
-	// std.Address => []string
+	// std.Address => []PR
 	GnoPRMapping = avl.NewTree()
 )
 
@@ -26,108 +27,81 @@ func init() {
 		"waymobetta",
 	)
 	GitGnoMapping.Set(
-		"waymobetta", 
+		"waymobetta",
 		adminAddr.String(),
-	)
-	GnoPRMapping.Set(
-		adminAddr.String(), 
-		[]interface{},
 	)
 }
 
 func RegisterAddress(
 	addr std.Address,
 	username string,
-) string {
+) error {
 	if !GnoGitMapping.Has(addr.String()) {
 		added := GnoGitMapping.Set(addr.String(), username)
 		if !added {
-			return ufmt.Sprintf("%v", errors.New("could not register address"))
+			return errors.New("could not register address")
 		} 
 	}
-	return ""
+	return nil
 }
 
 func RegisterUsername(
 	addr std.Address,
 	username string,
-) string {
+) {
 	if !GitGnoMapping.Has(username) {
-		added := GitGnoMapping.Set(username, addr.String())
-		if !added {
-			return ufmt.Sprintf("%v", errors.New("could not register username"))
-		}
+		GitGnoMapping.Set(username, addr.String())
 	}
-	return ""
 }
 
-// func NewPR(
-// 	id,
-// 	evaluation,
-// 	maxEvaluation,
-// 	commits,
-// 	additions,
-// 	deletions,
-// 	totalEffectiveLines,
-// 	avgCharsPerLine int,
-// 	username,
-// 	category,
-// 	subCategory string,
-// 	) {
-
 func NewPR(
-		addr std.Address,
-		id string,
-		) string {
-		// get previous slice of PR IDs
-		prInterface, exists := GnoPRMapping.Get(addr.String())
-		if !exists {
-			return ufmt.Sprintf("%v", errors.New("Gno address not found"))
-		}
+	id,
+	evaluation,
+	maxEvaluation,
+	commits,
+	additions,
+	deletions,
+	totalEffectiveLines,
+	avgCharsPerLine int,
+	username,
+	category,
+	subCategory string,
+	) {
+	var addrStr string
+	// get address from username
+	addrIface, ok := GitGnoMapping.Get(username)
+	if ok {
+		addrStr = addrIface.(string)
+	}
 
-		var prSlice []interface{}
+	// get previous slice of PR IDs for address
+	prStateSliceIface, ok := GnoPRMapping.Get(addrStr)
+	var prSlice []PR
+	if ok {
+		prSlice = prStateSliceIface.([]PR)
+	}
 
-		// cast interface into string
-		prSlice = append(
-			prSlice, 
-			prInterface,
-		)
+	prSlice = append(
+		prSlice,
+		PR{
+			ID: id,
+			Evaluation: evaluation,
+			MaxEvaluation: maxEvaluation,
+			Category: category,
+			SubCategory: subCategory,
+			Commits: commits,
+			Additions: additions,
+			Deletions: deletions,
+			TotalEffectiveLines: totalEffectiveLines,
+			AvgCharsPerLine: avgCharsPerLine,
+		},
+	)
 
-		// append new id to slice of PR IDs
-		// update tree with new slice
-		updated := GnoPRMapping.Set(
-			addr.String(), 
-			prSlice,
-		)
-		if !updated {
-			return ufmt.Sprintf("%v", errors.New("could not update tree"))
-		}
-		
-		return ""
-
-		// pr := PR{
-		// 	ID: id,
-		// 	Evaluation: evaluation,
-		// 	MaxEvaluation: maxEvaluation,
-		// 	Category: category,
-		// 	SubCategory: subCategory,
-		// 	Commits: commits,
-		// 	Additions: additions,
-		// 	Deletions: deletions,
-		// 	TotalEffectiveLines: totalEffectiveLines,
-		// 	AvgCharsPerLine: avgCharsPerLine,
-		// }
-
-		// prSlice = append(prSlice, pr)
-
-		// // update mapping
-		// GitPRMapping.Set(username, pr)
-
-		// // get address from reverse mapping lookup
-		// addr := GitGnoMapping.Get())
-
-		// // update mapping
-		// GnoPRMapping[addr] = append(prSlice, pr)
+	// store updated slice of PRs
+	updated := GnoPRMapping.Set(
+		addrStr, 
+		prSlice,
+	)
 }
 
 // getters
@@ -140,25 +114,26 @@ func GetGitGnoMapping(username string) (std.Address, bool) {
 	return GitGnoMapping.Get(username)
 }
 
-func GetGnoPRMapping(addr std.Address) ([]PR, bool) {
-	return GnoPRMapping.Get(addr.String())
+func GetGnoPRMapping(addr std.Address) []PR {
+	var prSlice []PR
+	prSliceIface, ok := GnoPRMapping.Get(addr.String())
+	if ok {
+		return prSliceIface.([]PR)
+	}
+
+	return []PR{}
 }
 
-// func GnoPRCount(addr std.Address) int {
-// 	PRSlice, exists := GnoPRMapping(addr.String())
-// 	if !exists {
-// 		return 0
-// 	}
-// 	return len(PRSlice)
-// }
+func GetGnoPRCount(addr std.Address) int {
+	var prSlice []PR
+	prSliceIface, ok := GnoPRMapping.Get(addr.String())
+	if ok {
+		prSlice = prSliceIface.([]PR)
+		return len(prSlice)
+	}
 
-// func GitPRCount(username string) int {
-// 	PRSlice, exists := GitPRMapping(addr.String())
-// 	if !exists {
-// 		return 0
-// 	}
-// 	return len(PRSlice)
-// }
+	return 0
+}
 
 func Render() {
 	println("GOR Realm")
