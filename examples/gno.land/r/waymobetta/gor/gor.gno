@@ -6,8 +6,6 @@ import (
 	"strconv"
 	
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
 )
 
 var (
@@ -32,26 +30,28 @@ func init() {
 	)
 }
 
+// setters
+
 func RegisterAddress(
 	addr std.Address,
 	username string,
-) error {
-	if !GnoGitMapping.Has(addr.String()) {
-		added := GnoGitMapping.Set(addr.String(), username)
-		if !added {
-			return errors.New("could not register address")
-		} 
+) {
+	if GnoGitMapping.Has(addr.String()) {
+		// revert tx
+		panic("address already registered")
 	}
-	return nil
+	GnoGitMapping.Set(addr.String(), username)
 }
 
 func RegisterUsername(
 	addr std.Address,
 	username string,
 ) {
-	if !GitGnoMapping.Has(username) {
-		GitGnoMapping.Set(username, addr.String())
+	if GitGnoMapping.Has(username) {
+		// revert tx
+		panic("username already registered")
 	}
+		GitGnoMapping.Set(username, addr.String())
 }
 
 func NewPR(
@@ -115,24 +115,29 @@ func GetGitGnoMapping(username string) (std.Address, bool) {
 }
 
 func GetGnoPRMapping(addr std.Address) []PR {
-	var prSlice []PR
-	prSliceIface, ok := GnoPRMapping.Get(addr.String())
+	existing, ok := GnoPRMapping.Get(addr.String())
 	if ok {
-		return prSliceIface.([]PR)
+		return existing.([]PR)
 	}
 
 	return []PR{}
 }
 
 func GetGnoPRCount(addr std.Address) int {
-	var prSlice []PR
-	prSliceIface, ok := GnoPRMapping.Get(addr.String())
+	existing, ok := GnoPRMapping.Get(addr.String())
 	if ok {
-		prSlice = prSliceIface.([]PR)
-		return len(prSlice)
+		return len(existing.([]PR))
 	}
 
 	return 0
+}
+
+func GetGnoGitMappingSize() int {
+	return GnoGitMapping.Size()
+}
+
+func GetGitGnoMappingSize() int {
+	return GitGnoMapping.Size()
 }
 
 func Render() {
