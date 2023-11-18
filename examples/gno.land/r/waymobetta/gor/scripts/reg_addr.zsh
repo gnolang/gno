@@ -1,10 +1,11 @@
 #!/bin/zsh
 
 gnokey maketx \
-addpkg \
+call \
 --pkgpath "gno.land/r/waymobetta/gor" \
---pkgdir "." \
---deposit 100000000ugnot \
+--func "RegisterAddress" \
+--args "g1c74t34ukg2lq39nxx5cddlkvjtfrm3zchnzvk7" \
+--args "moul" \
 --gas-fee 1000000ugnot \
 --gas-wanted 2000000 \
 --broadcast \
