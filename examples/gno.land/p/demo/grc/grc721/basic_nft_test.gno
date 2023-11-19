@@ -381,26 +381,35 @@ func TestSetTokenURI(t *testing.T) {
 	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	tokenURI := "http://example.com/token"
 
+	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	
 	dummy.mint(addr1.Resolve(), TokenID("1"))
-	dummy.SetApprovalForAll(addr1.Resolve(), true)
-	dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
+	_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
+
+	if derr != nil {
+		t.Errorf("Should not result in error ", derr.Error())
+	}
 	
 	// Test case: Invalid token ID
 	_, err := dummy.SetTokenURI(TokenID("3"), TokenURI(tokenURI))
 	if err != ErrInvalidTokenId {
 		t.Errorf("Expected error %v, got %v", ErrInvalidTokenId, err)
 	}
+
 	std.TestSetOrigCaller(std.Address(addr2)) // addr2
 	
 	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))  // addr2 trying to set URI for token 1
 	if cerr != ErrCallerIsNotOwner {
-		t.Errorf("Expected error %v for non-owner setting token URI, got %v", ErrCallerIsNotOwner, cerr)
+		t.Errorf("Expected error %v, got %v", ErrCallerIsNotOwner, err)
 	}
 
 	// Test case: Retrieving TokenURI
 	std.TestSetOrigCaller(std.Address(addr1)) // addr1
 
 	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
+	if err != nil {
+		t.Errorf("TokenURI error: %v, ", err.Error())
+	}
 	if dummyTokenURI != tokenURI {
 		t.Errorf("Expected URI %v, got %v", tokenURI, dummyTokenURI)
 	}

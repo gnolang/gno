@@ -80,12 +80,10 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	caller := std.PrevRealm().Addr()
 	owner, err := s.OwnerOf(tid)
 
-	key := owner.String() + ":" + caller.String()
-	_, approved := s.operatorApprovals.Get(key)
-	if !approved {
+	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
-
+	
 	s.tokenURIs.Set(string(tid), string(tURI))
 	storedURI, added := s.tokenURIs.Get(string(tid))
 	if !added {
