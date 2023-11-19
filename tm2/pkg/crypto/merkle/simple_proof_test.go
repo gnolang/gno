@@ -7,6 +7,8 @@ import (
 )
 
 func TestSimpleProofValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName      string
 		malleateProof func(*SimpleProof)
@@ -23,6 +25,8 @@ func TestSimpleProofValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			_, proofs := SimpleProofsFromByteSlices([][]byte{
 				[]byte("apple"),
 				[]byte("watermelon"),

@@ -7,6 +7,8 @@ import (
 )
 
 func TestPrintP3Types(t *testing.T) {
+	t.Parallel()
+
 	doc := P3Doc{
 		Comment: "doc comment",
 		Messages: []P3Message{

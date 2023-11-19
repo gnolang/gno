@@ -9,6 +9,8 @@ import (
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	name := fmt.Sprintf("test_%x", randStr(12))
 

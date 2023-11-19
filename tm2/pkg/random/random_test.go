@@ -15,18 +15,24 @@ import (
 )
 
 func TestRandStr(t *testing.T) {
+	t.Parallel()
+
 	l := 243
 	s := RandStr(l)
 	assert.Equal(t, l, len(s))
 }
 
 func TestRandBytes(t *testing.T) {
+	t.Parallel()
+
 	l := 243
 	b := RandBytes(l)
 	assert.Equal(t, l, len(b))
 }
 
 func TestRandIntn(t *testing.T) {
+	t.Parallel()
+
 	n := 243
 	for i := 0; i < 100; i++ {
 		x := RandIntn(n)
@@ -76,6 +82,8 @@ func testThemAll() string {
 }
 
 func TestRngConcurrencySafety(t *testing.T) {
+	t.Parallel()
+
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
