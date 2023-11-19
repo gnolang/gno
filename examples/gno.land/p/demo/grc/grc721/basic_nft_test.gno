@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/r/demo/users"
+	"gno.land/p/demo/testutils"
 )
 
 var (
@@ -135,40 +136,7 @@ func TestOwnerOf(t *testing.T) {
 	}
 }
 
-func TestSetTokenURI(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
-	if dummy == nil {
-		t.Errorf("should not be nil")
-	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	tokenURI := "http://example.com/token"
-
-	dummy.mint(addr1.Resolve(), TokenID("1"))
-	dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
-	
-	// Test case: Invalid token ID
-	_, err := dummy.SetTokenURI(TokenID("2"), TokenURI(tokenURI))
-	if err != ErrInvalidTokenId {
-		t.Errorf("Expected error %v, got %v", ErrInvalidTokenId, err)
-	}
-
-	// Test case: Caller is not owner
-	owner, err := dummy.OwnerOf(TokenID("1"))
-	if err != nil {
-		t.Errorf("should not result in error")
-	}
-	if owner != addr1.Resolve() {
-		t.Errorf("expected: (%s), got: (%s)", addr1.Resolve().String(), owner.String())
-	}
-
-	// Test case: Retrieving TokenURI
-	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
-	if dummyTokenURI != tokenURI {
-		t.Errorf("Expected URI %v, got %v", tokenURI, dummyTokenURI)
-	}
-
-}
 
 func TestIsApprovedForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
@@ -401,4 +369,40 @@ func TestBurn(t *testing.T) {
 	if err == nil {
 		t.Errorf("should result in error")
 	}
+}
+
+func TestSetTokenURI(t *testing.T) {
+	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	if dummy == nil {
+		t.Errorf("should not be nil")
+	}
+
+	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	tokenURI := "http://example.com/token"
+
+	dummy.mint(addr1.Resolve(), TokenID("1"))
+	dummy.SetApprovalForAll(addr1.Resolve(), true)
+	dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
+	
+	// Test case: Invalid token ID
+	_, err := dummy.SetTokenURI(TokenID("3"), TokenURI(tokenURI))
+	if err != ErrInvalidTokenId {
+		t.Errorf("Expected error %v, got %v", ErrInvalidTokenId, err)
+	}
+	std.TestSetOrigCaller(std.Address(addr2)) // addr2
+	
+	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))  // addr2 trying to set URI for token 1
+	if cerr != ErrCallerIsNotOwner {
+		t.Errorf("Expected error %v for non-owner setting token URI, got %v", ErrCallerIsNotOwner, cerr)
+	}
+
+	// Test case: Retrieving TokenURI
+	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+
+	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
+	if dummyTokenURI != tokenURI {
+		t.Errorf("Expected URI %v, got %v", tokenURI, dummyTokenURI)
+	}
+
 }
