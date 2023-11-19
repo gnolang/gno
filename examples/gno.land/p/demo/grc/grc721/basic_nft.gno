@@ -71,7 +71,7 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 
 func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	// check for invalid TokenID
-	if !s.exists() {
+	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
 	}
 	
