@@ -55,11 +55,6 @@ func TestComposite(t *testing.T) {
 	assertOutput(t, c, "slice[(0 int),(2 int),(0 int),(4 int)]\n")
 }
 
-// 현재 메인 함수에서 println은 실행되지만, defer는 실행되지 않음.
-// 아마 내 생각엔 메모리 오류가 발생하는게 이것과 관련이 있을 것 같음.
-// 즉, 함수 호출이 끝나면서 스택에 쌓인 defer를 실행하려고 하면, 이미 스택이 비워져서 오류가 발생하는 듯?
-// 그럼 어떻게 해결해야 하나?
-
 func TestSimpleRecover(t *testing.T) {
 	m := NewMachine("test", nil)
 	c := `package test
