@@ -2,7 +2,6 @@
 package gor
 
 import (
-	"fmt"
 	"std"
 )
 
