@@ -12,7 +12,7 @@ type envCfg struct {
 	json bool
 }
 
-func newEnvCmd(io *commands.IO) *commands.Command {
+func newEnvCmd(io commands.IO) *commands.Command {
 	c := &envCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
@@ -59,9 +59,9 @@ func findEnv(env []envVar, name string) string {
 	return ""
 }
 
-type envPrinter func(vars []envVar, io *commands.IO)
+type envPrinter func(vars []envVar, io commands.IO)
 
-func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
+func execEnv(cfg *envCfg, args []string, io commands.IO) error {
 	envs := []envVar{
 		// GNOROOT Should point to the local location of the GNO repository.
 		// It serves as the gno equivalent of `GOROOT`.
@@ -96,7 +96,7 @@ func execEnv(cfg *envCfg, args []string, io *commands.IO) error {
 }
 
 func getPrinterShell(printkeys bool) envPrinter {
-	return func(vars []envVar, io *commands.IO) {
+	return func(vars []envVar, io commands.IO) {
 		for _, env := range vars {
 			if printkeys {
 				io.Printf("%s=%q\n", env.Key, env.Value)
@@ -107,7 +107,7 @@ func getPrinterShell(printkeys bool) envPrinter {
 	}
 }
 
-func printJSON(vars []envVar, io *commands.IO) {
+func printJSON(vars []envVar, io commands.IO) {
 	io.Println("{")
 	for i, env := range vars {
 		io.Printf("\t%q: %q", env.Key, env.Value)
