@@ -31,9 +31,11 @@ func TestSignAndValidateEd25519(t *testing.T) {
 	assert.False(t, pubKey.VerifyBytes(msg, sig))
 }
 
-const privKeySecretGolden = "secret_golden"
-const msgGolden = "msg_golden"
-const signedGolden = "f9d4e6a665dfb6cd7e2fedf0d46a1725472e640a5e93d654ce4caa986e5defd23c8b3af76aa6e39c24c582f0ebee860f66254b29cf6d034ce461ae2773133703"
+const (
+	privKeySecretGolden = "secret_golden"
+	msgGolden           = "msg_golden"
+	signedGolden        = "f9d4e6a665dfb6cd7e2fedf0d46a1725472e640a5e93d654ce4caa986e5defd23c8b3af76aa6e39c24c582f0ebee860f66254b29cf6d034ce461ae2773133703"
+)
 
 func TestSignAndVerifyGolden(t *testing.T) {
 	privKey := ed25519.GenPrivKeyFromSecret([]byte(privKeySecretGolden))
