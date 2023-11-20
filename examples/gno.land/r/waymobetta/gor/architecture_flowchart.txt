@@ -1,0 +1,12 @@
+```mermaid
+flowchart TB
+    A[New PR Submission] --> B(CI Triggers)
+    B --> C(Script collects raw PR data, preps and sends to Evaluation server)
+    C --> D[(Runs AI models, Generates evaluation)]
+    D --> E(Posts data to Realm)
+    F[Evaluation server posts results back to Github via PR ID]
+    E --- F
+```
+
+![Flow Diagram based on text](https://i.imgur.com/QqwJ7Ua.png)
+![Flowchart Diagram](https://i.imgur.com/6Uv9VzE.png)
