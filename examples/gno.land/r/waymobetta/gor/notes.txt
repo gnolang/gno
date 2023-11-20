@@ -1,0 +1,14 @@
+notes
+
+todo:
+* remove PR struct update values from fetch() and move into its own function
+* replace math_things() with actual initial calculation algorithm
+* refactor categories/subcategories to follow similar data structure as thresholds dictionary
+* create new values for limits + weights of categories/subcategories/thresholds; likely votable but initially hardcoded by team
+* update reward() to include a token mint/distribution
+* create mapping between github username + gno account
+* add message (pr comment) about notice of impending evaluation DAO ruling so user knows there is more to come
+
+questions:
+- will `panic()` crash a node or revert tx; otherwise, what is a safe operation that should be used to ensure a transaction gets reverted?
+
