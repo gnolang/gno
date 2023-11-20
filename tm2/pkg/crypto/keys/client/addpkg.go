@@ -24,7 +24,7 @@ type addPkgCfg struct {
 	deposit string
 }
 
-func newAddPkgCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
+func newAddPkgCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 	cfg := &addPkgCfg{
 		rootCfg: rootCfg,
 	}
@@ -65,7 +65,7 @@ func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execAddPkg(cfg *addPkgCfg, args []string, io *commands.IO) error {
+func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 	if cfg.pkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -142,7 +142,7 @@ func signAndBroadcast(
 	cfg *makeTxCfg,
 	args []string,
 	tx std.Tx,
-	io *commands.IO,
+	io commands.IO,
 ) error {
 	baseopts := cfg.rootCfg
 	txopts := cfg

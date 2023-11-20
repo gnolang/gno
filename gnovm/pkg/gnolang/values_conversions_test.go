@@ -9,6 +9,8 @@ import (
 )
 
 func TestConvertUntypedBigdecToFloat(t *testing.T) {
+	t.Parallel()
+
 	dst := &TypedValue{}
 
 	dec, err := apd.New(-math.MaxInt64, -4).SetFloat64(math.SmallestNonzeroFloat64 / 2)

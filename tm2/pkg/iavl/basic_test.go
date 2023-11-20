@@ -13,6 +13,8 @@ import (
 )
 
 func TestBasic(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	up := tree.Set([]byte("1"), []byte("one"))
 	if up {
@@ -103,6 +105,8 @@ func TestBasic(t *testing.T) {
 }
 
 func TestUnit(t *testing.T) {
+	t.Parallel()
+
 	expectHash := func(tree *ImmutableTree, hashCount int64) {
 		// ensure number of new hash calculations is as expected.
 		hash, count := tree.hashWithCount()
@@ -184,6 +188,8 @@ func TestUnit(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
+
 	size := 10000
 	keyLen, dataLen := 16, 40
 
@@ -214,6 +220,8 @@ func TestRemove(t *testing.T) {
 }
 
 func TestIntegration(t *testing.T) {
+	t.Parallel()
+
 	type record struct {
 		key   string
 		value string
@@ -279,6 +287,8 @@ func TestIntegration(t *testing.T) {
 }
 
 func TestIterateRange(t *testing.T) {
+	t.Parallel()
+
 	type record struct {
 		key   string
 		value string
@@ -363,6 +373,8 @@ func TestIterateRange(t *testing.T) {
 }
 
 func TestPersistence(t *testing.T) {
+	t.Parallel()
+
 	db := db.NewMemDB()
 
 	// Create some random key value pairs
@@ -390,6 +402,8 @@ func TestPersistence(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
+	t.Parallel()
+
 	// Construct some random tree
 	db := db.NewMemDB()
 	tree := NewMutableTree(db, 100)
@@ -420,6 +434,8 @@ func TestProof(t *testing.T) {
 }
 
 func TestTreeProof(t *testing.T) {
+	t.Parallel()
+
 	db := db.NewMemDB()
 	tree := NewMutableTree(db, 100)
 	assert.Equal(t, tree.Hash(), []byte(nil))

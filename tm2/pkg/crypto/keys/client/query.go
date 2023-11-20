@@ -21,7 +21,7 @@ type queryCfg struct {
 	path string
 }
 
-func newQueryCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newQueryCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &queryCfg{
 		rootCfg: rootCfg,
 	}
@@ -62,7 +62,7 @@ func (c *queryCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execQuery(cfg *queryCfg, args []string, io *commands.IO) error {
+func execQuery(cfg *queryCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}

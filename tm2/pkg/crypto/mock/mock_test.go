@@ -10,6 +10,8 @@ import (
 )
 
 func TestSignAndValidateMock(t *testing.T) {
+	t.Parallel()
+
 	privKey := mock.PrivKeyMock([]byte{0x01})
 	pubKey := privKey.PubKey()
 
