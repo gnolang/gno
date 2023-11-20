@@ -52,7 +52,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = cfg.rootDir
 	)
 	if rootDir == "" {
-		rootDir = gnoenv.MustGuessGnoRootDir()
+		rootDir = gnoenv.RootDir()
 	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)

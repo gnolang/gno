@@ -19,7 +19,7 @@ import (
 // to correctly set up the environment variables needed for the `gno` command.
 func SetupGno(p *testscript.Params, buildDir string) error {
 	// Try to fetch `GNOROOT` from the environment variables
-	gnoroot := gnoenv.MustGuessGnoRootDir()
+	gnoroot := gnoenv.RootDir()
 
 	if !osm.DirExists(buildDir) {
 		return fmt.Errorf("%q does not exist or is not a directory", buildDir)

@@ -17,9 +17,9 @@ var ErrUnableToGuessGnoRoot = errors.New("gno was unable to determine GNOROOT. P
 // -ldflags="-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT"
 var _GNOROOT string
 
-// MustGuessGnoRootDir guesses the Gno root directory and panics if it fails.
-func MustGuessGnoRootDir() string {
-	root, err := GuessGnoRootDir()
+// RootDir guesses the Gno root directory and panics if it fails.
+func RootDir() string {
+	root, err := GuessRootDir()
 	if err != nil {
 		panic(err)
 	}
@@ -29,12 +29,12 @@ func MustGuessGnoRootDir() string {
 
 var muGnoRoot sync.Mutex
 
-// GuessGnoRootDir attempts to determine the Gno root directory using various strategies:
+// GuessRootDir attempts to determine the Gno root directory using various strategies:
 // 1. First, It tries to obtain it from the `GNOROOT` environment variable.
 // 2. If the env variable isn't set, It checks if `_GNOROOT` has been previously determined or set with -ldflags.
 // 3. If not, it uses the `go list` command to infer from go.mod.
 // 4. As a last resort, it determines `GNOROOT` based on the caller stack's file path.
-func GuessGnoRootDir() (string, error) {
+func GuessRootDir() (string, error) {
 	muGnoRoot.Lock()
 	defer muGnoRoot.Unlock()
 
@@ -46,15 +46,15 @@ func GuessGnoRootDir() (string, error) {
 	var err error
 	if _GNOROOT == "" {
 		// Try to guess `GNOROOT` using various strategies
-		_GNOROOT, err = guessGnoRootDir()
+		_GNOROOT, err = guessRootDir()
 	}
 
 	return _GNOROOT, err
 }
 
-func guessGnoRootDir() (string, error) {
+func guessRootDir() (string, error) {
 	// Attempt to guess `GNOROOT` from go.mod by using the `go list` command.
-	if rootdir, err := inferGnoRootFromGoMod(); err == nil {
+	if rootdir, err := inferRootFromGoMod(); err == nil {
 		return filepath.Clean(rootdir), nil
 	}
 
@@ -76,7 +76,7 @@ func guessGnoRootDir() (string, error) {
 	return "", ErrUnableToGuessGnoRoot
 }
 
-func inferGnoRootFromGoMod() (string, error) {
+func inferRootFromGoMod() (string, error) {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
 		return "", fmt.Errorf("unable to find `go` binary: %w", err)

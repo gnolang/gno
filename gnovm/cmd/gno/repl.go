@@ -82,7 +82,7 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	if !cfg.skipUsage {

@@ -17,7 +17,7 @@ func TestGuessGnoRootDir_WithSetGnoRoot(t *testing.T) {
 	const testPath = "/path/to/gnoRoot"
 
 	_GNOROOT = testPath
-	root, err := GuessGnoRootDir()
+	root, err := GuessRootDir()
 	require.NoError(t, err)
 	require.Equal(t, root, testPath)
 }
@@ -35,7 +35,7 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 
 	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
-	root, err := GuessGnoRootDir()
+	root, err := GuessRootDir()
 	require.NoError(t, err)
 	require.Equal(t, root, testPath)
 }
@@ -59,7 +59,7 @@ func TestInferGnoRootFromGoMod(t *testing.T) {
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 
 	t.Run("go is present", func(t *testing.T) {
-		root, err := inferGnoRootFromGoMod()
+		root, err := inferRootFromGoMod()
 		require.NoError(t, err)
 		require.Equal(t, root, testPath)
 	})
@@ -68,7 +68,7 @@ func TestInferGnoRootFromGoMod(t *testing.T) {
 		// Unset PATH should prevent `inferGnoRootFromGoMod` to works
 		t.Setenv("PATH", "")
 
-		root, err := inferGnoRootFromGoMod()
+		root, err := inferRootFromGoMod()
 		require.Error(t, err)
 		require.Empty(t, root)
 	})

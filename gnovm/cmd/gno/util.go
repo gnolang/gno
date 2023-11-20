@@ -225,7 +225,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.MustGuessGnoRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }

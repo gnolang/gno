@@ -78,7 +78,7 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	wd, err := os.Getwd()

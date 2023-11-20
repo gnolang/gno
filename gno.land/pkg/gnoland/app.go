@@ -3,7 +3,6 @@ package gnoland
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -34,7 +33,7 @@ func NewAppOptions() *AppOptions {
 	return &AppOptions{
 		Logger:     log.NewNopLogger(),
 		DB:         dbm.NewMemDB(),
-		GnoRootDir: gnoenv.MustGuessGnoRootDir(),
+		GnoRootDir: gnoenv.RootDir(),
 	}
 }
 

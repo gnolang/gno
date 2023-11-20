@@ -66,7 +66,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	stdin := io.In()

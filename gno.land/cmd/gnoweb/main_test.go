@@ -44,7 +44,7 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
@@ -92,7 +92,7 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
