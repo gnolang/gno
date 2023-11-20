@@ -139,7 +139,3 @@ func GetGnoGitMappingSize() int {
 func GetGitGnoMappingSize() int {
 	return GitGnoMapping.Size()
 }
-
-func Render() {
-	println("GOR Realm")
-}
