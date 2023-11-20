@@ -1005,15 +1005,17 @@ func copyNativeToData(dst []byte, rv reflect.Value, rvl int) {
 	}
 }
 
+const FormatUndefined = "undefined"
+
 func formatTypeValue(ev *TypedValue, m *Machine) string {
 	if ev.T == nil {
-		return "undefined"
+		return FormatUndefined
 	}
 
 	if ev.V == nil {
 		switch ev.T.Kind() {
 		case SliceKind, StringKind:
-			return "undefined"
+			return FormatUndefined
 		default:
 			ev.Sprint(m)
 		}
