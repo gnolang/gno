@@ -739,6 +739,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
+				println("---binary expr---")
+				fmt.Printf("OP: %v \n", n.Op)
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
@@ -759,11 +761,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 				if lic {
+					println("left is const")
 					if ric {
+						println("right is const")
 						// Left const, Right const ----------------------
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
 						if !isShift {
+							if n.Op == EQL || n.Op == NEQ {
+								println("Op EQL")
+								fmt.Printf("lt typeID: %v, kind: %v \n", lt.TypeID(), lt.Kind())
+								fmt.Printf("rt typeID: %v, kind: %v \n", rt.TypeID(), rt.Kind())
+								// strict
+								if lt.TypeID() != rt.TypeID() {
+									panic("mismatch type for EQL or NEQ")
+								}
+							}
 							cmp := cmpSpecificity(lcx.T, rcx.T)
 							if cmp < 0 {
 								// convert n.Left to right type.
@@ -784,8 +797,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
+						println("right not const, and lt untyped")
 						// Left untyped const, Right not ----------------
 						if rnt, ok := rt.(*NativeType); ok {
+							println("right native type")
 							if isShift {
 								panic("should not happen")
 							}
@@ -809,12 +824,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
 						} else {
+							println("right not native")
 							if isShift {
 								// nothing to do, right type is (already) uint type.
 								// we don't yet know what this type should be,
 								// but another checkOrConvertType() later does.
 								// (e.g. from AssignStmt or other).
 							} else {
+								println("convert")
+								println("left typeID, kind", lt.TypeID(), lt.Kind())
+								println("right typeID, kind", rt.TypeID(), rt.Kind())
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
@@ -824,7 +843,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, &n.Left, rt, false)
 					}
 				} else if ric {
+					println("left not const, right is const")
 					if isUntyped(rcx.T) {
+						println("right untyped")
 						// Left not, Right untyped const ----------------
 						if isShift {
 							if baseOf(rt) != UintType {
@@ -864,8 +885,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, &n.Right, lt, false)
 					}
 				} else {
+					println("both not const")
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
+						println("Op EQL")
+						fmt.Printf("lt typeID: %v, kind: %v \n", lt.TypeID(), lt.Kind())
+						fmt.Printf("rt typeID: %v, kind: %v \n", rt.TypeID(), rt.Kind())
+						// strict
+						if lt.TypeID() != rt.TypeID() {
+							panic("mismatch type for EQL or NEQ")
+						}
+						println("no conversions")
 						// If == or !=, no conversions.
 					} else if lnt, ok := lt.(*NativeType); ok {
 						if debug {
@@ -908,8 +938,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if n.Op == SHL || n.Op == SHR {
 						// shift operator, nothing yet to do.
 					} else {
+						println("out of eql, shift, left add, addAssign")
 						// non-shift non-const binary operator.
 						liu, riu := isUntyped(lt), isUntyped(rt)
+						println("liu", liu)
+						println("rie", riu)
 						if liu {
 							if riu {
 								if lt.TypeID() != rt.TypeID() {
@@ -918,6 +951,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										n.Left, n.Op, n.Right))
 								}
 							} else {
+								println("left untyped, right is typed")
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
 						} else {

@@ -71,17 +71,40 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
+	println("doOpEql")
 	m.PopExpr()
 
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
+
+	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	fmt.Printf("lv typeID: %v, kind: %v \n", lv.T.TypeID(), lv.T.Kind())
+	fmt.Printf("rv typeID: %v, kind: %v \n", rv.T.TypeID(), rv.T.Kind())
+
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
+	//if lv.T.Kind() == InterfaceKind &&
+	//	IsImplementedBy(lv.T, rv.T) {
+	//	println("left is interface, rt conforms it")
+	//} else if rv.T.Kind() == InterfaceKind &&
+	//	IsImplementedBy(rv.T, lv.T) {
+	//	println("right is interface, left conforms it")
+	//} else if lv.T.Kind() == InterfaceKind && rv.T.Kind() == InterfaceKind {
+	//	println("both interface")
+	//}
+
+	var res bool
+	// strict type match check
+	if lv.T.TypeID() != rv.T.TypeID() {
+		fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
+		res = false
+	} else {
+		res = isEql(m.Store, lv, rv)
+	}
 
 	// set result in lv.
-	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -345,7 +368,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
+		println("left is native type")
 		if rnt, ok := rv.T.(*NativeType); ok {
+			println("right is native type")
 			if lnt.Type != rnt.Type {
 				return false
 			}
@@ -370,6 +395,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Int32Kind:
 		return (lv.GetInt32() == rv.GetInt32())
 	case Int64Kind:
+		println("int64 kind")
+		println("lv kind: ", lv.T.Kind())
+		println("rv kind: ", rv.T.Kind())
+		println("lv int64", lv.GetInt64())
+		println("rv int64", rv.GetInt64())
 		return (lv.GetInt64() == rv.GetInt64())
 	case UintKind:
 		return (lv.GetUint() == rv.GetUint())
