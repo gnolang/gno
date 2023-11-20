@@ -21,7 +21,7 @@ type modDownloadCfg struct {
 	verbose bool
 }
 
-func newModCmd(io *commands.IO) *commands.Command {
+func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
@@ -41,7 +41,7 @@ func newModCmd(io *commands.IO) *commands.Command {
 	return cmd
 }
 
-func newModDownloadCmd(io *commands.IO) *commands.Command {
+func newModDownloadCmd(io commands.IO) *commands.Command {
 	cfg := &modDownloadCfg{}
 
 	return commands.NewCommand(
@@ -71,7 +71,7 @@ func newModInitCmd() *commands.Command {
 	)
 }
 
-func newModTidy(io *commands.IO) *commands.Command {
+func newModTidy(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "tidy",
@@ -101,7 +101,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error {
+func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -172,7 +172,7 @@ func execModInit(args []string) error {
 	return nil
 }
 
-func execModTidy(args []string, io *commands.IO) error {
+func execModTidy(args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}

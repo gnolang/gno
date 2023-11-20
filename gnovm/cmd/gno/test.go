@@ -38,7 +38,7 @@ type testCfg struct {
 	withNativeFallback  bool
 }
 
-func newTestCmd(io *commands.IO) *commands.Command {
+func newTestCmd(io commands.IO) *commands.Command {
 	cfg := &testCfg{}
 
 	return commands.NewCommand(
@@ -158,7 +158,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTest(cfg *testCfg, args []string, io *commands.IO) error {
+func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -232,7 +232,7 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
+			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -280,7 +280,7 @@ func gnoTestPkg(
 	unittestFiles,
 	filetestFiles []string,
 	cfg *testCfg,
-	io *commands.IO,
+	io commands.IO,
 ) error {
 	var (
 		verbose             = cfg.verbose
@@ -288,9 +288,9 @@ func gnoTestPkg(
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
 
-		stdin  = io.In
-		stdout = io.Out
-		stderr = io.Err
+		stdin  = io.In()
+		stdout = io.Out()
+		stderr = io.Err()
 		errs   error
 	)
 
@@ -416,7 +416,7 @@ func runTestFiles(
 	verbose bool,
 	printRuntimeMetrics bool,
 	runFlag string,
-	io *commands.IO,
+	io commands.IO,
 ) error {
 	var errs error
 

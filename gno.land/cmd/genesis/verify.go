@@ -18,7 +18,7 @@ type verifyCfg struct {
 }
 
 // newVerifyCmd creates the genesis verify subcommand
-func newVerifyCmd(io *commands.IO) *commands.Command {
+func newVerifyCmd(io commands.IO) *commands.Command {
 	cfg := &verifyCfg{}
 
 	return commands.NewCommand(
@@ -39,7 +39,7 @@ func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonCfg.RegisterFlags(fs)
 }
 
-func execVerify(cfg *verifyCfg, io *commands.IO) error {
+func execVerify(cfg *verifyCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {

@@ -84,7 +84,7 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 	p.Cmds["gno"] = func(ts *testscript.TestScript, neg bool, args []string) {
 		err := ts.Exec(gnoBin, args...)
 		if err != nil {
-			ts.Logf("gno command error: %v", err)
+			ts.Logf("gno command error: %+v", err)
 		}
 
 		commandSucceeded := (err == nil)

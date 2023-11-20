@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 const (
@@ -662,11 +660,11 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		if i < nValidators {
 			privVal = privVals[i]
 		} else {
-			tempKeyFile, err := ioutil.TempFile("", "priv_validator_key_")
+			tempKeyFile, err := os.CreateTemp("", "priv_validator_key_")
 			if err != nil {
 				panic(err)
 			}
-			tempStateFile, err := ioutil.TempFile("", "priv_validator_state_")
+			tempStateFile, err := os.CreateTemp("", "priv_validator_state_")
 			if err != nil {
 				panic(err)
 			}
@@ -700,15 +698,6 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 			app.Close()
 		}
 	}
-}
-
-func getSwitchIndex(switches []*p2p.Switch, peer p2p.Peer) int {
-	for i, s := range switches {
-		if peer.NodeInfo().ID() == s.NodeInfo().ID() {
-			return i
-		}
-	}
-	panic("didnt find peer in switches")
 }
 
 // -------------------------------------------------------------------------------
@@ -795,7 +784,7 @@ func newCounter() abci.Application {
 }
 
 func newPersistentKVStore() abci.Application {
-	dir, err := ioutil.TempDir("", "persistent-kvstore")
+	dir, err := os.MkdirTemp("", "persistent-kvstore")
 	if err != nil {
 		panic(err)
 	}

@@ -15,6 +15,8 @@ type SampleStruct struct {
 }
 
 func TestBasic(t *testing.T) {
+	t.Parallel()
+
 	p := press.NewPress()
 	fmt.Println(p)
 	ss := SampleStruct{"cat", "dog"}

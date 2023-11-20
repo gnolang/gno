@@ -23,7 +23,7 @@ type docCfg struct {
 	rootDir    string
 }
 
-func newDocCmd(io *commands.IO) *commands.Command {
+func newDocCmd(io commands.IO) *commands.Command {
 	c := &docCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
@@ -75,7 +75,7 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
+func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.MustGuessGnoRootDir()
@@ -113,7 +113,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
 	}
 	return res.WriteDocumentation(
-		io.Out,
+		io.Out(),
 		&doc.WriteDocumentationOptions{
 			ShowAll:    cfg.all,
 			Source:     cfg.src,

@@ -15,6 +15,8 @@ func (dcf *DCFoo1) MarshalAmino() (string, error) { return dcf.a, nil }
 func (dcf *DCFoo1) UnmarshalAmino(s string) error { dcf.a = s; return nil }
 
 func TestDeepCopyFoo1(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo1("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo1)
 	assert.Equal(t, "foobar", dcf2.a)
@@ -27,6 +29,8 @@ func (dcf DCFoo2) MarshalAmino() (string, error)  { return dcf.a, nil } // non-p
 func (dcf *DCFoo2) UnmarshalAmino(s string) error { dcf.a = s; return nil }
 
 func TestDeepCopyFoo2(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo2("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo2)
 	assert.Equal(t, "foobar", dcf2.a)
@@ -39,6 +43,8 @@ func (dcf DCFoo3) MarshalAmino() (string, error)  { return dcf.a, nil }
 func (dcf *DCFoo3) UnmarshalAmino(s []byte) error { dcf.a = string(s); return nil } // mismatch type
 
 func TestDeepCopyFoo3(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo3("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo3)
 	assert.Equal(t, "", dcf2.a)
@@ -52,6 +58,8 @@ func (dcf DCFoo4) MarshalAmino() (string, error)  { return dcf.a, nil }
 func (dcf *DCFoo4) UnmarshalAmino(s string) error { dcf.a = s; return nil } // mismatch type
 
 func TestDeepCopyFoo4(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo4("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo4)
 	assert.Equal(t, "good", dcf2.a)
@@ -65,6 +73,8 @@ func (dcf DCFoo5) MarshalAmino() (string, error)  { return dcf.a, nil }
 func (dcf *DCFoo5) UnmarshalAmino(s string) error { dcf.a = s; return nil } // mismatch type
 
 func TestDeepCopyFoo5(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo5("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo5)
 	assert.Equal(t, "good", dcf2.a)
@@ -76,6 +86,8 @@ func newDCFoo6(a string) *DCFoo6     { return &DCFoo6{a: a} }
 func (dcf *DCFoo6) DeepCopy() DCFoo6 { return DCFoo6{"good"} }
 
 func TestDeepCopyFoo6(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo6("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo6)
 	assert.Equal(t, "good", dcf2.a)
@@ -87,6 +99,8 @@ func newDCFoo7(a string) *DCFoo7     { return &DCFoo7{a: a} }
 func (dcf DCFoo7) DeepCopy() *DCFoo7 { return &DCFoo7{"good"} }
 
 func TestDeepCopyFoo7(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo7("foobar")
 	dcf2 := amino.DeepCopy(dcf1).(*DCFoo7)
 	assert.Equal(t, "good", dcf2.a)
@@ -99,6 +113,8 @@ func (dcf DCFoo8) MarshalAmino() (string, error)  { return "", errors.New("uh oh
 func (dcf *DCFoo8) UnmarshalAmino(s string) error { dcf.a = s; return nil }
 
 func TestDeepCopyFoo8(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo8("foobar")
 	assert.Panics(t, func() { amino.DeepCopy(dcf1) })
 }
@@ -110,6 +126,8 @@ func (dcf DCFoo9) MarshalAmino() (string, error)  { return dcf.a, nil }
 func (dcf *DCFoo9) UnmarshalAmino(s string) error { return errors.New("uh oh") } // error
 
 func TestDeepCopyFoo9(t *testing.T) {
+	t.Parallel()
+
 	dcf1 := newDCFoo9("foobar")
 	assert.Panics(t, func() { amino.DeepCopy(dcf1) })
 }
@@ -119,12 +137,16 @@ type DCInterface1 struct {
 }
 
 func TestDeepCopyInterface1(t *testing.T) {
+	t.Parallel()
+
 	dci1 := DCInterface1{Foo: nil}
 	dci2 := amino.DeepCopy(dci1).(DCInterface1)
 	assert.Nil(t, dci2.Foo)
 }
 
 func TestDeepCopyInterface2(t *testing.T) {
+	t.Parallel()
+
 	dci1 := DCInterface1{Foo: "foo"}
 	dci2 := amino.DeepCopy(dci1).(DCInterface1)
 	assert.Equal(t, "foo", dci2.Foo)

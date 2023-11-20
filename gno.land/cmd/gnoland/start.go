@@ -43,7 +43,7 @@ type startCfg struct {
 	nodeConfigPath   string
 }
 
-func newStartCmd(io *commands.IO) *commands.Command {
+func newStartCmd(io commands.IO) *commands.Command {
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
@@ -174,8 +174,8 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(c *startCfg, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+func execStart(c *startCfg, io commands.IO) error {
+	logger := log.NewTMLogger(log.NewSyncWriter(io.Out()))
 	dataDir := c.dataDir
 
 	var (
@@ -233,7 +233,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")

@@ -36,6 +36,8 @@ func (c *thCounter) Read() {
 }
 
 func TestThrottle(test *testing.T) {
+	test.Parallel()
+
 	assert := asrt.New(test)
 
 	ms := 100

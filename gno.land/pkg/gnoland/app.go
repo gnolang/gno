@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -170,22 +169,6 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			Validators: req.Validators,
 		}
 	}
-}
-
-func parseBalance(bal string) (crypto.Address, std.Coins) {
-	parts := strings.Split(bal, "=")
-	if len(parts) != 2 {
-		panic(fmt.Sprintf("invalid balance string %s", bal))
-	}
-	addr, err := crypto.AddressFromBech32(parts[0])
-	if err != nil {
-		panic(fmt.Sprintf("invalid balance addr %s (%v)", bal, err))
-	}
-	coins, err := std.ParseCoins(parts[1])
-	if err != nil {
-		panic(fmt.Sprintf("invalid balance coins %s (%v)", bal, err))
-	}
-	return addr, coins
 }
 
 // XXX not used yet.
