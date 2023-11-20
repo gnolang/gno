@@ -41,15 +41,6 @@ type envVar struct {
 	Value string
 }
 
-func getEnvVar(vars []envVar, key string) string {
-	for _, env := range vars {
-		if env.Key == key {
-			return env.Value
-		}
-	}
-	return ""
-}
-
 func findEnv(env []envVar, name string) string {
 	for _, e := range env {
 		if e.Key == name {
