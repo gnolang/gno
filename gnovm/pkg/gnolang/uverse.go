@@ -946,7 +946,6 @@ func UverseNode() *PackageNode {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 				ss[i] = formatTypeValue(&ev, m)
 			}
-			// rs := strings.Join(ss, " ") + "\n"
 			rs := strings.Join(ss, " ") + "\n"
 			if debug {
 				println("DEBUG/stdout: " + rs)
@@ -1007,6 +1006,7 @@ func copyNativeToData(dst []byte, rv reflect.Value, rvl int) {
 
 const FormatUndefined = "undefined"
 
+// formatTypeValue formats the given TypedValue based on its type and returns the formatted string representation.
 func formatTypeValue(ev *TypedValue, m *Machine) string {
 	if ev.T == nil {
 		return FormatUndefined
