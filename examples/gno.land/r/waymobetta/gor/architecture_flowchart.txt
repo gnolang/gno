@@ -7,6 +7,3 @@ flowchart TB
     F[Evaluation server posts results back to Github via PR ID]
     E --- F
 ```
-
-![Flow Diagram based on text](https://i.imgur.com/QqwJ7Ua.png)
-![Flowchart Diagram](https://i.imgur.com/6Uv9VzE.png)
