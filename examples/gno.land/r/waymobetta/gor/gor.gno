@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	// std.Address => github username (string)
+	// std.Address -> github username (string)
 	GnoGitMapping = avl.NewTree()
-	// github username (string) => std.Address
+	// github username (string) -> std.Address
 	GitGnoMapping = avl.NewTree()
-	// std.Address => []PR
+	// std.Address -> []PR
 	GnoPRMapping = avl.NewTree()
 )
 
