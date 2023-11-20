@@ -43,13 +43,14 @@
 - Stores results of AI and associates it to user's address 
 ```go
 
-// mappings
+// mappings (we use avl.Tree instead of mappings)
 
-// github_username => gno_address
-type GitGnoMapping map[string]std.Address
-
-// gno_address => github_username
-type GnoGitMapping map[std.Address]string
+// std.Address -> github username (string)
+GnoGitMapping = avl.NewTree()
+// github username (string) -> std.Address
+GitGnoMapping = avl.NewTree()
+// std.Address -> []PR
+GnoPRMapping = avl.NewTree()
 
 // PR struct
 type PR struct {
@@ -63,10 +64,5 @@ type PR struct {
     Deletions int `json:"deletions"`
     TotalEffectiveLines int `json:"total_effective_lines"`
     AvgCharsPerLine int `json:"avg_chars_per_line"`
-}
-
-// Gor struct
-type Gor struct {
-    PR *PR `json:"pr"`
 }
 ```
