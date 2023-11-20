@@ -39,11 +39,3 @@ func IsMember(memberKey string) bool {
 func MemberCount() int {
 	return MemberList.Size()
 }
-
-func Render() {
-	println(
-		ufmt.Sprintf(
-			"Members:\n\n%v", MemberList,
-		),
-	)
-}
