@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1781,11 +1780,18 @@ func TestStateOutputVoteStats(t *testing.T) {
 	}
 }
 
-var eventid uint32
-
 func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
 	name := reflect.ValueOf(protoevent).Type().Name()
-	id := atomic.AddUint32(&eventid, 1)
-	listenerID := fmt.Sprintf("%s-%s-%d", testSubscriber, name, id)
-	return events.SubscribeToEvent(evsw, listenerID, protoevent)
+	listenerID := fmt.Sprintf("%s-%s", testSubscriber, name)
+	ch := events.SubscribeToEvent(evsw, listenerID, protoevent)
+
+	testch := make(chan events.Event, 16)
+	go func() {
+		defer close(testch)
+		for evt := range ch {
+			testch <- evt
+		}
+	}()
+
+	return testch
 }

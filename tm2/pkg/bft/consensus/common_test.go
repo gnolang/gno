@@ -246,7 +246,7 @@ func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lo
 }
 
 func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Event {
-	return events.SubscribeFiltered(cs.evsw, testSubscriber, func(event events.Event) bool {
+	ch := events.SubscribeFiltered(cs.evsw, testSubscriber, func(event events.Event) bool {
 		if vote, ok := event.(types.EventVote); ok {
 			if vote.Vote.ValidatorAddress == addr {
 				return true
@@ -254,6 +254,16 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 		}
 		return false
 	})
+
+	testch := make(chan events.Event, 16)
+	go func() {
+		defer close(testch)
+		for evt := range ch {
+			testch <- evt
+		}
+	}()
+
+	return testch
 }
 
 // -------------------------------------------------------------------------------
