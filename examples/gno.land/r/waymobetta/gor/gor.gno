@@ -1,9 +1,7 @@
 package gor
 
 import (
-	"errors"
 	"std"
-	"strconv"
 	
 	"gno.land/p/demo/avl"
 )
