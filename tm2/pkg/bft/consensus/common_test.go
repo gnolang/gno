@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -245,6 +246,32 @@ func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound, lo
 	validatePrecommit(t, cs, thisRound, lockRound, privVal, votedBlockHash, lockedBlockHash)
 }
 
+func bufferedEventChannel(in <-chan events.Event, size int) (out chan events.Event) {
+	out = make(chan events.Event, size)
+	go func() {
+		defer close(out)
+		for evt := range in {
+			out <- evt
+		}
+	}()
+
+	return out
+}
+
+func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
+	name := reflect.ValueOf(protoevent).Type().Name()
+	listenerID := fmt.Sprintf("%s-%s", testSubscriber, name)
+	ch := events.SubscribeToEvent(evsw, listenerID, protoevent)
+
+	// Similar to subscribeToVoter, this modification introduces
+	// a buffered channel to ensures that events are consumed
+	// asynchronously, thereby avoiding the deadlock situation described in
+	// #1320 where the eventSwitch.FireEvent method was blocked.
+	bch := bufferedEventChannel(ch, 16)
+
+	return bch
+}
+
 func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Event {
 	ch := events.SubscribeFiltered(cs.evsw, testSubscriber, func(event events.Event) bool {
 		if vote, ok := event.(types.EventVote); ok {
@@ -255,15 +282,14 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 		return false
 	})
 
-	testch := make(chan events.Event, 16)
-	go func() {
-		defer close(testch)
-		for evt := range ch {
-			testch <- evt
-		}
-	}()
+	// This modification addresses the deadlock issue outlined in issue
+	// #1320. By creating a buffered channel, we ensure that events are
+	// consumed even if the main thread is blocked. This prevents the
+	// deadlock that occurred when eventSwitch.FireEvent was blocked due to
+	// no available consumers for the event.
+	bch := bufferedEventChannel(ch, 16)
 
-	return testch
+	return bch
 }
 
 // -------------------------------------------------------------------------------

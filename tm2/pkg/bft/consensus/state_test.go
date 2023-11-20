@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/events"
 	p2pmock "github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -1778,20 +1776,4 @@ func TestStateOutputVoteStats(t *testing.T) {
 		t.Errorf("Should not output stats message after receiving the known vote or vote from bigger height")
 	case <-time.After(50 * time.Millisecond):
 	}
-}
-
-func subscribe(evsw events.EventSwitch, protoevent events.Event) <-chan events.Event {
-	name := reflect.ValueOf(protoevent).Type().Name()
-	listenerID := fmt.Sprintf("%s-%s", testSubscriber, name)
-	ch := events.SubscribeToEvent(evsw, listenerID, protoevent)
-
-	testch := make(chan events.Event, 16)
-	go func() {
-		defer close(testch)
-		for evt := range ch {
-			testch <- evt
-		}
-	}()
-
-	return testch
 }
