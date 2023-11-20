@@ -28,7 +28,7 @@ func init() {
 	)
 }
 
-// RegisterAddress registers an Ethereum address in our mapping (std.Address -> GitHub username).
+// RegisterAddress registers an address in our mapping (std.Address -> GitHub username).
 func RegisterAddress(
 	addr std.Address, 
 	username string,
