@@ -946,6 +946,7 @@ func UverseNode() *PackageNode {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 				ss[i] = formatTypeValue(&ev, m)
 			}
+			// rs := strings.Join(ss, " ") + "\n"
 			rs := strings.Join(ss, " ") + "\n"
 			if debug {
 				println("DEBUG/stdout: " + rs)
@@ -1006,16 +1007,21 @@ func copyNativeToData(dst []byte, rv reflect.Value, rvl int) {
 
 func formatTypeValue(ev *TypedValue, m *Machine) string {
 	if ev.T == nil {
-        return "undefined"
-    }
+		return "undefined"
+	}
 
-    if ev.V == nil && (ev.T.Kind() == SliceKind || ev.T.Kind() == StringKind) {
-        return "undefined"
-    }
+	if ev.V == nil {
+		switch ev.T.Kind() {
+		case SliceKind, StringKind:
+			return "undefined"
+		default:
+			ev.Sprint(m)
+		}
+	}
 
-    if ev.T.Kind() == FuncKind {
-        return ev.T.String()
-    }
+	if ev.T.Kind() == FuncKind {
+		return ev.T.String()
+	}
 
 	return ev.Sprint(m)
 }

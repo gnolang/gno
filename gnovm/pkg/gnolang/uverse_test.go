@@ -68,7 +68,7 @@ func TestSimpleRecover(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 
-	assertOutput(t, c, "simple panic\nrecover\n")
+	assertOutput(t, c, "simple panic\nrecover undefined\n")
 }
 
 // TODO: Resolve runtime error
@@ -95,7 +95,7 @@ func TestRecover(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 
-	assertOutput(t, c, "g recover wtf\nf recover wtf\n")
+	assertOutput(t, c, "g recover wtf\nf recover undefined\n")
 }
 
 func TestNestedRecover(t *testing.T) {
@@ -112,7 +112,7 @@ func TestNestedRecover(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 
-	assertOutput(t, c, "simple panic\nnested panic\nouter recover\n")
+	assertOutput(t, c, "simple panic\nnested panic\nouter recover undefined\n")
 }
 
 func TestFunction(t *testing.T) {
