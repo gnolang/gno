@@ -21,7 +21,7 @@ require (
 	github.com/jaekwon/testify v1.6.1
 	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/linxGnu/grocksdb v1.8.4
+	github.com/linxGnu/grocksdb v1.8.5
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
@@ -35,7 +35,7 @@ require (
 	golang.org/x/crypto v0.14.0
 	golang.org/x/mod v0.14.0
 	golang.org/x/net v0.17.0
-	golang.org/x/term v0.13.0
+	golang.org/x/term v0.14.0
 	golang.org/x/tools v0.13.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -66,7 +66,7 @@ require (
 	github.com/rivo/uniseg v0.4.3 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
