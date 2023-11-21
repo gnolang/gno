@@ -4,7 +4,22 @@ import (
 	"testing"
 )
 
-func TestPrintlnPrintNil(t *testing.T) {
+func TestPrintlnWithNilValue(t *testing.T) {
+	m := NewMachine("test", nil)
+
+	c := `package test
+	func main() {
+		println(nil)
+	}`
+
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+
+	assertOutput(t, c, "undefined\n")
+}
+
+func TestPrintlnWithEmptySlice(t *testing.T) {
 	m := NewMachine("test", nil)
 
 	c := `package test
@@ -16,6 +31,21 @@ func TestPrintlnPrintNil(t *testing.T) {
 	m.RunFiles(n)
 	m.RunMain()
 	assertOutput(t, c, "undefined\n")
+}
+
+func TestPrintlnWithNonNilSlice(t *testing.T) {
+	m := NewMachine("test", nil)
+	c := `package test
+	func main() {
+		a := []string{"a", "b"}
+		println(a)
+	}`
+
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+
+	assertOutput(t, c, "slice[(\"a\" string),(\"b\" string)]\n")
 }
 
 func TestPrintlnFunction(t *testing.T) {
@@ -36,7 +66,7 @@ func TestPrintlnFunction(t *testing.T) {
 	assertOutput(t, c, "4\n")
 }
 
-func TestComposite(t *testing.T) {
+func TestCompositeSlice(t *testing.T) {
 	m := NewMachine("test", nil)
 	c := `package test
 	func main() {
@@ -71,9 +101,7 @@ func TestSimpleRecover(t *testing.T) {
 	assertOutput(t, c, "simple panic\nrecover undefined\n")
 }
 
-// TODO: Resolve runtime error
-// current output: g recover <nil> wtf
-func TestRecover(t *testing.T) {
+func TestRecoverWithPanic(t *testing.T) {
 	m := NewMachine("test", nil)
 	c := `package test
 
