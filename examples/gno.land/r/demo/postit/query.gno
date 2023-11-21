@@ -8,16 +8,16 @@ func GetUserCount() uint64 {
 	return userCount
 }
 
-func GetUserByAddress(addr std.Address) User {
-	return *getUserRefByAddress(addr)
+func GetUserByAddress(addr std.Address) string {
+	return userToJSONString(*getUserRefByAddress(addr))
 }
 
-func GetUserByUsername(username string) User {
+func GetUserByUsername(username string) string {
 	res, ok := users.Get(username)
 	if !ok {
 		panic("user not found")
 	}
-	return *res.(*User)
+	return userToJSONString(*res.(*User))
 }
 
 // Post
