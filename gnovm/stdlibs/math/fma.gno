@@ -4,9 +4,7 @@
 
 package math
 
-import (
-	"math/bits"
-)
+import "math/bits"
 
 func zero(x uint64) uint64 {
 	if x == 0 {

@@ -49,7 +49,7 @@ const (
 	MinInt32  = -1 << 31            // -2147483648
 	MaxInt64  = 1<<63 - 1           // 9223372036854775807
 	MinInt64  = -1 << 63            // -9223372036854775808
-	MaxUint   = 1<<intSize - 1      // MaxUint64
+	MaxUint   = 1<<intSize - 1      // == MaxUint64
 	MaxUint8  = 1<<8 - 1            // 255
 	MaxUint16 = 1<<16 - 1           // 65535
 	MaxUint32 = 1<<32 - 1           // 4294967295
