@@ -28,7 +28,7 @@ func GetPostCount() uint64 {
 
 func ListPostsByOffset(offset, count int) string {
 	var pl []Post
-	posts.ReverseIterateByOffset(offset, count, func(key string, value interface{}) bool {
+	posts.IterateByOffset(offset, count, func(key string, value interface{}) bool {
 		post := *value.(*Post)
 		pl = append(pl, post)
 		return false
