@@ -26,11 +26,12 @@ func GetPostCount() uint64 {
 	return postCount
 }
 
-func ListPostsByOffset(offset, count int) (res []Post) {
+func ListPostsByOffset(offset, count int) string {
+	var pl []Post
 	posts.ReverseIterateByOffset(offset, count, func(key string, value interface{}) bool {
 		post := *value.(*Post)
-		res = append(res, post)
+		pl = append(pl, post)
 		return false
 	})
-	return
+	return postsToJSONString(pl)
 }
