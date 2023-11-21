@@ -17,12 +17,10 @@ func (e Error2) Error() string {
 }
 
 func main() {
-	if Error1(0) == Error2(0) {
-		println("what the firetruck?")
-	} else {
-		println("something else")
-	}
+	e1 := Error1(0)
+	e2 := Error2(0)
+	e1 += e2
 }
 
 // Error:
-// main/gno.land/p/demo/challenge/comparison_3_filetest.gno:20: mismatch type for EQL || NEQ || ADD
+// main/gno.land/p/demo/challenge/comparison_3b_filetest.gno:22: mismatch type for Assign

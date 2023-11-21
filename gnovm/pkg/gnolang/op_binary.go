@@ -120,8 +120,16 @@ func (m *Machine) doOpNeq() {
 		assertEqualityTypes(lv.T, rv.T)
 	}
 
+	var res bool
+	// strict type match check
+	if lv.T.TypeID() != rv.T.TypeID() {
+		fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "NEQ", rv.T.TypeID())
+		res = false
+	} else {
+		res = isEql(m.Store, lv, rv)
+	}
+
 	// set result in lv.
-	res := !isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)

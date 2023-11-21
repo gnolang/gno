@@ -768,13 +768,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
 						if !isShift {
-							if n.Op == EQL || n.Op == NEQ {
+							if n.Op == EQL || n.Op == NEQ || n.Op == ADD || n.Op == ADD_ASSIGN {
 								println("Op EQL")
 								fmt.Printf("lt typeID: %v, kind: %v \n", lt.TypeID(), lt.Kind())
 								fmt.Printf("rt typeID: %v, kind: %v \n", rt.TypeID(), rt.Kind())
 								// strict
 								if lt.TypeID() != rt.TypeID() {
-									panic("mismatch type for EQL or NEQ")
+									panic("mismatch type for EQL || NEQ || ADD")
 								}
 							}
 							cmp := cmpSpecificity(lcx.T, rcx.T)
@@ -1522,6 +1522,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
+				fmt.Printf("---AssignStmt, Op: %v \n", n.Op)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
 					// Rhs consts become default *ConstExprs.
@@ -1596,6 +1597,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else { // ASSIGN.
+					println("assign")
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
@@ -1635,12 +1637,33 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Special case if shift assign <<= or >>=.
 						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
+						fmt.Printf("op is %v \n", n.Op)
+						// e.g. a += b, single lhs and rhs, can add assign more than one RHS?
+						lt := evalStaticTypeOf(store, last, n.Lhs[0])
+						rt := evalStaticTypeOf(store, last, n.Rhs[0])
+
+						// TODO: check other like sh*
+						if lt.TypeID() != rt.TypeID() {
+							panic("mismatch type for Assign")
+						}
 					} else {
+						println("case: a, b = x, y")
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
-							// converts if rx is "nil".
-							checkOrConvertType(store, last, &n.Rhs[i], lt, false)
+
+							// is x or y is untyped, convert, else check type
+							rt := evalStaticTypeOf(store, last, n.Rhs[i])
+							if isUntyped(rt) {
+								// converts if rx is "nil".
+								checkOrConvertType(store, last, &n.Rhs[i], lt, false)
+							} else {
+								// is untyped
+								if lt.TypeID() != rt.TypeID() {
+									panic("mismatch type for Assign, in case: a, b = x, y")
+								}
+							}
 						}
 					}
 				}
