@@ -32,6 +32,8 @@ func nextStatus(m *Monitor) Status {
 }
 
 func TestReader(t *testing.T) {
+	t.Parallel()
+
 	in := make([]byte, 100)
 	for i := range in {
 		in[i] = byte(i)
@@ -101,6 +103,8 @@ func TestReader(t *testing.T) {
 }
 
 func TestWriter(t *testing.T) {
+	t.Parallel()
+
 	b := make([]byte, 100)
 	for i := range b {
 		b[i] = byte(i)

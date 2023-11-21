@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-func newListCmd(rootCfg *baseCfg) *commands.Command {
+func newListCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "list",
@@ -17,12 +17,12 @@ func newListCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		nil,
 		func(_ context.Context, args []string) error {
-			return execList(rootCfg, args, commands.NewDefaultIO())
+			return execList(rootCfg, args, io)
 		},
 	)
 }
 
-func execList(cfg *baseCfg, args []string, io *commands.IO) error {
+func execList(cfg *baseCfg, args []string, io commands.IO) error {
 	if len(args) != 0 {
 		return flag.ErrHelp
 	}
@@ -40,7 +40,7 @@ func execList(cfg *baseCfg, args []string, io *commands.IO) error {
 	return err
 }
 
-func printInfos(infos []keys.Info, io *commands.IO) {
+func printInfos(infos []keys.Info, io commands.IO) {
 	for i, info := range infos {
 		keyname := info.GetName()
 		keytype := info.GetType()

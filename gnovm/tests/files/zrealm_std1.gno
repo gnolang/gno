@@ -25,7 +25,7 @@ func main() {
 }
 
 // Output:
-// slice[ref(1ed29bd278d735e20e296bd4afe927501941392f:4)]
+// (slice[ref(1ed29bd278d735e20e296bd4afe927501941392f:4)] std.AddressList)
 // error: address already exists
 // has: true
 // has: false

@@ -15,4 +15,4 @@ func main() {
 }
 
 // Output:
-// struct{(2 uint16)}
+// (struct{(2 uint16)} main.T)

@@ -13,6 +13,8 @@ import (
 )
 
 func TestVerifyIAVLStoreQueryProof(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
 	db := dbm.NewMemDB()
 	opts := types.StoreOptions{
@@ -58,6 +60,8 @@ func TestVerifyIAVLStoreQueryProof(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProof(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
 	db := dbm.NewMemDB()
 	store := NewMultiStore(db)
@@ -113,6 +117,8 @@ func TestVerifyMultiStoreQueryProof(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProofEmptyStore(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
 	db := dbm.NewMemDB()
 	store := NewMultiStore(db)
@@ -142,6 +148,8 @@ func TestVerifyMultiStoreQueryProofEmptyStore(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProofAbsence(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
 	db := dbm.NewMemDB()
 	store := NewMultiStore(db)

@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -25,7 +24,7 @@ const (
 	maxPerPage     = 100
 )
 
-//----------------------------------------------
+// ----------------------------------------------
 // These interfaces are used by RPC and must be thread safe
 
 type Consensus interface {
@@ -50,7 +49,7 @@ type peers interface {
 	Peers() p2p.IPeerSet
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // These package level globals come with setters
 // that are expected to be called only once, on startup
 
@@ -68,7 +67,6 @@ var (
 	// objects
 	pubKey           crypto.PubKey
 	genDoc           *types.GenesisDoc // cache the genesis structure
-	txIndexer        txindex.TxIndexer
 	consensusReactor *consensus.ConsensusReactor
 	evsw             events.EventSwitch
 	gTxDispatcher    *txDispatcher
@@ -113,10 +111,6 @@ func SetGenesisDoc(doc *types.GenesisDoc) {
 
 func SetProxyAppQuery(appConn proxy.AppConnQuery) {
 	proxyAppQuery = appConn
-}
-
-func SetTxIndexer(indexer txindex.TxIndexer) {
-	txIndexer = indexer
 }
 
 func SetConsensusReactor(conR *consensus.ConsensusReactor) {
@@ -168,13 +162,4 @@ func validatePerPage(perPage int) int {
 		return maxPerPage
 	}
 	return perPage
-}
-
-func validateSkipCount(page, perPage int) int {
-	skipCount := (page - 1) * perPage
-	if skipCount < 0 {
-		return 0
-	}
-
-	return skipCount
 }

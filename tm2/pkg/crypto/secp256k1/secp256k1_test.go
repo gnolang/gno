@@ -30,6 +30,8 @@ var secpDataTable = []keyData{
 }
 
 func TestPubKeySecp256k1Address(t *testing.T) {
+	t.Parallel()
+
 	for _, d := range secpDataTable {
 		privB, _ := hex.DecodeString(d.priv)
 		pubB, _ := hex.DecodeString(d.pub)
@@ -50,6 +52,8 @@ func TestPubKeySecp256k1Address(t *testing.T) {
 }
 
 func TestSignAndValidateSecp256k1(t *testing.T) {
+	t.Parallel()
+
 	privKey := secp256k1.GenPrivKey()
 	pubKey := privKey.PubKey()
 
@@ -68,6 +72,8 @@ func TestSignAndValidateSecp256k1(t *testing.T) {
 // This test is intended to justify the removal of calls to the underlying library
 // in creating the privkey.
 func TestSecp256k1LoadPrivkeyAndSerializeIsIdentity(t *testing.T) {
+	t.Parallel()
+
 	numberOfTests := 256
 	for i := 0; i < numberOfTests; i++ {
 		// Seed the test case with some random bytes
@@ -87,6 +93,8 @@ func TestSecp256k1LoadPrivkeyAndSerializeIsIdentity(t *testing.T) {
 }
 
 func TestGenPrivKeySecp256k1(t *testing.T) {
+	t.Parallel()
+
 	// curve oder N
 	N := underlyingSecp256k1.S256().N
 	tests := []struct {
@@ -102,6 +110,8 @@ func TestGenPrivKeySecp256k1(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			gotPrivKey := secp256k1.GenPrivKeySecp256k1(tt.secret)
 			require.NotNil(t, gotPrivKey)
 			// interpret as a big.Int and make sure it is a valid field element:
