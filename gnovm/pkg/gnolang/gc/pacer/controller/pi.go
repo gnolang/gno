@@ -3,7 +3,7 @@ package controller
 // Proportional Integral Controller
 type PIController struct {
 	Config
-	integral float64
+	Integral float64
 }
 
 type Config struct {
@@ -19,9 +19,9 @@ func NewPI(cfg *Config) *PIController {
 	return &PIController{Config: *cfg}
 }
 
-func (c *PIController) output(input, setPoint float64) (rawOutput, output float64) {
+func (c *PIController) Output(input, setPoint float64) (rawOutput, output float64) {
 	prop := c.Kp * (setPoint - input)
-	rawOutput = prop + c.integral
+	rawOutput = prop + c.Integral
 	output = rawOutput
 
 	if output < c.Min {
@@ -33,14 +33,14 @@ func (c *PIController) output(input, setPoint float64) (rawOutput, output float6
 	return rawOutput, output
 }
 
-func (c *PIController) update(input, setPoint, rawOutput, output float64) {
+func (c *PIController) Update(input, setPoint, rawOutput, output float64) {
 	if c.Ti != 0 && c.Tt != 0 {
-		c.integral += (c.Kp * c.Period / c.Ti) * (setPoint - input) + (c.Period / c.Tt) * (output - rawOutput)
+		c.Integral += (c.Kp * c.Period / c.Ti) * (setPoint - input) + (c.Period / c.Tt) * (output - rawOutput)
 	}
 }
 
 func (c *PIController) Next(input, setPoint, rawOutput float64) float64 {
-	rawOutput, output := c.output(input, setPoint)
-	c.update(input, setPoint, rawOutput, output)
+	rawOutput, output := c.Output(input, setPoint)
+	c.Update(input, setPoint, rawOutput, output)
 	return output
 }
