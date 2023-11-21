@@ -90,17 +90,17 @@ func main() {
 // # Gnome 😵
 //
 // * age: 20
-// * hunger: 100
+// * hunger: 0
 // * happiness: 0
 // * health: 0
-// * sleepy: 100
+// * sleepy: 0
 //
 // -- WAIT 20 hours
 //
 // # Gnome 😵
 //
 // * age: 20
-// * hunger: 100
+// * hunger: 0
 // * happiness: 0
 // * health: 0
-// * sleepy: 100
+// * sleepy: 0
