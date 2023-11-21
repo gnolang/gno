@@ -30,9 +30,18 @@ func CreateUser(username, name string) {
 }
 
 func UpdateBio(bio string) {
+	// TODO: add checks
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
 	user.Bio = bio
+}
+
+func SetAvatarUrl(url string) {
+	// TODO: add checks
+	// TODO: later should be replaced with grc721
+	caller := std.PrevRealm().Addr()
+	user := getUserRefByAddress(caller)
+	user.AvatarUrl = url
 }
 
 // Post
