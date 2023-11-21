@@ -1,4 +1,4 @@
-package GC_test
+package escape_test
 
 import (
 	"go/ast"
@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/GC"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/gc/escape"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -178,7 +178,7 @@ func TestTrackingEscapeVariables(t *testing.T) {
 			}
 
 			// Perform escape analysis.
-			escapingVars := GC.TrackingEscapeVariables(fn)
+			escapingVars := escape.TrackingEscapeVariables(fn)
 
 			// Assert that the escaping variables match the expected ones.
 			assert.ElementsMatch(t, tt.expectedVars, escapingVars)
@@ -187,7 +187,7 @@ func TestTrackingEscapeVariables(t *testing.T) {
 }
 
 func TestAddNode(t *testing.T) {
-	graph := GC.NewVarGraph()
+	graph := escape.NewVarGraph()
 
 	// Test adding a new node.
 	nodeName := "a"
@@ -203,7 +203,7 @@ func TestAddNode(t *testing.T) {
 }
 
 func TestAnalyzeEscape(t *testing.T) {
-	varGraph := GC.NewVarGraph()
+	varGraph := escape.NewVarGraph()
 
 	varGraph.AddNode("a").Escape = true
 	varGraph.AddNode("b").Escape = true
@@ -220,7 +220,7 @@ func TestAnalyzeEscape(t *testing.T) {
 }
 
 func TestAddEdge(t *testing.T) {
-	graph := GC.NewVarGraph()
+	graph := escape.NewVarGraph()
 
 	// Test adding an edge between two nodes.
 	fromNode := "a"
