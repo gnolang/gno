@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/s_log1p.c
 // and came with this notice. The go code is a simplified
@@ -153,7 +149,7 @@ func log1p(x float64) float64 {
 		var u float64
 		if absx < Two53 { // 1<<53
 			u = 1.0 + x
-			iu = imath.Float64bits(u)
+			iu = Float64bits(u)
 			k = int((iu >> 52) - 1023)
 			// correction term
 			if k > 0 {
@@ -164,16 +160,16 @@ func log1p(x float64) float64 {
 			c /= u
 		} else {
 			u = x
-			iu = imath.Float64bits(u)
+			iu = Float64bits(u)
 			k = int((iu >> 52) - 1023)
 			c = 0
 		}
 		iu &= 0x000fffffffffffff
 		if iu < 0x0006a09e667f3bcd { // mantissa of Sqrt(2)
-			u = imath.Float64frombits(iu | 0x3ff0000000000000) // normalize u
+			u = Float64frombits(iu | 0x3ff0000000000000) // normalize u
 		} else {
 			k++
-			u = imath.Float64frombits(iu | 0x3fe0000000000000) // normalize u/2
+			u = Float64frombits(iu | 0x3fe0000000000000) // normalize u/2
 			iu = (0x0010000000000000 - iu) >> 2
 		}
 		f = u - 1.0 // Sqrt(2)/2 < u < Sqrt(2)

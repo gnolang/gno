@@ -6,8 +6,6 @@ package math
 
 import (
 	"math/bits"
-
-	imath "internal/math"
 )
 
 // reduceThreshold is the maximum value of x where the reduction using Pi/4
@@ -37,7 +35,7 @@ func trigReduce(x float64) (j uint64, z float64) {
 	}
 	// Extract out the integer and exponent such that,
 	// x = ix * 2 ** exp.
-	ix := imath.Float64bits(x)
+	ix := Float64bits(x)
 	exp := int(ix>>shift&mask) - bias - shift
 	ix &^= mask << shift
 	ix |= 1 << shift
@@ -65,7 +63,7 @@ func trigReduce(x float64) (j uint64, z float64) {
 	hi >>= 64 - shift
 	// Include the exponent and convert to a float.
 	hi |= e << shift
-	z = imath.Float64frombits(hi)
+	z = Float64frombits(hi)
 	// Map zeros to origin.
 	if j&1 == 1 {
 		j++

@@ -4,8 +4,6 @@
 
 package math
 
-import imath "internal/math"
-
 /*
 	Floating-point logarithm of the Gamma function.
 */
@@ -353,7 +351,7 @@ func sinPi(x float64) float64 {
 			if x < Two52 {
 				z = x + Two52 // exact
 			}
-			n = int(1 & imath.Float64bits(z))
+			n = int(1 & Float64bits(z))
 			x = float64(n)
 			n <<= 2
 		}

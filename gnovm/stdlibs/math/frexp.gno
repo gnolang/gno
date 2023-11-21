@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Frexp breaks f into a normalized fraction
 // and an integral power of two.
 // It returns frac and exp satisfying f == frac × 2**exp,
@@ -31,10 +27,10 @@ func frexp(f float64) (frac float64, exp int) {
 		return f, 0
 	}
 	f, exp = normalize(f)
-	x := imath.Float64bits(f)
+	x := Float64bits(f)
 	exp += int((x>>shift)&mask) - bias + 1
 	x &^= mask << shift
 	x |= (-1 + bias) << shift
-	frac = imath.Float64frombits(x)
+	frac = Float64frombits(x)
 	return
 }

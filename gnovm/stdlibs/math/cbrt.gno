@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // The go code is a modified version of the original C code from
 // http://www.netlib.org/fdlibm/s_cbrt.c and came with this notice.
 //
@@ -55,12 +51,12 @@ func cbrt(x float64) float64 {
 	}
 
 	// rough cbrt to 5 bits
-	t := imath.Float64frombits(imath.Float64bits(x)/3 + B1<<32)
+	t := Float64frombits(Float64bits(x)/3 + B1<<32)
 	if x < SmallestNormal {
 		// subnormal number
 		t = float64(1 << 54) // set t= 2**54
 		t *= x
-		t = imath.Float64frombits(imath.Float64bits(t)/3 + B2<<32)
+		t = Float64frombits(Float64bits(t)/3 + B2<<32)
 	}
 
 	// new cbrt to 23 bits
@@ -69,7 +65,7 @@ func cbrt(x float64) float64 {
 	t *= G + F/(s+E+D/s)
 
 	// chop to 22 bits, make larger than cbrt(x)
-	t = imath.Float64frombits(imath.Float64bits(t)&(0xFFFFFFFFC<<28) + 1<<30)
+	t = Float64frombits(Float64bits(t)&(0xFFFFFFFFC<<28) + 1<<30)
 
 	// one step newton iteration to 53 bits with error less than 0.667ulps
 	s = t * t // t*t is exact

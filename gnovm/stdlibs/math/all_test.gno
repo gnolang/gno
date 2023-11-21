@@ -16,8 +16,6 @@ package math
 import (
 	"fmt"
 	"testing"
-
-	imath "internal/math"
 )
 
 var _vf = []float64{
@@ -1200,7 +1198,7 @@ var _vffdimSC = [][2]float64{
 	{NaN(), NaN()},
 }
 
-var nan = imath.Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
+var nan = Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
 
 var _vffdim2SC = [][2]float64{
 	{Inf(-1), Inf(-1)},
@@ -2004,7 +2002,7 @@ var _vfsqrtSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
-	imath.Float64frombits(2), // subnormal; see https://golang.org/issue/13013
+	Float64frombits(2), // subnormal; see https://golang.org/issue/13013
 }
 
 var _sqrtSC = []float64{
@@ -3889,7 +3887,7 @@ func BenchmarkYn(b *testing.B) {
 func BenchmarkFloat64bits(b *testing.B) {
 	y := uint64(0)
 	for i := 0; i < b.N; i++ {
-		y = imath.Float64bits(roundNeg)
+		y = Float64bits(roundNeg)
 	}
 	GlobalI = int(y)
 }
@@ -3899,7 +3897,7 @@ var _roundUint64 = uint64(5)
 func BenchmarkFloat64frombits(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
-		x = imath.Float64frombits(_roundUint64)
+		x = Float64frombits(_roundUint64)
 	}
 	GlobalF = x
 }

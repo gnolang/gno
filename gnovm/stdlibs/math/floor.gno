@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Floor returns the greatest integer value less than or equal to x.
 //
 // Special cases are:
@@ -85,7 +81,7 @@ func Round(x float64) float64 {
 	//   }
 	//   return t
 	// }
-	bits := imath.Float64bits(x)
+	bits := Float64bits(x)
 	e := uint(bits>>shift) & mask
 	if e < bias {
 		// Round abs(x) < 1 including denormals.
@@ -103,7 +99,7 @@ func Round(x float64) float64 {
 		bits += half >> e
 		bits &^= fracMask >> e
 	}
-	return imath.Float64frombits(bits)
+	return Float64frombits(bits)
 }
 
 // RoundToEven returns the nearest integer, rounding ties to even.
@@ -124,7 +120,7 @@ func RoundToEven(x float64) float64 {
 	//   }
 	//   return t
 	// }
-	bits := imath.Float64bits(x)
+	bits := Float64bits(x)
 	e := uint(bits>>shift) & mask
 	if e >= bias {
 		// Round abs(x) >= 1.
@@ -142,5 +138,5 @@ func RoundToEven(x float64) float64 {
 		// Round abs(x) <= 0.5 including denormals.
 		bits &= signMask // +-0
 	}
-	return imath.Float64frombits(bits)
+	return Float64frombits(bits)
 }

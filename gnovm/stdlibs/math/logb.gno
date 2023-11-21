@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Logb returns the binary exponent of x.
 //
 // Special cases are:
@@ -52,5 +48,5 @@ func Ilogb(x float64) int {
 // non-zero.
 func ilogb(x float64) int {
 	x, exp := normalize(x)
-	return int((imath.Float64bits(x)>>shift)&mask) - bias + exp
+	return int((Float64bits(x)>>shift)&mask) - bias + exp
 }

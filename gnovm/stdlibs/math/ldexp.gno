@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Ldexp is the inverse of Frexp.
 // It returns frac × 2**exp.
 //
@@ -30,7 +26,7 @@ func ldexp(frac float64, exp int) float64 {
 	}
 	frac, e := normalize(frac)
 	exp += e
-	x := imath.Float64bits(frac)
+	x := Float64bits(frac)
 	exp += int(x>>shift)&mask - bias
 	if exp < -1075 {
 		return Copysign(0, frac) // underflow
@@ -48,5 +44,5 @@ func ldexp(frac float64, exp int) float64 {
 	}
 	x &^= mask << shift
 	x |= uint64(exp+bias) << shift
-	return m * imath.Float64frombits(x)
+	return m * Float64frombits(x)
 }

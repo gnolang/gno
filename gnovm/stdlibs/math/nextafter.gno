@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 // Nextafter32 returns the next representable float32 value after x towards y.
 //
 // Special cases are:
@@ -22,11 +18,11 @@ func Nextafter32(x, y float32) (r float32) {
 	case x == y:
 		r = x
 	case x == 0:
-		r = float32(Copysign(float64(imath.Float32frombits(1)), float64(y)))
+		r = float32(Copysign(float64(Float32frombits(1)), float64(y)))
 	case (y > x) == (x > 0):
-		r = imath.Float32frombits(imath.Float32bits(x) + 1)
+		r = Float32frombits(Float32bits(x) + 1)
 	default:
-		r = imath.Float32frombits(imath.Float32bits(x) - 1)
+		r = Float32frombits(Float32bits(x) - 1)
 	}
 	return
 }
@@ -45,11 +41,11 @@ func Nextafter(x, y float64) (r float64) {
 	case x == y:
 		r = x
 	case x == 0:
-		r = Copysign(imath.Float64frombits(1), y)
+		r = Copysign(Float64frombits(1), y)
 	case (y > x) == (x > 0):
-		r = imath.Float64frombits(imath.Float64bits(x) + 1)
+		r = Float64frombits(Float64bits(x) + 1)
 	default:
-		r = imath.Float64frombits(imath.Float64bits(x) - 1)
+		r = Float64frombits(Float64bits(x) - 1)
 	}
 	return
 }

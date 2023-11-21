@@ -4,8 +4,6 @@
 
 package math
 
-import imath "internal/math"
-
 /*
 	Floating-point error function and complementary error function.
 */
@@ -255,7 +253,7 @@ func erf(x float64) float64 {
 		R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
 		S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
 	}
-	z := imath.Float64frombits(imath.Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
+	z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
 	r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
 	if sign {
 		return r/x - 1
@@ -333,7 +331,7 @@ func erfc(x float64) float64 {
 			R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
 			S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
 		}
-		z := imath.Float64frombits(imath.Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
+		z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
 		r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
 		if sign {
 			return 2 - r/x
