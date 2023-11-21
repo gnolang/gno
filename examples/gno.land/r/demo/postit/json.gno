@@ -6,6 +6,47 @@ import (
 	"time"
 )
 
+// User
+
+func userToJSONString(user User) string {
+	var b bytes.Buffer
+
+	// Write the starting brace
+	b.WriteString(`{`)
+
+	// Write Username field
+	b.WriteString(`"Username":"`)
+	b.WriteString(user.Username)
+	b.WriteString(`"`)
+
+	// Write Address field
+	b.WriteString(`,"Address":"`)
+	b.WriteString(user.Address.String())
+	b.WriteString(`"`)
+
+	// Write Name field
+	b.WriteString(`,"Name":"`)
+	b.WriteString(user.Name)
+	b.WriteString(`"`)
+
+	// Write Bio field
+	b.WriteString(`,"Bio":"`)
+	b.WriteString(user.Bio)
+	b.WriteString(`"`)
+
+	// Write AvatarUrl field
+	b.WriteString(`,"AvatarUrl":"`)
+	b.WriteString(user.AvatarUrl)
+	b.WriteString(`"`)
+
+	// Write the closing brace
+	b.WriteString(`}`)
+
+	return b.String()
+}
+
+// Post
+
 func postsToJSONString(posts []Post) string {
 	var b bytes.Buffer
 
