@@ -8,6 +8,8 @@ import (
 )
 
 func TestParseForLoop(t *testing.T) {
+	t.Parallel()
+
 	gocode := `package main
 func main(){
 	for i:=0; i<10; i++ {

@@ -34,6 +34,8 @@ const (
 )
 
 func TestStringifyFundraiserPathParams(t *testing.T) {
+	t.Parallel()
+
 	path := NewFundraiserParams(4, testCoinType, 22)
 	require.Equal(t, "44'/118'/4'/0/22", path.String())
 
@@ -45,6 +47,8 @@ func TestStringifyFundraiserPathParams(t *testing.T) {
 }
 
 func TestPathToArray(t *testing.T) {
+	t.Parallel()
+
 	path := NewParams(44, 118, 1, false, 4)
 	require.Equal(t, "[44 118 1 0 4]", fmt.Sprintf("%v", path.DerivationPath()))
 
@@ -53,6 +57,8 @@ func TestPathToArray(t *testing.T) {
 }
 
 func TestParamsFromPath(t *testing.T) {
+	t.Parallel()
+
 	goodCases := []struct {
 		params *BIP44Params
 		path   string
