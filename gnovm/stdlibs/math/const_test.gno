@@ -9,7 +9,7 @@ import (
 )
 
 func TestMaxUint(t *testing.T) {
-	// https://github.com/gnolang/gno/issues/1085
+	// XXX: https://github.com/gnolang/gno/issues/1085
 	var v uint = MaxUint
 	if v+1 != 0 {
 		t.Errorf("MaxUint should wrap around to zero: %d", v+1)

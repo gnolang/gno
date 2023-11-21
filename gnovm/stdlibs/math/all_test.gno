@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// XXX:
+// When porting over to Gno, this file has been changed in the name
+// of its variables and in avoiding using a dot import (which are not allowed
+// in Gno.) In most cases, variable names have a simple underscore to prefix
+// them and not come into conflict with other identifiers in the `math` package.
+// Other changes involve removing code that pertained to comparing the "Go"
+// implementation and the "assembly" implementation (in our case, we currently
+// only have the Gno implementation).
+
 package math
 
 import (
@@ -896,6 +905,7 @@ var _vfatan2SC = [][2]float64{
 }
 
 var _atan2SC = []float64{
+	// XXX: https://github.com/gnolang/gno/issues/1152
 	-3.0 * Pi / 4,   // atan2(-Inf, -Inf)
 	-Pi / 2,         // atan2(-Inf, -Pi)
 	-Pi / 2,         // atan2(-Inf, +0)
@@ -1190,26 +1200,25 @@ var _vffdimSC = [][2]float64{
 	{NaN(), NaN()},
 }
 
-var (
-	nan        = imath.Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
-	_vffdim2SC = [][2]float64{
-		{Inf(-1), Inf(-1)},
-		{Inf(-1), Inf(1)},
-		{Inf(-1), nan},
-		{Copysign(0, -1), Copysign(0, -1)},
-		{Copysign(0, -1), 0},
-		{0, Copysign(0, -1)},
-		{0, 0},
-		{Inf(1), Inf(-1)},
-		{Inf(1), Inf(1)},
-		{Inf(1), nan},
-		{nan, Inf(-1)},
-		{nan, Copysign(0, -1)},
-		{nan, 0},
-		{nan, Inf(1)},
-		{nan, nan},
-	}
-)
+var nan = imath.Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
+
+var _vffdim2SC = [][2]float64{
+	{Inf(-1), Inf(-1)},
+	{Inf(-1), Inf(1)},
+	{Inf(-1), nan},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Copysign(0, -1), 0},
+	{0, Copysign(0, -1)},
+	{0, 0},
+	{Inf(1), Inf(-1)},
+	{Inf(1), Inf(1)},
+	{Inf(1), nan},
+	{nan, Inf(-1)},
+	{nan, Copysign(0, -1)},
+	{nan, 0},
+	{nan, Inf(1)},
+	{nan, nan},
+}
 
 var _fdimSC = []float64{
 	NaN(),
@@ -1537,6 +1546,7 @@ var _vfldexpSC = []fi{
 	{Inf(-1), 0},
 	{Inf(-1), -1024},
 	{NaN(), -1024},
+	// XXX: changed to use constant values instead of unsafe.Sizeof(0)
 	{10, int(1) << (uint64(7) * 8)},
 	{10, -(int(1) << (uint64(7) * 8))},
 }
@@ -1779,6 +1789,12 @@ var _vfpowSC = [][2]float64{
 	{Nextafter(1, -2), float1Shift63},
 	{Nextafter(-1, 2), float1Shift63},
 	{Nextafter(-1, -2), float1Shift63},
+
+	// Issue #57465
+	{Copysign(0, -1), 1e19},
+	{Copysign(0, -1), -1e19},
+	{Copysign(0, -1), 1<<53 - 1},
+	{Copysign(0, -1), -(1<<53 - 1)},
 }
 
 const float1Shift63 float64 = 1 << 63
@@ -1857,6 +1873,12 @@ var _powSC = []float64{
 	0,       // pow(Nextafter(1, -2), float64(1 << 63))
 	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
 	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
+
+	// Issue #57465
+	0,               // pow(-0, 1e19)
+	Inf(1),          // pow(-0, -1e19)
+	Copysign(0, -1), // pow(-0, 1<<53 -1)
+	Inf(-1),         // pow(-0, -(1<<53 -1))
 }
 
 var _vfpow10SC = []int{
@@ -2154,6 +2176,9 @@ var _fmaC = []struct{ x, y, z, want float64 }{
 
 	// Special
 	{0, 0, 0, 0},
+	{Copysign(0, -1), 0, 0, 0},
+	{0, 0, Copysign(0, -1), 0},
+	{Copysign(0, -1), 0, Copysign(0, -1), Copysign(0, -1)},
 	{-1.1754226043408471e-38, NaN(), Inf(0), NaN()},
 	{0, 0, 2.22507385643494e-308, 2.22507385643494e-308},
 	{-8.65697792e+09, NaN(), -7.516192799999999e+09, NaN()},
@@ -2172,6 +2197,10 @@ var _fmaC = []struct{ x, y, z, want float64 }{
 	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
 	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
+
+	// Issue #61130
+	{-1, 1, 1, 0},
+	{1, 1, -1, 0},
 }
 
 var _sqrt32 = []float32{
