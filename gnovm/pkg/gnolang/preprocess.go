@@ -1639,27 +1639,36 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						fmt.Printf("op is %v \n", n.Op)
-						// e.g. a += b, single lhs and rhs, can add assign more than one RHS?
+						// e.g. a += b, single value for lhs and rhs,
+						// TODO: assert length
+						println("len of LHS: ", len(n.Lhs))
+						println("len of RHS: ", len(n.Rhs))
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
 						rt := evalStaticTypeOf(store, last, n.Rhs[0])
 
 						// TODO: check other like sh*
-						if lt.TypeID() != rt.TypeID() {
-							panic("mismatch type for Assign")
+						// only check when rt is typed
+						if !isUntyped(rt) {
+							if lt.TypeID() != rt.TypeID() {
+								panic("mismatch type for Assign")
+							}
+						} else {
+							checkOrConvertType(store, last, &n.Rhs[0], lt, false)
 						}
 					} else {
 						println("case: a, b = x, y")
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
-
 							// is x or y is untyped, convert, else check type
 							rt := evalStaticTypeOf(store, last, n.Rhs[i])
 							if isUntyped(rt) {
+								println("rt is untyped, convert")
+								// is untyped
 								// converts if rx is "nil".
 								checkOrConvertType(store, last, &n.Rhs[i], lt, false)
 							} else {
-								// is untyped
+								println("rt not untyped, check strict")
 								if lt.TypeID() != rt.TypeID() {
 									panic("mismatch type for Assign, in case: a, b = x, y")
 								}
