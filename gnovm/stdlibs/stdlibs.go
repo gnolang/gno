@@ -2,6 +2,7 @@ package stdlibs
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"reflect"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -521,6 +523,41 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
+			},
+		)
+		pn.DefineNative("EmitEvent",
+			gno.Flds( // params
+				"typ", "string",
+				"attrs", "...string",
+			),
+			gno.Flds( // results
+			),
+			func(m *gno.Machine) {
+				arg0, arg1 := m.LastBlock().GetParams2()
+
+				var attrs []string
+				_attrs := arg1.TV.V.(*gno.SliceValue).GetBase(m.Store)
+				for _, v := range _attrs.List {
+					attrs = append(attrs, v.GetString())
+				}
+
+				if len(attrs)%2 == 1 {
+					attrs = append(attrs, "")
+				}
+
+				eventAttrs := make([]sdk.EventAttribute, 0, len(attrs)/2)
+				for i := 0; i < len(attrs); i += 2 {
+					eventAttr := sdk.EventAttribute{Key: attrs[i], Value: attrs[i+1]}
+					eventAttrs = append(eventAttrs, eventAttr)
+				}
+
+				eventType := arg0.TV.GetString()
+				// TODO: need this prefix?
+				eventType = fmt.Sprintf("gno-%s", eventType) // prefix with gno-
+
+				event := sdk.NewEvent(eventType, eventAttrs...)
+				ctx := m.Context.(ExecContext)
+				ctx.EventLogger.EmitEvent(event)
 			},
 		)
 	}
