@@ -263,7 +263,7 @@ func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
 	if err != nil {
-		fmt.Fprintf(ts.Stderr(), "%q error: %v\n", cmd, err)
+		fmt.Fprintf(ts.Stderr(), "%q error: %+v\n", cmd, err)
 		if !neg {
 			ts.Fatalf("unexpected %q command failure: %s", cmd, err)
 		}

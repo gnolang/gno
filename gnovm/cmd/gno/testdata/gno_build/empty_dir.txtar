@@ -1,6 +1,0 @@
-# Run gno build on an empty dir
-
-gno build .
-
-! stdout .+
-! stderr .+

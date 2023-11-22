@@ -33,7 +33,6 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
-		newBuildCmd(io),
 		newPrecompileCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),

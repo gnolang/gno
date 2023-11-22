@@ -1,29 +1,24 @@
-module github.com/gnolang/gno/contribs/gnokeykc
+module loop
 
 go 1.20
 
-replace github.com/gnolang/gno => ../..
-
 require (
-	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
-	github.com/zalando/go-keyring v0.2.3
+	github.com/gnolang/gno v0.0.0-20231112174927-b1a53c018ea4
+	github.com/gnolang/tx-archive v0.1.1
 )
 
 require (
-	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c // indirect
 	github.com/btcsuite/btcd/btcutil v1.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cockroachdb/apd v1.1.0 // indirect
-	github.com/danieljoos/wincred v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gnolang/goleveldb v0.0.9 // indirect
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
@@ -42,8 +37,8 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	go.etcd.io/bbolt v1.3.8 // indirect
 	go.opencensus.io v0.22.5 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.9.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
@@ -52,3 +47,5 @@ require (
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+replace github.com/gnolang/gno => ../../
