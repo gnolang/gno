@@ -7,27 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 )
 
-type Blog struct {
-	Title        string
-	Prefix       string   // i.e. r/gnoland/blog:
-	Posts        avl.Tree // slug -> Post
-	NoBreadcrumb bool
-}
-
 func (b Blog) RenderLastPostsWidget(limit int) string {
 	output := ""
-	i := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		p := value.(*Post)
+	for i, p := range b.Posts {
+		if i >= limit {
+			break
+		}
 		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
-		i++
-		return i >= limit
-	})
+	}
 	return output
 }
 
@@ -36,23 +27,14 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(breadcrumb([]string{b.Title}))
 	}
 
-	if b.Posts.Size() == 0 {
+	if len(b.Posts) == 0 {
 		res.Write("No posts.")
 		return
 	}
 
 	res.Write("<div class='columns-3'>")
 
-	var sorted []*Post
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post)
-		sorted = append(sorted, post)
-		return false
-	})
-
-	sorted = mergeSort(sorted)
-
-	for _, post := range sorted {
+	for _, post := range b.Posts {
 		res.Write(post.RenderListItem())
 	}
 
@@ -64,29 +46,30 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	slug := req.GetVar("slug")
 
-	post, found := b.Posts.Get(slug)
-	if !found {
+	post := b.Posts.GetPost(slug)
+	// TODO add search by slug
+
+	if post == nil {
 		res.Write("404")
 		return
 	}
-	p := post.(*Post)
 
 	if !b.NoBreadcrumb {
 		breadStr := breadcrumb([]string{
 			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
 			"p",
-			p.Title,
+			post.Title,
 		})
 		res.Write(breadStr)
 	}
 
 	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	res.Write(p.Body + "\n\n")
-	res.Write(p.RenderTagList() + "\n\n")
-	res.Write(formatAuthorAndDate(p.Author, p.CreatedAt) + "\n\n")
+	res.Write(post.Body + "\n\n")
+	res.Write(post.RenderTagList() + "\n\n")
+	res.Write(formatAuthorAndDate(post.Author, post.CreatedAt) + "\n\n")
 
 	// comments
-	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+	post.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
 		comment := value.(*Comment)
 		res.Write(comment.RenderListItem())
 		return false
@@ -111,18 +94,17 @@ func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	nb := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post)
-		if !post.HasTag(slug) {
-			return false
+	for _, post := range b.Posts {
+		if post.HasTag(slug) {
+			res.Write(post.RenderListItem())
+			nb++
 		}
-		res.Write(post.RenderListItem())
-		nb++
-		return false
-	})
+	}
+
 	if nb == 0 {
 		res.Write("No posts.")
 	}
+
 }
 
 func (b Blog) Render(path string) string {
@@ -134,8 +116,8 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	_, found := b.Posts.Get(slug)
-	if found {
+	p := b.Posts.GetPost(slug)
+	if p != nil {
 		return errors.New("slug already exists.")
 	}
 
@@ -168,29 +150,16 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Blog = b
 	post.UpdatedAt = time.Now()
 
-	b.Posts.Set(post.Slug, post)
+	b.Posts = append(b.Posts, post)
 	return nil
 }
 
 func (b *Blog) GetPost(slug string) *Post {
-	post, found := b.Posts.Get(slug)
-	if !found {
+	post := b.Posts.GetPost(slug)
+	if post == nil {
 		return nil
 	}
-	return post.(*Post)
-}
-
-type Post struct {
-	Blog         *Blog
-	Slug         string // FIXME: save space?
-	Title        string
-	Body         string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Comments     avl.Tree
-	Author       std.Address
-	Tags         []string
-	CommentIndex int
+	return post
 }
 
 func (p *Post) Update(title, body string, tags []string) error {
@@ -286,13 +255,6 @@ func (p *Post) Summary() string {
 		return p.Body
 	}
 	return strings.Join(lines[0:3], "\n") + "..."
-}
-
-type Comment struct {
-	Post      *Post
-	CreatedAt time.Time
-	Author    std.Address
-	Comment   string
 }
 
 func (c Comment) RenderListItem() string {

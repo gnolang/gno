@@ -6,36 +6,25 @@ func breadcrumb(parts []string) string {
 	return "# " + strings.Join(parts, " / ") + "\n\n"
 }
 
-func merge(left, right []*Post) []*Post {
-	result := make([]*Post, 0, len(left)+len(right))
-
-	for len(left) > 0 || len(right) > 0 {
-		if len(left) == 0 {
-			return append(result, right...)
-		}
-		if len(right) == 0 {
-			return append(result, left...)
-		}
-		if left[0].CreatedAt.After(right[0].CreatedAt) {
-			result = append(result, left[0])
-			left = left[1:]
-		} else {
-			result = append(result, right[0])
-			right = right[1:]
+func (p postSlice) GetPost(slug string) *Post {
+	for _, post := range p {
+		if post.Slug == slug {
+			return post
 		}
 	}
-
-	return result
+	return nil
 }
 
-func mergeSort(posts []*Post) []*Post {
-	if len(posts) <= 1 {
-		return posts
-	}
+// Sort interface implementation for postSlice
 
-	middle := len(posts) / 2
-	left := mergeSort(posts[:middle])
-	right := mergeSort(posts[middle:])
+func (p postSlice) Len() int {
+	return len(p)
+}
 
-	return merge(left, right)
+func (p postSlice) Less(i, j int) bool {
+	return p[i].CreatedAt.Before(p[j].CreatedAt)
+}
+
+func (p postSlice) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
 }
