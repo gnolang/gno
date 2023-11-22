@@ -104,7 +104,6 @@ func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
 	if nb == 0 {
 		res.Write("No posts.")
 	}
-
 }
 
 func (b Blog) Render(path string) string {

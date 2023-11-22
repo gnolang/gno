@@ -1,9 +1,10 @@
 package blog
 
 import (
-	"gno.land/p/demo/avl"
 	"std"
 	"time"
+
+	"gno.land/p/demo/avl"
 )
 
 type Blog struct {
