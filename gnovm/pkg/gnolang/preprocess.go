@@ -3245,6 +3245,10 @@ func fileNameOf(n BlockNode) Name {
 }
 
 func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
+	oldBaseOfClt := baseOf(clt)
+	oldClx := *clx
+	oldClt := clt
+
 	switch clt := baseOf(clt).(type) {
 	/*
 		case *PointerType:
@@ -3262,6 +3266,7 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 			}
 	*/
 	case *ArrayType:
+		fmt.Println("ArrayType:")
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := 0; i < el; i++ {
@@ -3269,6 +3274,7 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 			elideCompositeExpr(&kvx.Value, et)
 		}
 	case *SliceType:
+		fmt.Println("SliceType:")
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := 0; i < el; i++ {
@@ -3276,6 +3282,7 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 			elideCompositeExpr(&kvx.Value, et)
 		}
 	case *MapType:
+		fmt.Println("MapType:")
 		kt := clt.Key
 		vt := clt.Value
 		el := len(clx.Elts)
@@ -3285,19 +3292,19 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 			elideCompositeExpr(&kvx.Value, vt)
 		}
 	case *StructType:
+		fmt.Println("StructType:")
 		// Struct fields cannot be elided in Go for
 		// legibility, but Gno could support them (e.g. for
 		// certain tagged struct fields).
 		// TODO: support eliding.
-		for _, kvx := range clx.Elts {
-			vx := kvx.Value
-			if vclx, ok := vx.(*CompositeLitExpr); ok {
-				if vclx.Type == nil {
-					panic("types cannot be elided in composite literals for struct types")
-				}
-			}
+		el := len(clx.Elts)
+		for i := 0; i < el; i++ {
+			kvx := &clx.Elts[i]
+			ft := clt.Fields[i].Type
+			elideCompositeExpr(&kvx.Value, ft)
 		}
 	case *NativeType:
+		fmt.Println("NativeType:")
 		// TODO: support eliding.
 		for _, kvx := range clx.Elts {
 			vx := kvx.Value
@@ -3312,6 +3319,26 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 			"unexpected composite lit type %s",
 			clt.String()))
 	}
+
+	fmt.Println("\n\n <xxx> \n")
+
+	fmt.Println("oldBaseOfClt:")
+	fmt.Println("-", oldBaseOfClt)
+	fmt.Println("+", baseOf(clt))
+
+	fmt.Println("\n --- \n")
+
+	fmt.Println("clt:")
+	fmt.Println("-", oldClt)
+	fmt.Println("+", clt)
+
+	fmt.Println("\n --- \n")
+
+	fmt.Println("clx:")
+	fmt.Println("-", oldClx)
+	fmt.Println("+", clx)
+
+	fmt.Println("\n <xxx> \n\n")
 }
 
 // if *vx is composite lit type, fill in elided type.
