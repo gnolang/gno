@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -77,7 +78,7 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	wd, err := os.Getwd()
