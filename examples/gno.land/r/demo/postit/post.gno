@@ -5,9 +5,11 @@ import (
 )
 
 type Post struct {
-	Id        uint64
-	Username  string
-	Body      string
-	Timestamp time.Time
-	Comments  []Comment
+	Id       uint64
+	Username string
+	Body     string
+
+	Comments []Comment
+
+	CreatedAt time.Time
 }

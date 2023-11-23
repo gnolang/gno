@@ -39,6 +39,11 @@ func userToJSONString(user User) string {
 	b.WriteString(user.AvatarUrl)
 	b.WriteString(`"`)
 
+	// Write CreatedAt field
+	b.WriteString(`,"CreatedAt":"`)
+	b.WriteString(user.CreatedAt.Format(time.RFC3339))
+	b.WriteString(`"`)
+
 	// Write the closing brace
 	b.WriteString(`}`)
 
@@ -99,8 +104,8 @@ func postToJSONString(post Post) string {
 	b.WriteString(`"`)
 
 	// Write Timestamp field
-	b.WriteString(`,"Timestamp":"`)
-	b.WriteString(post.Timestamp.Format(time.RFC3339))
+	b.WriteString(`,"CreatedAt":"`)
+	b.WriteString(post.CreatedAt.Format(time.RFC3339))
 	b.WriteString(`"`)
 
 	// Write User field
@@ -115,6 +120,8 @@ func postToJSONString(post Post) string {
 	b.WriteString(user.Bio)
 	b.WriteString(`","AvatarUrl":"`)
 	b.WriteString(user.AvatarUrl)
+	b.WriteString(`","CreatedAt":"`)
+	b.WriteString(user.CreatedAt.Format(time.RFC3339))
 	b.WriteString(`"}`)
 
 	// TODO: Write Comments

@@ -23,6 +23,8 @@ func CreateUser(username, name string) string {
 		Address:  caller,
 		Username: username,
 		Name:     name,
+
+		CreatedAt: time.Now(),
 	}
 	users.Set(username, user)
 	addressToUsername.Set(caller.String(), username)
@@ -53,10 +55,11 @@ func CreatePost(body string) string {
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
 	post := &Post{
-		Id:        postCount,
-		Username:  user.Username,
-		Body:      body,
-		Timestamp: time.Now(),
+		Id:       postCount,
+		Username: user.Username,
+		Body:     body,
+
+		CreatedAt: time.Now(),
 	}
 	strId := strconv.FormatUint(post.Id, 10)
 	posts.Set(strId, post)
