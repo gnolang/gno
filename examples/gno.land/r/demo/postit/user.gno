@@ -1,6 +1,9 @@
 package postit
 
-import "std"
+import (
+	"std"
+	"time"
+)
 
 type User struct {
 	Username  string
@@ -11,6 +14,8 @@ type User struct {
 	Followers []string
 	Following []string
 	AvatarUrl string // use grc721 instead?
+
+	CreatedAt time.Time
 }
 
 func getUserRefByAddress(addr std.Address) *User {
