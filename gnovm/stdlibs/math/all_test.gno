@@ -44,6 +44,7 @@ var acos = []float64{
 	1.3872364345374451433846657e+00,
 	2.6231510803970463967294145e+00,
 }
+
 var acosh = []float64{
 	2.4743347004159012494457618e+00,
 	2.8576385344292769649802701e+00,
@@ -56,6 +57,7 @@ var acosh = []float64{
 	1.6988625798424034227205445e+00,
 	2.9611454842470387925531875e+00,
 }
+
 var asin = []float64{
 	5.2117697218417440497416805e-01,
 	8.8495619865825236751471477e-01,
@@ -68,6 +70,7 @@ var asin = []float64{
 	1.83559892257451475846656e-01,
 	-1.0523547536021497774980928e+00,
 }
+
 var asinh = []float64{
 	2.3083139124923523427628243e+00,
 	2.743551594301593620039021e+00,
@@ -80,6 +83,7 @@ var asinh = []float64{
 	1.3626658083714826013073193e+00,
 	-2.8581483626513914445234004e+00,
 }
+
 var atan = []float64{
 	1.372590262129621651920085e+00,
 	1.442290609645298083020664e+00,
@@ -92,6 +96,7 @@ var atan = []float64{
 	1.0696031952318783760193244e+00,
 	-1.4561721938838084990898679e+00,
 }
+
 var atanh = []float64{
 	5.4651163712251938116878204e-01,
 	1.0299474112843111224914709e+00,
@@ -104,6 +109,7 @@ var atanh = []float64{
 	1.8459947964298794318714228e-01,
 	-1.3273186910532645867272502e+00,
 }
+
 var atan2 = []float64{
 	1.1088291730037004444527075e+00,
 	9.1218183188715804018797795e-01,
@@ -116,6 +122,7 @@ var atan2 = []float64{
 	1.3902530903455392306872261e+00,
 	2.2859857424479142655411058e+00,
 }
+
 var cbrt = []float64{
 	1.7075799841925094446722675e+00,
 	1.9779982212970353936691498e+00,
@@ -128,6 +135,7 @@ var cbrt = []float64{
 	1.2221149580905388454977636e+00,
 	-2.0556003730500069110343596e+00,
 }
+
 var ceil = []float64{
 	5.0000000000000000e+00,
 	8.0000000000000000e+00,
@@ -140,6 +148,7 @@ var ceil = []float64{
 	2.0000000000000000e+00,
 	-8.0000000000000000e+00,
 }
+
 var copysign = []float64{
 	-4.9790119248836735e+00,
 	-7.7388724745781045e+00,
@@ -152,6 +161,7 @@ var copysign = []float64{
 	-1.8253080916808550e+00,
 	-8.6859247685756013e+00,
 }
+
 var cos = []float64{
 	2.634752140995199110787593e-01,
 	1.148551260848219865642039e-01,
@@ -191,6 +201,7 @@ var cosh = []float64{
 	3.1829371625150718153881164e+00,
 	2.9595059261916188501640911e+03,
 }
+
 var erf = []float64{
 	5.1865354817738701906913566e-01,
 	7.2623875834137295116929844e-01,
@@ -203,6 +214,7 @@ var erf = []float64{
 	2.0369924417882241241559589e-01,
 	-7.8069386968009226729944677e-01,
 }
+
 var erfc = []float64{
 	4.8134645182261298093086434e-01,
 	2.7376124165862704883070156e-01,
@@ -215,6 +227,7 @@ var erfc = []float64{
 	7.9630075582117758758440411e-01,
 	1.7806938696800922672994468e+00,
 }
+
 var erfinv = []float64{
 	4.746037673358033586786350696e-01,
 	8.559054432692110956388764172e-01,
@@ -227,6 +240,7 @@ var erfinv = []float64{
 	1.632011465103005426240343116e-01,
 	-1.06672334642196900710000389e+00,
 }
+
 var exp = []float64{
 	1.4533071302642137507696589e+02,
 	2.2958822575694449002537581e+03,
@@ -239,6 +253,7 @@ var exp = []float64{
 	6.2047063430646876349125085e+00,
 	1.6894712385826521111610438e-04,
 }
+
 var expm1 = []float64{
 	5.105047796122957327384770212e-02,
 	8.046199708567344080562675439e-02,
@@ -251,6 +266,7 @@ var expm1 = []float64{
 	1.842068661871398836913874273e-02,
 	-8.3193870863553801814961137573e-02,
 }
+
 var expm1Large = []float64{
 	4.2031418113550844e+21,
 	4.0690789717473863e+33,
@@ -263,6 +279,7 @@ var expm1Large = []float64{
 	8.456921800389698e+07,
 	-1.0,
 }
+
 var exp2 = []float64{
 	3.1537839463286288034313104e+01,
 	2.1361549283756232296144849e+02,
@@ -275,6 +292,7 @@ var exp2 = []float64{
 	3.5438267900243941544605339e+00,
 	2.4281533133513300984289196e-03,
 }
+
 var fabs = []float64{
 	4.9790119248836735e+00,
 	7.7388724745781045e+00,
@@ -287,6 +305,7 @@ var fabs = []float64{
 	1.8253080916808550e+00,
 	8.6859247685756013e+00,
 }
+
 var fdim = []float64{
 	4.9790119248836735e+00,
 	7.7388724745781045e+00,
@@ -299,6 +318,7 @@ var fdim = []float64{
 	1.8253080916808550e+00,
 	0.0000000000000000e+00,
 }
+
 var floor = []float64{
 	4.0000000000000000e+00,
 	7.0000000000000000e+00,
@@ -311,6 +331,7 @@ var floor = []float64{
 	1.0000000000000000e+00,
 	-9.0000000000000000e+00,
 }
+
 var fmod = []float64{
 	4.197615023265299782906368e-02,
 	2.261127525421895434476482e+00,
@@ -341,6 +362,7 @@ var frexp = []fi{
 	{9.1265404584042750000e-01, 1},
 	{-5.4287029803597508250e-01, 4},
 }
+
 var gamma = []float64{
 	2.3254348370739963835386613898e+01,
 	2.991153837155317076427529816e+03,
@@ -353,6 +375,7 @@ var gamma = []float64{
 	9.3834586598354592860187267089e-01,
 	-2.093995902923148389186189429e-05,
 }
+
 var j0 = []float64{
 	-1.8444682230601672018219338e-01,
 	2.27353668906331975435892e-01,
@@ -365,6 +388,7 @@ var j0 = []float64{
 	3.252650187653420388714693e-01,
 	-8.72218484409407250005360235e-03,
 }
+
 var j1 = []float64{
 	-3.251526395295203422162967e-01,
 	1.893581711430515718062564e-01,
@@ -377,6 +401,7 @@ var j1 = []float64{
 	5.8181350531954794639333955e-01,
 	-2.7030574577733036112996607e-01,
 }
+
 var j2 = []float64{
 	5.3837518920137802565192769e-02,
 	-1.7841678003393207281244667e-01,
@@ -389,6 +414,7 @@ var j2 = []float64{
 	3.122312022520957042957497e-01,
 	7.096213118930231185707277e-02,
 }
+
 var jM3 = []float64{
 	-3.684042080996403091021151e-01,
 	2.8157665936340887268092661e-01,
@@ -401,6 +427,7 @@ var jM3 = []float64{
 	-1.0241334641061485092351251e-01,
 	-2.3762660886100206491674503e-01,
 }
+
 var lgamma = []fi{
 	{3.146492141244545774319734e+00, 1},
 	{8.003414490659126375852113e+00, 1},
@@ -413,6 +440,7 @@ var lgamma = []fi{
 	{-6.363667087767961257654854e-02, 1},
 	{-1.077385130910300066425564e+01, -1},
 }
+
 var log = []float64{
 	1.605231462693062999102599e+00,
 	2.0462560018708770653153909e+00,
@@ -425,6 +453,7 @@ var log = []float64{
 	6.0174879014578057187016475e-01,
 	2.161703872847352815363655e+00,
 }
+
 var logb = []float64{
 	2.0000000000000000e+00,
 	2.0000000000000000e+00,
@@ -437,6 +466,7 @@ var logb = []float64{
 	0.0000000000000000e+00,
 	3.0000000000000000e+00,
 }
+
 var log10 = []float64{
 	6.9714316642508290997617083e-01,
 	8.886776901739320576279124e-01,
@@ -449,6 +479,7 @@ var log10 = []float64{
 	2.6133617905227038228626834e-01,
 	9.3881606348649405716214241e-01,
 }
+
 var log1p = []float64{
 	4.8590257759797794104158205e-02,
 	7.4540265965225865330849141e-02,
@@ -461,6 +492,7 @@ var log1p = []float64{
 	1.8088493239630770262045333e-02,
 	-9.0865245631588989681559268e-02,
 }
+
 var log2 = []float64{
 	2.3158594707062190618898251e+00,
 	2.9521233862883917703341018e+00,
@@ -473,6 +505,7 @@ var log2 = []float64{
 	8.6813999540425116282815557e-01,
 	3.118679457227342224364709e+00,
 }
+
 var modf = [][2]float64{
 	{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
 	{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
@@ -485,6 +518,7 @@ var modf = [][2]float64{
 	{1.0000000000000000e+00, 8.2530809168085506044576505e-01},
 	{-8.0000000000000000e+00, -6.8592476857560136238589621e-01},
 }
+
 var nextafter32 = []float32{
 	4.979012489318848e+00,
 	7.738873004913330e+00,
@@ -497,6 +531,7 @@ var nextafter32 = []float32{
 	1.825308203697205e+00,
 	-8.685923576354980e+00,
 }
+
 var nextafter64 = []float64{
 	4.97901192488367438926388786e+00,
 	7.73887247457810545370193722e+00,
@@ -509,6 +544,7 @@ var nextafter64 = []float64{
 	1.82530809168085528249036997e+00,
 	-8.68592476857559958602905681e+00,
 }
+
 var pow = []float64{
 	9.5282232631648411840742957e+04,
 	5.4811599352999901232411871e+07,
@@ -521,6 +557,7 @@ var pow = []float64{
 	6.688182138451414936380374e+01,
 	2.0609869004248742886827439e-09,
 }
+
 var remainder = []float64{
 	4.197615023265299782906368e-02,
 	2.261127525421895434476482e+00,
@@ -533,6 +570,7 @@ var remainder = []float64{
 	8.734595415957246977711748e-01,
 	1.314075231424398637614104e+00,
 }
+
 var round = []float64{
 	5,
 	8,
@@ -545,6 +583,7 @@ var round = []float64{
 	2,
 	-9,
 }
+
 var signbit = []bool{
 	false,
 	false,
@@ -557,6 +596,7 @@ var signbit = []bool{
 	false,
 	true,
 }
+
 var sin = []float64{
 	-9.6466616586009283766724726e-01,
 	9.9338225271646545763467022e-01,
@@ -583,6 +623,7 @@ var sinLarge = []float64{
 	9.67786335404528727927e-01,
 	-6.7344058693131973066e-01,
 }
+
 var sinh = []float64{
 	7.2661916084208532301448439e+01,
 	1.1479409110035194500526446e+03,
@@ -595,6 +636,7 @@ var sinh = []float64{
 	3.021769180549615819524392e+00,
 	-2.95950575724449499189888e+03,
 }
+
 var sqrt = []float64{
 	2.2313699659365484748756904e+00,
 	2.7818829009464263511285458e+00,
@@ -607,6 +649,7 @@ var sqrt = []float64{
 	1.3510396336454586262419247e+00,
 	2.9471892997524949215723329e+00,
 }
+
 var tan = []float64{
 	-3.661316565040227801781974e+00,
 	8.64900232648597589369854e+00,
@@ -633,6 +676,7 @@ var tanLarge = []float64{
 	-3.84388555942723509071e+00,
 	9.1098879344275101051e-01,
 }
+
 var tanh = []float64{
 	9.9990531206936338549262119e-01,
 	9.9999962057085294197613294e-01,
@@ -645,6 +689,7 @@ var tanh = []float64{
 	9.4936501296239685514466577e-01,
 	-9.9999994291374030946055701e-01,
 }
+
 var trunc = []float64{
 	4.0000000000000000e+00,
 	7.0000000000000000e+00,
@@ -657,6 +702,7 @@ var trunc = []float64{
 	1.0000000000000000e+00,
 	-8.0000000000000000e+00,
 }
+
 var y0 = []float64{
 	-3.053399153780788357534855e-01,
 	1.7437227649515231515503649e-01,
@@ -669,6 +715,7 @@ var y0 = []float64{
 	4.8290004112497761007536522e-01,
 	2.7036697826604756229601611e-01,
 }
+
 var y1 = []float64{
 	0.15494213737457922210218611,
 	-0.2165955142081145245075746,
@@ -681,6 +728,7 @@ var y1 = []float64{
 	-0.20849492979459761009678934,
 	0.0242503179793232308250804,
 }
+
 var y2 = []float64{
 	0.3675780219390303613394936,
 	-0.23034826393250119879267257,
@@ -693,6 +741,7 @@ var y2 = []float64{
 	-0.7113490692587462579757954,
 	-0.2647831587821263302087457,
 }
+
 var yM3 = []float64{
 	-0.14035984421094849100895341,
 	-0.097535139617792072703973,
@@ -713,6 +762,7 @@ var vfacosSC = []float64{
 	math.Pi,
 	math.NaN(),
 }
+
 var acosSC = []float64{
 	math.NaN(),
 	0,
@@ -727,6 +777,7 @@ var vfacoshSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var acoshSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -742,6 +793,7 @@ var vfasinSC = []float64{
 	math.Pi,
 	math.NaN(),
 }
+
 var asinSC = []float64{
 	math.NaN(),
 	math.Copysign(0, -1),
@@ -757,6 +809,7 @@ var vfasinhSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var asinhSC = []float64{
 	math.Inf(-1),
 	math.Copysign(0, -1),
@@ -772,6 +825,7 @@ var vfatanSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var atanSC = []float64{
 	-math.Pi / 2,
 	math.Copysign(0, -1),
@@ -791,6 +845,7 @@ var vfatanhSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var atanhSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -802,6 +857,7 @@ var atanhSC = []float64{
 	math.NaN(),
 	math.NaN(),
 }
+
 var vfatan2SC = [][2]float64{
 	{math.Inf(-1), math.Inf(-1)},
 	{math.Inf(-1), -math.Pi},
@@ -841,6 +897,7 @@ var vfatan2SC = [][2]float64{
 	{math.Inf(1), math.NaN()},
 	{math.NaN(), math.NaN()},
 }
+
 var atan2SC = []float64{
 	// https://github.com/gnolang/gno/issues/1152
 	-3.0 * math.Pi / 4,   // atan2(-Inf, -Inf)
@@ -889,6 +946,7 @@ var vfcbrtSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var cbrtSC = []float64{
 	math.Inf(-1),
 	math.Copysign(0, -1),
@@ -904,6 +962,7 @@ var vfceilSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var ceilSC = []float64{
 	math.Inf(-1),
 	math.Copysign(0, -1),
@@ -917,6 +976,7 @@ var vfcopysignSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var copysignSC = []float64{
 	math.Inf(-1),
 	math.Inf(-1),
@@ -928,6 +988,7 @@ var vfcosSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var cosSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -941,6 +1002,7 @@ var vfcoshSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var coshSC = []float64{
 	math.Inf(1),
 	1,
@@ -958,6 +1020,7 @@ var vferfSC = []float64{
 	-1000,
 	1000,
 }
+
 var erfSC = []float64{
 	-1,
 	math.Copysign(0, -1),
@@ -975,6 +1038,7 @@ var vferfcSC = []float64{
 	-1000,
 	1000,
 }
+
 var erfcSC = []float64{
 	2,
 	0,
@@ -991,6 +1055,7 @@ var vferfinvSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var erfinvSC = []float64{
 	math.Inf(+1),
 	math.Inf(-1),
@@ -1008,6 +1073,7 @@ var vferfcinvSC = []float64{
 	math.Inf(-1),
 	math.NaN(),
 }
+
 var erfcinvSC = []float64{
 	math.Inf(+1),
 	math.Inf(-1),
@@ -1034,6 +1100,7 @@ var vfexpSC = []float64{
 	// denormal
 	-740,
 }
+
 var expSC = []float64{
 	0,
 	0,
@@ -1061,6 +1128,7 @@ var vfexp2SC = []float64{
 	// near zero
 	3.725290298461915e-09,
 }
+
 var exp2SC = []float64{
 	0,
 	0,
@@ -1081,6 +1149,7 @@ var vfexpm1SC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var expm1SC = []float64{
 	-1,
 	-1,
@@ -1098,6 +1167,7 @@ var vffabsSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var fabsSC = []float64{
 	math.Inf(1),
 	0,
@@ -1123,24 +1193,27 @@ var vffdimSC = [][2]float64{
 	{math.NaN(), math.Inf(1)},
 	{math.NaN(), math.NaN()},
 }
-var nan = math.Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
-var vffdim2SC = [][2]float64{
-	{math.Inf(-1), math.Inf(-1)},
-	{math.Inf(-1), math.Inf(1)},
-	{math.Inf(-1), nan},
-	{math.Copysign(0, -1), math.Copysign(0, -1)},
-	{math.Copysign(0, -1), 0},
-	{0, math.Copysign(0, -1)},
-	{0, 0},
-	{math.Inf(1), math.Inf(-1)},
-	{math.Inf(1), math.Inf(1)},
-	{math.Inf(1), nan},
-	{nan, math.Inf(-1)},
-	{nan, math.Copysign(0, -1)},
-	{nan, 0},
-	{nan, math.Inf(1)},
-	{nan, nan},
-}
+
+var (
+	nan       = math.Float64frombits(0xFFF8000000000000) // SSE2 DIVSD 0/0
+	vffdim2SC = [][2]float64{
+		{math.Inf(-1), math.Inf(-1)},
+		{math.Inf(-1), math.Inf(1)},
+		{math.Inf(-1), nan},
+		{math.Copysign(0, -1), math.Copysign(0, -1)},
+		{math.Copysign(0, -1), 0},
+		{0, math.Copysign(0, -1)},
+		{0, 0},
+		{math.Inf(1), math.Inf(-1)},
+		{math.Inf(1), math.Inf(1)},
+		{math.Inf(1), nan},
+		{nan, math.Inf(-1)},
+		{nan, math.Copysign(0, -1)},
+		{nan, 0},
+		{nan, math.Inf(1)},
+		{nan, nan},
+	}
+)
 var fdimSC = []float64{
 	math.NaN(),
 	0,
@@ -1158,6 +1231,7 @@ var fdimSC = []float64{
 	math.NaN(),
 	math.NaN(),
 }
+
 var fmaxSC = []float64{
 	math.Inf(-1),
 	math.Inf(1),
@@ -1175,6 +1249,7 @@ var fmaxSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var fminSC = []float64{
 	math.Inf(-1),
 	math.Inf(-1),
@@ -1229,6 +1304,7 @@ var vffmodSC = [][2]float64{
 	{math.NaN(), math.Inf(1)},
 	{math.NaN(), math.NaN()},
 }
+
 var fmodSC = []float64{
 	math.NaN(),           // fmod(-Inf, -Inf)
 	math.NaN(),           // fmod(-Inf, -math.Pi)
@@ -1273,6 +1349,7 @@ var vffrexpSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var frexpSC = []fi{
 	{math.Inf(-1), 0},
 	{math.Copysign(0, -1), 0},
@@ -1386,6 +1463,7 @@ var vfhypotSC = [][2]float64{
 	{math.NaN(), math.Inf(1)},
 	{math.NaN(), math.NaN()},
 }
+
 var hypotSC = []float64{
 	math.Inf(1),
 	math.Inf(1),
@@ -1421,24 +1499,28 @@ var vfj0SC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var j0SC = []float64{
 	0,
 	1,
 	0,
 	math.NaN(),
 }
+
 var j1SC = []float64{
 	0,
 	0,
 	0,
 	math.NaN(),
 }
+
 var j2SC = []float64{
 	0,
 	0,
 	0,
 	math.NaN(),
 }
+
 var jM3SC = []float64{
 	0,
 	0,
@@ -1462,6 +1544,7 @@ var vfldexpSC = []fi{
 	{10, int(1) << (uint64(7) * 8)},
 	{10, -(int(1) << (uint64(7) * 8))},
 }
+
 var ldexpSC = []float64{
 	0,
 	0,
@@ -1487,6 +1570,7 @@ var vflgammaSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var lgammaSC = []fi{
 	{math.Inf(-1), 1},
 	{math.Inf(1), 1},
@@ -1506,6 +1590,7 @@ var vflogSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var logSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -1522,6 +1607,7 @@ var vflogbSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var logbSC = []float64{
 	math.Inf(1),
 	math.Inf(-1),
@@ -1539,6 +1625,7 @@ var vflog1pSC = []float64{
 	math.NaN(),
 	4503599627370496.5, // Issue #29488
 }
+
 var log1pSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -1556,6 +1643,7 @@ var vfmodfSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var modfSC = [][2]float64{
 	{math.Inf(-1), math.NaN()}, // [2]float64{math.Copysign(0, -1), math.Inf(-1)},
 	{math.Copysign(0, -1), math.Copysign(0, -1)},
@@ -1575,6 +1663,7 @@ var vfnextafter32SC = [][2]float32{
 	{float32(math.NaN()), 0},
 	{float32(math.NaN()), float32(math.NaN())},
 }
+
 var nextafter32SC = []float32{
 	0,
 	0,
@@ -1600,6 +1689,7 @@ var vfnextafter64SC = [][2]float64{
 	{math.NaN(), 0},
 	{math.NaN(), math.NaN()},
 }
+
 var nextafter64SC = []float64{
 	0,
 	0,
@@ -1836,6 +1926,7 @@ var vfroundSC = [][2]float64{
 	{4503599627370495.5, 4503599627370496}, // 1 bit fraction, rounding to 0 bit fraction
 	{4503599627370497, 4503599627370497},   // large integer
 }
+
 var vfroundEvenSC = [][2]float64{
 	{0, 0},
 	{1.390671161567e-309, 0}, // denormal
@@ -1859,6 +1950,7 @@ var vfsignbitSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var signbitSC = []bool{
 	true,
 	true,
@@ -1874,6 +1966,7 @@ var vfsinSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var sinSC = []float64{
 	math.NaN(),
 	math.Copysign(0, -1),
@@ -1889,6 +1982,7 @@ var vfsinhSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var sinhSC = []float64{
 	math.Inf(-1),
 	math.Copysign(0, -1),
@@ -1906,6 +2000,7 @@ var vfsqrtSC = []float64{
 	math.NaN(),
 	math.Float64frombits(2), // subnormal; see https://golang.org/issue/13013
 }
+
 var sqrtSC = []float64{
 	math.NaN(),
 	math.NaN(),
@@ -1923,6 +2018,7 @@ var vftanhSC = []float64{
 	math.Inf(1),
 	math.NaN(),
 }
+
 var tanhSC = []float64{
 	-1,
 	math.Copysign(0, -1),
@@ -1938,6 +2034,7 @@ var vfy0SC = []float64{
 	math.NaN(),
 	-1,
 }
+
 var y0SC = []float64{
 	math.NaN(),
 	math.Inf(-1),
@@ -1945,6 +2042,7 @@ var y0SC = []float64{
 	math.NaN(),
 	math.NaN(),
 }
+
 var y1SC = []float64{
 	math.NaN(),
 	math.Inf(-1),
@@ -1952,6 +2050,7 @@ var y1SC = []float64{
 	math.NaN(),
 	math.NaN(),
 }
+
 var y2SC = []float64{
 	math.NaN(),
 	math.Inf(-1),
@@ -1959,6 +2058,7 @@ var y2SC = []float64{
 	math.NaN(),
 	math.NaN(),
 }
+
 var yM3SC = []float64{
 	math.NaN(),
 	math.Inf(1),
@@ -1983,6 +2083,7 @@ var vffrexpBC = []float64{
 	-math.SmallestNonzeroFloat64,
 	-math.MaxFloat64,
 }
+
 var frexpBC = []fi{
 	{0.5, -1021},
 	{0.99999999999999978, -1022},
@@ -2006,6 +2107,7 @@ var vfldexpBC = []fi{
 	{1.0000000000000002, -1075},
 	{1, -1075},
 }
+
 var ldexpBC = []float64{
 	math.SmallestNonzeroFloat64,
 	1e-323, // 2**-1073
@@ -2954,6 +3056,7 @@ func TestSignbit(t *testing.T) {
 		}
 	}
 }
+
 func TestSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := math.Sin(vf[i]); !veryclose(sin[i], f) {
@@ -3482,7 +3585,6 @@ func BenchmarkAbs(b *testing.B) {
 		x = math.Abs(absPos)
 	}
 	GlobalF = x
-
 }
 
 func BenchmarkDim(b *testing.B) {
@@ -3844,6 +3946,7 @@ func BenchmarkTanh(b *testing.B) {
 	}
 	GlobalF = x
 }
+
 func BenchmarkTrunc(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
