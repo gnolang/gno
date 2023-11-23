@@ -1,7 +1,5 @@
 package tamagotchi
 
-// this file could be moved to p/demo/tamagotchi.
-
 import (
 	"time"
 
