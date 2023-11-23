@@ -299,15 +299,6 @@ func gnoTestPkg(
 		// XXX: display a warn?
 		mode = tests.ImportModeStdlibsPreferred
 	}
-	testStore := tests.TestStore(
-		rootDir, "",
-		stdin, stdout, stderr,
-		mode,
-	)
-	if verbose {
-		testStore.SetLogStoreOps(true)
-	}
-
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
 		mockOut := bytes.NewBufferString("")
@@ -329,9 +320,19 @@ func gnoTestPkg(
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		tfiles, ifiles := parseMemPackageTests(memPkg)
+		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
-		{
+		if len(tfiles.Files) > 0 {
+			testStore := tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				mode,
+			)
+			if verbose {
+				testStore.SetLogStoreOps(true)
+			}
+
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
@@ -347,16 +348,37 @@ func gnoTestPkg(
 			}
 		}
 
-		// run test files in xxx_test pkg
-		{
-			testPkgName := getPkgNameFromFileset(ifiles)
-			if testPkgName != "" {
-				m := tests.TestMachine(testStore, stdout, testPkgName)
-				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
-				if err != nil {
-					errs = multierr.Append(errs, err)
+		// test xxx_test pkg
+		if len(ifiles.Files) > 0 {
+			testStore := tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				mode,
+			)
+			if verbose {
+				testStore.SetLogStoreOps(true)
+			}
+
+			m := tests.TestMachine(testStore, stdout, testPkgName)
+
+			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames())+1)
+			for _, f := range memPkg.Files {
+				for _, ifileName := range ifiles.FileNames() {
+					if f.Name == "gno.mod" || f.Name == ifileName {
+						memFiles = append(memFiles, f)
+						break
+					}
 				}
+			}
+
+			memPkg.Files = memFiles
+			memPkg.Name = testPkgName
+			memPkg.Path = memPkg.Path + "_test"
+			m.RunMemPackage(memPkg, true)
+
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			if err != nil {
+				errs = multierr.Append(errs, err)
 			}
 		}
 	}
