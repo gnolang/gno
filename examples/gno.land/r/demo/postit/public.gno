@@ -49,7 +49,7 @@ func SetAvatarUrl(url string) string {
 
 // Post
 
-func CreatePost(body string) uint64 {
+func CreatePost(body string) string {
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
 	post := &Post{
@@ -58,10 +58,11 @@ func CreatePost(body string) uint64 {
 		Body:      body,
 		Timestamp: time.Now(),
 	}
-	posts.Set(strconv.FormatUint(postCount, 10), post)
+	strId := strconv.FormatUint(post.Id, 10)
+	posts.Set(strId, post)
 	user.Posts = append(user.Posts, postCount)
 	postCount = postCount + 1
-	return post.Id
+	return strId
 }
 
 // Test (To be removed)
