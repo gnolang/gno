@@ -370,7 +370,6 @@ func gnoTestPkg(
 				}
 			}
 
-			m.RunMemPackage(memPkg, true)
 			memPkg.Files = memFiles
 			memPkg.Name = testPkgName
 			memPkg.Path = memPkg.Path + "_test"
