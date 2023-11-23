@@ -1214,6 +1214,7 @@ var (
 		{nan, nan},
 	}
 )
+
 var fdimSC = []float64{
 	math.NaN(),
 	0,
