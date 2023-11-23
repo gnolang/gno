@@ -86,7 +86,7 @@ func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumbe
 	caller := c.Signer.Info().GetAddress()
 
 	if sequenceNumber == 0 || accountNumber == 0 {
-		account, _, err := c.QueryAccount(caller.String())
+		account, _, err := c.QueryAccount(caller)
 		if err != nil {
 			return nil, errors.Wrap(err, "query account")
 		}
