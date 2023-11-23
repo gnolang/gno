@@ -213,27 +213,37 @@ func (pkg *Package) WithComments(filename string) *Package {
 	}
 
 	ast.Inspect(f, func(node ast.Node) bool {
-		if genDecl, ok := node.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if pkgType := pkg.getTypeByName(typeSpec.Name.Name); pkgType != nil {
-						if genDecl.Doc != nil {
-							// Set the type comment.
-							pkgType.Comment = strings.TrimSpace(genDecl.Doc.Text())
-						}
-						if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-							for _, field := range structType.Fields.List {
-								if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
-									// Set the field comment.
-									if pkgType.FieldComments == nil {
-										pkgType.FieldComments = make(map[string]string)
-									}
+		genDecl, ok := node.(*ast.GenDecl)
+		if !ok {
+			return true
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
 
-									pkgType.FieldComments[field.Names[0].Name] = strings.TrimSpace(field.Doc.Text())
-								}
-							}
-						}
+			pkgType := pkg.getTypeByName(typeSpec.Name.Name)
+			if pkgType == nil {
+				continue
+			}
+			if genDecl.Doc != nil {
+				// Set the type comment.
+				pkgType.Comment = strings.TrimSpace(genDecl.Doc.Text())
+			}
+
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range structType.Fields.List {
+				if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+					// Set the field comment.
+					if pkgType.FieldComments == nil {
+						pkgType.FieldComments = make(map[string]string)
 					}
+
+					pkgType.FieldComments[field.Names[0].Name] = strings.TrimSpace(field.Doc.Text())
 				}
 			}
 		}

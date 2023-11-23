@@ -48,14 +48,14 @@ option go_package = "github.com/gnolang/gno/tm2/pkg/amino/genproto/pb";
 // message comment
 message TestMessageName {
 	// field comment 1
-	string FieldName1 = 1;
+	string field_name1 = 1 [json_name = "FieldName1"];
 	// field comment 2
-	repeated uint64 FieldName2 = 2;
+	repeated uint64 field_name2 = 2 [json_name = "FieldName2"];
 }
 
 // message comment 2
 message TestMessageName2 {
 	// another field comment
-	string FieldName = 1;
+	string field_name = 1 [json_name = "FieldName"];
 }`)
 }
