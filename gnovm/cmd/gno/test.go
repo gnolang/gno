@@ -16,6 +16,7 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
@@ -179,7 +180,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	paths, err := targetsFromPatterns(args)
@@ -231,7 +232,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
+			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")

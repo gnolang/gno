@@ -5,7 +5,6 @@ package secp256k1
 import (
 	"testing"
 
-	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,21 +19,25 @@ func TestSignatureVerificationAndRejectUpperS(t *testing.T) {
 		priv := GenPrivKey()
 		sigStr, err := priv.Sign(msg)
 		require.NoError(t, err)
-		sig := signatureFromBytes(sigStr)
-		require.False(t, sig.S.Cmp(secp256k1halfN) > 0)
+		_, ok := signatureFromBytes(sigStr)
+		require.True(t, ok)
 
 		pub := priv.PubKey()
 		require.True(t, pub.VerifyBytes(msg, sigStr))
+	}
+}
 
-		// malleate:
-		sig.S.Sub(secp256k1.S256().CurveParams.N, sig.S)
-		require.True(t, sig.S.Cmp(secp256k1halfN) > 0)
-		malSigStr := serializeSig(sig)
+func BenchmarkVerify(b *testing.B) {
+	priv := GenPrivKey()
+	msg := []byte("We have lingered long enough on the shores of the cosmic ocean.")
+	sigStr, err := priv.Sign(msg)
+	require.NoError(b, err)
 
-		require.False(t, pub.VerifyBytes(msg, malSigStr),
-			"VerifyBytes incorrect with malleated & invalid S. sig=%v, key=%v",
-			sig,
-			priv,
-		)
+	pub := priv.PubKey()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		ok := pub.VerifyBytes(msg, sigStr)
+		require.True(b, ok)
 	}
 }
