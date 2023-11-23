@@ -1,6 +1,9 @@
 package postit
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 // User
 
@@ -33,5 +36,25 @@ func ListPostsByOffset(offset, count int) string {
 		pl = append(pl, post)
 		return false
 	})
+	return postsToJSONString(pl)
+}
+
+func ListUserPostsByOffset(username string, offset, count int) string {
+	var pl []Post
+	user := *getUserRefByUsername(username)
+	for i, pid := range user.Posts {
+		if i < offset {
+			continue
+		}
+		if count <= 0 {
+			break
+		}
+		post, ok := posts.Get(strconv.FormatUint(pid, 10))
+		if !ok {
+			continue
+		}
+		pl = append(pl, *post.(*Post))
+		count -= 1
+	}
 	return postsToJSONString(pl)
 }
