@@ -8,22 +8,22 @@ import "google/protobuf/any.proto";
 
 // messages
 message BaseAccount {
-	string Address = 1;
-	string Coins = 2;
-	google.protobuf.Any PubKey = 3;
-	uint64 AccountNumber = 4;
-	uint64 Sequence = 5;
+	string address = 1;
+	string coins = 2;
+	google.protobuf.Any pub_key = 3 [json_name = "public_key"];
+	uint64 account_number = 4;
+	uint64 sequence = 5;
 }
 
 message MemFile {
-	string Name = 1;
-	string Body = 2;
+	string name = 1 [json_name = "Name"];
+	string body = 2 [json_name = "Body"];
 }
 
 message MemPackage {
-	string Name = 1;
-	string Path = 2;
-	repeated MemFile Files = 3;
+	string name = 1 [json_name = "Name"];
+	string path = 2 [json_name = "Path"];
+	repeated MemFile files = 3 [json_name = "Files"];
 }
 
 message InternalError {
