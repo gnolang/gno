@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -35,17 +36,20 @@ func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 }
 
 // QueryAccount retrieves account information for a given address.
-func (c Client) QueryAccount(addr string) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+func (c Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
 	}
 
-	path := fmt.Sprintf("auth/accounts/%s", addr)
+	path := fmt.Sprintf("auth/accounts/%s", crypto.AddressToBech32(addr))
 	data := []byte{}
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "query account")
+	}
+	if qres.Response.Data == nil || len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
+		return nil, nil, std.ErrUnknownAddress("unknown address: " + crypto.AddressToBech32(addr))
 	}
 
 	var qret struct{ BaseAccount std.BaseAccount }
@@ -67,9 +71,48 @@ func (c Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query account")
+		return "", nil, errors.Wrap(err, "query app version")
 	}
 
 	version := string(qres.Response.Value)
 	return version, qres, nil
+}
+
+// Render calls the Render function for pkgPath with optional args. The pkgPath should
+// include the prefix like "gno.land/". This is similar to using a browser URL
+// <testnet>/<pkgPath>:<args> where <pkgPath> doesn't have the prefix like "gno.land/".
+func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qrender"
+	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, args))
+
+	qres, err := c.RPCClient.ABCIQuery(path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query render")
+	}
+
+	return string(qres.Response.Data), qres, nil
+}
+
+// QEval evaluates the given expression with the realm code at pkgPath. The pkgPath should
+// include the prefix like "gno.land/". The expression is usually a function call like
+// "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
+// "(1 gno.land/r/demo/boards.BoardID)\n(true bool)".
+func (c Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qeval"
+	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, expression))
+
+	qres, err := c.RPCClient.ABCIQuery(path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query qeval")
+	}
+
+	return string(qres.Response.Data), qres, nil
 }
