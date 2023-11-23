@@ -44,8 +44,11 @@ func TestClient_Request(t *testing.T) {
 
 	data, res, err := client.Render("gno.land/r/demo/boards", "")
 	require.NoError(t, err)
-	fmt.Println("data", data)
-	fmt.Println("res", res)
 
-	// TODO: xxx
+	// XXX: need more test
+
+	// XXX: need validation
+	fmt.Println("data:", data)
+	fmt.Println("res: ", res)
+	require.FailNow(t, "forcing failure: replace this by a real test")
 }
