@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -211,7 +212,8 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 		p3Field := P3Field{
 			Repeated: fp3IsRepeated,
 			Type:     fp3,
-			Name:     field.Name,
+			Name:     stringutil.ToLowerSnakeCase(field.Name),
+			JSONName: field.JSONName,
 			Number:   field.FieldOptions.BinFieldNum,
 		}
 		if fieldComments != nil {
