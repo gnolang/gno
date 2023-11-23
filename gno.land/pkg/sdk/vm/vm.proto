@@ -8,17 +8,17 @@ import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
 
 // messages
 message m_call {
-	string Caller = 1;
-	string Send = 2;
-	string PkgPath = 3;
-	string Func = 4;
-	repeated string Args = 5;
+	string caller = 1;
+	string send = 2;
+	string pkg_path = 3;
+	string func = 4;
+	repeated string args = 5;
 }
 
 message m_addpkg {
-	string Creator = 1;
-	std.MemPackage Package = 2;
-	string Deposit = 3;
+	string creator = 1;
+	std.MemPackage package = 2;
+	string deposit = 3;
 }
 
 message InvalidPkgPathError {
