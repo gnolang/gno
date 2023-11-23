@@ -16,9 +16,17 @@ type User struct {
 func getUserRefByAddress(addr std.Address) *User {
 	username, ok := addressToUsername.Get(addr.String())
 	if !ok {
-		panic("user not found")
+		panic("user with addr not found")
 	}
 	res, ok := users.Get(username.(string))
+	if !ok {
+		panic("user with username not found")
+	}
+	return res.(*User)
+}
+
+func getUserRefByUsername(username string) *User {
+	res, ok := users.Get(username)
 	if !ok {
 		panic("user not found")
 	}
