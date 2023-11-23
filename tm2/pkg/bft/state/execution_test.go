@@ -29,6 +29,8 @@ var (
 )
 
 func TestApplyBlock(t *testing.T) {
+	t.Parallel()
+
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
 	proxyApp := proxy.NewAppConns(cc)
 	err := proxyApp.Start()
@@ -53,6 +55,8 @@ func TestApplyBlock(t *testing.T) {
 
 // TestBeginBlockValidators ensures we send absent validators list.
 func TestBeginBlockValidators(t *testing.T) {
+	t.Parallel()
+
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
 	proxyApp := proxy.NewAppConns(cc)
@@ -104,6 +108,8 @@ func TestBeginBlockValidators(t *testing.T) {
 }
 
 func TestValidateValidatorUpdates(t *testing.T) {
+	t.Parallel()
+
 	pubkey1 := ed25519.GenPrivKey().PubKey()
 	pubkey2 := ed25519.GenPrivKey().PubKey()
 
@@ -164,6 +170,8 @@ func TestValidateValidatorUpdates(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := sm.ValidateValidatorUpdates(tc.abciUpdates, tc.validatorParams)
 			if tc.shouldErr {
 				assert.Error(t, err)
@@ -175,6 +183,8 @@ func TestValidateValidatorUpdates(t *testing.T) {
 }
 
 func TestUpdateValidators(t *testing.T) {
+	t.Parallel()
+
 	pubkey1 := ed25519.GenPrivKey().PubKey()
 	val1 := types.NewValidator(pubkey1, 10)
 	pubkey2 := ed25519.GenPrivKey().PubKey()
@@ -230,6 +240,8 @@ func TestUpdateValidators(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := tc.currentSet.UpdateWithABCIValidatorUpdates(tc.abciUpdates)
 			if tc.shouldErr {
 				assert.Error(t, err)
@@ -250,6 +262,8 @@ func TestUpdateValidators(t *testing.T) {
 
 // TestEndBlockValidatorUpdates ensures we update validator set and send an event.
 func TestEndBlockValidatorUpdates(t *testing.T) {
+	t.Parallel()
+
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
 	proxyApp := proxy.NewAppConns(cc)
@@ -316,6 +330,8 @@ LOOP:
 // TestEndBlockValidatorUpdatesResultingInEmptySet checks that processing validator updates that
 // would result in empty set causes no panic, an error is raised and NextValidators is not updated
 func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
+	t.Parallel()
+
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
 	proxyApp := proxy.NewAppConns(cc)

@@ -13,6 +13,8 @@ import (
 
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	main := FuncD("main", nil, nil, nil)
 	m.RunDeclaration(main)
@@ -21,6 +23,8 @@ func TestRunEmptyMain(t *testing.T) {
 
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	c := `package test
 func main() {
@@ -36,6 +40,8 @@ func main() {
 }
 
 func TestEval(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	c := `package test
 func next(i int) int {
@@ -64,6 +70,8 @@ func assertOutput(t *testing.T, input string, output string) {
 }
 
 func TestRunMakeStruct(t *testing.T) {
+	t.Parallel()
+
 	assertOutput(t, `package test
 type Outfit struct {
 	Scarf string
@@ -90,6 +98,8 @@ func main() {
 }
 
 func TestRunReturnStruct(t *testing.T) {
+	t.Parallel()
+
 	assertOutput(t, `package test
 type MyStruct struct {
 	FieldA string
@@ -160,6 +170,8 @@ type Struct1 struct {
 }
 
 func TestModifyTypeAsserted(t *testing.T) {
+	t.Parallel()
+
 	x := Struct1{1, 1}
 	var v interface{} = x
 	x2 := v.(Struct1)
@@ -176,6 +188,8 @@ type Interface1 interface {
 }
 
 func TestTypeConversion(t *testing.T) {
+	t.Parallel()
+
 	x := 1
 	var v interface{} = x
 	if _, ok := v.(Interface1); ok {
@@ -193,6 +207,8 @@ func TestTypeConversion(t *testing.T) {
 }
 
 func TestSomething(t *testing.T) {
+	t.Parallel()
+
 	type Foo struct {
 		X interface{}
 	}
@@ -210,6 +226,8 @@ func TestSomething(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestDeferOrder(t *testing.T) {
+	t.Parallel()
+
 	a := func() func(int, int) int {
 		fmt.Println("a constructed")
 		return func(x int, y int) int {
@@ -238,6 +256,8 @@ func TestDeferOrder(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallOrder(t *testing.T) {
+	t.Parallel()
+
 	a := func() func(int, int) int {
 		fmt.Println("a constructed")
 		return func(x int, y int) int {
@@ -264,6 +284,8 @@ func TestCallOrder(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestBinaryShortCircuit(t *testing.T) {
+	t.Parallel()
+
 	tr := func() bool {
 		fmt.Println("t called")
 		return true
@@ -281,6 +303,8 @@ func TestBinaryShortCircuit(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestSwitchDefine(t *testing.T) {
+	t.Parallel()
+
 	var x interface{} = 1
 	switch y := x.(type) {
 	case int:
@@ -292,6 +316,8 @@ func TestSwitchDefine(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestBinaryCircuit(t *testing.T) {
+	t.Parallel()
+
 	tr := func() bool {
 		fmt.Println("tr() called")
 		return true
@@ -316,6 +342,8 @@ func TestBinaryCircuit(t *testing.T) {
 }
 
 func TestMultiAssignment(t *testing.T) {
+	t.Parallel()
+
 	buf := make([]int, 4)
 	ref := func(i int) *int {
 		fmt.Printf("ref(%v) called\n", i)
@@ -342,6 +370,8 @@ func TestMultiAssignment(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallLHS(t *testing.T) {
+	t.Parallel()
+
 	x := 1
 	xptr := func() *int {
 		return &x
@@ -352,6 +382,8 @@ func TestCallLHS(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallFieldLHS(t *testing.T) {
+	t.Parallel()
+
 	type str struct {
 		X int
 	}

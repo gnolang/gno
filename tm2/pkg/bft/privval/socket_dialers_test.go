@@ -40,6 +40,8 @@ func getDialerTestCases(t *testing.T) []dialerTestCase {
 }
 
 func TestIsConnTimeoutForFundamentalTimeouts(t *testing.T) {
+	t.Parallel()
+
 	// Generate a networking timeout
 	tcpAddr := "127.0.0.1:34985"
 	dialer := DialTCPFn(tcpAddr, time.Millisecond, ed25519.GenPrivKey())
@@ -49,6 +51,8 @@ func TestIsConnTimeoutForFundamentalTimeouts(t *testing.T) {
 }
 
 func TestIsConnTimeoutForWrappedConnTimeouts(t *testing.T) {
+	t.Parallel()
+
 	tcpAddr := "127.0.0.1:34985"
 	dialer := DialTCPFn(tcpAddr, time.Millisecond, ed25519.GenPrivKey())
 	_, err := dialer()

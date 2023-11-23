@@ -532,7 +532,7 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 
 	info, ok := cdc.fullnameToTypeInfo[fullname]
 	if !ok {
-		err = fmt.Errorf("unrecognized concrete type full name %s of %v", fullname, cdc.fullnameToTypeInfo)
+		err = fmt.Errorf("amino: unrecognized concrete type full name %s", fullname)
 		cdc.mtx.RUnlock()
 		return
 	}

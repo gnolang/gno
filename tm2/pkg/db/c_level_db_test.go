@@ -88,6 +88,8 @@ func bytes2Int64(buf []byte) int64 {
 */
 
 func TestCLevelDBBackend(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	// Can't use "" (current directory) or "./" here because levigo.Open returns:
 	// "Error initializing DB: IO error: test_XXX.db: Invalid argument"
@@ -99,6 +101,8 @@ func TestCLevelDBBackend(t *testing.T) {
 }
 
 func TestCLevelDBStats(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
 	require.NoError(t, err)

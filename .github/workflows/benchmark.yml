@@ -10,6 +10,7 @@ on:
         type: string
 jobs:
   benchmarks:
+    if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [self-hosted, Linux, X64, benchmark-v1]
     steps:
     - name: checkout

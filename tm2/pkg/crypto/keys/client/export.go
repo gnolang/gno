@@ -18,7 +18,7 @@ type exportCfg struct {
 	unsafe       bool
 }
 
-func newExportCmd(rootCfg *baseCfg) *commands.Command {
+func newExportCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &exportCfg{
 		rootCfg: rootCfg,
 	}
@@ -31,7 +31,7 @@ func newExportCmd(rootCfg *baseCfg) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execExport(cfg, commands.NewDefaultIO())
+			return execExport(cfg, io)
 		},
 	)
 }
@@ -59,7 +59,7 @@ func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execExport(cfg *exportCfg, io *commands.IO) error {
+func execExport(cfg *exportCfg, io commands.IO) error {
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {

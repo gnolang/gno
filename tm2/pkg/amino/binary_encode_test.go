@@ -8,6 +8,8 @@ import (
 )
 
 func TestEncodeFieldNumberAndTyp3_1(t *testing.T) {
+	t.Parallel()
+
 	buf := new(bytes.Buffer)
 	err := encodeFieldNumberAndTyp3(buf, 1, Typ3ByteLength)
 	assert.Nil(t, err)
@@ -15,6 +17,8 @@ func TestEncodeFieldNumberAndTyp3_1(t *testing.T) {
 }
 
 func TestEncodeFieldNumberAndTyp3_2(t *testing.T) {
+	t.Parallel()
+
 	buf := new(bytes.Buffer)
 	err := encodeFieldNumberAndTyp3(buf, 2, Typ3ByteLength)
 	assert.Nil(t, err)
