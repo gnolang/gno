@@ -1,0 +1,33 @@
+# Test a pkg name with _test as suffix
+
+gno test -verbose ./examples/gno.land/p/demo/hello
+
+stderr '=== RUN   TestHello'
+stderr '--- PASS: TestHello.*'
+
+-- examples/gno.land/p/demo/hello/gno.mod --
+module gno.land/p/demo/hello
+
+-- examples/gno.land/p/demo/hello/hello.gno --
+package hello
+
+var Name = "foo"
+
+-- examples/gno.land/p/demo/hello/hello_test.gno --
+package hello_test
+
+import (
+       "testing"
+
+       "gno.land/p/demo/hello"
+)
+
+var Name = "bar"
+
+func TestHello(t *testing.T) {
+     s := "hello " + hello.Name + " " + Name
+     const want = "hello foo bar"
+     if s != want {
+        t.Errorf("got: %q want %q", s, want)
+     }
+}
