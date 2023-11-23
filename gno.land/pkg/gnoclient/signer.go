@@ -3,6 +3,7 @@ package gnoclient
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -33,7 +34,20 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
-	// TODO: Also verify if the password unlocks the account.
+	// To verify if the password unlocks the account, sign a blank transaction.
+	msg := vm.MsgCall{
+		Caller: s.Info().GetAddress(),
+	}
+	signCfg := SignCfg{
+		UnsignedTX: std.Tx{
+			Msgs: []std.Msg{msg},
+			Fee:  std.NewFee(0, std.NewCoin("ugnot", 1000000)),
+		},
+	}
+	if _, err = s.Sign(signCfg); err != nil {
+		return err
+	}
+
 	return nil
 }
 
