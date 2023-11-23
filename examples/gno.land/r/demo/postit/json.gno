@@ -46,6 +46,13 @@ func userToJSONString(user User) string {
 }
 
 // Post
+//
+// type GetPostResponse struct {
+// 	Id        string
+// 	Body      string
+// 	Timestamp string
+// 	user      User
+// }
 
 func postsToJSONString(posts []Post) string {
 	var b bytes.Buffer
@@ -70,6 +77,8 @@ func postsToJSONString(posts []Post) string {
 }
 
 func postToJSONString(post Post) string {
+	user := *getUserRefByUsername(post.Username)
+
 	var b bytes.Buffer
 
 	// Write the starting brace
@@ -93,6 +102,20 @@ func postToJSONString(post Post) string {
 	b.WriteString(`,"Timestamp":"`)
 	b.WriteString(post.Timestamp.Format(time.RFC3339))
 	b.WriteString(`"`)
+
+	// Write User field
+	b.WriteString(`,"User":{`)
+	b.WriteString(`"Username":"`)
+	b.WriteString(user.Username)
+	b.WriteString(`","Address":"`)
+	b.WriteString(user.Address.String())
+	b.WriteString(`","Name":"`)
+	b.WriteString(user.Name)
+	b.WriteString(`","Bio":"`)
+	b.WriteString(user.Bio)
+	b.WriteString(`","AvatarUrl":"`)
+	b.WriteString(user.AvatarUrl)
+	b.WriteString(`"}`)
 
 	// TODO: Write Comments
 
