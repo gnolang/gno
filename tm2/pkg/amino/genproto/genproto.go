@@ -191,10 +191,12 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 	p3msg.Name = info.Name // not rinfo.
 
 	var fieldComments map[string]string
-	if pkgType, ok := rinfo.Package.GetType(rt); ok {
-		p3msg.Comment = pkgType.Comment
-		// We will check for optional field comments below.
-		fieldComments = pkgType.FieldComments
+	if rinfo.Package != nil {
+		if pkgType, ok := rinfo.Package.GetType(rt); ok {
+			p3msg.Comment = pkgType.Comment
+			// We will check for optional field comments below.
+			fieldComments = pkgType.FieldComments
+		}
 	}
 
 	// Append to p3msg.Fields, fields of the struct.
