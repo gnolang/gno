@@ -1,6 +1,6 @@
 Each project subdirectory has its own license terms.
 
-AGPL 3.0 (copyleft; derivative work)
+Gno Network Public License 3.0 (copyleft; derivative work, forked from AGPL 3.0)
 - [Gno.land](gno.land/LICENSE.md)
 - [GnoVM](gnovm/LICENSE.md)
 
