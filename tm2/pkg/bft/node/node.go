@@ -665,7 +665,6 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetTxEventStore(n.txEventStore)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetEventSwitch(n.evsw)

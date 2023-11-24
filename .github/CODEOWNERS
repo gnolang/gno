@@ -37,3 +37,6 @@ PHILOSOPHY.md                @jaekwon @moul
 CONTRIBUTING.md              @jaekwon @moul
 LICENSE.md                   @jaekwon @moul
 .github/CODEOWNERS           @jaekwon @moul
+
+# Documentation.
+docs/*                       @gnolang/devrels

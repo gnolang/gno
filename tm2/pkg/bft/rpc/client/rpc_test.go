@@ -35,6 +35,8 @@ func GetClients() []client.Client {
 }
 
 func TestNilCustomHTTPClient(t *testing.T) {
+	t.Parallel()
+
 	require.Panics(t, func() {
 		client.NewHTTPWithClient("http://example.com", "/websocket", nil)
 	})
@@ -44,6 +46,8 @@ func TestNilCustomHTTPClient(t *testing.T) {
 }
 
 func TestCustomHTTPClient(t *testing.T) {
+	t.Parallel()
+
 	remote := rpctest.GetConfig().RPC.ListenAddress
 	c := client.NewHTTPWithClient(remote, "/websocket", http.DefaultClient)
 	status, err := c.Status()
@@ -52,6 +56,8 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestCorsEnabled(t *testing.T) {
+	t.Parallel()
+
 	origin := rpctest.GetConfig().RPC.CORSAllowedOrigins[0]
 	remote := strings.Replace(rpctest.GetConfig().RPC.ListenAddress, "tcp", "http", -1)
 
@@ -68,6 +74,8 @@ func TestCorsEnabled(t *testing.T) {
 
 // Make sure status is correct (we connect properly)
 func TestStatus(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		moniker := rpctest.GetConfig().Moniker
 		status, err := c.Status()
@@ -78,6 +86,8 @@ func TestStatus(t *testing.T) {
 
 // Make sure info is correct (we connect properly)
 func TestInfo(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		// status, err := c.Status()
 		// require.Nil(t, err, "%+v", err)
@@ -90,6 +100,8 @@ func TestInfo(t *testing.T) {
 }
 
 func TestNetInfo(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		nc, ok := c.(client.NetworkClient)
 		require.True(t, ok, "%d", i)
@@ -101,6 +113,8 @@ func TestNetInfo(t *testing.T) {
 }
 
 func TestDumpConsensusState(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		// FIXME: fix server so it doesn't panic on invalid input
 		nc, ok := c.(client.NetworkClient)
@@ -113,6 +127,8 @@ func TestDumpConsensusState(t *testing.T) {
 }
 
 func TestConsensusState(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		// FIXME: fix server so it doesn't panic on invalid input
 		nc, ok := c.(client.NetworkClient)
@@ -124,6 +140,8 @@ func TestConsensusState(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		nc, ok := c.(client.NetworkClient)
 		require.True(t, ok, "%d", i)
@@ -133,6 +151,8 @@ func TestHealth(t *testing.T) {
 }
 
 func TestGenesisAndValidators(t *testing.T) {
+	t.Parallel()
+
 	for i, c := range GetClients() {
 		// make sure this is the right genesis file
 		gen, err := c.Genesis()
@@ -173,6 +193,8 @@ func TestABCIQuery(t *testing.T) {
 
 // Make some app checks
 func TestAppCalls(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 	for i, c := range GetClients() {
 		// get an offset of height to avoid racing and guessing
@@ -265,6 +287,8 @@ func TestAppCalls(t *testing.T) {
 }
 
 func TestBroadcastTxSync(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	// TODO (melekes): use mempool which is set on RPC rather than getting it from node
@@ -344,6 +368,8 @@ func TestNumUnconfirmedTxs(t *testing.T) {
 
 /*
 func TestTx(t *testing.T) {
+	t.Parallel()
+
 	// first we broadcast a tx
 	c := getHTTPClient()
 	_, _, tx := MakeTxKV()
@@ -398,6 +424,8 @@ func TestTx(t *testing.T) {
 }
 
 func TestTxSearch(t *testing.T) {
+	t.Parallel()
+
 	// first we broadcast a tx
 	c := getHTTPClient()
 	_, _, tx := MakeTxKV()
@@ -519,6 +547,8 @@ func testBatchedJSONRPCCalls(t *testing.T, c *client.HTTP) {
 }
 
 func TestBatchedJSONRPCCallsCancellation(t *testing.T) {
+	t.Parallel()
+
 	c := getHTTPClient()
 	_, _, tx1 := MakeTxKV()
 	_, _, tx2 := MakeTxKV()
@@ -537,6 +567,8 @@ func TestBatchedJSONRPCCallsCancellation(t *testing.T) {
 }
 
 func TestSendingEmptyJSONRPCRequestBatch(t *testing.T) {
+	t.Parallel()
+
 	c := getHTTPClient()
 	batch := c.NewBatch()
 	_, err := batch.Send()
@@ -544,6 +576,8 @@ func TestSendingEmptyJSONRPCRequestBatch(t *testing.T) {
 }
 
 func TestClearingEmptyJSONRPCRequestBatch(t *testing.T) {
+	t.Parallel()
+
 	c := getHTTPClient()
 	batch := c.NewBatch()
 	require.Zero(t, batch.Clear(), "clearing an empty batch of JSON RPC requests should result in a 0 result")

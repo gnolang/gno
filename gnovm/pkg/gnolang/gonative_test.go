@@ -98,6 +98,8 @@ D:
 }
 
 func TestGoNativeDefine3(t *testing.T) {
+	t.Parallel()
+
 	// Create package foo and define Foo.
 	out := new(bytes.Buffer)
 	pkg := NewPackageNode("foo", "test.foo", nil)
@@ -135,6 +137,8 @@ D:
 }
 
 func TestCrypto(t *testing.T) {
+	t.Parallel()
+
 	addr := crypto.Address{}
 	store := gonativeTestStore()
 	tv := Go2GnoValue(nilAllocator, store, reflect.ValueOf(addr))
