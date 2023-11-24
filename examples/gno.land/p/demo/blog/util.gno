@@ -28,3 +28,5 @@ func (p postSlice) Less(i, j int) bool {
 func (p postSlice) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
+
+var _ sort.Interface = postSlice(nil)
