@@ -16,7 +16,7 @@ var (
 
 func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	// - generates a GRC721 token with the solved board SVG as a tokenURI
-	// - returns tokenID as int64, to be used in lockgin the fungible token in nft2flip
+	// - returns token metadata as string, to be used in client
 	result := ""
 	nftError := ""
 	
@@ -57,6 +57,8 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			panic("error in marhasling flipBasicNFTMetaData");
 		}
 		flipBasicNFT.SetTokenURI(tid, grc721f.TokenURI(flipBasicNFTMetaDataJSON))
+		// set approval for the realm owner so we can later transfer the NFT
+		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
 		// mint fungible FLIP token
 		MintLocked(player, tidString, uint64(1))
 		result = string(flipBasicNFTMetaDataJSON)

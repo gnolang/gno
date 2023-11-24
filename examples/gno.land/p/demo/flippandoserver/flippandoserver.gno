@@ -41,7 +41,7 @@ func TestTiles(solvedBoard []int64, size int) string {
 }*/
 
 // creates game object and initializes board
-func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
+func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int64, int) {
 	// Initialize the board and gameTiles slices based on boardSize
 	board := make([]int64, boardSize)
 
@@ -58,7 +58,7 @@ func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
 		rng = int64(6)
 	}
 	// Generating random numbers for gameTiles
-    generatedNumbers := generateRandomNumbers(gameTilesLength, 1, int(rng), time.Now().Unix())
+    generatedNumbers := generateRandomNumbers(gameTilesLength, 1, int(rng), seed)
     for i, num := range generatedNumbers {
         gameTiles[i] = int64(num)
     }
@@ -67,10 +67,10 @@ func CreateGameBoard(tileType string, boardSize int) ([]int64, []int64, int) {
 	return board, gameTiles, boardSize;
 }
 
-func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64) ([]int64, []int64) {
+func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64, seed int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
-	randomNumberSlice := generateRandomNumbers(2, 1, len(board)/4, time.Now().Unix())
+	randomNumberSlice := generateRandomNumbers(2, 1, len(board)/4, seed)
 
 	// Safety check for 'positions' slice
     if len(positions) < 2 {

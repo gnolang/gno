@@ -2,6 +2,7 @@ package flippandoserver
 
 import (
 	"sort"
+	"math"
 	"std"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+/*
 func TestCreateGameBoard(t *testing.T) {
     tileType := "testTileType"
     boardSize := 16  // Assuming a 4x4 board
@@ -22,6 +24,58 @@ func TestCreateGameBoard(t *testing.T) {
 
     board, gameTiles, boardSize := CreateGameBoard(tileType, boardSize)
 	
+}*/
+
+func TestCreateGameBoard(t *testing.T) {
+	tests := []struct {
+		name       string
+		tileType   string
+		boardSize  int
+		seed       int64
+		maxTileVal int
+	}{
+		{"SquareGrid", "squareGrid", 4, 12345, 16},
+		{"Hexagrams", "hexagrams", 4, 12345, 4},
+		{"Dice", "dice", 4, 12345, 6},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			board, gameTiles, size := CreateGameBoard(tt.tileType, tt.boardSize, tt.seed)
+
+			// Test the length of the board
+			if len(board) != tt.boardSize {
+				t.Errorf("Expected board length of %d, got %d", tt.boardSize, len(board))
+			}
+
+			// Test the length of gameTiles
+			expectedGameTilesLength := int(sqrt(float64(tt.boardSize)))
+			if len(gameTiles) != expectedGameTilesLength {
+				t.Errorf("Expected gameTiles length of %d, got %d", expectedGameTilesLength, len(gameTiles))
+			}
+
+			// Check if gameTiles values are within the expected range
+			for _, tile := range gameTiles {
+				if tile < 1 || tile > int64(tt.maxTileVal) {
+					t.Errorf("gameTiles contains a value out of expected range (1 to %d): got %d", tt.maxTileVal, tile)
+				}
+			}
+
+			// Check if the gameTiles values are unique
+			uniqueTiles := make(map[int64]bool)
+			for _, tile := range gameTiles {
+				if uniqueTiles[tile] {
+					t.Errorf("Duplicate tile found in gameTiles: %d", tile)
+				}
+				uniqueTiles[tile] = true
+			}
+
+			// Test the returned board size
+			if size != tt.boardSize {
+				t.Errorf("Expected returned board size to be %d, got %d", tt.boardSize, size)
+			}
+		})
+	}
 }
 
 func TestGenerateRandomNumbers(t *testing.T) {

@@ -90,7 +90,7 @@ func GetUserCompositeFlipNFTs(addr std.Address) string {
 		
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
 		if owner == addr {
-			tokenURI := GetTokenURI(tidString)
+			tokenURI := flipCompositeNFT.GetTokenURI(tidString)
 			tokenURIs = append(tokenURIs, tokenURI)
 		}
 	}

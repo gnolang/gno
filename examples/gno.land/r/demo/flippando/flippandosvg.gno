@@ -144,46 +144,6 @@ func generateHexagramGrid(solvedBoard []int64, size int) (string, error) {
 
 }
 
-/*
-
-function generateHexagramGrid(uint8[] memory solvedBoard, uint256 size) internal pure returns (string memory) {
-    Hexagram memory hexagram = Hexagram({
-        h1: "<svg viewBox="0 0 25 25" width="25" height="25"><line x1="4" y1="6" x2="10" y2="6" stroke="black" strokeWidth="2" /><line x1="15" y1="6" x2="21" y2="6" stroke="black" strokeWidth="2" /><line x1="4" y1="9" x2="21" y2="9" stroke="black" strokeWidth="2" /><line x1="4" y1="12" x2="10" y2="12" stroke="black" strokeWidth="2" /><line x1="15" y1="12" x2="21" y2="12" stroke="black" strokeWidth="2" /><line x1="4" y1="15" x2="21" y2="15" stroke="black" strokeWidth="2" /><line x1="4" y1="18" x2="10" y2="18" stroke="black" strokeWidth="2" /><line x1="15" y1="18" x2="21" y2="18" stroke="black" strokeWidth="2" /><line x1="4" y1="21" x2="21" y2="21" stroke="black" strokeWidth="2" /></svg>",
-        h2: "<svg viewBox="0 0 25 25" width="25" height="25"><line x1="4" y1="6" x2="10" y2="6" stroke="black" strokeWidth="2" /><line x1="15" y1="6" x2="21" y2="6" stroke="black" strokeWidth="2" /><line x1="4" y1="9" x2="21" y2="9" stroke="black" strokeWidth="2" /><line x1="4" y1="12" x2="10" y2="12" stroke="black" strokeWidth="2" /><line x1="15" y1="12" x2="21" y2="12" stroke="black" strokeWidth="2" /><line x1="4" y1="15" x2="21" y2="15" stroke="black" strokeWidth="2" /><line x1="4" y1="18" x2="21" y2="18" stroke="black" strokeWidth="2" /><line x1="4" y1="21" x2="10" y2="21" stroke="black" strokeWidth="2" /><line x1="15" y1="21" x2="21" y2="21" stroke="black" strokeWidth="2" /></svg>",
-        h3: "<svg viewBox="0 0 25 25" width="25" height="25"><line x1="4" y1="6" x2="10" y2="6" stroke="black" strokeWidth="2" /><line x1="15" y1="6" x2="21" y2="6" stroke="black" strokeWidth="2" /><line x1="4" y1="9" x2="21" y2="9" stroke="black" strokeWidth="2" /><line x1="4" y1="12" x2="10" y2="12" stroke="black" strokeWidth="2" /><line x1="15" y1="12" x2="21" y2="12" stroke="black" strokeWidth="2" /><line x1="4" y1="15" x2="21" y2="15" stroke="black" strokeWidth="2" /><line x1="4" y1="18" x2="21" y2="18" stroke="black" strokeWidth="2" /><line x1="4" y1="21" x2="21" y2="21" stroke="black" strokeWidth="2" /></svg>",
-        h4: "<svg viewBox="0 0 25 25" width="25" height="25"><line x1="4" y1="6" x2="10" y2="6" stroke="black" strokeWidth="2" /><line x1="15" y1="6" x2="21" y2="6" stroke="black" strokeWidth="2" /><line x1="4" y1="9" x2="21" y2="9" stroke="black" strokeWidth="2" /><line x1="4" y1="12" x2="21" y2="12" stroke="black" strokeWidth="2" /><line x1="4" y1="15" x2="10" y2="15" stroke="black" strokeWidth="2" /><line x1="15" y1="15" x2="21" y2="15" stroke="black" strokeWidth="2" /><line x1="4" y1="18" x2="21" y2="18" stroke="black" strokeWidth="2" /><line x1="4" y1="21" x2="10" y2="21" stroke="black" strokeWidth="2" /><line x1="15" y1="21" x2="21" y2="21" stroke="black" strokeWidth="2" /></svg>"
-    });
-
-    string memory svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">';
-    
-    for (uint256 i = 0; i < size; i++) {
-        for (uint256 j = 0; j < size; j++) {
-            
-            uint256 index = i * size + j;
-            string memory hexagramType;
-
-            if (solvedBoard[index] == 1){
-                hexagramType = hexagram.h1;
-            }
-            else if (solvedBoard[index] == 2){
-                hexagramType = hexagram.h2;
-            }
-            else if (solvedBoard[index] == 3){
-                hexagramType = hexagram.h3;
-            }
-            else if (solvedBoard[index] == 4){
-                hexagramType = hexagram.h4;
-            }
-            svg = string(abi.encodePacked(svg, '<g transform="translate(', uintToString(j * 25), ' ', uintToString(i * 25), ')">', hexagramType, '</g>'));
-        }
-    }
-
-    svg = string(abi.encodePacked(svg, '</svg>'));
-    bytes memory svgBytes = bytes(svg);
-    string memory base64Svg = Base64.encode(svgBytes);
-    return base64Svg;
-}*/
-
 // util
 func intToString(value int64) string {
 	formatted := strconv.FormatUint(uint64(value), 10)

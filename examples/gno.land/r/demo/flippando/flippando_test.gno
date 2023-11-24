@@ -1,17 +1,17 @@
-// add tests for realm operations
-
 package flippando
 
 import (
 	"math"
 	"std"
 	"testing"
+	"encoding/json"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
 )
 
+// todo refactor this so it actually works
 func TestStartGame(t *testing.T) {
 	player := std.Address("someAddress")
 	tileType := "someType"
@@ -26,18 +26,18 @@ func TestStartGame(t *testing.T) {
 }
 
 func TestCreateNFT(t *testing.T) {
-    player := std.Address("someAddress")
-    gameId := "someGameID"
+    mockPlayer := std.Address("someAddress")
+    mockGameId := "someGameID"
     
-    // Assume tokenIDCounter is a global variable and its initial value is 0
-    tokenIDCounter := 0
-    
-    CreateBasicNFT(player, gameId)
-    
-    // Check the new value of tokenIDCounter, it should be incremented by 1
-    if tokenIDCounter != 1 {
-        t.Errorf("tokenIDCounter = %v; want 1", tokenIDCounter)
-    }
+	CreateBasicNFT(mockPlayer, mockGameId)
+
+	metadata, err := CreateBasicFlipNFT(mockPlayer, mockGameId)
+		if err != "" {
+			t.Fatalf("Expected no error, got %s", err)
+		}
+		if metadata == "" {
+			t.Error("Expected metadata to be non-empty")
+		}
 
 }
 

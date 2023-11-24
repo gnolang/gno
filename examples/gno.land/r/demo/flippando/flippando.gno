@@ -1,6 +1,7 @@
 package flippando
 
 import (
+	"time"
 	"strconv"
 	"errors"
 	"std"
@@ -49,7 +50,7 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 	games := GetUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
-	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize)
+	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize, time.Now().Unix())
 	
 	// id is zero-padded to work well with avl's alphabetic order.
 	id := zeroPad9(strconv.FormatUint(gameIDCounter, 10))
@@ -88,7 +89,8 @@ func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	board, solvedBoard := flippandoserver.FlipTiles(currentGame.GameBoard, 
 		currentGame.SolvedGameBoard, 
 		currentGame.GameTiles, 
-		currentGamePositions)
+		currentGamePositions,
+		time.Now().Unix())
 	currentGame.GameBoard = board
 	currentGame.SolvedGameBoard = solvedBoard
 	hasZeroValues := func(s []int64) bool { for _, v := range s { if v == 0 { return true } }; return false }(currentGame.SolvedGameBoard)
