@@ -1,6 +1,7 @@
 package postit
 
 import (
+	"strings"
 	"time"
 )
 
@@ -12,4 +13,14 @@ type Post struct {
 	Comments []Comment
 
 	CreatedAt time.Time
+}
+
+func parsehashTags(b string) (res []string) {
+	words := strings.Fields(b)
+	for _, word := range words {
+		if strings.HasPrefix(word, "#") {
+			res = append(res, word[1:])
+		}
+	}
+	return
 }

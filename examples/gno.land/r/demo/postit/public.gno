@@ -65,6 +65,20 @@ func CreatePost(body string) string {
 	posts.Set(strId, post)
 	user.Posts = append(user.Posts, postCount)
 	postCount = postCount + 1
+
+	// Update hashtags
+	htl := parsehashTags(post.Body)
+	for _, ht := range htl {
+		if res, ok := hashtags.Get(ht); ok {
+			count := res.(uint64)
+			hashtags.Set(ht, count+1)
+			updateTrending(ht, count+1)
+			continue
+		}
+		hashtags.Set(ht, uint64(1))
+		updateTrending(ht, uint64(1))
+	}
+
 	return strId
 }
 
