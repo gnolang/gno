@@ -75,7 +75,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	return result, nftError
 }
 
-func GetTokenURI(tokenID string) string {
+func GetBasicTokenURI(tokenID string) string {
 	tid := grc721f.TokenID(tokenID)
 	tokenURI, err := flipBasicNFT.TokenURI(tid)
 	if err != nil {
@@ -124,7 +124,7 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 		
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
 		if owner == addr {
-			tokenURI := GetTokenURI(tidString)
+			tokenURI := GetBasicTokenURI(tidString)
 			tokenURIs = append(tokenURIs, tokenURI)
 		}
 	}
@@ -151,7 +151,7 @@ func GetBasicNFTsByTokenId(bTokenIDs string) string {
 	for i := int64(0); i < int64(len(bTokenIDsArray)); i++ {		
 		tidString := strconv.FormatUint(uint64(bTokenIDsArray[i]), 10)
 		
-		tokenURI := GetTokenURI(tidString)
+		tokenURI := GetBasicTokenURI(tidString)
 		tokenURIs = append(tokenURIs, tokenURI)		
 	}
 
@@ -187,12 +187,12 @@ func GetAllBasicFlipNFTs(excludePlayer std.Address) string {
 		
 		// If excludePlayer is "" return all nfts
 		if len(excludePlayer) == 0 {
-			tokenURI := GetTokenURI(tidString)
+			tokenURI := GetBasicTokenURI(tidString)
 			tokenURIs = append(tokenURIs, tokenURI)
 		} else {
 			// if excludePlayer is set, return nfts not belonging to excludePlayer
 			if owner != excludePlayer {
-				tokenURI := GetTokenURI(tidString)
+				tokenURI := GetBasicTokenURI(tidString)
 				tokenURIs = append(tokenURIs, tokenURI)
 			}
 		}

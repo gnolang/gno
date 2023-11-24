@@ -67,6 +67,14 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	return result, nftError
 }
 
+func GetCompositeTokenURI(tokenID string) string {
+	tid := grc721f.TokenID(tokenID)
+	tokenURI, err := flipCompositeNFT.TokenURI(tid)
+	if err != nil {
+		return "error"
+	}
+	return string(tokenURI);
+}
 
 func GetUserCompositeFlipNFTs(addr std.Address) string {
 	tokenCount := flipCompositeNFT.TokenCount()
@@ -90,7 +98,7 @@ func GetUserCompositeFlipNFTs(addr std.Address) string {
 		
 		// If the owner matches the address we're looking for, add the TokenID to the slice.
 		if owner == addr {
-			tokenURI := flipCompositeNFT.GetTokenURI(tidString)
+			tokenURI := GetCompositeTokenURI(tidString)
 			tokenURIs = append(tokenURIs, tokenURI)
 		}
 	}
