@@ -1,0 +1,30 @@
+# Run gno build with invalid go files
+
+! gno build .
+
+! stdout .+
+stderr '\./file1\.go:3:1: syntax error: non-declaration statement outside function body'
+stderr '\./\.: build pkg: std go compiler'
+stderr 'sub/file2\.go:3:1: syntax error: non-declaration statement outside function body'
+stderr '\./sub: build pkg: std go compiler'
+
+-- go.mod --
+module gnobuild
+
+-- file1.go --
+package file1
+
+invalid1
+
+-- main.gno --
+package main
+
+func main() {}
+
+-- sub/sub.gno --
+package sub
+
+-- sub/file2.go --
+package file2
+
+invalid2
