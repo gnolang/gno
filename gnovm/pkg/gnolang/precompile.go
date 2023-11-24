@@ -7,16 +7,16 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
@@ -37,10 +37,10 @@ var stdlibWhitelist = []string{
 	"crypto/md5",
 	"crypto/sha1",
 	"crypto/sha256",
-	"encoding/json",
 	"encoding/base64",
 	"encoding/binary",
 	"encoding/hex",
+	"encoding/json",
 	"encoding/xml",
 	"errors",
 	"flag",
@@ -112,7 +112,7 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	gofmt := "gofmt"
 
-	tmpDir, err := ioutil.TempDir("", mempkg.Name)
+	tmpDir, err := os.MkdirTemp("", mempkg.Name)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "tmp.gno", source, parser.ParseComments)
+	f, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}

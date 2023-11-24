@@ -13,10 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-const (
-	walTestFlushInterval = time.Duration(100) * time.Millisecond
-)
-
 // ----------------------------------------
 // copied over from wal/wal_test.go
 
@@ -53,8 +49,9 @@ func makeTempWAL(t *testing.T, walChunkSize int64) (wal walm.WAL) {
 // ----------------------------------------
 
 func TestWALTruncate(t *testing.T) {
-	const maxTestMsgSize = 1024 * 1024 // 1MB
-	const walChunkSize = 409610        // 4KB
+	t.Parallel()
+
+	const walChunkSize = 409610 // 4KB
 	wal := makeTempWAL(t, walChunkSize)
 
 	wal.SetLogger(log.TestingLogger())

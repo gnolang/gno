@@ -12,6 +12,8 @@ import (
 )
 
 func TestParallel(t *testing.T) {
+	t.Parallel()
+
 	// Create tasks.
 	counter := new(int32)
 	tasks := make([]Task, 100*1000)
@@ -52,6 +54,8 @@ func TestParallel(t *testing.T) {
 }
 
 func TestParallelAbort(t *testing.T) {
+	t.Parallel()
+
 	flow1 := make(chan struct{}, 1)
 	flow2 := make(chan struct{}, 1)
 	flow3 := make(chan struct{}, 1) // Cap must be > 0 to prevent blocking.
@@ -103,6 +107,8 @@ func TestParallelAbort(t *testing.T) {
 }
 
 func TestParallelRecover(t *testing.T) {
+	t.Parallel()
+
 	// Create tasks.
 	tasks := []Task{
 		func(i int) (res interface{}, err error, abort bool) {
@@ -155,7 +161,7 @@ func waitTimeout(t *testing.T, taskResultCh TaskResultCh, taskName string) {
 		} else {
 			assert.Fail(t, "TaskResultCh unexpectedly returned for %v", taskName)
 		}
-	case <-time.After(1 * time.Second): // TODO use deterministic time?
+	case <-time.After(200 * time.Millisecond): // TODO use deterministic time?
 		// Good!
 	}
 }
