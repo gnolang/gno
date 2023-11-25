@@ -16,17 +16,27 @@ var (
 	totalLockedSupply uint64 = 0
 	totalSupply uint64 = 1000000000 // 1B per chain
 	
-	userFlipNFTs avl.Tree // tokenId -> owner
-	userLockedBalances avl.Tree // tokenId -> amount
+	userFlipNFTs avl.Tree // onwer -> avl.Tree // tokenId -> flipAmount
 )
 
 func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error {
+
+	//var userLockedBalances avl.Tree
+
 	flipToken.Mint(recipient, flipAmount)
 
 	strFlipAmount := strconv.FormatUint(flipAmount, 10)
 
-	userFlipNFTs.Set(tokenId, string(recipient))
-	userLockedBalances.Set(tokenId, string(strFlipAmount))
+	v, exists := userFlipNFTs.Get(recipient.String())
+	if exists {
+		userLockedBalances := v.(avl.Tree)
+		userLockedBalances.Set(tokenId, strFlipAmount)
+		userFlipNFTs.Set(recipient.String(), userLockedBalances)
+	} else {
+		firstBalance := avl.Tree{}
+		firstBalance.Set(tokenId, strFlipAmount)
+		userFlipNFTs.Set(recipient.String(), firstBalance)
+	}
 
 	totalLockedSupply =+ flipAmount 
 
@@ -34,34 +44,30 @@ func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error 
 }
 
 func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
-	
-	flipAmount, found := userLockedBalances.Get(tokenId)
-	if !found  {
-		return "tokenId not found"
-		//panic("UnlockAndTransferFlip tokenId not found")
-	}
-	// add extra check by calling userFlipNFTs
-	flipOwner, exists := userFlipNFTs.Get(tokenId)
-	if !exists {
-		panic("tokenId doesn't have an owner")
+	var userLockedBalances avl.Tree
+	v, found := userFlipNFTs.Get(recipient.String())
+	if found  {
+		userLockedBalances = v.(avl.Tree)
 	} else {
-		if recipient.String() != flipOwner {
-			panic("recipient is not owner")
-		}
+		return ErrUnlockingRecipientNotFound
 	}
+	// check if the token exists in user locked balances
+	flipToUnlock, exists := userLockedBalances.Get(tokenId)
+	if !exists {
+		return ErrInvalidTokenId
+	} 
 
-	//caller := std.PrevRealm().Addr()
-	caller :=std.CurrentRealm().Addr()
-
-	fAmount, err := strconv.Atoi(strings.TrimSpace(string(flipAmount)))
+	fAmount, err := strconv.Atoi(strings.TrimSpace(string(flipToUnlock)))
 	if err != nil {
 		panic("UnlockAndTransferFlip strconv should not happen")
 	}
 	// replace this with deletion from userLockedBalances
-	owner, tokenIdRemoved := userLockedBalances.Remove(tokenId)
+	newLockedBalances, tokenIdRemoved := userLockedBalances.Remove(tokenId)
 	if !tokenIdRemoved {
 		panic("token id not removed from userLockedBalances")
 	}
+	
+	userFlipNFTs.Set(recipient.String(), newLockedBalances)
 
 	totalLockedSupply =- uint64(fAmount)
 
@@ -113,17 +119,17 @@ func GetFLIPBalance(user std.Address) string {
 }
 
 func getUserLockedBalances (user std.Address) uint64 {
-
+	var userLockedBalances avl.Tree
 	lockedFLIPBalance := uint64(0)
-	userFlipNFTs.ReverseIterate("", "", func(tokenId string, owner interface{})bool {
-		if(user.String() == string(owner)){
-			lockedFlip, found := userLockedBalances.Get(tokenId)
-			if !found {
-				// it may mean it has been removed
-			}
+	v, exists := userFlipNFTs.Get(user.String())
+	if exists {
+		userLockedBalances = v.(avl.Tree)
+		userLockedBalances.ReverseIterate("", "", func(tokenId string, lockedFlip interface{})bool {
 			lockedFlipAmount, err := strconv.Atoi(string(lockedFlip))
 			lockedFLIPBalance =+ uint64(lockedFlipAmount)
-		}
-	})
+		
+		})	
+	}
+
 	return lockedFLIPBalance
 }

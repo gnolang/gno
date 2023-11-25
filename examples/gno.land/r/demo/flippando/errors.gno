@@ -7,4 +7,5 @@ var (
 	ErrSVGDataFailed				= errors.New("SVG data not generated")
 	ErrGameNotComplete				= errors.New("game not complete, board has gaps")
 	ErrInvalidTokenId				= errors.New("invalid TokenID")
+	ErrUnlockingRecipientNotFound	= errors.New("recipient for unlocking not found")
 )
