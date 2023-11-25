@@ -54,6 +54,11 @@ type userNFTsResult struct {
 	UserNFTs	[]string `json:"userNFTs"`
 }
 
+type userFLIPBalances struct {
+	lockedBalance string `json:"lockedBalance"`
+	availableBalance string `json:"availableBalance"`
+}
+
 type inTransit struct {
 	tokenId   int
 	inTransit bool
@@ -213,6 +218,26 @@ func (t userNFTs)MarshalJSON() (_ []byte, err error) {
 
 	b.WriteString(`"error":"`)
 	b.WriteString(t.nftError)
+	b.WriteString(`"`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+
+}
+
+func (u userFLIPBalances)MarshalJSON() (_ []byte, err error) {
+	
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+
+	b.WriteString(`"lockedBalance":"`)
+	b.WriteString(u.lockedBalance)
+	b.WriteString(`",`)
+
+	b.WriteString(`"availableBalance":"`)
+	b.WriteString(u.availableBalance)
 	b.WriteString(`"`)
 
 	b.WriteByte('}')
