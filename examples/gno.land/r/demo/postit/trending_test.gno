@@ -1,7 +1,6 @@
 package postit
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 )
