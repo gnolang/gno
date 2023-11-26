@@ -9,11 +9,10 @@ type Trending struct {
 	Count uint64
 }
 
-// TODO: fix possible out of index error
 func updateTrending(tag string, count uint64) {
 	// check if we can return early, since we know
 	// `trending` is sorted and have constant size i.e 10.
-	if trending[9].Count > count {
+	if trending[len(trending)-1].Count > count {
 		return
 	}
 
@@ -37,15 +36,23 @@ func updateTrending(tag string, count uint64) {
 	}
 
 	// Find the index to insert
-	index = 0
-	for index < len(trending) && trending[index].Count >= count {
-		index++
+	index = -1
+	for i := 0; i < len(trending); i++ {
+		if trending[i].Count <= count {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		panic("should not happen")
 	}
 	// Shift elements to make room for the new one
 	for i := len(trending) - 1; i > index; i-- {
 		trending[i] = trending[i-1]
 	}
 	// finally update
-	trending[index].Tag = tag
-	trending[index].Count = count
+	trending[index] = Trending{
+		Tag:   tag,
+		Count: count,
+	}
 }
