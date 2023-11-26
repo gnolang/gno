@@ -109,6 +109,7 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 	return
 }
 
+// Here?
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	gofmt := "gofmt"
 

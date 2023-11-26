@@ -133,6 +133,16 @@ func (f *File) Validate() error {
 		return errors.New("requires module")
 	}
 
+	isRealmPath := gnolang.IsRealmPath(f.Module.Mod.Path)
+	if !isRealmPath {
+		for _, req := range f.Require {
+			if gnolang.IsRealmPath(req.Mod.Path) {
+				return fmt.Errorf("package %s imports %s (pure packages cannot import realm directly)",
+					f.Module.Mod.Path, req.Mod.Path)
+			}
+		}
+	}
+
 	return nil
 }
 

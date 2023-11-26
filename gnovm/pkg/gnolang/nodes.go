@@ -1146,6 +1146,7 @@ func PrecompileMemPackage(memPkg *std.MemPackage) error {
 }
 
 // Returns the code fileset minus any spurious or test files.
+// Here?
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
