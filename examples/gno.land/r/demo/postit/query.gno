@@ -29,6 +29,11 @@ func GetPostCount() uint64 {
 	return postCount
 }
 
+func GetUserPostCount(username string) uint64 {
+	user := *getUserRefByUsername(username)
+	return uint64(len(user.Posts))
+}
+
 func ListPostsByOffset(offset, limit int) string {
 	var pl []Post
 	// Ascending
