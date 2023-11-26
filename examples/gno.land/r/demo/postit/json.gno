@@ -39,6 +39,11 @@ func userToJSONString(user User) string {
 	b.WriteString(user.AvatarUrl)
 	b.WriteString(`"`)
 
+	// Write TotalPost field
+	b.WriteString(`,"PostCount":"`)
+	b.WriteString(strconv.Itoa(len(user.Posts)))
+	b.WriteString(`"`)
+
 	// Write CreatedAt field
 	b.WriteString(`,"CreatedAt":"`)
 	b.WriteString(user.CreatedAt.Format(time.RFC3339))
