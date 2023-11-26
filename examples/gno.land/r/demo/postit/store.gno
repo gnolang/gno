@@ -13,6 +13,7 @@ var (
 	postCount uint64
 	userCount uint64
 
+	feed     []uint64
 	trending [10]Trending
 
 	hashtags          avl.Tree // hashtag -> count
