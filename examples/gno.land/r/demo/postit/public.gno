@@ -63,6 +63,7 @@ func CreatePost(body string) string {
 	}
 	strId := strconv.FormatUint(post.Id, 10)
 	posts.Set(strId, post)
+	feed = append(feed, postCount)
 	user.Posts = append(user.Posts, postCount)
 	postCount = postCount + 1
 
