@@ -15,6 +15,10 @@ type Post struct {
 	CreatedAt time.Time
 }
 
+func setPostCount(count uint64) {
+	postCount = count
+}
+
 func parsehashTags(b string) (res []string) {
 	words := strings.Fields(b)
 	for _, word := range words {
