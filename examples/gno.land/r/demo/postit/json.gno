@@ -131,3 +131,52 @@ func postToJSONString(post Post) string {
 
 	return b.String()
 }
+
+// Trending
+
+// Skip empty fields
+func trendingsToJSONString(trendings []Trending) string {
+	var b bytes.Buffer
+
+	// Write the starting bracket for the array
+	b.WriteString(`[`)
+
+	// Iterate over each Trending and append its JSON representation
+	for i, trending := range trendings {
+		if trending.Tag == "" {
+			continue
+		}
+		b.WriteString(trendingToJSONString(trending))
+
+		// Add a comma if it's not the last element
+		if i < len(trendings)-1 {
+			b.WriteString(`,`)
+		}
+	}
+
+	// Write the closing bracket for the array
+	b.WriteString(`]`)
+
+	return b.String()
+}
+
+func trendingToJSONString(trending Trending) string {
+	var b bytes.Buffer
+
+	// Write the starting brace
+	b.WriteString(`{`)
+
+	// Write Tag field
+	b.WriteString(`"tag":"`)
+	b.WriteString(trending.Tag)
+	b.WriteString(`"`)
+
+	// Write Count field
+	b.WriteString(`,"count":`)
+	b.WriteString(strconv.FormatUint(trending.Count, 10))
+
+	// Write the closing brace
+	b.WriteString(`}`)
+
+	return b.String()
+}
