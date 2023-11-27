@@ -2,6 +2,7 @@ package flippando
 
 import (
 	"math"
+	"strconv"
 	"std"
 	"testing"
 	"encoding/json"
@@ -9,6 +10,8 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/avl"
 )
 
 // todo refactor this so it actually works
@@ -93,3 +96,38 @@ func testMarshalJSON(t *testing.T) {
 		t.Errorf("MarshalJSON() = %s; want %s", string(jsonData), expectedJSON)
 	}
 }
+
+
+func TestMintLocked(t *testing.T) {
+    // Setup - Initialize your environment, token
+    flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6) 
+
+    // Assume userFlipNFTs and other necessary structures are initialized in MintLocked
+
+    // Test 1: Minting for a new user
+    recipient := std.Address("user1")
+    tokenId := "token1"
+    flipAmount := uint64(100)
+    err := MintLocked(recipient, tokenId, flipAmount)
+    if err != nil {
+        t.Errorf("MintLocked returned an error for new user: %v", err)
+    }
+    lockedBalance := getUserLockedBalances(recipient)
+    if lockedBalance != flipAmount {
+        t.Errorf("MintLocked failed to store correct amount for new user, got %v, want %v", lockedBalance, flipAmount)
+    }
+
+    // Test 2: Minting additional tokens for the same user
+    additionalAmount := uint64(50)
+    err = MintLocked(recipient, "token2", additionalAmount)
+    if err != nil {
+        t.Errorf("MintLocked returned an error for additional minting: %v", err)
+    }
+    updatedLockedBalance := getUserLockedBalances(recipient)
+    expectedTotal := flipAmount + additionalAmount
+    if updatedLockedBalance != expectedTotal {
+        t.Errorf("MintLocked failed to store correct additional amount for existing user, got %v, want %v", updatedLockedBalance, expectedTotal)
+    }
+}
+
+

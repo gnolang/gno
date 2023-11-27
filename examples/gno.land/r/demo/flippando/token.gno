@@ -10,69 +10,96 @@ import (
 	"gno.land/p/demo/avl"
 )
 
+type lockedVault struct {
+	tokenId string
+	lockedFlip uint64
+}
+
 var (
 	flipToken = grc20.NewAdminToken("Flippando", "FLIP", 6)
 
 	totalLockedSupply uint64 = 0
 	totalSupply uint64 = 1000000000 // 1B per chain
 	
-	userFlipNFTs avl.Tree // onwer -> avl.Tree // tokenId -> flipAmount
+	userFlipNFTs avl.Tree // onwer -> avl.Tree // []*lockedVault
 )
 
 func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error {
+    flipToken.Mint(recipient, flipAmount)
+    var userLockedBalances []*lockedVault
+    
+    v, exists := userFlipNFTs.Get(recipient.String())
 
-	//var userLockedBalances avl.Tree
+    if exists {
+        // Assert the type of v to []*lockedVault
+        var ok bool
+        userLockedBalances, ok = v.([]*lockedVault)
+        if !ok {
+            return errors.New("invalid type for user locked balances")
+        }
+    } 
 
-	flipToken.Mint(recipient, flipAmount)
+    lockingBalance := &lockedVault{
+        tokenId: tokenId,
+        lockedFlip: flipAmount,
+    }
 
-	strFlipAmount := strconv.FormatUint(flipAmount, 10)
+    userLockedBalances = append([]*lockedVault{lockingBalance}, userLockedBalances...)
+    userFlipNFTs.Set(recipient.String(), userLockedBalances)
 
-	v, exists := userFlipNFTs.Get(recipient.String())
-	if exists {
-		userLockedBalances := v.(avl.Tree)
-		userLockedBalances.Set(tokenId, strFlipAmount)
-		userFlipNFTs.Set(recipient.String(), userLockedBalances)
-	} else {
-		firstBalance := avl.Tree{}
-		firstBalance.Set(tokenId, strFlipAmount)
-		userFlipNFTs.Set(recipient.String(), firstBalance)
-	}
+    totalLockedSupply += flipAmount
 
-	totalLockedSupply =+ flipAmount 
-
-	return nil
+    return nil
 }
+
 
 func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
-	var userLockedBalances avl.Tree
-	v, found := userFlipNFTs.Get(recipient.String())
-	if found  {
-		userLockedBalances = v.(avl.Tree)
-	} else {
-		return ErrUnlockingRecipientNotFound
-	}
-	// check if the token exists in user locked balances
-	flipToUnlock, exists := userLockedBalances.Get(tokenId)
-	if !exists {
-		return ErrInvalidTokenId
-	} 
+    var userLockedBalances []*lockedVault
+    var flipAmount uint64
+    tokenFound := false
 
-	fAmount, err := strconv.Atoi(strings.TrimSpace(string(flipToUnlock)))
-	if err != nil {
-		panic("UnlockAndTransferFlip strconv should not happen")
-	}
-	// replace this with deletion from userLockedBalances
-	newLockedBalances, tokenIdRemoved := userLockedBalances.Remove(tokenId)
-	if !tokenIdRemoved {
-		panic("token id not removed from userLockedBalances")
-	}
-	
-	userFlipNFTs.Set(recipient.String(), newLockedBalances)
+    v, found := userFlipNFTs.Get(recipient.String())
+    if found {
+        // Assert the type of v to []*lockedVault
+        var ok bool
+        userLockedBalances, ok = v.([]*lockedVault)
+        if !ok {
+            return errors.New("invalid type for user locked balances")
+        }
 
-	totalLockedSupply =- uint64(fAmount)
+        // Create a new slice for storing balances without the unlocked token
+        var newLockedBalances []*lockedVault
+        for _, lv := range userLockedBalances {
+            if lv.tokenId == tokenId {
+                // Record the amount and indicate the token was found
+                flipAmount = lv.lockedFlip
+                tokenFound = true
+            } else {
+                // Add to the new slice if it's not the token to unlock
+                newLockedBalances = append(newLockedBalances, lv)
+            }
+        }
 
-	return nil
+        // Use the new slice if the token was found and removed
+        if tokenFound {
+            userLockedBalances = newLockedBalances
+        }
+    }
+
+    if !tokenFound {
+        return ErrInvalidTokenId // Ensure this error is defined
+    }
+
+    // Update the user's locked balances in userFlipNFTs
+    userFlipNFTs.Set(recipient.String(), userLockedBalances)
+
+    // Update the total locked supply
+    totalLockedSupply -= flipAmount
+
+    return nil
 }
+
+
 
 // add a new Tranfer function, which will call the grc20.Transfer
 // only if the user has available tokens to spend
@@ -118,18 +145,26 @@ func GetFLIPBalance(user std.Address) string {
 	return string(userBalancesJSON)
 }
 
-func getUserLockedBalances (user std.Address) uint64 {
-	var userLockedBalances avl.Tree
-	lockedFLIPBalance := uint64(0)
-	v, exists := userFlipNFTs.Get(user.String())
-	if exists {
-		userLockedBalances = v.(avl.Tree)
-		userLockedBalances.ReverseIterate("", "", func(tokenId string, lockedFlip interface{})bool {
-			lockedFlipAmount, err := strconv.Atoi(string(lockedFlip))
-			lockedFLIPBalance =+ uint64(lockedFlipAmount)
-		
-		})	
-	}
+func getUserLockedBalances(user std.Address) uint64 {
+    lockedFLIPBalance := uint64(0)
 
-	return lockedFLIPBalance
+    // Get the user's locked balances if they exist
+    v, exists := userFlipNFTs.Get(user.String())
+    if exists {
+        // Assert the type of v to []*lockedVault
+        userLockedBalances, ok := v.([]*lockedVault)
+        if !ok {
+            // Handle the type assertion failure as appropriate
+            // For example, you could log an error or return 0
+            return 0
+        }
+
+        // Iterate over the slice to sum up the locked balances
+        for _, lv := range userLockedBalances {
+            lockedFLIPBalance += lv.lockedFlip
+        }
+    }
+
+    return lockedFLIPBalance
 }
+
