@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -168,13 +167,11 @@ func (n *DevNode) saveState(ctx context.Context) error {
 }
 
 // loadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func loadDefaultPackages(creator bft.Address, gnoroot string) ([]std.Tx, error) {
-	examplesDir := filepath.Join(gnoroot, "examples")
-
+func loadPackagesFromDir(creator bft.Address, dir string) ([]std.Tx, error) {
 	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee, nil)
+	txs, err := gnoland.LoadPackagesFromDir(dir, creator, defaultFee, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load packages from dir %q: %w", examplesDir, err)
+		return nil, fmt.Errorf("unable to load packages from %q: %w", dir, err)
 	}
 
 	return txs, nil

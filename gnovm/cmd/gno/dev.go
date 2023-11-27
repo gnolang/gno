@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -90,8 +92,14 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
+	if len(pkgpaths) == 0 {
+		if currentProject, ok := guessForProject(); ok {
+			pkgpaths = []string{currentProject}
+		}
+	}
+
 	// Setup trap signal
-	osm.TrapSignal(func() {
+s	osm.TrapSignal(func() {
 		cancel(nil)
 	})
 
@@ -180,23 +188,23 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case <-ccreload:
-			printActionf(io, "file-update", "Reload...\t")
+			printActionf(io, "file-update", "Reload...")
 			if err = dnode.Reload(ctx); err != nil {
-				io.Printf("error: %s", err.Error())
+				io.Printf(" [ERROR] - %s\n", err.Error())
 			} else {
-				io.Println("[DONE]")
+				io.Println(" [DONE]")
 			}
 		case key := <-listenForKeyPress(io, rt):
 			var err error
 			switch key {
 			case 'r', 'R':
-				printActionf(io, key.String(), "Reload...\t")
+				printActionf(io, key.String(), "Reload...")
 				err = dnode.Reload(ctx)
 			case KeyCtrlR:
-				printActionf(io, key.String(), "Reset...\t")
+				printActionf(io, key.String(), "Reset...")
 				err = dnode.Reset()
 			case KeyCtrlE:
-				printActionf(io, key.String(), "Forcing error...\t")
+				printActionf(io, key.String(), "Forcing error...")
 				err = fmt.Errorf("boom")
 			case KeyCtrlT:
 				printActionf(io, key.String(), "REPL MODE\n")
@@ -214,9 +222,9 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			}
 
 			if err != nil {
-				io.Printf("\terror: %s\n", err.Error())
+				io.Printf(" [ERROR] - %s\n", err.Error())
 			} else {
-				io.Println("\t[DONE]")
+				io.Println(" [DONE]")
 			}
 		}
 	}
@@ -224,7 +232,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 func printActionf(io commands.IO, action string, message string, args ...interface{}) {
 	format := fmt.Sprintf(message, args...)
-	io.Printf("%-10s %s", "<"+action+">", format)
+	io.Printf("%-20s %s", "<"+action+">", format)
 }
 
 func setupFileWatcher(cfg *devCfg, io commands.IO, gnoroot string, pkgspath []string) (*fsnotify.Watcher, error) {
@@ -275,7 +283,7 @@ func setupFileWatcher(cfg *devCfg, io commands.IO, gnoroot string, pkgspath []st
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspaths []string, gnoroot string) (*DevNode, error) {
+func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspath []string, gnoroot string) (*DevNode, error) {
 	rootuser := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	// defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 
@@ -283,11 +291,23 @@ func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspat
 
 	genesisTxs := []std.Tx{}
 	if !cfg.minimal {
-		pkgstxs, err := loadDefaultPackages(rootuser, gnoroot)
+		examplesDir := filepath.Join(gnoroot, "examples")
+		pkgstxs, err := loadPackagesFromDir(rootuser, examplesDir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load default packages: %w", err)
 		}
 		genesisTxs = append(genesisTxs, pkgstxs...)
+	}
+
+	// load custom pkgspaths
+	for _, pkg := range pkgspath {
+		pkgstxs, err := loadPackagesFromDir(rootuser, pkg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load default packages: %w", err)
+		}
+
+		genesisTxs = append(genesisTxs, pkgstxs...)
+
 	}
 
 	genesis := gnoland.GnoGenesisState{
@@ -341,4 +361,13 @@ func parseArgumentsPath(args []string) (paths []string, err error) {
 	}
 
 	return paths, nil
+}
+
+func guessForProject() (string, bool) {
+	var ppath string
+	if cdir, err := os.Getwd(); err == nil {
+		ppath, _ = gnomod.FindRootDir(cdir)
+	}
+
+	return ppath, ppath != ""
 }
