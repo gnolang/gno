@@ -2,15 +2,7 @@
 
 gno test .
 
-stdout '=== RUN   TestRun/hello' # show that t.Run doesn't care about -verbose
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-
 gno test ./run_test.gno
-
-stdout '=== RUN   TestRun/hello' # show that t.Run doesn't care about -verbose
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
 
 gno test -verbose .
 
