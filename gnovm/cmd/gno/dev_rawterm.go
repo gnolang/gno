@@ -176,13 +176,16 @@ func listenForKeyPress(io commands.IO, rt *RawTerm) <-chan KeyPress {
 	cc := make(chan KeyPress)
 	go func() {
 		defer close(cc)
-		key, err := rt.ReadKeyPress()
-		if err != nil {
-			io.ErrPrintfln("unable to read keypress: %s", err.Error())
-			return
-		}
 
-		cc <- key
+		for {
+			key, err := rt.ReadKeyPress()
+			if err != nil {
+				io.ErrPrintfln("unable to read keypress: %s", err.Error())
+				return
+			}
+
+			cc <- key
+		}
 	}()
 
 	return cc

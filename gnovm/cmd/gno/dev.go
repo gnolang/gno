@@ -7,21 +7,16 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type devCfg struct {
@@ -86,34 +81,32 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
+	// Setup trap signal
+	osm.TrapSignal(func() {
+		cancel(nil)
+	})
+
+	// guess root dir
 	gnoroot := gnoenv.RootDir()
+
 	pkgpaths, err := parseArgumentsPath(args)
 	if err != nil {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
-	if len(pkgpaths) == 0 {
-		if currentProject, ok := guessForProject(); ok {
-			pkgpaths = []string{currentProject}
-		}
-	}
-
-	// Setup trap signal
-s	osm.TrapSignal(func() {
-		cancel(nil)
-	})
-
+	// logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	logger := tmlog.NewNopLogger()
 
-	// logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
-
-	dnode, err := setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
-	if err != nil {
-		return err // already formated in setupDevNode
+	var dnode *DevNode
+	{
+		var err error
+		dnode, err = setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
+		if err != nil {
+			return err // already formated in setupDevNode
+		}
+		defer dnode.Close()
+		io.Printf("dev-node listening: %s\n", dnode.GetRemoteAddress())
 	}
-	defer dnode.Close()
-
-	io.Printf("dev-node listening: %s\n", dnode.GetRemoteAddress())
 
 	// RAWTerm setup
 	rt := NewRawTerm()
@@ -128,36 +121,20 @@ s	osm.TrapSignal(func() {
 		io.SetOut(commands.WriteNopCloser(rt))
 	}
 
-	w, err := setupFileWatcher(cfg, io, gnoroot, pkgpaths)
+	// setup files watcher
+	w, err := setupPkgsWatcher(cfg, dnode.ListPkgs())
 	if err != nil {
 		return fmt.Errorf("unable to watch for files change: %w", err)
 	}
+	ccpath := make(chan []string, 1)
 
-	ccreload := make(chan struct{}, 1)
 	go func() {
-		for {
-			var evt fsnotify.Event
-			select {
-			case <-ctx.Done():
-				return
-			case evt = <-w.Events:
-			case err := <-w.Errors:
-				cancel(fmt.Errorf("watch errors: %w", err))
-				return
-			}
+		defer close(ccpath)
 
-			// Only catch write operation
-			if evt.Op != fsnotify.Write {
-				continue
-			}
+		const debounceTimeout = time.Millisecond * 500
 
-			io.Printf("%q updated\n", evt.Name)
-			select {
-			case ccreload <- struct{}{}:
-			default:
-				// Skip this event, if multiple write are made,
-				// we only want to reload the node once
-			}
+		if err := handleDebounce(ctx, w, ccpath, debounceTimeout); err != nil {
+			cancel(err)
 		}
 	}()
 
@@ -181,25 +158,37 @@ s	osm.TrapSignal(func() {
 	defer server.Close()
 
 	// main loop
+	io.Printf("default address: %s\n", defaultCreator.String())
+	io.Printf("chainid: %s\n", dnode.node.Config().ChainID())
+
+	cckeypress := listenForKeyPress(io, rt)
 	for {
 		var err error
 
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case <-ccreload:
+		case paths := <-ccpath:
+			for _, path := range paths {
+				io.Printf("path %q has been modified\n", path)
+			}
 			printActionf(io, "file-update", "Reload...")
+			if err := dnode.UpdatePackages(paths...); err != nil {
+				io.Println("unable to update packages: %s", err.Error())
+				continue
+			}
+
 			if err = dnode.Reload(ctx); err != nil {
 				io.Printf(" [ERROR] - %s\n", err.Error())
 			} else {
 				io.Println(" [DONE]")
 			}
-		case key := <-listenForKeyPress(io, rt):
+		case key := <-cckeypress:
 			var err error
 			switch key {
 			case 'r', 'R':
-				printActionf(io, key.String(), "Reload...")
-				err = dnode.Reload(ctx)
+				printActionf(io, key.String(), "Reload All...")
+				err = dnode.ReloadAll(ctx)
 			case KeyCtrlR:
 				printActionf(io, key.String(), "Reset...")
 				err = dnode.Reset()
@@ -235,7 +224,33 @@ func printActionf(io commands.IO, action string, message string, args ...interfa
 	io.Printf("%-20s %s", "<"+action+">", format)
 }
 
-func setupFileWatcher(cfg *devCfg, io commands.IO, gnoroot string, pkgspath []string) (*fsnotify.Watcher, error) {
+func handleDebounce(ctx context.Context, w *fsnotify.Watcher, ccpaths chan<- []string, timeout time.Duration) error {
+	var debounce <-chan time.Time
+	pathlist := []string{}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case watchErr := <-w.Errors:
+			return fmt.Errorf("watch error: %w", watchErr)
+		case <-debounce:
+			ccpaths <- pathlist
+			// reset list and debounce
+			pathlist = []string{}
+			debounce = nil
+		case evt := <-w.Events:
+			fmt.Printf("evts: %s - %s\r\n", evt.Op.String(), evt.Name)
+			if evt.Op == fsnotify.Write {
+				pathlist = append(pathlist, evt.Name)
+				debounce = time.After(timeout)
+			}
+		}
+
+	}
+}
+
+func setupPkgsWatcher(cfg *devCfg, pkgs []gnomod.Pkg) (*fsnotify.Watcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("unable to watch files: %w", err)
@@ -246,36 +261,9 @@ func setupFileWatcher(cfg *devCfg, io commands.IO, gnoroot string, pkgspath []st
 		return watcher, nil
 	}
 
-	if !cfg.minimal {
-		exampleFolder := filepath.Join(gnoroot, "examples")
-
-		pkgs, err := gnomod.ListPkgs(exampleFolder)
-		if err != nil {
-			return nil, fmt.Errorf("unable to list pkgs in %q: %w", exampleFolder, err)
-		}
-
-		io.Printf("watching example pkgs: %q\n", exampleFolder)
-		for _, pkg := range pkgs {
-			if err := watcher.Add(pkg.Dir); err != nil {
-				return nil, fmt.Errorf("unable to add %q: %w", pkg.Dir, err)
-			}
-		}
-
-		watcher.Add(exampleFolder)
-	}
-
-	for _, path := range pkgspath {
-		// list all packages from target path
-		pkgs, err := gnomod.ListPkgs(path)
-		if err != nil {
-			return nil, fmt.Errorf("listing gno packages: %w", err)
-		}
-
-		io.Printf("watching custom pkg path: %q\n", path)
-		for _, pkg := range pkgs {
-			if err := watcher.Add(pkg.Dir); err != nil {
-				return nil, fmt.Errorf("unable to add %q: %w", pkg.Dir, err)
-			}
+	for _, pkg := range pkgs {
+		if err := watcher.Add(pkg.Dir); err != nil {
+			return nil, fmt.Errorf("unable to watch %q: %w", pkg.Dir, err)
 		}
 	}
 
@@ -284,43 +272,14 @@ func setupFileWatcher(cfg *devCfg, io commands.IO, gnoroot string, pkgspath []st
 
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspath []string, gnoroot string) (*DevNode, error) {
-	rootuser := crypto.MustAddressFromString(integration.DefaultAccount_Address)
-	// defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-
 	var err error
 
-	genesisTxs := []std.Tx{}
 	if !cfg.minimal {
 		examplesDir := filepath.Join(gnoroot, "examples")
-		pkgstxs, err := loadPackagesFromDir(rootuser, examplesDir)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load default packages: %w", err)
-		}
-		genesisTxs = append(genesisTxs, pkgstxs...)
+		pkgspath = append(pkgspath, examplesDir)
 	}
 
-	// load custom pkgspaths
-	for _, pkg := range pkgspath {
-		pkgstxs, err := loadPackagesFromDir(rootuser, pkg)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load default packages: %w", err)
-		}
-
-		genesisTxs = append(genesisTxs, pkgstxs...)
-
-	}
-
-	genesis := gnoland.GnoGenesisState{
-		Balances: []gnoland.Balance{
-			{
-				Address: rootuser, // test1
-				Amount:  std.MustParseCoins("10000000000000ugnot"),
-			},
-		},
-		Txs: genesisTxs,
-	}
-
-	dnode, err := NewDevNode(logger, gnoroot, genesis)
+	dnode, err := NewDevNode(logger, gnoroot, pkgspath)
 	if err != nil {
 		return nil, fmt.Errorf("unable create dev node: %w", err)
 	}
@@ -354,20 +313,18 @@ func setupGnowebServer(cfg *devCfg, dnode *DevNode, rt *RawTerm) *http.Server {
 func parseArgumentsPath(args []string) (paths []string, err error) {
 	paths = make([]string, len(args))
 	for i, arg := range args {
-		paths[i], err = filepath.Abs(arg)
+		abspath, err := filepath.Abs(arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid path %q: %w", arg, err)
 		}
+
+		ppath, err := gnomod.FindRootDir(abspath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to find root dir of %q: %w", abspath, err)
+		}
+
+		paths[i] = ppath
 	}
 
 	return paths, nil
-}
-
-func guessForProject() (string, bool) {
-	var ppath string
-	if cdir, err := os.Getwd(); err == nil {
-		ppath, _ = gnomod.FindRootDir(cdir)
-	}
-
-	return ppath, ppath != ""
 }

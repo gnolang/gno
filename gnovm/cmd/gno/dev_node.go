@@ -6,9 +6,15 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	txclient "github.com/gnolang/tx-archive/backup/client"
@@ -20,18 +26,43 @@ var _ txclient.Client = (*DevNode)(nil)
 
 type DevNode struct {
 	muNode sync.Mutex
-
-	rootdir string
-
-	logger log.Logger
 	node   *node.Node
 
-	genesis gnoland.GnoGenesisState
+	rootdir string
+	logger  log.Logger
 
+	pkgs  PkgsMap // path -> pkg
 	state []std.Tx
 }
 
-func NewDevNode(logger log.Logger, rootdir string, genesis gnoland.GnoGenesisState) (*DevNode, error) {
+var (
+	defaultFee     = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+	defaultCreator = crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	defaultBalance = []gnoland.Balance{
+		{
+			Address: defaultCreator,
+			Amount:  std.MustParseCoins("10000000000000ugnot"),
+		},
+	}
+)
+
+func NewDevNode(logger log.Logger, rootdir string, pkgslist []string) (*DevNode, error) {
+	mpkgs, err := newPkgsMap(pkgslist)
+	if err != nil {
+		return nil, fmt.Errorf("unable map pkgs list: %w", err)
+	}
+
+	txs, err := mpkgs.Load(defaultCreator, defaultFee, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
+	}
+
+	// generate genesis state
+	genesis := gnoland.GnoGenesisState{
+		Balances: defaultBalance,
+		Txs:      txs,
+	}
+
 	node, err := newNode(logger, rootdir, genesis)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the node: %w", err)
@@ -41,12 +72,13 @@ func NewDevNode(logger log.Logger, rootdir string, genesis gnoland.GnoGenesisSta
 		return nil, fmt.Errorf("unable to start node: %w", err)
 	}
 
+	<-gnoland.WaitForNodeReadiness(node)
+
 	return &DevNode{
 		node:    node,
+		pkgs:    mpkgs,
 		rootdir: rootdir,
 		logger:  logger,
-		genesis: genesis,
-		state:   genesis.Txs,
 	}, nil
 }
 
@@ -61,6 +93,10 @@ func (d *DevNode) Close() error {
 	return d.node.Stop()
 }
 
+func (d *DevNode) ListPkgs() []gnomod.Pkg {
+	return d.pkgs.toList()
+}
+
 func (d *DevNode) WaitForNodeReadiness() <-chan struct{} {
 	return gnoland.WaitForNodeReadiness(d.node)
 }
@@ -69,47 +105,148 @@ func (d *DevNode) GetRemoteAddress() string {
 	return d.node.Config().RPC.ListenAddress
 }
 
-func (d *DevNode) Reset() error {
-	if err := d.node.Stop(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
+func (d *DevNode) UpdatePackages(paths ...string) error {
+	for _, path := range paths {
+		// list all packages from target path
+		pkgslist, err := gnomod.ListPkgs(path)
+		if err != nil {
+			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
+		}
+
+		for _, pkg := range pkgslist {
+			d.pkgs[pkg.Dir] = pkg
+		}
 	}
 
-	return d.reset(d.genesis)
+	return nil
 }
 
-func (d *DevNode) Reload(ctx context.Context) error {
-	if err := d.saveState(ctx); err != nil {
-		return fmt.Errorf("unable to save state: %s", err.Error())
+func (d *DevNode) Reset() error {
+	if d.node.IsRunning() {
+		if err := d.node.Stop(); err != nil {
+			return fmt.Errorf("unable to stop the node: %w", err)
+		}
 	}
 
-	d.logger.Debug("saved state", "txs", len(d.state))
-
-	if err := d.node.Stop(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
+	// generate genesis
+	txs, err := d.pkgs.Load(defaultCreator, defaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	genesis := gnoland.GnoGenesisState{
-		Balances: d.genesis.Balances,
-		Txs:      d.state,
+		Balances: defaultBalance,
+		Txs:      txs,
 	}
 
 	return d.reset(genesis)
 }
 
-func (d *DevNode) reset(genesis gnoland.GnoGenesisState) error {
-	d.logger.Debug("loading node", "state-txs", len(d.state))
+func (d *DevNode) ReloadAll(ctx context.Context) error {
+	pkgs := d.ListPkgs()
+	paths := make([]string, len(pkgs))
+	for i, pkg := range pkgs {
+		paths[i] = pkg.Dir
+	}
 
-	node, err := newNode(d.logger, d.rootdir, genesis)
+	if err := d.UpdatePackages(paths...); err != nil {
+		return fmt.Errorf("unable to reload packages: %w", err)
+	}
+
+	return d.Reload(ctx)
+}
+
+func (d *DevNode) Reload(ctx context.Context) error {
+	// save current (good) state
+	state, err := d.saveState(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to create node: %w", err)
+		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
 
-	if err := node.Start(); err != nil {
-		return fmt.Errorf("unable to start the node: %w", err)
+	if d.node.IsRunning() {
+		if err := d.node.Stop(); err != nil {
+			return fmt.Errorf("unable to stop the node: %w", err)
+		}
 	}
 
-	d.node = node
+	// generate genesis
+	txs, err := d.pkgs.Load(defaultCreator, defaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
+	}
+
+	genesis := gnoland.GnoGenesisState{
+		Balances: defaultBalance,
+		Txs:      txs,
+	}
+
+	// try to reset the node
+	if err := d.reset(genesis); err != nil {
+		return fmt.Errorf("unable to reset the node: %w", err)
+	}
+
+	resCh := make(chan abci.Response, 1)
+	for _, tx := range state {
+		if len(tx.Msgs) == 0 {
+			continue
+		}
+
+		aminoTx, err := amino.Marshal(tx)
+		if err != nil {
+			return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
+		}
+
+		err = d.node.Mempool().CheckTx(aminoTx, func(res abci.Response) {
+			resCh <- res
+		})
+		if err != nil {
+			return fmt.Errorf("unable to check tx: %w", err)
+		}
+
+		res := <-resCh
+		r := res.(abci.ResponseCheckTx)
+		if r.Error != nil {
+			return fmt.Errorf("unable to broadcast tx: %w\nLog: %s", r.Error, r.Log)
+		}
+	}
+
+	// ultimately restet state
 	return nil
+}
+
+func (d *DevNode) reset(genesis gnoland.GnoGenesisState) error {
+	var err error
+	recoverError := func() {
+		if r := recover(); r != nil {
+			var ok bool
+			if err, ok = r.(error); !ok {
+				panic(r)
+			}
+		}
+	}
+
+	createNode := func() {
+		defer recoverError()
+
+		node, err := newNode(d.logger, d.rootdir, genesis)
+		if err != nil {
+			err = fmt.Errorf("unable to create node: %w", err)
+			return
+		}
+
+		if err := node.Start(); err != nil {
+			err = fmt.Errorf("unable to start the node: %w", err)
+			return
+		}
+
+		d.node = node
+	}
+
+	createNode()
+
+	<-d.WaitForNodeReadiness()
+
+	return err
 }
 
 // GetBlockTransactions returns the transactions contained
@@ -136,34 +273,100 @@ func (d *DevNode) GetLatestBlockNumber() (uint64, error) {
 	return d.getLatestBlockNumber(), nil
 }
 
-func (n *DevNode) saveState(ctx context.Context) error {
+func (n *DevNode) saveState(ctx context.Context) ([]std.Tx, error) {
 	lastBlock := n.getLatestBlockNumber()
 
-	newState := make([]std.Tx, 0, int(lastBlock))
+	state := make([]std.Tx, 0, int(lastBlock))
 	var blocnum uint64 = 1
 	for ; blocnum <= lastBlock; blocnum++ {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		default:
 		}
 
 		txs, txErr := n.GetBlockTransactions(blocnum)
 		if txErr != nil {
-			return fmt.Errorf("unable to fetch block transactions, %w", txErr)
+			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
 
 		// Skip empty blocks
-		if len(txs) == 0 {
-			return nil
-		}
-
-		newState = append(newState, txs...)
+		state = append(state, txs...)
 	}
 
 	// override current state
-	n.state = newState
-	return nil
+	return state, nil
+}
+
+type PkgsMap map[string]gnomod.Pkg
+
+func newPkgsMap(paths []string) (PkgsMap, error) {
+	pkgs := make(map[string]gnomod.Pkg)
+	for _, path := range paths {
+		// list all packages from target path
+		pkgslist, err := gnomod.ListPkgs(path)
+		if err != nil {
+			return nil, fmt.Errorf("listing gno packages: %w", err)
+		}
+
+		for _, pkg := range pkgslist {
+			if pkg.Dir == "" {
+				continue
+			}
+
+			if _, ok := pkgs[pkg.Dir]; ok {
+				continue // skip
+			}
+			pkgs[pkg.Dir] = pkg
+		}
+	}
+
+	// Filter out draft packages.
+	return pkgs, nil
+}
+
+func (pm PkgsMap) toList() gnomod.PkgList {
+	list := make([]gnomod.Pkg, 0, len(pm))
+	for _, pkg := range pm {
+		list = append(list, pkg)
+	}
+	return list
+}
+
+func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	pkgs := pm.toList()
+
+	sorted, err := pkgs.Sort()
+	if err != nil {
+		return nil, fmt.Errorf("unable to sort pkgs: %w", err)
+	}
+
+	nonDraft := sorted.GetNonDraftPkgs()
+	txs := []std.Tx{}
+	for _, pkg := range nonDraft {
+		// Open files in directory as MemPackage.
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+		if err := memPkg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid package: %w", err)
+		}
+
+		// Create transaction
+		tx := std.Tx{
+			Fee: fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: creator,
+					Package: memPkg,
+					Deposit: deposit,
+				},
+			},
+		}
+
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }
 
 // loadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
