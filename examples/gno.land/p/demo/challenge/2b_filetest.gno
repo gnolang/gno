@@ -13,13 +13,15 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
+// both not const, should not compile
 func main() {
-	if Error(1) == errCmp {
+	var a int = 1
+	if a == errCmp {
 		println("what the firetruck?")
 	} else {
 		println("something else")
 	}
 }
 
-// Output:
-// something else
+// Error:
+// main/gno.land/p/demo/challenge/2b_filetest.gno:19: int does not implement .uverse.error

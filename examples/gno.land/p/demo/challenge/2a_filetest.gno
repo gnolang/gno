@@ -13,15 +13,14 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
-// left is typed const, right is not const
-// compile pass since both conform to same interface
+// left is typed const, right is not const, should not compile
 func main() {
-	if Error(0) == errCmp { // both conform same interface, compile pass, runtime evaluation not equal
+	if int(1) == errCmp {
 		println("what the firetruck?")
 	} else {
 		println("something else")
 	}
 }
 
-// Output:
-// something else
+// Error:
+// main/gno.land/p/demo/challenge/2a_filetest.gno:18: int does not implement .uverse.error

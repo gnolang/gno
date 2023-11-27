@@ -24,13 +24,8 @@ func (e Error2) Error() string {
 func main() {
 	var e1 E = Error1(0)
 	var e2 E = Error2(0)
-	if e1 == e2 {
-		println("what the firetruck?")
-	} else {
-		// supposed print this
-		println("something else")
-	}
+	println(e1 + e2)
 }
 
-// Output:
-// something else
+// Error:
+// main/gno.land/p/demo/challenge/2d_filetest.gno:27: + should have operand number or string, while have: main.E

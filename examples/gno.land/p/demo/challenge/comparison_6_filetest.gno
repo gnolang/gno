@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/gno.land/p/demo/challenge/comparison_6_filetest.gno:7: incompatible types in binary expression: a<VPBlock(3,1)> ADD b<VPBlock(3,2)>
+// main/gno.land/p/demo/challenge/comparison_6_filetest.gno:7: cannot use int as int64

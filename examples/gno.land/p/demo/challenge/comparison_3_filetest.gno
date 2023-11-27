@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/gno.land/p/demo/challenge/comparison_3_filetest.gno:20: mismatch type for EQL || NEQ || ADD
+// main/gno.land/p/demo/challenge/comparison_3_filetest.gno:20: cannot use main.Error1 as main.Error2 without explicit conversion

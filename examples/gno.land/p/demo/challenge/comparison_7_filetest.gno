@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/gno.land/p/demo/challenge/comparison_7_filetest.gno:6: mismatch type for EQL or NEQ
+// main/gno.land/p/demo/challenge/comparison_7_filetest.gno:6: cannot use int as int64

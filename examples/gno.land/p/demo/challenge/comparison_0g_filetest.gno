@@ -4,10 +4,6 @@ import (
 	"strconv"
 )
 
-type E interface {
-	Error() string
-}
-
 type Error1 int64
 
 func (e Error1) Error() string {
@@ -20,17 +16,10 @@ func (e Error2) Error() string {
 	return "error: " + strconv.Itoa(int(e))
 }
 
-// both not const
+// left is const, right is const, compile fail
 func main() {
-	var e1 E = Error1(0)
-	var e2 E = Error2(0)
-	if e1 == e2 {
-		println("what the firetruck?")
-	} else {
-		// supposed print this
-		println("something else")
-	}
+	println(Error1(0) % Error2(1))
 }
 
-// Output:
-// something else
+// Error:
+// main/gno.land/p/demo/challenge/comparison_0g_filetest.gno:21: cannot use main.Error1 as main.Error2 without explicit conversion

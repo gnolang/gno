@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/gno.land/p/demo/challenge/comparison_5_filetest.gno:7: mismatch type for EQL or NEQ
+// main/gno.land/p/demo/challenge/comparison_5_filetest.gno:7: cannot use int as bool

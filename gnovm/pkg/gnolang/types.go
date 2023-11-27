@@ -1985,6 +1985,34 @@ const (
 	RefTypeKind // not in go.
 )
 
+func isTypedNumber(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		switch t {
+		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, BigintType, BigdecType:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
+func isTypedString(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		switch t {
+		case StringType:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
 // This is generally slower than switching on baseOf(t).
 func KindOf(t Type) Kind {
 	switch t := baseOf(t).(type) {
@@ -2101,21 +2129,30 @@ func assertSameTypes(lt, rt Type) {
 // Like assertSameTypes(), but more relaxed, for == and !=.
 func assertEqualityTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
+		println("1")
 		// both are nil.
 	} else if lt == nil || rt == nil {
+		println("2")
 		// one is nil.  see function comment.
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
+		println("3")
 		// one is untyped of same kind.
 	} else if lt.Kind() == InterfaceKind &&
 		IsImplementedBy(lt, rt) {
+		println("4")
+		// one is untyped of same kind.
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
+		println("5")
 		// lt implements rt (and rt is nil interface).
 	} else if lt.TypeID() == rt.TypeID() {
+		println("6")
 		// non-nil types are identical.
 	} else {
+		println("7")
+		//panic("7, incompatible operands")
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
@@ -2123,6 +2160,69 @@ func assertEqualityTypes(lt, rt Type) {
 		)
 	}
 }
+
+// type-check rules:
+// 1. this happens in binary expressions, assign stmt, call to a func(args and return values)
+// 2. cases: (typed/untyped)const op not const, not const op (typed/untyped)const, not const/not const
+// 3. steps: first check legal operands of an Op, requires operands on left and right are typed, and both legal with the Op,
+// or if one of the operand is not legal with the Op(while the other is) but can be converted into the corresponding one.
+// e.g. : 1 + "a" is illegal, or int(1) + 0 is legal after convert
+// untyped 0 to int(0) implicitly(no cast), this is because "a" cannot be converted to 1, is untyped 0, which is
+// untyped bigint can be converted to int(0).
+// special case in here is declared types, is A is declared type of B, and baseOf(A) == B, A and B is convertable in both direction
+// NOTE: Op like + - * / % ,etc. have a more strict constrain than equality == or !=
+// NOTE: if both a typed, but not in the rule of declared type, no conversion. just check if they match.
+
+// 2. if one of LHS or RHS is constExpr(typed or untyped), it would be converted to the type of its
+// corresponding side(using checkOrConvertType, iff it's convertable, using checkType), e.g. int-> int8, int-> (type Error int),
+// 3. if both LHS and RHS are not const, assertTypeMatchStrict
+
+// 4. Operators. need one place in asset* or checkType, to switch operators
+
+// TODO: merge this with checkType
+//func assertTypeMatchStrict(lt, rt Type, op Word) {
+//	if lt == nil && rt == nil {
+//		println("1")
+//		// both are nil.
+//	} else if lt == nil || rt == nil {
+//		println("2")
+//		// one is nil.  see function comment.
+//	} else if lt.Kind() == rt.Kind() &&
+//		isUntyped(lt) || isUntyped(rt) {
+//		println("3")
+//		// one is untyped of same kind.
+//	} else if lt.Kind() == InterfaceKind &&
+//		IsImplementedBy(lt, rt) {
+//		println("4")
+//		// one is untyped of same kind.
+//		// rt implements lt (and lt is nil interface).
+//	} else if rt.Kind() == InterfaceKind &&
+//		IsImplementedBy(rt, lt) {
+//		println("5")
+//		// lt implements rt (and rt is nil interface).
+//	} else if lt.TypeID() == rt.TypeID() {
+//		println("6")
+//		// non-nil types are identical.
+//	} else {
+//		println("7")
+//		panic("7, incompatible operands")
+//		//debug.Errorf(
+//		//	"incompatible operands in binary (eql/neq) expression: %s and %s",
+//		//	lt.String(),
+//		//	rt.String(),
+//		//)
+//	}
+//	// check special case, + - & / %
+//	switch op {
+//	case ADD: // assume untyped has been converted
+//		if lt.TypeID() != rt.TypeID() {
+//			panic("+ has mismatched operands")
+//		}
+//		if !isTypedNumber(lt) || !isTypedString(lt) {
+//			panic(fmt.Sprintf("+ should have operand number or string, while have: %v", lt))
+//		}
+//	}
+//}
 
 // ----------------------------------------
 // misc
@@ -2362,7 +2462,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), false)
+					checkType(spec, match.Elem(), ILLEGAL, false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2376,7 +2476,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, false)
+					checkType(spec, match, ILLEGAL, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
