@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
@@ -44,7 +44,7 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
@@ -92,7 +92,7 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 

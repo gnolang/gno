@@ -152,6 +152,7 @@ type P3Field struct {
 	Repeated bool
 	Type     P3Type
 	Name     string
+	JSONName string
 	Number   uint32
 }
 
@@ -225,11 +226,15 @@ func (msg P3Message) PrintCode(p *press.Press) *press.Press {
 }
 
 func (fld P3Field) PrintCode(p *press.Press) *press.Press {
+	fieldOptions := ""
+	if fld.JSONName != "" && fld.JSONName != fld.Name {
+		fieldOptions = " [json_name = \"" + fld.JSONName + "\"]"
+	}
 	printComments(p, fld.Comment)
 	if fld.Repeated {
-		p.Pl("repeated %v %v = %v;", fld.Type, fld.Name, fld.Number)
+		p.Pl("repeated %v %v = %v%v;", fld.Type, fld.Name, fld.Number, fieldOptions)
 	} else {
-		p.Pl("%v %v = %v;", fld.Type, fld.Name, fld.Number)
+		p.Pl("%v %v = %v%v;", fld.Type, fld.Name, fld.Number, fieldOptions)
 	}
 	return p
 }

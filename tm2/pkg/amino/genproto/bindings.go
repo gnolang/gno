@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -524,7 +525,8 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			goorfIsPtr := field.IsPtr()
 			goorfType := field.TypeInfo
 			goorf := _sel(goor, field.Name) // next goo
-			pbof := _sel(pbo, field.Name)   // next pbo
+			// The protobuf field is lower_snake_case and protoc converts it to CamelCase.
+			pbof := _sel(pbo, CamelCase(stringutil.ToLowerSnakeCase(field.Name))) // next pbo
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
@@ -821,7 +823,8 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Struct:
 		for _, field := range goorType.Fields {
-			pbof := _sel(pbo, field.Name) // next pbo.
+			// The protobuf field is lower_snake_case and protoc converts it to CamelCase.
+			pbof := _sel(pbo, CamelCase(stringutil.ToLowerSnakeCase(field.Name))) // next pbo.
 			goorfIsPtr := field.IsPtr()
 			goorfType := field.TypeInfo
 			goorf := _sel(goor, field.Name) // next goor.
