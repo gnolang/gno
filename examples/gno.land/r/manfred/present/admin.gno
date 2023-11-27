@@ -51,7 +51,7 @@ func ModEditPost(slug, title, body, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.GetPost(slug).Update(title, body, tagList)
+	err := b.Posts.GetPostBySlug(slug).Update(title, body, tagList)
 	checkErr(err)
 }
 

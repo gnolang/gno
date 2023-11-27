@@ -52,7 +52,7 @@ func ModEditPost(slug, title, body, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.GetPost(slug).Update(title, body, tagList)
+	err := b.Posts.GetPostBySlug(slug).Update(title, body, tagList)
 	checkErr(err)
 }
 
@@ -69,7 +69,7 @@ func ModDelCommenter(addr std.Address) {
 func ModDelComment(slug string, index int) {
 	assertIsModerator()
 
-	err := b.GetPost(slug).DeleteComment(index)
+	err := b.Posts.GetPostBySlug(slug).DeleteComment(index)
 	checkErr(err)
 }
 

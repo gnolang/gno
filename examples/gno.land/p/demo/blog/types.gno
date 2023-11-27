@@ -27,7 +27,7 @@ type Post struct {
 }
 
 type Comment struct {
-	ID        int
+	ID        seqid.ID
 	Post      *Post
 	CreatedAt time.Time
 	Author    std.Address
