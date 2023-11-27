@@ -3,7 +3,6 @@ package blog
 import (
 	"errors"
 	"std"
-	"strconv"
 	"strings"
 	"time"
 
@@ -46,8 +45,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	slug := req.GetVar("slug")
 
-	post := b.Posts.GetPost(slug)
-	// TODO add search by slug
+	post := b.Posts.GetPostBySlug(slug)
 
 	if post == nil {
 		res.Write("404")
@@ -69,11 +67,9 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(formatAuthorAndDate(post.Author, post.CreatedAt) + "\n\n")
 
 	// comments
-	post.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
-		comment := value.(*Comment)
+	for _, comment := range post.Comments {
 		res.Write(comment.RenderListItem())
-		return false
-	})
+	}
 }
 
 func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
@@ -115,7 +111,7 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	p := b.Posts.GetPost(slug)
+	p := b.Posts.GetPostBySlug(slug)
 	if p != nil {
 		return errors.New("slug already exists.")
 	}
@@ -153,14 +149,6 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	return nil
 }
 
-func (b *Blog) GetPost(slug string) *Post {
-	post := b.Posts.GetPost(slug)
-	if post == nil {
-		return nil
-	}
-	return post
-}
-
 func (p *Post) Update(title, body string, tags []string) error {
 	p.Title = title
 	p.Body = body
@@ -172,10 +160,10 @@ func (p *Post) AddComment(author std.Address, comment string) error {
 	if p == nil {
 		return ErrNoSuchPost
 	}
-	p.CommentIndex++
-	commentKey := strconv.Itoa(p.CommentIndex)
 	comment = strings.TrimSpace(comment)
-	p.Comments.Set(commentKey, &Comment{
+
+	p.Comments = append(p.Comments, &Comment{
+		ID:        p.commentID.Next(),
 		Post:      p,
 		CreatedAt: time.Now(),
 		Author:    author,
@@ -185,12 +173,17 @@ func (p *Post) AddComment(author std.Address, comment string) error {
 	return nil
 }
 
-func (p *Post) DeleteComment(index int) error {
+func (p *Post) DeleteComment(id int) error {
 	if p == nil {
 		return ErrNoSuchPost
 	}
-	commentKey := strconv.Itoa(index)
-	p.Comments.Remove(commentKey)
+
+	updatedSlice, err := p.Comments.RemoveByID(id)
+	if err != nil {
+		return err
+	}
+
+	p.Comments = updatedSlice
 	return nil
 }
 

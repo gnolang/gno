@@ -1,10 +1,9 @@
 package blog
 
 import (
+	"gno.land/p/demo/seqid"
 	"std"
 	"time"
-
-	"gno.land/p/demo/avl"
 )
 
 type Blog struct {
@@ -15,19 +14,20 @@ type Blog struct {
 }
 
 type Post struct {
-	Blog         *Blog
-	Slug         string
-	Title        string
-	Body         string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Comments     avl.Tree // TODO refactor to slice
-	Author       std.Address
-	Tags         []string
-	CommentIndex int
+	Blog      *Blog
+	Slug      string
+	Title     string
+	Body      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Comments  commentSlice
+	Author    std.Address
+	Tags      []string
+	commentID seqid.ID
 }
 
 type Comment struct {
+	ID        int
 	Post      *Post
 	CreatedAt time.Time
 	Author    std.Address
@@ -35,3 +35,4 @@ type Comment struct {
 }
 
 type postSlice []*Post
+type commentSlice []*Comment
