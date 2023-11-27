@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -38,14 +38,16 @@ func main() {
 		panic("unable to parse flags: " + err.Error())
 	}
 
-	fmt.Printf("Running on http://%s\n", cfg.BindAddr)
+	logger := log.New(os.Stdout, "gnoweb: ", log.LstdFlags)
+
+	logger.Printf("Running on http://%s", cfg.BindAddr)
 	server := &http.Server{
 		Addr:              cfg.BindAddr,
 		ReadHeaderTimeout: 60 * time.Second,
-		Handler:           gnoweb.MakeApp(cfg).Router,
+		Handler:           gnoweb.MakeApp(logger, cfg).Router,
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		fmt.Fprintf(os.Stderr, "HTTP server stopped with error: %+v\n", err)
+		logger.Fatalf("HTTP server stopped with error: %+v", err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,6 +36,8 @@ const (
 var defaultViewsFiles embed.FS
 
 type Config struct {
+	logger *log.Logger // unexported field
+
 	RemoteAddr    string
 	CaptchaSite   string
 	FaucetURL     string
@@ -58,7 +61,7 @@ func NewDefaultConfig() Config {
 	}
 }
 
-func MakeApp(cfg Config) gotuna.App {
+func MakeApp(logger *log.Logger, cfg Config) gotuna.App {
 	var viewFiles fs.FS
 
 	// Get specific views directory if specified
@@ -92,7 +95,7 @@ func MakeApp(cfg Config) gotuna.App {
 		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
 	}
 	for from, to := range aliases {
-		app.Router.Handle(from, handlerRealmAlias(app, &cfg, to))
+		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
 	// http redirects
 	redirects := map[string]string{
@@ -104,22 +107,22 @@ func MakeApp(cfg Config) gotuna.App {
 		"/getting-started":         "/start",
 	}
 	for from, to := range redirects {
-		app.Router.Handle(from, handlerRedirect(app, &cfg, to))
+		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(app, &cfg))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(app, &cfg))
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(app, &cfg))
-	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
+	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
 
 	// other
-	app.Router.Handle("/faucet", handlerFaucet(app, &cfg))
-	app.Router.Handle("/static/{path:.+}", handlerStaticFile(app, &cfg))
-	app.Router.Handle("/favicon.ico", handlerFavicon(app, &cfg))
+	app.Router.Handle("/faucet", handlerFaucet(logger, app, &cfg))
+	app.Router.Handle("/static/{path:.+}", handlerStaticFile(logger, app, &cfg))
+	app.Router.Handle("/favicon.ico", handlerFavicon(logger, app, &cfg))
 
 	// api
-	app.Router.Handle("/status.json", handlerStatusJSON(app, &cfg))
+	app.Router.Handle("/status.json", handlerStatusJSON(logger, app, &cfg))
 
 	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.RequestURI
@@ -132,7 +135,7 @@ func MakeApp(cfg Config) gotuna.App {
 // url is intended to be shorter.
 // UX is intended to be more minimalistic.
 // A link to the realm realm is added.
-func handlerRealmAlias(app gotuna.App, cfg *Config, rlmpath string) http.Handler {
+func handlerRealmAlias(logger *log.Logger, app gotuna.App, cfg *Config, rlmpath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rlmfullpath := "gno.land" + rlmpath
 		querystr := "" // XXX: "?gnoweb-alias=1"
@@ -148,9 +151,9 @@ func handlerRealmAlias(app gotuna.App, cfg *Config, rlmpath string) http.Handler
 		rlmname := strings.TrimPrefix(rlmfullpath, "gno.land/r/")
 		qpath := "vm/qrender"
 		data := []byte(fmt.Sprintf("%s\n%s", rlmfullpath, querystr))
-		res, err := makeRequest(cfg, qpath, data)
+		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
-			writeError(w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
+			writeError(logger, w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
 			return
 		}
 
@@ -177,7 +180,7 @@ func handlerRealmAlias(app gotuna.App, cfg *Config, rlmpath string) http.Handler
 	})
 }
 
-func handlerFaucet(app gotuna.App, cfg *Config) http.Handler {
+func handlerFaucet(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("Config", cfg).
@@ -185,7 +188,7 @@ func handlerFaucet(app gotuna.App, cfg *Config) http.Handler {
 	})
 }
 
-func handlerStatusJSON(app gotuna.App, cfg *Config) http.Handler {
+func handlerStatusJSON(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ret struct {
@@ -219,7 +222,7 @@ func handlerStatusJSON(app gotuna.App, cfg *Config) http.Handler {
 		ret.Website.GoVersion = runtime.Version()
 
 		ret.Gnoland.Connected = true
-		res, err := makeRequest(cfg, ".app/version", []byte{})
+		res, err := makeRequest(logger, cfg, ".app/version", []byte{})
 		if err != nil {
 			ret.Gnoland.Connected = false
 			errmsg := err.Error()
@@ -236,7 +239,7 @@ func handlerStatusJSON(app gotuna.App, cfg *Config) http.Handler {
 	})
 }
 
-func handlerRedirect(app gotuna.App, cfg *Config, to string) http.Handler {
+func handlerRedirect(logger *log.Logger, app gotuna.App, cfg *Config, to string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, to, http.StatusFound)
 		tmpl := app.NewTemplatingEngine()
@@ -246,7 +249,7 @@ func handlerRedirect(app gotuna.App, cfg *Config, to string) http.Handler {
 	})
 }
 
-func handlerRealmMain(app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmMain(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
@@ -257,9 +260,9 @@ func handlerRealmMain(app gotuna.App, cfg *Config) http.Handler {
 			funcName := query.Get("__func")
 			qpath := "vm/qfuncs"
 			data := []byte(rlmpath)
-			res, err := makeRequest(cfg, qpath, data)
+			res, err := makeRequest(logger, cfg, qpath, data)
 			if err != nil {
-				writeError(w, err)
+				writeError(logger, w, fmt.Errorf("request failed: %w", err))
 				return
 			}
 			var fsigs vm.FunctionSignatures
@@ -285,13 +288,13 @@ func handlerRealmMain(app gotuna.App, cfg *Config) http.Handler {
 			// Ensure realm exists. TODO optimize.
 			qpath := qFileStr
 			data := []byte(rlmpath)
-			_, err := makeRequest(cfg, qpath, data)
+			_, err := makeRequest(logger, cfg, qpath, data)
 			if err != nil {
-				writeError(w, errors.New("error querying realm package"))
+				writeError(logger, w, errors.New("error querying realm package"))
 				return
 			}
 			// Render blank query path, /r/REALM:.
-			handleRealmRender(app, cfg, w, r)
+			handleRealmRender(logger, app, cfg, w, r)
 		}
 	})
 }
@@ -301,13 +304,13 @@ type pathLink struct {
 	Text string
 }
 
-func handlerRealmRender(app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmRender(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handleRealmRender(app, cfg, w, r)
+		handleRealmRender(logger, app, cfg, w, r)
 	})
 }
 
-func handleRealmRender(app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
+func handleRealmRender(logger *log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
@@ -319,14 +322,14 @@ func handleRealmRender(app gotuna.App, cfg *Config, w http.ResponseWriter, r *ht
 	}
 	qpath := "vm/qrender"
 	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
-	res, err := makeRequest(cfg, qpath, data)
+	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
 		if strings.Contains(err.Error(), "Render not declared") {
 			res = &abci.ResponseQuery{}
 			res.Data = []byte("realm package has no Render() function")
 		} else {
-			writeError(w, err)
+			writeError(logger, w, err)
 			return
 		}
 	}
@@ -352,16 +355,16 @@ func handleRealmRender(app gotuna.App, cfg *Config, w http.ResponseWriter, r *ht
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
-func handlerRealmFile(app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		diruri := "gno.land/r/" + vars["rlmname"]
 		filename := vars["filename"]
-		renderPackageFile(app, cfg, w, r, diruri, filename)
+		renderPackageFile(logger, app, cfg, w, r, diruri, filename)
 	})
 }
 
-func handlerPackageFile(app gotuna.App, cfg *Config) http.Handler {
+func handlerPackageFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
@@ -371,18 +374,18 @@ func handlerPackageFile(app gotuna.App, cfg *Config) http.Handler {
 			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)
 			return
 		}
-		renderPackageFile(app, cfg, w, r, diruri, filename)
+		renderPackageFile(logger, app, cfg, w, r, diruri, filename)
 	})
 }
 
-func renderPackageFile(app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
+func renderPackageFile(logger *log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
 		qpath := qFileStr
 		data := []byte(diruri)
-		res, err := makeRequest(cfg, qpath, data)
+		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
-			writeError(w, err)
+			writeError(logger, w, err)
 			return
 		}
 		files := strings.Split(string(res.Data), "\n")
@@ -398,9 +401,9 @@ func renderPackageFile(app gotuna.App, cfg *Config, w http.ResponseWriter, r *ht
 		filepath := diruri + "/" + filename
 		qpath := qFileStr
 		data := []byte(filepath)
-		res, err := makeRequest(cfg, qpath, data)
+		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
-			writeError(w, err)
+			writeError(logger, w, err)
 			return
 		}
 		// Render template.
@@ -414,7 +417,7 @@ func renderPackageFile(app gotuna.App, cfg *Config, w http.ResponseWriter, r *ht
 	}
 }
 
-func makeRequest(cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
+func makeRequest(log *log.Logger, cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
@@ -427,14 +430,14 @@ func makeRequest(cfg *Config, qpath string, data []byte) (res *abci.ResponseQuer
 		return nil, err
 	}
 	if qres.Response.Error != nil {
-		fmt.Printf("Log: %s\n",
-			qres.Response.Log)
+		log.Printf("error: %s", qres.Response.Error)
+		log.Println(qres.Response.Log)
 		return nil, qres.Response.Error
 	}
 	return &qres.Response, nil
 }
 
-func handlerStaticFile(app gotuna.App, cfg *Config) http.Handler {
+func handlerStaticFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 	fileapp := http.StripPrefix("/static", http.FileServer(fs))
 
@@ -459,7 +462,7 @@ func handlerStaticFile(app gotuna.App, cfg *Config) http.Handler {
 	})
 }
 
-func handlerFavicon(app gotuna.App, cfg *Config) http.Handler {
+func handlerFavicon(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -484,16 +487,9 @@ func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWri
 		Render(w, r, "404.html", "funcs.html")
 }
 
-func writeError(w http.ResponseWriter, err error) {
+func writeError(log *log.Logger, w http.ResponseWriter, err error) {
 	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
-
-	fmt.Println("main", err.Error())
-
-	if details := errors.Unwrap(err); details != nil {
-		fmt.Println("details", details.Error())
-	}
-
 	w.Write([]byte(err.Error()))
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
@@ -44,6 +45,8 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
+	io := commands.NewTestIO()
+
 	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
@@ -56,7 +59,7 @@ func TestRoutes(t *testing.T) {
 	cfg.HelpChainID = "dev"
 	cfg.CaptchaSite = ""
 	cfg.WithAnalytics = false
-	app := MakeApp(cfg)
+	app := MakeApp(io, cfg)
 
 	for _, r := range routes {
 		t.Run(fmt.Sprintf("test route %s", r.route), func(t *testing.T) {
@@ -93,6 +96,8 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
+	io := commands.NewTestIO()
+
 	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
@@ -105,7 +110,7 @@ func TestAnalytics(t *testing.T) {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = true
-				app := MakeApp(ccfg)
+				app := MakeApp(io, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
@@ -118,7 +123,7 @@ func TestAnalytics(t *testing.T) {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = false
-				app := MakeApp(ccfg)
+				app := MakeApp(io, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
