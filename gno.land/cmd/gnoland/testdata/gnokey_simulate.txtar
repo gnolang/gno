@@ -1,6 +1,6 @@
 # test for gnokey maketx -simulate options, and how they return any errors
 
-loadpkg gno.land/r/hello $WORK/hello
+loadpkg $WORK/hello
 
 # start a new node
 gnoland start
@@ -12,15 +12,15 @@ stdout '"sequence": "0"'
 # attempt adding the "test" package.
 # the package has a syntax error; simulation should catch this ahead of time and prevent the tx.
 # -simulate test
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate test test1
+! gnokey maketx addpkg -pkgdir $WORK/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate test test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "0"'
 # -simulate only
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
+! gnokey maketx addpkg -pkgdir $WORK/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "0"'
 # -simulate skip
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
+! gnokey maketx addpkg -pkgdir $WORK/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "1"'
 
@@ -67,12 +67,18 @@ stdout '"sequence": "4"'
 gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
 stdout 'Hello, George!'
 
+-- test/gno.mod --
+module gno.land/r/test
+
 -- test/test.gno --
 package test
 
 func Render(path string) string {
  	return 89
 }
+
+-- hello/gno.mod --
+module gno.land/r/hello
 
 -- hello/hello.gno --
 package hello
