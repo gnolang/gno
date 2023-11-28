@@ -151,16 +151,17 @@ func trendingsToJSONString(trendings []Trending) string {
 		if trending.Tag == "" {
 			continue
 		}
-		b.WriteString(trendingToJSONString(trending))
 
-		// Add a comma if it's not the last element
-		if i < len(trendings)-1 {
-			b.WriteString(`,`)
+		// Append comma if not the first element
+		if i > 0 {
+			b.WriteString(",")
 		}
+
+		b.WriteString(trendingToJSONString(trending))
 	}
 
-	// Write the closing bracket for the array
-	b.WriteString(`]`)
+	// Append closing bracket for the array
+	b.WriteString("]")
 
 	return b.String()
 }
