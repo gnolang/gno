@@ -1,0 +1,15 @@
+---
+http:
+  routers:
+    gno-portal-loop:
+      service: gno-portal-loop
+      # tls: "true"
+      rule: "Host(`gno.land`)"
+      entrypoints: "web"
+      middlewares: []
+
+  services:
+    gno-portal-loop:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:26657"

@@ -1,0 +1,33 @@
+version: "3"
+services:
+  traefik:
+    image: "traefik:v2.10"
+    network_mode: host
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.file=true"
+      - "--providers.file.watch=true"
+      - "--providers.file.directory=/etc/traefik/configs"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./traefik:/etc/traefik/configs
+
+  snapshotter:
+    build:
+      dockerfile: ./snapshotter/Dockerfile
+    command: ["/usr/sbin/crond", "-l", "2", "-f"]
+    working_dir: /app
+    network_mode: host
+    volumes:
+      - ./scripts:/scripts
+      - ./backups:/backups
+      - ./traefik:/etc/traefik/configs
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    environment:
+      HOST_PWD: $PWD
+    extra_hosts:
+      - gno.land:127.0.0.1
