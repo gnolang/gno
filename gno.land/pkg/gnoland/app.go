@@ -122,6 +122,7 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, m
 	var err error
 
 	cfg := NewAppOptions()
+	cfg.SkipFailingGenesisTxs = skipFailingGenesisTxs
 
 	// Get main DB.
 	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
