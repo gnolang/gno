@@ -115,9 +115,9 @@ func CreateBasicNFT(player std.Address, gameId string) string {
 	return metadata
 }
 
-func GetUserBasicNFTs(addr std.Address) string {
+func GetUserBasicNFTs(addr std.Address, readyToUse string) string {
 	// call GetUserBasicFlipNFTs from basicNFT.gno
-	userNFTs := GetUserBasicFlipNFTs(addr)
+	userNFTs := GetUserBasicFlipNFTs(addr, readyToUse)
 	return userNFTs
 }
 

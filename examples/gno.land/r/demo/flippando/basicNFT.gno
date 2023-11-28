@@ -7,11 +7,13 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/avl"
 )
 
 var (
 	flipBasicNFT	= grc721f.NewBasicNFT("Flippando Basic NFT", "BFLP")
 	basicNFTtokenIDCounter	uint64
+	lockedNFTs avl.Tree // tokenId -> flipAmount
 )
 
 func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
@@ -61,6 +63,15 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
 		// mint fungible FLIP token
 		MintLocked(player, tidString, uint64(1))
+		// add NFT to the lockedNFTs avl.Tree
+		var flipAmount uint64
+		if len(currentGame.SolvedGameBoard) == 16 {
+			flipAmount = 1
+		} else if len(currentGame.SolvedGameBoard) == 64 {
+			flipAmount = 4
+		}
+
+		lockedNFTs.Set(tidString, flipAmount)
 		result = string(flipBasicNFTMetaDataJSON)
 	}
 	res := &nftResult{
@@ -90,6 +101,8 @@ func UnlockAndTransferNFT(from, to std.Address, tid string) error {
 	if err != nil {
 		return err
 	}
+	// remove from locked NFTs
+	lockedNFTs.Remove(tid)
 	return nil
 }
 
@@ -102,7 +115,7 @@ func GetOwnerOfBasicNFT(tid string) std.Address {
 	return owner
 }
 
-func GetUserBasicFlipNFTs(addr std.Address) string {
+func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 	tokenCount := flipBasicNFT.TokenCount()
 	tokenURIs := []string{}
 	userNFTsError := ""
@@ -122,10 +135,21 @@ func GetUserBasicFlipNFTs(addr std.Address) string {
 			} 
 		}
 		
-		// If the owner matches the address we're looking for, add the TokenID to the slice.
+		// check the owner is the addr
 		if owner == addr {
-			tokenURI := GetBasicTokenURI(tidString)
-			tokenURIs = append(tokenURIs, tokenURI)
+			// if readyToUSe == "yes" we're returning only locked NFTs
+			lockedNFT, exists := lockedNFTs.Get(tidString)
+			if readyToUse == "yes" {
+				if exists {
+					tokenURI := GetBasicTokenURI(tidString)
+					tokenURIs = append(tokenURIs, tokenURI)
+				}
+			} else {
+				if !exists {
+					tokenURI := GetBasicTokenURI(tidString)
+					tokenURIs = append(tokenURIs, tokenURI)
+				}
+			}
 		}
 	}
 
@@ -167,7 +191,7 @@ func GetBasicNFTsByTokenId(bTokenIDs string) string {
 	return string(userNFTs)
 }
 
-func GetAllBasicFlipNFTs(excludePlayer std.Address) string {
+func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 	tokenCount := flipBasicNFT.TokenCount()
 	tokenURIs := []string{}
 	userNFTsError := ""
@@ -185,17 +209,18 @@ func GetAllBasicFlipNFTs(excludePlayer std.Address) string {
 			} 
 		}
 		
-		// If excludePlayer is "" return all nfts
-		if len(excludePlayer) == 0 {
-			tokenURI := GetBasicTokenURI(tidString)
-			tokenURIs = append(tokenURIs, tokenURI)
-		} else {
-			// if excludePlayer is set, return nfts not belonging to excludePlayer
-			if owner != excludePlayer {
+		// return nfts not belonging to forPlayer
+		if owner != forPlayer {
+			// only locked nfts, unlocked can't be reused
+			lockedNFT, exists := lockedNFTs.Get(tidString)
+			
+			if exists {
 				tokenURI := GetBasicTokenURI(tidString)
 				tokenURIs = append(tokenURIs, tokenURI)
 			}
+		
 		}
+	
 	}
 
 	fetchedUserNFTs := &userNFTsResult{
