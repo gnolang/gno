@@ -1,5 +1,5 @@
-.PHONY: help deploy query tx owner
-all: help deploy query tx owner
+.PHONY: deploy query tx owner
+all: deploy query tx owner
 
 deploy:
 	@echo "deploying.."
