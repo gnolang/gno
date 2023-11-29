@@ -9,6 +9,7 @@ import (
 
 var (
 	noob = avl.NewTree()
+	ownerAddr std.Address
 )
 
 type Storage struct {
@@ -17,6 +18,8 @@ type Storage struct {
 }
 
 func init() {
+	ownerAddr = std.GetOrigCaller()	
+
 	noob.Set(
 		"foo",
 		Storage{
@@ -53,7 +56,7 @@ func Noob(data string) {
 	noob.Set(
 		"foo",
 		Storage{
-			Date: std.GetHeight(),
+			Date: std.GetHeight(), // sets current block height as "date"
 			Data: dataSlice,
 		},
 	)	
@@ -72,10 +75,18 @@ func GetNoob() string {
 			if index == len(storage.Data)-1 {
 				resultStr += ufmt.Sprintf("%s", data)
 
-				return ufmt.Sprintf("Date: %d Data: %s", storage.Date, resultStr)
+				return ufmt.Sprintf("height: [%d] data: [%s]", storage.Date, resultStr)
 			}
 			resultStr += ufmt.Sprintf("%s, ", data)
 		}
 	}
-	return ufmt.Sprintf("Date: %d Data: %s", storage.Date, resultStr)
+	return ufmt.Sprintf(
+		"height: [%d] data: [%s]", 
+		storage.Date, 
+		resultStr,
+	)
+}
+
+func GetOwner() std.Address {
+	return ownerAddr
 }
