@@ -28,6 +28,7 @@ var _ backup.Client = (*DevNode)(nil)
 // DevNode is a restore.Client
 var _ restore.Client = (*DevNode)(nil)
 
+// DevNode is not thread safe
 type DevNode struct {
 	node *node.Node
 
@@ -215,14 +216,14 @@ func (d *DevNode) reset(genesis gnoland.GnoGenesisState) error {
 	createNode := func() {
 		defer recoverError()
 
-		node, err := newNode(d.logger, d.rootdir, genesis)
-		if err != nil {
-			err = fmt.Errorf("unable to create node: %w", err)
+		node, nodeErr := newNode(d.logger, d.rootdir, genesis)
+		if nodeErr != nil {
+			err = fmt.Errorf("unable to create node: %w", nodeErr)
 			return
 		}
 
-		if err := node.Start(); err != nil {
-			err = fmt.Errorf("unable to start the node: %w", err)
+		if startErr := node.Start(); startErr != nil {
+			err = fmt.Errorf("unable to start the node: %w", startErr)
 			return
 		}
 

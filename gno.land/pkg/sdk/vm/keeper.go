@@ -127,7 +127,7 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	default:
-		panic("shold not happen")
+		panic("should not happen")
 	}
 }
 
@@ -147,7 +147,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
 	}
-
 	creatorAcc := vm.acck.GetAccount(ctx, creator)
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))

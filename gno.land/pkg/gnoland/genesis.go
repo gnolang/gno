@@ -105,7 +105,6 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 	for _, pkg := range nonDraftPkgs {
 		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-		fmt.Printf("loading - name: %s, path: %s \r\n", memPkg.Name, memPkg.Path)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}

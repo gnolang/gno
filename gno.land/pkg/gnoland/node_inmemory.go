@@ -34,10 +34,6 @@ func NewMockedPrivValidator() bft.PrivValidator {
 
 // NewInMemoryNodeConfig creates a default configuration for an in-memory node.
 func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
-	if chainid == "" {
-		chainid = "dev"
-	}
-
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,

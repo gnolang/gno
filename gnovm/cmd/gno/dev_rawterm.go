@@ -111,27 +111,18 @@ type TaskWriter interface {
 	WriteTask(task string, buf []byte) (n int, err error)
 }
 
-func (rt *RawTerm) enableTermMode() {
-	rt.condTermMode.L.Lock()
-	rt.termMode = true
-	rt.fsin.Write([]byte{0}) // Release the key reader
-	rt.condTermMode.L.Unlock()
-}
-
-func (rt *RawTerm) disableTermMode() {
-	rt.condTermMode.L.Lock()
-	rt.termMode = false
-	rt.condTermMode.Broadcast()
-	rt.condTermMode.L.Unlock()
-}
-
 func (rt *RawTerm) TermMode() <-chan string {
-	rt.enableTermMode()
+	// rt.enableTermMode()
 
 	rt.muTermMode.Lock()
+
+	// Create a new terminal.
+	// We assume that raw term has been initilize here
 	t := term.NewTerminal(rt.fsin, "> ")
+
 	// Override output with terminal one
 	rt.taskWriter = &rawTermWriter{t}
+
 	rt.muTermMode.Unlock()
 
 	// Create line reader chan
@@ -149,8 +140,6 @@ func (rt *RawTerm) TermMode() <-chan string {
 		close(rl)
 
 		rt.muTermMode.Unlock()
-
-		rt.disableTermMode()
 	}
 
 	go func() {
@@ -204,12 +193,6 @@ func (rt *RawTerm) read(buf []byte) (n int, err error) {
 
 func (rt *RawTerm) ReadKeyPress() (KeyPress, error) {
 	for {
-		rt.condTermMode.L.Lock()
-		for rt.termMode {
-			rt.condTermMode.Wait()
-		}
-		rt.condTermMode.L.Unlock()
-
 		buf := make([]byte, 1)
 		if _, err := rt.read(buf); err != nil {
 			return KeyNone, err
@@ -224,7 +207,7 @@ type columnTermWriter struct {
 }
 
 func (r *columnTermWriter) Write(buf []byte) (n int, err error) {
-	return r.WriteTask("", buf)
+	return r.WriteTask(".", buf)
 }
 
 func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error) {
@@ -256,10 +239,6 @@ func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error)
 }
 
 func (r *columnTermWriter) writeColumnLine(left string, line []byte) (n int, err error) {
-	if left == "" {
-		left = "."
-	}
-
 	// Write left column
 	if n, err = fmt.Fprintf(r.writer, "%-15s | ", left); err != nil {
 		return n, err
