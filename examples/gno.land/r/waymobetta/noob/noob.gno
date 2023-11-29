@@ -75,7 +75,11 @@ func GetNoob() string {
 			if index == len(storage.Data)-1 {
 				resultStr += ufmt.Sprintf("%s", data)
 
-				return ufmt.Sprintf("height: [%d] data: [%s]", storage.Date, resultStr)
+				return ufmt.Sprintf(
+					"height: [%d] data: [%s]", 
+					storage.Date, 
+					resultStr,
+				)
 			}
 			resultStr += ufmt.Sprintf("%s, ", data)
 		}
