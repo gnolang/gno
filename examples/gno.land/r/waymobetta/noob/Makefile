@@ -1,9 +1,14 @@
-.PHONY: deploy query tx owner
-all: deploy query tx owner
+.PHONY: deploy owner query tx
+all: deploy owner query tx
 
 deploy:
 	@echo "deploying.."
 	@zsh scripts/deploy.zsh
+	@echo "done"
+
+owner:
+	@echo "querying owner"
+	@zsh scripts/owner.zsh
 	@echo "done"
 
 query: owner
@@ -15,8 +20,4 @@ tx:
 	@echo "submitting transaction"
 	@zsh scripts/tx.zsh
 	@echo "done"
-
-owner:
-	@echo "querying owner"
-	@zsh scripts/owner.zsh
-	@echo "done"
+	@make query
