@@ -1020,7 +1020,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// Get the array type from the first argument and convert to it.
 							s0 := evalStaticTypeOf(store, last, n.Args[0])
 							tx := constType(arg, s0.Elem())
-							var arg1 Expr = Call(tx, arg)
+							arg1 := Call(tx, arg)
 							n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
