@@ -288,7 +288,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		// We need the owner to know which parent object to mark as dirty.
 		// Otherwise the change will never be persisted.
-		obj := pv.TV.V.(Object)
+		obj := pv.TV.GetFirstObject(store)
 		pv.Base = obj.GetOwner()
 		if pv.Base == nil {
 			// Can't use GetOwnerID() if GetOwner() returns nil. Not sure why this
