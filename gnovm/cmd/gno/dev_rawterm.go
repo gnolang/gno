@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"golang.org/x/term"
 )
 
 type KeyPress byte
+
+var (
+	CRLF = []byte{'\r', '\n'}
+	Null = []byte{0}
+)
 
 // key representation
 const (
@@ -24,6 +29,13 @@ const (
 	KeyCtrlO KeyPress = '\x0f' // Ctrl+O
 	KeyCtrlR KeyPress = '\x12' // Ctrl+R
 	KeyCtrlT KeyPress = '\x14' // Ctrl+T
+)
+
+const (
+	// ANSI escape codes
+	ClearCurrentLine = "\033[2K"
+	MoveCursorUp     = "\033[1A"
+	MoveCursorDown   = "\033[1B"
 )
 
 func (k KeyPress) String() string {
@@ -56,18 +68,22 @@ func (k KeyPress) String() string {
 
 // rawTerminal wraps an io.Writer, converting \n to \r\n
 type RawTerm struct {
-	muTermMode sync.RWMutex
-	fsin       *os.File
+	termMode     bool
+	condTermMode *sync.Cond
 
-	reader io.Reader
-	writer io.Writer
+	muTermMode sync.RWMutex
+
+	fsin       *os.File
+	reader     io.Reader
+	taskWriter TaskWriter
 }
 
 func NewRawTerm() *RawTerm {
 	return &RawTerm{
-		fsin:   os.Stdin,
-		reader: os.Stdin,
-		writer: os.Stdout,
+		condTermMode: sync.NewCond(&sync.Mutex{}),
+		fsin:         os.Stdin,
+		reader:       os.Stdin,
+		taskWriter:   &rawTermWriter{os.Stdout},
 	}
 }
 
@@ -83,47 +99,58 @@ func (rt *RawTerm) Init() (restoreFunc, error) {
 		return nil, fmt.Errorf("unable to init raw term: %w", err)
 	}
 
-	rt.reader = os.Stdin
-	rt.writer = &rawTermWriter{os.Stdout}
+	rt.reader = rt.fsin
+	rt.taskWriter = &columnTermWriter{os.Stdout}
 	return func() error {
 		return term.Restore(fd, oldstate)
 	}, nil
 }
 
-func (rt *RawTerm) bindInputOutput() {
+type TaskWriter interface {
+	io.Writer
+	WriteTask(task string, buf []byte) (n int, err error)
+}
 
-	rt.muTermMode.Unlock()
+func (rt *RawTerm) enableTermMode() {
+	rt.condTermMode.L.Lock()
+	rt.termMode = true
+	rt.fsin.Write([]byte{0}) // Release the key reader
+	rt.condTermMode.L.Unlock()
+}
+
+func (rt *RawTerm) disableTermMode() {
+	rt.condTermMode.L.Lock()
+	rt.termMode = false
+	rt.condTermMode.Broadcast()
+	rt.condTermMode.L.Unlock()
 }
 
 func (rt *RawTerm) TermMode() <-chan string {
+	rt.enableTermMode()
+
 	rt.muTermMode.Lock()
 	t := term.NewTerminal(rt.fsin, "> ")
-
-	// create a blocking reader to prevent external read
-	noopreader := newBlockingReader()
-
-	// override input/output with terminal ones
-	rt.writer = t
-	rt.reader = noopreader
+	// Override output with terminal one
+	rt.taskWriter = &rawTermWriter{t}
 	rt.muTermMode.Unlock()
 
-	// create line reader chan
+	// Create line reader chan
 	rl := make(chan string)
 
 	cleanup := func() {
 		rt.muTermMode.Lock()
+		// Jump one line
+		fmt.Fprint(os.Stdout, "\r\n")
 
-		// set back reader/writer
-		rt.reader = os.Stdin
-		rt.writer = &rawTermWriter{os.Stdout}
-		// cleanup output
-		fmt.Fprintf(rt.writer, "\r\n")
-		// unlock pending reader
-		noopreader.Close()
-		// signal that we are done
+		// Set back reader/writer
+		rt.taskWriter = &columnTermWriter{os.Stdout}
+
+		// Signal that we are done
 		close(rl)
 
 		rt.muTermMode.Unlock()
+
+		rt.disableTermMode()
 	}
 
 	go func() {
@@ -147,114 +174,120 @@ func (rt *RawTerm) TermMode() <-chan string {
 	return rl
 }
 
-// Write implements the io.Writer interface for rawModeWriter.
-// It converts each \n in the input to \r\n.
+func (rt *RawTerm) Taskf(task string, format string, args ...interface{}) (n int, err error) {
+	format = strings.TrimSpace(format)
+	if len(args) > 0 {
+		str := fmt.Sprintf(format, args...)
+		return rt.taskWriter.WriteTask(task, []byte(str+"\n"))
+	}
+
+	return rt.taskWriter.WriteTask(task, []byte(format+"\n"))
+}
+
+func (rt *RawTerm) Task(task string) (n int, err error) {
+	return rt.Taskf(task, "")
+}
+
 func (rt *RawTerm) Write(buf []byte) (n int, err error) {
 	rt.muTermMode.RLock()
 	defer rt.muTermMode.RUnlock()
 
-	return rt.writer.Write(buf)
+	return rt.taskWriter.Write(buf)
 }
 
-func (rt *RawTerm) Read(buf []byte) (n int, err error) {
+func (rt *RawTerm) read(buf []byte) (n int, err error) {
 	rt.muTermMode.RLock()
 	defer rt.muTermMode.RUnlock()
 
-	return rt.reader.Read(buf)
+	return rt.fsin.Read(buf)
 }
 
 func (rt *RawTerm) ReadKeyPress() (KeyPress, error) {
-	buf := make([]byte, 1)
-	if _, err := rt.Read(buf); err != nil {
-		return KeyNone, err
-	}
+	for {
+		rt.condTermMode.L.Lock()
+		for rt.termMode {
+			rt.condTermMode.Wait()
+		}
+		rt.condTermMode.L.Unlock()
 
-	return KeyPress(buf[0]), nil
+		buf := make([]byte, 1)
+		if _, err := rt.read(buf); err != nil {
+			return KeyNone, err
+		}
+
+		return KeyPress(buf[0]), nil
+	}
 }
 
-func listenForKeyPress(io commands.IO, rt *RawTerm) <-chan KeyPress {
-	cc := make(chan KeyPress)
-	go func() {
-		defer close(cc)
+type columnTermWriter struct {
+	writer io.Writer
+}
 
-		for {
-			key, err := rt.ReadKeyPress()
-			if err != nil {
-				io.ErrPrintfln("unable to read keypress: %s", err.Error())
-				return
-			}
+func (r *columnTermWriter) Write(buf []byte) (n int, err error) {
+	return r.WriteTask("", buf)
+}
 
-			cc <- key
+func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error) {
+	for len(buf) > 0 {
+		i := bytes.IndexByte(buf, '\n')
+		todo := len(buf)
+		if i >= 0 {
+			todo = i
 		}
-	}()
 
-	return cc
+		var nn int
+		nn, err = r.writeColumnLine(left, buf[:todo])
+		n += nn
+		if err != nil {
+			return n, err
+		}
+		buf = buf[todo:]
+
+		if i >= 0 {
+			if _, err = r.writer.Write(CRLF); err != nil {
+				return n, err
+			}
+			n++
+			buf = buf[1:]
+		}
+	}
+
+	return
+}
+
+func (r *columnTermWriter) writeColumnLine(left string, line []byte) (n int, err error) {
+	if left == "" {
+		left = "."
+	}
+
+	// Write left column
+	if n, err = fmt.Fprintf(r.writer, "%-15s | ", left); err != nil {
+		return n, err
+	}
+
+	// Write left line
+	var nn int
+	nn, err = r.writer.Write(line)
+	n += nn
+
+	return
 }
 
 type rawTermWriter struct {
 	writer io.Writer
 }
 
-func (r *rawTermWriter) Write(p []byte) (n int, err error) {
-	modified := bytes.ReplaceAll(p, []byte{'\n'}, []byte{'\r', '\n'})
-	return r.writer.Write(modified)
+func (r *rawTermWriter) Write(buf []byte) (n int, err error) {
+	return r.writer.Write(buf)
 }
 
-// NoopReader defines a reader that does nothing
-type noopReader struct {
-	once sync.Once
-	cc   chan struct{}
-}
-
-func newBlockingReader() *noopReader {
-	return &noopReader{
-		cc: make(chan struct{}),
+func (r *rawTermWriter) WriteTask(task string, buf []byte) (n int, err error) {
+	if task != "" {
+		n, err = r.writer.Write([]byte(task + ": "))
 	}
+
+	var nn int
+	nn, err = r.writer.Write(buf)
+	n += nn
+	return
 }
-
-func (n *noopReader) Close() error {
-	n.once.Do(func() { close(n.cc) })
-	return nil
-}
-
-func (n *noopReader) Read(p []byte) (int, error) {
-	<-n.cc
-	return 0, io.EOF
-}
-
-// type atomicBool struct {
-// 	*sync.Cond
-// 	flag int32
-// }
-
-// func NewAtomicBool() *atomicBool {
-// 	return &atomicBool{
-// 		Cond: sync.NewCond(&sync.Mutex{}),
-// 		flag: 0,
-// 	}
-// }
-
-// func (ab *atomicBool) SetTrue() *atomicBool {
-// 	if atomic.CompareAndSwapInt32(&ab.flag, 0, 1) {
-// 		// Only notify if there was a change
-// 		ab.Broadcast()
-// 	}
-
-// 	return ab
-// }
-
-// func (ab *atomicBool) SetFalse() *atomicBool {
-// 	if atomic.CompareAndSwapInt32(&ab.flag, 1, 0) {
-// 		// Only notify if there was a change
-// 		ab.Broadcast()
-// 	}
-// 	return ab
-// }
-
-// func (ab *atomicBool) WaitUntilFalse() {
-// 	ab.L.Lock()
-// 	for atomic.LoadInt32(&ab.flag) != 0 {
-// 		ab.Wait()
-// 	}
-// 	ab.L.Unlock()
-// }

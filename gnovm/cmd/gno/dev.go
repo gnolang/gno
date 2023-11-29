@@ -97,17 +97,6 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
 	logger := tmlog.NewNopLogger()
 
-	var dnode *DevNode
-	{
-		var err error
-		dnode, err = setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
-		if err != nil {
-			return err // already formated in setupDevNode
-		}
-		defer dnode.Close()
-		io.Printf("dev-node listening: %s\n", dnode.GetRemoteAddress())
-	}
-
 	// RAWTerm setup
 	rt := NewRawTerm()
 	{
@@ -121,13 +110,25 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		io.SetOut(commands.WriteNopCloser(rt))
 	}
 
+	var dnode *DevNode
+	{
+		var err error
+		dnode, err = setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
+		if err != nil {
+			return err // already formated in setupDevNode
+		}
+		defer dnode.Close()
+	}
+
+	rt.Taskf("Node", "Listener: %s", dnode.GetRemoteAddress())
+
 	// setup files watcher
 	w, err := setupPkgsWatcher(cfg, dnode.ListPkgs())
 	if err != nil {
 		return fmt.Errorf("unable to watch for files change: %w", err)
 	}
-	ccpath := make(chan []string, 1)
 
+	ccpath := make(chan []string, 1)
 	go func() {
 		defer close(ccpath)
 
@@ -153,15 +154,17 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		}
 		cancel(err)
 	}()
-
-	io.Printfln("gnoweb listening on %q", l.Addr().String())
 	defer server.Close()
 
-	// main loop
-	io.Printf("default address: %s\n", defaultCreator.String())
-	io.Printf("chainid: %s\n", dnode.node.Config().ChainID())
+	rt.Taskf("GnoWeb", "Listener: %s", l.Addr())
 
-	cckeypress := listenForKeyPress(io, rt)
+	// Print basic infos
+	rt.Taskf("Node", "Default Address: %s", defaultCreator.String())
+	rt.Taskf("Node", "Chain ID Address: %s", dnode.node.Config().ChainID())
+
+	rt.Taskf("----", "for commands and help, press `h`")
+
+	cckey := listenForKeyPress(io, rt)
 	for {
 		var err error
 
@@ -170,83 +173,93 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			return context.Cause(ctx)
 		case paths := <-ccpath:
 			for _, path := range paths {
-				io.Printf("path %q has been modified\n", path)
+				rt.Taskf("HotReload", "path %q has been modified\n", path)
 			}
-			printActionf(io, "file-update", "Reload...")
-			if err := dnode.UpdatePackages(paths...); err != nil {
-				io.Println("unable to update packages: %s", err.Error())
+
+			rt.Taskf("Node", "Loading package updates...")
+			if err = dnode.UpdatePackages(paths...); err != nil {
+				checkForError(rt, err)
 				continue
 			}
 
-			if err = dnode.Reload(ctx); err != nil {
-				io.Printf(" [ERROR] - %s\n", err.Error())
-			} else {
-				io.Println(" [DONE]")
+			rt.Taskf("Node", "Reloading...")
+			err = dnode.Reload(ctx)
+		case key, ok := <-cckey:
+			if !ok {
+				cancel(nil)
+				continue
 			}
-		case key := <-cckeypress:
-			var err error
+
+			if cfg.verbose {
+				rt.Taskf("KeyPress", "<%s>", key.String())
+			}
+
 			switch key {
+			case 'h', 'H':
+				printHelper(io)
 			case 'r', 'R':
-				printActionf(io, key.String(), "Reload All...")
+				rt.Taskf("Node", "Reloading all packages...")
 				err = dnode.ReloadAll(ctx)
+				checkForError(rt, err)
 			case KeyCtrlR:
-				printActionf(io, key.String(), "Reset...")
+				rt.Taskf("Node", "Reseting state...")
 				err = dnode.Reset()
+				checkForError(rt, err)
 			case KeyCtrlE:
-				printActionf(io, key.String(), "Forcing error...")
+				rt.Taskf("TEST", "Forcing error")
 				err = fmt.Errorf("boom")
+				checkForError(rt, err)
 			case KeyCtrlT:
-				printActionf(io, key.String(), "REPL MODE\n")
+				rt.Taskf("REPL", "Starting REPL mode")
 				termline := rt.TermMode()
 				for line := range termline {
 					io.Println("line:", line)
 				}
-				io.Println("<END>")
-				continue
+				rt.Taskf("REPL", "[END]")
 			case KeyCtrlC:
 				cancel(nil)
-				continue
 			default:
-				continue
 			}
 
-			if err != nil {
-				io.Printf(" [ERROR] - %s\n", err.Error())
-			} else {
-				io.Println(" [DONE]")
-			}
+			// read next key
+			cckey = listenForKeyPress(io, rt)
 		}
 	}
 }
 
-func printActionf(io commands.IO, action string, message string, args ...interface{}) {
-	format := fmt.Sprintf(message, args...)
-	io.Printf("%-20s %s", "<"+action+">", format)
+// XXX: Automatize this the same way command does
+func printHelper(io commands.IO) {
+	io.Println(`
+Gno Dev Helper:
+  h, H        Help - display this message
+  r, R        Reload - Reload all packages to take change into account.
+  Ctrl+R      Reset - Reset application state.
+  Ctrl+T      REPL Mode - Enters REPL (Read-Eval-Print Loop) mode. use Ctrl+D to quit.
+  Ctrl+C      Cancel/Exit - Cancels the current operation or exits the current context.
+`)
 }
 
-func handleDebounce(ctx context.Context, w *fsnotify.Watcher, ccpaths chan<- []string, timeout time.Duration) error {
-	var debounce <-chan time.Time
-	pathlist := []string{}
+func handleDebounce(ctx context.Context, watcher *fsnotify.Watcher, changedPathsCh chan<- []string, timeout time.Duration) error {
+	var debounceTimer <-chan time.Time
+	pathList := []string{}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case watchErr := <-w.Errors:
+		case watchErr := <-watcher.Errors:
 			return fmt.Errorf("watch error: %w", watchErr)
-		case <-debounce:
-			ccpaths <- pathlist
-			// reset list and debounce
-			pathlist = []string{}
-			debounce = nil
-		case evt := <-w.Events:
-			fmt.Printf("evts: %s - %s\r\n", evt.Op.String(), evt.Name)
+		case <-debounceTimer:
+			changedPathsCh <- pathList
+			// Reset pathList and debounceTimer
+			pathList = []string{}
+			debounceTimer = nil
+		case evt := <-watcher.Events:
 			if evt.Op == fsnotify.Write {
-				pathlist = append(pathlist, evt.Name)
-				debounce = time.After(timeout)
+				pathList = append(pathList, evt.Name)
+				debounceTimer = time.After(timeout)
 			}
 		}
-
 	}
 }
 
@@ -327,4 +340,31 @@ func parseArgumentsPath(args []string) (paths []string, err error) {
 	}
 
 	return paths, nil
+}
+
+func listenForKeyPress(io commands.IO, rt *RawTerm) <-chan KeyPress {
+	cc := make(chan KeyPress, 1)
+	go func() {
+		defer close(cc)
+		key, err := rt.ReadKeyPress()
+		if err != nil {
+			io.ErrPrintfln("unable to read keypress: %s", err.Error())
+			return
+		}
+
+		if key > 0 {
+			cc <- key
+		}
+
+	}()
+
+	return cc
+}
+
+func checkForError(rt *RawTerm, err error) {
+	if err != nil {
+		rt.Taskf("", "[ERROR] - %s", err.Error())
+	} else {
+		rt.Taskf("", "[DONE]")
+	}
 }

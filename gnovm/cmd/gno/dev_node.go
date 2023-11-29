@@ -156,13 +156,17 @@ func (d *DevNode) ReloadAll(ctx context.Context) error {
 	return d.Reload(ctx)
 }
 
+func (d *DevNode) Stop(ctx context.Context) error {
+}
+
 func (d *DevNode) Reload(ctx context.Context) error {
-	// save current (good) state
+	// save current state
 	state, err := d.saveState(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
 
+	// stop the node if not already stopped
 	if d.node.IsRunning() {
 		if err := d.node.Stop(); err != nil {
 			return fmt.Errorf("unable to stop the node: %w", err)
@@ -210,7 +214,6 @@ func (d *DevNode) Reload(ctx context.Context) error {
 		}
 	}
 
-	// ultimately restet state
 	return nil
 }
 
