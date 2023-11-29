@@ -7,12 +7,13 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	gnodev "github.com/gnolang/gno/gnovm/pkg/dev"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -31,20 +32,25 @@ var defaultDevOptions = &devCfg{
 	bindAddr: "127.0.0.1:8888",
 }
 
-func newDevCmd(io commands.IO) *commands.Command {
+func main() {
 	cfg := &devCfg{}
 
-	return commands.NewCommand(
+	stdio := commands.NewDefaultIO()
+	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "dev",
-			ShortUsage: "dev [flags] <path>",
-			ShortHelp:  "Devs run a node for dev purpose, it will load the give package path",
+			Name:       "gnodev",
+			ShortUsage: "gnodev [flags] <path>",
+			ShortHelp:  "GnoDev run a node for dev purpose, it will load the given package path",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execDev(cfg, args, io)
-		},
-	)
+			return execDev(cfg, args, stdio)
+		})
+
+	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
+	}
 }
 
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -85,7 +91,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// guess root dir
 	gnoroot := gnoenv.RootDir()
 
-	pkgpaths, err := parseArgsPackages(args)
+	pkgpaths, err := parseArgsPackages(io, args)
 	if err != nil {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
@@ -297,7 +303,7 @@ func setupGnowebServer(cfg *devCfg, dnode *gnodev.Node, rt *gnodev.RawTerm) *htt
 	return &server
 }
 
-func parseArgsPackages(args []string) (paths []string, err error) {
+func parseArgsPackages(io commands.IO, args []string) (paths []string, err error) {
 	paths = make([]string, len(args))
 	for i, arg := range args {
 		abspath, err := filepath.Abs(arg)
