@@ -273,7 +273,35 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
 		return
+	} else if pv.Base == nil && pv.Index == 0 {
+		// An index of zero indicates this is an assignment to a realm
+		// object. The base will be nil if this is being assigned to
+		// a dereferenced pointer value.
+
+		// First resolve the reference value and copy the underlying object
+		// info along with it.
+
+		// TODO: Should this check that tv2 type is not a reference?
+		if _, ok := pv.TV.V.(RefValue); ok {
+			*pv.TV = pv.TV.DeepCopySetRefObjectInfo(alloc, store)
+		}
+
+		// We need the owner to know which parent object to mark as dirty.
+		// Otherwise the change will never be persisted.
+		obj := pv.TV.V.(Object)
+		pv.Base = obj.GetOwner()
+		if pv.Base == nil {
+			// Can't use GetOwnerID() if GetOwner() returns nil. Not sure why this
+			// returns nil, the the object ID is likely there. Use that to get the object.
+			objInfo := obj.GetObjectInfo()
+			if !objInfo.OwnerID.IsZero() {
+				// Finally use this as the base so DidUpdate is called and all objects
+				// are correctly persisted to realm storage.
+				pv.Base = store.GetObject(objInfo.OwnerID)
+			}
+		}
 	}
+
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
@@ -1013,15 +1041,31 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 // DeepCopy makes of copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
 func (tv TypedValue) DeepCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	return tv.deepCopy(alloc, store, false)
+}
+
+func (tv TypedValue) DeepCopySetRefObjectInfo(alloc *Allocator, store Store) (cp TypedValue) {
+	return tv.deepCopy(alloc, store, true)
+}
+
+func (tv TypedValue) deepCopy(alloc *Allocator, store Store, setRefObjectInfo bool) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc)
+			arrayValue := refObjectValue.Copy(alloc)
+			if setRefObjectInfo {
+				arrayValue.ObjectInfo = *refObject.GetObjectInfo()
+			}
+			cp.V = arrayValue
 		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc)
+			structValue := refObjectValue.Copy(alloc)
+			if setRefObjectInfo {
+				structValue.ObjectInfo = *refObject.GetObjectInfo()
+			}
+			cp.V = structValue
 		default:
 			cp = tv
 		}
