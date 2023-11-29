@@ -13,7 +13,7 @@ type validatorCfg struct {
 }
 
 // newValidatorCmd creates the genesis validator subcommand
-func newValidatorCmd(io *commands.IO) *commands.Command {
+func newValidatorCmd(io commands.IO) *commands.Command {
 	cfg := &validatorCfg{
 		commonCfg: commonCfg{},
 	}

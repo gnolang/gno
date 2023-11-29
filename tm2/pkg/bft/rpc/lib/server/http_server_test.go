@@ -21,6 +21,8 @@ import (
 )
 
 func TestMaxOpenConnections(t *testing.T) {
+	t.Parallel()
+
 	const max = 5 // max simultaneous connections
 
 	// Start the server.
@@ -70,6 +72,8 @@ func TestMaxOpenConnections(t *testing.T) {
 }
 
 func TestStartHTTPAndTLSServer(t *testing.T) {
+	t.Parallel()
+
 	ln, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	defer ln.Close()
@@ -96,6 +100,8 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 }
 
 func TestRecoverAndLogHandler(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		panicArg         any
@@ -163,6 +169,8 @@ func TestRecoverAndLogHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				req, _ = http.NewRequest(http.MethodGet, "", nil)
 				resp   = httptest.NewRecorder()

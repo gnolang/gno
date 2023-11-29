@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -166,12 +167,12 @@ func warnIfErrors(f func() error) {
 }
 
 func convertDERtoBER(signatureDER []byte) ([]byte, error) {
-	sigDER, err := btcec.ParseDERSignature(signatureDER[:], btcec.S256())
+	sigDER, err := ecdsa.ParseDERSignature(signatureDER[:])
 	if err != nil {
 		return nil, err
 	}
-	sigBER := btcec.Signature{R: sigDER.R, S: sigDER.S}
-	return sigBER.Serialize(), nil
+
+	return sigDER.Serialize(), nil
 }
 
 func getLedgerDevice() (LedgerSECP256K1, error) {
@@ -235,7 +236,7 @@ func getPubKeyUnsafe(device LedgerSECP256K1, path hd.BIP44Params) (crypto.PubKey
 	}
 
 	// re-serialize in the 33-byte compressed format
-	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
+	cmp, err := btcec.ParsePubKey(publicKey[:])
 	if err != nil {
 		return nil, fmt.Errorf("error parsing public key: %w", err)
 	}
@@ -259,7 +260,7 @@ func getPubKeyAddrSafe(device LedgerSECP256K1, path hd.BIP44Params, hrp string) 
 	}
 
 	// re-serialize in the 33-byte compressed format
-	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
+	cmp, err := btcec.ParsePubKey(publicKey[:])
 	if err != nil {
 		return nil, "", fmt.Errorf("error parsing public key: %w", err)
 	}

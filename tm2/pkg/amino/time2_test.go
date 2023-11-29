@@ -18,6 +18,8 @@ type testTime struct {
 }
 
 func TestDecodeSkippedFieldsInTime(t *testing.T) {
+	t.Parallel()
+
 	tm, err := time.Parse("2006-01-02 15:04:05 +0000 UTC", "1970-01-01 00:00:00 +0000 UTC")
 	assert.NoError(t, err)
 
@@ -62,6 +64,8 @@ func TestDecodeSkippedFieldsInTime(t *testing.T) {
 }
 
 func TestMinMaxTimeEncode(t *testing.T) {
+	t.Parallel()
+
 	tMin, err := time.Parse("2006-01-02 15:04:05 +0000 UTC", "0001-01-01 00:00:00 +0000 UTC")
 	assert.NoError(t, err)
 	tm := testTime{tMin}

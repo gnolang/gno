@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -63,7 +63,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
-	gnoRootDir := gnoland.MustGuessGnoRootDir()
+	gnoRootDir := gnoenv.RootDir()
 
 	// `gnoHomeDir` should be the local directory where gnokey stores keys.
 	gnoHomeDir := filepath.Join(tmpdir, "gno")
@@ -263,7 +263,7 @@ func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
 	if err != nil {
-		fmt.Fprintf(ts.Stderr(), "%q error: %v\n", cmd, err)
+		fmt.Fprintf(ts.Stderr(), "%q error: %+v\n", cmd, err)
 		if !neg {
 			ts.Fatalf("unexpected %q command failure: %s", cmd, err)
 		}

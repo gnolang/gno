@@ -1,4 +1,8 @@
-Each sub-project folder has its own license terms.
+Each project subdirectory has its own license terms.
 
-* gnovm, gno.land - copyleft derived from AGPL3.0
-* tm2 - Apache2.0
+Gno Network Public License 3.0 (copyleft; derivative work, forked from AGPL 3.0)
+- [Gno.land](gno.land/LICENSE.md)
+- [GnoVM](gnovm/LICENSE.md)
+
+Apache 2.0
+- [TM2](tm2/LICENSE.md)

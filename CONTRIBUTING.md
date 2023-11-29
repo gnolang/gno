@@ -52,7 +52,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ### Environment
 
-The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
+The gno repository is primarily based on Golang (Go) and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 

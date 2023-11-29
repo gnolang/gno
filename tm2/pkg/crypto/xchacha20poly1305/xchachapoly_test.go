@@ -14,6 +14,8 @@ import (
 // Use of this source code is governed by a BSD-style
 // license that can be found at the bottom of this file.
 func TestRandom(t *testing.T) {
+	t.Parallel()
+
 	// Some random tests to verify Open(Seal) == Plaintext
 	for i := 0; i < 256; i++ {
 		var nonce [24]byte

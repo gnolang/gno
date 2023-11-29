@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -42,7 +43,7 @@ type startCfg struct {
 	nodeConfigPath   string
 }
 
-func newStartCmd(io *commands.IO) *commands.Command {
+func newStartCmd(io commands.IO) *commands.Command {
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
@@ -59,7 +60,7 @@ func newStartCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	gnoroot := gnoland.MustGuessGnoRootDir()
+	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
 
@@ -173,8 +174,8 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(c *startCfg, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+func execStart(c *startCfg, io commands.IO) error {
+	logger := log.NewTMLogger(log.NewSyncWriter(io.Out()))
 	dataDir := c.dataDir
 
 	var (
@@ -232,7 +233,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
