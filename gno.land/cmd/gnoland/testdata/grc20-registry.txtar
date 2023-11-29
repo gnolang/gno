@@ -35,7 +35,6 @@ func TransferByName(name string, to string, amount uint64) string {
 			} else {
 				return "invalid address, ownership issue :("
 			}
-			return "registry=" + std.CurrentRealm().Addr().String() + " " + pair.cb(std.Address(to), amount)
 		}
 	}
 	return "not found"
