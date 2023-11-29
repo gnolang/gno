@@ -1,10 +1,10 @@
 package main
 
 func main() {
-	var errors []error
-	errors = append(errors, nil, nil)
-	println(len(errors))
+	var x string
+	y := append([]byte{'X'}, x...)
+	println(string(y))
 }
 
 // Output:
-// 2
+// X

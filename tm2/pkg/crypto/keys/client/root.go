@@ -18,8 +18,14 @@ type baseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd() *commands.Command {
-	cfg := &baseCfg{}
+func NewRootCmd(io commands.IO) *commands.Command {
+	return NewRootCmdWithBaseConfig(io, DefaultBaseOptions)
+}
+
+func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Command {
+	cfg := &baseCfg{
+		BaseOptions: base,
+	}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -35,17 +41,17 @@ func NewRootCmd() *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newAddCmd(cfg),
-		newDeleteCmd(cfg),
-		newGenerateCmd(cfg),
-		newExportCmd(cfg),
-		newImportCmd(cfg),
-		newListCmd(cfg),
-		newSignCmd(cfg),
-		newVerifyCmd(cfg),
-		newQueryCmd(cfg),
-		newBroadcastCmd(cfg),
-		newMakeTxCmd(cfg),
+		newAddCmd(cfg, io),
+		newDeleteCmd(cfg, io),
+		newGenerateCmd(cfg, io),
+		newExportCmd(cfg, io),
+		newImportCmd(cfg, io),
+		newListCmd(cfg, io),
+		newSignCmd(cfg, io),
+		newVerifyCmd(cfg, io),
+		newQueryCmd(cfg, io),
+		newBroadcastCmd(cfg, io),
+		newMakeTxCmd(cfg, io),
 	)
 
 	return cmd
@@ -56,35 +62,35 @@ func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.Home,
 		"home",
-		DefaultBaseOptions.Home,
+		c.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.Remote,
 		"remote",
-		DefaultBaseOptions.Remote,
+		c.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.Quiet,
 		"quiet",
-		DefaultBaseOptions.Quiet,
+		c.Quiet,
 		"suppress output during execution",
 	)
 
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",
-		DefaultBaseOptions.Quiet,
+		c.Quiet,
 		"WARNING! take password from stdin",
 	)
 
 	fs.StringVar(
 		&c.Config,
 		"config",
-		DefaultBaseOptions.Config,
+		c.Config,
 		"config file (optional)",
 	)
 }

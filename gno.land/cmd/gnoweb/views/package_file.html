@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Gno.land</title>
-    {{ template "html_head" }}
+    {{ template "html_head" . }}
+    <title>Gno.land - {{.Data.DirPath}}/{{.Data.FileName}}</title>
   </head>
   <body onload="main()">
     <div id="root">
@@ -18,7 +18,7 @@
 
       {{ template "footer" }}
     </div>
-    {{ template "js" }}
+    {{ template "js" .}}
     <script type="text/javascript" src="/static/js/highlight.min.js"></script>
     <script>
       hljs.configure({

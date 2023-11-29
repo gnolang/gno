@@ -1,18 +1,26 @@
 package main
 
-import "testing"
+import (
+	"testing"
 
-func TestPrecompileApp(t *testing.T) {
-	tc := []testMainCase{
-		{
-			args:        []string{"precompile"},
-			errShouldBe: "flag: help requested",
-		},
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 
-		// {args: []string{"precompile", "..."}, stdoutShouldContain: "..."},
-		// TODO: recursive
-		// TODO: valid files
-		// TODO: invalid files
+	"github.com/gnolang/gno/gnovm/pkg/integration"
+)
+
+func Test_ScriptsPrecompile(t *testing.T) {
+	p := testscript.Params{
+		Dir: "testdata/gno_precompile",
 	}
-	testMainCaseRun(t, tc)
+
+	if coverdir, ok := integration.ResolveCoverageDir(); ok {
+		err := integration.SetupTestscriptsCoverage(&p, coverdir)
+		require.NoError(t, err)
+	}
+
+	err := integration.SetupGno(&p, t.TempDir())
+	require.NoError(t, err)
+
+	testscript.Run(t, p)
 }

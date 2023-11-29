@@ -15,6 +15,8 @@ import (
 // This tests multisig functionality, but it expects the first k signatures to be valid
 // TODO: Adapt it to give more flexibility about first k signatures being valid
 func TestThresholdMultisigValidCases(t *testing.T) {
+	t.Parallel()
+
 	pkSet1, sigSet1 := generatePubKeysAndSignatures(5, []byte{1, 2, 3, 4})
 	cases := []struct {
 		msg            []byte
@@ -105,6 +107,8 @@ func TestThresholdMultisigValidCases(t *testing.T) {
 
 // TODO: Fully replace this test with table driven tests
 func TestThresholdMultisigDuplicateSignatures(t *testing.T) {
+	t.Parallel()
+
 	msg := []byte{1, 2, 3, 4, 5}
 	pubkeys, sigs := generatePubKeysAndSignatures(5, msg)
 	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)
@@ -118,6 +122,8 @@ func TestThresholdMultisigDuplicateSignatures(t *testing.T) {
 
 // TODO: Fully replace this test with table driven tests
 func TestMultiSigPubKeyEquality(t *testing.T) {
+	t.Parallel()
+
 	msg := []byte{1, 2, 3, 4}
 	pubkeys, _ := generatePubKeysAndSignatures(5, msg)
 	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)
@@ -135,6 +141,8 @@ func TestMultiSigPubKeyEquality(t *testing.T) {
 }
 
 func TestAddress(t *testing.T) {
+	t.Parallel()
+
 	msg := []byte{1, 2, 3, 4}
 	pubkeys, _ := generatePubKeysAndSignatures(5, msg)
 	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)
@@ -142,6 +150,8 @@ func TestAddress(t *testing.T) {
 }
 
 func TestPubKeyMultisigThresholdAminoToIface(t *testing.T) {
+	t.Parallel()
+
 	msg := []byte{1, 2, 3, 4}
 	pubkeys, _ := generatePubKeysAndSignatures(5, msg)
 	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)

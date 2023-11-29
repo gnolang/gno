@@ -8,6 +8,6 @@ import "google/protobuf/any.proto";
 
 // messages
 message PubKeyMultisig {
-	uint64 K = 1;
-	repeated google.protobuf.Any PubKeys = 2;
+	uint64 k = 1 [json_name = "threshold"];
+	repeated google.protobuf.Any pub_keys = 2 [json_name = "pubkeys"];
 }

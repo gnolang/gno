@@ -8,6 +8,8 @@ import (
 )
 
 func TestPaginationPage(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		totalCount int
 		perPage    int
@@ -51,6 +53,8 @@ func TestPaginationPage(t *testing.T) {
 }
 
 func TestPaginationPerPage(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		totalCount int
 		perPage    int
