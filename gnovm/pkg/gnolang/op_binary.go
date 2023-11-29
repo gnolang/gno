@@ -77,40 +77,38 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-
-	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
-	fmt.Printf("lv typeID: %v, kind: %v \n", lv.T.TypeID(), lv.T.Kind())
-	fmt.Printf("rv typeID: %v, kind: %v \n", rv.T.TypeID(), rv.T.Kind())
-
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	//if lv.T.Kind() == InterfaceKind &&
-	//	IsImplementedBy(lv.T, rv.T) {
-	//	println("left is interface, rt conforms it")
-	//} else if rv.T.Kind() == InterfaceKind &&
-	//	IsImplementedBy(rv.T, lv.T) {
-	//	println("right is interface, left conforms it")
-	//} else if lv.T.Kind() == InterfaceKind && rv.T.Kind() == InterfaceKind {
-	//	println("both interface")
-	//}
+	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
-	// strict type match check
-	if lv.T.TypeID() != rv.T.TypeID() {
-		fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
-		res = false
-	} else {
-		res = isEql(m.Store, lv, rv)
-	}
+	//// strict type match check, after preprocess
+	//// TODO: fix databytetype
+	//if (lv.T != nil && rv.T != nil) && (lv.T.TypeID() != rv.T.TypeID()) {
+	//	// TODO: in golang, this would not panic, but give a false as result
+	//	fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
+	//	res = false
+	//} else {
+	//	res = isEql(m.Store, lv, rv)
+	//}
 
-	// set result in lv.
+	if isSameTypes(lv.T, rv.T) {
+		res = isEql(m.Store, lv, rv)
+	} else {
+		res = false
+	}
+	lv.T = UntypedBoolType
+	lv.V = nil
+	lv.SetBool(res)
+
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
+	println("doOpNeq")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -119,17 +117,23 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
+	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
-	// strict type match check
-	if lv.T.TypeID() != rv.T.TypeID() {
-		fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "NEQ", rv.T.TypeID())
-		res = false
-	} else {
-		res = isEql(m.Store, lv, rv)
-	}
+	//// strict type match check, after preprocess
+	//if (lv.T != nil && rv.T != nil) && (lv.T.TypeID() != rv.T.TypeID()) {
+	//	// TODO: in golang, this would not panic, but give a false as result
+	//	fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
+	//	res = true // not equal
+	//} else {
+	//	res = !isEql(m.Store, lv, rv)
+	//}
 
-	// set result in lv.
+	if isSameTypes(lv.T, rv.T) {
+		res = !isEql(m.Store, lv, rv)
+	} else {
+		res = true
+	}
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -957,7 +961,7 @@ func remAssign(lv, rv *TypedValue) {
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
-			"operators %% and %%= not defined for %s",
+			"operators rem and rem= not defined for %s",
 			lv.T,
 		))
 	}

@@ -877,6 +877,7 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
+	fmt.Printf("ConvertUntypedTo, tv:%v, t:%v \n", tv, t)
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
@@ -923,6 +924,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	// general case
 	if t == nil {
 		t = defaultTypeOf(tv.T)
+		fmt.Printf("give t its default type, to be:%v \n", t)
 	}
 	switch tv.T {
 	case UntypedBoolType:
@@ -1049,6 +1051,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 }
 
 func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
+	fmt.Printf("ConvertUntypedBigintTo, dst: %v, bv:%v, t:%v \n", dst, bv, t)
 	k := t.Kind()
 	bi := bv.V
 	var sv int64 = 0  // if signed.

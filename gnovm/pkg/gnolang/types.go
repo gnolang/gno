@@ -1985,11 +1985,26 @@ const (
 	RefTypeKind // not in go.
 )
 
+// only for / and % /= %=, no support for float
+func isIntNumber(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		switch t {
+		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, UntypedBigintType, BigintType:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
 func isTypedNumber(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		switch t {
-		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, BigintType, BigdecType:
+		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, UntypedBigintType, BigintType, UntypedBigdecType, BigdecType:
 			return true
 		default:
 			return false
@@ -2003,7 +2018,7 @@ func isTypedString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		switch t {
-		case StringType:
+		case UntypedStringType, StringType:
 			return true
 		default:
 			return false
@@ -2124,6 +2139,53 @@ func assertSameTypes(lt, rt Type) {
 			rt.String(),
 		)
 	}
+}
+
+func isSameTypes(lt, rt Type) bool {
+	fmt.Printf("isSameTypes, lt: %v, rt: %v \n", lt, rt)
+	println("is lt data byte: ", isDataByte(lt))
+	println("is rt data byte: ", isDataByte(rt))
+
+	if lpt, ok := lt.(*PointerType); ok {
+		println("lt is pointer type, typeid: ", lpt.typeid)
+		if isDataByte(lpt.Elt) {
+			println("got data byte, left")
+			return true
+		}
+	}
+
+	if rpt, ok := rt.(*PointerType); ok {
+		println("rt is pointer type, typeid: ", rpt.typeid)
+		if isDataByte(rpt.Elt) {
+			println("got data byte, right")
+			return true
+		}
+	}
+
+	if isDataByte(lt) || isDataByte(rt) {
+		println("one is date byte")
+		return true
+	}
+
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil types are identical.
+	} else {
+		return false
+	}
+	return true
 }
 
 // Like assertSameTypes(), but more relaxed, for == and !=.

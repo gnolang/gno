@@ -37,6 +37,11 @@ func TestChallenges(t *testing.T) {
 	runFileTests(t, baseDir, nil)
 }
 
+func TestTypes(t *testing.T) {
+	baseDir := filepath.Join(".", "files/types")
+	runFileTests(t, baseDir, nil)
+}
+
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
 	t.Helper()
 
