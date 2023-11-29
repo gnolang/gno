@@ -121,12 +121,14 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stdout = &b
 	r.stderr = &b
 
-	r.storeFunc = func() gno.Store {
-		return tests.TestStore("teststore", "", r.stdin, r.stdout, r.stderr, tests.ImportModeStdlibsOnly)
-	}
-
 	for _, o := range opts {
 		o(r)
+	}
+
+	if r.storeFunc == nil {
+		r.storeFunc = func() gno.Store {
+			return tests.TestStore("teststore", "", r.stdin, r.stdout, r.stderr, tests.ImportModeStdlibsOnly)
+		}
 	}
 
 	r.state = newState(r.stdout, r.storeFunc)

@@ -7,13 +7,17 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/repl"
+	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -81,11 +85,6 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
-	// Setup trap signal
-	osm.TrapSignal(func() {
-		cancel(nil)
-	})
-
 	// guess root dir
 	gnoroot := gnoenv.RootDir()
 
@@ -108,6 +107,12 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 		// correctly format output for terminal
 		io.SetOut(commands.WriteNopCloser(rt))
+
+		// Setup trap signal
+		osm.TrapSignal(func() {
+			restore()
+			cancel(nil)
+		})
 	}
 
 	var dnode *DevNode
@@ -160,7 +165,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Print basic infos
 	rt.Taskf("Node", "Default Address: %s", defaultCreator.String())
-	rt.Taskf("Node", "Chain ID Address: %s", dnode.node.Config().ChainID())
+	rt.Taskf("Node", "Chain ID: %s", dnode.node.Config().ChainID())
 
 	rt.Taskf("----", "for commands and help, press `h`")
 
@@ -184,6 +189,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 			rt.Taskf("Node", "Reloading...")
 			err = dnode.Reload(ctx)
+			checkForError(rt, err)
 		case key, ok := <-cckey:
 			if !ok {
 				cancel(nil)
@@ -206,16 +212,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 				err = dnode.Reset()
 				checkForError(rt, err)
 			case KeyCtrlE:
-				rt.Taskf("TEST", "Forcing error")
+				rt.Taskf("TEST_ERROR", "Forcing error")
 				err = fmt.Errorf("boom")
 				checkForError(rt, err)
 			case KeyCtrlT:
 				rt.Taskf("REPL", "Starting REPL mode")
-				termline := rt.TermMode()
-				for line := range termline {
-					io.Println("line:", line)
-				}
-				rt.Taskf("REPL", "[END]")
+				err = handleREPLMode(ccpath, rt, dnode)
+				checkForError(rt, err)
 			case KeyCtrlC:
 				cancel(nil)
 			default:
@@ -359,6 +362,114 @@ func listenForKeyPress(io commands.IO, rt *RawTerm) <-chan KeyPress {
 	}()
 
 	return cc
+}
+
+func handleREPLMode(filesupdate <-chan []string, rt *RawTerm, node *DevNode) error {
+	null, err := os.Open(os.DevNull)
+	if err != nil {
+		return fmt.Errorf("unable to open %q: %w", os.DevNull, err)
+	}
+	defer null.Close()
+
+	input := rt.TermMode()
+
+	storeFactory := func() (store gno.Store, err error) {
+		drecover := func() {
+			if r := recover(); r != nil {
+				var ok bool
+				if err, ok = r.(error); !ok {
+					panic(r)
+				}
+			}
+		}
+
+		createStore := func() (gno.Store, error) {
+			defer drecover()
+
+			store := tests.TestStore("teststore", "", null, rt, rt, tests.ImportModeStdlibsPreferred)
+			pkgslist := gnomod.PkgList(node.ListPkgs())
+			pkgssorted, pkgErr := pkgslist.Sort()
+			if pkgErr != nil {
+				return nil, fmt.Errorf("unable to sort packages: %w", pkgErr)
+			}
+
+			nodrafpkgs := pkgssorted.GetNonDraftPkgs()
+			for _, pkg := range nodrafpkgs {
+				fmt.Fprintf(rt, "loading: %s - %s\n", pkg.Dir, pkg.Name)
+				memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+				store.AddMemPackage(memPkg)
+			}
+
+			return store, nil
+		}
+
+		store, err = createStore()
+		return
+	}
+
+	replFactory := func() (*repl.Repl, error) {
+		store, err := storeFactory()
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate store: %w", err)
+		}
+
+		return repl.NewRepl(
+			repl.WithStore(store),
+			repl.WithStd(null, rt, rt),
+		), nil
+	}
+
+	r, err := replFactory()
+	if err != nil {
+		return fmt.Errorf("uanble to create repl store: %w", err)
+	}
+
+	for {
+		select {
+		case line, ok := <-input:
+			if !ok {
+				fmt.Fprintln(rt, "repl exit")
+				return nil
+			}
+
+			if line == "/reset" {
+				fmt.Fprintln(rt, "reseting session")
+				r.Reset()
+				continue
+			}
+
+			out, err := r.Process(line)
+			if err != nil {
+				fmt.Fprintf(rt, "error: %s\n", err.Error())
+				continue
+			}
+
+			if len(out) > 0 {
+				fmt.Fprintf(rt, "%s\n", out)
+			}
+		case paths := <-filesupdate:
+			for _, path := range paths {
+				fmt.Fprintf(rt, "%q has been modified\n", path)
+			}
+
+			fmt.Fprintln(rt, "reloading packages...")
+			if err := node.UpdatePackages(paths...); err != nil {
+				fmt.Fprintf(rt, "error: %s\n", err.Error())
+				continue
+			}
+
+			newRepl, err := replFactory()
+			if err != nil {
+				fmt.Fprintf(rt, "error: %s\n", err.Error())
+				continue
+			}
+
+			r = newRepl
+		}
+
+	}
+
+	return nil
 }
 
 func checkForError(rt *RawTerm, err error) {

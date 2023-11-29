@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -17,16 +16,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	txclient "github.com/gnolang/tx-archive/backup/client"
+	backup "github.com/gnolang/tx-archive/backup/client"
+	restore "github.com/gnolang/tx-archive/backup/client"
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
 
-var _ txclient.Client = (*DevNode)(nil)
+// DevNode is a backup.Client
+var _ backup.Client = (*DevNode)(nil)
+
+// DevNode is a restore.Client
+var _ restore.Client = (*DevNode)(nil)
 
 type DevNode struct {
-	muNode sync.Mutex
-	node   *node.Node
+	node *node.Node
 
 	rootdir string
 	logger  log.Logger
@@ -87,9 +90,6 @@ func (d *DevNode) getLatestBlockNumber() uint64 {
 }
 
 func (d *DevNode) Close() error {
-	d.muNode.Lock()
-	defer d.muNode.Unlock()
-
 	return d.node.Stop()
 }
 
@@ -156,10 +156,8 @@ func (d *DevNode) ReloadAll(ctx context.Context) error {
 	return d.Reload(ctx)
 }
 
-func (d *DevNode) Stop(ctx context.Context) error {
-}
-
 func (d *DevNode) Reload(ctx context.Context) error {
+
 	// save current state
 	state, err := d.saveState(ctx)
 	if err != nil {
@@ -189,28 +187,14 @@ func (d *DevNode) Reload(ctx context.Context) error {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
-	resCh := make(chan abci.Response, 1)
 	for _, tx := range state {
+		// skip empty transaction
 		if len(tx.Msgs) == 0 {
 			continue
 		}
 
-		aminoTx, err := amino.Marshal(tx)
-		if err != nil {
-			return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
-		}
-
-		err = d.node.Mempool().CheckTx(aminoTx, func(res abci.Response) {
-			resCh <- res
-		})
-		if err != nil {
-			return fmt.Errorf("unable to check tx: %w", err)
-		}
-
-		res := <-resCh
-		r := res.(abci.ResponseCheckTx)
-		if r.Error != nil {
-			return fmt.Errorf("unable to broadcast tx: %w\nLog: %s", r.Error, r.Log)
+		if err := d.SendTransaction(&tx); err != nil {
+			fmt.Errorf("unable to send transaction: %w", err)
 		}
 	}
 
@@ -274,6 +258,32 @@ func (d *DevNode) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 // GetLatestBlockNumber returns the latest block height from the chain
 func (d *DevNode) GetLatestBlockNumber() (uint64, error) {
 	return d.getLatestBlockNumber(), nil
+}
+
+// SendTransaction executes a broadcast sync send
+// of the specified transaction to the chain
+func (d *DevNode) SendTransaction(tx *std.Tx) error {
+	resCh := make(chan abci.Response, 1)
+
+	aminoTx, err := amino.Marshal(tx)
+	if err != nil {
+		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
+	}
+
+	err = d.node.Mempool().CheckTx(aminoTx, func(res abci.Response) {
+		resCh <- res
+	})
+	if err != nil {
+		return fmt.Errorf("unable to check tx: %w", err)
+	}
+
+	res := <-resCh
+	r := res.(abci.ResponseCheckTx)
+	if r.Error != nil {
+		return fmt.Errorf("unable to broadcast tx: %w\nLog: %s", r.Error, r.Log)
+	}
+
+	return nil
 }
 
 func (n *DevNode) saveState(ctx context.Context) ([]std.Tx, error) {
@@ -367,17 +377,6 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 
 		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 		txs = append(txs, tx)
-	}
-
-	return txs, nil
-}
-
-// loadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
-func loadPackagesFromDir(creator bft.Address, dir string) ([]std.Tx, error) {
-	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-	txs, err := gnoland.LoadPackagesFromDir(dir, creator, defaultFee, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load packages from %q: %w", dir, err)
 	}
 
 	return txs, nil
