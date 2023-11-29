@@ -273,7 +273,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
 		return
-	} else if pv.Base == nil && pv.Index == 0 {
+	} else if rlm != nil && pv.Base == nil && pv.Index == 0 {
 		// An index of zero indicates this is an assignment to a realm
 		// object. The base will be nil if this is being assigned to
 		// a dereferenced pointer value.
