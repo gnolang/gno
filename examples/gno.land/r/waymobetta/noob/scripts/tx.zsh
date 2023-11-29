@@ -18,13 +18,13 @@ demo
 
 # Here's what each flag does:
 
-# - `addpkg`: Adds a package (i.e., a Gno module) as part of the transaction. In our case, we're adding the "gor" package from gno.land/r/waymobetta. Despite this saying `addPkg`, it actually is used for deploying both realms as well as packages alike. In this case, we are deploying a realm.
+# - `call`: Executes a call to the realm, invoking a function.
 
 # - `--pkgpath`: Specifies the path of the module within its repository (in our case, it's "gno.land/r/waymobetta").
 
-# - `--pkgdir`: Sets the directory where the package is located on your local machine. Since we're running this script from the root directory of our project, we don't need to specify a path here since our module is already in the correct location relative to the script which is why we denote this with a period `"."`
+# - `--func`: Specifies the function to be invoked within the realm.
 
-# - `--deposit`: Specifies the amount of GNO tokens that will be deposited into the realm during this transaction (in our case, 10 million ugnot).
+# - `--args`: Sepcifies arguments to pass into the function referenced from the `--func` flag. Multiple `--args` flags can be passed in based on the number of anticipated parameters found within the function's signature.
 
 # - `--gas-fee` and `--gas-wanted`: Set the gas fee and desired gas limit for the transaction, respectively. These values are used by the realm to calculate the actual amount of GNOT (or ugnot, a smaller denomination) required to execute this transaction on the Gno.land network. In our case, we're setting both flags to 1 million units of ugnot tokens as a way to ensure that there are enough funds available for gas fees and to avoid underestimating the required amount of ugnot during transaction execution.
 
