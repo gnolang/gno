@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -439,8 +440,13 @@ func runTestFiles(
 	printRuntimeMetrics bool,
 	runFlag string,
 	io commands.IO,
-) error {
-	var errs error
+) (errs error) {
+	defer func() {
+		if r := recover(); r != nil {
+			trace := smallStacktrace()
+			errs = multierr.Append(fmt.Errorf("panic: %v\ngno machine: %v\nstracktrace:\n%v", r, m.String(), trace), errs)
+		}
+	}()
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
@@ -533,6 +539,34 @@ func runTestFiles(
 	}
 
 	return errs
+}
+
+/*
+	smallStacktrace sample result:
+
+prog.go:11                main.main
+proc.go:250               runtime.main
+asm_amd64.s:1598          runtime.goexit
+*/
+func smallStacktrace() string {
+	var buf bytes.Buffer
+	pc := make([]uintptr, 100)
+	pc = pc[:runtime.Callers(2, pc)]
+	frames := runtime.CallersFrames(pc)
+	for {
+		f, more := frames.Next()
+
+		if idx := strings.LastIndexByte(f.Function, '/'); idx >= 0 {
+			f.Function = f.Function[idx+1:]
+		}
+
+		fmt.Fprintf(&buf, "%-25s %s\n", fmt.Sprintf("%s:%d", filepath.Base(f.File), f.Line), f.Function)
+
+		if !more {
+			return buf.String()
+		}
+	}
+	return buf.String()
 }
 
 // mirror of stdlibs/testing.Report
