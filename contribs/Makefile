@@ -4,9 +4,10 @@ help:
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 .PHONY: install
-install: install.gnomd
+install: install.gnomd install.gnodev
 
-install.gnomd:; cd gnomd && go install .
+install.gnomd:;  cd gnomd && go install .
+install.gnodev:; $(MAKE) -C ./gnodev install
 
 .PHONY: clean
 clean:
