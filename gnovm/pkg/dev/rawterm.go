@@ -1,8 +1,7 @@
-package main
+package dev
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +15,6 @@ type KeyPress byte
 
 var (
 	CRLF = []byte{'\r', '\n'}
-	Null = []byte{0}
 )
 
 // key representation
@@ -111,58 +109,6 @@ type TaskWriter interface {
 	WriteTask(task string, buf []byte) (n int, err error)
 }
 
-func (rt *RawTerm) TermMode() <-chan string {
-	// rt.enableTermMode()
-
-	rt.muTermMode.Lock()
-
-	// Create a new terminal.
-	// We assume that raw term has been initilize here
-	t := term.NewTerminal(rt.fsin, "> ")
-
-	// Override output with terminal one
-	rt.taskWriter = &rawTermWriter{t}
-
-	rt.muTermMode.Unlock()
-
-	// Create line reader chan
-	rl := make(chan string)
-
-	cleanup := func() {
-		rt.muTermMode.Lock()
-		// Jump one line
-		fmt.Fprint(os.Stdout, "\r\n")
-
-		// Set back reader/writer
-		rt.taskWriter = &columnTermWriter{os.Stdout}
-
-		// Signal that we are done
-		close(rl)
-
-		rt.muTermMode.Unlock()
-	}
-
-	go func() {
-		defer cleanup()
-
-		for {
-			l, err := t.ReadLine()
-			switch {
-			case err == nil: // ok
-			case !errors.Is(err, io.EOF):
-				fmt.Fprintf(t, "error: %s\n", err.Error())
-				fallthrough
-			default:
-				return
-			}
-
-			rl <- l
-		}
-	}()
-
-	return rl
-}
-
 func (rt *RawTerm) Taskf(task string, format string, args ...interface{}) (n int, err error) {
 	format = strings.TrimSpace(format)
 	if len(args) > 0 {
@@ -192,14 +138,12 @@ func (rt *RawTerm) read(buf []byte) (n int, err error) {
 }
 
 func (rt *RawTerm) ReadKeyPress() (KeyPress, error) {
-	for {
-		buf := make([]byte, 1)
-		if _, err := rt.read(buf); err != nil {
-			return KeyNone, err
-		}
-
-		return KeyPress(buf[0]), nil
+	buf := make([]byte, 1)
+	if _, err := rt.read(buf); err != nil {
+		return KeyNone, err
 	}
+
+	return KeyPress(buf[0]), nil
 }
 
 type columnTermWriter struct {
@@ -207,7 +151,7 @@ type columnTermWriter struct {
 }
 
 func (r *columnTermWriter) Write(buf []byte) (n int, err error) {
-	return r.WriteTask(".", buf)
+	return r.WriteTask("", buf)
 }
 
 func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error) {

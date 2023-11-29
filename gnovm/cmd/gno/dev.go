@@ -7,17 +7,14 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	gnodev "github.com/gnolang/gno/gnovm/pkg/dev"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/repl"
-	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -88,7 +85,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// guess root dir
 	gnoroot := gnoenv.RootDir()
 
-	pkgpaths, err := parseArgumentsPath(args)
+	pkgpaths, err := parseArgsPackages(args)
 	if err != nil {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
@@ -97,7 +94,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	logger := tmlog.NewNopLogger()
 
 	// RAWTerm setup
-	rt := NewRawTerm()
+	rt := gnodev.NewRawTerm()
 	{
 		restore, err := rt.Init()
 		if err != nil {
@@ -115,7 +112,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		})
 	}
 
-	var dnode *DevNode
+	var dnode *gnodev.Node
 	{
 		var err error
 		dnode, err = setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
@@ -164,10 +161,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	rt.Taskf("GnoWeb", "Listener: %s", l.Addr())
 
 	// Print basic infos
-	rt.Taskf("Node", "Default Address: %s", defaultCreator.String())
-	rt.Taskf("Node", "Chain ID: %s", dnode.node.Config().ChainID())
+	rt.Taskf("Node", "Default Address: %s", gnodev.DefaultCreator.String())
+	rt.Taskf("Node", "Chain ID: %s", dnode.Config().ChainID())
 
-	rt.Taskf("----", "for commands and help, press `h`")
+	rt.Taskf("[Ready]", "for commands and help, press `h`")
 
 	cckey := listenForKeyPress(io, rt)
 	for {
@@ -207,25 +204,14 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 				rt.Taskf("Node", "Reloading all packages...")
 				err = dnode.ReloadAll(ctx)
 				checkForError(rt, err)
-			case KeyCtrlR:
+			case gnodev.KeyCtrlR:
 				rt.Taskf("Node", "Reseting state...")
-				err = dnode.Reset()
+				err = dnode.Reset(ctx)
 				checkForError(rt, err)
-			case KeyCtrlE:
-				rt.Taskf("TEST_ERROR", "Forcing error")
-				err = fmt.Errorf("boom")
-				checkForError(rt, err)
-			case KeyCtrlT:
-				rt.Taskf("REPL", "Starting REPL mode")
-				err = handleREPLMode(ccpath, rt, dnode)
-				checkForError(rt, err)
-			case KeyCtrlC:
+			case gnodev.KeyCtrlC:
 				cancel(nil)
 			default:
 			}
-
-			// read next key
-			cckey = listenForKeyPress(io, rt)
 		}
 	}
 }
@@ -237,8 +223,7 @@ Gno Dev Helper:
   h, H        Help - display this message
   r, R        Reload - Reload all packages to take change into account.
   Ctrl+R      Reset - Reset application state.
-  Ctrl+T      REPL Mode - Enters REPL (Read-Eval-Print Loop) mode. use Ctrl+D to quit.
-  Ctrl+C      Cancel/Exit - Cancels the current operation or exits the current context.
+  Ctrl+C      Exit - Exit the application
 `)
 }
 
@@ -287,31 +272,17 @@ func setupPkgsWatcher(cfg *devCfg, pkgs []gnomod.Pkg) (*fsnotify.Watcher, error)
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspath []string, gnoroot string) (*DevNode, error) {
-	var err error
-
+func setupDevNode(ctx context.Context, logger tmlog.Logger, cfg *devCfg, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
 	if !cfg.minimal {
 		examplesDir := filepath.Join(gnoroot, "examples")
 		pkgspath = append(pkgspath, examplesDir)
 	}
 
-	dnode, err := NewDevNode(logger, gnoroot, pkgspath)
-	if err != nil {
-		return nil, fmt.Errorf("unable create dev node: %w", err)
-	}
-
-	// Wait for readiness
-	select {
-	case <-ctx.Done():
-		return nil, fmt.Errorf("unable to wait for node readiness: %w", context.Cause(ctx))
-	case <-dnode.WaitForNodeReadiness(): // ok
-		return dnode, nil
-	}
-
+	return gnodev.NewDevNode(ctx, logger, pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnowebServer(cfg *devCfg, dnode *DevNode, rt *RawTerm) *http.Server {
+func setupGnowebServer(cfg *devCfg, dnode *gnodev.Node, rt *gnodev.RawTerm) *http.Server {
 	var server http.Server
 
 	webConfig := gnoweb.NewDefaultConfig()
@@ -326,7 +297,7 @@ func setupGnowebServer(cfg *devCfg, dnode *DevNode, rt *RawTerm) *http.Server {
 	return &server
 }
 
-func parseArgumentsPath(args []string) (paths []string, err error) {
+func parseArgsPackages(args []string) (paths []string, err error) {
 	paths = make([]string, len(args))
 	for i, arg := range args {
 		abspath, err := filepath.Abs(arg)
@@ -345,134 +316,25 @@ func parseArgumentsPath(args []string) (paths []string, err error) {
 	return paths, nil
 }
 
-func listenForKeyPress(io commands.IO, rt *RawTerm) <-chan KeyPress {
-	cc := make(chan KeyPress, 1)
+func listenForKeyPress(io commands.IO, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
+	cc := make(chan gnodev.KeyPress, 1)
 	go func() {
 		defer close(cc)
-		key, err := rt.ReadKeyPress()
-		if err != nil {
-			io.ErrPrintfln("unable to read keypress: %s", err.Error())
-			return
-		}
+		for {
+			key, err := rt.ReadKeyPress()
+			if err != nil {
+				io.ErrPrintfln("unable to read keypress: %s", err.Error())
+				return
+			}
 
-		if key > 0 {
 			cc <- key
 		}
-
 	}()
 
 	return cc
 }
 
-func handleREPLMode(filesupdate <-chan []string, rt *RawTerm, node *DevNode) error {
-	null, err := os.Open(os.DevNull)
-	if err != nil {
-		return fmt.Errorf("unable to open %q: %w", os.DevNull, err)
-	}
-	defer null.Close()
-
-	input := rt.TermMode()
-
-	storeFactory := func() (store gno.Store, err error) {
-		drecover := func() {
-			if r := recover(); r != nil {
-				var ok bool
-				if err, ok = r.(error); !ok {
-					panic(r)
-				}
-			}
-		}
-
-		createStore := func() (gno.Store, error) {
-			defer drecover()
-
-			store := tests.TestStore("teststore", "", null, rt, rt, tests.ImportModeStdlibsPreferred)
-			pkgslist := gnomod.PkgList(node.ListPkgs())
-			pkgssorted, pkgErr := pkgslist.Sort()
-			if pkgErr != nil {
-				return nil, fmt.Errorf("unable to sort packages: %w", pkgErr)
-			}
-
-			nodrafpkgs := pkgssorted.GetNonDraftPkgs()
-			for _, pkg := range nodrafpkgs {
-				fmt.Fprintf(rt, "loading: %s - %s\n", pkg.Dir, pkg.Name)
-				memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-				store.AddMemPackage(memPkg)
-			}
-
-			return store, nil
-		}
-
-		store, err = createStore()
-		return
-	}
-
-	replFactory := func() (*repl.Repl, error) {
-		store, err := storeFactory()
-		if err != nil {
-			return nil, fmt.Errorf("unable to generate store: %w", err)
-		}
-
-		return repl.NewRepl(
-			repl.WithStore(store),
-			repl.WithStd(null, rt, rt),
-		), nil
-	}
-
-	r, err := replFactory()
-	if err != nil {
-		return fmt.Errorf("uanble to create repl store: %w", err)
-	}
-
-	for {
-		select {
-		case line, ok := <-input:
-			if !ok {
-				fmt.Fprintln(rt, "repl exit")
-				return nil
-			}
-
-			if line == "/reset" {
-				fmt.Fprintln(rt, "reseting session")
-				r.Reset()
-				continue
-			}
-
-			out, err := r.Process(line)
-			if err != nil {
-				fmt.Fprintf(rt, "error: %s\n", err.Error())
-				continue
-			}
-
-			if len(out) > 0 {
-				fmt.Fprintf(rt, "%s\n", out)
-			}
-		case paths := <-filesupdate:
-			for _, path := range paths {
-				fmt.Fprintf(rt, "%q has been modified\n", path)
-			}
-
-			fmt.Fprintln(rt, "reloading packages...")
-			if err := node.UpdatePackages(paths...); err != nil {
-				fmt.Fprintf(rt, "error: %s\n", err.Error())
-				continue
-			}
-
-			newRepl, err := replFactory()
-			if err != nil {
-				fmt.Fprintf(rt, "error: %s\n", err.Error())
-				continue
-			}
-
-			r = newRepl
-		}
-
-	}
-
-	return nil
-}
-
-func checkForError(rt *RawTerm, err error) {
+func checkForError(rt *gnodev.RawTerm, err error) {
 	if err != nil {
 		rt.Taskf("", "[ERROR] - %s", err.Error())
 	} else {
