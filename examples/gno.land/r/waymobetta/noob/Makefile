@@ -11,7 +11,7 @@ owner:
 	@zsh scripts/owner.zsh
 	@echo "done"
 
-query: owner
+query:
 	@echo "querying waymobetta.."
 	@zsh scripts/query.zsh
 	@echo "done"
