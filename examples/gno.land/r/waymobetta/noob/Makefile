@@ -7,17 +7,17 @@ deploy:
 	@echo "done"
 
 owner:
-	@echo "querying owner"
+	@echo "querying owner.."
 	@zsh scripts/owner.zsh
 	@echo "done"
 
 query:
-	@echo "querying waymobetta.."
+	@echo "querying noob.."
 	@zsh scripts/query.zsh
 	@echo "done"
 
 tx:
-	@echo "submitting transaction"
+	@echo "submitting transaction.."
 	@zsh scripts/tx.zsh
 	@echo "done"
 	@make query
