@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -20,7 +19,13 @@ func (sv *seenValues) Put(v Value) {
 }
 
 func (sv *seenValues) Contains(v Value) bool {
-	return slices.Contains(sv.values, v)
+	for _, vv := range sv.values {
+		if vv == v {
+			return true
+		}
+	}
+
+	return false
 }
 
 func newSeenValues() *seenValues {
