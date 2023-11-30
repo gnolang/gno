@@ -49,7 +49,9 @@ func TestRoutes(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	cfg := NewDefaultConfig()
+	cfg := gnoweb.NewDefaultConfig()
+
+	logger := log.TestingLogger()
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
@@ -58,7 +60,7 @@ func TestRoutes(t *testing.T) {
 	cfg.CaptchaSite = ""
 	cfg.ViewsDir = "../../cmd/gnoweb/views"
 	cfg.WithAnalytics = false
-	app := MakeApp(cfg)
+	app := gnoweb.MakeApp(logger, cfg)
 
 	for _, r := range routes {
 		t.Run(fmt.Sprintf("test route %s", r.route), func(t *testing.T) {
@@ -100,15 +102,17 @@ func TestAnalytics(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	cfg := gnoweb.NewDefaultConfig(rootdir)
+	cfg := gnoweb.NewDefaultConfig()
 	cfg.RemoteAddr = remoteAddr
+
+	logger := log.TestingLogger()
 
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = true
-				app := MakeApp(ccfg)
+				app := gnoweb.MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
@@ -121,7 +125,7 @@ func TestAnalytics(t *testing.T) {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = false
-				app := MakeApp(ccfg)
+				app := gnoweb.MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)

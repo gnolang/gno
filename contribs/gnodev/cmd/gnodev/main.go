@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -96,8 +96,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
-	// logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
-	logger := tmlog.NewNopLogger()
+	// noopLogger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+	noopLogger := tmlog.NewNopLogger()
 
 	// RAWTerm setup
 	rt := gnodev.NewRawTerm()
@@ -118,17 +118,22 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		})
 	}
 
+	nodeOut := rt.NamespacedWriter("Node")
+	webOut := rt.NamespacedWriter("GnoWeb")
+	keyOut := rt.NamespacedWriter("KeyPress")
+
 	var dnode *gnodev.Node
 	{
 		var err error
-		dnode, err = setupDevNode(ctx, logger, cfg, pkgpaths, gnoroot)
+		// XXX: redirect node to output file
+		dnode, err = setupDevNode(ctx, noopLogger, cfg, pkgpaths, gnoroot)
 		if err != nil {
 			return err // already formated in setupDevNode
 		}
 		defer dnode.Close()
 	}
 
-	rt.Taskf("Node", "Listener: %s", dnode.GetRemoteAddress())
+	fmt.Fprintf(nodeOut, "Listener: %s\n", dnode.GetRemoteAddress())
 
 	// setup files watcher
 	w, err := setupPkgsWatcher(cfg, dnode.ListPkgs())
@@ -164,15 +169,15 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	}()
 	defer server.Close()
 
-	rt.Taskf("GnoWeb", "Listener: %s", l.Addr())
+	fmt.Fprintf(webOut, "Listener: %s\n", l.Addr())
 
 	// Print basic infos
-	rt.Taskf("Node", "Default Address: %s", gnodev.DefaultCreator.String())
-	rt.Taskf("Node", "Chain ID: %s", dnode.Config().ChainID())
+	fmt.Fprintf(nodeOut, "Default Address: %s\n", gnodev.DefaultCreator.String())
+	fmt.Fprintf(nodeOut, "Chain ID: %s\n", dnode.Config().ChainID())
 
 	rt.Taskf("[Ready]", "for commands and help, press `h`")
 
-	cckey := listenForKeyPress(io, rt)
+	cckey := listenForKeyPress(keyOut, rt)
 	for {
 		var err error
 
@@ -181,16 +186,16 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			return context.Cause(ctx)
 		case paths := <-ccpath:
 			for _, path := range paths {
-				rt.Taskf("HotReload", "path %q has been modified\n", path)
+				rt.Taskf("HotReload", "path %q has been modified", path)
 			}
 
-			rt.Taskf("Node", "Loading package updates...")
+			fmt.Fprintln(nodeOut, "Loading package updates...")
 			if err = dnode.UpdatePackages(paths...); err != nil {
 				checkForError(rt, err)
 				continue
 			}
 
-			rt.Taskf("Node", "Reloading...")
+			fmt.Fprintln(nodeOut, "Reloading...")
 			err = dnode.Reload(ctx)
 			checkForError(rt, err)
 		case key, ok := <-cckey:
@@ -200,20 +205,20 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			}
 
 			if cfg.verbose {
-				rt.Taskf("KeyPress", "<%s>", key.String())
+				fmt.Fprintf(keyOut, "<%s>\n", key.String())
 			}
 
 			switch key {
 			case 'h', 'H':
-				printHelper(io)
+				printHelper(rt)
 			case 'r', 'R':
-				rt.Taskf("Node", "Reloading all packages...")
+				fmt.Fprintln(nodeOut, "Reloading all packages...")
 				err = dnode.ReloadAll(ctx)
-				checkForError(rt, err)
+				checkForError(nodeOut, err)
 			case gnodev.KeyCtrlR:
-				rt.Taskf("Node", "Reseting state...")
+				fmt.Fprintln(nodeOut, "Reseting state...")
 				err = dnode.Reset(ctx)
-				checkForError(rt, err)
+				checkForError(nodeOut, err)
 			case gnodev.KeyCtrlC:
 				cancel(nil)
 			default:
@@ -223,8 +228,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 }
 
 // XXX: Automatize this the same way command does
-func printHelper(io commands.IO) {
-	io.Println(`
+func printHelper(rt *gnodev.RawTerm) {
+	rt.Taskf("Helper", `
 Gno Dev Helper:
   h, H        Help - display this message
   r, R        Reload - Reload all packages to take change into account.
@@ -294,7 +299,9 @@ func setupGnowebServer(cfg *devCfg, dnode *gnodev.Node, rt *gnodev.RawTerm) *htt
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
 
-	loggerweb := log.New(rt, "gnoweb: ", log.LstdFlags)
+	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
+	loggerweb.SetLevel(tmlog.LevelDebug)
+
 	app := gnoweb.MakeApp(loggerweb, webConfig)
 
 	server.ReadHeaderTimeout = 60 * time.Second
@@ -322,14 +329,14 @@ func parseArgsPackages(io commands.IO, args []string) (paths []string, err error
 	return paths, nil
 }
 
-func listenForKeyPress(io commands.IO, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
+func listenForKeyPress(w io.Writer, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
 	cc := make(chan gnodev.KeyPress, 1)
 	go func() {
 		defer close(cc)
 		for {
 			key, err := rt.ReadKeyPress()
 			if err != nil {
-				io.ErrPrintfln("unable to read keypress: %s", err.Error())
+				fmt.Fprintf(w, "unable to read keypress: %s\n", err.Error())
 				return
 			}
 
@@ -340,10 +347,10 @@ func listenForKeyPress(io commands.IO, rt *gnodev.RawTerm) <-chan gnodev.KeyPres
 	return cc
 }
 
-func checkForError(rt *gnodev.RawTerm, err error) {
+func checkForError(w io.Writer, err error) {
 	if err != nil {
-		rt.Taskf("", "[ERROR] - %s", err.Error())
+		fmt.Fprintf(w, "", "[ERROR] - %s\n", err.Error())
 	} else {
-		rt.Taskf("", "[DONE]")
+		fmt.Fprintln(w, "", "[DONE]")
 	}
 }

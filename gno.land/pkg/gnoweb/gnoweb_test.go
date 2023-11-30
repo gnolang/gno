@@ -7,9 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gotuna/gotuna/test/assert"
 )
@@ -45,21 +44,22 @@ func TestRoutes(t *testing.T) {
 		{"/404-not-found", notFound, "/404-not-found"},
 	}
 
-	io := commands.NewTestIO()
-
-	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
+
+	logger := log.TestingLogger()
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
 	cfg.RemoteAddr = remoteAddr
 	cfg.HelpChainID = "dev"
 	cfg.CaptchaSite = ""
+	cfg.ViewsDir = "../../cmd/gnoweb/views"
 	cfg.WithAnalytics = false
-	app := MakeApp(io, cfg)
+	app := MakeApp(logger, cfg)
 
 	for _, r := range routes {
 		t.Run(fmt.Sprintf("test route %s", r.route), func(t *testing.T) {
@@ -67,6 +67,7 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
+
 			assert.Contains(t, response.Body.String(), r.substring)
 			// println(response.Body.String())
 		})
@@ -96,21 +97,21 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	io := commands.NewTestIO()
-
-	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
 	cfg.RemoteAddr = remoteAddr
 
+	logger := log.TestingLogger()
+
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = true
-				app := MakeApp(io, ccfg)
+				app := MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
@@ -123,7 +124,7 @@ func TestAnalytics(t *testing.T) {
 			t.Run(route, func(t *testing.T) {
 				ccfg := cfg // clone config
 				ccfg.WithAnalytics = false
-				app := MakeApp(io, ccfg)
+				app := MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)

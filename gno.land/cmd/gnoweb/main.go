@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	// for static files
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	// for error types
 	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
@@ -38,9 +38,10 @@ func main() {
 		panic("unable to parse flags: " + err.Error())
 	}
 
-	logger := log.New(os.Stdout, "gnoweb: ", log.LstdFlags)
+	logger := log.NewTMLogger(os.Stdout)
+	logger.SetLevel(log.LevelDebug)
 
-	logger.Printf("Running on http://%s", cfg.BindAddr)
+	logger.Debug("", "Running", "http://"+cfg.BindAddr)
 	server := &http.Server{
 		Addr:              cfg.BindAddr,
 		ReadHeaderTimeout: 60 * time.Second,
@@ -48,6 +49,6 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		logger.Fatalf("HTTP server stopped with error: %+v", err)
+		logger.Error("HTTP server stopped", " error:", err)
 	}
 }

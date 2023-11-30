@@ -81,7 +81,7 @@ func NewRawTerm() *RawTerm {
 		condTermMode: sync.NewCond(&sync.Mutex{}),
 		fsin:         os.Stdin,
 		reader:       os.Stdin,
-		taskWriter:   &rawTermWriter{os.Stdout},
+		taskWriter:   &rawTaskWriter{os.Stdout},
 	}
 }
 
@@ -98,15 +98,10 @@ func (rt *RawTerm) Init() (restoreFunc, error) {
 	}
 
 	rt.reader = rt.fsin
-	rt.taskWriter = &columnTermWriter{os.Stdout}
+	rt.taskWriter = &columnTaskWriter{os.Stdout}
 	return func() error {
 		return term.Restore(fd, oldstate)
 	}, nil
-}
-
-type TaskWriter interface {
-	io.Writer
-	WriteTask(task string, buf []byte) (n int, err error)
 }
 
 func (rt *RawTerm) Taskf(task string, format string, args ...interface{}) (n int, err error) {
@@ -119,15 +114,22 @@ func (rt *RawTerm) Taskf(task string, format string, args ...interface{}) (n int
 	return rt.taskWriter.WriteTask(task, []byte(format+"\n"))
 }
 
-func (rt *RawTerm) Task(task string) (n int, err error) {
-	return rt.Taskf(task, "")
-}
-
 func (rt *RawTerm) Write(buf []byte) (n int, err error) {
 	rt.muTermMode.RLock()
 	defer rt.muTermMode.RUnlock()
 
 	return rt.taskWriter.Write(buf)
+}
+
+func (rt *RawTerm) WriteTask(name string, buf []byte) (n int, err error) {
+	rt.muTermMode.RLock()
+	defer rt.muTermMode.RUnlock()
+
+	return rt.taskWriter.WriteTask(name, buf)
+}
+
+func (rt *RawTerm) NamespacedWriter(namepsace string) io.Writer {
+	return &namespaceWriter{namepsace, rt}
 }
 
 func (rt *RawTerm) read(buf []byte) (n int, err error) {
@@ -146,16 +148,31 @@ func (rt *RawTerm) ReadKeyPress() (KeyPress, error) {
 	return KeyPress(buf[0]), nil
 }
 
-type columnTermWriter struct {
+type namespaceWriter struct {
+	namespace string
+	writer    TaskWriter
+}
+
+func (r *namespaceWriter) Write(buf []byte) (n int, err error) {
+	return r.writer.WriteTask(r.namespace, buf)
+}
+
+type TaskWriter interface {
+	io.Writer
+	WriteTask(task string, buf []byte) (n int, err error)
+}
+
+type columnTaskWriter struct {
 	writer io.Writer
 }
 
-func (r *columnTermWriter) Write(buf []byte) (n int, err error) {
+func (r *columnTaskWriter) Write(buf []byte) (n int, err error) {
 	return r.WriteTask("", buf)
 }
 
-func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error) {
-	for len(buf) > 0 {
+func (r *columnTaskWriter) WriteTask(left string, buf []byte) (n int, err error) {
+	var nline int
+	for nline = 0; len(buf) > 0; nline++ {
 		i := bytes.IndexByte(buf, '\n')
 		todo := len(buf)
 		if i >= 0 {
@@ -163,14 +180,22 @@ func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error)
 		}
 
 		var nn int
-		nn, err = r.writeColumnLine(left, buf[:todo])
+		switch {
+		case nline == 0, left == "": // first line or left side is empty
+			nn, err = r.writeColumnLine(left, buf[:todo])
+		case i < 0 || i+1 == len(buf): // last line
+			nn, err = r.writeColumnLine(" └─", buf[:todo])
+		default: // middle lines
+			nn, err = r.writeColumnLine(" │", buf[:todo])
+		}
+
 		n += nn
 		if err != nil {
 			return n, err
 		}
 		buf = buf[todo:]
 
-		if i >= 0 {
+		if i >= 0 { // always jump a line on the last line
 			if _, err = r.writer.Write(CRLF); err != nil {
 				return n, err
 			}
@@ -182,7 +207,7 @@ func (r *columnTermWriter) WriteTask(left string, buf []byte) (n int, err error)
 	return
 }
 
-func (r *columnTermWriter) writeColumnLine(left string, line []byte) (n int, err error) {
+func (r *columnTaskWriter) writeColumnLine(left string, line []byte) (n int, err error) {
 	// Write left column
 	if n, err = fmt.Fprintf(r.writer, "%-15s | ", left); err != nil {
 		return n, err
@@ -196,15 +221,15 @@ func (r *columnTermWriter) writeColumnLine(left string, line []byte) (n int, err
 	return
 }
 
-type rawTermWriter struct {
+type rawTaskWriter struct {
 	writer io.Writer
 }
 
-func (r *rawTermWriter) Write(buf []byte) (n int, err error) {
+func (r *rawTaskWriter) Write(buf []byte) (n int, err error) {
 	return r.writer.Write(buf)
 }
 
-func (r *rawTermWriter) WriteTask(task string, buf []byte) (n int, err error) {
+func (r *rawTaskWriter) WriteTask(task string, buf []byte) (n int, err error) {
 	if task != "" {
 		n, err = r.writer.Write([]byte(task + ": "))
 	}

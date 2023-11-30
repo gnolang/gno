@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
@@ -36,8 +36,6 @@ const (
 var defaultViewsFiles embed.FS
 
 type Config struct {
-	logger *log.Logger // unexported field
-
 	RemoteAddr    string
 	CaptchaSite   string
 	FaucetURL     string
@@ -61,7 +59,7 @@ func NewDefaultConfig() Config {
 	}
 }
 
-func MakeApp(logger *log.Logger, cfg Config) gotuna.App {
+func MakeApp(logger log.Logger, cfg Config) gotuna.App {
 	var viewFiles fs.FS
 
 	// Get specific views directory if specified
@@ -135,7 +133,7 @@ func MakeApp(logger *log.Logger, cfg Config) gotuna.App {
 // url is intended to be shorter.
 // UX is intended to be more minimalistic.
 // A link to the realm realm is added.
-func handlerRealmAlias(logger *log.Logger, app gotuna.App, cfg *Config, rlmpath string) http.Handler {
+func handlerRealmAlias(logger log.Logger, app gotuna.App, cfg *Config, rlmpath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rlmfullpath := "gno.land" + rlmpath
 		querystr := "" // XXX: "?gnoweb-alias=1"
@@ -180,7 +178,7 @@ func handlerRealmAlias(logger *log.Logger, app gotuna.App, cfg *Config, rlmpath 
 	})
 }
 
-func handlerFaucet(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerFaucet(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("Config", cfg).
@@ -188,7 +186,7 @@ func handlerFaucet(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler
 	})
 }
 
-func handlerStatusJSON(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerStatusJSON(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ret struct {
@@ -239,7 +237,7 @@ func handlerStatusJSON(logger *log.Logger, app gotuna.App, cfg *Config) http.Han
 	})
 }
 
-func handlerRedirect(logger *log.Logger, app gotuna.App, cfg *Config, to string) http.Handler {
+func handlerRedirect(logger log.Logger, app gotuna.App, cfg *Config, to string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, to, http.StatusFound)
 		tmpl := app.NewTemplatingEngine()
@@ -249,12 +247,14 @@ func handlerRedirect(logger *log.Logger, app gotuna.App, cfg *Config, to string)
 	})
 }
 
-func handlerRealmMain(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmMain(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
 		rlmpath := "gno.land/r/" + rlmname
 		query := r.URL.Query()
+
+		logger.Info("handling", "name", rlmname, "path", rlmpath)
 		if query.Has("help") {
 			// Render function helper.
 			funcName := query.Get("__func")
@@ -304,13 +304,13 @@ type pathLink struct {
 	Text string
 }
 
-func handlerRealmRender(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmRender(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleRealmRender(logger, app, cfg, w, r)
 	})
 }
 
-func handleRealmRender(logger *log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
+func handleRealmRender(logger log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
@@ -355,7 +355,7 @@ func handleRealmRender(logger *log.Logger, app gotuna.App, cfg *Config, w http.R
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
-func handlerRealmFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		diruri := "gno.land/r/" + vars["rlmname"]
@@ -364,7 +364,7 @@ func handlerRealmFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Hand
 	})
 }
 
-func handlerPackageFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerPackageFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
@@ -378,7 +378,7 @@ func handlerPackageFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Ha
 	})
 }
 
-func renderPackageFile(logger *log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
+func renderPackageFile(logger log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
 		qpath := qFileStr
@@ -417,7 +417,7 @@ func renderPackageFile(logger *log.Logger, app gotuna.App, cfg *Config, w http.R
 	}
 }
 
-func makeRequest(log *log.Logger, cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
+func makeRequest(log log.Logger, cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
@@ -427,17 +427,17 @@ func makeRequest(log *log.Logger, cfg *Config, qpath string, data []byte) (res *
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {
-		return nil, err
+		log.Error("request error", "path", qpath, "error", err)
+		return nil, fmt.Errorf("unable to query path %q: %w", qpath, err)
 	}
 	if qres.Response.Error != nil {
-		log.Printf("error: %s", qres.Response.Error)
-		log.Println(qres.Response.Log)
+		log.Error("response error", "path", qpath, "log", qres.Response.Log)
 		return nil, qres.Response.Error
 	}
 	return &qres.Response, nil
 }
 
-func handlerStaticFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerStaticFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 	fileapp := http.StripPrefix("/static", http.FileServer(fs))
 
@@ -462,7 +462,7 @@ func handlerStaticFile(logger *log.Logger, app gotuna.App, cfg *Config) http.Han
 	})
 }
 
-func handlerFavicon(logger *log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerFavicon(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -487,7 +487,13 @@ func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWri
 		Render(w, r, "404.html", "funcs.html")
 }
 
-func writeError(log *log.Logger, w http.ResponseWriter, err error) {
+func writeError(logger log.Logger, w http.ResponseWriter, err error) {
+	if details := errors.Unwrap(err); details != nil {
+		logger.Error("handler", "error", err, "details", details)
+	} else {
+		logger.Error("handler", "error:", err)
+	}
+
 	// XXX: writeError should return an error page template.
 	w.WriteHeader(500)
 	w.Write([]byte(err.Error()))
