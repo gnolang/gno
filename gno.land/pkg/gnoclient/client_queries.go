@@ -93,6 +93,9 @@ func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQ
 	if err != nil {
 		return "", nil, errors.Wrap(err, "query render")
 	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrap(qres.Response.Error, "Render failed: log:%s", qres.Response.Log)
+	}
 
 	return string(qres.Response.Data), qres, nil
 }
@@ -112,6 +115,9 @@ func (c Client) QEval(pkgPath string, expression string) (string, *ctypes.Result
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "query qeval")
+	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrap(qres.Response.Error, "QEval failed: log:%s", qres.Response.Log)
 	}
 
 	return string(qres.Response.Data), qres, nil
