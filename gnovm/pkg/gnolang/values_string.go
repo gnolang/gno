@@ -28,6 +28,18 @@ func (sv *seenValues) Contains(v Value) bool {
 	return false
 }
 
+// Pop could be called by using a defer after each Put.
+// Consider why this is necessary:
+//   - we are printing an array of structs
+//   - each invocation of struct.ProtectedString adds the value to the seenValues
+//   - without calling Pop before exiting struct.ProtectedString, the next call to
+//     struct.ProtectedString in the array.ProtectedString loop will not result in the value
+//     being printed if the value has already been print
+//   - this is NOT recursion and SHOULD be printed
+func (sv *seenValues) Pop() {
+	sv.values = sv.values[:len(sv.values)-1]
+}
+
 func newSeenValues() *seenValues {
 	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
 }
@@ -58,6 +70,8 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	}
 
 	seen.Put(av)
+	defer seen.Pop()
+
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
@@ -92,6 +106,8 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	}
 
 	seen.Put(sv)
+	defer seen.Pop()
+
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
 		ss := make([]string, sv.Length)
@@ -116,6 +132,7 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 	}
 
 	seen.Put(pv)
+	defer seen.Pop()
 
 	// This method was limited and not working correctly previously. Allowing for it to work as
 	// intended means that it needs to ensure the type value is not nil before attempting to
@@ -137,6 +154,8 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 	}
 
 	seen.Put(sv)
+	defer seen.Pop()
+
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
 		ss[i] = f.ProtectedString(seen)
@@ -185,6 +204,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 
 	seen.Put(mv)
+	defer seen.Pop()
+
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
