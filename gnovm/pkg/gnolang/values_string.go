@@ -8,7 +8,7 @@ import (
 )
 
 // This indicates the maximum ancticipated depth of the stack when printing a Value type.
-const defaultSeenValuesSize = 16
+const defaultSeenValuesSize = 32
 
 type seenValues struct {
 	values []Value
