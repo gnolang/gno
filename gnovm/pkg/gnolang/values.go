@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 )
 
 func (m *Machine) doOpEval() {
@@ -173,7 +173,7 @@ func (m *Machine) doOpEval() {
 				res := apd.New(0, 0)
 				_, err = apd.BaseContext.WithPrecision(1024).Mul(
 					res,
-					apd.NewWithBigInt(dValue, 0),
+					apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(dValue), 0),
 					bexp)
 				if err != nil {
 					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
