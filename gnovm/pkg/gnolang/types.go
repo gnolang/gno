@@ -977,11 +977,20 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
+	depp.Printf("isImplementedBy, it %v, ot:%v \n", it, ot)
+	// empty interface{}
+	//if iot, ok := baseOf(ot).(*InterfaceType); ok {
+	//	if iot.IsEmptyInterface() {
+	//		return true
+	//	}
+	//}
+
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
 			if !im2.IsImplementedBy(ot) {
+				depp.Println("first false")
 				return false
 			} else {
 				continue
@@ -990,6 +999,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
+			depp.Println("second false")
 			return false
 		}
 		if nft, ok := ft.(*NativeType); ok {
@@ -1000,6 +1010,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
+				depp.Println("third false")
 				return false
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
@@ -1011,6 +1022,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
+				depp.Println("fourth false")
 				return false
 			}
 		}
@@ -2142,28 +2154,28 @@ func assertSameTypes(lt, rt Type) {
 }
 
 func isSameTypes(lt, rt Type) bool {
-	fmt.Printf("isSameTypes, lt: %v, rt: %v \n", lt, rt)
-	println("is lt data byte: ", isDataByte(lt))
-	println("is rt data byte: ", isDataByte(rt))
+	depp.Printf("isSameTypes, lt: %v, rt: %v \n", lt, rt)
+	depp.Println("is lt data byte: ", isDataByte(lt))
+	depp.Println("is rt data byte: ", isDataByte(rt))
 
 	if lpt, ok := lt.(*PointerType); ok {
-		println("lt is pointer type, typeid: ", lpt.typeid)
+		depp.Println("lt is pointer type, typeid: ", lpt.typeid)
 		if isDataByte(lpt.Elt) {
-			println("got data byte, left")
+			depp.Println("got data byte, left")
 			return true
 		}
 	}
 
 	if rpt, ok := rt.(*PointerType); ok {
-		println("rt is pointer type, typeid: ", rpt.typeid)
+		depp.Println("rt is pointer type, typeid: ", rpt.typeid)
 		if isDataByte(rpt.Elt) {
-			println("got data byte, right")
+			depp.Println("got data byte, right")
 			return true
 		}
 	}
 
 	if isDataByte(lt) || isDataByte(rt) {
-		println("one is date byte")
+		depp.Println("one is date byte")
 		return true
 	}
 

@@ -71,7 +71,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	println("doOpEql")
+	depp.Println("doOpEql")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -80,7 +80,7 @@ func (m *Machine) doOpEql() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	depp.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
 	//// strict type match check, after preprocess
@@ -108,7 +108,7 @@ func (m *Machine) doOpEql() {
 }
 
 func (m *Machine) doOpNeq() {
-	println("doOpNeq")
+	depp.Println("doOpNeq")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -117,7 +117,7 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	fmt.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	depp.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
 	//// strict type match check, after preprocess
@@ -407,11 +407,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Int32Kind:
 		return (lv.GetInt32() == rv.GetInt32())
 	case Int64Kind:
-		println("int64 kind")
-		println("lv kind: ", lv.T.Kind())
-		println("rv kind: ", rv.T.Kind())
-		println("lv int64", lv.GetInt64())
-		println("rv int64", rv.GetInt64())
+		depp.Println("int64 kind")
+		depp.Println("lv kind: ", lv.T.Kind())
+		depp.Println("rv kind: ", rv.T.Kind())
+		depp.Println("lv int64", lv.GetInt64())
+		depp.Println("rv int64", rv.GetInt64())
 		return (lv.GetInt64() == rv.GetInt64())
 	case UintKind:
 		return (lv.GetUint() == rv.GetUint())

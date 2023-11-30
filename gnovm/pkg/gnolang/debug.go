@@ -19,13 +19,16 @@ import (
 // before calling debug.Println or debug.Printf.
 
 type debugging bool
+type debugPreprocess bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
 var debug debugging = false
+var depp debugPreprocess = false
 
 func init() {
 	debug = os.Getenv("DEBUG") == "1"
+	depp = os.Getenv("DEPP") == "1"
 	if debug {
 		go func() {
 			// e.g.
@@ -60,6 +63,18 @@ func (d debugging) Printf(format string, args ...interface{}) {
 		if enabled {
 			fmt.Printf("DEBUG: "+format, args...)
 		}
+	}
+}
+
+func (d debugPreprocess) Println(args ...interface{}) {
+	if d {
+		fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+	}
+}
+
+func (d debugPreprocess) Printf(format string, args ...interface{}) {
+	if d {
+		fmt.Printf("DEBUG: "+format, args...)
 	}
 }
 
