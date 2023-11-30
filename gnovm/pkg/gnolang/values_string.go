@@ -28,7 +28,7 @@ func (sv *seenValues) Contains(v Value) bool {
 	return false
 }
 
-// Pop could be called by using a defer after each Put.
+// Pop should be called by using a defer after each Put.
 // Consider why this is necessary:
 //   - we are printing an array of structs
 //   - each invocation of struct.ProtectedString adds the value to the seenValues
