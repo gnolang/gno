@@ -3,9 +3,29 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
+
+// This indicates the maximum ancticipated depth of the stack when printing a Value type.
+const defaultSeenValuesSize = 16
+
+type seenValues struct {
+	values []Value
+}
+
+func (sv *seenValues) Put(v Value) {
+	sv.values = append(sv.values, v)
+}
+
+func (sv *seenValues) Contains(v Value) bool {
+	return slices.Contains(sv.values, v)
+}
+
+func newSeenValues() *seenValues {
+	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
+}
 
 func (v StringValue) String() string {
 	return strconv.Quote(string(v))
@@ -24,15 +44,15 @@ func (dbv DataByteValue) String() string {
 }
 
 func (av *ArrayValue) String() string {
-	return av.ProtectedString(map[Value]struct{}{})
+	return av.ProtectedString(newSeenValues())
 }
 
-func (av *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[av]; ok {
+func (av *ArrayValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(av) {
 		return fmt.Sprintf("%p", av)
 	}
 
-	seen[av] = struct{}{}
+	seen.Put(av)
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
@@ -50,15 +70,15 @@ func (av *ArrayValue) ProtectedString(seen map[Value]struct{}) string {
 }
 
 func (sv *SliceValue) String() string {
-	return sv.ProtectedString(map[Value]struct{}{})
+	return sv.ProtectedString(newSeenValues())
 }
 
-func (sv *SliceValue) ProtectedString(seen map[Value]struct{}) string {
+func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	if sv.Base == nil {
 		return "nil-slice"
 	}
 
-	if _, ok := seen[sv]; ok {
+	if seen.Contains(sv) {
 		return fmt.Sprintf("%p", sv)
 	}
 
@@ -66,7 +86,7 @@ func (sv *SliceValue) ProtectedString(seen map[Value]struct{}) string {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
 
-	seen[sv] = struct{}{}
+	seen.Put(sv)
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
 		ss := make([]string, sv.Length)
@@ -82,15 +102,15 @@ func (sv *SliceValue) ProtectedString(seen map[Value]struct{}) string {
 }
 
 func (pv PointerValue) String() string {
-	return pv.ProtectedString(map[Value]struct{}{})
+	return pv.ProtectedString(newSeenValues())
 }
 
-func (pv PointerValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[pv]; ok {
+func (pv PointerValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(pv) {
 		return fmt.Sprintf("%p", &pv)
 	}
 
-	seen[pv] = struct{}{}
+	seen.Put(pv)
 
 	// This method was limited and not working correctly previously. Allowing for it to work as
 	// intended means that it needs to ensure the type value is not nil before attempting to
@@ -103,15 +123,15 @@ func (pv PointerValue) ProtectedString(seen map[Value]struct{}) string {
 }
 
 func (sv *StructValue) String() string {
-	return sv.ProtectedString(map[Value]struct{}{})
+	return sv.ProtectedString(newSeenValues())
 }
 
-func (sv *StructValue) ProtectedString(seen map[Value]struct{}) string {
-	if _, ok := seen[sv]; ok {
+func (sv *StructValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(sv) {
 		return fmt.Sprintf("%p", sv)
 	}
 
-	seen[sv] = struct{}{}
+	seen.Put(sv)
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
 		ss[i] = f.ProtectedString(seen)
@@ -147,19 +167,19 @@ func (v *BoundMethodValue) String() string {
 }
 
 func (mv *MapValue) String() string {
-	return mv.ProtectedString(map[Value]struct{}{})
+	return mv.ProtectedString(newSeenValues())
 }
 
-func (mv *MapValue) ProtectedString(seen map[Value]struct{}) string {
+func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	if mv.List == nil {
 		return "zero-map"
 	}
 
-	if _, ok := seen[mv]; ok {
+	if seen.Contains(mv) {
 		return fmt.Sprintf("%p", mv)
 	}
 
-	seen[mv] = struct{}{}
+	seen.Put(mv)
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
@@ -230,11 +250,11 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return res[0].GetString()
 	}
 
-	return tv.ProtectedSprint(map[Value]struct{}{}, true)
+	return tv.ProtectedSprint(newSeenValues(), true)
 }
 
-func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredType bool) string {
-	if _, ok := seen[tv.V]; ok {
+func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+	if seen.Contains(tv.V) {
 		return fmt.Sprintf("%p", tv)
 	}
 
@@ -349,10 +369,10 @@ func (tv *TypedValue) ProtectedSprint(seen map[Value]struct{}, considerDeclaredT
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
-	return tv.ProtectedString(map[Value]struct{}{})
+	return tv.ProtectedString(newSeenValues())
 }
 
-func (tv TypedValue) ProtectedString(seen map[Value]struct{}) string {
+func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
