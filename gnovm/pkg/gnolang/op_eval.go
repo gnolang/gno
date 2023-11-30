@@ -160,8 +160,7 @@ func (m *Machine) doOpEval() {
 					panic(fmt.Sprintf("error computing exponent: %v", err))
 				}
 				// Step 3 make Decimal from mantissa and exp.
-				var dValue *big.Int
-				dValue = new(big.Int)
+				dValue := new(apd.BigInt)
 				_, ok := dValue.SetString(hexString, 16)
 				if !ok {
 					panic(fmt.Sprintf("can't convert %s to decimal", value))
@@ -173,7 +172,7 @@ func (m *Machine) doOpEval() {
 				res := apd.New(0, 0)
 				_, err = apd.BaseContext.WithPrecision(1024).Mul(
 					res,
-					apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(dValue), 0),
+					apd.NewWithBigInt(dValue, 0),
 					bexp)
 				if err != nil {
 					panic(fmt.Sprintf("canot calculate hexadecimal: %v", err))
