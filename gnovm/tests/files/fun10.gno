@@ -13,5 +13,5 @@ func main() {
 }
 
 // Output:
-// func()()
+// nil func()
 // nil func

@@ -959,7 +959,6 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/demo/boards"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]

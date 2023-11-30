@@ -164,8 +164,27 @@ func (v RefValue) String() string {
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
 	if tv == nil || tv.T == nil {
-		return "undefined"
+		return undefinedStr
 	}
+
+	if tv.V == nil && (tv.T.Kind() == SliceKind || tv.T.Kind() == StringKind) {
+		return undefinedStr
+	}
+
+	if tv.T.Kind() == FuncKind {
+		if tv.V == nil {
+			return "nil func()"
+		}
+		switch fv := tv.V.(type) {
+		case *FuncValue, *BoundMethodValue:
+			return fv.String()
+		default:
+			panic(fmt.Sprintf(
+				"unexpected func type %v",
+				reflect.TypeOf(tv.V)))
+		}
+	}
+
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))

@@ -5,8 +5,8 @@ import (
 )
 
 type printlnTestCases struct {
-	name	 string
-	code	 string
+	name     string
+	code     string
 	expected string
 }
 
@@ -116,7 +116,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 					println("nil func")
 				}
 			}`,
-			expected: "func()()\nnil func\n",
+			expected: "nil func()\nnil func\n",
 		},
 	}
 

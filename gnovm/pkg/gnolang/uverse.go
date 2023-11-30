@@ -944,7 +944,8 @@ func UverseNode() *PackageNode {
 			ss := make([]string, xvl)
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = formatTypeValue(&ev, m)
+				// ss[i] = formatTypeValue(&ev, m)
+				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			if debug {
@@ -1004,26 +1005,26 @@ func copyNativeToData(dst []byte, rv reflect.Value, rvl int) {
 	}
 }
 
-const FormatUndefined = "undefined"
+// const FormatUndefined = "undefined"
 
-// formatTypeValue formats the given TypedValue based on its type and returns the formatted string representation.
-func formatTypeValue(ev *TypedValue, m *Machine) string {
-	if ev.T == nil {
-		return FormatUndefined
-	}
+// // formatTypeValue formats the given TypedValue based on its type and returns the formatted string representation.
+// func formatTypeValue(ev *TypedValue, m *Machine) string {
+// 	if ev.T == nil {
+// 		return FormatUndefined
+// 	}
 
-	if ev.V == nil {
-		switch ev.T.Kind() {
-		case SliceKind, StringKind:
-			return FormatUndefined
-		default:
-			ev.Sprint(m)
-		}
-	}
+// 	if ev.V == nil {
+// 		switch ev.T.Kind() {
+// 		case SliceKind, StringKind:
+// 			return FormatUndefined
+// 		default:
+// 			ev.Sprint(m)
+// 		}
+// 	}
 
-	if ev.T.Kind() == FuncKind {
-		return ev.T.String()
-	}
+// 	if ev.T.Kind() == FuncKind {
+// 		return ev.T.String()
+// 	}
 
-	return ev.Sprint(m)
-}
+// 	return ev.Sprint(m)
+// }

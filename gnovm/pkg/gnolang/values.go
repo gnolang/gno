@@ -43,7 +43,8 @@ func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
 const (
-	nilStr = "nil"
+	nilStr       = "nil"
+	undefinedStr = "undefined"
 )
 
 var (
