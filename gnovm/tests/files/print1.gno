@@ -4,3 +4,6 @@ func main() {
 	var a []string
 	println(a)
 }
+
+// Output:
+// undefined
