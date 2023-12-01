@@ -43,6 +43,11 @@ func (m *Machine) doOpEval() {
 		switch x.Kind {
 		case INT:
 			x.Value = strings.ReplaceAll(x.Value, "_", "")
+			isNegative := false
+			if strings.HasPrefix(x.Value, "-") {
+				isNegative = true
+				x.Value = strings.TrimPrefix(x.Value, "-")
+			}
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
@@ -73,6 +78,9 @@ func (m *Machine) doOpEval() {
 						"invalid integer constant: %s",
 						x.Value))
 				}
+			}
+			if isNegative {
+				bi.Neg(bi)
 			}
 			m.PushValue(TypedValue{
 				T: UntypedBigintType,
