@@ -1,0 +1,163 @@
+# This test ensures the consistency of the std.AssertOriginCall function, in
+# the following situations:
+#
+#  1. CALL -> myrlm.A -> std.AssertIsOriginCall: PASS
+#  2. RUN  -> run.main -> myrlm.A -> std.AssertIsOriginCall: FAIL
+#  3. RUN  -> run.main -> run.helper -> myrlm.A -> std.AssertIsOriginCall: FAIL
+#  4. RUN  -> run.main -> mypkg.Exec -> run.helper -> myrlm.A -> std.AssertOriginCall: FAIL
+#  5. RUN  -> run.main -> myrlm.Exec -> run.helper -> myrlm.A -> std.AssertOriginCall: FAIL
+#  6. CALL -> myrlm.B -> myrlm.A -> std.AssertIsOriginCall: PASS
+#  7. CALL -> mypkg.A -> myrlm.A -> std.AssertIsOriginCall: PASS
+#  8. CALL -> myrlm2.A -> myrlm.A -> std.AssertIsOriginCall: FAIL
+#  9. CALL -> myrlm2.B -> myrlm.Exec -> myrlm.A -> std.AssertIsOriginCall: FAIL
+# 10. CALL -> myrlm2.C -> myrlm.Exec -> func() -> myrlm.A -> std.AssertIsOriginCall: FAIL
+# 
+# CALL and RUN keywords indicate the underlying command, respectively 
+# `gnokey maketx call` and `gnokey maketx run`
+
+## start a new node
+gnoland start
+
+## deploy myrlm
+gnokey maketx addpkg -pkgdir $WORK/myrlm -pkgpath gno.land/r/myrlm -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## deploy myrlm2
+gnokey maketx addpkg -pkgdir $WORK/myrlm2 -pkgpath gno.land/r/myrlm2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## deploy mypkg
+gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/p/demo/mypkg -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+# Test cases:
+
+## 1. CALL -> myrlm.A -> std.AssertIsOriginCall: PASS
+gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+
+## 2. RUN -> run.main -> myrlm.A -> std.AssertIsOriginCall: FAIL
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run1.gno
+stderr 'invalid non-origin call'
+
+## 3. RUN -> run.main -> run.helper -> myrlm.A -> std.AssertIsOriginCall: FAIL
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run2.gno
+stderr 'invalid non-origin call'
+
+## 4. RUN -> run.main -> mypkg.Exec -> run.helper -> myrlm.A -> std.AssertOriginCall: FAIL
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run3.gno
+stderr 'invalid non-origin call'
+
+## 5. RUN -> run.main -> myrlm.Exec -> run.helper -> myrlm.A -> std.AssertOriginCall: FAIL
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run4.gno
+stderr 'invalid non-origin call'
+
+## 6. CALL -> myrlm.B -> myrlm.A -> std.AssertIsOriginCall: PASS
+gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+
+## 7. CALL -> mypkg.A -> myrlm.A -> std.AssertIsOriginCall: PASS
+gnokey maketx call -pkgpath gno.land/p/demo/mypkg -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+
+## 8. CALL -> myrlm2.A -> myrlm.A -> std.AssertIsOriginCall: FAIL
+! gnokey maketx call -pkgpath gno.land/r/myrlm2 -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 9. CALL -> myrlm2.B -> myrlm.Exec -> myrlm.A -> std.AssertIsOriginCall: FAIL
+! gnokey maketx call -pkgpath gno.land/r/myrlm2 -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 10. CALL -> myrlm2.C -> myrlm.Exec -> func() -> myrlm.A -> std.AssertIsOriginCall: FAIL
+! gnokey maketx call -pkgpath gno.land/r/myrlm2 -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+-- myrlm/rlm.gno --
+package myrlm
+
+import "std"
+
+func A() {
+	std.AssertOriginCall()
+}
+
+func B() {
+	A()
+}
+
+func Exec(fn func()){
+	fn()
+}
+-- myrlm2/rlm2.gno --
+package myrlm2
+
+import "gno.land/r/myrlm"
+
+func A() {
+	myrlm.A()
+}
+
+func B(){
+	myrlm.Exec(myrlm.A)
+}
+
+func C(){
+	myrlm.Exec(func() {
+		myrlm.A()
+	})
+}
+-- mypkg/pkg.gno --
+package mypkg
+
+import "gno.land/r/myrlm"
+
+func Exec(fn func()){
+	fn()
+}
+
+func A() {
+	myrlm.A()
+}
+-- run1.gno --
+package main
+
+import "gno.land/r/myrlm"
+
+func main() {
+	myrlm.A()
+}
+-- run2.gno --
+package main
+
+import "gno.land/r/myrlm"
+
+func main() {
+	helper()
+}
+
+func helper() {
+	myrlm.A()
+}
+-- run3.gno --
+package main
+
+import (
+	"gno.land/r/myrlm"
+	"gno.land/p/demo/mypkg"
+)
+
+func main() {
+	mypkg.Exec(helper)
+}
+
+func helper() {
+	myrlm.A()
+}
+-- run4.gno --
+package main
+
+import (
+	myrlm "gno.land/r/myrlm"
+)
+
+func main() {
+	myrlm.Exec(helper)
+}
+
+func helper() {
+	myrlm.A()
+}
