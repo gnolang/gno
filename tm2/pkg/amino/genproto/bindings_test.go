@@ -11,6 +11,8 @@ import (
 )
 
 func TestGenerateProtoBindings(t *testing.T) {
+	t.Parallel()
+
 	file, err := GenerateProtoBindingsForTypes(tests.Package, tests.Package.ReflectTypes()...)
 	assert.NoError(t, err)
 	t.Logf("%v", file)

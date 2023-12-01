@@ -9,6 +9,8 @@ import (
 )
 
 func TestAnyWellKnownNative(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 
 	s1 := tests.InterfaceFieldsStruct{

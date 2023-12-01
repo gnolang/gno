@@ -1,7 +1,6 @@
 package privval
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -29,7 +28,7 @@ type listenerTestCase struct {
 // testUnixAddr will attempt to obtain a platform-independent temporary file
 // name for a Unix socket
 func testUnixAddr() (string, error) {
-	f, err := ioutil.TempFile("", "tendermint-privval-test-*")
+	f, err := os.CreateTemp("", "tendermint-privval-test-*")
 	if err != nil {
 		return "", err
 	}
@@ -89,6 +88,8 @@ func listenerTestCases(t *testing.T, timeoutAccept, timeoutReadWrite time.Durati
 }
 
 func TestListenerTimeoutAccept(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range listenerTestCases(t, time.Millisecond, time.Second) {
 		_, err := tc.listener.Accept()
 		opErr, ok := err.(*net.OpError)
@@ -103,6 +104,8 @@ func TestListenerTimeoutAccept(t *testing.T) {
 }
 
 func TestListenerTimeoutReadWrite(t *testing.T) {
+	t.Parallel()
+
 	const (
 		// This needs to be long enough s.t. the Accept will definitely succeed:
 		timeoutAccept = time.Second
