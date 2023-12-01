@@ -52,7 +52,6 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 		newQueryCmd(cfg, io),
 		newBroadcastCmd(cfg, io),
 		newMakeTxCmd(cfg, io),
-		newDeriveCmd(io),
 	)
 
 	return cmd
