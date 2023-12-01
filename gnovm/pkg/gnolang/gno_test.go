@@ -42,14 +42,12 @@ func main() {
 func TestBaseConversion(t *testing.T) {
 	m := NewMachine("test", nil)
 
-	// Test case struct
 	type testCase struct {
 		input     string
 		expect    string
 		expectErr bool
 	}
 
-	// Define test cases
 	testCases := []testCase{
 		// binary
 		{input: "0b101010", expect: "42", expectErr: false},
@@ -105,7 +103,6 @@ func TestBaseConversion(t *testing.T) {
 		{input: "-9223372036854775808", expect: "-9223372036854775808", expectErr: false},
 	}
 
-	// Run test cases
 	for _, tc := range testCases {
 		m.PushExpr(&BasicLitExpr{
 			Kind:  INT,
