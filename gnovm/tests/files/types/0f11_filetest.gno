@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"strconv"
 )
 
@@ -11,13 +10,10 @@ func (e Error) Error() string {
 	return "error: " + strconv.Itoa(int(e))
 }
 
-var errCmp = errors.New("XXXX")
-
-// specil case:
-// one is interface
+// both not const, and both interface
 func main() {
-	if Error(1) != errCmp {
-		//if errCmp == 1 {
+	var l interface{}
+	if l == Error(0) {
 		println("what the firetruck?")
 	} else {
 		println("something else")
@@ -25,4 +21,4 @@ func main() {
 }
 
 // Output:
-// what the firetruck?
+// something else

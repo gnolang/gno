@@ -13,8 +13,9 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
-// specil case:
-// one is interface
+// special case:
+// 1. base type of left is int64, op is legal;
+// 2. while RHS is interface kind, and can be converted to left
 func main() {
 	r := Error(0)
 	r += errCmp
@@ -22,4 +23,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13f1_filetest.gno:20: cannot use .uverse.error as main.Error without explicit conversion
+// invalid operation: mismatched types main.Error and *errors.errorString

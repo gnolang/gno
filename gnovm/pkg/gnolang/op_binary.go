@@ -93,6 +93,8 @@ func (m *Machine) doOpEql() {
 	//	res = isEql(m.Store, lv, rv)
 	//}
 
+	// TODO: this should be in preprocess too
+	// TODO: only assert here
 	if isSameTypes(lv.T, rv.T) {
 		res = isEql(m.Store, lv, rv)
 	} else {
@@ -706,6 +708,10 @@ func isGeq(lv, rv *TypedValue) bool {
 
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
+
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -764,6 +770,9 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 
 // for doOpSub and doOpSubAssign.
 func subAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -820,6 +829,9 @@ func subAssign(lv, rv *TypedValue) {
 
 // for doOpMul and doOpMulAssign.
 func mulAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -874,6 +886,9 @@ func mulAssign(lv, rv *TypedValue) {
 
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -930,6 +945,9 @@ func quoAssign(lv, rv *TypedValue) {
 
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -969,6 +987,9 @@ func remAssign(lv, rv *TypedValue) {
 
 // for doOpBand and doOpBandAssign.
 func bandAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1008,6 +1029,9 @@ func bandAssign(lv, rv *TypedValue) {
 
 // for doOpBandn and doOpBandnAssign.
 func bandnAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1047,6 +1071,9 @@ func bandnAssign(lv, rv *TypedValue) {
 
 // for doOpBor and doOpBorAssign.
 func borAssign(lv, rv *TypedValue) {
+	if !isSameTypes(lv.T, rv.T) {
+		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {

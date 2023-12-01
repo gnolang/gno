@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13f0_filetest.gno:20: cannot use .uverse.error as int without explicit conversion
+// main/files/types/13f0_filetest.gno:20: int does not implement .uverse.error

@@ -113,3 +113,5 @@ thoughts:
 TODOs: 
 
     // TODO: dec value representation
+    // TODO: Current flow : check op operand,  check type convertable, and convert, and check type match again,  means, this kind of check should still in preprocess
+    // TODO: preCheck->Convert->postCheck, all in `checkOrConvertType`

@@ -25,4 +25,4 @@ func main() {
 }
 
 // Output:
-// something else
+// what the firetruck?
