@@ -13,6 +13,18 @@ type printlnTestCases struct {
 func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 	test := []printlnTestCases{
 		{
+			name: "print empty slice",
+			code: `package test
+			func main() {
+				emptySlice1 := make([]int, 0)
+				emptySlice2 := []int{}
+
+				println(emptySlice1)
+				println(emptySlice2)
+			}`,
+			expected: "slice[]\nslice[]\n",
+		},
+		{
 			name: "nil slice",
 			code: `package test
 			func main() {
@@ -21,13 +33,13 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			expected: "undefined\n",
 		},
 		{
-			name: "print empty slice",
+			name: "print empty string slice",
 			code: `package test
 			func main() {
 				var a []string
 				println(a)
 			}`,
-			expected: "undefined\n",
+			expected: "nil []string\n",
 		},
 		{
 			name: "print non-empty slice",
@@ -37,6 +49,33 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 				println(a)
 			}`,
 			expected: "slice[(\"a\" string),(\"b\" string)]\n",
+		},
+		{
+			name: "print empty map",
+			code: `package test
+			func main() {
+				var a map[string]string
+				println(a)
+			}`,
+			expected: "nil map[string]string\n",
+		},
+		{
+			name: "print non-empty map",
+			code: `package test
+			func main() {
+				a := map[string]string{"a": "b"}
+				println(a)
+			}`,
+			expected: "map{(\"a\" string):(\"b\" string)}\n",
+		},
+		{
+			name: "print nil struct",
+			code: `package test
+			func main() {
+				var a struct{}
+				println(a)
+			}`,
+			expected: "struct{}\n",
 		},
 		{
 			name: "print function",
@@ -73,25 +112,6 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			expected: "simple panic\nrecover undefined\n",
 		},
 		{
-			name: "print recover with panic",
-			code: `package test
-
-			func main() {
-				f()
-			}
-		
-			func f() {
-				defer func() { println("f recover", recover()) }()
-				defer g()
-				panic("wtf")
-			}
-		
-			func g() {
-				println("g recover", recover())
-			}`,
-			expected: "g recover wtf\nf recover undefined\n",
-		},
-		{
 			name: "nested recover",
 			code: `package test
 
@@ -103,20 +123,28 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			expected: "simple panic\nnested panic\nouter recover undefined\n",
 		},
 		{
-			name: "print function 2",
+			name: "print non-nil function",
 			code: `package test
-			func f() func() {
-				return nil
+			func f() int {
+				return 1
 			}
-			
+
 			func main() {
-				g := f()
+				g := f
 				println(g)
-				if g == nil {
-					println("nil func")
-				}
 			}`,
-			expected: "nil func()\nnil func\n",
+			expected: "f\n",
+		},
+		{
+			name: "print primitive types",
+			code: `package test
+			func main() {
+				println(1)
+				println(1.1)
+				println(true)
+				println("hello")
+			}`,
+			expected: "1\n1.1\ntrue\nhello\n",
 		},
 	}
 

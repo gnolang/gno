@@ -6,4 +6,4 @@ func main() {
 }
 
 // Output:
-// undefined
+// nil []string

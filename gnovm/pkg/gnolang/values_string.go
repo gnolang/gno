@@ -167,24 +167,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return undefinedStr
 	}
 
-	if tv.V == nil && (tv.T.Kind() == SliceKind || tv.T.Kind() == StringKind) {
-		return undefinedStr
-	}
-
-	if tv.T.Kind() == FuncKind {
-		if tv.V == nil {
-			return "nil func()"
-		}
-		switch fv := tv.V.(type) {
-		case *FuncValue, *BoundMethodValue:
-			return fv.String()
-		default:
-			panic(fmt.Sprintf(
-				"unexpected func type %v",
-				reflect.TypeOf(tv.V)))
-		}
-	}
-
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
@@ -199,66 +181,24 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	if _, ok := tv.T.(*DeclaredType); ok {
 		return tv.String()
 	}
+
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		switch bt {
-		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
-		case UntypedStringType, StringType:
-			return tv.GetString()
-		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
-		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
-		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
-		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
-		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
-		case UntypedBigintType, BigintType:
-			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
-			return tv.V.(BigdecValue).V.String()
-		default:
-			panic("should not happen")
-		}
+		return printPrimitive(bt, *tv)
 	case *PointerType:
 		if tv.V == nil {
 			return "invalid-pointer"
 		}
 		return tv.V.(PointerValue).String()
-	case *ArrayType:
-		return tv.V.(*ArrayValue).String()
-	case *SliceType:
-		return tv.V.(*SliceValue).String()
-	case *StructType:
-		return tv.V.(*StructValue).String()
-	case *MapType:
-		return tv.V.(*MapValue).String()
+	case *ArrayType, *SliceType, *StructType, *MapType, *TypeType, *NativeType:
+		return printNilOrValue(tv, tv.V)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-			return "nil " + ft
-		case *FuncValue:
-			return fv.String()
-		case *BoundMethodValue:
+			return nilStr + " " + ft
+		case *FuncValue, *BoundMethodValue:
 			return fv.String()
 		default:
 			panic(fmt.Sprintf(
@@ -272,8 +212,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			}
 		}
 		return nilStr
-	case *TypeType:
-		return tv.V.(TypeValue).String()
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
@@ -281,9 +219,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	case *ChanType:
 		panic("not yet implemented")
 		// return tv.V.(*ChanValue).String()
-	case *NativeType:
-		return fmt.Sprintf("%v",
-			tv.V.(*NativeValue).Value.Interface())
 	default:
 		if debug {
 			panic(fmt.Sprintf(
@@ -293,6 +228,52 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			panic("should not happen")
 		}
 	}
+}
+
+func printPrimitive(bt PrimitiveType, tv TypedValue) string {
+	switch bt {
+	case UntypedBoolType, BoolType:
+		return fmt.Sprintf("%t", tv.GetBool())
+	case UntypedStringType, StringType:
+		return tv.GetString()
+	case IntType:
+		return fmt.Sprintf("%d", tv.GetInt())
+	case Int8Type:
+		return fmt.Sprintf("%d", tv.GetInt8())
+	case Int16Type:
+		return fmt.Sprintf("%d", tv.GetInt16())
+	case UntypedRuneType, Int32Type:
+		return fmt.Sprintf("%d", tv.GetInt32())
+	case Int64Type:
+		return fmt.Sprintf("%d", tv.GetInt64())
+	case UintType:
+		return fmt.Sprintf("%d", tv.GetUint())
+	case Uint8Type:
+		return fmt.Sprintf("%d", tv.GetUint8())
+	case Uint16Type:
+		return fmt.Sprintf("%d", tv.GetUint16())
+	case Uint32Type:
+		return fmt.Sprintf("%d", tv.GetUint32())
+	case Uint64Type:
+		return fmt.Sprintf("%d", tv.GetUint64())
+	case Float32Type:
+		return fmt.Sprintf("%v", tv.GetFloat32())
+	case Float64Type:
+		return fmt.Sprintf("%v", tv.GetFloat64())
+	case UntypedBigintType, BigintType:
+		return tv.V.(BigintValue).V.String()
+	case UntypedBigdecType, BigdecType:
+		return tv.V.(BigdecValue).V.String()
+	default:
+		panic("should not happen")
+	}
+}
+
+func printNilOrValue(tv *TypedValue, valueType interface{}) string {
+	if tv.V == nil {
+		return nilStr + " " + tv.T.String()
+	}
+	return fmt.Sprintf("%v", valueType)
 }
 
 // ----------------------------------------
