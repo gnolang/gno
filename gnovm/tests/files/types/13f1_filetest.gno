@@ -18,9 +18,11 @@ var errCmp = errors.New("XXXX")
 // 2. while RHS is interface kind, and can be converted to left
 func main() {
 	r := Error(0)
-	r += errCmp
-	println(r)
+	r += errCmp // in case of this, should panic mismatch on operand, except RHS is untyped
+	//println(r)
+	// println(Error(0) == errCmp) // Note: this is different with +=
+
 }
 
 // Error:
-// invalid operation: mismatched types main.Error and *errors.errorString
+// main/files/types/13f1_filetest.gno:21: invalid operation: mismatched types main.Error and .uverse.error

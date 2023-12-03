@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13b0_filetest.gno:8: cannot use main.Error as int without explicit conversion
+// main/files/types/13b0_filetest.gno:8: invalid operation: mismatched types int and main.Error

@@ -257,6 +257,171 @@ func (pt PrimitiveType) TypeID() TypeID {
 	}
 }
 
+type predicate int
+
+const (
+	IsInvalid           = 0
+	IsBoolean predicate = 1 << iota
+	IsInteger
+	IsUnsigned
+	IsFloat
+	IsComplex
+	IsString
+	IsUntyped
+	IsBigInt
+	IsBigDec
+	IsRune
+
+	IsOrdered   = IsInteger | IsFloat | IsString
+	IsNumeric   = IsInteger | IsFloat | IsComplex | IsBigInt | IsBigDec
+	IsConstType = IsBoolean | IsNumeric | IsString
+)
+
+func (pt PrimitiveType) Predicate() predicate {
+	switch pt {
+	case InvalidType:
+		return IsInvalid
+	case UntypedBoolType:
+		return IsBoolean
+	case BoolType:
+		return IsBoolean
+	case UntypedStringType:
+		return IsString
+	case StringType:
+		return IsString
+	case IntType:
+		return IsInteger
+	case Int8Type:
+		return IsInteger
+	case Int16Type:
+		return IsInteger
+	case UntypedRuneType:
+		return IsRune
+	case Int32Type:
+		return IsInteger
+	case Int64Type:
+		return IsInteger
+	case UintType:
+		return IsUnsigned
+	case Uint8Type:
+		return IsUnsigned
+	case DataByteType:
+		return IsUnsigned
+	case Uint16Type:
+		return IsUnsigned
+	case Uint32Type:
+		return IsUnsigned
+	case Uint64Type:
+		return IsUnsigned
+	case Float32Type:
+		return IsFloat
+	case Float64Type:
+		return IsFloat
+	case UntypedBigintType:
+		return IsBigInt
+	case BigintType:
+		return IsBigInt
+	case UntypedBigdecType:
+		return IsBigDec
+	case BigdecType:
+		return IsBigDec
+	default:
+		panic(fmt.Sprintf("unexpected primitive type %d", pt))
+	}
+}
+
+func isBoolean(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsBoolean != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+// rune can be numeric and string
+func isNumeric(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func isIntNum(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsBigInt != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func isNumericOrString(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsString != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+//func isNumeric(t Type) bool {
+//	switch t := baseOf(t).(type) {
+//	case PrimitiveType:
+//		switch t {
+//		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, UntypedBigintType, BigintType, UntypedBigdecType, BigdecType:
+//			return true
+//		default:
+//			return false
+//		}
+//	default:
+//		return false
+//	}
+//}
+
+//// only for / and % /= %=, no support for float
+//func isIntNumber(t Type) bool {
+//	switch t := baseOf(t).(type) {
+//	case PrimitiveType:
+//		switch t {
+//		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, UntypedBigintType, BigintType:
+//			return true
+//		default:
+//			return false
+//		}
+//	default:
+//		return false
+//	}
+//}
+
+func isTypedString(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		switch t {
+		case UntypedStringType, StringType:
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+}
+
 func (pt PrimitiveType) String() string {
 	switch pt {
 	case InvalidType:
@@ -1997,49 +2162,6 @@ const (
 	RefTypeKind // not in go.
 )
 
-// only for / and % /= %=, no support for float
-func isIntNumber(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, UntypedBigintType, BigintType:
-			return true
-		default:
-			return false
-		}
-	default:
-		return false
-	}
-}
-
-func isTypedNumber(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, UntypedBigintType, BigintType, UntypedBigdecType, BigdecType:
-			return true
-		default:
-			return false
-		}
-	default:
-		return false
-	}
-}
-
-func isTypedString(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case UntypedStringType, StringType:
-			return true
-		default:
-			return false
-		}
-	default:
-		return false
-	}
-}
-
 // This is generally slower than switching on baseOf(t).
 func KindOf(t Type) Kind {
 	switch t := baseOf(t).(type) {
@@ -2154,7 +2276,7 @@ func assertSameTypes(lt, rt Type) {
 }
 
 func isSameTypes(lt, rt Type) bool {
-	depp.Printf("isSameTypes, lt: %v, rt: %v \n", lt, rt)
+	depp.Printf("check isSameTypes, lt: %v, rt: %v \n", lt, rt)
 	depp.Println("is lt data byte: ", isDataByte(lt))
 	depp.Println("is rt data byte: ", isDataByte(rt))
 

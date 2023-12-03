@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13f0_filetest.gno:20: int does not implement .uverse.error
+// main/files/types/13f0_filetest.gno:20: invalid operation: mismatched types int and .uverse.error

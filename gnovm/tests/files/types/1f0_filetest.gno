@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/1f0_filetest.gno:19: + should have operand number or string, while have: .uverse.error
+// main/files/types/1f0_filetest.gno:19: operator + not defined on: .uverse.error

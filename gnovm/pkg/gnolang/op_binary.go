@@ -708,9 +708,9 @@ func isGeq(lv, rv *TypedValue) bool {
 
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
+	//if !isSameTypes(lv.T, rv.T) {
+	//	panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
+	//}
 
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go

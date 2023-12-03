@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/3b3_filetest.gno:5: * should have operand number, while have: <untyped> string
+// main/files/types/3b3_filetest.gno:5: operator * not defined on: <untyped> string

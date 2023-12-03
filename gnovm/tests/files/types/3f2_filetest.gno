@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/3f2_filetest.gno:27: * should have operand number, while have: main.E
+// main/files/types/3f2_filetest.gno:27: operator * not defined on: main.E

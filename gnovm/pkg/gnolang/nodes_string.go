@@ -13,7 +13,7 @@ var wordTokenStrings = map[Word]string{
 	SUB:             "-",
 	MUL:             "*",
 	QUO:             "/",
-	REM:             "%",
+	REM:             "%%",
 	BAND:            "&",
 	BOR:             "|",
 	XOR:             "^",

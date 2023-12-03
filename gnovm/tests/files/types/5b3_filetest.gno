@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/5b3_filetest.gno:5: QUO or REM should have operand number, while have: <untyped> string
+// main/files/types/5b3_filetest.gno:5: operator % not defined on: <untyped> string

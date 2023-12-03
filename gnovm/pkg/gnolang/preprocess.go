@@ -449,7 +449,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						checkOrConvertType(store, last, &cx, tt, ILLEGAL, false) // #nosec G601
+						checkOrConvertType(store, last, &cx, tt, false) // #nosec G601
 						n.Cases[i] = cx
 					}
 				}
@@ -787,7 +787,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if cmp < 0 { // this always implies untyped>?
 								depp.Println("cmp < 0, ->")
 								// convert n.Left to right type.
-								checkOrConvertType(store, last, &n.Left, rcx.T, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Left, rcx.T, n.Op, false)
 							} else if cmp == 0 {
 								depp.Println("cmp == 0")
 								// NOTE: the following doesn't work.
@@ -796,11 +796,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// or check for compatibility.
 								// (the other way around would work too)
 								// also need to check
-								checkOrConvertType(store, last, &n.Left, rcx.T, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Left, rcx.T, n.Op, false)
 							} else { // this always implies untyped>?
 								depp.Println("cmp > 0, <-")
 								// convert n.Right to left type.
-								checkOrConvertType(store, last, &n.Right, lcx.T, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Right, lcx.T, n.Op, false)
 							}
 						}
 						// Then, evaluate the expression.
@@ -817,7 +817,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// get concrete native base type.
 							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
-							checkOrConvertType(store, last, &n.Left, pt, n.Op, false)
+							checkOrConvertTypeWithOp(store, last, &n.Left, pt, n.Op, false)
 							// convert n.Right to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
 							// and convert result back.
@@ -845,7 +845,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								depp.Printf("left typeID: %v, kind: %v \n", lt.TypeID(), lt.Kind())
 								depp.Printf("right typeID: %v, kind: %v \n", rt.TypeID(), rt.Kind())
 								// convert n.Left to right type.
-								checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Left, rt, n.Op, false)
 							}
 						}
 					} else if !isUntyped(lcx.T) { // left is typed const, right is not const
@@ -858,12 +858,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						//} else {
 						//	checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
 						//}
-						checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Left, rt, n.Op, false)
 
 					} else if lcx.T == nil {
 						depp.Println("lcx.T is nil")
 						// convert n.Left to typed-nil type.
-						checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Left, rt, n.Op, false)
 					}
 					// TODO: 912 line?
 				} else if ric {
@@ -874,7 +874,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isShift {
 							if baseOf(rt) != UintType {
 								// convert n.Right to (gno) uint type.
-								checkOrConvertType(store, last, &n.Right, UintType, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Right, UintType, n.Op, false)
 							} else {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
@@ -885,7 +885,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
-								checkOrConvertType(store, last, &n.Right, pt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Right, pt, n.Op, false)
 								// and convert result back.
 								tx := constType(n, lnt)
 								// reset/create n2 to preprocess left child.
@@ -901,16 +901,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// gno, never with reflect.
 							} else {
 								// convert n.Right to left type.
-								checkOrConvertType(store, last, &n.Right, lt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Right, lt, n.Op, false)
 							}
 						}
 						//} else if rcx.T == nil {
 					} else if rcx.T == nil {
 						depp.Println("rcx.T == nil ")
 						// convert n.Right to typed-nil type.
-						checkOrConvertType(store, last, &n.Right, lt, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Right, lt, n.Op, false)
 					} else if !isShift {
-						checkOrConvertType(store, last, &n.Right, lt, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Right, lt, n.Op, false)
 					}
 				} else {
 					depp.Printf("both not const, lt: %v, rt:%v \n", lt, rt)
@@ -977,12 +977,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							} else {
 								depp.Println("left untyped, right is typed")
-								checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Left, rt, n.Op, false)
 							}
 						} else if riu {
-							checkOrConvertType(store, last, &n.Right, lt, n.Op, false)
+							checkOrConvertTypeWithOp(store, last, &n.Right, lt, n.Op, false)
 						} else {
-							checkOrConvertType(store, last, &n.Left, rt, n.Op, false)
+							checkOrConvertTypeWithOp(store, last, &n.Left, rt, n.Op, false)
 							//// left is untyped, right is not.
 							//if lt.TypeID() != rt.TypeID() {
 							//	panic(fmt.Sprintf(
@@ -1193,16 +1193,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									if len(spts) <= i {
 										panic("expected final vargs slice but got many")
 									}
-									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, ILLEGAL, true)
+									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 								} else {
 									checkOrConvertType(store, last, &n.Args[i],
-										spts[len(spts)-1].Type.Elem(), ILLEGAL, true)
+										spts[len(spts)-1].Type.Elem(), true)
 								}
 							} else {
-								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, ILLEGAL, true)
+								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 							}
 						} else {
-							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, ILLEGAL, true)
+							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 						}
 					}
 				}
@@ -1226,7 +1226,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					checkOrConvertIntegerType(store, last, n.Index)
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
-					checkOrConvertType(store, last, &n.Index, mt.Key, ILLEGAL, false)
+					checkOrConvertType(store, last, &n.Index, mt.Key, false)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1290,28 +1290,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, &n.Elts[i].Value, ft, ILLEGAL, false)
+							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
 						}
 					} else {
 						for i := 0; i < len(n.Elts); i++ {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, &n.Elts[i].Value, ft, ILLEGAL, false)
+							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
 						}
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
 						convertConstType(store, last, &n.Elts[i].Key, IntType, ILLEGAL, false)
-						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, ILLEGAL, false)
+						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := 0; i < len(n.Elts); i++ {
 						convertConstType(store, last, &n.Elts[i].Key, IntType, ILLEGAL, false)
-						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, ILLEGAL, false)
+						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
 					for i := 0; i < len(n.Elts); i++ {
-						checkOrConvertType(store, last, &n.Elts[i].Key, cclt.Key, ILLEGAL, false)
-						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Value, ILLEGAL, false)
+						checkOrConvertType(store, last, &n.Elts[i].Key, cclt.Key, false)
+						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Value, false)
 					}
 				case *NativeType:
 					clt = cclt.GnoType(store)
@@ -1660,7 +1660,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							panic("should not happen")
 						}
 						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Rhs[0], UintType, n.Op, false)
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						depp.Printf("op is %v \n", n.Op)
 						// e.g. a += b, single value for lhs and rhs,
@@ -1677,7 +1677,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						//		panic("mismatch type for Assign")
 						//	}
 						//} else {
-						checkOrConvertType(store, last, &n.Rhs[0], lt, n.Op, false)
+						checkOrConvertTypeWithOp(store, last, &n.Rhs[0], lt, n.Op, false)
 						//}
 					} else { // all else, like BAND_ASSIGN, etc
 						depp.Println("case: a, b = x, y")
@@ -1691,13 +1691,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								depp.Println("rt is untyped, convert")
 								// is untyped
 								// converts if rx is "nil".
-								checkOrConvertType(store, last, &n.Rhs[i], lt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Rhs[i], lt, n.Op, false)
 							} else {
 								depp.Println("rt not untyped, check strict")
 								//if lt.TypeID() != rt.TypeID() {
 								//	panic("mismatch type for Assign, in case: a, b = x, y")
 								//}
-								checkOrConvertType(store, last, &n.Rhs[i], lt, n.Op, false)
+								checkOrConvertTypeWithOp(store, last, &n.Rhs[i], lt, n.Op, false)
 							}
 						}
 					}
@@ -1733,12 +1733,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, ILLEGAL, false)
+				checkOrConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, ILLEGAL, false)
+				checkOrConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -1793,7 +1793,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// XXX how to deal?
 							panic("not yet implemented")
 						} else {
-							checkOrConvertType(store, last, &n.Results[i], rt, ILLEGAL, false)
+							checkOrConvertType(store, last, &n.Results[i], rt, false)
 						}
 					}
 				}
@@ -1801,7 +1801,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SendStmt:
 				// Value consts become default *ConstExprs.
-				checkOrConvertType(store, last, &n.Value, nil, ILLEGAL, false)
+				checkOrConvertType(store, last, &n.Value, nil, false)
 
 			// TRANS_LEAVE -----------------------
 			case *SelectCaseStmt:
@@ -1889,7 +1889,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// convert if const to nt.
 						for i := range n.Values {
-							checkOrConvertType(store, last, &n.Values[i], nt, ILLEGAL, false)
+							checkOrConvertType(store, last, &n.Values[i], nt, false)
 						}
 					} else if n.Const {
 						// derive static type from values.
@@ -2409,7 +2409,8 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, op Word, aut
 // TODO: NOTE, more about const, sometimes we convert it anyway, like uint8 -> int as index of an array
 // TODO: but if it's bind to ops like +, type conversion should be checked
 // TODO: this should be awareness at its origin
-func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, op Word, autoNative bool) {
+func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+	op := ILLEGAL
 	depp.Printf("checkOrConvertType, x: %v:, t:%v, \n", x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// here we should check too, e.g. primitive to declared type is convertable
@@ -2422,7 +2423,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, op Word, a
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		depp.Println("SHL or SHR")
 		// "push" expected type into shift binary's left operand.
-		checkOrConvertType(store, last, &bx.Left, t, op, autoNative)
+		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		depp.Println("else, xt not nil")
 		xt := evalStaticTypeOf(store, last, *x)
@@ -2441,12 +2442,68 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, op Word, a
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 					BAND_NOT, LAND, LOR:
 					// push t into bx.Left and bx.Right
-					checkOrConvertType(store, last, &bx.Left, t, op, autoNative)
-					checkOrConvertType(store, last, &bx.Right, t, op, autoNative)
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					checkOrConvertType(store, last, &bx.Right, t, autoNative)
 					return
 				case SHL, SHR:
 					// push t into bx.Left
-					checkOrConvertType(store, last, &bx.Left, t, op, autoNative)
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					return
+					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// default:
+				}
+			}
+			cx := Expr(Call(constType(nil, t), *x))
+			cx = Preprocess(store, last, cx).(Expr)
+			*x = cx
+		}
+		// cover all declared type case
+		if conversionNeeded {
+			cx := Expr(Call(constType(nil, t), *x))
+			cx = Preprocess(store, last, cx).(Expr)
+			*x = cx
+		}
+	}
+}
+
+func checkOrConvertTypeWithOp(store Store, last BlockNode, x *Expr, t Type, op Word, autoNative bool) {
+	depp.Printf("checkOrConvertTypeWithOp, x: %v:, t:%v, op: %v \n", x, t, op)
+	if cx, ok := (*x).(*ConstExpr); ok {
+		// here we should check too, e.g. primitive to declared type is convertable
+		if _, ok := t.(*NativeType); !ok { // not native type
+			depp.Println("ConstExpr is not nativeType, go check")
+			checkType(cx.T, t, op, autoNative)
+		}
+		depp.Printf("ConstExpr, convertConst, cx: %v, t:%v \n", cx, t)
+		convertConst(store, last, cx, t)
+	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
+		depp.Println("SHL or SHR")
+		// "push" expected type into shift binary's left operand.
+		checkOrConvertTypeWithOp(store, last, &bx.Left, t, op, autoNative)
+	} else if *x != nil { // XXX if x != nil && t != nil {
+		depp.Println("else, xt not nil")
+		xt := evalStaticTypeOf(store, last, *x)
+		var conversionNeeded bool
+		if t != nil {
+			//checkType(xt, t, op, autoNative)
+			conversionNeeded = checkType(xt, t, op, autoNative)
+		}
+		if isUntyped(xt) {
+			if t == nil {
+				t = defaultTypeOf(xt)
+			}
+			// Push type into expr if qualifying binary expr.
+			if bx, ok := (*x).(*BinaryExpr); ok {
+				switch bx.Op {
+				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
+					BAND_NOT, LAND, LOR:
+					// push t into bx.Left and bx.Right
+					checkOrConvertTypeWithOp(store, last, &bx.Left, t, op, autoNative)
+					checkOrConvertTypeWithOp(store, last, &bx.Right, t, op, autoNative)
+					return
+				case SHL, SHR:
+					// push t into bx.Left
+					checkOrConvertTypeWithOp(store, last, &bx.Left, t, op, autoNative)
 					return
 					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
 					// default:
@@ -2491,6 +2548,35 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	}
 }
 
+type f func(t Type) bool
+
+var predicates map[Word]f
+
+func init() {
+	predicates = make(map[Word]f)
+	predicates[ADD] = isNumericOrString
+	predicates[ADD_ASSIGN] = isNumericOrString
+	predicates[SUB] = isNumeric
+	predicates[SUB_ASSIGN] = isNumeric
+	predicates[MUL] = isNumeric
+	predicates[MUL_ASSIGN] = isNumeric
+	predicates[QUO] = isNumeric
+	predicates[QUO_ASSIGN] = isNumeric
+	predicates[REM] = isIntNum
+	predicates[REM_ASSIGN] = isIntNum
+
+	predicates[BAND] = isIntNum
+	predicates[BAND_ASSIGN] = isIntNum
+	predicates[XOR] = isIntNum
+	predicates[XOR_ASSIGN] = isIntNum
+	predicates[BOR] = isIntNum
+	predicates[BOR_ASSIGN] = isIntNum
+	predicates[BAND_NOT] = isIntNum
+	predicates[BAND_NOT_ASSIGN] = isIntNum
+	predicates[LAND] = isBoolean
+	predicates[LOR] = isBoolean
+}
+
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
@@ -2506,95 +2592,108 @@ func checkType(xt Type, dt Type, op Word, autoNative bool) (conversionNeeded boo
 	// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
 	if op != ILLEGAL { // should check operand with op, this would filter most of the op relate issues
 		depp.Printf("check matchable with op: %v \n", op)
+		if pred, ok := predicates[op]; ok {
+			if !pred(dt) {
+				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+			}
+		}
 		switch op {
-		case ADD: // dt is the dest type, what we need check
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("+ should have operand number or string, while have: %v", dt))
-			}
-		case SUB:
-			if !isTypedNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("- should have operand number, while have: %v", dt))
-			}
-		case MUL:
-			if !isTypedNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("* should have operand number, while have: %v", dt))
-			}
-		case QUO:
-			if !isTypedNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("QUO or REM should have operand number, while have: %v", dt))
-			}
-		case REM:
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("QUO or REM should have operand number, while have: %v", dt))
-			}
-		case BAND: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator & not defined on: %v", dt))
-			}
-		case BAND_ASSIGN: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator &= not defined on: %v", dt))
-			}
-		case BOR: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator | not defined on: %v", dt))
-			}
-		case BOR_ASSIGN: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator |= not defined on: %v", dt))
-			}
-		case XOR: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator ^ not defined on: %v", dt))
-			}
-		case XOR_ASSIGN: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator ^= not defined on: %v", dt))
-			}
-		case BAND_NOT: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator &^ not defined on: %v", dt))
-			}
-		case BAND_NOT_ASSIGN: // not defined on float
-			if !isIntNumber(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator &^= not defined on: %v", dt))
-			}
-		case LAND: // not defined on float
-			if dt != UntypedBoolType && dt != BoolType {
-				panic(fmt.Sprintf("operator && not defined on: %v", dt))
-			}
-		case LOR: // not defined on float
-			if dt != UntypedBoolType && dt != BoolType {
-				panic(fmt.Sprintf("operator || not defined on: %v", dt))
-			}
+		//case ADD: // dt is the dest type, what we need check
+		//if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		//panic(fmt.Sprintf("+ should have operand number or string, while have: %v", dt))
+		//}
+
+		//case SUB:
+		//	if !isNumeric(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("- should have operand number, while have: %v", dt))
+		//	}
+		//case MUL:
+		//	if !isNumeric(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("* should have operand number, while have: %v", dt))
+		//	}
+		//case QUO:
+		//	if !isNumeric(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("QUO or REM should have operand number, while have: %v", dt))
+		//	}
+		//case REM:
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("QUO or REM should have operand number, while have: %v", dt))
+		//	}
+		//case BAND: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator & not defined on: %v", dt))
+		//	}
+		//case BAND_ASSIGN: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator &= not defined on: %v", dt))
+		//	}
+		//case BOR: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator | not defined on: %v", dt))
+		//	}
+		//case BOR_ASSIGN: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator |= not defined on: %v", dt))
+		//	}
+		//case XOR: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator ^ not defined on: %v", dt))
+		//	}
+		//case XOR_ASSIGN: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator ^= not defined on: %v", dt))
+		//	}
+		//case BAND_NOT: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator &^ not defined on: %v", dt))
+		//	}
+		//case BAND_NOT_ASSIGN: // not defined on float
+		//	if !isIntNumber(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator &^= not defined on: %v", dt))
+		//	}
+		//case LAND: // not defined on float
+		//	if dt != UntypedBoolType && dt != BoolType {
+		//		panic(fmt.Sprintf("operator && not defined on: %v", dt))
+		//	}
+		//case LOR: // not defined on float
+		//	if dt != UntypedBoolType && dt != BoolType {
+		//		panic(fmt.Sprintf("operator || not defined on: %v", dt))
+		//	}
 		case ADD_ASSIGN:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator += not defined on: %v", dt))
+			//if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+			//	panic(fmt.Sprintf("operator += not defined on: %v", dt))
+			//}
+			// TODO: check matchable here, not in runtime
+			// special case
+			if !isUntyped(xt) {
+				if !isSameTypes(xt, dt) {
+					panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+				}
 			}
-		case SUB_ASSIGN:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator -= not defined on: %v", dt))
-			}
-		case MUL_ASSIGN:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator *= not defined on: %v", dt))
-			}
-		case QUO_ASSIGN:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator /= not defined on: %v", dt))
-			}
-		case REM_ASSIGN:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
-				panic(fmt.Sprintf("operator %%= not defined on: %v", dt))
-			}
+		//case SUB_ASSIGN:
+		//	if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator -= not defined on: %v", dt))
+		//	}
+		//case MUL_ASSIGN:
+		//	if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator *= not defined on: %v", dt))
+		//	}
+		//case QUO_ASSIGN:
+		//	if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator /= not defined on: %v", dt))
+		//	}
+		//case REM_ASSIGN:
+		//	if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		//		panic(fmt.Sprintf("operator %%= not defined on: %v", dt))
+		//	}
 
 		case EQL, NEQ:
 		// do nothing here, as a special case, EQL or NEQ is more relaxed than ADD, so convertable is checked as `equality` in logic below
 		//
 		case SHL, SHR:
 		// TODO: right should be numeric
-		case LSS:
-			if !isTypedNumber(dt) && !isTypedString(dt) && dt != UntypedRuneType {
+		case LSS: // TODO: comparable, assignable
+			if !isNumeric(dt) && !isTypedString(dt) && dt != UntypedRuneType {
 				panic(fmt.Sprintf("operator < not defined on: %v", dt))
 			}
 

@@ -115,3 +115,17 @@ TODOs:
     // TODO: dec value representation
     // TODO: Current flow : check op operand,  check type convertable, and convert, and check type match again,  means, this kind of check should still in preprocess
     // TODO: preCheck->Convert->postCheck, all in `checkOrConvertType`
+
+
+NOTE: 
+    
+    // in 13f1, indicates that, in preCheck, 
+    // if dt is not match with op
+    // else if LHS,RHS is typed and mismatched, panic
+    // else, check untyped(const), unnamed(composite) cases
+    *** is straight forward, if we have right and left types, use it. how about interface and declared types? if LHS and RHS in one of this? so not only untyped passthrough, these latter two needs passthrouh from preCheck too. ***
+   
+    // wired that == accepts LHS impl RHS or visa versa, while += not accpet this
+    
+
+    // only change for binary unary ,assign ,etc,  op related, using another func like checkOperand, else checkOrConvert remains 
