@@ -88,9 +88,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 		// Use `RunMemPackage` to detect basic package errors
 		var (
-			stdout = io.Out
-			stdin  = io.In
-			stderr = io.Err
+			stdout = io.Out()
+			stdin  = io.In()
+			stderr = io.Err()
 
 			testStore = tests.TestStore(
 				rootDir, "",
