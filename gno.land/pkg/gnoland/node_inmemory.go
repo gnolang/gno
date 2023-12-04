@@ -53,6 +53,8 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 }
 
 func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
+	// We use `TestConfig` here otherwise ChainID will be empty, and
+	// there is no other way to update it than using a config file
 	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
