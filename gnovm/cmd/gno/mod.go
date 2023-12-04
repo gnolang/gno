@@ -36,6 +36,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
+		newModWhy(),
 	)
 
 	return cmd
@@ -81,6 +82,20 @@ func newModTidy(io commands.IO) *commands.Command {
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
 			return execModTidy(args, io)
+		},
+	)
+}
+
+func newModWhy() *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "why",
+			ShortUsage: "why <package> [<package>...]",
+			ShortHelp:  "", // TODO
+		},
+		commands.NewEmptyConfig(),
+		func(_ context.Context, args []string) error {
+			return execModWhy(args)
 		},
 	)
 }
@@ -192,7 +207,7 @@ func execModTidy(args []string, io commands.IO) error {
 		gm.DropRequire(r.Mod.Path)
 	}
 
-	imports, err := getGnoImports(wd)
+	imports, err := getGnoModuleImports(wd)
 	if err != nil {
 		return err
 	}
@@ -208,7 +223,59 @@ func execModTidy(args []string, io commands.IO) error {
 	return nil
 }
 
-// getGnoImports returns the list of gno imports from a given path.
+func execModWhy(args []string) error {
+	if len(args) < 1 {
+		return flag.ErrHelp
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	fname := filepath.Join(wd, "gno.mod")
+	gm, err := gnomod.ParseGnoMod(fname)
+	if err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(wd)
+	if err != nil {
+		return err
+	}
+
+	importsMap := make(map[string][]string)
+	for _, e := range entries {
+		filename := e.Name()
+		imports, err := getGnoFileImports(filepath.Join(wd, filename))
+		if err != nil {
+			return err
+		}
+
+		for _, imp := range imports {
+			importsMap[imp] = append(importsMap[imp], filename)
+		}
+	}
+
+	for i, arg := range args {
+		fmt.Println("#", arg)
+
+		files, ok := importsMap[arg]
+		if !ok {
+			fmt.Println(fmt.Sprintf("(module %s does not need package %s)", gm.Module.Mod.Path, arg))
+		} else {
+			for _, file := range files {
+				fmt.Println(file)
+			}
+		}
+
+		if i != len(args)-1 {
+			fmt.Println()
+		}
+	}
+
+	return nil
+}
+
+// getGnoModuleImports returns the list of gno imports from a given path.
 // Note: It ignores subdirs. Since right now we are still deciding on
 // how to handle subdirs.
 // See:
@@ -216,7 +283,7 @@ func execModTidy(args []string, io commands.IO) error {
 // - https://github.com/gnolang/gno/issues/852
 //
 // TODO: move this to better location.
-func getGnoImports(path string) ([]string, error) {
+func getGnoModuleImports(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -226,34 +293,47 @@ func getGnoImports(path string) ([]string, error) {
 	seen := make(map[string]struct{})
 	for _, e := range entries {
 		filename := e.Name()
-		if ext := filepath.Ext(filename); ext != ".gno" {
-			continue
-		}
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(path, filename))
+		imports, err := getGnoFileImports(filepath.Join(path, filename))
 		if err != nil {
 			return nil, err
 		}
-		fs := token.NewFileSet()
-		f, err := parser.ParseFile(fs, filename, data, parser.ImportsOnly)
-		if err != nil {
-			return nil, err
-		}
-		for _, imp := range f.Imports {
-			importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-			if !strings.HasPrefix(importPath, "gno.land/") {
+		for _, im := range imports {
+			if !strings.HasPrefix(im, "gno.land/") {
 				continue
 			}
-			if _, ok := seen[importPath]; ok {
+			if _, ok := seen[im]; ok {
 				continue
 			}
-			allImports = append(allImports, importPath)
-			seen[importPath] = struct{}{}
+			allImports = append(allImports, im)
+			seen[im] = struct{}{}
 		}
 	}
 	sort.Strings(allImports)
 
 	return allImports, nil
+}
+
+func getGnoFileImports(fname string) ([]string, error) {
+	if !strings.HasSuffix(fname, ".gno") {
+		return nil, errors.New("not a gno file")
+	}
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, err
+	}
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, fname, data, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]string, len(f.Imports))
+	for _, im := range f.Imports {
+		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
+		res = append(res, importPath)
+	}
+	return res, nil
 }
