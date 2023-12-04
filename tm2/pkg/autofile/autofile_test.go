@@ -1,7 +1,6 @@
 package autofile
 
 import (
-	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -14,7 +13,7 @@ import (
 
 func TestSIGHUP(t *testing.T) {
 	// First, create an AutoFile writing to a tempfile dir
-	file, err := ioutil.TempFile("", "sighup_test")
+	file, err := os.CreateTemp("", "sighup_test")
 	require.NoError(t, err)
 	err = file.Close()
 	require.NoError(t, err)
@@ -60,7 +59,7 @@ func TestSIGHUP(t *testing.T) {
 // // Manually modify file permissions, close, and reopen using autofile:
 // // We expect the file permissions to be changed back to the intended perms.
 // func TestOpenAutoFilePerms(t *testing.T) {
-// 	file, err := ioutil.TempFile("", "permission_test")
+// 	file, err := os.CreateTemp("", "permission_test")
 // 	require.NoError(t, err)
 // 	err = file.Close()
 // 	require.NoError(t, err)
@@ -86,7 +85,7 @@ func TestSIGHUP(t *testing.T) {
 
 func TestAutoFileSize(t *testing.T) {
 	// First, create an AutoFile writing to a tempfile dir
-	f, err := ioutil.TempFile("", "sighup_test")
+	f, err := os.CreateTemp("", "sighup_test")
 	require.NoError(t, err)
 	err = f.Close()
 	require.NoError(t, err)

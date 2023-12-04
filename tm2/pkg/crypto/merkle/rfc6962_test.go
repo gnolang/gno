@@ -24,6 +24,8 @@ import (
 )
 
 func TestRFC6962Hasher(t *testing.T) {
+	t.Parallel()
+
 	_, leafHashTrail := trailsFromByteSlices([][]byte{[]byte("L123456")})
 	leafHash := leafHashTrail.Hash
 	_, leafHashTrail = trailsFromByteSlices([][]byte{{}})
@@ -58,6 +60,8 @@ func TestRFC6962Hasher(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			wantBytes, err := hex.DecodeString(tc.want)
 			if err != nil {
 				t.Fatalf("hex.DecodeString(%x): %v", tc.want, err)
@@ -70,6 +74,8 @@ func TestRFC6962Hasher(t *testing.T) {
 }
 
 func TestRFC6962HasherCollisions(t *testing.T) {
+	t.Parallel()
+
 	// Check that different leaves have different hashes.
 	leaf1, leaf2 := []byte("Hello"), []byte("World")
 	_, leafHashTrail := trailsFromByteSlices([][]byte{leaf1})

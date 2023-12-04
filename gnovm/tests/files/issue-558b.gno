@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io"
 	"log"
 	"strings"
 )
@@ -36,7 +36,7 @@ type pipe struct {
 
 func newReadAutoCloser(r io.Reader) readAutoCloser {
 	if _, ok := r.(io.Closer); !ok {
-		return readAutoCloser{ioutil.NopCloser(r)}
+		return readAutoCloser{io.NopCloser(r)}
 	}
 	return readAutoCloser{r.(io.ReadCloser)}
 }

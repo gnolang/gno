@@ -436,7 +436,7 @@ OUTER_LOOP:
 	return nil, false, nil
 }
 
-// /////////////////////////////////////////////////////////////////////////////
+// -----------
 
 // A WALWriter writes custom-encoded WAL messages to an output stream.
 // Each binary WAL entry is length encoded, then crc encoded,
@@ -512,7 +512,7 @@ func (enc *WALWriter) WriteMeta(meta MetaMessage) error {
 	return err
 }
 
-// /////////////////////////////////////////////////////////////////////////////
+// -----------
 
 // IsDataCorruptionError returns true if data has been corrupted inside WAL.
 func IsDataCorruptionError(err error) bool {

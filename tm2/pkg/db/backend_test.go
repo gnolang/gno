@@ -41,8 +41,12 @@ func testBackendGetSetDelete(t *testing.T, backend BackendType) {
 }
 
 func TestBackendsGetSetDelete(t *testing.T) {
+	t.Parallel()
+
 	for dbType := range backends {
 		t.Run(string(dbType), func(t *testing.T) {
+			t.Parallel()
+
 			testBackendGetSetDelete(t, dbType)
 		})
 	}
@@ -59,6 +63,8 @@ func withDB(t *testing.T, creator dbCreator, fn func(DB)) {
 }
 
 func TestBackendsNilKeys(t *testing.T) {
+	t.Parallel()
+
 	// Test all backends.
 	for dbType, creator := range backends {
 		withDB(t, creator, func(db DB) {
@@ -137,6 +143,8 @@ func TestBackendsNilKeys(t *testing.T) {
 }
 
 func TestGoLevelDBBackend(t *testing.T) {
+	t.Parallel()
+
 	name := fmt.Sprintf("test_%x", randStr(12))
 	db, err := NewDB(name, GoLevelDBBackend, t.TempDir())
 	require.NoError(t, err)
@@ -146,9 +154,11 @@ func TestGoLevelDBBackend(t *testing.T) {
 }
 
 func TestDBIterator(t *testing.T) {
+	t.Parallel()
+
 	for dbType := range backends {
 		t.Run(fmt.Sprintf("%v", dbType), func(t *testing.T) {
-			t.Helper()
+			t.Parallel()
 
 			testDBIterator(t, dbType)
 		})

@@ -199,6 +199,8 @@ func TestRepl(t *testing.T) {
 }
 
 func TestReplOpts(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	r := NewRepl(WithStd(nil, nil, nil), WithStore(nil))
@@ -212,6 +214,8 @@ func TestReplOpts(t *testing.T) {
 }
 
 func TestReplReset(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	r := NewRepl()

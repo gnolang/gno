@@ -26,19 +26,6 @@ func NewDominoOp(key, input, output string) DominoOp {
 	}
 }
 
-//nolint:unused
-func DominoOpDecoder(pop ProofOp) (ProofOperator, error) {
-	if pop.Type != ProofOpDomino {
-		panic("unexpected proof op type")
-	}
-	var op DominoOp // a bit strange as we'll discard this, but it works.
-	err := amino.UnmarshalSized(pop.Data, &op)
-	if err != nil {
-		return nil, errors.Wrap(err, "decoding ProofOp.Data into SimpleValueOp")
-	}
-	return NewDominoOp(string(pop.Key), op.Input, op.Output), nil
-}
-
 func (dop DominoOp) ProofOp() ProofOp {
 	bz := amino.MustMarshalSized(dop)
 	return ProofOp{
@@ -63,9 +50,11 @@ func (dop DominoOp) GetKey() []byte {
 	return []byte(dop.key)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func TestProofOperators(t *testing.T) {
+	t.Parallel()
+
 	var err error
 
 	// ProofRuntime setup

@@ -55,6 +55,8 @@ var (
 )
 
 func TestMarshalAminoBinary(t *testing.T) {
+	t.Parallel()
+
 	cdc := NewCodec()
 	cdc.RegisterPackage(testPackage)
 
@@ -78,6 +80,8 @@ func TestMarshalAminoBinary(t *testing.T) {
 }
 
 func TestMarshalAminoJSON(t *testing.T) {
+	t.Parallel()
+
 	cdc := NewCodec()
 	cdc.RegisterPackage(testPackage)
 

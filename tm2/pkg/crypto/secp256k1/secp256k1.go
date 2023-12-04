@@ -7,9 +7,9 @@ import (
 	"io"
 	"math/big"
 
+	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"golang.org/x/crypto/ripemd160"
 
-	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -29,7 +29,7 @@ func (privKey PrivKeySecp256k1) Bytes() []byte {
 // PubKey performs the point-scalar multiplication from the privKey on the
 // generator point to get the pubkey.
 func (privKey PrivKeySecp256k1) PubKey() crypto.PubKey {
-	_, pubkeyObject := secp256k1.PrivKeyFromBytes(secp256k1.S256(), privKey[:])
+	_, pubkeyObject := secp256k1.PrivKeyFromBytes(privKey[:])
 	var pubkeyBytes PubKeySecp256k1
 	copy(pubkeyBytes[:], pubkeyObject.SerializeCompressed())
 	return pubkeyBytes

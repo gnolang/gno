@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -23,7 +24,7 @@ type lintCfg struct {
 	// auto-fix: apply suggested fixes automatically.
 }
 
-func newLintCmd(io *commands.IO) *commands.Command {
+func newLintCmd(io commands.IO) *commands.Command {
 	cfg := &lintCfg{}
 
 	return commands.NewCommand(
@@ -42,10 +43,10 @@ func newLintCmd(io *commands.IO) *commands.Command {
 func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "verbose", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.IntVar(&c.setExitStatus, "set_exit_status", 1, "set exit status to 1 if any issues are found")
+	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }
 
-func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
+func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -55,7 +56,7 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 		rootDir = cfg.rootDir
 	)
 	if rootDir == "" {
-		rootDir = guessRootDir()
+		rootDir = gnoenv.RootDir()
 	}
 
 	pkgPaths, err := gnoPackagesFromArgs(args)
@@ -66,12 +67,12 @@ func execLint(cfg *lintCfg, args []string, io *commands.IO) error {
 	hasError := false
 	addIssue := func(issue lintIssue) {
 		hasError = true
-		fmt.Fprint(io.Err, issue.String()+"\n")
+		fmt.Fprint(io.Err(), issue.String()+"\n")
 	}
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
-			fmt.Fprintf(io.Err, "Linting %q...\n", pkgPath)
+			fmt.Fprintf(io.Err(), "Linting %q...\n", pkgPath)
 		}
 
 		// Check if 'gno.mod' exists

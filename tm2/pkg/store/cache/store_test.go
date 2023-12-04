@@ -22,6 +22,8 @@ func keyFmt(i int) []byte { return bz(fmt.Sprintf("key%0.8d", i)) }
 func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 
 func TestCacheStore(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 
@@ -65,12 +67,16 @@ func TestCacheStore(t *testing.T) {
 }
 
 func TestCacheStoreNoNilSet(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
 
 func TestCacheStoreNested(t *testing.T) {
+	t.Parallel()
+
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	st := cache.New(mem)
 
@@ -100,6 +106,8 @@ func TestCacheStoreNested(t *testing.T) {
 }
 
 func TestCacheKVIteratorBounds(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items
@@ -151,6 +159,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 }
 
 func TestCacheKVReverseIteratorBounds(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items
@@ -195,6 +205,8 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorBasics(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set and delete an item in the cache, iterator should be empty
@@ -243,6 +255,8 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items and write them
@@ -269,6 +283,8 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeletes(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 	truth := dbm.NewMemDB()
 
@@ -303,6 +319,8 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorChunks(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// Use the truth to check values on the merge iterator
@@ -334,6 +352,8 @@ func TestCacheKVMergeIteratorChunks(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorRandom(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 	truth := dbm.NewMemDB()
 
