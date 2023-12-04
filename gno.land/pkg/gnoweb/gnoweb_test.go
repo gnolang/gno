@@ -55,10 +55,6 @@ func TestRoutes(t *testing.T) {
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
 	cfg.RemoteAddr = remoteAddr
-	cfg.HelpChainID = "dev"
-	cfg.CaptchaSite = ""
-	cfg.ViewsDir = "../../cmd/gnoweb/views"
-	cfg.WithAnalytics = false
 	app := MakeApp(logger, cfg)
 
 	for _, r := range routes {
