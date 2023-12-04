@@ -273,7 +273,7 @@ const (
 	IsRune
 
 	IsOrdered   = IsInteger | IsFloat | IsString
-	IsNumeric   = IsInteger | IsFloat | IsComplex | IsBigInt | IsBigDec
+	IsNumeric   = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
 	IsConstType = IsBoolean | IsNumeric | IsString
 )
 
@@ -346,7 +346,7 @@ func isBoolean(t Type) bool {
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -355,10 +355,11 @@ func isNumeric(t Type) bool {
 	}
 }
 
+// signed or unsigned int
 func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsBigInt != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsBigInt != 0 || t.Predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -370,7 +371,7 @@ func isIntNum(t Type) bool {
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsString != 0 || t.Predicate() != IsInvalid && t.Predicate()&IsRune != 0 {
+		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate()&IsString != 0 || t.Predicate()&IsRune != 0 {
 			return true
 		}
 		return false

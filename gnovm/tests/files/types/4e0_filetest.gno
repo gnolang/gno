@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/4e0_filetest.gno:23: cannot use main.Error1 as main.Error2 without explicit conversion
+// main/files/types/4e0_filetest.gno:23: invalid operation: mismatched types main.Error2 and main.Error1

@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/4d4_filetest.gno:6: bigdec division error: division by zero
+// main/files/types/4d4_filetest.gno:6: invalid operation: division by zero

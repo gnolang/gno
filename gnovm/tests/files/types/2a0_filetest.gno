@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/2a0_filetest.gno:5: cannot use int as int8
+// main/files/types/2a0_filetest.gno:5: invalid operation: mismatched types int8 and int
