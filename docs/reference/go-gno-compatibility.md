@@ -303,6 +303,7 @@ Legend:
 | + go mod init     | gno mod init     | same behavior                                                         |
 | + go mod download | gno mod download | same behavior                                                         |
 | + go mod tidy     | gno mod tidy     | same behavior                                                         |
+| + go mod why      | gno mod why      | same intention                                                        |
 |                   | gno transpile    |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
