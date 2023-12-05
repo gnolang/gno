@@ -1,0 +1,14 @@
+---
+http:
+  routers:
+    gnoweb:
+      service: gnoweb
+      rule: "Host(`gno.land`)"
+      entrypoints: "web"
+      middlewares: []
+
+  services:
+    gnoweb:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:8888"

@@ -29,7 +29,7 @@ docker pull ghcr.io/gnolang/gno
 if docker ps --format json | jq '.Labels' | grep -q "the-portal-loop"; then
     ${TX_ARCHIVE_CMD} backup \
         --overwrite=true \
-        --remote "gno.land:80" \
+        --remote "rpc.gno.land:80" \
         --from-block 1 \
         --output-path="${BACKUP_FILE}"
 

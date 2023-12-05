@@ -2,6 +2,7 @@ version: "3"
 services:
   traefik:
     image: "traefik:v2.10"
+    restart: unless-stopped
     network_mode: host
     container_name: "traefik"
     command:
@@ -16,10 +17,23 @@ services:
     volumes:
       - ./traefik:/etc/traefik/configs
 
+  gnoweb:
+    image: ghcr.io/gnolang/gno/gnoweb-slim
+    network_mode: host
+    restart: unless-stopped
+    entrypoint:
+      - gnoweb
+      - --bind=localhost:8888
+      - --remote=rpc.gno.land:80
+      - --views-dir=./gnoweb/views
+    extra_hosts:
+      - rpc.gno.land:127.0.0.1
+
   snapshotter:
     build:
       dockerfile: ./snapshotter/Dockerfile
     command: ["/usr/sbin/crond", "-l", "2", "-f"]
+    restart: unless-stopped
     working_dir: /app
     network_mode: host
     volumes:
@@ -30,4 +44,4 @@ services:
     environment:
       HOST_PWD: $PWD
     extra_hosts:
-      - gno.land:127.0.0.1
+      - rpc.gno.land:127.0.0.1
