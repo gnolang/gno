@@ -13,6 +13,10 @@ Start the loop with:
 
 ``` sh
 $ docker compose up -d
+
+# or using the Makefile
+
+$ make
 ```
 
 The `snapshotter` container will exec the script [switch.sh](./scripts/switch.sh) every day at 10am (defined in the docker image).
@@ -24,3 +28,13 @@ This script is doing:
 - Start a new docker container with the backups files
 - Changing the proxy (traefik) to redirect to the new portal loop
 - Stop the previous loop
+
+### Makefile helper
+
+You can find a [Makefile](./Makefile) to help you interact with the portal loop
+
+- Force switch of the portal loop with a new version
+
+```bash
+make snapshotter.switch-now
+```
