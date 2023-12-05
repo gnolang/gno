@@ -208,12 +208,12 @@ gnokey maketx call \
 
 #### **makeCallTx Options**
 
-| Name      | Type   | Description                               |
-| --------- | ------ |-------------------------------------------|
-| `send`    | String | The amount of coins to send.              |
-| `pkgpath` | String | The package path (required).              |
-| `func`    | String | The contract to call (required).          |
-| `args`    | String | An argument of the function being called. |
+| Name      | Type   | Description                                                                                                                                          |
+|-----------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `send`    | String | The amount of coins to send.                                                                                                                         |
+| `pkgpath` | String | The package path (required).                                                                                                                         |
+| `func`    | String | The contract to call (required).                                                                                                                     |
+| `args`    | String | An argument of the function being called. Can be used multiple times in a single `call` command to accommodate possible multiple function arguments. |
 
 :::info
 As of December 2023, using a slice or a `struct` as an `-args` parameter is not supported. 
