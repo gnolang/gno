@@ -36,7 +36,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
-		newModWhy(),
+		newModWhy(io),
 	)
 
 	return cmd
@@ -86,7 +86,7 @@ func newModTidy(io commands.IO) *commands.Command {
 	)
 }
 
-func newModWhy() *commands.Command {
+func newModWhy(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "why",
@@ -95,7 +95,7 @@ func newModWhy() *commands.Command {
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
-			return execModWhy(args)
+			return execModWhy(args, io)
 		},
 	)
 }
@@ -223,7 +223,7 @@ func execModTidy(args []string, io commands.IO) error {
 	return nil
 }
 
-func execModWhy(args []string) error {
+func execModWhy(args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -263,17 +263,17 @@ func execModWhy(args []string) error {
 
 	// Print `gno mod why` output stanzas
 	for i, arg := range args {
-		fmt.Println("#", arg)
+		io.Println("#", arg)
 		files, ok := importsMap[arg]
 		if !ok {
-			fmt.Println(fmt.Sprintf("(module %s does not need package %s)", gm.Module.Mod.Path, arg))
+			io.Println(fmt.Sprintf("(module %s does not need package %s)", gm.Module.Mod.Path, arg))
 		} else {
 			for _, file := range files {
-				fmt.Println(file)
+				io.Println(file)
 			}
 		}
 		if i < len(args)-1 { // Add a newline if it's not the last stanza
-			fmt.Println()
+			io.Println()
 		}
 	}
 
