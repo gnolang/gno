@@ -91,7 +91,30 @@ func newModWhy(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "why",
 			ShortUsage: "why <package> [<package>...]",
-			ShortHelp:  "", // TODO
+			ShortHelp:  "Explain why modules are needed",
+			LongHelp: `Explain why modules are needed.
+
+Why shows a list of files imports specified packages or modules, explains 
+why is this package or module being kept by gno mod tidy.
+
+The output is a sequence of stanzas, one for each module name on the 
+command line, separated by blank lines. Each stanza begins
+with a comment line "# module" giving the target module. Subsequent lines 
+show files that imports the module, one filename per line. 
+If the package or module is not being used/needed/imported, the stanza 
+will display a single parenthesized note indicating that fact.
+
+For example:
+
+	$ gno mod why gno.land/p/demo/avl gno.land/p/demo/users
+	# gno.land/p/demo/avl
+	[FILENAME_1.gno]
+	[FILENAME_2.gno]
+
+	# gno.land/p/demo/users
+	(module [MODULE_NAME] does not need package gno.land/p/demo/users)
+	$
+`,
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
