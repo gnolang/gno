@@ -2,41 +2,49 @@ package disperse
 
 import "std"
 
-func SendGNOT(addresses []std.Address, sendValues []int64) {
-	std.AssertOriginCall()        // assert the call was by a user?
-	sent := std.GetOrigSend()     // get GNOT value sent with call
-	caller := std.GetOrigCaller() // get tx caller
+// SendGNOT parses receivers and amounts and sends out GNOT
+// Currently sending slices as arguments with `maketx call` is unsupported
+func SendGNOT(addresses string, sendAmounts string) {
+	std.AssertOriginCall()         // assert the call was by a user?
+	coinsSent := std.GetOrigSend() // get GNOT value sent with call
+	caller := std.GetOrigCaller()  // get tx caller
 
-	var totalToSend int64
-	for _, val := range sendValues {
-		totalToSend += val
+	parsedAddresses, err := parseAddresses(addresses)
+	if err != nil {
+		panic(err)
 	}
 
-	if sent.AmountOf("ugnot") < totalToSend { // check if user sent enough GNOT// possibly not needed if banker breaks anyway?
-		panic(ErrNotEnoughGnot)
+	parsedAmounts, err := parseAmounts(sendAmounts)
+	if err != nil {
+		panic(err)
 	}
 
 	// Check if args are good
-	if len(addresses) != len(sendValues) {
+	if len(parsedAddresses) != len(parsedAmounts) {
 		panic(ErrNumAddrValMismatch)
 	}
 
+	var totalToSend int64
+	for _, val := range parsedAmounts {
+		totalToSend += val
+	}
+
+	if coinsSent.AmountOf("ugnot") < totalToSend { // check if user sent enough GNOT// possibly not needed if banker breaks anyway?
+		panic(ErrNotEnoughGnot)
+	}
+
 	// Get address of Disperse realm
-	pkgaddr := std.GetOrigPkgAddr()
+	realmAddr := std.GetOrigPkgAddr()
 
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 
-	for i, val := range sendValues {
+	for i, val := range parsedAmounts {
 		send := std.Coins{{"ugnot", val}}
-
-		receiver := addresses[i]
-		if !receiver.IsValid() {
-			panic(ErrInvalidAddress)
-		}
+		receiver := parsedAddresses[i]
 
 		// Send GNOT from realm to receiver address
-		banker.SendCoins(pkgaddr, receiver, send)
+		banker.SendCoins(realmAddr, receiver, send)
 	}
 
 	// Return possible leftover GNOT
@@ -44,6 +52,6 @@ func SendGNOT(addresses []std.Address, sendValues []int64) {
 
 	if leftover > 0 {
 		send := std.Coins{{"ugnot", leftover}}
-		banker.SendCoins(pkgaddr, caller, send)
+		banker.SendCoins(realmAddr, caller, send)
 	}
 }
