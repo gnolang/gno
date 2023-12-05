@@ -3,9 +3,10 @@ package disperse
 import "std"
 
 // SendGNOT parses receivers and amounts and sends out GNOT
-// Currently sending slices as arguments with `maketx call` is unsupported
+// Currently sending slices as arguments with `maketx call` is unsupported,
+// which is why we parse strings by delimiter here
 func SendGNOT(addresses string, sendAmounts string) {
-	std.AssertOriginCall()         // assert the call was by a user?
+	std.AssertOriginCall()         // assert the call was by a user
 	coinsSent := std.GetOrigSend() // get GNOT value sent with call
 	caller := std.GetOrigCaller()  // get tx caller
 
@@ -29,7 +30,9 @@ func SendGNOT(addresses string, sendAmounts string) {
 		totalToSend += val
 	}
 
-	if coinsSent.AmountOf("ugnot") < totalToSend { // check if user sent enough GNOT// possibly not needed if banker breaks anyway?
+	// Check if user sent enough GNOT
+	// FIXME: possibly not needed, added for error clarity
+	if coinsSent.AmountOf("ugnot") < totalToSend {
 		panic(ErrNotEnoughGnot)
 	}
 
