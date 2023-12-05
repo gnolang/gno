@@ -1538,8 +1538,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 
-							dt := evalStaticTypeOf(store, last, cx.X)
-							mt := baseOf(dt).(*MapType)
+							var mt *MapType
+							st := evalStaticTypeOf(store, last, cx.X)
+							if dt, ok := st.(*DeclaredType); ok {
+								mt = dt.Base.(*MapType)
+							} else if mt, ok = st.(*MapType); !ok {
+								panic("should not happen")
+							}
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
 							last.Define(lhs1, anyValue(BoolType))
@@ -2146,12 +2151,12 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	cv := NewMachine(".dontcare", store)
-	tv := cv.EvalStatic(last, x)
-	cv.Release()
+	m := NewMachine(".dontcare", store)
+	cv := m.EvalStatic(last, x)
+	m.Release()
 	cx := &ConstExpr{
 		Source:     x,
-		TypedValue: tv,
+		TypedValue: cv,
 	}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)
@@ -2308,11 +2313,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// "push" expected type into shift binary's left operand.
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
+		// check type
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
 			checkType(xt, t, autoNative)
 		}
-		if isUntyped(xt) {
+		// convert type
+		if isUntyped(xt) { // convert if x is untyped literal
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
@@ -2333,11 +2340,50 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// default:
 				}
 			}
+			// convert x to destination type t
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
+		} else {
+			// if one side is declared name type and the other side is unnamed type
+			if isNamedConversion(xt, t) {
+				// covert right (xt) to the type of the left (t)
+				cx := Expr(Call(constType(nil, t), *x))
+				cx = Preprocess(store, last, cx).(Expr)
+				*x = cx
+			}
 		}
 	}
+}
+
+// Return true if we need to convert named and unnamed types in an assignment
+func isNamedConversion(xt, t Type) bool {
+	if t == nil {
+		t = xt
+	}
+
+	// t is left hand destination type, xt is right hand expression type
+	// In a few special cases, we should not consider compare named and unnamed type
+	// case 1: if left is interface, which is unnamed, we dont convert to the left type even right is named type.
+
+	_, c1 := t.(*InterfaceType)
+
+	// case2: TypeType is used in make() new() native uverse definition and TypeType.IsNamed() will panic on unexpected.
+
+	_, oktt := t.(*TypeType)
+	_, oktt2 := xt.(*TypeType)
+	c2 := oktt || oktt2
+
+	//
+	if !c1 && !c2 { // carve out above two cases
+		// covert right to the type of left if one side is unnamed type and the other side is not
+
+		if t.IsNamed() && !xt.IsNamed() ||
+			!t.IsNamed() && xt.IsNamed() {
+			return true
+		}
+	}
+	return false
 }
 
 // like checkOrConvertType(last, x, nil)
