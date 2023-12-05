@@ -1256,8 +1256,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
+				depp.Printf("---unaryExpr, op: %v \n", n.Op)
 				xt := evalStaticTypeOf(store, last, n.X)
 				if xnt, ok := xt.(*NativeType); ok {
+					depp.Println("nativeType")
 					// get concrete native base type.
 					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
 					// convert n.X to gno type,
@@ -1276,10 +1278,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// always computed in gno, never with reflect.
 				}
 				// Replace with *ConstExpr if const X.
-				if isConst(n.X) {
+				// checkOp, like +a, while a should be numeric
+				if cx, ok := n.X.(*ConstExpr); ok {
+					depp.Println("not native, ConstExpr")
+					// checkOp, e.g. +a while a is numeric
+					checkOp(nil, cx.T, n.Op, false)
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
+				depp.Println("else")
+				checkOp(nil, xt, n.Op, false)
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
@@ -1664,6 +1672,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							panic("should not happen")
 						}
 						// Special case if shift assign <<= or >>=.
+						// TODO: use the other one, like map key
 						checkOrConvertTypeWithOp(store, last, &n.Rhs[0], &n.Rhs[0], UintType, n.Op, false)
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						depp.Printf("op is %v \n", n.Op)
@@ -1672,17 +1681,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						depp.Println("len of LHS: ", len(n.Lhs))
 						depp.Println("len of RHS: ", len(n.Rhs))
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
-						//rt := evalStaticTypeOf(store, last, n.Rhs[0])
-
-						// TODO: check other like sh*
-						// only check when rt is typed
-						//if !isUntyped(rt) {
-						//	if lt.TypeID() != rt.TypeID() {
-						//		panic("mismatch type for Assign")
-						//	}
-						//} else {
+						// a += b, requires b -> a conversion
 						checkOrConvertTypeWithOp(store, last, &n.Rhs[0], &n.Rhs[0], lt, n.Op, false)
-						//}
 					} else { // all else, like BAND_ASSIGN, etc
 						depp.Println("case: a, b = x, y")
 						depp.Printf("Op: %v \n", n.Op)
@@ -1698,9 +1698,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertTypeWithOp(store, last, &n.Rhs[i], &n.Rhs[i], lt, n.Op, false)
 							} else {
 								depp.Println("rt not untyped, check strict")
-								//if lt.TypeID() != rt.TypeID() {
-								//	panic("mismatch type for Assign, in case: a, b = x, y")
-								//}
 								checkOrConvertTypeWithOp(store, last, &n.Rhs[i], &n.Rhs[i], lt, n.Op, false)
 							}
 						}
@@ -2562,40 +2559,48 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 
 type f func(t Type) bool
 
-var predicates map[Word]f
+var binaryPredicates map[Word]f
+var unaryPredicates map[Word]f
 
 func init() {
-	predicates = make(map[Word]f)
+	binaryPredicates = make(map[Word]f)
+	unaryPredicates = make(map[Word]f)
 	// add,sub,mul,quo,rem with assgin
-	predicates[ADD] = isNumericOrString
-	predicates[ADD_ASSIGN] = isNumericOrString
-	predicates[SUB] = isNumeric
-	predicates[SUB_ASSIGN] = isNumeric
-	predicates[MUL] = isNumeric
-	predicates[MUL_ASSIGN] = isNumeric
-	predicates[QUO] = isNumeric
-	predicates[QUO_ASSIGN] = isNumeric
-	predicates[REM] = isIntNum
-	predicates[REM_ASSIGN] = isIntNum
+	binaryPredicates[ADD] = isNumericOrString
+	binaryPredicates[ADD_ASSIGN] = isNumericOrString
+	binaryPredicates[SUB] = isNumeric
+	binaryPredicates[SUB_ASSIGN] = isNumeric
+	binaryPredicates[MUL] = isNumeric
+	binaryPredicates[MUL_ASSIGN] = isNumeric
+	binaryPredicates[QUO] = isNumeric
+	binaryPredicates[QUO_ASSIGN] = isNumeric
+	binaryPredicates[REM] = isIntNum
+	binaryPredicates[REM_ASSIGN] = isIntNum
 
 	// bit op
-	predicates[BAND] = isIntNum
-	predicates[BAND_ASSIGN] = isIntNum
-	predicates[XOR] = isIntNum
-	predicates[XOR_ASSIGN] = isIntNum
-	predicates[BOR] = isIntNum
-	predicates[BOR_ASSIGN] = isIntNum
-	predicates[BAND_NOT] = isIntNum
-	predicates[BAND_NOT_ASSIGN] = isIntNum
+	binaryPredicates[BAND] = isIntNum
+	binaryPredicates[BAND_ASSIGN] = isIntNum
+	binaryPredicates[XOR] = isIntNum
+	binaryPredicates[XOR_ASSIGN] = isIntNum
+	binaryPredicates[BOR] = isIntNum
+	binaryPredicates[BOR_ASSIGN] = isIntNum
+	binaryPredicates[BAND_NOT] = isIntNum
+	binaryPredicates[BAND_NOT_ASSIGN] = isIntNum
 	// logic op
-	predicates[LAND] = isBoolean
-	predicates[LOR] = isBoolean
+	binaryPredicates[LAND] = isBoolean
+	binaryPredicates[LOR] = isBoolean
 
 	// compare
-	predicates[LSS] = isOrdered
-	predicates[LEQ] = isOrdered
-	predicates[GTR] = isOrdered
-	predicates[GEQ] = isOrdered
+	binaryPredicates[LSS] = isOrdered
+	binaryPredicates[LEQ] = isOrdered
+	binaryPredicates[GTR] = isOrdered
+	binaryPredicates[GEQ] = isOrdered
+
+	// unary
+	unaryPredicates[ADD] = isNumeric
+	unaryPredicates[SUB] = isNumeric
+	unaryPredicates[XOR] = isIntNum
+	unaryPredicates[NOT] = isBoolean
 }
 
 // post check after conversion
@@ -2625,13 +2630,21 @@ func isComparison(op Word) bool {
 	}
 }
 
-func checkOp(xt Type, dt Type, op Word) {
-	depp.Printf("checkOp, xt: %v, dt: %v, op: %v \n", xt, dt, op)
+func checkOp(xt Type, dt Type, op Word, binary bool) {
+	depp.Printf("checkOp, xt: %v, dt: %v, op: %v, isBinary: %t \n", xt, dt, op, binary)
+	if !binary {
+		if pred, ok := unaryPredicates[op]; ok {
+			if !pred(dt) {
+				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+			}
+		}
+	}
+
 	// first check comparison
 	if isComparison(op) {
 		switch op {
 		case EQL, NEQ: // check comparable
-			// 1. first, check specific types can be compared, like predicates for ADD, etc
+			// 1. first, check specific types can be compared, like binaryPredicates for ADD, etc
 			// 2. comparable requires one is convertable to another
 			// 3. handle nil
 			if ok, code := comparable(dt); !ok {
@@ -2640,7 +2653,7 @@ func checkOp(xt Type, dt Type, op Word) {
 			}
 		case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
 			depp.Printf("L, G: %v \n", op)
-			if pred, ok := predicates[op]; ok {
+			if pred, ok := binaryPredicates[op]; ok {
 				if !pred(dt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 				}
@@ -2652,7 +2665,7 @@ func checkOp(xt Type, dt Type, op Word) {
 	// second, xt can be converted to dt, this is done below this
 	// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
 	depp.Printf("check matchable with op: %v \n", op)
-	if pred, ok := predicates[op]; ok {
+	if pred, ok := binaryPredicates[op]; ok {
 		if !pred(dt) {
 			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 		}
@@ -2688,7 +2701,7 @@ func checkType(xt Type, dt Type, op Word, autoNative bool) (conversionNeeded boo
 		return
 	}
 	depp.Printf("checkType, xt: %v, xt.Kind: %v,  dt: %v, dt.Kind: %v, Op: %v, \n", xt, xt.Kind(), dt, dt.Kind(), op)
-	checkOp(xt, dt, op)
+	checkOp(xt, dt, op, true)
 	depp.Println("ops checks pass, check convertable on operand")
 	return convertable(xt, dt, autoNative)
 }
