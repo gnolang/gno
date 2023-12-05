@@ -245,6 +245,12 @@ func execModWhy(args []string) error {
 	importsMap := make(map[string][]string)
 	for _, e := range entries {
 		filename := e.Name()
+		if ext := filepath.Ext(filename); ext != ".gno" {
+			continue
+		}
+		if strings.HasSuffix(filename, "_filetest.gno") {
+			continue
+		}
 		imports, err := getGnoFileImports(filepath.Join(wd, filename))
 		if err != nil {
 			return err
@@ -293,6 +299,9 @@ func getGnoModuleImports(path string) ([]string, error) {
 	seen := make(map[string]struct{})
 	for _, e := range entries {
 		filename := e.Name()
+		if ext := filepath.Ext(filename); ext != ".gno" {
+			continue
+		}
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
@@ -318,7 +327,7 @@ func getGnoModuleImports(path string) ([]string, error) {
 
 func getGnoFileImports(fname string) ([]string, error) {
 	if !strings.HasSuffix(fname, ".gno") {
-		return nil, errors.New("not a gno file")
+		return nil, fmt.Errorf("not a gno file: %q", fname)
 	}
 	data, err := os.ReadFile(fname)
 	if err != nil {
