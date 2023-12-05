@@ -272,7 +272,7 @@ const (
 	IsBigDec
 	IsRune
 
-	IsOrdered   = IsInteger | IsFloat | IsString
+	IsOrdered   = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
 	IsNumeric   = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
 	IsConstType = IsBoolean | IsNumeric | IsString
 )
@@ -327,6 +327,18 @@ func (pt PrimitiveType) Predicate() predicate {
 		return IsBigDec
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
+	}
+}
+
+func isOrdered(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsOrdered != 0 || t.Predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
 	}
 }
 
@@ -2276,6 +2288,7 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
+// TODO: change to only check typed
 func isSameTypes(lt, rt Type) bool {
 	depp.Printf("check isSameTypes, lt: %v, rt: %v \n", lt, rt)
 	depp.Println("is lt data byte: ", isDataByte(lt))
@@ -2360,8 +2373,9 @@ func comparable(t Type) (bool, string) {
 		depp.Println("primitive type, return true")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
+		// TODO: check length? but that needs check after convert, indicates checkOp after convert? make more sense seems
 		switch baseOf(ct.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType: // TODO:
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // TODO:
 			return true, ""
 		default:
 			return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
@@ -2369,7 +2383,7 @@ func comparable(t Type) (bool, string) {
 	case *StructType:
 		for _, f := range ct.Fields {
 			switch baseOf(f.Type).(type) {
-			case PrimitiveType, *PointerType, *InterfaceType:
+			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
 				return true, ""
 			default:
 				return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())

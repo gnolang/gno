@@ -2487,7 +2487,7 @@ func checkOrConvertTypeWithOp(store Store, last BlockNode, x *Expr, y *Expr, t T
 		}
 		depp.Printf("ConstExpr, convertConst, cx: %v, t:%v \n", cx, t)
 		convertConst(store, last, cx, t)
-		// TODO:
+		// TODO: check Op here?
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		depp.Println("SHL or SHR")
 		// "push" expected type into shift binary's left operand.
@@ -2523,12 +2523,14 @@ func checkOrConvertTypeWithOp(store Store, last BlockNode, x *Expr, y *Expr, t T
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
+			// TODO: check op here
 		}
 		// cover all declared type case
 		if conversionNeeded {
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
+			// TODO: check op here
 		}
 	}
 }
@@ -2564,6 +2566,7 @@ var predicates map[Word]f
 
 func init() {
 	predicates = make(map[Word]f)
+	// add,sub,mul,quo,rem with assgin
 	predicates[ADD] = isNumericOrString
 	predicates[ADD_ASSIGN] = isNumericOrString
 	predicates[SUB] = isNumeric
@@ -2575,6 +2578,7 @@ func init() {
 	predicates[REM] = isIntNum
 	predicates[REM_ASSIGN] = isIntNum
 
+	// bit op
 	predicates[BAND] = isIntNum
 	predicates[BAND_ASSIGN] = isIntNum
 	predicates[XOR] = isIntNum
@@ -2583,8 +2587,15 @@ func init() {
 	predicates[BOR_ASSIGN] = isIntNum
 	predicates[BAND_NOT] = isIntNum
 	predicates[BAND_NOT_ASSIGN] = isIntNum
+	// logic op
 	predicates[LAND] = isBoolean
 	predicates[LOR] = isBoolean
+
+	// compare
+	predicates[LSS] = isOrdered
+	predicates[LEQ] = isOrdered
+	predicates[GTR] = isOrdered
+	predicates[GEQ] = isOrdered
 }
 
 // post check after conversion
@@ -2628,6 +2639,12 @@ func checkOp(xt Type, dt Type, op Word) {
 				panic(code)
 			}
 		case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
+			depp.Printf("L, G: %v \n", op)
+			if pred, ok := predicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+				}
+			}
 		}
 	}
 	// two steps of check:
