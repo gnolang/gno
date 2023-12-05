@@ -1,0 +1,49 @@
+name: Dependabot Tidy Go Mods
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '**/go.mod'
+      - '**/go.sum'
+
+jobs:
+  tidy_go_mods:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.x
+
+      - name: Tidy all Go mods
+        run: |
+          set -e
+          # Find all go.mod files
+          gomods=$(find . -type f -name go.mod)
+          
+          # Tidy each go.mod file
+          for modfile in $gomods; do
+            dir=$(dirname "$modfile")
+          
+            # Run go mod tidy in the directory
+            (cd "$dir" && go mod tidy -v) || exit 1
+          done
+
+      - name: Commit changes
+        run: |
+          set -e
+          changes=$(git status --porcelain)
+          
+          if [ -n "$changes" ]; then
+            git config --local user.email "actions@github.com"
+            git config --local user.name "GitHub Actions"
+            git add -A
+            git commit -m "Run 'go mod tidy' via GitHub Actions" && git push
+          else
+            echo "No changes to Go mods. Skipping commit"
+          fi
