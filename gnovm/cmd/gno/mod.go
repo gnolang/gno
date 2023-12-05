@@ -261,9 +261,9 @@ func execModWhy(args []string) error {
 		}
 	}
 
+	// Print `gno mod why` output stanzas
 	for i, arg := range args {
 		fmt.Println("#", arg)
-
 		files, ok := importsMap[arg]
 		if !ok {
 			fmt.Println(fmt.Sprintf("(module %s does not need package %s)", gm.Module.Mod.Path, arg))
@@ -272,8 +272,7 @@ func execModWhy(args []string) error {
 				fmt.Println(file)
 			}
 		}
-
-		if i != len(args)-1 {
+		if i < len(args)-1 { // Add a newline if it's not the last stanza
 			fmt.Println()
 		}
 	}
@@ -338,8 +337,7 @@ func getGnoFileImports(fname string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	res := make([]string, len(f.Imports))
+	res := make([]string, 0)
 	for _, im := range f.Imports {
 		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
 		res = append(res, importPath)
