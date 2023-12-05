@@ -179,7 +179,7 @@ gnokey maketx addpkg \
 
 ### `call`
 
-This subcommand lets you call a public function.
+This subcommand lets you call a public function on a Realm.
 
 ```bash
 # Register
@@ -208,13 +208,17 @@ gnokey maketx call \
 
 #### **makeCallTx Options**
 
-| Name      | Type       | Description                      |
-| --------- | ---------- | -------------------------------- |
-| `send`    | String     | The amount of coins to send.     |
-| `pkgpath` | String     | The package path (required).     |
-| `func`    | String     | The contract to call (required). |
-| `args`    | String \[] | The arguments of the contract.   |
+| Name      | Type   | Description                               |
+| --------- | ------ |-------------------------------------------|
+| `send`    | String | The amount of coins to send.              |
+| `pkgpath` | String | The package path (required).              |
+| `func`    | String | The contract to call (required).          |
+| `args`    | String | An argument of the function being called. |
 
+:::info
+As of December 2023, using a slice or a `struct` as an `-args` parameter is not supported. 
+A workaround for this is to pass arguments as a delimited string, and parse them within the Realm.
+:::
 
 ### `send`
 
