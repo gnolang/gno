@@ -1,12 +1,18 @@
 ---
 http:
+  middlewares:
+    ipwhitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+
   routers:
     gno-portal-loop:
       service: gno-portal-loop
       # tls: "true"
       rule: "Host(`rpc.gno.land`)"
       entrypoints: "web"
-      middlewares: []
+      middlewares: ["ipwhitelist"]
 
   services:
     gno-portal-loop:

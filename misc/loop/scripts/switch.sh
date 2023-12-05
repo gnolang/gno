@@ -20,7 +20,8 @@ TX_ARCHIVE_CMD=${TX_ARCHIVE_CMD:-"tx-archive"}
 
 CONTAINER_NAME="gno-${NOW}"
 
-# TODO: SET THE CURRENT PORTAL LOOP in read only mode
+# Set the current portal loop in READ-ONLY mode
+sed -E 's/middlewares: \[.*\]/middlewares: []/' ./traefik/gno.yml
 
 # Get latest version of gno
 docker pull ghcr.io/gnolang/gno
@@ -68,6 +69,9 @@ curl -s --retry 10 --retry-delay 5 --retry-all-errors -o /dev/null "localhost:${
 
 # Update traefik url
 sed -i -E "s#localhost:[0-9]+#localhost:${RPC_PORT}#"  /etc/traefik/configs/gno.yml
+
+
+sed -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' ./traefik/gno.yml
 
 # Delete previous container
 docker rm -f $(docker ps --format json --filter "label=the-portal-loop" | jq -r '.ID' | tail -n +2)
