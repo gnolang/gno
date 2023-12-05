@@ -2326,29 +2326,22 @@ func isSameTypes(lt, rt Type) bool {
 // Like assertSameTypes(), but more relaxed, for == and !=.
 func assertEqualityTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
-		println("1")
 		// both are nil.
 	} else if lt == nil || rt == nil {
-		println("2")
 		// one is nil.  see function comment.
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
-		println("3")
 		// one is untyped of same kind.
 	} else if lt.Kind() == InterfaceKind &&
 		IsImplementedBy(lt, rt) {
-		println("4")
 		// one is untyped of same kind.
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
-		println("5")
 		// lt implements rt (and rt is nil interface).
 	} else if lt.TypeID() == rt.TypeID() {
-		println("6")
 		// non-nil types are identical.
 	} else {
-		println("7")
 		//panic("7, incompatible operands")
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
@@ -2356,6 +2349,373 @@ func assertEqualityTypes(lt, rt Type) {
 			rt.String(),
 		)
 	}
+}
+
+// t is the target type in convert process, check it firstly, then check if convertable
+func comparable(t Type) (bool, string) {
+	depp.Printf("check comparable, t is %v \n", t)
+	// primitive is comparable
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		depp.Println("primitive type, return true")
+		return true, ""
+	case *ArrayType: // NOTE: no recursive allowed
+		switch baseOf(ct.Elem()).(type) {
+		case PrimitiveType, *PointerType, *InterfaceType: // TODO:
+			return true, ""
+		default:
+			return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
+		}
+	case *StructType:
+		for _, f := range ct.Fields {
+			switch baseOf(f.Type).(type) {
+			case PrimitiveType, *PointerType, *InterfaceType:
+				return true, ""
+			default:
+				return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
+			}
+		}
+		return true, ""
+	case *PointerType:
+		return true, ""
+	case *InterfaceType:
+		return true, ""
+	case *SliceType, *FuncType:
+		// only comparable with nil, runtime check
+		return true, ""
+	case *NativeType:
+		if ct.Type.Comparable() {
+			return true, ""
+		}
+		return false, fmt.Sprintf("%v is not comparable \n", t)
+	default:
+		return false, fmt.Sprintf("%v is not comparable \n", t)
+	}
+}
+
+// check if xt can be converted to dt, conversionNeeded indicate need convert from unnamed -> named
+// case 1. untyped const to typed const with same kind
+// case 2. unnamed to named
+// case 3. dt is interface, xt satisfied dt
+// case 4. general convert, for composite types check
+func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+	// case3
+	// if xt or dt is empty interface, convertable
+	// if no empty interface, then check if xt satisfied dt
+	if dt.Kind() == InterfaceKind {
+		depp.Println("dt is interface")
+		if idt, ok := baseOf(dt).(*InterfaceType); ok {
+			if idt.IsEmptyInterface() {
+				depp.Println("dt is empty interface")
+				// if dt is an empty Gno interface, any x ok.
+				return // ok
+			} else if idt.IsImplementedBy(xt) {
+				depp.Println("dt is implemented by xt")
+				// if dt implements idt, ok.
+				return // ok
+			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6
+				depp.Println("xt is empty interface: ", iot)
+				if iot.IsEmptyInterface() {
+					return // ok
+				}
+			} else {
+				panic(fmt.Sprintf(
+					"%s does not implement %s",
+					xt.String(),
+					dt.String()))
+			}
+		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
+			nidt := ndt.Type
+			if nidt.NumMethod() == 0 {
+				// if dt is an empty Go native interface, ditto.
+				return // ok
+			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
+				// if xt has native base, do the naive native.
+				if nxt.Type.AssignableTo(nidt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						nxt.String(),
+						nidt.String()))
+				}
+			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
+				nxt, ok := pxt.Elt.(*NativeType)
+				if !ok {
+					panic(fmt.Sprintf(
+						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
+						pxt.String(),
+						nidt.String()))
+				}
+				// if xt has native base, do the naive native.
+				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						pxt.String(),
+						nidt.String()))
+				}
+			} else {
+				panic(fmt.Sprintf(
+					"unexpected type pair: cannot use %s as %s",
+					xt.String(),
+					dt.String()))
+			}
+		} else {
+			panic("should not happen")
+		}
+	} else if xt.Kind() == InterfaceKind {
+		depp.Println("xt is interface")
+		if ixt, ok := baseOf(xt).(*InterfaceType); ok {
+			if ixt.IsEmptyInterface() {
+				depp.Println("xt is empty interface")
+				// if dt is an empty Gno interface, any x ok.
+				return // ok
+			} else if ixt.IsImplementedBy(dt) {
+				depp.Println("xt is implemented by dt")
+				// if dt implements idt, ok.
+				return // ok
+			} else if idt, ok := dt.(*InterfaceType); ok {
+				if idt.IsEmptyInterface() {
+					return
+				}
+			} else {
+				panic(fmt.Sprintf(
+					"%s does not implement %s",
+					dt.String(), xt.String()))
+			}
+		} else if nxt, ok := baseOf(xt).(*NativeType); ok {
+			nixt := nxt.Type
+			if nixt.NumMethod() == 0 {
+				// if dt is an empty Go native interface, ditto.
+				return // ok
+			} else if ndt, ok := baseOf(dt).(*NativeType); ok {
+				// if xt has native base, do the naive native.
+				if nxt.Type.AssignableTo(nixt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						nixt.String(), ndt.String()))
+				}
+			} else if pdt, ok := baseOf(dt).(*PointerType); ok {
+				nxt, ok := pdt.Elt.(*NativeType)
+				if !ok {
+					panic(fmt.Sprintf(
+						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
+						nixt.String(), pdt.String()))
+				}
+				// if xt has native base, do the naive native.
+				if reflect.PtrTo(nxt.Type).AssignableTo(nixt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						nixt.String(), pdt.String()))
+				}
+			} else {
+				panic(fmt.Sprintf(
+					"unexpected type pair: cannot use %s as %s",
+					xt.String(),
+					dt.String()))
+			}
+		} else {
+			panic("should not happen")
+		}
+	}
+
+	// case2
+	// Special case if xt or dt is *PointerType to *NativeType,
+	// convert to *NativeType of pointer kind.
+	if pxt, ok := xt.(*PointerType); ok {
+		// *gonative{x} is gonative{*x}
+		//nolint:misspell
+		if enxt, ok := pxt.Elt.(*NativeType); ok {
+			xt = &NativeType{
+				Type: reflect.PtrTo(enxt.Type),
+			}
+		}
+	}
+	if pdt, ok := dt.(*PointerType); ok {
+		// *gonative{x} is gonative{*x}
+		if endt, ok := pdt.Elt.(*NativeType); ok {
+			dt = &NativeType{
+				Type: reflect.PtrTo(endt.Type),
+			}
+		}
+	}
+
+	// Special case of xt or dt is *DeclaredType,
+	// allow implicit conversion unless both are declared.
+	// TODO simplify with .IsNamedType().
+	if dxt, ok := xt.(*DeclaredType); ok {
+		if ddt, ok := dt.(*DeclaredType); ok {
+			// types must match exactly.
+			if !dxt.sealed && !ddt.sealed &&
+				dxt.PkgPath == ddt.PkgPath &&
+				dxt.Name == ddt.Name { // not yet sealed
+				return // ok
+			} else if dxt.TypeID() == ddt.TypeID() {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					dxt.String(),
+					ddt.String()))
+			}
+		} else {
+			// special case if implicitly named primitive type.
+			// TODO simplify with .IsNamedType().
+			if _, ok := dt.(PrimitiveType); ok {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					dxt.String(),
+					dt.String()))
+				//xt = dxt.Base
+			} else {
+				// carry on with baseOf(dxt)
+				xt = dxt.Base
+				conversionNeeded = true
+			}
+		}
+	} else if ddt, ok := dt.(*DeclaredType); ok {
+		// special case if implicitly named primitive type.
+		// TODO simplify with .IsNamedType().
+		if _, ok := xt.(PrimitiveType); ok {
+			depp.Println("xt is primitiveType")
+			// this is special when dt is the declared type of x
+			if !isUntyped(xt) {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					xt.String(),
+					ddt.String()))
+			}
+
+		} else {
+			// carry on with baseOf(ddt)
+			dt = ddt.Base
+			conversionNeeded = true
+		}
+	}
+
+	// case 1 plus composite part
+	// General cases.
+	switch cdt := dt.(type) {
+	case PrimitiveType: // case 1
+		depp.Println("primitive type")
+		// if xt is untyped, ensure dt is compatible.
+		switch xt {
+		case UntypedBoolType:
+			if dt.Kind() == BoolKind {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped bool as %s",
+					dt.Kind()))
+			}
+		case UntypedStringType:
+			if dt.Kind() == StringKind {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped string as %s",
+					dt.Kind()))
+			}
+		case UntypedBigintType, UntypedBigdecType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped Bigint/Bigdec as %s",
+					dt.Kind()))
+			}
+		case UntypedRuneType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped rune as %s",
+					dt.Kind()))
+			}
+
+		default:
+			if isUntyped(xt) {
+				panic("unexpected untyped type")
+			}
+			if xt.TypeID() == cdt.TypeID() {
+				return // ok
+			}
+		}
+	case *PointerType: // case 4 from here on
+		if pt, ok := xt.(*PointerType); ok {
+			cdt := checkType(pt.Elt, cdt.Elt, ILLEGAL, false)
+			return cdt || conversionNeeded
+		}
+	case *ArrayType:
+		if at, ok := xt.(*ArrayType); ok {
+			cdt := checkType(at.Elt, cdt.Elt, ILLEGAL, false)
+			return cdt || conversionNeeded
+		}
+	case *SliceType:
+		if st, ok := xt.(*SliceType); ok {
+			cdt := checkType(st.Elt, cdt.Elt, ILLEGAL, false)
+			return cdt || conversionNeeded
+		}
+	case *MapType:
+		if mt, ok := xt.(*MapType); ok {
+			cn1 := checkType(mt.Key, cdt.Key, ILLEGAL, false)
+			cn2 := checkType(mt.Value, cdt.Value, ILLEGAL, false)
+			return cn1 || cn2 || conversionNeeded
+		}
+	case *FuncType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *InterfaceType:
+		panic("should not happen")
+	case *DeclaredType:
+		// do nothing, untyped to declared type
+		return
+		//panic("should not happen")
+	case *StructType, *PackageType, *ChanType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *TypeType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *NativeType:
+		if !autoNative {
+			if xt.TypeID() == cdt.TypeID() {
+				return // ok
+			}
+		} else {
+			// autoNative, so check whether matches.
+			// xt: any type but a *DeclaredType; could be native.
+			// cdt: actual concrete native target type.
+			// ie, if cdt can match against xt.
+			if gno2GoTypeMatches(xt, cdt.Type) {
+				return // ok
+			}
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %s",
+			dt.String()))
+	}
+	panic(fmt.Sprintf(
+		"cannot use %s as %s",
+		xt.String(),
+		dt.String()))
+	//}
 }
 
 // type-check rules:

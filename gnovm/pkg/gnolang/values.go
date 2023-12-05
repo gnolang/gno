@@ -1454,8 +1454,6 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 }
 
 // Sign returns -1, 0, or 1 depending on whether x < 0, x == 0, or x > 0;
-// x must be numeric or Unknown. For complex values x, the sign is 0 if x == 0,
-// otherwise it is != 0. If x is Unknown, the result is 1.
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
@@ -1574,7 +1572,6 @@ func (tv *TypedValue) Sign() int {
 		return v.Sign()
 	case BigdecKind:
 		v := tv.GetBigDec()
-		//fmt.Printf("bigdec, v %v: \n", v)
 		return v.Sign()
 	default:
 		panic("not numeric")

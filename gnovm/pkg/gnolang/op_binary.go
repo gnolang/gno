@@ -382,9 +382,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
-		println("left is native type")
+		depp.Println("left is native type")
 		if rnt, ok := rv.T.(*NativeType); ok {
-			println("right is native type")
+			depp.Println("right is native type")
 			if lnt.Type != rnt.Type {
 				return false
 			}
@@ -409,11 +409,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Int32Kind:
 		return (lv.GetInt32() == rv.GetInt32())
 	case Int64Kind:
-		depp.Println("int64 kind")
-		depp.Println("lv kind: ", lv.T.Kind())
-		depp.Println("rv kind: ", rv.T.Kind())
-		depp.Println("lv int64", lv.GetInt64())
-		depp.Println("rv int64", rv.GetInt64())
 		return (lv.GetInt64() == rv.GetInt64())
 	case UintKind:
 		return (lv.GetUint() == rv.GetUint())
@@ -495,11 +490,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
+		//if debug {
+		if lv.V != nil && rv.V != nil {
+			panic("function can only be compared with `nil`")
 		}
+		//}
 		if _, ok := lv.V.(*BoundMethodValue); ok {
 			// BoundMethodValues are objects so just compare.
 			return lv.V == rv.V

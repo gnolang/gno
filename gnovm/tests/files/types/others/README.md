@@ -1,3 +1,34 @@
+
+binaryExpression
+    check comparison:
+
+        assignableTo(type), LHS or RHS is assignable to the other 
+            isIdentical
+                primitive, struct, map, ...
+            untyped -> typed
+            unnamed -> named
+            type(Impl)    -> interface
+
+        EQU NEQ
+            LHS, RHS both comparable
+
+        LSS, GTR,,,
+            LHS, RHS ordered
+
+        NOTE: above no requre for match type, e,g. Main.Error and error to compare
+
+        // else ops
+        first check (if typed) LHS, RHS, panic mismatch directly
+        check predicates
+        check special case like zero divisor
+        check implicit convertable, same logic assignableTo(Type)
+
+
+
+        
+            
+        
+
 Scenarios:
     binary expression:
     left expression [Op] right expression
