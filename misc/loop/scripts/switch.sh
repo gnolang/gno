@@ -46,7 +46,7 @@ docker run -it \
     -v ${HOST_PWD}/backups:/backups \
     -v ${CONTAINER_NAME}:/opt/gno/src/testdir \
     -p 26656 \
-    -p 26657 \
+    -p 127.0.0.1::26657 \
     -e MONIKER="the-portal-loop" \
     -e GENESIS_BACKUP_FILE="${BACKUP_LEGACY_FILE}" \
     --label "the-portal-loop=${CONTAINER_NAME}" \
