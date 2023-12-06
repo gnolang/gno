@@ -71,7 +71,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	depp.Println("doOpEql")
+	debugPP.Println("doOpEql")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -80,19 +80,9 @@ func (m *Machine) doOpEql() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	depp.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	debugPP.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
-	//// strict type match check, after preprocess
-	//// TODO: fix databytetype
-	//if (lv.T != nil && rv.T != nil) && (lv.T.TypeID() != rv.T.TypeID()) {
-	//	// TODO: in golang, this would not panic, but give a false as result
-	//	fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
-	//	res = false
-	//} else {
-	//	res = isEql(m.Store, lv, rv)
-	//}
-
 	// TODO: this should be in preprocess too
 	// TODO: only assert here
 	if isSameTypes(lv.T, rv.T) {
@@ -110,7 +100,7 @@ func (m *Machine) doOpEql() {
 }
 
 func (m *Machine) doOpNeq() {
-	depp.Println("doOpNeq")
+	debugPP.Println("doOpNeq")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -119,18 +109,9 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	depp.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	debugPP.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
-	//// strict type match check, after preprocess
-	//if (lv.T != nil && rv.T != nil) && (lv.T.TypeID() != rv.T.TypeID()) {
-	//	// TODO: in golang, this would not panic, but give a false as result
-	//	fmt.Printf("operands type mismatch, left %v, op: %v, right:%v \n", lv.T.TypeID(), "EQL", rv.T.TypeID())
-	//	res = true // not equal
-	//} else {
-	//	res = !isEql(m.Store, lv, rv)
-	//}
-
 	if isSameTypes(lv.T, rv.T) {
 		res = !isEql(m.Store, lv, rv)
 	} else {
@@ -382,9 +363,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
-		depp.Println("left is native type")
+		debugPP.Println("left is native type")
 		if rnt, ok := rv.T.(*NativeType); ok {
-			depp.Println("right is native type")
+			debugPP.Println("right is native type")
 			if lnt.Type != rnt.Type {
 				return false
 			}
@@ -703,10 +684,6 @@ func isGeq(lv, rv *TypedValue) bool {
 
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
-	//if !isSameTypes(lv.T, rv.T) {
-	//	panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	//}
-
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -765,9 +742,6 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 
 // for doOpSub and doOpSubAssign.
 func subAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -824,9 +798,6 @@ func subAssign(lv, rv *TypedValue) {
 
 // for doOpMul and doOpMulAssign.
 func mulAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -881,9 +852,6 @@ func mulAssign(lv, rv *TypedValue) {
 
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -940,9 +908,6 @@ func quoAssign(lv, rv *TypedValue) {
 
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -982,9 +947,6 @@ func remAssign(lv, rv *TypedValue) {
 
 // for doOpBand and doOpBandAssign.
 func bandAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1024,9 +986,6 @@ func bandAssign(lv, rv *TypedValue) {
 
 // for doOpBandn and doOpBandnAssign.
 func bandnAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1066,9 +1025,6 @@ func bandnAssign(lv, rv *TypedValue) {
 
 // for doOpBor and doOpBorAssign.
 func borAssign(lv, rv *TypedValue) {
-	if !isSameTypes(lv.T, rv.T) {
-		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lv.T, rv.T))
-	}
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {

@@ -1,5 +1,18 @@
+Context:
 
-binaryExpression
+    mix of numeric types
+
+    comparable
+
+    special case
+
+
+
+    
+
+Flow:
+
+    binaryExpression/unaryExpression
     check comparison:
 
         assignableTo(type), LHS or RHS is assignable to the other 

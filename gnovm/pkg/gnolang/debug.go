@@ -24,11 +24,11 @@ type debugPreprocess bool
 // using a const is probably faster.
 // const debug debugging = true // or flip
 var debug debugging = false
-var depp debugPreprocess = false
+var debugPP debugPreprocess = false
 
 func init() {
 	debug = os.Getenv("DEBUG") == "1"
-	depp = os.Getenv("DEPP") == "1"
+	debugPP = os.Getenv("DEPP") == "1"
 	if debug {
 		go func() {
 			// e.g.

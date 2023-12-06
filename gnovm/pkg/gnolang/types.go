@@ -1155,7 +1155,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
-	depp.Printf("isImplementedBy, it %v, ot:%v \n", it, ot)
+	debugPP.Printf("isImplementedBy, it %v, ot:%v \n", it, ot)
 	// empty interface{}
 	//if iot, ok := baseOf(ot).(*InterfaceType); ok {
 	//	if iot.IsEmptyInterface() {
@@ -1168,7 +1168,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
 			if !im2.IsImplementedBy(ot) {
-				depp.Println("first false")
+				debugPP.Println("first false")
 				return false
 			} else {
 				continue
@@ -1177,7 +1177,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			depp.Println("second false")
+			debugPP.Println("second false")
 			return false
 		}
 		if nft, ok := ft.(*NativeType); ok {
@@ -1188,7 +1188,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				depp.Println("third false")
+				debugPP.Println("third false")
 				return false
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
@@ -1200,7 +1200,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				depp.Println("fourth false")
+				debugPP.Println("fourth false")
 				return false
 			}
 		}
@@ -2290,45 +2290,48 @@ func assertSameTypes(lt, rt Type) {
 
 // TODO: change to only check typed
 func isSameTypes(lt, rt Type) bool {
-	depp.Printf("check isSameTypes, lt: %v, rt: %v \n", lt, rt)
-	depp.Println("is lt data byte: ", isDataByte(lt))
-	depp.Println("is rt data byte: ", isDataByte(rt))
+	debugPP.Printf("check isSameTypes, lt: %v, rt: %v \n", lt, rt)
+	debugPP.Println("is lt data byte: ", isDataByte(lt))
+	debugPP.Println("is rt data byte: ", isDataByte(rt))
 
+	// refer to std3.gno, untyped byte has no typeID
 	if lpt, ok := lt.(*PointerType); ok {
-		depp.Println("lt is pointer type, typeid: ", lpt.typeid)
+		debugPP.Println("lt is pointer type, typeid: ", lpt.typeid)
 		if isDataByte(lpt.Elt) {
-			depp.Println("got data byte, left")
+			debugPP.Println("got data byte, left")
 			return true
 		}
 	}
 
 	if rpt, ok := rt.(*PointerType); ok {
-		depp.Println("rt is pointer type, typeid: ", rpt.typeid)
+		debugPP.Println("rt is pointer type, typeid: ", rpt.typeid)
 		if isDataByte(rpt.Elt) {
-			depp.Println("got data byte, right")
+			debugPP.Println("got data byte, right")
 			return true
 		}
 	}
 
 	if isDataByte(lt) || isDataByte(rt) {
-		depp.Println("one is date byte")
+		debugPP.Println("one is date byte")
 		return true
 	}
 
+	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
+		debugPP.Println("both type nil")
 		// both are nil.
 	} else if lt == nil || rt == nil {
+		debugPP.Println("one type nil")
 		// one is nil.  see function comment.
 	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
-		// one is untyped of same kind.
-	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
+		debugPP.Println("both date byte")
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
 	} else if lt.TypeID() == rt.TypeID() {
+		debugPP.Println("typeID equal")
 		// non-nil types are identical.
 	} else {
 		return false
@@ -2366,16 +2369,17 @@ func assertEqualityTypes(lt, rt Type) {
 
 // t is the target type in convert process, check it firstly, then check if convertable
 func comparable(t Type) (bool, string) {
-	depp.Printf("check comparable, t is %v \n", t)
+	debugPP.Printf("check comparable, t is %v \n", t)
 	// primitive is comparable
 	switch ct := baseOf(t).(type) {
 	case PrimitiveType:
-		depp.Println("primitive type, return true")
+		debugPP.Println("primitive type, return true")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
 		// TODO: check length? but that needs check after convert, indicates checkOp after convert? make more sense seems
+		// TODO: check at least length here
 		switch baseOf(ct.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // TODO:
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // TODO: nativeType?
 			return true, ""
 		default:
 			return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
@@ -2417,18 +2421,18 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	// if xt or dt is empty interface, convertable
 	// if no empty interface, then check if xt satisfied dt
 	if dt.Kind() == InterfaceKind {
-		depp.Println("dt is interface")
+		debugPP.Println("dt is interface")
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
 			if idt.IsEmptyInterface() {
-				depp.Println("dt is empty interface")
+				debugPP.Println("dt is empty interface")
 				// if dt is an empty Gno interface, any x ok.
 				return // ok
 			} else if idt.IsImplementedBy(xt) {
-				depp.Println("dt is implemented by xt")
+				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
 			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6
-				depp.Println("xt is empty interface: ", iot)
+				debugPP.Println("xt is empty interface: ", iot)
 				if iot.IsEmptyInterface() {
 					return // ok
 				}
@@ -2480,14 +2484,14 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			panic("should not happen")
 		}
 	} else if xt.Kind() == InterfaceKind {
-		depp.Println("xt is interface")
+		debugPP.Println("xt is interface")
 		if ixt, ok := baseOf(xt).(*InterfaceType); ok {
 			if ixt.IsEmptyInterface() {
-				depp.Println("xt is empty interface")
+				debugPP.Println("xt is empty interface")
 				// if dt is an empty Gno interface, any x ok.
 				return // ok
 			} else if ixt.IsImplementedBy(dt) {
-				depp.Println("xt is implemented by dt")
+				debugPP.Println("xt is implemented by dt")
 				// if dt implements idt, ok.
 				return // ok
 			} else if idt, ok := dt.(*InterfaceType); ok {
@@ -2597,7 +2601,7 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok {
-			depp.Println("xt is primitiveType")
+			debugPP.Println("xt is primitiveType")
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {
 				panic(fmt.Sprintf(
@@ -2617,7 +2621,7 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	// General cases.
 	switch cdt := dt.(type) {
 	case PrimitiveType: // case 1
-		depp.Println("primitive type")
+		debugPP.Println("primitive type")
 		// if xt is untyped, ensure dt is compatible.
 		switch xt {
 		case UntypedBoolType:
