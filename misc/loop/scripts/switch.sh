@@ -21,7 +21,7 @@ TX_ARCHIVE_CMD=${TX_ARCHIVE_CMD:-"tx-archive"}
 CONTAINER_NAME="gno-${NOW}"
 
 # Set the current portal loop in READ-ONLY mode
-sed -E 's/middlewares: \[.*\]/middlewares: []/' ./traefik/gno.yml
+sed -i -E 's/middlewares: \[.*\]/middlewares: []/' /etc/traefik/configs/gno.yml
 
 # Get latest version of gno
 docker pull ghcr.io/gnolang/gno
