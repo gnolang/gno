@@ -32,13 +32,13 @@ var registry = []pair{}
 func Register(name string, cb transferCb) { registry = append(registry, pair{name: name, cb: cb}) }
 func TransferByName(name string, to string, amount uint64) string {
 	for _, pair := range registry {
-		if pair.name ==  name {
-			if std.CurrentRealm().Addr().String() == pair.cb(std.Address(to), amount) {
-				return "same address, success!"
-			} else {
-				return "invalid address, ownership issue :("
-			}
+		if pair.name != name {
+			continue
 		}
+		if std.CurrentRealm().Addr().String() != pair.cb(std.Address(to), amount) {
+			return "invalid address, ownership issue :("
+		}
+		return "same address, success!"
 	}
 	return "not found"
 }
