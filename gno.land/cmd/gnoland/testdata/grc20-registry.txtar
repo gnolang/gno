@@ -1,4 +1,4 @@
-# test for add package
+# example for contract-contract interation with ownership
 
 ## start a new node
 gnoland start
