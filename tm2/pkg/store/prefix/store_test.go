@@ -88,6 +88,8 @@ func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
 }
 
 func TestIAVLStorePrefix(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	tree := tiavl.NewMutableTree(db, cacheSize)
 	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
@@ -101,6 +103,8 @@ func TestIAVLStorePrefix(t *testing.T) {
 }
 
 func TestPrefixStoreNoNilSet(t *testing.T) {
+	t.Parallel()
+
 	meter := types.NewGasMeter(100000000)
 	mem := dbadapter.Store{dbm.NewMemDB()}
 	gasStore := gas.New(mem, meter, types.DefaultGasConfig())
@@ -108,6 +112,8 @@ func TestPrefixStoreNoNilSet(t *testing.T) {
 }
 
 func TestPrefixStoreIterate(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	baseStore := dbadapter.Store{db}
 	prefix := []byte("test")
@@ -135,6 +141,8 @@ func incFirstByte(bz []byte) {
 }
 
 func TestCloneAppend(t *testing.T) {
+	t.Parallel()
+
 	kvps := genRandomKVPairs()
 	for _, kvp := range kvps {
 		bz := cloneAppend(kvp.key, kvp.value)
@@ -154,6 +162,8 @@ func TestCloneAppend(t *testing.T) {
 }
 
 func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	baseStore := dbadapter.Store{db}
 
@@ -184,6 +194,8 @@ func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
 }
 
 func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	baseStore := dbadapter.Store{db}
 
@@ -323,6 +335,8 @@ func checkNextPanics(t *testing.T, itr types.Iterator) {
 }
 
 func TestPrefixDBSimple(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -341,6 +355,8 @@ func TestPrefixDBSimple(t *testing.T) {
 }
 
 func TestPrefixDBIterator1(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -359,6 +375,8 @@ func TestPrefixDBIterator1(t *testing.T) {
 }
 
 func TestPrefixDBIterator2(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -369,6 +387,8 @@ func TestPrefixDBIterator2(t *testing.T) {
 }
 
 func TestPrefixDBIterator3(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -387,6 +407,8 @@ func TestPrefixDBIterator3(t *testing.T) {
 }
 
 func TestPrefixDBIterator4(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -397,6 +419,8 @@ func TestPrefixDBIterator4(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator1(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -415,6 +439,8 @@ func TestPrefixDBReverseIterator1(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator2(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -433,6 +459,8 @@ func TestPrefixDBReverseIterator2(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator3(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 
@@ -443,6 +471,8 @@ func TestPrefixDBReverseIterator3(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator4(t *testing.T) {
+	t.Parallel()
+
 	store := mockStoreWithStuff()
 	pstore := New(store, bz("key"))
 

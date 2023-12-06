@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 )
 
 func (m *Machine) doOpEval() {
@@ -160,8 +160,7 @@ func (m *Machine) doOpEval() {
 					panic(fmt.Sprintf("error computing exponent: %v", err))
 				}
 				// Step 3 make Decimal from mantissa and exp.
-				var dValue *big.Int
-				dValue = new(big.Int)
+				dValue := new(apd.BigInt)
 				_, ok := dValue.SetString(hexString, 16)
 				if !ok {
 					panic(fmt.Sprintf("can't convert %s to decimal", value))

@@ -24,7 +24,7 @@ type balancesRemoveCfg struct {
 }
 
 // newBalancesRemoveCmd creates the genesis balances remove subcommand
-func newBalancesRemoveCmd(rootCfg *balancesCfg, io *commands.IO) *commands.Command {
+func newBalancesRemoveCmd(rootCfg *balancesCfg, io commands.IO) *commands.Command {
 	cfg := &balancesRemoveCfg{
 		rootCfg: rootCfg,
 	}
@@ -51,7 +51,7 @@ func (c *balancesRemoveCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBalancesRemove(cfg *balancesRemoveCfg, io *commands.IO) error {
+func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {
@@ -71,7 +71,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io *commands.IO) error {
 
 	// Construct the initial genesis balance sheet
 	state := genesis.AppState.(gnoland.GnoGenesisState)
-	genesisBalances, err := extractGenesisBalances(state)
+	genesisBalances, err := mapGenesisBalancesFromState(state)
 	if err != nil {
 		return err
 	}

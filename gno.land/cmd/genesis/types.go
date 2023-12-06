@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -39,23 +38,14 @@ func (i *txStore) leftMerge(b txStore) error {
 	return nil
 }
 
-type (
-	accountBalances map[types.Address]int64 // address -> balance (ugnot)
-	accountBalance  struct {
-		address types.Address
-		amount  int64
-	}
-)
+type accountBalances map[types.Address]gnoland.Balance // address -> balance (ugnot)
 
 // toList linearizes the account balances map
-func (a accountBalances) toList() []string {
-	balances := make([]string, 0, len(a))
+func (a accountBalances) toList() []gnoland.Balance {
+	balances := make([]gnoland.Balance, 0, len(a))
 
-	for address, balance := range a {
-		balances = append(
-			balances,
-			fmt.Sprintf("%s=%dugnot", address, balance),
-		)
+	for _, balance := range a {
+		balances = append(balances, balance)
 	}
 
 	return balances

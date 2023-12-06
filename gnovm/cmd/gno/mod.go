@@ -4,8 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -17,7 +21,7 @@ type modDownloadCfg struct {
 	verbose bool
 }
 
-func newModCmd(io *commands.IO) *commands.Command {
+func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
@@ -31,12 +35,13 @@ func newModCmd(io *commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
 		newModInitCmd(),
+		newModTidy(io),
 	)
 
 	return cmd
 }
 
-func newModDownloadCmd(io *commands.IO) *commands.Command {
+func newModDownloadCmd(io commands.IO) *commands.Command {
 	cfg := &modDownloadCfg{}
 
 	return commands.NewCommand(
@@ -66,6 +71,20 @@ func newModInitCmd() *commands.Command {
 	)
 }
 
+func newModTidy(io commands.IO) *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "tidy",
+			ShortUsage: "tidy",
+			ShortHelp:  "Add missing and remove unused modules",
+		},
+		commands.NewEmptyConfig(),
+		func(_ context.Context, args []string) error {
+			return execModTidy(args, io)
+		},
+	)
+}
+
 func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
@@ -82,7 +101,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execModDownload(cfg *modDownloadCfg, args []string, io *commands.IO) error {
+func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -151,4 +170,90 @@ func execModInit(args []string) error {
 	}
 
 	return nil
+}
+
+func execModTidy(args []string, io commands.IO) error {
+	if len(args) > 0 {
+		return flag.ErrHelp
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	fname := filepath.Join(wd, "gno.mod")
+	gm, err := gnomod.ParseGnoMod(fname)
+	if err != nil {
+		return err
+	}
+
+	// Drop all existing requires
+	for _, r := range gm.Require {
+		gm.DropRequire(r.Mod.Path)
+	}
+
+	imports, err := getGnoImports(wd)
+	if err != nil {
+		return err
+	}
+	for _, im := range imports {
+		// skip if importpath is modulepath
+		if im == gm.Module.Mod.Path {
+			continue
+		}
+		gm.AddRequire(im, "v0.0.0-latest")
+	}
+
+	gm.Write(fname)
+	return nil
+}
+
+// getGnoImports returns the list of gno imports from a given path.
+// Note: It ignores subdirs. Since right now we are still deciding on
+// how to handle subdirs.
+// See:
+// - https://github.com/gnolang/gno/issues/1024
+// - https://github.com/gnolang/gno/issues/852
+//
+// TODO: move this to better location.
+func getGnoImports(path string) ([]string, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	allImports := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, e := range entries {
+		filename := e.Name()
+		if ext := filepath.Ext(filename); ext != ".gno" {
+			continue
+		}
+		if strings.HasSuffix(filename, "_filetest.gno") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(path, filename))
+		if err != nil {
+			return nil, err
+		}
+		fs := token.NewFileSet()
+		f, err := parser.ParseFile(fs, filename, data, parser.ImportsOnly)
+		if err != nil {
+			return nil, err
+		}
+		for _, imp := range f.Imports {
+			importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+			if !strings.HasPrefix(importPath, "gno.land/") {
+				continue
+			}
+			if _, ok := seen[importPath]; ok {
+				continue
+			}
+			allImports = append(allImports, importPath)
+			seen[importPath] = struct{}{}
+		}
+	}
+	sort.Strings(allImports)
+
+	return allImports, nil
 }

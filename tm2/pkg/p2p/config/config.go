@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // P2PConfig
 
 const (
@@ -15,8 +15,6 @@ const (
 	// FuzzModeDelay is a mode in which we randomly sleep
 	FuzzModeDelay
 )
-
-var defaultConfigDir = "config" // duplicate across module configs?
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {

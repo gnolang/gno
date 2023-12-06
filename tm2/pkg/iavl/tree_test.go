@@ -51,6 +51,8 @@ func getTestDB() (db.DB, func()) {
 }
 
 func TestVersionedRandomTree(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	d, closeDB := getTestDB()
@@ -105,6 +107,8 @@ func TestVersionedRandomTree(t *testing.T) {
 }
 
 func TestVersionedRandomTreeSmallKeys(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d, closeDB := getTestDB()
 	defer closeDB()
@@ -146,6 +150,8 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 }
 
 func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d, closeDB := getTestDB()
 	defer closeDB()
@@ -187,6 +193,8 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 }
 
 func TestVersionedTreeSpecial1(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
 	tree.Set([]byte("C"), []byte("so43QQFN"))
@@ -209,6 +217,8 @@ func TestVersionedTreeSpecial1(t *testing.T) {
 }
 
 func TestVersionedRandomTreeSpecial2(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
@@ -225,6 +235,8 @@ func TestVersionedRandomTreeSpecial2(t *testing.T) {
 }
 
 func TestVersionedEmptyTree(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d, closeDB := getTestDB()
 	defer closeDB()
@@ -281,6 +293,8 @@ func TestVersionedEmptyTree(t *testing.T) {
 }
 
 func TestVersionedTree(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d, closeDB := getTestDB()
 	defer closeDB()
@@ -468,6 +482,8 @@ func TestVersionedTree(t *testing.T) {
 }
 
 func TestVersionedTreeVersionDeletingEfficiency(t *testing.T) {
+	t.Parallel()
+
 	d, closeDB := getTestDB()
 	defer closeDB()
 
@@ -512,6 +528,8 @@ func TestVersionedTreeVersionDeletingEfficiency(t *testing.T) {
 }
 
 func TestVersionedTreeOrphanDeleting(t *testing.T) {
+	t.Parallel()
+
 	mdb := db.NewMemDB()
 	tree := NewMutableTree(mdb, 0)
 
@@ -550,6 +568,8 @@ func TestVersionedTreeOrphanDeleting(t *testing.T) {
 }
 
 func TestVersionedTreeSpecialCase(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
@@ -571,6 +591,8 @@ func TestVersionedTreeSpecialCase(t *testing.T) {
 }
 
 func TestVersionedTreeSpecialCase2(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d := db.NewMemDB()
 
@@ -598,6 +620,8 @@ func TestVersionedTreeSpecialCase2(t *testing.T) {
 }
 
 func TestVersionedTreeSpecialCase3(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
@@ -626,6 +650,8 @@ func TestVersionedTreeSpecialCase3(t *testing.T) {
 }
 
 func TestVersionedTreeSaveAndLoad(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d := db.NewMemDB()
 	tree := NewMutableTree(d, 0)
@@ -677,6 +703,8 @@ func TestVersionedTreeSaveAndLoad(t *testing.T) {
 }
 
 func TestVersionedTreeErrors(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
@@ -706,6 +734,8 @@ func TestVersionedTreeErrors(t *testing.T) {
 }
 
 func TestVersionedCheckpoints(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	d, closeDB := getTestDB()
 	defer closeDB()
@@ -762,6 +792,8 @@ func TestVersionedCheckpoints(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	key := []byte("k")
@@ -788,6 +820,8 @@ func TestVersionedCheckpointsSpecialCase(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase2(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
 	tree.Set([]byte("U"), []byte("XamDUtiJ"))
@@ -808,6 +842,8 @@ func TestVersionedCheckpointsSpecialCase2(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase3(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
 	tree.Set([]byte("n"), []byte("2wUCUs8q"))
@@ -828,6 +864,8 @@ func TestVersionedCheckpointsSpecialCase3(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase4(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
 	tree.Set([]byte("U"), []byte("XamDUtiJ"))
@@ -860,6 +898,8 @@ func TestVersionedCheckpointsSpecialCase4(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase5(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
 	tree.Set([]byte("R"), []byte("ygZlIzeW"))
@@ -877,6 +917,8 @@ func TestVersionedCheckpointsSpecialCase5(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase6(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
 	tree.Set([]byte("Y"), []byte("MW79JQeV"))
@@ -909,6 +951,8 @@ func TestVersionedCheckpointsSpecialCase6(t *testing.T) {
 }
 
 func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 100)
 
 	tree.Set([]byte("n"), []byte("OtqD3nyn"))
@@ -942,6 +986,8 @@ func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
 }
 
 func TestVersionedTreeEfficiency(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	versions := 20
@@ -977,6 +1023,8 @@ func TestVersionedTreeEfficiency(t *testing.T) {
 }
 
 func TestVersionedTreeProofs(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
@@ -1047,6 +1095,8 @@ func TestVersionedTreeProofs(t *testing.T) {
 }
 
 func TestOrphans(t *testing.T) {
+	t.Parallel()
+
 	// If you create a sequence of saved versions
 	// Then randomly delete versions other than the first and last until only those two remain
 	// Any remaining orphan nodes should be constrained to just the first version
@@ -1079,6 +1129,8 @@ func TestOrphans(t *testing.T) {
 }
 
 func TestVersionedTreeHash(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
@@ -1101,6 +1153,8 @@ func TestVersionedTreeHash(t *testing.T) {
 }
 
 func TestNilValueSemantics(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 	tree := NewMutableTree(db.NewMemDB(), 0)
 
@@ -1110,6 +1164,8 @@ func TestNilValueSemantics(t *testing.T) {
 }
 
 func TestCopyValueSemantics(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	tree := NewMutableTree(db.NewMemDB(), 0)
@@ -1127,6 +1183,8 @@ func TestCopyValueSemantics(t *testing.T) {
 }
 
 func TestRollback(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	tree := NewMutableTree(db.NewMemDB(), 0)
@@ -1156,6 +1214,8 @@ func TestRollback(t *testing.T) {
 }
 
 func TestLazyLoadVersion(t *testing.T) {
+	t.Parallel()
+
 	mdb := db.NewMemDB()
 	tree := NewMutableTree(mdb, 0)
 	maxVersions := 10
@@ -1194,6 +1254,8 @@ func TestLazyLoadVersion(t *testing.T) {
 }
 
 func TestOverwrite(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	mdb := db.NewMemDB()
@@ -1226,6 +1288,8 @@ func TestOverwrite(t *testing.T) {
 }
 
 func TestLoadVersionForOverwriting(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	mdb := db.NewMemDB()
@@ -1290,7 +1354,7 @@ func TestLoadVersionForOverwriting(t *testing.T) {
 	require.NoError(err, "SaveVersion should not fail.")
 }
 
-//////////////////////////// BENCHMARKS ///////////////////////////////////////
+// ----------- BENCHMARKS // -----------
 
 func BenchmarkTreeLoadAndDelete(b *testing.B) {
 	if testing.Short() {

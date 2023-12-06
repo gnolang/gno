@@ -263,8 +263,9 @@ func (v RefValue) String() string {
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
 	if tv == nil || tv.T == nil {
-		return "undefined"
+		return undefinedStr
 	}
+
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
@@ -291,8 +292,10 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 
 	// This is a special case that became necessary after adding `ProtectedString()` methods to
 	// reliably prevent recursive print loops.
-	if v, ok := tv.V.(RefValue); ok {
-		return v.String()
+	if tv.V != nil {
+		if v, ok := tv.V.(RefValue); ok {
+			return v.String()
+		}
 	}
 
 	// otherwise, default behavior.
@@ -339,22 +342,12 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return "invalid-pointer"
 		}
 		return tv.V.(PointerValue).ProtectedString(seen)
-	case *ArrayType:
-		return tv.V.(*ArrayValue).ProtectedString(seen)
-	case *SliceType:
-		return tv.V.(*SliceValue).ProtectedString(seen)
-	case *StructType:
-		return tv.V.(*StructValue).ProtectedString(seen)
-	case *MapType:
-		return tv.V.(*MapValue).ProtectedString(seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-			return "nil " + ft
-		case *FuncValue:
-			return fv.String()
-		case *BoundMethodValue:
+			return nilStr + " " + ft
+		case *FuncValue, *BoundMethodValue:
 			return fv.String()
 		default:
 			panic(fmt.Sprintf(
@@ -368,24 +361,36 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			}
 		}
 		return nilStr
-	case *TypeType:
-		return tv.V.(TypeValue).String()
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
 		return tv.V.(*PackageValue).String()
 	case *ChanType:
 		panic("not yet implemented")
-		// return tv.V.(*ChanValue).String()
-	case *NativeType:
-		return tv.V.(*NativeValue).String()
 	default:
-		if debug {
-			panic(fmt.Sprintf(
-				"unexpected type %s",
-				tv.T.String()))
-		} else {
-			panic("should not happen")
+		if tv.V == nil {
+			return nilStr + " " + tv.T.String()
+		}
+
+		switch bt.(type) {
+		case *ArrayType:
+			return tv.V.(*ArrayValue).ProtectedString(seen)
+		case *SliceType:
+			return tv.V.(*SliceValue).ProtectedString(seen)
+		case *StructType:
+			return tv.V.(*StructValue).ProtectedString(seen)
+		case *MapType:
+			return tv.V.(*MapValue).ProtectedString(seen)
+		case *NativeType:
+			return tv.V.(*NativeValue).String()
+		default:
+			if debug {
+				panic(fmt.Sprintf(
+					"unexpected type %s",
+					tv.T.String()))
+			} else {
+				panic("should not happen")
+			}
 		}
 	}
 }

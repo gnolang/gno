@@ -22,6 +22,8 @@ func ensureFiles(t *testing.T, rootDir string, files ...string) {
 }
 
 func TestEnsureRoot(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	// setup temp dir for test
@@ -46,6 +48,8 @@ func TestEnsureRoot(t *testing.T) {
 }
 
 func TestEnsureTestRoot(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	testName := "ensureTestRoot"

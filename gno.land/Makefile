@@ -18,6 +18,9 @@ build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 build.gnotxsync:;  go build -o build/gnotxsync  ./cmd/gnotxsync
 build.genesis:;  go build -o build/genesis  ./cmd/genesis
 
+run.gnoland:;  go run ./cmd/gnoland start
+run.gnoweb:;  go run ./cmd/gnoweb
+
 .PHONY: install
 install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync install.genesis
 
@@ -48,9 +51,7 @@ fmt:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.gnoland _test.gnokey _test.pkgs
-# XXX: _test.gnoweb is currently disabled. If fixed, re-enable here and in CI.
-# https://github.com/gnolang/gno/issues/1222
+test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
