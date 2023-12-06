@@ -216,7 +216,7 @@ gnokey maketx call \
 | `args`    | String | An argument of the function being called. Can be used multiple times in a single `call` command to accommodate possible multiple function arguments. |
 
 :::info
-As of December 2023, only primitive types are supported as `-args` parameters.
+Currently, only primitive types are supported as `-args` parameters.
 A workaround for this currently is to pass arguments as a delimited string, and parse them within the Realm.
 :::
 
