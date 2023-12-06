@@ -236,15 +236,21 @@ a[href="#"] {
 
 ul {
   padding: 0;
+  list-style: none;
+}
+
+ul > li > ul {
+    padding-left: 1rem;
+    list-style: circle inside;
 }
 
 li {
-  list-style: none;
   margin-bottom: 0.4rem;
 }
 
 li > * {
   vertical-align: middle;
+  margin: 0;
 }
 
 input {
