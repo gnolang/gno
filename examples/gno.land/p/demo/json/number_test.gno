@@ -1,8 +1,6 @@
 package json
 
 import (
-	"encoding/binary"
-	"math"
 	"testing"
 )
 
