@@ -383,6 +383,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return tv.V.(*MapValue).ProtectedString(seen)
 		case *NativeType:
 			return tv.V.(*NativeValue).String()
+		case *TypeType:
+			return tv.V.(TypeValue).String()
 		default:
 			if debug {
 				panic(fmt.Sprintf(
