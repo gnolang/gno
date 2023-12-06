@@ -23,10 +23,12 @@ The `snapshotter` container will exec the script [switch.sh](./scripts/switch.sh
 
 This script is doing:
 
-- Pull the new docker image [ghcr.io/gnolang/gno]
+- Setup the current portal-loop in read only mode
+- Pull the latest version of [ghcr.io/gnolang/gno]()
 - Backup the txs using [gnolang/tx-archive](https://github.com/gnolang/tx-archive)
 - Start a new docker container with the backups files
 - Changing the proxy (traefik) to redirect to the new portal loop
+- Unlock read only mode
 - Stop the previous loop
 
 ### Makefile helper
