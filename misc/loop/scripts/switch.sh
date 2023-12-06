@@ -65,13 +65,17 @@ echo "New instance is running on: localhost:${RPC_PORT}"
 curl -s --retry 10 --retry-delay 5 --retry-all-errors -o /dev/null "localhost:${RPC_PORT}/status"
 
 
-# NOTE: Could be good to wait 5 blocks
+# Wait 5 blocks
+while [ "$(curl -s localhost:${RPC_PORT}/status | jq -r '.result.sync_info.latest_block_height')" -le 5 ]
+do
+    sleep 1
+done
+
 
 # Update traefik url
 sed -i -E "s#localhost:[0-9]+#localhost:${RPC_PORT}#"  /etc/traefik/configs/gno.yml
 
-
-sed -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' ./traefik/gno.yml
+sed -i -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' /etc/traefik/configs/gno.yml
 
 # Delete previous container
 docker rm -f $(docker ps --format json --filter "label=the-portal-loop" | jq -r '.ID' | tail -n +2)
