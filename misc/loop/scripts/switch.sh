@@ -80,4 +80,4 @@ sed -i -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' /etc/traefik/con
 # Delete previous container
 docker rm -f $(docker ps --format json --filter "label=the-portal-loop" | jq -r '.ID' | tail -n +2)
 
-docker volume prune -f
+docker volume prune --all --force
