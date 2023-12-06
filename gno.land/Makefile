@@ -18,6 +18,9 @@ build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 build.gnotxsync:;  go build -o build/gnotxsync  ./cmd/gnotxsync
 build.genesis:;  go build -o build/genesis  ./cmd/genesis
 
+run.gnoland:;  go run ./cmd/gnoland start
+run.gnoweb:;  go run ./cmd/gnoweb
+
 .PHONY: install
 install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync install.genesis
 

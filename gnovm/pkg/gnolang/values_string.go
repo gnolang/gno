@@ -164,8 +164,9 @@ func (v RefValue) String() string {
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
 	if tv == nil || tv.T == nil {
-		return "undefined"
+		return undefinedStr
 	}
+
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
@@ -180,6 +181,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	if _, ok := tv.T.(*DeclaredType); ok {
 		return tv.String()
 	}
+
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
@@ -224,22 +226,14 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			return "invalid-pointer"
 		}
 		return tv.V.(PointerValue).String()
-	case *ArrayType:
-		return tv.V.(*ArrayValue).String()
-	case *SliceType:
-		return tv.V.(*SliceValue).String()
-	case *StructType:
-		return tv.V.(*StructValue).String()
-	case *MapType:
-		return tv.V.(*MapValue).String()
+	case *ArrayType, *SliceType, *StructType, *MapType, *TypeType, *NativeType:
+		return printNilOrValue(tv, tv.V)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-			return "nil " + ft
-		case *FuncValue:
-			return fv.String()
-		case *BoundMethodValue:
+			return nilStr + " " + ft
+		case *FuncValue, *BoundMethodValue:
 			return fv.String()
 		default:
 			panic(fmt.Sprintf(
@@ -253,8 +247,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			}
 		}
 		return nilStr
-	case *TypeType:
-		return tv.V.(TypeValue).String()
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
@@ -262,9 +254,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	case *ChanType:
 		panic("not yet implemented")
 		// return tv.V.(*ChanValue).String()
-	case *NativeType:
-		return fmt.Sprintf("%v",
-			tv.V.(*NativeValue).Value.Interface())
 	default:
 		if debug {
 			panic(fmt.Sprintf(
@@ -274,6 +263,13 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			panic("should not happen")
 		}
 	}
+}
+
+func printNilOrValue(tv *TypedValue, valueType interface{}) string {
+	if tv.V == nil {
+		return nilStr + " " + tv.T.String()
+	}
+	return fmt.Sprintf("%v", valueType)
 }
 
 // ----------------------------------------
