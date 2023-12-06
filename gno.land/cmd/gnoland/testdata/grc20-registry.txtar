@@ -24,7 +24,10 @@ package registry
 import "std"
 
 type transferCb func(to std.Address, amount uint64) string
-type pair struct {name string; cb transferCb}
+type pair struct {
+	name string
+	cb   transferCb
+}
 var registry = []pair{}
 func Register(name string, cb transferCb) { registry = append(registry, pair{name: name, cb: cb}) }
 func TransferByName(name string, to string, amount uint64) string {
