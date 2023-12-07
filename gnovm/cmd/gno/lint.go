@@ -98,7 +98,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			targetPath := pkgPath
 			info, err := os.Stat(pkgPath)
-			if err != nil && !info.IsDir() {
+			if err == nil && !info.IsDir() {
 				targetPath = filepath.Dir(pkgPath)
 			}
 

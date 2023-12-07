@@ -13,7 +13,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -66,21 +65,40 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 		if !info.IsDir() {
 			paths = append(paths, arg)
 		} else {
-			absdir, err := filepath.Abs(arg)
-			if err != nil {
-				return nil, fmt.Errorf("unable to get absolute path of %q: %w", arg, err)
-			}
+			// if the passed arg is a dir, then we'll recursively walk the dir
+			// and look for directories containing at least one .gno file.
 
-			pkglist, err := gnomod.ListPkgs(absdir)
-			if err != nil {
-				return nil, fmt.Errorf("unable to list packages of %q: %w", absdir, err)
-			}
-
-			for _, pkg := range pkglist {
-				// Skip empty and draft pkgs
-				if !pkg.Draft && pkg.Name != "" {
-					paths = append(paths, pkg.Dir)
+			visited := map[string]bool{} // used to run the builder only once per folder.
+			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
+				if err != nil {
+					return fmt.Errorf("%s: walk dir: %w", arg, err)
 				}
+				if f.IsDir() {
+					return nil // skip
+				}
+				if !isGnoFile(f) {
+					return nil // skip
+				}
+
+				parentDir := filepath.Dir(curpath)
+				if _, found := visited[parentDir]; found {
+					return nil
+				}
+				visited[parentDir] = true
+
+				pkg := parentDir
+				if !filepath.IsAbs(parentDir) {
+					// cannot use path.Join or filepath.Join, because we need
+					// to ensure that ./ is the prefix to pass to go build.
+					// if not absolute.
+					pkg = "./" + parentDir
+				}
+
+				paths = append(paths, pkg)
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
