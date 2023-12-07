@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -95,7 +96,13 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				tests.ImportModeStdlibsOnly,
 			)
 
-			memPkg := gno.ReadMemPackage(filepath.Dir(pkgPath), pkgPath)
+			targetPath := pkgPath
+			info, err := os.Stat(pkgPath)
+			if err != nil && !info.IsDir() {
+				targetPath = filepath.Dir(pkgPath)
+			}
+
+			memPkg := gno.ReadMemPackage(targetPath, targetPath)
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
 
 			// Check package
@@ -113,7 +120,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					continue // Skip empty files
 				}
 
-				if strings.HasSuffix(mfile.Name, "_test.gno") {
+				// XXX: package ending with `_test` is not supported yet
+				if strings.HasSuffix(mfile.Name, "_test.gno") && !strings.HasSuffix(string(n.PkgName), "_test") {
 					// Keep only test files
 					testfiles.AddFiles(n)
 				}
@@ -148,23 +156,29 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 			err = verr.Unwrap()
 		case error:
 			err = verr
+		case string:
+			err = errors.New(verr)
 		default:
 			panic(r)
 		}
 
+		var issue lintIssue
+		issue.Confidence = 1
+		issue.Code = lintGnoError
+
 		parsedError := strings.TrimSpace(err.Error())
 		parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+
 		matches := reParseRecover.FindStringSubmatch(parsedError)
-		if len(matches) == 0 {
-			return
+		if len(matches) == 4 {
+			issue.Location = fmt.Sprintf("%s:%s", matches[1], matches[2])
+			issue.Msg = strings.TrimSpace(matches[3])
+		} else {
+			issue.Location = fmt.Sprintf("%s:0", parsedError)
+			issue.Msg = err.Error()
 		}
 
-		addIssue(lintIssue{
-			Code:       lintGnoError,
-			Confidence: 1,
-			Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
-			Msg:        strings.TrimSpace(matches[3]),
-		})
+		addIssue(issue)
 	}()
 
 	action()
