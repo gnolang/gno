@@ -38,24 +38,24 @@ var encodeTests = []encodeTest{
 }
 
 func slicesEqual(a, b []uint16) bool {
-    if len(a) != len(b) {
-        return false
-    }
-    for i, v := range a {
-        if v != b[i] {
-            return false
-        }
-    }
-    return true
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestEncode(t *testing.T) {
-    for _, tt := range encodeTests {
-        out := Encode(tt.in)
-        if !slicesEqual(out, tt.out) {
-            t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
-        }
-    }
+	for _, tt := range encodeTests {
+		out := Encode(tt.in)
+		if !slicesEqual(out, tt.out) {
+			t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
+		}
+	}
 }
 
 func TestEncodeRune(t *testing.T) {
@@ -108,7 +108,6 @@ var decodeTests = []decodeTest{
 	{[]uint16{0xdfff}, []rune{0xfffd}},
 }
 
-
 func TestDecode(t *testing.T) {
 	for _, tt := range decodeTests {
 		out := Decode(tt.in)
@@ -119,15 +118,15 @@ func TestDecode(t *testing.T) {
 }
 
 func runesEqual(a, b []rune) bool {
-    if len(a) != len(b) {
-        return false
-    }
-    for i, v := range a {
-        if v != b[i] {
-            return false
-        }
-    }
-    return true
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 var decodeRuneTests = []struct {
