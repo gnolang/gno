@@ -277,6 +277,7 @@ const (
 	IsConstType = IsBoolean | IsNumeric | IsString
 )
 
+// this is more convenient than compare with types
 func (pt PrimitiveType) Predicate() predicate {
 	switch pt {
 	case InvalidType:
@@ -387,49 +388,6 @@ func isNumericOrString(t Type) bool {
 			return true
 		}
 		return false
-	default:
-		return false
-	}
-}
-
-//func isNumeric(t Type) bool {
-//	switch t := baseOf(t).(type) {
-//	case PrimitiveType:
-//		switch t {
-//		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, Float32Type, Float64Type, UntypedBigintType, BigintType, UntypedBigdecType, BigdecType:
-//			return true
-//		default:
-//			return false
-//		}
-//	default:
-//		return false
-//	}
-//}
-
-//// only for / and % /= %=, no support for float
-//func isIntNumber(t Type) bool {
-//	switch t := baseOf(t).(type) {
-//	case PrimitiveType:
-//		switch t {
-//		case IntType, Int8Type, Int16Type, Int32Type, Int64Type, UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, UntypedBigintType, BigintType:
-//			return true
-//		default:
-//			return false
-//		}
-//	default:
-//		return false
-//	}
-//}
-
-func isTypedString(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case UntypedStringType, StringType:
-			return true
-		default:
-			return false
-		}
 	default:
 		return false
 	}
@@ -2288,9 +2246,11 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// TODO: change to only check typed
-func isSameTypes(lt, rt Type) bool {
-	debugPP.Printf("check isSameTypes, lt: %v, rt: %v \n", lt, rt)
+// check with untyped excluded, it's used by checkOp and op_binary
+// both typed(original typed, or be typed in runtime), or one is nil, or data byte
+// only for comparable types
+func isComparableIdentical(lt, rt Type) bool {
+	debugPP.Printf("check isComparableIdentical, lt: %v, rt: %v \n", lt, rt)
 	debugPP.Println("is lt data byte: ", isDataByte(lt))
 	debugPP.Println("is rt data byte: ", isDataByte(rt))
 
@@ -2382,7 +2342,7 @@ func comparable(t Type) (bool, string) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // TODO: nativeType?
 			return true, ""
 		default:
-			return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
+			return false, fmt.Sprintf("%v cannot be compared \n", ct)
 		}
 	case *StructType:
 		for _, f := range ct.Fields {
@@ -2390,7 +2350,7 @@ func comparable(t Type) (bool, string) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
 				return true, ""
 			default:
-				return false, fmt.Sprintf("%v cannot be compared \n", ct.Elem())
+				return false, fmt.Sprintf("%v cannot be compared \n", ct)
 			}
 		}
 		return true, ""
@@ -2673,23 +2633,23 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := checkType(pt.Elt, cdt.Elt, ILLEGAL, false)
+			cdt := checkTypeConvertable(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := checkType(at.Elt, cdt.Elt, ILLEGAL, false)
+			cdt := checkTypeConvertable(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := checkType(st.Elt, cdt.Elt, ILLEGAL, false)
+			cdt := checkTypeConvertable(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := checkType(mt.Key, cdt.Key, ILLEGAL, false)
-			cn2 := checkType(mt.Value, cdt.Value, ILLEGAL, false)
+			cn1 := checkTypeConvertable(mt.Key, cdt.Key, false)
+			cn2 := checkTypeConvertable(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -2749,12 +2709,12 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 // NOTE: if both a typed, but not in the rule of declared type, no conversion. just check if they match.
 
 // 2. if one of LHS or RHS is constExpr(typed or untyped), it would be converted to the type of its
-// corresponding side(using checkOrConvertType, iff it's convertable, using checkType), e.g. int-> int8, int-> (type Error int),
+// corresponding side(using checkOrConvertType, iff it's convertable, using checkTypeConvertable), e.g. int-> int8, int-> (type Error int),
 // 3. if both LHS and RHS are not const, assertTypeMatchStrict
 
-// 4. Operators. need one place in asset* or checkType, to switch operators
+// 4. Operators. need one place in asset* or checkTypeConvertable, to switch operators
 
-// TODO: merge this with checkType
+// TODO: merge this with checkTypeConvertable
 //func assertTypeMatchStrict(lt, rt Type, op Word) {
 //	if lt == nil && rt == nil {
 //		println("1")
@@ -3037,7 +2997,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), ILLEGAL, false)
+					checkTypeConvertable(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -3051,7 +3011,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, ILLEGAL, false)
+					checkTypeConvertable(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {

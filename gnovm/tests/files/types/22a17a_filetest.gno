@@ -8,8 +8,7 @@ func Add(a, b Int) Int {
 
 // No binaryExpr or unaryExpr, no op related, still need checkType
 func main() {
-	r := Add(0, int8(1))
-	println(r)
+	println(Add(0, int8(1)))
 }
 
 // Error:

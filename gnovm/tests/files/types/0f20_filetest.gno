@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// interface conversion: gnolang.Value is nil, not *gnolang.ArrayValue
+// main/files/types/0f20_filetest.gno:10: [2]main.f cannot be compared
