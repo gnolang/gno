@@ -91,17 +91,18 @@ func newModWhy(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "why",
 			ShortUsage: "why <package> [<package>...]",
-			ShortHelp:  "Explain why modules are needed",
-			LongHelp: `Explain why modules are needed.
+			ShortHelp:  "Explains why modules are needed",
+			LongHelp: `Explains why modules are needed.
 
-Why shows a list of files imports specified packages or modules, explains 
-why is this package or module being kept by gno mod tidy.
+gno mod why shows a list of files where specified packages or modules are
+being used, explaining why those specified packages or modules are being
+kept by gno mod tidy.
 
-The output is a sequence of stanzas, one for each module name on the 
-command line, separated by blank lines. Each stanza begins
-with a comment line "# module" giving the target module. Subsequent lines 
-show files that imports the module, one filename per line. 
-If the package or module is not being used/needed/imported, the stanza 
+The output is a sequence of stanzas, one for each module/package name
+specified, separated by blank lines. Each stanza begins with a
+comment line "# module" giving the target module/package. Subsequent lines
+show files that import the specified module/package, one filename per line.
+If the package or module is not being used/needed/imported, the stanza
 will display a single parenthesized note indicating that fact.
 
 For example:
@@ -303,7 +304,7 @@ func execModWhy(args []string, io commands.IO) error {
 	return nil
 }
 
-// getGnoModuleImports returns the list of gno imports from a given path.
+// getGnoPackageImports returns the list of gno imports from a given path.
 // Note: It ignores subdirs. Since right now we are still deciding on
 // how to handle subdirs.
 // See:
