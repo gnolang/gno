@@ -2608,9 +2608,10 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 			case ADD, ADD_ASSIGN, SUB, SUB_ASSIGN, MUL, MUL_ASSIGN, QUO, QUO_ASSIGN, REM, REM_ASSIGN:
 				// if both typed
 				if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
-					if !isComparableIdentical(xt, dt) {
+					if !isArithTypeIdentical(xt, dt) {
 						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
 					}
+					debugPP.Println("typed and identical as comparable")
 				}
 			case SHL, SHR:
 			// TODO: right should be numeric

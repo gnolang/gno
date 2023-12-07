@@ -2261,8 +2261,8 @@ func assertSameTypes(lt, rt Type) {
 // check with untyped excluded, it's used by checkOp and op_binary
 // both typed(original typed, or be typed in runtime), or one is nil, or data byte
 // only for comparable types
-func isComparableIdentical(lt, rt Type) bool {
-	debugPP.Printf("check isComparableIdentical, lt: %v, rt: %v \n", lt, rt)
+func isArithTypeIdentical(lt, rt Type) bool {
+	debugPP.Printf("check isArithTypeIdentical, lt: %v, rt: %v \n", lt, rt)
 	debugPP.Println("is lt data byte: ", isDataByte(lt))
 	debugPP.Println("is rt data byte: ", isDataByte(rt))
 
@@ -2878,6 +2878,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
+// TODO: empty interface? refer to assignable
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:

@@ -1,6 +1,38 @@
 Context:
 
+    1. regular type mix check missing 
+
+    `package main
+    // both typed(different) const
+    func main() {
+    println(int(1) == int8(1))
+    }
+
+    // Error:
+    // main/files/types/0a0_filetest.gno:5: invalid operation: mismatched types int8 and int
+    `
+
+    this is for arith and comparable operators
+
+    specical case: bigInt to gonative time.Month. skipped
+    
     mix of numeric types
+
+
+    2. regular opertors check missing
+
+        binary 
+            comparable
+            arith
+
+        unary
+
+        inc
+
+    2. unamed to named conversion missed
+
+    
+
 
     comparable
 
