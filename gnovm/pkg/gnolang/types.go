@@ -2231,7 +2231,7 @@ func KindOf(t Type) Kind {
 
 // TODO: document what class of problems its for.
 // One of them can be nil, and this lets uninitialized primitives
-// and others serve as empty values.  See doOpAdd()
+// and readme serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
 func assertSameTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
@@ -2389,6 +2389,7 @@ func comparable(t Type) (bool, string) {
 // case 3. dt is interface, xt satisfied dt
 // case 4. general convert, for composite types check
 func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+	debugPP.Printf("assignable, xt: %v, dt:%v, autoNative: %t \n", xt, dt, autoNative)
 	// case3
 	// if xt or dt is empty interface, assignable
 	// if no empty interface, then check if xt satisfied dt
@@ -2684,6 +2685,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *NativeType:
 		if !autoNative {
+			debugPP.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
 			if xt.TypeID() == cdt.TypeID() {
 				return // ok
 			}
@@ -2695,6 +2697,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			if gno2GoTypeMatches(xt, cdt.Type) {
 				return // ok
 			}
+			debugPP.Println("gno2Go type not match")
 		}
 	default:
 		panic(fmt.Sprintf(

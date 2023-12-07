@@ -2439,8 +2439,10 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	debugPP.Printf("checkOrConvertType, x: %v:, t:%v, \n", x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// here we should check too, e.g. primitive to declared type is assignable
-		if _, ok := t.(*NativeType); !ok { // not native type
-			debugPP.Println("ConstExpr is not nativeType, go check")
+		// TODO: file why we need this, regular check with native skipped
+		// TODO, it's reasonable for gno is a superset of go type, like bigint
+		if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
+			debugPP.Println("x is ConstExpr, not nativeType, go check")
 			checkConvertable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
 		}
 		debugPP.Printf("ConstExpr, convertConst, cx: %v, t:%v \n", cx, t)
@@ -2595,7 +2597,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 		// first, check is the dt type satisfies op, the switch logic
 		// second, xt can be converted to dt, this is done below this
 		// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
-		debugPP.Printf("check op: %v for Expressions \n", op)
+		debugPP.Printf("check op: %v \n", op)
 		if pred, ok := binaryPredicates[op]; ok {
 			if !pred(dt) {
 				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
@@ -2613,7 +2615,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 			case SHL, SHR:
 			// TODO: right should be numeric
 			default:
-				// Note: others no check, assign will be check in assignable
+				// Note: readme no check, assign will be check in assignable
 			}
 		}
 	}

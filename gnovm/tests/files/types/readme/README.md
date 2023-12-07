@@ -8,9 +8,10 @@ Context:
 
 
 
-    
 
 Flow:
+
+    explain const
 
     binaryExpression/unaryExpression
     check comparison:
