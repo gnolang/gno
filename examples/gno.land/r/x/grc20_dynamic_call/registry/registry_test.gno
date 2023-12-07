@@ -8,22 +8,29 @@ import (
 	"gno.land/r/x/grc20_dynamic_call/baz"
 	"gno.land/r/x/grc20_dynamic_call/foo"
 
-	"gno.land/r/demo/users"
-
 	_ "gno.land/r/x/grc20_dynamic_call/wrapper"
+
+	"gno.land/p/demo/testutils"
+
+	"gno.land/r/demo/users"
 )
 
-const (
-	transferTo string = "g12345"
+var (
+	cRealmAddr std.Address
 
-	transferFromFrom string = "g12345"
-	transferFromTo   string = "g54321"
+	transferTo std.Address
+
+	transferFromFrom std.Address
+	transferFromTo   std.Address
 )
-
-var cRealmAddr std.Address
 
 func init() {
 	cRealmAddr = std.CurrentRealm().Addr()
+
+	transferTo = testutils.TestAddress("transferTo")
+
+	transferFromFrom = transferTo // use transferTo as transferFromFrom
+	transferFromTo = testutils.TestAddress("transferFromTo")
 
 	std.TestSetOrigCaller(cRealmAddr)
 	foo.Faucet()

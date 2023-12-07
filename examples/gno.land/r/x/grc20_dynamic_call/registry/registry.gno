@@ -68,7 +68,7 @@ func UnregisterGRC20Interface(pkgPath string) {
 	}
 }
 
-func TransferByInterfaceName(pkgPath string, to string, amount uint64) bool {
+func TransferByInterfaceName(pkgPath string, to std.Address, amount uint64) bool {
 	i, found := findGRC20(pkgPath)
 	if !found {
 		return false
@@ -79,7 +79,7 @@ func TransferByInterfaceName(pkgPath string, to string, amount uint64) bool {
 	return true
 }
 
-func TransferFromByInterfaceName(pkgPath string, from, to string, amount uint64) bool {
+func TransferFromByInterfaceName(pkgPath string, from, to std.Address, amount uint64) bool {
 	i, found := findGRC20(pkgPath)
 	if !found {
 		return false
@@ -90,7 +90,7 @@ func TransferFromByInterfaceName(pkgPath string, from, to string, amount uint64)
 	return true
 }
 
-func BalanceOfByInterfaceName(pkgPath string, owner string) uint64 {
+func BalanceOfByInterfaceName(pkgPath string, owner std.Address) uint64 {
 	i, found := findGRC20(pkgPath)
 	if !found {
 		return 0
