@@ -86,54 +86,14 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			})
 		}
 
-		// Use `RunMemPackage` to detect basic package errors
-		var (
-			stdout = io.Out()
-			stdin  = io.In()
-			stderr = io.Err()
-
-			testStore = tests.TestStore(
+		// Handle runtime errors
+		catchRuntimeError(pkgPath, addIssue, func() {
+			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
+			testStore := tests.TestStore(
 				rootDir, "",
 				stdin, stdout, stderr,
 				tests.ImportModeStdlibsOnly,
 			)
-
-			reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
-		)
-
-		handleError := func() {
-			// Errors here mostly come from: gnovm/pkg/gnolang/preprocess.go
-			r := recover()
-			if r == nil {
-				return
-			}
-
-			var err error
-			switch verr := r.(type) {
-			case *gno.PreprocessError:
-				err = verr.Unwrap()
-			case error:
-				err = verr
-			default:
-				panic(r)
-			}
-
-			parsedError := strings.TrimSpace(err.Error())
-			parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-			matches := reParseRecover.FindStringSubmatch(parsedError)
-			if len(matches) > 0 {
-				addIssue(lintIssue{
-					Code:       lintGnoError,
-					Confidence: 1,
-					Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
-					Msg:        strings.TrimSpace(matches[3]),
-				})
-			}
-		}
-
-		// Run the machine on the target package
-		func() {
-			defer handleError()
 
 			memPkg := gno.ReadMemPackage(filepath.Dir(pkgPath), pkgPath)
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
@@ -160,7 +120,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			tm.RunFiles(testfiles.Files...)
-		}()
+		})
 
 		// TODO: Add more checkers
 	}
@@ -170,6 +130,45 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+var reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
+
+func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action func()) {
+	defer func() {
+		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		var err error
+		switch verr := r.(type) {
+		case *gno.PreprocessError:
+			err = verr.Unwrap()
+		case error:
+			err = verr
+		default:
+			panic(r)
+		}
+
+		parsedError := strings.TrimSpace(err.Error())
+		parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+		reParseRecover := regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
+		matches := reParseRecover.FindStringSubmatch(parsedError)
+		if len(matches) == 0 {
+			return
+		}
+
+		addIssue(lintIssue{
+			Code:       lintGnoError,
+			Confidence: 1,
+			Location:   fmt.Sprintf("%s:%s", matches[1], matches[2]),
+			Msg:        strings.TrimSpace(matches[3]),
+		})
+	}()
+
+	action()
 }
 
 type lintCode int
