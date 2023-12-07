@@ -1,53 +1,134 @@
 Context:
 
-    1. regular type mix check missing 
+The problem is from []...
 
-    `package main
-    // both typed(different) const
-    func main() {
-    println(int(1) == int8(1))
-    }
 
-    // Error:
-    // main/files/types/0a0_filetest.gno:5: invalid operation: mismatched types int8 and int
-    `
+`package main
 
-    this is for arith and comparable operators
+import (
+"errors"
+"strconv"
+)
 
-    specical case: bigInt to gonative time.Month. skipped
+type Error int64
+
+func (e Error) Error() string {
+return "error: " + strconv.Itoa(int(e))
+}
+
+var errCmp = errors.New("XXXX")
+
+// specil case:
+// one is interface
+func main() {
+if Error(1) == errCmp {
+println("what the firetruck?")
+} else {
+println("something else")
+}
+}`
+
+
+
+first,why this compiles? the reason for this is Error(1) satisfies interface of error, which indicates Error(1) can be assigned to errCmp, Error(1) and  errCmp is comparable.
+"lhs is assignable to rhs, or vice versa", according to spec.
+
+But it gives out incorrect result. in the code above, it should give out :// something else
+but gives out: what the firetruck?
+
+The cause for this is about type check, in the case, the Error(1) and errCmp is both mistakenly treated as int64, which
+is the underlying type if Error(1), the value of LHS after evaluation is 1 and the RHS is 0, so the == check will give false. 
+as a simple prove, if you check this: Error(0) = errCmp, the result will be true.
+
+In the right way, the LHS and RHS has different underlying type, so the result should be false.
+
+It's a corner of the iceberg after some more digging:
+
+Type mix check missing 
+
+`// both typed(different) const
+func main() {
+println(int(1) == int8(1))
+}
+
+in this case, it should not compile for the mismatch of type, but it works(as unexpected).
+the reason for this is the missing of a regular type check, the type is cast forcibly while it should not。
+
+
+Operators check missing or incorrect
+`package main
+
+// one untyped const, one typed const
+func main() {
+println(1 / "a")
+}
+
+// Error:
+// main/files/types/4b2_filetest.gno:5: operator / not defined on: <untyped> string`
+it should give out this error, but gives ...
+
+The reason for this is in golang,  binary expression, unary expression, and INC/DEC stmt are close related to operators. e.g. for ADD, a + b, a and b must be both numericOrString,
+   for Sub, a - b, where a and b must be both numeric.
+
+   The current situation is there check around operators happens in runtime, while they should be executed in preprocess stage.
+   this non-trivial as for performance, we want these check happens in compile time
+
+
+
+3.unamed to named conversion missed
+
+`package main
+
+type word uint
+type nat []word
+
+// receiver
+func (n nat) add() bool {
+return true
+}
+
+func Gen() nat {
+n := []word{0}
+return n
+}
+
+// mapLit
+func main() {
+r := Gen()
+switch r.(type) {
+case nat:
+println("nat")
+println(r.add())
+default:
+println("should not happen")
+}
+}
+
+// Output:
+// nat
+// true`
+
+unamed (composite) literals should be converted to named implicitly in preprocess time.
     
-    mix of numeric types
-
-
-    2. regular opertors check missing
-
-        binary 
-            comparable
-            arith
-
-        unary
-
-        inc
-
-    2. unamed to named conversion missed
-
-    
-
-
-    comparable
-
-    special case
-
-
-
 
 Flow:
+    checkOp for binary expr, unary expr and inc/dec stmt
+        comparable, == !=
 
-    explain const
+        arith + - ...
+        isNumericOrString
+
+    checkOperand for special case, in / and %, divisor should not be zero.
+
+    regular type check for const, with nativeType excluded
+    regular type check for others, check assignable
+
+
+
+
 
     binaryExpression/unaryExpression
     check comparison:
-
         assignableTo(type), LHS or RHS is assignable to the other 
             isIdentical
                 primitive, struct, map, ...
@@ -192,6 +273,13 @@ TODOs:
     // TODO: dec value representation
     // TODO: Current flow : check op operand,  check type convertable, and convert, and check type match again,  means, this kind of check should still in preprocess
     // TODO: preCheck->Convert->postCheck, all in `checkOrConvertType`
+
+
+    this is for arith and comparable operators
+
+    specical case: bigInt to gonative time.Month. skipped
+    
+    mix of numeric types
 
 
 NOTE: 
