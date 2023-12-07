@@ -3,13 +3,12 @@ package gnomod
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -19,7 +18,7 @@ const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
 func GetGnoModPath() string {
-	return filepath.Join(client.HomeDir(), "pkg", "mod")
+	return filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 }
 
 // PackageDir resolves a given module.Version to the path on the filesystem.
@@ -172,9 +171,9 @@ func CreateGnoModFile(rootDir, modPath string) error {
 	if modPath == "" {
 		// Check .gno files for package name
 		// and use it as modPath
-		files, err := ioutil.ReadDir(rootDir)
+		files, err := os.ReadDir(rootDir)
 		if err != nil {
-			fmt.Errorf("read dir %q: %w", rootDir, err)
+			return fmt.Errorf("read dir %q: %w", rootDir, err)
 		}
 
 		var pkgName gnolang.Name

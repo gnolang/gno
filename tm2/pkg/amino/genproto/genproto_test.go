@@ -9,15 +9,17 @@ import (
 )
 
 func TestBasic(t *testing.T) {
+	t.Parallel()
+
 	p3c := NewP3Context()
 	p3c.RegisterPackage(sm1.Package)
 	p3doc := P3Doc{PackageName: "test"}
 	obj := sm1.StructSM{}
 	p3message := p3c.GenerateProto3MessagePartial(&p3doc, reflect.TypeOf(obj))
 	assert.Equal(t, p3message.Print(), `message StructSM {
-	sint64 FieldA = 1;
-	string FieldB = 2;
-	submodule2.StructSM2 FieldC = 3;
+	sint64 field_a = 1 [json_name = "FieldA"];
+	string field_b = 2 [json_name = "FieldB"];
+	submodule2.StructSM2 field_c = 3 [json_name = "FieldC"];
 }
 `)
 
@@ -38,8 +40,8 @@ import "github.com/gnolang/gno/tm2/pkg/amino/genproto/example/submodule2/submodu
 
 // messages
 message StructSM {
-	sint64 FieldA = 1;
-	string FieldB = 2;
-	submodule2.StructSM2 FieldC = 3;
+	sint64 field_a = 1 [json_name = "FieldA"];
+	string field_b = 2 [json_name = "FieldB"];
+	submodule2.StructSM2 field_c = 3 [json_name = "FieldC"];
 }`)
 }

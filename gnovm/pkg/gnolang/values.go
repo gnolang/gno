@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -43,7 +43,8 @@ func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
 const (
-	nilStr = "nil"
+	nilStr       = "nil"
+	undefinedStr = "undefined"
 )
 
 var (
@@ -500,7 +501,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-	copy(fields, sv.Fields)
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer.
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+
 	return alloc.NewStruct(fields)
 }
 
