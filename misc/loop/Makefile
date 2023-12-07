@@ -5,6 +5,7 @@ docker.start: # Start the portal loop
 
 docker.stop: # Stop the portal loop
 	docker compose down
+	docker rm -f $(docker ps -aq --filter "label=the-portal-loop")
 
 docker.build: # (re)Build snapshotter image
 	docker compose build
