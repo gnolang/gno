@@ -11,6 +11,7 @@ services:
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.traefik.address=127.0.0.1:8080"
     ports:
       - "80:80"
       - "8080:8080"
