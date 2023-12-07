@@ -134,9 +134,7 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 	seen.Put(pv)
 	defer seen.Pop()
 
-	// This method was limited and not working correctly previously. Allowing for it to work as
-	// intended means that it needs to ensure the type value is not nil before attempting to
-	// convert it to a string.
+	// Handle nil TV's, avoiding a nil pointer deref below.
 	if pv.TV == nil {
 		return "&<nil>"
 	}
