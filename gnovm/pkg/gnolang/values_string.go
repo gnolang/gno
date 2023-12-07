@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+type protectedStringer interface {
+	ProtectedString(*seenValues) string
+}
+
 // This indicates the maximum ancticipated depth of the stack when printing a Value type.
 const defaultSeenValuesSize = 32
 
@@ -368,29 +372,25 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	case *TypeType:
 		return tv.V.(TypeValue).String()
 	default:
+		// The remaining types may have a nil value.
 		if tv.V == nil {
 			return nilStr + " " + tv.T.String()
 		}
 
-		switch bt.(type) {
-		case *ArrayType:
-			return tv.V.(*ArrayValue).ProtectedString(seen)
-		case *SliceType:
-			return tv.V.(*SliceValue).ProtectedString(seen)
-		case *StructType:
-			return tv.V.(*StructValue).ProtectedString(seen)
-		case *MapType:
-			return tv.V.(*MapValue).ProtectedString(seen)
-		case *NativeType:
-			return tv.V.(*NativeValue).String()
-		default:
-			if debug {
-				panic(fmt.Sprintf(
-					"unexpected type %s",
-					tv.T.String()))
-			} else {
-				panic("should not happen")
-			}
+		// *ArrayType, *SliceType, *StructType, *MapType
+		if ps, ok := tv.V.(protectedStringer); ok {
+			return ps.ProtectedString(seen)
+		} else if s, ok := tv.V.(fmt.Stringer); ok {
+			// *NativeType
+			return s.String()
+		}
+
+		if debug {
+			panic(fmt.Sprintf(
+				"unexpected type %s",
+				tv.T.String()))
+		} else {
+			panic("should not happen")
 		}
 	}
 }
