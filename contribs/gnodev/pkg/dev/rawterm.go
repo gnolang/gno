@@ -11,65 +11,13 @@ import (
 	"golang.org/x/term"
 )
 
-type KeyPress byte
-
 var (
 	CRLF = []byte{'\r', '\n'}
 )
 
-// key representation
-const (
-	KeyNone  KeyPress = 0      // None
-	KeyCtrlC KeyPress = '\x03' // Ctrl+C
-	KeyCtrlD KeyPress = '\x04' // Ctrl+D
-	KeyCtrlE KeyPress = '\x05' // Ctrl+E
-	KeyCtrlL KeyPress = '\x0c' // Ctrl+L
-	KeyCtrlO KeyPress = '\x0f' // Ctrl+O
-	KeyCtrlR KeyPress = '\x12' // Ctrl+R
-	KeyCtrlT KeyPress = '\x14' // Ctrl+T
-)
-
-const (
-	// ANSI escape codes
-	ClearCurrentLine = "\033[2K"
-	MoveCursorUp     = "\033[1A"
-	MoveCursorDown   = "\033[1B"
-)
-
-func (k KeyPress) String() string {
-	switch k {
-	case KeyNone:
-		return "Null"
-	case KeyCtrlC:
-		return "Ctrl+C"
-	case KeyCtrlD:
-		return "Ctrl+D"
-	case KeyCtrlE:
-		return "Ctrl+E"
-	case KeyCtrlL:
-		return "Ctrl+L"
-	case KeyCtrlO:
-		return "Ctrl+O"
-	case KeyCtrlR:
-		return "Ctrl+R"
-	case KeyCtrlT:
-		return "Ctrl+T"
-		// For printable ASCII characters
-	default:
-		if k > 0x20 && k < 0x7e {
-			return fmt.Sprintf("%c", k)
-		}
-
-		return fmt.Sprintf("Unknown (0x%02x)", byte(k))
-	}
-}
-
 // rawTerminal wraps an io.Writer, converting \n to \r\n
 type RawTerm struct {
-	termMode     bool
-	condTermMode *sync.Cond
-
-	muTermMode sync.RWMutex
+	syncWriter sync.Mutex
 
 	fsin       *os.File
 	reader     io.Reader
@@ -78,19 +26,15 @@ type RawTerm struct {
 
 func NewRawTerm() *RawTerm {
 	return &RawTerm{
-		condTermMode: sync.NewCond(&sync.Mutex{}),
-		fsin:         os.Stdin,
-		reader:       os.Stdin,
-		taskWriter:   &rawTaskWriter{os.Stdout},
+		fsin:       os.Stdin,
+		reader:     os.Stdin,
+		taskWriter: &rawTaskWriter{os.Stdout},
 	}
 }
 
 type restoreFunc func() error
 
 func (rt *RawTerm) Init() (restoreFunc, error) {
-	rt.muTermMode.Lock()
-	defer rt.muTermMode.Unlock()
-
 	fd := int(rt.fsin.Fd())
 	oldstate, err := term.MakeRaw(fd)
 	if err != nil {
@@ -115,15 +59,15 @@ func (rt *RawTerm) Taskf(task string, format string, args ...interface{}) (n int
 }
 
 func (rt *RawTerm) Write(buf []byte) (n int, err error) {
-	rt.muTermMode.RLock()
-	defer rt.muTermMode.RUnlock()
+	rt.syncWriter.Lock()
+	defer rt.syncWriter.Unlock()
 
 	return rt.taskWriter.Write(buf)
 }
 
 func (rt *RawTerm) WriteTask(name string, buf []byte) (n int, err error) {
-	rt.muTermMode.RLock()
-	defer rt.muTermMode.RUnlock()
+	rt.syncWriter.Lock()
+	defer rt.syncWriter.Unlock()
 
 	return rt.taskWriter.WriteTask(name, buf)
 }
@@ -133,9 +77,6 @@ func (rt *RawTerm) NamespacedWriter(namepsace string) io.Writer {
 }
 
 func (rt *RawTerm) read(buf []byte) (n int, err error) {
-	rt.muTermMode.RLock()
-	defer rt.muTermMode.RUnlock()
-
 	return rt.fsin.Read(buf)
 }
 

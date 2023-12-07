@@ -22,14 +22,14 @@ import (
 )
 
 type devCfg struct {
-	bindAddr string
-	minimal  bool
-	verbose  bool
-	noWatch  bool
+	webListenerAddr string
+	minimal         bool
+	verbose         bool
+	noWatch         bool
 }
 
 var defaultDevOptions = &devCfg{
-	bindAddr: "127.0.0.1:8888",
+	webListenerAddr: "127.0.0.1:8888",
 }
 
 func main() {
@@ -39,8 +39,11 @@ func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "gnodev",
-			ShortUsage: "gnodev [flags] <path>",
-			ShortHelp:  "GnoDev run a node for dev purpose, it will load the given package path",
+			ShortUsage: "gnodev [flags] [path ...]",
+			ShortHelp:  "Runs an in-memory node and gno.land web server for development purposes.",
+			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
+primarily for realm package development. It automatically loads the example folder and any
+additional specified paths.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -52,20 +55,19 @@ func main() {
 		os.Exit(1)
 	}
 }
-
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.bindAddr,
-		"web-bind",
-		defaultDevOptions.bindAddr,
-		"verbose output when deving",
+		&c.webListenerAddr,
+		"web-listener",
+		defaultDevOptions.webListenerAddr,
+		"web server listening address",
 	)
 
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
 		defaultDevOptions.verbose,
-		"don't load example folder packages along default transaction",
+		"do not load example folder packages",
 	)
 
 	fs.BoolVar(
@@ -79,7 +81,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noWatch,
 		"no-watch",
 		defaultDevOptions.noWatch,
-		"watch for files change",
+		"do not watch for files change",
 	)
 
 }
@@ -96,7 +98,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
-	// noopLogger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+	// XXX: find a good way to export or display node logs
 	noopLogger := tmlog.NewNopLogger()
 
 	// RAWTerm setup
@@ -125,7 +127,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	var dnode *gnodev.Node
 	{
 		var err error
-		// XXX: redirect node to output file
+		// XXX: redirect node output to a file
 		dnode, err = setupDevNode(ctx, noopLogger, cfg, pkgpaths, gnoroot)
 		if err != nil {
 			return err // already formated in setupDevNode
@@ -141,13 +143,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to watch for files change: %w", err)
 	}
 
-	ccpath := make(chan []string, 1)
+	pathChangeCh := make(chan []string, 1)
 	go func() {
-		defer close(ccpath)
+		defer close(pathChangeCh)
 
 		const debounceTimeout = time.Millisecond * 500
 
-		if err := handleDebounce(ctx, w, ccpath, debounceTimeout); err != nil {
+		if err := handleDebounce(ctx, w, pathChangeCh, debounceTimeout); err != nil {
 			cancel(err)
 		}
 	}()
@@ -155,9 +157,9 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// Gnoweb setup
 	server := setupGnowebServer(cfg, dnode, rt)
 
-	l, err := net.Listen("tcp", cfg.bindAddr)
+	l, err := net.Listen("tcp", cfg.webListenerAddr)
 	if err != nil {
-		return fmt.Errorf("unable to listen to %q: %w", cfg.bindAddr, err)
+		return fmt.Errorf("unable to listen to %q: %w", cfg.webListenerAddr, err)
 	}
 
 	go func() {
@@ -177,14 +179,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	rt.Taskf("[Ready]", "for commands and help, press `h`")
 
-	cckey := listenForKeyPress(keyOut, rt)
 	for {
 		var err error
 
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case paths := <-ccpath:
+		case paths := <-pathChangeCh:
 			for _, path := range paths {
 				rt.Taskf("HotReload", "path %q has been modified", path)
 			}
@@ -198,7 +199,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			fmt.Fprintln(nodeOut, "Reloading...")
 			err = dnode.Reload(ctx)
 			checkForError(rt, err)
-		case key, ok := <-cckey:
+		case key, ok := <-listenForKeyPress(keyOut, rt):
 			if !ok {
 				cancel(nil)
 				continue
@@ -213,12 +214,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 				printHelper(rt)
 			case 'r', 'R':
 				fmt.Fprintln(nodeOut, "Reloading all packages...")
-				err = dnode.ReloadAll(ctx)
-				checkForError(nodeOut, err)
+				checkForError(nodeOut, dnode.ReloadAll(ctx))
 			case gnodev.KeyCtrlR:
 				fmt.Fprintln(nodeOut, "Reseting state...")
-				err = dnode.Reset(ctx)
-				checkForError(nodeOut, err)
+				checkForError(nodeOut, dnode.Reset(ctx))
 			case gnodev.KeyCtrlC:
 				cancel(nil)
 			default:
@@ -333,15 +332,13 @@ func listenForKeyPress(w io.Writer, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
 	cc := make(chan gnodev.KeyPress, 1)
 	go func() {
 		defer close(cc)
-		for {
-			key, err := rt.ReadKeyPress()
-			if err != nil {
-				fmt.Fprintf(w, "unable to read keypress: %s\n", err.Error())
-				return
-			}
-
-			cc <- key
+		key, err := rt.ReadKeyPress()
+		if err != nil {
+			fmt.Fprintf(w, "unable to read keypress: %s\n", err.Error())
+			return
 		}
+
+		cc <- key
 	}()
 
 	return cc
@@ -350,7 +347,8 @@ func listenForKeyPress(w io.Writer, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
 func checkForError(w io.Writer, err error) {
 	if err != nil {
 		fmt.Fprintf(w, "", "[ERROR] - %s\n", err.Error())
-	} else {
-		fmt.Fprintln(w, "", "[DONE]")
+		return
 	}
+
+	fmt.Fprintln(w, "", "[DONE]")
 }
