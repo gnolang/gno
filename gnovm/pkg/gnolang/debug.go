@@ -142,12 +142,3 @@ func DisableDebug() {
 func EnableDebug() {
 	enabled = true
 }
-
-type DebugError struct {
-	error
-	Metas interface{}
-}
-
-func (d *DebugError) Error() string {
-	return d.Error()
-}

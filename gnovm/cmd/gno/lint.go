@@ -154,7 +154,6 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 
 		parsedError := strings.TrimSpace(err.Error())
 		parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-		reParseRecover := regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
 		matches := reParseRecover.FindStringSubmatch(parsedError)
 		if len(matches) == 0 {
 			return
