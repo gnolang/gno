@@ -970,7 +970,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, nil)
+						convertConst(store, last, arg0, ct)
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
