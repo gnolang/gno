@@ -445,7 +445,6 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 			vs = nilStr
 		}
 	} else {
-		// vs = fmt.Sprintf("%v", tv.V)
 		vs = tv.ProtectedSprint(seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
 			vs = strconv.Quote(vs)
