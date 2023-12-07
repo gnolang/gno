@@ -18,6 +18,8 @@ import (
 )
 
 func TestPackages(t *testing.T) {
+	t.Parallel()
+
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
@@ -57,6 +59,7 @@ func TestPackages(t *testing.T) {
 			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
+		// fmt.Printf("%+v ---- %+v\n", testDir, pkgPath)
 	}
 }
 

@@ -101,9 +101,9 @@ func IsDebugEnabled() bool {
 }
 
 func DisableDebug() {
-	//enabled = false
+	// enabled = false
 }
 
 func EnableDebug() {
-	//enabled = true
+	// enabled = true
 }
