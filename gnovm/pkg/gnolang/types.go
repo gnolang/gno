@@ -265,7 +265,7 @@ const (
 	IsInteger
 	IsUnsigned
 	IsFloat
-	IsComplex
+	IsComplex // no use for now
 	IsString
 	IsUntyped
 	IsBigInt
@@ -296,7 +296,7 @@ func (pt PrimitiveType) Predicate() predicate {
 		return IsInteger
 	case Int16Type:
 		return IsInteger
-	case UntypedRuneType:
+	case UntypedRuneType: // TODO: this is treat as DataByteType, GUESS, refer to op_inc_dec
 		return IsRune
 	case Int32Type:
 		return IsInteger
@@ -307,7 +307,7 @@ func (pt PrimitiveType) Predicate() predicate {
 	case Uint8Type:
 		return IsUnsigned
 	case DataByteType:
-		return IsUnsigned
+		return IsUnsigned // TODO: consider this
 	case Uint16Type:
 		return IsUnsigned
 	case Uint32Type:
@@ -373,6 +373,18 @@ func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsBigInt != 0 || t.Predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func isIntOrUint(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -2327,7 +2339,7 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// t is the target type in convert process, check it firstly, then check if convertable
+// t is the target type in convert process, check it firstly, then check if assignable
 func comparable(t Type) (bool, string) {
 	debugPP.Printf("check comparable, t is %v \n", t)
 	// primitive is comparable
@@ -2376,9 +2388,9 @@ func comparable(t Type) (bool, string) {
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general convert, for composite types check
-func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	// case3
-	// if xt or dt is empty interface, convertable
+	// if xt or dt is empty interface, assignable
 	// if no empty interface, then check if xt satisfied dt
 	if dt.Kind() == InterfaceKind {
 		debugPP.Println("dt is interface")
@@ -2633,23 +2645,23 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := checkTypeConvertable(pt.Elt, cdt.Elt, false)
+			cdt := checkConvertable(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := checkTypeConvertable(at.Elt, cdt.Elt, false)
+			cdt := checkConvertable(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := checkTypeConvertable(st.Elt, cdt.Elt, false)
+			cdt := checkConvertable(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := checkTypeConvertable(mt.Key, cdt.Key, false)
-			cn2 := checkTypeConvertable(mt.Value, cdt.Value, false)
+			cn1 := checkConvertable(mt.Key, cdt.Key, false)
+			cn2 := checkConvertable(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -2704,17 +2716,17 @@ func convertable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 // e.g. : 1 + "a" is illegal, or int(1) + 0 is legal after convert
 // untyped 0 to int(0) implicitly(no cast), this is because "a" cannot be converted to 1, is untyped 0, which is
 // untyped bigint can be converted to int(0).
-// special case in here is declared types, is A is declared type of B, and baseOf(A) == B, A and B is convertable in both direction
+// special case in here is declared types, is A is declared type of B, and baseOf(A) == B, A and B is assignable in both direction
 // NOTE: Op like + - * / % ,etc. have a more strict constrain than equality == or !=
 // NOTE: if both a typed, but not in the rule of declared type, no conversion. just check if they match.
 
 // 2. if one of LHS or RHS is constExpr(typed or untyped), it would be converted to the type of its
-// corresponding side(using checkOrConvertType, iff it's convertable, using checkTypeConvertable), e.g. int-> int8, int-> (type Error int),
+// corresponding side(using checkOrConvertType, iff it's assignable, using checkConvertable), e.g. int-> int8, int-> (type Error int),
 // 3. if both LHS and RHS are not const, assertTypeMatchStrict
 
-// 4. Operators. need one place in asset* or checkTypeConvertable, to switch operators
+// 4. Operators. need one place in asset* or checkConvertable, to switch operators
 
-// TODO: merge this with checkTypeConvertable
+// TODO: merge this with checkConvertable
 //func assertTypeMatchStrict(lt, rt Type, op Word) {
 //	if lt == nil && rt == nil {
 //		println("1")
@@ -2997,7 +3009,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkTypeConvertable(spec, match.Elem(), false)
+					checkConvertable(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -3011,7 +3023,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkTypeConvertable(spec, match, false)
+					checkConvertable(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
