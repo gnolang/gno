@@ -36,6 +36,11 @@ fclean: clean
 clean:
 	rm -rf build
 
+
+.PHONY: reset
+reset: install clean build
+	gnoland start
+
 .PHONY: lint
 lint:
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
