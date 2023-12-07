@@ -20,11 +20,11 @@ TX_ARCHIVE_CMD=${TX_ARCHIVE_CMD:-"tx-archive"}
 
 CONTAINER_NAME="gno-${NOW}"
 
+# Get latest version of gno
+docker pull ghcr.io/gnolang/gno || exit 0
+
 # Set the current portal loop in READ-ONLY mode
 sed -i -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' /etc/traefik/configs/gno.yml
-
-# Get latest version of gno
-docker pull ghcr.io/gnolang/gno
 
 # If there is no portal loop running, we start one
 if docker ps --format json | jq '.Labels' | grep -q "the-portal-loop"; then
