@@ -4,9 +4,11 @@ help:
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 .PHONY: install
-install: install.gnomd
+install: install.gnomd install.gnolandtray install.gnokeykc
 
 install.gnomd:; cd gnomd && go install .
+install.gnolandtray:; cd gnolandtray && go install .
+install.gnokeykc:; cd gnokeykc && go install .
 
 .PHONY: clean
 clean:
