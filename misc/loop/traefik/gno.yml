@@ -12,7 +12,7 @@ http:
       # tls: "true"
       rule: "Host(`rpc.gno.land`)"
       entrypoints: "web"
-      middlewares: ["ipwhitelist"]
+      middlewares: []
 
   services:
     gno-portal-loop:
