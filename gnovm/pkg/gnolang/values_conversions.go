@@ -876,7 +876,7 @@ GNO_CASE:
 // If t is nil, the default type is used.
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
-func ConvertUntypedTo(tv *TypedValue, t Type) {
+func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
@@ -910,7 +910,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 				panic("should not happen")
 			}
 		}
-		ConvertUntypedTo(tv, gnot)
+		ConvertUntypedTo(p, tv, gnot)
 		// then convert to native value.
 		// NOTE: this should only be called during preprocessing, so no alloc needed.
 		ConvertTo(nilAllocator, nil, tv, t)
@@ -935,17 +935,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing == 0 {
+		if !p.isPreprocess() {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing == 0 {
+		if !p.isPreprocess() {
 			panic("untyped Bigdec conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing == 0 {
+		if !p.isPreprocess() {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {

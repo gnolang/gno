@@ -32,13 +32,13 @@ func (m *Machine) doOpValueDecl() {
 		if nt != nil {
 			if nt.Kind() == InterfaceKind {
 				if isUntyped(tv.T) {
-					ConvertUntypedTo(&tv, nil)
+					ConvertUntypedTo(pState(0), &tv, nil)
 				} else {
 					// keep type as is.
 				}
 			} else {
 				if isUntyped(tv.T) {
-					ConvertUntypedTo(&tv, nt)
+					ConvertUntypedTo(pState(0), &tv, nt)
 				} else {
 					if debug {
 						if nt.TypeID() != tv.T.TypeID() &&
@@ -56,7 +56,7 @@ func (m *Machine) doOpValueDecl() {
 		} else if s.Const {
 			// leave untyped as is.
 		} else if isUntyped(tv.T) {
-			ConvertUntypedTo(&tv, nil)
+			ConvertUntypedTo(pState(0), &tv, nil)
 		}
 		nx := s.NameExprs[i]
 		ptr := lb.GetPointerTo(m.Store, nx.Path)

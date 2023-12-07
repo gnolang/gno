@@ -140,7 +140,7 @@ func BenchmarkPreprocess(b *testing.B) {
 		))
 		b.StartTimer()
 		// timer started
-		main = Preprocess(nil, pkg, main).(*FuncDecl)
+		main = Preprocess(pState(0), nil, pkg, main).(*FuncDecl)
 	}
 }
 

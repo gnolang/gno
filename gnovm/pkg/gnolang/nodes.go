@@ -1378,7 +1378,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		panic("DefineNative expects a function, but got nil")
 	}
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, x, fd).(*FuncDecl)
+	fd = Preprocess(pState(0), nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {

@@ -51,7 +51,10 @@ func TestPackages(t *testing.T) {
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
+		pkgPath := pkgPath
+
 		t.Run(pkgPath, func(t *testing.T) {
+			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
 	}

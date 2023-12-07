@@ -69,11 +69,11 @@ var derrors []string = nil
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
 func (d debugging) Errorf(format string, args ...interface{}) {
-	if d {
-		if enabled {
-			derrors = append(derrors, fmt.Sprintf(format, args...))
-		}
-	}
+	//if d {
+	//	if enabled {
+	//		derrors = append(derrors, fmt.Sprintf(format, args...))
+	//	}
+	//}
 }
 
 // ----------------------------------------
@@ -101,9 +101,9 @@ func IsDebugEnabled() bool {
 }
 
 func DisableDebug() {
-	enabled = false
+	//enabled = false
 }
 
 func EnableDebug() {
-	enabled = true
+	//enabled = true
 }

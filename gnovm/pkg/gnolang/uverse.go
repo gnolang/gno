@@ -65,6 +65,11 @@ var (
 
 const uversePkgPath = ".uverse"
 
+func init() {
+	Uverse()
+	UverseNode()
+}
+
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
 	if uverseValue == nil {
