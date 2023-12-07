@@ -1,6 +1,6 @@
 # The portal loop :infinity: 
 
-## What is it ?
+## What is it?
 
 It's a Gnoland node that aim to run with always the latest version of gno and never loose transactions history.
 
