@@ -139,10 +139,10 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 }
 
 func signAndBroadcast(
-		cfg *makeTxCfg,
-		args []string,
-		tx std.Tx,
-		io commands.IO,
+	cfg *makeTxCfg,
+	args []string,
+	tx std.Tx,
+	io commands.IO,
 ) error {
 	baseopts := cfg.rootCfg
 	txopts := cfg
