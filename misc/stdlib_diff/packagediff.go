@@ -132,6 +132,11 @@ func (p *PackageDiffChecker) getStatus(srcDiff, dstDiff []LineDifferrence) diffS
 	return 0
 }
 
+// hasSameNumberOfFiles checks if the source and destination have the same number of files.
+func (p *PackageDiffChecker) hasSameNumberOfFiles() bool {
+	return len(p.SrcFiles) == len(p.DstFiles)
+}
+
 // listDirFiles returns a list of file names in the specified directory.
 func listDirFiles(dirPath string) ([]string, error) {
 	f, err := os.Open(dirPath)
@@ -156,9 +161,4 @@ func listDirFiles(dirPath string) ([]string, error) {
 	}
 
 	return fileNames, nil
-}
-
-// hasSameNumberOfFiles checks if the source and destination have the same number of files.
-func (p *PackageDiffChecker) hasSameNumberOfFiles() bool {
-	return len(p.SrcFiles) == len(p.DstFiles)
 }
