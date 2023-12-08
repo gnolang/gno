@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/access_test
-package main
+package access_test
 
 import (
 	"gno.land/p/demo/testutils"
