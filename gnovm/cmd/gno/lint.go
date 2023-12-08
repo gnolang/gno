@@ -42,8 +42,10 @@ func newLintCmd(io commands.IO) *commands.Command {
 }
 
 func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
+	rootdir := gnoenv.RootDir()
+
 	fs.BoolVar(&c.verbose, "verbose", false, "verbose output when lintning")
-	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }
 
@@ -140,7 +142,27 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-var reParseRecover = regexp.MustCompile(`^(.+):(\d+): ?(.*)$`)
+func guessSourcePath(pkg, source string) string {
+	if info, err := os.Stat(pkg); !os.IsNotExist(err) && !info.IsDir() {
+		pkg = filepath.Dir(pkg)
+	}
+
+	sourceJoin := filepath.Join(pkg, source)
+	if _, err := os.Stat(sourceJoin); !os.IsNotExist(err) {
+		return filepath.Clean(sourceJoin)
+	}
+
+	if _, err := os.Stat(source); !os.IsNotExist(err) {
+		return filepath.Clean(source)
+	}
+
+	return filepath.Clean(pkg)
+}
+
+// reParseRecover is a regex designed to parse error details from a string.
+// It extracts the file location, line number, and error message from a formatted error string.
+// XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
+var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
 
 func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action func()) {
 	defer func() {
@@ -171,10 +193,11 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 
 		matches := reParseRecover.FindStringSubmatch(parsedError)
 		if len(matches) == 4 {
-			issue.Location = fmt.Sprintf("%s:%s", matches[1], matches[2])
+			sourcepath := guessSourcePath(pkgPath, matches[1])
+			issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
 			issue.Msg = strings.TrimSpace(matches[3])
 		} else {
-			issue.Location = fmt.Sprintf("%s:0", parsedError)
+			issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
 			issue.Msg = err.Error()
 		}
 
