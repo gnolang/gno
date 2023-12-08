@@ -274,7 +274,7 @@ const (
 
 	IsOrdered = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
 	IsNumeric = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
-	//IsConstType = IsBoolean | IsNumeric | IsString
+	// IsConstType = IsBoolean | IsNumeric | IsString
 )
 
 // this is more convenient than compare with types

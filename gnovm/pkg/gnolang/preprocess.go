@@ -1712,7 +1712,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// checkOp(store, last, &n.Rhs[0], UintType, n.Op, false)
 						// checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
-
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						// e.g. a += b, single value for lhs and rhs,
 						// TODO: assert length
