@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/tests_test
-package main
+package tests_test
 
 type myStruct struct {
 	A int

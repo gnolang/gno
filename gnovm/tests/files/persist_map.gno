@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/tests_test
-package main
+package tests_test
 
 var amap map[string]string = map[string]string{"a": "1"}
 

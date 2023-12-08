@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/test
-package main
+package test
 
 import "time"
 
