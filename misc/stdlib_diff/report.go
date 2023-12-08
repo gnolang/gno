@@ -13,6 +13,7 @@ type ReportBuilder struct {
 	SrcPath         string             // Source directory path.
 	DstPath         string             // Destination directory path.
 	OutDir          string             // Output directory path for the reports.
+	SrcIsGno        bool               // Indicates if the Src files are gno files.
 	packageTemplate *template.Template // Template for generating reports.
 	indexTemplate   *template.Template // Template for generating index file of the reports.
 }
@@ -40,7 +41,7 @@ type LinkToReport struct {
 // NewReportBuilder creates a new ReportBuilder instance with the specified
 // source path, destination path, and output directory. It also initializes
 // the packageTemplate using the provided HTML template file.
-func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
+func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBuilder, error) {
 	packageTemplate, err := template.ParseFiles("templates/package_diff_template.html")
 	if err != nil {
 		return nil, err
@@ -55,6 +56,7 @@ func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
 		SrcPath:         srcPath,
 		DstPath:         dstPath,
 		OutDir:          outDir,
+		SrcIsGno:        srcIsGno,
 		packageTemplate: packageTemplate,
 		indexTemplate:   indexTemplate,
 	}, nil
@@ -78,7 +80,7 @@ func (builder *ReportBuilder) Build() error {
 		srcPackagePath := builder.SrcPath + "/" + directory
 		dstPackagePath := builder.DstPath + "/" + directory
 
-		packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath)
+		packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
 		if err != nil {
 			return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
 		}
