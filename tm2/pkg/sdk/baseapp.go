@@ -653,15 +653,15 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
 			msgLogs = append(msgLogs,
-				fmt.Sprintf("msg:%d,success:%v,events:%v,log start:------>\n%s<------end log",
-					i, false, events, indentString(msgResult.Log, "    ")))
+				fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
+					i, false, msgResult.Log, events))
 			err = msgResult.Error
 			break
 		}
 
 		msgLogs = append(msgLogs,
-			fmt.Sprintf("msg:%d,success:%v,events:%v,log start:------>\n%s<------end log",
-				i, true, events, indentString(msgResult.Log, "    ")))
+			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
+				i, true, msgResult.Log, events))
 	}
 
 	result.Error = ABCIError(err)
@@ -670,16 +670,6 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	result.Events = events
 	return result
-}
-
-// indentString indents each line of a multi-line string.
-func indentString(str, indent string) string {
-	var indentedLines []string
-	lines := strings.Split(str, "\n")
-	for _, line := range lines {
-		indentedLines = append(indentedLines, indent+line)
-	}
-	return strings.Join(indentedLines, "\n")
 }
 
 // Returns the applications's deliverState if app is in RunTxModeDeliver,
