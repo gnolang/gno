@@ -53,8 +53,8 @@ func init() {
 
 	// Inc Dec stmt
 	// NOTE: special case to be consistent with op_inc_dec, line3, no float support for now while go do.
-	IncDecStmtPredicates[INC] = isIntOrUint
-	IncDecStmtPredicates[DEC] = isIntOrUint
+	IncDecStmtPredicates[INC] = isNumeric
+	IncDecStmtPredicates[DEC] = isNumeric
 }
 
 // In the case of a *FileSet, some declaration steps have to happen
