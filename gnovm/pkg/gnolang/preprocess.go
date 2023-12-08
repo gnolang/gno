@@ -2456,7 +2456,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		xt := evalStaticTypeOf(store, last, *x)
 		var conversionNeeded bool
 		if t != nil {
-			conversionNeeded = checkConvertable(xt, t, autoNative)
+			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
+				conversionNeeded = checkConvertable(xt, t, autoNative)
+			}
 		}
 		if isUntyped(xt) {
 			if t == nil {

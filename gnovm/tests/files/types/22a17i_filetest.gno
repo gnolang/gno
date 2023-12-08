@@ -18,7 +18,6 @@ func Gen2() interface{} {
 	return n
 }
 
-// mapLit
 func main() {
 	r := Gen()
 	switch t := r.(type) {

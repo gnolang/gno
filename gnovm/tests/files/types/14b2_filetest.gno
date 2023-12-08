@@ -1,9 +1,10 @@
 package main
 
 func main() {
-	a := int8(1)
-	println(a)
+	r := 1
+	r -= 'a'
+	println(r)
 }
 
 // Output:
-// 1
+// -96

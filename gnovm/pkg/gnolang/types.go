@@ -2262,42 +2262,33 @@ func assertSameTypes(lt, rt Type) {
 // both typed(original typed, or be typed in runtime), or one is nil, or data byte
 // only for comparable types
 func isArithTypeIdentical(lt, rt Type) bool {
-	debugPP.Printf("check isArithTypeIdentical, lt: %v, rt: %v \n", lt, rt)
-	debugPP.Println("is lt data byte: ", isDataByte(lt))
-	debugPP.Println("is rt data byte: ", isDataByte(rt))
-
+	debugPP.Printf("check isArithTypeIdentical, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
 	if lpt, ok := lt.(*PointerType); ok {
-		debugPP.Println("lt is pointer type, typeid: ", lpt.typeid)
 		if isDataByte(lpt.Elt) {
-			debugPP.Println("got data byte, left")
+			debugPP.Println("lt is pointer type and base type is data byte")
 			return true
 		}
 	}
 
 	if rpt, ok := rt.(*PointerType); ok {
-		debugPP.Println("rt is pointer type, typeid: ", rpt.typeid)
 		if isDataByte(rpt.Elt) {
-			debugPP.Println("got data byte, right")
+			debugPP.Println("rt is pointer type and base type is data byte")
 			return true
 		}
 	}
 
 	if isDataByte(lt) || isDataByte(rt) {
-		debugPP.Println("one is date byte")
 		return true
 	}
 
 	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
-		debugPP.Println("both type nil")
 		// both are nil.
 	} else if lt == nil || rt == nil {
-		debugPP.Println("one type nil")
 		// one is nil.  see function comment.
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
-		debugPP.Println("both date byte")
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function

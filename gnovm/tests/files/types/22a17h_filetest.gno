@@ -22,7 +22,6 @@ func main() {
 		println(r.add())
 	default:
 		println("should not happen")
-
 	}
 }
 
