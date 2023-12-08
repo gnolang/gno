@@ -1,77 +1,82 @@
 package json
 
+import (
+	"strconv"
+)
+
 const (
 	absMinInt64 = 1 << 63
 	maxInt64    = 1<<63 - 1
 	maxUint64   = 1<<64 - 1
 )
 
-func ParseNumberKind(bytes []byte) (value float64, isFloat, ok, overflow bool) {
-	if len(bytes) == 0 {
-		return 0, false, false, false
+func ParseNumberKind(bytes []byte) (value float64, isFloat, ok bool) {
+    if len(bytes) == 0 {
+		panic("invalid number: empty string")
+    }
+
+    neg := bytes[0] == '-'
+    if neg {
+        bytes = bytes[1:]
+    }
+
+	var exponentPart []byte
+	for i, c := range bytes {
+		if c == 'e' || c == 'E' {
+            exponentPart = bytes[i+1:]
+            bytes = bytes[:i]
+            break
+        }
 	}
 
-	neg := bytes[0] == '-'
-	if neg {
-		bytes = bytes[1:]
-	}
+    man, exp10 := extractMantissaAndExp10(bytes)
 
-	var intPart, fracPart uint64
-	var decimalFound bool
-	var fracDivisor uint64 = 1
+	if len(exponentPart) > 0 {
+        exp, err := strconv.Atoi(string(exponentPart))
+        if err != nil {
+            panic("invalid exponent")
+        }
+        exp10 += exp
+    }
 
-	for _, c := range bytes {
-		if c == '.' {
-			if decimalFound {
-				return 0, false, false, false
-			}
-			decimalFound = true
-			continue
-		}
+    f, success := eiselLemire64(man, exp10, neg)
+    if !success {
+        return 0, false, false
+    }
 
-		if c < '0' || c > '9' {
-			return 0, false, false, false
-		}
+    return f, true, true
+}
 
-		digit := uint64(c - '0')
-		if !decimalFound {
-			if intPart > (maxUint64-uint64(digit))/10 {
-				return 0, false, false, true
-			}
-			intPart = intPart*10 + digit
-		} else {
-			if fracPart > (maxUint64-uint64(digit))/10 {
-				return 0, false, false, true
-			}
-			fracPart = fracPart*10 + digit
-			fracDivisor *= 10
-		}
-	}
+func extractMantissaAndExp10(bytes []byte) (uint64, int) {
+    var man uint64
+    var exp10 int
+    decimalFound := false
 
-	if decimalFound {
-		isFloat = true
-	}
+    for _, c := range bytes {
+        if c == '.' {
+            if decimalFound {
+                panic("invalid number: multiple decimal points")
+            }
+            decimalFound = true
+            continue
+        }
 
-	totalValue := float64(intPart) + float64(fracPart)/float64(fracDivisor)
-	if neg {
-		totalValue = -totalValue
-	}
+        if c < '0' || c > '9' {
+			panic("invalid number: non-digit characters")
+        }
 
-	// Overflow check for integer part
-	if !isFloat {
-		if neg {
-			if intPart > absMinInt64 {
-				return 0, false, false, true
-			}
-		} else {
-			if intPart > maxInt64 {
-				return 0, false, false, true
-			}
-		}
+        digit := uint64(c - '0')
 
-		// return totalValue instead of float64(intPart)
-		return totalValue, isFloat, true, false
-	}
+        if man > (maxUint64-digit)/10 {
+            panic("invalid number: overflow")
+        }
 
-	return totalValue, isFloat, true, false
+        man = man*10 + digit
+
+        if decimalFound {
+            exp10--
+        }
+    }
+
+    return man, exp10
 }
