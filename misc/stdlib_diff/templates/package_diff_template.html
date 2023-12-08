@@ -70,14 +70,14 @@
 
     <h3>Sources location</h3>
     <ul style="margin-bottom: 2rem;">
-        <li>SRC: {{.GnoPackageLocation}}</li>
-        <li>DST: {{.GoPackageLocation}}</li>
+        <li>SRC: {{.SrcPackageLocation}}</li>
+        <li>DST: {{.DstPackageLocation}}</li>
     </ul>
 
     <h3>Number of files</h3>
     <ul style="margin-bottom: 2rem;">
-        <li>SRC: {{.GnoFileCount}}</li>
-        <li>DST: {{.GoFileCount}}</li>
+        <li>SRC: {{.SrcFilesCount}}</li>
+        <li>DST: {{.DstFileCount}}</li>
     </ul>
 
     {{- range .FilesDifferences}}
