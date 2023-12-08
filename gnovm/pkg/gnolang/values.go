@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -43,7 +43,8 @@ func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
 const (
-	nilStr = "nil"
+	nilStr       = "nil"
+	undefinedStr = "undefined"
 )
 
 var (
