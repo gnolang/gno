@@ -1,9 +1,8 @@
 package main
 
-// both typed(different) const
 func main() {
-	println(int(1) == int8(1))
+	println(nil == nil)
 }
 
 // Error:
-// main/files/types/0a01_filetest.gno:5: cannot use int as int8
+// main/files/types/0a01_filetest.gno:4: <nil> is not comparable

@@ -905,7 +905,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if baseOf(rt) != UintType {
 								// convert n.Right to (gno) uint type.
 								//checkOp(store, last, &n.Right, UintType, n.Op, true)
-								checkOrConvertType(store, last, &n.Right, UintType, false)
+								//checkOrConvertType(store, last, &n.Right, UintType, false)
+								convertConstType(store, last, &n.Right, UintType, false) // bypass check
 							} else {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
@@ -938,7 +939,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if rcx.T == nil { // RHS is nil
-						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
+						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest, if8_filetest
 						// convert n.Right to typed-nil type.
 						checkOp(store, last, &n.Right, lt, n.Op, true)
 						checkOrConvertType(store, last, &n.Right, lt, false)
@@ -1701,7 +1702,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Special case if shift assign <<= or >>=.
 						// TODO: no need here, like index convert
 						//checkOp(store, last, &n.Rhs[0], UintType, n.Op, false)
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+						//checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
+
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						// e.g. a += b, single value for lhs and rhs,
 						// TODO: assert length
@@ -2416,7 +2419,7 @@ func cmpSpecificity(t1, t2 Type) int {
 	}
 }
 
-// for special case of index conversion
+// for special case to bypass check for typed -> typed conversion, e.g. array index conversion
 func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	debugPP.Printf("convertConstType, x: %v, t:%v, \n", x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
@@ -2430,16 +2433,10 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 // for native function calls, where gno values are
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerType()
-
-// TODO: NOTE, more about const, sometimes we convert it anyway, like uint8 -> int as index of an array
-// TODO: but if it's bind to ops like +, type conversion should be checked
-// TODO: this should be awareness at its origin
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	debugPP.Printf("checkOrConvertType, x: %v:, t:%v, \n", x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
-		// here we should check too, e.g. primitive to declared type is assignable
-		// TODO: file why we need this, regular check with native skipped
-		// TODO, it's reasonable for gno is a superset of go type, like bigint
+		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
 		if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
 			debugPP.Println("x is ConstExpr, not nativeType, go check")
 			checkConvertable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
@@ -2545,7 +2542,7 @@ func isComparison(op Word) bool {
 	}
 }
 
-// TODO: is x is necessary
+// check operand types with operators
 func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool) {
 	var xt Type
 	if x != nil { // unaryExpr
@@ -2578,11 +2575,9 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 			// 2. comparable requires one is assignable to another
 			// 3. handle nil
 			if ok, code := comparable(dt); !ok {
-				debugPP.Printf("not comparable of dt :%v \n", dt)
 				panic(code)
 			}
 		case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
-			debugPP.Printf("L, G: %v \n", op)
 			if pred, ok := binaryPredicates[op]; ok {
 				if !pred(dt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
@@ -2596,20 +2591,16 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 		// first, check is the dt type satisfies op, the switch logic
 		// second, xt can be converted to dt, this is done below this
 		// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
-		debugPP.Printf("check op: %v \n", op)
 		if pred, ok := binaryPredicates[op]; ok {
 			if !pred(dt) {
 				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 			}
 		}
 		if op != ILLEGAL {
-			switch op { // TODO: how about BAND, BOR, etc?
+			switch op {
 			case ADD, ADD_ASSIGN, SUB, SUB_ASSIGN, MUL, MUL_ASSIGN, QUO, QUO_ASSIGN, REM, REM_ASSIGN, BAND, BAND_ASSIGN, BOR, BOR_ASSIGN, BAND_NOT, BAND_NOT_ASSIGN, XOR, XOR_ASSIGN, LAND, LOR:
 				// if both typed
 				if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
-					//if !isBinOperandTypeIdentical(xt, dt) {
-					//	panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
-					//}
 					if xt != nil && dt != nil {
 						if xt.TypeID() != dt.TypeID() {
 							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
@@ -2618,9 +2609,8 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 					debugPP.Println("typed and identical as comparable")
 				}
 			case SHL, SHR:
-			// TODO: right should be numeric
 			default:
-				// Note: readme no check, assign will be check in assignable
+				// Note: others no check, assign will be check in assignable
 			}
 		}
 	}
@@ -2630,11 +2620,10 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
 func checkConvertable(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
-	if xt == nil || dt == nil { // TODO: counter case?
-		debugPP.Println("xt or dt is nil")
+	if xt == nil || dt == nil { // refer to 0f18_filetest, assign8.gno
+		debugPP.Println("checkConvertable, xt or dt is nil")
 		return
 	}
-	debugPP.Printf("checkConvertable, xt: %v, xt.Kind: %v,  dt: %v, dt.Kind: %v, \n", xt, xt.Kind(), dt, dt.Kind())
 	return assignable(xt, dt, autoNative)
 }
 

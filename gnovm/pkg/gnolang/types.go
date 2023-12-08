@@ -2384,7 +2384,7 @@ func comparable(t Type) (bool, string) {
 // XXX. the name of assignable should be considered, or convertable?
 // they have same function but implies different application scenarios
 func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
-	debugPP.Printf("assignable, xt: %v, dt:%v, autoNative: %t \n", xt, dt, autoNative)
+	debugPP.Printf("assignable, xt: %v dt: %v \n", xt, dt)
 	// case3
 	// if xt or dt is empty interface, assignable
 	// if no empty interface, then check if xt satisfied dt
