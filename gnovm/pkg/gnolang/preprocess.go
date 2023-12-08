@@ -968,9 +968,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						}
+
+						// Each type has an associated base kind that is kind of the variable
+						// if were to be untyped. If the constant expression's untyped kind matches
+						// with that of the untyped argument, then they are compatible. The possibility
+						// for incompatibility is due the potential logic within the call to convertConst
+						// that may end up mapping untyped kinds to a kind that doesn't match that of the
+						// constant expression.
+						var constType Type
+						if ct != nil && arg0 != nil && UntypedKind(ct) == UntypedKind(arg0.T) {
+							constType = ct
+						}
+
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, ct)
+						convertConst(store, last, arg0, constType)
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
