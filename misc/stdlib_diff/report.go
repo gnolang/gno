@@ -22,10 +22,10 @@ type ReportBuilder struct {
 // differences between source and destination directories.
 type PackageDiffTemplateData struct {
 	PackageName        string           // Package name.
-	GnoFileCount       int              // Number of Gno files in the package.
-	GnoPackageLocation string           // Location of Gno files in the source directory.
-	GoFileCount        int              // Number of Go files in the package.
-	GoPackageLocation  string           // Location of Go files in the destination directory.
+	SrcFilesCount      int              // Number of files in the source package.
+	SrcPackageLocation string           // Location of source files in the source directory.
+	DstFileCount       int              // Number of destination files in the package.
+	DstPackageLocation string           // Location of destination files in the destination directory.
 	FilesDifferences   []FileDifference // Differences in individual files.
 }
 
@@ -92,10 +92,10 @@ func (builder *ReportBuilder) Build() error {
 
 		data := &PackageDiffTemplateData{
 			PackageName:        directory,
-			GnoFileCount:       len(packageChecker.SrcFiles),
-			GnoPackageLocation: srcPackagePath,
-			GoFileCount:        len(packageChecker.DstFiles),
-			GoPackageLocation:  dstPackagePath,
+			SrcFilesCount:      len(packageChecker.SrcFiles),
+			SrcPackageLocation: srcPackagePath,
+			DstFileCount:       len(packageChecker.DstFiles),
+			DstPackageLocation: dstPackagePath,
 			FilesDifferences:   differences.FilesDifferences,
 		}
 
