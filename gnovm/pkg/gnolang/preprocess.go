@@ -890,8 +890,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if !isUntyped(lcx.T) { // left is typed const, right is not const
 						checkOp(store, last, &n.Left, rt, n.Op, true)
-						checkOrConvertType(store, last, &n.Left, rt, false)
-					} else if lcx.T == nil { // LHS is nil
+						if n.Op == SHR || n.Op == SHL {
+							convertConstType(store, last, &n.Left, lt, false) // bypass check
+						} else {
+							debugPP.Println("-----shift-----")
+							checkOrConvertType(store, last, &n.Left, rt, false)
+						}
+					} else if lcx.T == nil { // LHS is nil //  TODO: consider this
 						debugPP.Println("lcx.T is nil")
 						// convert n.Left to typed-nil type.
 						checkOp(store, last, &n.Left, rt, n.Op, true)
