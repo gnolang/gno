@@ -2,16 +2,19 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type f func(t Type) bool
 
-var binaryPredicates = make(map[Word]f)
-var unaryPredicates = make(map[Word]f)
-var IncDecStmtPredicates = make(map[Word]f)
+var (
+	binaryPredicates     = make(map[Word]f)
+	unaryPredicates      = make(map[Word]f)
+	IncDecStmtPredicates = make(map[Word]f)
+)
 
 func init() {
 	// add,sub,mul,quo,rem with assgin
@@ -909,8 +912,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isShift {
 							if baseOf(rt) != UintType {
 								// convert n.Right to (gno) uint type.
-								//checkOp(store, last, &n.Right, UintType, n.Op, true)
-								//checkOrConvertType(store, last, &n.Right, UintType, false)
+								// checkOp(store, last, &n.Right, UintType, n.Op, true)
+								// checkOrConvertType(store, last, &n.Right, UintType, false)
 								convertConstType(store, last, &n.Right, UintType, false) // bypass check
 							} else {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
@@ -1706,8 +1709,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Special case if shift assign <<= or >>=.
 						// TODO: no need here, like index convert
-						//checkOp(store, last, &n.Rhs[0], UintType, n.Op, false)
-						//checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+						// checkOp(store, last, &n.Rhs[0], UintType, n.Op, false)
+						// checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
 
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
@@ -1723,7 +1726,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
 							// is x or y is untyped, convert, else check type
-							//rt := evalStaticTypeOf(store, last, n.Rhs[i])
+							// rt := evalStaticTypeOf(store, last, n.Rhs[i])
 							// all else check
 							checkOp(store, last, &n.Rhs[i], lt, n.Op, false)
 							checkOrConvertType(store, last, &n.Rhs[i], lt, false)

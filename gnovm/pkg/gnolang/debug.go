@@ -18,13 +18,17 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type debugging bool
-type debugPreprocess bool
+type (
+	debugging       bool
+	debugPreprocess bool
+)
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
-var debug debugging = false
-var debugPP debugPreprocess = false
+var (
+	debug   debugging       = false
+	debugPP debugPreprocess = false
+)
 
 func init() {
 	debug = os.Getenv("DEBUG") == "1"

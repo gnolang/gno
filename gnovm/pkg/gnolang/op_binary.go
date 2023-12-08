@@ -471,7 +471,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		//if debug {
+		// if debug {
 		if lv.V != nil && rv.V != nil {
 			panic("function can only be compared with `nil`")
 		}

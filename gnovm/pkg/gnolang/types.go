@@ -2321,7 +2321,7 @@ func assertEqualityTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		//panic("7, incompatible operands")
+		// panic("7, incompatible operands")
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
@@ -2558,7 +2558,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					"cannot use %s as %s without explicit conversion",
 					dxt.String(),
 					dt.String()))
-				//xt = dxt.Base
+				// xt = dxt.Base
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base
@@ -2669,7 +2669,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	case *DeclaredType:
 		// do nothing, untyped to declared type
 		return
-		//panic("should not happen")
+		// panic("should not happen")
 	case *StructType, *PackageType, *ChanType:
 		if xt.TypeID() == cdt.TypeID() {
 			return // ok
