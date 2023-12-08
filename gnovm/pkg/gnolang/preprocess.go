@@ -937,9 +937,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							}
 						}
-						//} else if rcx.T == nil {
 					} else if rcx.T == nil { // RHS is nil
-						debugPP.Println("rcx.T == nil ")
+						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
 						// convert n.Right to typed-nil type.
 						checkOp(store, last, &n.Right, lt, n.Op, true)
 						checkOrConvertType(store, last, &n.Right, lt, false)
@@ -2456,9 +2455,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		xt := evalStaticTypeOf(store, last, *x)
 		var conversionNeeded bool
 		if t != nil {
-			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
-				conversionNeeded = checkConvertable(xt, t, autoNative)
-			}
+			conversionNeeded = checkConvertable(xt, t, autoNative)
 		}
 		if isUntyped(xt) {
 			if t == nil {
@@ -2606,12 +2603,17 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 			}
 		}
 		if op != ILLEGAL {
-			switch op {
-			case ADD, ADD_ASSIGN, SUB, SUB_ASSIGN, MUL, MUL_ASSIGN, QUO, QUO_ASSIGN, REM, REM_ASSIGN:
+			switch op { // TODO: how about BAND, BOR, etc?
+			case ADD, ADD_ASSIGN, SUB, SUB_ASSIGN, MUL, MUL_ASSIGN, QUO, QUO_ASSIGN, REM, REM_ASSIGN, BAND, BAND_ASSIGN, BOR, BOR_ASSIGN, BAND_NOT, BAND_NOT_ASSIGN, XOR, XOR_ASSIGN, LAND, LOR:
 				// if both typed
 				if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
-					if !isArithTypeIdentical(xt, dt) {
-						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+					//if !isBinOperandTypeIdentical(xt, dt) {
+					//	panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+					//}
+					if xt != nil && dt != nil {
+						if xt.TypeID() != dt.TypeID() {
+							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+						}
 					}
 					debugPP.Println("typed and identical as comparable")
 				}

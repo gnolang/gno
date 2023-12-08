@@ -85,7 +85,7 @@ func (m *Machine) doOpEql() {
 	var res bool
 	// TODO: this should be in preprocess too
 	// TODO: only assert here
-	if isArithTypeIdentical(lv.T, rv.T) {
+	if isBinOperandTypeIdentical(lv.T, rv.T) {
 		res = isEql(m.Store, lv, rv)
 	} else {
 		res = false
@@ -112,7 +112,7 @@ func (m *Machine) doOpNeq() {
 	debugPP.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 
 	var res bool
-	if isArithTypeIdentical(lv.T, rv.T) {
+	if isBinOperandTypeIdentical(lv.T, rv.T) {
 		res = !isEql(m.Store, lv, rv)
 	} else {
 		res = true

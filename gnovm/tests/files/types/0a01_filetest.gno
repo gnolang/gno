@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0a0_filetest.gno:5: cannot use int as int8
+// main/files/types/0a01_filetest.gno:5: cannot use int as int8

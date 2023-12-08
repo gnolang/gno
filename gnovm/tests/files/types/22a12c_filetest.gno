@@ -9,6 +9,7 @@ func (n nat) add() bool {
 	return true
 }
 
+// TODO: seems fmt prints the underlying type, this is another problem to fix.
 func main() {
 	var abs nat
 	abs = []word{0} // unname-Composit to named DeclaredTypes

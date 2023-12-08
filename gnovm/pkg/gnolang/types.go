@@ -1126,8 +1126,8 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 	debugPP.Printf("isImplementedBy, it %v, ot:%v \n", it, ot)
-	// empty interface{}
-	//if iot, ok := baseOf(ot).(*InterfaceType); ok {
+	//// empty interface{}
+	//if iot, ok := ot.(*InterfaceType); ok {
 	//	if iot.IsEmptyInterface() {
 	//		return true
 	//	}
@@ -2231,9 +2231,10 @@ func KindOf(t Type) Kind {
 
 // TODO: document what class of problems its for.
 // One of them can be nil, and this lets uninitialized primitives
-// and readme serve as empty values.  See doOpAdd()
+// and others serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
 func assertSameTypes(lt, rt Type) {
+	debugPP.Println("assert same types")
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2250,6 +2251,7 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
+		panic("panic assertSameTypes")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -2258,11 +2260,12 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// check with untyped excluded, it's used by checkOp and op_binary
-// both typed(original typed, or be typed in runtime), or one is nil, or data byte
-// only for comparable types
-func isArithTypeIdentical(lt, rt Type) bool {
-	debugPP.Printf("check isArithTypeIdentical, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+// both typed, or one is nil, or data byte(special case)
+// only for comparable types for runtime, op_binary
+// any implicit identical check is in preprocess stage and excluded from here
+// TODO: a better name?
+func isBinOperandTypeIdentical(lt, rt Type) bool {
+	debugPP.Printf("check isBinOperandTypeIdentical, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
 	if lpt, ok := lt.(*PointerType); ok {
 		if isDataByte(lpt.Elt) {
@@ -2270,18 +2273,15 @@ func isArithTypeIdentical(lt, rt Type) bool {
 			return true
 		}
 	}
-
 	if rpt, ok := rt.(*PointerType); ok {
 		if isDataByte(rpt.Elt) {
 			debugPP.Println("rt is pointer type and base type is data byte")
 			return true
 		}
 	}
-
 	if isDataByte(lt) || isDataByte(rt) {
 		return true
 	}
-
 	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
 		// both are nil.
@@ -2330,7 +2330,10 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// t is the target type in convert process, check it firstly, then check if assignable
+// NOTE: comparable is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
+// which pass the later one, but is not comparable.
+// The logic here is, when compare operators show, check if t is comparable, if yes,
+// then check the corresponding type(the other side of the operator) is convertable to t.
 func comparable(t Type) (bool, string) {
 	debugPP.Printf("check comparable, t is %v \n", t)
 	// primitive is comparable
@@ -2339,10 +2342,9 @@ func comparable(t Type) (bool, string) {
 		debugPP.Println("primitive type, return true")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
-		// TODO: check length? but that needs check after convert, indicates checkOp after convert? make more sense seems
 		// TODO: check at least length here
 		switch baseOf(ct.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // TODO: nativeType?
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
 			return true, ""
 		default:
 			return false, fmt.Sprintf("%v cannot be compared \n", ct)
@@ -2374,11 +2376,13 @@ func comparable(t Type) (bool, string) {
 	}
 }
 
-// check if xt can be converted to dt, conversionNeeded indicate need convert from unnamed -> named
+// check if xt can be converted to dt, conversionNeeded indicates further conversion needed from unnamed -> named
 // case 1. untyped const to typed const with same kind
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general convert, for composite types check
+// XXX. the name of assignable should be considered, or convertable?
+// they have same function but implies different application scenarios
 func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	debugPP.Printf("assignable, xt: %v, dt:%v, autoNative: %t \n", xt, dt, autoNative)
 	// case3
@@ -2395,7 +2399,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
-			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6
+			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6_filetest.gno
 				debugPP.Println("xt is empty interface: ", iot)
 				if iot.IsEmptyInterface() {
 					return // ok
