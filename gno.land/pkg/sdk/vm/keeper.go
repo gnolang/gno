@@ -50,12 +50,12 @@ type VMKeeper struct {
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(
-	baseKey store.StoreKey,
-	iavlKey store.StoreKey,
-	acck auth.AccountKeeper,
-	bank bank.BankKeeper,
-	stdlibsDir string,
-	maxCycles int64,
+		baseKey store.StoreKey,
+		iavlKey store.StoreKey,
+		acck auth.AccountKeeper,
+		bank bank.BankKeeper,
+		stdlibsDir string,
+		maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{

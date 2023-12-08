@@ -5,16 +5,8 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
-gnoland.start:
-	@#TODO: remove this makefile directive in a few weeks.
-	@echo "DEPRECATED: use 'start.gnoland' instead of 'gnoland.start'"
-	go run ./cmd/gnoland start
-
-.PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start
-
-.PHONY: start.gnoweb
-start.gnoweb:; go run ./cmd/gnoweb
+.PHONY: gnoland.start
+gnoland.start:; go run ./cmd/gnoland start
 
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync build.genesis
@@ -68,4 +60,5 @@ _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey
 _test.pkgs:;         go test $(GOTEST_FLAGS) ./pkg/...
 _test.pkgs.sync:;    UPDATE_SCRIPTS=true go test $(GOTEST_FLAGS) ./pkg/...
+
 
