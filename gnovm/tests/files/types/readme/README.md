@@ -42,7 +42,7 @@ as a simple prove, if you check this: Error(0) = errCmp, the result will be true
 
 In the right way, the LHS and RHS has different underlying type, so the result should be false.
 
-It's a corner of the iceberg after some more digging:
+Deeper analysis:
 
 Type mix check missing 
 
@@ -111,18 +111,23 @@ println("should not happen")
 unamed (composite) literals should be converted to named implicitly in preprocess time.
     
 
+To sums up, the solution is:
+
 Flow:
+    regular type check for const, with some specific case whitelisted, e.g. array key, and nativeType excluded
+
     checkOp for binary expr, unary expr and inc/dec stmt
         comparable, == !=
 
         arith + - ...
         isNumericOrString
 
+    Note: this only check dt, 
+
     checkOperand for special case, in / and %, divisor should not be zero.
 
-    regular type check for const, with nativeType excluded
-    regular type check for others, check assignable
-
+    if check pass(or in cases with no Op to check), carry on  checking if the corresponding side can be assigned to dt, throught assignable.
+    regular type check for others, check assignable.
 
 
 
