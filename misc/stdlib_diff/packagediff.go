@@ -14,6 +14,7 @@ type PackageDiffChecker struct {
 	SrcPath  string   // Source directory path.
 	DstFiles []string // List of destination files.
 	DstPath  string   // Destination directory path.
+	SrcIsGno bool     // Indicates if the SrcFiles are gno files.
 }
 
 // Differences represents the differences between source and destination packages.
@@ -34,7 +35,7 @@ type FileDifference struct {
 // NewPackageDiffChecker creates a new PackageDiffChecker instance with the specified
 // source and destination paths. It initializes the SrcFiles and DstFiles fields by
 // listing files in the corresponding directories.
-func NewPackageDiffChecker(srcPath, dstPath string) (*PackageDiffChecker, error) {
+func NewPackageDiffChecker(srcPath, dstPath string, srcIsGno bool) (*PackageDiffChecker, error) {
 	srcFiles, err := listDirFiles(srcPath)
 	if err != nil {
 		return nil, err
@@ -50,6 +51,7 @@ func NewPackageDiffChecker(srcPath, dstPath string) (*PackageDiffChecker, error)
 		SrcPath:  srcPath,
 		DstFiles: dstFiles,
 		DstPath:  dstPath,
+		SrcIsGno: srcIsGno,
 	}, nil
 }
 
@@ -61,11 +63,14 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 		FilesDifferences:  make([]FileDifference, 0),
 	}
 
+	srcFilesExt, dstFileExt := p.inferFileExtensions()
 	allFiles := p.listAllPossibleFiles()
 
 	for _, trimmedFileName := range allFiles {
-		srcFilePath := p.SrcPath + "/" + trimmedFileName + ".gno"
-		dstFilePath := p.DstPath + "/" + trimmedFileName + ".go"
+		srcFileName := trimmedFileName + srcFilesExt
+		srcFilePath := p.SrcPath + "/" + srcFileName
+		dstFileName := trimmedFileName + dstFileExt
+		dstFilePath := p.DstPath + "/" + dstFileName
 
 		fileDiff, err := NewFileDiff(srcFilePath, dstFilePath, "myers")
 		if err != nil {
@@ -76,8 +81,8 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 
 		d.FilesDifferences = append(d.FilesDifferences, FileDifference{
 			Status:          p.getStatus(srcDiff, dstDiff).String(),
-			SourceName:      trimmedFileName + ".gno",
-			DestinationName: trimmedFileName + ".go",
+			SourceName:      srcFileName,
+			DestinationName: dstFileName,
 			SrcLineDiff:     srcDiff,
 			DstLineDiff:     dstDiff,
 		})
@@ -109,6 +114,14 @@ func (p *PackageDiffChecker) listAllPossibleFiles() []string {
 	}
 
 	return uniqueFiles
+}
+
+func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
+	if p.SrcIsGno {
+		return ".gno", ".go"
+	}
+
+	return ".go", ".gno"
 }
 
 func (p *PackageDiffChecker) getStatus(srcDiff, dstDiff []LineDifferrence) diffStatus {
