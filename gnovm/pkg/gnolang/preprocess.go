@@ -976,7 +976,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// that may end up mapping untyped kinds to a kind that doesn't match that of the
 						// constant expression.
 						var constType Type
-						if ct != nil && arg0 != nil && UntypedKind(ct) == UntypedKind(arg0.T) {
+						if ct != nil && arg0 != nil && untypedKind(ct) == untypedKind(arg0.T) {
 							constType = ct
 						}
 

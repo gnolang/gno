@@ -162,8 +162,8 @@ func (pt PrimitiveType) Specificity() int {
 	}
 }
 
-// UntypedKind returns the kind of a type as it would exist for untyped values.
-func UntypedKind(typ Type) Kind {
+// untypedKind returns the kind of a type as it would exist for untyped values.
+func untypedKind(typ Type) Kind {
 	switch typ {
 	case InvalidType:
 		panic("invalid type has no kind")
