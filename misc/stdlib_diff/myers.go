@@ -25,10 +25,9 @@ func NewMyers(src, dst []string) *Myers {
 func (m *Myers) Do() ([]LineDifferrence, []LineDifferrence) {
 	operations := m.doMyers()
 
-	srcIndex, dstIndex := 0, 0
+	srcIndex, dstIndex, insertCount, deleteCount := 0, 0, 0, 0
 	dstDiff := make([]LineDifferrence, 0)
 	srcDiff := make([]LineDifferrence, 0)
-	insertCount := 0
 	for _, op := range operations {
 		switch op {
 		case INSERT:
@@ -49,6 +48,7 @@ func (m *Myers) Do() ([]LineDifferrence, []LineDifferrence) {
 			dstDiff = append(dstDiff, LineDifferrence{Line: "", Operation: MOVE.String()})
 			srcDiff = append(srcDiff, LineDifferrence{Line: "-" + m.src[srcIndex], Operation: op.String()})
 			srcIndex += 1
+			deleteCount++
 			continue
 		}
 	}
@@ -56,6 +56,10 @@ func (m *Myers) Do() ([]LineDifferrence, []LineDifferrence) {
 	// Means that src file is empty.
 	if insertCount == len(srcDiff) {
 		srcDiff = make([]LineDifferrence, 0)
+	}
+	// Means that dst file is empty.
+	if deleteCount == len(dstDiff) {
+		dstDiff = make([]LineDifferrence, 0)
 	}
 	return srcDiff, dstDiff
 }
