@@ -116,6 +116,7 @@ func (p *PackageDiffChecker) listAllPossibleFiles() []string {
 	return uniqueFiles
 }
 
+// inferFileExtensions by returning the src and dst files extensions.
 func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
 	if p.SrcIsGno {
 		return ".gno", ".go"
@@ -124,6 +125,8 @@ func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
 	return ".go", ".gno"
 }
 
+// getStatus determines the diff status based on the differences in source and destination.
+// It returns a diffStatus indicating whether there is no difference, missing in source, missing in destination, or differences exist.
 func (p *PackageDiffChecker) getStatus(srcDiff, dstDiff []LineDifferrence) diffStatus {
 	slicesAreEquals := slices.Equal(srcDiff, dstDiff)
 	if slicesAreEquals {
