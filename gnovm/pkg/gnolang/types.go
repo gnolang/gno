@@ -2363,16 +2363,16 @@ func isComparable(t Type) (bool, string) {
 		return true, ""
 	case *InterfaceType:
 		return true, ""
-	case *SliceType, *FuncType:
+	case *SliceType, *FuncType, *MapType:
 		// only isComparable with nil, runtime check
 		return true, ""
 	case *NativeType:
 		if ct.Type.Comparable() {
 			return true, ""
 		}
-		return false, fmt.Sprintf("%v is not isComparable \n", t)
+		return false, fmt.Sprintf("%v is not comparable \n", t)
 	default:
-		return false, fmt.Sprintf("%v is not isComparable \n", t)
+		return false, fmt.Sprintf("%v is not comparable \n", t)
 	}
 }
 

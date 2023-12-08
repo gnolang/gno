@@ -1,9 +1,9 @@
 package main
 
+var m map[string]int
+
 func main() {
-	v := 42
-	p := &v
-	println(v == *p)
+	println(m == nil)
 }
 
 // Output:
