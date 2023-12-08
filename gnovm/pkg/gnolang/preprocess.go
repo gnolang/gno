@@ -2395,10 +2395,10 @@ func anyValue(t Type) TypedValue {
 	}
 }
 
-func isConst(x Expr) bool {
-	_, ok := x.(*ConstExpr)
-	return ok
-}
+//func isConst(x Expr) bool {
+//	_, ok := x.(*ConstExpr)
+//	return ok
+//}
 
 func isConstType(x Expr) bool {
 	_, ok := x.(*constTypeExpr)
@@ -2578,11 +2578,11 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 	}
 	if isComparison(op) {
 		switch op {
-		case EQL, NEQ: // check comparable
+		case EQL, NEQ: // check isComparable
 			// 1. first, check specific types can be compared, like binaryPredicates for ADD, etc
-			// 2. comparable requires one is assignable to another
+			// 2. isComparable requires one is assignable to another
 			// 3. handle nil
-			if ok, code := comparable(dt); !ok {
+			if ok, code := isComparable(dt); !ok {
 				panic(code)
 			}
 		case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
@@ -2614,7 +2614,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binary bool
 							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
 						}
 					}
-					debugPP.Println("typed and identical as comparable")
+					debugPP.Println("typed and identical as isComparable")
 				}
 			case SHL, SHR:
 			default:

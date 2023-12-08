@@ -272,9 +272,9 @@ const (
 	IsBigDec
 	IsRune
 
-	IsOrdered   = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
-	IsNumeric   = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
-	IsConstType = IsBoolean | IsNumeric | IsString
+	IsOrdered = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
+	IsNumeric = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
+	//IsConstType = IsBoolean | IsNumeric | IsString
 )
 
 // this is more convenient than compare with types
@@ -381,17 +381,17 @@ func isIntNum(t Type) bool {
 	}
 }
 
-func isIntOrUint(t Type) bool {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsRune != 0 {
-			return true
-		}
-		return false
-	default:
-		return false
-	}
-}
+//func isIntOrUint(t Type) bool {
+//	switch t := baseOf(t).(type) {
+//	case PrimitiveType:
+//		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsRune != 0 {
+//			return true
+//		}
+//		return false
+//	default:
+//		return false
+//	}
+//}
 
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
@@ -2261,7 +2261,7 @@ func assertSameTypes(lt, rt Type) {
 }
 
 // both typed, or one is nil, or data byte(special case)
-// only for comparable types for runtime, op_binary
+// only for isComparable types for runtime, op_binary
 // any implicit identical check is in preprocess stage and excluded from here
 // TODO: a better name?
 func isBinOperandTypeIdentical(lt, rt Type) bool {
@@ -2330,13 +2330,13 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// NOTE: comparable is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
-// which pass the later one, but is not comparable.
-// The logic here is, when compare operators show, check if t is comparable, if yes,
+// NOTE: isComparable is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
+// which pass the later one, but is not isComparable.
+// The logic here is, when compare operators show, check if t is isComparable, if yes,
 // then check the corresponding type(the other side of the operator) is convertable to t.
-func comparable(t Type) (bool, string) {
-	debugPP.Printf("check comparable, t is %v \n", t)
-	// primitive is comparable
+func isComparable(t Type) (bool, string) {
+	debugPP.Printf("check isComparable, t is %v \n", t)
+	// primitive is isComparable
 	switch ct := baseOf(t).(type) {
 	case PrimitiveType:
 		debugPP.Println("primitive type, return true")
@@ -2364,15 +2364,15 @@ func comparable(t Type) (bool, string) {
 	case *InterfaceType:
 		return true, ""
 	case *SliceType, *FuncType:
-		// only comparable with nil, runtime check
+		// only isComparable with nil, runtime check
 		return true, ""
 	case *NativeType:
 		if ct.Type.Comparable() {
 			return true, ""
 		}
-		return false, fmt.Sprintf("%v is not comparable \n", t)
+		return false, fmt.Sprintf("%v is not isComparable \n", t)
 	default:
-		return false, fmt.Sprintf("%v is not comparable \n", t)
+		return false, fmt.Sprintf("%v is not isComparable \n", t)
 	}
 }
 
@@ -2577,7 +2577,6 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					xt.String(),
 					ddt.String()))
 			}
-
 		} else {
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
