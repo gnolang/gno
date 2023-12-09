@@ -146,10 +146,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	pathChangeCh := make(chan []string, 1)
 	go func() {
 		defer close(pathChangeCh)
-
-		const debounceTimeout = time.Millisecond * 500
-
-		if err := handleDebounce(ctx, w, pathChangeCh, debounceTimeout); err != nil {
+		if err := handleDebounce(ctx, w, pathChangeCh); err != nil {
 			cancel(err)
 		}
 	}()
@@ -185,7 +182,12 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case paths := <-pathChangeCh:
+		case paths, ok := <-pathChangeCh:
+			if !ok {
+				cancel(nil)
+				continue
+			}
+
 			for _, path := range paths {
 				rt.Taskf("HotReload", "path %q has been modified", path)
 			}
@@ -209,10 +211,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 				fmt.Fprintf(keyOut, "<%s>\n", key.String())
 			}
 
-			switch key {
-			case 'h', 'H':
+			switch key.Upper() {
+			case gnodev.KeyH:
 				printHelper(rt)
-			case 'r', 'R':
+			case gnodev.KeyR:
 				fmt.Fprintln(nodeOut, "Reloading all packages...")
 				checkForError(nodeOut, dnode.ReloadAll(ctx))
 			case gnodev.KeyCtrlR:
@@ -237,7 +239,9 @@ Gno Dev Helper:
 `)
 }
 
-func handleDebounce(ctx context.Context, watcher *fsnotify.Watcher, changedPathsCh chan<- []string, timeout time.Duration) error {
+func handleDebounce(ctx context.Context, watcher *fsnotify.Watcher, changedPathsCh chan<- []string) error {
+	const timeout = time.Millisecond * 500
+
 	var debounceTimer <-chan time.Time
 	pathList := []string{}
 
@@ -253,10 +257,12 @@ func handleDebounce(ctx context.Context, watcher *fsnotify.Watcher, changedPaths
 			pathList = []string{}
 			debounceTimer = nil
 		case evt := <-watcher.Events:
-			if evt.Op == fsnotify.Write {
-				pathList = append(pathList, evt.Name)
-				debounceTimer = time.After(timeout)
+			if evt.Op != fsnotify.Write {
+				continue
 			}
+
+			pathList = append(pathList, evt.Name)
+			debounceTimer = time.After(timeout)
 		}
 	}
 }
@@ -346,9 +352,9 @@ func listenForKeyPress(w io.Writer, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
 
 func checkForError(w io.Writer, err error) {
 	if err != nil {
-		fmt.Fprintf(w, "", "[ERROR] - %s\n", err.Error())
+		fmt.Fprintf(w, "[ERROR] - %s\n", err.Error())
 		return
 	}
 
-	fmt.Fprintln(w, "", "[DONE]")
+	fmt.Fprintln(w, "[DONE]")
 }

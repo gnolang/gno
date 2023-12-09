@@ -17,17 +17,13 @@ const (
 	KeyCtrlO KeyPress = '\x0f' // Ctrl+O
 	KeyCtrlR KeyPress = '\x12' // Ctrl+R
 	KeyCtrlT KeyPress = '\x14' // Ctrl+T
+
+	KeyH KeyPress = 'H'
+	KeyR KeyPress = 'R'
 )
 
-const (
-	// ANSI escape codes
-	ClearCurrentLine = "\033[2K"
-	MoveCursorUp     = "\033[1A"
-	MoveCursorDown   = "\033[1B"
-)
-
-func (k KeyPress) Lower() KeyPress {
-	return KeyPress(unicode.ToLower(rune(k)))
+func (k KeyPress) Upper() KeyPress {
+	return KeyPress(unicode.ToUpper(rune(k)))
 }
 
 func (k KeyPress) String() string {
@@ -48,8 +44,8 @@ func (k KeyPress) String() string {
 		return "Ctrl+R"
 	case KeyCtrlT:
 		return "Ctrl+T"
-		// For printable ASCII characters
 	default:
+		// For printable ASCII characters
 		if k > 0x20 && k < 0x7e {
 			return fmt.Sprintf("%c", k)
 		}

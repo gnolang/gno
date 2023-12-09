@@ -32,9 +32,7 @@ func NewRawTerm() *RawTerm {
 	}
 }
 
-type restoreFunc func() error
-
-func (rt *RawTerm) Init() (restoreFunc, error) {
+func (rt *RawTerm) Init() (restore func() error, err error) {
 	fd := int(rt.fsin.Fd())
 	oldstate, err := term.MakeRaw(fd)
 	if err != nil {
