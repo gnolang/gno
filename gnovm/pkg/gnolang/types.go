@@ -2287,6 +2287,9 @@ func isBinOperandTypeIdentical(lt, rt Type) bool {
 		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() && // NOTE: keep untyped, there would be runtime untyped, e.g. `hello`[1:0] will create a runtime untype string, and
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
 		// left is databyte of same kind,

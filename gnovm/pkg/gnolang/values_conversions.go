@@ -904,6 +904,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	// special case: native
 	if nt, ok := t.(*NativeType); ok {
+		debugPP.Println("native type")
 		// first convert untyped to typed gno value.
 		gnot := go2GnoBaseType(nt.Type)
 		if debug {
@@ -919,6 +920,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
 		tv.T = t
+		debugPP.Printf("simple conversion, tv.T: %v \n", tv.T)
 		return
 	}
 	// general case
@@ -947,11 +949,13 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
+		debugPP.Println("untype string to string")
 		if preprocessing == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {
 			tv.T = t
+			debugPP.Printf("tv.T %v \n", tv.T)
 			return
 		} else {
 			ConvertTo(nilAllocator, nil, tv, t)

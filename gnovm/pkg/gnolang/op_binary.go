@@ -80,19 +80,19 @@ func (m *Machine) doOpEql() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	debugPP.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
 	// TODO: this should be in preprocess too
 	// TODO: only assert here
 	if isBinOperandTypeIdentical(lv.T, rv.T) {
+		debugPP.Println("-----type identical------")
 		res = isEql(m.Store, lv, rv)
+		debugPP.Println("is equal?", res)
 	} else {
+		debugPP.Println("-----type not identical------")
 		res = false
 	}
-	lv.T = UntypedBoolType
-	lv.V = nil
-	lv.SetBool(res)
 
 	lv.T = UntypedBoolType
 	lv.V = nil
@@ -109,12 +109,15 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
-	debugPP.Printf("lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
 	if isBinOperandTypeIdentical(lv.T, rv.T) {
+		debugPP.Println("-----type identical------")
 		res = !isEql(m.Store, lv, rv)
+		debugPP.Println("is not equal?", res)
 	} else {
+		debugPP.Println("-----type not identical------")
 		res = true
 	}
 	lv.T = UntypedBoolType

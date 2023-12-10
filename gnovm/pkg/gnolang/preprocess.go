@@ -1331,7 +1331,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			CLT_TYPE_SWITCH:
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
+					debugPP.Println("---struct type---")
 					if n.IsKeyed() {
+						debugPP.Println("keyed")
 						for i := 0; i < len(n.Elts); i++ {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
@@ -1339,6 +1341,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
 						}
 					} else {
+						debugPP.Println("not keyed")
 						for i := 0; i < len(n.Elts); i++ {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
@@ -1590,6 +1593,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
+				debugPP.Println("---structTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
@@ -1597,12 +1601,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				debugPP.Printf("---AssignStmt---, Op: %v \n", n.Op)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					debugPP.Println("define")
+					// lt := evalStaticTypeOf(store, last, n.Lhs)
+
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
+						debugPP.Println("convert if const")
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, rx)
 					}
 					if len(n.Lhs) > len(n.Rhs) {
+						debugPP.Println("lhs > rhs")
 						// Unpack n.Rhs[0] to n.Lhs[:]
 						if len(n.Rhs) != 1 {
 							panic("should not happen")
@@ -1653,6 +1662,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
+						debugPP.Println("else")
 					} else {
 						// General case: a, b := x, y
 						for i, lx := range n.Lhs {
@@ -2461,7 +2471,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if t != nil {
 			conversionNeeded = checkConvertable(xt, t, autoNative)
 		}
+		debugPP.Println("need conversion: ", conversionNeeded)
 		if isUntyped(xt) {
+			debugPP.Println("xt untyped")
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
@@ -2500,6 +2512,7 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, cx, nil)
 	}
+	debugPP.Printf("x: %v not const, no convert \n", x)
 }
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
@@ -2512,6 +2525,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 		debugPP.Println("convert untyped const")
 		ConvertUntypedTo(&cx.TypedValue, t)
 		setConstAttrs(cx)
+		debug.Printf("after conversion: cx: %v \n", cx)
 	} else if t != nil {
 		debugPP.Println("convert typed const for indexing")
 		// e.g. a named type or uint8 type to int for indexing.
