@@ -12,7 +12,7 @@ func parseAddresses(addresses string) ([]std.Address, error) {
 	for _, str := range strings.Split(addresses, ",") {
 		addr := std.Address(str)
 		if !addr.IsValid() {
-			return nil, ErrInvalidAddress
+			return nil, errInvalidAddress
 		}
 		ret = append(ret, addr)
 	}
@@ -26,7 +26,7 @@ func parseAmounts(amounts string) ([]int64, error) {
 	for _, amt := range strings.Split(amounts, ",") {
 		amount, _ := strconv.Atoi(amt)
 		if amount < 0 {
-			return nil, ErrNegativeCoinAmount
+			return nil, errNegativeCoinAmount
 		}
 		ret = append(ret, int64(amount))
 	}
