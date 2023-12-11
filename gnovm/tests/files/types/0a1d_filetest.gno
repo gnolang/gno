@@ -1,12 +1,18 @@
 package main
 
-func gen() interface{} {
-	return uint64(0)
+type S struct {
+	expected string
 }
+
 func main() {
-	println(0 == gen())
+
+	//a := "hello"
+
+	println("hello" == S{
+		expected: `hello`[:],
+	}.expected)
 
 }
 
 // Output:
-// false
+// true

@@ -5,7 +5,7 @@ type S struct {
 }
 
 func main() {
-	s := S{
+	var s = S{
 		expected: `hello`[:], // this is not converted
 	}
 

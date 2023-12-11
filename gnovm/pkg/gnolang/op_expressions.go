@@ -83,6 +83,7 @@ func (m *Machine) doOpSelector() {
 }
 
 func (m *Machine) doOpSlice() {
+	debugPP.Println("doOpSlice")
 	sx := m.PopExpr().(*SliceExpr)
 	var low, high, max int = -1, -1, -1
 	// max
@@ -112,14 +113,20 @@ func (m *Machine) doOpSlice() {
 	if sx.High == nil {
 		high = xv.GetLength()
 	}
+	debugPP.Printf("low: %v , high: %v \n", low, high)
 	// all low:high:max cases
+	var sv TypedValue
 	if max == -1 {
-		sv := xv.GetSlice(m.Alloc, low, high)
-		m.PushValue(sv)
+		sv = xv.GetSlice(m.Alloc, low, high)
+		debugPP.Printf("sv: %v \n", sv)
 	} else {
-		sv := xv.GetSlice2(m.Alloc, low, high, max)
-		m.PushValue(sv)
+		sv = xv.GetSlice2(m.Alloc, low, high, max)
+		debugPP.Printf("sv: %v \n", sv)
 	}
+	if isUntyped(sv.T) {
+		ConvertUntypedTo(&sv, defaultTypeOf(sv.T))
+	}
+	m.PushValue(sv)
 }
 
 // If the referred value is undefined, and the pointer
@@ -476,9 +483,11 @@ func (m *Machine) doOpArrayLit() {
 }
 
 func (m *Machine) doOpSliceLit() {
+	debugPP.Println("doOpSliceLit")
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
+	debugPP.Println("el: ", el)
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
