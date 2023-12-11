@@ -36,6 +36,8 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+	// Additional AnteHandler applied in order
+	AnteHandlerChain []sdk.AnteHandler
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -161,7 +163,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 			ak.SetAccount(newCtx, signerAccs[i])
 		}
-
+		for _, anteHandler := range opts.AnteHandlerChain {
+			newCtx, res, abort := anteHandler(newCtx, tx, simulate)
+			if abort {
+				return newCtx, res, true
+			}
+		}
 		// TODO: tx tags (?)
 		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false // continue...
 	}

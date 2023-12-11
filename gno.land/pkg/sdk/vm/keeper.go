@@ -198,10 +198,18 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
 		})
-	defer m2.Release()
-	m2.RunMemPackage(memPkg, true)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
+				r, m2.String())
+			consumeGas(ctx, m2, logPrefixAddPkg, pkgPath, "")
+			return
+		}
+		m2.Release()
+	}()
 
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m2.Cycles)
+	m2.RunMemPackage(memPkg, true)
+	consumeGas(ctx, m2, logPrefixAddPkg, pkgPath, "")
 	return nil
 }
 
@@ -278,12 +286,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
 				r, m.String())
+			consumeGas(ctx, m, logPrefixCall, pkgPath, fnc)
 			return
 		}
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+	consumeGas(ctx, m, logPrefixCall, pkgPath, fnc)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -340,9 +349,20 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
 		})
-	defer m.Release()
+	// XXX MsgRun does not have pkgPath. How do we find it on chain?
+	pkgPath := ""
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
+				r, m.String())
+			consumeGas(ctx, m, logPrefixRun, pkgPath, "add_main")
+			return
+		}
+		m.Release()
+	}()
+
 	_, pv := m.RunMemPackage(memPkg, false)
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
+	consumeGas(ctx, m, logPrefixRun, pkgPath, "add_main")
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -356,14 +376,15 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2.SetActivePackage(pv)
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
 				r, m2.String())
+			consumeGas(ctx, m2, logPrefixRun, pkgPath, "main")
 			return
 		}
 		m2.Release()
 	}()
 	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call: ", m2.Cycles)
+	consumeGas(ctx, m2, logPrefixRun, pkgPath, "call_main")
 	res = buf.String()
 	return res, nil
 }
@@ -425,6 +446,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 		}
 		fsigs = append(fsigs, fsig)
 	}
+	ctx.Logger().Info("gas.vm.qfuncs.total,", pkgPath, ",", ctx.GasMeter().GasConsumed())
 	return fsigs, nil
 }
 
@@ -472,11 +494,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 				r, m.String())
+			consumeGas(ctx, m, logPrefixQeval, pkgPath, expr)
 			return
 		}
 		m.Release()
 	}()
 	rtvs := m.Eval(xx)
+	consumeGas(ctx, m, logPrefixQeval, pkgPath, expr)
 	res = ""
 	for i, rtv := range rtvs {
 		res += rtv.String()
@@ -532,11 +556,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		if r := recover(); r != nil {
 			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 				r, m.String())
+			consumeGas(ctx, m, logPrefixQevalStr, pkgPath, expr)
 			return
 		}
 		m.Release()
 	}()
 	rtvs := m.Eval(xx)
+	consumeGas(ctx, m, logPrefixQevalStr, pkgPath, expr)
 	if len(rtvs) != 1 {
 		return "", errors.New("expected 1 string result, got %d", len(rtvs))
 	} else if rtvs[0].T.Kind() != gno.StringKind {
