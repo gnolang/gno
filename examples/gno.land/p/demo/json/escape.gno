@@ -2,6 +2,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"unicode/utf8"
 )
 
@@ -25,20 +26,6 @@ var escapeMap = map[byte]byte{
 	'n':  '\n',
 	'r':  '\r',
 	't':  '\t',
-}
-
-// hexToInt converts a hex character to its integer value.
-func hexToInt(c byte) int {
-	switch {
-	case c >= '0' && c <= '9':
-		return int(c - '0')
-	case c >= 'A' && c <= 'F':
-		return int(c - 'A' + 10)
-	case c >= 'a' && c <= 'f':
-		return int(c - 'a' + 10)
-	}
-
-	return BadHex
 }
 
 // isSurrogatePair returns true if the rune is a surrogate pair.
@@ -68,7 +55,7 @@ func decodeSingleUnicodeEscape(b []byte) (rune, bool) {
 	}
 
 	// convert hex to decimal
-	h1, h2, h3, h4 := hexToInt(b[2]), hexToInt(b[3]), hexToInt(b[4]), hexToInt(b[5])
+	h1, h2, h3, h4 := h2i(b[2]), h2i(b[3]), h2i(b[4]), h2i(b[5])
 	if h1 == BadHex || h2 == BadHex || h3 == BadHex || h4 == BadHex {
 		return utf8.RuneError, false
 	}
@@ -133,16 +120,16 @@ func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
 	return -1, -1
 }
 
-func Unescape(input, output []byte) []byte {
+func Unescape(input, output []byte) ([]byte, error) {
 	firstBackslash := bytes.IndexByte(input, '\\')
 	if firstBackslash == -1 {
-		return input
+		return input, nil
 	}
 
 	if cap(output) < len(input) {
 		output = make([]byte, len(input))
 	} else {
-		output = output[:len(input)]
+		output = output[0:len(input)]
 	}
 
 	copy(output, input[:firstBackslash])
@@ -152,7 +139,7 @@ func Unescape(input, output []byte) []byte {
 	for len(input) > 0 {
 		inLen, bufLen := processEscapedUTF8(input, buf)
 		if inLen == -1 {
-			return nil
+			return nil, errors.New("Encountered an invalid escape sequence in a string")
 		}
 
 		input = input[inLen:]
@@ -171,5 +158,5 @@ func Unescape(input, output []byte) []byte {
 		}
 	}
 
-	return output[:len(output)-len(buf)]
+	return output[:len(output)-len(buf)], nil
 }

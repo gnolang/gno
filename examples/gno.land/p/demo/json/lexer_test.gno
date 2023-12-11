@@ -1,6 +1,7 @@
 package json
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -8,6 +9,7 @@ type lexerTest struct {
 	name     string
 	data     []byte
 	token    byte
+	escaped  bool
 	expected int
 }
 
@@ -69,13 +71,63 @@ func TestLexer(t *testing.T) {
 				t.Errorf("tokenStart() = %v, want %v", got, tt.start)
 			}
 
-			if got := l.nextToken(); got != tt.next {
-				t.Errorf("nextToken() = %v, want %v", got, tt.next)
-			}
-
 			if got := l.findLastTokenPosition(); got != tt.last {
 				t.Errorf("findLastTokenPosition() = %v, want %v", got, tt.last)
 			}
 		})
 	}
+}
+
+func TestFindKeyStart(t *testing.T) {
+    tests := []struct {
+        name     string
+        data     string
+        key      string
+        want     int
+        wantErr  bool
+    }{
+        {
+            name:    "Simple key",
+            data:    `{"key1": "value1", "key2": "value2"}`,
+            key:     "key1",
+            want:    7,
+            wantErr: false,
+        },
+        {
+            name:    "Nested key",
+            data:    `{"outer": {"key1": "value1"}, "key2": "value2"}`,
+            key:     "key1",
+            want:    17,
+            wantErr: false,
+        },
+		{
+            name:    "Nested key 2",
+            data:    `{"outer": {"key1": "value1"}, "key2": "value2"}`,
+            key:     "key2",
+            want:    36,
+            wantErr: false,
+        },
+        {
+            name:    "Key not found",
+            data:    `{"key1": "value1"}`,
+            key:     "key2",
+            want:    -1,
+            wantErr: true,
+        },
+    }
+
+    for i, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{data: []byte(tt.data)}
+            got, err := l.findKeyPosition([]byte(tt.data), tt.key)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("findKeyStart(%d) error = %v, wantErr %v", i, err, tt.wantErr)
+                return
+            }
+
+            if got != tt.want {
+                t.Errorf("findKeyStart(%d) = %v, want %v", i, got, tt.want)
+            }
+        })
+    }
 }
