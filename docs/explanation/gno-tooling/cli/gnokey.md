@@ -179,7 +179,7 @@ gnokey maketx addpkg \
 
 ### `call`
 
-This subcommand lets you call a public function on a Realm.
+This subcommand lets you call a public function.
 
 ```bash
 # Register
