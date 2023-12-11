@@ -1,0 +1,81 @@
+package json
+
+import (
+	"testing"
+)
+
+type lexerTest struct {
+	name     string
+	data     []byte
+	token    byte
+	expected int
+}
+
+func TestFindTokenStart(t *testing.T) {
+	tests := []lexerTest{
+		{token: '{', expected: 5},
+		{token: '[', expected: 0},
+		{token: 'w', expected: 6},
+		{token: 'l', expected: 9},
+	}
+
+	for _, test := range tests {
+		l := New([]byte("hello{world}"))
+		if got := l.findTokenStart(test.token); got != test.expected {
+			t.Errorf("findTokenStart('%c') = %v, want %v", test.token, got, test.expected)
+		}
+	}
+}
+
+func TestTokenEnd(t *testing.T) {
+	tests := []lexerTest{
+		{name: "whitespace", data: []byte("hello world"), expected: 5},
+		{name: "newline", data: []byte("hello\nworld"), expected: 5},
+		{name: "tab", data: []byte("hello\tworld"), expected: 5},
+		{name: "multiple words", data: []byte("hello world foo bar"), expected: 5},
+		{name: "no space", data: []byte("helloworld"), expected: 10},
+	}
+
+	for _, test := range tests {
+		l := New(test.data)
+		if got := l.tokenEnd(); got != test.expected {
+			t.Errorf("tokenEnd() = %v, want %v", got, test.expected)
+		}
+	}
+}
+
+func TestLexer(t *testing.T) {
+	tests := []struct {
+		name  string
+		data  string
+		start int
+		next  int
+		last  int
+	}{
+		{
+			name:  "Test 1",
+			data:  "{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}",
+			start: 38,
+			next:  1,
+			last:  39,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{data: []byte(tt.data)}
+
+			if got := l.tokenStart(); got != tt.start {
+				t.Errorf("tokenStart() = %v, want %v", got, tt.start)
+			}
+
+			if got := l.nextToken(); got != tt.next {
+				t.Errorf("nextToken() = %v, want %v", got, tt.next)
+			}
+
+			if got := l.findLastTokenPosition(); got != tt.last {
+				t.Errorf("findLastTokenPosition() = %v, want %v", got, tt.last)
+			}
+		})
+	}
+}

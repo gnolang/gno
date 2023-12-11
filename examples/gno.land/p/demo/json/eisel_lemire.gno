@@ -21,14 +21,14 @@ import (
 // The Eisel-Lemire algorithm accomplishes its task through the following methods:
 //
 // 1. Extracting Mantissa and Exponent
-//		It involves separating the mantissa, or the significant part of the number, 
+//		It involves separating the mantissa, or the significant part of the number,
 //		from the exponent when converting a string into a floating-point number.
 //
 // 2. Normalization and Range checking
 //		This step normalizes the mantissa and ensures the exponent falls within an acceptable range.
 //
 // 3. Conversion to a Floating-Point Number
-//		Finally, the algorithm uses the normalized mantissa and exponent to convert the data 
+//		Finally, the algorithm uses the normalized mantissa and exponent to convert the data
 //		into an actual floating-point number.
 
 // eiselLemire64 parses a floating-point number from its mantissa and exponent representation.
@@ -204,8 +204,8 @@ const (
 // detailedPowersOfTen contains 128-bit mantissa approximations (rounded down)
 // to the powers of 10. For example:
 //
-//  - 1e43 ≈ (0xE596B7B0_C643C719                   * (2 ** 79))
-//  - 1e43 = (0xE596B7B0_C643C719_6D9CCD05_D0000000 * (2 ** 15))
+//   - 1e43 ≈ (0xE596B7B0_C643C719                   * (2 ** 79))
+//   - 1e43 = (0xE596B7B0_C643C719_6D9CCD05_D0000000 * (2 ** 15))
 //
 // The mantissas are explicitly listed. The exponents are implied by a linear
 // expression with slope 217706.0/65536.0 ≈ log(10)/log(2).
