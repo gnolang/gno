@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// function can only be compared with `nil`
+// main/files/types/0f17_filetest.gno:9: main.f can only be compared to nil

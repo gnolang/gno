@@ -2337,28 +2337,28 @@ func assertEqualityTypes(lt, rt Type) {
 // which pass the later one, but is not isComparable.
 // The logic here is, when compare operators show, check if t is isComparable, if yes,
 // then check the corresponding type(the other side of the operator) is convertable to t.
-func isComparable(t Type) (bool, string) {
-	debugPP.Printf("check isComparable, t is %v \n", t)
+func isComparable(xt, dt Type) (bool, string) {
+	debugPP.Printf("check isComparable, xt: %v, dt: %v \n", xt, dt)
 	// primitive is isComparable
-	switch ct := baseOf(t).(type) {
+	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
 		debugPP.Println("primitive type, return true")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
 		// TODO: check at least length here
-		switch baseOf(ct.Elem()).(type) {
+		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
 			return true, ""
 		default:
-			return false, fmt.Sprintf("%v cannot be compared \n", ct)
+			return false, fmt.Sprintf("%v cannot be compared \n", cdt)
 		}
 	case *StructType:
-		for _, f := range ct.Fields {
+		for _, f := range cdt.Fields {
 			switch baseOf(f.Type).(type) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
 				return true, ""
 			default:
-				return false, fmt.Sprintf("%v cannot be compared \n", ct)
+				return false, fmt.Sprintf("%v cannot be compared \n", cdt)
 			}
 		}
 		return true, ""
@@ -2367,15 +2367,27 @@ func isComparable(t Type) (bool, string) {
 	case *InterfaceType:
 		return true, ""
 	case *SliceType, *FuncType, *MapType: // TODO: check only comparable with nil
-		// only isComparable with nil, runtime check
-		return true, ""
-	case *NativeType:
-		if ct.Type.Comparable() {
+		if xt != nil {
+			return false, fmt.Sprintf("%v can only be compared to nil \n", dt)
+		} else {
+			// only isComparable with nil, runtime check
 			return true, ""
 		}
-		return false, fmt.Sprintf("%v is not comparable \n", t)
+	case *NativeType:
+		if cdt.Type.Comparable() {
+			return true, ""
+		}
+		return false, fmt.Sprintf("%v is not comparable \n", xt, dt)
+	case nil: // TODO: have this case? targe type is nil?
+		switch cxt := baseOf(xt).(type) {
+		case *SliceType, *FuncType, *MapType, *InterfaceType:
+			return true, ""
+		default:
+			return false, fmt.Sprintf("invalide operation, %v can only be compared to hasNil \n", cxt)
+		}
+
 	default:
-		return false, fmt.Sprintf("%v is not comparable \n", t)
+		return false, fmt.Sprintf("%v is not comparable \n", xt, dt)
 	}
 }
 

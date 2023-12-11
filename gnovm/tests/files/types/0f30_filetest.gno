@@ -6,3 +6,4 @@ func main() {
 }
 
 // Error:
+// main/files/debug/0f30_filetest.gno:5: []uint8 can only be compared to nil
