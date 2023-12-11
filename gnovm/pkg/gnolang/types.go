@@ -2377,7 +2377,7 @@ func isComparable(xt, dt Type) (bool, string) {
 		if cdt.Type.Comparable() {
 			return true, ""
 		}
-		return false, fmt.Sprintf("%v is not comparable \n", xt, dt)
+		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	case nil: // TODO: have this case? targe type is nil?
 		switch cxt := baseOf(xt).(type) {
 		case *SliceType, *FuncType, *MapType, *InterfaceType:
@@ -2385,9 +2385,8 @@ func isComparable(xt, dt Type) (bool, string) {
 		default:
 			return false, fmt.Sprintf("invalide operation, %v can only be compared to hasNil \n", cxt)
 		}
-
 	default:
-		return false, fmt.Sprintf("%v is not comparable \n", xt, dt)
+		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	}
 }
 
