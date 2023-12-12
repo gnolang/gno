@@ -62,6 +62,8 @@ _test.gnolang.native.sync:;  go test tests/*.go -test.short -run "TestFilesNativ
 _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' --update-golden-tests $(GOTEST_FLAGS)
 _test.gnolang.challenges:;      go test tests/*.go -test.short -run 'TestChallenges$$/' $(GOTEST_FLAGS)
 _test.gnolang.types:;      go test tests/*.go -test.short -run 'TestTypes$$/' --update-golden-tests $(GOTEST_FLAGS)
+_test.gnolang.types.native:;      go test tests/*.go -test.short -run 'TestTypesNative$$/' --update-golden-tests $(GOTEST_FLAGS)
+_test.gnolang.debug:;      go test tests/*.go -test.short -run 'TestDebug$$/' --update-golden-tests $(GOTEST_FLAGS)
 
 ########################################
 # Code gen

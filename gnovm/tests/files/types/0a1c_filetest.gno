@@ -1,12 +1,9 @@
 package main
 
 func main() {
-	expected := `hello`[:] // this kind of untyped non const will be converted
-
+	expected := `hello`[:]
 	a := "hello"
-
 	println(a == expected)
-
 }
 
 // Output:

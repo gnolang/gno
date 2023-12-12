@@ -2413,7 +2413,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
-			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6_filetest.gno
+			} else if iot, ok := xt.(*InterfaceType); ok { // case 1f6_stdlibs_filetest.gno
 				debugPP.Println("xt is empty interface: ", iot)
 				if iot.IsEmptyInterface() {
 					return // ok
