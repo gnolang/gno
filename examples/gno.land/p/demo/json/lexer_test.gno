@@ -122,14 +122,78 @@ func TestFindKeyPositionRange(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{data: []byte(tt.data)}
-			start, end, err := l.findKeyPositionRange([]byte(tt.data), tt.key)
+			key, err := l.findKeyPositionRange([]byte(tt.data), tt.key)
+			
 			if (err != nil) != tt.wantErr {
-				t.Errorf("findKeyPositionRange(%d) error = %v, wantErr %v", i, err, tt.wantErr)
+				t.Errorf("findKeyPositionRange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if start != tt.want[0] || end != tt.want[1] {
-				t.Errorf("findKeyPosition(%d) = %v, want %v", i, []int{start, end}, tt.want)
+			if key[0] != tt.want[0] || key[1] != tt.want[1] {
+				t.Errorf("findKeyPositionRange() = %v, want %v", key, tt.want)
+			}
+		})
+	}
+}
+
+func TestFindMultipleKeys(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		keys     []string
+		expected []int
+	}{
+		{
+			name:     "Empty data and keys",
+			data:     []byte{},
+			keys:     []string{},
+			expected: []int{},
+		},
+		{
+			name:     "Empty data with keys",
+			data:     []byte{},
+			keys:     []string{"key1", "key2"},
+			expected: []int{},
+		},
+		{
+			name:     "Data with no keys",
+			data:     []byte(`{"foo": "bar"}`),
+			keys:     []string{"key1", "key2"},
+			expected: []int{},
+		},
+		{
+			name:     "Data with single key",
+			data:     []byte(`{"key1": "value1"}`),
+			keys:     []string{"key1"},
+			expected: []int{2, 7},
+		},
+		{
+			name:     "Data with multiple keys",
+			data:     []byte(`{"key1": "value1", "key2": "value2"}`),
+			keys:     []string{"key1", "key2"},
+			expected: []int{2, 7, 20, 25},
+		},
+		{
+			name:     "Data with nested keys",
+			data:     []byte(`[{"outer": {"key1": "value1"}, "key2": "value2"}]`),
+			keys:     []string{"key1", "key2"},
+			expected: []int{13, 18, 32, 37},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Lexer{}
+			got := l.findMultipleKeys(tt.data, tt.keys...)
+
+			if len(got) != len(tt.expected) {
+				t.Errorf("findMultipleKeys() = %v, want %v", got, tt.expected)
+			}
+
+			for i, v := range got {
+				if v != tt.expected[i] {
+					t.Errorf("findMultipleKeys() = %v, want %v", got, tt.expected)
+				}
 			}
 		})
 	}

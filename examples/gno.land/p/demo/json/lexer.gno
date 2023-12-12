@@ -144,24 +144,41 @@ func (l *Lexer) blockEnd(data []byte, open, close byte) int {
 
 // findKeyPositionRange identifies the start and end positions of a key within the given data,
 // including positions enclosed in double quotes (`"`).
-func (l *Lexer) findKeyPositionRange(data []byte, key string) (start, end int, err error) {
+func (l *Lexer) findKeyPositionRange(data []byte, key string) (keyRange []int, err error) {
 	keyLen := len(key)
 	if keyLen == 0 {
-		return -1, -1, NotSpecifiedKeyError
+		return []int{-1, -1}, NotSpecifiedKeyError
 	}
 
-	keyLastPos, err := searchKey(data, key, 0)
+	keyLastPos, err := searchSingleKey(data, key, 0)
 	if err != nil {
-		return -1, -1, err
+		return []int{-1, -1}, err
 	}
 
-	start = keyLastPos - keyLen - 1
-	end = keyLastPos
+	start := keyLastPos - keyLen - 1
+	end := keyLastPos
 
-	return start, end, nil
+	keyRange = append(keyRange, start, end)
+
+	return keyRange, nil
 }
 
-func searchKey(data []byte, key string, offset int) (int, error) {
+func (l *Lexer) findMultipleKeys(data []byte, keys ...string) []int {
+	var positions []int
+
+	for _, key := range keys {
+		keyRange, err := l.findKeyPositionRange(data, key)
+		if err != nil {
+			continue
+		}
+
+		positions = append(positions, keyRange...)
+	}
+
+	return positions
+}
+
+func searchSingleKey(data []byte, key string, offset int) (int, error) {
 	for i := offset; i < len(data); i++ {
 		switch data[i] {
 		case '"':
