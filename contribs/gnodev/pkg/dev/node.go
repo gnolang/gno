@@ -17,17 +17,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	backup "github.com/gnolang/tx-archive/backup/client"
-	restore "github.com/gnolang/tx-archive/restore/client"
+	//backup "github.com/gnolang/tx-archive/backup/client"
+	//restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
 
 // DevNode is a backup.Client
-var _ backup.Client = (*Node)(nil)
+// var _ backup.Client = (*Node)(nil)
 
 // DevNode is a restore.Client
-var _ restore.Client = (*Node)(nil)
+// var _ restore.Client = (*Node)(nil)
 
 // Node is not thread safe
 type Node struct {
