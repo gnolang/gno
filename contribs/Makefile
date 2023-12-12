@@ -22,6 +22,15 @@ GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
+.PHONY: tidy
+tidy:
+	@for gomod in `find . -name go.mod`; do ( \
+    dir=`dirname $$gomod`; \
+	  set -xe; \
+	  cd $$dir; \
+	  go mod tidy -v; \
+	); done
+
 ########################################
 # Test suite
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
