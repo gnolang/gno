@@ -6,7 +6,7 @@ type S struct {
 
 func main() {
 	var s = S{
-		expected: `hello`[:], // this is not converted
+		expected: `hello`[:],
 	}
 	a := "hello"
 	println(a == s.expected)

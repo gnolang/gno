@@ -879,7 +879,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// we don't yet know what this type should be,
 								// but another checkOrConvertType() later does.
 								// (e.g. from AssignStmt or other).
-							} else {
+							} else { // not shift
 								// convert n.Left to right type.
 								checkOp(store, last, &n.Left, rt, n.Op, true)
 								checkOrConvertType(store, last, &n.Left, rt, false)
@@ -887,19 +887,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if !isUntyped(lcx.T) { // left is typed const, right is not const
 						checkOp(store, last, &n.Left, rt, n.Op, true)
-						if n.Op == SHR || n.Op == SHL {
+						if n.Op == SHR || n.Op == SHL { // refer to 26a3_filetest
 							debugPP.Println("-----shift-----")
-							convertConstType(store, last, &n.Left, lt, false) // bypass check
-						} else {
+							// do nothing, final type is bind to left
+							//convertConstType(store, last, &n.Left, lt, false) // bypass check
+						} else { // refer to 26a4_filetest
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						}
-					} else if lcx.T == nil { // LHS is nil // XXX?
-						debugPP.Println("lcx.T is nil")
-						// convert n.Left to typed-nil type.
-						checkOp(store, last, &n.Left, rt, n.Op, true)
-						checkOrConvertType(store, last, &n.Left, rt, false)
+						//} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
+						//	debugPP.Println("lcx.T is nil")
+						//	// convert n.Left to typed-nil type.
+						//	checkOp(store, last, &n.Left, rt, n.Op, true)
+						//	checkOrConvertType(store, last, &n.Left, rt, false)
 					}
-				} else if ric {
+				} else if ric { // right is const, left is not---
 					if isUntyped(rcx.T) {
 						// Left not, Right untyped const ----------------
 						if isShift {
