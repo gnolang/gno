@@ -78,56 +78,59 @@ func TestLexer(t *testing.T) {
 	}
 }
 
-func TestFindKeyStart(t *testing.T) {
-    tests := []struct {
-        name     string
-        data     string
-        key      string
-        want     int
-        wantErr  bool
-    }{
-        {
-            name:    "Simple key",
-            data:    `{"key1": "value1", "key2": "value2"}`,
-            key:     "key1",
-            want:    7,
-            wantErr: false,
-        },
-        {
-            name:    "Nested key",
-            data:    `{"outer": {"key1": "value1"}, "key2": "value2"}`,
-            key:     "key1",
-            want:    17,
-            wantErr: false,
-        },
+func TestFindKeyPositionRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    string
+		key     string
+		want    []int
+		wantErr bool
+	}{
 		{
-            name:    "Nested key 2",
-            data:    `{"outer": {"key1": "value1"}, "key2": "value2"}`,
-            key:     "key2",
-            want:    36,
-            wantErr: false,
-        },
-        {
-            name:    "Key not found",
-            data:    `{"key1": "value1"}`,
-            key:     "key2",
-            want:    -1,
-            wantErr: true,
-        },
-    }
+			name: "Simple key",
+			data: `{"key1": "value1", "key2": "value2"}`,
+			key:  "key1",
+			want: []int{2, 7},
+		},
+		{
+			name: "Nested key",
+			data: `{"outer": {"key1": "value1"}, "key2": "value2"}`,
+			key:  "key1",
+			want: []int{12, 17},
+		},
+		{
+			name: "Nested key 2",
+			data: `{"outer": {"key1": "value1"}, "key2": "value2"}`,
+			key:  "key2",
+			want: []int{31, 36},
+		},
+		{
+			name: "Nested key 3",
+			data: `{\n"outer": {"key1": "value1"},\n"key2": "value2",\n"key3": "value3"\n}`,
+			key:  "key3",
+			want: []int{53, 58},
+		},
+		{
+			name:    "Key not found",
+			data:    `{"key1": "value1"}`,
+			key:     "key2",
+			want:    []int{-1, -1},
+			wantErr: true,
+		},
+	}
 
-    for i, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{data: []byte(tt.data)}
-            got, err := l.findKeyPosition([]byte(tt.data), tt.key)
-            if (err != nil) != tt.wantErr {
-                t.Errorf("findKeyStart(%d) error = %v, wantErr %v", i, err, tt.wantErr)
-                return
-            }
+			start, end, err := l.findKeyPositionRange([]byte(tt.data), tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("findKeyPositionRange(%d) error = %v, wantErr %v", i, err, tt.wantErr)
+				return
+			}
 
-            if got != tt.want {
-                t.Errorf("findKeyStart(%d) = %v, want %v", i, got, tt.want)
-            }
-        })
-    }
+			if start != tt.want[0] || end != tt.want[1] {
+				t.Errorf("findKeyPosition(%d) = %v, want %v", i, []int{start, end}, tt.want)
+			}
+		})
+	}
 }

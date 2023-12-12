@@ -6,6 +6,7 @@ import (
 
 const (
 	KeyPathNotFoundError error = errors.New("key path not found")
+	NotSpecifiedKeyError error = errors.New("key not specified")
 	ClosingBracketError  error = errors.New("closing bracket not found")
 	ClosingQuoteError    error = errors.New("closing quote not found")
 )
@@ -92,24 +93,24 @@ func (l *Lexer) findLastTokenPosition() int {
 }
 
 func (l *Lexer) stringEnd(data []byte) (idx int, escaped bool) {
-    backSlashes := 0
+	backSlashes := 0
 	escaped = isEven(backSlashes)
 
-    for idx, b := range data {
-        if b == '\\' {
-            backSlashes++
-            continue
-        }
+	for idx, b := range data {
+		if b == '\\' {
+			backSlashes++
+			continue
+		}
 
-        if b != '"' {
-            backSlashes = 0
-            continue
-        }
+		if b != '"' {
+			backSlashes = 0
+			continue
+		}
 
 		return idx + 1, !isEven(backSlashes)
-    }
+	}
 
-    return -1, escaped
+	return -1, escaped
 }
 
 func (l *Lexer) blockEnd(data []byte, open, close byte) int {
@@ -141,8 +142,23 @@ func (l *Lexer) blockEnd(data []byte, open, close byte) int {
 	return -1
 }
 
-func (l *Lexer) findKeyPosition(data []byte, key string) (int, error) {
-	return searchKey(data, key, 0)
+// findKeyPositionRange identifies the start and end positions of a key within the given data,
+// including positions enclosed in double quotes (`"`).
+func (l *Lexer) findKeyPositionRange(data []byte, key string) (start, end int, err error) {
+	keyLen := len(key)
+	if keyLen == 0 {
+		return -1, -1, NotSpecifiedKeyError
+	}
+
+	keyLastPos, err := searchKey(data, key, 0)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	start = keyLastPos - keyLen - 1
+	end = keyLastPos
+
+	return start, end, nil
 }
 
 func searchKey(data []byte, key string, offset int) (int, error) {
@@ -166,24 +182,24 @@ func searchKey(data []byte, key string, offset int) (int, error) {
 }
 
 func findNextKey(data []byte, start int) (keyBegin, keyEnd, nextIndex int, err error) {
-    keyBegin = -1
-    keyEnd = -1
-    nextIndex = start
+	keyBegin = -1
+	keyEnd = -1
+	nextIndex = -1
 
-    for i := start; i < len(data); i++ {
-        switch data[i] {
-        case '"':
-            if keyBegin == -1 {
-                keyBegin = i + 1
-            } else {
-                keyEnd = i
-                nextIndex = i + 1
-                return keyBegin, keyEnd, nextIndex, nil
-            }
-        case '\\':
-            i++
-        }
-    }
+	for i := start; i < len(data); i++ {
+		switch data[i] {
+		case '"':
+			if keyBegin != -1 {
+				keyEnd = i
+				nextIndex = i + 1
+				return keyBegin, keyEnd, nextIndex, nil
+			}
 
-    return -1, -1, -1, KeyPathNotFoundError
+			keyBegin = i + 1
+		case '\\':
+			i++
+		}
+	}
+
+	return keyBegin, keyEnd, nextIndex, KeyPathNotFoundError
 }

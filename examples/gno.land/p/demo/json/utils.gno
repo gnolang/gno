@@ -1,7 +1,7 @@
 package json
 
 func isEven(n int) bool {
-    return n%2 == 0
+	return n%2 == 0
 }
 
 func h2i(c byte) int {

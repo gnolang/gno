@@ -186,51 +186,50 @@ func TestUnescape(t *testing.T) {
 }
 
 func TestStringEnd(t *testing.T) {
-    lexer := &Lexer{}
-    tests := []struct {
-        name     string
-        input    []byte
-        expected int
-        escaped  bool
-    }{
-        {"Simple String", []byte(`"Hello"`), 1, false},
-        {"Escaped Quote", []byte(`"Hello\"World"`), 1, false},
-        {"No Closing Quote", []byte(`"Hello`), 1, false},
-        {"Backslashes", []byte(`"Hello\\World"`), 1, false},
-    }
+	lexer := &Lexer{}
+	tests := []struct {
+		name     string
+		input    []byte
+		expected int
+		escaped  bool
+	}{
+		{"Simple String", []byte(`"Hello"`), 1, false},
+		{"Escaped Quote", []byte(`"Hello\"World"`), 1, false},
+		{"No Closing Quote", []byte(`"Hello`), 1, false},
+		{"Backslashes", []byte(`"Hello\\World"`), 1, false},
+	}
 
-    for _, test := range tests {
-        t.Run(test.name, func(t *testing.T) {
-            idx, escaped := lexer.stringEnd(test.input)
-            if idx != test.expected || escaped != test.escaped {
-                t.Errorf("Failed %s: expected (%d, %v), got (%d, %v)", test.name, test.expected, test.escaped, idx, escaped)
-            }
-        })
-    }
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			idx, escaped := lexer.stringEnd(test.input)
+			if idx != test.expected || escaped != test.escaped {
+				t.Errorf("Failed %s: expected (%d, %v), got (%d, %v)", test.name, test.expected, test.escaped, idx, escaped)
+			}
+		})
+	}
 }
 
-
 func TestBlockEnd(t *testing.T) {
-    lexer := &Lexer{}
-    tests := []struct {
-        name     string
-        data     []byte
-        open     byte
-        close    byte
-        expected int
-    }{
-        {"Empty Object", []byte("{}"), '{', '}', 2},
-        {"Nested Object", []byte(`{"key": {"nestedKey": "value"}}`), '{', '}', 31},
-        {"Array", []byte(`["item1", "item2"]`), '[', ']', 18},
-        {"Complex Object", []byte(`{"key": [1, 2, 3], "anotherKey": "value"}`), '{', '}', 41},
-    }
+	lexer := &Lexer{}
+	tests := []struct {
+		name     string
+		data     []byte
+		open     byte
+		close    byte
+		expected int
+	}{
+		{"Empty Object", []byte("{}"), '{', '}', 2},
+		{"Nested Object", []byte(`{"key": {"nestedKey": "value"}}`), '{', '}', 31},
+		{"Array", []byte(`["item1", "item2"]`), '[', ']', 18},
+		{"Complex Object", []byte(`{"key": [1, 2, 3], "anotherKey": "value"}`), '{', '}', 41},
+	}
 
-    for _, test := range tests {
-        t.Run(test.name, func(t *testing.T) {
-            result := lexer.blockEnd(test.data, test.open, test.close)
-            if result != test.expected {
-                t.Errorf("Failed %s: expected %d, got %d", test.name, test.expected, result)
-            }
-        })
-    }
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := lexer.blockEnd(test.data, test.open, test.close)
+			if result != test.expected {
+				t.Errorf("Failed %s: expected %d, got %d", test.name, test.expected, result)
+			}
+		})
+	}
 }
