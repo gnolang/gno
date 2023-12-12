@@ -25,10 +25,10 @@ services:
     entrypoint:
       - gnoweb
       - --bind=localhost:8888
-      - --remote=rpc.gno.land:80
+      - --remote=rpc.gno.local:80
       - --views-dir=./gnoweb/views
     extra_hosts:
-      - rpc.gno.land:127.0.0.1
+      - rpc.gno.local:127.0.0.1
 
   snapshotter:
     build:
@@ -45,4 +45,4 @@ services:
     environment:
       HOST_PWD: $PWD
     extra_hosts:
-      - rpc.gno.land:127.0.0.1
+      - rpc.gno.local:127.0.0.1

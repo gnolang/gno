@@ -10,7 +10,7 @@ http:
     gno-portal-loop:
       service: gno-portal-loop
       # tls: "true"
-      rule: "Host(`rpc.gno.land`)"
+      rule: "Host(`rpc.gno.land`) || Host(`rpc.gno.local`)"
       entrypoints: "web"
       middlewares: []
 

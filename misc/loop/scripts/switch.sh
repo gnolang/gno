@@ -30,7 +30,7 @@ sed -i -E 's/middlewares: \[.*\]/middlewares: ["ipwhitelist"]/' /etc/traefik/con
 if docker ps --format json | jq '.Labels' | grep -q "the-portal-loop"; then
     ${TX_ARCHIVE_CMD} backup \
         --overwrite=true \
-        --remote "rpc.gno.land:80" \
+        --remote "rpc.gno.local:80" \
         --from-block 1 \
         --output-path="${BACKUP_FILE}"
 
