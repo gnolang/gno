@@ -14,34 +14,36 @@ var (
 	binaryPredicates     = make(map[Word]f)
 	unaryPredicates      = make(map[Word]f)
 	IncDecStmtPredicates = make(map[Word]f)
+	AssignStmtPredicates = make(map[Word]f)
 )
 
 func init() {
 	// add,sub,mul,quo,rem with assign
+	// TODO: *_assign is actually assign stmt
 	binaryPredicates[ADD] = isNumericOrString
-	binaryPredicates[ADD_ASSIGN] = isNumericOrString
+	AssignStmtPredicates[ADD_ASSIGN] = isNumericOrString
 	binaryPredicates[SUB] = isNumeric
-	binaryPredicates[SUB_ASSIGN] = isNumeric
+	AssignStmtPredicates[SUB_ASSIGN] = isNumeric
 	binaryPredicates[MUL] = isNumeric
-	binaryPredicates[MUL_ASSIGN] = isNumeric
+	AssignStmtPredicates[MUL_ASSIGN] = isNumeric
 	binaryPredicates[QUO] = isNumeric
-	binaryPredicates[QUO_ASSIGN] = isNumeric
+	AssignStmtPredicates[QUO_ASSIGN] = isNumeric
 	binaryPredicates[REM] = isIntNum
-	binaryPredicates[REM_ASSIGN] = isIntNum
+	AssignStmtPredicates[REM_ASSIGN] = isIntNum
 	binaryPredicates[SHL] = isNumeric
-	binaryPredicates[SHL_ASSIGN] = isNumeric
+	AssignStmtPredicates[SHL_ASSIGN] = isNumeric
 	binaryPredicates[SHR] = isNumeric
-	binaryPredicates[SHR_ASSIGN] = isNumeric
+	AssignStmtPredicates[SHR_ASSIGN] = isNumeric
 
 	// bit op
 	binaryPredicates[BAND] = isIntNum
-	binaryPredicates[BAND_ASSIGN] = isIntNum
+	AssignStmtPredicates[BAND_ASSIGN] = isIntNum
 	binaryPredicates[XOR] = isIntNum
-	binaryPredicates[XOR_ASSIGN] = isIntNum
+	AssignStmtPredicates[XOR_ASSIGN] = isIntNum
 	binaryPredicates[BOR] = isIntNum
-	binaryPredicates[BOR_ASSIGN] = isIntNum
+	AssignStmtPredicates[BOR_ASSIGN] = isIntNum
 	binaryPredicates[BAND_NOT] = isIntNum
-	binaryPredicates[BAND_NOT_ASSIGN] = isIntNum
+	AssignStmtPredicates[BAND_NOT_ASSIGN] = isIntNum
 	// logic op
 	binaryPredicates[LAND] = isBoolean
 	binaryPredicates[LOR] = isBoolean
@@ -795,12 +797,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
+				debugPP.Println("---binaryExpr---, op: ", n.Op)
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
 				if isShift {
-					checkOp(store, last, &n.Left, lt, n.Op, true)
+					checkOp(store, last, &n.Left, lt, n.Op, Binary)
 					if baseOf(rt) != UintType {
 						// checkOp(store, last, &n.Left, lt, n.Op, true) // check lt with op, sh*
 						// convert n.Right to (gno) uint type,
@@ -834,17 +837,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if cmp < 0 { // this always implies untyped>?
 								debugPP.Println("cmp < 0, ->")
 								// convert n.Left to right type.
-								checkOp(store, last, &n.Left, rcx.T, n.Op, true)
+								checkOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rcx.T, false)
 							} else if cmp == 0 {
 								debugPP.Println("cmp == 0")
 								// TODO: consider check dir in here
-								checkOp(store, last, &n.Left, rcx.T, n.Op, true)
+								checkOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rcx.T, false)
 							} else {
 								debugPP.Println("cmp > 0, <-")
 								// convert n.Right to left type.
-								checkOp(store, last, &n.Right, lcx.T, n.Op, true)
+								checkOp(store, last, &n.Right, lcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lcx.T, false)
 							}
 						}
@@ -867,7 +870,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// get concrete native base type.
 							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
-							checkOp(store, last, &n.Left, pt, n.Op, true)
+							checkOp(store, last, &n.Left, pt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, pt, false)
 							// convert n.Right to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
@@ -893,25 +896,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// (e.g. from AssignStmt or other).
 							} else { // not shift
 								// convert n.Left to right type.
-								checkOp(store, last, &n.Left, rt, n.Op, true)
+								checkOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
 						}
 					} else if !isUntyped(lcx.T) { // left is typed const, right is not const(also typed)
-						checkOp(store, last, &n.Left, rt, n.Op, true)
+						checkOp(store, last, &n.Left, rt, n.Op, Binary)
 						// if n.Op == SHR || n.Op == SHL {
 						if isShift { // refer to 26a3_filetest
 							debugPP.Println("-----shift-----")
 							// do nothing, final type is bind to left
 							// convertConstType(store, last, &n.Left, lt, false) // bypass check
 						} else { // refer to 26a4_filetest
-							checkOp(store, last, &n.Left, rt, n.Op, true)
+							checkOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						}
 					} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
 						debugPP.Println("lcx.T is nil")
 						// convert n.Left to typed-nil type.
-						checkOp(store, last, &n.Left, rt, n.Op, true)
+						checkOp(store, last, &n.Left, rt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Left, rt, false)
 					}
 				} else if ric { // right is const, left is not---
@@ -933,7 +936,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
-								checkOp(store, last, &n.Right, pt, n.Op, true)
+								checkOp(store, last, &n.Right, pt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, pt, false)
 								// and convert result back.
 								tx := constType(n, lnt)
@@ -950,7 +953,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// gno, never with reflect.
 							} else {
 								// convert n.Right to left type.
-								checkOp(store, last, &n.Right, lt, n.Op, true)
+								checkOp(store, last, &n.Right, lt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							}
 						}
@@ -958,10 +961,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest, 1f8_filetest
 						// TODO: shift
 						// convert n.Right to typed-nil type.
-						checkOp(store, last, &n.Right, lt, n.Op, true)
+						checkOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false)
 					} else if !isShift { // left not const(typed), right is typed const
-						checkOp(store, last, &n.Right, lt, n.Op, true)
+						checkOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false)
 					}
 					if isQuoOrRem(n.Op) {
@@ -1021,18 +1024,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							} else { // left untyped, right typed
 								debugPP.Println("left untyped, right is typed")
-								checkOp(store, last, &n.Left, rt, n.Op, true)
+								checkOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
 						} else if riu { // left typed, right untyped
 							if !isShift {
-								checkOp(store, last, &n.Right, lt, n.Op, true)
+								checkOp(store, last, &n.Right, lt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							}
 						} else { // both typed vars, refer to 0a1f_filetest
 							debugPP.Printf("else, is lt untyped: %t, is rt untyped: %t \n", liu, riu)
 							if !isShift {
-								checkOp(store, last, &n.Left, rt, n.Op, true)
+								checkOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
 						}
@@ -1326,11 +1329,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if cx, ok := n.X.(*ConstExpr); ok {
 					debugPP.Println("not native, ConstExpr")
 					// checkOp, e.g. +a while a should be numeric
-					checkOp(store, last, nil, cx.T, n.Op, false)
+					checkOp(store, last, nil, cx.T, n.Op, Unary)
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
-				checkOp(store, last, nil, xt, n.Op, false)
+				checkOp(store, last, nil, xt, n.Op, Unary)
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
@@ -1720,15 +1723,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Special case if shift assign <<= or >>=.
 						// TODO: no need here, like index convert
-						// checkOp(store, last, &n.Rhs[0], UintType, n.Op, false)
 						// checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
+						lt := evalStaticTypeOf(store, last, n.Lhs[0])
+						checkOp(store, last, &n.Lhs[0], lt, n.Op, Assign)
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						// e.g. a += b, single value for lhs and rhs,
 						// TODO: assert length
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
 						// a += b, requires b -> a conversion
-						checkOp(store, last, &n.Rhs[0], lt, n.Op, true)
+						checkOp(store, last, &n.Rhs[0], lt, n.Op, Assign)
 						checkOrConvertType(store, last, &n.Rhs[0], lt, true)
 					} else { // all else, like BAND_ASSIGN, etc
 						debugPP.Println("case like: a, b = x, y")
@@ -1738,7 +1742,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// is x or y is untyped, convert, else check type
 							// rt := evalStaticTypeOf(store, last, n.Rhs[i])
 							// all else check
-							checkOp(store, last, &n.Rhs[i], lt, n.Op, true)
+							checkOp(store, last, &n.Rhs[i], lt, n.Op, Assign)
 							checkOrConvertType(store, last, &n.Rhs[i], lt, true)
 						}
 					}
@@ -1774,7 +1778,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *IncDecStmt:
 				debugPP.Println("---IncDecStmt---")
 				xt := evalStaticTypeOf(store, last, n.X)
-				checkOp(store, last, nil, xt, n.Op, false)
+				checkOp(store, last, nil, xt, n.Op, IncDec)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
@@ -2562,10 +2566,19 @@ func isComparison(op Word) bool {
 	}
 }
 
+type checkMode int
+
+const (
+	Binary = iota
+	Unary
+	IncDec
+	Assign
+)
+
 // check operand types with operators
-func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binaryOrAssign bool) {
+func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, mode checkMode) {
 	var xt Type
-	if binaryOrAssign {
+	if mode == Binary || mode == Assign {
 		if cx, ok := (*x).(*ConstExpr); ok {
 			xt = cx.T
 		} else if *x != nil {
@@ -2573,8 +2586,8 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binaryOrAss
 		}
 	}
 
-	debugPP.Printf("checkOp, xt: %v, dt: %v, op: %v, isBinary: %t \n", xt, dt, op, binaryOrAssign)
-	if !binaryOrAssign {
+	debugPP.Printf("checkOp, xt: %v, dt: %v, op: %v, isBinary: %v \n", xt, dt, op, mode)
+	if mode == Unary || mode == IncDec {
 		if op == INC || op == DEC {
 			if pred, ok := IncDecStmtPredicates[op]; ok {
 				if !pred(dt) {
@@ -2608,8 +2621,31 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binaryOrAss
 		default:
 			panic("invalid comparison operator")
 		}
-	} else {
-		debugPP.Println("else---")
+	} else if mode == Assign {
+		debugPP.Println("assign---")
+		if pred, ok := AssignStmtPredicates[op]; ok {
+			if !pred(dt) {
+				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+			}
+			if op != ILLEGAL {
+				switch op {
+				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+					// if both typed
+					if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
+						if xt != nil && dt != nil {
+							if xt.TypeID() != dt.TypeID() {
+								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+							}
+						}
+						debugPP.Println("typed and identical as isComparable")
+					}
+				default:
+					// Note: others no check, assign will be check in assignable
+				}
+			}
+		}
+	} else if mode == Binary {
+		debugPP.Println("binary---")
 		// two steps of check:
 		// first, check is the dt type satisfies op, the switch logic
 		// second, xt can be converted to dt, this is done below this
@@ -2621,7 +2657,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, binaryOrAss
 		}
 		if op != ILLEGAL {
 			switch op {
-			case ADD, ADD_ASSIGN, SUB, SUB_ASSIGN, MUL, MUL_ASSIGN, QUO, QUO_ASSIGN, REM, REM_ASSIGN, BAND, BAND_ASSIGN, BOR, BOR_ASSIGN, BAND_NOT, BAND_NOT_ASSIGN, XOR, XOR_ASSIGN, LAND, LOR:
+			case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
 				// if both typed
 				if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
 					if xt != nil && dt != nil {
