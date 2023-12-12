@@ -12,11 +12,18 @@ services:
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.traefik.address=127.0.0.1:8080"
+
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.myresolver.acme.email=dev@gno.land"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
       - ./traefik:/etc/traefik/configs
+      - ./traefik/letsencrypt:/letsencrypt
 
   gnoweb:
     image: ghcr.io/gnolang/gno/gnoweb-slim
