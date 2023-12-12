@@ -8,6 +8,8 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
+const cannotStartWithPlus = "numbers cannot start with +"
+
 // These convert string representations of public-facing arguments to GNO types.
 // The limited set of input types available should map 1:1 to types supported
 // in FunctionSignature{}.
@@ -35,7 +37,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.IntType:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
@@ -47,7 +49,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Int8Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			i8, err := strconv.ParseInt(arg, 10, 8)
 			if err != nil {
@@ -59,7 +61,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Int16Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			i16, err := strconv.ParseInt(arg, 10, 16)
 			if err != nil {
@@ -71,7 +73,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Int32Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			i32, err := strconv.ParseInt(arg, 10, 32)
 			if err != nil {
@@ -83,7 +85,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Int64Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
@@ -95,7 +97,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.UintType:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
@@ -107,7 +109,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Uint8Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			u8, err := strconv.ParseUint(arg, 10, 8)
 			if err != nil {
@@ -119,7 +121,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Uint16Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			u16, err := strconv.ParseUint(arg, 10, 16)
 			if err != nil {
@@ -131,7 +133,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Uint32Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			u32, err := strconv.ParseUint(arg, 10, 32)
 			if err != nil {
@@ -143,7 +145,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Uint64Type:
 			if arg[0] == '+' {
-				panic("numbers cannot start with +")
+				panic(cannotStartWithPlus)
 			}
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
@@ -152,6 +154,26 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint64(u64)
+			return
+		case gno.Float32Type:
+			if arg[0] == '+' {
+				panic(cannotStartWithPlus)
+			}
+			f32, err := strconv.ParseFloat(arg, 32)
+			if err != nil {
+				panic(fmt.Sprintf("error parsing float32 %q: %v", arg, err))
+			}
+			tv.SetFloat32(float32(f32))
+			return
+		case gno.Float64Type:
+			if arg[0] == '+' {
+				panic(cannotStartWithPlus)
+			}
+			f64, err := strconv.ParseFloat(arg, 64)
+			if err != nil {
+				panic(fmt.Sprintf("error parsing float64 %q: %v", arg, err))
+			}
+			tv.SetFloat64(f64)
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
