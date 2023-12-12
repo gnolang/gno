@@ -14,13 +14,3 @@ func (aon AddressOrName) GetName() (string, bool) {
 	}
 	return "", false
 }
-
-func (aon AddressOrName) Resolve() std.Address {
-	name, isName := aon.GetName()
-	if isName {
-		user := GetUserByName(name)
-		return user.address
-	} else {
-		return std.Address(aon) // TODO check validity
-	}
-}
