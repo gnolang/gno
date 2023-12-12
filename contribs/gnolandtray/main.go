@@ -14,9 +14,13 @@ func main() {
 }
 
 func onReady() {
-	systray.SetTitle("Gno.land") // TODO: use a small icon instead of a title.
+	systray.SetTitle("Gnodev") // TODO: use a small icon instead of a title.
 	systray.SetTooltip("Local Gno.land Node Manager")
 
+	mStartGnodev := systray.AddMenuItem("Start Gnodev...", "")
+	mOpenGnolandRPC := systray.AddMenuItem("Open Gnoland RPC in browser", "")
+	mOpenGnoweb := systray.AddMenuItem("Open Gnoweb in browser", "")
+	mOpenFolder := systray.AddMenuItem("Open Gnodev Folder", "")
 	mHelp := systray.AddMenuItem("Help", "Help")
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
@@ -27,6 +31,17 @@ func onReady() {
 	go func() {
 		for {
 			select {
+			case <-mStartGnodev.ClickedCh:
+				log.Println("NOT IMPLEMENTED")
+			case <-mOpenGnolandRPC.ClickedCh:
+				// open.Run("http://127.0.0.1:XXX/")
+				log.Println("NOT IMPLEMENTED")
+			case <-mOpenGnoweb.ClickedCh:
+				// open.Run("http://127.0.0.1:XXX/")
+				log.Println("NOT IMPLEMENTED")
+			case <-mOpenFolder.ClickedCh:
+				// open.Open("./...")
+				log.Println("NOT IMPLEMENTED")
 			case <-mHelp.ClickedCh:
 				open.Run("https://github.com/gnolang/gno/tree/master/contribs/gnolandtray")
 			case <-mQuit.ClickedCh:
