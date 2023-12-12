@@ -8,7 +8,11 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-const cannotStartWithPlus = "numbers cannot start with +"
+func assertCharNotPlus(b byte) {
+	if b == '+' {
+		panic("numbers cannot start with +")
+	}
+}
 
 // These convert string representations of public-facing arguments to GNO types.
 // The limited set of input types available should map 1:1 to types supported
@@ -36,9 +40,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetString(gno.StringValue(arg))
 			return
 		case gno.IntType:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -48,9 +50,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetInt(int(i64))
 			return
 		case gno.Int8Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			i8, err := strconv.ParseInt(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -60,9 +60,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetInt8(int8(i8))
 			return
 		case gno.Int16Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			i16, err := strconv.ParseInt(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -72,9 +70,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetInt16(int16(i16))
 			return
 		case gno.Int32Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			i32, err := strconv.ParseInt(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -84,9 +80,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetInt32(int32(i32))
 			return
 		case gno.Int64Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -96,9 +90,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetInt64(i64)
 			return
 		case gno.UintType:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -108,9 +100,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint(uint(u64))
 			return
 		case gno.Uint8Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			u8, err := strconv.ParseUint(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -120,9 +110,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint8(uint8(u8))
 			return
 		case gno.Uint16Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			u16, err := strconv.ParseUint(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -132,9 +120,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint16(uint16(u16))
 			return
 		case gno.Uint32Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			u32, err := strconv.ParseUint(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -144,9 +130,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint32(uint32(u32))
 			return
 		case gno.Uint64Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -156,9 +140,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			f32, err := strconv.ParseFloat(arg, 32)
 			if err != nil {
 				panic(fmt.Sprintf("error parsing float32 %q: %v", arg, err))
@@ -166,9 +148,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetFloat32(float32(f32))
 			return
 		case gno.Float64Type:
-			if arg[0] == '+' {
-				panic(cannotStartWithPlus)
-			}
+			assertCharNotPlus(arg[0])
 			f64, err := strconv.ParseFloat(arg, 64)
 			if err != nil {
 				panic(fmt.Sprintf("error parsing float64 %q: %v", arg, err))
