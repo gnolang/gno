@@ -16,3 +16,11 @@ func h2i(c byte) int {
 
 	return BadHex
 }
+
+func trimNegativeSign(bytes []byte) (neg bool, trimmed []byte) {
+	if bytes[0] == '-' {
+		return true, bytes[1:]
+	}
+
+	return false, bytes
+}
