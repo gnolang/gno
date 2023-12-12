@@ -6,8 +6,6 @@ type S struct {
 
 func main() {
 
-	//a := "hello"
-
 	println("hello" == S{
 		expected: `hello`[:],
 	}.expected)

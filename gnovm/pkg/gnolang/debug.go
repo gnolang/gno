@@ -32,7 +32,7 @@ var (
 
 func init() {
 	debug = os.Getenv("DEBUG") == "1"
-	debugPP = os.Getenv("DEPP") == "1"
+	debugPP = os.Getenv("DEBUG_PP") == "1"
 	if debug {
 		go func() {
 			// e.g.

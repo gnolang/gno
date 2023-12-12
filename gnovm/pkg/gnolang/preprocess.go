@@ -1330,7 +1330,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
-				debugPP.Println("else")
 				checkOp(store, last, nil, xt, n.Op, false)
 
 			// TRANS_LEAVE -----------------------
@@ -1341,9 +1340,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			CLT_TYPE_SWITCH:
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
-					debugPP.Println("---struct type---")
 					if n.IsKeyed() {
-						debugPP.Println("keyed")
 						for i := 0; i < len(n.Elts); i++ {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
@@ -1351,7 +1348,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
 						}
 					} else {
-						debugPP.Println("not keyed")
 						for i := 0; i < len(n.Elts); i++ {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, &n.Elts[i].Value, ft, false)
@@ -2524,7 +2520,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 func convertIfConst(store Store, last BlockNode, x Expr) {
 	debugPP.Printf("convertIfConst: x:%v \n", x)
 	if cx, ok := x.(*ConstExpr); ok {
-		debugPP.Printf("is ConstExpr: cx:%v \n", cx)
 		convertConst(store, last, cx, nil)
 	}
 }

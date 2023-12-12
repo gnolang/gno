@@ -949,7 +949,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		debugPP.Println("untype string to string")
+		debugPP.Println("untyped string to string")
 		if preprocessing == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
