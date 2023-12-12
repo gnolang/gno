@@ -890,7 +890,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if n.Op == SHR || n.Op == SHL { // refer to 26a3_filetest
 							debugPP.Println("-----shift-----")
 							// do nothing, final type is bind to left
-							//convertConstType(store, last, &n.Left, lt, false) // bypass check
+							// convertConstType(store, last, &n.Left, lt, false) // bypass check
 						} else { // refer to 26a4_filetest
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						}
