@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestParseNumberKind(t *testing.T) {
+func TestParseFloat(t *testing.T) {
 	testCases := []struct {
 		input         string
 		expected      float64
@@ -27,14 +27,14 @@ func TestParseNumberKind(t *testing.T) {
 			defer func() {
 				r := recover()
 				if (r != nil) != tc.expectedPanic {
-					t.Errorf("ParseNumberKind(%s): expected panic=%v, got panic=%v",
+					t.Errorf("ParseFloat(%s): expected panic=%v, got panic=%v",
 						tc.input, tc.expectedPanic, r != nil)
 				}
 			}()
 
-			got, _, _ := ParseNumberKind([]byte(tc.input))
+			got, _, _ := ParseFloat([]byte(tc.input))
 			if got != tc.expected && !tc.expectedPanic {
-				t.Errorf("ParseNumberKind(%s): expected %v, got %v",
+				t.Errorf("ParseFloat(%s): expected %v, got %v",
 					tc.input, tc.expected, got)
 			}
 		})
@@ -68,10 +68,118 @@ func TestParseNumberKindWithScientificNotation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			got, _, _ := ParseNumberKind([]byte(tc.input))
+			got, _, _ := ParseFloat([]byte(tc.input))
 			if got != tc.expected {
-				t.Errorf("ParseNumberKind(%s): got %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseFloat(%s): got %v, want %v", tc.input, got, tc.expected)
 			}
 		})
+	}
+}
+
+type ParseIntTest struct {
+	in         string
+	out        int64
+	isErr      bool
+	isOverflow bool
+}
+
+var parseIntTests = []ParseIntTest{
+	{
+		in:  "0",
+		out: 0,
+	},
+	{
+		in:  "1",
+		out: 1,
+	},
+	{
+		in:  "-1",
+		out: -1,
+	},
+	{
+		in:  "12345",
+		out: 12345,
+	},
+	{
+		in:  "-12345",
+		out: -12345,
+	},
+	{
+		in:  "9223372036854775807", // = math.MaxInt64
+		out: 9223372036854775807,
+	},
+	{
+		in:  "-9223372036854775808", // = math.MinInt64
+		out: -9223372036854775808,
+	},
+	{
+		in:         "-92233720368547758081",
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+	{
+		in:         "18446744073709551616", // = 2^64
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+	{
+		in:         "9223372036854775808", // = math.MaxInt64 - 1
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+	{
+		in:         "-9223372036854775809", // = math.MaxInt64 - 1
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+	{
+		in:    "",
+		isErr: true,
+	},
+	{
+		in:    "abc",
+		isErr: true,
+	},
+	{
+		in:    "12345x",
+		isErr: true,
+	},
+	{
+		in:    "123e5",
+		isErr: true,
+	},
+	{
+		in:    "9223372036854775807x",
+		isErr: true,
+	},
+	{
+		in:         "27670116110564327410",
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+	{
+		in:         "-27670116110564327410",
+		out:        0,
+		isErr:      true,
+		isOverflow: true,
+	},
+}
+
+func TestBytesParseInt(t *testing.T) {
+	for _, test := range parseIntTests {
+		out, ok, overflow := ParseInt([]byte(test.in))
+		if overflow != test.isOverflow {
+			t.Errorf("Test '%s' error return did not overflow expectation (obtained %t, expected %t)", test.in, overflow, test.isOverflow)
+		}
+		if ok != !test.isErr {
+			t.Errorf("Test '%s' error return did not match expectation (obtained %t, expected %t)", test.in, !ok, test.isErr)
+		} else if ok && out != test.out {
+			t.Errorf("Test '%s' did not return the expected value (obtained %d, expected %d)", test.in, out, test.out)
+		}
 	}
 }

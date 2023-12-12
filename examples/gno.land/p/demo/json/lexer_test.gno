@@ -123,7 +123,7 @@ func TestFindKeyPositionRange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{data: []byte(tt.data)}
 			key, err := l.findKeyPositionRange([]byte(tt.data), tt.key)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("findKeyPositionRange() error = %v, wantErr %v", err, tt.wantErr)
 				return
