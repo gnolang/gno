@@ -894,11 +894,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else { // refer to 26a4_filetest
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						}
-						//} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
-						//	debugPP.Println("lcx.T is nil")
-						//	// convert n.Left to typed-nil type.
-						//	checkOp(store, last, &n.Left, rt, n.Op, true)
-						//	checkOrConvertType(store, last, &n.Left, rt, false)
+					} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
+						debugPP.Println("lcx.T is nil")
+						// convert n.Left to typed-nil type.
+						checkOp(store, last, &n.Left, rt, n.Op, true)
+						checkOrConvertType(store, last, &n.Left, rt, false)
 					}
 				} else if ric { // right is const, left is not---
 					if isUntyped(rcx.T) {
