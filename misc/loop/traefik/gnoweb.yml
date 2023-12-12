@@ -3,7 +3,7 @@ http:
   routers:
     gnoweb:
       service: gnoweb
-      rule: "Host(`gno.land`)"
+      rule: "Host(`portal.gno.land`) || Host(`portal.gnoteam.com`)"
       entrypoints: "web"
       middlewares: []
 
