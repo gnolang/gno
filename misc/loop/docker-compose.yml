@@ -11,6 +11,8 @@ services:
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.traefik.address=127.0.0.1:8080"
 
       - "--entrypoints.websecure.address=:443"
