@@ -1,4 +1,4 @@
-package client
+package keyscmd
 
 import "github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 

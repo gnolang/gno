@@ -1,4 +1,4 @@
-package client
+package keyscmd
 
 type BaseOptions struct {
 	Home                  string

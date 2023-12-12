@@ -1,5 +1,5 @@
 // Dedicated to my love, Lexi.
-package client
+package keyscmd
 
 import (
 	"flag"

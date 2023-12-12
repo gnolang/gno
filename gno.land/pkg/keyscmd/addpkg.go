@@ -1,4 +1,4 @@
-package client
+package keyscmd
 
 // TODO: move most of the logic in ROOT/gno.land/...
 

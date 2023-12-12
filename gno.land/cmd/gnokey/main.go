@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/keyscmd"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
 func main() {
-	baseCfg := client.BaseOptions{
+	baseCfg := keyscmd.BaseOptions{
 		Home:   gnoenv.HomeDir(),
 		Remote: "127.0.0.1:26657",
 	}
 
-	cmd := client.NewRootCmdWithBaseConfig(commands.NewDefaultIO(), baseCfg)
+	cmd := keyscmd.NewRootCmdWithBaseConfig(commands.NewDefaultIO(), baseCfg)
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 

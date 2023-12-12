@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	keyscmd "github.com/gnolang/gno/gno.land/pkg/keyscmd"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -35,7 +35,7 @@ type SiteVerifyResponse struct {
 }
 
 type config struct {
-	client.BaseOptions // home, ...
+	keyscmd.BaseOptions // home, ...
 
 	ChainID               string
 	GasWanted             int64
@@ -69,21 +69,21 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.BaseOptions.Home,
 		"home",
-		client.DefaultBaseOptions.Home,
+		keyscmd.DefaultBaseOptions.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.BaseOptions.Remote,
 		"remote",
-		client.DefaultBaseOptions.Remote,
+		keyscmd.DefaultBaseOptions.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.BaseOptions.Quiet,
 		"quiet",
-		client.DefaultBaseOptions.Quiet,
+		keyscmd.DefaultBaseOptions.Quiet,
 		"for parsing output",
 	)
 
