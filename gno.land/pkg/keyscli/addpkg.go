@@ -1,4 +1,4 @@
-package keyscmd
+package keyscli
 
 // TODO: move most of the logic in ROOT/gno.land/...
 

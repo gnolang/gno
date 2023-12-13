@@ -1,4 +1,4 @@
-package keyscmd
+package keyscli
 
 import "github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 

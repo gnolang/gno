@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/keyscmd"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -21,7 +21,7 @@ import (
 func getDummyKey(t *testing.T) crypto.PubKey {
 	t.Helper()
 
-	mnemonic, err := keyscmd.GenerateMnemonic(256)
+	mnemonic, err := keyscli.GenerateMnemonic(256)
 	require.NoError(t, err)
 
 	seed := bip39.NewSeed(mnemonic, "")

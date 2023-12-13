@@ -1,5 +1,5 @@
 // Dedicated to my love, Lexi.
-package keyscmd
+package keyscli
 
 import (
 	"flag"

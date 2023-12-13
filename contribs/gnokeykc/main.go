@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	client "github.com/gnolang/gno/gno.land/pkg/keyscmd"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/zalando/go-keyring"
 )
@@ -13,7 +13,7 @@ import (
 func main() {
 	stdio := commands.NewDefaultIO()
 	wrappedio := &wrappedIO{IO: stdio}
-	cmd := client.NewRootCmd(wrappedio)
+	cmd := keyscli.NewRootCmd(wrappedio)
 	cmd.AddSubCommands(newKcCmd(stdio))
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {

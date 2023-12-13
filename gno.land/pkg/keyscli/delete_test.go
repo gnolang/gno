@@ -1,4 +1,4 @@
-package keyscmd
+package keyscli
 
 import (
 	"strings"

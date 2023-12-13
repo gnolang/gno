@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	keyscmd "github.com/gnolang/gno/gno.land/pkg/keyscmd"
+	keyscli "github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -35,7 +35,7 @@ type SiteVerifyResponse struct {
 }
 
 type config struct {
-	keyscmd.BaseOptions // home, ...
+	keyscli.BaseOptions // home, ...
 
 	ChainID               string
 	GasWanted             int64
@@ -69,21 +69,21 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.BaseOptions.Home,
 		"home",
-		keyscmd.DefaultBaseOptions.Home,
+		keyscli.DefaultBaseOptions.Home,
 		"home directory",
 	)
 
 	fs.StringVar(
 		&c.BaseOptions.Remote,
 		"remote",
-		keyscmd.DefaultBaseOptions.Remote,
+		keyscli.DefaultBaseOptions.Remote,
 		"remote node URL",
 	)
 
 	fs.BoolVar(
 		&c.BaseOptions.Quiet,
 		"quiet",
-		keyscmd.DefaultBaseOptions.Quiet,
+		keyscli.DefaultBaseOptions.Quiet,
 		"for parsing output",
 	)
 
