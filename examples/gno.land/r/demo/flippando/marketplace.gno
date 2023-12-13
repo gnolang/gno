@@ -3,7 +3,9 @@ package flippando
 import (
     "std"
 	"encoding/json"
+	"strconv"
     "gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc721f"
 )
 
 type Marketplace struct {
@@ -11,8 +13,8 @@ type Marketplace struct {
 }
 
 type Listing struct {
-    CompositeTokenID grc721.TokenID   // TokenID of the composite NFT
-    BasicTokenIDs    []grc721.TokenID // Slice of TokenIDs for the basic NFTs contained within the composite NFT
+    CompositeTokenID grc721f.TokenID   // TokenID of the composite NFT
+    BasicTokenIDs    []int64 // Slice of TokenIDs for the basic NFTs contained within the composite NFT
     Seller           std.Address      // Address of the seller
     Price            uint64           // Sale price
 }
@@ -24,21 +26,19 @@ func NewMarketplace() *Marketplace {
     }
 }
 
-func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, basicTokenIDs []grc721f.TokenID, seller std.Address, price uint64) error {
+func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Address, price uint64) error {
     // get tokenURI of the composite NFT
-	cTokenURIString, err := GetCompositeTokenURI(string(compositeTokenID));
-	if err != nil {
-		return error("can't get composite token uri")
-	}
+	cTokenURIString := GetCompositeTokenURI(string(compositeTokenID));
+	
 	var cTokenURI compositeNFTMetaData;
-	err := json.Unmarshal([]byte(cTokenURIString), &cTokenURI)
-    if err != nil {
+	uerr := json.Unmarshal([]byte(cTokenURIString), &cTokenURI)
+    if uerr != nil {
         error("can't unmarshal token uri")
     }
 
-	var basicTokenIDs []grc721.TokenID
+	var basicTokenIDs []int64
     for _, id := range cTokenURI.bTokenIDs {
-        basicTokenIDs = append(basicTokenIDs, grc721.TokenID(strconv.FormatInt(id, 10)))
+        basicTokenIDs = append(basicTokenIDs, id)
     }
 	
 	// Create a new listing
@@ -58,14 +58,14 @@ func (m *Marketplace) RemoveListing(compositeTokenID grc721f.TokenID, seller std
     // Retrieve the listing
     rawListing, exists := m.listings.Get(string(compositeTokenID))
     if !exists {
-        return std.Error("listing does not exist")
+        return error("listing does not exist")
     }
 
     listing := rawListing.(Listing)
 
     // Verify that the caller is the seller
     if listing.Seller != seller {
-        return std.Error("unauthorized - caller is not the seller")
+        return error("unauthorized - caller is not the seller")
     }
 
     // Remove the listing from the marketplace
@@ -73,16 +73,34 @@ func (m *Marketplace) RemoveListing(compositeTokenID grc721f.TokenID, seller std
     return nil
 }
 
-func (m *Marketplace) GetListings() []Listing {
-    var listings []Listing
-    for _, key := range m.listings.Keys() {
-        rawListing, _ := m.listings.Get(key)
-        listing := rawListing.(Listing)
-        listings = append(listings, listing)
-    }
-    return listings
-}
+func (m *Marketplace) GetListings() string {
+    var allListings []string
+    m.listings.Iterate("", "", func(key string, value interface{}) bool {
+        // Type assert the value to a Listing
+        listing, ok := value.(Listing)
+        if !ok {
+            // Handle the case where the value is not a Listing
+            return true // Skip this iteration
+        }
 
+        listingResult := &listingResult{
+            compositeTokenID: string(listing.CompositeTokenID),
+            basicTokenIDs:    listing.BasicTokenIDs,
+            seller:           string(listing.Seller),
+            price:            strconv.FormatUint(listing.Price, 10),
+        }
+        listingResultJSON, _ := json.Marshal(listingResult)
+        allListings = append(allListings, string(listingResultJSON))
+        return true // Continue iterating
+    })
+
+    marketplaceListings := &marketplaceListings{
+        marketplaceListings: allListings,
+    }
+    marketplaceJSON, _ := json.Marshal(marketplaceListings)
+
+    return string(marketplaceJSON)
+}
 
 func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721f.TokenID) error {
     listingRaw, exists := m.listings.Get(string(compositeTokenID))

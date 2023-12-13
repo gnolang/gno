@@ -40,6 +40,17 @@ type compositeNFTMetaData struct {
 	bTokenIDs []int64  `json:"bTokenIDs"`
 }
 
+type listingResult struct {
+	compositeTokenID string `json:"tokenID"`
+    basicTokenIDs    []int64 `json:"basicTokenIDs"`
+    seller           string `json:"seller"`
+    price            string `json:price"` 
+}
+
+type marketplaceListings struct {
+	marketplaceListings	[]string `json:"marketplaceListings"`
+}
+
 type nftResult struct {
 	result	string `json:"result"`
 	nftError	string	`json:"-"`
@@ -188,6 +199,48 @@ func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
 
 	return b.Bytes(), nil
 	
+}
+
+func (lr listingResult)MarshalJSON() (_ []byte, err error){
+
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"tokenID":"`)
+	b.WriteString(lr.compositeTokenID)
+	b.WriteString(`",`)
+
+	b.WriteString(`"basicTokenIDs":[`)
+	b.WriteString(writeIntSlice(lr.basicTokenIDs))
+	b.WriteString(`],`)
+
+	b.WriteString(`"seller":"`)
+	b.WriteString(lr.seller)
+	b.WriteString(`",`)
+
+	b.WriteString(`"price":"`)
+	b.WriteString(lr.price)
+	b.WriteString(`"`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func (ml marketplaceListings) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+
+	b.WriteString(`{"marketplaceListings":[`)
+	for i, listing := range ml.marketplaceListings {
+		if i > 0 {
+			b.WriteString(`,`)
+		}
+		b.WriteString(listing)
+	}
+	b.WriteString(`]}`)
+
+	return b.Bytes(), nil
 }
 
 func (n nftResult)MarshalJSON() (_ []byte, err error) {

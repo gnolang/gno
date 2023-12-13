@@ -3,10 +3,12 @@ package flippando
 import (
 	"errors"
 	"strconv"
+	"time"
 	"strings"
 	"std"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/flippandoserver"
 	"gno.land/p/demo/avl"
 )
 
@@ -138,8 +140,8 @@ func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
 
 	if (totalFLIPBalance - lockedFLIPBalance >= fPrice) {
 		// add logic for burning a random amount from the fPrice
-		randomPercentage := generateRandomNumbers(1, 1, 50, time.Now().Unix())
-		fUpdatedPrice := fPrice - randomPercentage
+		randomPercentage := flippandoserver.GenerateRandomNumbers(1, 1, 50, time.Now().Unix())
+		fUpdatedPrice := fPrice - uint64(randomPercentage)
 		flipToken.Transfer(from, recipient, fUpdatedPrice)
 	} else {
 		panic("not enough available balance")

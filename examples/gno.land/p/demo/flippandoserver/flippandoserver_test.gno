@@ -95,7 +95,7 @@ func TestGenerateRandomNumbers(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := generateRandomNumbers(tt.howMany, tt.min, tt.max, tt.seed)
+		got := GenerateRandomNumbers(tt.howMany, tt.min, tt.max, tt.seed)
 
 		if len(got) != tt.expect {
 			t.Errorf("expected %d numbers but got %d", tt.expect, len(got))

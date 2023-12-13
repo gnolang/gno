@@ -58,7 +58,7 @@ func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int
 		rng = int64(6)
 	}
 	// Generating random numbers for gameTiles
-    generatedNumbers := generateRandomNumbers(gameTilesLength, 1, int(rng), seed)
+    generatedNumbers := GenerateRandomNumbers(gameTilesLength, 1, int(rng), seed)
     for i, num := range generatedNumbers {
         gameTiles[i] = int64(num)
     }
@@ -70,7 +70,7 @@ func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int
 func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64, seed int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
-	randomNumberSlice := generateRandomNumbers(2, 1, len(board)/4, seed)
+	randomNumberSlice := GenerateRandomNumbers(2, 1, len(board)/4, seed)
 
 	// Safety check for 'positions' slice
     if len(positions) < 2 {
@@ -135,7 +135,7 @@ func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions 
 	   }*/
 }
 
-func generateRandomNumbers(howMany, min, max int, seed int64) []int {
+func GenerateRandomNumbers(howMany, min, max int, seed int64) []int {
 	if min > max || howMany <= 0 || (max-min+1) < howMany {
 		return nil
 	}
