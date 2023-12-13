@@ -7,9 +7,6 @@ func main() {
 	r := uint64(1) << a
 	println(r)
 	fmt.Printf("%T \n", r)
-
-	//r1 := uint64(1) << (63 - 1)
-	//println(r1)
 }
 
 // Output:

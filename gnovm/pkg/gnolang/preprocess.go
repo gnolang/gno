@@ -823,15 +823,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 				debugPP.Printf("---BinaryExpr---, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
+				// TODO: improve readibility
 				if lic {
 					if ric {
 						// Left const, Right const ----------------------
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
 						// refer to 0a0_filetest
-						//if isShift {
-						//	checkOp(store, last, &n.Left, lt, n.Op, true)
-						//}
 						if !isShift {
 							cmp := cmpSpecificity(lcx.T, rcx.T)
 							if cmp < 0 { // this always implies untyped>?
@@ -852,7 +850,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// check special case: zero divisor
-						// TODO: always check when ric?
 						if isQuoOrRem(n.Op) {
 							checkOperand(rcx)
 						}
@@ -972,11 +969,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else { // ---both not const---
 					if n.Op == SHL || n.Op == SHR {
-						// shift operator, nothing yet to do. code like this will work
 					} else if lnt, ok := lt.(*NativeType); ok {
 						if debug {
 							if !isShift {
-								assertSameTypes(lt, rt)
+								assertSameTypes(lt, rt) // TODO: what is this for? possible untyped?
 							}
 						}
 						// If left and right are native type,
@@ -2577,85 +2573,64 @@ const (
 
 // check operand types with operators
 func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, mode checkMode) {
-	var xt Type
-	if mode == Binary || mode == Assign {
-		if cx, ok := (*x).(*ConstExpr); ok {
-			xt = cx.T
-		} else if *x != nil {
-			xt = evalStaticTypeOf(store, last, *x)
-		}
-	}
-
-	debugPP.Printf("checkOp, xt: %v, dt: %v, op: %v, isBinary: %v \n", xt, dt, op, mode)
+	debugPP.Printf("checkOp, dt: %v, op: %v, mode: %v \n", dt, op, mode)
 	if mode == Unary || mode == IncDec {
-		if op == INC || op == DEC {
+		switch mode {
+		case Unary:
+			// unary
+			if pred, ok := unaryPredicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+				}
+			}
+		case IncDec:
 			if pred, ok := IncDecStmtPredicates[op]; ok {
 				if !pred(dt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 				}
 			}
+		default:
+			panic("should not happen")
 		}
-		// unary
-		if pred, ok := unaryPredicates[op]; ok {
-			if !pred(dt) {
-				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
-			}
+	} else {
+		var xt Type
+		if cx, ok := (*x).(*ConstExpr); ok {
+			xt = cx.T
+		} else if *x != nil {
+			xt = evalStaticTypeOf(store, last, *x)
 		}
-	}
-	if isComparison(op) {
-		switch op {
-		case EQL, NEQ: // check isComparable
-			// 1. first, check specific types can be compared, like binaryPredicates for ADD, etc
-			// 2. isComparable requires one is assignable to another
-			// 3. handle nil
-			// TODO: is xt is nil
-			if ok, code := isComparable(xt, dt); !ok {
-				panic(code)
+		switch mode {
+		case Binary:
+			if isComparison(op) {
+				switch op {
+				case EQL, NEQ: // check maybeIdenticalType
+					// 1. first, check specific types can be compared, like binaryPredicates for ADD, etc
+					// 2. maybeIdenticalType requires one is assignable to another
+					// 3. handle nil
+					// TODO: is xt is nil
+					if ok, code := maybeIdenticalType(xt, dt); !ok {
+						panic(code)
+					}
+				case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
+					if pred, ok := binaryPredicates[op]; ok {
+						if !pred(dt) {
+							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						}
+					}
+				default:
+					panic("invalid comparison operator")
+				}
 			}
-		case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
+			debugPP.Println("binary---")
+			// two steps of check:
+			// first, check is the dt type satisfies op, the switch logic
+			// second, xt can be converted to dt, this is done below this
+			// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
 			if pred, ok := binaryPredicates[op]; ok {
 				if !pred(dt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 				}
 			}
-		default:
-			panic("invalid comparison operator")
-		}
-	} else if mode == Assign {
-		debugPP.Println("assign---")
-		if pred, ok := AssignStmtPredicates[op]; ok {
-			if !pred(dt) {
-				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
-			}
-			if op != ILLEGAL {
-				switch op {
-				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
-					// if both typed
-					if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
-						if xt != nil && dt != nil {
-							if xt.TypeID() != dt.TypeID() {
-								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
-							}
-						}
-						debugPP.Println("typed and identical as isComparable")
-					}
-				default:
-					// Note: others no check, assign will be check in assignable
-				}
-			}
-		}
-	} else if mode == Binary {
-		debugPP.Println("binary---")
-		// two steps of check:
-		// first, check is the dt type satisfies op, the switch logic
-		// second, xt can be converted to dt, this is done below this
-		// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
-		if pred, ok := binaryPredicates[op]; ok {
-			if !pred(dt) {
-				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
-			}
-		}
-		if op != ILLEGAL {
 			switch op {
 			case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
 				// if both typed
@@ -2665,12 +2640,35 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, mode checkM
 							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
 						}
 					}
-					debugPP.Println("typed and identical as isComparable")
+					debugPP.Println("typed and identical as maybeIdenticalType")
 				}
 			case SHL, SHR:
 			default:
 				// Note: others no check, assign will be check in assignable
 			}
+		case Assign:
+			debugPP.Println("assign---")
+			if pred, ok := AssignStmtPredicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+				}
+				switch op {
+				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+					// if both typed
+					if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
+						if xt != nil && dt != nil {
+							if xt.TypeID() != dt.TypeID() {
+								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+							}
+						}
+						debugPP.Println("typed and identical as maybeIdenticalType")
+					}
+				default:
+					// Note: others no check, assign will be check in assignable
+				}
+			}
+		default:
+			panic("should not happen")
 		}
 	}
 }

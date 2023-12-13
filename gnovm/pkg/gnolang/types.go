@@ -2261,11 +2261,11 @@ func assertSameTypes(lt, rt Type) {
 }
 
 // both typed, or one is nil, or data byte(special case)
-// only for isComparable types for runtime, op_binary
+// only for runtime type checks, op_binary
 // any implicit identical check is in preprocess stage and excluded from here
-// TODO: a better name?
-func isBinOperandTypeIdentical(lt, rt Type) bool {
-	debugPP.Printf("check isBinOperandTypeIdentical, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+// TODO: is untyped 100% excluded? this is major difference from assertSameTypes
+func isIdenticalType(lt, rt Type) bool {
+	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
 	if lpt, ok := lt.(*PointerType); ok {
 		if isDataByte(lpt.Elt) {
@@ -2333,13 +2333,13 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// NOTE: isComparable is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
-// which pass the later one, but is not isComparable.
-// The logic here is, when compare operators show, check if t is isComparable, if yes,
+// XXX: maybeIdenticalType is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
+// maybeIdenticalType is relaxed than isIdentical in preprocess.
+// The logic here is, when != or == shows up, check if t is maybeIdenticalType, if yes,
 // then check the corresponding type(the other side of the operator) is convertable to t.
-func isComparable(xt, dt Type) (bool, string) {
-	debugPP.Printf("check isComparable, xt: %v, dt: %v \n", xt, dt)
-	// primitive is isComparable
+func maybeIdenticalType(xt, dt Type) (bool, string) {
+	debugPP.Printf("check maybeIdenticalType, xt: %v, dt: %v \n", xt, dt)
+	// primitive is maybeIdenticalType
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
 		debugPP.Println("primitive type, return true")
@@ -2370,7 +2370,7 @@ func isComparable(xt, dt Type) (bool, string) {
 		if xt != nil {
 			return false, fmt.Sprintf("%v can only be compared to nil \n", dt)
 		} else {
-			// only isComparable with nil, runtime check
+			// only maybeIdenticalType with nil, runtime check
 			return true, ""
 		}
 	case *NativeType:
