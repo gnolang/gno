@@ -3,8 +3,11 @@ http:
   routers:
     gnoweb:
       service: gnoweb
-      rule: "Host(`portal.gno.land`) || Host(`portal.gnoteam.com`)"
-      entrypoints: "websecure"
+      rule: "Host(`portal.gnoteam.com`)"
+      # rule: "Host(`portal.gno.land`) || Host(`portal.gnoteam.com`)"
+      tls:
+        certResolver: le
+      entrypoints: ["web", "websecure"]
       middlewares: []
 
   services:

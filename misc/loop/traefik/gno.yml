@@ -7,11 +7,19 @@ http:
           - "127.0.0.1/32"
 
   routers:
+    gno-portal-loop-local:
+      service: gno-portal-loop
+      rule: "Host(`rpc.portal.gno.local`)"
+      entrypoints: ["private"]
+      middlewares: []
+
     gno-portal-loop:
       service: gno-portal-loop
-      # tls: "true"
-      rule: "Host(`rpc.gno.land`) || Host(`rpc.gno.local`)"
-      entrypoints: "web"
+      tls:
+        certResolver: le
+      # rule: "Host(`rpc.portal.gno.land`) || Host(`rpc.portal.gnoteam.com`)"
+      rule: "Host(`rpc.portal.gnoteam.com`)"
+      entrypoints: ["web", "websecure"]
       middlewares: []
 
   services:

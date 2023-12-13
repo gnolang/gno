@@ -11,17 +11,24 @@ services:
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.private.address=127.0.0.1:81"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      # - "--entryPoints.web.forwardedHeaders.insecure"
+      # - "--entrypoints.traefik.address=:8080"
       - "--entrypoints.traefik.address=127.0.0.1:8080"
 
       - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
-      - "--certificatesresolvers.myresolver.acme.email=dev@gno.land"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      # - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.le.acme.email=dev@gno.land"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
     ports:
+      # useless because of network_mode: host
+      # just here for readability
       - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - ./traefik:/etc/traefik/configs
@@ -34,10 +41,10 @@ services:
     entrypoint:
       - gnoweb
       - --bind=localhost:8888
-      - --remote=rpc.gno.local:80
+      - --remote=rpc.portal.gno.local:81
       - --views-dir=./gnoweb/views
     extra_hosts:
-      - rpc.gno.local:127.0.0.1
+      - rpc.portal.gno.local:127.0.0.1
 
   snapshotter:
     build:
@@ -54,4 +61,4 @@ services:
     environment:
       HOST_PWD: $PWD
     extra_hosts:
-      - rpc.gno.local:127.0.0.1
+      - rpc.portal.gno.local:127.0.0.1
