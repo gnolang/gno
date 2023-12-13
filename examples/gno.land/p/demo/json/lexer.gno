@@ -6,26 +6,9 @@ import (
 	"strconv"
 )
 
-const unescapeStackBufSize = 64
-
-type Lexer struct {
-	data     []byte
-	token    byte
-	level    int
-	keyLevel int
-}
-
-func New(data []byte) *Lexer {
-	return &Lexer{
-		data:     data,
-		level:    0,
-		keyLevel: 0,
-	}
-}
-
-func (l *Lexer) findTokenStart(token byte) int {
-	for i := len(l.data) - 1; i >= 0; i-- {
-		switch l.data[i] {
+func findTokenStart(data []byte, token byte) int {
+	for i := len(data) - 1; i >= 0; i-- {
+		switch data[i] {
 		case token:
 			return i
 		case '[', '{':
@@ -46,18 +29,7 @@ func tokenEnd(data []byte) int {
 	return len(data)
 }
 
-func (l *Lexer) tokenStart() int {
-	for i := len(l.data) - 1; i >= 0; i-- {
-		switch l.data[i] {
-		case '\n', '\r', '\t', ',', '{', '[':
-			return i
-		}
-	}
-
-	return 0
-}
-
-func (l *Lexer) nextToken(data []byte) int {
+func nextToken(data []byte) int {
 	for i, b := range data {
 		switch b {
 		case '{', '[':
@@ -72,9 +44,9 @@ func (l *Lexer) nextToken(data []byte) int {
 	return -1
 }
 
-func (l *Lexer) findLastTokenPosition() int {
-	for i := len(l.data) - 1; i >= 0; i-- {
-		switch l.data[i] {
+func findLastTokenPosition(data []byte) int {
+	for i := len(data) - 1; i >= 0; i-- {
+		switch data[i] {
 		case ' ', '\n', '\r', '\t':
 			continue
 		default:
@@ -86,7 +58,7 @@ func (l *Lexer) findLastTokenPosition() int {
 }
 
 // TODO: refactor this function
-func (l *Lexer) stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
+func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 	escaped = false
 	for lastCharIdx, c := range data {
 		if c == '"' {
@@ -114,14 +86,14 @@ func (l *Lexer) stringEnd(data []byte) (lastCharIdx int, escaped bool, err error
 	return -1, escaped, StringNotClosed
 }
 
-func (l *Lexer) blockEnd(data []byte, open, close byte) (int, error) {
-	level := l.level
+func blockEnd(data []byte, open, close byte) (int, error) {
+	level := 0
 	i := 0
 
 	for i < len(data) {
 		switch data[i] {
 		case '"':
-			end, _, err := l.stringEnd(data[i+1:])
+			end, _, err := stringEnd(data[i+1:])
 			if err != nil {
 				return -1, StringNotClosed
 			}
@@ -167,16 +139,16 @@ func findNextKey(data []byte, start int) (keyBegin, keyEnd, nextIndex int, err e
 }
 
 // TODO: refactor this function
-func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error) {
+func searchKeys(data []byte, keys ...string) (keyIndex int, err error) {
 	lastMatched := true
-	keyLevel, level := l.keyLevel, l.level
+	keyLevel, level := 0, 0
 	dataLenghth, numKeys := len(data), len(keys)
 
 	if numKeys == 0 {
 		return 0, nil
 	}
 
-	var stackbuf [unescapeStackBufSize]byte
+	var stackbuf [UnescapeStackBufSize]byte
 
 	for keyIndex < dataLenghth {
 		switch data[keyIndex] {
@@ -184,14 +156,14 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 			keyIndex++
 			keyBegin := keyIndex
 
-			strEnd, keyEscaped, err := l.stringEnd(data[keyIndex:])
+			strEnd, keyEscaped, err := stringEnd(data[keyIndex:])
 			if err != nil {
 				return -1, StringNotClosed
 			}
 			keyIndex += strEnd
 			keyEnd := keyIndex - 1
 
-			valueOffset := l.nextToken(data[keyIndex:])
+			valueOffset := nextToken(data[keyIndex:])
 			if valueOffset == -1 {
 				return -1, TokenNotFound
 			}
@@ -236,7 +208,7 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 			// in case parent key is matched then only we will increase the level otherwise can directly
 			// can move to the end of this block
 			if !lastMatched {
-				end, err := l.blockEnd(data[keyIndex:], '{', '}')
+				end, err := blockEnd(data[keyIndex:], '{', '}')
 				if err != nil {
 					return -1, err
 				}
@@ -263,7 +235,7 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 				var valueOffset int
 
 				currIdx := keyIndex
-				l.ArrayEach(data[keyIndex:], func(value []byte, dataType ValueType, offset int, err error) {
+				ArrayEach(data[keyIndex:], func(value []byte, dataType ValueType, offset int, err error) {
 					if arrIdx == currIdx {
 						valueFound = value
 						valueOffset = offset
@@ -283,7 +255,7 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 					return -1, KeyPathNotFoundError
 				}
 
-				subIndex, err := l.searchKeys(valueFound, keys[level+1:]...)
+				subIndex, err := searchKeys(valueFound, keys[level+1:]...)
 				if err != nil {
 					return -1, err
 				}
@@ -291,7 +263,7 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 				return keyIndex + valueOffset + subIndex, nil
 			}
 
-			skip, err := l.blockEnd(data[keyIndex:], '[', ']')
+			skip, err := blockEnd(data[keyIndex:], '[', ']')
 			if err != nil {
 				return -1, err
 			}
@@ -315,7 +287,7 @@ func decreaseLevel(level, keyLevel int) {
 }
 
 // ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.
-func (l *Lexer) ArrayEach(
+func ArrayEach(
 	data []byte,
 	cb func(value []byte, dataType ValueType, offset int, err error),
 	keys ...string,
@@ -324,7 +296,7 @@ func (l *Lexer) ArrayEach(
 		return -1, MalformedObjectError
 	}
 
-	nT := l.nextToken(data)
+	nT := nextToken(data)
 	if nT == -1 {
 		return -1, MalformedJsonError
 	}
@@ -332,13 +304,13 @@ func (l *Lexer) ArrayEach(
 	offset = nT + 1
 
 	if len(keys) > 0 {
-		offset, err = l.searchKeys(data, keys...)
+		offset, err = searchKeys(data, keys...)
 		if err != nil {
 			return offset, err
 		}
 
 		// Go to closest value
-		nO := l.nextToken(data[offset:])
+		nO := nextToken(data[offset:])
 		if nO == -1 {
 			return offset, MalformedJsonError
 		}
@@ -352,7 +324,7 @@ func (l *Lexer) ArrayEach(
 		offset++
 	}
 
-	nO := l.nextToken(data[offset:])
+	nO := nextToken(data[offset:])
 	if nO == -1 {
 		return offset, MalformedJsonError
 	}
@@ -364,7 +336,7 @@ func (l *Lexer) ArrayEach(
 	}
 
 	for true {
-		v, t, o, e := l.Get(data[offset:])
+		v, t, o, e := Get(data[offset:])
 
 		if e != nil {
 			return offset, e
@@ -384,7 +356,7 @@ func (l *Lexer) ArrayEach(
 
 		offset += o
 
-		skipToToken := l.nextToken(data[offset:])
+		skipToToken := nextToken(data[offset:])
 		if skipToToken == -1 {
 			return offset, MalformedArrayError
 		}
@@ -404,27 +376,27 @@ func (l *Lexer) ArrayEach(
 	return offset, nil
 }
 
-func (l *Lexer) Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset int, err error) {
-	a, b, _, d, e := l.internalGet(data, keys...)
+func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset int, err error) {
+	a, b, _, d, e := internalGet(data, keys...)
 	return a, b, d, e
 }
 
-func (l *Lexer) internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
+func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
 	if len(keys) > 0 {
-		offset, err = l.searchKeys(data, keys...)
+		offset, err = searchKeys(data, keys...)
 		if err != nil {
 			return nil, NotExist, -1, -1, err
 		}
 	}
 
 	// Go to closest value
-	nO := l.nextToken(data[offset:])
+	nO := nextToken(data[offset:])
 	if nO == -1 {
 		return nil, NotExist, offset, -1, MalformedJsonError
 	}
 
 	offset += nO
-	value, dataType, endOffset, err = l.getType(data, offset)
+	value, dataType, endOffset, err = getType(data, offset)
 	if err != nil {
 		return value, dataType, offset, endOffset, err
 	}
@@ -437,21 +409,21 @@ func (l *Lexer) internalGet(data []byte, keys ...string) (value []byte, dataType
 	return value[:len(value):len(value)], dataType, offset, endOffset, nil
 }
 
-func (l *Lexer) getType(data []byte, offset int) ([]byte, ValueType, int, error) {
+func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 	var dataType ValueType
 	endOffset := offset
 
 	switch data[offset] {
 	case '"':
 		dataType = String
-		idx, _, err := l.stringEnd(data[offset+1:])
+		idx, _, err := stringEnd(data[offset+1:])
 		if err != nil {
 			return nil, dataType, offset, MalformedStringError
 		}
 		endOffset += idx + 1
 	case '[':
 		dataType = Array
-		endOffset, err := l.blockEnd(data[offset:], '[', ']')
+		endOffset, err := blockEnd(data[offset:], '[', ']')
 		if err != nil {
 			return nil, dataType, offset, MalformedArrayError
 		}
@@ -459,7 +431,7 @@ func (l *Lexer) getType(data []byte, offset int) ([]byte, ValueType, int, error)
 	case '{':
 		dataType = Object
 
-		endOffset, err := l.blockEnd(data[offset:], '{', '}')
+		endOffset, err := blockEnd(data[offset:], '{', '}')
 		if err != nil {
 			return nil, dataType, offset, MalformedObjectError
 		}

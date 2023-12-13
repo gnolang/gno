@@ -21,10 +21,11 @@ func TestFindTokenStart(t *testing.T) {
 		{token: 'l', expected: 9},
 	}
 
+	data := []byte(`hello{world}`)
+
 	for _, test := range tests {
-		l := New([]byte("hello{world}"))
-		if got := l.findTokenStart(test.token); got != test.expected {
-			t.Errorf("findTokenStart('%c') = %v, want %v", test.token, got, test.expected)
+		if got := findTokenStart(data, test.token); got != test.expected {
+			t.Errorf("findTokenStart() = %v, want %v", got, test.expected)
 		}
 	}
 }
@@ -48,14 +49,14 @@ func TestTokenEnd(t *testing.T) {
 func TestLexer(t *testing.T) {
 	tests := []struct {
 		name  string
-		data  string
+		data  []byte
 		start int
 		next  int
 		last  int
 	}{
 		{
 			name:  "Test 1",
-			data:  "{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}",
+			data:  []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
 			start: 38,
 			next:  1,
 			last:  39,
@@ -64,9 +65,7 @@ func TestLexer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{data: []byte(tt.data)}
-
-			if got := l.findLastTokenPosition(); got != tt.last {
+			if got := findLastTokenPosition(tt.data); got != tt.last {
 				t.Errorf("findLastTokenPosition() = %v, want %v", got, tt.last)
 			}
 		})
@@ -124,8 +123,7 @@ func TestSearchKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := &Lexer{}
-			got, err := l.searchKeys(tt.data, tt.keys...)
+			got, err := searchKeys(tt.data, tt.keys...)
 
 			if got != tt.expected {
 				t.Errorf("searchKeys(%s) = %v, want %v", tt.name, got, tt.expected)
@@ -142,8 +140,7 @@ func TestArrayEach(t *testing.T) {
 	data := []byte(`{"a": { "b":[{"x": 1} ,{"x":2},{ "x":3}, {"x":4} ]}}`)
 	count := 0
 
-	l := &Lexer{}
-	l.ArrayEach(data, func(value []byte, typ ValueType, offset int, err error) {
+	ArrayEach(data, func(value []byte, typ ValueType, offset int, err error) {
 		count += 1
 
 		switch count {

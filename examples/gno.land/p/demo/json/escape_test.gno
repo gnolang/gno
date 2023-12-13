@@ -186,7 +186,6 @@ func TestUnescape(t *testing.T) {
 }
 
 func TestStringEnd(t *testing.T) {
-	lexer := &Lexer{}
 	tests := []struct {
 		name     string
 		input    []byte
@@ -201,7 +200,7 @@ func TestStringEnd(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			idx, escaped, _ := lexer.stringEnd(test.input)
+			idx, escaped, _ := stringEnd(test.input)
 			if idx != test.expected || escaped != test.escaped {
 				t.Errorf("Failed %s: expected (%d, %v), got (%d, %v)", test.name, test.expected, test.escaped, idx, escaped)
 			}
@@ -210,7 +209,6 @@ func TestStringEnd(t *testing.T) {
 }
 
 func TestBlockEnd(t *testing.T) {
-	lexer := &Lexer{}
 	tests := []struct {
 		name     string
 		data     []byte
@@ -226,7 +224,7 @@ func TestBlockEnd(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, _ := lexer.blockEnd(test.data, test.open, test.close)
+			result, _ := blockEnd(test.data, test.open, test.close)
 			if result != test.expected {
 				t.Errorf("Failed %s: expected %d, got %d", test.name, test.expected, result)
 			}

@@ -14,7 +14,7 @@ const (
 )
 
 func ParseString(data []byte) (string, error) {
-	var buf [unescapeStackBufSize]byte
+	var buf [UnescapeStackBufSize]byte
 
 	bf, err := Unescape(data, buf[:])
 	if err != nil {
