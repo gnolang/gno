@@ -35,6 +35,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	DeepCopy() Store
 	// UNSTABLE
 	SetStrictGo2GnoMapping(bool)
 	AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string)
@@ -94,6 +95,36 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	}
 	InitStoreCaches(ds)
 	return ds
+}
+
+func (ds *defaultStore) DeepCopy() Store {
+	cachedObjs := make(map[ObjectID]Object)
+
+	for id, object := range ds.cacheObjects {
+		cachedObjs[id] = object
+	}
+
+	var a *Allocator
+
+	if ds.alloc != nil {
+		a = &*ds.alloc
+	}
+
+	return &defaultStore{
+		alloc:            a,
+		pkgGetter:        ds.pkgGetter,
+		cacheObjects:     cachedObjs,
+		cacheTypes:       ds.cacheTypes,
+		cacheNodes:       ds.cacheNodes,
+		cacheNativeTypes: ds.cacheNativeTypes,
+		baseStore:        ds.baseStore,
+		iavlStore:        ds.iavlStore,
+		pkgInjector:      ds.pkgInjector,
+		go2gnoMap:        ds.go2gnoMap,
+		go2gnoStrict:     ds.go2gnoStrict,
+		opslog:           ds.opslog,
+		current:          ds.current,
+	}
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {

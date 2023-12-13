@@ -24,6 +24,7 @@ type Type interface {
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
+	DeepCopy() Type
 }
 
 type TypeID string
@@ -76,6 +77,10 @@ func (MaybeNativeType) assertType() {}
 // Primitive types
 
 type PrimitiveType int
+
+func (p PrimitiveType) DeepCopy() Type {
+	return p
+}
 
 const (
 	InvalidType PrimitiveType = 1 << iota
@@ -335,6 +340,15 @@ type FieldType struct {
 	Tag      Tag
 }
 
+func (ft FieldType) DeepCopy() Type {
+	return &FieldType{
+		Name:     ft.Name,
+		Type:     ft.Type.DeepCopy(),
+		Embedded: ft.Embedded,
+		Tag:      ft.Tag,
+	}
+}
+
 func (ft FieldType) Kind() Kind {
 	panic("FieldType is a pseudotype of unknown kind")
 }
@@ -505,6 +519,15 @@ type ArrayType struct {
 	typeid TypeID
 }
 
+func (at *ArrayType) DeepCopy() Type {
+	return &ArrayType{
+		Len:    at.Len,
+		Elt:    at.Elt.DeepCopy(),
+		Vrd:    at.Vrd,
+		typeid: at.typeid,
+	}
+}
+
 func (at *ArrayType) Kind() Kind {
 	return ArrayKind
 }
@@ -541,6 +564,14 @@ type SliceType struct {
 	Vrd bool // used for *FuncType.HasVarg()
 
 	typeid TypeID
+}
+
+func (st *SliceType) DeepCopy() Type {
+	return &SliceType{
+		Elt:    st.Elt.DeepCopy(),
+		Vrd:    st.Vrd,
+		typeid: st.typeid,
+	}
 }
 
 func (st *SliceType) Kind() Kind {
@@ -581,6 +612,13 @@ type PointerType struct {
 	Elt Type
 
 	typeid TypeID
+}
+
+func (pt *PointerType) DeepCopy() Type {
+	return &PointerType{
+		Elt:    pt.Elt.DeepCopy(),
+		typeid: pt.typeid,
+	}
 }
 
 func (pt *PointerType) Kind() Kind {
@@ -716,6 +754,20 @@ type StructType struct {
 	typeid TypeID
 }
 
+func (st *StructType) DeepCopy() Type {
+	fields := make([]FieldType, len(st.Fields))
+
+	for i, field := range st.Fields {
+		fields[i] = *field.DeepCopy().(*FieldType)
+	}
+
+	return &StructType{
+		PkgPath: st.PkgPath,
+		Fields:  st.Fields,
+		typeid:  st.typeid,
+	}
+}
+
 func (st *StructType) Kind() Kind {
 	return StructKind
 }
@@ -840,6 +892,10 @@ type PackageType struct {
 	typeid TypeID
 }
 
+func (pt *PackageType) DeepCopy() Type {
+	return &PackageType{typeid: pt.typeid}
+}
+
 func (pt *PackageType) Kind() Kind {
 	return PackageKind
 }
@@ -876,6 +932,15 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
+}
+
+func (it *InterfaceType) DeepCopy() Type {
+	return &InterfaceType{
+		PkgPath: it.PkgPath,
+		Methods: DeepCopyFields(it.Methods),
+		Generic: it.Generic,
+		typeid:  it.typeid,
+	}
 }
 
 // General empty interface.
@@ -1032,6 +1097,14 @@ type ChanType struct {
 	typeid TypeID
 }
 
+func (ct *ChanType) DeepCopy() Type {
+	return &ChanType{
+		Dir:    ct.Dir,
+		Elt:    ct.Elt.DeepCopy(),
+		typeid: ct.typeid,
+	}
+}
+
 func (ct *ChanType) Kind() Kind {
 	return ChanKind
 }
@@ -1076,12 +1149,41 @@ func (ct *ChanType) GetPkgPath() string {
 // ----------------------------------------
 // Function type
 
+func DeepCopyFields(ft []FieldType) []FieldType {
+	nft := make([]FieldType, len(ft))
+
+	for i, fieldType := range ft {
+		nft[i] = *fieldType.DeepCopy().(*FieldType)
+	}
+
+	return nft
+}
+
+func DeepCopyFieldTypeExprs(ft []FieldTypeExpr) []FieldTypeExpr {
+	nft := make([]FieldTypeExpr, len(ft))
+
+	for i, fieldType := range ft {
+		nft[i] = *fieldType.DeepCopy().(*FieldTypeExpr)
+	}
+
+	return nft
+}
+
 type FuncType struct {
 	Params  []FieldType
 	Results []FieldType
 
 	typeid TypeID
 	bound  *FuncType
+}
+
+func (ft *FuncType) DeepCopy() Type {
+	return &FuncType{
+		Params:  DeepCopyFields(ft.Params),
+		Results: DeepCopyFields(ft.Results),
+		typeid:  ft.typeid,
+		bound:   ft.bound.DeepCopy().(*FuncType),
+	}
 }
 
 // if ft is a method, returns whether method takes a pointer receiver.
@@ -1303,6 +1405,14 @@ type MapType struct {
 	typeid TypeID
 }
 
+func (mt *MapType) DeepCopy() Type {
+	return &MapType{
+		Key:    mt.Key.DeepCopy(),
+		Value:  mt.Value.DeepCopy(),
+		typeid: mt.typeid,
+	}
+}
+
 func (mt *MapType) Kind() Kind {
 	return MapKind
 }
@@ -1336,6 +1446,10 @@ func (mt *MapType) GetPkgPath() string {
 // Type (typeval) type
 
 type TypeType struct { // nothing yet.
+}
+
+func (tt *TypeType) DeepCopy() Type {
+	return &TypeType{}
 }
 
 var gTypeType = &TypeType{}
@@ -1373,6 +1487,27 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+}
+
+func DeepCopyTypedValues(tv []TypedValue) []TypedValue {
+	ntv := make([]TypedValue, len(tv))
+
+	for i, value := range tv {
+		ntv[i] = value.Copy(nil)
+	}
+
+	return ntv
+}
+
+func (dt *DeclaredType) DeepCopy() Type {
+	return &DeclaredType{
+		PkgPath: dt.PkgPath,
+		Name:    dt.Name,
+		Base:    dt.Base.DeepCopy(),
+		Methods: DeepCopyTypedValues(dt.Methods),
+		typeid:  dt.typeid,
+		sealed:  dt.sealed,
+	}
 }
 
 // returns an unsealed *DeclaredType.
@@ -1612,6 +1747,14 @@ type NativeType struct {
 	gnoType Type // Gno converted type
 }
 
+func (nt *NativeType) DeepCopy() Type {
+	return &NativeType{
+		Type:    nt.Type,
+		typeid:  nt.typeid,
+		gnoType: nt.gnoType.DeepCopy(),
+	}
+}
+
 func (nt *NativeType) Kind() Kind {
 	switch nt.Type.Kind() {
 	case reflect.Bool:
@@ -1818,6 +1961,10 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 
 type blockType struct{} // no data
 
+func (bt blockType) DeepCopy() Type {
+	return &blockType{}
+}
+
 func (bt blockType) Kind() Kind {
 	return BlockKind
 }
@@ -1845,6 +1992,19 @@ type tupleType struct {
 	Elts []Type
 
 	typeid TypeID
+}
+
+func (tt *tupleType) DeepCopy() Type {
+	elts := make([]Type, len(tt.Elts))
+
+	for i, elt := range tt.Elts {
+		elts[i] = elt.DeepCopy()
+	}
+
+	return &tupleType{
+		Elts:   elts,
+		typeid: tt.typeid,
+	}
 }
 
 func (tt *tupleType) Kind() Kind {
@@ -1893,6 +2053,10 @@ func (tt *tupleType) GetPkgPath() string {
 
 type RefType struct {
 	ID TypeID
+}
+
+func (rt RefType) DeepCopy() Type {
+	return RefType{ID: rt.ID}
 }
 
 func (RefType) Kind() Kind {

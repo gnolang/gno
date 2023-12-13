@@ -51,6 +51,7 @@ func TestPackages(t *testing.T) {
 	// Sort pkgPaths for determinism.
 	sort.Strings(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
+
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
 		pkgPath := pkgPath
@@ -59,6 +60,7 @@ func TestPackages(t *testing.T) {
 			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
+
 		// fmt.Printf("%+v ---- %+v\n", testDir, pkgPath)
 	}
 }
@@ -82,7 +84,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 		Store:   store,
 		Context: nil,
 	})
-	m.TestMemPackage(t, memPkg)
+	m.TestMemPackagePar(t, memPkg)
 
 	// Check that machine is empty.
 	err := m.CheckEmpty()

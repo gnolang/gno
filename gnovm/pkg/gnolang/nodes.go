@@ -324,9 +324,153 @@ var (
 type Expr interface {
 	Node
 	assertExpr()
+	DeepCopy() Expr
 }
 
 type Exprs []Expr
+
+func (n *NameExpr) DeepCopy() Expr {
+	return &NameExpr{
+		Attributes: n.Attributes,
+		Path:       ValuePath{},
+		Name:       "",
+	}
+}
+
+func (b *BasicLitExpr) DeepCopy() Expr {
+	return &BasicLitExpr{
+		Attributes: b.Attributes,
+		Kind:       b.Kind,
+		Value:      b.Value,
+	}
+}
+
+func (b *BinaryExpr) DeepCopy() Expr {
+	return &BinaryExpr{
+		Attributes: b.Attributes,
+		Left:       b.Left.DeepCopy(),
+		Op:         b.Op,
+		Right:      b.Right.DeepCopy(),
+	}
+}
+
+func DeepCopyExprs(exprs []Expr) []Expr {
+	nexprs := make([]Expr, len(exprs))
+
+	for i, expr := range exprs {
+		nexprs[i] = expr.DeepCopy()
+	}
+
+	return nexprs
+}
+
+func (c *CallExpr) DeepCopy() Expr {
+	return &CallExpr{
+		Attributes: c.Attributes,
+		Func:       c.Func.DeepCopy(),
+		Args:       DeepCopyExprs(c.Args),
+		Varg:       c.Varg,
+		NumArgs:    c.NumArgs,
+	}
+}
+
+func (i *IndexExpr) DeepCopy() Expr {
+	return &IndexExpr{
+		Attributes: i.Attributes,
+		X:          i.X.DeepCopy(),
+		Index:      i.Index.DeepCopy(),
+		HasOK:      i.HasOK,
+	}
+}
+
+func (s *SelectorExpr) DeepCopy() Expr {
+	return &SelectorExpr{
+		Attributes: s.Attributes,
+		X:          s.X.DeepCopy(),
+		Path:       s.Path,
+		Sel:        s.Sel,
+	}
+}
+
+func (s *SliceExpr) DeepCopy() Expr {
+	return &SliceExpr{
+		Attributes: s.Attributes,
+		X:          s.X.DeepCopy(),
+		Low:        s.Low.DeepCopy(),
+		High:       s.High.DeepCopy(),
+		Max:        s.Max.DeepCopy(),
+	}
+}
+
+func (s *StarExpr) DeepCopy() Expr {
+	return &StarExpr{
+		Attributes: s.Attributes,
+		X:          s.X.DeepCopy(),
+	}
+}
+
+func (r *RefExpr) DeepCopy() Expr {
+	return &RefExpr{
+		Attributes: r.Attributes,
+		X:          r.X.DeepCopy(),
+	}
+}
+
+func (t *TypeAssertExpr) DeepCopy() Expr {
+	return &TypeAssertExpr{
+		Attributes: t.Attributes,
+		X:          t.X.DeepCopy(),
+		Type:       t.Type.DeepCopy(),
+		HasOK:      t.HasOK,
+	}
+}
+
+func (u *UnaryExpr) DeepCopy() Expr {
+	return &UnaryExpr{
+		Attributes: u.Attributes,
+		X:          u.X.DeepCopy(),
+		Op:         u.Op,
+	}
+}
+
+func (c *CompositeLitExpr) DeepCopy() Expr {
+	kvp := make([]KeyValueExpr, len(c.Elts))
+
+	for i, elt := range c.Elts {
+		kvp[i] = *elt.DeepCopy().(*KeyValueExpr)
+	}
+
+	return &CompositeLitExpr{
+		Attributes: c.Attributes,
+		Type:       c.Type.DeepCopy(),
+		Elts:       kvp,
+	}
+}
+
+func (k *KeyValueExpr) DeepCopy() Expr {
+	return &KeyValueExpr{
+		Attributes: k.Attributes,
+		Key:        k.Key.DeepCopy(),
+		Value:      k.Value.DeepCopy(),
+	}
+}
+
+func (f *FuncLitExpr) DeepCopy() Expr {
+	return &FuncLitExpr{
+		Attributes:  f.Attributes,
+		StaticBlock: f.StaticBlock,
+		Type:        *f.Type.Copy().(*FuncTypeExpr),
+		Body:        f.Body,
+	}
+}
+
+func (c *ConstExpr) DeepCopy() Expr {
+	return &ConstExpr{
+		Attributes: c.Attributes,
+		Source:     c.Source.DeepCopy(),
+		TypedValue: c.TypedValue.Copy(nil),
+	}
+}
 
 // non-pointer receiver to help make immutable.
 func (*NameExpr) assertExpr()         {}
@@ -535,6 +679,91 @@ func (x *MapTypeExpr) assertTypeExpr()         {}
 func (x *StructTypeExpr) assertTypeExpr()      {}
 func (x *constTypeExpr) assertTypeExpr()       {}
 func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
+
+func (x *FieldTypeExpr) DeepCopy() Expr {
+	return &FieldTypeExpr{
+		Attributes: x.Attributes,
+		Name:       x.Name,
+		Type:       x.Type.DeepCopy(),
+		Tag:        x.Tag.DeepCopy(),
+	}
+}
+
+func (x *ArrayTypeExpr) DeepCopy() Expr {
+	return &ArrayTypeExpr{
+		Attributes: x.Attributes,
+		Len:        x.Len.DeepCopy(),
+		Elt:        x.Elt.DeepCopy(),
+	}
+}
+
+func (x *SliceTypeExpr) DeepCopy() Expr {
+	return &SliceTypeExpr{
+		Attributes: x.Attributes,
+		Elt:        x.Elt.DeepCopy(),
+		Vrd:        x.Vrd,
+	}
+}
+
+func (x *InterfaceTypeExpr) DeepCopy() Expr {
+	fte := make([]FieldTypeExpr, len(x.Methods))
+
+	for i, method := range x.Methods {
+		fte[i] = *method.DeepCopy().(*FieldTypeExpr)
+	}
+
+	return &InterfaceTypeExpr{
+		Attributes: x.Attributes,
+		Methods:    fte,
+		Generic:    x.Generic,
+	}
+}
+
+func (x *ChanTypeExpr) DeepCopy() Expr {
+	return &ChanTypeExpr{
+		Attributes: x.Attributes,
+		Dir:        x.Dir,
+		Value:      x.Value.DeepCopy(),
+	}
+}
+
+func (x *FuncTypeExpr) DeepCopy() Expr {
+	return &FuncTypeExpr{
+		Attributes: x.Attributes,
+		Params:     DeepCopyFieldTypeExprs(x.Params),
+		Results:    DeepCopyFieldTypeExprs(x.Results),
+	}
+}
+
+func (x *MapTypeExpr) DeepCopy() Expr {
+	return &MapTypeExpr{
+		Attributes: x.Attributes,
+		Key:        x.Key.DeepCopy(),
+		Value:      x.Value.DeepCopy(),
+	}
+}
+
+func (x *StructTypeExpr) DeepCopy() Expr {
+	return &StructTypeExpr{
+		Attributes: x.Attributes,
+		Fields:     DeepCopyFieldTypeExprs(x.Fields),
+	}
+}
+
+func (x *constTypeExpr) DeepCopy() Expr {
+	return &constTypeExpr{
+		Attributes: x.Attributes,
+		Source:     x.Source.DeepCopy(),
+		Type:       x.Type.DeepCopy(),
+	}
+}
+
+func (x *MaybeNativeTypeExpr) DeepCopy() Expr {
+	return &MaybeNativeTypeExpr{
+		Attributes: x.Attributes,
+		Type:       x.Type.DeepCopy(),
+	}
+}
 
 func (x *FieldTypeExpr) assertExpr()       {}
 func (x *ArrayTypeExpr) assertExpr()       {}

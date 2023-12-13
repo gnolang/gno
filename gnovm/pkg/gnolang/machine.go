@@ -237,6 +237,137 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	return pn, pv
 }
 
+func (m *Machine) DeepCopy() *Machine {
+	o := make([]Op, len(m.Ops))
+
+	for i, op := range m.Ops {
+		o[i] = op
+	}
+
+	t := DeepCopyTypedValues(m.Values)
+
+	e := make([]Expr, len(m.Exprs))
+	for i, expr := range m.Exprs {
+		e[i] = expr.DeepCopy()
+	}
+
+	s := make([]Stmt, len(m.Stmts))
+	for i, stmt := range m.Stmts {
+		s[i] = stmt.Copy().(Stmt)
+	}
+
+	var b []*Block
+
+	for _, block := range m.Blocks {
+		var bv []TypedValue
+		copy(bv, block.Values)
+
+		b = append(b, &Block{
+			ObjectInfo: block.ObjectInfo.Copy(),
+			Source:     block.Source,
+			Values:     bv,
+			Parent:     block.Parent,
+			Blank:      block.Blank,
+			bodyStmt:   block.bodyStmt,
+		})
+	}
+
+	f := make([]Frame, len(m.Frames))
+	copy(f, m.Frames)
+
+	var realm *Realm
+
+	if m.Realm != nil {
+		r := *m.Realm
+		realm = &r
+	}
+
+	var alloc *Allocator
+
+	if m.Alloc != nil {
+		r := *m.Alloc
+		alloc = &r
+	}
+
+	store := m.Store.DeepCopy()
+
+	return &Machine{
+		Ops:        o,
+		NumOps:     m.NumOps,
+		Values:     t,
+		NumValues:  m.NumValues,
+		Exprs:      e,
+		Stmts:      s,
+		Blocks:     b,
+		Frames:     f,
+		Package:    &*m.Package,
+		Realm:      realm,
+		Alloc:      alloc,
+		Exceptions: nil,
+		NumResults: m.NumResults,
+		Cycles:     m.Cycles,
+		CheckTypes: m.CheckTypes,
+		ReadOnly:   m.ReadOnly,
+		MaxCycles:  m.MaxCycles,
+		Output:     m.Output,
+		Store:      store,
+		Context:    m.Context,
+	}
+}
+
+func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
+	defer m.injectLocOnPanic()
+	DisableDebug()
+	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
+	// parse test files.
+	tfiles, itfiles := ParseMemPackageTests(memPkg)
+	{ // first, tfiles which run in the same package.
+		pv := m.Store.GetPackage(memPkg.Path, false)
+		pvBlock := pv.GetBlock(m.Store)
+		pvSize := len(pvBlock.Values)
+		m.SetActivePackage(pv)
+		// run test files.
+		m.RunFiles(tfiles.Files...)
+		var w sync.WaitGroup
+		// run all tests in test files.
+		for i := pvSize; i < len(pvBlock.Values); i++ {
+			tv := pvBlock.Values[i]
+			w.Add(1)
+
+			go func() {
+				cm := m.DeepCopy()
+				cm.TestFunc(&w, t, tv)
+			}()
+		}
+		w.Wait()
+	}
+	{ // run all (import) tests in test files.
+		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
+		pv := pn.NewPackage()
+		m.Store.SetBlockNode(pn)
+		m.Store.SetCachePackage(pv)
+		pvBlock := pv.GetBlock(m.Store)
+		m.SetActivePackage(pv)
+		m.RunFiles(itfiles.Files...)
+		pn.PrepareNewValues(pv)
+		EnableDebug()
+		fmt.Println("DEBUG ENABLED")
+
+		var w sync.WaitGroup
+
+		for i := 0; i < len(pvBlock.Values); i++ {
+			tv := pvBlock.Values[i]
+			w.Add(1)
+
+			go func() {
+				cm := m.DeepCopy()
+				cm.TestFunc(&w, t, tv)
+			}()
+		}
+		w.Wait()
+	}
+}
+
 // Tests all test files in a mempackage.
 // Assumes that the importing of packages is handled elsewhere.
 // The resulting package value and node become injected with TestMethods and
@@ -258,7 +389,8 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
-			m.TestFunc(t, tv)
+
+			m.TestFunc(nil, t, tv)
 		}
 	}
 	{ // run all (import) tests in test files.
@@ -272,22 +404,32 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		pn.PrepareNewValues(pv)
 		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
+
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
-			m.TestFunc(t, tv)
+
+			m.TestFunc(nil, t, tv)
 		}
 	}
 }
 
 // TestFunc calls tv with testing.RunTest, if tv is a function with a name that
 // starts with `Test`.
-func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
+func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
+	defer func() {
+		if w != nil {
+			w.Done()
+		}
+	}()
 	if !(tv.T.Kind() == FuncKind &&
 		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
 	name := string(tv.V.(*FuncValue).Name)
+	//if m.Store == nil {
+	//	return
+	//}
 	// prefetch the testing package.
 	testingpv := m.Store.GetPackage("testing", false)
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
@@ -346,6 +488,7 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 
 // in case of panic, inject location information to exception.
 func (m *Machine) injectLocOnPanic() {
+	return
 	if r := recover(); r != nil {
 		// Show last location information.
 		// First, determine the line number of expression or statement if any.
