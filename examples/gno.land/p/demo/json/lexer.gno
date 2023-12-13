@@ -46,16 +46,16 @@ func tokenEnd(data []byte) int {
 	return len(data)
 }
 
-// func (l *Lexer) tokenStart() int {
-// 	for i := len(l.data) - 1; i >= 0; i-- {
-// 		switch l.data[i] {
-// 		case '\n', '\r', '\t', ',', '{', '[':
-// 			return i
-// 		}
-// 	}
+func (l *Lexer) tokenStart() int {
+	for i := len(l.data) - 1; i >= 0; i-- {
+		switch l.data[i] {
+		case '\n', '\r', '\t', ',', '{', '[':
+			return i
+		}
+	}
 
-// 	return 0
-// }
+	return 0
+}
 
 func (l *Lexer) nextToken(data []byte) int {
 	for i, b := range data {
@@ -315,7 +315,11 @@ func decreaseLevel(level, keyLevel int) {
 }
 
 // ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.
-func (l *Lexer) ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
+func (l *Lexer) ArrayEach(
+	data []byte,
+	cb func(value []byte, dataType ValueType, offset int, err error),
+	keys ...string,
+) (offset int, err error) {
 	if len(data) == 0 {
 		return -1, MalformedObjectError
 	}
@@ -447,7 +451,6 @@ func (l *Lexer) getType(data []byte, offset int) ([]byte, ValueType, int, error)
 		endOffset += idx + 1
 	case '[':
 		dataType = Array
-		// break label, for stopping nested loops
 		endOffset, err := l.blockEnd(data[offset:], '[', ']')
 		if err != nil {
 			return nil, dataType, offset, MalformedArrayError

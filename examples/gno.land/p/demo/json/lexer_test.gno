@@ -66,10 +66,6 @@ func TestLexer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{data: []byte(tt.data)}
 
-			// if got := l.tokenStart(); got != tt.start {
-			// 	t.Errorf("tokenStart() = %v, want %v", got, tt.start)
-			// }
-
 			if got := l.findLastTokenPosition(); got != tt.last {
 				t.Errorf("findLastTokenPosition() = %v, want %v", got, tt.last)
 			}
@@ -140,4 +136,35 @@ func TestSearchKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestArrayEach(t *testing.T) {
+	data := []byte(`{"a": { "b":[{"x": 1} ,{"x":2},{ "x":3}, {"x":4} ]}}`)
+	count := 0
+
+	l := &Lexer{}
+	l.ArrayEach(data, func(value []byte, typ ValueType, offset int, err error) {
+		count += 1
+
+		switch count {
+		case 1:
+			if string(value) != `{"x": 1}` {
+				t.Errorf("Wrong first item: %s", string(value))
+			}
+		case 2:
+			if string(value) != `{"x":2}` {
+				t.Errorf("Wrong second item: %s", string(value))
+			}
+		case 3:
+			if string(value) != `{ "x":3}` {
+				t.Errorf("Wrong third item: %s", string(value))
+			}
+		case 4:
+			if string(value) != `{"x":4}` {
+				t.Errorf("Wrong fourth item: %s", string(value))
+			}
+		default:
+			t.Errorf("Too many items: %d", count)
+		}
+	}, "a", "b")
 }
