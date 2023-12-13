@@ -4,10 +4,6 @@ func notDigit(c byte) bool {
 	return c < '0' || c > '9'
 }
 
-func isEven(n int) bool {
-	return n%2 == 0
-}
-
 func h2i(c byte) int {
 	switch {
 	case c >= '0' && c <= '9':

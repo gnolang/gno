@@ -17,6 +17,47 @@ const (
 	BadHex = -1
 )
 
+func Unescape(input, output []byte) ([]byte, error) {
+	firstBackslash := bytes.IndexByte(input, '\\')
+	if firstBackslash == -1 {
+		return input, nil
+	}
+
+	if cap(output) < len(input) {
+		output = make([]byte, len(input))
+	} else {
+		output = output[0:len(input)]
+	}
+
+	copy(output, input[:firstBackslash])
+	input = input[firstBackslash:]
+	buf := output[firstBackslash:]
+
+	for len(input) > 0 {
+		inLen, bufLen := processEscapedUTF8(input, buf)
+		if inLen == -1 {
+			return nil, errors.New("Encountered an invalid escape sequence in a string")
+		}
+
+		input = input[inLen:]
+		buf = buf[bufLen:]
+
+		// copy everything until the next backslash
+		nextBackslash := bytes.IndexByte(input, '\\')
+		if nextBackslash == -1 {
+			copy(buf, input)
+			buf = buf[len(input):]
+			break
+		} else {
+			copy(buf, input[:nextBackslash])
+			buf = buf[nextBackslash:]
+			input = input[nextBackslash:]
+		}
+	}
+
+	return output[:len(output)-len(buf)], nil
+}
+
 var escapeMap = map[byte]byte{
 	'"':  '"',
 	'\\': '\\',
@@ -118,45 +159,4 @@ func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
 	}
 
 	return -1, -1
-}
-
-func Unescape(input, output []byte) ([]byte, error) {
-	firstBackslash := bytes.IndexByte(input, '\\')
-	if firstBackslash == -1 {
-		return input, nil
-	}
-
-	if cap(output) < len(input) {
-		output = make([]byte, len(input))
-	} else {
-		output = output[0:len(input)]
-	}
-
-	copy(output, input[:firstBackslash])
-	input = input[firstBackslash:]
-	buf := output[firstBackslash:]
-
-	for len(input) > 0 {
-		inLen, bufLen := processEscapedUTF8(input, buf)
-		if inLen == -1 {
-			return nil, errors.New("Encountered an invalid escape sequence in a string")
-		}
-
-		input = input[inLen:]
-		buf = buf[bufLen:]
-
-		// copy everything until the next backslash
-		nextBackslash := bytes.IndexByte(input, '\\')
-		if nextBackslash == -1 {
-			copy(buf, input)
-			buf = buf[len(input):]
-			break
-		} else {
-			copy(buf, input[:nextBackslash])
-			buf = buf[nextBackslash:]
-			input = input[nextBackslash:]
-		}
-	}
-
-	return output[:len(output)-len(buf)], nil
 }

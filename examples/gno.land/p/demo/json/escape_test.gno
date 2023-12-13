@@ -201,7 +201,7 @@ func TestStringEnd(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			idx, escaped := lexer.stringEnd(test.input)
+			idx, escaped, _ := lexer.stringEnd(test.input)
 			if idx != test.expected || escaped != test.escaped {
 				t.Errorf("Failed %s: expected (%d, %v), got (%d, %v)", test.name, test.expected, test.escaped, idx, escaped)
 			}
@@ -226,7 +226,7 @@ func TestBlockEnd(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := lexer.blockEnd(test.data, test.open, test.close)
+			result, _ := lexer.blockEnd(test.data, test.open, test.close)
 			if result != test.expected {
 				t.Errorf("Failed %s: expected %d, got %d", test.name, test.expected, result)
 			}

@@ -8,16 +8,6 @@ import (
 )
 
 const (
-	Overflow              error = errors.New("overflow")
-	EmptyBytes            		= errors.New("empty bytes")
-	InvalidExponents            = errors.New("invalid exponents")
-	NonDigitCharacters          = errors.New("non-digit characters")
-	MultipleDecimalPoints       = errors.New("multiple decimal points")
-	MalformedStringError        = errors.New("malformed string")
-	MalformedVlaueError         = errors.New("malformed value")
-)
-
-const (
 	absMinInt64 = 1 << 63
 	maxInt64    = 1<<63 - 1
 	maxUint64   = 1<<64 - 1
