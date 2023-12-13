@@ -31,7 +31,7 @@ func ParseBool(data []byte) (bool, error) {
 	case bytes.Equal(data, []byte("false")):
 		return false, nil
 	default:
-		return false, MalformedVlaueError
+		return false, MalformedValueError
 	}
 }
 
@@ -146,4 +146,23 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	}
 
 	return man, exp10, nil
+}
+
+func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset int, err error) {
+	switch b {
+	case 't', 'f':
+		if bytes.Equal(value, TrueLiteral) || bytes.Equal(value, FalseLiteral) {
+			dataType = Boolean
+		}
+		return Unknown, offset, UnknownValueTypeError
+	case 'u', 'n':
+		if bytes.Equal(value, NullLiteral) {
+			dataType = Null
+		}
+		return Unknown, offset, UnknownValueTypeError
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+		dataType = Number
+	default:
+		return Unknown, offset, UnknownValueTypeError
+	}
 }

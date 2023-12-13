@@ -1,6 +1,10 @@
 package json
 
-import "errors"
+import (
+	"bytes"
+	"errors"
+	"strconv"
+)
 
 const unescapeStackBufSize = 64
 
@@ -28,31 +32,30 @@ func (l *Lexer) findTokenStart(token byte) int {
 			return 0
 		}
 	}
-
 	return 0
 }
 
-func (l *Lexer) tokenEnd() int {
-	for i, tok := range l.data {
+func tokenEnd(data []byte) int {
+	for i, tok := range data {
 		switch tok {
 		case ' ', '\n', '\r', '\t', ',', '}', ']':
 			return i
 		}
 	}
 
-	return len(l.data)
+	return len(data)
 }
 
-func (l *Lexer) tokenStart() int {
-	for i := len(l.data) - 1; i >= 0; i-- {
-		switch l.data[i] {
-		case '\n', '\r', '\t', ',', '{', '[':
-			return i
-		}
-	}
+// func (l *Lexer) tokenStart() int {
+// 	for i := len(l.data) - 1; i >= 0; i-- {
+// 		switch l.data[i] {
+// 		case '\n', '\r', '\t', ',', '{', '[':
+// 			return i
+// 		}
+// 	}
 
-	return 0
-}
+// 	return 0
+// }
 
 func (l *Lexer) nextToken(data []byte) int {
 	for i, b := range data {
@@ -243,18 +246,232 @@ func (l *Lexer) searchKeys(data []byte, keys ...string) (keyIndex int, err error
 			}
 
 		case '}':
-			level--
-			if level == keyLevel {
-				keyLevel--
-			}
+			decreaseLevel(level, keyLevel)
 		case '[':
-			panic(errors.New("arrays are not supported"))
+			if keyLevel == level && keys[level][0] == '[' {
+				keyLen := len(keys[level])
+				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
+					return -1, MalformedArrayError
+				}
+
+				arrIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
+				if err != nil {
+					return -1, MalformedArrayError
+				}
+
+				var valueFound  []byte
+				var valueOffset int
+
+				currIdx := keyIndex
+				l.ArrayEach(data[keyIndex:], func(value []byte, dataType ValueType, offset int, err error) {
+					if arrIdx == currIdx {
+						valueFound = value
+						valueOffset = offset
+
+						if dataType == String {
+							valueOffset = valueOffset - 2
+							start := currIdx + valueOffset
+							end := start + len(value) + 2
+							
+							valueFound = valueFound[start:end]
+						}
+					}
+					currIdx++
+				})
+
+				if valueFound == nil {
+					return -1, KeyPathNotFoundError
+				}
+
+				subIndex, err := l.searchKeys(valueFound, keys[level+1:]...)
+				if err != nil {
+					return -1, err
+				}
+
+				return keyIndex + valueOffset + subIndex, nil
+			}
+
+			skip, err := l.blockEnd(data[keyIndex:], '[', ']')
+			if err != nil {
+				return -1, err
+			}
+
+			keyIndex += skip - 1
 		case ':':
-			return -1, MalformedJSON
+			return -1, MalformedJsonError
 		}
 
 		keyIndex++
 	}
 
 	return -1, KeyPathNotFoundError
+}
+
+func decreaseLevel(level, keyLevel int) {
+	level--
+	if level == keyLevel {
+		keyLevel--
+	}
+}
+
+// ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.
+func (l *Lexer) ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
+	if len(data) == 0 {
+		return -1, MalformedObjectError
+	}
+
+	nT := l.nextToken(data)
+	if nT == -1 {
+		return -1, MalformedJsonError
+	}
+
+	offset = nT + 1
+
+	if len(keys) > 0 {
+		offset, err = l.searchKeys(data, keys...)
+		if err != nil {
+			return offset, err
+		}
+
+		// Go to closest value
+		nO := l.nextToken(data[offset:])
+		if nO == -1 {
+			return offset, MalformedJsonError
+		}
+
+		offset += nO
+
+		if data[offset] != '[' {
+			return offset, MalformedArrayError
+		}
+
+		offset++
+	}
+
+	nO := l.nextToken(data[offset:])
+	if nO == -1 {
+		return offset, MalformedJsonError
+	}
+
+	offset += nO
+
+	if data[offset] == ']' {
+		return offset, nil
+	}
+
+	for true {
+		v, t, o, e := l.Get(data[offset:])
+
+		if e != nil {
+			return offset, e
+		}
+
+		if o == 0 {
+			break
+		}
+
+		if t != NotExist {
+			cb(v, t, offset+o-len(v), e)
+		}
+
+		if e != nil {
+			break
+		}
+
+		offset += o
+
+		skipToToken := l.nextToken(data[offset:])
+		if skipToToken == -1 {
+			return offset, MalformedArrayError
+		}
+		offset += skipToToken
+
+		if data[offset] == ']' {
+			break
+		}
+
+		if data[offset] != ',' {
+			return offset, MalformedArrayError
+		}
+
+		offset++
+	}
+
+	return offset, nil
+}
+
+func (l *Lexer) Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset int, err error) {
+	a, b, _, d, e := l.internalGet(data, keys...)
+	return a, b, d, e
+}
+
+func (l *Lexer) internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
+	if len(keys) > 0 {
+		offset, err = l.searchKeys(data, keys...)
+		if err != nil {
+			return nil, NotExist, -1, -1, err
+		}
+	}
+
+	// Go to closest value
+	nO := l.nextToken(data[offset:])
+	if nO == -1 {
+		return nil, NotExist, offset, -1, MalformedJsonError
+	}
+
+	offset += nO
+	value, dataType, endOffset, err = l.getType(data, offset)
+	if err != nil {
+		return value, dataType, offset, endOffset, err
+	}
+
+	// Strip quotes from string values
+	if dataType == String {
+		value = value[1 : len(value)-1]
+	}
+
+	return value[:len(value):len(value)], dataType, offset, endOffset, nil
+}
+
+func (l *Lexer) getType(data []byte, offset int) ([]byte, ValueType, int, error) {
+	var dataType ValueType
+	endOffset := offset
+
+	switch data[offset] {
+	case '"':
+		dataType = String
+		idx, _, err := l.stringEnd(data[offset+1:])
+		if err != nil {
+			return nil, dataType, offset, MalformedStringError
+		}
+		endOffset += idx + 1
+	case '[':
+		dataType = Array
+		// break label, for stopping nested loops
+		endOffset, err := l.blockEnd(data[offset:], '[', ']')
+		if err != nil {
+			return nil, dataType, offset, MalformedArrayError
+		}
+		endOffset += offset
+	case '{':
+		dataType = Object
+
+		endOffset, err := l.blockEnd(data[offset:], '{', '}')
+		if err != nil {
+			return nil, dataType, offset, MalformedObjectError
+		}
+
+		endOffset += offset
+	default:
+		end := tokenEnd(data[endOffset:])
+		if end == -1 {
+			return nil, dataType, offset, MalformedValueError
+		}
+
+		value := data[offset : endOffset+end]
+		dataType, offset, err := extractValueTypeFromToken(data[offset], value)
+		endOffset += end
+	}
+
+	return data[offset:endOffset], dataType, endOffset, nil
 }
