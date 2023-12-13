@@ -387,9 +387,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
-		debugPP.Println("left is native type")
 		if rnt, ok := rv.T.(*NativeType); ok {
-			debugPP.Println("right is native type")
 			if lnt.Type != rnt.Type {
 				return false
 			}

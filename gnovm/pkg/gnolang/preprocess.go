@@ -18,8 +18,6 @@ var (
 )
 
 func init() {
-	// add,sub,mul,quo,rem with assign
-	// TODO: *_assign is actually assign stmt
 	binaryPredicates[ADD] = isNumericOrString
 	AssignStmtPredicates[ADD_ASSIGN] = isNumericOrString
 	binaryPredicates[SUB] = isNumeric
@@ -65,6 +63,8 @@ func init() {
 	IncDecStmtPredicates[INC] = isNumeric
 	IncDecStmtPredicates[DEC] = isNumeric
 }
+
+// -------------------------------------------------------------------------------------------
 
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
@@ -900,11 +900,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if !isUntyped(lcx.T) { // left is typed const, right is not const(also typed)
 						checkOp(store, last, &n.Left, rt, n.Op, Binary)
 						// if n.Op == SHR || n.Op == SHL {
-						if isShift { // refer to 26a3_filetest
+						if isShift {
 							debugPP.Println("-----shift-----")
 							// do nothing, final type is bind to left
 							// convertConstType(store, last, &n.Left, lt, false) // bypass check
-						} else { // refer to 26a4_filetest
+						} else {
 							checkOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						}
@@ -955,7 +955,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if rcx.T == nil { // RHS is nil
-						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest, 1f8_filetest
+						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
 						// TODO: shift
 						// convert n.Right to typed-nil type.
 						checkOp(store, last, &n.Right, lt, n.Op, Binary)
@@ -2455,12 +2455,11 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
 		if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
-			debugPP.Println("x is ConstExpr, not nativeType, go check")
 			checkConvertable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
 		}
-		debugPP.Printf("ConstExpr, convertConst, cx: %v, t:%v \n", cx, t)
 		convertConst(store, last, cx, t)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
+		// TODO: check this
 		debugPP.Println("SHL or SHR")
 		// "push" expected type into shift binary's left operand.
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
@@ -2473,7 +2472,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		}
 		debugPP.Println("need conversion: ", conversionNeeded)
 		if isUntyped(xt) {
-			debugPP.Println("xt untyped")
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}

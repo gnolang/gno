@@ -2,14 +2,13 @@ package main
 
 import "fmt"
 
-func gen() interface{} {
-	return false
-}
-
 func main() {
-	r := gen()
+	a := uint(1)
+	r := uint64(1) << a
+	println(r)
 	fmt.Printf("%T \n", r)
 }
 
 // Output:
-// bool
+// 2
+// uint64

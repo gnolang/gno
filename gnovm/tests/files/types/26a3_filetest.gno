@@ -1,14 +1,9 @@
 package main
 
-import "fmt"
-
-func main() {
-	a := uint(1)
-	r := uint64(1) << a
-	println(r)
-	fmt.Printf("%T \n", r)
+func gen() interface{} {
+	return false
 }
 
-// Output:
-// 2
-// uint64
+func main() {
+	gen()++
+}

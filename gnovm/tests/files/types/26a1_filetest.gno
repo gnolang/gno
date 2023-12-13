@@ -2,9 +2,9 @@ package main
 
 func main() {
 	a := 1
-	r := a << 1.0 // NOTE: go vet would fail, but still process
-	println(r)
+	b := 1
+	(a == b)++ // LHS is untyped bool, determined in preprocess
 }
 
-// Output:
-// 2
+// Error:
+// main/files/types/26a1_filetest.gno:6: operator ++ not defined on: <untyped> bool
