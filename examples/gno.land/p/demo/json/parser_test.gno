@@ -167,3 +167,81 @@ func TestParseInt(t *testing.T) {
 		})
 	}
 }
+
+type parseUint64Test struct {
+	in  string
+	out uint64
+	err bool
+}
+
+var parseUint64Tests = []parseUint64Test{
+	{"", 0, true},
+	{"0", 0, nil},
+	{"1", 1, nil},
+	{"12345", 12345, nil},
+	{"012345", 12345, nil},
+	{"12345x", 0, true},
+	{"98765432100", 98765432100, nil},
+	{"18446744073709551615", 1<<64 - 1, nil},
+	{"18446744073709551616", 1<<64 - 1, true},
+	{"18446744073709551620", 1<<64 - 1, true},
+	{"1_2_3_4_5", 0, true}, // base=10 so no underscores allowed
+	{"_12345", 0, true},
+	{"1__2345", 0, true},
+	{"12345_", 0, true},
+	{"-0", 0, true},
+	{"-1", 0, true},
+	{"+1", 0, true},
+}
+
+type parseUint32Test struct {
+	in  string
+	out uint32
+	err bool
+}
+
+var parseUint32Tests = []parseUint32Test{
+	{"", 0, true},
+	{"0", 0, nil},
+	{"1", 1, nil},
+	{"12345", 12345, nil},
+	{"012345", 12345, nil},
+	{"12345x", 0, true},
+	{"987654321", 987654321, nil},
+	{"4294967295", 1<<32 - 1, nil},
+	{"4294967296", 1<<32 - 1, true},
+	{"1_2_3_4_5", 0, true}, // base=10 so no underscores allowed
+	{"_12345", 0, true},
+	{"_12345", 0, true},
+	{"1__2345", 0, true},
+	{"12345_", 0, true},
+}
+
+func TestParseUint(t *testing.T) {
+	switch IntSize {
+	case 32:
+		for _, tc := range parseUint32Tests {
+			t.Run(tc.in, func(t *testing.T) {
+				got, err := ParseUint([]byte(tc.in), 10, 32)
+				if got != tc.out {
+					t.Errorf("ParseUint(%s): got %v, want %v", tc.in, got, tc.out)
+				}
+				if (err != nil) != tc.err {
+					t.Errorf("ParseUint(%s): got error %v", tc.in, err)
+				}
+			})
+		}
+	case 64:
+		for _, tc := range parseUint64Tests {
+			t.Run(tc.in, func(t *testing.T) {
+				got, err := ParseUint([]byte(tc.in), 10, 64)
+				if got != tc.out {
+					t.Errorf("ParseUint(%s): got %v, want %v", tc.in, got, tc.out)
+				}
+				if (err != nil) != tc.err {
+					t.Errorf("ParseUint(%s): got error %v", tc.in, err)
+				}
+			})
+		}
+	}
+}
