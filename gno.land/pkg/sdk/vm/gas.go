@@ -30,7 +30,7 @@ func consumeGas(ctx sdk.Context, m *gno.Machine, prefix string, pkgPath string, 
 	gasCpu := overflow.Mul64p(m.Cycles, gasFactorCpu)
 	gasMem := overflow.Mul64p(mem, gasFactorMem)
 
-	// we simplify the log here, the storage gas log included tx size and sigature verification gas.
+	// we simplify the log here, the storage gas log included tx size and signature verification gas.
 	storeLog := fmt.Sprintf("%s.storage, %s %s, %d", prefix, pkgPath, expr, ctx.GasMeter().GasConsumed())
 	ctx.Logger().Info(storeLog)
 
