@@ -61,7 +61,8 @@ func findLastTokenPosition(data []byte) int {
 func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 	escaped = false
 	for lastCharIdx, c := range data {
-		if c == '"' {
+		switch c {
+		case '"':
 			if !escaped {
 				return lastCharIdx + 1, false, nil
 			}
@@ -76,9 +77,7 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 			}
 
 			return lastCharIdx + 1, false, nil
-		}
-
-		if c == '\\' {
+		case '\\':
 			escaped = true
 		}
 	}
@@ -155,55 +154,53 @@ func searchKeys(data []byte, keys ...string) (keyIndex int, err error) {
 		case '"':
 			keyIndex++
 			keyBegin := keyIndex
-	
+
 			strEnd, keyEscaped, err := stringEnd(data[keyIndex:])
 			if err != nil {
 				return -1, StringNotClosed
 			}
 			keyIndex += strEnd
 			keyEnd := keyIndex - 1
-	
+
 			valueOffset, err := nextToken(data[keyIndex:])
 			if err != nil {
 				return -1, err
 			}
-	
+
 			keyIndex += valueOffset
 			if data[keyIndex] != ':' {
 				keyIndex--
 			}
-	
+
 			if level < 1 {
 				return -1, OutOfLevel
 			}
-	
+
 			key := data[keyBegin:keyEnd]
 			keyUnesc, err := Unescape(key, stackbuf[:])
 			if err != nil {
 				return -1, err
 			}
-	
+
 			if !keyEscaped {
 				keyUnesc = key
 			}
-	
+
 			if level > numKeys {
 				return -1, KeyPathNotFoundError
 			}
-	
-			if string(keyUnesc) == keys[level-1] {
-				lastMatched = true
-				if keyLevel == level-1 {
-					keyLevel++
-	
-					if keyLevel == numKeys {
-						return keyIndex + 1, nil
-					}
-				}
+
+			if !bytes.Equal(keyUnesc, []byte(keys[level-1])) || keyLevel+1 != numKeys {
+				lastMatched = false
+				break
 			}
-	
-			lastMatched = false
-	
+
+			if keyLevel+1 == numKeys {
+				return keyIndex + 1, nil
+			}
+
+			lastMatched = true
+
 		case '{':
 			if !lastMatched {
 				end, err := blockEnd(data[keyIndex:], '{', '}')
@@ -214,7 +211,7 @@ func searchKeys(data []byte, keys ...string) (keyIndex int, err error) {
 			} else {
 				level++
 			}
-	
+
 		case '}':
 			decreaseLevel(level, keyLevel)
 		case '[':
@@ -223,56 +220,56 @@ func searchKeys(data []byte, keys ...string) (keyIndex int, err error) {
 				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
 					return -1, MalformedArrayError
 				}
-	
+
 				arrIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
 				if err != nil {
 					return -1, MalformedArrayError
 				}
-	
-				var valueFound  []byte
+
+				var valueFound []byte
 				var valueOffset int
-	
+
 				currIdx := keyIndex
 				ArrayEach(data[keyIndex:], func(value []byte, dataType ValueType, offset int, err error) {
 					if arrIdx == currIdx {
 						valueFound = value
 						valueOffset = offset
-	
+
 						if dataType == String {
 							valueOffset = valueOffset - 2
 							start := currIdx + valueOffset
 							end := start + len(value) + 2
-							
+
 							valueFound = valueFound[start:end]
 						}
 					}
 					currIdx++
 				})
-	
+
 				if valueFound == nil {
 					return -1, KeyPathNotFoundError
 				}
-	
+
 				subIndex, err := searchKeys(valueFound, keys[level+1:]...)
 				if err != nil {
 					return -1, err
 				}
-	
+
 				return keyIndex + valueOffset + subIndex, nil
 			}
-	
+
 			skip, err := blockEnd(data[keyIndex:], '[', ']')
 			if err != nil {
 				return -1, err
 			}
-	
+
 			keyIndex += skip - 1
 		case ':':
 			return -1, MalformedJsonError
 		}
-	
+
 		keyIndex++
-	
+
 	}
 
 	return -1, KeyPathNotFoundError
@@ -359,11 +356,13 @@ func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset 
 }
 
 func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
-	if len(keys) > 0 {
-		offset, err = searchKeys(data, keys...)
-		if err != nil {
-			return nil, NotExist, -1, -1, err
-		}
+	if len(keys) <= 0 {
+		return nil, NotExist, -1, -1, errors.New("no keys")
+	}
+
+	offset, err = searchKeys(data, keys...)
+	if err != nil {
+		return nil, NotExist, -1, -1, err
 	}
 
 	// Go to closest value
@@ -421,41 +420,45 @@ func handleGetResult(
 	offset int,
 	f func(value []byte, dataType ValueType, offset int, err error),
 ) (int, error) {
-    v, t, o, e := Get(data[offset:])
-    if e != nil {
-        return offset, e
-    }
-    if o == 0 {
-        return offset, nil
-    }
-    if t != NotExist {
-        f(v, t, offset+o-len(v), e)
-    }
-    if e != nil {
-        return offset, e
-    }
-    return offset + o, nil
+	v, t, o, e := Get(data[offset:])
+	if e != nil {
+		return offset, e
+	}
+
+	if o == 0 {
+		return offset, nil
+	}
+
+	if t != NotExist {
+		f(v, t, offset+o-len(v), e)
+	}
+
+	if e != nil {
+		return offset, e
+	}
+
+	return offset + o, nil
 }
 
 func handleNextTokenResult(data []byte, offset int) (int, error) {
-    nextTokenOffset, err := nextToken(data[offset:])
-    if err != nil {
-        return offset, MalformedArrayError
-    }
+	nextTokenOffset, err := nextToken(data[offset:])
+	if err != nil {
+		return offset, MalformedArrayError
+	}
 
-    return offset + nextTokenOffset, nil
+	return offset + nextTokenOffset, nil
 }
 
 func handleArrayError(data []byte, offset int) (int, error) {
-    if data[offset] == ']' {
-        return offset, nil
-    }
+	if data[offset] == ']' {
+		return offset, nil
+	}
 
-    if data[offset] != ',' {
-        return offset, MalformedArrayError
-    }
+	if data[offset] != ',' {
+		return offset, MalformedArrayError
+	}
 
-    return offset + 1, nil
+	return offset + 1, nil
 }
 
 func processNextCollectionElement(data []byte, offset int, dataType ValueType) ([]byte, ValueType, int, error) {

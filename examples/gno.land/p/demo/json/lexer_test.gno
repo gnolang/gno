@@ -72,7 +72,6 @@ func TestLexer(t *testing.T) {
 	}
 }
 
-
 func TestSearchKeys(t *testing.T) {
 	tests := []struct {
 		name     string
