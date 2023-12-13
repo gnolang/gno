@@ -31,7 +31,7 @@ func NewAnteHandler(vmKpr *VMKeeper) sdk.AnteHandler {
 				res = vmh.Process(ctx, msg)
 			}
 
-			// we don't abort the transaction when there is a message execution failer. the failed message should be allowed to propergate to other nodes.
+			// we don't abort the transaction when there is a message execution failure. The failed message should be allowed to propagate to other nodes.
 			// We dont not want to censor the tx for VM execution failures just by one node.
 			// XXX: Do not uncomment this. Do not remvove this either to prevent someone accidentally add this check.
 			// if !res.IsOK() {
