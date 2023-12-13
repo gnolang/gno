@@ -106,6 +106,16 @@ func UnlockAndTransferNFT(from, to std.Address, tid string) error {
 	return nil
 }
 
+// it is used in marketplace
+func TransferBasicNFTToBuyer(from, to std.Address, tid string) error {
+	tokenId := grc721f.TokenID(tid)
+	err := flipBasicNFT.TransferFrom(from, to, tokenId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetOwnerOfBasicNFT(tid string) std.Address {
 	tokenId := grc721f.TokenID(tid)
 	owner, err := flipBasicNFT.OwnerOf(tokenId)

@@ -67,6 +67,16 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	return result, nftError
 }
 
+// it is used in marketplace
+func TransferCompositeNFTToBuyer(from, to std.Address, tid string) error {
+	tokenId := grc721f.TokenID(tid)
+	err := flipCompositeNFT.TransferFrom(from, to, tokenId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetCompositeTokenURI(tokenID string) string {
 	tid := grc721f.TokenID(tokenID)
 	tokenURI, err := flipCompositeNFT.TokenURI(tid)

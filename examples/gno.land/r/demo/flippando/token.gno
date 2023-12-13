@@ -123,6 +123,29 @@ func Transfer(from, recipient std.Address, fAmount uint64){
 	}
 }
 
+// it is used in marketplace
+func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
+	
+
+	// check if we can bypass this function by calling the interface directly, I don't think so
+	
+	totalFLIPBalance, err := flipToken.BalanceOf(from)
+	if err != nil {
+		panic("BalanceOf should not happen")
+	}
+
+	lockedFLIPBalance := getUserLockedBalances(from)
+
+	if (totalFLIPBalance - lockedFLIPBalance >= fPrice) {
+		// add logic for burning a random amount from the fPrice
+		randomPercentage := generateRandomNumbers(1, 1, 50, time.Now().Unix())
+		fUpdatedPrice := fPrice - randomPercentage
+		flipToken.Transfer(from, recipient, fUpdatedPrice)
+	} else {
+		panic("not enough available balance")
+	}
+}
+
 func GetFLIPBalance(user std.Address) string {
 	totalFLIPBalance, err := flipToken.BalanceOf(user)
 	if err != nil {

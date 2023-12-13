@@ -121,19 +121,22 @@ func TestBuyNFTWithInsufficientFLIP(t *testing.T) {
 }
 
 
-func setupMockMarketplace() (*Marketplace, *grc721f.BasicNFT, *grc20.AdminToken) {
+func setupMockMarketplace() (*Marketplace, grc721f.IGRC721, *grc20.AdminToken) {
     // Mock setup for flipCompositeNFT and FLIP token
     compositeNFT := grc721f.NewBasicNFT("Flippando Composite NFT", "CFLP")
+    basicNFT := grc721f.NewBasicNFT("Flippando Basic NFT", "BFLP")
     flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6)
 
     // Create a marketplace instance with mock contracts
-    marketplace := NewMarketplace(compositeNFT, flipToken)
-    return marketplace, compositeNFT, flipToken
+    marketplace := NewMarketplace(compositeNFT, basicNFT, flipToken)
+    return marketplace, compositeNFT, basicNFT, flipToken
 }
 
 
-func mintMockNFTs(nftContract *grc721f.BasicNFT, owner std.Address, tokenIDs ...TokenID) {
+
+func mintMockNFTs(nftContract grc721f.IGRC721, owner std.Address, tokenIDs ...grc721f.TokenID) {
     for _, tokenID := range tokenIDs {
         nftContract.mint(owner, tokenID)
     }
 }
+
