@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/keyscmd"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +21,10 @@ import (
 func getDummyKey(t *testing.T) crypto.PubKey {
 	t.Helper()
 
-	mnemonic, err := client.GenerateMnemonic(256)
+	mnemonic, err := keyscmd.GenerateMnemonic(256)
 	require.NoError(t, err)
 
 	seed := bip39.NewSeed(mnemonic, "")
-
 	return generateKeyFromSeed(seed, 0).PubKey()
 }
 

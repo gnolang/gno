@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/keyscmd"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/rogpeppe/go-internal/testscript"
 )
@@ -181,7 +181,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
 				io.SetErr(commands.WriteNopCloser(ts.Stderr()))
-				cmd := client.NewRootCmd(io)
+				cmd := keyscmd.NewRootCmd(io)
 
 				io.SetIn(strings.NewReader("\n")) // Inject empty password to stdin.
 				defaultArgs := []string{
