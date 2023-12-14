@@ -2,7 +2,7 @@
 
 ## Deprecation Notice
 
-The `client` package has been deprecated. The functionality that was previously offered by this package is now available in `gno.land/pkg/keycli`. This change has been made to streamline the project structure and enhance maintainability.
+The `keys/client` package has been deprecated. The functionality that was previously offered by this package is now available in `gno.land/pkg/keycli`. This change has been made to streamline the project structure and enhance maintainability.
 
 For more details on this transition, please refer to the following resources:
 - **Issue Discussion**: [Issue #1174](https://github.com/gnolang/gno/issues/1174)
