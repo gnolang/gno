@@ -803,7 +803,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				rt := evalStaticTypeOf(store, last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
-				//special case of shift
+				// special case of shift
 				if isShift {
 					checkOp(store, last, &n.Left, lt, n.Op, Binary)
 					if baseOf(rt) != UintType {
