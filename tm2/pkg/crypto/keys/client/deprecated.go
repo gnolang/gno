@@ -1,3 +1,5 @@
+//go:build deprecated
+
 package client
 
 import "github.com/gnolang/gno/tm2/pkg/commands"
