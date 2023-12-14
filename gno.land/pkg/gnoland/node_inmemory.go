@@ -150,9 +150,9 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 	)
 }
 
-// WaitForNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
+// GetNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
 // XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
-func WaitForNodeReadiness(n *node.Node) <-chan struct{} {
+func GetNodeReadiness(n *node.Node) <-chan struct{} {
 	const listenerID = "first_block_listener"
 
 	var once sync.Once
