@@ -3,7 +3,6 @@ package main
 func main() {
 	a := uint(1)
 	println(uint64(1) == a)
-	println(r)
 }
 
 // Error:

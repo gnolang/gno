@@ -16,7 +16,7 @@ var errCmp = errors.New("XXXX")
 // specil case:
 // one is interface
 func main() {
-	if Error(0) == errCmp {
+	if Error(0) == errCmp { // this would not convert, errCmp is interface, refer to preprocess, line2526
 		//if errCmp == 1 {
 		println("what the firetruck?")
 	} else {

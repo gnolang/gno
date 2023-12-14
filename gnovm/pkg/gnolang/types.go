@@ -277,8 +277,8 @@ const (
 	// IsConstType = IsBoolean | IsNumeric | IsString
 )
 
-// this is more convenient than compare with types
-func (pt PrimitiveType) Predicate() predicate {
+// predicate makes it more convenient than compare with types
+func (pt PrimitiveType) predicate() predicate {
 	switch pt {
 	case InvalidType:
 		return IsInvalid
@@ -334,7 +334,7 @@ func (pt PrimitiveType) Predicate() predicate {
 func isOrdered(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsOrdered != 0 || t.Predicate()&IsRune != 0 {
+		if t.predicate() != IsInvalid && t.predicate()&IsOrdered != 0 || t.predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -346,7 +346,7 @@ func isOrdered(t Type) bool {
 func isBoolean(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsBoolean != 0 {
+		if t.predicate() != IsInvalid && t.predicate()&IsBoolean != 0 {
 			return true
 		}
 		return false
@@ -359,7 +359,7 @@ func isBoolean(t Type) bool {
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate()&IsRune != 0 {
+		if t.predicate() != IsInvalid && t.predicate()&IsNumeric != 0 || t.predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -372,7 +372,7 @@ func isNumeric(t Type) bool {
 func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsBigInt != 0 || t.Predicate()&IsRune != 0 {
+		if t.predicate() != IsInvalid && t.predicate()&IsInteger != 0 || t.predicate()&IsUnsigned != 0 || t.predicate()&IsBigInt != 0 || t.predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -384,7 +384,7 @@ func isIntNum(t Type) bool {
 //func isIntOrUint(t Type) bool {
 //	switch t := baseOf(t).(type) {
 //	case PrimitiveType:
-//		if t.Predicate() != IsInvalid && t.Predicate()&IsInteger != 0 || t.Predicate()&IsUnsigned != 0 || t.Predicate()&IsRune != 0 {
+//		if t.predicate() != IsInvalid && t.predicate()&IsInteger != 0 || t.predicate()&IsUnsigned != 0 || t.predicate()&IsRune != 0 {
 //			return true
 //		}
 //		return false
@@ -396,7 +396,7 @@ func isIntNum(t Type) bool {
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.Predicate() != IsInvalid && t.Predicate()&IsNumeric != 0 || t.Predicate()&IsString != 0 || t.Predicate()&IsRune != 0 {
+		if t.predicate() != IsInvalid && t.predicate()&IsNumeric != 0 || t.predicate()&IsString != 0 || t.predicate()&IsRune != 0 {
 			return true
 		}
 		return false
@@ -1138,7 +1138,6 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
 			if !im2.IsImplementedBy(ot) {
-				debugPP.Println("first false")
 				return false
 			} else {
 				continue
@@ -1147,7 +1146,6 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			debugPP.Println("second false")
 			return false
 		}
 		if nft, ok := ft.(*NativeType); ok {
@@ -1158,7 +1156,6 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				debugPP.Println("third false")
 				return false
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
@@ -2654,23 +2651,23 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := checkConvertable(pt.Elt, cdt.Elt, false)
+			cdt := assignable(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := checkConvertable(at.Elt, cdt.Elt, false)
+			cdt := assignable(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := checkConvertable(st.Elt, cdt.Elt, false)
+			cdt := assignable(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := checkConvertable(mt.Key, cdt.Key, false)
-			cn2 := checkConvertable(mt.Value, cdt.Value, false)
+			cn1 := assignable(mt.Key, cdt.Key, false)
+			cn2 := assignable(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -2718,69 +2715,6 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		dt.String()))
 	//}
 }
-
-// type-check rules:
-// 1. this happens in binary expressions, assign stmt, call to a func(args and return values)
-// 2. cases: (typed/untyped)const op not const, not const op (typed/untyped)const, not const/not const
-// 3. steps: first check legal operands of an Op, requires operands on left and right are typed, and both legal with the Op,
-// or if one of the operand is not legal with the Op(while the other is) but can be converted into the corresponding one.
-// e.g. : 1 + "a" is illegal, or int(1) + 0 is legal after convert
-// untyped 0 to int(0) implicitly(no cast), this is because "a" cannot be converted to 1, is untyped 0, which is
-// untyped bigint can be converted to int(0).
-// special case in here is declared types, is A is declared type of B, and baseOf(A) == B, A and B is assignable in both direction
-// NOTE: Op like + - * / % ,etc. have a more strict constrain than equality == or !=
-// NOTE: if both a typed, but not in the rule of declared type, no conversion. just check if they match.
-
-// 2. if one of LHS or RHS is constExpr(typed or untyped), it would be converted to the type of its
-// corresponding side(using checkOrConvertType, iff it's assignable, using checkConvertable), e.g. int-> int8, int-> (type Error int),
-// 3. if both LHS and RHS are not const, assertTypeMatchStrict
-
-// 4. Operators. need one place in asset* or checkConvertable, to switch operators
-
-// TODO: merge this with checkConvertable
-//func assertTypeMatchStrict(lt, rt Type, op Word) {
-//	if lt == nil && rt == nil {
-//		println("1")
-//		// both are nil.
-//	} else if lt == nil || rt == nil {
-//		println("2")
-//		// one is nil.  see function comment.
-//	} else if lt.Kind() == rt.Kind() &&
-//		isUntyped(lt) || isUntyped(rt) {
-//		println("3")
-//		// one is untyped of same kind.
-//	} else if lt.Kind() == InterfaceKind &&
-//		IsImplementedBy(lt, rt) {
-//		println("4")
-//		// one is untyped of same kind.
-//		// rt implements lt (and lt is nil interface).
-//	} else if rt.Kind() == InterfaceKind &&
-//		IsImplementedBy(rt, lt) {
-//		println("5")
-//		// lt implements rt (and rt is nil interface).
-//	} else if lt.TypeID() == rt.TypeID() {
-//		println("6")
-//		// non-nil types are identical.
-//	} else {
-//		println("7")
-//		panic("7, incompatible operands")
-//		//debug.Errorf(
-//		//	"incompatible operands in binary (eql/neq) expression: %s and %s",
-//		//	lt.String(),
-//		//	rt.String(),
-//		//)
-//	}
-//	// check special case, + - & / %
-//	switch op {
-//	case ADD: // assume untyped has been converted
-//		if lt.TypeID() != rt.TypeID() {
-//			panic("+ has mismatched operands")
-//		}
-//		if !isTypedNumber(lt) || !isTypedString(lt) {
-//			panic(fmt.Sprintf("+ should have operand number or string, while have: %v", lt))
-//		}
-//	}
-//}
 
 // ----------------------------------------
 // misc
