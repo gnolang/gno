@@ -5,47 +5,6 @@ import (
 	"testing"
 )
 
-type lexerTest struct {
-	name     string
-	data     []byte
-	token    byte
-	escaped  bool
-	expected int
-}
-
-func TestFindTokenStart(t *testing.T) {
-	tests := []lexerTest{
-		{token: '{', expected: 5},
-		{token: '[', expected: 0},
-		{token: 'w', expected: 6},
-		{token: 'l', expected: 9},
-	}
-
-	data := []byte(`hello{world}`)
-
-	for _, test := range tests {
-		if got := findTokenStart(data, test.token); got != test.expected {
-			t.Errorf("findTokenStart() = %v, want %v", got, test.expected)
-		}
-	}
-}
-
-func TestTokenEnd(t *testing.T) {
-	tests := []lexerTest{
-		{name: "whitespace", data: []byte("hello world"), expected: 5},
-		{name: "newline", data: []byte("hello\nworld"), expected: 5},
-		{name: "tab", data: []byte("hello\tworld"), expected: 5},
-		{name: "multiple words", data: []byte("hello world foo bar"), expected: 5},
-		{name: "no space", data: []byte("helloworld"), expected: 10},
-	}
-
-	for _, test := range tests {
-		if got := tokenEnd(test.data); got != test.expected {
-			t.Errorf("tokenEnd() = %v, want %v", got, test.expected)
-		}
-	}
-}
-
 func TestLexer(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -57,7 +16,6 @@ func TestLexer(t *testing.T) {
 		{
 			name:  "Test 1",
 			data:  []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
-			start: 38,
 			next:  1,
 			last:  39,
 		},
@@ -65,102 +23,103 @@ func TestLexer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := findLastTokenPosition(tt.data); got != tt.last {
-				t.Errorf("findLastTokenPosition() = %v, want %v", got, tt.last)
+			if got := findTokenStart(tt.data, '{'); got != 0 {
+				t.Errorf("findTokenStart() = %v, want %v", got, 0)
+			}
+
+			if got := findTokenStart(tt.data, '['); got != 29 {
+				t.Errorf("findTokenStart() = %v, want %v", got, 29)
+			}
+
+			if _, err := findKeyStart(tt.data, "key"); err != nil {
+				t.Errorf("findKeyStart() returned an error: %v", err)
 			}
 		})
 	}
 }
 
-func TestSearchKeys(t *testing.T) {
+func TestLastToken(t *testing.T) {
+    tests := []struct {
+        name     string
+        data     []byte
+        expected int
+    }{
+        {"Empty data", []byte{}, -1},
+        {"Spaces only", []byte("     "), -1},
+        {"Newlines only", []byte("\n\n\n\n"), -1},
+        {"Mixed whitespace", []byte(" \n\r\t "), -1},
+        {"One character", []byte("a"), 0},
+        {"Mixed characters", []byte("abc def"), 6},
+        {"Mixed characters with trailing whitespace", []byte("abc def \n\r\t "), 6},
+    }
+
+    for _, test := range tests {
+        t.Run(test.name, func(t *testing.T) {
+            if got := lastToken(test.data); got != test.expected {
+                t.Errorf("lastToken(%q) = %v, want %v", test.data, got, test.expected)
+            }
+        })
+    }
+}
+
+func TestBlockEnd(t *testing.T) {
 	tests := []struct {
 		name     string
 		data     []byte
-		keys     []string
+		open     byte
+		close    byte
 		expected int
-		isErr    bool
+	}{
+		{"Empty Object", []byte("{}"), '{', '}', 2},
+		{"Nested Object", []byte(`{"key": {"nestedKey": "value"}}`), '{', '}', 31},
+		{"Array", []byte(`["item1", "item2"]`), '[', ']', 18},
+		{"Complex Object", []byte(`{"key": [1, 2, 3], "anotherKey": "value"}`), '{', '}', 41},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := blockEnd(test.data, test.open, test.close)
+			if result != test.expected {
+				t.Errorf("Failed %s: expected %d, got %d", test.name, test.expected, result)
+			}
+		})
+	}
+}
+
+
+func TestFindKeyStart(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		key      string
+		expected int
 	}{
 		{
-			name:     "Empty data and keys",
-			data:     []byte{},
-			keys:     []string{},
-			expected: 0,
+			name:     "Test 1",
+			data:     []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
+			key:      "key",
+			expected: 3,
 		},
 		{
-			name:     "Empty data with keys",
-			data:     []byte{},
-			keys:     []string{"key1", "key2"},
+			name:     "Test 2",
+			data:     []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
+			key:      "array",
+			expected: 20,
+		},
+		{
+			name:     "Test 3",
+			data:     []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
+			key:      "value",
 			expected: -1,
-			isErr:    true,
-		},
-		{
-			name:     "Data with no keys",
-			data:     []byte(`{"foo": "bar"}`),
-			keys:     []string{"key1", "key2"},
-			expected: -1,
-			isErr:    true,
-		},
-		{
-			name:     "Data with single key",
-			data:     []byte(`{"key1": "value1"}`),
-			keys:     []string{"key1"},
-			expected: 8,
-		},
-		{
-			name:     "Data with multiple keys",
-			data:     []byte(`{"key1": "value1", "key2": "value2"}`),
-			keys:     []string{"key2"},
-			expected: 26,
-		},
-		{
-			name:     "Data with nested keys",
-			data:     []byte(`{"outer": {"key1": "value1", "key2": "value2"}, "key3": "value3"}`),
-			keys:     []string{"key3"},
-			expected: 55,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := searchKeys(tt.data, tt.keys...)
-
+			got, _ := findKeyStart(tt.data, tt.key)
 			if got != tt.expected {
-				t.Errorf("searchKeys(%s) = %v, want %v", tt.name, got, tt.expected)
-			}
-
-			if (err != nil) != tt.isErr {
-				t.Errorf("searchKeys(%s) error = %v, wantErr %v", tt.name, err, tt.isErr)
+				t.Errorf("findKeyStart() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
-}
-
-func TestArrayEach(t *testing.T) {
-	data := []byte(`{"a": { "b":[{"x": 1} ,{"x":2},{ "x":3}, {"x":4} ]}}`)
-	count := 0
-
-	ArrayEach(data, func(value []byte, typ ValueType, offset int, err error) {
-		count += 1
-
-		switch count {
-		case 1:
-			if string(value) != `{"x": 1}` {
-				t.Errorf("Wrong first item: %s", string(value))
-			}
-		case 2:
-			if string(value) != `{"x":2}` {
-				t.Errorf("Wrong second item: %s", string(value))
-			}
-		case 3:
-			if string(value) != `{ "x":3}` {
-				t.Errorf("Wrong third item: %s", string(value))
-			}
-		case 4:
-			if string(value) != `{"x":4}` {
-				t.Errorf("Wrong fourth item: %s", string(value))
-			}
-		default:
-			t.Errorf("Too many items: %d", count)
-		}
-	}, "a", "b")
 }
