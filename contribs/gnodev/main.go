@@ -14,6 +14,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -102,7 +103,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	gnoroot := gnoenv.RootDir()
 
 	// Check and Parse packages
-	pkgpaths, err := parseArgsPackages(io, args)
+	pkgpaths, err := parseArgsPackages(args)
 	if err != nil {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
@@ -122,7 +123,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, cfg, rt, pkgpaths, gnoroot)
+	devNode, err := setupDevNode(ctx, rt, pkgpaths, gnoroot)
 	if err != nil {
 		return err
 	}
@@ -149,7 +150,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Run GnoWeb server
 	go func() {
-		cancel(serveGnoWebServer(cfg, l, devNode, rt))
+		cancel(serveGnoWebServer(l, devNode, rt))
 	}()
 
 	rt.Taskf(WebLogName, "Listener: http://%s\n", l.Addr())
@@ -162,7 +163,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 }
 
 // XXX: Automatize this the same way command does
-func printHelper(rt *gnodev.RawTerm) {
+func printHelper(rt *rawterm.RawTerm) {
 	rt.Taskf("Helper", `
 Gno Dev Helper:
   h, H        Help - display this message
@@ -174,7 +175,7 @@ Gno Dev Helper:
 
 func runEventLoop(ctx context.Context,
 	cfg *devCfg,
-	rt *dev.RawTerm,
+	rt *rawterm.RawTerm,
 	dnode *dev.Node,
 	pathsCh <-chan []string,
 ) error {
@@ -218,15 +219,15 @@ func runEventLoop(ctx context.Context,
 			}
 
 			switch key.Upper() {
-			case gnodev.KeyH:
+			case rawterm.KeyH:
 				printHelper(rt)
-			case gnodev.KeyR:
+			case rawterm.KeyR:
 				fmt.Fprintln(nodeOut, "Reloading all packages...")
 				checkForError(nodeOut, dnode.ReloadAll(ctx))
-			case gnodev.KeyCtrlR:
+			case rawterm.KeyCtrlR:
 				fmt.Fprintln(nodeOut, "Reseting state...")
 				checkForError(nodeOut, dnode.Reset(ctx))
-			case gnodev.KeyCtrlC:
+			case rawterm.KeyCtrlC:
 				return nil
 			default:
 			}
@@ -282,8 +283,8 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 }
 
-func setupRawTerm(io commands.IO) (rt *dev.RawTerm, restore func() error, err error) {
-	rt = gnodev.NewRawTerm()
+func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, err error) {
+	rt = rawterm.NewRawTerm()
 
 	restore, err = rt.Init()
 	if err != nil {
@@ -297,7 +298,7 @@ func setupRawTerm(io commands.IO) (rt *dev.RawTerm, restore func() error, err er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *devCfg, rt *dev.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
 	logger := tmlog.NewTMLogger(nodeOut)
@@ -306,7 +307,7 @@ func setupDevNode(ctx context.Context, cfg *devCfg, rt *dev.RawTerm, pkgspath []
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func serveGnoWebServer(cfg *devCfg, l net.Listener, dnode *gnodev.Node, rt *gnodev.RawTerm) error {
+func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) error {
 	var server http.Server
 
 	webConfig := gnoweb.NewDefaultConfig()
@@ -327,7 +328,7 @@ func serveGnoWebServer(cfg *devCfg, l net.Listener, dnode *gnodev.Node, rt *gnod
 	return nil
 }
 
-func parseArgsPackages(io commands.IO, args []string) (paths []string, err error) {
+func parseArgsPackages(args []string) (paths []string, err error) {
 	paths = make([]string, len(args))
 	for i, arg := range args {
 		abspath, err := filepath.Abs(arg)
@@ -346,8 +347,8 @@ func parseArgsPackages(io commands.IO, args []string) (paths []string, err error
 	return paths, nil
 }
 
-func listenForKeyPress(w io.Writer, rt *gnodev.RawTerm) <-chan gnodev.KeyPress {
-	cc := make(chan gnodev.KeyPress, 1)
+func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
+	cc := make(chan rawterm.KeyPress, 1)
 	go func() {
 		defer close(cc)
 		key, err := rt.ReadKeyPress()
