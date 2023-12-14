@@ -76,7 +76,7 @@ func NewDevNode(ctx context.Context, logger log.Logger, pkgslist []string) (*Nod
 
 	// Wait for readiness
 	select {
-	case <-gnoland.WaitForNodeReadiness(node): // ok
+	case <-gnoland.GetNodeReadiness(node): // ok
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
@@ -100,8 +100,8 @@ func (d *Node) ListPkgs() []gnomod.Pkg {
 	return d.pkgs.toList()
 }
 
-func (d *Node) WaitForNodeReadiness() <-chan struct{} {
-	return gnoland.WaitForNodeReadiness(d.Node)
+func (d *Node) GetNodeReadiness() <-chan struct{} {
+	return gnoland.GetNodeReadiness(d.Node)
 }
 
 func (d *Node) GetRemoteAddress() string {
@@ -243,7 +243,7 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 
 	// wait for readiness
 	select {
-	case <-d.WaitForNodeReadiness(): // ok
+	case <-d.GetNodeReadiness(): // ok
 	case <-ctx.Done():
 		return ctx.Err()
 	}
