@@ -221,7 +221,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 
 			strEnd, keyEscaped := stringEnd(data[i:])
 			if strEnd == -1 {
-				return -1, MalformedJsonError
+				return -1, MalformedJson
 			}
 			i += strEnd
 			keyEnd := i - 1
@@ -237,7 +237,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 
 			if data[i] == ':' {
 				if level < 1 {
-					return -1, MalformedJsonError
+					return -1, MalformedJson
 				}
 
 				key := data[keyBegin:keyEnd]
@@ -280,7 +280,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			if !lastMatched {
 				end := blockEnd(data[i:], '{', '}')
 				if end == -1 {
-					return -1, MalformedJsonError
+					return -1, MalformedJson
 				}
 				i += end - 1
 			} else {
@@ -296,7 +296,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			if keyLevel == level && keys[level][0] == '[' {
 				keyLen := len(keys[level])
 				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
-					return -1, MalformedArrayError
+					return -1, MalformedArray
 				}
 
 				arrIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
@@ -332,13 +332,13 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			} else {
 				arraySkip := blockEnd(data[i:], '[', ']')
 				if arraySkip < 0 {
-					return -1, MalformedJsonError
+					return -1, MalformedJson
 				}
 
 				i += arraySkip - 1
 			}
 		case ':': // If encountered, JSON data is malformed
-			return -1, MalformedJsonError
+			return -1, MalformedJson
 		}
 
 		i++

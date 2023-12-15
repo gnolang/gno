@@ -20,7 +20,7 @@ func ParseString(data []byte) (string, error) {
 
 	bf, err := Unescape(data, buf[:])
 	if err != nil {
-		return "", MalformedStringError
+		return "", MalformedString
 	}
 
 	return string(bf), nil
@@ -33,7 +33,7 @@ func ParseBool(data []byte) (bool, error) {
 	case bytes.Equal(data, []byte("false")):
 		return false, nil
 	default:
-		return false, MalformedValueError
+		return false, MalformedValue
 	}
 }
 
@@ -253,16 +253,16 @@ func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset
 		if bytes.Equal(value, TrueLiteral) || bytes.Equal(value, FalseLiteral) {
 			dataType = Boolean
 		}
-		return Unknown, offset, UnknownValueTypeError
+		return Unknown, offset, UnknownValueType
 	case 'u', 'n':
 		if bytes.Equal(value, NullLiteral) {
 			dataType = Null
 		}
-		return Unknown, offset, UnknownValueTypeError
+		return Unknown, offset, UnknownValueType
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		dataType = Number
 	default:
-		return Unknown, offset, UnknownValueTypeError
+		return Unknown, offset, UnknownValueType
 	}
 }
 
@@ -336,7 +336,7 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 		if idx, _ := stringEnd(data[offset+1:]); idx != -1 {
 			endOffset += idx + 1
 		} else {
-			return nil, dataType, offset, MalformedStringError
+			return nil, dataType, offset, MalformedString
 		}
 	} else if data[offset] == '[' { // if array value
 		dataType = Array
@@ -344,7 +344,7 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 		endOffset = blockEnd(data[offset:], '[', ']')
 
 		if endOffset == -1 {
-			return nil, dataType, offset, MalformedArrayError
+			return nil, dataType, offset, MalformedArray
 		}
 
 		endOffset += offset
@@ -354,7 +354,7 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 		endOffset = blockEnd(data[offset:], '{', '}')
 
 		if endOffset == -1 {
-			return nil, dataType, offset, MalformedObjectError
+			return nil, dataType, offset, MalformedObject
 		}
 
 		endOffset += offset
@@ -363,7 +363,7 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 		end := tokenEnd(data[endOffset:])
 
 		if end == -1 {
-			return nil, dataType, offset, MalformedValueError
+			return nil, dataType, offset, MalformedValue
 		}
 
 		value := data[offset : endOffset+end]
@@ -373,18 +373,18 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 			if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
 				dataType = Boolean
 			} else {
-				return nil, Unknown, offset, UnknownValueTypeError
+				return nil, Unknown, offset, UnknownValueType
 			}
 		case 'u', 'n': // undefined or null
 			if bytes.Equal(value, nullLiteral) {
 				dataType = Null
 			} else {
-				return nil, Unknown, offset, UnknownValueTypeError
+				return nil, Unknown, offset, UnknownValueType
 			}
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			dataType = Number
 		default:
-			return nil, Unknown, offset, UnknownValueTypeError
+			return nil, Unknown, offset, UnknownValueType
 		}
 
 		endOffset += end
@@ -395,12 +395,12 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 // ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.
 func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
 	if len(data) == 0 {
-		return -1, MalformedObjectError
+		return -1, MalformedObject
 	}
 
 	nT, err := nextToken(data)
 	if err != nil {
-		return -1, MalformedJsonError
+		return -1, MalformedJson
 	}
 
 	offset = nT + 1
@@ -413,13 +413,13 @@ func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int,
 		// Go to closest value
 		nO, err := nextToken(data[offset:])
 		if err != nil {
-			return offset, MalformedJsonError
+			return offset, MalformedJson
 		}
 
 		offset += nO
 
 		if data[offset] != '[' {
-			return offset, MalformedArrayError
+			return offset, MalformedArray
 		}
 
 		offset++
@@ -427,7 +427,7 @@ func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int,
 
 	nO, err := nextToken(data[offset:])
 	if err != nil {
-		return offset, MalformedJsonError
+		return offset, MalformedJson
 	}
 
 	offset += nO
@@ -459,7 +459,7 @@ func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int,
 
 		skipToToken, err := nextToken(data[offset:])
 		if err != nil {
-			return offset, MalformedArrayError
+			return offset, MalformedArray
 		}
 		offset += skipToToken
 
@@ -468,7 +468,7 @@ func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int,
 		}
 
 		if data[offset] != ',' {
-			return offset, MalformedArrayError
+			return offset, MalformedArray
 		}
 
 		offset++
@@ -488,7 +488,7 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 	// Go to closest value
 	nO, err := nextToken(data[offset:])
 	if err != nil {
-		return nil, NotExist, offset, -1, MalformedJsonError
+		return nil, NotExist, offset, -1, MalformedJson
 	}
 
 	offset += nO
