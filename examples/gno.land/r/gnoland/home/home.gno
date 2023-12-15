@@ -233,12 +233,12 @@ func discoverLinks() ui.Element {
 
 - [Gno dev with CLI (soon)](#)
 - [Explore the Universe](/ecosystem)
+- [Gno Playground](https://play.gno.land)
 - [Test in the browser (soon)](#)
 - [About the Gnolang Language](/gnolang)
 - [Docs/ Tutorials](https://github.com/gnolang)
 - [Gno by example](https://gno-by-example.com/)
 - [Getting started video (soon)](#)
-- [Gno Playground](https://play.gno.land)
 
 </div><!-- end column-->
 <div class="column">
