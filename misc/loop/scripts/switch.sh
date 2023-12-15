@@ -34,7 +34,8 @@ if docker ps --format json | jq '.Labels' | grep -q "the-portal-loop"; then
         --from-block 1 \
         --output-path="${BACKUP_FILE}"
 
-    cat ${BACKUP_FILE} | jq -c -M '.tx' > ${BACKUP_LEGACY_FILE}
+    # cat ${BACKUP_FILE} | jq -c -M '.tx' > ${BACKUP_LEGACY_FILE}
+    cat ${BACKUP_FILE} | jq -c -M '.tx' >> ${BACKUP_DIR}/backup.jsonl
 fi
 
 docker volume create ${CONTAINER_NAME}
@@ -48,7 +49,7 @@ docker run -it \
     -p 26656 \
     -p 127.0.0.1::26657 \
     -e MONIKER="the-portal-loop" \
-    -e GENESIS_BACKUP_FILE="${BACKUP_LEGACY_FILE}" \
+    -e GENESIS_BACKUP_FILE="${BACKUP_DIR}/backup.jsonl" \
     --label "the-portal-loop=${CONTAINER_NAME}" \
     --entrypoint /scripts/start.sh \
     ghcr.io/gnolang/gno
