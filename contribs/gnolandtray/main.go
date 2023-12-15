@@ -24,6 +24,11 @@ func onReady() {
 	mHelp := systray.AddMenuItem("Help", "Help")
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
+	// show git sha version
+	// show port
+	// 'open at login'
+	// check for update, recommend rebuilding
+
 	_ = integration.TestingInMemoryNode
 	//node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	//println(node, remoteAddr)
