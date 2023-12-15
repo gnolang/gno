@@ -5,7 +5,6 @@
 package utf16
 
 import (
-	// "reflect"
 	"testing"
 	"unicode"
 )

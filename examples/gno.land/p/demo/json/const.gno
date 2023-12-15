@@ -12,3 +12,11 @@ const (
 
 	UnescapeStackBufSize = 64
 )
+
+const (
+	absMinInt64 = 1 << 63
+	maxInt64    = 1<<63 - 1
+	maxUint64   = 1<<64 - 1
+	intSize     = 32 << (^uint(0) >> 63)
+	IntSize     = intSize
+)

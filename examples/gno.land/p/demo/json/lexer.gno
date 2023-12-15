@@ -11,7 +11,7 @@ func findTokenStart(data []byte, token byte) int {
 		switch data[i] {
 		case token:
 			return i
-		case '[', '{':
+		case  ArrayStartToken, ObjectStartToken:
 			return 0
 		}
 	}
@@ -21,7 +21,7 @@ func findTokenStart(data []byte, token byte) int {
 func tokenEnd(data []byte) int {
 	for i, tok := range data {
 		switch tok {
-		case ' ', '\n', '\r', '\t', ',', '}', ']':
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken, ValueSeparatorToken, ObjectEndToken, ArrayEndToken:
 			return i
 		}
 	}
@@ -34,19 +34,20 @@ func findKeyStart(data []byte, key string) (int, error) {
 	if i == -1 {
 		return i, KeyPathNotFoundError
 	}
+
 	ln := len(data)
-	if ln > 0 && (data[i] == '{' || data[i] == '[') {
+	if ln > 0 && (data[i] == ObjectStartToken || data[i] == ArrayStartToken) {
 		i += 1
 	}
-	var stackbuf [UnescapeStackBufSize]byte // stack-allocated array for allocation-free unescaping of small strings
 
+	var stackbuf [UnescapeStackBufSize]byte
 	if ku, err := Unescape([]byte(key), stackbuf[:]); err == nil {
 		key = string(ku)
 	}
 
 	for i < ln {
 		switch data[i] {
-		case '"':
+		case DoublyQuoteToken:
 			i++
 			keyBegin := i
 
@@ -76,18 +77,17 @@ func findKeyStart(data []byte, key string) (int, error) {
 				}
 			}
 
-			if data[i] == ':' && len(key) == len(k) && string(k) == key {
+			if data[i] == ColonToken && len(key) == len(k) && string(k) == key {
 				return keyBegin - 1, nil
 			}
 
-		case '[':
-			end := blockEnd(data[i:], data[i], ']')
-			if end != -1 {
+		case ArrayStartToken:
+			if end := blockEnd(data[i:], data[i], ']'); end != -1 {
 				i = i + end
 			}
-		case '{':
-			end := blockEnd(data[i:], data[i], '}')
-			if end != -1 {
+
+		case ObjectStartToken:
+			if end := blockEnd(data[i:], data[i], '}'); end != -1 {
 				i = i + end
 			}
 		}
@@ -100,7 +100,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 func tokenStart(data []byte) int {
 	for i := len(data) - 1; i >= 0; i-- {
 		switch data[i] {
-		case '\n', '\r', '\t', ',', '{', '[':
+		case NewLineToken, CarriageReturnToken, TabToken, ValueSeparatorToken, ObjectStartToken, ArrayStartToken:
 			return i
 		}
 	}
@@ -111,7 +111,7 @@ func tokenStart(data []byte) int {
 func nextToken(data []byte) (int, error) {
 	for i, c := range data {
 		switch c {
-		case ' ', '\n', '\r', '\t':
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken:
 			continue
 		default:
 			return i, nil
@@ -124,7 +124,7 @@ func nextToken(data []byte) (int, error) {
 func lastToken(data []byte) int {
 	for i := len(data) - 1; i >= 0; i-- {
 		switch data[i] {
-		case ' ', '\n', '\r', '\t':
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken:
 			continue
 		default:
 			return i
@@ -138,7 +138,7 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool) {
 	escaped = false
 	for lastCharIdx, c := range data {
 		switch c {
-		case '"':
+		case DoublyQuoteToken:
 			if !escaped {
 				return lastCharIdx + 1, false
 			}
@@ -153,7 +153,7 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool) {
 			}
 
 			return lastCharIdx + 1, false
-		case '\\':
+		case BackSlashToken:
 			escaped = true
 		}
 	}
@@ -170,18 +170,16 @@ func blockEnd(data []byte, openSym byte, closeSym byte) int {
 
 	for i < ln {
 		switch data[i] {
-		case '"': // If inside string, skip it
+		case DoublyQuoteToken:
 			se, _ := stringEnd(data[i+1:])
 			if se == -1 {
 				return -1
 			}
 			i += se
-		case openSym: // If open symbol, increase level
+		case openSym:
 			level++
-		case closeSym: // If close symbol, increase level
+		case closeSym:
 			level--
-
-			// If we have returned to the original level, we're done
 			if level == 0 {
 				return i + 1
 			}
@@ -192,14 +190,12 @@ func blockEnd(data []byte, openSym byte, closeSym byte) int {
 	return -1
 }
 
-// TODO: change function name to something more appropriate
-//
-// searchKeys is a function that takes a byte slice of JSON data and a series of keys.
+// findValueIndex is a function that takes a byte slice of JSON data and a series of keys.
 // It traverses the JSON data to find the position where the value of the final key in the series begins.
 // The position is returned as an integer representing the index in the byte slice.
 // If the key series is empty, it returns 0.
 // If the keys are not found or the JSON data is malformed, it returns -1.
-func searchKeys(data []byte, keys ...string) (int, error) {
+func findValueIndex(data []byte, keys ...string) (int, error) {
 	keyLevel := 0
 	level := 0
 	i := 0
@@ -211,11 +207,10 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 		return 0, nil
 	}
 
-	var stackbuf [UnescapeStackBufSize]byte // stack-allocated array for allocation-free unescaping of small strings
-
+	var stackbuf [UnescapeStackBufSize]byte
 	for i < ln {
 		switch data[i] {
-		case '"':
+		case DoublyQuoteToken:
 			i++
 			keyBegin := i
 
@@ -232,10 +227,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			}
 
 			i += valueOffset
-
-			// if string is a key
-
-			if data[i] == ':' {
+			if data[i] == ColonToken {
 				if level < 1 {
 					return -1, MalformedJson
 				}
@@ -274,7 +266,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			} else {
 				i--
 			}
-		case '{':
+		case ObjectStartToken:
 			// in case parent key is matched then only we will increase the level otherwise can directly
 			// can move to the end of this block
 			if !lastMatched {
@@ -286,16 +278,15 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 			} else {
 				level += 1
 			}
-		case '}':
-			level -= 1
-			if level == keyLevel {
+		case ObjectEndToken:
+			if level -= 1; level == keyLevel {
 				keyLevel -= 1
 			}
-		case '[':
+		case ArrayStartToken:
 			// If we want to get array element by index
-			if keyLevel == level && keys[level][0] == '[' {
+			if keyLevel == level && keys[level][0] == ArrayEndToken {
 				keyLen := len(keys[level])
-				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
+				if keyLen < 3 || keys[level][0] != ArrayStartToken || keys[level][keyLen-1] != ArrayEndToken {
 					return -1, MalformedArray
 				}
 
@@ -323,7 +314,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 					return -1, ArrayIndexNotFound
 				}
 
-				subIndex, err := searchKeys(valueFound, keys[level+1:]...)
+				subIndex, err := findValueIndex(valueFound, keys[level+1:]...)
 				if err != nil {
 					return -1, err
 				}
@@ -337,7 +328,7 @@ func searchKeys(data []byte, keys ...string) (int, error) {
 
 				i += arraySkip - 1
 			}
-		case ':': // If encountered, JSON data is malformed
+		case ColonToken: // If encountered, JSON data is malformed
 			return -1, MalformedJson
 		}
 
