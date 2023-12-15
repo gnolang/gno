@@ -155,7 +155,7 @@
 {{- end -}}
 
 {{- define "analytics" -}}
-{{- if .Data.Flags.WithAnalytics -}}
+{{- if .Data.Config.WithAnalytics -}}
 <!-- 100% privacy-first analytics -->
 <script async defer src="https://sa.gno.services/latest.js"></script>
 <noscript><img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade" /></noscript>
