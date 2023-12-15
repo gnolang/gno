@@ -12,6 +12,8 @@ type userToken struct {
 	IGRC20 // implements the GRC20 interface.
 
 	admin *AdminToken
+
+	realm std.Realm
 }
 
 // IGRC20 implementation.
@@ -27,7 +29,11 @@ func (t *userToken) BalanceOf(owner std.Address) (uint64, error) {
 }
 
 func (t *userToken) Transfer(to std.Address, amount uint64) error {
-	caller := std.PrevRealm().Addr()
+	// caller := std.PrevRealm().Addr()
+	caller := t.realm.Addr()
+	println(
+		"===> transfer:", amount, "from:", caller, "to:", to,
+	)
 	return t.admin.transfer(caller, to, amount)
 }
 
@@ -36,12 +42,12 @@ func (t *userToken) Allowance(owner, spender std.Address) (uint64, error) {
 }
 
 func (t *userToken) Approve(spender std.Address, amount uint64) error {
-	caller := std.PrevRealm().Addr()
+	caller := t.realm.Addr()
 	return t.admin.approve(caller, spender, amount)
 }
 
 func (t *userToken) TransferFrom(from, to std.Address, amount uint64) error {
-	spender := std.PrevRealm().Addr()
+	spender := t.realm.Addr()
 	if err := t.admin.spendAllowance(from, spender, amount); err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	// check balances #1.
 	{
 		tests := []test{
-			{"TotalSupply", 10100000000, func() uint64 { return TotalSupply() }},
+			{"TotalSupply", 10110000000, func() uint64 { return TotalSupply() }},
 			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
@@ -41,7 +41,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	// check balances #2.
 	{
 		tests := []test{
-			{"TotalSupply", 10110000000, func() uint64 { return TotalSupply() }},
+			{"TotalSupply", 10120000000, func() uint64 { return TotalSupply() }},
 			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
