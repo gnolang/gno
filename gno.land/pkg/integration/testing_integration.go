@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -210,6 +211,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				err := cmd.ParseAndRun(context.Background(), args)
 
 				tsValidateError(ts, "gnokey", neg, err)
+			},
+			"sleep": func(ts *testscript.TestScript, neg bool, args []string) {
+				d := time.Second
+				if len(args) > 0 {
+					var err error
+					if d, err = time.ParseDuration(args[0]); err != nil {
+						ts.Fatalf("unable to parse duration %q: %s", args[1], err)
+					}
+				}
+
+				time.Sleep(d)
 			},
 		},
 	}
