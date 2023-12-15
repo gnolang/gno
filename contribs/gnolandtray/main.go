@@ -26,8 +26,12 @@ func onReady() {
 
 	// show git sha version
 	// show port
+	// show metrics (memory, txs, height, etc)
 	// 'open at login'
 	// check for update, recommend rebuilding
+	// "reset realms' state"
+	// "save archive/dump"
+	// "[ ] debug mode"
 
 	_ = integration.TestingInMemoryNode
 	//node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
@@ -37,6 +41,7 @@ func onReady() {
 		for {
 			select {
 			case <-mStartGnodev.ClickedCh:
+				mStartGnodev.SetTitle("Starting...")
 				log.Println("NOT IMPLEMENTED")
 			case <-mOpenGnolandRPC.ClickedCh:
 				// open.Run("http://127.0.0.1:XXX/")
@@ -50,6 +55,7 @@ func onReady() {
 			case <-mHelp.ClickedCh:
 				open.Run("https://github.com/gnolang/gno/tree/master/contribs/gnolandtray")
 			case <-mQuit.ClickedCh:
+				mStartGnodev.SetTitle("Stopping...")
 				systray.Quit()
 				return
 			}
