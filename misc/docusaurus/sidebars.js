@@ -26,7 +26,6 @@ const sidebars = {
             type: 'category',
             label: 'How-to Guides',
             items: [
-                'how-to-guides/effective-gno',
                 'how-to-guides/simple-contract',
                 'how-to-guides/simple-library',
                 'how-to-guides/testing-gno',
@@ -35,6 +34,7 @@ const sidebars = {
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
                 'how-to-guides/connect-wallet-dapp',
+                'how-to-guides/effective-gno',
             ],
         },
         {
