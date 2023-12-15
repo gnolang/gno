@@ -2,9 +2,17 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"html/template"
 	"os"
+)
+
+var (
+	//go:embed templates/package_diff_template.html
+	packageDiffTemplate string
+	//go:embed templates/index_template.html
+	indexTemplate string
 )
 
 // ReportBuilder is a struct for building reports based on the differences
@@ -42,12 +50,12 @@ type LinkToReport struct {
 // source path, destination path, and output directory. It also initializes
 // the packageTemplate using the provided HTML template file.
 func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBuilder, error) {
-	packageTemplate, err := template.ParseFiles("templates/package_diff_template.html")
+	packageTemplate, err := template.New("").Parse(packageDiffTemplate)
 	if err != nil {
 		return nil, err
 	}
 
-	indexTemplate, err := template.ParseFiles("templates/index_template.html")
+	indexTemplate, err := template.New("").Parse(indexTemplate)
 	if err != nil {
 		return nil, err
 	}
