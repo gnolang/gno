@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bufio"
+	"fmt"
 	"os"
+	"strings"
 )
 
 // FileDiff is a struct for comparing differences between two files.
@@ -22,8 +23,15 @@ type LineDifferrence struct {
 // the specified source and destination files. It initializes the source and
 // destination file lines .
 func NewFileDiff(srcPath, dstPath string) (*FileDiff, error) {
-	src := getFileLines(srcPath)
-	dst := getFileLines(dstPath)
+	src, err := getFileLines(srcPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't read src file: %w", err)
+	}
+
+	dst, err := getFileLines(dstPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't read dst file: %w", err)
+	}
 
 	return &FileDiff{
 		Src:       src,
@@ -39,23 +47,14 @@ func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
 }
 
 // getFileLines reads and returns the lines of a file given its path.
-func getFileLines(p string) []string {
-	lines := make([]string, 0)
-
-	f, err := os.Open(p)
+func getFileLines(p string) ([]string, error) {
+	data, err := os.ReadFile(p)
 	if err != nil {
-		return lines
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return lines
-	}
-
-	return lines
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	return lines, nil
 }
