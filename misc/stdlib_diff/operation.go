@@ -5,23 +5,23 @@ package main
 type operation uint
 
 const (
-	// INSERT represents an insertion operation.
-	INSERT operation = 1
-	// DELETE represents a deletion operation.
-	DELETE operation = 2
-	// MOVE represents a move operation.
-	MOVE operation = 3
+	// insert represents an insertion operation.
+	insert operation = iota + 1
+	// delete represents a deletion operation.
+	delete
+	// equal represents an equal operation.
+	equal
 )
 
 // String returns a string representation of the operation.
 func (op operation) String() string {
 	switch op {
-	case INSERT:
+	case insert:
 		return "INS"
-	case DELETE:
+	case delete:
 		return "DEL"
-	case MOVE:
-		return "MOV"
+	case equal:
+		return "EQ"
 	default:
 		return "UNKNOWN"
 	}

@@ -14,8 +14,8 @@ type FileDiff struct {
 
 // LineDifferrence represents a difference in a line during file comparison.
 type LineDifferrence struct {
-	Line      string // The line content.
-	Operation string // The operation performed on the line (e.g., "add", "delete", "equal").
+	Line      string    // The line content.
+	Operation operation // The operation performed on the line (e.g., "add", "delete", "equal").
 }
 
 // NewFileDiff creates a new FileDiff instance for comparing differences between

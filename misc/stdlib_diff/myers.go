@@ -33,23 +33,23 @@ func (m *Myers) Diff() ([]LineDifferrence, []LineDifferrence) {
 
 	for _, op := range operations {
 		switch op {
-		case INSERT:
-			dstDiff = append(dstDiff, LineDifferrence{Line: "+" + m.dst[dstIndex], Operation: op.String()})
-			srcDiff = append(srcDiff, LineDifferrence{Line: "", Operation: MOVE.String()})
+		case insert:
+			dstDiff = append(dstDiff, LineDifferrence{Line: "+" + m.dst[dstIndex], Operation: op})
+			srcDiff = append(srcDiff, LineDifferrence{Line: "", Operation: equal})
 			dstIndex++
 			insertCount++
 			continue
 
-		case MOVE:
-			dstDiff = append(dstDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op.String()})
-			srcDiff = append(srcDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op.String()})
+		case equal:
+			dstDiff = append(dstDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op})
+			srcDiff = append(srcDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op})
 			srcIndex++
 			dstIndex++
 			continue
 
-		case DELETE:
-			dstDiff = append(dstDiff, LineDifferrence{Line: "", Operation: MOVE.String()})
-			srcDiff = append(srcDiff, LineDifferrence{Line: "-" + m.src[srcIndex], Operation: op.String()})
+		case delete:
+			dstDiff = append(dstDiff, LineDifferrence{Line: "", Operation: equal})
+			srcDiff = append(srcDiff, LineDifferrence{Line: "-" + m.src[srcIndex], Operation: op})
 			srcIndex++
 			deleteCount++
 			continue
@@ -141,15 +141,15 @@ func (m *Myers) getAllOperations(tree []map[int]int) []operation {
 		prevY = prevX - prevK
 
 		for x > prevX && y > prevY {
-			operations = append(operations, MOVE)
+			operations = append(operations, equal)
 			x -= 1
 			y -= 1
 		}
 
 		if x == prevX {
-			operations = append(operations, INSERT)
+			operations = append(operations, insert)
 		} else {
-			operations = append(operations, DELETE)
+			operations = append(operations, delete)
 		}
 
 		x, y = prevX, prevY
@@ -157,7 +157,7 @@ func (m *Myers) getAllOperations(tree []map[int]int) []operation {
 
 	if tree[0][0] != 0 {
 		for i := 0; i < tree[0][0]; i++ {
-			operations = append(operations, MOVE)
+			operations = append(operations, equal)
 		}
 	}
 
