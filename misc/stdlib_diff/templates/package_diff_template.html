@@ -2,11 +2,14 @@
 <div class="file-viewer">
     {{- range .}}
     {{- if eq .Operation 1}}
-    <p style="color: #07ca07;">{{.Line}}</p> 
+    <div style="display: flex; color: #07ca07;"></div>
+    <span style="user-select: none;">-</span><p>{{.Line}}</p> 
+    </div>
     {{- else if eq .Operation 2}}
-    <p style="color: red;">{{.Line}}</p> 
-    {{- else}}
-    {{- if eq .Line ""}}
+    <div style="display: flex; color: red;">
+        <span style="user-select: none;">+</span><p>{{.Line}}</p> 
+    </div>
+    {{- else if eq .Line ""}}
     <br />
     {{- else}}
     <p style="opacity: 0.65;">{{.Line}}</p>

@@ -34,7 +34,7 @@ func (m *Myers) Diff() ([]LineDifferrence, []LineDifferrence) {
 	for _, op := range operations {
 		switch op {
 		case insert:
-			dstDiff = append(dstDiff, LineDifferrence{Line: "+" + m.dst[dstIndex], Operation: op})
+			dstDiff = append(dstDiff, LineDifferrence{Line: m.dst[dstIndex], Operation: op})
 			srcDiff = append(srcDiff, LineDifferrence{Line: "", Operation: equal})
 			dstIndex++
 			insertCount++
@@ -49,7 +49,7 @@ func (m *Myers) Diff() ([]LineDifferrence, []LineDifferrence) {
 
 		case delete:
 			dstDiff = append(dstDiff, LineDifferrence{Line: "", Operation: equal})
-			srcDiff = append(srcDiff, LineDifferrence{Line: "-" + m.src[srcIndex], Operation: op})
+			srcDiff = append(srcDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op})
 			srcIndex++
 			deleteCount++
 			continue
