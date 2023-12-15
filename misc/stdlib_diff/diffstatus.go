@@ -3,21 +3,21 @@ package main
 type diffStatus uint
 
 const (
-	MISSING_IN_SRC diffStatus = 1
-	MISSING_IN_DST diffStatus = 2
-	HAS_DIFF       diffStatus = 3
-	NO_DIFF        diffStatus = 4
+	missingInSrc diffStatus = iota
+	missingInDst
+	hasDiff
+	noDiff
 )
 
 func (status diffStatus) String() string {
 	switch status {
-	case MISSING_IN_SRC:
+	case missingInSrc:
 		return "missing in src"
-	case MISSING_IN_DST:
+	case missingInDst:
 		return "missing in dst"
-	case HAS_DIFF:
+	case hasDiff:
 		return "files differ"
-	case NO_DIFF:
+	case noDiff:
 		return "files are equal"
 	default:
 		return "Unknown"
