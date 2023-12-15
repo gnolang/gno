@@ -40,8 +40,7 @@ func NewFileDiff(srcPath, dstPath, algoType string) (*FileDiff, error) {
 // Differences returns the differences in lines between the source and
 // destination files using the configured diff algorithm.
 func (f *FileDiff) Differences() ([]LineDifferrence, []LineDifferrence) {
-	srcDiff, dstDiff := f.DiffAlgorithm.Do()
-	return srcDiff, dstDiff
+	return f.DiffAlgorithm.Do()
 }
 
 // getFileLines reads and returns the lines of a file given its path.
