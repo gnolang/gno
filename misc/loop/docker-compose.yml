@@ -43,6 +43,10 @@ services:
       - --bind=localhost:8888
       - --remote=rpc.portal.gno.local:81
       - --views-dir=./gnoweb/views
+      - --help-chainid
+      - dev
+      - --help-remote
+      - https://rpc.portal.gno.land:443
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1
 
