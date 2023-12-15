@@ -4,11 +4,40 @@ id: 'effective-gno'
 
 # Effective Gno
 
-This document provides advice and guidelines for writing effective Gno code.
+This document provides advices and guidelines for writing effective Gno code.
 
-First, Gno shares many similarities with Go. Therefore, please read ["Effective Go"](https://go.dev/doc/effective_go) first.
+First, Gno shares several similarities with Go. Therefore, please read ["Effective Go"](https://go.dev/doc/effective_go) first.
 
-## ...
+## Counter-Intuitive Good Practices
+
+In this section, we're listing Gno good practices that could sound as bad practices if you come from Go.
+
+### Global Variable is Good in Gno.
+
+It's not just a good practice, in Gno, this is the way to have persisted states. Automatically.
+
+In Go, you would write your logic in Go, and you could have some state in memory, but as soon as you would want to persist the state to survive a restart, then you would need to use a store (plan file, custom file structure, a database, a key-value store, an API, ...).
+
+In Gno, you declare global variables; then, GnoVM will automatically persist and restore them when needed between each runs.
+
+Take care of not exporting your global variables, because then they will be available for everyone not only to read, but also to write.
+
+An ideal pattern could this one:
+
+```go
+var counter int
+
+func GetCounter() int {
+    return counter
+}
+
+func IncCounter() {
+    counter++
+}
+```
+
+
+## TODO
 
 - panic is good
 - init() is good
