@@ -130,19 +130,19 @@ func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
 func (p *PackageDiffChecker) getStatus(srcDiff, dstDiff []LineDifferrence) diffStatus {
 	slicesAreEquals := slices.Equal(srcDiff, dstDiff)
 	if slicesAreEquals {
-		return NO_DIFF
+		return noDiff
 	}
 
 	if len(srcDiff) == 0 {
-		return MISSING_IN_SRC
+		return missingInSrc
 	}
 
 	if len(dstDiff) == 0 {
-		return MISSING_IN_DST
+		return missingInDst
 	}
 
 	if !slicesAreEquals {
-		return HAS_DIFF
+		return hasDiff
 	}
 
 	return 0
