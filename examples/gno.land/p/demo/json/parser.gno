@@ -205,7 +205,7 @@ func ParseUint(b []byte, base, bitSize int) (v uint64, err error) {
 	return n, nil
 }
 
-// lower(c) is a lower-case letter if and only if
+// lower is a lower-case letter if and only if
 // c is either that lower-case letter or the equivalent upper-case letter.
 // Instead of writing c == 'x' || c == 'X' one can write lower(c) == 'x'.
 // Note that lower of non-letters can produce other non-letters.
@@ -313,6 +313,7 @@ func underscoreOK(s string) bool {
 		// Saw non-digit, non-underscore.
 		saw = '!'
 	}
+
 	return saw != '_'
 }
 
@@ -324,72 +325,92 @@ var (
 
 func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 	if len(data) == 0 {
-		panic("No JSON data provided")
+		return nil, Unknown, offset, errors.New("no JSON data provided")
 	}
 
-	var dataType ValueType
-	endOffset := offset
-
-	// if string value
-	if data[offset] == '"' {
-		dataType = String
-		if idx, _ := stringEnd(data[offset+1:]); idx != -1 {
-			endOffset += idx + 1
-		} else {
-			return nil, dataType, offset, MalformedString
-		}
-	} else if data[offset] == '[' { // if array value
-		dataType = Array
-		// break label, for stopping nested loops
-		endOffset = blockEnd(data[offset:], '[', ']')
-
-		if endOffset == -1 {
-			return nil, dataType, offset, MalformedArray
-		}
-
-		endOffset += offset
-	} else if data[offset] == '{' { // if object value
-		dataType = Object
-		// break label, for stopping nested loops
-		endOffset = blockEnd(data[offset:], '{', '}')
-
-		if endOffset == -1 {
-			return nil, dataType, offset, MalformedObject
-		}
-
-		endOffset += offset
-	} else {
-		// Number, Boolean or None
-		end := tokenEnd(data[endOffset:])
-
-		if end == -1 {
-			return nil, dataType, offset, MalformedValue
-		}
-
-		value := data[offset : endOffset+end]
-
-		switch data[offset] {
-		case 't', 'f': // true or false
-			if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
-				dataType = Boolean
-			} else {
-				return nil, Unknown, offset, UnknownValueType
-			}
-		case 'u', 'n': // undefined or null
-			if bytes.Equal(value, nullLiteral) {
-				dataType = Null
-			} else {
-				return nil, Unknown, offset, UnknownValueType
-			}
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-			dataType = Number
-		default:
-			return nil, Unknown, offset, UnknownValueType
-		}
-
-		endOffset += end
+	dataType, endOffset, err := parseValue(data, offset)
+	if err != nil {
+		return nil, dataType, offset, err
 	}
+
 	return data[offset:endOffset], dataType, endOffset, nil
+}
+
+func parseValue(data []byte, offset int) (ValueType, int, error) {
+	switch data[offset] {
+	case '"':
+		return parseString(data, offset)
+	case '[', '{':
+		return parseContainer(data, offset)
+	}
+
+	return parsePrimitive(data, offset)
+}
+
+// parseString parses a JSON string and returns its type and the end position.
+func parseString(data []byte, offset int) (ValueType, int, error) {
+	if idx, _ := stringEnd(data[offset+1:]); idx != -1 {
+		return String, offset + idx + 1, nil
+	}
+	return String, offset, errors.New("malformed string")
+}
+
+// parseContainer parses a JSON array or object and returns its type and the end position.
+func parseContainer(data []byte, offset int) (ValueType, int, error) {
+	var containerType ValueType
+	var closing byte
+
+	if data[offset] == '[' {
+		containerType = Array
+		closing = ']'
+	} else {
+		containerType = Object
+		closing = '}'
+	}
+
+	endOffset := blockEnd(data[offset:], data[offset], closing)
+	if endOffset == -1 {
+		return containerType, offset, MalformedType
+	}
+
+	return containerType, offset + endOffset, nil
+}
+
+func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
+	end := tokenEnd(data[offset:])
+	if end == -1 {
+		return Unknown, offset, errors.New("malformed value")
+	}
+	value := data[offset : offset+end]
+
+	switch data[offset] {
+	case 't', 'f':
+		_boolValue, err := ParseBool(value)
+		if err != nil {
+			return Unknown, offset, err
+		}
+		return Boolean, offset + end, nil
+	case 'n':
+		if bytes.Equal(value, nullLiteral) {
+			return Null, offset + end, nil
+		}
+		return Unknown, offset, errors.New("unknown null type")
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+		if !bytes.ContainsAny(value, ".eE") {
+			_intValue, err := ParseInt(value)
+			if err != nil {
+				return Number, offset + end, err
+			}
+		}
+
+		if _floatValue, err := ParseFloat(value); err != nil {
+			return Number, offset + end, err
+		}
+
+		return Number, offset + end, nil
+	}
+
+	return Unknown, offset, errors.New("unknown value type")
 }
 
 // ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.

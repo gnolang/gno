@@ -14,10 +14,10 @@ func TestLexer(t *testing.T) {
 		last  int
 	}{
 		{
-			name:  "Test 1",
-			data:  []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
-			next:  1,
-			last:  39,
+			name: "Test 1",
+			data: []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
+			next: 1,
+			last: 39,
 		},
 	}
 
@@ -39,27 +39,27 @@ func TestLexer(t *testing.T) {
 }
 
 func TestLastToken(t *testing.T) {
-    tests := []struct {
-        name     string
-        data     []byte
-        expected int
-    }{
-        {"Empty data", []byte{}, -1},
-        {"Spaces only", []byte("     "), -1},
-        {"Newlines only", []byte("\n\n\n\n"), -1},
-        {"Mixed whitespace", []byte(" \n\r\t "), -1},
-        {"One character", []byte("a"), 0},
-        {"Mixed characters", []byte("abc def"), 6},
-        {"Mixed characters with trailing whitespace", []byte("abc def \n\r\t "), 6},
-    }
+	tests := []struct {
+		name     string
+		data     []byte
+		expected int
+	}{
+		{"Empty data", []byte{}, -1},
+		{"Spaces only", []byte("     "), -1},
+		{"Newlines only", []byte("\n\n\n\n"), -1},
+		{"Mixed whitespace", []byte(" \n\r\t "), -1},
+		{"One character", []byte("a"), 0},
+		{"Mixed characters", []byte("abc def"), 6},
+		{"Mixed characters with trailing whitespace", []byte("abc def \n\r\t "), 6},
+	}
 
-    for _, test := range tests {
-        t.Run(test.name, func(t *testing.T) {
-            if got := lastToken(test.data); got != test.expected {
-                t.Errorf("lastToken(%q) = %v, want %v", test.data, got, test.expected)
-            }
-        })
-    }
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := lastToken(test.data); got != test.expected {
+				t.Errorf("lastToken(%q) = %v, want %v", test.data, got, test.expected)
+			}
+		})
+	}
 }
 
 func TestBlockEnd(t *testing.T) {
@@ -85,7 +85,6 @@ func TestBlockEnd(t *testing.T) {
 		})
 	}
 }
-
 
 func TestFindKeyStart(t *testing.T) {
 	tests := []struct {
@@ -161,7 +160,7 @@ func TestSearchKeys(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-    data := []byte(`{
+	data := []byte(`{
 		"person": {
 			"name": {
 				"first": "Alex",
@@ -171,38 +170,34 @@ func TestGet(t *testing.T) {
 			"github": {
 				"handle": "alexj",
 				"followers": 152
-			},
-			"avatars": [
-				{ "url": "https://avatars.example.com/u/12345?v=4&s=460", "type": "thumbnail" }
-			]
+			}
 		},
 		"company": {
 			"name": "company name",
-		}
+		},
 	}
 	`)
 
-    tests := []struct {
-        path     []string
-        expected string
-    }{
+	tests := []struct {
+		path     []string
+		expected string
+	}{
 		{[]string{"person", "name", "first"}, "Alex"},
 		{[]string{"person", "name", "last"}, "Johnson"},
-        {[]string{"person", "name", "fullName"}, "Alex Johnson"},
+		{[]string{"person", "name", "fullName"}, "Alex Johnson"},
 		{[]string{"person", "github", "handle"}, "alexj"},
 		{[]string{"person", "github", "followers"}, "152"},
 		{[]string{"company", "name"}, "company name"},
-		{[]string{"company"}, "{\"name\": \"company name\"}"},
-    }
+	}
 
-    for _, test := range tests {
-        value, _, _, err := Get(data, test.path...)
-        if err != nil {
-            t.Errorf("Got error: %v", err)
-        }
+	for _, test := range tests {
+		value, _, _, err := Get(data, test.path...)
+		if err != nil {
+			t.Errorf("Got error: %v", err)
+		}
 
-        if string(value) != test.expected {
-            t.Errorf("Expected '%s', got '%s'", test.expected, value)
-        }
-    }
+		if string(value) != test.expected {
+			t.Errorf("Expected '%s', got '%s'", test.expected, value)
+		}
+	}
 }

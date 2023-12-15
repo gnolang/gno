@@ -246,6 +246,7 @@ func TestParseUint(t *testing.T) {
 		}
 	}
 }
+
 func TestGetType(t *testing.T) {
 	tests := []struct {
 		data     []byte

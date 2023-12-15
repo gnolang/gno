@@ -6,6 +6,7 @@ const (
 	NotExist ValueType = iota
 	String
 	Number
+	Float
 	Object
 	Array
 	Boolean
