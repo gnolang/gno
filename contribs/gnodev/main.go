@@ -108,6 +108,11 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
+	if !cfg.minimal {
+		examplesDir := filepath.Join(gnoroot, "examples")
+		pkgpaths = append(pkgpaths, examplesDir)
+	}
+
 	// Setup Raw Terminal
 	rt, restore, err := setupRawTerm(io)
 	if err != nil {
