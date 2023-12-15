@@ -1,9 +1,9 @@
 {{define "file-viewer" }}
 <div class="file-viewer">
     {{- range .}}
-    {{- if eq .Operation "INS"}}
+    {{- if eq .Operation 1}}
     <p style="color: #07ca07;">{{.Line}}</p> 
-    {{- else if eq .Operation "DEL"}}
+    {{- else if eq .Operation 2}}
     <p style="color: red;">{{.Line}}</p> 
     {{- else}}
     {{- if eq .Line ""}}
