@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -242,6 +243,39 @@ func TestParseUint(t *testing.T) {
 					t.Errorf("ParseUint(%s): got error %v", tc.in, err)
 				}
 			})
+		}
+	}
+}
+func TestGetType(t *testing.T) {
+	tests := []struct {
+		data     []byte
+		offset   int
+		expected []byte
+		vt       ValueType
+		err      error
+	}{
+		{[]byte(`{"name": "John", "age": 30}`), 0, []byte(`{"name": "John", "age": 30}`), Object, nil},
+		{[]byte(`"Hello, World!"`), 0, []byte(`"Hello, World!"`), String, nil},
+		{[]byte(`12345`), 0, []byte(`12345`), Number, nil},
+		{[]byte(`true`), 0, []byte(`true`), Boolean, nil},
+		{[]byte(`null`), 0, []byte(`null`), Null, nil},
+		{[]byte(`[1, 2, 3]`), 0, []byte(`[1, 2, 3]`), Array, nil},
+		{[]byte(`{}`), 0, []byte(`{}`), Object, nil},
+	}
+
+	for i, tt := range tests {
+		gotData, gotVT, _, gotErr := getType(tt.data, tt.offset)
+
+		if !bytes.Equal(gotData, tt.expected) {
+			t.Errorf("%d. expected data=%s, but got data=%s", i, tt.expected, gotData)
+		}
+
+		if gotVT != tt.vt {
+			t.Errorf("%d. expected value type=%s, but got value type=%s", i, tt.vt, gotVT)
+		}
+
+		if gotErr != tt.err {
+			t.Errorf("%d. expected error=%v, but got error=%v", i, tt.err, gotErr)
 		}
 	}
 }

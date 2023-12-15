@@ -4,6 +4,7 @@ import "errors"
 
 const (
 	KeyPathNotFoundError  error = errors.New("key path not found")
+	ArrayIndexNotFound  	    = errors.New("array index not found")
 	NotSpecifiedKeyError        = errors.New("key not specified")
 	ClosingBracketError         = errors.New("closing bracket not found")
 	ClosingQuoteError           = errors.New("closing quote not found")
@@ -14,6 +15,7 @@ const (
 	KeyLevelNotMatched          = errors.New("key level not matched")
 	Overflow                    = errors.New("overflow")
 	EmptyBytes                  = errors.New("empty bytes")
+	InvalidArrayIndex		    = errors.New("invalid array index")
 	InvalidExponents            = errors.New("invalid exponents")
 	NonDigitCharacters          = errors.New("non-digit characters")
 	MultipleDecimalPoints       = errors.New("multiple decimal points")

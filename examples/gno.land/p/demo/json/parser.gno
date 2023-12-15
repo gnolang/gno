@@ -315,3 +315,192 @@ func underscoreOK(s string) bool {
 	}
 	return saw != '_'
 }
+
+var (
+	trueLiteral  = []byte("true")
+	falseLiteral = []byte("false")
+	nullLiteral  = []byte("null")
+)
+
+func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
+	if len(data) == 0 {
+		panic("No JSON data provided")
+	}
+
+	var dataType ValueType
+	endOffset := offset
+
+	// if string value
+	if data[offset] == '"' {
+		dataType = String
+		if idx, _ := stringEnd(data[offset+1:]); idx != -1 {
+			endOffset += idx + 1
+		} else {
+			return nil, dataType, offset, MalformedStringError
+		}
+	} else if data[offset] == '[' { // if array value
+		dataType = Array
+		// break label, for stopping nested loops
+		endOffset = blockEnd(data[offset:], '[', ']')
+
+		if endOffset == -1 {
+			return nil, dataType, offset, MalformedArrayError
+		}
+
+		endOffset += offset
+	} else if data[offset] == '{' { // if object value
+		dataType = Object
+		// break label, for stopping nested loops
+		endOffset = blockEnd(data[offset:], '{', '}')
+
+		if endOffset == -1 {
+			return nil, dataType, offset, MalformedObjectError
+		}
+
+		endOffset += offset
+	} else {
+		// Number, Boolean or None
+		end := tokenEnd(data[endOffset:])
+
+		if end == -1 {
+			return nil, dataType, offset, MalformedValueError
+		}
+
+		value := data[offset : endOffset+end]
+
+		switch data[offset] {
+		case 't', 'f': // true or false
+			if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
+				dataType = Boolean
+			} else {
+				return nil, Unknown, offset, UnknownValueTypeError
+			}
+		case 'u', 'n': // undefined or null
+			if bytes.Equal(value, nullLiteral) {
+				dataType = Null
+			} else {
+				return nil, Unknown, offset, UnknownValueTypeError
+			}
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+			dataType = Number
+		default:
+			return nil, Unknown, offset, UnknownValueTypeError
+		}
+
+		endOffset += end
+	}
+	return data[offset:endOffset], dataType, endOffset, nil
+}
+
+// ArrayEach is used when iterating arrays, accepts a callback function with the same return arguments as `Get`.
+func ArrayEach(data []byte, f func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
+	if len(data) == 0 {
+		return -1, MalformedObjectError
+	}
+
+	nT, err := nextToken(data)
+	if err != nil {
+		return -1, MalformedJsonError
+	}
+
+	offset = nT + 1
+
+	if len(keys) > 0 {
+		if offset, _ = searchKeys(data, keys...); offset == -1 {
+			return offset, KeyPathNotFoundError
+		}
+
+		// Go to closest value
+		nO, err := nextToken(data[offset:])
+		if err != nil {
+			return offset, MalformedJsonError
+		}
+
+		offset += nO
+
+		if data[offset] != '[' {
+			return offset, MalformedArrayError
+		}
+
+		offset++
+	}
+
+	nO, err := nextToken(data[offset:])
+	if err != nil {
+		return offset, MalformedJsonError
+	}
+
+	offset += nO
+
+	if data[offset] == ']' {
+		return offset, nil
+	}
+
+	for true {
+		v, t, o, e := Get(data[offset:])
+
+		if e != nil {
+			return offset, e
+		}
+
+		if o == 0 {
+			break
+		}
+
+		if t != NotExist {
+			f(v, t, offset+o-len(v), e)
+		}
+
+		if e != nil {
+			break
+		}
+
+		offset += o
+
+		skipToToken, err := nextToken(data[offset:])
+		if err != nil {
+			return offset, MalformedArrayError
+		}
+		offset += skipToToken
+
+		if data[offset] == ']' {
+			break
+		}
+
+		if data[offset] != ',' {
+			return offset, MalformedArrayError
+		}
+
+		offset++
+	}
+
+	return offset, nil
+}
+
+func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
+	if len(keys) > 0 {
+		offset, err = searchKeys(data, keys...)
+		if err != nil {
+			return nil, NotExist, -1, -1, err
+		}
+	}
+
+	// Go to closest value
+	nO, err := nextToken(data[offset:])
+	if err != nil {
+		return nil, NotExist, offset, -1, MalformedJsonError
+	}
+
+	offset += nO
+	value, dataType, endOffset, err = getType(data, offset)
+	if err != nil {
+		return value, dataType, offset, endOffset, err
+	}
+
+	// Strip quotes from string values
+	if dataType == String {
+		value = value[1 : len(value)-1]
+	}
+
+	return value[:len(value):len(value)], dataType, offset, endOffset, nil
+}
