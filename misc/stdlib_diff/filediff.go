@@ -7,9 +7,9 @@ import (
 
 // FileDiff is a struct for comparing differences between two files.
 type FileDiff struct {
-	Src           []string  // Lines of the source file.
-	Dst           []string  // Lines of the destination file.
-	DiffAlgorithm Algorithm // Algorithm used for comparison.
+	Src       []string // Lines of the source file.
+	Dst       []string // Lines of the destination file.
+	Algorithm          // Algorithm used for comparison.
 }
 
 // LineDifferrence represents a difference in a line during file comparison.
@@ -20,27 +20,22 @@ type LineDifferrence struct {
 
 // NewFileDiff creates a new FileDiff instance for comparing differences between
 // the specified source and destination files. It initializes the source and
-// destination file lines and the specified diff algorithm.
-func NewFileDiff(srcPath, dstPath, algoType string) (*FileDiff, error) {
+// destination file lines .
+func NewFileDiff(srcPath, dstPath string) (*FileDiff, error) {
 	src := getFileLines(srcPath)
 	dst := getFileLines(dstPath)
 
-	diffAlgorithm, err := AlgorithmFactory(src, dst, algoType)
-	if err != nil {
-		return nil, err
-	}
-
 	return &FileDiff{
-		Src:           src,
-		Dst:           dst,
-		DiffAlgorithm: diffAlgorithm,
+		Src:       src,
+		Dst:       dst,
+		Algorithm: NewMyers(src, dst),
 	}, nil
 }
 
 // Differences returns the differences in lines between the source and
 // destination files using the configured diff algorithm.
 func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
-	return f.DiffAlgorithm.Do()
+	return f.Diff()
 }
 
 // getFileLines reads and returns the lines of a file given its path.

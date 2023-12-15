@@ -22,32 +22,35 @@ func NewMyers(src, dst []string) *Myers {
 
 // Do performs the Myers algorithm to find the differences between source and destination files.
 // It returns the differences as two slices of LineDifferrence representing source and destination changes.
-func (m *Myers) Do() ([]LineDifferrence, []LineDifferrence) {
+func (m *Myers) Diff() ([]LineDifferrence, []LineDifferrence) {
+	var (
+		srcIndex, dstIndex       int
+		insertCount, deleteCount int
+		dstDiff, srcDiff         []LineDifferrence
+	)
+
 	operations := m.doMyers()
 
-	srcIndex, dstIndex, insertCount, deleteCount := 0, 0, 0, 0
-	dstDiff := make([]LineDifferrence, 0)
-	srcDiff := make([]LineDifferrence, 0)
 	for _, op := range operations {
 		switch op {
 		case INSERT:
 			dstDiff = append(dstDiff, LineDifferrence{Line: "+" + m.dst[dstIndex], Operation: op.String()})
 			srcDiff = append(srcDiff, LineDifferrence{Line: "", Operation: MOVE.String()})
-			dstIndex += 1
+			dstIndex++
 			insertCount++
 			continue
 
 		case MOVE:
 			dstDiff = append(dstDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op.String()})
 			srcDiff = append(srcDiff, LineDifferrence{Line: m.src[srcIndex], Operation: op.String()})
-			srcIndex += 1
-			dstIndex += 1
+			srcIndex++
+			dstIndex++
 			continue
 
 		case DELETE:
 			dstDiff = append(dstDiff, LineDifferrence{Line: "", Operation: MOVE.String()})
 			srcDiff = append(srcDiff, LineDifferrence{Line: "-" + m.src[srcIndex], Operation: op.String()})
-			srcIndex += 1
+			srcIndex++
 			deleteCount++
 			continue
 		}

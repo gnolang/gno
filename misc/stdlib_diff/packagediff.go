@@ -72,7 +72,7 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 		dstFileName := trimmedFileName + dstFileExt
 		dstFilePath := p.DstPath + "/" + dstFileName
 
-		fileDiff, err := NewFileDiff(srcFilePath, dstFilePath, "myers")
+		fileDiff, err := NewFileDiff(srcFilePath, dstFilePath)
 		if err != nil {
 			return nil, err
 		}
