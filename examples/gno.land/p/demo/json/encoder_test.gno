@@ -132,3 +132,41 @@ func TestUnflatten(t *testing.T) {
 		})
 	}
 }
+
+func TestMapToJSONString(t *testing.T) {
+    cases := []struct {
+        name     string
+        input    map[string]interface{}
+        expected string
+    }{
+        {
+            name: "Simple Map",
+            input: map[string]interface{}{
+                "a": 1,
+                "b": 2,
+            },
+            expected: "{\"a\": 1, \"b\": 2}",
+        },
+        {
+            name: "Nested Map",
+            input: map[string]interface{}{
+                "a": map[string]interface{}{
+                    "b": 2,
+                    "c": 3,
+                },
+                "d": 4,
+            },
+            expected: "{\"a.b\": 2, \"a.c\": 3, \"d\": 4}",
+        },
+    }
+
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            flattened := Flatten(tc.input)
+            result := MapToJSONString(flattened)
+            if result != tc.expected {
+                t.Errorf("Test %s failed. Expected %s, got %s", tc.name, tc.expected, result)
+            }
+        })
+    }
+}

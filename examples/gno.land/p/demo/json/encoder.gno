@@ -1,6 +1,7 @@
 package json
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -45,4 +46,21 @@ func Unflatten(flatMap map[string]interface{}) map[string]interface{} {
 	}
 
 	return result
+}
+
+func MapToJSONString(m map[string]interface{}) string {
+    var sb strings.Builder
+    sb.WriteString("{")
+
+    isFirst := true
+    for k, v := range m {
+        if !isFirst {
+            sb.WriteString(", ")
+        }
+        sb.WriteString(fmt.Sprintf("\"%s\": %v", k, v))
+        isFirst = false
+    }
+
+    sb.WriteString("}")
+    return sb.String()
 }
