@@ -17,6 +17,9 @@ func onReady() {
 	systray.SetTitle("Gnodev") // TODO: use a small icon instead of a title.
 	systray.SetTooltip("Local Gno.land Node Manager")
 
+	// TODO: when ready -> green dot
+	// TODO: when error -> red dot
+
 	mStartGnodev := systray.AddMenuItem("Start Gnodev...", "")
 	mOpenGnolandRPC := systray.AddMenuItem("Open Gnoland RPC in browser", "")
 	mOpenGnoweb := systray.AddMenuItem("Open Gnoweb in browser", "")
@@ -27,7 +30,7 @@ func onReady() {
 	// show git sha version
 	// show port
 	// show metrics (memory, txs, height, etc)
-	// 'open at login'
+	// 'open at login'b
 	// check for update, recommend rebuilding
 	// "reset realms' state"
 	// "save archive/dump"
