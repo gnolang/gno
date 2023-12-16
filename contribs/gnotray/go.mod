@@ -1,4 +1,4 @@
-module github.com/gnolang/gno/contribs/gnolandtray
+module github.com/gnolang/gno/contribs/gnotray
 
 go 1.20
 
