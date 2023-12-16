@@ -46,7 +46,7 @@ func GenerateGrid(solvedBoard []int64, gridType string) (string, error) {
 }
 
 
-func generateColorSquareGrid(solvedBoard []int64, gridyTye string, size int) (string, error) {
+func generateColorSquareGrid(solvedBoard []int64, gridType string, size int) (string, error) {
 	svgSquare := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
 	for i := int64(0); i < int64(size); i++ {
 		for j := int64(0); j < int64(size); j++ {

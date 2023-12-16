@@ -40,7 +40,7 @@ func TestGenerateColorSquareGrid(t *testing.T) {
     solvedBoard := generateSolvedBoard()
 
     // Call the function with the test board
-    base64Svg, err := generateColorSquareGrid(solvedBoard, 4) // Size 4 for a 4x4 grid
+    base64Svg, err := generateColorSquareGrid(solvedBoard, "squareGrid", 4) // gridType squareGrid, size 4 for a 4x4 grid
     if err != nil {
         t.Fatalf("generateColorSquareGrid returned an unexpected error: %v", err)
     }
