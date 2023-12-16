@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,7 +13,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -34,6 +35,7 @@ type devCfg struct {
 	webListenerAddr string
 	minimal         bool
 	verbose         bool
+	hotreload       bool
 	noWatch         bool
 }
 
@@ -123,9 +125,12 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
+	loggerHotReload := tmlog.NewTMLogger(rt.NamespacedWriter(HotReloadLogName))
+	emitterServer := events.NewEmitterServer(loggerHotReload)
+
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths)
+	devNode, err := setupDevNode(ctx, emitterServer, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -135,52 +140,61 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
 	rt.Taskf(NodeLogName, "Chain ID: %s\n", devNode.Config().ChainID())
 
-	// Setup packages watcher
-	pathChangeCh := make(chan []string, 1)
-	go func() {
-		defer close(pathChangeCh)
-
-		cancel(runPkgsWatcher(ctx, cfg, devNode.ListPkgs(), pathChangeCh))
-	}()
-
-	// Setup GnoWeb listener
-	l, err := net.Listen("tcp", cfg.webListenerAddr)
-	if err != nil {
-		return fmt.Errorf("unable to listen to %q: %w", cfg.webListenerAddr, err)
+	// Create server
+	mux := http.NewServeMux()
+	server := http.Server{
+		Handler: mux,
+		Addr:    cfg.webListenerAddr,
 	}
-	defer l.Close()
+	defer server.Close()
 
-	// Run GnoWeb server
+	// Setup gnoweb
+	webhandler := setupGnoWebServer(cfg, devNode, rt)
+
+	// Setup HotReload if needed
+	if !cfg.noWatch {
+		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
+		mux.Handle("/_events", emitterServer)
+		mux.Handle("/", events.NewMiddleware(evtstarget, webhandler))
+	} else {
+		mux.Handle("/", webhandler)
+	}
+
 	go func() {
-		cancel(serveGnoWebServer(l, devNode, rt))
+		err := server.ListenAndServe()
+		cancel(err)
 	}()
 
-	rt.Taskf(WebLogName, "Listener: http://%s\n", l.Addr())
+	rt.Taskf(WebLogName, "Listener: http://%s\n", server.Addr)
+
+	watcher, err := watcher.NewPackageWatcher(loggerHotReload, emitterServer)
+	if err != nil {
+		return fmt.Errorf("unable to setup packages watcher")
+	}
+	defer watcher.Stop()
+
+	// add node pkgs to watcher
+	watcher.AddPackages(devNode.ListPkgs()...)
 
 	// GnoDev should be ready, run event loop
 	rt.Taskf("[Ready]", "for commands and help, press `h`")
 
 	// Run the main event loop
-	return runEventLoop(ctx, cfg, rt, devNode, pathChangeCh)
+	return runEventLoop(ctx, cfg, rt, devNode, watcher)
 }
 
 // XXX: Automatize this the same way command does
 func printHelper(rt *rawterm.RawTerm) {
 	rt.Taskf("Helper", `
 Gno Dev Helper:
-  h, H        Help - display this message
-  r, R        Reload - Reload all packages to take change into account.
+  H           Help - display this message
+  R           Reload - Reload all packages to take change into account.
   Ctrl+R      Reset - Reset application state.
   Ctrl+C      Exit - Exit the application
 `)
 }
 
-func runEventLoop(ctx context.Context,
-	cfg *devCfg,
-	rt *rawterm.RawTerm,
-	dnode *dev.Node,
-	pathsCh <-chan []string,
-) error {
+func runEventLoop(ctx context.Context, cfg *devCfg, rt *rawterm.RawTerm, dnode *dev.Node, watch *watcher.PackageWatcher) error {
 	nodeOut := rt.NamespacedWriter(NodeLogName)
 	keyOut := rt.NamespacedWriter(KeyPressLogName)
 
@@ -191,26 +205,21 @@ func runEventLoop(ctx context.Context,
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case paths, ok := <-pathsCh:
+		case pkgs, ok := <-watch.PackagesUpdate:
 			if !ok {
 				return nil
 			}
 
-			if cfg.verbose {
-				for _, path := range paths {
-					rt.Taskf(HotReloadLogName, "path %q has been modified", path)
-				}
-			}
-
 			fmt.Fprintln(nodeOut, "Loading package updates...")
-			if err = dnode.UpdatePackages(paths...); err != nil {
-				checkForError(rt, err)
-				continue
+			if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
+				return fmt.Errorf("unable to update packages: %w", err)
 			}
 
 			fmt.Fprintln(nodeOut, "Reloading...")
 			err = dnode.Reload(ctx)
+
 			checkForError(rt, err)
+
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return nil
@@ -296,40 +305,39 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 	// correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
 
-	return rt, restore, nil
+	restoreWithRecover := func() error {
+		if r := recover(); r != nil {
+			rt.Taskf("panic", "%v\n", r)
+		}
+
+		return restore()
+	}
+
+	return rt, restoreWithRecover, nil
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, emitter events.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
 	logger := tmlog.NewTMLogger(nodeOut)
 	logger.SetLevel(tmlog.LevelError)
-	return gnodev.NewDevNode(ctx, logger, pkgspath)
+	return gnodev.NewDevNode(ctx, emitter, logger, pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) error {
-	var server http.Server
-
+func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
 	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
-	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
+	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter(WebLogName))
 	loggerweb.SetLevel(tmlog.LevelDebug)
 
 	app := gnoweb.MakeApp(loggerweb, webConfig)
 
-	server.ReadHeaderTimeout = 60 * time.Second
-	server.Handler = app.Router
-
-	if err := server.Serve(l); err != nil {
-		return fmt.Errorf("unable to serve GnoWeb: %w", err)
-	}
-
-	return nil
+	return app.Router
 }
 
 func parseArgsPackages(args []string) (paths []string, err error) {

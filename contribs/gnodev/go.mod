@@ -8,6 +8,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	golang.org/x/term v0.16.0
+	github.com/gorilla/websocket v1.5.1
 )
 
 require (
@@ -33,7 +34,6 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/gotuna/gotuna v0.6.0 // indirect
 	github.com/jaekwon/testify v1.6.1 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect

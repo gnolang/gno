@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -27,6 +28,7 @@ const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be 
 type Node struct {
 	*node.Node
 
+	events events.Emitter
 	client client.Client
 	logger log.Logger
 	pkgs   PkgsMap // path -> pkg
@@ -45,7 +47,7 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, logger log.Logger, pkgslist []string) (*Node, error) {
+func NewDevNode(ctx context.Context, emitter events.Emitter, logger log.Logger, pkgslist []string) (*Node, error) {
 	mpkgs, err := newPkgsMap(pkgslist)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -82,6 +84,7 @@ func NewDevNode(ctx context.Context, logger log.Logger, pkgslist []string) (*Nod
 	return &Node{
 		Node: node,
 
+		events:         emitter,
 		client:         client,
 		pkgs:           mpkgs,
 		logger:         logger,
@@ -150,7 +153,12 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	return d.reset(ctx, genesis)
+	if err := d.reset(ctx, genesis); err != nil {
+		return fmt.Errorf("unable to reset the node: %w", err)
+	}
+
+	d.events.Emit(events.NewEventReset())
+	return nil
 }
 
 // ReloadAll updates all currently known packages and then reloads the node.
@@ -206,6 +214,11 @@ func (d *Node) Reload(ctx context.Context) error {
 	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
 	d.loadedPackages = len(pkgsTxs)
 
+	if err != nil {
+		return fmt.Errorf("unable to reload the node: %w", err)
+	}
+
+	d.events.Emit(events.NewEventReload())
 	return nil
 }
 
