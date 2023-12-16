@@ -47,6 +47,7 @@ const (
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
+// Here?
 func (mempkg *MemPackage) Validate() error {
 	ok, _ := regexp.MatchString(rePkgName, mempkg.Name)
 	if !ok {

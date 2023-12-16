@@ -97,6 +97,7 @@ func MustParseExpr(expr string) Expr {
 }
 
 // filename must not include the path.
+// Here?
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	// Parse src but stop after processing the imports.
 	fs := token.NewFileSet()
