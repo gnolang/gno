@@ -41,9 +41,9 @@ func main() {
 	logger := log.NewTMLogger(os.Stdout)
 	logger.SetLevel(log.LevelDebug)
 
-	logger.Debug("", "Running", "http://"+cfg.BindAddr)
+	logger.Info("Running", "listener", "http://"+bindAddress)
 	server := &http.Server{
-		Addr:              cfg.BindAddr,
+		Addr:              bindAddress,
 		ReadHeaderTimeout: 60 * time.Second,
 		Handler:           gnoweb.MakeApp(logger, cfg).Router,
 	}
