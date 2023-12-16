@@ -34,19 +34,24 @@ func onReady() {
 
 	mStartGnodev := systray.AddMenuItem("Start Gnodev...", "")
 	mOpenGnolandRPC := systray.AddMenuItem("Open Gnoland RPC in browser", "")
+	mOpenGnolandRPC.Disable()
 	mOpenGnoweb := systray.AddMenuItem("Open Gnoweb in browser", "")
+	mOpenGnoweb.Disable()
 	mOpenFolder := systray.AddMenuItem("Open Gnodev Folder", "")
+	mOpenGnoweb.Disable()
+	systray.AddSeparator()
+	//mSettings := systray.AddMenuItem("Settings", "Settings")
+	//mSettings.AddSubMenuItemCheckbox("Open at login", "TODO", false)
+	//mSettings.AddSubMenuItemCheckbox("Debug/Verbose", "TODO", false)
 	mHelp := systray.AddMenuItem("Help", "Help")
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
 	// show git sha version
 	// show port
 	// show metrics (memory, txs, height, etc)
-	// 'open at login'b
 	// check for update, recommend rebuilding
 	// "reset realms' state"
 	// "save archive/dump"
-	// "[ ] debug mode"
 
 	_ = integration.TestingInMemoryNode
 	//node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
