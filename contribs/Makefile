@@ -4,11 +4,12 @@ help:
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 .PHONY: install
-install: install.gnomd install.gnolandtray install.gnokeykc
+install: install.gnomd install.gnolandtray install.gnokeykc install.gnodev
 
-install.gnomd:; cd gnomd && go install .
-install.gnolandtray:; cd gnolandtray && go install .
-install.gnokeykc:; cd gnokeykc && go install .
+install.gnodev:;       $(MAKE) -C ./gnodev install
+install.gnokeykc:;     cd gnokeykc && go install .
+install.gnolandtray:;  cd gnolandtray && go install .
+install.gnomd:;        cd gnomd && go install .
 
 .PHONY: clean
 clean:
@@ -22,6 +23,15 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+
+.PHONY: tidy
+tidy:
+	@for gomod in `find . -name go.mod`; do ( \
+    dir=`dirname $$gomod`; \
+	  set -xe; \
+	  cd $$dir; \
+	  go mod tidy -v; \
+	); done
 
 ########################################
 # Test suite
