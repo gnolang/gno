@@ -43,8 +43,6 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
-
-	BindAddr string
 }
 
 func NewDefaultConfig() Config {
