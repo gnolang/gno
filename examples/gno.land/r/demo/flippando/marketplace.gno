@@ -2,8 +2,8 @@ package flippando
 
 import (
     "std"
-	"encoding/json"
 	"strconv"
+	"strings"
     "gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721f"
 )
@@ -30,15 +30,9 @@ func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Addre
     // get tokenURI of the composite NFT
 	cTokenURIString := GetCompositeTokenURI(string(compositeTokenID));
 	
-	var cTokenURI compositeNFTMetaData;
-	uerr := json.Unmarshal([]byte(cTokenURIString), &cTokenURI)
+	basicTokenIDs, uerr := parseBTokenIDs(cTokenURIString)
     if uerr != nil {
-        error("can't unmarshal token uri")
-    }
-
-	var basicTokenIDs []int64
-    for _, id := range cTokenURI.bTokenIDs {
-        basicTokenIDs = append(basicTokenIDs, id)
+        error("can't parse bTokenIDs")
     }
 	
 	// Create a new listing
@@ -89,7 +83,7 @@ func (m *Marketplace) GetListings() string {
             seller:           string(listing.Seller),
             price:            strconv.FormatUint(listing.Price, 10),
         }
-        listingResultJSON, _ := json.Marshal(listingResult)
+        listingResultJSON, _ := listingResult.MarshalJSON()
         allListings = append(allListings, string(listingResultJSON))
         return true // Continue iterating
     })
@@ -97,7 +91,7 @@ func (m *Marketplace) GetListings() string {
     marketplaceListings := &marketplaceListings{
         marketplaceListings: allListings,
     }
-    marketplaceJSON, _ := json.Marshal(marketplaceListings)
+    marketplaceJSON, _ := marketplaceListings.MarshalJSON()
 
     return string(marketplaceJSON)
 }
@@ -134,3 +128,24 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721f.TokenID
     return nil
 }
 
+
+func parseBTokenIDs(jsonStr string) ([]int64, error) {
+    prefix := `"bTokenIDs":[`
+    suffix := `]`
+
+    startIndex := strings.Index(jsonStr, prefix)
+    if startIndex == -1 {
+        return nil, error("bTokenIDs not found")
+    }
+
+    startIndex += len(prefix)
+    endIndex := strings.Index(jsonStr[startIndex:], suffix)
+    if endIndex == -1 {
+        return nil, error("malformed JSON")
+    }
+
+	endIndex += startIndex
+
+	bTokenIDsStr := jsonStr[startIndex:endIndex]
+    return ParseString(bTokenIDsStr)
+}

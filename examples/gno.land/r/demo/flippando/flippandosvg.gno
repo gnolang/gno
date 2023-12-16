@@ -34,8 +34,8 @@ func GenerateGrid(solvedBoard []int64, gridType string) (string, error) {
 	}
 
 	switch gridType {
-	case "squareGrid":
-		return generateColorSquareGrid(solvedBoard, size)
+	case "squareGrid", "greyGradient", "redGradient", "greenGradient", "blueGradient":
+		return generateColorSquareGrid(solvedBoard, gridType, size)
 	case "dice":
 		return generateDiceGrid(solvedBoard, size)
 	case "hexagrams":
@@ -46,13 +46,13 @@ func GenerateGrid(solvedBoard []int64, gridType string) (string, error) {
 }
 
 
-func generateColorSquareGrid(solvedBoard []int64, size int) (string, error) {
+func generateColorSquareGrid(solvedBoard []int64, gridyTye string, size int) (string, error) {
 	svgSquare := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
 	for i := int64(0); i < int64(size); i++ {
 		for j := int64(0); j < int64(size); j++ {
 			index := i*int64(size) + j
 			key := solvedBoard[index]
-			color, _ := getColorFromKey(key)
+			color, _ := getColorFromKey(key, gridType)
 			rect := ufmt.Sprintf(`<rect width="25" height="25" fill="%s" x="%s" y="%s" />`, color, intToString(j*25), intToString(i*25))
 			svgSquare += rect
 		}
@@ -150,40 +150,167 @@ func intToString(value int64) string {
 	return formatted;
 }
 
-func getColorFromKey(key int64) (string, error) {
+func getColorFromKey(key int64, gridType string) (string, error) {
     switch key {
     case int64(1):
-        return "#D9362A", nil
+		switch gridType {
+		case "squareGrid":
+			return "#D9362A", nil
+		case "greyGradient":
+			return "#101010", nil
+		case "redGradient":
+			return "#800000", nil
+		case "greenGradient":
+			return "#008000", nil
+		case "blueGradient":
+			return "#000080", nil
+		}
     case int64(2):
-        return "#BE185D", nil
+		switch gridType {
+		case "squareGrid":
+			return "#BE185D", nil
+		case "greyGradient":
+			return "#303030", nil
+		case "redGradient":
+			return "#901010", nil
+		case "greenGradient":
+			return "#109010", nil
+		case "blueGradient":
+			return "#101090", nil
+		}
+        
     case int64(3):
-        return "#EC1818", nil
+		switch gridType {
+		case "squareGrid":
+			return "#EC1818", nil
+		case "greyGradient":
+			return "#505050", nil
+		case "redGradient":
+			return "#a02020", nil
+		case "greenGradient":
+			return "#20a020", nil
+		case "blueGradient":
+			return "#2020a0", nil
+		}
+        
     case int64(4):
-        return "#F4AA24", nil
+		switch gridType {
+		case "squareGrid":
+			return "#F4AA24", nil
+		case "greyGradient":
+			return "#707070", nil
+		case "redGradient":
+			return "#b03030", nil
+		case "greenGradient":
+			return "#30b030", nil
+		case "blueGradient":
+			return "#3030b0", nil
+		}
+        
     case int64(5):
-        return "#F4D424", nil
+		switch gridType {
+		case "squareGrid":
+			return "#F4D424", nil
+		case "greyGradient":
+			return "#909090", nil
+		case "redGradient":
+			return "#c04040", nil
+		case "greenGradient":
+			return "#40c040", nil
+		case "blueGradient":
+			return "#4040c0", nil
+		}
+        
     case int64(6):
-        return "#F1F223", nil
+		switch gridType {
+		case "squareGrid":
+			return "#F1F223", nil
+		case "greyGradient":
+			return "#b0b0b0", nil
+		case "redGradient":
+			return "#d05050", nil
+		case "greenGradient":
+			return "#50d050", nil
+		case "blueGradient":
+			return "#5050d0", nil
+		}
+        
     case int64(7):
-        return "#A5DD0C", nil
+		switch gridType {
+		case "squareGrid":
+			return "#A5DD0C", nil
+		case "greyGradient":
+			return "#d0d0d0", nil
+		case "redGradient":
+			return "#e06060", nil
+		case "greenGradient":
+			return "#60e060", nil
+		case "blueGradient":
+			return "#6060e0", nil
+		}
+        
     case int64(8):
-        return "#37B400", nil
+		switch gridType {
+		case "squareGrid":
+			return "#37B400", nil
+		case "greyGradient":
+			return "#f0f0f0", nil
+		case "redGradient":
+			return "#f07070", nil
+		case "greenGradient":
+			return "#70f070", nil
+		case "blueGradient":
+			return "#7070f0", nil
+		}
+        
     case int64(9):
-        return "#98D0E9", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#98D0E9", nil
+		}
+
     case int64(10):
-        return "#3131FD", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#3131FD", nil
+		}
+        
     case int64(11):
-        return "#1D2C85", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#1D2C85", nil
+		}
+        
     case int64(12):
-        return "#F2F2F2", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#F2F2F2", nil
+		}
+        
     case int64(13):
-        return "#1A1A1A", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#1A1A1A", nil
+		}
+        
     case int64(14):
-        return "#71842F", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#71842F", nil
+		}
+        
     case int64(15):
-        return "#90572F", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#90572F", nil
+		}
+        
     case int64(16):
-        return "#8316C0", nil
+		switch gridType {
+		case "squareGrid":
+        	return "#8316C0", nil
+		}
+        
     default:
         panic("Invalid color key")
     }

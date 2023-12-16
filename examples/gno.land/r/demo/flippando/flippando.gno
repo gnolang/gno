@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/grc/grc721f"
 	"gno.land/p/demo/flippandoserver"
 )
 
@@ -17,6 +18,7 @@ var (
 	gameIDCounter uint64
 
 	user2Games avl.Tree // std.Address -> []*Game
+	marketplace = NewMarketplace()
 )
 
 const zeroes = "000000000"
@@ -158,6 +160,21 @@ func addToUser2Games(addr std.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
+func GetArtListings() string {
+	return marketplace.GetListings()
+}
+
+func ListMarketplaceNFT(compositeTokenID string, seller std.Address, price uint64) error {
+	return marketplace.ListNFT(grc721f.TokenID(compositeTokenID), seller, price);
+}
+
+func BuyMarketplaceNFT(buyer std.Address, compositeTokenId string, ) error {
+	return marketplace.BuyNFT(buyer, grc721f.TokenID(compositeTokenId)) 
+}
+
+func RemoveMarketplaceNFT(compositeTokenID string, seller std.Address) error {
+	return marketplace.RemoveListing(grc721f.TokenID(compositeTokenID), seller)
+}
 
 func ResetGame(gameId string) {
 	//- utility function, nullifies the game[gameId]
