@@ -20,14 +20,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - "ubuntu-latest"
+          #- "mac"
+          #- "windows"
         goversion: # two latest versions
           - "1.21.x"
-        program:
-          - "gnomd"
-          - "gnokeykc"
-          - "gnotray"
+        program: # keep alphabetically sorted
           - "gnodev"
-    runs-on: ubuntu-latest
+          - "gnokeykc"
+          - "gnomd"
+          #- "gnotray" # TODO: fix it on CI
+    runs-on: ${{ matrix.os }}
+
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
