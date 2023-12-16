@@ -10,7 +10,7 @@ http:
     gno-portal-loop-local:
       service: gno-portal-loop
       rule: "Host(`rpc.portal.gno.local`)"
-      entrypoints: ["private"]
+      entrypoints: ["web", "private"]
       middlewares: []
 
     gno-portal-loop:
@@ -25,4 +25,4 @@ http:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://localhost:26657"
+          - url: "http://localhost:32838"

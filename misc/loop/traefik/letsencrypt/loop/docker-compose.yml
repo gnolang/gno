@@ -12,16 +12,16 @@ services:
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.private.address=127.0.0.1:81"
-      # - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      # - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       # - "--entryPoints.web.forwardedHeaders.insecure"
       # - "--entrypoints.traefik.address=:8080"
       - "--entrypoints.traefik.address=127.0.0.1:8080"
 
       - "--entrypoints.websecure.address=:443"
-      # - "--certificatesresolvers.le.acme.tlschallenge=true"
-      - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      # - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
       - "--certificatesresolvers.le.acme.email=dev@gno.land"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
     ports:
@@ -42,31 +42,9 @@ services:
       - gnoweb
       - --bind=localhost:8888
       - --remote=rpc.portal.gno.local:81
-      # - --faucet-url="http://faucet.portal.gno.local:81"
-      - --faucet-url
-      - "http://localhost:9000"
       - --views-dir=./gnoweb/views
-      - --help-chainid
-      - dev
-      - --help-remote
-      - https://rpc.portal.gno.land:443
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1
-
-  # gnofaucet:
-  #   image: gnofaucet
-  #   command:
-  #     -
-  #   environment:
-  #     - VIRTUAL_HOST=faucet.test3.gno.land
-  #     - VIRTUAL_PORT=5050
-  #     - LETSENCRYPT_HOST=faucet.test3.gno.land
-  #     # from .env
-  #     - RECAPTCHA_SECRET_KEY
-  #     - FAUCET_WORDS
-  #     - GNOKEY_PASS
-  #   ports:
-  #     - 5050
 
   snapshotter:
     build:
