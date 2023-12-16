@@ -24,6 +24,9 @@ jobs:
           - "1.21.x"
         program:
           - "gnomd"
+          - "gnokeykc"
+          - "gnotray"
+          - "gnodev"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -31,5 +34,5 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make install ${{ matrix.program }}
+      - run: make install.${{ matrix.program }}
         working-directory: contribs
