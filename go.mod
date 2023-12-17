@@ -29,6 +29,7 @@ require (
 	github.com/rs/cors v1.10.1
 	github.com/stretchr/testify v1.8.4
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
+	gno.land/p/demo v0.0.0-00010101000000-000000000000
 	go.etcd.io/bbolt v1.3.8
 	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.15.0
@@ -69,4 +70,8 @@ require (
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+)
+
+replace (
+	gno.land/p/demo => ./agent/devmock
 )
