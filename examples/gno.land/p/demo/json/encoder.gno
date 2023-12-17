@@ -1,66 +1,52 @@
 package json
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
-// Flatten takes a map and returns a new one where nested maps are replaced
-// by dot-delimited keys.
-func Flatten(m map[string]interface{}) map[string]interface{} {
-	o := make(map[string]interface{})
+// TODO: should use byte slice as input
+func Flatten(m map[string]interface{}) map[string]string {
+	flattened := make(map[string]string)
+	var builder strings.Builder
+
 	for k, v := range m {
-		switch child := v.(type) {
-		case map[string]interface{}:
-			nm := Flatten(child)
-			for nk, nv := range nm {
-				o[k+"."+nk] = nv
-			}
-		default:
-			o[k] = v
-		}
-	}
-	return o
-}
-
-func Unflatten(flatMap map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-
-	for k, v := range flatMap {
-		parts := strings.Split(k, ".")
-		lastIdx := len(parts) - 1
-
-		currentMap := result
-
-		for i, part := range parts {
-			if i == lastIdx {
-				currentMap[part] = v
-			} else {
-				if _, ok := currentMap[part]; !ok {
-					currentMap[part] = make(map[string]interface{})
-				}
-
-				currentMap = currentMap[part].(map[string]interface{})
-			}
-		}
+		flattenValue(k, v, flattened, &builder)
 	}
 
-	return result
+	return flattened
 }
 
-func MapToJSONString(m map[string]interface{}) string {
-    var sb strings.Builder
-    sb.WriteString("{")
-
-    isFirst := true
-    for k, v := range m {
-        if !isFirst {
-            sb.WriteString(", ")
-        }
-        sb.WriteString(fmt.Sprintf("\"%s\": %v", k, v))
-        isFirst = false
-    }
-
-    sb.WriteString("}")
-    return sb.String()
+func flattenValue(prefix string, val interface{}, flattened map[string]string, builder *strings.Builder) {
+	switch child := val.(type) {
+	case map[string]interface{}:
+		for k, v := range child {
+			builder.Reset()
+			builder.WriteString(prefix)
+			builder.WriteString(".")
+			builder.WriteString(k)
+			flattenValue(builder.String(), v, flattened, builder)
+		}
+	case []interface{}:
+		for i, item := range child {
+			builder.Reset()
+			builder.WriteString(prefix)
+			builder.WriteString("[")
+			builder.WriteString(strconv.Itoa(i))
+			builder.WriteString("]")
+			flattenValue(builder.String(), item, flattened, builder)
+		}
+	case string:
+		flattened[prefix] = "string:\"" + child + "\""
+	case int, int32, int64:
+		flattened[prefix] = "number:" + fmt.Sprintf("%d", child)
+	case float32, float64:
+		flattened[prefix] = "number:" + fmt.Sprintf("%f", child)
+	case bool:
+		flattened[prefix] = "boolean:" + fmt.Sprintf("%t", child)
+	default:
+		flattened[prefix] = "unknown"
+	}
 }

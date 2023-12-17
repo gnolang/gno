@@ -1,6 +1,7 @@
 package json
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -50,123 +51,42 @@ func mapsAreEqual(a, b map[string]interface{}) bool {
 }
 
 func TestFlatten(t *testing.T) {
-	tests := []struct {
-		name  string
-		input map[string]interface{}
-		want  map[string]interface{}
+	testCases := []struct {
+		name     string
+		input    map[string]interface{}
+		expected map[string]string
 	}{
 		{
-			name:  "Simple map",
-			input: map[string]interface{}{"a": 1, "b": 2},
-			want:  map[string]interface{}{"a": 1, "b": 2},
-		},
-		{
-			name:  "Nested map",
-			input: map[string]interface{}{"a": map[string]interface{}{"b": 2, "c": 3}},
-			want:  map[string]interface{}{"a.b": 2, "a.c": 3},
-		},
-		{
-			name:  "Empty map",
-			input: map[string]interface{}{},
-			want:  map[string]interface{}{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := Flatten(tt.input)
-			if !equal(got, tt.want) {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestUnflatten(t *testing.T) {
-	tests := []struct {
-		name  string
-		input map[string]interface{}
-		want  map[string]interface{}
-	}{
-		{
-			name: "Simple nested map",
+			name: "Basic Test",
 			input: map[string]interface{}{
-				"a.b": 2,
-				"a.c": 3,
-			},
-			want: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": 2,
-					"c": 3,
-				},
-			},
-		},
-		{
-			name: "Multi-level nested map",
-			input: map[string]interface{}{
-				"a.b.c": 1,
-				"a.b.d": 2,
-			},
-			want: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"c": 1,
-						"d": 2,
+				"user": map[string]interface{}{
+					"name": "John Doe",
+					"age":  30,
+					"address": map[string]interface{}{
+						"street": "123 Main St",
+						"city":   "Anytown",
 					},
+					"favoriteNumbers": []interface{}{7, 13, 42},
 				},
 			},
-		},
-		{
-			name:  "Empty map",
-			input: map[string]interface{}{},
-			want:  map[string]interface{}{},
+			expected: map[string]string{
+				"user.name":               "string:\"John Doe\"",
+				"user.age":                "number:30",
+				"user.address.street":     "string:\"123 Main St\"",
+				"user.address.city":       "string:\"Anytown\"",
+				"user.favoriteNumbers[0]": "number:7",
+				"user.favoriteNumbers[1]": "number:13",
+				"user.favoriteNumbers[2]": "number:42",
+			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := Unflatten(tt.input)
-			if !mapsAreEqual(got, tt.want) {
-				t.Errorf("got %v, want %v", got, tt.want)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := Flatten(tc.input)
+			if !mapsAreEqual(result, tc.expected) {
+				t.Errorf("Expected %v, got %v", tc.expected, result)
 			}
 		})
 	}
-}
-
-func TestMapToJSONString(t *testing.T) {
-    cases := []struct {
-        name     string
-        input    map[string]interface{}
-        expected string
-    }{
-        {
-            name: "Simple Map",
-            input: map[string]interface{}{
-                "a": 1,
-                "b": 2,
-            },
-            expected: "{\"a\": 1, \"b\": 2}",
-        },
-        {
-            name: "Nested Map",
-            input: map[string]interface{}{
-                "a": map[string]interface{}{
-                    "b": 2,
-                    "c": 3,
-                },
-                "d": 4,
-            },
-            expected: "{\"a.b\": 2, \"a.c\": 3, \"d\": 4}",
-        },
-    }
-
-    for _, tc := range cases {
-        t.Run(tc.name, func(t *testing.T) {
-            flattened := Flatten(tc.input)
-            result := MapToJSONString(flattened)
-            if result != tc.expected {
-                t.Errorf("Test %s failed. Expected %s, got %s", tc.name, tc.expected, result)
-            }
-        })
-    }
 }

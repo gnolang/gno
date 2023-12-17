@@ -11,7 +11,7 @@ func findTokenStart(data []byte, token byte) int {
 		switch data[i] {
 		case token:
 			return i
-		case  ArrayStartToken, ObjectStartToken:
+		case ArrayStartToken, ObjectStartToken:
 			return 0
 		}
 	}

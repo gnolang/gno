@@ -287,7 +287,7 @@ func underscoreOK(s string) bool {
 		currentChar := s[i]
 		isDigit := '0' <= currentChar && currentChar <= '9'
 		isHexChar := hex && 'a' <= lower(currentChar) && lower(currentChar) <= 'f'
-	
+
 		if isDigit || isHexChar {
 			saw = '0'
 		} else if currentChar == UnderscoreToken {
@@ -395,85 +395,84 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 }
 
 func ArrayEach(data []byte, callback func(value []byte, dataType ValueType, offset int, err error), keys ...string) (int, error) {
-    if len(data) == 0 {
-        return -1, MalformedObject
-    }
+	if len(data) == 0 {
+		return -1, MalformedObject
+	}
 
-    offset, err := parseInitialOffset(data, keys)
-    if err != nil {
-        return -1, err
-    }
+	offset, err := parseInitialOffset(data, keys)
+	if err != nil {
+		return -1, err
+	}
 
-    return parseArrayElements(data, offset, callback)
+	return parseArrayElements(data, offset, callback)
 }
 
 func parseInitialOffset(data []byte, keys []string) (int, error) {
-    offset, err := nextToken(data)
-    if err != nil {
-        return -1, MalformedJson
-    }
+	offset, err := nextToken(data)
+	if err != nil {
+		return -1, MalformedJson
+	}
 
-    if len(keys) > 0 {
-        offset, err = findValueIndex(data, keys...)
-        if err != nil {
-            return -1, KeyPathNotFoundError
-        }
+	if len(keys) > 0 {
+		offset, err = findValueIndex(data, keys...)
+		if err != nil {
+			return -1, KeyPathNotFoundError
+		}
 
-        if offset, err = parseUntilArrayStart(data, offset); err != nil {
-            return -1, err
-        }
-    }
+		if offset, err = parseUntilArrayStart(data, offset); err != nil {
+			return -1, err
+		}
+	}
 
-    return offset, nil
+	return offset, nil
 }
 
 func parseUntilArrayStart(data []byte, offset int) (int, error) {
-    offset, err := nextToken(data[offset:])
-    if err != nil {
-        return -1, MalformedJson
-    }
+	offset, err := nextToken(data[offset:])
+	if err != nil {
+		return -1, MalformedJson
+	}
 
-    if data[offset] != ArrayStartToken {
-        return -1, MalformedArray
-    }
+	if data[offset] != ArrayStartToken {
+		return -1, MalformedArray
+	}
 
-    return offset + 1, nil
+	return offset + 1, nil
 }
 
 func parseArrayElements(data []byte, offset int, callback func(value []byte, dataType ValueType, offset int, err error)) (int, error) {
-    for data[offset] != ArrayEndToken {
-        value, valueType, valueOffset, err := Get(data[offset:])
-        if err != nil {
-            return offset, err
-        }
+	for data[offset] != ArrayEndToken {
+		value, valueType, valueOffset, err := Get(data[offset:])
+		if err != nil {
+			return offset, err
+		}
 
-        if valueOffset == 0 || valueType == NotExist {
-            break
-        }
+		if valueOffset == 0 || valueType == NotExist {
+			break
+		}
 
-        callback(value, valueType, offset+valueOffset-len(value), err)
+		callback(value, valueType, offset+valueOffset-len(value), err)
 
-        if offset, err = parseNextElementOrEndArray(data, offset+valueOffset); err != nil {
-            return offset, err
-        }
-    }
+		if offset, err = parseNextElementOrEndArray(data, offset+valueOffset); err != nil {
+			return offset, err
+		}
+	}
 
-    return offset, nil
+	return offset, nil
 }
 
 func parseNextElementOrEndArray(data []byte, offset int) (int, error) {
-    offset, err := nextToken(data[offset:])
-    if err != nil {
-        return -1, MalformedArray
-    }
+	offset, err := nextToken(data[offset:])
+	if err != nil {
+		return -1, MalformedArray
+	}
 
-    if data[offset] != ValueSeparatorToken && data[offset] != ArrayEndToken {
-        return -1, MalformedArray
-    }
+	if data[offset] != ValueSeparatorToken && data[offset] != ArrayEndToken {
+		return -1, MalformedArray
+	}
 
-    return offset + 1, nil
+	return offset + 1, nil
 }
-
 
 func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
 	if len(keys) > 0 {
