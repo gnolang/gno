@@ -755,6 +755,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					resn := Preprocess(store, last, n2)
 					return resn, TRANS_CONTINUE
 				}
+
+				// Left and right hand expressions must evaluate to a boolean typed value if
+				// the operation is a logical AND or OR.
+				if (n.Op == LAND || n.Op == LOR) && (lt.Kind() != BoolKind || rt.Kind() != BoolKind) {
+					panic("operands of boolean operators must evaluate to boolean typed values")
+				}
+
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
