@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -222,6 +223,35 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				}
 
 				time.Sleep(d)
+			},
+			"adduser": func(ts *testscript.TestScript, _ bool, args []string) {
+				if len(args) == 0 {
+					ts.Fatalf("new user name required")
+				}
+
+				entropy, err := bip39.NewEntropy(256)
+				if err != nil {
+					ts.Fatalf("error creating entropy: %v", err)
+				}
+
+				mnemonic, err := bip39.NewMnemonic(entropy)
+				if err != nil {
+					ts.Fatalf("error generating mnemonic: %v", err)
+				}
+
+				accountName := args[0]
+				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
+				if err != nil {
+					ts.Fatalf("unable to fetch keybase: %v", err)
+				}
+
+				var keyInfo keys.Info
+				if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
+					ts.Fatalf("unable to create account: %v", err)
+				}
+
+				ts.Setenv("USER_SEED_"+accountName, mnemonic)
+				ts.Setenv("USER_ADDR_"+accountName, keyInfo.GetAddress().String())
 			},
 		},
 	}
