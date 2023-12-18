@@ -3,10 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math/big"
-	"path/filepath"
 	"reflect"
-	"runtime"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -2975,25 +2972,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		return Preprocess(store, last, cd).(Decl), true
 	default:
 		return d, false
-	}
-}
-
-func smallStacktrace() {
-	pc := make([]uintptr, 10) // adjust max number of lines to print
-	pc = pc[:runtime.Callers(2, pc)]
-	frames := runtime.CallersFrames(pc)
-	for {
-		f, more := frames.Next()
-
-		if idx := strings.LastIndexByte(f.Function, '/'); idx >= 0 {
-			f.Function = f.Function[idx+1:]
-		}
-
-		fmt.Printf("%-25s %s\n", fmt.Sprintf("%s:%d", filepath.Base(f.File), f.Line), f.Function)
-
-		if !more {
-			return
-		}
 	}
 }
 

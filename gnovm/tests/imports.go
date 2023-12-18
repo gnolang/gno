@@ -471,13 +471,6 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 
 //----------------------------------------
 
-// NOTE: does not allocate; used for panics.
-func typedString(s string) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
-	tv.V = gno.StringValue(s)
-	return tv
-}
-
 type TestReport struct {
 	Name    string
 	Verbose bool
