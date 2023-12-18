@@ -219,6 +219,7 @@ func init() {
 - Explain the use of state machines
 - Share patterns for setting an initial owner
 - Discuss Test-Driven Development (TDD)
+- write tests efficiently (mixing unit tests, and other tests)
 - Suggest shipping related code to aid review
 - Encourage writing documentation for users, not just developers
 - Discuss the different reasons for exporting/unexporting things
@@ -234,3 +235,4 @@ func init() {
 - Suggest keeping package names short and clear
 - Discuss VERSIONING
 - Suggest using p/ for interfaces and r/ for implementation
+- make your contract mixing onchain, unittest, and run, and eventually client.
