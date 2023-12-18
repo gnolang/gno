@@ -48,9 +48,28 @@ func IncCounter() {
 }
 ```
 
+### Embrace Panic in Gno
+
+In Gno, it's important to know when to return an error and when to use panic.
+Each does something different to your code and data.
+
+When you return an error in Gno, it's like giving back any other piece of data.
+It tells you something went wrong, but it doesn't stop your code or undo any
+changes you made.
+
+But, when you use panic in Gno, it stops your code right away, says it failed,
+and doesn't save any changes you made. This is safer when you want to stop
+everything and not save wrong changes.
+
+In general, it's good to use `panic()` in realms. In reusable packages, you can
+use either panic or errors, depending on what you need.
+
+TODO: suggest MustXXX and AssertXXX flows in p/.
+TODO: snippet.
+
 ## TODO
 
-- Discuss why panic is good
+- Packages vs realms, subpackages, subrealms, internal
 - Explain the importance of init()
 - Elaborate on the benefits of global variables
 - Discuss the advantages of NPM-style small and focused libraries
