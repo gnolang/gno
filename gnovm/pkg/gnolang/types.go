@@ -1471,7 +1471,7 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 			// there is no need to re-set it.
 			// Keep this or move this check outside.
 			if fv.Type.TypeID() == ofv.Type.TypeID() &&
-				fv.Source.GetLocation().Equal(ofv.Source.GetLocation()) {
+				fv.Source.GetLocation() == ofv.Source.GetLocation() {
 				return
 			}
 
