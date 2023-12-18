@@ -42,6 +42,20 @@ After the chain is up and running locally, you can start the faucet by running t
 gnofaucet serve --chain-id dev MyKey
 ```
 
+:::danger Key MyKey not found
+
+If you get the above error, it means that `gnofaucet` is not pointing to the same `-home` directory as `gnokey`.
+
+In order for `gnofaucet` to see your keypairs, it needs to read from the same `-home` directory as `gnokey`. You can pass in the home parameter for `gnofaucet` with `-home <path_to_home>`.
+
+```bash
+gnofaucet serve --chain-id dev MyKey -home <path_to_gnokey_home>
+```
+
+If you don't know where your `gnokey` home directory is, you can run `gnokey --help` to see the path to your home directory.
+
+:::
+
 The command will prompt you to enter the decryption password for the key you've provided.
 
 - **`--chain-id`** - the chain ID of the local running node. The default value is `dev`
