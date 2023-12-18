@@ -64,8 +64,19 @@ everything and not save wrong changes.
 In general, it's good to use `panic()` in realms. In reusable packages, you can
 use either panic or errors, depending on what you need.
 
+```go
+import "std"
+
+func Foobar() {
+    caller := std.GetOrigCaller()
+    if caller != "g1234567890123456789012345678912345678" {
+        panic("permission denied")
+    }
+    // ...
+}
+```
+
 - TODO: suggest MustXXX and AssertXXX flows in p/.
-- TODO: code snippet.
 
 ### Understand the importance of `init()`
 
@@ -237,3 +248,4 @@ func init() {
 - Discuss VERSIONING
 - Suggest using p/ for interfaces and r/ for implementation
 - make your contract mixing onchain, unittest, and run, and eventually client.
+- std.GetOrigCaller vs std.PrevRealm().Addr(), etc
