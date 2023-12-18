@@ -249,3 +249,7 @@ func init() {
 - Suggest using p/ for interfaces and r/ for implementation
 - make your contract mixing onchain, unittest, and run, and eventually client.
 - std.GetOrigCaller vs std.PrevRealm().Addr(), etc
+- go std vs gno std
+- use rand
+- use time
+- use oracles
