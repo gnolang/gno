@@ -15,7 +15,7 @@ import (
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
-		debug.Printf("EVAL: %v\n", x)
+		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.

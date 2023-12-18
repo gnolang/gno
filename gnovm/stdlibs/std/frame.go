@@ -1,4 +1,4 @@
-package stdlibs
+package std
 
 import "github.com/gnolang/gno/tm2/pkg/crypto"
 

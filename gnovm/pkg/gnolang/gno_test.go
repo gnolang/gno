@@ -16,7 +16,9 @@ func TestRunEmptyMain(t *testing.T) {
 	t.Parallel()
 
 	m := NewMachine("test", nil)
-	main := FuncD("main", nil, nil, nil)
+	// []Stmt{} != nil, as nil means that in the source code not even the
+	// brackets are present and is reserved for external (ie. native) functions.
+	main := FuncD("main", nil, nil, []Stmt{})
 	m.RunDeclaration(main)
 	m.RunMain()
 }
