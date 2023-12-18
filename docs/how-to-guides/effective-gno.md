@@ -122,13 +122,21 @@ and properly configured from the get-go.
 
 ### Design Your Realm as a Public API
 
-In Go, packages are often treated as part of your Demilitarized Zone (DMZ), with
-the firewall drawn between your program and the rest of the world. This means
-you secure the API itself, potentially with authentication middlewares.
+In Go, all your packages, including your dependencies, are typically treated as
+part of your safe zone, similar to a secure perimeter. The boundary is drawn
+between your program and the rest of the world, which means you secure the API
+itself, potentially with authentication middlewares.
 
-In Gno, your package is the public API. One approach is to simulate your DMZ by
-having private functions for the logic and then write your API layer by adding
-some front-facing API with authentication.
+However, in Gno, your package is the public API. It's exposed to the outside
+world and can be accessed by other realms. Therefore, it's crucial to design
+your realm with the same level of care and security considerations as you would
+a public API.
+
+One approach is to simulate a secure perimeter within your realm by having
+private functions for the logic and then writing your API layer by adding some
+front-facing API with authentication. This way, you can control access to your
+realm's functionality and ensure that only authorized callers can execute
+certain operations.
 
 ```go
 import "std"
@@ -140,6 +148,13 @@ func PublicMethod(nb int) {
 
 func privateMethod(caller std.Address, nb int) { /* ... */ }
 ```
+
+In this example, `PublicMethod` is a public function that can be called by other
+realms. It retrieves the caller's address using `std.GetOrigCaller()`, and then
+passes it to `privateMethod`, which is a private function that performs the
+actual logic. This way, `privateMethod` can only be called from within the
+realm, and it can use the caller's address for authentication or authorization
+checks.
 
 ### Construct "Safe" Objects
 
