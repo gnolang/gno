@@ -2,13 +2,10 @@
 package crossrealm_test
 
 import (
-	"std"
-	"strings"
-
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
 	rtests "gno.land/r/demo/tests"
-	testfoo "gno.land/r/demo/tests_foo"
+	"std"
 )
 
 func getPrevRealm() std.Realm {

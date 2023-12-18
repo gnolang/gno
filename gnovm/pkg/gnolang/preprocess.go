@@ -2,11 +2,70 @@ package gnolang
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
+
+type f func(t Type) bool
+
+var (
+	binaryPredicates     = make(map[Word]f)
+	unaryPredicates      = make(map[Word]f)
+	IncDecStmtPredicates = make(map[Word]f)
+	AssignStmtPredicates = make(map[Word]f)
+)
+
+func init() {
+	binaryPredicates[ADD] = isNumericOrString
+	binaryPredicates[SUB] = isNumeric
+	binaryPredicates[MUL] = isNumeric
+	binaryPredicates[QUO] = isNumeric
+	binaryPredicates[REM] = isIntNum
+	binaryPredicates[SHL] = isNumeric
+	binaryPredicates[SHR] = isNumeric
+
+	// bit op
+	binaryPredicates[BAND] = isIntNum
+	binaryPredicates[XOR] = isIntNum
+	binaryPredicates[BOR] = isIntNum
+	binaryPredicates[BAND_NOT] = isIntNum
+	// logic op
+	binaryPredicates[LAND] = isBoolean
+	binaryPredicates[LOR] = isBoolean
+
+	// compare
+	binaryPredicates[LSS] = isOrdered
+	binaryPredicates[LEQ] = isOrdered
+	binaryPredicates[GTR] = isOrdered
+	binaryPredicates[GEQ] = isOrdered
+
+	// unary
+	unaryPredicates[ADD] = isNumeric
+	unaryPredicates[SUB] = isNumeric
+	unaryPredicates[XOR] = isIntNum
+	unaryPredicates[NOT] = isBoolean
+
+	// Inc Dec stmt
+	// NOTE: special case to be consistent with op_inc_dec, line3, no float support for now while go does.
+	IncDecStmtPredicates[INC] = isNumeric
+	IncDecStmtPredicates[DEC] = isNumeric
+
+	// assign stmt
+	AssignStmtPredicates[ADD_ASSIGN] = isNumericOrString
+	AssignStmtPredicates[SUB_ASSIGN] = isNumeric
+	AssignStmtPredicates[MUL_ASSIGN] = isNumeric
+	AssignStmtPredicates[QUO_ASSIGN] = isNumeric
+	AssignStmtPredicates[REM_ASSIGN] = isIntNum
+	AssignStmtPredicates[SHL_ASSIGN] = isNumeric
+	AssignStmtPredicates[SHR_ASSIGN] = isNumeric
+	AssignStmtPredicates[BAND_ASSIGN] = isIntNum
+	AssignStmtPredicates[XOR_ASSIGN] = isIntNum
+	AssignStmtPredicates[BOR_ASSIGN] = isIntNum
+	AssignStmtPredicates[BAND_NOT_ASSIGN] = isIntNum
+}
+
+// -------------------------------------------------------------------------------------------
 
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
@@ -177,6 +236,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		if debug {
 			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
+		debugPP.Printf("Preprocess %s, (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 
 		switch stage {
 		// ----------------------------------------
@@ -622,7 +682,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
-			case *NameExpr:
+			case *NameExpr: // e.g. var a int, a is NameExpr
+				debugPP.Println("NameExpr---")
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -733,67 +794,99 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
+				debugPP.Println("basicLitExpr---")
 				// Replace with *ConstExpr.
 				cx := evalConst(store, last, n)
 				return cx, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
+				// TODO: improve readability
+				debugPP.Println("---binaryExpr---, op: ", n.Op)
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
-				if isShift && baseOf(rt) != UintType {
-					// convert n.Right to (gno) uint type,
-					rn := Expr(Call("uint", n.Right))
-					// reset/create n2 to preprocess right child.
-					n2 := &BinaryExpr{
-						Left:  n.Left,
-						Op:    n.Op,
-						Right: rn,
+				// special case of shift
+				if isShift {
+					checkOp(store, last, &n.Left, lt, n.Op, Binary)
+					if baseOf(rt) != UintType {
+						// checkOp(store, last, &n.Left, lt, n.Op, true) // check lt with op, sh*
+						// convert n.Right to (gno) uint type,
+						rn := Expr(Call("uint", n.Right))
+						// reset/create n2 to preprocess right child.
+						n2 := &BinaryExpr{
+							Left:  n.Left,
+							Op:    n.Op,
+							Right: rn,
+						}
+						resn := Preprocess(store, last, n2)
+						return resn, TRANS_CONTINUE
 					}
-					resn := Preprocess(store, last, n2)
-					return resn, TRANS_CONTINUE
 				}
+
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
+				debugPP.Printf("---BinaryExpr---, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				if lic {
 					if ric {
 						// Left const, Right const ----------------------
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
+						// refer to 0a0_filetest
 						if !isShift {
 							cmp := cmpSpecificity(lcx.T, rcx.T)
 							if cmp < 0 {
+								debugPP.Println("cmp < 0, ->")
 								// convert n.Left to right type.
+								checkOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rcx.T, false)
 							} else if cmp == 0 {
-								// NOTE: the following doesn't work.
-								// TODO: make it work.
-								// convert n.Left to right type,
-								// or check for compatibility.
-								// (the other way around would work too)
-								// checkOrConvertType(store, last, n.Left, rcx.T, false)
+								debugPP.Println("cmp == 0")
+								// NOTE: nil manipulation
+								// NOTE: refer to 0f46, this logic convert nil to the corresponding type intentionally, rather than the other way round,
+								// to simplify the logic of comparing in runtime, isEql.
+								// otherwise need to compare undefined with nil value but have specific type in (sliceType, mapType, funcType, PointerType):
+								// lv: (nil main.m), rv: (undefined), this should be comparable and can be equal if the lv value is nil, but complicated
+								// now we have: lv: (nil main.m), rv: (nil main.m), would be simpler to compare.
+								if lcx.T == nil {
+									checkOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Left, rcx.T, false)
+								} else if rcx.T == nil {
+									checkOp(store, last, &n.Right, lcx.T, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Right, lcx.T, false)
+								} else { // default case, choose -> or <- on convenience
+									checkOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Left, rcx.T, false)
+								}
 							} else {
+								debugPP.Println("cmp > 0, <-")
 								// convert n.Right to left type.
+								checkOp(store, last, &n.Right, lcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lcx.T, false)
+							}
+							// check special case: zero divisor
+							if isQuoOrRem(n.Op) {
+								checkOperand(rcx)
 							}
 						}
 						// Then, evaluate the expression.
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
-					} else if isUntyped(lcx.T) {
-						// Left untyped const, Right not ----------------
-						if rnt, ok := rt.(*NativeType); ok {
-							if isShift {
+					} else if isUntyped(lcx.T) { // untyped -> not const
+						debugPP.Printf("left: %v is untyped const, right: %v is not const \n", lt, rt)
+						// Left untyped const, Right not const ----------------
+						if rnt, ok := rt.(*NativeType); ok { // untyped -> gno(native) TODO: check this case
+							if isShift { // RHS of shift should not be native
 								panic("should not happen")
 							}
 							// get concrete native base type.
 							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
+							checkOp(store, last, &n.Left, pt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, pt, false)
-							// convert n.Right to (gno) pt type,
+							// if check pass, convert n.Right to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
 							// and convert result back.
 							tx := constType(n, rnt)
@@ -809,30 +902,38 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
 						} else {
+							debugPP.Println("right not native")
 							if isShift {
 								// nothing to do, right type is (already) uint type.
 								// we don't yet know what this type should be,
 								// but another checkOrConvertType() later does.
 								// (e.g. from AssignStmt or other).
-							} else {
+							} else { // not shift
 								// convert n.Left to right type.
+								checkOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
 						}
-					} else if lcx.T == nil {
+					} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
+						debugPP.Println("lcx.T is nil")
 						// convert n.Left to typed-nil type.
+						checkOp(store, last, &n.Left, rt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Left, rt, false)
+					} else { // left is typed const, right is not const(also typed), and not nil
+						if isShift {
+							// do nothing, final type is bind to left
+							// convertConstType(store, last, &n.Left, lt, false) // bypass check
+						} else { // dir makes sense here, since non-const(right) implies more dynamic(interface)
+							checkOp(store, last, &n.Left, rt, n.Op, Binary)
+							// the other way round should work too
+							checkOrConvertType(store, last, &n.Left, rt, false)
+						}
 					}
-				} else if ric {
+				} else if ric { // right is const, left is not---
 					if isUntyped(rcx.T) {
 						// Left not, Right untyped const ----------------
 						if isShift {
-							if baseOf(rt) != UintType {
-								// convert n.Right to (gno) uint type.
-								checkOrConvertType(store, last, &n.Right, UintType, false)
-							} else {
-								// leave n.Left as is and baseOf(n.Right) as UintType.
-							}
+							// do nothing
 						} else {
 							if lnt, ok := lt.(*NativeType); ok {
 								// get concrete native base type.
@@ -840,6 +941,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
+								checkOp(store, last, &n.Right, pt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, pt, false)
 								// and convert result back.
 								tx := constType(n, lnt)
@@ -856,79 +958,97 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// gno, never with reflect.
 							} else {
 								// convert n.Right to left type.
+								checkOp(store, last, &n.Right, lt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							}
 						}
-					} else if rcx.T == nil {
-						// convert n.Right to typed-nil type.
+					} else if rcx.T == nil { // RHS is nil
+						// TODO: check lt maybeIdentical
+						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
+						//if lnt, ok := lt.(*NativeType); ok {
+						//	if ilnt, ok := baseOf(lnt).(*InterfaceType); ok {
+						//		checkOp(store, last, &n.Right, ilnt, n.Op, Binary)
+						//		checkOrConvertType(store, last, &n.Right, ilnt, false)
+						//	}
+						//}
+						// in case of rcx.T == nil(untyped nil), require lt is maybeNil
+						checkOp(store, last, &n.Right, lt, n.Op, Binary)
+						checkOrConvertType(store, last, &n.Right, lt, false)
+						//// TODO: shift
+						//// convert n.Right to typed-nil type.
+					} else if !isShift { // left not const(typed), right is typed const, both typed
+						checkOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false)
 					}
-				} else {
-					// Left not const, Right not const ------------------
-					if n.Op == EQL || n.Op == NEQ {
-						// If == or !=, no conversions.
-					} else if lnt, ok := lt.(*NativeType); ok {
-						if debug {
-							if !isShift {
-								assertSameTypes(lt, rt)
+					// check special case first
+					if isQuoOrRem(n.Op) {
+						checkOperand(rcx)
+					}
+				} else { // ---both not const---
+					if !isShift {
+						if lnt, ok := lt.(*NativeType); ok {
+							if debug {
+								if !isShift {
+									assertSameTypes(lt, rt) // TODO: what is this for? possible untyped?
+								}
 							}
-						}
-						// If left and right are native type,
-						// convert left and right to gno, then
-						// convert result back to native.
-						//
-						// get concrete native base type.
-						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
-						// convert n.Left to (gno) pt type,
-						ln := Expr(Call(pt.String(), n.Left))
-						// convert n.Right to pt or uint type,
-						rn := n.Right
-						if isShift {
-							if baseOf(rt) != UintType {
-								rn = Expr(Call("uint", n.Right))
-							}
-						} else {
-							rn = Expr(Call(pt.String(), n.Right))
-						}
-						// and convert result back.
-						tx := constType(n, lnt)
-						// reset/create n2 to preprocess
-						// children.
-						n2 := &BinaryExpr{
-							Left:  ln,
-							Op:    n.Op,
-							Right: rn,
-						}
-						resn := Node(Call(tx, n2))
-						resn = Preprocess(store, last, resn)
-						return resn, TRANS_CONTINUE
-						// NOTE: binary operations are always
-						// computed in gno, never with
-						// reflect.
-					} else if n.Op == SHL || n.Op == SHR {
-						// shift operator, nothing yet to do.
-					} else {
-						// non-shift non-const binary operator.
-						liu, riu := isUntyped(lt), isUntyped(rt)
-						if liu {
-							if riu {
-								if lt.TypeID() != rt.TypeID() {
-									panic(fmt.Sprintf(
-										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+							// If left and right are native type,
+							// convert left and right to gno, then
+							// convert result back to native.
+							//
+							// get concrete native base type.
+							pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+							// convert n.Left to (gno) pt type,
+							ln := Expr(Call(pt.String(), n.Left))
+							// convert n.Right to pt or uint type,
+							rn := n.Right
+							if isShift {
+								if baseOf(rt) != UintType {
+									rn = Expr(Call("uint", n.Right))
 								}
 							} else {
-								checkOrConvertType(store, last, &n.Left, rt, false)
+								rn = Expr(Call(pt.String(), n.Right))
 							}
+							// and convert result back.
+							tx := constType(n, lnt)
+							// reset/create n2 to preprocess
+							// children.
+							n2 := &BinaryExpr{
+								Left:  ln,
+								Op:    n.Op,
+								Right: rn,
+							}
+							resn := Node(Call(tx, n2))
+							resn = Preprocess(store, last, resn)
+							return resn, TRANS_CONTINUE
+							// NOTE: binary operations are always
+							// computed in gno, never with
+							// reflect.
 						} else {
-							if riu {
-								checkOrConvertType(store, last, &n.Right, lt, false)
-							} else {
-								// left is untyped, right is not.
-								if lt.TypeID() != rt.TypeID() {
-									panic(fmt.Sprintf(
-										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+							debugPP.Println("lt not native")
+							// non-shift non-const binary operator.
+							liu, riu := isUntyped(lt), isUntyped(rt)
+							if liu {
+								if riu {
+									if lt.TypeID() != rt.TypeID() {
+										panic(fmt.Sprintf(
+											"incompatible types in binary expression: %v %v %v",
+											n.Left, n.Op, n.Right))
+									}
+								} else { // left untyped, right typed
+									debugPP.Println("left untyped, right is typed")
+									checkOp(store, last, &n.Left, rt, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Left, rt, false)
+								}
+							} else if riu { // left typed, right untyped
+								if !isShift {
+									checkOp(store, last, &n.Right, lt, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Right, lt, false)
+								}
+							} else { // both typed vars, refer to 0a1f_filetest
+								if !isShift {
+									checkOp(store, last, &n.Left, rt, n.Op, Binary)
+									checkOrConvertType(store, last, &n.Left, rt, false)
 								}
 							}
 						}
@@ -937,6 +1057,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				debugPP.Printf("---CallExpr---: %v \n", n)
+				//if debugPP {
+				//	rd.PrintStack()
+				//}
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
@@ -944,14 +1068,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *FuncType:
 					ft = cft
 				case *NativeType:
+					debugPP.Println("native type")
 					ft = store.Go2GnoType(cft.Type).(*FuncType)
 				case *TypeType:
+					debugPP.Println("type type")
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
+					var dt Type
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						debugPP.Println("const expr")
 						ct := evalStaticType(store, last, n.Func)
+						if arg0.IsUndefined() { // nil is const
+							switch ct.Kind() {
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
+								dt = ct
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
+						}
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -970,7 +1108,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, nil)
+						convertConst(store, last, arg0, dt)
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
@@ -978,7 +1116,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					} else {
+						debugPP.Println("else")
 						ct := evalStaticType(store, last, n.Func)
+						debugPP.Printf("ct: %v \n", ct)
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
 					}
@@ -1021,6 +1161,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				debugPP.Println("general cases---")
 				// Continue with general case.
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
@@ -1062,6 +1203,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else if !hasVarg {
+					debugPP.Println("no varg")
 					argTVs = evalStaticTypedValues(store, last, n.Args...)
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
@@ -1113,21 +1255,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Check given argument type against required.
 				// Also replace const Args with *ConstExpr unless embedded.
 				if embedded {
+					debugPP.Println("embedded")
 					if isVarg {
 						panic("should not happen")
 					}
 					for i, tv := range argTVs {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
-								checkType(tv.T, spts[len(spts)-1].Type.Elem(), true)
+								checkConvertible(tv.T, spts[len(spts)-1].Type.Elem(), true)
 							} else {
-								checkType(tv.T, spts[i].Type, true)
+								checkConvertible(tv.T, spts[i].Type, true)
 							}
 						} else {
-							checkType(tv.T, spts[i].Type, true)
+							checkConvertible(tv.T, spts[i].Type, true)
 						}
 					}
 				} else {
+					debugPP.Println("no embeded")
 					for i := range n.Args {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
@@ -1135,15 +1279,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									if len(spts) <= i {
 										panic("expected final vargs slice but got many")
 									}
+									debugPP.Println("1")
 									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 								} else {
+									debugPP.Println("2")
 									checkOrConvertType(store, last, &n.Args[i],
 										spts[len(spts)-1].Type.Elem(), true)
 								}
 							} else {
+								debugPP.Println("3")
 								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 							}
 						} else {
+							debugPP.Println("4")
 							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 						}
 					}
@@ -1152,6 +1300,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
+				debugPP.Println("IndexExpr---")
 				dt := evalStaticTypeOf(store, last, n.X)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
@@ -1177,6 +1326,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *SliceExpr:
+				debugPP.Println("SliceExpr---")
 				// Replace const L/H/M with int *ConstExpr,
 				// or if not const, assert integer type..
 				checkOrConvertIntegerType(store, last, n.Low)
@@ -1185,6 +1335,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
+				debugPP.Println("TypeAssertExpr---")
 				if n.Type == nil {
 					panic("should not happen")
 				}
@@ -1194,8 +1345,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
+				debugPP.Println("UnaryExpr---")
 				xt := evalStaticTypeOf(store, last, n.X)
+				debugPP.Printf("---unaryExpr---, op: %v, xt: %v \n", n.Op, xt)
 				if xnt, ok := xt.(*NativeType); ok {
+					debugPP.Println("nativeType")
 					// get concrete native base type.
 					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
 					// convert n.X to gno type,
@@ -1214,10 +1368,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// always computed in gno, never with reflect.
 				}
 				// Replace with *ConstExpr if const X.
-				if isConst(n.X) {
+				// checkOp, like +a, while a should be numeric
+				if cx, ok := n.X.(*ConstExpr); ok {
+					debugPP.Println("not native, ConstExpr")
+					// checkOp, e.g. +a while a should be numeric
+					checkOp(store, last, nil, cx.T, n.Op, Unary)
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
+				checkOp(store, last, nil, xt, n.Op, Unary)
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
@@ -1242,12 +1401,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
-						checkOrConvertType(store, last, &n.Elts[i].Key, IntType, false)
+						// bypass check as a special case
+						convertConstType(store, last, &n.Elts[i].Key, IntType, false)
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := 0; i < len(n.Elts); i++ {
-						checkOrConvertType(store, last, &n.Elts[i].Key, IntType, false)
+						// bypass check as a special case
+						convertConstType(store, last, &n.Elts[i].Key, IntType, false)
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
@@ -1291,11 +1452,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *KeyValueExpr:
+				debugPP.Println("KeyValueExpr---")
 				// NOTE: For simplicity we just
 				// use the *CompositeLitExpr.
 
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
+				debugPP.Println("SelectorExpr---")
 				xt := evalStaticTypeOf(store, last, n.X)
 
 				// Set selector path based on xt's type.
@@ -1444,11 +1607,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *FieldTypeExpr:
+				debugPP.Println("FieldTypeExpr---")
 				// Replace const Tag with default *ConstExpr.
 				convertIfConst(store, last, n.Tag)
 
 			// TRANS_LEAVE -----------------------
 			case *ArrayTypeExpr:
+				debugPP.Println("ArrayTypeExpr---")
 				if n.Len == nil {
 					// Calculate length at *CompositeLitExpr:LEAVE
 				} else {
@@ -1464,38 +1629,47 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *SliceTypeExpr:
+				debugPP.Println("SliceTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *InterfaceTypeExpr:
+				debugPP.Println("InterfaceTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *ChanTypeExpr:
+				debugPP.Println("ChanTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
+				debugPP.Println("FuncTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
+				debugPP.Println("MapTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
+				debugPP.Println("---structTypeExpr---")
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
+				debugPP.Printf("---AssignStmt---, Op: %v, LHS: %v, RHS:%v \n", n.Op, n.Lhs, n.Rhs)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					debugPP.Println("define----")
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, rx)
 					}
 					if len(n.Lhs) > len(n.Rhs) {
+						debugPP.Println("len lhs > len rhs")
 						// Unpack n.Rhs[0] to n.Lhs[:]
 						if len(n.Rhs) != 1 {
 							panic("should not happen")
@@ -1514,6 +1688,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							for i, lx := range n.Lhs {
 								ln := lx.(*NameExpr).Name
 								rf := cft.Results[i]
+								debugPP.Printf("rf.Type: %v \n", rf.Type)
 								// re-definition
 								last.Define(ln, anyValue(rf.Type))
 							}
@@ -1546,7 +1721,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
+						debugPP.Println("else")
 					} else {
+						debugPP.Println("else---")
 						// General case: a, b := x, y
 						for i, lx := range n.Lhs {
 							ln := lx.(*NameExpr).Name
@@ -1562,6 +1739,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else { // ASSIGN.
+					debugPP.Println("assign")
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
@@ -1600,19 +1778,35 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							panic("should not happen")
 						}
 						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
-					} else {
+						// TODO: no need here, like index convert
+						// checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
+						lt := evalStaticTypeOf(store, last, n.Lhs[0])
+						checkOp(store, last, &n.Lhs[0], lt, n.Op, Assign)
+					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
+						// e.g. a += b, single value for lhs and rhs,
+						// TODO: assert length
+						lt := evalStaticTypeOf(store, last, n.Lhs[0])
+						// a += b, requires b -> a conversion
+						checkOp(store, last, &n.Rhs[0], lt, n.Op, Assign)
+						checkOrConvertType(store, last, &n.Rhs[0], lt, true)
+					} else { // all else, like BAND_ASSIGN, etc
+						debugPP.Println("case like: a, b = x, y")
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
-							// converts if rx is "nil".
-							checkOrConvertType(store, last, &n.Rhs[i], lt, false)
+							// is x or y is untyped, convert, else check type
+							// rt := evalStaticTypeOf(store, last, n.Rhs[i])
+							// all else check
+							checkOp(store, last, &n.Rhs[i], lt, n.Op, Assign)
+							checkOrConvertType(store, last, &n.Rhs[i], lt, true)
 						}
 					}
 				}
 
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
+				debugPP.Println("BranchStmt---")
 				switch n.Op {
 				case BREAK:
 				case CONTINUE:
@@ -1638,22 +1832,31 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					panic("should not happen")
 				}
 
+			case *IncDecStmt:
+				debugPP.Println("---IncDecStmt---")
+				xt := evalStaticTypeOf(store, last, n.X)
+				checkOp(store, last, nil, xt, n.Op, IncDec)
+
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
+				debugPP.Println("ForStmt---")
 				// Cond consts become bool *ConstExprs.
 				checkOrConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
+				debugPP.Println("ifStmt---")
 				// Cond consts become bool *ConstExprs.
 				checkOrConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
+				debugPP.Println("RangeStmt---")
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
+				debugPP.Println("ReturnStmt---")
 				fnode, ft := funcOf(last)
 				// Check number of return arguments.
 				if len(n.Results) != len(ft.Results) {
@@ -1744,6 +1947,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				debugPP.Println("ValueDecl---")
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
@@ -1834,6 +2038,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if nx.Name == "_" {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
+							debugPP.Println("define for valDecl---")
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
 						}
@@ -1855,6 +2060,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
+				debugPP.Println("TypeDecl---")
 				// Construct new Type, where any recursive
 				// references refer to the old Type declared
 				// during *TypeDecl:ENTER.  Then, copy over the
@@ -2144,17 +2350,20 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
+	//debugPP.Printf("evalConst, last: %v, x: %v \n", last, x)
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	cv := NewMachine(".dontcare", store)
 	tv := cv.EvalStatic(last, x)
 	cv.Release()
+	//debugPP.Printf("result: %v \n", tv)
 	cx := &ConstExpr{
 		Source:     x,
 		TypedValue: tv,
 	}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)
+	//debugPP.Printf("cx: %+v, source: %v, tv: %v \n", cx, cx.Source, cx.TypedValue)
 	return cx
 }
 
@@ -2267,10 +2476,10 @@ func anyValue(t Type) TypedValue {
 	}
 }
 
-func isConst(x Expr) bool {
-	_, ok := x.(*ConstExpr)
-	return ok
-}
+//func isConst(x Expr) bool {
+//	_, ok := x.(*ConstExpr)
+//	return ok
+//}
 
 func isConstType(x Expr) bool {
 	_, ok := x.(*constTypeExpr)
@@ -2278,6 +2487,7 @@ func isConstType(x Expr) bool {
 }
 
 func cmpSpecificity(t1, t2 Type) int {
+	debugPP.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
 	t1s, t2s := 0, 0
 	if t1p, ok := t1.(PrimitiveType); ok {
 		t1s = t1p.Specificity()
@@ -2295,6 +2505,14 @@ func cmpSpecificity(t1, t2 Type) int {
 	}
 }
 
+// for special case to bypass check for typed -> typed conversion, e.g. array index conversion
+func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+	debugPP.Printf("convertConstType, x: %v, t:%v, \n", x, t)
+	if cx, ok := (*x).(*ConstExpr); ok {
+		convertConst(store, last, cx, t)
+	}
+}
+
 // 1. convert x to t if x is *ConstExpr.
 // 2. otherwise, assert that x can be coerced to t.
 // autoNative is usually false, but set to true
@@ -2302,17 +2520,35 @@ func cmpSpecificity(t1, t2 Type) int {
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerType()
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+	//if debugPP {
+	//	rd.PrintStack()
+	//}
+	debugPP.Printf("checkOrConvertType, x: %v:, t:%v \n", x, t)
+	if nt, ok := t.(*NativeType); ok { // not native type, refer to time4_native.gno
+		debugPP.Printf("gnoType: %v, typeId: %v \n", nt.gnoType, nt.typeid)
+	}
+
 	if cx, ok := (*x).(*ConstExpr); ok {
+		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
+		if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
+			checkConvertible(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
+		}
 		convertConst(store, last, cx, t)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
+		// TODO: check this
+		debugPP.Println("SHL or SHR")
 		// "push" expected type into shift binary's left operand.
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
+		debugPP.Printf("else, xt not nil, xt: %v \n", xt)
+		var conversionNeeded bool
 		if t != nil {
-			checkType(xt, t, autoNative)
+			conversionNeeded = checkConvertible(xt, t, autoNative)
 		}
+		debugPP.Println("need conversion: ", conversionNeeded)
 		if isUntyped(xt) {
+			debugPP.Println("xt untyped")
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
@@ -2333,6 +2569,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// default:
 				}
 			}
+			// general case
+			cx := Expr(Call(constType(nil, t), *x))
+			cx = Preprocess(store, last, cx).(Expr)
+			*x = cx
+		}
+		// cover all declared type case
+		if conversionNeeded {
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
@@ -2348,243 +2591,177 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 }
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
+	debugPP.Printf("------convertConst, cx:%v, t:%v \n", cx, t)
 	if t != nil && t.Kind() == InterfaceKind {
-		t = nil // signifies to convert to default type.
+		debugPP.Println("convert const, t is interface kind")
+		if cx.IsUndefined() {
+			debugPP.Println("convert const, cx is undefined")
+			if _, ok := t.(*NativeType); !ok { // bypass native nil interface
+				debugPP.Println("special case for undefined to interface{}")
+				debugPP.Printf("before convert, cx: %v, cx.T: %v \n", cx, cx.T)
+				ConvertTo(nilAllocator, store, &cx.TypedValue, t)
+				setConstAttrs(cx)
+				debugPP.Printf("after convert, cx: %v, cx.T: %v \n", cx, cx.T)
+				return
+			}
+		}
+		t = nil
 	}
 	if isUntyped(cx.T) {
+		debugPP.Println("convert untyped const")
 		ConvertUntypedTo(&cx.TypedValue, t)
 		setConstAttrs(cx)
 	} else if t != nil {
+		debugPP.Println("convert coerce, t != nil")
 		// e.g. a named type or uint8 type to int for indexing.
 		ConvertTo(nilAllocator, store, &cx.TypedValue, t)
 		setConstAttrs(cx)
 	}
 }
 
-// Assert that xt can be assigned as dt (dest type).
-// If autoNative is true, a broad range of xt can match against
-// a target native dt type, if and only if dt is a native type.
-func checkType(xt Type, dt Type, autoNative bool) {
-	// Special case if dt is interface kind:
-	if dt.Kind() == InterfaceKind {
-		if idt, ok := baseOf(dt).(*InterfaceType); ok {
-			if idt.IsEmptyInterface() {
-				// if dt is an empty Gno interface, any x ok.
-				return // ok
-			} else if idt.IsImplementedBy(xt) {
-				// if dt implements idt, ok.
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"%s does not implement %s",
-					xt.String(),
-					dt.String()))
+func isQuoOrRem(op Word) bool {
+	switch op {
+	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:
+		return true
+	default:
+		return false
+	}
+}
+
+func checkOperand(cx *ConstExpr) {
+	if cx.TypedValue.Sign() == 0 {
+		panic("invalid operation: division by zero")
+	}
+}
+
+func isComparison(op Word) bool {
+	switch op {
+	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+		return true
+	default:
+		return false
+	}
+}
+
+type nodeType int
+
+const (
+	Binary = iota
+	Unary
+	IncDec
+	Assign
+)
+
+// check operand types with operators
+func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType) {
+	debugPP.Printf("checkOp, dt: %v, op: %v, nt: %v \n", dt, op, nt)
+	if nt == Unary || nt == IncDec {
+		switch nt {
+		case Unary:
+			// unary
+			if pred, ok := unaryPredicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+				}
 			}
-		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
-			nidt := ndt.Type
-			if nidt.NumMethod() == 0 {
-				// if dt is an empty Go native interface, ditto.
-				return // ok
-			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
-				// if xt has native base, do the naive native.
-				if nxt.Type.AssignableTo(nidt) {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use %s as %s",
-						nxt.String(),
-						nidt.String()))
+		case IncDec:
+			if pred, ok := IncDecStmtPredicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 				}
-			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
-				nxt, ok := pxt.Elt.(*NativeType)
-				if !ok {
-					panic(fmt.Sprintf(
-						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
-						pxt.String(),
-						nidt.String()))
-				}
-				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use %s as %s",
-						pxt.String(),
-						nidt.String()))
+			}
+		default:
+			panic("should not happen")
+		}
+	} else {
+		var xt Type
+		if cx, ok := (*x).(*ConstExpr); ok {
+			xt = cx.T
+		} else if *x != nil {
+			xt = evalStaticTypeOf(store, last, *x)
+		}
+		switch nt {
+		case Binary:
+			if isComparison(op) {
+				switch op {
+				case EQL, NEQ: // check maybeIdenticalType
+					// NOTE: not checking types strict identical here, unlike ADD, etc
+					// this will pass the case one is interface and the other implements this interface
+					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkConvertible -> assignable
+					if ok, code := maybeIdenticalType(xt, dt); !ok {
+						panic(code)
+					}
+				case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
+					if pred, ok := binaryPredicates[op]; ok {
+						if !pred(dt) {
+							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						}
+					}
+				default:
+					panic("invalid comparison operator")
 				}
 			} else {
-				panic(fmt.Sprintf(
-					"unexpected type pair: cannot use %s as %s",
-					xt.String(),
-					dt.String()))
+				// two steps of check:
+				// first, check is the dt type satisfies op, the switch logic
+				// second, xt can be converted to dt, this is done below this
+				// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
+				if pred, ok := binaryPredicates[op]; ok {
+					if !pred(dt) {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					}
+				}
+				switch op {
+				case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
+					// if both typed
+					if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
+						if xt != nil && dt != nil {
+							if xt.TypeID() != dt.TypeID() {
+								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+							}
+						}
+						debugPP.Println("typed and identical as maybeIdenticalType")
+					}
+				case SHL, SHR:
+				default:
+					// Note: others no check, assign will be check in assignable
+				}
 			}
-		} else {
+		case Assign:
+			if pred, ok := AssignStmtPredicates[op]; ok {
+				if !pred(dt) {
+					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+				}
+				switch op {
+				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+					// if both typed
+					if !isUntyped(xt) { // dt won't be untyped in this case, you won't convert typed to untyped
+						if xt != nil && dt != nil {
+							if xt.TypeID() != dt.TypeID() {
+								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
+							}
+						}
+						debugPP.Println("typed and identical as maybeIdenticalType")
+					}
+				default:
+					// Note: others no check, assign will be check in assignable
+				}
+			}
+		default:
 			panic("should not happen")
 		}
 	}
-	// Special case if xt or dt is *PointerType to *NativeType,
-	// convert to *NativeType of pointer kind.
-	if pxt, ok := xt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		//nolint:misspell
-		if enxt, ok := pxt.Elt.(*NativeType); ok {
-			xt = &NativeType{
-				Type: reflect.PtrTo(enxt.Type),
-			}
-		}
+}
+
+// Assert that xt can be assigned as dt (dest type).
+// If autoNative is true, a broad range of xt can match against
+// a target native dt type, if and only if dt is a native type.
+// TODO: name. convertible is for value, not type, should be check assignable?
+func checkConvertible(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
+	if xt == nil || dt == nil { // refer to 0f18_filetest, assign8.gno
+		debugPP.Println("checkConvertible, xt or dt is nil")
+		return
 	}
-	if pdt, ok := dt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		if endt, ok := pdt.Elt.(*NativeType); ok {
-			dt = &NativeType{
-				Type: reflect.PtrTo(endt.Type),
-			}
-		}
-	}
-	// Special case of xt or dt is *DeclaredType,
-	// allow implicit conversion unless both are declared.
-	// TODO simplify with .IsNamedType().
-	if dxt, ok := xt.(*DeclaredType); ok {
-		if ddt, ok := dt.(*DeclaredType); ok {
-			// types must match exactly.
-			if !dxt.sealed && !ddt.sealed &&
-				dxt.PkgPath == ddt.PkgPath &&
-				dxt.Name == ddt.Name { // not yet sealed
-				return // ok
-			} else if dxt.TypeID() == ddt.TypeID() {
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"cannot use %s as %s without explicit conversion",
-					dxt.String(),
-					ddt.String()))
-			}
-		} else {
-			// special case if implicitly named primitive type.
-			// TODO simplify with .IsNamedType().
-			if _, ok := dt.(PrimitiveType); ok {
-				panic(fmt.Sprintf(
-					"cannot use %s as %s without explicit conversion",
-					dxt.String(),
-					dt.String()))
-			} else {
-				// carry on with baseOf(dxt)
-				xt = dxt.Base
-			}
-		}
-	} else if ddt, ok := dt.(*DeclaredType); ok {
-		// special case if implicitly named primitive type.
-		// TODO simplify with .IsNamedType().
-		if _, ok := xt.(PrimitiveType); ok {
-			panic(fmt.Sprintf(
-				"cannot use %s as %s without explicit conversion",
-				xt.String(),
-				ddt.String()))
-		} else {
-			// carry on with baseOf(ddt)
-			dt = ddt.Base
-		}
-	}
-	// General cases.
-	switch cdt := dt.(type) {
-	case PrimitiveType:
-		// if xt is untyped, ensure dt is compatible.
-		switch xt {
-		case UntypedBoolType:
-			if dt.Kind() == BoolKind {
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"cannot use untyped bool as %s",
-					dt.Kind()))
-			}
-		case UntypedStringType:
-			if dt.Kind() == StringKind {
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"cannot use untyped string as %s",
-					dt.Kind()))
-			}
-		case UntypedRuneType, UntypedBigintType:
-			switch dt.Kind() {
-			case IntKind, Int8Kind, Int16Kind, Int32Kind,
-				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind:
-				return // ok
-			default:
-				panic(fmt.Sprintf(
-					"cannot use untyped rune as %s",
-					dt.Kind()))
-			}
-		default:
-			if isUntyped(xt) {
-				panic("unexpected untyped type")
-			}
-			if xt.TypeID() == cdt.TypeID() {
-				return // ok
-			}
-		}
-	case *PointerType:
-		if pt, ok := xt.(*PointerType); ok {
-			checkType(pt.Elt, cdt.Elt, false)
-			return // ok
-		}
-	case *ArrayType:
-		if at, ok := xt.(*ArrayType); ok {
-			checkType(at.Elt, cdt.Elt, false)
-			return // ok
-		}
-	case *SliceType:
-		if st, ok := xt.(*SliceType); ok {
-			checkType(st.Elt, cdt.Elt, false)
-			return // ok
-		}
-	case *MapType:
-		if mt, ok := xt.(*MapType); ok {
-			checkType(mt.Key, cdt.Key, false)
-			checkType(mt.Value, cdt.Value, false)
-			return // ok
-		}
-	case *FuncType:
-		if xt.TypeID() == cdt.TypeID() {
-			return // ok
-		}
-	case *InterfaceType:
-		panic("should not happen")
-	case *DeclaredType:
-		panic("should not happen")
-	case *StructType, *PackageType, *ChanType:
-		if xt.TypeID() == cdt.TypeID() {
-			return // ok
-		}
-	case *TypeType:
-		if xt.TypeID() == cdt.TypeID() {
-			return // ok
-		}
-	case *NativeType:
-		if !autoNative {
-			if xt.TypeID() == cdt.TypeID() {
-				return // ok
-			}
-		} else {
-			// autoNative, so check whether matches.
-			// xt: any type but a *DeclaredType; could be native.
-			// cdt: actual concrete native target type.
-			// ie, if cdt can match against xt.
-			if gno2GoTypeMatches(xt, cdt.Type) {
-				return // ok
-			}
-		}
-	default:
-		panic(fmt.Sprintf(
-			"unexpected type %s",
-			dt.String()))
-	}
-	panic(fmt.Sprintf(
-		"cannot use %s as %s",
-		xt.String(),
-		dt.String()))
+	return assignable(xt, dt, autoNative)
 }
 
 // Returns any names not yet defined nor predefined in expr.  These happen
@@ -3029,6 +3206,8 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				t = &MapType{}
 			case *StructTypeExpr:
 				t = &StructType{}
+			case *StarExpr:
+				t = &PointerType{}
 			case *NameExpr:
 				if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name

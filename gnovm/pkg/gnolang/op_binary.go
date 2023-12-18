@@ -2,9 +2,8 @@ package gnolang
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/cockroachdb/apd/v3"
+	"math/big"
 )
 
 // ----------------------------------------
@@ -40,14 +39,22 @@ func (m *Machine) doOpBinary1() {
 	}
 }
 
+// XXX. in preprocess stage, we have checked:
+// 1. if dt(type of lhs or rhs, depends on its convert dir);
+// 2. whether lt and rt is identical if they are typed(typeID ==); or if one is not typed, but is
+// assignable to the other side.
+// so, logically, there's no need to check the type equivalence here. leave the check in debug mode.
+// NOTE: one exception is for == and !=, where there's a relaxed scope of operands for compare(maybeIdentical),
+// there might be cases lt and rt is not identical. e.g. two different types conform same interface.
 func (m *Machine) doOpLor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set result in lv.
 	if isUntyped(lv.T) {
 		lv.T = rv.T
@@ -60,9 +67,10 @@ func (m *Machine) doOpLand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set result in lv.
 	if isUntyped(lv.T) {
 		lv.T = rv.T
@@ -71,34 +79,50 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
+	debugPP.Println("doOpEql---")
 	m.PopExpr()
 
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertEqualityTypes(lv.T, rv.T)
+	//if debug {
+	//	assertEqualityTypes(lv.T, rv.T)
+	//}
+	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
+
+	var res bool
+	if isIdenticalType(lv.T, rv.T) {
+		res = isEql(m.Store, lv, rv)
+	} else {
+		debugPP.Println("-----type not identical------")
+		res = false
 	}
 
-	// set result in lv.
-	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
+	debugPP.Println("doOpNeq---")
 	m.PopExpr()
 
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertEqualityTypes(lv.T, rv.T)
-	}
+	//if debug {
+	//	assertEqualityTypes(lv.T, rv.T)
+	//}
+	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
-	// set result in lv.
-	res := !isEql(m.Store, lv, rv)
+	var res bool
+	if isIdenticalType(lv.T, rv.T) {
+		res = !isEql(m.Store, lv, rv)
+	} else {
+		debugPP.Println("-----type not identical------")
+		res = true
+	}
+	debugPP.Println("------res:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -111,9 +135,10 @@ func (m *Machine) doOpLss() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set the result in lv.
 	res := isLss(lv, rv)
 	lv.T = UntypedBoolType
@@ -128,9 +153,10 @@ func (m *Machine) doOpLeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set the result in lv.
 	res := isLeq(lv, rv)
 	lv.T = UntypedBoolType
@@ -145,9 +171,10 @@ func (m *Machine) doOpGtr() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set the result in lv.
 	res := isGtr(lv, rv)
 	lv.T = UntypedBoolType
@@ -162,9 +189,10 @@ func (m *Machine) doOpGeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// set the result in lv.
 	res := isGeq(lv, rv)
 	lv.T = UntypedBoolType
@@ -179,9 +207,10 @@ func (m *Machine) doOpAdd() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// add rv to lv.
 	addAssign(m.Alloc, lv, rv)
 }
@@ -193,9 +222,10 @@ func (m *Machine) doOpSub() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// sub rv from lv.
 	subAssign(lv, rv)
 }
@@ -207,9 +237,10 @@ func (m *Machine) doOpBor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// lv | rv
 	borAssign(lv, rv)
 }
@@ -221,9 +252,10 @@ func (m *Machine) doOpXor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
-
 	// lv ^ rv
 	xorAssign(lv, rv)
 }
@@ -235,7 +267,9 @@ func (m *Machine) doOpMul() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
 
 	// lv * rv
@@ -249,7 +283,9 @@ func (m *Machine) doOpQuo() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
 
 	// lv / rv
@@ -263,7 +299,9 @@ func (m *Machine) doOpRem() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
 
 	// lv % rv
@@ -309,7 +347,9 @@ func (m *Machine) doOpBand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
 
 	// lv & rv
@@ -323,7 +363,9 @@ func (m *Machine) doOpBandn() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		if !isIdenticalType(lv.T, rv.T) {
+			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.T.String(), rv.T.String()))
+		}
 	}
 
 	// lv &^ rv
@@ -335,6 +377,7 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
+	debugPP.Printf("isEql: lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -451,11 +494,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
+		// if debug {
+		if lv.V != nil && rv.V != nil {
+			panic("function can only be compared with `nil`")
 		}
+		//}
 		if _, ok := lv.V.(*BoundMethodValue); ok {
 			// BoundMethodValues are objects so just compare.
 			return lv.V == rv.V
@@ -919,7 +962,7 @@ func remAssign(lv, rv *TypedValue) {
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
-			"operators %% and %%= not defined for %s",
+			"operators rem and rem= not defined for %s",
 			lv.T,
 		))
 	}

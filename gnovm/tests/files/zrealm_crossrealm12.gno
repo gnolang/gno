@@ -2,22 +2,22 @@
 package crossrealm_test
 
 import (
-	"std"
 	"fmt"
+	"std"
 
 	psubtests "gno.land/p/demo/tests/subtests"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
 func main() {
-	tests := []struct{
+	tests := []struct {
 		fn func() std.Realm
 	}{
-		{ std.CurrentRealm },
-		{ psubtests.GetCurrentRealm },
-		{ rsubtests.GetCurrentRealm },
+		{std.CurrentRealm},
+		{psubtests.GetCurrentRealm},
+		{rsubtests.GetCurrentRealm},
 	}
-	
+
 	for _, test := range tests {
 		r := test.fn()
 
