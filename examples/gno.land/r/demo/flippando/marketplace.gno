@@ -71,10 +71,11 @@ func (m *Marketplace) GetListings() string {
             // Handle the case where the value is not a Listing
             return true // Skip this iteration
         }
+		compositeTokenURI := GetCompositeTokenURI(string(listing.CompositeTokenID))
 
         listingResult := &listingResult{
             compositeTokenID: string(listing.CompositeTokenID),
-            basicTokenIDs:    listing.BasicTokenIDs,
+            tokenURI:		  compositeTokenURI,
             seller:           string(listing.Seller),
             price:            strconv.FormatUint(listing.Price, 10),
         }

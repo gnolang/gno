@@ -42,7 +42,7 @@ type compositeNFTMetaData struct {
 
 type listingResult struct {
 	compositeTokenID string `json:"tokenID"`
-    basicTokenIDs    []int64 `json:"basicTokenIDs"`
+    tokenURI    string `json:"tokenURI"`
     seller           string `json:"seller"`
     price            string `json:price"` 
 }
@@ -211,9 +211,9 @@ func (lr listingResult)MarshalJSON() (_ []byte, err error){
 	b.WriteString(lr.compositeTokenID)
 	b.WriteString(`",`)
 
-	b.WriteString(`"basicTokenIDs":[`)
-	b.WriteString(writeIntSlice(lr.basicTokenIDs))
-	b.WriteString(`],`)
+	b.WriteString(`"tokenURI":"`)
+	b.WriteString(lr.tokenURI)
+	b.WriteString(`",`)
 
 	b.WriteString(`"seller":"`)
 	b.WriteString(lr.seller)
