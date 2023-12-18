@@ -406,6 +406,7 @@ func newNode(logger log.Logger, genesis gnoland.GnoGenesisState) (*node.Node, er
 	rootdir := gnoenv.RootDir()
 
 	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
+	nodeConfig.SkipFailingGenesisTxs = true
 	nodeConfig.Genesis.AppState = genesis
 	return gnoland.NewInMemoryNode(logger, nodeConfig)
 }
