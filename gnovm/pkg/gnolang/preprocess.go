@@ -3144,48 +3144,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if un != "" {
 				return
 			}
-
-			/*
-				pkg := packageOf(last)
-
-				// d.Recv's type is defined; add method to DeclaredType.
-				if d.Recv.Name == "" || d.Recv.Name == "_" {
-					// create a hidden var with leading dot.
-					// TODO: document somewhere.
-					d.Recv.Name = ".recv"
-				}
-
-				d.Recv = *Preprocess(store, last, &d.Recv).(*FieldTypeExpr)
-				d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-				rft := evalStaticType(store, last, &d.Recv).(FieldType)
-				rt := rft.Type
-				ft := evalStaticType(store, last, &d.Type).(*FuncType)
-				ft = ft.UnboundType(rft)
-				var dt *DeclaredType
-				if pt, ok := rt.(*PointerType); ok {
-					dt = pt.Elem().(*DeclaredType)
-				} else {
-					dt = rt.(*DeclaredType)
-				}
-				dt.DefineMethod(&FuncValue{
-					Type:       ft,
-					IsMethod:   true,
-					Source:     d,
-					Name:       d.Name,
-					Closure:    nil, // set lazily.
-					FileName:   fileNameOf(last),
-					PkgPath:    pkg.PkgPath,
-					body:       d.Body,
-					nativeBody: nil,
-				})
-			*/
 		} else {
 			// define package-level function.
 			ft := &FuncType{}
-			/*
-				d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-				ft := evalStaticType(store, last, &d.Type).(*FuncType)
-			*/
 			pkg := skipFile(last).(*PackageNode)
 			// special case: if d.Name == "init", assign unique suffix.
 			if d.Name == "init" {
@@ -3197,9 +3158,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
-			// XXX how can this work upon restart?
-			// XXX that is, are upgrades saved/loaded? how?
-			// XXX doesn't matter for tests...
 			fv := &FuncValue{
 				Type:       ft,
 				IsMethod:   false,

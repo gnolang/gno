@@ -275,7 +275,7 @@ func checkDuplicates(fset *FileSet) bool {
 				}
 				name = d.Name
 				if d.IsMethod {
-					name = Name(derefStar(d.Recv.Type).String()) + "." + name
+					name = Name(destar(d.Recv.Type).String()) + "." + name
 				}
 			case *TypeDecl:
 				name = d.Name
@@ -305,7 +305,7 @@ func checkDuplicates(fset *FileSet) bool {
 	return false
 }
 
-func derefStar(x Expr) Expr {
+func destar(x Expr) Expr {
 	if x, ok := x.(*StarExpr); ok {
 		return x.X
 	}
