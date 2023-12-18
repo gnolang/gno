@@ -103,18 +103,92 @@ import (
 
 var (
     created time.Time
-    admin std.Address
+    admin   std.Address
+    list    []string
 )
 
 func init() {
     created = time.Now()
     admin = std.GetOrigCaller()
+    list = append(list, "foo", "bar")
 }
 ```
 
 In essence, `init()` in Gno is your go-to function for setting up and
 registering realms. It's a powerful tool that helps keep your realms organized
 and properly configured from the get-go.
+
+## Gno Good Practices
+
+### Design Your Realm as a Public API
+
+In Go, packages are often treated as part of your Demilitarized Zone (DMZ), with
+the firewall drawn between your program and the rest of the world. This means
+you secure the API itself, potentially with authentication middlewares.
+
+In Gno, your package is the public API. One approach is to simulate your DMZ by
+having private functions for the logic and then write your API layer by adding
+some front-facing API with authentication.
+
+```go
+import "std"
+
+func PublicMethod(nb int) {
+    caller := std.GetOrigCaller()
+    privateMethod(caller, nb)
+}
+
+func privateMethod(caller std.Address, nb int) { /* ... */ }
+```
+
+### Construct "Safe" Objects
+
+A safe object in Gno is an object that is designed to be tamper-proof and
+secure. It's created with the intent of preventing unauthorized access and
+modifications. This follows the same principle of making a package an API, but
+for a Go object that can be directly referenced by other realms.
+
+The goal is to create an object which, once instantiated, can be linked and its
+pointer can be "stored" by other realms without issue, because it protects its
+usage completely.
+
+```go
+type MySafeStruct {
+    counter nb
+    admin std.Address
+}
+
+func NewSafeStruct() *MySafeStruct {
+    caller := std.GetOrigCaller()
+    return &MySafeStruct{
+        counter: 0,
+        admin: caller,
+    }
+}
+
+func (s *MySafeStruct) Counter() int { return s.counter }
+func (s *MySafeStruct) Inc() {
+    caller := std.GetOrigCaller()
+    if caller != s.admin {
+        panic("permission denied")
+    }
+    s.counter++
+}
+```
+
+Then, you can register this object in another or several other realms so other
+realms can access the object, but still following your own rules.
+
+```go 
+import "gno.land/r/otherrealm"
+
+func init() {
+    mySafeObj := NewSafeStruct()
+    otherrealm.Register(mySafeObject)
+}
+
+// then, otherrealm can call the public functions but won't be the "owner" of the object.
+```
 
 ## TODO
 
@@ -123,7 +197,6 @@ and properly configured from the get-go.
 - Discuss the advantages of NPM-style small and focused libraries
 - Describe how versioning is different in Gno
 - Explain why exporting a variable is unsafe; instead, suggest creating getters and setters that check for permission to update
-- Discuss the possibility of safe objects
 - Explain how to export an object securely
 - Discuss the future of code generation
 - Provide examples of unoptimized / gas inefficient code
