@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/avl"
 )
 
 var (
@@ -72,7 +73,10 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 // it is used in marketplace
 func TransferCompositeNFT(from, to std.Address, tid string) error {
 	// check owner
-	owner := flipCompositeNFT.OwnerOf(grc721f.TokenID(tid))
+	owner, oerr := flipCompositeNFT.OwnerOf(grc721f.TokenID(tid))
+	if oerr != nil {
+		return error("owner retriving error")
+	}
 	if owner != from {
 		return error("Is not owner")
 	}
@@ -84,7 +88,7 @@ func TransferCompositeNFT(from, to std.Address, tid string) error {
 	bTokenIDs := GetChildrenOf(tid)
 	for _, t := range bTokenIDs {
 		tokenID := grc721f.TokenID(tid)
-		flipBasicNFT.Transfer(from, to, tokenID)
+		flipBasicNFT.TransferFrom(from, to, tokenID)
 	}
 	return nil
 }
@@ -101,7 +105,7 @@ func GetCompositeTokenURI(tokenID string) string {
 func GetChildrenOf(tokenID string) []int64 {
 	childrenOf, exists := children.Get(tokenID)
 	if exists {
-		return childrenOf;
+		return []int64(childrenOf);
 	}
 	return nil
 }

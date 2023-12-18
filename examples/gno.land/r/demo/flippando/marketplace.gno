@@ -28,7 +28,7 @@ func NewMarketplace() *Marketplace {
 
 func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Address, price uint64) error {
     // get tokenURI of the composite NFT
-	basicTokenIDs := GetChildrenOf(string(CompositeTokenID))
+	basicTokenIDs := GetChildrenOf(string(compositeTokenID))
 	
 	// Create a new listing
     newListing := Listing{

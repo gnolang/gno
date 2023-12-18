@@ -144,7 +144,7 @@ func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
 		fUpdatedPrice := fPrice - uint64(randomPercentage)
 		flipToken.Transfer(from, recipient, fUpdatedPrice)
 		flipToBurn := fPrice - fUpdatedPrice
-		flipToken.Burn(flipToBurn)
+		flipToken.Burn(from, flipToBurn)
 	} else {
 		panic("not enough available balance")
 	}

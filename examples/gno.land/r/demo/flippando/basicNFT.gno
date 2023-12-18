@@ -99,7 +99,7 @@ func GetBasicTokenURI(tokenID string) string {
 func GetParentdOf(tokenId string) string {
 	parentTokenId, exists := childOf.Get(tokenId)
 	if exists {
-		return parentTokenId;
+		return string(parentTokenId);
 	} 
 	return nil
 }
@@ -112,7 +112,7 @@ func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) er
 	}
 	// remove from locked NFTs
 	lockedNFTs.Remove(tid)
-	childOf.set(tid, parentTid)
+	childOf.Set(tid, parentTid)
 	return nil
 }
 
