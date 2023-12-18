@@ -14,6 +14,7 @@ var (
 	flipBasicNFT	= grc721f.NewBasicNFT("Flippando Basic NFT", "BFLP")
 	basicNFTtokenIDCounter	uint64
 	lockedNFTs avl.Tree // tokenId -> flipAmount
+	childOf avl.Tree // tokenId -> parent (composite) tokenId
 )
 
 func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
@@ -95,7 +96,15 @@ func GetBasicTokenURI(tokenID string) string {
 	return string(tokenURI);
 }
 
-func UnlockAndTransferNFT(from, to std.Address, tid string) error {
+func GetParentdOf(tokenId string) string {
+	parentTokenId, exists := childOf.Get(tokenId)
+	if exists {
+		return parentTokenId;
+	} 
+	return nil
+}
+
+func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
 	tokenId := grc721f.TokenID(tid)
 	err := flipBasicNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
@@ -103,6 +112,7 @@ func UnlockAndTransferNFT(from, to std.Address, tid string) error {
 	}
 	// remove from locked NFTs
 	lockedNFTs.Remove(tid)
+	childOf.set(tid, parentTid)
 	return nil
 }
 

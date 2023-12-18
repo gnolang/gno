@@ -13,6 +13,7 @@ import (
 var (
 	flipCompositeNFT	= grc721f.NewBasicNFT("Flippando Composite NFT", "CFLP")
 	compositeNFTtokenIDCounter	uint64
+	children avl.Tree // compositeNFT tokenId -> []int64 basicNFTs tokenIds
 )
 
 /** 
@@ -46,13 +47,14 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		// iterate through the array and transfer the nft with tokenID to player
 		// unlock the token and transfer it to basic nftOwner FLIP balance
 		for _, t := range bTokenIDs {
-			tidString := strconv.FormatInt(t, 10)
-			flipBasicOwner := GetOwnerOfBasicNFT(tidString)
-			UnlockAndTransferNFT(flipBasicOwner, player, tidString)
-			UnlockAndTransferFLIP(flipBasicOwner, tidString)
+			basicTidString := strconv.FormatInt(t, 10)
+			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)
+			UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
+			UnlockAndTransferFLIP(flipBasicOwner, basicTidString)
 		}
 		// set compositeNFT tokenURI
 		flipCompositeNFT.SetTokenURI(tid, grc721f.TokenURI(flipCompositeNFTMetaDataJSON))
+		children.Set(tidString, bTokenIDs)
 		result = string(flipCompositeNFTMetaDataJSON)
 	}
 	res := &nftResult{
@@ -68,11 +70,21 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 }
 
 // it is used in marketplace
-func TransferCompositeNFTToBuyer(from, to std.Address, tid string) error {
+func TransferCompositeNFT(from, to std.Address, tid string) error {
+	// check owner
+	owner := flipCompositeNFT.OwnerOf(grc721f.TokenID(tid))
+	if owner != from {
+		return error("Is not owner")
+	}
 	tokenId := grc721f.TokenID(tid)
 	err := flipCompositeNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
 		return err
+	}
+	bTokenIDs := GetChildrenOf(tid)
+	for _, t := range bTokenIDs {
+		tokenID := grc721f.TokenID(tid)
+		flipBasicNFT.Transfer(from, to, tokenID)
 	}
 	return nil
 }
@@ -84,6 +96,14 @@ func GetCompositeTokenURI(tokenID string) string {
 		return "error"
 	}
 	return string(tokenURI);
+}
+
+func GetChildrenOf(tokenID string) []int64 {
+	childrenOf, exists := children.Get(tokenID)
+	if exists {
+		return childrenOf;
+	}
+	return nil
 }
 
 func GetUserCompositeFlipNFTs(addr std.Address) string {

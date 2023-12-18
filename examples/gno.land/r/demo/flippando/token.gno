@@ -138,11 +138,13 @@ func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
 
 	lockedFLIPBalance := getUserLockedBalances(from)
 
-	if (totalFLIPBalance - lockedFLIPBalance >= fPrice) {
-		// add logic for burning a random amount from the fPrice
+	// logic for burning a random amount from the fPrice
+	if (totalFLIPBalance - lockedFLIPBalance >= fPrice) {	
 		randomPercentage := flippandoserver.GenerateRandomNumbers(1, 1, 50, time.Now().Unix())
 		fUpdatedPrice := fPrice - uint64(randomPercentage)
 		flipToken.Transfer(from, recipient, fUpdatedPrice)
+		flipToBurn := fPrice - fUpdatedPrice
+		flipToken.Burn(flipToBurn)
 	} else {
 		panic("not enough available balance")
 	}

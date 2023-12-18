@@ -28,12 +28,7 @@ func NewMarketplace() *Marketplace {
 
 func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Address, price uint64) error {
     // get tokenURI of the composite NFT
-	cTokenURIString := GetCompositeTokenURI(string(compositeTokenID));
-	
-	basicTokenIDs, uerr := parseBTokenIDs(cTokenURIString)
-    if uerr != nil {
-        error("can't parse bTokenIDs")
-    }
+	basicTokenIDs := GetChildrenOf(string(CompositeTokenID))
 	
 	// Create a new listing
     newListing := Listing{
@@ -107,7 +102,7 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721f.TokenID
     TransferFLIPToSeller(buyer, listing.Seller, listing.Price)
 
     // Use the specific function to transfer the composite NFT
-    err := TransferCompositeNFTToBuyer(listing.Seller, buyer, string(compositeTokenID))
+    err := TransferCompositeNFT(listing.Seller, buyer, string(compositeTokenID))
     if err != nil {
         return err
     }
