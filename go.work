@@ -1,0 +1,17 @@
+go 1.20
+
+use (
+	.
+
+	// other
+	./contribs/gnodev
+	./contribs/gnokeykc
+	./contribs/gnomd
+
+	// gno
+	./gno.land
+	./gnovm
+	./misc
+	./misc/devdeps
+	./tm2
+)
