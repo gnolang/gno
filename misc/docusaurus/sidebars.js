@@ -38,6 +38,33 @@ const sidebars = {
         },
         {
             type: 'category',
+            label: 'Concepts',
+            items: [
+                'concepts/realms',
+                'concepts/packages',
+                'concepts/tendermint2',
+                'concepts/gnovm',
+                'concepts/proof-of-contribution',
+                'concepts/gno-language',
+                'concepts/gno-modules',
+                'concepts/gno-test',
+                'concepts/from-go-to-gno',
+
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Gno Tooling',
+            items: [
+                'concepts/gno-tooling/cli/gno-tooling-gno',
+                'concepts/gno-tooling/cli/gno-tooling-gnokey',
+                'concepts/gno-tooling/cli/gno-tooling-gnofaucet',
+                'concepts/gno-tooling/cli/gno-tooling-gnoland',
+                'concepts/gno-tooling/cli/gno-tooling-tm2txsync',
+            ]
+        },
+        {
+            type: 'category',
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
@@ -77,31 +104,6 @@ const sidebars = {
                         'reference/gno-js-client/gno-js-getting-started',
                         'reference/gno-js-client/gno-js-provider',
                         'reference/gno-js-client/gno-js-wallet',
-                    ]
-                },
-            ],
-        },
-        {
-            type: 'category',
-            label: 'Explanation',
-            items: [
-                'explanation/realms',
-                'explanation/tendermint2',
-                'explanation/gnovm',
-                'explanation/proof-of-contribution',
-                'explanation/gno-language',
-                'explanation/gno-modules',
-                'explanation/gno-test',
-                'explanation/from-go-to-gno',
-                {
-                    type: 'category',
-                    label: 'Gno Tooling',
-                    items: [
-                        'explanation/gno-tooling/cli/gno-tooling-gno',
-                        'explanation/gno-tooling/cli/gno-tooling-gnokey',
-                        'explanation/gno-tooling/cli/gno-tooling-gnofaucet',
-                        'explanation/gno-tooling/cli/gno-tooling-gnoland',
-                        'explanation/gno-tooling/cli/gno-tooling-tm2txsync',
                     ]
                 },
             ],
