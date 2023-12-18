@@ -71,7 +71,7 @@ jobs:
 
       - name: Check go.mods
         run: |
-          set -e
+          set -xe
           # Find all go.mod files
           gomods=$(find . -type f -name go.mod)
           
