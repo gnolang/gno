@@ -82,12 +82,35 @@ In Gno, `init()` primarily serves two purposes:
    registry pattern. This means you import another realm and call a method.
 2. It configures the initial state, i.e., global variables.
 
-- TODO: code snippet about registering.
+```go
+import "gno.land/r/some/registry"
+
+func init() {
+    registry.Register("myID", myCallback)
+}
+
+func myCallback(a, b string) { /* ... */ }
+```
 
 A common use case could be to set the "admin" as the caller uploading the
 package.
 
-- TODO: code snippet about configuring global variables.
+```go
+import (
+    "std"
+    "time"
+)
+
+var (
+    created time.Time
+    admin std.Address
+)
+
+func init() {
+    created = time.Now()
+    admin = std.GetOrigCaller()
+}
+```
 
 In essence, `init()` in Gno is your go-to function for setting up and
 registering realms. It's a powerful tool that helps keep your realms organized
