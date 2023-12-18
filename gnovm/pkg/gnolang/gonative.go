@@ -359,12 +359,16 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
 func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
+	debugPP.Printf("go2GnoValue---, rv: %v \n", rv)
 	if !rv.IsValid() {
 		return
 	}
 	if rv.Kind() == reflect.Interface {
-		if rv.IsNil() {
-			return TypedValue{}
+		if rv.IsNil() { // special case, nil interface, interface(nil) differs nil in types, but equal
+			return TypedValue{
+				T: (&InterfaceType{}),
+			}
+			//return TypedValue{}
 		} else {
 			rv = rv.Elem()
 		}
@@ -437,6 +441,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 // reflection, any child Gno declared types cannot change
 // types, and pointer values cannot change.
 func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
+	debugPP.Println("go2GnoValueUpdate---")
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -901,7 +906,7 @@ func gno2GoType(t Type) reflect.Type {
 
 // If gno2GoTypeMatches(t, rt) is true, a t value can
 // be converted to an rt native value using gno2GoValue(v, rv).
-// This is called when autoNative is true in checkConvertable().
+// This is called when autoNative is true in checkConvertible().
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
 func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
@@ -1405,6 +1410,7 @@ func (m *Machine) doOpStructLitGoNative() {
 // NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
 func (m *Machine) doOpCallGoNative() {
+	debugPP.Println("doOpCallGoNative---")
 	fr := m.LastFrame()
 	fv := fr.GoFunc
 	ft := fv.Value.Type()

@@ -14,6 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
+	debugPP.Printf("--------------ConvertTo, tv: %v, t: %v \n", tv, t)
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -32,7 +33,9 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	ntv, tvIsNat := tv.T.(*NativeType)
 	nt, tIsNat := t.(*NativeType)
 	if tvIsNat {
+		debugPP.Println("tvIsNat")
 		if tIsNat {
+			debugPP.Println("t IsNat")
 			// both NativeType, use reflect to assert.
 			if debug {
 				if !ntv.Type.ConvertibleTo(nt.Type) {
@@ -44,6 +47,8 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			debugPP.Println("t not IsNat")
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
@@ -73,10 +78,17 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
+		if tv.IsUndefined() { // set interface type
+			if _, ok := t.(*NativeType); !ok {
+				debugPP.Println("t is interface and not native")
+				tv.T = t
+			}
+		}
 		return
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
+		debugPP.Println("case of undefined")
 		tv.T = t
 		return
 	}
@@ -877,7 +889,7 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	debugPP.Printf("ConvertUntypedTo, tv:%v, t:%v \n", tv, t)
+	debugPP.Printf("------ConvertUntypedTo, tv:%v, t:%v \n", tv, t)
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(

@@ -2,9 +2,8 @@ package gnolang
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/cockroachdb/apd/v3"
+	"math/big"
 )
 
 // ----------------------------------------
@@ -80,7 +79,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	debugPP.Println("doOpEql")
+	debugPP.Println("doOpEql---")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -105,7 +104,7 @@ func (m *Machine) doOpEql() {
 }
 
 func (m *Machine) doOpNeq() {
-	debugPP.Println("doOpNeq")
+	debugPP.Println("doOpNeq---")
 	m.PopExpr()
 
 	// get right and left operands.
@@ -123,6 +122,7 @@ func (m *Machine) doOpNeq() {
 		debugPP.Println("-----type not identical------")
 		res = true
 	}
+	debugPP.Println("------res:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -377,6 +377,7 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
+	debugPP.Printf("isEql: lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()

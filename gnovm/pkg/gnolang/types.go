@@ -257,11 +257,11 @@ func (pt PrimitiveType) TypeID() TypeID {
 	}
 }
 
-type predicate int
+type category int
 
 const (
-	IsInvalid           = 0
-	IsBoolean predicate = 1 << iota
+	IsInvalid          = 0
+	IsBoolean category = 1 << iota
 	IsInteger
 	IsUnsigned
 	IsFloat
@@ -277,8 +277,8 @@ const (
 	// IsConstType = IsBoolean | IsNumeric | IsString
 )
 
-// predicate makes it more convenient than compare with types
-func (pt PrimitiveType) predicate() predicate {
+// category makes it more convenient than compare with types
+func (pt PrimitiveType) predicate() category {
 	switch pt {
 	case InvalidType:
 		return IsInvalid
@@ -384,7 +384,7 @@ func isIntNum(t Type) bool {
 //func isIntOrUint(t Type) bool {
 //	switch t := baseOf(t).(type) {
 //	case PrimitiveType:
-//		if t.predicate() != IsInvalid && t.predicate()&IsInteger != 0 || t.predicate()&IsUnsigned != 0 || t.predicate()&IsRune != 0 {
+//		if t.category() != IsInvalid && t.category()&IsInteger != 0 || t.category()&IsUnsigned != 0 || t.category()&IsRune != 0 {
 //			return true
 //		}
 //		return false
@@ -2289,13 +2289,21 @@ func isIdenticalType(lt, rt Type) bool {
 		//	// one is untyped of same kind.
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
-		// left is databyte of same kind,
+		// left is databyteinvalide operation of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
 	} else if lt.TypeID() == rt.TypeID() {
 		debugPP.Println("typeID equal")
 		// non-nil types are identical.
+	} else if ilt, ok := baseOf(lt).(*InterfaceType); ok {
+		if ilt.IsEmptyInterface() {
+			return true
+		}
+	} else if irt, ok := baseOf(rt).(*InterfaceType); ok {
+		if irt.IsEmptyInterface() {
+			return true
+		}
 	} else {
 		return false
 	}
@@ -2330,8 +2338,7 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// XXX: maybeIdenticalType is a more strict check than assertSameTypes, refer to 0f20_filetest.gno,
-// maybeIdenticalType is relaxed than isIdentical in preprocess.
+// maybeIdenticalType is more relaxed than isIdentical, it's used in preprocess.
 // The logic here is, when != or == shows up, check if t is maybeIdenticalType, if yes,
 // then check the corresponding type(the other side of the operator) is convertable to t.
 func maybeIdenticalType(xt, dt Type) (bool, string) {
@@ -2345,7 +2352,15 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 		// TODO: check at least length here
 		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
-			return true, ""
+			switch cxt := baseOf(xt).(type) {
+			case *ArrayType:
+				if cxt.Len != cdt.Len {
+					return false, fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt)
+				}
+				return true, ""
+			default:
+				return false, fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt)
+			}
 		default:
 			return false, fmt.Sprintf("%v cannot be compared \n", cdt)
 		}
@@ -2363,7 +2378,7 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 		return true, ""
 	case *InterfaceType:
 		return true, ""
-	case *SliceType, *FuncType, *MapType: // TODO: check only comparable with nil
+	case *SliceType, *FuncType, *MapType:
 		if xt != nil {
 			return false, fmt.Sprintf("%v can only be compared to nil \n", dt)
 		} else {
@@ -2372,17 +2387,23 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 		}
 	case *NativeType:
 		if cdt.Type.Comparable() {
+			debugPP.Printf("cdt type: %v \n", cdt.Type)
 			return true, ""
 		}
+		debugPP.Printf("not comparable, cdt type: %v \n", cdt.Type)
 		return false, fmt.Sprintf("%v is not comparable \n", dt)
-	case nil: // TODO: have this case? targe type is nil?
+	case nil: // refer to 0a01_filetest, 0f32_filetest.
+		debugPP.Println("dt is nil")
 		switch cxt := baseOf(xt).(type) {
-		case *SliceType, *FuncType, *MapType, *InterfaceType:
+		case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+			debugPP.Printf("dt is nil, cxt: %v \n", cxt)
 			return true, ""
 		default:
-			return false, fmt.Sprintf("invalide operation, %v can only be compared to hasNil \n", cxt)
+			debugPP.Printf("default, dt is nil, cxt: %v \n", cxt)
+			return false, fmt.Sprintf("invalid operation, nil can not be compared to nil \n")
 		}
 	default:
+		debugPP.Printf("default: cdt: %v \n", cdt)
 		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	}
 }
@@ -2955,7 +2976,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkConvertable(spec, match.Elem(), false)
+					checkConvertible(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2969,7 +2990,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkConvertable(spec, match, false)
+					checkConvertible(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {

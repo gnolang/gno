@@ -278,7 +278,13 @@ func printNilOrValue(tv *TypedValue, valueType interface{}) string {
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
 	if tv.IsUndefined() {
-		return "(undefined)"
+		var n string
+		if tv.T == nil {
+			n = "nil"
+		} else {
+			n = tv.T.String()
+		}
+		return "(undefined)" + " " + n
 	}
 	vs := ""
 	if tv.V == nil {
