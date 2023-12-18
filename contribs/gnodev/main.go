@@ -128,7 +128,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths, gnoroot)
+	devNode, err := setupDevNode(ctx, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
