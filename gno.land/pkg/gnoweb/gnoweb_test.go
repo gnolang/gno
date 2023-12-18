@@ -1,4 +1,4 @@
-package main
+package gnoweb
 
 import (
 	"fmt"
@@ -48,14 +48,14 @@ func TestRoutes(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
+	cfg := NewDefaultConfig()
+
+	logger := log.TestingLogger()
+
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
-	flags.RemoteAddr = remoteAddr
-	flags.HelpChainID = "dev"
-	flags.CaptchaSite = ""
-	flags.ViewsDir = "../../cmd/gnoweb/views"
-	flags.WithAnalytics = false
-	app := makeApp()
+	cfg.RemoteAddr = remoteAddr
+	app := MakeApp(logger, cfg)
 
 	for _, r := range routes {
 		t.Run(fmt.Sprintf("test route %s", r.route), func(t *testing.T) {
@@ -63,6 +63,7 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
+
 			assert.Contains(t, response.Body.String(), r.substring)
 			// println(response.Body.String())
 		})
@@ -96,13 +97,17 @@ func TestAnalytics(t *testing.T) {
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
-	flags.ViewsDir = "../../cmd/gnoweb/views"
+	cfg := NewDefaultConfig()
+	cfg.RemoteAddr = remoteAddr
+
+	logger := log.TestingLogger()
+
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				flags.RemoteAddr = remoteAddr
-				flags.WithAnalytics = true
-				app := makeApp()
+				ccfg := cfg // clone config
+				ccfg.WithAnalytics = true
+				app := MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
@@ -113,9 +118,9 @@ func TestAnalytics(t *testing.T) {
 	t.Run("without", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
-				flags.RemoteAddr = remoteAddr
-				flags.WithAnalytics = false
-				app := makeApp()
+				ccfg := cfg // clone config
+				ccfg.WithAnalytics = false
+				app := MakeApp(logger, ccfg)
 				request := httptest.NewRequest(http.MethodGet, route, nil)
 				response := httptest.NewRecorder()
 				app.Router.ServeHTTP(response, request)
