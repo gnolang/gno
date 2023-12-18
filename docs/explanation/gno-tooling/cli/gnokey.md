@@ -208,13 +208,17 @@ gnokey maketx call \
 
 #### **makeCallTx Options**
 
-| Name      | Type       | Description                      |
-| --------- | ---------- | -------------------------------- |
-| `send`    | String     | The amount of coins to send.     |
-| `pkgpath` | String     | The package path (required).     |
-| `func`    | String     | The contract to call (required). |
-| `args`    | String \[] | The arguments of the contract.   |
+| Name      | Type   | Description                                                                                                                                          |
+|-----------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `send`    | String | The amount of coins to send.                                                                                                                         |
+| `pkgpath` | String | The package path (required).                                                                                                                         |
+| `func`    | String | The contract to call (required).                                                                                                                     |
+| `args`    | String | An argument of the function being called. Can be used multiple times in a single `call` command to accommodate possible multiple function arguments. |
 
+:::info
+Currently, only primitive types are supported as `-args` parameters. This limitation will be addressed in the future.
+Alternatively, see how `maketx run` works.
+:::
 
 ### `send`
 
