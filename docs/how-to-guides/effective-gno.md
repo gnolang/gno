@@ -50,7 +50,7 @@ func IncCounter() {
 
 ### Embrace Panic in Gno
 
-In Gno, it's important to know when to return an error and when to use panic.
+In Gno, it's important to know when to return an `error` and when to use `panic()`.
 Each does something different to your code and data.
 
 When you return an error in Gno, it's like giving back any other piece of data.
@@ -64,13 +64,38 @@ everything and not save wrong changes.
 In general, it's good to use `panic()` in realms. In reusable packages, you can
 use either panic or errors, depending on what you need.
 
-TODO: suggest MustXXX and AssertXXX flows in p/.
-TODO: snippet.
+- TODO: suggest MustXXX and AssertXXX flows in p/.
+- TODO: code snippet.
+
+### Understand the importance of `init()`
+
+In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
+automatically triggered when a new realm is added onchain, making it a one-time
+setup tool for the lifetime of a realm.
+
+Unlike Go, where `init()` is used for tasks like setting up database
+connections, configuring logging, or initializing global variables every time
+you start a program, in Gno, `init()` is executed once per realm's lifetime.
+
+In Gno, `init()` primarily serves two purposes:
+1. It registers your new realm on a new realm. This is typically done using the
+   registry pattern. This means you import another realm and call a method.
+2. It configures the initial state, i.e., global variables.
+
+- TODO: code snippet about registering.
+
+A common use case could be to set the "admin" as the caller uploading the
+package.
+
+- TODO: code snippet about configuring global variables.
+
+In essence, `init()` in Gno is your go-to function for setting up and
+registering realms. It's a powerful tool that helps keep your realms organized
+and properly configured from the get-go.
 
 ## TODO
 
 - Packages vs realms, subpackages, subrealms, internal
-- Explain the importance of init()
 - Elaborate on the benefits of global variables
 - Discuss the advantages of NPM-style small and focused libraries
 - Describe how versioning is different in Gno
