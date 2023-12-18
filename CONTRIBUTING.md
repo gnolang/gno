@@ -52,7 +52,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ### Environment
 
-The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
+The gno repository is primarily based on Golang (Go) and Gnolang (Gno).
 
 The primary tech stack for working on the repository:
 
@@ -273,7 +273,7 @@ your PR's comments if you don't).
 
 Additionally, we have a few testing systems that stray from this general rule;
 at the time of writing, these are for integration tests and language tests. You
-can find more documentation about them [on this guide](gno/docs/testing-guide.md).
+can find more documentation about them [on this guide](docs/testing-guide.md).
 
 ### Repository Structure
 

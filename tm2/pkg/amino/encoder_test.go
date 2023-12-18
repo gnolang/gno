@@ -7,6 +7,8 @@ import (
 )
 
 func TestUvarintSize(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name string
 		u    uint64
@@ -22,7 +24,10 @@ func TestUvarintSize(t *testing.T) {
 		{"64 bits", 1 << 63, 10},
 	}
 	for i, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			require.Equal(t, tc.want, UvarintSize(tc.u), "#%d", i) //nolint:scopelint
 		})
 	}

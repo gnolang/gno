@@ -879,7 +879,6 @@ type InterfaceType struct {
 }
 
 // General empty interface.
-var gEmptyInterfaceType *InterfaceType = &InterfaceType{}
 
 func (it *InterfaceType) IsEmptyInterface() bool {
 	return len(it.Methods) == 0

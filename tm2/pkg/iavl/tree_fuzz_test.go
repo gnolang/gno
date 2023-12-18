@@ -105,6 +105,8 @@ func genRandomProgram(size int) *program {
 
 // Generate many programs and run them.
 func TestMutableTreeFuzz(t *testing.T) {
+	t.Parallel()
+
 	maxIterations := testFuzzIterations
 	progsPerIteration := 100000
 	iterations := 0

@@ -13,6 +13,8 @@ import (
 
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	// []Stmt{} != nil, as nil means that in the source code not even the
 	// brackets are present and is reserved for external (ie. native) functions.
@@ -23,6 +25,8 @@ func TestRunEmptyMain(t *testing.T) {
 
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	c := `package test
 func main() {
@@ -37,7 +41,78 @@ func main() {
 	m.RunMain()
 }
 
+func TestDoOpEvalBaseConversion(t *testing.T) {
+	m := NewMachine("test", nil)
+
+	type testCase struct {
+		input     string
+		expect    string
+		expectErr bool
+	}
+
+	testCases := []testCase{
+		// binary
+		{input: "0b101010", expect: "42", expectErr: false},
+		{input: "0B101010", expect: "42", expectErr: false},
+		{input: "0b111111111111111111111111111111111111111111111111111111111111111", expect: "9223372036854775807", expectErr: false},
+		{input: "0b0", expect: "0", expectErr: false},
+		{input: "0b000000101010", expect: "42", expectErr: false},
+		{input: " 0b101010", expectErr: true},
+		{input: "0b", expectErr: true},
+		{input: "0bXXXX", expectErr: true},
+		{input: "42b0", expectErr: true},
+		// octal
+		{input: "0o42", expect: "34", expectErr: false},
+		{input: "0o0", expect: "0", expectErr: false},
+		{input: "042", expect: "34", expectErr: false},
+		{input: "0777", expect: "511", expectErr: false},
+		{input: "0O0000042", expect: "34", expectErr: false},
+		{input: "0777777777777777777777", expect: "9223372036854775807", expectErr: false},
+		{input: "0o777777777777777777777", expect: "9223372036854775807", expectErr: false},
+		{input: "048", expectErr: true},
+		{input: "0o", expectErr: true},
+		{input: "0oXXXX", expectErr: true},
+		{input: "0OXXXX", expectErr: true},
+		{input: "0o42x42", expectErr: true},
+		{input: "0O42x42", expectErr: true},
+		{input: "0420x42", expectErr: true},
+		{input: "0o420o42", expectErr: true},
+		// hex
+		{input: "0x2a", expect: "42", expectErr: false},
+		{input: "0X2A", expect: "42", expectErr: false},
+		{input: "0x7FFFFFFFFFFFFFFF", expect: "9223372036854775807", expectErr: false},
+		{input: "0x2a ", expectErr: true},
+		{input: "0x", expectErr: true},
+		{input: "0xXXXX", expectErr: true},
+		{input: "0xGHIJ", expectErr: true},
+		{input: "0x42o42", expectErr: true},
+		{input: "0x2ax42", expectErr: true},
+		// decimal
+		{input: "42", expect: "42", expectErr: false},
+		{input: "0", expect: "0", expectErr: false},
+		{input: "0000000000", expect: "0", expectErr: false},
+		{input: "9223372036854775807", expect: "9223372036854775807", expectErr: false},
+	}
+
+	for _, tc := range testCases {
+		m.PushExpr(&BasicLitExpr{
+			Kind:  INT,
+			Value: tc.input,
+		})
+
+		if tc.expectErr {
+			assert.Panics(t, func() { m.doOpEval() })
+		} else {
+			m.doOpEval()
+			v := m.PopValue()
+			assert.Equal(t, v.V.String(), tc.expect)
+		}
+	}
+}
+
 func TestEval(t *testing.T) {
+	t.Parallel()
+
 	m := NewMachine("test", nil)
 	c := `package test
 func next(i int) int {
@@ -66,6 +141,8 @@ func assertOutput(t *testing.T, input string, output string) {
 }
 
 func TestRunMakeStruct(t *testing.T) {
+	t.Parallel()
+
 	assertOutput(t, `package test
 type Outfit struct {
 	Scarf string
@@ -92,6 +169,8 @@ func main() {
 }
 
 func TestRunReturnStruct(t *testing.T) {
+	t.Parallel()
+
 	assertOutput(t, `package test
 type MyStruct struct {
 	FieldA string
@@ -162,6 +241,8 @@ type Struct1 struct {
 }
 
 func TestModifyTypeAsserted(t *testing.T) {
+	t.Parallel()
+
 	x := Struct1{1, 1}
 	var v interface{} = x
 	x2 := v.(Struct1)
@@ -178,6 +259,8 @@ type Interface1 interface {
 }
 
 func TestTypeConversion(t *testing.T) {
+	t.Parallel()
+
 	x := 1
 	var v interface{} = x
 	if _, ok := v.(Interface1); ok {
@@ -195,6 +278,8 @@ func TestTypeConversion(t *testing.T) {
 }
 
 func TestSomething(t *testing.T) {
+	t.Parallel()
+
 	type Foo struct {
 		X interface{}
 	}
@@ -212,6 +297,8 @@ func TestSomething(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestDeferOrder(t *testing.T) {
+	t.Parallel()
+
 	a := func() func(int, int) int {
 		fmt.Println("a constructed")
 		return func(x int, y int) int {
@@ -240,6 +327,8 @@ func TestDeferOrder(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallOrder(t *testing.T) {
+	t.Parallel()
+
 	a := func() func(int, int) int {
 		fmt.Println("a constructed")
 		return func(x int, y int) int {
@@ -266,6 +355,8 @@ func TestCallOrder(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestBinaryShortCircuit(t *testing.T) {
+	t.Parallel()
+
 	tr := func() bool {
 		fmt.Println("t called")
 		return true
@@ -283,6 +374,8 @@ func TestBinaryShortCircuit(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestSwitchDefine(t *testing.T) {
+	t.Parallel()
+
 	var x interface{} = 1
 	switch y := x.(type) {
 	case int:
@@ -294,6 +387,8 @@ func TestSwitchDefine(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestBinaryCircuit(t *testing.T) {
+	t.Parallel()
+
 	tr := func() bool {
 		fmt.Println("tr() called")
 		return true
@@ -318,6 +413,8 @@ func TestBinaryCircuit(t *testing.T) {
 }
 
 func TestMultiAssignment(t *testing.T) {
+	t.Parallel()
+
 	buf := make([]int, 4)
 	ref := func(i int) *int {
 		fmt.Printf("ref(%v) called\n", i)
@@ -344,6 +441,8 @@ func TestMultiAssignment(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallLHS(t *testing.T) {
+	t.Parallel()
+
 	x := 1
 	xptr := func() *int {
 		return &x
@@ -354,6 +453,8 @@ func TestCallLHS(t *testing.T) {
 
 // XXX is there a way to test in Go as well as Gno?
 func TestCallFieldLHS(t *testing.T) {
+	t.Parallel()
+
 	type str struct {
 		X int
 	}

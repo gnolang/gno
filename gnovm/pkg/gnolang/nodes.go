@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1103,8 +1102,8 @@ func PackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir, pkgPath string) *std.MemPackage {
-	files, err := ioutil.ReadDir(dir)
+func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}

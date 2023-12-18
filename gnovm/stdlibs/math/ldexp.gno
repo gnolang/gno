@@ -13,11 +13,6 @@ package math
 //	Ldexp(±Inf, exp) = ±Inf
 //	Ldexp(NaN, exp) = NaN
 func Ldexp(frac float64, exp int) float64 {
-	/* XXX
-	if haveArchLdexp {
-		return archLdexp(frac, exp)
-	}
-	*/
 	return ldexp(frac, exp)
 }
 

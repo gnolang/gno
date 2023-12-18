@@ -11,8 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
-
 // return nil if package doesn't exist.
 type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
 
@@ -644,7 +642,7 @@ func (ds *defaultStore) Flush() {
 	// XXX
 }
 
-//----------------------------------------
+// ----------------------------------------
 // StoreOp
 
 type StoreOpType uint8
@@ -741,7 +739,7 @@ func (ds *defaultStore) Print() {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // backend keys
 
 func backendObjectKey(oid ObjectID) string {
@@ -773,7 +771,7 @@ func backendPackagePathKey(path string) string {
 	return fmt.Sprintf("pkg:" + path)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // builtin types and packages
 
 func InitStoreCaches(store Store) {

@@ -770,6 +770,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					resn := Preprocess(store, last, n2)
 					return resn, TRANS_CONTINUE
 				}
+
+				// Left and right hand expressions must evaluate to a boolean typed value if
+				// the operation is a logical AND or OR.
+				if (n.Op == LAND || n.Op == LOR) && (lt.Kind() != BoolKind || rt.Kind() != BoolKind) {
+					panic("operands of boolean operators must evaluate to boolean typed values")
+				}
+
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
@@ -3442,23 +3449,6 @@ func elideCompositeExpr(vx *Expr, vt Type) {
 	}
 }
 
-// returns true of x is exactly `nil`.
-func isNilExpr(x Expr) bool {
-	if nx, ok := x.(*NameExpr); ok {
-		return nx.Name == nilStr
-	}
-	return false
-}
-
-func isNilComparableKind(k Kind) bool {
-	switch k {
-	case SliceKind, MapKind, FuncKind:
-		return true
-	default:
-		return false
-	}
-}
-
 // returns number of args, or if arg is a call result,
 // the number of results of the return tuple type.
 func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
@@ -3476,13 +3466,6 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	} else {
 		return 1
 	}
-}
-
-func mergeNames(a, b []Name) []Name {
-	c := make([]Name, len(a)+len(b))
-	copy(c, a)
-	copy(c[len(a):], b)
-	return c
 }
 
 // This is to be run *after* preprocessing is done,

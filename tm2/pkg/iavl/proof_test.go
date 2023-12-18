@@ -15,6 +15,8 @@ import (
 )
 
 func TestTreeGetWithProof(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	require := require.New(t)
 	for _, ikey := range []byte{0x11, 0x32, 0x50, 0x72, 0x99} {
@@ -49,6 +51,8 @@ func TestTreeGetWithProof(t *testing.T) {
 }
 
 func TestTreeKeyExistsProof(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	root := tree.WorkingHash()
 
@@ -115,6 +119,8 @@ func TestTreeKeyExistsProof(t *testing.T) {
 }
 
 func TestTreeKeyInRangeProofs(t *testing.T) {
+	t.Parallel()
+
 	tree := NewMutableTree(db.NewMemDB(), 0)
 	require := require.New(t)
 	keys := []byte{0x0a, 0x11, 0x2e, 0x32, 0x50, 0x72, 0x99, 0xa1, 0xe4, 0xf7} // 10 total.

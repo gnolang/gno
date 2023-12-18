@@ -31,6 +31,8 @@ var responseTests = []responseTest{
 }
 
 func TestResponses(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	for _, tt := range responseTests {
 		jsonid := tt.id
@@ -52,6 +54,8 @@ func TestResponses(t *testing.T) {
 }
 
 func TestUnmarshallResponses(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	for _, tt := range responseTests {
 		response := &RPCResponse{}
@@ -66,6 +70,8 @@ func TestUnmarshallResponses(t *testing.T) {
 }
 
 func TestRPCError(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "RPC error 12 - Badness: One worse than a code 11",
 		fmt.Sprintf("%v", &RPCError{
 			Code:    12,
