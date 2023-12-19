@@ -4,9 +4,11 @@ id: packages
 
 # Packages
 
-Packages encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries.
+Packages aim to encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries. As opposed to realms, they are stateless.
 
-The full list of available packages can be found in [the demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
+Typically deployed under `../p/demo`, packages 
+
+The full list of pre-deployed available packages can be found under the [demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
 
 ## `avl`
 

@@ -4,12 +4,11 @@ id: overview
 
 # Overview
 
-The Gno standard library contains two main categories:
+The Gno Standard Library
 - Standard libraries as we know them in Golang, i.e. `"encoding/binary`, `strings` etc. 
 - The `std` package, which contains blockchain-specific types and functionalities, like the [Banker](./banker.md), [coins](./coins.md), addresses, etc.
-    
 
-## Ways to access Gno.land documentation
+## Accessing Gno.land documentation
 
 Apart from the official documentation you are currently reading, you can also access documentation for the standard
 libraries in several other different ways. You can obtain a list of all the available standard libraries with the following commands:
