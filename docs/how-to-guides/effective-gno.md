@@ -108,9 +108,8 @@ connections, configuring logging, or initializing global variables every time
 you start a program, in Gno, `init()` is executed once per realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
-1. It registers your new realm on a new realm. This is typically done using the
-   registry pattern. This means you import another realm and call a method.
-2. It configures the initial state, i.e., global variables.
+1. It establishes the initial state, specifically, setting up global variables.
+2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
 import "gno.land/r/some/registry"
