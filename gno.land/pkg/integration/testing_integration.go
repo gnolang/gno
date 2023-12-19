@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -18,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
@@ -72,6 +74,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	nodes := map[string]*testNode{}
+
+	// Track new user balances added via the `adduser` command. These are added to the genesis
+	// state when the node is started.
+	var newUserBalances []gnoland.Balance
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
@@ -128,7 +134,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				}
 
 				logger := ts.Value("_logger").(log.Logger) // grab logger
-				sid := ts.Getenv("SID")                    // grab session id
+				sid := getNodeSID(ts)                      // grab session id
 
 				var cmd string
 				cmd, args = args[0], args[1:]
@@ -136,7 +142,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				var err error
 				switch cmd {
 				case "start":
-					if _, ok := nodes[sid]; ok {
+					if nodeIsRunning(nodes, sid) {
 						err = fmt.Errorf("node already started")
 						break
 					}
@@ -146,6 +152,16 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// Generate config and node
 					cfg, _ := TestingNodeConfig(t, gnoRootDir)
+
+					// Add balances for users added via the `adduser` command.
+					genesis := cfg.Genesis
+					genesisState := gnoland.GnoGenesisState{
+						Balances: genesis.AppState.(gnoland.GnoGenesisState).Balances,
+						Txs:      genesis.AppState.(gnoland.GnoGenesisState).Txs,
+					}
+					genesisState.Balances = append(genesisState.Balances, newUserBalances...)
+					cfg.Genesis.AppState = genesisState
+
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
@@ -224,7 +240,12 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				time.Sleep(d)
 			},
+			// adduser commands must be executed before starting the node; it errors out otherwise.
 			"adduser": func(ts *testscript.TestScript, _ bool, args []string) {
+				if nodeIsRunning(nodes, getNodeSID(ts)) {
+					ts.Fatalf("adduser must be used before starting node")
+				}
+
 				if len(args) == 0 {
 					ts.Fatalf("new user name required")
 				}
@@ -250,11 +271,28 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("unable to create account: %v", err)
 				}
 
+				address := keyInfo.GetAddress()
+				newUserBalances = append(
+					newUserBalances,
+					gnoland.Balance{
+						Address: address,
+						Amount:  std.Coins{std.NewCoin("ugnot", 1000000000000000000)},
+					},
+				)
 				ts.Setenv("USER_SEED_"+accountName, mnemonic)
-				ts.Setenv("USER_ADDR_"+accountName, keyInfo.GetAddress().String())
+				ts.Setenv("USER_ADDR_"+accountName, address.String())
 			},
 		},
 	}
+}
+
+func getNodeSID(ts *testscript.TestScript) string {
+	return ts.Getenv("SID")
+}
+
+func nodeIsRunning(nodes map[string]*testNode, sid string) bool {
+	_, ok := nodes[sid]
+	return ok
 }
 
 func getTestingLogger(env *testscript.Env, logname string) (log.Logger, error) {
