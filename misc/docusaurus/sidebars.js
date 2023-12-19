@@ -42,6 +42,15 @@ const sidebars = {
             items: [
                 'concepts/realms',
                 'concepts/packages',
+                {
+                    type: 'category',
+                    label: 'Gno Standard Library',
+                    items: [
+                        'concepts/standard-library/overview',
+                        'concepts/standard-library/banker',
+                        'concepts/standard-library/coin',
+                    ]
+                },
                 'concepts/tendermint2',
                 'concepts/gnovm',
                 'concepts/proof-of-contribution',
@@ -67,7 +76,6 @@ const sidebars = {
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
-                'reference/standard-library',
                 'reference/go-gno-compatibility',
                 {
                     type: 'category',
