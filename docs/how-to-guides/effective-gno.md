@@ -96,11 +96,12 @@ func Foobar() {
 
 - TODO: suggest MustXXX and AssertXXX flows in p/.
 
-### Understand the importance of `init()`
+### Understand the Importance of `init()`
 
 In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
 automatically triggered when a new realm is added onchain, making it a one-time
-setup tool for the lifetime of a realm.
+setup tool for the lifetime of a realm. In essence, `init()` acts as a
+constructor for your realm.
 
 Unlike Go, where `init()` is used for tasks like setting up database
 connections, configuring logging, or initializing global variables every time
@@ -145,7 +146,8 @@ func init() {
 
 In essence, `init()` in Gno is your go-to function for setting up and
 registering realms. It's a powerful tool that helps keep your realms organized
-and properly configured from the get-go.
+and properly configured from the get-go. Acting as a constructor, it sets the
+stage for the rest of your realm's lifecycle.
 
 ## Gno Good Practices
 
