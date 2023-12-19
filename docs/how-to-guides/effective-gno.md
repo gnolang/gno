@@ -268,6 +268,55 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
+### Using avl.Tree for Efficient Data Retrieval
+
+In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
+retrieval. It works by lazily resolving information, which means it only loads
+the data you need when you need it. This allows you to scale your application
+and pay less gas for data retrieval.
+
+The `avl.Tree` can be used like a map, where you can store key-value pairs and
+retrieve an entry with a simple key. However, unlike a traditional map, the
+`avl.Tree` doesn't load unnecessary data. This makes it particularly efficient
+for large data sets where you only need to access a small subset of the data at
+a time.
+
+Here's an example of how you can use `avl.Tree`:
+
+```go
+import "avl"
+
+var tree avl.Tree
+
+func GetPost(id string) *Post {
+    return tree.Get(id).(*Post)
+}
+
+func AddPost(id string, post *Post) {
+    tree.Set(id, post)
+}
+```
+
+In this example, `GetPost` is a function that retrieves a post from the
+`avl.Tree` using an ID. It only loads the post with the specified ID, without
+loading any other posts.
+
+In the future, we plan to add internal "map" support that will be as efficient
+as an `avl.Tree` but with a more idiomatic API. For now, consider storing things
+in slices when you know the structure will stay small, and consider using
+`avl.Tree` each time you can make direct access.
+
+You can also create SQL-like indexes by having multiple `avl.Tree` instances for
+different fields. For example, you can have an `avl.Tree` for ID to *post, then
+an `avl.Tree` for Tags, etc. Then, you can create reader methods that will just
+retrieve what you need, similar to SQL indexes.
+
+By using `avl.Tree` and other efficient data structures, you can optimize your
+Gno code for performance and cost-effectiveness, making your applications more
+scalable and efficient.
+
+TODO: multi-indices example
+
 ### Construct "Safe" Objects
 
 A safe object in Gno is an object that is designed to be tamper-proof and
