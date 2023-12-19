@@ -303,7 +303,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
 	logger := tmlog.NewTMLogger(nodeOut)
