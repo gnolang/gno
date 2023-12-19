@@ -328,11 +328,14 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
-			w.Add(1)
 
 			go func() {
-				cm := m.DeepCopy()
-				cm.TestFunc(&w, t, tv)
+				if tv.T.Kind() == FuncKind &&
+					strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
+					w.Add(1)
+					cm := m.DeepCopy()
+					cm.TestFunc(&w, t, tv)
+				}
 			}()
 		}
 		w.Wait()
@@ -354,11 +357,15 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
-			w.Add(1)
 
 			go func() {
-				cm := m.DeepCopy()
-				cm.TestFunc(&w, t, tv)
+				if tv.T.Kind() == FuncKind &&
+					strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
+					w.Add(1)
+					cm := m.DeepCopy()
+
+					cm.TestFunc(&w, t, tv)
+				}
 			}()
 		}
 		w.Wait()
@@ -448,6 +455,7 @@ func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
 		)
 		//fmt.Printf("x::: %+v\n", x)
 		res := m.Eval(x)
+		//panic(res)
 		ret := res[0].GetString()
 		if ret == "" {
 			t.Errorf("failed to execute unit test: %q", name)
@@ -486,7 +494,7 @@ func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
 
 // in case of panic, inject location information to exception.
 func (m *Machine) injectLocOnPanic() {
-	return
+	//return
 	if r := recover(); r != nil {
 		// Show last location information.
 		// First, determine the line number of expression or statement if any.

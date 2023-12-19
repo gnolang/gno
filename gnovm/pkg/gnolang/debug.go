@@ -22,7 +22,7 @@ type debugging bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
-var debug debugging = false
+var debug debugging = true
 
 func init() {
 	debug = os.Getenv("DEBUG") == "1"

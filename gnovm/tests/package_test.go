@@ -84,6 +84,7 @@ func runPackageTest(t *testing.T, dir string, path string) {
 		Store:   store,
 		Context: nil,
 	})
+
 	m.TestMemPackagePar(t, memPkg)
 
 	// Check that machine is empty.
