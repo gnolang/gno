@@ -314,11 +314,15 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		tid := t.TypeID()
-		xtid := xt.TypeID()
-		// assert that x is of type.
-		same := tid == xtid
-		if same {
+		// xt may be nil in case of the nil type; in which case we should
+		// return the zero value as a normal failed assertion.
+		// otherwise, perform assertion ensuring TypeIDs match.
+		valid := xt != nil
+		if valid {
+			// assert that x is of type.
+			valid = t.TypeID() == xt.TypeID()
+		}
+		if valid {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {

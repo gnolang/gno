@@ -229,7 +229,8 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 		bitSize = IntSize
 	}
 
-	cutoff := uint64(1 << uint(bitSize-1))
+	// XXX: https://github.com/gnolang/gno/issues/1462
+	cutoff := uint64(uint64(1) << uint(bitSize-1))
 	if !neg && un >= cutoff {
 		return int64(cutoff - 1), rangeError(fnParseInt, s0)
 	}

@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv_test
+package strconv
 
 import (
-	"runtime"
-	. "strconv"
 	"strings"
 	"testing"
 )
@@ -14,6 +12,7 @@ import (
 var (
 	globalBuf [64]byte
 	nextToOne = "1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1"
+	oneMB     = make([]byte, 1e6)
 
 	mallocTest = []struct {
 		count int
@@ -44,27 +43,23 @@ var (
 	}
 )
 
-var oneMB []byte // Will be allocated to 1MB of random data by TestCountMallocs.
-
-func TestCountMallocs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping malloc count in short mode")
-	}
-	if runtime.GOMAXPROCS(0) > 1 {
-		t.Skip("skipping; GOMAXPROCS>1")
-	}
-	// Allocate a big messy buffer for AppendQuoteToASCII's test.
-	oneMB = make([]byte, 1e6)
-	for i := range oneMB {
-		oneMB[i] = byte(i)
-	}
-	for _, mt := range mallocTest {
-		allocs := testing.AllocsPerRun(100, mt.fn)
-		if max := float64(mt.count); allocs > max {
-			t.Errorf("%s: %v allocs, want <=%v", mt.desc, allocs, max)
-		}
-	}
-}
+// XXX: removed due to lack of AllocsPerRun
+// func TestCountMallocs(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip("skipping malloc count in short mode")
+// 	}
+// 	// Allocate a big messy buffer for AppendQuoteToASCII's test.
+// 	oneMB = make([]byte, 1e6)
+// 	for i := range oneMB {
+// 		oneMB[i] = byte(i)
+// 	}
+// 	for _, mt := range mallocTest {
+// 		allocs := testing.AllocsPerRun(100, mt.fn)
+// 		if max := float64(mt.count); allocs > max {
+// 			t.Errorf("%s: %v allocs, want <=%v", mt.desc, allocs, max)
+// 		}
+// 	}
+// }
 
 // Sink makes sure the compiler cannot optimize away the benchmarks.
 var Sink struct {
@@ -77,6 +72,7 @@ var Sink struct {
 	Bytes   []byte
 }
 
+/* XXX: removed due to lack of AllocsPerRun
 func TestAllocationsFromBytes(t *testing.T) {
 	const runsPerTest = 100
 	bytes := struct{ Bool, Number, String, Buffer []byte }{
@@ -123,6 +119,7 @@ func TestAllocationsFromBytes(t *testing.T) {
 		Sink.Bytes = AppendQuoteToGraphic(bytes.Buffer[:0], string(bytes.String))
 	}))
 }
+*/
 
 func TestErrorPrefixes(t *testing.T) {
 	_, errInt := Atoi("INVALID")

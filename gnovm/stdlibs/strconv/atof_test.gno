@@ -520,6 +520,15 @@ func errEqual(e1, e2 error) bool {
 	return e1.Error() == e2.Error()
 }
 
+func printError(err error) string {
+	// XXX: gonative fns (like fmt.Printf, t.Errorf...) do not support printing errors
+	// and it would be very complicated to add. hence we're simplifying them to strings here.
+	if err == nil {
+		return "<nil>"
+	}
+	return err.Error()
+}
+
 func testAtof(t *testing.T, opt bool) {
 	initAtof()
 	oldopt := SetOptimize(opt)
@@ -529,7 +538,7 @@ func testAtof(t *testing.T, opt bool) {
 		outs := FormatFloat(out, 'g', -1, 64)
 		if outs != test.out || !errEqual(err, test.err) {
 			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
-				test.in, out, err, test.out, test.err)
+				test.in, out, printError(err), test.out, printError(err))
 		}
 
 		if float64(float32(out)) == out {
@@ -542,7 +551,7 @@ func testAtof(t *testing.T, opt bool) {
 			outs := FormatFloat(float64(out32), 'g', -1, 32)
 			if outs != test.out || !errEqual(err, test.err) {
 				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
-					test.in, out32, err, test.out, test.err, out)
+					test.in, out32, printError(err), test.out, printError(test.err), out)
 			}
 		}
 	}
@@ -556,7 +565,7 @@ func testAtof(t *testing.T, opt bool) {
 		outs := FormatFloat(float64(out32), 'g', -1, 32)
 		if outs != test.out || !errEqual(err, test.err) {
 			t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
-				test.in, out32, err, test.out, test.err, out)
+				test.in, out32, printError(err), test.out, printError(test.err), out)
 		}
 	}
 	SetOptimize(oldopt)
