@@ -80,7 +80,7 @@ and doesn't save any changes you made. This is safer when you want to stop
 everything and not save wrong changes.
 
 In general, it's good to use `panic()` in realms. In reusable packages, you can
-use either panic or errors, depending on what you need.
+use either `panic` or `error`, depending on what you need.
 
 ```go
 import "std"
