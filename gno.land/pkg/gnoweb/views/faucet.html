@@ -20,7 +20,7 @@
           {{ end }}
         </script>
 
-        <form method="POST" action="{{ .Data.faucetURL }}">
+        <form method="POST" action="{{ .Data.Faucet.faucetURL }}">
           <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br />
           <div><input type="text" id="toaddr" name="toaddr" required /></div>
           {{ if .Data.captchaSite }}
