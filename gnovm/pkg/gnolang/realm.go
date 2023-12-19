@@ -98,6 +98,67 @@ type Realm struct {
 	escaped []Object // real objects with refcount > 1.
 }
 
+func (r *Realm) DeepCopy() *Realm {
+	if r == nil {
+		return nil
+	}
+
+	newCreated := make([]Object, len(r.newCreated))
+
+	for i, object := range r.newCreated {
+		newCreated[i] = object.DeepCopy()
+	}
+
+	newEscaped := make([]Object, len(r.newEscaped))
+
+	for i, object := range r.newEscaped {
+		newEscaped[i] = object.DeepCopy()
+	}
+
+	newDeleted := make([]Object, len(r.newDeleted))
+
+	for i, object := range r.newDeleted {
+		newDeleted[i] = object.DeepCopy()
+	}
+
+	created := make([]Object, len(r.created))
+
+	for i, object := range r.created {
+		created[i] = object.DeepCopy()
+	}
+
+	updated := make([]Object, len(r.updated))
+
+	for i, object := range r.updated {
+		updated[i] = object.DeepCopy()
+	}
+
+	deleted := make([]Object, len(r.deleted))
+
+	for i, object := range r.deleted {
+		deleted[i] = object.DeepCopy()
+	}
+
+	escaped := make([]Object, len(r.escaped))
+
+	for i, object := range r.escaped {
+		escaped[i] = object.DeepCopy()
+	}
+
+	return &Realm{
+		ID:         r.ID,
+		Path:       r.Path,
+		Time:       r.Time,
+		newCreated: newCreated,
+		newEscaped: newEscaped,
+		newDeleted: newDeleted,
+		created:    newCreated,
+		updated:    updated,
+		deleted:    deleted,
+		escaped:    escaped,
+	}
+}
+
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)

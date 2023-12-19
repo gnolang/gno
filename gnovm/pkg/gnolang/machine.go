@@ -259,7 +259,7 @@ func (m *Machine) DeepCopy() *Machine {
 	var b []*Block
 
 	for _, block := range m.Blocks {
-		var bv []TypedValue
+		bv := make([]TypedValue, len(block.Values))
 		copy(bv, block.Values)
 
 		b = append(b, &Block{
@@ -275,12 +275,7 @@ func (m *Machine) DeepCopy() *Machine {
 	f := make([]Frame, len(m.Frames))
 	copy(f, m.Frames)
 
-	var realm *Realm
-
-	if m.Realm != nil {
-		r := *m.Realm
-		realm = &r
-	}
+	realm := m.Realm.DeepCopy()
 
 	var alloc *Allocator
 
@@ -329,6 +324,7 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		// run test files.
 		m.RunFiles(tfiles.Files...)
 		var w sync.WaitGroup
+
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
@@ -341,6 +337,7 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		}
 		w.Wait()
 	}
+
 	{ // run all (import) tests in test files.
 		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
 		pv := pn.NewPackage()
@@ -449,6 +446,7 @@ func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
 				},
 			},
 		)
+		//fmt.Printf("x::: %+v\n", x)
 		res := m.Eval(x)
 		ret := res[0].GetString()
 		if ret == "" {

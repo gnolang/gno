@@ -21,6 +21,185 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+	CopyValue() Value
+}
+
+func (s StringValue) CopyValue() Value {
+	return s
+}
+func (b BigintValue) CopyValue() Value {
+	bb := BigintValue{V: big.NewInt(0)}
+
+	bb.V.Set(b.V)
+	return bb
+}
+func (b BigdecValue) CopyValue() Value {
+	return b.Copy(nil)
+}
+func (d DataByteValue) CopyValue() Value {
+	return DataByteValue{
+		Base:     d.Base.Copy(nil),
+		Index:    d.Index,
+		ElemType: d.ElemType.DeepCopy(),
+	}
+}
+func (p PointerValue) CopyValue() Value {
+	tv := p.TV.Copy(nil)
+	key := p.Key
+
+	if key != nil {
+		c := key.Copy(nil)
+		key = &c
+	}
+
+	base := p.Base
+
+	if base != nil {
+		base = base.CopyValue()
+	}
+
+	return PointerValue{
+		TV:    &tv,
+		Base:  base,
+		Index: p.Index,
+		Key:   key,
+	}
+}
+func (a *ArrayValue) CopyValue() Value {
+	if a == nil {
+		return nil
+	}
+
+	data := make([]byte, len(a.Data))
+	copy(data, a.Data)
+
+	return &ArrayValue{
+		ObjectInfo: a.ObjectInfo.Copy(),
+		List:       DeepCopyTypedValues(a.List),
+		Data:       data,
+	}
+}
+func (s *SliceValue) CopyValue() Value {
+	if s == nil {
+		return nil
+	}
+
+	return &SliceValue{
+		Base:   s.Base.CopyValue(),
+		Offset: s.Offset,
+		Length: s.Length,
+		Maxcap: s.Maxcap,
+	}
+}
+func (s *StructValue) CopyValue() Value {
+	if s == nil {
+		return nil
+	}
+
+	return &StructValue{
+		ObjectInfo: s.ObjectInfo.Copy(),
+		Fields:     DeepCopyTypedValues(s.Fields),
+	}
+}
+func (f *FuncValue) CopyValue() Value {
+	if f == nil {
+		return nil
+	}
+
+	stmts := make([]Stmt, len(f.body))
+
+	for i, stmt := range f.body {
+		stmts[i] = stmt.Copy().(Stmt)
+	}
+
+	closure := f.Closure
+
+	if closure != nil {
+		closure = closure.CopyValue()
+	}
+
+	return &FuncValue{
+		Type:       f.Type.DeepCopy(),
+		IsMethod:   f.IsMethod,
+		Source:     f.Source.Copy().(BlockNode),
+		Name:       f.Name,
+		Closure:    closure,
+		FileName:   f.FileName,
+		PkgPath:    f.PkgPath,
+		body:       stmts,
+		nativeBody: f.nativeBody,
+	}
+}
+func (m *MapValue) CopyValue() Value {
+	if m == nil {
+		return nil
+	}
+
+	mm := m.DeepCopy().(*MapValue)
+	return mm
+}
+func (b *BoundMethodValue) CopyValue() Value {
+	if b == nil {
+		return nil
+	}
+
+	mm := b.DeepCopy().(*BoundMethodValue)
+	return mm
+}
+func (t TypeValue) CopyValue() Value {
+	return TypeValue{Type: t.Type.DeepCopy()}
+}
+func (p *PackageValue) CopyValue() Value {
+	if p == nil {
+		return nil
+	}
+
+	names := make([]Name, len(p.FNames))
+	copy(names, p.FNames)
+
+	values := make([]Value, len(p.FBlocks))
+	copy(values, p.FBlocks)
+
+	fblocksmap := make(map[Name]*Block)
+
+	for name, block := range p.fBlocksMap {
+		fblocksmap[name] = block.DeepCopy().(*Block)
+	}
+
+	return &PackageValue{
+		ObjectInfo: p.ObjectInfo.Copy(),
+		Block:      p.Block.CopyValue(),
+		PkgName:    p.PkgName,
+		PkgPath:    p.PkgPath,
+		FNames:     names,
+		FBlocks:    values,
+		Realm:      p.Realm.DeepCopy(),
+		fBlocksMap: fblocksmap,
+	}
+}
+func (n *NativeValue) CopyValue() Value {
+	if n == nil {
+		return nil
+	}
+	return &NativeValue{
+		Value: n.Value,
+		Bytes: n.Bytes,
+	}
+}
+func (b *Block) CopyValue() Value {
+	if b == nil {
+		return nil
+	}
+	bb := b.DeepCopy().(*Block)
+	return bb
+}
+func (r RefValue) CopyValue() Value {
+	return RefValue{
+		ObjectID: r.ObjectID,
+		Escaped:  r.Escaped,
+		PkgPath:  r.PkgPath,
+		Hash:     r.Hash.Copy(),
+	}
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -313,6 +492,17 @@ type ArrayValue struct {
 	Data []byte
 }
 
+func (av *ArrayValue) DeepCopy() Object {
+	data := make([]byte, len(av.Data))
+	copy(data, av.Data)
+
+	return &ArrayValue{
+		ObjectInfo: av.ObjectInfo.Copy(),
+		List:       DeepCopyTypedValues(av.List),
+		Data:       data,
+	}
+}
+
 // NOTE: Result should not be written to,
 // behavior is unexpected when .List bytes.
 func (av *ArrayValue) GetReadonlyBytes() []byte {
@@ -445,6 +635,13 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 type StructValue struct {
 	ObjectInfo
 	Fields []TypedValue
+}
+
+func (sv *StructValue) DeepCopy() Object {
+	return &StructValue{
+		ObjectInfo: sv.ObjectInfo.Copy(),
+		Fields:     DeepCopyTypedValues(sv.Fields),
+	}
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -634,6 +831,14 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
+func (b *BoundMethodValue) DeepCopy() Object {
+	return &BoundMethodValue{
+		ObjectInfo: b.ObjectInfo.Copy(),
+		Func:       b.Func.Copy(nil),
+		Receiver:   b.Receiver.Copy(nil),
+	}
+}
+
 // ----------------------------------------
 // MapValue
 
@@ -642,6 +847,79 @@ type MapValue struct {
 	List *MapList
 
 	vmap map[MapKey]*MapListItem // nil if uninitialized
+}
+
+func (m *MapValue) DeepCopy() Object {
+	return &MapValue{
+		ObjectInfo: m.ObjectInfo.Copy(),
+		List:       deepCopyMapList(m.List),
+		vmap:       copyMap(m.vmap),
+	}
+}
+
+func copyMap(originalMap map[MapKey]*MapListItem) map[MapKey]*MapListItem {
+	// Create a new map to store the copied elements
+	copiedMap := make(map[MapKey]*MapListItem)
+
+	// Iterate over the original map and copy each element
+	for key, value := range originalMap {
+		// Copy the MapListItem and assign it to the new map
+		copiedMap[key] = &MapListItem{
+			Prev:  value.Prev,
+			Next:  value.Next,
+			Key:   value.Key,
+			Value: value.Value,
+		}
+	}
+
+	return copiedMap
+}
+
+func deepCopyMapList(original *MapList) *MapList {
+	if original == nil {
+		return nil
+	}
+
+	copyList := &MapList{}
+
+	// Create a mapping from original MapList items to copied MapList items
+	copyItems := make(map[*MapListItem]*MapListItem)
+
+	// Iterate through the original MapList
+	for current := original.Head; current != nil; current = current.Next {
+		// Create a deep copy of the current MapListItem
+		copyItem := &MapListItem{
+			Key:   current.Key,   // Assuming TypedValue is a value type
+			Value: current.Value, // Assuming TypedValue is a value type
+		}
+
+		// Map the original item to the copied item
+		copyItems[current] = copyItem
+
+		// Update the copyList with the new MapListItem
+		if copyList.Head == nil {
+			copyList.Head = copyItem
+			copyList.Tail = copyItem
+		} else {
+			copyList.Tail.Next = copyItem
+			copyItem.Prev = copyList.Tail
+			copyList.Tail = copyItem
+		}
+
+		copyList.Size++
+	}
+
+	// Update the Next and Prev pointers for each copied MapListItem
+	for original, copy := range copyItems {
+		if original.Next != nil {
+			copy.Next = copyItems[original.Next]
+		}
+		if original.Prev != nil {
+			copy.Prev = copyItems[original.Prev]
+		}
+	}
+
+	return copyList
 }
 
 type MapKey string
@@ -798,6 +1076,11 @@ type PackageValue struct {
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[Name]*Block
+}
+
+func (p *PackageValue) DeepCopy() Object {
+	pp := p.CopyValue().(*PackageValue)
+	return pp
 }
 
 func (pv *PackageValue) IsRealm() bool {
@@ -2221,6 +2504,30 @@ type Block struct {
 	Parent     Value
 	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+}
+
+func (b *Block) DeepCopy() Object {
+	parent := b.Parent
+
+	bodystmt := b.bodyStmt.Copy().(*bodyStmt)
+
+	source := b.Source
+
+	//if source != nil {
+	//	cp := source.Copy()
+	//	if cp != nil {
+	//		source = cp.(BlockNode)
+	//	}
+	//}
+
+	return &Block{
+		ObjectInfo: b.ObjectInfo.Copy(),
+		Source:     source,
+		Values:     DeepCopyTypedValues(b.Values),
+		Parent:     parent,
+		Blank:      b.Blank.Copy(nil),
+		bodyStmt:   *bodystmt,
+	}
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.

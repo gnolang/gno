@@ -101,7 +101,13 @@ func (ds *defaultStore) DeepCopy() Store {
 	cachedObjs := make(map[ObjectID]Object)
 
 	for id, object := range ds.cacheObjects {
-		cachedObjs[id] = object
+		cachedObjs[id] = object.DeepCopy()
+	}
+
+	cacheTypes := make(map[TypeID]Type)
+
+	for id, object := range ds.cacheTypes {
+		cacheTypes[id] = object.DeepCopy()
 	}
 
 	var a *Allocator
@@ -114,7 +120,7 @@ func (ds *defaultStore) DeepCopy() Store {
 		alloc:            a,
 		pkgGetter:        ds.pkgGetter,
 		cacheObjects:     cachedObjs,
-		cacheTypes:       ds.cacheTypes,
+		cacheTypes:       cacheTypes,
 		cacheNodes:       ds.cacheNodes,
 		cacheNativeTypes: ds.cacheNativeTypes,
 		baseStore:        ds.baseStore,

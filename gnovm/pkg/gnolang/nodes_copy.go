@@ -6,15 +6,90 @@ package gnolang
 // * *ConstExpr, *constTypeExpr, *bodyStmt not yet supported.
 
 func (x *ConstExpr) Copy() Node {
-	panic("*ConstExpr.Copy() not yet implemented")
+	return &ConstExpr{
+		Attributes: x.Attributes,
+		Source:     x.Source.DeepCopy(),
+		TypedValue: x.TypedValue.Copy(nil),
+	}
 }
 
 func (x *constTypeExpr) Copy() Node {
-	panic("*constTypeExpr.Copy() not yet implemented")
+
+	source := x.Source
+
+	if source != nil {
+		source = source.DeepCopy()
+	}
+
+	t := x.Type
+
+	if t != nil {
+		t = t.DeepCopy()
+	}
+
+	return &constTypeExpr{
+		Attributes: x.Attributes,
+		Source:     source,
+		Type:       t,
+	}
 }
 
 func (x *bodyStmt) Copy() Node {
-	panic("*bodyStmt.Copy() not yet implemented")
+	if x == nil {
+		return nil
+	}
+
+	var cond Expr
+
+	if x.Cond != nil {
+		cond = x.Cond.DeepCopy()
+	}
+
+	post := x.Post
+	if post != nil {
+		post = post.Copy().(Stmt)
+	}
+
+	active := x.Active
+
+	if active != nil {
+		active = active.Copy().(Stmt)
+	}
+
+	key := x.Key
+
+	if key != nil {
+		key = key.DeepCopy()
+	}
+
+	value := x.Value
+
+	if value != nil {
+		value = value.DeepCopy()
+	}
+
+	return &bodyStmt{
+		Attributes:    x.Attributes,
+		Body:          x.Body,
+		BodyLen:       x.BodyLen,
+		NextBodyIndex: x.NextBodyIndex,
+		NumOps:        x.NumOps,
+		NumValues:     x.NumValues,
+		NumExprs:      x.NumExprs,
+		NumStmts:      x.NumStmts,
+		Cond:          cond,
+		Post:          post,
+		Active:        active,
+		Key:           key,
+		Value:         value,
+		Op:            x.Op,
+		ListLen:       x.ListLen,
+		ListIndex:     x.ListIndex,
+		NextItem:      x.NextItem,
+		StrLen:        x.StrLen,
+		StrIndex:      x.StrIndex,
+		NextRune:      x.NextRune,
+	}
 }
 
 func (x *NameExpr) Copy() Node {
@@ -353,6 +428,10 @@ func (x *TypeDecl) Copy() Node {
 }
 
 func (fs *FileSet) CopyFileSet() *FileSet {
+	if fs == nil {
+		return nil
+	}
+
 	files := make([]*FileNode, len(fs.Files))
 	for i, file := range fs.Files {
 		files[i] = file.Copy().(*FileNode)

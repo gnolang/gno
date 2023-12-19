@@ -330,6 +330,10 @@ type Expr interface {
 type Exprs []Expr
 
 func (n *NameExpr) DeepCopy() Expr {
+	if n == nil {
+		return nil
+	}
+
 	return &NameExpr{
 		Attributes: n.Attributes,
 		Path:       ValuePath{},
@@ -338,6 +342,10 @@ func (n *NameExpr) DeepCopy() Expr {
 }
 
 func (b *BasicLitExpr) DeepCopy() Expr {
+	if b == nil {
+		return nil
+	}
+
 	return &BasicLitExpr{
 		Attributes: b.Attributes,
 		Kind:       b.Kind,
@@ -346,6 +354,10 @@ func (b *BasicLitExpr) DeepCopy() Expr {
 }
 
 func (b *BinaryExpr) DeepCopy() Expr {
+	if b == nil {
+		return nil
+	}
+
 	return &BinaryExpr{
 		Attributes: b.Attributes,
 		Left:       b.Left.DeepCopy(),
@@ -365,6 +377,10 @@ func DeepCopyExprs(exprs []Expr) []Expr {
 }
 
 func (c *CallExpr) DeepCopy() Expr {
+	if c == nil {
+		return nil
+	}
+
 	return &CallExpr{
 		Attributes: c.Attributes,
 		Func:       c.Func.DeepCopy(),
@@ -375,6 +391,10 @@ func (c *CallExpr) DeepCopy() Expr {
 }
 
 func (i *IndexExpr) DeepCopy() Expr {
+	if i == nil {
+		return nil
+	}
+
 	return &IndexExpr{
 		Attributes: i.Attributes,
 		X:          i.X.DeepCopy(),
@@ -384,6 +404,10 @@ func (i *IndexExpr) DeepCopy() Expr {
 }
 
 func (s *SelectorExpr) DeepCopy() Expr {
+	if s == nil {
+		return nil
+	}
+
 	return &SelectorExpr{
 		Attributes: s.Attributes,
 		X:          s.X.DeepCopy(),
@@ -393,16 +417,36 @@ func (s *SelectorExpr) DeepCopy() Expr {
 }
 
 func (s *SliceExpr) DeepCopy() Expr {
+	if s == nil {
+		return nil
+	}
+
+	low := s.Low
+
+	if low != nil {
+		low = low.DeepCopy()
+	}
+
+	max := s.Max
+
+	if max != nil {
+		max = max.DeepCopy()
+	}
+
 	return &SliceExpr{
 		Attributes: s.Attributes,
 		X:          s.X.DeepCopy(),
-		Low:        s.Low.DeepCopy(),
+		Low:        low,
 		High:       s.High.DeepCopy(),
-		Max:        s.Max.DeepCopy(),
+		Max:        max,
 	}
 }
 
 func (s *StarExpr) DeepCopy() Expr {
+	if s == nil {
+		return nil
+	}
+
 	return &StarExpr{
 		Attributes: s.Attributes,
 		X:          s.X.DeepCopy(),
@@ -410,6 +454,10 @@ func (s *StarExpr) DeepCopy() Expr {
 }
 
 func (r *RefExpr) DeepCopy() Expr {
+	if r == nil {
+		return nil
+	}
+
 	return &RefExpr{
 		Attributes: r.Attributes,
 		X:          r.X.DeepCopy(),
@@ -417,6 +465,10 @@ func (r *RefExpr) DeepCopy() Expr {
 }
 
 func (t *TypeAssertExpr) DeepCopy() Expr {
+	if t == nil {
+		return nil
+	}
+
 	return &TypeAssertExpr{
 		Attributes: t.Attributes,
 		X:          t.X.DeepCopy(),
@@ -426,6 +478,10 @@ func (t *TypeAssertExpr) DeepCopy() Expr {
 }
 
 func (u *UnaryExpr) DeepCopy() Expr {
+	if u == nil {
+		return nil
+	}
+
 	return &UnaryExpr{
 		Attributes: u.Attributes,
 		X:          u.X.DeepCopy(),
@@ -434,6 +490,10 @@ func (u *UnaryExpr) DeepCopy() Expr {
 }
 
 func (c *CompositeLitExpr) DeepCopy() Expr {
+	if c == nil {
+		return nil
+	}
+
 	kvp := make([]KeyValueExpr, len(c.Elts))
 
 	for i, elt := range c.Elts {
@@ -442,20 +502,40 @@ func (c *CompositeLitExpr) DeepCopy() Expr {
 
 	return &CompositeLitExpr{
 		Attributes: c.Attributes,
-		Type:       c.Type.DeepCopy(),
+		Type:       c.Type,
 		Elts:       kvp,
 	}
 }
 
 func (k *KeyValueExpr) DeepCopy() Expr {
+	if k == nil {
+		return nil
+	}
+
+	key := k.Key
+
+	if key != nil {
+		key = key.DeepCopy()
+	}
+
+	value := k.Value
+
+	if value != nil {
+		value = value.DeepCopy()
+	}
+
 	return &KeyValueExpr{
 		Attributes: k.Attributes,
-		Key:        k.Key.DeepCopy(),
-		Value:      k.Value.DeepCopy(),
+		Key:        key,
+		Value:      value,
 	}
 }
 
 func (f *FuncLitExpr) DeepCopy() Expr {
+	if f == nil {
+		return nil
+	}
+
 	return &FuncLitExpr{
 		Attributes:  f.Attributes,
 		StaticBlock: f.StaticBlock,
@@ -465,9 +545,19 @@ func (f *FuncLitExpr) DeepCopy() Expr {
 }
 
 func (c *ConstExpr) DeepCopy() Expr {
+	if c == nil {
+		return nil
+	}
+
+	source := c.Source
+
+	if source != nil {
+		source = source.DeepCopy()
+	}
+
 	return &ConstExpr{
 		Attributes: c.Attributes,
-		Source:     c.Source.DeepCopy(),
+		Source:     source,
 		TypedValue: c.TypedValue.Copy(nil),
 	}
 }
@@ -681,15 +771,35 @@ func (x *constTypeExpr) assertTypeExpr()       {}
 func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
 
 func (x *FieldTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	t := x.Type
+
+	if t != nil {
+		t = t.DeepCopy()
+	}
+
+	tag := x.Tag
+
+	if tag != nil {
+		tag = tag.DeepCopy()
+	}
+
 	return &FieldTypeExpr{
 		Attributes: x.Attributes,
 		Name:       x.Name,
-		Type:       x.Type.DeepCopy(),
-		Tag:        x.Tag.DeepCopy(),
+		Type:       t,
+		Tag:        tag,
 	}
 }
 
 func (x *ArrayTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &ArrayTypeExpr{
 		Attributes: x.Attributes,
 		Len:        x.Len.DeepCopy(),
@@ -698,6 +808,10 @@ func (x *ArrayTypeExpr) DeepCopy() Expr {
 }
 
 func (x *SliceTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &SliceTypeExpr{
 		Attributes: x.Attributes,
 		Elt:        x.Elt.DeepCopy(),
@@ -706,6 +820,10 @@ func (x *SliceTypeExpr) DeepCopy() Expr {
 }
 
 func (x *InterfaceTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	fte := make([]FieldTypeExpr, len(x.Methods))
 
 	for i, method := range x.Methods {
@@ -720,6 +838,10 @@ func (x *InterfaceTypeExpr) DeepCopy() Expr {
 }
 
 func (x *ChanTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &ChanTypeExpr{
 		Attributes: x.Attributes,
 		Dir:        x.Dir,
@@ -728,6 +850,10 @@ func (x *ChanTypeExpr) DeepCopy() Expr {
 }
 
 func (x *FuncTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &FuncTypeExpr{
 		Attributes: x.Attributes,
 		Params:     DeepCopyFieldTypeExprs(x.Params),
@@ -736,6 +862,10 @@ func (x *FuncTypeExpr) DeepCopy() Expr {
 }
 
 func (x *MapTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &MapTypeExpr{
 		Attributes: x.Attributes,
 		Key:        x.Key.DeepCopy(),
@@ -744,6 +874,10 @@ func (x *MapTypeExpr) DeepCopy() Expr {
 }
 
 func (x *StructTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &StructTypeExpr{
 		Attributes: x.Attributes,
 		Fields:     DeepCopyFieldTypeExprs(x.Fields),
@@ -751,14 +885,27 @@ func (x *StructTypeExpr) DeepCopy() Expr {
 }
 
 func (x *constTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	t := x.Type
+
+	if t != nil {
+		t = t.DeepCopy()
+	}
 	return &constTypeExpr{
 		Attributes: x.Attributes,
-		Source:     x.Source.DeepCopy(),
-		Type:       x.Type.DeepCopy(),
+		Source:     x.Source,
+		Type:       t,
 	}
 }
 
 func (x *MaybeNativeTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
 	return &MaybeNativeTypeExpr{
 		Attributes: x.Attributes,
 		Type:       x.Type.DeepCopy(),

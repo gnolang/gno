@@ -121,6 +121,8 @@ type Object interface {
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
+
+	DeepCopy() Object
 }
 
 var (

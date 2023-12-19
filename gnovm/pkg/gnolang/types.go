@@ -341,9 +341,16 @@ type FieldType struct {
 }
 
 func (ft FieldType) DeepCopy() Type {
+	t := ft.Type
+
+	//todo
+	//if t != nil {
+	//	t = t.DeepCopy()
+	//}
+
 	return &FieldType{
 		Name:     ft.Name,
-		Type:     ft.Type.DeepCopy(),
+		Type:     t,
 		Embedded: ft.Embedded,
 		Tag:      ft.Tag,
 	}
@@ -1178,11 +1185,21 @@ type FuncType struct {
 }
 
 func (ft *FuncType) DeepCopy() Type {
+	if ft == nil {
+		return nil
+	}
+
+	bound := ft.bound
+
+	if bound != nil {
+		bound = bound.DeepCopy().(*FuncType)
+	}
+
 	return &FuncType{
 		Params:  DeepCopyFields(ft.Params),
 		Results: DeepCopyFields(ft.Results),
 		typeid:  ft.typeid,
-		bound:   ft.bound.DeepCopy().(*FuncType),
+		bound:   bound,
 	}
 }
 
@@ -1493,7 +1510,29 @@ func DeepCopyTypedValues(tv []TypedValue) []TypedValue {
 	ntv := make([]TypedValue, len(tv))
 
 	for i, value := range tv {
-		ntv[i] = value.Copy(nil)
+		var n [8]byte
+
+		for i, b := range value.N {
+			n[i] = b
+		}
+
+		t := value.T
+
+		if t != nil {
+			t = t.DeepCopy()
+		}
+
+		v := value.V
+
+		if v != nil {
+			v = v.CopyValue()
+		}
+
+		ntv[i] = TypedValue{
+			T: t,
+			V: v,
+			N: n,
+		}
 	}
 
 	return ntv
@@ -1503,7 +1542,7 @@ func (dt *DeclaredType) DeepCopy() Type {
 	return &DeclaredType{
 		PkgPath: dt.PkgPath,
 		Name:    dt.Name,
-		Base:    dt.Base.DeepCopy(),
+		Base:    dt.Base,
 		Methods: DeepCopyTypedValues(dt.Methods),
 		typeid:  dt.typeid,
 		sealed:  dt.sealed,
@@ -1748,10 +1787,16 @@ type NativeType struct {
 }
 
 func (nt *NativeType) DeepCopy() Type {
+	gnot := nt.gnoType
+
+	if gnot != nil {
+		gnot = gnot.DeepCopy()
+	}
+
 	return &NativeType{
 		Type:    nt.Type,
 		typeid:  nt.typeid,
-		gnoType: nt.gnoType.DeepCopy(),
+		gnoType: gnot,
 	}
 }
 
