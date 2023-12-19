@@ -11,7 +11,7 @@
 Gno is an interpreted and fully-deterministic implementation of the Go
 programming language, designed to build succinct and composable smart contracts.
 The first blockchain to use it is Gno.land, a
-[Proof of Contribution](./docs/explanation/proof-of-contribution.md)-based chain, backed by
+[Proof of Contribution](./docs/concepts/proof-of-contribution.md)-based chain, backed by
 a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
 consensus engine.
 
@@ -20,7 +20,9 @@ consensus engine.
 If you haven't already, take a moment to check out our [website](https://gno.land/).
 
 > The website is a deployment of our [gnoweb](./gno.land/cmd/gnoweb) frontend; you
-> can use it to check out [some](https://test3.gno.land/r/demo/boards) [example](https://test3.gno.land/r/gnoland/blog)
+> can use it to check out
+> [some](https://test3.gno.land/r/demo/boards)
+> [example](https://test3.gno.land/r/gnoland/blog)
 > [contracts](https://test3.gno.land/r/demo/users).
 >
 > Use the `[source]` button in the header to inspect the program's source; use
@@ -45,6 +47,7 @@ We look forward to seeing your first PR!
 * [gnovm](./gnovm) - GnoVM and Gnolang.
 * [gno.land](./gno.land) - Gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
+* [contribs](./contribs) - Collection of enhanced tools for Gno.
 
 ## Socials & Contact
 
@@ -67,7 +70,6 @@ We look forward to seeing your first PR!
   * [gnokey](./gno.land/cmd/gnokey) - key manipulation, also general interaction with gnoland
   * [gnoland](./gno.land/cmd/gnoland) - runs the blockchain node
   * [gnoweb](./gno.land/cmd/gnoweb) - serves gno website, along with user-defined content
-  * [logos](./misc/logos) - intended to be used as a browser
 
   Developer commands:
 

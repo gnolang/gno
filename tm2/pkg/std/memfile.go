@@ -13,11 +13,15 @@ type MemFile struct {
 	Body string
 }
 
+// MemPackage represents the information and files of a package which will be
+// stored in memory. It will generally be initialized by package gnolang's
+// ReadMemPackage.
+//
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string
-	Path  string
+	Name  string // package name as declared by `package`
+	Path  string // import path
 	Files []*MemFile
 }
 
