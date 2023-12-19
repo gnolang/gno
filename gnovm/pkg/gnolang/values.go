@@ -1506,7 +1506,7 @@ func (tv *TypedValue) Sign() int {
 			return 1
 		}
 	case UintKind:
-		v := tv.GetInt()
+		v := tv.GetUint()
 		if v < 0 {
 			return -1
 		} else if v == 0 {
@@ -1515,7 +1515,7 @@ func (tv *TypedValue) Sign() int {
 			return 1
 		}
 	case Uint8Kind:
-		v := tv.GetInt8()
+		v := tv.GetUint8()
 		if v < 0 {
 			return -1
 		} else if v == 0 {
@@ -1524,7 +1524,7 @@ func (tv *TypedValue) Sign() int {
 			return 1
 		}
 	case Uint16Kind:
-		v := tv.GetInt16()
+		v := tv.GetUint16()
 		if v < 0 {
 			return -1
 		} else if v == 0 {
@@ -1533,7 +1533,7 @@ func (tv *TypedValue) Sign() int {
 			return 1
 		}
 	case Uint32Kind:
-		v := tv.GetInt32()
+		v := tv.GetUint32()
 		if v < 0 {
 			return -1
 		} else if v == 0 {
@@ -1542,7 +1542,7 @@ func (tv *TypedValue) Sign() int {
 			return 1
 		}
 	case Uint64Kind:
-		v := tv.GetInt64()
+		v := tv.GetUint64()
 		if v < 0 {
 			return -1
 		} else if v == 0 {

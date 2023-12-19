@@ -366,9 +366,8 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	if rv.Kind() == reflect.Interface {
 		if rv.IsNil() { // special case, nil interface, interface(nil) differs nil in types, but equal
 			return TypedValue{
-				T: (&InterfaceType{}),
+				T: &InterfaceType{},
 			}
-			//return TypedValue{}
 		} else {
 			rv = rv.Elem()
 		}

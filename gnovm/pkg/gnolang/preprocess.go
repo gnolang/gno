@@ -2,9 +2,10 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type f func(t Type) bool
@@ -47,7 +48,7 @@ func init() {
 	unaryPredicates[NOT] = isBoolean
 
 	// Inc Dec stmt
-	// NOTE: special case to be consistent with op_inc_dec, line3, no float support for now while go does.
+	// NOTE: special case to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
 	IncDecStmtPredicates[INC] = isNumeric
 	IncDecStmtPredicates[DEC] = isNumeric
 
@@ -2350,20 +2351,20 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
-	//debugPP.Printf("evalConst, last: %v, x: %v \n", last, x)
+	// debugPP.Printf("evalConst, last: %v, x: %v \n", last, x)
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	cv := NewMachine(".dontcare", store)
 	tv := cv.EvalStatic(last, x)
 	cv.Release()
-	//debugPP.Printf("result: %v \n", tv)
+	// debugPP.Printf("result: %v \n", tv)
 	cx := &ConstExpr{
 		Source:     x,
 		TypedValue: tv,
 	}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)
-	//debugPP.Printf("cx: %+v, source: %v, tv: %v \n", cx, cx.Source, cx.TypedValue)
+	// debugPP.Printf("cx: %+v, source: %v, tv: %v \n", cx, cx.Source, cx.TypedValue)
 	return cx
 }
 
