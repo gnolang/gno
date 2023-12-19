@@ -1458,7 +1458,7 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 }
 
 // TryDefineMethod attempts to define the method fv on type dt.
-// It returns false if this succeeds, because it would be a re-declaration.
+// It returns false if this does not succeeds, as a result of a re-declaration.
 func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 	name := fv.Name
 
