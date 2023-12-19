@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestParseString(t *testing.T) {
+func TestParseStringLiteral(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -20,7 +20,7 @@ func TestParseString(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		s, err := ParseString([]byte(tt.input))
+		s, err := ParseStringLiteral([]byte(tt.input))
 
 		if !tt.isError && err != nil {
 			t.Errorf("%d. unexpected error: %s", i, err)
@@ -36,7 +36,7 @@ func TestParseString(t *testing.T) {
 	}
 }
 
-func TestParseBool(t *testing.T) {
+func TestParseBoolLiteral(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected bool
@@ -52,7 +52,7 @@ func TestParseBool(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		b, err := ParseBool([]byte(tt.input))
+		b, err := ParseBoolLiteral([]byte(tt.input))
 
 		if !tt.isError && err != nil {
 			t.Errorf("%d. unexpected error: %s", i, err)
@@ -68,7 +68,7 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
-func TestParseFloat(t *testing.T) {
+func TestParseFloatLiteral(t *testing.T) {
 	testCases := []struct {
 		input    string
 		expected float64
@@ -87,9 +87,9 @@ func TestParseFloat(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			got, _ := ParseFloat([]byte(tc.input))
+			got, _ := ParseFloatLiteral([]byte(tc.input))
 			if got != tc.expected {
-				t.Errorf("ParseFloat(%s): got %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
 			}
 		})
 	}
@@ -122,19 +122,19 @@ func TestParseFloatWithScientificNotation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			got, err := ParseFloat([]byte(tc.input))
+			got, err := ParseFloatLiteral([]byte(tc.input))
 			if got != tc.expected {
-				t.Errorf("ParseFloat(%s): got %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
 			}
 
 			if err != nil {
-				t.Errorf("ParseFloat(%s): got error %v", tc.input, err)
+				t.Errorf("ParseFloatLiteral(%s): got error %v", tc.input, err)
 			}
 		})
 	}
 }
 
-func TestParseInt(t *testing.T) {
+func TestParseIntLiteral(t *testing.T) {
 	testCases := []struct {
 		input    string
 		expected int64
@@ -161,9 +161,9 @@ func TestParseInt(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			got, _ := ParseInt([]byte(tc.input))
+			got, _ := ParseIntLiteral([]byte(tc.input))
 			if got != tc.expected {
-				t.Errorf("ParseInt(%s): got %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseIntLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
 			}
 		})
 	}

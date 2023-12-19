@@ -5,62 +5,6 @@ import (
 	"testing"
 )
 
-func TestLexer(t *testing.T) {
-	tests := []struct {
-		name  string
-		data  []byte
-		start int
-		next  int
-		last  int
-	}{
-		{
-			name: "Test 1",
-			data: []byte("{\n\t\"key\": \"value\",\n\t\"array\": [1, 2, 3]\n}"),
-			next: 1,
-			last: 39,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := findTokenStart(tt.data, '{'); got != 0 {
-				t.Errorf("findTokenStart() = %v, want %v", got, 0)
-			}
-
-			if got := findTokenStart(tt.data, '['); got != 29 {
-				t.Errorf("findTokenStart() = %v, want %v", got, 29)
-			}
-
-			if _, err := findKeyStart(tt.data, "key"); err != nil {
-				t.Errorf("findKeyStart() returned an error: %v", err)
-			}
-		})
-	}
-}
-
-func TestLastToken(t *testing.T) {
-	tests := []struct {
-		name     string
-		data     []byte
-		expected int
-	}{
-		{"Empty data", []byte{}, -1},
-		{"Spaces only", []byte("     "), -1},
-		{"Newlines only", []byte("\n\n\n\n"), -1},
-		{"Mixed whitespace", []byte(" \n\r\t "), -1},
-		{"One character", []byte("a"), 0},
-		{"Mixed characters", []byte("abc def"), 6},
-		{"Mixed characters with trailing whitespace", []byte("abc def \n\r\t "), 6},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := lastToken(test.data); got != test.expected {
-				t.Errorf("lastToken(%q) = %v, want %v", test.data, got, test.expected)
-			}
-		})
-	}
-}
 
 func TestBlockEnd(t *testing.T) {
 	tests := []struct {

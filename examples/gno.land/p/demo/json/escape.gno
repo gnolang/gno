@@ -7,7 +7,7 @@ import (
 )
 
 func Unescape(input, output []byte) ([]byte, error) {
-	firstBackslash := bytes.IndexByte(input, '\\')
+	firstBackslash := bytes.IndexByte(input, BackSlashToken)
 	if firstBackslash == -1 {
 		return input, nil
 	}
@@ -32,7 +32,7 @@ func Unescape(input, output []byte) ([]byte, error) {
 		buf = buf[bufLen:]
 
 		// copy everything until the next backslash
-		nextBackslash := bytes.IndexByte(input, '\\')
+		nextBackslash := bytes.IndexByte(input, BackSlashToken)
 		if nextBackslash == -1 {
 			copy(buf, input)
 			buf = buf[len(input):]
@@ -48,14 +48,14 @@ func Unescape(input, output []byte) ([]byte, error) {
 }
 
 var escapeMap = map[byte]byte{
-	'"':  '"',
-	'\\': '\\',
-	'/':  '/',
-	'b':  '\b',
-	'f':  '\f',
-	'n':  '\n',
-	'r':  '\r',
-	't':  '\t',
+	'"':  DoublyQuoteToken,
+	'\\': BackSlashToken,
+	'/':  SlashToken,
+	'b':  BackspaceToken,
+	'f':  FormFeedToken,
+	'n':  NewLineToken,
+	'r':  CarriageReturnToken,
+	't':  TabToken,
 }
 
 // isSurrogatePair returns true if the rune is a surrogate pair.
@@ -131,7 +131,7 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 // If the escape sequence is invalid, or if 'in' does not completely enclose the escape sequence,
 // function returns (-1, -1) to indicate an error.
 func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
-	if len(in) < 2 || in[0] != '\\' {
+	if len(in) < 2 || in[0] != BackSlashToken {
 		return -1, -1
 	}
 

@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func ParseString(data []byte) (string, error) {
+func ParseStringLiteral(data []byte) (string, error) {
 	var buf [UnescapeStackBufSize]byte
 
 	bf, err := Unescape(data, buf[:])
@@ -18,7 +18,7 @@ func ParseString(data []byte) (string, error) {
 	return string(bf), nil
 }
 
-func ParseBool(data []byte) (bool, error) {
+func ParseBoolLiteral(data []byte) (bool, error) {
 	switch {
 	case bytes.Equal(data, []byte("true")):
 		return true, nil
@@ -29,7 +29,7 @@ func ParseBool(data []byte) (bool, error) {
 	}
 }
 
-func ParseFloat(bytes []byte) (value float64, err error) {
+func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	if len(bytes) == 0 {
 		return -1, EmptyBytes
 	}
@@ -66,7 +66,7 @@ func ParseFloat(bytes []byte) (value float64, err error) {
 	return f, nil
 }
 
-func ParseInt(bytes []byte) (v int64, err error) {
+func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	if len(bytes) == 0 {
 		return 0, EmptyBytes
 	}
@@ -368,7 +368,7 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 
 	switch data[offset] {
 	case 't', 'f':
-		if _boolValue, err := ParseBool(value); err != nil {
+		if _boolValue, err := ParseBoolLiteral(value); err != nil {
 			return Unknown, offset, err
 		}
 		return Boolean, offset + end, nil
@@ -379,12 +379,12 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		return Unknown, offset, errors.New("unknown null type")
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		if !bytes.ContainsAny(value, ".eE") {
-			if _intValue, err := ParseInt(value); err != nil {
+			if _intValue, err := ParseIntLiteral(value); err != nil {
 				return Number, offset + end, err
 			}
 		}
 
-		if _floatValue, err := ParseFloat(value); err != nil {
+		if _floatValue, err := ParseFloatLiteral(value); err != nil {
 			return Number, offset + end, err
 		}
 
@@ -440,7 +440,7 @@ func parseUntilArrayStart(data []byte, offset int) (int, error) {
 	return offset + 1, nil
 }
 
-func parseArrayElements(data []byte, offset int, callback func(value []byte, dataType ValueType, offset int, err error)) (int, error) {
+func parseArrayElements(data []byte, offset int, f func(value []byte, dataType ValueType, offset int, err error)) (int, error) {
 	for data[offset] != ArrayEndToken {
 		value, valueType, valueOffset, err := Get(data[offset:])
 		if err != nil {
@@ -451,7 +451,7 @@ func parseArrayElements(data []byte, offset int, callback func(value []byte, dat
 			break
 		}
 
-		callback(value, valueType, offset+valueOffset-len(value), err)
+		f(value, valueType, offset+valueOffset-len(value), err)
 
 		if offset, err = parseNextElementOrEndArray(data, offset+valueOffset); err != nil {
 			return offset, err
