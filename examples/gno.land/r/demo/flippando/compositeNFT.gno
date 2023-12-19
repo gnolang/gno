@@ -56,6 +56,8 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		// set compositeNFT tokenURI
 		flipCompositeNFT.SetTokenURI(tid, grc721f.TokenURI(flipCompositeNFTMetaDataJSON))
 		children.Set(tidString, bTokenIDs)
+		// set approval for the realm owner so we can later transfer the NFT
+		flipCompositeNFT.Approve(std.CurrentRealm().Addr(), tid)
 		result = string(flipCompositeNFTMetaDataJSON)
 	}
 	res := &nftResult{
@@ -72,18 +74,10 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 
 // it is used in marketplace
 func TransferCompositeNFT(from, to std.Address, tid string) error {
-	// check owner
-	owner, oerr := flipCompositeNFT.OwnerOf(grc721f.TokenID(tid))
-	if oerr != nil {
-		return error("owner retriving error")
-	}
-	if owner != from {
-		return error("Is not owner")
-	}
 	tokenId := grc721f.TokenID(tid)
 	err := flipCompositeNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
-		return err
+		return error("transfer from error")
 	}
 	bTokenIDs := GetChildrenOf(tid)
 	for _, t := range bTokenIDs {

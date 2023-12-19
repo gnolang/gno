@@ -72,6 +72,7 @@ func (m *Marketplace) GetListings() string {
             return true // Skip this iteration
         }
 		compositeTokenURI := GetCompositeTokenURI(string(listing.CompositeTokenID))
+		compositeTokenURI = strings.Trim(compositeTokenURI, "\"")
 
         listingResult := &listingResult{
             compositeTokenID: string(listing.CompositeTokenID),
@@ -107,17 +108,6 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721f.TokenID
     if err != nil {
         return err
     }
-
-    // Assume a function to retrieve basic NFT token IDs from a composite NFT
-    // basicTokenIDs := GetBasicNFTsFromComposite(compositeTokenID)
-
-    // Transfer each basic NFT to the buyer
-    // for _, basicTokenID := range basicTokenIDs {
-    //     err = TransferBasicNFTToBuyer(listing.Seller, buyer, string(basicTokenID))
-    //     if err != nil {
-    //         return err
-    //     }
-    // }
 
     // Remove the listing after successful transfer
     m.listings.Remove(string(compositeTokenID))

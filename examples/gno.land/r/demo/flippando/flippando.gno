@@ -149,6 +149,11 @@ func GetUserGames(user std.Address) []*Game {
 	return val.([]*Game)
 }
 
+//func GetUserGamesResult(user std.Address) string {
+	//[]*games := GetUserGames(user)
+	// iterate and generate GameResult and then add them to UserGameResult
+//}
+
 func addToUser2Games(addr std.Address, game *Game) {
 	var games []*Game
 	v, ok := user2Games.Get(string(addr))

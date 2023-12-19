@@ -22,6 +22,16 @@ type Game struct {
 	TileType	string	`json:"-"`
 }
 
+type GameResult struct {
+	ID			string `json:"id"`
+	GameBoard 	string `json:"gmaeBoard"`
+	TileType	string `json:"tileTpye"`
+}
+
+type UserGamesResult struct {
+	UserGames 	[]string `json:"userGames"`
+}
+
 type basicNFTMetaData struct {
 	tokenID	string	`json:"tokenID"`
 	name	string `json:"name"`
@@ -211,9 +221,10 @@ func (lr listingResult)MarshalJSON() (_ []byte, err error){
 	b.WriteString(lr.compositeTokenID)
 	b.WriteString(`",`)
 
-	b.WriteString(`"tokenURI":"`)
+	// tokenURI is already a string
+	b.WriteString(`"tokenURI":`)
 	b.WriteString(lr.tokenURI)
-	b.WriteString(`",`)
+	b.WriteString(`,`)
 
 	b.WriteString(`"seller":"`)
 	b.WriteString(lr.seller)
