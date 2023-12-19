@@ -68,8 +68,8 @@ and securely.
 
 ### Embrace Panic in Gno
 
-In Gno, it's important to know when to return an `error` and when to use `panic()`.
-Each does something different to your code and data.
+In Gno, it's important to know when to return an `error` and when to use
+`panic()`. Each does something different to your code and data.
 
 When you return an `error` in Gno, it's like giving back any other piece of data.
 It tells you something went wrong, but it doesn't stop your code or undo any
@@ -187,6 +187,88 @@ actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
 
+### Contract-Level Access Control
+
+In Gno, it's a good practice to design your contract as an application with its
+own access control. This means that different endpoints of your contract should
+be accessible to different types of users, such as the public, admins, or
+moderators.
+
+The goal is usually to store the admin address or a list of addresses
+(`std.Address`) in a variable, and then create helper functions to update the
+owners. These helper functions should check if the caller of a function is
+whitelisted or not.
+
+Let's deep dive into the different access control mechanisms we can use:
+
+#### Using the Original Caller Address
+
+One approach is to look at the EOA (Externally Owned Account), which is the
+original caller. For this, you should call `std.GetOrigCaller()`, which returns
+the address of the wallet used to make the transaction.
+
+Internally, this call will look at the frame stack, which is basically the stack
+of callers including all the functions, anonymous functions, other realms, and
+take the initial caller. This allows you to identify the original caller and
+implement access control based on their address.
+
+Here's an example:
+
+```go
+import "std"
+
+var admin std.Address = "g1......"
+
+func AdminOnlyFunction() {
+    caller := std.GetOrigCaller()
+    if caller != admin {
+        panic("permission denied")
+    }
+    // ...
+}
+
+// func UpdateAdminAddress(newAddr std.Address) { /* ... */ }
+```
+
+In this example, `AdminOnlyFunction` is a function that can only be called by
+the admin. It retrieves the caller's address using `std.GetOrigCaller()`, and
+then checks if the caller is the admin. If not, it panics and stops the
+execution.
+
+#### Using the Previous Realm Address
+
+Another approach is to use `std.PrevRealm().Addr()`, which returns the previous
+realm. This can be either another realm contract, or the calling user if there
+is no other intermediary realm.
+
+The goal of this approach is to allow a contract to own assets (like grc20 or
+native tokens), so that you can create contracts that can be called by another
+contract, reducing the risk of stealing money from the original caller. This is
+the behavior of the default grc20 implementation.
+
+Here's an example:
+
+```go
+import "std"
+
+func TransferTokens(to std.Address, amount int64) {
+    caller := std.PrevRealm().Addr()
+    if caller != admin {
+        panic("permission denied")
+    }
+    // ...
+}
+```
+
+In this example, `TransferTokens` is a function that can only be called by the
+admin. It retrieves the caller's address using `std.PrevRealm().Addr()`, and
+then checks if the caller is the admin. If not, it panics and stops the
+execution.
+
+By using these access control mechanisms, you can ensure that your contract's
+functionality is accessible only to the intended users, providing a secure and
+reliable way to manage access to your contract.
+
 ### Construct "Safe" Objects
 
 A safe object in Gno is an object that is designed to be tamper-proof and
@@ -273,3 +355,4 @@ func init() {
 - use rand
 - use time
 - use oracles
+- subscription model
