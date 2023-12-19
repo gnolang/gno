@@ -71,11 +71,11 @@ and securely.
 In Gno, it's important to know when to return an `error` and when to use `panic()`.
 Each does something different to your code and data.
 
-When you return an error in Gno, it's like giving back any other piece of data.
+When you return an `error` in Gno, it's like giving back any other piece of data.
 It tells you something went wrong, but it doesn't stop your code or undo any
 changes you made.
 
-But, when you use panic in Gno, it stops your code right away, says it failed,
+But, when you use `panic` in Gno, it stops your code right away, says it failed,
 and doesn't save any changes you made. This is safer when you want to stop
 everything and not save wrong changes.
 
