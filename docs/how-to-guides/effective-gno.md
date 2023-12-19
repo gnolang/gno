@@ -16,11 +16,11 @@ with Go. Therefore, if you haven't already, we highly recommend reading
 This section highlights some Gno good practices that might seem
 counter-intuitive, especially if you're coming from a Go background.
 
-### Embrace Global Variables in Gno
+### Embrace Global Variables in Gno Realms
 
-In Gno, using global variables isn't just acceptable - it's encouraged. This is
-because global variables in Gno provide a way to have persisted states
-automatically.
+In Gno, using global variables is not only acceptable, but it's also encouraged,
+specifically when working with realms. This is due to the unique persistence
+feature of realms.
 
 In Go, you would typically write your logic and maintain some state in memory.
 However, to persist the state and ensure it survives a restart, you would need
@@ -28,25 +28,43 @@ to use a store (like a plain file, custom file structure, a database, a
 key-value store, an API, etc.).
 
 In contrast, Gno simplifies this process. When you declare global variables in
-Gno, the GnoVM automatically persists and restores them as needed between each
-run.
+Gno realms, the GnoVM automatically persists and restores them as needed between
+each run. This means that the state of these variables is maintained across
+different executions of the realm, providing a simple and efficient way to
+manage state persistence.
 
-However, be mindful not to export your global variables. Doing so would make
-them accessible for everyone to read and write.
+However, it's important to note that this practice is not a blanket
+recommendation for all Gno code. It's specifically beneficial in the context of
+realms due to their persistent characteristics. In other Gno code, such as
+packages, the use of global variables is actually discouraged and may even be
+completely disabled in the future. Instead, packages should use global
+constants, which provide a safe and reliable way to define values that don't
+change.
 
-Here's an ideal pattern to follow:
+Also, be mindful not to export your global variables. Doing so would make them
+accessible for everyone to read and write, potentially leading to unintended
+side effects. Instead, consider using getters and setters to control access to
+these variables, as shown in the following pattern:
 
 ```go
+// private global variable.
 var counter int
 
+// public getter endpoint.
 func GetCounter() int {
     return counter
 }
 
+// public setter endpoint.
 func IncCounter() {
     counter++
 }
 ```
+
+In this example, `GetCounter` and `IncCounter` are used to read and increment
+the `counter` variable, respectively. This allows you to control how the
+`counter` variable is accessed and modified, ensuring that it's used correctly
+and securely.
 
 ### Embrace Panic in Gno
 
