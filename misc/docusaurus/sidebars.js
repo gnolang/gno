@@ -49,7 +49,6 @@ const sidebars = {
                 'concepts/gno-modules',
                 'concepts/gno-test',
                 'concepts/from-go-to-gno',
-
             ],
         },
         {
