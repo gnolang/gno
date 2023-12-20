@@ -267,7 +267,7 @@ for other developers to understand what your package does at a glance. Avoid
 using abbreviations or acronyms unless they are widely understood.
 
 Packages and realms can be organized into subfolders. However, consider that the
-best place for your main project will likely be `r/NAMESPACE/PROJECT`, similar
+best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
 to how repositories are organized on GitHub.
 
 If you have multiple sublevels of realms, remember that they are actually
@@ -280,12 +280,35 @@ could centralize all the authentication for all your company/organization in
 `r/NAMESPACE/auth`, and then import it from all your contracts.
 
 The `p/` prefix is different. In general, you should use top-level `p/` like
-`p/NAMESPACE/PROJECT` only for things you expect people to use. If your goal is
+`p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
 just to have internal libraries that you created to centralize your helpers and
 don't expect that other people will use your helpers, then you should probably
-use subfolders like `p/NAMESPACE/PROJECT/foo/bar/baz`.
+use subfolders like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
-TODO: link to the versionning section
+### Define types and interfaces in pure packages (p/)
+
+In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
+interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal is
+for the realm to become a standard that could be imported by `p/`.
+
+The reason for this is that `p/` can only import `p/`, while `r/` can import
+anything. This separation allows you to define standards in `p/` that can be
+used across multiple realms and packages.
+
+In general, you can just write your `r/` to be an app. But if for some reason
+you introduce a concept that should become a standard, it makes sense to have a
+dedicated `p/` so that people can start not only composing your realm from other
+realms but also for `p/`.
+
+For instance, if you want to create a token type in a realm, you can use it, and
+other realms can import the realm and compose it. But if you want to create a
+`p/` helper that will create a pattern, then you need to have your interface and
+types defined in `p/` so anything can import it.
+
+By separating your types and interfaces into `p/` and your runtime into `r/`,
+you can create more modular, reusable, and standardized code in Gno. This
+approach allows you to leverage the composability of Gno to build more powerful
+and flexible applications.
 
 ### Design your realm as a public API
 
@@ -500,40 +523,88 @@ func init() {
 // the object.
 ```
 
+### Choosing between native tokens and GRC20 tokens
+
+In Gno, you've got two main choices for tokens: Native or GRC20. Each has its
+own pros and cons, and the best fit depends on your needs.
+
+#### Native tokens
+
+Native tokens are managed by the banker module, separate from Gnovm. They're
+simple, strict, and secure. You can create, transfer, and check balances with an
+RPC call, no Gnovm needed.
+
+For example, if you're creating a coin for cross-chain transfers, native tokens
+are your best bet. They're IBC-ready and their strict rules offer top-notch
+security.
+
+TODO: native banker example.
+
+#### GRC20 tokens
+
+GRC20 tokens, on the other hand, are like Ethereum's ERC20 or CosmWasm's CW20.
+They're flexible, composable, and perfect for DeFi protocols and DAOs. They
+offer more features like token-gating, vaults, and wrapping.
+
+For instance, if you're creating a voting system for a DAO, GRC20 tokens are
+ideal. They're programmable, can be embedded in safe Go objects, and offer more
+control.
+
+Remember, GRC20 tokens are more gas-intensive and aren't IBC-ready yet. They
+also come with shared ownership, meaning the contract retains some control.
+
+In the end, your choice depends on your needs: simplicity and security with
+Native tokens, or flexibility and control with GRC20 tokens. And if you want the
+best of both worlds, you can wrap a native token into a GRC20 compatible
+token.
+
+```go
+import "gno.land/p/demo/grc/grc20"
+
+var fooToken grc20.AdminToken = grc20.NewAdminToken("Foo Token", "FOO", 4)
+
+func MyBalance() uint64 {
+	caller := std.GetOrigCaller()
+	balance, _ := fooToken.BalanceOf(caller)
+	return balance
+}
+```
+
+See also: https://gno.land/r/demo/foo20
+
+#### Wrapping native tokens
+
+Want the best of both worlds? Consider wrapping your Native tokens. This gives
+your tokens the flexibility of GRC20 while keeping the security of Native
+tokens. It's a bit more complex, but it's a powerful option that offers great
+versatility.
+
+See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wugnot
+
 ## TODO
 
-- Describe how versioning is different in Gno
-- Explain why exporting a variable is unsafe; instead, suggest creating getters and setters that check for permission to update
-- Explain how to export an object securely
-- Discuss the future of code generation
-- Provide examples of unoptimized / gas inefficient code
-- Discuss optimized data structures
-- Explain the use of state machines
-- Share patterns for setting an initial owner
-- Discuss Test-Driven Development (TDD)
-- write tests efficiently (mixing unit tests, and other tests)
-- Suggest shipping related code to aid review
-- Encourage writing documentation for users, not just developers
-- Discuss the different reasons for exporting/unexporting things
-- Introduce the contract contract pattern
-- Discuss the upgrade pattern and its future
-- Introduce the DAO pattern
-- Discuss the use of gno run for customization instead of contracts everywhere
-- Suggest using multiple AVL trees as an alternative to SQL indexes
-- Discuss the use of r/NAME/home and p/NAME/home/{foo, bar}[/v0-9]
-- Provide guidance on when to launch a local testnet, a full node, gnodev, etc.
-- Suggest matching the package name with the folder
-- Recommend using the demo/ folder for most things
-- Suggest keeping package names short and clear
-- Discuss VERSIONING
-- Suggest using p/ for interfaces and r/ for implementation
-- make your contract mixing onchain, unittest, and run, and eventually client.
+- packages and realms versionning
+- code generation
+- unit tests, fuzzing tests, example tests, txtar
+- shipping non-contract stuff with the realm: client, documentation, assets
+- unoptimized / gas inefficient code
+- optimized data structures
+- using state machines (gaming example)
+- TDD and local dev
+- contract-contract pattern
+- upgrade pattern
+- pausable pattern
+- flexible DAO pattern
+- maketx run to use go as shell script
+- when to launch a local testnet, a full node, gnodev, or using testnets,
+  staging, etc
 - go std vs gno std
 - use rand
 - use time
 - use oracles
 - subscription model
 - forking contracts
-- finish contracts
-- pausable contracts
-- more go than go: everything in code; use go comments; exception: readme.md
+- finished packages
+- packages for developeres, realms for users (NPM vs App Store)
+- cross-realm ownership: function pointer, callback, inline function ownership
+- advanced usages of the frame stack
