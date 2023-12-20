@@ -87,7 +87,7 @@ import "std"
 
 func Foobar() {
     caller := std.GetOrigCaller()
-    if caller != "g1234567890123456789012345678912345678" {
+    if caller != "g1xxxxx" {
         panic("permission denied")
     }
     // ...
@@ -148,6 +148,48 @@ registering realms. It's a powerful tool that helps keep your realms organized
 and properly configured from the get-go. Acting as a constructor, it sets the
 stage for the rest of your realm's lifecycle.
 
+### A Little Dependency is Better Than a Little Copying
+
+In Go, there's a well-known saying by Rob Pike: ["A little copying is better
+than a little dependency"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=568s).
+This philosophy encourages developers to minimize their dependencies and instead
+copy small amounts of code where necessary. While this approach often makes
+sense in Go, it's not always the best strategy in Gno.
+
+In Gno, especially for `p/` packages, another philosophy prevails, one that is
+more akin to the Node/NPM ecosystem. This philosophy encourages creating small
+modules and leveraging multiple dependencies. The main reason for this shift is
+code readability and trust.
+
+A Gno contract is not just its lines of code, but also the imports it uses. And
+importantly, Gno contracts are not just for developers. For the first time, it
+makes sense for users to check out what they are executing too. Code simplicity,
+explicitness, and trustability are paramount.
+
+Another good reason for creating simple, focused libraries is the composability
+of Go and Gno. Essentially, you can think of each `p/` package as a Lego brick
+in an ever-growing collection, giving more power to users. `p/` in Gno is
+basically a way to extend the standard libraries in a community-driven manner.
+
+Unlike other compiled languages where dependencies are not always well-known and
+clear metrics are lacking, Gno allows for a reputation system not only for the
+called contracts, but also for the dependencies.
+
+For example, you might choose to use well-crafted `p/` packages that have been
+reviewed, audited, and have billions of transactions under their belt, boasting
+super high stability. This approach can make your code smaller and more
+reliable.
+
+In other platforms, an audit usually involves auditing everything, including the
+dependencies. However, in Gno, we can expect that over time, contracts will
+become smaller, more powerful, and partially audited by default, thanks to this
+enforced open-source system.
+
+So, while you can still adhere to the original philosophy of minimizing
+dependencies, ultimately, try to use and write super stable, simple, tested,
+focused `p/` small libraries. This approach can lead to more reliable,
+efficient, and trustworthy Gno contracts.
+
 ## Gno Good Practices
 
 ### Package Naming and Organization in Gno
@@ -181,6 +223,8 @@ don't expect that other people will use your helpers, then you should probably
 use subfolders like `p/NAMESPACE/PROJECT/foo/bar/baz`.
 
 TODO: link to the versionning section
+
+### 
 
 ### Design Your Realm as a Public API
 
@@ -246,7 +290,7 @@ Here's an example:
 ```go
 import "std"
 
-var admin std.Address = "g1......"
+var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction() {
     caller := std.GetOrigCaller()
@@ -397,8 +441,6 @@ func init() {
 
 ## TODO
 
-- Packages vs realms, subpackages, subrealms, internal
-- Elaborate on the benefits of global variables
 - Discuss the advantages of NPM-style small and focused libraries
 - Describe how versioning is different in Gno
 - Explain why exporting a variable is unsafe; instead, suggest creating getters and setters that check for permission to update
