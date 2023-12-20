@@ -232,6 +232,27 @@ accessible and understandable for all users, not just developers.
 
 TODO: `func ExampleXXX`.
 
+### Reflection is Never Clear.
+
+In Go, there's a well-known saying by Rob Pike: ["Reflection is never
+clear."](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=15m22s) This statement
+emphasizes the complexity and potential pitfalls of using reflection in Go.
+
+In Gno, reflection does not exist (yet). There are technical reasons for this,
+but also a desire to create a Go alternative that is explicitly safer to use
+than Go, with a smaller cognitive difficulty to read, discover, and understand.
+
+The absence of reflection in Gno is not just about simplicity, but also about
+safety. Reflection can be powerful, but it can also lead to code that is hard to
+understand, hard to debug, and prone to runtime errors. By not supporting
+reflection, Gno encourages you to write code that is explicit, clear, and easy
+to understand.
+
+We're currently in the process of considering whether to add reflection support
+or not, or perhaps in a privileged mode for very rare libraries. But for now,
+when you're writing Gno code, remember: explicit is better than implicit, and
+clear code is better than clever code.
+
 ## Gno Good Practices
 
 ### Package Naming and Organization in Gno
