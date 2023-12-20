@@ -90,3 +90,106 @@ func TestFlatten(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractKeys(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData []byte
+		expected []string
+	}{
+		{
+			name:     "Simple Object",
+			jsonData: []byte(`{"name": "John", "age": 30}`),
+			expected: []string{"name", "age"},
+		},
+		{
+			name:     "Nested Object",
+			jsonData: []byte(`{"person": {"name": "John", "age": 30}, "city": "New York"}`),
+			expected: []string{"person", "name", "age", "city"},
+		},
+		{
+			name:     "Array of Objects",
+			jsonData: []byte(`[{"name": "John"}, {"age": 30}]`),
+			expected: []string{"name", "age"},
+		},
+		{
+			name: "Nested Object 2",
+			jsonData: []byte(`{
+				"a": {
+					"b": {
+						"c": 1,
+						"d": 2
+					}
+				},
+				"e": {
+					"f": 3
+				}
+			}`),
+			expected: []string{"a", "b", "c", "d", "e", "f"},
+		},
+		{
+			name:     "Empty Object",
+			jsonData: []byte(`{}`),
+			expected: []string{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := extractKeys(test.jsonData)
+			if err != nil {
+				t.Errorf("name: %s error = %v", test.name, err)
+				return
+			}
+
+			if len(result) != len(test.expected) {
+				t.Errorf("name: %s, expected %d keys, got %d. contents: %s", test.name, len(test.expected), len(result), result)
+				return
+			}
+		})
+	}
+}
+
+// func TestGetTypeFromKey(t *testing.T) {
+// 	testCases := []struct {
+// 		name     string
+// 		data     []byte
+// 		key      string
+// 		expected ValueType
+// 		err      error
+// 	}{
+// 		{
+// 			name:     "Key Exists",
+// 			data:     []byte(`{"name": "John", "age": 30}`),
+// 			key:      "name",
+// 			expected: String,
+// 			err:      nil,
+// 		},
+// 		{
+// 			name:     "Key Does Not Exist",
+// 			data:     []byte(`{"name": "John", "age": 30}`),
+// 			key:      "address",
+// 			expected: NotExist,
+// 			err:      errors.New("key not found"),
+// 		},
+// 		{
+// 			name:     "Empty Data",
+// 			data:     []byte(`{}`),
+// 			key:      "name",
+// 			expected: NotExist,
+// 			err:      errors.New("key not found"),
+// 		},
+// 	}
+
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			result, err := getTypeFromKey(tc.data, tc.key)
+// 			if result != tc.expected {
+// 				t.Errorf("Expected %v, got %v", tc.expected, result)
+// 			}
+// 			if (err == nil && tc.err != nil) || (err != nil && tc.err == nil) || (err != nil && tc.err != nil && err.Error() != tc.err.Error()) {
+// 				t.Errorf("Expected error: %v, got error: %v", tc.err, err)
+// 			}
+// 		})
+// 	}
+// }

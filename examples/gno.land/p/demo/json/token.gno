@@ -18,7 +18,7 @@ const (
 	NewLineToken        = '\n'
 	TabToken            = '\t'
 	CarriageReturnToken = '\r'
-	FormFeedToken	    = '\f'
+	FormFeedToken       = '\f'
 	BackspaceToken      = '\b'
 	SlashToken          = '/'
 	BackSlashToken      = '\\'

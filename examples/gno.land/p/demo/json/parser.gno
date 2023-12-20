@@ -239,25 +239,6 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	return man, exp10, nil
 }
 
-func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset int, err error) {
-	switch b {
-	case 't', 'f':
-		if bytes.Equal(value, TrueLiteral) || bytes.Equal(value, FalseLiteral) {
-			dataType = Boolean
-		}
-		return Unknown, offset, UnknownValueType
-	case 'u', 'n':
-		if bytes.Equal(value, NullLiteral) {
-			dataType = Null
-		}
-		return Unknown, offset, UnknownValueType
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-		dataType = Number
-	default:
-		return Unknown, offset, UnknownValueType
-	}
-}
-
 // underscoreOK reports whether the underscores in s are allowed.
 // Checking them in this one function lets all the parsers skip over them simply.
 // Underscore must appear only between digits or between a base prefix and a digit.
@@ -472,31 +453,4 @@ func parseNextElementOrEndArray(data []byte, offset int) (int, error) {
 	}
 
 	return offset + 1, nil
-}
-
-func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
-	if len(keys) > 0 {
-		offset, err = findValueIndex(data, keys...)
-		if err != nil {
-			return nil, NotExist, -1, -1, err
-		}
-	}
-
-	// Go to closest value
-	nO, err := nextToken(data[offset:])
-	if err != nil {
-		return nil, NotExist, offset, -1, MalformedJson
-	}
-
-	offset += nO
-	if value, dataType, endOffset, err = getType(data, offset); err != nil {
-		return value, dataType, offset, endOffset, err
-	}
-
-	// Strip quotes from string values
-	if dataType == String {
-		value = value[1 : len(value)-1]
-	}
-
-	return value[:len(value):len(value)], dataType, offset, endOffset, nil
 }
