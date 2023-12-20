@@ -287,6 +287,12 @@ func underscoreOK(s string) bool {
 	return saw != UnderscoreToken
 }
 
+// getType is a function that takes a byte slice and an offset as input parameters.
+// It returns a byte slice representing the data type, a ValueType indicating the type of data,
+// an integer representing the end offset, and an error if any.
+// If the input byte slice is empty, it returns an error indicating that no JSON data was provided.
+// Otherwise, it calls the parseValue function to parse the value and returns the parsed data type,
+// the end offset, and any error encountered during parsing.
 func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 	if len(data) == 0 {
 		return nil, Unknown, offset, errors.New("no JSON data provided")
@@ -300,6 +306,8 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 	return data[offset:endOffset], dataType, endOffset, nil
 }
 
+// parseValue parses a JSON value from the given data starting at the specified offset.
+// It returns the parsed value, the new offset after parsing, and an error if any.
 func parseValue(data []byte, offset int) (ValueType, int, error) {
 	switch data[offset] {
 	case DoublyQuoteToken:

@@ -264,3 +264,23 @@ func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset 
 	a, b, _, d, e := internalGet(data, keys...)
 	return a, b, d, e
 }
+
+func MapKeyTypes(data []byte) (map[string]ValueType, error) {
+	keyTypeMap := make(map[string]ValueType)
+
+	keys, err := extractKeys(data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range keys {
+		_, typ, _, err := Get(data, key)
+		if err != nil {
+			return nil, err
+		}
+
+		keyTypeMap[key] = typ
+	}
+
+	return keyTypeMap, nil
+}
