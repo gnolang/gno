@@ -1524,10 +1524,6 @@ func DeepCopyTypedValues(tv []TypedValue) []TypedValue {
 
 		v := value.V
 
-		if v != nil {
-			v = v
-		}
-
 		ntv[i] = TypedValue{
 			T: t,
 			V: v,

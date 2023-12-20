@@ -329,14 +329,14 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			go func() {
-				if tv.T.Kind() == FuncKind &&
-					strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
-					w.Add(1)
-					cm := m.DeepCopy()
-					cm.TestFunc(&w, t, tv)
-				}
-			}()
+			//go func() {
+			if tv.T.Kind() == FuncKind &&
+				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
+				w.Add(1)
+				cm := m.DeepCopy()
+				cm.TestFunc(&w, t, tv)
+			}
+			//}()
 		}
 		w.Wait()
 	}
@@ -358,15 +358,17 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			go func() {
-				if tv.T.Kind() == FuncKind &&
-					strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
-					w.Add(1)
-					cm := m.DeepCopy()
+			//go func() {
+			if tv.T.Kind() == FuncKind &&
+				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
 
-					cm.TestFunc(&w, t, tv)
-				}
-			}()
+				w.Add(1)
+				cm := m.DeepCopy()
+
+				cm.TestFunc(&w, t, tv)
+
+			}
+			//}()
 		}
 		w.Wait()
 	}
@@ -440,6 +442,7 @@ func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
 	testingcx := &ConstExpr{TypedValue: testingtv}
 
 	t.Run(name, func(t *testing.T) {
+		t.Parallel()
 		defer m.injectLocOnPanic()
 		x := Call(
 			Sel(testingcx, "RunTest"), // Call testing.RunTest
