@@ -1,0 +1,5 @@
+gnoland start
+
+# should fail if user is added after node is started
+! adduser test5
+stderr '"adduser" error: adduser must be used before starting node'
