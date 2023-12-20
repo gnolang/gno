@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"os"
@@ -241,9 +242,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				time.Sleep(d)
 			},
 			// adduser commands must be executed before starting the node; it errors out otherwise.
-			"adduser": func(ts *testscript.TestScript, _ bool, args []string) {
+			"adduser": func(ts *testscript.TestScript, neg bool, args []string) {
 				if nodeIsRunning(nodes, getNodeSID(ts)) {
-					ts.Fatalf("adduser must be used before starting node")
+					tsValidateError(ts, "adduser", neg, errors.New("adduser must be used before starting node"))
+					return
 				}
 
 				if len(args) == 0 {
