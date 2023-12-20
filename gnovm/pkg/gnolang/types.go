@@ -2346,7 +2346,7 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 	// primitive is maybeIdenticalType
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
-		debugPP.Println("primitive type, return true")
+		debugPP.Println("primitive type, return true, fallthrough")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
 		// TODO: check at least length here

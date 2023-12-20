@@ -52,6 +52,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
+			debugPP.Printf("tv after conversion: %v \n", tv)
 			return
 		}
 	} else {
@@ -876,6 +877,9 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tv.T.String(), k.String()))
 		}
+	case BigintKind:
+		debugPP.Println("---bigIntKind---")
+		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert %s to %s",
