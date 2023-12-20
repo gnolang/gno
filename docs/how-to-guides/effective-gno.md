@@ -210,6 +210,41 @@ dependencies, ultimately, try to use and write super stable, simple, tested,
 focused `p/` small libraries. This approach can lead to more reliable,
 efficient, and trustworthy Gno contracts.
 
+```go
+import (
+    "gno.land/p/finance/tokens"
+    "gno.land/p/finance/exchange"
+    "gno.land/p/finance/wallet"
+    "gno.land/p/utils/permissions"
+)
+
+var (
+    myWallet wallet.Wallet
+    myToken tokens.Token
+    myExchange exchange.Exchange
+)
+
+func init() {
+    myWallet = wallet.NewWallet()
+    myToken = tokens.NewToken("MyToken", "MTK")
+    myExchange = exchange.NewExchange(myToken)
+}
+
+func BuyTokens(amount int) {
+    caller := permissions.GetCaller()
+    permissions.CheckPermission(caller, "buy")
+    myWallet.Debit(caller, amount)
+    myExchange.Buy(caller, amount)
+}
+
+func SellTokens(amount int) {
+    caller := permissions.GetCaller()
+    permissions.CheckPermission(caller, "sell")
+    myWallet.Credit(caller, amount)
+    myExchange.Sell(caller, amount)
+}
+```
+
 ##  When Gno takes Go practices to the next level
 
 ### Documentation is for users
