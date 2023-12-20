@@ -9,7 +9,6 @@ to help you understand the nuances of Gno and how to use it effectively.
 
 Before we dive in, it's important to note that Gno shares several similarities
 with Go. Therefore, if you haven't already, we highly recommend reading
-$
 ["Effective Go"](https://go.dev/doc/effective_go) as a primer.
 
 ## Disclaimer
