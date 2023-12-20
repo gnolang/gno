@@ -68,8 +68,21 @@ and securely.
 
 ### Embrace Panic in Gno
 
-In Gno, it's important to know when to return an `error` and when to use
-`panic()`. Each does something different to your code and data.
+In Gno, we have a slightly different approach to handling errors compared to Go.
+While the famous [quote by Rob
+Pike](https://github.com/golang/go/wiki/CodeReviewComments#dont-panic) advises
+Go developers "Don't panic.", in Gno, we actually embrace `panic`.
+
+Panic in Gno is not just for critical errors or programming mistakes as it is in
+Go. Instead, it's used as a control flow mechanism to stop the execution of a
+contract when something goes wrong. This could be due to an invalid input, a
+failed precondition, or any other situation where it's not possible or desirable
+to continue executing the contract.
+
+So, while in Go, you should avoid `panic` and handle `error`s gracefully, in Gno,
+don't be afraid to use `panic` to enforce contract rules and protect the integrity
+of your contract's state. Remember, a well-placed panic can save your contract
+from a lot of trouble.
 
 When you return an `error` in Gno, it's like giving back any other piece of data.
 It tells you something went wrong, but it doesn't stop your code or undo any
@@ -190,6 +203,35 @@ dependencies, ultimately, try to use and write super stable, simple, tested,
 focused `p/` small libraries. This approach can lead to more reliable,
 efficient, and trustworthy Gno contracts.
 
+##  When Gno Takes Go Practices to the Next Level
+
+### Documentation is for users
+
+One of the well-known proverbs in Go is: ["Documentation is for
+users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s), as stated by Rob
+Pike. In Go, documentation is for users, but users are often developers. In Gno,
+documentation is for users, but users can be another developer or the end users.
+
+In Go, we usually have well-written documentation for other developers to
+maintain and use our code as a library. Then, we often have another layer of
+documentation on our API, sometimes with OpenAPI Specs, Protobuf, or even user
+documentation.
+
+In Gno, the focus shifts towards writing documentation for the end user. You can
+even consider that the main reader is an end user, who is not so interested in
+technical details, but mostly interested in how and why they should use a
+particular endpoint. Comments will be used for code source reading, but also to
+generate documentation and even for smart wallets that need to understand what
+to do.
+
+Inline comments have the same goal: to guide users (developers or end users)
+through the code. While comments are still important for maintainability, their
+main purpose in Gno is for discoverability. This shift towards user-centric
+documentation reflects the broader shift in Gno towards making code more
+accessible and understandable for all users, not just developers.
+
+TODO: `func ExampleXXX`.
+
 ## Gno Good Practices
 
 ### Package Naming and Organization in Gno
@@ -223,8 +265,6 @@ don't expect that other people will use your helpers, then you should probably
 use subfolders like `p/NAMESPACE/PROJECT/foo/bar/baz`.
 
 TODO: link to the versionning section
-
-### 
 
 ### Design Your Realm as a Public API
 
@@ -441,7 +481,6 @@ func init() {
 
 ## TODO
 
-- Discuss the advantages of NPM-style small and focused libraries
 - Describe how versioning is different in Gno
 - Explain why exporting a variable is unsafe; instead, suggest creating getters and setters that check for permission to update
 - Explain how to export an object securely
@@ -473,3 +512,7 @@ func init() {
 - use time
 - use oracles
 - subscription model
+- forking contracts
+- finish contracts
+- pausable contracts
+- more go than go: everything in code; use go comments; exception: readme.md
