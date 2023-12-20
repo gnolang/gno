@@ -150,6 +150,38 @@ stage for the rest of your realm's lifecycle.
 
 ## Gno Good Practices
 
+### Package Naming and Organization in Gno
+
+Your package name should match the folder name. This helps to prevent having
+named imports, which can make your code more difficult to understand and
+maintain. By matching the package name with the folder name, you can ensure that
+your imports are clear and intuitive.
+
+Ideally, package names should be short and human-readable. This makes it easier
+for other developers to understand what your package does at a glance. Avoid
+using abbreviations or acronyms unless they are widely understood.
+
+Packages and realms can be organized into subfolders. However, consider that the
+best place for your main project will likely be `r/NAMESPACE/PROJECT`, similar
+to how repositories are organized on GitHub.
+
+If you have multiple sublevels of realms, remember that they are actually
+independent realms and won't share data. A good usage could be to have an
+ecosystem of realms, where one realm is about storing the state, another one
+about configuration, etc. But in general, a single realm makes sense.
+
+You can also create small realms to create your ecosystem. For example, you
+could centralize all the authentication for all your company/organization in
+`r/NAMESPACE/auth`, and then import it from all your contracts.
+
+The `p/` prefix is different. In general, you should use top-level `p/` like
+`p/NAMESPACE/PROJECT` only for things you expect people to use. If your goal is
+just to have internal libraries that you created to centralize your helpers and
+don't expect that other people will use your helpers, then you should probably
+use subfolders like `p/NAMESPACE/PROJECT/foo/bar/baz`.
+
+TODO: link to the versionning section
+
 ### Design Your Realm as a Public API
 
 In Go, all your packages, including your dependencies, are typically treated as
@@ -200,8 +232,6 @@ whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-#### Using the Original Caller Address
-
 One approach is to look at the EOA (Externally Owned Account), which is the
 original caller. For this, you should call `std.GetOrigCaller()`, which returns
 the address of the wallet used to make the transaction.
@@ -233,8 +263,6 @@ In this example, `AdminOnlyFunction` is a function that can only be called by
 the admin. It retrieves the caller's address using `std.GetOrigCaller()`, and
 then checks if the caller is the admin. If not, it panics and stops the
 execution.
-
-#### Using the Previous Realm Address
 
 Another approach is to use `std.PrevRealm().Addr()`, which returns the previous
 realm. This can be either another realm contract, or the calling user if there
@@ -398,7 +426,6 @@ func init() {
 - Discuss VERSIONING
 - Suggest using p/ for interfaces and r/ for implementation
 - make your contract mixing onchain, unittest, and run, and eventually client.
-- std.GetOrigCaller vs std.PrevRealm().Addr(), etc
 - go std vs gno std
 - use rand
 - use time
