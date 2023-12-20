@@ -145,3 +145,48 @@ func TestGet(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractKeys(t *testing.T) {
+    tests := []struct {
+        name     string
+        jsonData []byte
+        expected []string
+    }{
+        {
+            name:     "Simple Object",
+            jsonData: []byte(`{"name": "John", "age": 30}`),
+            expected: []string{"name", "age"},
+        },
+        {
+            name:     "Nested Object",
+            jsonData: []byte(`{"person": {"name": "John", "age": 30}, "city": "New York"}`),
+            expected: []string{"person", "name", "age", "city"},
+        },
+        {
+            name:     "Array of Objects",
+            jsonData: []byte(`[{"name": "John"}, {"age": 30}]`),
+            expected: []string{"name", "age"},
+        },
+        {
+            name:     "Empty Object",
+            jsonData: []byte(`{}`),
+            expected: []string{},
+        },
+        // Additional test cases can be added here.
+    }
+
+    for _, test := range tests {
+        t.Run(test.name, func(t *testing.T) {
+            result, err := ExtractKeys(test.jsonData)
+            if err != nil {
+                t.Errorf("name: %s error = %v", test.name, err)
+                return
+            }
+
+			if len(result) != len(test.expected) {
+				t.Errorf("name: %s, expected %d keys, got %d. contents: %s", test.name, len(test.expected), len(result), result)
+				return
+			}
+        })
+    }
+}

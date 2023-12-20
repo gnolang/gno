@@ -283,6 +283,53 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 	return -1, KeyPathNotFoundError
 }
 
+func ExtractKeys(data []byte) (keys []string, err error) {
+	var (
+		stack []byte
+		inString bool
+		potentialKey string
+		afterString bool
+	)
+
+    for i := 0; i < len(data); i++ {
+        switch data[i] {
+        case ObjectStartToken, ArrayStartToken:
+            stack = append(stack, data[i])
+        case ObjectEndToken, ArrayEndToken:
+            if len(stack) > 0 {
+                stack = stack[:len(stack)-1]
+            }
+        case DoublyQuoteToken:
+            if inString {
+                // End of string
+                inString = false
+                afterString = true
+            } else {
+                // Start of string
+                inString = true
+                potentialKey = ""
+                if len(stack) > 0 && stack[len(stack)-1] == ObjectStartToken {
+                    afterString = false
+                }
+            }
+        case ColonToken:
+            if afterString && len(stack) > 0 && stack[len(stack)-1] == ObjectStartToken {
+                keys = append(keys, potentialKey)
+                afterString = false
+            }
+        default:
+            if inString {
+                potentialKey += string(data[i])
+            }
+            if !inString && data[i] != WhiteSpaceToken && data[i] != NewLineToken && data[i] != CarriageReturnToken && data[i] != TabToken {
+                afterString = false
+            }
+        }
+    }
+
+    return keys, nil
+}
+
 func decreaseLevel(level, keyLevel int) (int, int) {
 	if level -= 1; level == keyLevel {
 		keyLevel -= 1
@@ -291,12 +338,7 @@ func decreaseLevel(level, keyLevel int) (int, int) {
 	return level, keyLevel
 }
 
-func keyMatched(key []byte, keyEscaped bool, stackbuf [UnescapeStackBufSize]byte, keys []string, level int) ([]byte, error) {
-	var (
-		keyUnesc []byte
-		err      error
-	)
-
+func keyMatched(key []byte, keyEscaped bool, stackbuf [UnescapeStackBufSize]byte, keys []string, level int) (keyUnesc []byte, err error) {
 	if !keyEscaped {
 		keyUnesc = key
 	} 
