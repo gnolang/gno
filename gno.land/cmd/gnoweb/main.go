@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -14,8 +15,16 @@ import (
 )
 
 func main() {
+	err := runMain(os.Args[1:])
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runMain(args []string) error {
 	var (
-		fs          = flag.NewFlagSet("gnoweb", flag.PanicOnError)
+		fs          = flag.NewFlagSet("gnoweb", flag.ContinueOnError)
 		cfg         = gnoweb.NewDefaultConfig()
 		bindAddress string
 	)
@@ -28,9 +37,8 @@ func main() {
 	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
 	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
 
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		panic("unable to parse flags: " + err.Error())
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
 
 	logger := log.NewTMLogger(os.Stdout)
@@ -46,4 +54,5 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
 	}
+	return nil
 }
