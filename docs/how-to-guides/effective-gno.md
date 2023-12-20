@@ -11,12 +11,12 @@ Before we dive in, it's important to note that Gno shares several similarities
 with Go. Therefore, if you haven't already, we highly recommend reading
 ["Effective Go"](https://go.dev/doc/effective_go) as a primer.
 
-## Counter-Intuitive Good Practices
+## Counter-intuitive good practices
 
 This section highlights some Gno good practices that might seem
 counter-intuitive, especially if you're coming from a Go background.
 
-### Embrace Global Variables in Gno Realms
+### Embrace global variables in realms
 
 In Gno, using global variables is not only acceptable, but it's also encouraged,
 specifically when working with realms. This is due to the unique persistence
@@ -66,7 +66,7 @@ the `counter` variable, respectively. This allows you to control how the
 `counter` variable is accessed and modified, ensuring that it's used correctly
 and securely.
 
-### Embrace Panic in Gno
+### Embrace `panic`
 
 In Gno, we have a slightly different approach to handling errors compared to Go.
 While the famous [quote by Rob
@@ -109,7 +109,7 @@ func Foobar() {
 
 - TODO: suggest MustXXX and AssertXXX flows in p/.
 
-### Understand the Importance of `init()`
+### Understand the importance of `init()`
 
 In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
 automatically triggered when a new realm is added onchain, making it a one-time
@@ -161,7 +161,7 @@ registering realms. It's a powerful tool that helps keep your realms organized
 and properly configured from the get-go. Acting as a constructor, it sets the
 stage for the rest of your realm's lifecycle.
 
-### A Little Dependency is Better Than a Little Copying
+### A little dependency is better than a little copying
 
 In Go, there's a well-known saying by Rob Pike: ["A little copying is better
 than a little dependency"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=568s).
@@ -203,7 +203,7 @@ dependencies, ultimately, try to use and write super stable, simple, tested,
 focused `p/` small libraries. This approach can lead to more reliable,
 efficient, and trustworthy Gno contracts.
 
-##  When Gno Takes Go Practices to the Next Level
+##  When Gno takes Go practices to the next level
 
 ### Documentation is for users
 
@@ -232,7 +232,7 @@ accessible and understandable for all users, not just developers.
 
 TODO: `func ExampleXXX`.
 
-### Reflection is Never Clear.
+### Reflection is never clear
 
 In Go, there's a well-known saying by Rob Pike: ["Reflection is never
 clear."](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=15m22s) This statement
@@ -253,9 +253,9 @@ or not, or perhaps in a privileged mode for very rare libraries. But for now,
 when you're writing Gno code, remember: explicit is better than implicit, and
 clear code is better than clever code.
 
-## Gno Good Practices
+## Gno good practices
 
-### Package Naming and Organization in Gno
+### Package naming and organization
 
 Your package name should match the folder name. This helps to prevent having
 named imports, which can make your code more difficult to understand and
@@ -287,7 +287,7 @@ use subfolders like `p/NAMESPACE/PROJECT/foo/bar/baz`.
 
 TODO: link to the versionning section
 
-### Design Your Realm as a Public API
+### Design your realm as a public API
 
 In Go, all your packages, including your dependencies, are typically treated as
 part of your safe zone, similar to a secure perimeter. The boundary is drawn
@@ -323,7 +323,7 @@ actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
 
-### Contract-Level Access Control
+### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
 own access control. This means that different endpoints of your contract should
@@ -401,7 +401,7 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Using avl.Tree for Efficient Data Retrieval
+### Using avl.Tree for efficient data retrieval
 
 In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
 retrieval. It works by lazily resolving information, which means it only loads
@@ -450,7 +450,7 @@ scalable and efficient.
 
 TODO: multi-indices example
 
-### Construct "Safe" Objects
+### Construct "safe" objects
 
 A safe object in Gno is an object that is designed to be tamper-proof and
 secure. It's created with the intent of preventing unauthorized access and
