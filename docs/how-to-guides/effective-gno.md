@@ -561,7 +561,7 @@ func init() {
     otherrealm.Register(mySafeObject)
 }
 
-// then, otherrealm can call the public functions but won't be the "owner" of
+// then, other realm can call the public functions but won't be the "owner" of
 // the object.
 ```
 
