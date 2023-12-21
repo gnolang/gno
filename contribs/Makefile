@@ -4,9 +4,10 @@ help:
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
 .PHONY: install
-install: install.gnomd
+install: install.gnomd install.gnodev
 
-install.gnomd:; cd gnomd && go install .
+install.gnomd:;  cd gnomd && go install .
+install.gnodev:; $(MAKE) -C ./gnodev install
 
 .PHONY: clean
 clean:
@@ -20,6 +21,15 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+
+.PHONY: tidy
+tidy:
+	@for gomod in `find . -name go.mod`; do ( \
+    dir=`dirname $$gomod`; \
+	  set -xe; \
+	  cd $$dir; \
+	  go mod tidy -v; \
+	); done
 
 ########################################
 # Test suite

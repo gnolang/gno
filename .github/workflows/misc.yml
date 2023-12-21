@@ -1,17 +1,59 @@
+# tests the "misc" directory & tools
+# (not meant for miscellaneous workflows)
 name: misc
 
 on:
+  pull_request:
+    paths:
+      - "misc/genstd/**.go"
+      - "misc/Makefile"
+      - ".github/workflows/misc.yml"
+      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, misc, and gno.land concurrently.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "examples/**"
+      - ".github/workflows/**"
   push:
     branches: [ "master" ]
-  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  lint:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion:
+          - "1.21.x"
+        program:
+          - "genstd"
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.goversion }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: go install
+        working-directory: misc
+        run: go install ./${{ matrix.program }}
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion:
+          - "1.21.x"
+        args:
+          - _test.genstd
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,72 +61,20 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.21.x
+          go-version: ${{ matrix.goversion }}
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          # sync with misc/devdeps/go.mod
-          version: v1.54
-          args:
-            --config=./.github/golangci.yml
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.x
-
-      - name: Install make
-        run: sudo apt-get install -y make
-
-      # prefill dependencies so that mod messages don't show up in make output
-      - name: Fetch dependencies
-        run: go mod download -modfile ./misc/devdeps/go.mod -x
-
-      # inspired by:
-      # https://github.com/Jerome1337/gofmt-action/blob/d5eabd189843f1d568286a54578159978b7c0fb1/entrypoint.sh
-      - name: Check gofumpt
+      - name: Test
+        working-directory: misc
         run: |
-          output="$(GOFMT_FLAGS=-l make -s fmt)"
-          if [ ! -z "$output" ]; then
-            echo "The following files are not properly formatted; run 'make fmt' to format them."
-            echo "$output"
-            exit 1
-          else
-            echo 'Succeeded.'
-          fi
-  modtidy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          export GOPATH=$HOME/go
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
+          make ${{ matrix.args }}
 
-      - name: Install Go
-        uses: actions/setup-go@v4
+      - if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v3
         with:
-          go-version: 1.21.x
-
-      - name: Check go.mods
-        run: |
-          set -e
-          # Find all go.mod files
-          gomods=$(find . -type f -name go.mod)
-          
-          # Calculate sums for all go.mod files
-          sums=$(sha256sum $gomods)
-          
-          # Iterate over each go.mod file
-          for modfile in $gomods; do
-            dir=$(dirname "$modfile")
-          
-            # Run go mod tidy in the directory
-            (cd "$dir" && go mod tidy -v) || exit 1
-          done
-          
-          # Verify the sums
-          echo "$sums" | sha256sum -c
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: misc
+          flags: misc,misc-${{matrix.args}},go-${{ matrix.goversion }}
+          files: ./misc/coverage.out
+          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}

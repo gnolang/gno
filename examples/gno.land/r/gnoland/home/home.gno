@@ -106,17 +106,8 @@ func worxDAO() ui.Element {
 	## Contributors
 	``*/
 	return ui.Element{
-		ui.H3("WorxDAO (WIP)"),
-		ui.Text(`- A
-  - A1
-    - A1A
-    - A1B
-  - A2
-  - A3
-    - A3A
-      - A3A1
-- B
-- C`),
+		ui.H3("Contributions (WorxDAO & GoR)"),
+		ui.Text(`TODO: GoR dashboard + WorxDAO topics`),
 	}
 }
 
