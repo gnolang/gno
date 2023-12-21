@@ -33,11 +33,11 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
-		newBuildCmd(io),
 		newPrecompileCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),
 		newDocCmd(io),
+		newEnvCmd(io),
 		// fmt -- gofmt
 		// graph
 		// vendor -- download deps from the chain in vendor/

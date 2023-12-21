@@ -4,7 +4,6 @@
 const sidebars = {
     tutorialSidebar: [
         'overview',
-        'peace',
         {
             type: 'category',
             label: 'Getting Started',

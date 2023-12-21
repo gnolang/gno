@@ -13,189 +13,189 @@ message RequestBase {
 }
 
 message RequestEcho {
-	RequestBase RequestBase = 1;
-	string Message = 2;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	string message = 2 [json_name = "Message"];
 }
 
 message RequestFlush {
-	RequestBase RequestBase = 1;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
 }
 
 message RequestInfo {
-	RequestBase RequestBase = 1;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
 }
 
 message RequestSetOption {
-	RequestBase RequestBase = 1;
-	string Key = 2;
-	string Value = 3;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	string key = 2 [json_name = "Key"];
+	string value = 3 [json_name = "Value"];
 }
 
 message RequestInitChain {
-	RequestBase RequestBase = 1;
-	google.protobuf.Timestamp Time = 2;
-	string ChainID = 3;
-	ConsensusParams ConsensusParams = 4;
-	repeated ValidatorUpdate Validators = 5;
-	google.protobuf.Any AppState = 6;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	google.protobuf.Timestamp time = 2 [json_name = "Time"];
+	string chain_id = 3 [json_name = "ChainID"];
+	ConsensusParams consensus_params = 4 [json_name = "ConsensusParams"];
+	repeated ValidatorUpdate validators = 5 [json_name = "Validators"];
+	google.protobuf.Any app_state = 6 [json_name = "AppState"];
 }
 
 message RequestQuery {
-	RequestBase RequestBase = 1;
-	bytes Data = 2;
-	string Path = 3;
-	sint64 Height = 4;
-	bool Prove = 5;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	bytes data = 2 [json_name = "Data"];
+	string path = 3 [json_name = "Path"];
+	sint64 height = 4 [json_name = "Height"];
+	bool prove = 5 [json_name = "Prove"];
 }
 
 message RequestBeginBlock {
-	RequestBase RequestBase = 1;
-	bytes Hash = 2;
-	google.protobuf.Any Header = 3;
-	LastCommitInfo LastCommitInfo = 4;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	bytes hash = 2 [json_name = "Hash"];
+	google.protobuf.Any header = 3 [json_name = "Header"];
+	LastCommitInfo last_commit_info = 4 [json_name = "LastCommitInfo"];
 }
 
 message RequestCheckTx {
-	RequestBase RequestBase = 1;
-	bytes Tx = 2;
-	sint64 Type = 3;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	bytes tx = 2 [json_name = "Tx"];
+	sint64 type = 3 [json_name = "Type"];
 }
 
 message RequestDeliverTx {
-	RequestBase RequestBase = 1;
-	bytes Tx = 2;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	bytes tx = 2 [json_name = "Tx"];
 }
 
 message RequestEndBlock {
-	RequestBase RequestBase = 1;
-	sint64 Height = 2;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
+	sint64 height = 2 [json_name = "Height"];
 }
 
 message RequestCommit {
-	RequestBase RequestBase = 1;
+	RequestBase request_base = 1 [json_name = "RequestBase"];
 }
 
 message ResponseBase {
-	google.protobuf.Any Error = 1;
-	bytes Data = 2;
-	repeated google.protobuf.Any Events = 3;
-	string Log = 4;
-	string Info = 5;
+	google.protobuf.Any error = 1 [json_name = "Error"];
+	bytes data = 2 [json_name = "Data"];
+	repeated google.protobuf.Any events = 3 [json_name = "Events"];
+	string log = 4 [json_name = "Log"];
+	string info = 5 [json_name = "Info"];
 }
 
 message ResponseException {
-	ResponseBase ResponseBase = 1;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 }
 
 message ResponseEcho {
-	ResponseBase ResponseBase = 1;
-	string Message = 2;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	string message = 2 [json_name = "Message"];
 }
 
 message ResponseFlush {
-	ResponseBase ResponseBase = 1;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 }
 
 message ResponseInfo {
-	ResponseBase ResponseBase = 1;
-	string ABCIVersion = 2;
-	string AppVersion = 3;
-	sint64 LastBlockHeight = 4;
-	bytes LastBlockAppHash = 5;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	string abci_version = 2 [json_name = "ABCIVersion"];
+	string app_version = 3 [json_name = "AppVersion"];
+	sint64 last_block_height = 4 [json_name = "LastBlockHeight"];
+	bytes last_block_app_hash = 5 [json_name = "LastBlockAppHash"];
 }
 
 message ResponseSetOption {
-	ResponseBase ResponseBase = 1;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 }
 
 message ResponseInitChain {
-	ResponseBase ResponseBase = 1;
-	ConsensusParams ConsensusParams = 2;
-	repeated ValidatorUpdate Validators = 3;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	ConsensusParams consensus_params = 2 [json_name = "ConsensusParams"];
+	repeated ValidatorUpdate validators = 3 [json_name = "Validators"];
 }
 
 message ResponseQuery {
-	ResponseBase ResponseBase = 1;
-	bytes Key = 2;
-	bytes Value = 3;
-	tm.Proof Proof = 4;
-	sint64 Height = 5;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	bytes key = 2 [json_name = "Key"];
+	bytes value = 3 [json_name = "Value"];
+	tm.Proof proof = 4 [json_name = "Proof"];
+	sint64 height = 5 [json_name = "Height"];
 }
 
 message ResponseBeginBlock {
-	ResponseBase ResponseBase = 1;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 }
 
 message ResponseCheckTx {
-	ResponseBase ResponseBase = 1;
-	sint64 GasWanted = 2;
-	sint64 GasUsed = 3;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	sint64 gas_wanted = 2 [json_name = "GasWanted"];
+	sint64 gas_used = 3 [json_name = "GasUsed"];
 }
 
 message ResponseDeliverTx {
-	ResponseBase ResponseBase = 1;
-	sint64 GasWanted = 2;
-	sint64 GasUsed = 3;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	sint64 gas_wanted = 2 [json_name = "GasWanted"];
+	sint64 gas_used = 3 [json_name = "GasUsed"];
 }
 
 message ResponseEndBlock {
-	ResponseBase ResponseBase = 1;
-	repeated ValidatorUpdate ValidatorUpdates = 2;
-	ConsensusParams ConsensusParams = 3;
-	repeated google.protobuf.Any Events = 4;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	repeated ValidatorUpdate validator_updates = 2 [json_name = "ValidatorUpdates"];
+	ConsensusParams consensus_params = 3 [json_name = "ConsensusParams"];
+	repeated google.protobuf.Any events = 4 [json_name = "Events"];
 }
 
 message ResponseCommit {
-	ResponseBase ResponseBase = 1;
+	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 }
 
 message StringError {
-	string Value = 1;
+	string value = 1;
 }
 
 message ConsensusParams {
-	BlockParams Block = 1;
-	ValidatorParams Validator = 2;
+	BlockParams block = 1 [json_name = "Block"];
+	ValidatorParams validator = 2 [json_name = "Validator"];
 }
 
 message BlockParams {
-	sint64 MaxTxBytes = 1;
-	sint64 MaxDataBytes = 2;
-	sint64 MaxBlockBytes = 3;
-	sint64 MaxGas = 4;
-	sint64 TimeIotaMS = 5;
+	sint64 max_tx_bytes = 1 [json_name = "MaxTxBytes"];
+	sint64 max_data_bytes = 2 [json_name = "MaxDataBytes"];
+	sint64 max_block_bytes = 3 [json_name = "MaxBlockBytes"];
+	sint64 max_gas = 4 [json_name = "MaxGas"];
+	sint64 time_iota_ms = 5 [json_name = "TimeIotaMS"];
 }
 
 message ValidatorParams {
-	repeated string PubKeyTypeURLs = 1;
+	repeated string pub_key_type_ur_ls = 1 [json_name = "PubKeyTypeURLs"];
 }
 
 message ValidatorUpdate {
-	string Address = 1;
-	google.protobuf.Any PubKey = 2;
-	sint64 Power = 3;
+	string address = 1 [json_name = "Address"];
+	google.protobuf.Any pub_key = 2 [json_name = "PubKey"];
+	sint64 power = 3 [json_name = "Power"];
 }
 
 message LastCommitInfo {
-	sint32 Round = 1;
-	repeated VoteInfo Votes = 2;
+	sint32 round = 1 [json_name = "Round"];
+	repeated VoteInfo votes = 2 [json_name = "Votes"];
 }
 
 message VoteInfo {
-	string Address = 1;
-	sint64 Power = 2;
-	bool SignedLastBlock = 3;
+	string address = 1 [json_name = "Address"];
+	sint64 power = 2 [json_name = "Power"];
+	bool signed_last_block = 3 [json_name = "SignedLastBlock"];
 }
 
 message EventString {
-	string Value = 1;
+	string value = 1;
 }
 
 message MockHeader {
-	string Version = 1;
-	string ChainID = 2;
-	sint64 Height = 3;
-	google.protobuf.Timestamp Time = 4;
-	sint64 NumTxs = 5;
-	sint64 TotalTxs = 6;
+	string version = 1;
+	string chain_id = 2;
+	sint64 height = 3;
+	google.protobuf.Timestamp time = 4;
+	sint64 num_txs = 5;
+	sint64 total_txs = 6;
 }
