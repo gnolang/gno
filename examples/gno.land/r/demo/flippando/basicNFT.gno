@@ -117,9 +117,8 @@ func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) er
 }
 
 // it is used in marketplace
-func TransferBasicNFTToBuyer(from, to std.Address, tid string) error {
-	tokenId := grc721f.TokenID(tid)
-	err := flipBasicNFT.TransferFrom(from, to, tokenId)
+func TransferBasicNFTToBuyer(from, to std.Address, tid grc721f.TokenID) error {
+	err := flipBasicNFT.TransferFrom(from, to, tid)
 	if err != nil {
 		return err
 	}

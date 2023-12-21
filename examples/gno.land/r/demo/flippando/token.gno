@@ -108,7 +108,7 @@ func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 
 func Transfer(from, recipient std.Address, fAmount uint64){
 	// who's calling? std.PrevRealm() = msg.sender?
-
+	
 	// check if we can bypass this function by calling the interface directly, I don't think so
 	
 	totalFLIPBalance, err := flipToken.BalanceOf(from)
@@ -127,8 +127,9 @@ func Transfer(from, recipient std.Address, fAmount uint64){
 
 // it is used in marketplace
 func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
-	// check if we can bypass this function by calling the interface directly, I don't think so
-	
+	// seller approves the marketoplace contract owner to spend an amount equal with the total price
+	// some of it will be burned later
+	flipToken.Approve(from, std.CurrentRealm().Addr(), fPrice)
 	totalFLIPBalance, err := flipToken.BalanceOf(from)
 	if err != nil {
 		panic("BalanceOf should not happen")

@@ -77,12 +77,12 @@ func TransferCompositeNFT(from, to std.Address, tid string) error {
 	tokenId := grc721f.TokenID(tid)
 	err := flipCompositeNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
-		return error("transfer from error")
+		return error("transfer composite NFT from error")
 	}
 	bTokenIDs := GetChildrenOf(tid)
 	for _, t := range bTokenIDs {
-		tokenID := grc721f.TokenID(tid)
-		flipBasicNFT.TransferFrom(from, to, tokenID)
+		basicTokenId := grc721f.TokenID(strconv.FormatInt(t, 10))
+		TransferBasicNFTToBuyer(from, to, basicTokenId)
 	}
 	return nil
 }
