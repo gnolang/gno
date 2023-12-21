@@ -344,7 +344,8 @@ type envSetter interface {
 }
 
 // createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(env envSetter, kb keys.Keybase, accountName string) (balance gnoland.Balance, err error) {
+func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+	var balance gnoland.Balance
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
 		return balance, fmt.Errorf("error creating entropy: %w", err)
