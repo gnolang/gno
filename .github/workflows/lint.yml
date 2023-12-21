@@ -58,8 +58,9 @@ jobs:
           else
             echo 'Succeeded.'
           fi
-  modtidy:
+  mod_tidy_check:
     runs-on: ubuntu-latest
+    if: ${{ github.actor != 'dependabot[bot]' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
