@@ -125,7 +125,7 @@ constructor for your realm.
 
 Unlike Go, where `init()` is used for tasks like setting up database
 connections, configuring logging, or initializing global variables every time
-you start a program, in Gno, `init()` is executed once per realm's lifetime.
+you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
