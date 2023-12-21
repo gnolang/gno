@@ -34,16 +34,8 @@ jobs:
             (cd "$dir" && go mod tidy -v) || exit 1
           done
 
-      - name: Commit changes
-        run: |
-          set -e
-          changes=$(git status --porcelain)
-          
-          if [ -n "$changes" ]; then
-            git config --local user.email "actions@github.com"
-            git config --local user.name "GitHub Actions"
-            git add -A
-            git commit -m "Run 'go mod tidy' via GitHub Actions" && git push
-          else
-            echo "No changes to Go mods. Skipping commit"
-          fi
+      - name: Commit changes, if any
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          skip_dirty_check: false # Enable dirty check, and skip unnecessary committing
+          commit_message: "Run 'go mod tidy' via GitHub Actions"
