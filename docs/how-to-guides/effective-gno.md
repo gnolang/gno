@@ -589,7 +589,7 @@ They're flexible, composable, and perfect for DeFi protocols and DAOs. They
 offer more features like token-gating, vaults, and wrapping.
 
 For instance, if you're creating a voting system for a DAO, GRC20 tokens are
-ideal. They're programmable, can be embedded in safe Go objects, and offer more
+ideal. They're programmable, can be embedded in safe Gno objects, and offer more
 control.
 
 Remember, GRC20 tokens are more gas-intensive and aren't IBC-ready yet. They
