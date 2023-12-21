@@ -18,7 +18,7 @@
 //     communicate with the gnoland node.
 //
 // 3. `adduser`:
-//   - Creates a new user in the default keybase directory
+//   - Creates a new user in the default keybase directory.
 //   - Must be run before `gnoland start`.
 //
 // Logging:
