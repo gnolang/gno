@@ -16,17 +16,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type addPkgCfg struct {
-	rootCfg *makeTxCfg
+type MakeAddPkgCfg struct {
+	RootCfg *MakeTxCfg
 
-	pkgPath string
-	pkgDir  string
-	deposit string
+	PkgPath string
+	PkgDir  string
+	Deposit string
 }
 
-func newAddPkgCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
-	cfg := &addPkgCfg{
-		rootCfg: rootCfg,
+func NewMakeAddPkgCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
+	cfg := &MakeAddPkgCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
@@ -37,39 +37,39 @@ func newAddPkgCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execAddPkg(cfg, args, io)
+			return execMakeAddPkg(cfg, args, io)
 		},
 	)
 }
 
-func (c *addPkgCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.pkgPath,
+		&c.PkgPath,
 		"pkgpath",
 		"",
 		"package path (required)",
 	)
 
 	fs.StringVar(
-		&c.pkgDir,
+		&c.PkgDir,
 		"pkgdir",
 		"",
 		"path to package files (required)",
 	)
 
 	fs.StringVar(
-		&c.deposit,
+		&c.Deposit,
 		"deposit",
 		"",
 		"deposit coins",
 	)
 }
 
-func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
-	if cfg.pkgPath == "" {
+func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
+	if cfg.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
-	if cfg.pkgDir == "" {
+	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
 
@@ -79,7 +79,7 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -91,15 +91,15 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 	// info.GetPubKey()
 
 	// parse deposit.
-	deposit, err := std.ParseCoins(cfg.deposit)
+	deposit, err := std.ParseCoins(cfg.Deposit)
 	if err != nil {
 		panic(err)
 	}
 
 	// open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(cfg.pkgDir, cfg.pkgPath)
+	memPkg := gno.ReadMemPackage(cfg.PkgDir, cfg.PkgPath)
 	if memPkg.IsEmpty() {
-		panic(fmt.Sprintf("found an empty package %q", cfg.pkgPath))
+		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
 	// precompile and validate syntax
@@ -109,8 +109,8 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// parse gas wanted & fee.
-	gaswanted := cfg.rootCfg.gasWanted
-	gasfee, err := std.ParseCoin(cfg.rootCfg.gasFee)
+	gaswanted := cfg.RootCfg.GasWanted
+	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		panic(err)
 	}
@@ -124,11 +124,11 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,
-		Memo:       cfg.rootCfg.memo,
+		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
+	if cfg.RootCfg.Broadcast {
+		err := signAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}
@@ -138,13 +138,13 @@ func execAddPkg(cfg *addPkgCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func signAndBroadcast(
-	cfg *makeTxCfg,
+func SignAndBroadcast(
+	cfg *MakeTxCfg,
 	args []string,
 	tx std.Tx,
 	io commands.IO,
 ) error {
-	baseopts := cfg.rootCfg
+	baseopts := cfg.RootCfg
 	txopts := cfg
 
 	// query account
@@ -159,8 +159,8 @@ func signAndBroadcast(
 	}
 	accountAddr := info.GetAddress()
 
-	qopts := &queryCfg{
-		rootCfg: baseopts,
+	qopts := &QueryCfg{
+		RootCfg: baseopts,
 		path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
 	qres, err := queryHandler(qopts)
@@ -176,11 +176,11 @@ func signAndBroadcast(
 	// sign tx
 	accountNumber := qret.BaseAccount.AccountNumber
 	sequence := qret.BaseAccount.Sequence
-	sopts := &signCfg{
-		rootCfg:       baseopts,
-		sequence:      sequence,
-		accountNumber: accountNumber,
-		chainID:       txopts.chainID,
+	sopts := &SignCfg{
+		RootCfg:       baseopts,
+		Sequence:      sequence,
+		AccountNumber: accountNumber,
+		ChainID:       txopts.ChainID,
 		nameOrBech32:  nameOrBech32,
 		txJSON:        amino.MustMarshalJSON(tx),
 	}
@@ -199,8 +199,8 @@ func signAndBroadcast(
 	}
 
 	// broadcast signed tx
-	bopts := &broadcastCfg{
-		rootCfg: baseopts,
+	bopts := &BroadcastCfg{
+		RootCfg: baseopts,
 		tx:      signedTx,
 	}
 	bres, err := broadcastHandler(bopts)

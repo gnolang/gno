@@ -81,16 +81,16 @@ func exportKey(
 	exportOpts testExportKeyOpts,
 	input io.Reader,
 ) error {
-	cfg := &exportCfg{
-		rootCfg: &baseCfg{
+	cfg := &ExportCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  exportOpts.kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		nameOrBech32: exportOpts.keyName,
-		outputPath:   exportOpts.outputPath,
-		unsafe:       exportOpts.unsafe,
+		NameOrBech32: exportOpts.keyName,
+		OutputPath:   exportOpts.outputPath,
+		Unsafe:       exportOpts.unsafe,
 	}
 
 	cmdIO := commands.NewTestIO()

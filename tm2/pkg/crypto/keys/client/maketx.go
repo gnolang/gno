@@ -6,20 +6,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-type makeTxCfg struct {
-	rootCfg *baseCfg
+type MakeTxCfg struct {
+	RootCfg *BaseCfg
 
-	gasWanted int64
-	gasFee    string
-	memo      string
+	GasWanted int64
+	GasFee    string
+	Memo      string
 
-	broadcast bool
-	chainID   string
+	Broadcast bool
+	ChainID   string
 }
 
-func newMakeTxCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &makeTxCfg{
-		rootCfg: rootCfg,
+func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &MakeTxCfg{
+		RootCfg: rootCfg,
 	}
 
 	cmd := commands.NewCommand(
@@ -33,46 +33,46 @@ func newMakeTxCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		newAddPkgCmd(cfg, io),
-		newSendCmd(cfg, io),
-		newCallCmd(cfg, io),
-		newRunCmd(cfg, io),
+		NewMakeAddPkgCmd(cfg, io),
+		NewMakeSendCmd(cfg, io),
+		NewMakeCallCmd(cfg, io),
+		NewMakeRunCmd(cfg, io),
 	)
 
 	return cmd
 }
 
-func (c *makeTxCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
-		&c.gasWanted,
+		&c.GasWanted,
 		"gas-wanted",
 		0,
 		"gas requested for tx",
 	)
 
 	fs.StringVar(
-		&c.gasFee,
+		&c.GasFee,
 		"gas-fee",
 		"",
 		"gas payment fee",
 	)
 
 	fs.StringVar(
-		&c.memo,
+		&c.Memo,
 		"memo",
 		"",
 		"any descriptive text",
 	)
 
 	fs.BoolVar(
-		&c.broadcast,
+		&c.Broadcast,
 		"broadcast",
 		false,
 		"sign and broadcast",
 	)
 
 	fs.StringVar(
-		&c.chainID,
+		&c.ChainID,
 		"chainid",
 		"dev",
 		"chainid to sign for (only useful if --broadcast)",

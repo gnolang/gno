@@ -14,24 +14,24 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 )
 
-type addCfg struct {
-	rootCfg *baseCfg
+type AddCfg struct {
+	RootCfg *BaseCfg
 
-	multisig          commands.StringArr
-	multisigThreshold int
-	noSort            bool
-	publicKey         string
-	useLedger         bool
-	recover           bool
-	noBackup          bool
-	dryRun            bool
-	account           uint64
-	index             uint64
+	Multisig          commands.StringArr
+	MultisigThreshold int
+	NoSort            bool
+	PublicKey         string
+	UseLedger         bool
+	Recover           bool
+	NoBackup          bool
+	DryRun            bool
+	Account           uint64
+	Index             uint64
 }
 
-func newAddCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &addCfg{
-		rootCfg: rootCfg,
+func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &AddCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
@@ -47,71 +47,71 @@ func newAddCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *addCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
-		&c.multisig,
+		&c.Multisig,
 		"multisig",
 		"Construct and store a multisig public key (implies --pubkey)",
 	)
 
 	fs.IntVar(
-		&c.multisigThreshold,
+		&c.MultisigThreshold,
 		"threshold",
 		1,
 		"K out of N required signatures. For use in conjunction with --multisig",
 	)
 
 	fs.BoolVar(
-		&c.noSort,
+		&c.NoSort,
 		"nosort",
 		false,
 		"Keys passed to --multisig are taken in the order they're supplied",
 	)
 
 	fs.StringVar(
-		&c.publicKey,
+		&c.PublicKey,
 		"pubkey",
 		"",
 		"Parse a public key in bech32 format and save it to disk",
 	)
 
 	fs.BoolVar(
-		&c.useLedger,
+		&c.UseLedger,
 		"ledger",
 		false,
 		"Store a local reference to a private key on a Ledger device",
 	)
 
 	fs.BoolVar(
-		&c.recover,
+		&c.Recover,
 		"recover",
 		false,
 		"Provide seed phrase to recover existing key instead of creating",
 	)
 
 	fs.BoolVar(
-		&c.noBackup,
+		&c.NoBackup,
 		"nobackup",
 		false,
 		"Don't print out seed phrase (if others are watching the terminal)",
 	)
 
 	fs.BoolVar(
-		&c.dryRun,
+		&c.DryRun,
 		"dryrun",
 		false,
 		"Perform action, but don't add key to local keystore",
 	)
 
 	fs.Uint64Var(
-		&c.account,
+		&c.Account,
 		"account",
 		0,
 		"Account number for HD derivation",
 	)
 
 	fs.Uint64Var(
-		&c.index,
+		&c.Index,
 		"index",
 		0,
 		"Address index number for HD derivation",
@@ -131,7 +131,7 @@ input
 output
   - armor encrypted private key (saved to file)
 */
-func execAdd(cfg *addCfg, args []string, io commands.IO) error {
+func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	var (
 		kb              keys.Keybase
 		err             error
@@ -143,15 +143,15 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 	}
 
 	name := args[0]
-	showMnemonic := !cfg.noBackup
+	showMnemonic := !cfg.NoBackup
 
-	if cfg.dryRun {
+	if cfg.DryRun {
 		// we throw this away, so don't enforce args,
 		// we want to get a new random seed phrase quickly
 		kb = keys.NewInMemory()
 		encryptPassword = DryRunKeyPass
 	} else {
-		kb, err = keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+		kb, err = keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 		if err != nil {
 			return err
 		}
@@ -167,11 +167,11 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 			}
 		}
 
-		multisigKeys := cfg.multisig
+		multisigKeys := cfg.Multisig
 		if len(multisigKeys) != 0 {
 			var pks []crypto.PubKey
 
-			multisigThreshold := cfg.multisigThreshold
+			multisigThreshold := cfg.MultisigThreshold
 			if err := keys.ValidateMultisigThreshold(multisigThreshold, len(multisigKeys)); err != nil {
 				return err
 			}
@@ -185,7 +185,7 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 			}
 
 			// Handle --nosort
-			if !cfg.noSort {
+			if !cfg.NoSort {
 				sort.Slice(pks, func(i, j int) bool {
 					return pks[i].Address().Compare(pks[j].Address()) < 0
 				})
@@ -201,13 +201,13 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 		}
 
 		// ask for a password when generating a local key
-		if cfg.publicKey == "" && !cfg.useLedger {
+		if cfg.PublicKey == "" && !cfg.UseLedger {
 			encryptPassword, err = io.GetCheckPassword(
 				[2]string{
 					"Enter a passphrase to encrypt your key to disk:",
 					"Repeat the passphrase:",
 				},
-				cfg.rootCfg.InsecurePasswordStdin,
+				cfg.RootCfg.InsecurePasswordStdin,
 			)
 			if err != nil {
 				return err
@@ -215,8 +215,8 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 		}
 	}
 
-	if cfg.publicKey != "" {
-		pk, err := crypto.PubKeyFromBech32(cfg.publicKey)
+	if cfg.PublicKey != "" {
+		pk, err := crypto.PubKeyFromBech32(cfg.PublicKey)
 		if err != nil {
 			return err
 		}
@@ -227,11 +227,11 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	account := cfg.account
-	index := cfg.index
+	account := cfg.Account
+	index := cfg.Index
 
 	// If we're using ledger, only thing we need is the path and the bech32 prefix.
-	if cfg.useLedger {
+	if cfg.UseLedger {
 		bech32PrefixAddr := crypto.Bech32AddrPrefix
 		info, err := kb.CreateLedger(name, keys.Secp256k1, bech32PrefixAddr, uint32(account), uint32(index))
 		if err != nil {
@@ -245,7 +245,7 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 	var mnemonic string
 	const bip39Passphrase string = "" // XXX research.
 
-	if cfg.recover {
+	if cfg.Recover {
 		bip39Message := "Enter your bip39 mnemonic"
 		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
@@ -270,7 +270,7 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 	}
 
 	// Recover key from seed passphrase
-	if cfg.recover {
+	if cfg.Recover {
 		// Hide mnemonic from output
 		showMnemonic = false
 		mnemonic = ""
