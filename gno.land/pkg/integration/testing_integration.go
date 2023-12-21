@@ -23,6 +23,8 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
+const numTestAccounts int = 4
+
 type tSeqShim struct{ *testing.T }
 
 // noop Parallel method allow us to run test sequentially
@@ -115,11 +117,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				env.Values["_logger"] = logger
 			}
 
-			// Setup "test1" default account
-			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
+			// Create test accounts.
+			for i := 0; i < numTestAccounts; i++ {
+				accountName := "test" + strconv.Itoa(i+1)
 
-			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
-			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
+				balance, err := createAccount(env, kb, accountName)
+				if err != nil {
+					return fmt.Errorf("error creating account %s: %w", accountName, err)
+				}
+
+				newUserBalances = append(newUserBalances, balance)
+			}
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -240,37 +248,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("new user name required")
 				}
 
-				entropy, err := bip39.NewEntropy(256)
-				if err != nil {
-					ts.Fatalf("error creating entropy: %v", err)
-				}
-
-				mnemonic, err := bip39.NewMnemonic(entropy)
-				if err != nil {
-					ts.Fatalf("error generating mnemonic: %v", err)
-				}
-
-				accountName := args[0]
 				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
 				if err != nil {
-					ts.Fatalf("unable to fetch keybase: %v", err)
+					ts.Fatalf("unable to get keybase")
 				}
 
-				var keyInfo keys.Info
-				if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
-					ts.Fatalf("unable to create account: %v", err)
+				balance, err := createAccount(ts, kb, args[0])
+				if err != nil {
+					ts.Fatalf("error creating account %s: %s", args[0], err)
 				}
 
-				address := keyInfo.GetAddress()
-				newUserBalances = append(
-					newUserBalances,
-					gnoland.Balance{
-						Address: address,
-						Amount:  std.Coins{std.NewCoin("ugnot", 1000000000000000000)},
-					},
-				)
-				ts.Setenv("USER_SEED_"+accountName, mnemonic)
-				ts.Setenv("USER_ADDR_"+accountName, address.String())
+				newUserBalances = append(newUserBalances, balance)
 			},
 		},
 	}
@@ -342,4 +330,35 @@ func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error)
 			ts.Fatalf("unexpected %q command success", cmd)
 		}
 	}
+}
+
+type envSetter interface {
+	Setenv(key, value string)
+}
+
+// createAccount creates a new account with the given name and adds it to the keybase.
+func createAccount(env envSetter, kb keys.Keybase, accountName string) (balance gnoland.Balance, err error) {
+	entropy, err := bip39.NewEntropy(256)
+	if err != nil {
+		return balance, fmt.Errorf("error creating entropy: %w", err)
+	}
+
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return balance, fmt.Errorf("error generating mnemonic: %w", err)
+	}
+
+	var keyInfo keys.Info
+	if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
+		return balance, fmt.Errorf("unable to create account: %w", err)
+	}
+
+	address := keyInfo.GetAddress()
+	env.Setenv("USER_SEED_"+accountName, mnemonic)
+	env.Setenv("USER_ADDR_"+accountName, address.String())
+
+	return gnoland.Balance{
+		Address: address,
+		Amount:  std.Coins{std.NewCoin("ugnot", 1000000000000000000)},
+	}, nil
 }
