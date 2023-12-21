@@ -117,8 +117,15 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				env.Values["_logger"] = logger
 			}
 
-			// Create test accounts.
-			for i := 0; i < numTestAccounts; i++ {
+			// test1 must be created outside of the loop below because it is already included in genesis so
+			// attempting to recreate results in it getting overwritten and breaking existing tests that
+			// rely on its address being static.
+			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
+			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
+			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
+
+			// Create test accounts starting from test2.
+			for i := 1; i < numTestAccounts; i++ {
 				accountName := "test" + strconv.Itoa(i+1)
 
 				balance, err := createAccount(env, kb, accountName)
