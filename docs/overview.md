@@ -43,3 +43,18 @@ In comparison to Ethereum, Gno.land offers distinct advantages:
 2. **General-Purpose Language**: Gno.land's Gnolang is a general-purpose language, similar to Go, extending its
    usability beyond the context of blockchain. In contrast, Solidity is designed specifically for Smart Contracts on the
    Ethereum platform.
+
+## Using the Gno.land Documentation
+
+The Gno.land documentation is closely aligned with the [Diataxis](https://diataxis.fr) framework for writing software documentation. 
+Utilizing the Diataxis framework allows for organization and predictability within the docs - often, you will find 
+ideas split into:
+- their conceptual parts, providing context as to what they are & what they are used for - equating to the Diataxis' "Explanation" category,
+- their reference parts, providing concrete information on how they're implemented and can be utilized. 
+
+Apart from that:
+- How-to guides are intended to be brief but detailed technical explanations on how to execute specific tasks,
+- and tutorials must help a beginner achieve basic competence with a specific aspect of Gno.land, so that they can go on 
+  to use it for their own purposes.
+
+
