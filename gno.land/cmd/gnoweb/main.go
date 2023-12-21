@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -13,9 +14,20 @@ import (
 	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
 
-func parseConfigFlags(fs *flag.FlagSet, args []string) (gnoweb.Config, error) {
-	cfg := gnoweb.NewDefaultConfig()
+func main() {
+	err := runMain(os.Args[1:])
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
+	}
+}
 
+func runMain(args []string) error {
+	var (
+		fs          = flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+		cfg         = gnoweb.NewDefaultConfig()
+		bindAddress string
+	)
 	fs.StringVar(&cfg.RemoteAddr, "remote", cfg.RemoteAddr, "remote gnoland node address")
 	fs.StringVar(&cfg.CaptchaSite, "captcha-site", cfg.CaptchaSite, "recaptcha site key (if empty, captcha are disabled)")
 	fs.StringVar(&cfg.FaucetURL, "faucet-url", cfg.FaucetURL, "faucet server URL")
@@ -23,19 +35,10 @@ func parseConfigFlags(fs *flag.FlagSet, args []string) (gnoweb.Config, error) {
 	fs.StringVar(&cfg.HelpChainID, "help-chainid", cfg.HelpChainID, "help page's chainid")
 	fs.StringVar(&cfg.HelpRemote, "help-remote", cfg.HelpRemote, "help page's remote addr")
 	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
-
-	return cfg, fs.Parse(args)
-}
-
-func main() {
-	fs := flag.NewFlagSet("gnoweb", flag.PanicOnError)
-
-	var bindAddress string
 	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
 
-	cfg, err := parseConfigFlags(fs, os.Args)
-	if err != nil {
-		panic("unable to parse flags: " + err.Error())
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
 
 	logger := log.NewTMLogger(os.Stdout)
@@ -51,4 +54,5 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
 	}
+	return nil
 }
