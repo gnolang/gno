@@ -951,6 +951,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
@@ -967,22 +968,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
-						}
 
-						// Each type has an associated base kind that is kind of the variable
-						// if were to be untyped. If the constant expression's untyped kind matches
-						// with that of the untyped argument, then they are compatible. The possibility
-						// for incompatibility is due the potential logic within the call to convertConst
-						// that may end up mapping untyped kinds to a kind that doesn't match that of the
-						// constant expression.
-						var constType Type
-						if ct != nil && arg0 != nil && untypedKind(ct) == untypedKind(arg0.T) {
-							constType = ct
+							convertConst(store, last, arg0, ct)
+							constConverted = true
 						}
 
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, constType)
+						if !constConverted {
+							convertConst(store, last, arg0, nil)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,

@@ -162,28 +162,6 @@ func (pt PrimitiveType) Specificity() int {
 	}
 }
 
-// untypedKind returns the kind of a type as it would exist for untyped values.
-func untypedKind(typ Type) Kind {
-	switch typ {
-	case InvalidType:
-		panic("invalid type has no kind")
-	case BoolType, UntypedBoolType:
-		return BoolKind
-	case StringType, UntypedStringType:
-		return StringKind
-	case IntType, Int8Type, Int16Type, Int32Type, Int64Type, BigintType:
-		return IntKind
-	case UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type, UntypedBigintType:
-		return UintKind
-	case Float32Type:
-		return Float32Kind
-	case Float64Type, BigdecType, UntypedBigdecType:
-		return Float64Kind
-	}
-
-	return InvalidKind
-}
-
 func (pt PrimitiveType) Kind() Kind {
 	switch pt {
 	case InvalidType:
