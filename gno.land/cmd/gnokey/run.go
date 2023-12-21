@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	ioutil "io"
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"

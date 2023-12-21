@@ -31,7 +31,7 @@ func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "call",
-			1ShortUsage: "call [flags] <key-name or address>",
+			ShortUsage: "call [flags] <key-name or address>",
 			ShortHelp:  "Executes a Realm function call",
 		},
 		cfg,
