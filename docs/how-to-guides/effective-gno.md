@@ -166,7 +166,7 @@ func init() {
 In essence, `init()` in Gno is your go-to function for setting up and
 registering realms. It's a powerful tool that helps keep your realms organized
 and properly configured from the get-go. Acting as a constructor, it sets the
-stage for the rest of your realm's lifecycle.
+stage for the rest of your realm's lifetime.
 
 ### A little dependency is better than a little copying
 
