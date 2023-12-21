@@ -549,6 +549,8 @@ proc.go:250               runtime.main
 asm_amd64.s:1598          runtime.goexit
 */
 func smallStacktrace() string {
+	const unicodeEllipsis = "\u2026"
+
 	var buf bytes.Buffer
 	pc := make([]uintptr, 100)
 	pc = pc[:runtime.Callers(2, pc)]
@@ -560,7 +562,13 @@ func smallStacktrace() string {
 			f.Function = f.Function[idx+1:]
 		}
 
-		fmt.Fprintf(&buf, "%-25s %s\n", fmt.Sprintf("%s:%d", filepath.Base(f.File), f.Line), f.Function)
+		// trim full path to at most 30 characters
+		fullPath := fmt.Sprintf("%s:%-4d", f.File, f.Line)
+		if len(fullPath) > 30 {
+			fullPath = unicodeEllipsis + fullPath[len(fullPath)-29:]
+		}
+
+		fmt.Fprintf(&buf, "%30s %s\n", fullPath, f.Function)
 
 		if !more {
 			return buf.String()
