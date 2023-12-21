@@ -183,6 +183,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						},
 					},
 				}
+				// run decls and init functions.
 				m.RunMemPackage(memPkg, true)
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
