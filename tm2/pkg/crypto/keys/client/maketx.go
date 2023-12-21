@@ -91,7 +91,7 @@ func SignAndBroadcastHandler(
 	baseopts := cfg.RootCfg
 	txopts := cfg
 
-	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Config)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return nil, err
 	}
