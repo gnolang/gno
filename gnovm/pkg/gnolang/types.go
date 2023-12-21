@@ -1084,6 +1084,12 @@ type FuncType struct {
 	bound  *FuncType
 }
 
+// true for predefined func types that are not filled in yet.
+func (ft *FuncType) IsZero() bool {
+	// XXX be explicit.
+	return ft.Params == nil && ft.Results == nil && ft.typeid.IsZero() && ft.bound == nil
+}
+
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
 	if debug {
@@ -1445,6 +1451,46 @@ func (dt *DeclaredType) GetPkgPath() string {
 }
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
+	name := fv.Name
+
+	// Handle redeclarations.
+	for i, tv := range dt.Methods {
+		ofv := tv.V.(*FuncValue)
+		if ofv.Name == name {
+			// Do not allow redeclaring (override) a method.
+			// In the future we may allow this, just like we
+			// allow package-level function overrides.
+
+			// Special case: if the type and location are the same,
+			// ignore and do not redefine.
+			// This is due to PreprocessAllFilesAndSaveBlocknodes,
+			// and because the preprocessor fills some of the
+			// method's FuncValue. Since the method was already
+			// filled in prior to PreprocessAllFilesAndSaveBlocks,
+			// there is no need to re-set it.
+			// Keep this or move this check outside.
+			if fv.Type.TypeID() == ofv.Type.TypeID() &&
+				fv.Source.GetLocation() == ofv.Source.GetLocation() {
+				return
+			}
+
+			// Special case: allow defining a native body.
+			if fv.Type.TypeID() == ofv.Type.TypeID() &&
+				!ofv.IsNative() && fv.IsNative() {
+				dt.Methods[i] = TypedValue{
+					T: fv.Type, // keep old type.
+					V: fv,
+				}
+				return
+			}
+
+			// Otherwise panic.
+			panic(fmt.Sprintf("redeclaration of method %s.%s",
+				dt.Name, name))
+		}
+	}
+
+	// If not redeclaring, just append.
 	dt.Methods = append(dt.Methods, TypedValue{
 		T: fv.Type,
 		V: fv,
