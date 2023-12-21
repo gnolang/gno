@@ -1,4 +1,4 @@
-package client
+package main
 
 // TODO: move most of the logic in ROOT/gno.land/...
 
@@ -12,19 +12,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type MakeAddPkgCfg struct {
-	RootCfg *MakeTxCfg
+	RootCfg *client.MakeTxCfg
 
 	PkgPath string
 	PkgDir  string
 	Deposit string
 }
 
-func NewMakeAddPkgCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
+func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
 	cfg := &MakeAddPkgCfg{
 		RootCfg: rootCfg,
 	}
@@ -128,7 +129,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := signAndBroadcast(cfg.RootCfg, args, tx, io)
+		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

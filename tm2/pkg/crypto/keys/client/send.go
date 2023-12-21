@@ -119,7 +119,7 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := signAndBroadcast(cfg.RootCfg, args, tx, io)
+		err := ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

@@ -39,10 +39,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	)
 
 	cmd.AddSubCommands(
-		NewMakeAddPkgCmd(cfg, io),
 		NewMakeSendCmd(cfg, io),
-		NewMakeCallCmd(cfg, io),
-		NewMakeRunCmd(cfg, io),
 	)
 
 	return cmd
@@ -146,7 +143,7 @@ func SignAndBroadcastHandler(
 	return BroadcastHandler(bopts)
 }
 
-func signAndBroadcast(
+func ExecSignAndBroadcast(
 	cfg *MakeTxCfg,
 	args []string,
 	tx std.Tx,

@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"context"
@@ -12,15 +12,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type MakeRunCfg struct {
-	RootCfg *MakeTxCfg
+	RootCfg *client.MakeTxCfg
 }
 
-func NewMakeRunCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
+func NewMakeRunCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
 	cfg := &MakeRunCfg{
 		RootCfg: rootCfg,
 	}
@@ -128,7 +129,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := signAndBroadcast(cfg.RootCfg, args, tx, io)
+		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

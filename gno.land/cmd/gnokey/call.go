@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type MakeCallCfg struct {
-	RootCfg *MakeTxCfg
+	RootCfg *client.MakeTxCfg
 
 	Send     string
 	PkgPath  string
@@ -22,7 +23,7 @@ type MakeCallCfg struct {
 	Args     commands.StringArr
 }
 
-func NewMakeCallCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
+func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
 	cfg := &MakeCallCfg{
 		RootCfg: rootCfg,
 	}
@@ -30,7 +31,7 @@ func NewMakeCallCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "call",
-			ShortUsage: "call [flags] <key-name or address>",
+			1ShortUsage: "call [flags] <key-name or address>",
 			ShortHelp:  "Executes a Realm function call",
 		},
 		cfg,
@@ -131,7 +132,7 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := signAndBroadcast(cfg.RootCfg, args, tx, io)
+		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}
