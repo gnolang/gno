@@ -31,7 +31,7 @@ func (m *Machine) doOpArrayType() {
 		t.Vrd = true
 	} else {
 		lv := m.PopValue()
-		if debug {
+		if m.debugging.IsDebug() {
 			// This is how run-time untyped const
 			// conversions would work, but we
 			// expect the preprocessor to convert
@@ -116,7 +116,7 @@ func (m *Machine) doOpStructType() {
 	// populate fields
 	for _, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(m.debugging, &ft)
 		fields = append(fields, ft)
 	}
 	// push struct type
@@ -137,7 +137,7 @@ func (m *Machine) doOpInterfaceType() {
 	// pop methods
 	for i := len(x.Methods) - 1; 0 <= i; i-- {
 		ft := m.PopValue().V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(m.debugging, &ft)
 		methods[i] = ft
 	}
 	// push interface type
@@ -292,7 +292,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		default:
 			dxt = xt
 		}
-		if debug {
+		if m.debugging.IsDebug() {
 			path.Validate()
 		}
 
@@ -334,18 +334,18 @@ func (m *Machine) doOpStaticTypeOf() {
 				switch cxt := xt.(type) {
 				case *PointerType:
 					dt := cxt.Elt.(*DeclaredType)
-					t2 := dt.GetStaticValueAt(path).T
+					t2 := dt.GetStaticValueAt(m.debugging, path).T
 					m.PushValue(asValue(t2))
 					return
 				case *DeclaredType:
-					t2 := cxt.GetStaticValueAt(path).T
+					t2 := cxt.GetStaticValueAt(m.debugging, path).T
 					m.PushValue(asValue(t2))
 					return
 				case *NativeType:
 					rt := cxt.Type
 					mt, ok := rt.MethodByName(string(x.Sel))
 					if !ok {
-						if debug {
+						if m.debugging.IsDebug() {
 							panic(fmt.Sprintf(
 								"native type %s has no method %s",
 								rt.String(), x.Sel))
@@ -358,13 +358,13 @@ func (m *Machine) doOpStaticTypeOf() {
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector base typeval: %s of kind %s",
-						xt.String(),
+						xt.String(m.debugging),
 						xt.Kind().String())) // XXX kind?
 				}
 			default:
 				panic(fmt.Sprintf(
 					"unexpected selector base type: %s (%s) of kind %s",
-					dxt.String(),
+					dxt.String(m.debugging),
 					reflect.TypeOf(dxt),
 					dxt.Kind().String()))
 			}
@@ -384,17 +384,17 @@ func (m *Machine) doOpStaticTypeOf() {
 			default:
 				panic(fmt.Sprintf(
 					"unexpected (subref) selector base type: %s (%s) of kind %s",
-					dxt.String(),
+					dxt.String(m.debugging),
 					reflect.TypeOf(dxt),
 					dxt.Kind().String()))
 			}
 		case VPValMethod, VPPtrMethod:
-			ftv := dxt.(*DeclaredType).GetStaticValueAt(path)
+			ftv := dxt.(*DeclaredType).GetStaticValueAt(m.debugging, path)
 			ft := ftv.GetFunc().GetType(m.Store)
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
+			_, _, _, ft, _ := findEmbeddedFieldType(m.debugging, dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		case VPNative:
 			// if dxt is *PointerType, convert to *NativeType.
@@ -451,13 +451,13 @@ func (m *Machine) doOpStaticTypeOf() {
 			}
 			panic(fmt.Sprintf(
 				"native type %s has no method or field %s",
-				dxt.String(), x.Sel))
+				dxt.String(m.debugging), x.Sel))
 		default:
 			panic(fmt.Sprintf(
 				"unknown value path type %v in selector %s (path %s)",
 				path.Type,
-				x.String(),
-				path.String()))
+				x.String(m.debugging),
+				path.String(m.debugging)))
 		}
 
 	case *SliceExpr:

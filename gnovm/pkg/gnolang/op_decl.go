@@ -40,13 +40,13 @@ func (m *Machine) doOpValueDecl() {
 				if isUntyped(tv.T) {
 					ConvertUntypedTo(pState(0), &tv, nt)
 				} else {
-					if debug {
-						if nt.TypeID() != tv.T.TypeID() &&
-							baseOf(nt).TypeID() != tv.T.TypeID() {
+					if m.debugging.IsDebug() {
+						if nt.TypeID(m.debugging) != tv.T.TypeID(m.debugging) &&
+							baseOf(nt).TypeID(m.debugging) != tv.T.TypeID(m.debugging) {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
-								nt.TypeID(),
-								tv.T.TypeID(),
+								nt.TypeID(m.debugging),
+								tv.T.TypeID(m.debugging),
 							))
 						}
 					}

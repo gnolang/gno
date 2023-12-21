@@ -96,6 +96,8 @@ type Realm struct {
 	updated []Object // real objects that were modified.
 	deleted []Object // real objects that became deleted.
 	escaped []Object // real objects with refcount > 1.
+
+	debugging *Debugging
 }
 
 func (r *Realm) DeepCopy() *Realm {
@@ -191,7 +193,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if rlm == nil {
 		return
 	}
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
@@ -241,7 +243,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 // mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
 			if pv.GetOwner() != nil {
@@ -272,7 +274,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("should not happen")
 		}
@@ -292,7 +294,7 @@ func (rlm *Realm) MarkDirty(oo Object) {
 }
 
 func (rlm *Realm) MarkNewDeleted(oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("should not happen")
 		}
@@ -312,7 +314,7 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("should not happen")
 		}
@@ -352,7 +354,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		}
 		return
 	}
-	if debug {
+	if rlm.debugging.IsDebug() {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
 		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
@@ -381,7 +383,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
-	if debug {
+	if rlm.debugging.IsDebug() {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
 	}
@@ -406,13 +408,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
-		if debug {
+		if rlm.debugging.IsDebug() {
 			if oo.GetIsDirty() {
 				panic("should not happen")
 			}
 		}
 		if oo.GetRefCount() == 0 {
-			if debug {
+			if rlm.debugging.IsDebug() {
 				if !oo.GetIsNewDeleted() {
 					panic("should have been marked new-deleted")
 				}
@@ -433,7 +435,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if oo.GetIsDirty() {
 			panic("should not happen")
 		}
@@ -457,7 +459,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
-			if debug {
+			if rlm.debugging.IsDebug() {
 				if child.GetRefCount() < 1 {
 					panic("should not happen")
 				}
@@ -507,7 +509,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
-		if debug {
+		if rlm.debugging.IsDebug() {
 			if oo.GetObjectID().IsZero() {
 				panic("should not happen")
 			}
@@ -524,7 +526,7 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if oo.GetObjectID().IsZero() {
 			panic("should not happen")
 		}
@@ -577,7 +579,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.newEscaped {
-		if debug {
+		if rlm.debugging.IsDebug() {
 			if !eo.GetIsNewEscaped() {
 				panic("should not happen")
 			}
@@ -633,7 +635,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestorsOne := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
-				if debug {
+				if rlm.debugging.IsDebug() {
 					if pv.GetRefCount() < 1 {
 						panic("expected package value to have refcount 1 or greater")
 					}
@@ -642,13 +644,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			}
 			rc := oo.GetRefCount()
-			if debug {
+			if rlm.debugging.IsDebug() {
 				if rc == 0 {
 					panic("should not happen")
 				}
 			}
 			if rc > 1 {
-				if debug {
+				if rlm.debugging.IsDebug() {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("should not happen")
 					}
@@ -724,7 +726,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
-	if debug {
+	if rlm.debugging.IsDebug() {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("should not happen")
 		}
@@ -752,7 +754,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
-		if debug {
+		if rlm.debugging.IsDebug() {
 			if oo.GetIsDirty() {
 				panic("should not happen")
 			}
@@ -761,7 +763,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		oo.SetIsNewReal(false)
 	} else {
 		// update existing object.
-		if debug {
+		if rlm.debugging.IsDebug() {
 			if !oo.GetIsDirty() {
 				panic("should not happen")
 			}
@@ -823,7 +825,7 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 
 func (rlm *Realm) clearMarks() {
 	// sanity check
-	if debug {
+	if rlm.debugging.IsDebug() {
 		for _, oo := range rlm.newDeleted {
 			if oo.GetIsNewDeleted() {
 				panic("should not happen")
@@ -986,34 +988,34 @@ func getUnsavedChildObjects(val Value) []Object {
 //----------------------------------------
 // copyTypeWithRefs
 
-func copyMethods(methods []TypedValue) []TypedValue {
+func copyMethods(debugging *Debugging, methods []TypedValue) []TypedValue {
 	res := make([]TypedValue, len(methods))
 	for i, mtv := range methods {
 		// NOTE: this works because copyMethods/copyTypeWithRefs
 		// gets called AFTER the file block (method closure)
 		// gets saved (e.g. from *Machine.savePackage()).
 		res[i] = TypedValue{
-			T: copyTypeWithRefs(mtv.T),
-			V: copyValueWithRefs(nil, mtv.V),
+			T: copyTypeWithRefs(debugging, mtv.T),
+			V: copyValueWithRefs(debugging, nil, mtv.V),
 		}
 	}
 	return res
 }
 
-func refOrCopyType(typ Type) Type {
+func refOrCopyType(debugging *Debugging, typ Type) Type {
 	if dt, ok := typ.(*DeclaredType); ok {
 		return RefType{ID: dt.TypeID()}
 	} else {
-		return copyTypeWithRefs(typ)
+		return copyTypeWithRefs(debugging, typ)
 	}
 }
 
-func copyFieldsWithRefs(fields []FieldType) []FieldType {
+func copyFieldsWithRefs(debugging *Debugging, fields []FieldType) []FieldType {
 	fieldsCpy := make([]FieldType, len(fields))
 	for i, field := range fields {
 		fieldsCpy[i] = FieldType{
 			Name:     field.Name,
-			Type:     refOrCopyType(field.Type),
+			Type:     refOrCopyType(debugging, field.Type),
 			Embedded: field.Embedded,
 			Tag:      field.Tag,
 		}
@@ -1023,7 +1025,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 
 // Copies type but with references to dependant types;
 // the result is suitable for persistence bytes serialization.
-func copyTypeWithRefs(typ Type) Type {
+func copyTypeWithRefs(debugging *Debugging, typ Type) Type {
 	switch ct := typ.(type) {
 	case nil:
 		panic("should not happen")
@@ -1031,40 +1033,40 @@ func copyTypeWithRefs(typ Type) Type {
 		return ct
 	case *PointerType:
 		return &PointerType{
-			Elt: refOrCopyType(ct.Elt),
+			Elt: refOrCopyType(debugging, ct.Elt),
 		}
 	case FieldType:
 		panic("should not happen")
 	case *ArrayType:
 		return &ArrayType{
 			Len: ct.Len,
-			Elt: refOrCopyType(ct.Elt),
+			Elt: refOrCopyType(debugging, ct.Elt),
 			Vrd: ct.Vrd,
 		}
 	case *SliceType:
 		return &SliceType{
-			Elt: refOrCopyType(ct.Elt),
+			Elt: refOrCopyType(debugging, ct.Elt),
 			Vrd: ct.Vrd,
 		}
 	case *StructType:
 		return &StructType{
 			PkgPath: ct.PkgPath,
-			Fields:  copyFieldsWithRefs(ct.Fields),
+			Fields:  copyFieldsWithRefs(debugging, ct.Fields),
 		}
 	case *FuncType:
 		return &FuncType{
-			Params:  copyFieldsWithRefs(ct.Params),
-			Results: copyFieldsWithRefs(ct.Results),
+			Params:  copyFieldsWithRefs(debugging, ct.Params),
+			Results: copyFieldsWithRefs(debugging, ct.Results),
 		}
 	case *MapType:
 		return &MapType{
-			Key:   refOrCopyType(ct.Key),
-			Value: refOrCopyType(ct.Value),
+			Key:   refOrCopyType(debugging, ct.Key),
+			Value: refOrCopyType(debugging, ct.Value),
 		}
 	case *InterfaceType:
 		return &InterfaceType{
 			PkgPath: ct.PkgPath,
-			Methods: copyFieldsWithRefs(ct.Methods),
+			Methods: copyFieldsWithRefs(debugging, ct.Methods),
 			Generic: ct.Generic,
 		}
 	case *TypeType:
@@ -1073,8 +1075,8 @@ func copyTypeWithRefs(typ Type) Type {
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
-			Base:    copyTypeWithRefs(ct.Base),
-			Methods: copyMethods(ct.Methods),
+			Base:    copyTypeWithRefs(debugging, ct.Base),
+			Methods: copyMethods(debugging, ct.Methods),
 		}
 		return dt
 	case *PackageType:
@@ -1082,7 +1084,7 @@ func copyTypeWithRefs(typ Type) Type {
 	case *ChanType:
 		return &ChanType{
 			Dir: ct.Dir,
-			Elt: refOrCopyType(ct.Elt),
+			Elt: refOrCopyType(debugging, ct.Elt),
 		}
 	case *NativeType:
 		panic("should not happen")
@@ -1091,7 +1093,7 @@ func copyTypeWithRefs(typ Type) Type {
 	case *tupleType:
 		elts2 := make([]Type, len(ct.Elts))
 		for i, elt := range ct.Elts {
-			elts2[i] = refOrCopyType(elt)
+			elts2[i] = refOrCopyType(debugging, elt)
 		}
 		return &tupleType{
 			Elts: elts2,
@@ -1113,7 +1115,7 @@ func copyTypeWithRefs(typ Type) Type {
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
-func copyValueWithRefs(parent Object, val Value) Value {
+func copyValueWithRefs(debugging *Debugging, parent Object, val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1135,11 +1137,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 						V: copyValueWithRefs(cv.TypedValue.V),
 					},
 				*/
-				Base:  toRefValue(parent, cv.Base),
+				Base:  toRefValue(debugging, parent, cv.Base),
 				Index: cv.Index,
 			}
 		} else {
-			etv := refOrCopyValue(parent, *cv.TV)
+			etv := refOrCopyValue(debugging, parent, *cv.TV)
 			return PointerValue{
 				TV: &etv,
 				/*
@@ -1152,7 +1154,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = refOrCopyValue(cv, etv)
+				list[i] = refOrCopyValue(debugging, cv, etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1166,7 +1168,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base:   toRefValue(parent, cv.Base),
+			Base:   toRefValue(debugging, parent, cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -1174,7 +1176,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = refOrCopyValue(cv, ftv)
+			fields[i] = refOrCopyValue(debugging, cv, ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1188,12 +1190,12 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 		var closure Value
 		if cv.Closure != nil {
-			closure = toRefValue(parent, cv.Closure)
+			closure = toRefValue(debugging, parent, cv.Closure)
 		}
 		if cv.nativeBody != nil {
 			panic("should not happen")
 		}
-		ft := copyTypeWithRefs(cv.Type)
+		ft := copyTypeWithRefs(debugging, cv.Type)
 		return &FuncValue{
 			Type:     ft,
 			IsMethod: cv.IsMethod,
@@ -1204,8 +1206,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			PkgPath:  cv.PkgPath,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
-		rtv := refOrCopyValue(cv, cv.Receiver)
+		fnc := copyValueWithRefs(debugging, cv, cv.Func).(*FuncValue)
+		rtv := refOrCopyValue(debugging, cv, cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
 			Func:       fnc,
@@ -1214,8 +1216,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopyValue(cv, cur.Key)
-			val2 := refOrCopyValue(cv, cur.Value)
+			key2 := refOrCopyValue(debugging, cv, cur.Key)
+			val2 := refOrCopyValue(debugging, cv, cur.Value)
 			list.Append(nilAllocator, key2).Value = val2
 		}
 		return &MapValue{
@@ -1223,12 +1225,12 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(copyTypeWithRefs(cv.Type))
+		return toTypeValue(copyTypeWithRefs(debugging, cv.Type))
 	case *PackageValue:
-		block := toRefValue(cv, cv.Block)
+		block := toRefValue(debugging, cv, cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
-			fblocks[i] = toRefValue(cv, fb)
+			fblocks[i] = toRefValue(debugging, cv, fb)
 		}
 		return &PackageValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1243,11 +1245,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = refOrCopyValue(cv, tv)
+			vals[i] = refOrCopyValue(debugging, cv, tv)
 		}
 		var bparent Value
 		if cv.Parent != nil {
-			bparent = toRefValue(parent, cv.Parent)
+			bparent = toRefValue(debugging, parent, cv.Parent)
 		}
 		bl := &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1475,7 +1477,7 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
-func toRefValue(parent Object, val Value) RefValue {
+func toRefValue(debugging *Debugging, parent Object, val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -1502,7 +1504,7 @@ func toRefValue(parent Object, val Value) RefValue {
 				// Hash: nil,
 			}
 		} else if oo.GetIsEscaped() {
-			if debug {
+			if debugging.IsDebug() {
 				if !oo.GetOwnerID().IsZero() {
 					panic("should not happen")
 				}
@@ -1513,7 +1515,7 @@ func toRefValue(parent Object, val Value) RefValue {
 				// Hash: nil,
 			}
 		} else {
-			if debug {
+			if debugging.IsDebug() {
 				if oo.GetRefCount() > 1 {
 					panic("should not happen")
 				}
@@ -1548,15 +1550,15 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
-func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
+func refOrCopyValue(debugging *Debugging, parent Object, tv TypedValue) TypedValue {
 	if tv.T != nil {
-		tv.T = refOrCopyType(tv.T)
+		tv.T = refOrCopyType(debugging, tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = toRefValue(parent, obj)
+		tv.V = toRefValue(debugging, parent, obj)
 		return tv
 	} else {
-		tv.V = copyValueWithRefs(parent, tv.V)
+		tv.V = copyValueWithRefs(debugging, parent, tv.V)
 		return tv
 	}
 }

@@ -121,7 +121,7 @@ type Location struct {
 	Nonce   int
 }
 
-func (loc Location) String() string {
+func (loc Location) String(_ *Debugging) string {
 	if loc.Nonce == 0 {
 		return fmt.Sprintf("%s/%s:%d",
 			loc.PkgPath,
@@ -195,7 +195,7 @@ func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
 
 type Node interface {
 	assertNode()
-	String() string
+	String(debugging *Debugging) string
 	Copy() Node
 	GetLine() int
 	SetLine(int)
@@ -1276,14 +1276,14 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
-func (x *bodyStmt) String() string {
+func (x *bodyStmt) String(debugging *Debugging) string {
 	next := ""
 	if x.NextBodyIndex < 0 {
 		next = "(init)"
 	} else if x.NextBodyIndex == len(x.Body) {
 		next = "(end)"
 	} else {
-		next = x.Body[x.NextBodyIndex].String()
+		next = x.Body[x.NextBodyIndex].String(debugging)
 	}
 	active := ""
 	if x.Active != nil {
@@ -1652,6 +1652,7 @@ type PackageNode struct {
 	PkgPath string
 	PkgName Name
 	*FileSet
+	debugging *Debugging
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1747,16 +1748,16 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 // same as DefineGoNativeValue, which DOES NOT give access to
 // the running machine.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(pState(0), nil, x, fd).(*FuncDecl)
+	fd = Preprocess(x.debugging, pState(0), nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
-	if debug {
+	if x.debugging.IsDebug() {
 		if ft == nil {
 			panic("should not happen")
 		}
@@ -1769,8 +1770,8 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 // For example, overriding a native function defined in stdlibs/stdlibs for
 // testing. Caller must ensure that the function type is identical.
 func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
@@ -1827,12 +1828,13 @@ type BlockNode interface {
 // Embed in node to make it a BlockNode.
 type StaticBlock struct {
 	Block
-	Types    []Type
-	NumNames uint16
-	Names    []Name
-	Consts   []Name // TODO consider merging with Names.
-	Externs  []Name
-	Loc      Location
+	Types     []Type
+	NumNames  uint16
+	Names     []Name
+	Consts    []Name // TODO consider merging with Names.
+	Externs   []Name
+	Loc       Location
+	debugging *Debugging
 }
 
 // Implements BlockNode
@@ -2016,7 +2018,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
-	if debug {
+	if sb.debugging.IsDebug() {
 		if path.Type != VPBlock {
 			panic("should not happen")
 		}
@@ -2039,17 +2041,17 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	for i, name := range sb.Names {
 		if name == n {
-			if debug {
+			if sb.debugging.IsDebug() {
 				nt := reflect.TypeOf(sb.Source).String()
-				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+				sb.debugging.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
 					sb, nt, n, i, name)
 			}
 			return uint16(i), true
 		}
 	}
-	if debug {
+	if sb.debugging.IsDebug() {
 		nt := reflect.TypeOf(sb.Source).String()
-		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+		sb.debugging.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
 			sb, nt, n)
 	}
 	return 0, false
@@ -2099,8 +2101,8 @@ func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
-	if debug {
-		debug.Printf(
+	if sb.debugging.IsDebug() {
+		sb.debugging.Printf(
 			"StaticBlock.Define2(%v, %s, %v, %v)\n",
 			isConst, n, st, tv)
 	}
@@ -2130,7 +2132,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
-			if tv.T.TypeID() != old.T.TypeID() {
+			if tv.T.TypeID(sb.debugging) != old.T.TypeID(sb.debugging) {
 				panic(fmt.Sprintf(
 					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 					n, old.T, tv.T))

@@ -40,8 +40,9 @@ supported).
 */
 
 type ObjectID struct {
-	PkgID   PkgID  // base
-	NewTime uint64 // time created
+	PkgID     PkgID  // base
+	NewTime   uint64 // time created
+	debugging *Debugging
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
@@ -74,7 +75,7 @@ func (oid ObjectID) String() string {
 // TODO: make faster by making PkgID a pointer
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
-	if debug {
+	if oid.debugging.IsDebug() {
 		if oid.PkgID.IsZero() {
 			if oid.NewTime != 0 {
 				panic("should not happen")
@@ -254,7 +255,7 @@ func (oi *ObjectInfo) DecRefCount() int {
 	oi.RefCount--
 	if oi.RefCount < 0 {
 		// This may happen for uninitialized values.
-		if debug {
+		if oi.ID.debugging.IsDebug() {
 			if oi.GetIsReal() {
 				panic("should not happen")
 			}

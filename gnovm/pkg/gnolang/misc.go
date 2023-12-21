@@ -87,11 +87,11 @@ func word2UnaryOp(w Word) Op {
 	}
 }
 
-func toString(n Node) string {
+func toString(debugging *Debugging, n Node) string {
 	if n == nil {
 		return "<nil>"
 	}
-	return n.String()
+	return n.String(debugging)
 }
 
 // true if the first rune is uppercase.

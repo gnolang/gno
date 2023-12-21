@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -18,15 +17,13 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type debugging bool
+type Debugging struct {
+	enabled bool
+	derrors []string
+}
 
-// using a const is probably faster.
-// const debug debugging = true // or flip
-var debug debugging = true
-
-func init() {
-	debug = os.Getenv("DEBUG") == "1"
-	if debug {
+func NewDebugging(d bool) *Debugging {
+	if d {
 		go func() {
 			// e.g.
 			// curl -sK -v http://localhost:8080/debug/pprof/profile?seconds=30 > cpu.out
@@ -41,69 +38,83 @@ func init() {
 			server.ListenAndServe()
 		}()
 	}
-}
 
-// runtime debugging flag.
-
-var enabled bool = true
-
-func (d debugging) Println(args ...interface{}) {
-	if d {
-		if enabled {
-			fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
-		}
+	return &Debugging{
+		enabled: d,
+		derrors: nil,
 	}
 }
 
-func (d debugging) Printf(format string, args ...interface{}) {
-	if d {
-		if enabled {
-			fmt.Printf("DEBUG: "+format, args...)
-		}
+func (d *Debugging) DeepCopy() *Debugging {
+	if d == nil {
+		return nil
+	}
+
+	deers := make([]string, len(d.derrors))
+
+	copy(deers, d.derrors)
+
+	return &Debugging{
+		enabled: d.enabled,
+		derrors: deers,
 	}
 }
 
-var derrors []string = nil
+func (d *Debugging) Println(args ...interface{}) {
+	if d != nil && d.enabled {
+		fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+	}
+}
+
+func (d *Debugging) Printf(format string, args ...interface{}) {
+	if d != nil && d.enabled {
+		fmt.Printf("DEBUG: "+format, args...)
+	}
+}
 
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
-func (d debugging) Errorf(format string, args ...interface{}) {
-	//if d {
-	//	if enabled {
-	//		derrors = append(derrors, fmt.Sprintf(format, args...))
-	//	}
-	//}
+func (d *Debugging) Errorf(format string, args ...interface{}) {
+	if d != nil && d.enabled {
+		d.derrors = append(d.derrors, fmt.Sprintf(format, args...))
+	}
 }
 
 // ----------------------------------------
 // Exposed errors accessors
 // File tests may access debug errors.
-
-func HasDebugErrors() bool {
-	return len(derrors) > 0
+func (d *Debugging) HasDebugErrors() bool {
+	return d != nil && len(d.derrors) > 0
 }
 
-func GetDebugErrors() []string {
-	return derrors
+func (d *Debugging) GetDebugErrors() []string {
+	if d == nil {
+		return nil
+	}
+	return d.derrors
 }
 
-func ClearDebugErrors() {
-	derrors = nil
+func (d *Debugging) ClearDebugErrors() {
+	if d != nil {
+		d.derrors = nil
+	}
 }
 
-func IsDebug() bool {
-	return bool(debug)
+func (d *Debugging) IsDebug() bool {
+	return d != nil
 }
 
-func IsDebugEnabled() bool {
-	return bool(debug) && enabled
+func (d *Debugging) IsDebugEnabled() bool {
+	return d != nil && d.enabled
 }
 
-func DisableDebug() {
-	// enabled = false
+func (d *Debugging) DisableDebug() {
+	if d != nil {
+		d.enabled = false
+	}
 }
 
-func EnableDebug() {
-	// enabled = true
+func (d *Debugging) EnableDebug() {
+	d.enabled = true
 }

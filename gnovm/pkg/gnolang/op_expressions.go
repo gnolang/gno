@@ -9,7 +9,7 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if debug {
+	if m.debugging.IsDebug() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -37,7 +37,7 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if debug {
+	if m.debugging.IsDebug() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -170,7 +170,7 @@ func (m *Machine) doOpStar() {
 	default:
 		panic(fmt.Sprintf(
 			"illegal star expression x type %s",
-			xv.T.String()))
+			xv.T.String(m.debugging)))
 	}
 }
 
@@ -211,13 +211,13 @@ func (m *Machine) doOpTypeAssert1() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			impl = it.IsImplementedBy(xt)
+			impl = it.IsImplementedBy(m.debugging, xt)
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
-					xt.String(),
-					it.String())
+					xt.String(m.debugging),
+					it.String(m.debugging))
 				m.Panic(typedString(ex))
 				return
 			}
@@ -237,8 +237,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
-					xt.String(),
-					nt.String())
+					xt.String(m.debugging),
+					nt.String(m.debugging))
 				m.Panic(typedString(ex))
 				return
 			}
@@ -248,16 +248,16 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		tid := t.TypeID()
-		xtid := xt.TypeID()
+		tid := t.TypeID(m.debugging)
+		xtid := xt.TypeID(m.debugging)
 		// assert that x is of type.
 		same := tid == xtid
 		if !same {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
-				xt.String(),
-				t.String())
+				xt.String(m.debugging),
+				t.String(m.debugging))
 			m.Panic(typedString(ex))
 			return
 		}
@@ -281,7 +281,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			impl = it.IsImplementedBy(xt)
+			impl = it.IsImplementedBy(m.debugging, xt)
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -311,8 +311,8 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		tid := t.TypeID()
-		xtid := xt.TypeID()
+		tid := t.TypeID(m.debugging)
+		xtid := xt.TypeID(m.debugging)
 		// assert that x is of type.
 		same := tid == xtid
 		if same {
@@ -462,7 +462,7 @@ func (m *Machine) doOpArrayLit() {
 		}
 	}
 	// pop array type.
-	if debug {
+	if m.debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != at {
 			panic("should not happen")
 		}
@@ -488,7 +488,7 @@ func (m *Machine) doOpSliceLit() {
 		es[i] = *m.PopValue()
 	}
 	// construct and push value.
-	if debug {
+	if m.debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -538,7 +538,7 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	// construct and push value.
-	if debug {
+	if m.debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -576,7 +576,7 @@ func (m *Machine) doOpMapLit() {
 		}
 	}
 	// pop map type.
-	if debug {
+	if m.debugging.IsDebug() {
 		if m.PopValue().GetType() != mt {
 			panic("should not happen")
 		}
@@ -608,7 +608,7 @@ func (m *Machine) doOpStructLit() {
 		// field values are in order.
 		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
 		fs = make([]TypedValue, 0, len(st.Fields))
-		if debug {
+		if m.debugging.IsDebug() {
 			if el == 0 {
 				// this is fine.
 			} else if el != nf {
@@ -617,11 +617,11 @@ func (m *Machine) doOpStructLit() {
 				// If there are any unexported fields and the
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
-				if FieldTypeList(st.Fields).HasUnexported() &&
+				if FieldTypeList(st.Fields).HasUnexported(m.debugging) &&
 					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(), m.Package.PkgPath))
+						st.PkgPath, st.String(m.debugging), m.Package.PkgPath))
 				} else {
 					// this is fine.
 				}
@@ -629,14 +629,14 @@ func (m *Machine) doOpStructLit() {
 		}
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
-			if debug {
+			if m.debugging.IsDebug() {
 				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
 					panic("should not happen")
 				}
 			}
 			fs = append(fs, ftv)
 		}
-		if debug {
+		if m.debugging.IsDebug() {
 			if len(fs) != cap(fs) {
 				panic("should not happen")
 			}
@@ -649,7 +649,7 @@ func (m *Machine) doOpStructLit() {
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
-			if debug {
+			if m.debugging.IsDebug() {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
 				}

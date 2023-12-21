@@ -44,6 +44,8 @@ type Machine struct {
 	Output  io.Writer
 	Store   Store
 	Context interface{}
+
+	debugging *Debugging
 }
 
 // machine.Release() must be called on objects
@@ -184,7 +186,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(pState(0), m.Store, pn, fn).(*FileNode)
+			fn = Preprocess(m.debugging, pState(0), m.Store, pn, fn).(*FileNode)
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
@@ -307,12 +309,14 @@ func (m *Machine) DeepCopy() *Machine {
 		Output:     m.Output,
 		Store:      store,
 		Context:    m.Context,
+		debugging:  m.debugging.DeepCopy(),
 	}
 }
 
 func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
-	DisableDebug()
+	m.debugging.DisableDebug()
+
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
@@ -350,7 +354,7 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
 		pn.PrepareNewValues(pv)
-		EnableDebug()
+		m.debugging.EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 
 		var w sync.WaitGroup
@@ -381,7 +385,7 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 // afterwards from the same store.
 func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
-	DisableDebug()
+	m.debugging.DisableDebug()
 	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
@@ -408,7 +412,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		m.SetActivePackage(pv)
 		m.RunFiles(itfiles.Files...)
 		pn.PrepareNewValues(pv)
-		EnableDebug()
+		m.debugging.EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 
 		for i := 0; i < len(pvBlock.Values); i++ {
@@ -536,8 +540,8 @@ func (m *Machine) injectLocOnPanic() {
 		}
 		// wrap panic with location information.
 		if !lastLoc.IsZero() {
-			fmt.Printf("%s: %v\n", lastLoc.String(), r)
-			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
+			fmt.Printf("%s: %v\n", lastLoc.String(m.debugging), r)
+			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String(m.debugging))))
 		} else {
 			panic(r)
 		}
@@ -592,9 +596,9 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fn = Preprocess(pState(0), m.Store, pn, fn).(*FileNode)
-		if debug {
-			debug.Printf("PREPROCESSED FILE: %v\n", fn)
+		fn = Preprocess(m.debugging, pState(0), m.Store, pn, fn).(*FileNode)
+		if m.debugging.IsDebug() {
+			m.debugging.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
@@ -755,14 +759,14 @@ func (m *Machine) RunMain() {
 // Input must not have been preprocessed, that is,
 // it should not be the child of any parent.
 func (m *Machine) Eval(x Expr) []TypedValue {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
 			"Machine.Eval(x) expression already preprocessed: %s",
-			x.String()))
+			x.String(m.debugging)))
 	}
 	// Preprocess input using last block context.
 	last := m.LastBlock().GetSource(m.Store)
@@ -779,7 +783,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 		// x already creates its own scope.
 	}
 	// Preprocess x.
-	x = Preprocess(pState(0), m.Store, last, x).(Expr)
+	x = Preprocess(m.debugging, pState(0), m.Store, last, x).(Expr)
 	// Evaluate x.
 	start := m.NumValues
 	m.PushOp(OpHalt)
@@ -794,14 +798,14 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(m.debugging)))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -823,14 +827,14 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types of nodes.
 func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(m.debugging)))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -851,7 +855,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
-	s = Preprocess(pState(0), m.Store, sn, s).(Stmt)
+	s = Preprocess(m.debugging, pState(0), m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
@@ -868,11 +872,11 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
-	d = Preprocess(pState(0), m.Store, pn, d).(Decl)
+	d = Preprocess(m.debugging, pState(0), m.Store, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
-	if debug {
+	if m.debugging.IsDebug() {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
 			panic("package mismatch")
 		}
@@ -1503,7 +1507,7 @@ func (m *Machine) Run() {
 // push pop methods.
 
 func (m *Machine) PushOp(op Op) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+o %v\n", op)
 	}
 	if len(m.Ops) == m.NumOps {
@@ -1519,7 +1523,7 @@ func (m *Machine) PushOp(op Op) {
 func (m *Machine) PopOp() Op {
 	numOps := m.NumOps
 	op := m.Ops[numOps-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
@@ -1531,7 +1535,7 @@ func (m *Machine) PopOp() Op {
 }
 
 func (m *Machine) ForcePopOp() {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-o! %v\n", m.Ops[m.NumOps-1])
 	}
 	m.NumOps--
@@ -1540,7 +1544,7 @@ func (m *Machine) ForcePopOp() {
 // Offset starts at 1.
 // DEPRECATED use PeekStmt1() instead.
 func (m *Machine) PeekStmt(offset int) Stmt {
-	if debug {
+	if m.debugging.IsDebug() {
 		if offset != 1 {
 			panic("should not happen")
 		}
@@ -1559,14 +1563,14 @@ func (m *Machine) PeekStmt1() Stmt {
 }
 
 func (m *Machine) PushStmt(s Stmt) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+s %v\n", s)
 	}
 	m.Stmts = append(m.Stmts, s)
 }
 
 func (m *Machine) PushStmts(ss ...Stmt) {
-	if debug {
+	if m.debugging.IsDebug() {
 		for _, s := range ss {
 			m.Printf("+s %v\n", s)
 		}
@@ -1577,7 +1581,7 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 func (m *Machine) PopStmt() Stmt {
 	numStmts := len(m.Stmts)
 	s := m.Stmts[numStmts-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-s %v\n", s)
 	}
 	if bs, ok := s.(*bodyStmt); ok {
@@ -1592,7 +1596,7 @@ func (m *Machine) PopStmt() Stmt {
 func (m *Machine) ForcePopStmt() (s Stmt) {
 	numStmts := len(m.Stmts)
 	s = m.Stmts[numStmts-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-s %v\n", s)
 	}
 	// TODO debug lines and assertions.
@@ -1606,7 +1610,7 @@ func (m *Machine) PeekExpr(offset int) Expr {
 }
 
 func (m *Machine) PushExpr(x Expr) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+x %v\n", x)
 	}
 	m.Exprs = append(m.Exprs, x)
@@ -1615,7 +1619,7 @@ func (m *Machine) PushExpr(x Expr) {
 func (m *Machine) PopExpr() Expr {
 	numExprs := len(m.Exprs)
 	x := m.Exprs[numExprs-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-x %v\n", x)
 	}
 	m.Exprs = m.Exprs[:numExprs-1]
@@ -1633,7 +1637,7 @@ func (m *Machine) PeekType(offset int) Type {
 }
 
 func (m *Machine) PushValue(tv TypedValue) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+v %v\n", tv)
 	}
 	if len(m.Values) == m.NumValues {
@@ -1650,7 +1654,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 // Resulting reference is volatile.
 func (m *Machine) PopValue() (tv *TypedValue) {
 	tv = &m.Values[m.NumValues-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-v %v\n", tv)
 	}
 	m.NumValues--
@@ -1664,7 +1668,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
-	if debug {
+	if m.debugging.IsDebug() {
 		for i := 0; i < n; i++ {
 			tv := m.Values[m.NumValues-n+i]
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
@@ -1684,7 +1688,7 @@ func (m *Machine) PopCopyValues(n int) []TypedValue {
 
 // Decrements NumValues by number of last results.
 func (m *Machine) PopResults() {
-	if debug {
+	if m.debugging.IsDebug() {
 		for i := 0; i < m.NumResults; i++ {
 			m.PopValue()
 		}
@@ -1704,14 +1708,14 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 }
 
 func (m *Machine) PushBlock(b *Block) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Println("+B")
 	}
 	m.Blocks = append(m.Blocks, b)
 }
 
 func (m *Machine) PopBlock() (b *Block) {
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Println("-B")
 	}
 	numBlocks := len(m.Blocks)
@@ -1738,7 +1742,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
 	}
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
@@ -1764,12 +1768,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
 	}
-	if debug {
+	if m.debugging.IsDebug() {
 		if m.Package == nil {
 			panic("should not happen")
 		}
 	}
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
@@ -1801,7 +1805,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
 	}
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
@@ -1811,7 +1815,7 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
-	if debug {
+	if m.debugging.IsDebug() {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
@@ -1831,7 +1835,7 @@ func (m *Machine) PopFrameAndReset() {
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
-	if debug {
+	if m.debugging.IsDebug() {
 		// TODO: optimize with fr.IsCall
 		if fr.Func == nil && fr.GoFunc == nil {
 			panic("unexpected non-call (loop) frame")
@@ -2023,20 +2027,16 @@ func (m *Machine) Panic(ex TypedValue) {
 // inspection methods
 
 func (m *Machine) Println(args ...interface{}) {
-	if debug {
-		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
-		}
+	if m.debugging.IsDebug() && m.debugging.IsDebugEnabled() {
+		s := strings.Repeat("|", m.NumOps)
+		m.debugging.Println(append([]interface{}{s}, args...)...)
 	}
 }
 
 func (m *Machine) Printf(format string, args ...interface{}) {
-	if debug {
-		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
-		}
+	if m.debugging.IsDebug() && m.debugging.IsDebugEnabled() {
+		s := strings.Repeat("|", m.NumOps)
+		m.debugging.Printf(s+" "+format, args...)
 	}
 }
 

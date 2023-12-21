@@ -58,6 +58,7 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
+	Debug() *Debugging
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -77,6 +78,12 @@ type defaultStore struct {
 	// transient
 	opslog  []StoreOp           // for debugging and testing.
 	current map[string]struct{} // for detecting import cycles.
+
+	debugging *Debugging
+}
+
+func (d *defaultStore) Debug() *Debugging {
+	return d.debugging
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -253,7 +260,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		return nil
 	}
 	amino.MustUnmarshal(bz, &rlm)
-	if debug {
+	if ds.debugging.IsDebug() {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -291,7 +298,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
+			if ds.debugging.IsDebug() {
 				if _, ok := oo.(*PackageValue); ok {
 					panic("packages must be fetched with GetPackage()")
 				}
@@ -313,7 +320,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
 		amino.MustUnmarshal(bz, &oo)
-		if debug {
+		if ds.debugging.IsDebug() {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
@@ -350,7 +357,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		ds.baseStore.Set([]byte(key), hashbz)
 	}
 	// save object to cache.
-	if debug {
+	if ds.debugging.IsDebug() {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
@@ -423,7 +430,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
-			if debug {
+			if ds.debugging.IsDebug() {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -494,7 +501,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 		if bz != nil {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
-			if debug {
+			if ds.debugging.IsDebug() {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))

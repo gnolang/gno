@@ -52,9 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
-	if debug {
-		debug.Printf("PEEK STMT: %v\n", s)
-		debug.Printf("%v\n", m)
+	if m.debugging.IsDebug() {
+		m.debugging.Printf("PEEK STMT: %v\n", s)
+		m.debugging.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -428,8 +428,8 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
-	if debug {
-		debug.Printf("EXEC: %v\n", s)
+	if m.debugging.IsDebug() {
+		m.debugging.Printf("EXEC: %v\n", s)
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
@@ -827,7 +827,7 @@ func (m *Machine) doOpTypeSwitch() {
 	xv := m.PopValue()
 	xtid := TypeID("")
 	if xv.T != nil {
-		xtid = xv.T.TypeID()
+		xtid = xv.T.TypeID(m.debugging)
 	}
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
@@ -838,7 +838,7 @@ func (m *Machine) doOpTypeSwitch() {
 		if len(cs.Cases) > 0 {
 			// see if any clause cases match.
 			for _, cx := range cs.Cases {
-				if debug {
+				if m.debugging.IsDebug() {
 					if !isConstType(cx) {
 						panic(fmt.Sprintf(
 							"should not happen, expected const type expr for case(s) but got %s",
@@ -858,14 +858,14 @@ func (m *Machine) doOpTypeSwitch() {
 					} else {
 						gnot = ct
 					}
-					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
+					if baseOf(gnot).(*InterfaceType).IsImplementedBy(m.debugging, xv.T) {
 						// match
 						match = true
 					}
 				} else {
 					ctid := TypeID("")
 					if ct != nil {
-						ctid = ct.TypeID()
+						ctid = ct.TypeID(m.debugging)
 					}
 					if xtid == ctid {
 						// match
@@ -956,10 +956,10 @@ func (m *Machine) doOpSwitchClauseCase() {
 	cliv := m.PeekValue(3) // clause index (reuse)
 
 	// eval whether cv == tv.
-	if debug {
-		assertEqualityTypes(cv.T, tv.T)
+	if m.debugging.IsDebug() {
+		assertEqualityTypes(m.debugging, cv.T, tv.T)
 	}
-	match := isEql(m.Store, cv, tv)
+	match := isEql(m.debugging, m.Store, cv, tv)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

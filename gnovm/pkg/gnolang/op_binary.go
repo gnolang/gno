@@ -36,7 +36,7 @@ func (m *Machine) doOpBinary1() {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected binary(1) expr %s",
-			bx.String()))
+			bx.String(m.debugging)))
 	}
 }
 
@@ -44,8 +44,8 @@ func (m *Machine) doOpLor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -59,8 +59,8 @@ func (m *Machine) doOpLand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -76,12 +76,12 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertEqualityTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertEqualityTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
-	res := isEql(m.Store, lv, rv)
+	res := isEql(m.debugging, m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -93,12 +93,12 @@ func (m *Machine) doOpNeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertEqualityTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertEqualityTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
-	res := !isEql(m.Store, lv, rv)
+	res := !isEql(m.debugging, m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -110,8 +110,8 @@ func (m *Machine) doOpLss() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -127,8 +127,8 @@ func (m *Machine) doOpLeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -144,8 +144,8 @@ func (m *Machine) doOpGtr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -161,8 +161,8 @@ func (m *Machine) doOpGeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -178,8 +178,8 @@ func (m *Machine) doOpAdd() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -192,8 +192,8 @@ func (m *Machine) doOpSub() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -206,8 +206,8 @@ func (m *Machine) doOpBor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv | rv
@@ -220,8 +220,8 @@ func (m *Machine) doOpXor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv ^ rv
@@ -234,8 +234,8 @@ func (m *Machine) doOpMul() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv * rv
@@ -248,8 +248,8 @@ func (m *Machine) doOpQuo() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv / rv
@@ -262,8 +262,8 @@ func (m *Machine) doOpRem() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv % rv
@@ -276,7 +276,7 @@ func (m *Machine) doOpShl() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if m.debugging.IsDebug() {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -292,7 +292,7 @@ func (m *Machine) doOpShr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if m.debugging.IsDebug() {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -308,8 +308,8 @@ func (m *Machine) doOpBand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv & rv
@@ -322,8 +322,8 @@ func (m *Machine) doOpBandn() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
-		assertSameTypes(lv.T, rv.T)
+	if m.debugging.IsDebug() {
+		assertSameTypes(m.debugging, lv.T, rv.T)
 	}
 
 	// lv &^ rv
@@ -334,7 +334,7 @@ func (m *Machine) doOpBandn() {
 // logic functions
 
 // TODO: can be much faster.
-func isEql(store Store, lv, rv *TypedValue) bool {
+func isEql(debugging *Debugging, store Store, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -398,19 +398,19 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		ra := rv.V.(*ArrayValue)
 		at := baseOf(lv.T).(*ArrayType)
 		et := at.Elt
-		if debug {
+		if debugging.IsDebug() {
 			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
 			}
 			rat := baseOf(lv.T).(*ArrayType)
-			if at.TypeID() != rat.TypeID() {
+			if at.TypeID(debugging) != rat.TypeID(debugging) {
 				panic("comparison on arrays of unequal type")
 			}
 		}
 		for i := 0; i < la.GetLength(); i++ {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
-			if !isEql(store, &li, &ri) {
+			if !isEql(debugging, store, &li, &ri) {
 				return false
 			}
 		}
@@ -418,10 +418,10 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
-		if debug {
+		if debugging.IsDebug() {
 			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
-			if lt.TypeID() != rt.TypeID() {
+			if lt.TypeID(debugging) != rt.TypeID(debugging) {
 				panic("comparison on structs of unequal types")
 			}
 			if len(ls.Fields) != len(rs.Fields) {
@@ -431,27 +431,27 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		for i := 0; i < len(ls.Fields); i++ {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
-			if !isEql(store, &lf, &rf) {
+			if !isEql(debugging, store, &lf, &rf) {
 				return false
 			}
 		}
 		return true
 	case MapKind:
-		if debug {
+		if debugging.IsDebug() {
 			if lv.V != nil && rv.V != nil {
 				panic("map can only be compared with `nil`")
 			}
 		}
 		return lv.V == rv.V
 	case SliceKind:
-		if debug {
+		if debugging.IsDebug() {
 			if lv.V != nil && rv.V != nil {
 				panic("slice can only be compared with `nil`")
 			}
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		if debug {
+		if debugging.IsDebug() {
 			if lv.V != nil && rv.V != nil {
 				panic("function can only be compared with `nil`")
 			}
