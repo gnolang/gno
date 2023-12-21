@@ -44,7 +44,7 @@ const sidebars = {
                 'concepts/packages',
                 {
                     type: 'category',
-                    label: 'Gno Standard Library',
+                    label: 'Standard Libraries',
                     items: [
                         'concepts/standard-library/overview',
                         'concepts/standard-library/banker',
@@ -76,12 +76,14 @@ const sidebars = {
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
+                'reference/standard-library',
                 'reference/go-gno-compatibility',
                 {
                     type: 'category',
                     label: 'tm2-js-client',
                     items: [
                         'reference/tm2-js-client/tm2-js-getting-started',
+
                         'reference/tm2-js-client/tm2-js-wallet',
                         {
                             type: 'category',
