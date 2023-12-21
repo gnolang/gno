@@ -6,7 +6,7 @@ id: packages
 
 Packages aim to encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries. As opposed to realms, they are stateless.
 
-Typically deployed under `../p/demo`, packages 
+Typically deployed under `../p/`, packages 
 
 The full list of pre-deployed available packages can be found under the [demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
 
