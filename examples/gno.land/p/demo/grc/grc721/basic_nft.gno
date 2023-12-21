@@ -74,7 +74,7 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
 	}
-	
+
 	// check for the right owner
 	owner, err := s.OwnerOf(tid)
 	if err != nil {

@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/r/demo/users"
 	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -380,14 +380,14 @@ func TestSetTokenURI(t *testing.T) {
 	tokenURI := "http://example.com/token"
 
 	std.TestSetOrigCaller(std.Address(addr1)) // addr1
-	
+
 	dummy.mint(addr1.Resolve(), TokenID("1"))
 	_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
 
 	if derr != nil {
 		t.Errorf("Should not result in error ", derr.Error())
 	}
-	
+
 	// Test case: Invalid token ID
 	_, err := dummy.SetTokenURI(TokenID("3"), TokenURI(tokenURI))
 	if err != ErrInvalidTokenId {
@@ -395,8 +395,8 @@ func TestSetTokenURI(t *testing.T) {
 	}
 
 	std.TestSetOrigCaller(std.Address(addr2)) // addr2
-	
-	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))  // addr2 trying to set URI for token 1
+
+	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
 	if cerr != ErrCallerIsNotOwner {
 		t.Errorf("Expected error %v, got %v", ErrCallerIsNotOwner, err)
 	}
@@ -411,5 +411,4 @@ func TestSetTokenURI(t *testing.T) {
 	if dummyTokenURI != tokenURI {
 		t.Errorf("Expected URI %v, got %v", tokenURI, dummyTokenURI)
 	}
-
 }

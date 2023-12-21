@@ -14,8 +14,10 @@ type IGRC721 interface {
 	IsApprovedForAll(owner, operator std.Address) bool
 }
 
-type TokenID string
-type TokenURI string
+type (
+	TokenID  string
+	TokenURI string
+)
 
 type TransferEvent struct {
 	From    std.Address
