@@ -52,3 +52,6 @@ flag_management:
     - name: gno.land
       paths:
       - gno.land
+    - name: misc
+      paths:
+      - misc
