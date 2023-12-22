@@ -2640,7 +2640,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					checkOp(store, last, &bx.Right, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Right, t, autoNative, coerce)
 					return
-				case SHL, SHR:
+				case SHL, SHR: // is this duplicated?
 					debugPP.Printf("xt not nil, shift, Op: %v, t: %v, t.kind: %v \n", bx.Op, t, t.Kind())
 					// push t into bx.Left
 					if coerce {
@@ -2661,6 +2661,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
 					debugPP.Printf("compare, bx: %v, op: %v \n", bx, bx.Op)
+				default:
+					//
 				}
 			}
 			// general case
