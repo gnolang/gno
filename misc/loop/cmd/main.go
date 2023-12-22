@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -107,15 +109,56 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 	for _, p := range container.Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
 			s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
-			s.portalLoop.switchTraefikPortalLoop("http://localhost:" + strconv.Itoa(int(p.PublicPort)))
 			break
 		}
 	}
 
-	// 7. Wait for new portal loop to be ready
-	// Wait 5 blocs
+	// 7. Wait 5 blocks new portal loop to be ready
+	now := time.Now()
+	for {
+		if time.Since(now) > time.Second*120 {
+			return fmt.Errorf("timeout getting latest block")
+		}
+		err := func() error {
+			resp, err := http.Get(s.portalLoopURL + "/status")
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
 
-	// 8. Remove old portal loop
+			tmStatus := struct {
+				Result struct {
+					SyncInfo struct {
+						LatestBlockHeight string `json:"latest_block_height"`
+					} `json:"sync_info"`
+				} `json:"result"`
+			}{}
+			if err := json.NewDecoder(resp.Body).Decode(&tmStatus); err != nil {
+				return err
+			}
+
+			currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
+			if err != nil {
+				return err
+			} else if currentBlock >= 5 {
+				return nil
+			}
+			return fmt.Errorf("blocks: %d/5", currentBlock)
+		}()
+		if err != nil {
+			if !strings.HasPrefix(err.Error(), "blocks: ") {
+				logrus.WithError(err).Error()
+			}
+		}
+		time.Sleep(time.Second * 2)
+	}
+
+	// 8. Update traefik portal loop rpc url
+	if err := s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL); err != nil {
+		return err
+	}
+
+	// 9. Remove old portal loop
 	for _, c := range containers {
 		err = s.portalLoop.dockerClient.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{
 			Force:         true,  // Force the removal of a running container
