@@ -38,6 +38,8 @@ services:
     image: ghcr.io/gnolang/gno/gnoweb-slim
     network_mode: host
     restart: unless-stopped
+    volumes:
+      - ../../gno.land/cmd/gnoweb/views:/opt/gno/src/gnoweb/views
     entrypoint:
       - gnoweb
       - --bind=localhost:8888

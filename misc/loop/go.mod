@@ -3,11 +3,15 @@ module loop
 go 1.20
 
 require (
+	github.com/docker/docker v24.0.7+incompatible
+	github.com/docker/go-connections v0.4.0
 	github.com/gnolang/gno v0.0.0-20231124185034-aaeb808f18d7
 	github.com/gnolang/tx-archive v0.1.1
+	github.com/sirupsen/logrus v1.9.3
 )
 
 require (
+	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -17,6 +21,9 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.5 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
+	github.com/distribution/reference v0.5.0 // indirect
+	github.com/docker/distribution v2.8.3+incompatible // indirect
+	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gnolang/goleveldb v0.1.0 // indirect
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
@@ -31,6 +38,10 @@ require (
 	github.com/klauspost/compress v1.17.3 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/linxGnu/grocksdb v1.8.5 // indirect
+	github.com/moby/term v0.5.0 // indirect
+	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -45,8 +56,10 @@ require (
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 )
 
 replace github.com/gnolang/gno => ../../
