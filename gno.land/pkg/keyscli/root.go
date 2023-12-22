@@ -1,5 +1,5 @@
 // Dedicated to my love, Lexi.
-package main
+package keyscli
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -9,7 +9,7 @@ import (
 	"github.com/peterbourgon/ff/v3/fftoml"
 )
 
-func NewRoot(io commands.IO, base client.BaseOptions) *commands.Command {
+func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cfg := &client.BaseCfg{
 		BaseOptions: base,
 	}
@@ -39,7 +39,7 @@ func NewRoot(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
 
-		// Use custom MakeTX command
+		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
 	)
 

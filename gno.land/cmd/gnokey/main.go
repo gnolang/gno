@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -16,7 +17,7 @@ func main() {
 		Remote: "127.0.0.1:26657",
 	}
 
-	cmd := NewRoot(commands.NewDefaultIO(), baseCfg)
+	cmd := keyscli.NewRootCmd(commands.NewDefaultIO(), baseCfg)
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
 
