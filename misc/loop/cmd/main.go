@@ -79,7 +79,7 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 
 	// 3. Check if there is a new image
 	if !isNew {
-		// 	return nil
+		return nil
 	}
 
 	// 4. Set traefik in READ ONLY mode
