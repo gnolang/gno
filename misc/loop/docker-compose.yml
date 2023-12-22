@@ -47,7 +47,6 @@ services:
       # - --faucet-url="http://faucet.portal.gno.local:81"
       - --faucet-url
       - "http://localhost:9000"
-      - --views-dir=./gnoweb/views
       - --help-chainid
       - dev
       - --help-remote
