@@ -272,8 +272,9 @@ const (
 	IsBigDec
 	IsRune
 
-	IsOrdered = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
-	IsNumeric = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
+	IsOrdered    = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
+	IsNumeric    = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
+	IsIntOrFloat = IsInteger | IsUnsigned | IsFloat | IsBigInt | IsBigDec
 	// IsConstType = IsBoolean | IsNumeric | IsString
 )
 
@@ -356,10 +357,23 @@ func isBoolean(t Type) bool {
 }
 
 // rune can be numeric and string
+// TODO: consider, do we need complex?
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		if t.predicate() != IsInvalid && t.predicate()&IsNumeric != 0 || t.predicate()&IsRune != 0 {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func isIntOrFloat(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		if t.predicate() != IsInvalid && t.predicate()&IsIntOrFloat != 0 || t.predicate()&IsRune != 0 {
 			return true
 		}
 		return false

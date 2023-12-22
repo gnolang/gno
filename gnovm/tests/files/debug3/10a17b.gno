@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/debug/10a17b.gno:13: operator >> not defined on: float32
+// operators >> and >>= not defined for float32
