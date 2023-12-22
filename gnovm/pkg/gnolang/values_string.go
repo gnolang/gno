@@ -168,12 +168,12 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(m.debugging, gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
 	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
+	if IsImplementedBy(m.debugging, gErrorType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
@@ -185,7 +185,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		switch bt {
+		switch bt.val {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
@@ -241,7 +241,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 				reflect.TypeOf(tv.V)))
 		}
 	case *InterfaceType:
-		if debug {
+		if m.debugging.IsDebug() {
 			if tv.DebugHasValue() {
 				panic("should not happen")
 			}
@@ -255,7 +255,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		panic("not yet implemented")
 		// return tv.V.(*ChanValue).String()
 	default:
-		if debug {
+		if m.debugging.IsDebug() {
 			panic(fmt.Sprintf(
 				"unexpected type %s",
 				tv.T.String()))
@@ -275,47 +275,53 @@ func printNilOrValue(tv *TypedValue, valueType interface{}) string {
 // ----------------------------------------
 // TypedValue.String()
 
-// For gno debugging/testing.
+// For gno /testing.
 func (tv TypedValue) String() string {
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
 	vs := ""
 	if tv.V == nil {
-		switch baseOf(tv.T) {
-		case BoolType, UntypedBoolType:
-			vs = fmt.Sprintf("%t", tv.GetBool())
-		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
-		case IntType:
-			vs = fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			vs = fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			vs = fmt.Sprintf("%d", tv.GetInt16())
-		case Int32Type, UntypedRuneType:
-			vs = fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			vs = fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			vs = fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			vs = fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			vs = fmt.Sprintf("%d", tv.GetDataByte())
-		case Uint16Type:
-			vs = fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			vs = fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			vs = fmt.Sprintf("%d", tv.GetUint64())
-		case Float32Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat32())
-		case Float64Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat64())
+		switch tt := baseOf(tv.T).(type) {
+		case PrimitiveType:
+			switch tt.val {
+			case BoolType, UntypedBoolType:
+				vs = fmt.Sprintf("%t", tv.GetBool())
+			case StringType, UntypedStringType:
+				vs = fmt.Sprintf("%s", tv.GetString())
+			case IntType:
+				vs = fmt.Sprintf("%d", tv.GetInt())
+			case Int8Type:
+				vs = fmt.Sprintf("%d", tv.GetInt8())
+			case Int16Type:
+				vs = fmt.Sprintf("%d", tv.GetInt16())
+			case Int32Type, UntypedRuneType:
+				vs = fmt.Sprintf("%d", tv.GetInt32())
+			case Int64Type:
+				vs = fmt.Sprintf("%d", tv.GetInt64())
+			case UintType:
+				vs = fmt.Sprintf("%d", tv.GetUint())
+			case Uint8Type:
+				vs = fmt.Sprintf("%d", tv.GetUint8())
+			case DataByteType:
+				vs = fmt.Sprintf("%d", tv.GetDataByte())
+			case Uint16Type:
+				vs = fmt.Sprintf("%d", tv.GetUint16())
+			case Uint32Type:
+				vs = fmt.Sprintf("%d", tv.GetUint32())
+			case Uint64Type:
+				vs = fmt.Sprintf("%d", tv.GetUint64())
+			case Float32Type:
+				vs = fmt.Sprintf("%v", tv.GetFloat32())
+			case Float64Type:
+				vs = fmt.Sprintf("%v", tv.GetFloat64())
+			default:
+				vs = nilStr
+			}
 		default:
 			vs = nilStr
 		}
+
 	} else {
 		vs = fmt.Sprintf("%v", tv.V)
 	}

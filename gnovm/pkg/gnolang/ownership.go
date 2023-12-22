@@ -149,7 +149,8 @@ type ObjectInfo struct {
 	isNewDeleted bool
 
 	// XXX huh?
-	owner Object // mem reference to owner.
+	owner    Object // mem reference to owner.
+	Debuging *Debugging
 }
 
 // Copy used for serialization of objects.

@@ -52,19 +52,19 @@ func (m *Machine) doOpIndex2() {
 				T: vt,
 				V: defaultValue(m.Alloc, vt),
 			}
-			*iv = untypedBool(false) // reuse as result
+			*iv = untypedBool(m.debugging, false) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
-				*xv = vv                // reuse as result
-				*iv = untypedBool(true) // reuse as result
+				*xv = vv                             // reuse as result
+				*iv = untypedBool(m.debugging, true) // reuse as result
 			} else {
 				*xv = TypedValue{ // reuse as result
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				*iv = untypedBool(false) // reuse as result
+				*iv = untypedBool(m.debugging, false) // reuse as result
 			}
 		}
 	case *NativeType:
@@ -143,7 +143,11 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
-		if pv.TV.T == DataByteType {
+		dbt := PrimitiveType{
+			val:       DataByteType,
+			debugging: m.debugging,
+		}
+		if pv.TV.T == dbt {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
@@ -170,7 +174,7 @@ func (m *Machine) doOpStar() {
 	default:
 		panic(fmt.Sprintf(
 			"illegal star expression x type %s",
-			xv.T.String(m.debugging)))
+			xv.T.String()))
 	}
 }
 
@@ -216,9 +220,9 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
-					xt.String(m.debugging),
-					it.String(m.debugging))
-				m.Panic(typedString(ex))
+					xt.String(),
+					it.String())
+				m.Panic(typedString(m.debugging, ex))
 				return
 			}
 			// NOTE: consider ability to push an
@@ -237,9 +241,9 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
-					xt.String(m.debugging),
-					nt.String(m.debugging))
-				m.Panic(typedString(ex))
+					xt.String(),
+					nt.String())
+				m.Panic(typedString(m.debugging, ex))
 				return
 			}
 			// keep xv as is.
@@ -248,17 +252,17 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		tid := t.TypeID(m.debugging)
-		xtid := xt.TypeID(m.debugging)
+		tid := t.TypeID()
+		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
 		if !same {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
-				xt.String(m.debugging),
-				t.String(m.debugging))
-			m.Panic(typedString(ex))
+				xt.String(),
+				t.String())
+			m.Panic(typedString(m.debugging, ex))
 			return
 		}
 		// keep cxt as is.
@@ -284,12 +288,12 @@ func (m *Machine) doOpTypeAssert2() {
 			impl = it.IsImplementedBy(m.debugging, xt)
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(true)
+				*tv = untypedBool(m.debugging, true)
 			} else {
 				// NOTE: consider ability to push an
 				// interface-restricted form
 				*xv = TypedValue{}
-				*tv = untypedBool(false)
+				*tv = untypedBool(m.debugging, false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
@@ -302,28 +306,28 @@ func (m *Machine) doOpTypeAssert2() {
 			}
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(true)
+				*tv = untypedBool(m.debugging, true)
 			} else {
 				*xv = TypedValue{}
-				*tv = untypedBool(false)
+				*tv = untypedBool(m.debugging, false)
 			}
 		} else {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		tid := t.TypeID(m.debugging)
-		xtid := xt.TypeID(m.debugging)
+		tid := t.TypeID()
+		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
 		if same {
 			// *xv = *xv
-			*tv = untypedBool(true)
+			*tv = untypedBool(m.debugging, true)
 		} else {
 			*xv = TypedValue{
 				T: t,
 				V: defaultValue(m.Alloc, t),
 			}
-			*tv = untypedBool(false)
+			*tv = untypedBool(m.debugging, false)
 		}
 	}
 }
@@ -621,7 +625,7 @@ func (m *Machine) doOpStructLit() {
 					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(m.debugging), m.Package.PkgPath))
+						st.PkgPath, st.String(), m.Package.PkgPath))
 				} else {
 					// this is fine.
 				}

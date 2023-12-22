@@ -121,7 +121,7 @@ type Location struct {
 	Nonce   int
 }
 
-func (loc Location) String(_ *Debugging) string {
+func (loc Location) String() string {
 	if loc.Nonce == 0 {
 		return fmt.Sprintf("%s/%s:%d",
 			loc.PkgPath,
@@ -153,9 +153,10 @@ func (loc Location) IsZero() bool {
 // for preprocessing) are stored in .data.
 
 type Attributes struct {
-	Line  int
-	Label Name
-	data  map[interface{}]interface{} // not persisted
+	Line      int
+	Label     Name
+	data      map[interface{}]interface{} // not persisted
+	debugging *Debugging
 }
 
 func (attr *Attributes) GetLine() int {
@@ -195,7 +196,7 @@ func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
 
 type Node interface {
 	assertNode()
-	String(debugging *Debugging) string
+	String() string
 	Copy() Node
 	GetLine() int
 	SetLine(int)
@@ -1276,14 +1277,14 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
-func (x *bodyStmt) String(debugging *Debugging) string {
+func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {
 		next = "(init)"
 	} else if x.NextBodyIndex == len(x.Body) {
 		next = "(end)"
 	} else {
-		next = x.Body[x.NextBodyIndex].String(debugging)
+		next = x.Body[x.NextBodyIndex].String()
 	}
 	active := ""
 	if x.Active != nil {
@@ -2132,7 +2133,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
-			if tv.T.TypeID(sb.debugging) != old.T.TypeID(sb.debugging) {
+			if tv.T.TypeID() != old.T.TypeID() {
 				panic(fmt.Sprintf(
 					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 					n, old.T, tv.T))
