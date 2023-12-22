@@ -703,6 +703,7 @@ func (m *Machine) doOpFuncLit() {
 }
 
 func (m *Machine) doOpConvert() {
+	debugPP.Println("---doOpConvert---")
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
 	ConvertTo(m.Alloc, m.Store, xv, t)

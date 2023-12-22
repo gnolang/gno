@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/debug/4_b.gno:16: cannot use int as float32
+// main/files/types2/4_b.gno:16: cannot use int as float32

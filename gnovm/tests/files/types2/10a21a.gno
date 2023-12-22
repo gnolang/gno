@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/debug/10a21a.gno:5: operator << not defined on: float32
+// main/files/types2/10a21a.gno:5: operator << not defined on: float32

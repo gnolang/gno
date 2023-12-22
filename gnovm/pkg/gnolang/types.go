@@ -2356,10 +2356,10 @@ func assertEqualityTypes(lt, rt Type) {
 // The logic here is, when != or == shows up, check if t is maybeIdenticalType, if yes,
 // then check the corresponding type(the other side of the operator) is convertable to t.
 func maybeIdenticalType(xt, dt Type) (bool, string) {
-	debugPP.Printf("check maybeIdenticalType, xt: %v, dt: %v \n", xt, dt)
+	debugPP.Printf("---check maybeIdenticalType---, xt: %v, dt: %v \n", xt, dt)
 	// primitive is maybeIdenticalType
 	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType:
+	case PrimitiveType: // TODO: more strict when both typed primitive
 		debugPP.Println("primitive type, return true, fallthrough")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
@@ -2401,23 +2401,24 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 		}
 	case *NativeType:
 		if cdt.Type.Comparable() {
-			debugPP.Printf("cdt type: %v \n", cdt.Type)
 			return true, ""
 		}
-		debugPP.Printf("not comparable, cdt type: %v \n", cdt.Type)
 		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	case nil: // refer to 0a01_filetest, 0f32_filetest.
-		debugPP.Println("dt is nil")
 		switch cxt := baseOf(xt).(type) {
 		case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
-			debugPP.Printf("dt is nil, cxt: %v \n", cxt)
 			return true, ""
+		case *NativeType:
+			switch nk := cxt.Type.Kind(); nk {
+			case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
+				return true, ""
+			default:
+				return false, fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk)
+			}
 		default:
-			debugPP.Printf("default, dt is nil, cxt: %v \n", cxt)
 			return false, fmt.Sprintf("invalid operation, nil can not be compared to nil \n")
 		}
 	default:
-		debugPP.Printf("default: cdt: %v \n", cdt)
 		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	}
 }

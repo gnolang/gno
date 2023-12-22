@@ -162,6 +162,7 @@ func (v RefValue) String() string {
 
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
+	debugPP.Println("sprint")
 	// if undefined, just "undefined".
 	if tv == nil || tv.T == nil {
 		return undefinedStr
@@ -266,6 +267,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func printNilOrValue(tv *TypedValue, valueType interface{}) string {
+	debugPP.Printf("printNilOrValue: tv: %v, T:%v, V:%v \n", *tv, (*tv).T, (*tv).V)
 	if tv.V == nil {
 		return nilStr + " " + tv.T.String()
 	}

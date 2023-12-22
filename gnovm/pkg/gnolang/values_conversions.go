@@ -893,7 +893,10 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	debugPP.Printf("------ConvertUntypedTo, tv:%v, t:%v \n", tv, t)
+	debugPP.Printf("---ConvertUntypedTo---, tv:%v, t:%v \n", tv, t)
+	defer func() {
+		debugPP.Printf("---after ConvertUntypedTo---, tv:%v \n", tv)
+	}()
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(

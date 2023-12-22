@@ -13,10 +13,10 @@ import "fmt"
 func main() {
 	x := 2
 	var r float32
-	r = 1 << x // untyped rhs to float32
+	r = 1<<x + 1 // untyped rhs to float32
 	println(r)
 	fmt.Printf("%T \n", r)
 }
 
 // Error:
-// main/files/debug/4.gno:16: operator << not defined on: float32
+// main/files/types2/4_a.gno:16: operator << not defined on: float32

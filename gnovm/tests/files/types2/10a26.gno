@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/debug/10a26.gno:6: operator << not defined on: float32
+// main/files/types2/10a26.gno:6: operator << not defined on: float32
