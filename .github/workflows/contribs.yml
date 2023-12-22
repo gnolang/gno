@@ -20,16 +20,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - "ubuntu-latest"
+          #- "mac"
+          #- "windows"
         goversion: # two latest versions
+          - "1.20.x"
           - "1.21.x"
         program:
+          # keep alphabetically sorted
+          - "gnodev"
+          - "gnokeykc"
           - "gnomd"
-    runs-on: ubuntu-latest
+          #- "gnotray" # TODO: fix it on CI
+    runs-on: ${{ matrix.os }}
+
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make install ${{ matrix.program }}
+      - run: make install.${{ matrix.program }}
         working-directory: contribs
