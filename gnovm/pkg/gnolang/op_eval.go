@@ -15,7 +15,7 @@ import (
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
-		debug.Printf("EVAL: %v\n", x)
+		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
@@ -47,8 +47,8 @@ func (m *Machine) doOpEval() {
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			if len(x.Value) > 2 && x.Value[0] == '0' {
-				var ok bool = false
+			var ok bool
+			if len(x.Value) >= 2 && x.Value[0] == '0' {
 				switch x.Value[1] {
 				case 'b', 'B':
 					_, ok = bi.SetString(x.Value[2:], 2)
@@ -56,6 +56,8 @@ func (m *Machine) doOpEval() {
 					_, ok = bi.SetString(x.Value[2:], 8)
 				case 'x', 'X':
 					_, ok = bi.SetString(x.Value[2:], 16)
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					_, ok = bi.SetString(x.Value, 8)
 				default:
 					ok = false
 				}
