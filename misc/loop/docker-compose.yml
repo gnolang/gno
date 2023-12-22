@@ -39,7 +39,7 @@ services:
     network_mode: host
     restart: unless-stopped
     volumes:
-      - ../../gno.land/cmd/gnoweb/views:/opt/gno/src/gnoweb/views
+      - ../../gno.land/pkg/gnoweb/views:/opt/gno/src/gnoweb/views
     entrypoint:
       - gnoweb
       - --bind=localhost:8888
@@ -72,8 +72,7 @@ services:
 
   snapshotter:
     build:
-      dockerfile: ./snapshotter/Dockerfile
-    command: ["/usr/sbin/crond", "-l", "2", "-f"]
+      dockerfile: ./Dockerfile
     restart: unless-stopped
     working_dir: /app
     network_mode: host
@@ -84,5 +83,9 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     environment:
       HOST_PWD: $PWD
+      BACKUP_DIR: "/backups"
+      RPC_URL: "http://rpc.portal.gno.local:81"
+      PROM_ADDR: ":9090"
+      TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1

@@ -38,9 +38,10 @@ type snapshotter struct {
 }
 
 type config struct {
-	rpcAddr   string
-	backupDir string
-	hostPWD   string
+	rpcAddr        string
+	traefikGnoFile string
+	backupDir      string
+	hostPWD        string
 }
 
 func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, error) {
@@ -84,9 +85,7 @@ func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
 }
 
 func (s snapshotter) switchTraefikMode(replaceStr string) error {
-	const file = "./traefik/gno.yml"
-
-	input, err := ioutil.ReadFile(file)
+	input, err := ioutil.ReadFile(s.cfg.traefikGnoFile)
 	if err != nil {
 		return err
 	}
@@ -94,13 +93,11 @@ func (s snapshotter) switchTraefikMode(replaceStr string) error {
 	regex := regexp.MustCompile(`middlewares: \[.*\]`)
 	output := regex.ReplaceAllLiteral(input, []byte(replaceStr))
 
-	return ioutil.WriteFile(file, output, 0655)
+	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
 }
 
 func (s snapshotter) switchTraefikPortalLoop(url string) error {
-	const file = "./traefik/gno.yml"
-
-	input, err := ioutil.ReadFile(file)
+	input, err := ioutil.ReadFile(s.cfg.traefikGnoFile)
 	if err != nil {
 		return err
 	}
@@ -108,7 +105,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 	regex := regexp.MustCompile(`http://localhost:[0-9]+`)
 	output := regex.ReplaceAllLiteral(input, []byte(url))
 
-	return ioutil.WriteFile(file, output, 0655)
+	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
 }
 
 func (s snapshotter) getPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
@@ -146,7 +143,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		},
 		Env: []string{
 			"MONIKER=the-portal-loop",
-			fmt.Sprintf("GENESIS_BACKUP_FILE=%s", s.backupFile),
+			fmt.Sprintf("GENESIS_BACKUP_FILE=/backups/backup.jsonl"),
 		},
 		Cmd: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
@@ -161,8 +158,8 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 			},
 		},
 		Binds: []string{
-			fmt.Sprintf("%s/scripts:/scripts", os.Getenv("PWD")),
-			fmt.Sprintf("%s/backups:/backups", os.Getenv("PWD")),
+			fmt.Sprintf("%s/scripts:/scripts", s.cfg.hostPWD),
+			fmt.Sprintf("%s/backups:/backups", s.cfg.hostPWD),
 			fmt.Sprintf("%s:/opt/gno/src/testdir", s.containerName),
 		},
 	}, nil, nil, s.containerName)
@@ -209,28 +206,29 @@ func (s snapshotter) backupTXs(ctx context.Context) error {
 		return fmt.Errorf("unable to execute backup, %w", backupErr)
 	}
 
+	if err := instanceBackupFile.Sync(); err != nil {
+		return err
+	}
+
 	info, err := instanceBackupFile.Stat()
-	fmt.Println("instanceBAckupFile info:", info, info.Size())
 	if err != nil {
 		return err
 	} else if info.Size() == 0 {
 		return os.Remove(instanceBackupFile.Name())
 	}
 
-	fmt.Println("info.Size is != 0")
-
 	// Append to backup file
-	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("unable to open file %s, %w", s.backupFile, err)
 	}
 	defer backupFile.Close()
 
-	output, err := ioutil.ReadAll(instanceBackupFile)
+	// NOTE(albttx): Impossible to use io.ReadAll(instanceBackupFile)
+	output, err := ioutil.ReadFile(s.instanceBackupFile)
 	if err != nil {
 		return err
 	}
-	fmt.Println(output)
 
 	_, err = backupFile.Write(output)
 	return err
