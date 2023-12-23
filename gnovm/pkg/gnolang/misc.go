@@ -87,11 +87,11 @@ func word2UnaryOp(w Word) Op {
 	}
 }
 
-func toString(debugging *Debugging, n Node) string {
+func toString(n Node) string {
 	if n == nil {
 		return "<nil>"
 	}
-	return n.String(debugging)
+	return n.String()
 }
 
 // true if the first rune is uppercase.
@@ -149,8 +149,8 @@ func isReservedName(n Name) bool {
 }
 
 // scans uverse static node for blocknames. (slow)
-func isUverseName(n Name) bool {
-	uverseNames := UverseNode().GetBlockNames()
+func isUverseName(debugging *Debugging, n Name) bool {
+	uverseNames := UverseNode(debugging).GetBlockNames()
 	for _, name := range uverseNames {
 		if name == n {
 			return true

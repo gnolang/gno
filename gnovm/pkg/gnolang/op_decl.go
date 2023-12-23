@@ -41,12 +41,12 @@ func (m *Machine) doOpValueDecl() {
 					ConvertUntypedTo(pState(0), &tv, nt)
 				} else {
 					if m.debugging.IsDebug() {
-						if nt.TypeID(m.debugging) != tv.T.TypeID(m.debugging) &&
-							baseOf(nt).TypeID(m.debugging) != tv.T.TypeID(m.debugging) {
+						if nt.TypeID() != tv.T.TypeID() &&
+							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(
 								"type mismatch: %s vs %s",
-								nt.TypeID(m.debugging),
-								tv.T.TypeID(m.debugging),
+								nt.TypeID(),
+								tv.T.TypeID(),
 							))
 						}
 					}

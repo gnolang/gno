@@ -85,6 +85,13 @@ func (p PrimitiveType) DeepCopy() Type {
 	return p
 }
 
+func IsPrimitiveType(ptv PrimitiveTypeValue, t Type) bool {
+	if a, ok := t.(PrimitiveType); ok {
+		return a.val == ptv
+	}
+	return false
+}
+
 type PrimitiveTypeValue int
 
 const (
@@ -1912,7 +1919,7 @@ func (nt *NativeType) String() string {
 func (nt *NativeType) Key() Type {
 	switch nt.Type.Kind() {
 	case reflect.Map:
-		return go2GnoType(nt.Type.Key())
+		return go2GnoType(nt.debugging, nt.Type.Key())
 	default:
 		panic(fmt.Sprintf("unexpected native type %v for .Key",
 			nt.Type.String()))
@@ -1923,7 +1930,7 @@ func (nt *NativeType) Key() Type {
 func (nt *NativeType) Elem() Type {
 	switch nt.Type.Kind() {
 	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
-		return go2GnoType(nt.Type.Elem())
+		return go2GnoType(nt.debugging, nt.Type.Elem())
 	default:
 		panic(fmt.Sprintf("unexpected native type %v for .Elem",
 			nt.Type.String()))
@@ -1963,7 +1970,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			trail = []ValuePath{NewValuePathNative(n)}
 			hasPtr = true
 			rcvr = nil
-			field = go2GnoType(rft.Type)
+			field = go2GnoType(nt.debugging, rft.Type)
 			return
 		} else {
 			// deref and continue...
@@ -1975,7 +1982,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		if ok {
 			trail = []ValuePath{NewValuePathNative(n)}
 			rcvr = nil
-			field = go2GnoType(rmt.Type)
+			field = go2GnoType(nt.debugging, rmt.Type)
 			return
 		} else { // no match
 			return nil, false, nil, nil, false
@@ -2016,7 +2023,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			}
 			variadic := rmt.Type.IsVariadic()
 			brmt := reflect.FuncOf(ins, outs, variadic) // bound reflect method type
-			field = go2GnoType(brmt)
+			field = go2GnoType(nt.debugging, brmt)
 		}
 		return
 	}
@@ -2028,7 +2035,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			trail = []ValuePath{NewValuePathNative(n)}
 			hasPtr = false
 			rcvr = nil
-			field = go2GnoType(rft.Type)
+			field = go2GnoType(nt.debugging, rft.Type)
 			return
 		} else { // no match
 			return nil, false, nil, nil, false
@@ -2552,7 +2559,6 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 		switch st := baseOf(spec).(type) {
 		case PrimitiveType:
 			prv := &PrimitiveType{val: Uint8Type, debugging: store.Debug()}
-			srv := PrimitiveType{val: StringType, debugging: store.Debug()}
 
 			if isGeneric(ct.Elt) {
 				if st.Kind() == StringKind {
@@ -2566,7 +2572,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				panic(fmt.Sprintf(
 					"expected slice kind but got %s",
 					spec.Kind()))
-			} else if st != srv {
+			} else if !IsPrimitiveType(StringType, st) {
 				panic(fmt.Sprintf(
 					"expected slice kind (or string type) but got %s",
 					spec.Kind()))

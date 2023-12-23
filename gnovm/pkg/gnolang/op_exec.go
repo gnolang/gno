@@ -165,7 +165,10 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					val:       IntType,
+					debugging: m.debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
@@ -179,7 +182,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					val:       IntType,
+					debugging: m.debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
@@ -261,7 +267,10 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					val:       IntType,
+					debugging: m.debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
@@ -275,7 +284,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				ev := typedRune(bs.NextRune)
+				ev := typedRune(m.debugging, bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
@@ -756,9 +765,9 @@ EXEC_SWITCH:
 		} else {
 			m.PushOp(OpSwitchClause)
 			// push clause index 0
-			m.PushValue(typedInt(0))
+			m.PushValue(typedInt(m.debugging, 0))
 			// push clause case index 0
-			m.PushValue(typedInt(0))
+			m.PushValue(typedInt(m.debugging, 0))
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
@@ -827,7 +836,7 @@ func (m *Machine) doOpTypeSwitch() {
 	xv := m.PopValue()
 	xtid := TypeID("")
 	if xv.T != nil {
-		xtid = xv.T.TypeID(m.debugging)
+		xtid = xv.T.TypeID()
 	}
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
@@ -865,7 +874,7 @@ func (m *Machine) doOpTypeSwitch() {
 				} else {
 					ctid := TypeID("")
 					if ct != nil {
-						ctid = ct.TypeID(m.debugging)
+						ctid = ct.TypeID()
 					}
 					if xtid == ctid {
 						// match

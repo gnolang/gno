@@ -1957,7 +1957,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		}
 	}
 	// Finally, check uverse.
-	if idx, ok := UverseNode().GetLocalIndex(n); ok {
+	if idx, ok := UverseNode(sb.debugging).GetLocalIndex(n); ok {
 		return NewValuePathUverse(idx, n)
 	}
 	// Name does not exist.
@@ -2007,9 +2007,9 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			idx, ok = bp.GetLocalIndex(n)
 			ts = bp.GetStaticBlock().Types
 			bp = bp.GetParentNode(store)
-		} else if idx, ok := UverseNode().GetLocalIndex(n); ok {
+		} else if idx, ok := UverseNode(sb.debugging).GetLocalIndex(n); ok {
 			path := NewValuePathUverse(idx, n)
-			tv := Uverse().GetValueAt(store, path)
+			tv := Uverse(sb.debugging).GetValueAt(store, path)
 			return tv.T
 		} else {
 			panic(fmt.Sprintf("name %s not declared", n))
@@ -2035,7 +2035,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 			path.Depth -= 1
 		}
 	}
-	panic("should not happen")
 }
 
 // Implements BlockNode.

@@ -36,7 +36,7 @@ func (m *Machine) doOpBinary1() {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected binary(1) expr %s",
-			bx.String(m.debugging)))
+			bx.String()))
 	}
 }
 
@@ -82,7 +82,10 @@ func (m *Machine) doOpEql() {
 
 	// set result in lv.
 	res := isEql(m.debugging, m.Store, lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -99,7 +102,10 @@ func (m *Machine) doOpNeq() {
 
 	// set result in lv.
 	res := !isEql(m.debugging, m.Store, lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -116,7 +122,10 @@ func (m *Machine) doOpLss() {
 
 	// set the result in lv.
 	res := isLss(lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -133,7 +142,10 @@ func (m *Machine) doOpLeq() {
 
 	// set the result in lv.
 	res := isLeq(lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -150,7 +162,10 @@ func (m *Machine) doOpGtr() {
 
 	// set the result in lv.
 	res := isGtr(lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -167,7 +182,10 @@ func (m *Machine) doOpGeq() {
 
 	// set the result in lv.
 	res := isGeq(lv, rv)
-	lv.T = UntypedBoolType
+	lv.T = PrimitiveType{
+		val:       UntypedBoolType,
+		debugging: m.debugging,
+	}
 	lv.V = nil
 	lv.SetBool(res)
 }
@@ -403,7 +421,7 @@ func isEql(debugging *Debugging, store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal length")
 			}
 			rat := baseOf(lv.T).(*ArrayType)
-			if at.TypeID(debugging) != rat.TypeID(debugging) {
+			if at.TypeID() != rat.TypeID() {
 				panic("comparison on arrays of unequal type")
 			}
 		}
@@ -421,7 +439,7 @@ func isEql(debugging *Debugging, store Store, lv, rv *TypedValue) bool {
 		if debugging.IsDebug() {
 			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
-			if lt.TypeID(debugging) != rt.TypeID(debugging) {
+			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
 			}
 			if len(ls.Fields) != len(rs.Fields) {
@@ -489,31 +507,31 @@ func isEql(debugging *Debugging, store Store, lv, rv *TypedValue) bool {
 func isLss(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() < rv.GetString())
+		return lv.GetString() < rv.GetString()
 	case IntKind:
-		return (lv.GetInt() < rv.GetInt())
+		return lv.GetInt() < rv.GetInt()
 	case Int8Kind:
-		return (lv.GetInt8() < rv.GetInt8())
+		return lv.GetInt8() < rv.GetInt8()
 	case Int16Kind:
-		return (lv.GetInt16() < rv.GetInt16())
+		return lv.GetInt16() < rv.GetInt16()
 	case Int32Kind:
-		return (lv.GetInt32() < rv.GetInt32())
+		return lv.GetInt32() < rv.GetInt32()
 	case Int64Kind:
-		return (lv.GetInt64() < rv.GetInt64())
+		return lv.GetInt64() < rv.GetInt64()
 	case UintKind:
-		return (lv.GetUint() < rv.GetUint())
+		return lv.GetUint() < rv.GetUint()
 	case Uint8Kind:
-		return (lv.GetUint8() < rv.GetUint8())
+		return lv.GetUint8() < rv.GetUint8()
 	case Uint16Kind:
-		return (lv.GetUint16() < rv.GetUint16())
+		return lv.GetUint16() < rv.GetUint16()
 	case Uint32Kind:
-		return (lv.GetUint32() < rv.GetUint32())
+		return lv.GetUint32() < rv.GetUint32()
 	case Uint64Kind:
-		return (lv.GetUint64() < rv.GetUint64())
+		return lv.GetUint64() < rv.GetUint64()
 	case Float32Kind:
-		return (lv.GetFloat32() < rv.GetFloat32()) // XXX determinism?
+		return lv.GetFloat32() < rv.GetFloat32() // XXX determinism?
 	case Float64Kind:
-		return (lv.GetFloat64() < rv.GetFloat64()) // XXX determinism?
+		return lv.GetFloat64() < rv.GetFloat64() // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -533,31 +551,31 @@ func isLss(lv, rv *TypedValue) bool {
 func isLeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() <= rv.GetString())
+		return lv.GetString() <= rv.GetString()
 	case IntKind:
-		return (lv.GetInt() <= rv.GetInt())
+		return lv.GetInt() <= rv.GetInt()
 	case Int8Kind:
-		return (lv.GetInt8() <= rv.GetInt8())
+		return lv.GetInt8() <= rv.GetInt8()
 	case Int16Kind:
-		return (lv.GetInt16() <= rv.GetInt16())
+		return lv.GetInt16() <= rv.GetInt16()
 	case Int32Kind:
-		return (lv.GetInt32() <= rv.GetInt32())
+		return lv.GetInt32() <= rv.GetInt32()
 	case Int64Kind:
-		return (lv.GetInt64() <= rv.GetInt64())
+		return lv.GetInt64() <= rv.GetInt64()
 	case UintKind:
-		return (lv.GetUint() <= rv.GetUint())
+		return lv.GetUint() <= rv.GetUint()
 	case Uint8Kind:
-		return (lv.GetUint8() <= rv.GetUint8())
+		return lv.GetUint8() <= rv.GetUint8()
 	case Uint16Kind:
-		return (lv.GetUint16() <= rv.GetUint16())
+		return lv.GetUint16() <= rv.GetUint16()
 	case Uint32Kind:
-		return (lv.GetUint32() <= rv.GetUint32())
+		return lv.GetUint32() <= rv.GetUint32()
 	case Uint64Kind:
-		return (lv.GetUint64() <= rv.GetUint64())
+		return lv.GetUint64() <= rv.GetUint64()
 	case Float32Kind:
-		return (lv.GetFloat32() <= rv.GetFloat32()) // XXX determinism?
+		return lv.GetFloat32() <= rv.GetFloat32() // XXX determinism?
 	case Float64Kind:
-		return (lv.GetFloat64() <= rv.GetFloat64()) // XXX determinism?
+		return lv.GetFloat64() <= rv.GetFloat64() // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -577,31 +595,31 @@ func isLeq(lv, rv *TypedValue) bool {
 func isGtr(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() > rv.GetString())
+		return lv.GetString() > rv.GetString()
 	case IntKind:
-		return (lv.GetInt() > rv.GetInt())
+		return lv.GetInt() > rv.GetInt()
 	case Int8Kind:
-		return (lv.GetInt8() > rv.GetInt8())
+		return lv.GetInt8() > rv.GetInt8()
 	case Int16Kind:
-		return (lv.GetInt16() > rv.GetInt16())
+		return lv.GetInt16() > rv.GetInt16()
 	case Int32Kind:
-		return (lv.GetInt32() > rv.GetInt32())
+		return lv.GetInt32() > rv.GetInt32()
 	case Int64Kind:
-		return (lv.GetInt64() > rv.GetInt64())
+		return lv.GetInt64() > rv.GetInt64()
 	case UintKind:
-		return (lv.GetUint() > rv.GetUint())
+		return lv.GetUint() > rv.GetUint()
 	case Uint8Kind:
-		return (lv.GetUint8() > rv.GetUint8())
+		return lv.GetUint8() > rv.GetUint8()
 	case Uint16Kind:
-		return (lv.GetUint16() > rv.GetUint16())
+		return lv.GetUint16() > rv.GetUint16()
 	case Uint32Kind:
-		return (lv.GetUint32() > rv.GetUint32())
+		return lv.GetUint32() > rv.GetUint32()
 	case Uint64Kind:
-		return (lv.GetUint64() > rv.GetUint64())
+		return lv.GetUint64() > rv.GetUint64()
 	case Float32Kind:
-		return (lv.GetFloat32() > rv.GetFloat32()) // XXX determinism?
+		return lv.GetFloat32() > rv.GetFloat32() // XXX determinism?
 	case Float64Kind:
-		return (lv.GetFloat64() > rv.GetFloat64()) // XXX determinism?
+		return lv.GetFloat64() > rv.GetFloat64() // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -621,31 +639,31 @@ func isGtr(lv, rv *TypedValue) bool {
 func isGeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() >= rv.GetString())
+		return lv.GetString() >= rv.GetString()
 	case IntKind:
-		return (lv.GetInt() >= rv.GetInt())
+		return lv.GetInt() >= rv.GetInt()
 	case Int8Kind:
-		return (lv.GetInt8() >= rv.GetInt8())
+		return lv.GetInt8() >= rv.GetInt8()
 	case Int16Kind:
-		return (lv.GetInt16() >= rv.GetInt16())
+		return lv.GetInt16() >= rv.GetInt16()
 	case Int32Kind:
-		return (lv.GetInt32() >= rv.GetInt32())
+		return lv.GetInt32() >= rv.GetInt32()
 	case Int64Kind:
-		return (lv.GetInt64() >= rv.GetInt64())
+		return lv.GetInt64() >= rv.GetInt64()
 	case UintKind:
-		return (lv.GetUint() >= rv.GetUint())
+		return lv.GetUint() >= rv.GetUint()
 	case Uint8Kind:
-		return (lv.GetUint8() >= rv.GetUint8())
+		return lv.GetUint8() >= rv.GetUint8()
 	case Uint16Kind:
-		return (lv.GetUint16() >= rv.GetUint16())
+		return lv.GetUint16() >= rv.GetUint16()
 	case Uint32Kind:
-		return (lv.GetUint32() >= rv.GetUint32())
+		return lv.GetUint32() >= rv.GetUint32()
 	case Uint64Kind:
-		return (lv.GetUint64() >= rv.GetUint64())
+		return lv.GetUint64() >= rv.GetUint64()
 	case Float32Kind:
-		return (lv.GetFloat32() >= rv.GetFloat32()) // XXX determinism?
+		return lv.GetFloat32() >= rv.GetFloat32() // XXX determinism?
 	case Float64Kind:
-		return (lv.GetFloat64() >= rv.GetFloat64()) // XXX determinism?
+		return lv.GetFloat64() >= rv.GetFloat64() // XXX determinism?
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -666,52 +684,60 @@ func isGeq(lv, rv *TypedValue) bool {
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case StringType, UntypedStringType:
-		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
-	case IntType:
-		lv.SetInt(lv.GetInt() + rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() + rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() + rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() + rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() + rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() + rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() + rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() + rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() + rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() + rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
-	case Float32Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinism?
-	case Float64Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case StringType, UntypedStringType:
+			lv.V = alloc.NewString(lv.GetString() + rv.GetString())
+		case IntType:
+			lv.SetInt(lv.GetInt() + rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() + rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() + rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() + rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() + rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() + rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() + rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() + rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() + rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() + rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() + rv.GetUint64())
+		case Float32Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinism?
+		case Float64Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Add(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		case BigdecType, UntypedBigdecType:
+			lb := lv.GetBigDec()
+			rb := rv.GetBigDec()
+			sum := apd.New(0, 0)
+			cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, rb)
+			if err != nil {
+				panic(fmt.Sprintf("bigdec addition error: %v", err))
+			} else if cond.Inexact() {
+				panic(fmt.Sprintf("bigdec addition inexact: %v + %v", lb, rb))
+			}
+			lv.V = BigdecValue{V: sum}
+		default:
+			panic(fmt.Sprintf(
+				"operators + and += not defined for %s",
+				lv.T,
+			))
 		}
-		lv.V = BigdecValue{V: sum}
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -724,50 +750,58 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 func subAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() - rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() - rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() - rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() - rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() - rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() - rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() - rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() - rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() - rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
-	case Float32Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
-	case Float64Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		diff := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec subtraction error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() - rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() - rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() - rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() - rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() - rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() - rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() - rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() - rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() - rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() - rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() - rv.GetUint64())
+		case Float32Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
+		case Float64Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		case BigdecType, UntypedBigdecType:
+			lb := lv.GetBigDec()
+			rb := rv.GetBigDec()
+			diff := apd.New(0, 0)
+			cond, err := apd.BaseContext.WithPrecision(0).Sub(diff, lb, rb)
+			if err != nil {
+				panic(fmt.Sprintf("bigdec subtraction error: %v", err))
+			} else if cond.Inexact() {
+				panic(fmt.Sprintf("bigdec subtraction inexact: %v + %v", lb, rb))
+			}
+			lv.V = BigdecValue{V: diff}
+		default:
+			panic(fmt.Sprintf(
+				"operators - and -= not defined for %s",
+				lv.T,
+			))
 		}
-		lv.V = BigdecValue{V: diff}
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -780,48 +814,56 @@ func subAssign(lv, rv *TypedValue) {
 func mulAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() * rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() * rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() * rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() * rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() * rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() * rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() * rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() * rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() * rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() * rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
-	case Float32Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
-	case Float64Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		prod := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec multiplication error: %v", err))
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() * rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() * rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() * rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() * rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() * rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() * rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() * rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() * rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() * rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() * rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() * rv.GetUint64())
+		case Float32Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
+		case Float64Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		case BigdecType, UntypedBigdecType:
+			lb := lv.GetBigDec()
+			rb := rv.GetBigDec()
+			prod := apd.New(0, 0)
+			_, err := apd.BaseContext.WithPrecision(1024).Mul(prod, lb, rb)
+			if err != nil {
+				panic(fmt.Sprintf("bigdec multiplication error: %v", err))
+			}
+			lv.V = BigdecValue{V: prod}
+		default:
+			panic(fmt.Sprintf(
+				"operators * and *= not defined for %s",
+				lv.T,
+			))
 		}
-		lv.V = BigdecValue{V: prod}
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -834,50 +876,58 @@ func mulAssign(lv, rv *TypedValue) {
 func quoAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() / rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() / rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() / rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() / rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() / rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() / rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() / rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() / rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() / rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() / rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
-	case Float32Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
-		// XXX FOR DETERMINISM, PANIC IF NAN.
-	case Float64Type:
-		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
-		// XXX FOR DETERMINISM, PANIC IF NAN.
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
-		lb := lv.GetBigDec()
-		rb := rv.GetBigDec()
-		quo := apd.New(0, 0)
-		_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
-		if err != nil {
-			panic(fmt.Sprintf("bigdec division error: %v", err))
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() / rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() / rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() / rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() / rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() / rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() / rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() / rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() / rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() / rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() / rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() / rv.GetUint64())
+		case Float32Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
+			// XXX FOR DETERMINISM, PANIC IF NAN.
+		case Float64Type:
+			// NOTE: gno doesn't fuse *+.
+			lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
+			// XXX FOR DETERMINISM, PANIC IF NAN.
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		case BigdecType, UntypedBigdecType:
+			lb := lv.GetBigDec()
+			rb := rv.GetBigDec()
+			quo := apd.New(0, 0)
+			_, err := apd.BaseContext.WithPrecision(1024).Quo(quo, lb, rb)
+			if err != nil {
+				panic(fmt.Sprintf("bigdec division error: %v", err))
+			}
+			lv.V = BigdecValue{V: quo}
+		default:
+			panic(fmt.Sprintf(
+				"operators / and /= not defined for %s",
+				lv.T,
+			))
 		}
-		lv.V = BigdecValue{V: quo}
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -890,33 +940,41 @@ func quoAssign(lv, rv *TypedValue) {
 func remAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() % rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() % rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() % rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() % rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() % rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() % rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() % rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() % rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() % rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() % rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rem(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() % rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() % rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() % rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() % rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() % rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() % rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() % rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() % rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() % rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() % rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() % rv.GetUint64())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Rem(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators %% and %%= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators %% and %%= not defined for %s",
@@ -929,33 +987,41 @@ func remAssign(lv, rv *TypedValue) {
 func bandAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() & rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() & rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() & rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() & rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() & rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() & rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() & rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() & rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() & rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() & rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).And(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() & rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() & rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() & rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() & rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() & rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() & rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() & rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() & rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() & rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() & rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() & rv.GetUint64())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).And(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators & and &= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators & and &= not defined for %s",
@@ -968,33 +1034,41 @@ func bandAssign(lv, rv *TypedValue) {
 func bandnAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() &^ rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() &^ rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() &^ rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() &^ rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() &^ rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() &^ rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() &^ rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() &^ rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() &^ rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() &^ rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() &^ rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() &^ rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() &^ rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() &^ rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() &^ rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() &^ rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() &^ rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() &^ rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() &^ rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() &^ rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators &^ and &^= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators &^ and &^= not defined for %s",
@@ -1007,33 +1081,41 @@ func bandnAssign(lv, rv *TypedValue) {
 func borAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() | rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() | rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() | rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() | rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() | rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() | rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() | rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() | rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() | rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() | rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Or(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() | rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() | rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() | rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() | rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() | rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() | rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() | rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() | rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() | rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() | rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() | rv.GetUint64())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Or(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators | and |= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators | and |= not defined for %s",
@@ -1046,33 +1128,41 @@ func borAssign(lv, rv *TypedValue) {
 func xorAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() ^ rv.GetInt())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() ^ rv.GetInt8())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() ^ rv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() ^ rv.GetInt32())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() ^ rv.GetInt64())
-	case UintType:
-		lv.SetUint(lv.GetUint() ^ rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() ^ rv.GetUint8())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() ^ rv.GetUint8())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() ^ rv.GetUint16())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() ^ rv.GetUint32())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() ^ rv.GetInt())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() ^ rv.GetInt8())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() ^ rv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() ^ rv.GetInt32())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() ^ rv.GetInt64())
+		case UintType:
+			lv.SetUint(lv.GetUint() ^ rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() ^ rv.GetUint8())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() ^ rv.GetUint8())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() ^ rv.GetUint16())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() ^ rv.GetUint32())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators ^ and ^= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators ^ and ^= not defined for %s",
@@ -1085,33 +1175,41 @@ func xorAssign(lv, rv *TypedValue) {
 func shlAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() << rv.GetUint())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() << rv.GetUint())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() << rv.GetUint())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() << rv.GetUint())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() << rv.GetUint())
-	case UintType:
-		lv.SetUint(lv.GetUint() << rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() << rv.GetUint())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() << rv.GetUint())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() << rv.GetUint())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() << rv.GetUint())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Lsh(lb, rv.GetUint())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() << rv.GetUint())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() << rv.GetUint())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() << rv.GetUint())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() << rv.GetUint())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() << rv.GetUint())
+		case UintType:
+			lv.SetUint(lv.GetUint() << rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() << rv.GetUint())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() << rv.GetUint())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() << rv.GetUint())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() << rv.GetUint())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() << rv.GetUint())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Lsh(lb, rv.GetUint())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators << and <<= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators << and <<= not defined for %s",
@@ -1124,33 +1222,41 @@ func shlAssign(lv, rv *TypedValue) {
 func shrAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
-	switch baseOf(lv.T) {
-	case IntType:
-		lv.SetInt(lv.GetInt() >> rv.GetUint())
-	case Int8Type:
-		lv.SetInt8(lv.GetInt8() >> rv.GetUint())
-	case Int16Type:
-		lv.SetInt16(lv.GetInt16() >> rv.GetUint())
-	case Int32Type, UntypedRuneType:
-		lv.SetInt32(lv.GetInt32() >> rv.GetUint())
-	case Int64Type:
-		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
-	case UintType:
-		lv.SetUint(lv.GetUint() >> rv.GetUint())
-	case Uint8Type:
-		lv.SetUint8(lv.GetUint8() >> rv.GetUint())
-	case DataByteType:
-		lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
-	case Uint16Type:
-		lv.SetUint16(lv.GetUint16() >> rv.GetUint())
-	case Uint32Type:
-		lv.SetUint32(lv.GetUint32() >> rv.GetUint())
-	case Uint64Type:
-		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
-	case BigintType, UntypedBigintType:
-		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rsh(lb, rv.GetUint())
-		lv.V = BigintValue{V: lb}
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		switch t.val {
+		case IntType:
+			lv.SetInt(lv.GetInt() >> rv.GetUint())
+		case Int8Type:
+			lv.SetInt8(lv.GetInt8() >> rv.GetUint())
+		case Int16Type:
+			lv.SetInt16(lv.GetInt16() >> rv.GetUint())
+		case Int32Type, UntypedRuneType:
+			lv.SetInt32(lv.GetInt32() >> rv.GetUint())
+		case Int64Type:
+			lv.SetInt64(lv.GetInt64() >> rv.GetUint())
+		case UintType:
+			lv.SetUint(lv.GetUint() >> rv.GetUint())
+		case Uint8Type:
+			lv.SetUint8(lv.GetUint8() >> rv.GetUint())
+		case DataByteType:
+			lv.SetDataByte(lv.GetDataByte() >> rv.GetUint())
+		case Uint16Type:
+			lv.SetUint16(lv.GetUint16() >> rv.GetUint())
+		case Uint32Type:
+			lv.SetUint32(lv.GetUint32() >> rv.GetUint())
+		case Uint64Type:
+			lv.SetUint64(lv.GetUint64() >> rv.GetUint())
+		case BigintType, UntypedBigintType:
+			lb := lv.GetBigInt()
+			lb = big.NewInt(0).Rsh(lb, rv.GetUint())
+			lv.V = BigintValue{V: lb}
+		default:
+			panic(fmt.Sprintf(
+				"operators >> and >>= not defined for %s",
+				lv.T,
+			))
+		}
 	default:
 		panic(fmt.Sprintf(
 			"operators >> and >>= not defined for %s",

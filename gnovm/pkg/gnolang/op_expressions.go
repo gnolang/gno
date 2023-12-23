@@ -143,11 +143,7 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: m.debugging,
-		}
-		if pv.TV.T == dbt {
+		if IsPrimitiveType(DataByteType, pv.TV.T) {
 			tv := TypedValue{T: xv.T.(*PointerType).Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())

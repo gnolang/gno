@@ -98,11 +98,11 @@ func (m *Machine) doOpCall() {
 		if m.debugging.IsDebug() {
 			pt := pts[0].Type
 			rt := fr.Receiver.T
-			if pt.TypeID(m.debugging) != rt.TypeID(m.debugging) {
+			if pt.TypeID() != rt.TypeID() {
 				panic(fmt.Sprintf(
 					"expected %s but got %s",
-					pt.String(m.debugging),
-					rt.String(m.debugging)))
+					pt.String(),
+					rt.String()))
 			}
 		}
 		b.Values[0] = fr.Receiver
@@ -363,11 +363,11 @@ func (m *Machine) doOpDefer() {
 		if m.debugging.IsDebug() {
 			pt := cv.Func.GetType(m.Store).Params[0]
 			rt := cv.Receiver.T
-			if pt.TypeID(m.debugging) != rt.TypeID(m.debugging) {
+			if pt.TypeID() != rt.TypeID() {
 				panic(fmt.Sprintf(
 					"expected %s but got %s",
-					pt.String(m.debugging),
-					rt.String(m.debugging)))
+					pt.String(),
+					rt.String()))
 			}
 		}
 		args2 := make([]TypedValue, len(args)+1)

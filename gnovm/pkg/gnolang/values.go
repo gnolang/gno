@@ -385,10 +385,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	dbt := &PrimitiveType{
-		val:       DataByteType,
-		debugging: pv.Debugging,
-	}
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -454,7 +450,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			}
 		}
 		return
-	} else if pv.TV.T == dbt {
+	} else if IsPrimitiveType(DataByteType, pv.TV.T) {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
 		return
@@ -471,12 +467,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
-	dbt := PrimitiveType{
-		val:       DataByteType,
-		debugging: pv.Debugging,
-	}
-
-	if pv.TV.T == dbt {
+	if IsPrimitiveType(DataByteType, pv.TV.T) {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
@@ -1582,11 +1573,7 @@ func (tv *TypedValue) SetUint8(n uint8) {
 				tv.T.String()))
 		}
 
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: tv.Debugging,
-		}
-		if tv.T == dbt {
+		if IsPrimitiveType(DataByteType, tv.T) {
 			panic("DataByteType should call SetDataByte")
 		}
 	}
@@ -1601,12 +1588,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 				tv.T.String()))
 		}
 
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: tv.Debugging,
-		}
-
-		if tv.T == dbt {
+		if IsPrimitiveType(DataByteType, tv.T) {
 			panic("DataByteType should call GetDataByte or GetUint8OrDataByte")
 		}
 	}
@@ -1615,11 +1597,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 
 func (tv *TypedValue) SetDataByte(n uint8) {
 	if tv.Debugging.IsDebug() {
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: tv.Debugging,
-		}
-		if tv.T != dbt || isNative(tv.T) {
+		if !IsPrimitiveType(DataByteType, tv.T) || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
 				tv.T.String()))
@@ -1631,11 +1609,7 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 
 func (tv *TypedValue) GetDataByte() uint8 {
 	if tv.Debugging.IsDebug() {
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: tv.Debugging,
-		}
-		if tv.T != nil && tv.T != dbt {
+		if tv.T != nil && !IsPrimitiveType(DataByteType, tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.GetDataByte() on type %s",
 				tv.T.String()))
@@ -1865,11 +1839,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	if tv.Debugging.IsDebug() {
-		dbt := PrimitiveType{
-			val:       DataByteType,
-			debugging: tv.Debugging,
-		}
-		if tv.T == dbt {
+		if IsPrimitiveType(DataByteType, tv.T) {
 			// assignment to data byte types should only
 			// happen via *PointerValue.Assign2().
 			panic("should not happen")
@@ -2217,9 +2187,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		sbt := PrimitiveType{val: StringType, debugging: tv.Debugging}
-		usbt := PrimitiveType{val: UntypedStringType, debugging: tv.Debugging}
-		if bt == sbt || bt == usbt {
+		if IsPrimitiveType(StringType, bt) || IsPrimitiveType(UntypedStringType, bt) {
 			sv := tv.GetString()
 			ii := iv.ConvertGetInt()
 			bv := &TypedValue{ // heap alloc
@@ -2322,11 +2290,7 @@ func (tv *TypedValue) GetLength() int {
 	if tv.V == nil {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
-			sbt := PrimitiveType{
-				val:       StringType,
-				debugging: tv.Debugging,
-			}
-			if bt != sbt {
+			if !IsPrimitiveType(StringType, bt) {
 				panic("should not happen")
 			}
 			return 0
@@ -2409,15 +2373,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		sbt := PrimitiveType{
-			val:       StringType,
-			debugging: tv.Debugging,
-		}
-		usbt := PrimitiveType{
-			val:       UntypedStringType,
-			debugging: tv.Debugging,
-		}
-		if t == sbt || t == usbt {
+		if IsPrimitiveType(StringType, t) || IsPrimitiveType(UntypedStringType, t) {
 			return TypedValue{
 				T: tv.T,
 				V: alloc.NewString(tv.GetString()[low:high]),

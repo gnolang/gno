@@ -540,8 +540,8 @@ func (m *Machine) injectLocOnPanic() {
 		}
 		// wrap panic with location information.
 		if !lastLoc.IsZero() {
-			fmt.Printf("%s: %v\n", lastLoc.String(m.debugging), r)
-			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String(m.debugging))))
+			fmt.Printf("%s: %v\n", lastLoc.String(), r)
+			panic(errors.Wrap(r, fmt.Sprintf("location: %s", lastLoc.String())))
 		} else {
 			panic(r)
 		}
@@ -637,7 +637,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 			fn, depdecl, exists := pn.FileSet.GetDeclForSafe(dep)
 			// special case: if doesn't exist:
 			if !exists {
-				if isUverseName(dep) { // then is reserved keyword in uverse.
+				if isUverseName(m.debugging, dep) { // then is reserved keyword in uverse.
 					continue
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
@@ -766,7 +766,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
 			"Machine.Eval(x) expression already preprocessed: %s",
-			x.String(m.debugging)))
+			x.String()))
 	}
 	// Preprocess input using last block context.
 	last := m.LastBlock().GetSource(m.Store)
@@ -805,7 +805,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
-			x.String(m.debugging)))
+			x.String()))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -834,7 +834,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
-			x.String(m.debugging)))
+			x.String()))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
