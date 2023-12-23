@@ -83,21 +83,6 @@ func blockEnd(data []byte, openSym byte, closeSym byte) int {
 	return -1
 }
 
-func isArrayKey(level int, keyLevel int, keys []string) (bool, error) {
-	if keyLevel != level {
-		return false, nil
-	}
-
-	key := keys[level]
-	keyLen := len(key)
-
-	if keyLen < 3 || key[0] != ArrayStartToken || key[keyLen-1] != ArrayEndToken {
-		return false, MalformedArray
-	}
-
-	return true, nil
-}
-
 func keyMatched(key []byte, keyEscaped bool, stackbuf [UnescapeStackBufSize]byte, keys []string, level int) (keyUnesc []byte, err error) {
 	if !keyEscaped {
 		keyUnesc = key

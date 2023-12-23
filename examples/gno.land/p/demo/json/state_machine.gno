@@ -34,14 +34,13 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 	}
 
 	var (
-		i           int
 		keyLevel    int
 		level       int
 		lastMatched bool = true
 		stackbuf    [UnescapeStackBufSize]byte
 	)
 
-	for i < len(data) {
+	for i := 0; i < len(data); i++ {
 		switch data[i] {
 		case DoublyQuoteToken:
 			i += 1
@@ -98,59 +97,106 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 		case ObjectEndToken:
 			level, keyLevel = decreaseLevel(level, keyLevel)
 		case ArrayStartToken:
-			var (
-				curIdx      int
-				valueFound  []byte
-				valueOffset int
-			)
+			// if keyLevel == level && keys[level][0] == '[' {
+			// 	keyLen := len(keys[level])
+			// 	if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
+			// 		return -1, InvalidArrayIndex
+			// 	}
+			// }
+			// var (
+			// 	curIdx      int
+			// 	valueFound  []byte
+			// 	valueOffset int
+			// )
 
-			isArrayKey, err := isArrayKey(level, keyLevel, keys)
-			if err != nil {
-				return -1, err
-			}
+			// isArrayKey, err := isArrayKey(level, keyLevel, keys)
+			// if err != nil {
+			// 	return -1, err
+			// }
 
-			if !isArrayKey {
-				arraySkip := blockEnd(data[i:], ArrayStartToken, ArrayEndToken)
-				if arraySkip < 0 {
-					return -1, MalformedJson
+			// if !isArrayKey {
+			// 	arraySkip := blockEnd(data[i:], ArrayStartToken, ArrayEndToken)
+			// 	if arraySkip < 0 {
+			// 		return -1, MalformedJson
+			// 	}
+
+			// 	i += arraySkip - 1
+			// }
+
+			// arrIdx, err := strconv.Atoi(keys[level][1 : len(keys[level])-1])
+			// if err != nil {
+			// 	return -1, InvalidArrayIndex
+			// }
+
+			// currIdx := i
+			// ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
+			// 	if curIdx == arrIdx {
+			// 		valueFound = value
+			// 		valueOffset = offset
+			// 		if dataType == String {
+			// 			valueOffset = valueOffset - 2
+			// 			valueFound = data[currIdx+valueOffset : currIdx+valueOffset+len(value)+2]
+			// 		}
+			// 	}
+			// 	curIdx += 1
+			// })
+
+			// if valueFound == nil {
+			// 	return -1, ArrayIndexNotFound
+			// }
+
+			// subIdx, err := findValueIndex(valueFound, keys[level+1:]...)
+			// if err != nil {
+			// 	return -1, err
+			// }
+
+			// return i + valueOffset + subIdx, nil
+			// If we want to get array element by index
+			if keyLevel == level && keys[level][0] == '[' {
+				keyLen := len(keys[level])
+				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
+					return -1, InvalidArrayIndex
 				}
-
-				i += arraySkip - 1
-			}
-
-			arrIdx, err := strconv.Atoi(keys[level][1 : len(keys[level])-1])
-			if err != nil {
-				return -1, InvalidArrayIndex
-			}
-
-			currIdx := i
-			ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
-				if curIdx == arrIdx {
-					valueFound = value
-					valueOffset = offset
-					if dataType == String {
-						valueOffset = valueOffset - 2
-						valueFound = data[currIdx+valueOffset : currIdx+valueOffset+len(value)+2]
+				aIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
+				if err != nil {
+					return -1, InvalidArrayIndex
+				}
+				var curIdx int
+				var valueFound []byte
+				var valueOffset int
+				curI := i
+				ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
+					if curIdx == aIdx {
+						valueFound = value
+						valueOffset = offset
+						if dataType == String {
+							valueOffset = valueOffset - 2
+							valueFound = data[curI+valueOffset : curI+valueOffset+len(value)+2]
+						}
 					}
+					curIdx += 1
+				})
+
+				if valueFound == nil {
+					return -1, ArrayIndexNotFound
+				} else {
+					subIndex, err := findValueIndex(valueFound, keys[level+1:]...)
+					if err != nil {
+						return -1, KeyPathNotFoundError
+					}
+					return i + valueOffset + subIndex, nil
 				}
-				curIdx += 1
-			})
-
-			if valueFound == nil {
-				return -1, ArrayIndexNotFound
+			} else {
+				// Do not search for keys inside arrays
+				if arraySkip := blockEnd(data[i:], '[', ']'); arraySkip == -1 {
+					return -1, MalformedJson
+				} else {
+					i += arraySkip - 1
+				}
 			}
-
-			subIdx, err := findValueIndex(valueFound, keys[level+1:]...)
-			if err != nil {
-				return -1, err
-			}
-
-			return i + valueOffset + subIdx, nil
 		case ColonToken: // If encountered, JSON data is malformed
 			return -1, MalformedJson
 		}
-
-		i++
 	}
 
 	return -1, KeyPathNotFoundError
