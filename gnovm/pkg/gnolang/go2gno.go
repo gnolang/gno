@@ -96,9 +96,11 @@ func MustParseExpr(expr string) Expr {
 	return x
 }
 
-// filename must not include the path.
+// ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
+// resulting AST -- the resulting FileNode is returned, together with any other
+// error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
-	// Parse src but stop after processing the imports.
+	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
 	if err != nil {
@@ -112,9 +114,9 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
-				err = rerr
+				err = errors.Wrap(rerr, "parsing file")
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
 			return
 		}
@@ -431,7 +433,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 		name := toName(gon.Name)
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-		body := Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		var body []Stmt
+		if gon.Body != nil {
+			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		}
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
