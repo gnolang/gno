@@ -44,7 +44,7 @@ In comparison to Ethereum, Gno.land offers distinct advantages:
    usability beyond the context of blockchain. In contrast, Solidity is designed specifically for Smart Contracts on the
    Ethereum platform.
 
-## How to use the Gno.land Documentation
+## Using the Gno.land Documentation
 
 Gno.land's documentation adopts the [Diataxis](https://diataxis.fr/) framework, ensuring structured and predictable content. It includes:
 - A Getting started section, covering simple instructions on how to begin your journey into Gno.land.
