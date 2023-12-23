@@ -19,7 +19,7 @@ The Banker module can be cast into 4 subtypes of bankers that expose different f
  
 You can access the Banker from within the `std` namespace by calling `std.GetBanker(<BankerType>)` in your package/realm.
 
-The Banker API can be found in [Banker Reference].
+The Banker API can be found in under the `std` package [reference](../../reference/standard-library.md).
 
 
 

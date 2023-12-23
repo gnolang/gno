@@ -2,7 +2,7 @@
 id: native-bindings
 ---
 
-## Native bindings
+# Native bindings
 
 Gno has support for "natively-defined functions" exclusively within the standard
 libraries. These are functions which are _declared_ in Gno code, but only _defined_

@@ -49,6 +49,8 @@ const sidebars = {
                         'concepts/standard-library/overview',
                         'concepts/standard-library/banker',
                         'concepts/standard-library/coin',
+                        'concepts/standard-library/testing',
+                        'concepts/standard-library/native-bindings',
                     ]
                 },
                 'concepts/tendermint2',

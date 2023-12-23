@@ -22,7 +22,9 @@ type Coins []Coin
 ```
 
 The `Coins` slice can be included in a transaction made by a user addresses or a realm. 
-They are then available for access by specific types of Bankers, which can manipulate them depending on their access rights.  
+They are then available for access by specific types of Bankers, which can manipulate them depending on access rights.
+
+The Coin API can be found in under the `std` package [reference](../../reference/standard-library.md).
 
 
 
