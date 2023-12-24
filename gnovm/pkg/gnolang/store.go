@@ -339,7 +339,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
-	o2 := copyValueWithRefs(nil, oo)
+	o2 := copyValueWithRefs(ds.debugging, nil, oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -473,7 +473,7 @@ func (ds *defaultStore) SetType(tt Type) {
 	// save type to backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		tcopy := copyTypeWithRefs(tt)
+		tcopy := copyTypeWithRefs(ds.debugging, tt)
 		bz := amino.MustMarshalAny(tcopy)
 		ds.baseStore.Set([]byte(key), bz)
 	}
@@ -629,7 +629,7 @@ func (ds *defaultStore) ClearObjectCache() {
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
-	ds.SetCachePackage(Uverse())
+	ds.SetCachePackage(Uverse(ds.debugging))
 }
 
 // Unstable.
@@ -649,8 +649,9 @@ func (ds *defaultStore) Fork() Store {
 		go2gnoStrict:     ds.go2gnoStrict,
 		opslog:           nil, // new ops log.
 		current:          make(map[string]struct{}),
+		debugging:        ds.debugging.DeepCopy(),
 	}
-	ds2.SetCachePackage(Uverse())
+	ds2.SetCachePackage(Uverse(ds.debugging))
 	return ds2
 }
 
@@ -745,7 +746,7 @@ func (ds *defaultStore) ClearCache() {
 	InitStoreCaches(ds)
 }
 
-// for debugging
+// for Debugging
 func (ds *defaultStore) Print() {
 	fmt.Println("//----------------------------------------")
 	fmt.Println("defaultStore:baseStore...")
@@ -802,19 +803,89 @@ func backendPackagePathKey(path string) string {
 
 func InitStoreCaches(store Store) {
 	types := []Type{
-		BoolType, UntypedBoolType,
-		StringType, UntypedStringType,
-		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
-		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		BigintType, UntypedBigintType,
+		PrimitiveType{
+			Val:       BoolType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedBoolType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       StringType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedStringType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       IntType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int8Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int16Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int64Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedRuneType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UintType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint8Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint16Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint64Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       BigintType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedBigintType,
+			Debugging: store.Debug(),
+		},
 		gTypeType,
 		gPackageType,
 		blockType{},
-		Float32Type, Float64Type,
+		PrimitiveType{
+			Val:       Float32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Float64Type,
+			Debugging: store.Debug(),
+		},
 		gErrorType, // from uverse.go
 	}
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
-	store.SetCachePackage(Uverse())
+	store.SetCachePackage(Uverse(store.Debug()))
 }

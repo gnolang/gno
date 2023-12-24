@@ -21,14 +21,14 @@ func (m *Machine) doOpInc() {
 	// bounds checking.  NOTE: no need to set .V to nil,
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if lv.V != nil {
 			panic("expected lv.V to be nil for primitive type for OpInc")
 		}
 	}
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() + 1)
 		case Int8Type:
@@ -96,14 +96,14 @@ func (m *Machine) doOpDec() {
 	// bounds checking.  NOTE: no need to set .V to nil,
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if lv.V != nil {
 			panic("expected lv.V to be nil for primitive type for OpDec")
 		}
 	}
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() - 1)
 		case Int8Type:

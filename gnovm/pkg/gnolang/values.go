@@ -20,22 +20,25 @@ import (
 
 type Value interface {
 	assertValue()
-	String() string // for debugging
+	String() string // for Debugging
 	CopyValue() Value
 }
 
 func (s StringValue) CopyValue() Value {
 	return s
 }
+
 func (b BigintValue) CopyValue() Value {
 	bb := BigintValue{V: big.NewInt(0)}
 
 	bb.V.Set(b.V)
 	return bb
 }
+
 func (b BigdecValue) CopyValue() Value {
 	return b.Copy(nil)
 }
+
 func (d DataByteValue) CopyValue() Value {
 	return DataByteValue{
 		Base:     d.Base.Copy(nil),
@@ -43,6 +46,7 @@ func (d DataByteValue) CopyValue() Value {
 		ElemType: d.ElemType.DeepCopy(),
 	}
 }
+
 func (p PointerValue) CopyValue() Value {
 	tv := p.TV.Copy(nil)
 	key := p.Key
@@ -65,6 +69,7 @@ func (p PointerValue) CopyValue() Value {
 		Key:   key,
 	}
 }
+
 func (a *ArrayValue) CopyValue() Value {
 	if a == nil {
 		return nil
@@ -79,6 +84,7 @@ func (a *ArrayValue) CopyValue() Value {
 		Data:       data,
 	}
 }
+
 func (s *SliceValue) CopyValue() Value {
 	if s == nil {
 		return nil
@@ -91,6 +97,7 @@ func (s *SliceValue) CopyValue() Value {
 		Maxcap: s.Maxcap,
 	}
 }
+
 func (s *StructValue) CopyValue() Value {
 	if s == nil {
 		return nil
@@ -101,6 +108,7 @@ func (s *StructValue) CopyValue() Value {
 		Fields:     DeepCopyTypedValues(s.Fields),
 	}
 }
+
 func (f *FuncValue) CopyValue() Value {
 	if f == nil {
 		return nil
@@ -130,6 +138,7 @@ func (f *FuncValue) CopyValue() Value {
 		nativeBody: f.nativeBody,
 	}
 }
+
 func (m *MapValue) CopyValue() Value {
 	if m == nil {
 		return nil
@@ -138,6 +147,7 @@ func (m *MapValue) CopyValue() Value {
 	mm := m.DeepCopy().(*MapValue)
 	return mm
 }
+
 func (b *BoundMethodValue) CopyValue() Value {
 	if b == nil {
 		return nil
@@ -146,9 +156,11 @@ func (b *BoundMethodValue) CopyValue() Value {
 	mm := b.DeepCopy().(*BoundMethodValue)
 	return mm
 }
+
 func (t TypeValue) CopyValue() Value {
 	return TypeValue{Type: t.Type.DeepCopy()}
 }
+
 func (p *PackageValue) CopyValue() Value {
 	if p == nil {
 		return nil
@@ -177,6 +189,7 @@ func (p *PackageValue) CopyValue() Value {
 		fBlocksMap: fblocksmap,
 	}
 }
+
 func (n *NativeValue) CopyValue() Value {
 	if n == nil {
 		return nil
@@ -186,6 +199,7 @@ func (n *NativeValue) CopyValue() Value {
 		Bytes: n.Bytes,
 	}
 }
+
 func (b *Block) CopyValue() Value {
 	if b == nil {
 		return nil
@@ -193,6 +207,7 @@ func (b *Block) CopyValue() Value {
 	bb := b.DeepCopy().(*Block)
 	return bb
 }
+
 func (r RefValue) CopyValue() Value {
 	return RefValue{
 		ObjectID: r.ObjectID,
@@ -351,7 +366,7 @@ func (dbv DataByteValue) SetByte(b byte) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 type PointerValue struct {
-	TV        *TypedValue // escape val if pointer to var.
+	TV        *TypedValue // escape Val if pointer to var.
 	Base      Value       // array/struct/block.
 	Index     int         // list/fields/values index, or -1 or -2 (see below).
 	Key       *TypedValue `json:",omitempty"` // for maps.
@@ -554,8 +569,8 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 	bv := &TypedValue{ // heap alloc
 		T: PrimitiveType{
-			val:       DataByteType,
-			debugging: av.Debuging,
+			Val:       DataByteType,
+			Debugging: av.Debuging,
 		},
 		V: DataByteValue{
 			Base:     av,
@@ -1260,7 +1275,7 @@ func (tv *TypedValue) HasKind(k Kind) bool {
 	return tv.T.Kind() == k
 }
 
-// for debugging, returns true if V or N is not zero.  just because V and N are
+// for Debugging, returns true if V or N is not zero.  just because V and N are
 // zero doesn't mean it didn't get a value set.
 func (tv *TypedValue) DebugHasValue() bool {
 	if !tv.Debugging.IsDebug() {
@@ -1305,7 +1320,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		switch bt.val {
+		switch bt.Val {
 		case BoolType:
 			if tv.GetBool() {
 				return []byte{0x01}
@@ -1440,7 +1455,7 @@ func (tv *TypedValue) SetInt(n int) {
 
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
-	ConvertTo(nilAllocator, store, tv, PrimitiveType{val: IntType, debugging: tv.Debugging})
+	ConvertTo(nilAllocator, store, tv, PrimitiveType{Val: IntType, Debugging: tv.Debugging})
 	return tv.GetInt()
 }
 
@@ -1844,7 +1859,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			// happen via *PointerValue.Assign2().
 			panic("should not happen")
 		}
-		if tv2.T == dbt {
+		if IsPrimitiveType(DataByteType, tv2.T) {
 			// tv2 will never be a DataByte, as it is
 			// retrieved as value.
 			panic("should not happen")
@@ -1871,7 +1886,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
-	var isPtr bool = false
+	isPtr := false
 	switch path.Type {
 	case VPField:
 		switch path.Depth {
@@ -1998,7 +2013,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 					}
 					panic("unknown native method selector")
 				}
-				mtv := go2GnoValue(alloc, mt.Func)
+				mtv := go2GnoValue(tv.Debugging, alloc, mt.Func)
 				return PointerValue{
 					TV:   &mtv, // heap alloc
 					Base: nil,
@@ -2113,7 +2128,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			fv = rv.FieldByName(string(path.Name))
 		}
 		if fv.IsValid() {
-			ftv := go2GnoValue(alloc, fv)
+			ftv := go2GnoValue(tv.Debugging, alloc, fv)
 			return PointerValue{
 				TV: &ftv, // heap alloc
 				// TODO consider if needed for persistence:
@@ -2177,8 +2192,8 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: PrimitiveType{
-		val:       IntType,
-		debugging: tv.Debugging,
+		Val:       IntType,
+		Debugging: tv.Debugging,
 	}}
 	iv.SetInt(ii)
 	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
@@ -2192,8 +2207,8 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			ii := iv.ConvertGetInt()
 			bv := &TypedValue{ // heap alloc
 				T: PrimitiveType{
-					val:       Uint8Type,
-					debugging: tv.Debugging,
+					Val:       Uint8Type,
+					Debugging: tv.Debugging,
 				},
 			}
 			bv.SetUint8(sv[ii])
@@ -2238,7 +2253,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		case reflect.Array, reflect.Slice, reflect.String:
 			ii := iv.ConvertGetInt()
 			erv := rv.Index(ii)
-			etv := go2GnoValue(alloc, erv)
+			etv := go2GnoValue(tv.Debugging, alloc, erv)
 			return PointerValue{
 				TV: &etv,
 				// TODO consider if needed for persistence:
@@ -2251,7 +2266,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		case reflect.Map:
 			krv := gno2GoValue(tv.Debugging, iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
-			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
+			etv := go2GnoValue(tv.Debugging, alloc, vrv) // NOTE: lazy, often native.
 			return PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
@@ -2568,7 +2583,7 @@ func (b *Block) String() string {
 }
 
 func (b *Block) StringIndented(indent string) string {
-	source := toString(b.Debuging, b.Source)
+	source := toString(b.Source)
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
@@ -2782,8 +2797,8 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 
 func typedInt(debugging *Debugging, i int) TypedValue {
 	tv := TypedValue{T: PrimitiveType{
-		val:       IntType,
-		debugging: debugging,
+		Val:       IntType,
+		Debugging: debugging,
 	}}
 	tv.SetInt(i)
 	return tv
@@ -2791,8 +2806,8 @@ func typedInt(debugging *Debugging, i int) TypedValue {
 
 func untypedBool(debugging *Debugging, b bool) TypedValue {
 	tv := TypedValue{T: PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: debugging,
+		Val:       UntypedBoolType,
+		Debugging: debugging,
 	}}
 	tv.SetBool(b)
 	return tv
@@ -2800,8 +2815,8 @@ func untypedBool(debugging *Debugging, b bool) TypedValue {
 
 func typedRune(debugging *Debugging, r rune) TypedValue {
 	tv := TypedValue{T: PrimitiveType{
-		val:       Int32Type,
-		debugging: debugging,
+		Val:       Int32Type,
+		Debugging: debugging,
 	}}
 	tv.SetInt32(r)
 	return tv
@@ -2810,8 +2825,8 @@ func typedRune(debugging *Debugging, r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(debugging *Debugging, s string) TypedValue {
 	tv := TypedValue{T: PrimitiveType{
-		val:       StringType,
-		debugging: debugging,
+		Val:       StringType,
+		Debugging: debugging,
 	}}
 	tv.V = StringValue(s)
 	return tv

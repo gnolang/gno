@@ -9,7 +9,7 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -37,7 +37,7 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -52,19 +52,19 @@ func (m *Machine) doOpIndex2() {
 				T: vt,
 				V: defaultValue(m.Alloc, vt),
 			}
-			*iv = untypedBool(m.debugging, false) // reuse as result
+			*iv = untypedBool(m.Debugging, false) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
 				*xv = vv                             // reuse as result
-				*iv = untypedBool(m.debugging, true) // reuse as result
+				*iv = untypedBool(m.Debugging, true) // reuse as result
 			} else {
 				*xv = TypedValue{ // reuse as result
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				*iv = untypedBool(m.debugging, false) // reuse as result
+				*iv = untypedBool(m.Debugging, false) // reuse as result
 			}
 		}
 	case *NativeType:
@@ -211,14 +211,14 @@ func (m *Machine) doOpTypeAssert1() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			impl = it.IsImplementedBy(m.debugging, xt)
+			impl = it.IsImplementedBy(m.Debugging, xt)
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s",
 					xt.String(),
 					it.String())
-				m.Panic(typedString(m.debugging, ex))
+				m.Panic(typedString(m.Debugging, ex))
 				return
 			}
 			// NOTE: consider ability to push an
@@ -239,7 +239,7 @@ func (m *Machine) doOpTypeAssert1() {
 					"%s doesn't implement %s",
 					xt.String(),
 					nt.String())
-				m.Panic(typedString(m.debugging, ex))
+				m.Panic(typedString(m.Debugging, ex))
 				return
 			}
 			// keep xv as is.
@@ -258,7 +258,7 @@ func (m *Machine) doOpTypeAssert1() {
 				"%s is not of type %s",
 				xt.String(),
 				t.String())
-			m.Panic(typedString(m.debugging, ex))
+			m.Panic(typedString(m.Debugging, ex))
 			return
 		}
 		// keep cxt as is.
@@ -281,15 +281,15 @@ func (m *Machine) doOpTypeAssert2() {
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
-			impl = it.IsImplementedBy(m.debugging, xt)
+			impl = it.IsImplementedBy(m.Debugging, xt)
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(m.debugging, true)
+				*tv = untypedBool(m.Debugging, true)
 			} else {
 				// NOTE: consider ability to push an
 				// interface-restricted form
 				*xv = TypedValue{}
-				*tv = untypedBool(m.debugging, false)
+				*tv = untypedBool(m.Debugging, false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
@@ -302,10 +302,10 @@ func (m *Machine) doOpTypeAssert2() {
 			}
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(m.debugging, true)
+				*tv = untypedBool(m.Debugging, true)
 			} else {
 				*xv = TypedValue{}
-				*tv = untypedBool(m.debugging, false)
+				*tv = untypedBool(m.Debugging, false)
 			}
 		} else {
 			panic("should not happen")
@@ -317,13 +317,13 @@ func (m *Machine) doOpTypeAssert2() {
 		same := tid == xtid
 		if same {
 			// *xv = *xv
-			*tv = untypedBool(m.debugging, true)
+			*tv = untypedBool(m.Debugging, true)
 		} else {
 			*xv = TypedValue{
 				T: t,
 				V: defaultValue(m.Alloc, t),
 			}
-			*tv = untypedBool(m.debugging, false)
+			*tv = untypedBool(m.Debugging, false)
 		}
 	}
 }
@@ -462,7 +462,7 @@ func (m *Machine) doOpArrayLit() {
 		}
 	}
 	// pop array type.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != at {
 			panic("should not happen")
 		}
@@ -488,7 +488,7 @@ func (m *Machine) doOpSliceLit() {
 		es[i] = *m.PopValue()
 	}
 	// construct and push value.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -538,7 +538,7 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	// construct and push value.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -576,7 +576,7 @@ func (m *Machine) doOpMapLit() {
 		}
 	}
 	// pop map type.
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().GetType() != mt {
 			panic("should not happen")
 		}
@@ -608,7 +608,7 @@ func (m *Machine) doOpStructLit() {
 		// field values are in order.
 		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
 		fs = make([]TypedValue, 0, len(st.Fields))
-		if m.debugging.IsDebug() {
+		if m.Debugging.IsDebug() {
 			if el == 0 {
 				// this is fine.
 			} else if el != nf {
@@ -617,7 +617,7 @@ func (m *Machine) doOpStructLit() {
 				// If there are any unexported fields and the
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
-				if FieldTypeList(st.Fields).HasUnexported(m.debugging) &&
+				if FieldTypeList(st.Fields).HasUnexported(m.Debugging) &&
 					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
@@ -629,14 +629,14 @@ func (m *Machine) doOpStructLit() {
 		}
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
-			if m.debugging.IsDebug() {
+			if m.Debugging.IsDebug() {
 				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
 					panic("should not happen")
 				}
 			}
 			fs = append(fs, ftv)
 		}
-		if m.debugging.IsDebug() {
+		if m.Debugging.IsDebug() {
 			if len(fs) != cap(fs) {
 				panic("should not happen")
 			}
@@ -649,7 +649,7 @@ func (m *Machine) doOpStructLit() {
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
-			if m.debugging.IsDebug() {
+			if m.Debugging.IsDebug() {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
 				}

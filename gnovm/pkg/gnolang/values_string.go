@@ -168,12 +168,12 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(m.debugging, gStringerType, tv.T) {
+	if IsImplementedBy(m.Debugging, gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
 	// if implements .Error(), return it.
-	if IsImplementedBy(m.debugging, gErrorType, tv.T) {
+	if IsImplementedBy(m.Debugging, gErrorType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
@@ -185,7 +185,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	// otherwise, default behavior.
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		switch bt.val {
+		switch bt.Val {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
@@ -241,7 +241,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 				reflect.TypeOf(tv.V)))
 		}
 	case *InterfaceType:
-		if m.debugging.IsDebug() {
+		if m.Debugging.IsDebug() {
 			if tv.DebugHasValue() {
 				panic("should not happen")
 			}
@@ -255,7 +255,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		panic("not yet implemented")
 		// return tv.V.(*ChanValue).String()
 	default:
-		if m.debugging.IsDebug() {
+		if m.Debugging.IsDebug() {
 			panic(fmt.Sprintf(
 				"unexpected type %s",
 				tv.T.String()))
@@ -284,7 +284,7 @@ func (tv TypedValue) String() string {
 	if tv.V == nil {
 		switch tt := baseOf(tv.T).(type) {
 		case PrimitiveType:
-			switch tt.val {
+			switch tt.Val {
 			case BoolType, UntypedBoolType:
 				vs = fmt.Sprintf("%t", tv.GetBool())
 			case StringType, UntypedStringType:
@@ -321,7 +321,6 @@ func (tv TypedValue) String() string {
 		default:
 			vs = nilStr
 		}
-
 	} else {
 		vs = fmt.Sprintf("%v", tv.V)
 	}

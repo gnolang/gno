@@ -41,7 +41,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 
 				hash := sha256.Sum256(bz)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(hash),
@@ -59,7 +59,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedUint32(math.Float32bits(arg0.GetFloat32()))
+				res0 := typedUint32(m.Debugging, math.Float32bits(arg0.GetFloat32()))
 				m.PushValue(res0)
 			},
 		)
@@ -72,7 +72,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedFloat32(math.Float32frombits(arg0.GetUint32()))
+				res0 := typedFloat32(m.Debugging, math.Float32frombits(arg0.GetUint32()))
 				m.PushValue(res0)
 			},
 		)
@@ -85,7 +85,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedUint64(math.Float64bits(arg0.GetFloat64()))
+				res0 := typedUint64(m.Debugging, math.Float64bits(arg0.GetFloat64()))
 				m.PushValue(res0)
 			},
 		)
@@ -98,7 +98,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				arg0 := m.LastBlock().GetParams1().TV
-				res0 := typedFloat64(math.Float64frombits(arg0.GetUint64()))
+				res0 := typedFloat64(m.Debugging, math.Float64frombits(arg0.GetUint64()))
 				m.PushValue(res0)
 			},
 		)
@@ -113,17 +113,17 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				if m.Context == nil {
-					res0 := typedInt64(0)
-					res1 := typedInt32(0)
-					res2 := typedInt64(0)
+					res0 := typedInt64(m.Debugging, 0)
+					res1 := typedInt32(m.Debugging, 0)
+					res2 := typedInt64(m.Debugging, 0)
 					m.PushValue(res0)
 					m.PushValue(res1)
 					m.PushValue(res2)
 				} else {
 					ctx := m.Context.(ExecContext)
-					res0 := typedInt64(ctx.Timestamp)
-					res1 := typedInt32(int32(ctx.TimestampNano))
-					res2 := typedInt64(ctx.Timestamp*int64(time.Second) + ctx.TimestampNano)
+					res0 := typedInt64(m.Debugging, ctx.Timestamp)
+					res1 := typedInt32(m.Debugging, int32(ctx.TimestampNano))
+					res2 := typedInt64(m.Debugging, ctx.Timestamp*int64(time.Second)+ctx.TimestampNano)
 					m.PushValue(res0)
 					m.PushValue(res1)
 					m.PushValue(res2)
@@ -153,7 +153,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 2
 				if !isOrigin {
-					m.Panic(typedString("invalid non-origin call"))
+					m.Panic(typedString(m.Debugging, "invalid non-origin call"))
 					return
 				}
 			},
@@ -166,7 +166,10 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				isOrigin := len(m.Frames) == 2
-				res0 := gno.TypedValue{T: gno.BoolType}
+				res0 := gno.TypedValue{T: gno.PrimitiveType{
+					Val:       gno.BoolType,
+					Debugging: m.Debugging,
+				}}
 				res0.SetBool(isOrigin)
 				m.PushValue(res0)
 			},
@@ -182,7 +185,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if m.Realm != nil {
 					realmPath = m.Realm.Path
 				}
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(realmPath),
@@ -198,7 +201,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(ctx.ChainID),
@@ -214,7 +217,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(ctx.Height),
@@ -230,13 +233,13 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(ctx.OrigSend),
 				)
-				coinT := store.GetType(gno.DeclaredTypeID("std", "Coin"))
-				coinsT := store.GetType(gno.DeclaredTypeID("std", "Coins"))
+				coinT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Coin"))
+				coinsT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Coins"))
 				res0.T = coinsT
 				av := res0.V.(*gno.SliceValue).Base.(*gno.ArrayValue)
 				for i := range av.List {
@@ -253,12 +256,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(ctx.OrigCaller),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -287,7 +290,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 
 				// Return the result
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(Realm{
@@ -296,7 +299,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					}),
 				)
 
-				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				realmT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Realm"))
 				res0.T = realmT
 				m.PushValue(res0)
 			},
@@ -342,7 +345,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				}
 
 				// Return the result
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(Realm{
@@ -351,7 +354,7 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 					}),
 				)
 
-				realmT := store.GetType(gno.DeclaredTypeID("std", "Realm"))
+				realmT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Realm"))
 				res0.T = realmT
 				m.PushValue(res0)
 			},
@@ -364,12 +367,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				ctx := m.Context.(ExecContext)
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(ctx.OrigPkgAddr),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -385,14 +388,14 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
+					m.Panic(typedString(m.Debugging, "GetCallerAt requires positive arg"))
 					return
 				}
 				if n > m.NumFrames() {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					m.Panic(typedString("frame not found"))
+					m.Panic(typedString(m.Debugging, "frame not found"))
 					return
 				}
 				var pkgAddr string
@@ -403,12 +406,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				} else {
 					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 				}
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -442,9 +445,9 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
 
 				// make gno bankAdapter{rv}
-				btv := gno.Go2GnoNativeValue(m.Alloc, rv)
+				btv := gno.Go2GnoNativeValue(m.Debugging, m.Alloc, rv)
 				bsv := m.Alloc.NewStructWithFields(btv)
-				bankAdapterType := store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
+				bankAdapterType := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "bankAdapter"))
 				res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
 				m.PushValue(res0)
 			},
@@ -468,12 +471,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				if err != nil {
 					panic(err) // should not happen
 				}
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(b32),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -492,13 +495,13 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				addr := arg0.TV.GetString()
 				prefix, bz, err := bech32.Decode(addr)
 				if err != nil || len(bz) != 20 {
-					m.PushValue(typedString(m.Alloc.NewString("")))
-					m.PushValue(typedByteArray(20, m.Alloc.NewDataArray(20)))
-					m.PushValue(typedBool(false))
+					m.PushValue(typedString(m.Debugging, m.Alloc.NewString("")))
+					m.PushValue(typedByteArray(m.Debugging, 20, m.Alloc.NewDataArray(20)))
+					m.PushValue(typedBool(m.Debugging, false))
 				} else {
-					m.PushValue(typedString(m.Alloc.NewString(prefix)))
-					m.PushValue(typedByteArray(20, m.Alloc.NewArrayFromData(bz)))
-					m.PushValue(typedBool(true))
+					m.PushValue(typedString(m.Debugging, m.Alloc.NewString(prefix)))
+					m.PushValue(typedByteArray(m.Debugging, 20, m.Alloc.NewArrayFromData(bz)))
+					m.PushValue(typedBool(m.Debugging, true))
 				}
 			},
 		)
@@ -513,12 +516,12 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				pkgPath := arg0.GetString()
 				pkgAddr := gno.DerivePkgAddr(pkgPath).Bech32()
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -526,58 +529,85 @@ func InjectPackage(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
-func typedInt32(i32 int32) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Int32Type}
+func typedInt32(debugging *gno.Debugging, i32 int32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Int32Type,
+		Debugging: debugging,
+	}}
 	tv.SetInt32(i32)
 	return tv
 }
 
-func typedInt64(i64 int64) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Int64Type}
+func typedInt64(debugging *gno.Debugging, i64 int64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Int64Type,
+		Debugging: debugging,
+	}}
 	tv.SetInt64(i64)
 	return tv
 }
 
-func typedUint32(u32 uint32) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Uint32Type}
+func typedUint32(debugging *gno.Debugging, u32 uint32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Uint32Type,
+		Debugging: debugging,
+	}}
 	tv.SetUint32(u32)
 	return tv
 }
 
-func typedUint64(u64 uint64) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Uint64Type}
+func typedUint64(debugging *gno.Debugging, u64 uint64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Uint64Type,
+		Debugging: debugging,
+	}}
 	tv.SetUint64(u64)
 	return tv
 }
 
-func typedFloat32(f32 float32) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Float32Type}
+func typedFloat32(debugging *gno.Debugging, f32 float32) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Float32Type,
+		Debugging: debugging,
+	}}
 	tv.SetFloat32(f32)
 	return tv
 }
 
-func typedFloat64(f64 float64) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.Float64Type}
+func typedFloat64(debugging *gno.Debugging, f64 float64) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.Float64Type,
+		Debugging: debugging,
+	}}
 	tv.SetFloat64(f64)
 	return tv
 }
 
-func typedString(s gno.StringValue) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
+func typedString(debugging *gno.Debugging, s gno.StringValue) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.StringType,
+		Debugging: debugging,
+	}}
 	tv.SetString(s)
 	return tv
 }
 
-func typedBool(b bool) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.BoolType}
+func typedBool(debugging *gno.Debugging, b bool) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.BoolType,
+		Debugging: debugging,
+	}}
 	tv.SetBool(b)
 	return tv
 }
 
-func typedByteArray(ln int, bz *gno.ArrayValue) gno.TypedValue {
+func typedByteArray(debugging *gno.Debugging, ln int, bz *gno.ArrayValue) gno.TypedValue {
 	if bz != nil && bz.GetLength() != ln {
 		panic("array length mismatch")
 	}
-	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.Uint8Type}, V: bz}
+	tv := gno.TypedValue{T: &gno.ArrayType{Len: ln, Elt: gno.PrimitiveType{
+		Val:       gno.Uint8Type,
+		Debugging: debugging,
+	}}, V: bz}
 	return tv
 }

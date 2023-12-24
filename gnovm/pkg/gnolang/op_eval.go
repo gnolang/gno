@@ -14,8 +14,8 @@ import (
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
-	if m.debugging.IsDebug() {
-		m.debugging.Printf("EVAL: %v\n", x)
+	if m.Debugging.IsDebug() {
+		m.Debugging.Printf("EVAL: %v\n", x)
 		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
@@ -24,7 +24,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse(m.debugging).GetBlock(nil).GetPointerTo(nil, nx.Path)
+			gv := Uverse(m.Debugging).GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {
@@ -74,8 +74,8 @@ func (m *Machine) doOpEval() {
 			}
 			m.PushValue(TypedValue{
 				T: PrimitiveType{
-					val:       UntypedBigintType,
-					debugging: m.debugging,
+					Val:       UntypedBigintType,
+					Debugging: m.Debugging,
 				},
 				V: BigintValue{V: bi},
 			})
@@ -97,8 +97,8 @@ func (m *Machine) doOpEval() {
 				}
 				m.PushValue(TypedValue{
 					T: PrimitiveType{
-						val:       UntypedBigdecType,
-						debugging: m.debugging,
+						Val:       UntypedBigdecType,
+						Debugging: m.Debugging,
 					},
 					V: BigdecValue{V: bd},
 				})
@@ -189,8 +189,8 @@ func (m *Machine) doOpEval() {
 
 				m.PushValue(TypedValue{
 					T: PrimitiveType{
-						val:       UntypedBigdecType,
-						debugging: m.debugging,
+						Val:       UntypedBigdecType,
+						Debugging: m.Debugging,
 					},
 					V: BigdecValue{V: res},
 				})
@@ -215,16 +215,16 @@ func (m *Machine) doOpEval() {
 				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
 			}
 			tv := TypedValue{T: PrimitiveType{
-				val:       UntypedRuneType,
-				debugging: m.debugging,
+				Val:       UntypedRuneType,
+				Debugging: m.Debugging,
 			}}
 			tv.SetInt32(runes[0])
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{
 				T: PrimitiveType{
-					val:       UntypedStringType,
-					debugging: m.debugging,
+					Val:       UntypedStringType,
+					Debugging: m.Debugging,
 				},
 				V: m.Alloc.NewString(x.GetString()),
 			})

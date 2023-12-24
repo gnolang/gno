@@ -9,32 +9,32 @@ import (
 	"strings"
 	"testing"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
 
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")
-	runFileTest(t, filePath, WithNativeLibs())
+	runFileTest(nil, t, filePath, WithNativeLibs())
 }
 
 // Run tests in the `files` directory using shims from stdlib
 // to native go standard library.
 func TestFilesNative(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
+	runFileTests(nil, t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
 // Test files using standard library in stdlibs/.
 func TestFiles(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(t, baseDir, []string{"*_native*"})
+	runFileTests(nil, t, baseDir, []string{"*_native*"})
 }
 
 func TestChallenges(t *testing.T) {
 	baseDir := filepath.Join(".", "challenges")
-	runFileTests(t, baseDir, nil)
+	runFileTests(nil, t, baseDir, nil)
 }
 
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
@@ -65,7 +65,7 @@ func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.Di
 }
 
 // ignore are glob patterns to ignore
-func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
+func runFileTests(debugging *gnolang.Debugging, t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
@@ -80,18 +80,18 @@ func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFile
 	for _, file := range files {
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()), opts...)
+			runFileTest(debugging, t, filepath.Join(baseDir, file.Name()), opts...)
 		})
 	}
 }
 
-func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
+func runFileTest(debugging *gnolang.Debugging, t *testing.T, path string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
 
 	var logger loggerFunc
-	if gno.IsDebug() && testing.Verbose() {
+	if debugging.IsDebug() && testing.Verbose() {
 		logger = t.Log
 	}
 	rootDir := filepath.Join("..", "..")

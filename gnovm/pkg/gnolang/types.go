@@ -21,7 +21,7 @@ type Type interface {
 
 	Kind() Kind     // penetrates *DeclaredType & *NativeType
 	TypeID() TypeID // deterministic
-	String() string // for dev/debugging
+	String() string // for dev/Debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
 	DeepCopy() Type
@@ -77,8 +77,8 @@ func (MaybeNativeType) assertType() {}
 // Primitive types
 
 type PrimitiveType struct {
-	val       PrimitiveTypeValue
-	debugging *Debugging
+	Val       PrimitiveTypeValue
+	Debugging *Debugging
 }
 
 func (p PrimitiveType) DeepCopy() Type {
@@ -87,7 +87,7 @@ func (p PrimitiveType) DeepCopy() Type {
 
 func IsPrimitiveType(ptv PrimitiveTypeValue, t Type) bool {
 	if a, ok := t.(PrimitiveType); ok {
-		return a.val == ptv
+		return a.Val == ptv
 	}
 	return false
 }
@@ -129,7 +129,7 @@ const (
 // untyped integer constant divided by an untyped complex constant yields an
 // untyped complex constant."
 func (pt PrimitiveType) Specificity() int {
-	switch pt.val {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no specificity")
 	case BoolType:
@@ -180,7 +180,7 @@ func (pt PrimitiveType) Specificity() int {
 }
 
 func (pt PrimitiveType) Kind() Kind {
-	switch pt.val {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no kind")
 	case BoolType, UntypedBoolType:
@@ -221,61 +221,61 @@ func (pt PrimitiveType) Kind() Kind {
 }
 
 func (pt PrimitiveType) TypeID() TypeID {
-	switch pt.val {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no typeid")
 	case UntypedBoolType:
-		return typeid(pt.debugging, "<untyped> bool")
+		return typeid(pt.Debugging, "<untyped> bool")
 	case BoolType:
-		return typeid(pt.debugging, "bool")
+		return typeid(pt.Debugging, "bool")
 	case UntypedStringType:
-		return typeid(pt.debugging, "<untyped> string")
+		return typeid(pt.Debugging, "<untyped> string")
 	case StringType:
-		return typeid(pt.debugging, "string")
+		return typeid(pt.Debugging, "string")
 	case IntType:
-		return typeid(pt.debugging, "int")
+		return typeid(pt.Debugging, "int")
 	case Int8Type:
-		return typeid(pt.debugging, "int8")
+		return typeid(pt.Debugging, "int8")
 	case Int16Type:
-		return typeid(pt.debugging, "int16")
+		return typeid(pt.Debugging, "int16")
 	case UntypedRuneType:
-		return typeid(pt.debugging, "<untyped> rune")
+		return typeid(pt.Debugging, "<untyped> rune")
 	case Int32Type:
-		return typeid(pt.debugging, "int32")
+		return typeid(pt.Debugging, "int32")
 	case Int64Type:
-		return typeid(pt.debugging, "int64")
+		return typeid(pt.Debugging, "int64")
 	case UintType:
-		return typeid(pt.debugging, "uint")
+		return typeid(pt.Debugging, "uint")
 	case Uint8Type:
-		return typeid(pt.debugging, "uint8")
+		return typeid(pt.Debugging, "uint8")
 	case DataByteType:
 		// should not be persisted...
 		panic("untyped data byte type has no typeid")
 	case Uint16Type:
-		return typeid(pt.debugging, "uint16")
+		return typeid(pt.Debugging, "uint16")
 	case Uint32Type:
-		return typeid(pt.debugging, "uint32")
+		return typeid(pt.Debugging, "uint32")
 	case Uint64Type:
-		return typeid(pt.debugging, "uint64")
+		return typeid(pt.Debugging, "uint64")
 	case Float32Type:
-		return typeid(pt.debugging, "float32")
+		return typeid(pt.Debugging, "float32")
 	case Float64Type:
-		return typeid(pt.debugging, "float64")
+		return typeid(pt.Debugging, "float64")
 	case UntypedBigintType:
-		return typeid(pt.debugging, "<untyped> bigint")
+		return typeid(pt.Debugging, "<untyped> bigint")
 	case BigintType:
-		return typeid(pt.debugging, "bigint")
+		return typeid(pt.Debugging, "bigint")
 	case UntypedBigdecType:
-		return typeid(pt.debugging, "<untyped> bigdec")
+		return typeid(pt.Debugging, "<untyped> bigdec")
 	case BigdecType:
-		return typeid(pt.debugging, "bigdec")
+		return typeid(pt.Debugging, "bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
 }
 
 func (pt PrimitiveType) String() string {
-	switch pt.val {
+	switch pt.Val {
 	case InvalidType:
 		return "<invalid type>"
 	case UntypedBoolType:
@@ -323,14 +323,14 @@ func (pt PrimitiveType) String() string {
 	case BigdecType:
 		return "bigdec"
 	default:
-		panic(fmt.Sprintf("unexpected primitive type %d", pt))
+		panic(fmt.Sprintf("unexpected primitive type %d", pt.Val))
 	}
 }
 
 func (pt PrimitiveType) Elem() Type {
 	if pt.Kind() == StringKind {
 		// NOTE: this is different than Go1.
-		return PrimitiveType{val: Uint8Type, debugging: pt.debugging}
+		return PrimitiveType{Val: Uint8Type, Debugging: pt.Debugging}
 	} else {
 		panic("non-string primitive types have no elements")
 	}
@@ -596,8 +596,8 @@ func (at *ArrayType) GetPkgPath() string {
 
 var gByteSliceType = &SliceType{
 	Elt: PrimitiveType{
-		val:       Uint8Type,
-		debugging: nil,
+		Val:       Uint8Type,
+		Debugging: nil,
 	},
 	Vrd: false,
 }
@@ -2247,7 +2247,7 @@ const (
 func KindOf(t Type) Kind {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case InvalidType:
 			panic("invalid type has no kind")
 		case BoolType, UntypedBoolType:
@@ -2388,7 +2388,7 @@ func assertEqualityTypes(debugging *Debugging, lt, rt Type) {
 func isUntyped(t Type) bool {
 	switch t := t.(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
 			return true
 		default:
@@ -2402,7 +2402,7 @@ func isUntyped(t Type) bool {
 func isDataByte(t Type) bool {
 	switch t := t.(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case DataByteType:
 			return true
 		default:
@@ -2418,17 +2418,17 @@ func isDataByte(t Type) bool {
 func defaultTypeOf(t Type) Type {
 	switch t := t.(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case UntypedBoolType:
-			return &PrimitiveType{val: BoolType, debugging: t.debugging}
+			return &PrimitiveType{Val: BoolType, Debugging: t.Debugging}
 		case UntypedRuneType:
-			return &PrimitiveType{val: Int32Type, debugging: t.debugging}
+			return &PrimitiveType{Val: Int32Type, Debugging: t.Debugging}
 		case UntypedBigintType:
-			return &PrimitiveType{val: IntType, debugging: t.debugging}
+			return &PrimitiveType{Val: IntType, Debugging: t.Debugging}
 		case UntypedBigdecType:
-			return &PrimitiveType{val: Float64Type, debugging: t.debugging}
+			return &PrimitiveType{Val: Float64Type, Debugging: t.Debugging}
 		case UntypedStringType:
-			return &PrimitiveType{val: StringType, debugging: t.debugging}
+			return &PrimitiveType{Val: StringType, Debugging: t.Debugging}
 		default:
 			panic("unexpected type for default untyped const conversion")
 		}
@@ -2455,7 +2455,7 @@ func fillEmbeddedName(ft *FieldType) {
 	case *DeclaredType:
 		ft.Name = ct.Name
 	case PrimitiveType:
-		switch ct.val {
+		switch ct.Val {
 		case BoolType:
 			ft.Name = "bool"
 		case StringType:
@@ -2558,7 +2558,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 	case *SliceType:
 		switch st := baseOf(spec).(type) {
 		case PrimitiveType:
-			prv := &PrimitiveType{val: Uint8Type, debugging: store.Debug()}
+			prv := &PrimitiveType{Val: Uint8Type, Debugging: store.Debug()}
 
 			if isGeneric(ct.Elt) {
 				if st.Kind() == StringKind {

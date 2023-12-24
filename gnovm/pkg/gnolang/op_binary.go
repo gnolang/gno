@@ -44,8 +44,8 @@ func (m *Machine) doOpLor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -59,8 +59,8 @@ func (m *Machine) doOpLand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -76,15 +76,15 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertEqualityTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertEqualityTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
-	res := isEql(m.debugging, m.Store, lv, rv)
+	res := isEql(m.Debugging, m.Store, lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -96,15 +96,15 @@ func (m *Machine) doOpNeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertEqualityTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertEqualityTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set result in lv.
-	res := !isEql(m.debugging, m.Store, lv, rv)
+	res := !isEql(m.Debugging, m.Store, lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -116,15 +116,15 @@ func (m *Machine) doOpLss() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
 	res := isLss(lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -136,15 +136,15 @@ func (m *Machine) doOpLeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
 	res := isLeq(lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -156,15 +156,15 @@ func (m *Machine) doOpGtr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
 	res := isGtr(lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -176,15 +176,15 @@ func (m *Machine) doOpGeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// set the result in lv.
 	res := isGeq(lv, rv)
 	lv.T = PrimitiveType{
-		val:       UntypedBoolType,
-		debugging: m.debugging,
+		Val:       UntypedBoolType,
+		Debugging: m.Debugging,
 	}
 	lv.V = nil
 	lv.SetBool(res)
@@ -196,8 +196,8 @@ func (m *Machine) doOpAdd() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -210,8 +210,8 @@ func (m *Machine) doOpSub() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -224,8 +224,8 @@ func (m *Machine) doOpBor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv | rv
@@ -238,8 +238,8 @@ func (m *Machine) doOpXor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv ^ rv
@@ -252,8 +252,8 @@ func (m *Machine) doOpMul() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv * rv
@@ -266,8 +266,8 @@ func (m *Machine) doOpQuo() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv / rv
@@ -280,8 +280,8 @@ func (m *Machine) doOpRem() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv % rv
@@ -294,7 +294,7 @@ func (m *Machine) doOpShl() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -310,7 +310,7 @@ func (m *Machine) doOpShr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
+	if m.Debugging.IsDebug() {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -326,8 +326,8 @@ func (m *Machine) doOpBand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv & rv
@@ -340,8 +340,8 @@ func (m *Machine) doOpBandn() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if m.debugging.IsDebug() {
-		assertSameTypes(m.debugging, lv.T, rv.T)
+	if m.Debugging.IsDebug() {
+		assertSameTypes(m.Debugging, lv.T, rv.T)
 	}
 
 	// lv &^ rv
@@ -686,7 +686,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case StringType, UntypedStringType:
 			lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 		case IntType:
@@ -752,7 +752,7 @@ func subAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() - rv.GetInt())
 		case Int8Type:
@@ -816,7 +816,7 @@ func mulAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() * rv.GetInt())
 		case Int8Type:
@@ -878,7 +878,7 @@ func quoAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() / rv.GetInt())
 		case Int8Type:
@@ -942,7 +942,7 @@ func remAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() % rv.GetInt())
 		case Int8Type:
@@ -989,7 +989,7 @@ func bandAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() & rv.GetInt())
 		case Int8Type:
@@ -1036,7 +1036,7 @@ func bandnAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() &^ rv.GetInt())
 		case Int8Type:
@@ -1083,7 +1083,7 @@ func borAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() | rv.GetInt())
 		case Int8Type:
@@ -1130,7 +1130,7 @@ func xorAssign(lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() ^ rv.GetInt())
 		case Int8Type:
@@ -1177,7 +1177,7 @@ func shlAssign(lv, rv *TypedValue) {
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() << rv.GetUint())
 		case Int8Type:
@@ -1224,7 +1224,7 @@ func shrAssign(lv, rv *TypedValue) {
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch t := baseOf(lv.T).(type) {
 	case PrimitiveType:
-		switch t.val {
+		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() >> rv.GetUint())
 		case Int8Type:

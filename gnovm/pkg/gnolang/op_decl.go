@@ -40,7 +40,7 @@ func (m *Machine) doOpValueDecl() {
 				if isUntyped(tv.T) {
 					ConvertUntypedTo(pState(0), &tv, nt)
 				} else {
-					if m.debugging.IsDebug() {
+					if m.Debugging.IsDebug() {
 						if nt.TypeID() != tv.T.TypeID() &&
 							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(

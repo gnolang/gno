@@ -171,7 +171,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			} else {
 				// realm case.
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
-				gno.DisableDebug()                 // until main call.
+				m.Debugging.DisableDebug()         // until main call.
 				// save package using realm crawl procedure.
 				memPkg := &std.MemPackage{
 					Name: string(pkgName),
@@ -217,7 +217,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				pv2 := store.GetPackage(pkgPath, false)
 				m.SetActivePackage(pv2)
-				gno.EnableDebug()
+				m.Debugging.EnableDebug()
 				if rops != "" {
 					// clear store.opslog from init function(s),
 					// and PreprocessAllFilesAndSaveBlockNodes().
@@ -250,7 +250,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
 					// NOTE: ignores any gno.GetDebugErrors().
-					gno.ClearDebugErrors()
+					m.Debugging.ClearDebugErrors()
 					return nil // nothing more to do.
 				} else {
 					// record errors when errWanted is empty and pnc not nil
@@ -271,8 +271,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
 					// check gno debug errors when errWanted is empty, pnc is nil
-					if gno.HasDebugErrors() {
-						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
+					if m.Debugging.HasDebugErrors() {
+						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, m.Debugging.GetDebugErrors()))
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
 					return nil

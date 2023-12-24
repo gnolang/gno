@@ -169,7 +169,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				fmt.Println("--- preprocess stack ---")
 				for i := len(stack) - 1; i >= 0; i-- {
 					sbn := stack[i]
-					fmt.Printf("stack %d: %s\n", i, sbn.String(debugging))
+					fmt.Printf("stack %d: %s\n", i, sbn.String())
 				}
 				fmt.Println("------------------------")
 				// before re-throwing the error, append location information to message.
@@ -179,15 +179,15 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				}
 				if rerr, ok := r.(error); ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.Wrap(rerr, loc.String(debugging)))
+					panic(errors.Wrap(rerr, loc.String()))
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(debugging), r)))
+					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
 				}
 			}
 		}()
 		if debugging.IsDebug() {
-			debugging.Printf("Preprocess %s (%v) stage:%v\n", n.String(debugging), reflect.TypeOf(n), stage)
+			debugging.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -214,7 +214,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						}
 					}
 					if !defined {
-						panic(fmt.Sprintf("nothing defined in assignment %s", n.String(debugging)))
+						panic(fmt.Sprintf("nothing defined in assignment %s", n.String()))
 					}
 				} else {
 					// nothing defined.
@@ -331,18 +331,27 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						}
 					} else if xt.Kind() == StringKind {
 						if n.Key != nil {
-							it := IntType
+							it := PrimitiveType{
+								Val:       IntType,
+								Debugging: debugging,
+							}
 							kn := n.Key.(*NameExpr).Name
 							last.Define(kn, anyValue(it))
 						}
 						if n.Value != nil {
-							et := Int32Type
+							et := PrimitiveType{
+								Val:       Int32Type,
+								Debugging: debugging,
+							}
 							vn := n.Value.(*NameExpr).Name
 							last.Define(vn, anyValue(et))
 						}
 					} else {
 						if n.Key != nil {
-							it := IntType
+							it := PrimitiveType{
+								Val:       IntType,
+								Debugging: debugging,
+							}
 							kn := n.Key.(*NameExpr).Name
 							last.Define(kn, anyValue(it))
 						}
@@ -646,7 +655,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
-						n.Path = bt.GetPathForName(debugging, n.Name)
+						n.Path = bt.GetPathForName(n.Name)
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
@@ -691,7 +700,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				case "iota":
 					pd := lastDecl(ns)
 					io := pd.GetAttribute(ATTR_IOTA).(int)
-					cx := constUntypedBigint(n, int64(io))
+					cx := constUntypedBigint(debugging, n, int64(io))
 					return cx, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
@@ -755,7 +764,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				rt := evalStaticTypeOf(store, last, n.Right)
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
-				if isShift && baseOf(rt) != UintType {
+				if isShift && !IsPrimitiveType(UintType, baseOf(rt)) {
 					// convert n.Right to (gno) uint type,
 					rn := Expr(Call("uint", n.Right))
 					// reset/create n2 to preprocess right child.
@@ -802,11 +811,11 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 								panic("should not happen")
 							}
 							// get concrete native base type.
-							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							pt := go2GnoBaseType(debugging, rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
 							checkOrConvertType(debugging, p, store, last, &n.Left, pt, false)
 							// convert n.Right to (gno) pt type,
-							rn := Expr(Call(pt.String(debugging), n.Right))
+							rn := Expr(Call(pt.String(), n.Right))
 							// and convert result back.
 							tx := constType(n, rnt)
 							// reset/create n2 to preprocess right child.
@@ -839,18 +848,21 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					if isUntyped(rcx.T) {
 						// Left not, Right untyped const ----------------
 						if isShift {
-							if baseOf(rt) != UintType {
+							if !IsPrimitiveType(UintType, baseOf(rt)) {
 								// convert n.Right to (gno) uint type.
-								checkOrConvertType(debugging, p, store, last, &n.Right, UintType, false)
+								checkOrConvertType(debugging, p, store, last, &n.Right, PrimitiveType{
+									Val:       UintType,
+									Debugging: debugging,
+								}, false)
 							} else {
 								// leave n.Left as is and baseOf(n.Right) as UintType.
 							}
 						} else {
 							if lnt, ok := lt.(*NativeType); ok {
 								// get concrete native base type.
-								pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+								pt := go2GnoBaseType(debugging, lnt.Type).(PrimitiveType)
 								// convert n.Left to (gno) pt type,
-								ln := Expr(Call(pt.String(debugging), n.Left))
+								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
 								checkOrConvertType(debugging, p, store, last, &n.Right, pt, false)
 								// and convert result back.
@@ -890,17 +902,17 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						// convert result back to native.
 						//
 						// get concrete native base type.
-						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+						pt := go2GnoBaseType(debugging, lnt.Type).(PrimitiveType)
 						// convert n.Left to (gno) pt type,
-						ln := Expr(Call(pt.String(debugging), n.Left))
+						ln := Expr(Call(pt.String(), n.Left))
 						// convert n.Right to pt or uint type,
 						rn := n.Right
 						if isShift {
-							if baseOf(rt) != UintType {
+							if IsPrimitiveType(UintType, baseOf(rt)) {
 								rn = Expr(Call("uint", n.Right))
 							}
 						} else {
-							rn = Expr(Call(pt.String(debugging), n.Right))
+							rn = Expr(Call(pt.String(), n.Right))
 						}
 						// and convert result back.
 						tx := constType(n, lnt)
@@ -924,7 +936,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						liu, riu := isUntyped(lt), isUntyped(rt)
 						if liu {
 							if riu {
-								if lt.TypeID(debugging) != rt.TypeID(debugging) {
+								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
 										n.Left, n.Op, n.Right))
@@ -937,7 +949,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 								checkOrConvertType(debugging, p, store, last, &n.Right, lt, false)
 							} else {
 								// left is untyped, right is not.
-								if lt.TypeID(debugging) != rt.TypeID(debugging) {
+								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
 										n.Left, n.Op, n.Right))
@@ -1059,7 +1071,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						if numArgs != len(ft.Params) {
 							panic(fmt.Sprintf(
 								"wrong argument count in call to %s; want %d got %d (with embedded call expr as arg)",
-								n.Func.String(debugging),
+								n.Func.String(),
 								len(ft.Params),
 								numArgs,
 							))
@@ -1068,7 +1080,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						if numArgs < len(ft.Params)-1 {
 							panic(fmt.Sprintf(
 								"not enough arguments in call to %s; want %d (besides variadic) got %d (with embedded call expr as arg)",
-								n.Func.String(debugging),
+								n.Func.String(),
 								len(ft.Params)-1,
 								numArgs))
 						}
@@ -1078,7 +1090,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
 							"wrong argument count in call to %s; want %d got %d",
-							n.Func.String(debugging),
+							n.Func.String(),
 							len(ft.Params),
 							len(n.Args),
 						))
@@ -1088,7 +1100,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					if len(n.Args) < len(ft.Params)-1 {
 						panic(fmt.Sprintf(
 							"not enough arguments in call to %s; want %d (besides variadic) got %d",
-							n.Func.String(debugging),
+							n.Func.String(),
 							len(ft.Params)-1,
 							len(n.Args)))
 					}
@@ -1097,7 +1109,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
 							"not enough arguments in call to %s; want %d (including variadic) got %d",
-							n.Func.String(debugging),
+							n.Func.String(),
 							len(ft.Params),
 							len(n.Args)))
 					}
@@ -1105,7 +1117,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					panic("should not happen")
 				}
 				// Specify function param/result generics.
-				sft := ft.Specify(debugging, store, argTVs, isVarg)
+				sft := ft.Specify(store, argTVs, isVarg)
 				spts := sft.Params
 				srts := FieldTypeList(sft.Results).Types()
 				// If generics were specified, override attr
@@ -1118,7 +1130,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					fv2.Type = sft
 					cx.T = sft
 					cx.V = fv2
-				} else if sft.TypeID(debugging) != ft.TypeID(debugging) {
+				} else if sft.TypeID() != ft.TypeID() {
 					panic("non-const function value should have no generics")
 				}
 				n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
@@ -1184,7 +1196,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
-						dt.String(debugging)))
+						dt.String()))
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1209,9 +1221,9 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				xt := evalStaticTypeOf(store, last, n.X)
 				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
-					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
+					pt := go2GnoBaseType(debugging, xnt.Type).(PrimitiveType)
 					// convert n.X to gno type,
-					xn := Expr(Call(pt.String(debugging), n.X))
+					xn := Expr(Call(pt.String(), n.X))
 					// and convert result back.
 					tx := constType(n, xnt)
 					// reset/create n2 to preprocess children.
@@ -1242,8 +1254,8 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					if n.IsKeyed() {
 						for i := 0; i < len(n.Elts); i++ {
 							key := n.Elts[i].Key.(*NameExpr).Name
-							path := cclt.GetPathForName(debugging, key)
-							ft := cclt.GetStaticTypeOfAt(debugging, path)
+							path := cclt.GetPathForName(key)
+							ft := cclt.GetStaticTypeOfAt(path)
 							checkOrConvertType(debugging, p, store, last, &n.Elts[i].Value, ft, false)
 						}
 					} else {
@@ -1254,12 +1266,18 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
-						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Key, IntType, false)
+						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Key, PrimitiveType{
+							Val:       IntType,
+							Debugging: debugging,
+						}, false)
 						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := 0; i < len(n.Elts); i++ {
-						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Key, IntType, false)
+						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Key, PrimitiveType{
+							Val:       IntType,
+							Debugging: debugging,
+						}, false)
 						checkOrConvertType(debugging, p, store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
@@ -1273,7 +1291,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				default:
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
-						clt.String(debugging)))
+						clt.String()))
 				}
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
@@ -1296,7 +1314,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						// at.Vrd = false
 						at.Len = idx
 						// update node
-						cx := constInt(n, idx)
+						cx := constInt(debugging, n, idx)
 						n.Type.(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -1313,13 +1331,13 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(debugging, lastpn.PkgPath, cxt, n.Sel, nil)
+					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
 					if aerr {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
-							cxt.String(debugging), n.Sel, lastpn.PkgPath))
+							cxt.String(), n.Sel, lastpn.PkgPath))
 					} else if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s",
-							n.Sel, cxt.String(debugging)))
+							n.Sel, cxt.String()))
 					}
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
@@ -1406,7 +1424,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 						if !ok {
 							panic(fmt.Sprintf(
 								"missing package in selector expr %s",
-								n.String(debugging)))
+								n.String()))
 						}
 						pv = pv_
 					}
@@ -1439,7 +1457,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
-							xt.String(debugging)))
+							xt.String()))
 					}
 				case *NativeType:
 					// NOTE: if type of n.X is native type, as in a native
@@ -1466,7 +1484,10 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 				} else {
 					// Replace const Len with int *ConstExpr.
 					cx := evalConst(store, last, n.Len)
-					convertConst(p, store, last, cx, IntType)
+					convertConst(p, store, last, cx, PrimitiveType{
+						Val:       IntType,
+						Debugging: debugging,
+					})
 					n.Len = cx
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
@@ -1521,7 +1542,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
 										"%d variables but %s returns %d values",
-									len(n.Lhs), cx.Func.String(debugging), len(cft.Results)))
+									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
 							for i, lx := range n.Lhs {
 								ln := lx.(*NameExpr).Name
@@ -1540,7 +1561,10 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 							tt := evalStaticType(store, last, cx.Type)
 							// re-definitions
 							last.Define(lhs0, anyValue(tt))
-							last.Define(lhs1, anyValue(BoolType))
+							last.Define(lhs1, anyValue(PrimitiveType{
+								Val:       BoolType,
+								Debugging: debugging,
+							}))
 						case *IndexExpr:
 							// Index case: v, ok := x[k], x is map.
 							if len(n.Lhs) != 2 {
@@ -1554,7 +1578,10 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 							mt := baseOf(dt).(*MapType)
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
-							last.Define(lhs1, anyValue(BoolType))
+							last.Define(lhs1, anyValue(PrimitiveType{
+								Val:       BoolType,
+								Debugging: debugging,
+							}))
 						default:
 							panic("should not happen")
 						}
@@ -1590,7 +1617,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
 										"%d variables but %s returns %d values",
-									len(n.Lhs), cx.Func.String(debugging), len(cft.Results)))
+									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
 						case *TypeAssertExpr:
 							// Type-assert case: a, ok := x.(type)
@@ -1612,7 +1639,10 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 							panic("should not happen")
 						}
 						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(debugging, p, store, last, &n.Rhs[0], UintType, false)
+						checkOrConvertType(debugging, p, store, last, &n.Rhs[0], PrimitiveType{
+							Val:       UintType,
+							Debugging: debugging,
+						}, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
@@ -1653,12 +1683,18 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(debugging, p, store, last, &n.Cond, BoolType, false)
+				checkOrConvertType(debugging, p, store, last, &n.Cond, PrimitiveType{
+					Val:       BoolType,
+					Debugging: debugging,
+				}, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(debugging, p, store, last, &n.Cond, BoolType, false)
+				checkOrConvertType(debugging, p, store, last, &n.Cond, PrimitiveType{
+					Val:       BoolType,
+					Debugging: debugging,
+				}, false)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -1742,7 +1778,7 @@ func Preprocess(debugging *Debugging, p pState, store Store, ctx BlockNode, n No
 							if ctype == nil {
 								ctstr = nilStr
 							} else {
-								ctstr = casetype.(*constTypeExpr).Type.String(debugging)
+								ctstr = casetype.(*constTypeExpr).Type.String()
 							}
 							if _, exists := types[ctstr]; exists {
 								panic(fmt.Sprintf(
@@ -1992,7 +2028,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
-		panic(fmt.Sprintf("%s is not a type", x.String(store.Debug())))
+		panic(fmt.Sprintf("%s is not a type", x.String()))
 	}
 	t := tv.GetType()
 	x.SetAttribute(ATTR_TYPE_VALUE, t)
@@ -2009,7 +2045,7 @@ func getType(debugging *Debugging, x Expr) Type {
 	} else {
 		panic(fmt.Sprintf(
 			"getType() called on expr not yet evaluated with evalStaticType(store,): %s",
-			x.String(debugging),
+			x.String(),
 		))
 	}
 }
@@ -2031,7 +2067,7 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 		if len(tt.Elts) != 1 {
 			panic(fmt.Sprintf(
 				"evalStaticTypeOf() only supports *CallExpr with 1 result, got %s",
-				tt.String(store.Debug()),
+				tt.String(),
 			))
 		} else {
 			return tt.Elts[0]
@@ -2078,7 +2114,7 @@ func getTypeOf(debugging *Debugging, x Expr) Type {
 			if len(tt.Elts) != 1 {
 				panic(fmt.Sprintf(
 					"getTypeOf() only supports *CallExpr with 1 result, got %s",
-					tt.String(debugging),
+					tt.String(),
 				))
 			} else {
 				return tt.Elts[0]
@@ -2089,7 +2125,7 @@ func getTypeOf(debugging *Debugging, x Expr) Type {
 	} else {
 		panic(fmt.Sprintf(
 			"getTypeOf() called on expr not yet evaluated with evalStaticTypeOf(): %s",
-			x.String(debugging),
+			x.String(),
 		))
 	}
 }
@@ -2138,7 +2174,7 @@ func getResultTypedValues(debugging *Debugging, cx *CallExpr) []TypedValue {
 	} else {
 		panic(fmt.Sprintf(
 			"getResultTypedValues() called on call expr not yet evaluated: %s",
-			cx.String(debugging),
+			cx.String(),
 		))
 	}
 }
@@ -2389,8 +2425,8 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 			} else {
 				panic(fmt.Sprintf(
 					"%s does not implement %s",
-					xt.String(debugging),
-					dt.String(debugging)))
+					xt.String(),
+					dt.String()))
 			}
 		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
 			nidt := ndt.Type
@@ -2404,7 +2440,7 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 				} else {
 					panic(fmt.Sprintf(
 						"cannot use %s as %s",
-						nxt.String(debugging),
+						nxt.String(),
 						nidt.String()))
 				}
 			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
@@ -2412,7 +2448,7 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 				if !ok {
 					panic(fmt.Sprintf(
 						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
-						pxt.String(debugging),
+						pxt.String(),
 						nidt.String()))
 				}
 				// if xt has native base, do the naive native.
@@ -2421,14 +2457,14 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 				} else {
 					panic(fmt.Sprintf(
 						"cannot use %s as %s",
-						pxt.String(debugging),
+						pxt.String(),
 						nidt.String()))
 				}
 			} else {
 				panic(fmt.Sprintf(
 					"unexpected type pair: cannot use %s as %s",
-					xt.String(debugging),
-					dt.String(debugging)))
+					xt.String(),
+					dt.String()))
 			}
 		} else {
 			panic("should not happen")
@@ -2463,13 +2499,13 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 				dxt.PkgPath == ddt.PkgPath &&
 				dxt.Name == ddt.Name { // not yet sealed
 				return // ok
-			} else if dxt.TypeID(debugging) == ddt.TypeID(debugging) {
+			} else if dxt.TypeID() == ddt.TypeID() {
 				return // ok
 			} else {
 				panic(fmt.Sprintf(
 					"cannot use %s as %s without explicit conversion",
-					dxt.String(debugging),
-					ddt.String(debugging)))
+					dxt.String(),
+					ddt.String()))
 			}
 		} else {
 			// special case if implicitly named primitive type.
@@ -2477,8 +2513,8 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 			if _, ok := dt.(PrimitiveType); ok {
 				panic(fmt.Sprintf(
 					"cannot use %s as %s without explicit conversion",
-					dxt.String(debugging),
-					dt.String(debugging)))
+					dxt.String(),
+					dt.String()))
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base
@@ -2490,8 +2526,8 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 		if _, ok := xt.(PrimitiveType); ok {
 			panic(fmt.Sprintf(
 				"cannot use %s as %s without explicit conversion",
-				xt.String(debugging),
-				ddt.String(debugging)))
+				xt.String(),
+				ddt.String()))
 		} else {
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
@@ -2501,29 +2537,36 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 	switch cdt := dt.(type) {
 	case PrimitiveType:
 		// if xt is untyped, ensure dt is compatible.
-		switch xt {
-		case UntypedBoolType:
-			if dt.Kind() == BoolKind {
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"cannot use untyped bool as %s",
-					dt.Kind()))
-			}
-		case UntypedStringType:
-			if dt.Kind() == StringKind {
-				return // ok
-			} else {
-				panic(fmt.Sprintf(
-					"cannot use untyped string as %s",
-					dt.Kind()))
-			}
-		case UntypedRuneType, UntypedBigintType:
-			switch dt.Kind() {
-			case IntKind, Int8Kind, Int16Kind, Int32Kind,
-				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind:
-				return // ok
+		switch xxt := xt.(type) {
+		case PrimitiveType:
+			switch xxt.Val {
+			case UntypedBoolType:
+				if dt.Kind() == BoolKind {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use untyped bool as %s",
+						dt.Kind()))
+				}
+			case UntypedStringType:
+				if dt.Kind() == StringKind {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use untyped string as %s",
+						dt.Kind()))
+				}
+			case UntypedRuneType, UntypedBigintType:
+				switch dt.Kind() {
+				case IntKind, Int8Kind, Int16Kind, Int32Kind,
+					Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+					Uint32Kind, Uint64Kind:
+					return // ok
+				default:
+					panic(fmt.Sprintf(
+						"cannot use untyped rune as %s",
+						dt.Kind()))
+				}
 			default:
 				panic(fmt.Sprintf(
 					"cannot use untyped rune as %s",
@@ -2533,7 +2576,7 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 			if isUntyped(xt) {
 				panic("unexpected untyped type")
 			}
-			if xt.TypeID(debugging) == cdt.TypeID(debugging) {
+			if xt.TypeID() == cdt.TypeID() {
 				return // ok
 			}
 		}
@@ -2559,7 +2602,7 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 			return // ok
 		}
 	case *FuncType:
-		if xt.TypeID(debugging) == cdt.TypeID(debugging) {
+		if xt.TypeID() == cdt.TypeID() {
 			return // ok
 		}
 	case *InterfaceType:
@@ -2567,16 +2610,16 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 	case *DeclaredType:
 		panic("should not happen")
 	case *StructType, *PackageType, *ChanType:
-		if xt.TypeID(debugging) == cdt.TypeID(debugging) {
+		if xt.TypeID() == cdt.TypeID() {
 			return // ok
 		}
 	case *TypeType:
-		if xt.TypeID(debugging) == cdt.TypeID(debugging) {
+		if xt.TypeID() == cdt.TypeID() {
 			return // ok
 		}
 	case *NativeType:
 		if !autoNative {
-			if xt.TypeID(debugging) == cdt.TypeID(debugging) {
+			if xt.TypeID() == cdt.TypeID() {
 				return // ok
 			}
 		} else {
@@ -2591,12 +2634,12 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %s",
-			dt.String(debugging)))
+			dt.String()))
 	}
 	panic(fmt.Sprintf(
 		"cannot use %s as %s",
-		xt.String(debugging),
-		dt.String(debugging)))
+		xt.String(),
+		dt.String()))
 }
 
 // Returns any names not yet defined nor predefined in expr.  These happen
@@ -2620,7 +2663,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		if tv := last.GetValueRef(store, cx.Name); tv != nil {
 			return
 		}
-		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
+		if _, ok := UverseNode(store.Debug()).GetLocalIndex(cx.Name); ok {
 			// XXX NOTE even if the name is shadowed by a file
 			// level declaration, it is fine to return here as it
 			// will be predefined later.
@@ -2720,7 +2763,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		default:
 			panic(fmt.Sprintf(
 				"unexpected composite lit type %s",
-				ct.String(store.Debug())))
+				ct.String()))
 		}
 	case *FuncLitExpr:
 		return findUndefined(store, last, &cx.Type)
@@ -2814,7 +2857,10 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 // like checkOrConvertType() but for any integer type.
 func checkOrConvertIntegerType(p pState, store Store, last BlockNode, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
-		convertConst(p, store, last, cx, IntType)
+		convertConst(p, store, last, cx, PrimitiveType{
+			Val:       IntType,
+			Debugging: store.Debug(),
+		})
 	} else if x != nil {
 		xt := evalStaticTypeOf(store, last, x)
 		checkIntegerType(xt)
@@ -2860,10 +2906,10 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			}
 			if rerr, ok := r.(error); ok {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.Wrap(rerr, loc.String(store.Debug())))
+				panic(errors.Wrap(rerr, loc.String()))
 			} else {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(store.Debug()), r)))
+				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
 			}
 		}
 	}()
@@ -3054,10 +3100,10 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 						// all names are declared types.
 						panic("should not happen")
 					}
-				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
+				} else if idx, ok := UverseNode(store.Debug()).GetLocalIndex(tx.Name); ok {
 					// uverse name
 					path := NewValuePathUverse(idx, tx.Name)
-					tv := Uverse().GetValueAt(nil, path)
+					tv := Uverse(store.Debug()).GetValueAt(nil, path)
 					t = tv.GetType()
 				} else {
 					// yet undefined
@@ -3077,7 +3123,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					panic(fmt.Sprintf(
 						"unknown package name %s in %s",
 						pkgName,
-						tx.String(store.Debug()),
+						tx.String(),
 					))
 				}
 				// check package node for name.
@@ -3157,22 +3203,28 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected declaration type %v",
-			d.String(store.Debug())))
+			d.String()))
 	}
 	return ""
 }
 
-func constInt(source Expr, i int) *ConstExpr {
+func constInt(debugging *Debugging, source Expr, i int) *ConstExpr {
 	cx := &ConstExpr{Source: source}
-	cx.T = IntType
+	cx.T = PrimitiveType{
+		Val:       IntType,
+		Debugging: debugging,
+	}
 	cx.SetInt(i)
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	return cx
 }
 
-func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
+func constUntypedBigint(debugging *Debugging, source Expr, i64 int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
-	cx.T = UntypedBigintType
+	cx.T = PrimitiveType{
+		Val:       UntypedBigintType,
+		Debugging: debugging,
+	}
 	cx.V = BigintValue{big.NewInt(i64)}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	return cx
@@ -3199,8 +3251,8 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				i++
 				last = last.GetParentNode(nil)
 				if last == nil {
-					if isUverseName(nx.Name) {
-						idx, ok := UverseNode().GetLocalIndex(nx.Name)
+					if isUverseName(nx.debugging, nx.Name) {
+						idx, ok := UverseNode(nx.debugging).GetLocalIndex(nx.Name)
 						if !ok {
 							panic("should not happen")
 						}
@@ -3322,7 +3374,7 @@ func elideCompositeElements(debugging *Debugging, clx *CompositeLitExpr, clt Typ
 	default:
 		panic(fmt.Sprintf(
 			"unexpected composite lit type %s",
-			clt.String(debugging)))
+			clt.String()))
 	}
 }
 
@@ -3420,7 +3472,7 @@ func findDependentNames(debugging *Debugging, n Node, dst map[Name]struct{}) {
 		default:
 			panic(fmt.Sprintf(
 				"unexpected composite lit type %s",
-				ct.String(debugging)))
+				ct.String()))
 		}
 	case *FieldTypeExpr:
 		findDependentNames(debugging, cn.Type, dst)

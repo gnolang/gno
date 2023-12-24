@@ -373,9 +373,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "unicode/utf8":
 				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
 				pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
-				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
-				tv.SetInt32(utf8.RuneSelf)                   // ..
-				pkg.Define("RuneSelf", tv)                   // ..
+				tv := gno.TypedValue{T: gno.PrimitiveType{
+					Val:       gno.UntypedRuneType,
+					Debugging: nil,
+				}} // TODO dry
+				tv.SetInt32(utf8.RuneSelf) // ..
+				pkg.Define("RuneSelf", tv) // ..
 				return pkg, pkg.NewPackage()
 			case "errors":
 				pkg := gno.NewPackageNode("errors", pkgPath, nil)
@@ -502,7 +505,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			*/
 			func(m *gno.Machine) {
 				if !isOriginCall(m) {
-					m.Panic(typedString("invalid non-origin call"))
+					m.Panic(typedString(m.Debugging, "invalid non-origin call"))
 					return
 				}
 			},
@@ -516,7 +519,10 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				),
 			*/
 			func(m *gno.Machine) {
-				res0 := gno.TypedValue{T: gno.BoolType}
+				res0 := gno.TypedValue{T: gno.PrimitiveType{
+					Val:       gno.BoolType,
+					Debugging: m.Debugging,
+				}}
 				res0.SetBool(isOriginCall(m))
 				m.PushValue(res0)
 			},
@@ -534,14 +540,14 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				arg0 := m.LastBlock().GetParams1().TV
 				n := arg0.GetInt()
 				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
+					m.Panic(typedString(m.Debugging, "GetCallerAt requires positive arg"))
 					return
 				}
 				if n > m.NumFrames()-1 {
 					// NOTE: the last frame's LastPackage
 					// is set to the original non-frame
 					// package, so need this check.
-					m.Panic(typedString("frame not found"))
+					m.Panic(typedString(m.Debugging, "frame not found"))
 					return
 				}
 				var pkgAddr string
@@ -552,12 +558,12 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				} else {
 					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 				}
-				res0 := gno.Go2GnoValue(
+				res0 := gno.Go2GnoValue(m.Debugging,
 					m.Alloc,
 					m.Store,
 					reflect.ValueOf(pkgAddr),
 				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
+				addrT := store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "Address"))
 				res0.T = addrT
 				m.PushValue(res0)
 			},
@@ -603,11 +609,11 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				arg0, arg1 := m.LastBlock().GetParams2()
 				var sent std.Coins
 				rvSent := reflect.ValueOf(&sent).Elem()
-				gno.Gno2GoValue(arg0.TV, rvSent)
+				gno.Gno2GoValue(m.Debugging, arg0.TV, rvSent)
 				sent = rvSent.Interface().(std.Coins) // needed?
 				var spent std.Coins
 				rvSpent := reflect.ValueOf(&spent).Elem()
-				gno.Gno2GoValue(arg1.TV, rvSpent)
+				gno.Gno2GoValue(m.Debugging, arg1.TV, rvSpent)
 				spent = rvSpent.Interface().(std.Coins) // needed?
 				// overwrite context.
 				ctx := m.Context.(stdlibs.ExecContext)
@@ -628,7 +634,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				addr := crypto.Bech32Address(arg0.TV.GetString())
 				var coins std.Coins
 				rvCoins := reflect.ValueOf(&coins).Elem()
-				gno.Gno2GoValue(arg1.TV, rvCoins)
+				gno.Gno2GoValue(m.Debugging, arg1.TV, rvCoins)
 				coins = rvCoins.Interface().(std.Coins) // needed?
 				// overwrite context.
 				ctx := m.Context.(stdlibs.ExecContext)
@@ -646,7 +652,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			),
 			func(m *gno.Machine) {
 				rlmpath := m.Realm.Path
-				m.PushValue(typedString(rlmpath))
+				m.PushValue(typedString(m.Debugging, rlmpath))
 			},
 		)
 		pn.DefineNative("TestSkipHeights",
@@ -671,7 +677,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 			gno.Flds( // results
 			),
 			func(m *gno.Machine) {
-				if gno.IsDebug() && testing.Verbose() {
+				if m.Debugging.IsDebug() && testing.Verbose() {
 					store.Print()
 					fmt.Println("========================================")
 					fmt.Println("CLEAR CACHE (RUNTIME)")
@@ -679,7 +685,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 				}
 				m.Store.ClearCache()
 				m.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.IsDebug() && testing.Verbose() {
+				if m.Debugging.IsDebug() && testing.Verbose() {
 					store.Print()
 					fmt.Println("========================================")
 					fmt.Println("CLEAR CACHE DONE")
@@ -704,8 +710,11 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 //----------------------------------------
 
 // NOTE: does not allocate; used for panics.
-func typedString(s string) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
+func typedString(debugging *gno.Debugging, s string) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.StringType,
+		Debugging: debugging,
+	}}
 	tv.V = gno.StringValue(s)
 	return tv
 }

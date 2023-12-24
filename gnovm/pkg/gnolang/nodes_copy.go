@@ -14,7 +14,6 @@ func (x *ConstExpr) Copy() Node {
 }
 
 func (x *constTypeExpr) Copy() Node {
-
 	source := x.Source
 
 	if source != nil {

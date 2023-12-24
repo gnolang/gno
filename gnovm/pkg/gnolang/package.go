@@ -109,7 +109,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	//----------------------------------------
 	// Types
-	PrimitiveType{val: 0},
+	PrimitiveType{Val: 0},
 	&PointerType{},
 	&ArrayType{},
 	&SliceType{},

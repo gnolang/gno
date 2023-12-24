@@ -14,7 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	if debug {
+	if store.Debug().IsDebug() {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
 		}
@@ -34,7 +34,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	if tvIsNat {
 		if tIsNat {
 			// both NativeType, use reflect to assert.
-			if debug {
+			if store.Debug().IsDebug() {
 				if !ntv.Type.ConvertibleTo(nt.Type) {
 					panic(fmt.Sprintf(
 						"cannot convert %s to %s",
@@ -45,7 +45,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			return
 		} else {
 			// convert go-native to gno type (shallow).
-			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
+			*tv = go2GnoValue2(store.Debug(), alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
 			return
 		}
@@ -53,8 +53,8 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 		if tIsNat {
 			// convert gno to go-native type.
 			rv := reflect.New(nt.Type).Elem()
-			rv = gno2GoValue(tv, rv)
-			if debug {
+			rv = gno2GoValue(store.Debug(), tv, rv)
+			if store.Debug().IsDebug() {
 				if !rv.Type().ConvertibleTo(nt.Type) {
 					panic(fmt.Sprintf(
 						"cannot convert %s to %s",
@@ -800,7 +800,7 @@ GNO_CASE:
 				runes := []TypedValue{}
 				str := tv.GetString()
 				for _, r := range str {
-					runes = append(runes, typedRune(r))
+					runes = append(runes, typedRune(store.Debug(), r))
 				}
 				tv.V = alloc.NewSliceFromList(runes)
 				tv.T = t // after tv.GetString()
@@ -877,7 +877,7 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",
@@ -904,8 +904,8 @@ func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
 	// special case: native
 	if nt, ok := t.(*NativeType); ok {
 		// first convert untyped to typed gno value.
-		gnot := go2GnoBaseType(nt.Type)
-		if debug {
+		gnot := go2GnoBaseType(tv.Debugging, nt.Type)
+		if tv.Debugging.IsDebug() {
 			if _, ok := gnot.(*NativeType); ok {
 				panic("should not happen")
 			}
@@ -924,35 +924,42 @@ func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
 	if t == nil {
 		t = defaultTypeOf(tv.T)
 	}
-	switch tv.T {
-	case UntypedBoolType:
-		if debug {
-			if t.Kind() != BoolKind {
-				panic("untyped bool can only be converted to bool kind")
+	switch tt := tv.T.(type) {
+	case PrimitiveType:
+		switch tt.Val {
+		case UntypedBoolType:
+			if tv.Debugging.IsDebug() {
+				if t.Kind() != BoolKind {
+					panic("untyped bool can only be converted to bool kind")
+				}
 			}
-		}
-		tv.T = t
-	case UntypedRuneType:
-		ConvertUntypedRuneTo(tv, t)
-	case UntypedBigintType:
-		if !p.isPreprocess() {
-			panic("untyped Bigint conversion should not happen during interpretation")
-		}
-		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
-	case UntypedBigdecType:
-		if !p.isPreprocess() {
-			panic("untyped Bigdec conversion should not happen during interpretation")
-		}
-		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
-	case UntypedStringType:
-		if !p.isPreprocess() {
-			panic("untyped String conversion should not happen during interpretation")
-		}
-		if t.Kind() == StringKind {
 			tv.T = t
-			return
-		} else {
-			ConvertTo(nilAllocator, nil, tv, t)
+		case UntypedRuneType:
+			ConvertUntypedRuneTo(tv, t)
+		case UntypedBigintType:
+			if !p.isPreprocess() {
+				panic("untyped Bigint conversion should not happen during interpretation")
+			}
+			ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
+		case UntypedBigdecType:
+			if !p.isPreprocess() {
+				panic("untyped Bigdec conversion should not happen during interpretation")
+			}
+			ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
+		case UntypedStringType:
+			if !p.isPreprocess() {
+				panic("untyped String conversion should not happen during interpretation")
+			}
+			if t.Kind() == StringKind {
+				tv.T = t
+				return
+			} else {
+				ConvertTo(nilAllocator, nil, tv, t)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected untyped const type %s",
+				tv.T.String()))
 		}
 	default:
 		panic(fmt.Sprintf(
@@ -977,7 +984,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	// Set .T exactly to t, and set .V to nil
 	// since the result is only primitive (unless string)
 	dst.T = t
-	if debug {
+	if dst.Debugging.IsDebug() {
 		if dst.V != nil {
 			panic("should not happen")
 		}
@@ -1061,7 +1068,10 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	case BoolKind:
 		panic("not yet implemented")
 	case InterfaceKind:
-		t = IntType // default
+		t = PrimitiveType{
+			Val:       IntType,
+			Debugging: dst.Debugging,
+		} // default
 		fallthrough
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		// preliminary bounds check... more comes later.
@@ -1221,7 +1231,10 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case BoolKind:
 		panic("cannot convert untyped bigdec to bool")
 	case InterfaceKind:
-		dst.T = Float64Type
+		dst.T = PrimitiveType{
+			Val:       Float64Type,
+			Debugging: dst.Debugging,
+		}
 		dst.V = nil
 		f, _ := bd.Float64()
 		dst.SetFloat64(f)
