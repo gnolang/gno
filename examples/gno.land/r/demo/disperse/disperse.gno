@@ -4,10 +4,10 @@ import (
 	"std"
 )
 
-// SendCoin parses receivers and amounts and sends out GNOT
+// SendSingleCoin parses receivers and amounts and sends out a single coin
 // Currently sending slices as arguments with `maketx call` is unsupported,
 // which is why we parse strings by delimiter here
-func SendCoin(addresses, sendAmounts string) {
+func SendSingleCoin(addresses, sendAmounts string) {
 	std.AssertOriginCall()        // assert the call was by a user
 	coinSent := std.GetOrigSend() // get Coin value & denom sent with call
 	caller := std.GetOrigCaller() // get tx caller
@@ -45,10 +45,10 @@ func SendCoin(addresses, sendAmounts string) {
 		totalToSend += val
 	}
 
-	// Check if user sent enough GNOT
+	// Check if user sent enough coin
 	// Possibly not needed, added for error clarity
 	if coinSent.AmountOf(denom) < totalToSend {
-		panic(errNotEnoughGnot)
+		panic(errNotEnoughCoin)
 	}
 
 	for i, val := range parsedAmounts {
@@ -59,7 +59,7 @@ func SendCoin(addresses, sendAmounts string) {
 		banker.SendCoins(realmAddr, receiver, send)
 	}
 
-	// Return possible leftover GNOT
+	// Return possible leftover coin
 	leftover := banker.GetCoins(realmAddr).AmountOf(denom)
 	if leftover > 0 {
 		send := std.Coins{{denom, leftover}}
