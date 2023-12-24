@@ -1776,7 +1776,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								last.Define(ln, anyValue(rt))
 							}
-							checkOrConvertType(store, last, &n.Rhs[i], nil, false, false)
+							checkOrConvertType(store, last, &n.Rhs[i], nil, false, false) // 10a03
 						}
 					}
 				} else { // ASSIGN.
