@@ -47,9 +47,9 @@ In comparison to Ethereum, Gno.land offers distinct advantages:
 ## Using the Gno.land Documentation
 
 Gno.land's documentation adopts the [Diataxis](https://diataxis.fr/) framework, ensuring structured and predictable content. It includes:
-- A Getting started section, covering simple instructions on how to begin your journey into Gno.land.
+- A [Getting Started](./getting-started/local-setup.md) section, covering simple instructions on how to begin your journey into Gno.land.
 - Concise how-to guides for specific technical tasks.
 - Conceptual explanations, offering context and usage insights.
 - Detailed reference sections with implementation specifics.
-- Tutorials aimed at beginners to build fundamental skills in using Gno.land.
+- Tutorials aimed at beginners to build fundamental skills for developing in Gno.land.
 

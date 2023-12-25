@@ -4,7 +4,7 @@ id: banker
 
 # Banker
 
-The Banker's main purpose is to handle balance changes of native coins (link native coin) within Gno chains. This includes issuance, transfers, and burning of [Coins](coins.md). 
+The Banker's main purpose is to handle balance changes of [native coins](./coin.md) within Gno chains. This includes issuance, transfers, and burning of coins. 
 
 The Banker module can be cast into 4 subtypes of bankers that expose different functionalities and safety features within your packages and realms.
 
@@ -19,7 +19,7 @@ The Banker module can be cast into 4 subtypes of bankers that expose different f
  
 You can access the Banker from within the `std` namespace by calling `std.GetBanker(<BankerType>)` in your package/realm.
 
-The Banker API can be found in under the `std` package [reference](../../reference/standard-library.md).
+The Banker API can be found in under the `std` package [reference](../../reference/standard-library.md#banker).
 
 
 

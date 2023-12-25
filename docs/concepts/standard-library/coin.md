@@ -15,7 +15,7 @@ type Coin struct {
 }
 ```
 
-Multiple coins can be bundled together into a `Coins` type:
+Multiple coins can be bundled together into a `Coins` slice:
 
 ```go
 type Coins []Coin
@@ -23,6 +23,9 @@ type Coins []Coin
 
 The `Coins` slice can be included in a transaction made by a user addresses or a realm. 
 They are then available for access by specific types of Bankers, which can manipulate them depending on access rights.
+
+[//]: # (TODO ADD LINK TO Effective GNO)
+Read more about coins in the [Effective Gno] section. 
 
 The Coin API can be found in under the `std` package [reference](../../reference/standard-library.md).
 
