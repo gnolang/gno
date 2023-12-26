@@ -623,7 +623,7 @@ versatility.
 
 See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wugnot
 
-## TODO
+<!-- TODO:
 
 - packages and realms versionning
 - code generation
@@ -650,3 +650,4 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 - packages for developeres, realms for users (NPM vs App Store)
 - cross-realm ownership: function pointer, callback, inline function ownership
 - advanced usages of the frame stack
+-->
