@@ -190,7 +190,7 @@ code readability and trust.
 
 A Gno contract is not just its lines of code, but also the imports it uses. More
 importantly, Gno contracts are not just for developers. For the first time, it
-makes sense for users to check out what they are executing too. Code simplicity,
+makes sense for users to see what functionality they are executing too. Code simplicity, transparency, 
 explicitness, and trustability are paramount.
 
 Another good reason for creating simple, focused libraries is the composability
