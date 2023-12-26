@@ -214,7 +214,7 @@ enforced open-source system.
 
 So, while you can still adhere to the original philosophy of minimizing
 dependencies, ultimately, try to use and write super stable, simple, tested,
-focused `p/` small libraries. This approach can lead to more reliable,
+and focused `p/` small libraries. This approach can lead to more reliable,
 efficient, and trustworthy Gno contracts.
 
 ```go
@@ -259,7 +259,7 @@ func SellTokens(amount int) {
 One of the well-known proverbs in Go is: ["Documentation is for
 users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s), as stated by Rob
 Pike. In Go, documentation is for users, but users are often developers. In Gno,
-documentation is for users, but users can be another developer or the end users.
+documentation is for users, and users can be other developers but also the end users.
 
 In Go, we usually have well-written documentation for other developers to
 maintain and use our code as a library. Then, we often have another layer of
@@ -269,7 +269,7 @@ documentation.
 In Gno, the focus shifts towards writing documentation for the end user. You can
 even consider that the main reader is an end user, who is not so interested in
 technical details, but mostly interested in how and why they should use a
-particular endpoint. Comments will be used for code source reading, but also to
+particular endpoint. Comments will be used to aid code source reading, but also to
 generate documentation and even for smart wallets that need to understand what
 to do.
 
@@ -298,7 +298,7 @@ reflection, Gno encourages you to write code that is explicit, clear, and easy
 to understand.
 
 We're currently in the process of considering whether to add reflection support
-or not, or perhaps in a privileged mode for very rare libraries. But for now,
+or not, or perhaps add it in a privileged mode for very few libraries. But for now,
 when you're writing Gno code, remember: explicit is better than implicit, and
 clear code is better than clever code.
 
@@ -315,7 +315,7 @@ Ideally, package names should be short and human-readable. This makes it easier
 for other developers to understand what your package does at a glance. Avoid
 using abbreviations or acronyms unless they are widely understood.
 
-Packages and realms can be organized into subfolders. However, consider that the
+Packages and realms can be organized into subdirectories. However, consider that the
 best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
 to how repositories are organized on GitHub.
 
@@ -325,29 +325,29 @@ ecosystem of realms, where one realm is about storing the state, another one
 about configuration, etc. But in general, a single realm makes sense.
 
 You can also create small realms to create your ecosystem. For example, you
-could centralize all the authentication for all your company/organization in
-`r/NAMESPACE/auth`, and then import it from all your contracts.
+could centralize all the authentication for your whole company/organization in
+`r/NAMESPACE/auth`, and then import it in all your contracts.
 
 The `p/` prefix is different. In general, you should use top-level `p/` like
 `p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
 just to have internal libraries that you created to centralize your helpers and
 don't expect that other people will use your helpers, then you should probably
-use subfolders like `p/NAMESPACE/DAPP/foo/bar/baz`.
+use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 ### Define types and interfaces in pure packages (p/)
 
 In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
-interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal is
-for the realm to become a standard that could be imported by `p/`.
+interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal 
+for the realm is to become a standard that could be imported by `p/`.
 
 The reason for this is that `p/` can only import `p/`, while `r/` can import
 anything. This separation allows you to define standards in `p/` that can be
 used across multiple realms and packages.
 
 In general, you can just write your `r/` to be an app. But if for some reason
-you introduce a concept that should become a standard, it makes sense to have a
-dedicated `p/` so that people can start not only composing your realm from other
-realms but also for `p/`.
+you introduce a concept that can be reused, it makes sense to have a
+dedicated `p/` so that people can re-use your logic without depending on
+your realm's data.
 
 For instance, if you want to create a token type in a realm, you can use it, and
 other realms can import the realm and compose it. But if you want to create a
@@ -366,7 +366,7 @@ part of your safe zone, similar to a secure perimeter. The boundary is drawn
 between your program and the rest of the world, which means you secure the API
 itself, potentially with authentication middlewares.
 
-However, in Gno, your package is the public API. It's exposed to the outside
+However, in Gno, your realm is the public API. It's exposed to the outside
 world and can be accessed by other realms. Therefore, it's crucial to design
 your realm with the same level of care and security considerations as you would
 a public API.
@@ -411,7 +411,7 @@ Let's deep dive into the different access control mechanisms we can use:
 
 One approach is to look at the EOA (Externally Owned Account), which is the
 original caller. For this, you should call `std.GetOrigCaller()`, which returns
-the address of the wallet used to make the transaction.
+the public address of the account that signed the transaction.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers including all the functions, anonymous functions, other realms, and
@@ -466,8 +466,7 @@ func TransferTokens(to std.Address, amount int64) {
 
 In this example, `TransferTokens` is a function that can only be called by the
 admin. It retrieves the caller's address using `std.PrevRealm().Addr()`, and
-then checks if the caller is the admin. If not, it panics and stops the
-execution.
+then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
@@ -479,6 +478,10 @@ In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
 retrieval. It works by lazily resolving information, which means it only loads
 the data you need when you need it. This allows you to scale your application
 and pay less gas for data retrieval.
+
+[AVL is short for Adelson-Velsky and Landis:][avl-wiki] under the hood, it is an
+implementation of a self-balancing binary tree.
+[avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
 
 The `avl.Tree` can be used like a map, where you can store key-value pairs and
 retrieve an entry with a simple key. However, unlike a traditional map, the
@@ -527,7 +530,7 @@ TODO: multi-indices example
 A safe object in Gno is an object that is designed to be tamper-proof and
 secure. It's created with the intent of preventing unauthorized access and
 modifications. This follows the same principle of making a package an API, but
-for a Go object that can be directly referenced by other realms.
+for a Gno object that can be directly referenced by other realms.
 
 The goal is to create an object which, once instantiated, can be linked and its
 pointer can be "stored" by other realms without issue, because it protects its
@@ -579,7 +582,7 @@ own pros and cons, and the best fit depends on your needs.
 
 #### Native tokens
 
-Native tokens are managed by the banker module, separate from Gnovm. They're
+Native tokens are managed by the banker module, separate from GnoVM. They're
 simple, strict, and secure. You can create, transfer, and check balances with an
 RPC call, no Gnovm needed.
 
