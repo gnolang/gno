@@ -153,13 +153,18 @@ import (
 var (
     created time.Time
     admin   std.Address
-    list    []string
+    list    = []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
 func init() {
     created = time.Now()
+    // std.GetOrigCaller in the context of realm initialisation is,
+    // of course, the publisher of the realm :)
+    // This can be better than hardcoding an admin address as a constant.
     admin = std.GetOrigCaller()
-    list = append(list, "foo", "bar")
+    // list is already initialized, so it will already contain "foo", "bar" and
+    // the current time as existing items.
+    list = append(list, admin.String())
 }
 ```
 
