@@ -13,11 +13,10 @@ it will be documented below.
 
 
 # Package `std`
-The `std` package offers blockchain-specific functionalities to Gno.
-
+The `std` package offers blockchain-specific functionalities to Gno. 
 
 ## Address
-Native address type in Gno, implemented in the Bech32 format.
+Native address type in Gno, implemented in the Bech32 format. 
 
 [//]: # (TODO might cause confusion since googling links to BTC)
 
@@ -46,6 +45,8 @@ if !address.IsValid() {...}
 ```
 
 ## Banker
+
+View concept page [here](../concepts/standard-library/banker.md).
 
 ```go
 type BankerType uint8
@@ -137,16 +138,46 @@ banker.RemoveCoin(addr, denom, amt)
 ```
 
 ## Coin
+View concept page [here](../concepts/standard-library/coin.md).
 
+```go
+type Coin struct {
+	Denom  string `json:"denom"`
+	Amount int64  `json:"amount"`
+}
+func (c Coin) String() string {...}
+func (c Coin) IsGTE(other Coin) bool {...}
+```
+
+// TODO ADD COIN functions
+
+### Coins
+
+`Coins` is a set of `Coin`, one per denomination. 
+
+```go
+type Coins []Coin
+func (cz Coins) String() string {...}
+func (cz Coins) AmountOf(denom string) int64 {...}
+func (a Coins) Add(b Coins) Coins {...}
+```
+
+// TODO ADD COINS functions
 
 ## Chain-related
 
-getorigcaller
+### IsOriginCall
+### AssertOriginCall
+### CurrentRealmPath
+### GetChainID
+### GetHeight
+### GetOrigSend
+### GetOrigCaller
+### CurrentRealm
+### PrevRealm
+### GetOrigPkgAddr
+### GetCallerAt
+### DerivePkgAddr
+### EncodeBech32
+### DecodeBech32
 
-getorigsend
-
-assertorigcaller
-
-GetHeight
-getchain ...
----
