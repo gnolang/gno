@@ -188,7 +188,7 @@ more akin to the Node/NPM ecosystem. This philosophy encourages creating small
 modules and leveraging multiple dependencies. The main reason for this shift is
 code readability and trust.
 
-A Gno contract is not just its lines of code, but also the imports it uses. And
+A Gno contract is not just its lines of code, but also the imports it uses. More
 importantly, Gno contracts are not just for developers. For the first time, it
 makes sense for users to check out what they are executing too. Code simplicity,
 explicitness, and trustability are paramount.
