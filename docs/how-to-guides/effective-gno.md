@@ -25,7 +25,7 @@ counter-intuitive, especially if you're coming from a Go background.
 
 ### Embrace global variables in realms
 
-In Gno, using global variables is not only acceptable, but it's also encouraged,
+In Gno, using global variables is not only acceptable, but also encouraged,
 specifically when working with realms. This is due to the unique persistence
 feature of realms.
 
