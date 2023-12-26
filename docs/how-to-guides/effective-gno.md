@@ -204,7 +204,7 @@ called contracts, but also for the dependencies.
 
 For example, you might choose to use well-crafted `p/` packages that have been
 reviewed, audited, and have billions of transactions under their belt, boasting
-super high stability. This approach can make your code smaller and more
+super high stability. This approach can make your code footprint smaller and more
 reliable.
 
 In other platforms, an audit usually involves auditing everything, including the
