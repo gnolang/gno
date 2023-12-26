@@ -129,6 +129,8 @@ you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
+    - Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
+      Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
 2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
