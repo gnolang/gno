@@ -212,6 +212,15 @@ dependencies. However, in Gno, we can expect that over time, contracts will
 become smaller, more powerful, and partially audited by default, thanks to this
 enforced open-source system.
 
+One key difference between the Go and Gno ecosystem is the trust assumption when
+adding a new dependency. Dependency code always needs to be vetted, [regardless
+of what programming language or ecosystem you're using][sc-attack]. However, in
+Gno, you can have the certainty that the author of a package cannot overwrite an
+existing, published contract; as that is simply disallowed by the blockchain. In
+other words, using existing and widely-used packages reinforces your security
+rather than harming it.
+[sc-attack]: https://en.wikipedia.org/wiki/Supply_chain_attack
+
 So, while you can still adhere to the original philosophy of minimizing
 dependencies, ultimately, try to use and write super stable, simple, tested,
 and focused `p/` small libraries. This approach can lead to more reliable,
