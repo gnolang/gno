@@ -11,14 +11,13 @@ does not include in-depth references for libraries that have identical implement
 as those in Golang. If a standard library differs in any way from its usage or implementation in Golang,
 it will be documented below.
 
-
 # Package `std`
 The `std` package offers blockchain-specific functionalities to Gno. 
 
 ## Address
 Native address type in Gno, implemented in the Bech32 format. 
 
-[//]: # (TODO might cause confusion since googling links to BTC)
+[//]: # (TODO fix: might cause confusion since googling links to BTC)
 
 ```go
 type Address string
@@ -36,106 +35,12 @@ stringAddr := addr.String()
 ```
 
 ### IsValid
-Check if address is of valid format.
+Check if an address is of a valid format.
 
 #### Usage
 
 ```go
 if !address.IsValid() {...}
-```
-
----
-## Banker
-
-View concept page [here](../concepts/standard-library/banker.md).
-
-```go
-type BankerType uint8
-
-const (
-    BankerTypeReadonly BankerType = iota
-    BankerTypeOrigSend
-    BankerTypeRealmSend
-    BankerTypeRealmIssue
-)
-
-type Banker interface {
-    GetCoins(addr Address) (dst Coins)
-    SendCoins(from, to Address, amt Coins)
-    IssueCoin(addr Address, denom string, amount int64)
-    RemoveCoin(addr Address, denom string, amount int64)
-}
-```
-
-### GetBanker
-Returns `Banker` of the specified type.
-
-#### Parameters
-- `BankerType` - type of Banker to get:
-  - `BankerTypeReadOnly` - read-only access to coin balances
-  - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
-  - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaciton
-  - `BankerTypeRealmIssue` - able to issue new coins
-
-#### Usage
-
-```go
-banker := std.GetBanker(std.<BankerType>)
-```
-
-### GetCoins
-Gets `Coins` owned by `Address`.
-
-#### Parameters
-- `addr` **Address** to fetch balances for
-
-#### Usage
-
-```go
-coins := banker.GetCoins(addr)
-```
-
-### SendCoins
-Sends `amt` from address `from` to address `to`. `amt` needs to be a well-defined
-`Coins` slice.
-
-#### Parameters
-- `from` **Address** to send from
-- `to` **Address** to send to
-- `amt` **Coins** to send
-
-#### Usage
-
-```go
-banker.SendCoins(from, to, amt)
-```
-
-### IssueCoin
-Issues `amt` of coin with a denomination `denom` to address `addr`.
-
-#### Parameters
-- `addr` **Address** to issue coins to
-- `denom` **string** denomination of coin to issue
-- `amt` **int64** amount of coin to issue
-
-#### Usage
-
-```go
-banker.IssueCoin(addr, denom, amt)
-```
-
-### RemoveCoin
-Removes (burns) `amt` of coin with a denomination `denom` from address `addr`.
-
-#### Parameters
-- `addr` **Address** to remove coins from
-- `denom` **string** denomination of coin to remove
-- `amt` **int64** amount of coin to remove
-
-#### Usage
-
-```go
-banker.RemoveCoin(addr, denom, amt)
 ```
 
 ---
@@ -185,11 +90,11 @@ coin2.IsGTE(coin1) // false
 type Coins []Coin
 func (cz Coins) String() string {...}
 func (cz Coins) AmountOf(denom string) int64 {...}
-func (a Coins) Add(b Coins) Coins {...}
+func (a Coins)  Add(b Coins) Coins {...}
 ```
 
 ### String
-Returns a string representation of the Coins set it was called upon.
+Returns a string representation of the `Coins` set it was called upon.
 
 #### Usage
 ```go
@@ -198,7 +103,7 @@ coins.String() // 100ugnot,150foo,200bar
 ```
 
 ### AmountOf
-Returns amount of specified coin within the Coins set it was called upon.
+Returns amount of specified coin within the `Coins` set it was called upon.
 
 ### Parameters
 - `denom` **string** denomination of specified coin
@@ -210,16 +115,107 @@ coins.AmountOf("foo") // 150
 ```
 
 ### Add
-Adds amount of specified coin to the Coins set.
+Adds amount of specified coin to the `Coins` set.
  
 ### Parameters
-- `b` **Coin** to add to Coins set
+- `b` **Coin** to add to `Coins` set
 
 #### Usage
 ```go
 coins := // ...
 newCoin := std.Coin{"baz", 150}
 coins.Add(newCoin)
+```
+
+---
+## Banker
+View concept page [here](../concepts/standard-library/banker.md).
+
+```go
+type BankerType uint8
+
+const (
+    BankerTypeReadonly BankerType = iota
+    BankerTypeOrigSend
+    BankerTypeRealmSend
+    BankerTypeRealmIssue
+)
+
+type Banker interface {
+    GetCoins(addr Address) (dst Coins)
+    SendCoins(from, to Address, amt Coins)
+    IssueCoin(addr Address, denom string, amount int64)
+    RemoveCoin(addr Address, denom string, amount int64)
+}
+```
+
+### GetBanker
+Returns `Banker` of the specified type.
+
+#### Parameters
+- `BankerType` - type of Banker to get:
+  - `BankerTypeReadOnly` - read-only access to coin balances
+  - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
+  - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaciton
+  - `BankerTypeRealmIssue` - able to issue new coins
+
+#### Usage
+
+```go
+banker := std.GetBanker(std.<BankerType>)
+```
+
+### GetCoins
+Returns `Coins` owned by `Address`.
+
+#### Parameters
+- `addr` **Address** to fetch balances for
+
+#### Usage
+
+```go
+coins := banker.GetCoins(addr)
+```
+
+### SendCoins
+Sends `amt` from address `from` to address `to`. `amt` needs to be a well-defined
+`Coins` slice.
+
+#### Parameters
+- `from` **Address** to send from
+- `to` **Address** to send to
+- `amt` **Coins** to send
+
+#### Usage
+
+```go
+banker.SendCoins(from, to, amt)
+```
+
+### IssueCoin
+Issues `amt` of coin with a denomination `denom` to address `addr`.
+
+#### Parameters
+- `addr` **Address** to issue coins to
+- `denom` **string** denomination of coin to issue
+- `amt` **int64** amount of coin to issue
+
+#### Usage
+```go
+banker.IssueCoin(addr, denom, amt)
+```
+
+### RemoveCoin
+Removes (burns) `amt` of coin with a denomination `denom` from address `addr`.
+
+#### Parameters
+- `addr` **Address** to remove coins from
+- `denom` **string** denomination of coin to remove
+- `amt` **int64** amount of coin to remove
+
+#### Usage
+```go
+banker.RemoveCoin(addr, denom, amt)
 ```
 
 ---
@@ -300,7 +296,7 @@ caller := std.GetOrigSend()
 ```
 
 ### GetOrigPkgAddr
-Returns the `pkgpath` of the original caller, if it exists (not an EOA).
+Returns the `pkgpath` of the current Realm.
 
 #### Parameters
 Returns **string**.
@@ -323,7 +319,7 @@ currentRealm := std.CurrentRealm()
 ```
 
 ### PrevRealm
-Returns the previous caller realm (can be realm or EOA). If caller is EOA, `pkgpath` will be empty.
+Returns the previous caller realm (can be realm or EOA). If caller is am EOA, `pkgpath` will be empty.
 
 #### Parameters
 Returns **Realm**.
@@ -333,9 +329,27 @@ Returns **Realm**.
 prevRealm := std.PrevRealm()
 ```
 
-
 ### GetCallerAt
-### DerivePkgAddr
-### EncodeBech32
-### DecodeBech32
+Returns the n-th caller of the function. 
 
+#### Parameters
+- `n` **int** number specifying how far in the call trace to go back
+- Returns **Address**
+
+#### Usage
+```go
+currentRealm := std.GetCallerAt(1) // returns address of current realm
+previousRealm := std.GetCallerAt(2) // returns address of previous realm/caller
+std.GetCallerAt(0) // n must be > 0
+```
+
+### DerivePkgAddr
+Derives the Realm address from its `pkgpath` parameter.
+
+#### Parameters
+Returns **Address**.
+
+#### Usage
+```go
+realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
+```
