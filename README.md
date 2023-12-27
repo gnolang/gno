@@ -41,6 +41,14 @@ You can find out more existing tools & documentation for Gno on our
 [awesome-gno](https://github.com/gnolang/awesome-gno) repository.
 We look forward to seeing your first PR!
 
+## Playground
+<a href="https://play.gno.land/?run.expr=println(Render(%22%22))">
+  <img alt="play.gno.land" src="https://img.shields.io/badge/Play-Hello_World-691a00.svg?logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAxNTggMTU4Ij48cGF0aCBkPSJtMTU2IDItNiA1LTIgMmE1NCA1NCAwIDAgMS0yNCAxMmwtMyAxaC00Yy02IDAtOS0xLTE1LTNhNjIgNjIgMCAwIDAtMzUtNmgtMWwtNCAxYTYzIDYzIDAgMCAwLTUwIDY4bDEgMmEyNyAyNyAwIDAgMCAwIDRsNiAxNWEzMyAzMyAwIDAgMSAyIDIxIDYyIDYyIDAgMCAxLTMgOCA2MSA2MSAwIDAgMS0xMyAyMGwtMyA0LTEgMWgxbDEtMmEyMDYgMjA2IDAgMCAxIDYtNWwyLTJhODggODggMCAwIDAgOC03bDEtMSAyLTIgMy0zYTY2MSA2NjEgMCAwIDEgMjYtMjRsNjItNjIgNC00IDMtMyAyLTMgOS05IDMtMyAyLTMgNi02IDExLTEzIDMtMyAxLTEtMSAxWk03OSAyNWM5IDEgMTcgNCAyMyA4IDQgMiA1IDQgNSA3bC0xIDMtMSAydjFsLTItMmE0MSA0MSAwIDAgMC0zNC0xMCA0MyA0MyAwIDAgMC0zMyAyNyA0OSA0OSAwIDAgMC0zIDIwIDMxIDMxIDAgMCAwIDEgNWwyIDRjMSA1IDQgOSA3IDEzbDIgMnYxbC01IDEtNC0xYy0yLTEtNS01LTctMTBsLTEtMmE2MSA2MSAwIDAgMS0zLTEzIDY2IDY2IDAgMCAxIDAtMTRjMS01IDMtMTEgNi0xNmE1MyA1MyAwIDAgMSA0MC0yNmg4Wm0yIDEzaDFsMTEgMyAxMCA4djRMNzkgNzhsLTI2IDI1Yy0yIDEtNCAxLTYtMWwtNS03YTQwIDQwIDAgMCAxLTUtMTljMC04IDMtMTYgOC0yM2w5LThhNDEgNDEgMCAwIDEgMTktOGw4IDFabTQ0IDEzLTMgNnY3YTIyMSAyMjEgMCAwIDEgMiAxNGwtMSAxMGE0NiA0NiAwIDAgMS01NyAzNWgtOWMtMyAwLTcgMi03IDNsNCAyYTU3IDU3IDAgMCAwIDMyIDVoM2wzLTFhNTUgNTUgMCAwIDAgMzQtODJsLTEgMVoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMTEzIDU5Yy0xIDItMiA0LTEgNmwxIDNhMzggMzggMCAwIDEtNDggNDRoLTRsLTMgMmE0NCA0NCAwIDAgMCAxMCAzaDE1YTQyIDQyIDAgMCAwIDMxLTU4aC0xWiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==" />
+</a>
+</br></br>
+
+Explore the capabilities of the Gno Playground on [play.gno.land](https://play.gno.land) for code sharing, assistance, testing, deployment of realms and packages, and execution of sample Gno code.
+
 ## Repository structure
 
 * [examples](./examples) - smart-contract examples and guides for new Gno developers.
