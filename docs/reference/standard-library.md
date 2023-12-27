@@ -2,7 +2,7 @@
 id: standard-library
 ---
 
-# Standard Library Reference
+# Standard Libraries
 
 This page serves as a reference to the standard libraries available in Gno. 
 
@@ -179,7 +179,7 @@ coin2.IsGTE(coin1) // false
 ---
 ## Coins
 
-`Coins` is a set of `Coin`, one per denomination. 
+`Coins` is a set of `Coin`, one per denomination.
 
 ```go
 type Coins []Coin
@@ -193,23 +193,147 @@ Returns a string representation of the Coins set it was called upon.
 
 #### Usage
 ```go
-coins := std.Coins{{std.Coin{"ugnot", 100}, {std.Coin{"foo", 150},{std.Coin{"bar", 200}}  
+coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
 coins.String() // 100ugnot,150foo,200bar
+```
+
+### AmountOf
+Returns amount of specified coin within the Coins set it was called upon.
+
+### Parameters
+- `denom` **string** denomination of specified coin
+
+#### Usage
+```go
+coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
+coins.AmountOf("foo") // 150
+```
+
+### Add
+Adds amount of specified coin to the Coins set.
+ 
+### Parameters
+- `b` **Coin** to add to Coins set
+
+#### Usage
+```go
+coins := // ...
+newCoin := std.Coin{"baz", 150}
+coins.Add(newCoin)
 ```
 
 ---
 ## Chain-related
 
 ### IsOriginCall
+Checks if the caller of the function is an EOA.
+
+#### Parameters
+Returns **bool**,  **true** if caller is EOA.
+
+#### Usage
+```go
+if !std.IsOriginCall() {...}
+```
+
 ### AssertOriginCall
+Panics if caller of function is not an EOA.
+
+#### Usage
+```go
+std.AssertOriginCall()
+```
+
 ### CurrentRealmPath
+Returns the path of the realm it is called in. 
+
+#### Parameters
+Returns **string**.
+
+#### Usage
+```go
+std.CurrentRealmPath() // gno.land/r/demo/users
+```
+
 ### GetChainID
+Returns the chain ID.
+
+#### Parameters
+Returns **string**.
+
+#### Usage
+```go
+std.GetChainID() // dev | test3 | main ...
+```
+
 ### GetHeight
+Returns the current block number (height).
+
+#### Parameters
+Returns **int64**.
+
+#### Usage
+```go
+std.GetHeight()
+```
+
 ### GetOrigSend
+Returns the `Coins` that were sent along with the calling transaction.
+
+#### Parameters
+Returns **Coins**.
+
+#### Usage
+```go
+coinsSent := std.GetOrigSend()
+```
+
 ### GetOrigCaller
-### CurrentRealm
-### PrevRealm
+Returns the original signer of the transaction.
+
+#### Parameters
+Returns **Address**.
+
+#### Usage
+```go
+caller := std.GetOrigSend()
+```
+
 ### GetOrigPkgAddr
+Returns the `pkgpath` of the original caller, if it exists (not an EOA).
+
+#### Parameters
+Returns **string**.
+
+#### Usage
+```go
+origPkgAddr := std.GetOrigPkgAddr()
+```
+
+### CurrentRealm
+Returns current Realm object.
+
+#### Parameters
+Returns **Realm**.
+
+[//]: # (todo link to realm type explanation)
+#### Usage
+```go
+currentRealm := std.CurrentRealm()
+```
+
+### PrevRealm
+Returns the previous caller realm (can be realm or EOA). If caller is EOA, `pkgpath` will be empty.
+
+#### Parameters
+Returns **Realm**.
+
+#### Usage
+```go
+prevRealm := std.PrevRealm()
+```
+
+
 ### GetCallerAt
 ### DerivePkgAddr
 ### EncodeBech32
