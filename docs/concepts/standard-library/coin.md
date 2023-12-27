@@ -27,7 +27,7 @@ They are then available for access by specific types of Bankers, which can manip
 [//]: # (TODO ADD LINK TO Effective GNO)
 Read more about coins in the [Effective Gno] section. 
 
-The Coin API can be found in under the `std` package [reference](../../reference/standard-library.md).
+The Coin API can be found in under the `std` package [reference](../../reference/standard-library.md#coin).
 
 
 
