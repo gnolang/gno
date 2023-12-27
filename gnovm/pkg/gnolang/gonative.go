@@ -892,9 +892,9 @@ func gno2GoType(t Type) reflect.Type {
 	} else if IsPrimitiveType(Float64Type, t) {
 		return reflect.TypeOf(float64(0.0))
 	}
-	switch ct := baseOf(t).(type) {
-	case PrimitiveType:
-		switch ct.Val {
+
+	handle := func(p *PrimitiveType) reflect.Type {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			return reflect.TypeOf(false)
 		case StringType, UntypedStringType:
@@ -930,6 +930,13 @@ func gno2GoType(t Type) reflect.Type {
 		default:
 			panic("should not happen")
 		}
+	}
+
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&ct)
+	case *PrimitiveType:
+		return handle(ct)
 	case *PointerType:
 		et := gno2GoType(ct.Elem())
 		return reflect.PtrTo(et)
@@ -1178,9 +1185,9 @@ func gno2GoValue(debugging *Debugging, tv *TypedValue, rv reflect.Value) (ret re
 		ret = rv
 		rt = rv.Type()
 	}
-	switch ct := bt.(type) {
-	case PrimitiveType:
-		switch ct.Val {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			rv.SetBool(tv.GetBool())
 		case StringType, UntypedStringType:
@@ -1214,6 +1221,13 @@ func gno2GoValue(debugging *Debugging, tv *TypedValue, rv reflect.Value) (ret re
 				"unexpected type %s",
 				tv.T.String()))
 		}
+	}
+
+	switch ct := bt.(type) {
+	case PrimitiveType:
+		handle(&ct)
+	case *PrimitiveType:
+		handle(ct)
 	case *PointerType:
 		// This doesn't take into account pointer relativity, or even
 		// identical pointers -- every non-nil gno pointer type results in a

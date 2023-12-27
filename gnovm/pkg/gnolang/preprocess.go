@@ -2557,44 +2557,59 @@ func checkType(debugging *Debugging, xt Type, dt Type, autoNative bool) {
 			dt = ddt.Base
 		}
 	}
-	// General cases.
-	switch cdt := dt.(type) {
-	case PrimitiveType:
-		// if xt is untyped, ensure dt is compatible.
-		switch xxt := xt.(type) {
-		case PrimitiveType:
-			switch xxt.Val {
-			case UntypedBoolType:
-				if dt.Kind() == BoolKind {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use untyped bool as %s",
-						dt.Kind()))
-				}
-			case UntypedStringType:
-				if dt.Kind() == StringKind {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use untyped string as %s",
-						dt.Kind()))
-				}
-			case UntypedRuneType, UntypedBigintType:
-				switch dt.Kind() {
-				case IntKind, Int8Kind, Int16Kind, Int32Kind,
-					Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-					Uint32Kind, Uint64Kind:
-					return // ok
-				default:
-					panic(fmt.Sprintf(
-						"cannot use untyped rune as %s",
-						dt.Kind()))
-				}
+
+	prmh := func(p *PrimitiveType, cdt Type) bool {
+		switch p.Val {
+		case UntypedBoolType:
+			if dt.Kind() == BoolKind {
+				return true // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped bool as %s",
+					dt.Kind()))
+			}
+		case UntypedStringType:
+			if dt.Kind() == StringKind {
+				return true // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped string as %s",
+					dt.Kind()))
+			}
+		case UntypedRuneType, UntypedBigintType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind:
+				return true // ok
 			default:
 				panic(fmt.Sprintf(
 					"cannot use untyped rune as %s",
 					dt.Kind()))
+			}
+		default:
+			if isUntyped(xt) {
+				panic("unexpected untyped type")
+			}
+			if xt.TypeID() == cdt.TypeID() {
+				return true // ok
+			}
+		}
+		return false
+	}
+
+	// General cases.
+	switch cdt := dt.(type) {
+	case PrimitiveType, *PrimitiveType:
+		// if xt is untyped, ensure dt is compatible.
+		switch xxt := xt.(type) {
+		case *PrimitiveType:
+			if prmh(xxt, cdt) {
+				return
+			}
+		case PrimitiveType:
+			if prmh(&xxt, cdt) {
+				return
 			}
 		default:
 			if isUntyped(xt) {
@@ -2942,6 +2957,12 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 }
 
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
+	var debugging *Debugging
+
+	if store != nil {
+		debugging = store.Debug()
+	}
+
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -2979,8 +3000,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				// NOTE: document somewhere.
 				cd.Recv.Name = ".recv"
 			}
-			cd.Recv = *Preprocess(store.Debug(), pState(0), store, last, &cd.Recv).(*FieldTypeExpr)
-			cd.Type = *Preprocess(store.Debug(), pState(0), store, last, &cd.Type).(*FuncTypeExpr)
+			cd.Recv = *Preprocess(debugging, pState(0), store, last, &cd.Recv).(*FieldTypeExpr)
+			cd.Type = *Preprocess(debugging, pState(0), store, last, &cd.Type).(*FuncTypeExpr)
 			rft := evalStaticType(store, last, &cd.Recv).(FieldType)
 			rt := rft.Type
 			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
@@ -3005,7 +3026,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
 			ft := ftv.T.(*FuncType)
-			cd.Type = *Preprocess(store.Debug(), pState(0), store, last, &cd.Type).(*FuncTypeExpr)
+
+			cd.Type = *Preprocess(debugging, pState(0), store, last, &cd.Type).(*FuncTypeExpr)
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
 			if !ft.IsZero() {
 				// redefining function.
@@ -3025,9 +3047,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// Full type declaration/preprocessing already done in tryPredefine
 		return d, false
 	case *ValueDecl:
-		return Preprocess(store.Debug(), pState(0), store, last, cd).(Decl), true
+		return Preprocess(debugging, pState(0), store, last, cd).(Decl), true
 	case *TypeDecl:
-		return Preprocess(store.Debug(), pState(0), store, last, cd).(Decl), true
+		return Preprocess(debugging, pState(0), store, last, cd).(Decl), true
 	default:
 		return d, false
 	}
@@ -3045,6 +3067,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
+	}
+
+	var debugging *Debugging
+
+	if store != nil {
+		debugging = store.Debug()
 	}
 
 	// If un is blank, it means the predefine succeeded.
@@ -3136,10 +3164,10 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 						// all names are declared types.
 						panic("should not happen")
 					}
-				} else if idx, ok := UverseNode(store.Debug()).GetLocalIndex(tx.Name); ok {
+				} else if idx, ok := UverseNode(debugging).GetLocalIndex(tx.Name); ok {
 					// uverse name
 					path := NewValuePathUverse(idx, tx.Name)
-					tv := Uverse(store.Debug()).GetValueAt(nil, path)
+					tv := Uverse(debugging).GetValueAt(nil, path)
 					t = tv.GetType()
 				} else {
 					// yet undefined

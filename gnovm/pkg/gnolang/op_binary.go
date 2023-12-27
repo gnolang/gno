@@ -684,9 +684,9 @@ func isGeq(lv, rv *TypedValue) bool {
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case StringType, UntypedStringType:
 			lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 		case IntType:
@@ -738,6 +738,13 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators + and += not defined for %s",
@@ -1222,9 +1229,9 @@ func shlAssign(lv, rv *TypedValue) {
 func shrAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() >> rv.GetUint())
 		case Int8Type:
@@ -1257,6 +1264,13 @@ func shrAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators >> and >>= not defined for %s",

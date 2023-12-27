@@ -14,7 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	if store.Debug().IsDebug() {
+	if store != nil && store.Debug().IsDebug() {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
 		}

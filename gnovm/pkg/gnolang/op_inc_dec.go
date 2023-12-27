@@ -26,9 +26,9 @@ func (m *Machine) doOpInc() {
 			panic("expected lv.V to be nil for primitive type for OpInc")
 		}
 	}
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() + 1)
 		case Int8Type:
@@ -72,6 +72,13 @@ func (m *Machine) doOpInc() {
 		default:
 			panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 		}
+	}
+
+	switch t := baseOf(lv.T).(type) {
+	case *PrimitiveType:
+		handle(t)
+	case PrimitiveType:
+		handle(&t)
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
@@ -101,9 +108,9 @@ func (m *Machine) doOpDec() {
 			panic("expected lv.V to be nil for primitive type for OpDec")
 		}
 	}
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() - 1)
 		case Int8Type:
@@ -147,6 +154,13 @@ func (m *Machine) doOpDec() {
 		default:
 			panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 		}
+	}
+
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}

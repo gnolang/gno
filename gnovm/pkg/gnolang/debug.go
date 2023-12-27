@@ -116,5 +116,7 @@ func (d *Debugging) DisableDebug() {
 }
 
 func (d *Debugging) EnableDebug() {
-	d.enabled = true
+	if d != nil {
+		d.enabled = true
+	}
 }
