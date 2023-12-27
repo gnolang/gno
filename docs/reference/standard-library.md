@@ -44,6 +44,7 @@ Check if address is of valid format.
 if !address.IsValid() {...}
 ```
 
+---
 ## Banker
 
 View concept page [here](../concepts/standard-library/banker.md).
@@ -137,6 +138,7 @@ Removes (burns) `amt` of coin with a denomination `denom` from address `addr`.
 banker.RemoveCoin(addr, denom, amt)
 ```
 
+---
 ## Coin
 View concept page [here](../concepts/standard-library/coin.md).
 
@@ -149,9 +151,33 @@ func (c Coin) String() string {...}
 func (c Coin) IsGTE(other Coin) bool {...}
 ```
 
-// TODO ADD COIN functions
+### String
+Returns a string representation of the Coin it was called upon.
 
-### Coins
+#### Usage
+```go
+coin := std.Coin{"ugnot", 100} 
+coin.String() // 100ugnot
+```
+
+### IsGTE
+Checks if the amount of `other` Coin is greater or equal than amount of Coin `c` it was called upon. 
+If coins compared are not of the same denomination, `IsGTE` will panic.
+
+#### Parameters
+- `other` **Coin** to compare with
+
+#### Usage
+```go
+coin1 := std.Coin{"ugnot", 150}
+coin2 := std.Coin{"ugnot", 100}
+
+coin1.IsGTE(coin2) // true
+coin2.IsGTE(coin1) // false
+```
+
+---
+## Coins
 
 `Coins` is a set of `Coin`, one per denomination. 
 
@@ -162,8 +188,16 @@ func (cz Coins) AmountOf(denom string) int64 {...}
 func (a Coins) Add(b Coins) Coins {...}
 ```
 
-// TODO ADD COINS functions
+### String
+Returns a string representation of the Coins set it was called upon.
 
+#### Usage
+```go
+coins := std.Coins{{std.Coin{"ugnot", 100}, {std.Coin{"foo", 150},{std.Coin{"bar", 200}}  
+coins.String() // 100ugnot,150foo,200bar
+```
+
+---
 ## Chain-related
 
 ### IsOriginCall
