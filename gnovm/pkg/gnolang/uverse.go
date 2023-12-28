@@ -972,7 +972,7 @@ func UverseNode(debugging *Debugging) *PackageNode {
 				println("DEBUG/stdout: " + rs)
 			}
 
-			fmt.Fprint(m.Output, rs)
+			m.Output.Write([]byte(rs))
 		},
 	)
 	defNative("recover",

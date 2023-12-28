@@ -300,10 +300,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		}
 	}
 
-	// otherwise, default behavior.
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		switch bt.Val {
+	handle := func(p *PrimitiveType) string {
+		switch p.Val {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
@@ -339,6 +337,14 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		default:
 			panic("should not happen")
 		}
+	}
+
+	// otherwise, default behavior.
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	case *PointerType:
 		if tv.V == nil {
 			return "invalid-pointer"
