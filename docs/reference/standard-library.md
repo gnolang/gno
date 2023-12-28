@@ -29,16 +29,18 @@ func (a Address) IsValid() bool {...}
 Get **string** representation of **Address**.
 
 #### Usage
-
 ```go
 stringAddr := addr.String()
 ```
+
 ---
 ### IsValid
 Check if an address is of a valid format.
 
-#### Usage
+#### Parameters
+Returns **bool**.
 
+#### Usage
 ```go
 if !address.IsValid() {...}
 ```
@@ -108,6 +110,7 @@ Returns amount of specified coin within the `Coins` set it was called upon.
 
 ### Parameters
 - `denom` **string** denomination of specified coin
+- Returns **int64** amount of coin. If specified coin doesnt exist, returns `0`.
 
 #### Usage
 ```go

@@ -4,7 +4,7 @@ id: coin
 
 # Coin
 
-A Coin is a native Gno object that has a denomination and an amount. Coins can be issued by the [Banker](banker.md).  
+A Coin is a native Gno type that has a denomination and an amount. Coins can be issued by the [Banker](banker.md).  
 
 A coin is defined by the following:
 
@@ -15,7 +15,7 @@ type Coin struct {
 }
 ```
 
-Where `Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a non-negative
+`Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a non-negative
 amount of the coin.
 
 Multiple coins can be bundled together into a `Coins` slice:

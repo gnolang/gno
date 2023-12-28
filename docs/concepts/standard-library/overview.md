@@ -6,10 +6,12 @@ id: overview
 
 Gno comes with a set of standard libraries which are included to ease development and provide extended functionality to the language. These include:
 - standard libraries as we know them in classic Golang, i.e. `encoding/binary`, `strings`, `testing`, etc.
-- a special `std` package, which contains types and APIs created to handle blockchain-related functionality.
+- a special `std` package, which contains types, interfaces, and APIs created to handle blockchain-related functionality.
 
-Standard libraries are distinguishable from on-chain [packages](../packages.md) by having  a domain-like structure as the
-first part of their import path. For instance: 
+
+Standard libraries differ from on-chain packages in terms of their import path structure.
+Unlike on-chain [packages](../packages.md), standard libraries do not incorporate a domain-like format at the beginning
+of their import path. For example:
 - `import "encoding/binary"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.
 
@@ -35,7 +37,7 @@ $ find -type d
 ...
 ```
 
-All the packages have automatically generated documentation through the use of
+All the packages have automatically generated documentation through the use of the
 `gno doc` command, which has similar functionality and features to `go doc`:
 
 ```console
@@ -63,13 +65,10 @@ func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 ```
 
 `gno doc` will work automatically when used within the Gno repository or any
-repository which has a `go.mod` dependency on `github.com/gnolang/gno`, which
-can be a simple way to set up your Gno repositories to automatically support
-`gno` commands (aside from `doc`, also `test`, `run`, etc.).
+repository which has a `go.mod` dependency on `github.com/gnolang/gno`.
 
-Another alternative is setting your enviornment variable `GNOROOT` to point to
-where you cloned the Gno repository. You can set this in your `~/.profile` file
-to be automatically set up in your console:
+Another alternative is setting your environment variable `GNOROOT` to point to
+where you cloned the Gno repository.
 
 ```sh
 export GNOROOT=$HOME/gno
