@@ -33,7 +33,7 @@ Get **string** representation of **Address**.
 ```go
 stringAddr := addr.String()
 ```
-
+---
 ### IsValid
 Check if an address is of a valid format.
 
@@ -64,7 +64,7 @@ Returns a string representation of the Coin it was called upon.
 coin := std.Coin{"ugnot", 100} 
 coin.String() // 100ugnot
 ```
-
+---
 ### IsGTE
 Checks if the amount of `other` Coin is greater or equal than amount of Coin `c` it was called upon. 
 If coins compared are not of the same denomination, `IsGTE` will panic.
@@ -101,6 +101,7 @@ Returns a string representation of the `Coins` set it was called upon.
 coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
 coins.String() // 100ugnot,150foo,200bar
 ```
+---
 
 ### AmountOf
 Returns amount of specified coin within the `Coins` set it was called upon.
@@ -113,6 +114,7 @@ Returns amount of specified coin within the `Coins` set it was called upon.
 coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
 coins.AmountOf("foo") // 150
 ```
+---
 
 ### Add
 Adds amount of specified coin to the `Coins` set.
@@ -164,6 +166,7 @@ Returns `Banker` of the specified type.
 ```go
 banker := std.GetBanker(std.<BankerType>)
 ```
+---
 
 ### GetCoins
 Returns `Coins` owned by `Address`.
@@ -176,6 +179,7 @@ Returns `Coins` owned by `Address`.
 ```go
 coins := banker.GetCoins(addr)
 ```
+---
 
 ### SendCoins
 Sends `amt` from address `from` to address `to`. `amt` needs to be a well-defined
@@ -187,10 +191,10 @@ Sends `amt` from address `from` to address `to`. `amt` needs to be a well-define
 - `amt` **Coins** to send
 
 #### Usage
-
 ```go
 banker.SendCoins(from, to, amt)
 ```
+---
 
 ### IssueCoin
 Issues `amt` of coin with a denomination `denom` to address `addr`.
@@ -204,6 +208,7 @@ Issues `amt` of coin with a denomination `denom` to address `addr`.
 ```go
 banker.IssueCoin(addr, denom, amt)
 ```
+---
 
 ### RemoveCoin
 Removes (burns) `amt` of coin with a denomination `denom` from address `addr`.
@@ -231,6 +236,7 @@ Returns **bool**,  **true** if caller is EOA.
 ```go
 if !std.IsOriginCall() {...}
 ```
+---
 
 ### AssertOriginCall
 Panics if caller of function is not an EOA.
@@ -239,6 +245,7 @@ Panics if caller of function is not an EOA.
 ```go
 std.AssertOriginCall()
 ```
+---
 
 ### CurrentRealmPath
 Returns the path of the realm it is called in. 
@@ -250,6 +257,7 @@ Returns **string**.
 ```go
 std.CurrentRealmPath() // gno.land/r/demo/users
 ```
+---
 
 ### GetChainID
 Returns the chain ID.
@@ -261,6 +269,7 @@ Returns **string**.
 ```go
 std.GetChainID() // dev | test3 | main ...
 ```
+---
 
 ### GetHeight
 Returns the current block number (height).
@@ -272,6 +281,7 @@ Returns **int64**.
 ```go
 std.GetHeight()
 ```
+---
 
 ### GetOrigSend
 Returns the `Coins` that were sent along with the calling transaction.
@@ -283,6 +293,7 @@ Returns **Coins**.
 ```go
 coinsSent := std.GetOrigSend()
 ```
+---
 
 ### GetOrigCaller
 Returns the original signer of the transaction.
@@ -294,6 +305,7 @@ Returns **Address**.
 ```go
 caller := std.GetOrigSend()
 ```
+---
 
 ### GetOrigPkgAddr
 Returns the `pkgpath` of the current Realm.
@@ -305,6 +317,7 @@ Returns **string**.
 ```go
 origPkgAddr := std.GetOrigPkgAddr()
 ```
+---
 
 ### CurrentRealm
 Returns current Realm object.
@@ -317,6 +330,7 @@ Returns **Realm**.
 ```go
 currentRealm := std.CurrentRealm()
 ```
+---
 
 ### PrevRealm
 Returns the previous caller realm (can be realm or EOA). If caller is am EOA, `pkgpath` will be empty.
@@ -328,6 +342,7 @@ Returns **Realm**.
 ```go
 prevRealm := std.PrevRealm()
 ```
+---
 
 ### GetCallerAt
 Returns the n-th caller of the function. 
@@ -342,6 +357,7 @@ currentRealm := std.GetCallerAt(1) // returns address of current realm
 previousRealm := std.GetCallerAt(2) // returns address of previous realm/caller
 std.GetCallerAt(0) // n must be > 0
 ```
+--- 
 
 ### DerivePkgAddr
 Derives the Realm address from its `pkgpath` parameter.
@@ -353,3 +369,4 @@ Returns **Address**.
 ```go
 realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
 ```
+---
