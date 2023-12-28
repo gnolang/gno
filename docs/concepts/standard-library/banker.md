@@ -18,8 +18,3 @@ The Banker module can be cast into 4 subtypes of bankers that expose different f
 4. `BankerTypeRealmIssue` - able to issue new coins
 
 The Banker API can be found in under the `std` package [reference](../../reference/standard-library.md#banker).
-
-
-
-
-

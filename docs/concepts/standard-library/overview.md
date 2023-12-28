@@ -74,25 +74,3 @@ to be automatically set up in your console:
 ```sh
 export GNOROOT=$HOME/gno
 ```
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-

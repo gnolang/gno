@@ -50,7 +50,7 @@ const sidebars = {
                         'concepts/standard-library/banker',
                         'concepts/standard-library/coin',
                         'concepts/standard-library/testing',
-                        'concepts/standard-library/native-bindings',
+                        'concepts/standard-library/gnopher-hole-stdlib',
                     ]
                 },
                 'concepts/tendermint2',
