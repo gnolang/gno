@@ -45,7 +45,7 @@ type Machine struct {
 	Store   Store
 	Context interface{}
 
-	Debugging *Debugging
+	Debugging *Debugging `json:"-"`
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand

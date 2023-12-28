@@ -421,7 +421,7 @@ func TestMultiAssignment(t *testing.T) {
 		return &buf[i]
 	}
 	val := func(i int) int {
-		fmt.Printf("Val(%v) called\n", i)
+		fmt.Printf("val(%v) called\n", i)
 		return i
 	}
 
@@ -432,10 +432,10 @@ func TestMultiAssignment(t *testing.T) {
 		ref(1) called
 		ref(2) called
 		ref(3) called
-		Val(11) called
-		Val(22) called
-		Val(33) called
-		Val(44) called
+		val(11) called
+		val(22) called
+		val(33) called
+		val(44) called
 	*/
 }
 

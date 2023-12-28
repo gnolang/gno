@@ -337,8 +337,8 @@ func (n *NameExpr) DeepCopy() Expr {
 
 	return &NameExpr{
 		Attributes: n.Attributes,
-		Path:       ValuePath{},
-		Name:       "",
+		Path:       n.Path,
+		Name:       n.Name,
 	}
 }
 

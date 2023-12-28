@@ -370,7 +370,7 @@ type PointerValue struct {
 	Base      Value       // array/struct/block.
 	Index     int         // list/fields/values index, or -1 or -2 (see below).
 	Key       *TypedValue `json:",omitempty"` // for maps.
-	Debugging *Debugging
+	Debugging *Debugging  `json:"-"`
 }
 
 const (
@@ -1240,10 +1240,10 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T         Type    `json:",omitempty"` // never nil
-	V         Value   `json:",omitempty"` // an untyped value
-	N         [8]byte `json:",omitempty"` // numeric bytes
-	Debugging *Debugging
+	T         Type       `json:",omitempty"` // never nil
+	V         Value      `json:",omitempty"` // an untyped value
+	N         [8]byte    `json:",omitempty"` // numeric bytes
+	Debugging *Debugging `json:"-"`
 }
 
 func (tv *TypedValue) IsDefined() bool {

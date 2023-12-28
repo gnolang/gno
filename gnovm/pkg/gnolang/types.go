@@ -77,8 +77,8 @@ func (MaybeNativeType) assertType() {}
 // Primitive types
 
 type PrimitiveType struct {
-	Val       PrimitiveTypeValue
-	Debugging *Debugging
+	Val       PrimitiveTypeValue `json:"value"`
+	Debugging *Debugging         `json:"-"`
 }
 
 func (p PrimitiveType) DeepCopy() Type {

@@ -1031,6 +1031,8 @@ func copyTypeWithRefs(debugging *Debugging, typ Type) Type {
 		panic("should not happen")
 	case PrimitiveType:
 		return ct
+	case *PrimitiveType:
+		return ct
 	case *PointerType:
 		return &PointerType{
 			Elt: refOrCopyType(debugging, ct.Elt),
