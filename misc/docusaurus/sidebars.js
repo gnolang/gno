@@ -78,14 +78,30 @@ const sidebars = {
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
-                'reference/standard-library',
+                {
+                    type: 'category',
+                    label: 'Standard Libraries',
+                    items: [
+                        'reference/standard-library/overview',
+                        {
+                            type: 'category',
+                            label: 'std',
+                            items: [
+                                'reference/standard-library/std/address',
+                                'reference/standard-library/std/banker',
+                                'reference/standard-library/std/coin',
+                                'reference/standard-library/std/coins',
+                                'reference/standard-library/std/chain',
+                            ]
+                        }
+                    ]
+                },
                 'reference/go-gno-compatibility',
                 {
                     type: 'category',
                     label: 'tm2-js-client',
                     items: [
                         'reference/tm2-js-client/tm2-js-getting-started',
-
                         'reference/tm2-js-client/tm2-js-wallet',
                         {
                             type: 'category',

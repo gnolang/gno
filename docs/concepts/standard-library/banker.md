@@ -17,4 +17,4 @@ The Banker module can be cast into 4 subtypes of bankers that expose different f
 3. `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaciton
 4. `BankerTypeRealmIssue` - able to issue new coins
 
-The Banker API can be found in under the `std` package [reference](../../reference/standard-library.md#banker).
+The Banker API can be found in under the `std` package [reference](../../reference/standard-library/std/banker.md).

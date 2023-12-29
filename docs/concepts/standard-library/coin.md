@@ -33,4 +33,4 @@ which can manipulate them depending on access rights.
 [//]: # (TODO ADD LINK TO Effective GNO)
 Read more about coins in the [Effective Gno] section. 
 
-The Coin API can be found in under the `std` package [reference](../../reference/standard-library.md#coin).
+The Coin(s) API can be found in under the `std` package [reference](../../reference/standard-library/std/coin.md).
