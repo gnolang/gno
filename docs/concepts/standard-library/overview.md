@@ -28,7 +28,7 @@ $ cd gnovm/stdlibs # go to correct directory
 $ find -type d
 ./testing
 ./math
-./crypt
+./crypto
 ./crypto/chacha20
 ./crypto/chacha20/chacha
 ./crypto/chacha20/rand
