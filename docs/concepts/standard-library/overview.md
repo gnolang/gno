@@ -15,7 +15,7 @@ of their import path. For example:
 - `import "encoding/binary"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.
 
-To see concrete implementation details & API references, see the [reference](../../reference/standard-library.md) section.
+To see concrete implementation details & API references, see the [reference](../../reference/standard-library/overview.md) section.
 
 ## Accessing documentation
 
@@ -28,7 +28,7 @@ $ cd gnovm/stdlibs # go to correct directory
 $ find -type d
 ./testing
 ./math
-./crypto
+./crypt
 ./crypto/chacha20
 ./crypto/chacha20/chacha
 ./crypto/chacha20/rand
