@@ -81,8 +81,8 @@ type PrimitiveType struct {
 	Debugging *Debugging         `json:"-"`
 }
 
-func (p PrimitiveType) DeepCopy() Type {
-	return p
+func (pt PrimitiveType) DeepCopy() Type {
+	return pt
 }
 
 func IsPrimitiveType(ptv PrimitiveTypeValue, t Type) bool {
@@ -2228,7 +2228,7 @@ func (rt RefType) GetPkgPath() string {
 // or go2GnoType2(spec) to gno type if spec is native.
 type MaybeNativeType struct {
 	Type
-	debugging *Debugging
+	// debugging *Debugging
 }
 
 func (mn MaybeNativeType) Kind() Kind {

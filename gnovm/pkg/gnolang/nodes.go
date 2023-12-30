@@ -330,40 +330,40 @@ type Expr interface {
 
 type Exprs []Expr
 
-func (n *NameExpr) DeepCopy() Expr {
-	if n == nil {
+func (x *NameExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &NameExpr{
-		Attributes: n.Attributes,
-		Path:       n.Path,
-		Name:       n.Name,
+		Attributes: x.Attributes,
+		Path:       x.Path,
+		Name:       x.Name,
 	}
 }
 
-func (b *BasicLitExpr) DeepCopy() Expr {
-	if b == nil {
+func (x *BasicLitExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &BasicLitExpr{
-		Attributes: b.Attributes,
-		Kind:       b.Kind,
-		Value:      b.Value,
+		Attributes: x.Attributes,
+		Kind:       x.Kind,
+		Value:      x.Value,
 	}
 }
 
-func (b *BinaryExpr) DeepCopy() Expr {
-	if b == nil {
+func (x *BinaryExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &BinaryExpr{
-		Attributes: b.Attributes,
-		Left:       b.Left.DeepCopy(),
-		Op:         b.Op,
-		Right:      b.Right.DeepCopy(),
+		Attributes: x.Attributes,
+		Left:       x.Left.DeepCopy(),
+		Op:         x.Op,
+		Right:      x.Right.DeepCopy(),
 	}
 }
 
@@ -377,189 +377,189 @@ func DeepCopyExprs(exprs []Expr) []Expr {
 	return nexprs
 }
 
-func (c *CallExpr) DeepCopy() Expr {
-	if c == nil {
+func (x *CallExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &CallExpr{
-		Attributes: c.Attributes,
-		Func:       c.Func.DeepCopy(),
-		Args:       DeepCopyExprs(c.Args),
-		Varg:       c.Varg,
-		NumArgs:    c.NumArgs,
+		Attributes: x.Attributes,
+		Func:       x.Func.DeepCopy(),
+		Args:       DeepCopyExprs(x.Args),
+		Varg:       x.Varg,
+		NumArgs:    x.NumArgs,
 	}
 }
 
-func (i *IndexExpr) DeepCopy() Expr {
-	if i == nil {
+func (x *IndexExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &IndexExpr{
-		Attributes: i.Attributes,
-		X:          i.X.DeepCopy(),
-		Index:      i.Index.DeepCopy(),
-		HasOK:      i.HasOK,
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Index:      x.Index.DeepCopy(),
+		HasOK:      x.HasOK,
 	}
 }
 
-func (s *SelectorExpr) DeepCopy() Expr {
-	if s == nil {
+func (x *SelectorExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &SelectorExpr{
-		Attributes: s.Attributes,
-		X:          s.X.DeepCopy(),
-		Path:       s.Path,
-		Sel:        s.Sel,
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Path:       x.Path,
+		Sel:        x.Sel,
 	}
 }
 
-func (s *SliceExpr) DeepCopy() Expr {
-	if s == nil {
+func (x *SliceExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
-	low := s.Low
+	low := x.Low
 
 	if low != nil {
 		low = low.DeepCopy()
 	}
 
-	max := s.Max
+	max := x.Max
 
 	if max != nil {
 		max = max.DeepCopy()
 	}
 
 	return &SliceExpr{
-		Attributes: s.Attributes,
-		X:          s.X.DeepCopy(),
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
 		Low:        low,
-		High:       s.High.DeepCopy(),
+		High:       x.High.DeepCopy(),
 		Max:        max,
 	}
 }
 
-func (s *StarExpr) DeepCopy() Expr {
-	if s == nil {
+func (x *StarExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &StarExpr{
-		Attributes: s.Attributes,
-		X:          s.X.DeepCopy(),
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
 	}
 }
 
-func (r *RefExpr) DeepCopy() Expr {
-	if r == nil {
+func (x *RefExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &RefExpr{
-		Attributes: r.Attributes,
-		X:          r.X.DeepCopy(),
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
 	}
 }
 
-func (t *TypeAssertExpr) DeepCopy() Expr {
-	if t == nil {
+func (x *TypeAssertExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &TypeAssertExpr{
-		Attributes: t.Attributes,
-		X:          t.X.DeepCopy(),
-		Type:       t.Type.DeepCopy(),
-		HasOK:      t.HasOK,
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Type:       x.Type.DeepCopy(),
+		HasOK:      x.HasOK,
 	}
 }
 
-func (u *UnaryExpr) DeepCopy() Expr {
-	if u == nil {
+func (x *UnaryExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &UnaryExpr{
-		Attributes: u.Attributes,
-		X:          u.X.DeepCopy(),
-		Op:         u.Op,
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Op:         x.Op,
 	}
 }
 
-func (c *CompositeLitExpr) DeepCopy() Expr {
-	if c == nil {
+func (x *CompositeLitExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
-	kvp := make([]KeyValueExpr, len(c.Elts))
+	kvp := make([]KeyValueExpr, len(x.Elts))
 
-	for i, elt := range c.Elts {
+	for i, elt := range x.Elts {
 		kvp[i] = *elt.DeepCopy().(*KeyValueExpr)
 	}
 
 	return &CompositeLitExpr{
-		Attributes: c.Attributes,
-		Type:       c.Type,
+		Attributes: x.Attributes,
+		Type:       x.Type,
 		Elts:       kvp,
 	}
 }
 
-func (k *KeyValueExpr) DeepCopy() Expr {
-	if k == nil {
+func (x *KeyValueExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
-	key := k.Key
+	key := x.Key
 
 	if key != nil {
 		key = key.DeepCopy()
 	}
 
-	value := k.Value
+	value := x.Value
 
 	if value != nil {
 		value = value.DeepCopy()
 	}
 
 	return &KeyValueExpr{
-		Attributes: k.Attributes,
+		Attributes: x.Attributes,
 		Key:        key,
 		Value:      value,
 	}
 }
 
-func (f *FuncLitExpr) DeepCopy() Expr {
-	if f == nil {
+func (x *FuncLitExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
 	return &FuncLitExpr{
-		Attributes:  f.Attributes,
-		StaticBlock: f.StaticBlock,
-		Type:        *f.Type.Copy().(*FuncTypeExpr),
-		Body:        f.Body,
+		Attributes:  x.Attributes,
+		StaticBlock: x.StaticBlock,
+		Type:        *x.Type.Copy().(*FuncTypeExpr),
+		Body:        x.Body,
 	}
 }
 
-func (c *ConstExpr) DeepCopy() Expr {
-	if c == nil {
+func (x *ConstExpr) DeepCopy() Expr {
+	if x == nil {
 		return nil
 	}
 
-	source := c.Source
+	source := x.Source
 
 	if source != nil {
 		source = source.DeepCopy()
 	}
 
 	return &ConstExpr{
-		Attributes: c.Attributes,
+		Attributes: x.Attributes,
 		Source:     source,
-		TypedValue: c.TypedValue.Copy(nil),
+		TypedValue: x.TypedValue.Copy(nil),
 	}
 }
 

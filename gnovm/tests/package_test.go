@@ -60,8 +60,6 @@ func TestPackages(t *testing.T) {
 			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
-
-		// fmt.Printf("%+v ---- %+v\n", testDir, pkgPath)
 	}
 }
 
@@ -72,7 +70,6 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	require.False(t, memPkg.IsEmpty())
 
 	stdin := new(bytes.Buffer)
-	// stdout := new(bytes.Buffer)
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
 	rootDir := filepath.Join("..", "..")

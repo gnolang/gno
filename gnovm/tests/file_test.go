@@ -16,25 +16,25 @@ var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating R
 
 func TestFileStr(t *testing.T) {
 	filePath := filepath.Join(".", "files", "str.gno")
-	runFileTest(nil, t, filePath, WithNativeLibs())
+	runFileTest(t, nil, filePath, WithNativeLibs())
 }
 
 // Run tests in the `files` directory using shims from stdlib
 // to native go standard library.
 func TestFilesNative(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(nil, t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
+	runFileTests(t, nil, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
 // Test files using standard library in stdlibs/.
 func TestFiles(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(nil, t, baseDir, []string{"*_native*"})
+	runFileTests(t, nil, baseDir, []string{"*_native*"})
 }
 
 func TestChallenges(t *testing.T) {
 	baseDir := filepath.Join(".", "challenges")
-	runFileTests(nil, t, baseDir, nil)
+	runFileTests(t, nil, baseDir, nil)
 }
 
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
@@ -65,7 +65,7 @@ func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.Di
 }
 
 // ignore are glob patterns to ignore
-func runFileTests(debugging *gnolang.Debugging, t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
+func runFileTests(t *testing.T, debugging *gnolang.Debugging, baseDir string, ignore []string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
@@ -80,12 +80,12 @@ func runFileTests(debugging *gnolang.Debugging, t *testing.T, baseDir string, ig
 	for _, file := range files {
 		file := file
 		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(debugging, t, filepath.Join(baseDir, file.Name()), opts...)
+			runFileTest(t, debugging, filepath.Join(baseDir, file.Name()), opts...)
 		})
 	}
 }
 
-func runFileTest(debugging *gnolang.Debugging, t *testing.T, path string, opts ...RunFileTestOption) {
+func runFileTest(t *testing.T, debugging *gnolang.Debugging, path string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)

@@ -24,39 +24,39 @@ type Value interface {
 	CopyValue() Value
 }
 
-func (s StringValue) CopyValue() Value {
-	return s
+func (v StringValue) CopyValue() Value {
+	return v
 }
 
-func (b BigintValue) CopyValue() Value {
+func (bv BigintValue) CopyValue() Value {
 	bb := BigintValue{V: big.NewInt(0)}
 
-	bb.V.Set(b.V)
+	bb.V.Set(bv.V)
 	return bb
 }
 
-func (b BigdecValue) CopyValue() Value {
-	return b.Copy(nil)
+func (bv BigdecValue) CopyValue() Value {
+	return bv.Copy(nil)
 }
 
-func (d DataByteValue) CopyValue() Value {
+func (dbv DataByteValue) CopyValue() Value {
 	return DataByteValue{
-		Base:     d.Base.Copy(nil),
-		Index:    d.Index,
-		ElemType: d.ElemType.DeepCopy(),
+		Base:     dbv.Base.Copy(nil),
+		Index:    dbv.Index,
+		ElemType: dbv.ElemType.DeepCopy(),
 	}
 }
 
-func (p PointerValue) CopyValue() Value {
-	tv := p.TV.Copy(nil)
-	key := p.Key
+func (pv PointerValue) CopyValue() Value {
+	tv := pv.TV.Copy(nil)
+	key := pv.Key
 
 	if key != nil {
 		c := key.Copy(nil)
 		key = &c
 	}
 
-	base := p.Base
+	base := pv.Base
 
 	if base != nil {
 		base = base.CopyValue()
@@ -65,138 +65,138 @@ func (p PointerValue) CopyValue() Value {
 	return PointerValue{
 		TV:    &tv,
 		Base:  base,
-		Index: p.Index,
+		Index: pv.Index,
 		Key:   key,
 	}
 }
 
-func (a *ArrayValue) CopyValue() Value {
-	if a == nil {
+func (av *ArrayValue) CopyValue() Value {
+	if av == nil {
 		return nil
 	}
 
-	data := make([]byte, len(a.Data))
-	copy(data, a.Data)
+	data := make([]byte, len(av.Data))
+	copy(data, av.Data)
 
 	return &ArrayValue{
-		ObjectInfo: a.ObjectInfo.Copy(),
-		List:       DeepCopyTypedValues(a.List),
+		ObjectInfo: av.ObjectInfo.Copy(),
+		List:       DeepCopyTypedValues(av.List),
 		Data:       data,
 	}
 }
 
-func (s *SliceValue) CopyValue() Value {
-	if s == nil {
+func (sv *SliceValue) CopyValue() Value {
+	if sv == nil {
 		return nil
 	}
 
 	return &SliceValue{
-		Base:   s.Base.CopyValue(),
-		Offset: s.Offset,
-		Length: s.Length,
-		Maxcap: s.Maxcap,
+		Base:   sv.Base.CopyValue(),
+		Offset: sv.Offset,
+		Length: sv.Length,
+		Maxcap: sv.Maxcap,
 	}
 }
 
-func (s *StructValue) CopyValue() Value {
-	if s == nil {
+func (sv *StructValue) CopyValue() Value {
+	if sv == nil {
 		return nil
 	}
 
 	return &StructValue{
-		ObjectInfo: s.ObjectInfo.Copy(),
-		Fields:     DeepCopyTypedValues(s.Fields),
+		ObjectInfo: sv.ObjectInfo.Copy(),
+		Fields:     DeepCopyTypedValues(sv.Fields),
 	}
 }
 
-func (f *FuncValue) CopyValue() Value {
-	if f == nil {
+func (fv *FuncValue) CopyValue() Value {
+	if fv == nil {
 		return nil
 	}
 
-	stmts := make([]Stmt, len(f.body))
+	stmts := make([]Stmt, len(fv.body))
 
-	for i, stmt := range f.body {
+	for i, stmt := range fv.body {
 		stmts[i] = stmt.Copy().(Stmt)
 	}
 
-	closure := f.Closure
+	closure := fv.Closure
 
 	if closure != nil {
 		closure = closure.CopyValue()
 	}
 
 	return &FuncValue{
-		Type:       f.Type.DeepCopy(),
-		IsMethod:   f.IsMethod,
-		Source:     f.Source.Copy().(BlockNode),
-		Name:       f.Name,
+		Type:       fv.Type.DeepCopy(),
+		IsMethod:   fv.IsMethod,
+		Source:     fv.Source.Copy().(BlockNode),
+		Name:       fv.Name,
 		Closure:    closure,
-		FileName:   f.FileName,
-		PkgPath:    f.PkgPath,
+		FileName:   fv.FileName,
+		PkgPath:    fv.PkgPath,
 		body:       stmts,
-		nativeBody: f.nativeBody,
+		nativeBody: fv.nativeBody,
 	}
 }
 
-func (m *MapValue) CopyValue() Value {
-	if m == nil {
+func (mv *MapValue) CopyValue() Value {
+	if mv == nil {
 		return nil
 	}
 
-	mm := m.DeepCopy().(*MapValue)
+	mm := mv.DeepCopy().(*MapValue)
 	return mm
 }
 
-func (b *BoundMethodValue) CopyValue() Value {
-	if b == nil {
+func (v *BoundMethodValue) CopyValue() Value {
+	if v == nil {
 		return nil
 	}
 
-	mm := b.DeepCopy().(*BoundMethodValue)
+	mm := v.DeepCopy().(*BoundMethodValue)
 	return mm
 }
 
-func (t TypeValue) CopyValue() Value {
-	return TypeValue{Type: t.Type.DeepCopy()}
+func (v TypeValue) CopyValue() Value {
+	return TypeValue{Type: v.Type.DeepCopy()}
 }
 
-func (p *PackageValue) CopyValue() Value {
-	if p == nil {
+func (pv *PackageValue) CopyValue() Value {
+	if pv == nil {
 		return nil
 	}
 
-	names := make([]Name, len(p.FNames))
-	copy(names, p.FNames)
+	names := make([]Name, len(pv.FNames))
+	copy(names, pv.FNames)
 
-	values := make([]Value, len(p.FBlocks))
-	copy(values, p.FBlocks)
+	values := make([]Value, len(pv.FBlocks))
+	copy(values, pv.FBlocks)
 
 	fblocksmap := make(map[Name]*Block)
 
-	for name, block := range p.fBlocksMap {
+	for name, block := range pv.fBlocksMap {
 		fblocksmap[name] = block.DeepCopy().(*Block)
 	}
 
 	return &PackageValue{
-		ObjectInfo: p.ObjectInfo.Copy(),
-		Block:      p.Block.CopyValue(),
-		PkgName:    p.PkgName,
-		PkgPath:    p.PkgPath,
+		ObjectInfo: pv.ObjectInfo.Copy(),
+		Block:      pv.Block.CopyValue(),
+		PkgName:    pv.PkgName,
+		PkgPath:    pv.PkgPath,
 		FNames:     names,
 		FBlocks:    values,
-		Realm:      p.Realm.DeepCopy(),
+		Realm:      pv.Realm.DeepCopy(),
 		fBlocksMap: fblocksmap,
 	}
 }
 
-func (n *NativeValue) CopyValue() Value {
-	if n == nil {
+func (nv *NativeValue) CopyValue() Value {
+	if nv == nil {
 		return nil
 	}
 	return &NativeValue{
-		Value: n.Value,
-		Bytes: n.Bytes,
+		Value: nv.Value,
+		Bytes: nv.Bytes,
 	}
 }
 
@@ -208,12 +208,12 @@ func (b *Block) CopyValue() Value {
 	return bb
 }
 
-func (r RefValue) CopyValue() Value {
+func (v RefValue) CopyValue() Value {
 	return RefValue{
-		ObjectID: r.ObjectID,
-		Escaped:  r.Escaped,
-		PkgPath:  r.PkgPath,
-		Hash:     r.Hash.Copy(),
+		ObjectID: v.ObjectID,
+		Escaped:  v.Escaped,
+		PkgPath:  v.PkgPath,
+		Hash:     v.Hash.Copy(),
 	}
 }
 
@@ -866,11 +866,11 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
-func (b *BoundMethodValue) DeepCopy() Object {
+func (v *BoundMethodValue) DeepCopy() Object {
 	return &BoundMethodValue{
-		ObjectInfo: b.ObjectInfo.Copy(),
-		Func:       b.Func.Copy(nil),
-		Receiver:   b.Receiver.Copy(nil),
+		ObjectInfo: v.ObjectInfo.Copy(),
+		Func:       v.Func.Copy(nil),
+		Receiver:   v.Receiver.Copy(nil),
 	}
 }
 
@@ -884,11 +884,11 @@ type MapValue struct {
 	vmap map[MapKey]*MapListItem // nil if uninitialized
 }
 
-func (m *MapValue) DeepCopy() Object {
+func (mv *MapValue) DeepCopy() Object {
 	return &MapValue{
-		ObjectInfo: m.ObjectInfo.Copy(),
-		List:       deepCopyMapList(m.List),
-		vmap:       copyMap(m.vmap),
+		ObjectInfo: mv.ObjectInfo.Copy(),
+		List:       deepCopyMapList(mv.List),
+		vmap:       copyMap(mv.vmap),
 	}
 }
 
@@ -1113,9 +1113,9 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
-func (p *PackageValue) DeepCopy() Object {
-	pp := p.CopyValue().(*PackageValue)
-	return pp
+func (pv *PackageValue) DeepCopy() Object {
+	p := pv.CopyValue().(*PackageValue)
+	return p
 }
 
 func (pv *PackageValue) IsRealm() bool {

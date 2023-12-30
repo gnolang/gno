@@ -88,8 +88,8 @@ type defaultStore struct {
 	debugging *Debugging
 }
 
-func (d *defaultStore) Debug() *Debugging {
-	return d.debugging
+func (ds *defaultStore) Debug() *Debugging {
+	return ds.debugging
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {

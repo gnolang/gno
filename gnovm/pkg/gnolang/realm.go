@@ -100,57 +100,57 @@ type Realm struct {
 	debugging *Debugging
 }
 
-func (r *Realm) DeepCopy() *Realm {
-	if r == nil {
+func (rlm *Realm) DeepCopy() *Realm {
+	if rlm == nil {
 		return nil
 	}
 
-	newCreated := make([]Object, len(r.newCreated))
+	newCreated := make([]Object, len(rlm.newCreated))
 
-	for i, object := range r.newCreated {
+	for i, object := range rlm.newCreated {
 		newCreated[i] = object.DeepCopy()
 	}
 
-	newEscaped := make([]Object, len(r.newEscaped))
+	newEscaped := make([]Object, len(rlm.newEscaped))
 
-	for i, object := range r.newEscaped {
+	for i, object := range rlm.newEscaped {
 		newEscaped[i] = object.DeepCopy()
 	}
 
-	newDeleted := make([]Object, len(r.newDeleted))
+	newDeleted := make([]Object, len(rlm.newDeleted))
 
-	for i, object := range r.newDeleted {
+	for i, object := range rlm.newDeleted {
 		newDeleted[i] = object.DeepCopy()
 	}
 
-	created := make([]Object, len(r.created))
+	created := make([]Object, len(rlm.created))
 
-	for i, object := range r.created {
+	for i, object := range rlm.created {
 		created[i] = object.DeepCopy()
 	}
 
-	updated := make([]Object, len(r.updated))
+	updated := make([]Object, len(rlm.updated))
 
-	for i, object := range r.updated {
+	for i, object := range rlm.updated {
 		updated[i] = object.DeepCopy()
 	}
 
-	deleted := make([]Object, len(r.deleted))
+	deleted := make([]Object, len(rlm.deleted))
 
-	for i, object := range r.deleted {
+	for i, object := range rlm.deleted {
 		deleted[i] = object.DeepCopy()
 	}
 
-	escaped := make([]Object, len(r.escaped))
+	escaped := make([]Object, len(rlm.escaped))
 
-	for i, object := range r.escaped {
+	for i, object := range rlm.escaped {
 		escaped[i] = object.DeepCopy()
 	}
 
 	return &Realm{
-		ID:         r.ID,
-		Path:       r.Path,
-		Time:       r.Time,
+		ID:         rlm.ID,
+		Path:       rlm.Path,
+		Time:       rlm.Time,
 		newCreated: newCreated,
 		newEscaped: newEscaped,
 		newDeleted: newDeleted,

@@ -283,20 +283,20 @@ func (m *Machine) DeepCopy() *Machine {
 		s[i] = stmt.Copy().(Stmt)
 	}
 
-	var b []*Block
+	b := make([]*Block, len(m.Blocks))
 
-	for _, block := range m.Blocks {
+	for i, block := range m.Blocks {
 		bv := make([]TypedValue, len(block.Values))
 		copy(bv, block.Values)
 
-		b = append(b, &Block{
+		b[i] = &Block{
 			ObjectInfo: block.ObjectInfo.Copy(),
 			Source:     block.Source,
 			Values:     bv,
 			Parent:     block.Parent,
 			Blank:      block.Blank,
 			bodyStmt:   block.bodyStmt,
-		})
+		}
 	}
 
 	f := make([]Frame, len(m.Frames))
@@ -360,7 +360,7 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 			if tv.T.Kind() == FuncKind &&
 				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
 				cm := m.DeepCopy()
-				cm.TestFunc(t, tv)
+				cm.TestFunc(t, true, tv)
 			}
 		}
 	}
@@ -382,11 +382,8 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 
 			if tv.T.Kind() == FuncKind &&
 				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
-
 				cm := m.DeepCopy()
-
-				cm.TestFunc(t, tv)
-
+				cm.TestFunc(t, true, tv)
 			}
 		}
 	}
@@ -464,7 +461,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			m.TestFunc(t, tv)
+			m.TestFunc(t, false, tv)
 		}
 	}
 	{ // run all (import) tests in test files.
@@ -482,14 +479,14 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			m.TestFunc(t, tv)
+			m.TestFunc(t, false, tv)
 		}
 	}
 }
 
 // TestFunc calls tv with testing.RunTest, if tv is a function with a name that
 // starts with `Test`.
-func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
+func (m *Machine) TestFunc(t *testing.T, par bool, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
 		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
@@ -505,7 +502,10 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	testingcx := &ConstExpr{TypedValue: testingtv}
 
 	t.Run(name, func(t *testing.T) {
-		t.Parallel()
+		if par {
+			t.Parallel()
+		}
+
 		defer m.injectLocOnPanic()
 		x := Call(
 			Sel(testingcx, "RunTest"), // Call testing.RunTest
