@@ -44,7 +44,8 @@ var nativeFuncs = [...]nativeFunc{
 				m,
 			)
 
-			m.PushValue(gno.Go2GnoValue(m.Debugging,
+			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -63,7 +64,8 @@ var nativeFuncs = [...]nativeFunc{
 				m,
 			)
 
-			m.PushValue(gno.Go2GnoValue(m.Debugging,
+			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -124,7 +126,8 @@ var nativeFuncs = [...]nativeFunc{
 				m,
 				p0)
 
-			m.PushValue(gno.Go2GnoValue(m.Debugging,
+			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
