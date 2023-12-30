@@ -129,13 +129,19 @@ func (ds *defaultStore) DeepCopy() Store {
 		a = &*ds.alloc
 	}
 
+	cacheNativeTypes := make(map[reflect.Type]Type)
+
+	for r, t := range ds.cacheNativeTypes {
+		cacheNativeTypes[r] = t.DeepCopy()
+	}
+
 	return &defaultStore{
 		alloc:            a,
 		pkgGetter:        ds.pkgGetter,
 		cacheObjects:     cachedObjs,
 		cacheTypes:       cacheTypes,
 		cacheNodes:       ds.cacheNodes,
-		cacheNativeTypes: ds.cacheNativeTypes,
+		cacheNativeTypes: cacheNativeTypes,
 		baseStore:        ds.baseStore,
 		iavlStore:        ds.iavlStore,
 		pkgInjector:      ds.pkgInjector,

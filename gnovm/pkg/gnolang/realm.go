@@ -1287,6 +1287,8 @@ func fillType(store Store, typ Type) Type {
 		return nil
 	case PrimitiveType:
 		return ct
+	case *PrimitiveType:
+		return ct
 	case *PointerType:
 		ct.Elt = fillType(store, ct.Elt)
 		return ct

@@ -1334,8 +1334,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 // These bytes are used for both value hashes as well
 // as hash key bytes.
 func (tv *TypedValue) PrimitiveBytes() (data []byte) {
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
+	handle := func(bt *PrimitiveType) []byte {
 		switch bt.Val {
 		case BoolType:
 			if tv.GetBool() {
@@ -1397,6 +1396,12 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 				"unexpected primitive value type: %s",
 				bt.String()))
 		}
+	}
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1800,6 +1805,9 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		pbz := tv.PrimitiveBytes()
+		bz = append(bz, pbz...)
+	case *PrimitiveType:
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
@@ -2216,8 +2224,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
+	handle := func(bt *PrimitiveType) PointerValue {
 		if IsPrimitiveType(StringType, bt) || IsPrimitiveType(UntypedStringType, bt) {
 			sv := tv.GetString()
 			ii := iv.ConvertGetInt()
@@ -2236,6 +2243,12 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		panic(fmt.Sprintf(
 			"primitive type %s cannot be indexed",
 			tv.T.String()))
+	}
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := iv.ConvertGetInt()
@@ -2325,6 +2338,11 @@ func (tv *TypedValue) GetLength() int {
 				panic("should not happen")
 			}
 			return 0
+		case *PrimitiveType:
+			if !IsPrimitiveType(StringType, bt) {
+				panic("should not happen")
+			}
+			return 0
 		case *ArrayType:
 			return bt.Len
 		case *SliceType:
@@ -2404,6 +2422,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if IsPrimitiveType(StringType, t) || IsPrimitiveType(UntypedStringType, t) {
+			return TypedValue{
+				T: tv.T,
+				V: alloc.NewString(tv.GetString()[low:high]),
+			}
+		}
+		panic("non-string primitive type cannot be sliced")
+	case *PrimitiveType:
 		if IsPrimitiveType(StringType, t) || IsPrimitiveType(UntypedStringType, t) {
 			return TypedValue{
 				T: tv.T,

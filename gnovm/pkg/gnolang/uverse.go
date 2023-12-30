@@ -616,8 +616,7 @@ func UverseNode(debugging *Debugging) *PackageNode {
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
+				handle := func(bst *PrimitiveType) {
 					if m.Debugging.IsDebug() {
 						m.Debugging.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
@@ -661,6 +660,13 @@ func UverseNode(debugging *Debugging) *PackageNode {
 					}
 					res0.SetInt(minl)
 					m.PushValue(res0)
+				}
+				switch bst := baseOf(src.TV.T).(type) {
+				case PrimitiveType:
+					handle(&bst)
+					return
+				case *PrimitiveType:
+					handle(bst)
 					return
 				case *SliceType:
 					dstl := dst.TV.GetLength()

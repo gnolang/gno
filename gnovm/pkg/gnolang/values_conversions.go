@@ -53,8 +53,13 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 		if tIsNat {
 			// convert gno to go-native type.
 			rv := reflect.New(nt.Type).Elem()
-			rv = gno2GoValue(store.Debug(), tv, rv)
-			if store.Debug().IsDebug() {
+			var dbg *Debugging
+
+			if store != nil {
+				dbg = store.Debug()
+			}
+			rv = gno2GoValue(dbg, tv, rv)
+			if dbg.IsDebug() {
 				if !rv.Type().ConvertibleTo(nt.Type) {
 					panic(fmt.Sprintf(
 						"cannot convert %s to %s",
@@ -924,8 +929,8 @@ func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
 	if t == nil {
 		t = defaultTypeOf(tv.T)
 	}
-	switch tt := tv.T.(type) {
-	case PrimitiveType:
+
+	handle := func(tt *PrimitiveType) {
 		switch tt.Val {
 		case UntypedBoolType:
 			if tv.Debugging.IsDebug() {
@@ -961,6 +966,13 @@ func ConvertUntypedTo(p pState, tv *TypedValue, t Type) {
 				"unexpected untyped const type %s",
 				tv.T.String()))
 		}
+	}
+
+	switch tt := tv.T.(type) {
+	case PrimitiveType:
+		handle(&tt)
+	case *PrimitiveType:
+		handle(tt)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected untyped const type %s",

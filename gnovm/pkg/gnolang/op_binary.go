@@ -755,11 +755,8 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 
 // for doOpSub and doOpSubAssign.
 func subAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() - rv.GetInt())
 		case Int8Type:
@@ -809,6 +806,14 @@ func subAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators - and -= not defined for %s",
@@ -819,11 +824,8 @@ func subAssign(lv, rv *TypedValue) {
 
 // for doOpMul and doOpMulAssign.
 func mulAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() * rv.GetInt())
 		case Int8Type:
@@ -871,6 +873,14 @@ func mulAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators * and *= not defined for %s",
@@ -881,11 +891,8 @@ func mulAssign(lv, rv *TypedValue) {
 
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() / rv.GetInt())
 		case Int8Type:
@@ -935,6 +942,14 @@ func quoAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators / and /= not defined for %s",
@@ -945,11 +960,8 @@ func quoAssign(lv, rv *TypedValue) {
 
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() % rv.GetInt())
 		case Int8Type:
@@ -982,6 +994,14 @@ func remAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators %% and %%= not defined for %s",
@@ -992,11 +1012,8 @@ func remAssign(lv, rv *TypedValue) {
 
 // for doOpBand and doOpBandAssign.
 func bandAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() & rv.GetInt())
 		case Int8Type:
@@ -1029,6 +1046,14 @@ func bandAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators & and &= not defined for %s",
@@ -1039,11 +1064,8 @@ func bandAssign(lv, rv *TypedValue) {
 
 // for doOpBandn and doOpBandnAssign.
 func bandnAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() &^ rv.GetInt())
 		case Int8Type:
@@ -1076,6 +1098,14 @@ func bandnAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators &^ and &^= not defined for %s",
@@ -1086,11 +1116,8 @@ func bandnAssign(lv, rv *TypedValue) {
 
 // for doOpBor and doOpBorAssign.
 func borAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() | rv.GetInt())
 		case Int8Type:
@@ -1123,6 +1150,14 @@ func borAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators | and |= not defined for %s",
@@ -1133,11 +1168,8 @@ func borAssign(lv, rv *TypedValue) {
 
 // for doOpXor and doOpXorAssign.
 func xorAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE this block is replicated in op_assign.go
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() ^ rv.GetInt())
 		case Int8Type:
@@ -1170,6 +1202,14 @@ func xorAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE this block is replicated in op_assign.go
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators ^ and ^= not defined for %s",
@@ -1180,10 +1220,7 @@ func xorAssign(lv, rv *TypedValue) {
 
 // for doOpShl and doOpShlAssign.
 func shlAssign(lv, rv *TypedValue) {
-	// set the result in lv.
-	// NOTE: baseOf(rv.T) is always UintType.
-	switch t := baseOf(lv.T).(type) {
-	case PrimitiveType:
+	handle := func(t *PrimitiveType) {
 		switch t.Val {
 		case IntType:
 			lv.SetInt(lv.GetInt() << rv.GetUint())
@@ -1217,6 +1254,14 @@ func shlAssign(lv, rv *TypedValue) {
 				lv.T,
 			))
 		}
+	}
+	// set the result in lv.
+	// NOTE: baseOf(rv.T) is always UintType.
+	switch t := baseOf(lv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf(
 			"operators << and <<= not defined for %s",

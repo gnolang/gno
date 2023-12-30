@@ -88,6 +88,8 @@ func (p PrimitiveType) DeepCopy() Type {
 func IsPrimitiveType(ptv PrimitiveTypeValue, t Type) bool {
 	if a, ok := t.(PrimitiveType); ok {
 		return a.Val == ptv
+	} else if a, ok := t.(*PrimitiveType); ok {
+		return a.Val == ptv
 	}
 	return false
 }
@@ -2291,8 +2293,7 @@ const (
 
 // This is generally slower than switching on baseOf(t).
 func KindOf(t Type) Kind {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
+	handle := func(t *PrimitiveType) Kind {
 		switch t.Val {
 		case InvalidType:
 			panic("invalid type has no kind")
@@ -2331,6 +2332,12 @@ func KindOf(t Type) Kind {
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
 		}
+	}
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	case *DeclaredType:
 		panic("unexpected nested DeclaredType")
 	case FieldType:
@@ -2432,28 +2439,38 @@ func assertEqualityTypes(debugging *Debugging, lt, rt Type) {
 // misc
 
 func isUntyped(t Type) bool {
-	switch t := t.(type) {
-	case PrimitiveType:
+	handle := func(t *PrimitiveType) bool {
 		switch t.Val {
 		case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
 			return true
 		default:
 			return false
 		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		return false
 	}
 }
 
 func isDataByte(t Type) bool {
-	switch t := t.(type) {
-	case PrimitiveType:
+	handle := func(t *PrimitiveType) bool {
 		switch t.Val {
 		case DataByteType:
 			return true
 		default:
 			return false
 		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		return false
 	}
@@ -2462,8 +2479,7 @@ func isDataByte(t Type) bool {
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
 func defaultTypeOf(t Type) Type {
-	switch t := t.(type) {
-	case PrimitiveType:
+	handle := func(t *PrimitiveType) *PrimitiveType {
 		switch t.Val {
 		case UntypedBoolType:
 			return &PrimitiveType{Val: BoolType, Debugging: t.Debugging}
@@ -2478,6 +2494,12 @@ func defaultTypeOf(t Type) Type {
 		default:
 			panic("unexpected type for default untyped const conversion")
 		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		panic("unexpected type for default untyped const conversion")
 	}
@@ -2487,20 +2509,8 @@ func fillEmbeddedName(ft *FieldType) {
 	if ft.Name != "" {
 		return
 	}
-	switch ct := ft.Type.(type) {
-	case *PointerType:
-		// dereference one level
-		switch ct := ct.Elt.(type) {
-		case *DeclaredType:
-			ft.Name = ct.Name
-		case *NativeType:
-			panic("native type cannot be embedded")
-		default:
-			panic("should not happen")
-		}
-	case *DeclaredType:
-		ft.Name = ct.Name
-	case PrimitiveType:
+
+	handle := func(ct *PrimitiveType) {
 		switch ct.Val {
 		case BoolType:
 			ft.Name = "bool"
@@ -2537,6 +2547,25 @@ func fillEmbeddedName(ft *FieldType) {
 		default:
 			panic("should not happen")
 		}
+	}
+
+	switch ct := ft.Type.(type) {
+	case *PointerType:
+		// dereference one level
+		switch ct := ct.Elt.(type) {
+		case *DeclaredType:
+			ft.Name = ct.Name
+		case *NativeType:
+			panic("native type cannot be embedded")
+		default:
+			panic("should not happen")
+		}
+	case *DeclaredType:
+		ft.Name = ct.Name
+	case PrimitiveType:
+		handle(&ct)
+	case *PrimitiveType:
+		handle(ct)
 	case *NativeType:
 		panic("native type cannot be embedded")
 	default:
@@ -2602,8 +2631,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				spec.Kind()))
 		}
 	case *SliceType:
-		switch st := baseOf(spec).(type) {
-		case PrimitiveType:
+		handle := func(st *PrimitiveType) {
 			prv := &PrimitiveType{Val: Uint8Type, Debugging: store.Debug()}
 
 			if isGeneric(ct.Elt) {
@@ -2623,6 +2651,12 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 					"expected slice kind (or string type) but got %s",
 					spec.Kind()))
 			}
+		}
+		switch st := baseOf(spec).(type) {
+		case PrimitiveType:
+			handle(&st)
+		case *PrimitiveType:
+			handle(st)
 		case *SliceType:
 			specifyType(store, lookup, ct.Elt, st.Elt, nil)
 		case *NativeType:

@@ -352,7 +352,6 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		m.SetActivePackage(pv)
 		// run test files.
 		m.RunFiles(tfiles.Files...)
-		var w sync.WaitGroup
 
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
@@ -360,12 +359,10 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 
 			if tv.T.Kind() == FuncKind &&
 				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
-				w.Add(1)
 				cm := m.DeepCopy()
-				cm.TestFunc(&w, t, tv)
+				cm.TestFunc(t, tv)
 			}
 		}
-		w.Wait()
 	}
 
 	{ // run all (import) tests in test files.
@@ -380,22 +377,18 @@ func (m *Machine) TestMemPackagePar(t *testing.T, memPkg *std.MemPackage) {
 		m.Debugging.EnableDebug()
 		fmt.Println("DEBUG ENABLED")
 
-		var w sync.WaitGroup
-
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
 			if tv.T.Kind() == FuncKind &&
 				strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test") {
 
-				w.Add(1)
 				cm := m.DeepCopy()
 
-				cm.TestFunc(&w, t, tv)
+				cm.TestFunc(t, tv)
 
 			}
 		}
-		w.Wait()
 	}
 }
 
@@ -471,7 +464,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			m.TestFunc(nil, t, tv)
+			m.TestFunc(t, tv)
 		}
 	}
 	{ // run all (import) tests in test files.
@@ -489,19 +482,14 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 
-			m.TestFunc(nil, t, tv)
+			m.TestFunc(t, tv)
 		}
 	}
 }
 
 // TestFunc calls tv with testing.RunTest, if tv is a function with a name that
 // starts with `Test`.
-func (m *Machine) TestFunc(w *sync.WaitGroup, t *testing.T, tv TypedValue) {
-	defer func() {
-		if w != nil {
-			w.Done()
-		}
-	}()
+func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
 		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.

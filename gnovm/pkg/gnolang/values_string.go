@@ -415,8 +415,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	}
 	vs := ""
 	if tv.V == nil {
-		switch t := baseOf(tv.T).(type) {
-		case PrimitiveType:
+		handle := func(t *PrimitiveType) {
 			switch t.Val {
 			case BoolType, UntypedBoolType:
 				vs = fmt.Sprintf("%t", tv.GetBool())
@@ -452,6 +451,12 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 			default:
 				vs = nilStr
 			}
+		}
+		switch t := baseOf(tv.T).(type) {
+		case PrimitiveType:
+			handle(&t)
+		case *PrimitiveType:
+			handle(t)
 		default:
 			vs = nilStr
 		}

@@ -22,11 +22,8 @@ func (m *Machine) doOpUneg() {
 	}
 	xv := m.PeekValue(1)
 
-	// Switch on the base type.
-	// NOTE: this is faster than computing the kind of kv.T.
-	switch t := baseOf(xv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			xv.SetInt(-xv.GetInt())
 		case Int8Type:
@@ -61,6 +58,15 @@ func (m *Machine) doOpUneg() {
 			panic(fmt.Sprintf("unexpected type %s in operation",
 				baseOf(xv.T)))
 		}
+	}
+
+	// Switch on the base type.
+	// NOTE: this is faster than computing the kind of kv.T.
+	switch t := baseOf(xv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	case nil:
 		// NOTE: for now only BigintValue is possible.
 		bv := xv.V.(BigintValue)
@@ -78,16 +84,22 @@ func (m *Machine) doOpUnot() {
 	}
 	xv := m.PeekValue(1)
 
-	// Switch on the base type.
-	switch t := baseOf(xv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			xv.SetBool(!xv.GetBool())
 		default:
 			panic(fmt.Sprintf("unexpected type %s in operation",
 				baseOf(xv.T)))
 		}
+	}
+
+	// Switch on the base type.
+	switch t := baseOf(xv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))
@@ -101,10 +113,8 @@ func (m *Machine) doOpUxor() {
 	}
 	xv := m.PeekValue(1)
 
-	// Switch on the base type.
-	switch t := baseOf(xv.T).(type) {
-	case PrimitiveType:
-		switch t.Val {
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case IntType:
 			xv.SetInt(^xv.GetInt())
 		case Int8Type:
@@ -132,6 +142,14 @@ func (m *Machine) doOpUxor() {
 			panic(fmt.Sprintf("unexpected type %s in operation",
 				baseOf(xv.T)))
 		}
+	}
+
+	// Switch on the base type.
+	switch t := baseOf(xv.T).(type) {
+	case PrimitiveType:
+		handle(&t)
+	case *PrimitiveType:
+		handle(t)
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))

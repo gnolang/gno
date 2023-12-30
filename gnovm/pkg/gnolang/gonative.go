@@ -1017,9 +1017,9 @@ func gno2GoTypeMatches(debugging *Debugging, t Type, rt reflect.Type) (result bo
 	} else if IsPrimitiveType(Float64Type, t) {
 		return rt.Kind() == reflect.Float64
 	}
-	switch ct := baseOf(t).(type) {
-	case PrimitiveType:
-		switch ct.Val {
+
+	handle := func(p *PrimitiveType) bool {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			return rt.Kind() == reflect.Bool
 		case StringType, UntypedStringType:
@@ -1055,6 +1055,12 @@ func gno2GoTypeMatches(debugging *Debugging, t Type, rt reflect.Type) (result bo
 		default:
 			panic("should not happen")
 		}
+	}
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&ct)
+	case *PrimitiveType:
+		return handle(ct)
 	case *PointerType:
 		if rt.Kind() != reflect.Ptr {
 			return false
