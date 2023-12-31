@@ -49,7 +49,6 @@ const sidebars = {
                         'concepts/standard-library/overview',
                         'concepts/standard-library/banker',
                         'concepts/standard-library/coin',
-                        'concepts/standard-library/testing',
                         'concepts/standard-library/gnopher-hole-stdlib',
                     ]
                 },
@@ -92,6 +91,7 @@ const sidebars = {
                                 'reference/standard-library/std/coin',
                                 'reference/standard-library/std/coins',
                                 'reference/standard-library/std/chain',
+                                'reference/standard-library/std/testing',
                             ]
                         }
                     ]

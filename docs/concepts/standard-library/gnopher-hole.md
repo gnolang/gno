@@ -65,17 +65,6 @@ bindings, which are the following:
   You can add an identifier to the import to fix this and use the identifier
   you want/need, such as `import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"`.
 
-## Test standard libraries
-
-There are some additional standard library functions and packages which are
-currently available only in `_test.gno` and `_filetest.gno` files. At the time
-of writing, these are only some additions in the `std` package to support
-changing some values in test functions.
-
-`gno doc` currently doesn't support reading from the test standard libraries,
-though support is planned to be added. For now, you can inspect the directory
-`gnovm/tests/stdlibs`.
-
 ## Adding new standard libraries
 
 New standard libraries may be added by simply creating a new directory (whose

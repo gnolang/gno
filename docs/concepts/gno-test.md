@@ -80,3 +80,11 @@ Replacing the second test case with the following will successfully fix the issu
   	}
   }
 ```
+
+## Test standard libraries
+
+Some functions and packages in the standard library are exclusively accessible 
+in `_test.gno` and `_filetest.gno` files. These are located in the std package. Their primary role
+is to alter the blockchain context for test runs, such as changing the block height and the transaction caller.
+
+For detailed information on these functions, refer to their [reference page](../reference/standard-library/std/testing.md).
