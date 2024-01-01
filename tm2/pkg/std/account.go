@@ -5,6 +5,11 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+
+	_ "github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	_ "github.com/gnolang/gno/tm2/pkg/crypto/mock"
+	_ "github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	_ "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 // Account is an interface used to store coins at a given address within state.
