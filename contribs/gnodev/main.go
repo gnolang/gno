@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -60,7 +61,9 @@ additional specified paths.`,
 		})
 
 	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
+		if !errors.Is(err, flag.ErrHelp) {
+			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		}
 		os.Exit(1)
 	}
 }
