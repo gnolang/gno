@@ -152,3 +152,19 @@ func TestImport_ImportKey(t *testing.T) {
 		})
 	}
 }
+
+func TestImport_ImportKeyWithEmptyName(t *testing.T) {
+	// Generate a temporary key-base directory
+	_, kbHome := newTestKeybase(t)
+	err := importKey(
+		testImportKeyOpts{
+			testCmdKeyOptsBase: testCmdKeyOptsBase{
+				kbHome:  kbHome,
+				keyName: "",
+			},
+		},
+		nil,
+	)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "name shouldn't be empty")
+}
