@@ -1,4 +1,4 @@
-ƒ---
+---
 id: rpc-endpoints
 ---
 
