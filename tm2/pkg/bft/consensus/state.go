@@ -226,8 +226,9 @@ func (cs *ConsensusState) GetLastHeight() int64 {
 // GetRoundState returns a shallow copy of the internal consensus state.
 func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 	cs.mtx.RLock()
+	defer cs.mtx.RUnlock()
+
 	rs := cs.RoundState // copy
-	cs.mtx.RUnlock()
 	return &rs
 }
 
@@ -661,9 +662,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	cs.mtx.Lock()
-	defer cs.mtx.Unlock()
-
 	var (
 		added bool
 		err   error
@@ -686,13 +684,14 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 			err = nil
 		}
 	case *VoteMessage:
+		cs.mtx.Lock()
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		added, err = cs.tryAddVote(msg.Vote, peerID)
 		if added {
 			cs.statsMsgQueue <- mi
 		}
-
+		cs.mtx.Unlock()
 		// if err == ErrAddingVote {
 		// TODO: punish peer
 		// We probably don't want to stop the peer here. The vote does not
@@ -1374,6 +1373,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
+	cs.mtx.RLock()
 	// Already have one
 	// TODO: possibly catch double proposals
 	if cs.Proposal != nil {
@@ -1382,28 +1382,37 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 
 	// Does not apply
 	if proposal.Height != cs.Height || proposal.Round != cs.Round {
+		cs.mtx.RUnlock()
 		return nil
 	}
 
 	// Verify POLRound, which must be -1 or in range [0, proposal.Round).
 	if proposal.POLRound < -1 ||
 		(proposal.POLRound >= 0 && proposal.POLRound >= proposal.Round) {
+		cs.mtx.RUnlock()
 		return ErrInvalidProposalPOLRound
 	}
 
 	// Verify signature
 	if !cs.Validators.GetProposer().PubKey.VerifyBytes(proposal.SignBytes(cs.state.ChainID), proposal.Signature) {
+		cs.mtx.RUnlock()
 		return ErrInvalidProposalSignature
 	}
+
+	cs.Logger.Info("Received proposal", "proposal", proposal)
 
 	cs.Proposal = proposal
 	// We don't update cs.ProposalBlockParts if it is already set.
 	// This happens if we're already in cstypes.RoundStepCommit or if there is a valid block in the current round.
 	// TODO: We can check if Proposal is for a different block as this is a sign of misbehavior!
 	if cs.ProposalBlockParts == nil {
+		cs.mtx.RUnlock()
+		cs.mtx.Lock()
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartsHeader)
+		cs.mtx.Unlock()
+		return nil
 	}
-	cs.Logger.Info("Received proposal", "proposal", proposal)
+
 	return nil
 }
 

@@ -242,9 +242,9 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			ps.ApplyHasVoteMessage(msg)
 		case *VoteSetMaj23Message:
 			cs := conR.conS
-			cs.mtx.Lock()
+			cs.mtx.RLock()
 			height, votes := cs.Height, cs.Votes
-			cs.mtx.Unlock()
+			cs.mtx.RUnlock()
 			if height != msg.Height {
 				return
 			}
@@ -324,9 +324,9 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		switch msg := msg.(type) {
 		case *VoteSetBitsMessage:
 			cs := conR.conS
-			cs.mtx.Lock()
+			cs.mtx.RLock()
 			height, votes := cs.Height, cs.Votes
-			cs.mtx.Unlock()
+			cs.mtx.RUnlock()
 
 			if height == msg.Height {
 				var ourVotes *bitarray.BitArray
