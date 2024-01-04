@@ -143,16 +143,16 @@ type JSONRPCClient struct {
 	id      types.JSONRPCStringID
 }
 
-// JSONRPCCaller implementers can facilitate calling the JSON RPC endpoint.
-type JSONRPCCaller interface {
+// RPCCaller implementers can facilitate calling the JSON RPC endpoint.
+type RPCCaller interface {
 	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
 }
 
 // Both JSONRPCClient and JSONRPCRequestBatch can facilitate calls to the JSON
 // RPC endpoint.
 var (
-	_ JSONRPCCaller = (*JSONRPCClient)(nil)
-	_ JSONRPCCaller = (*JSONRPCRequestBatch)(nil)
+	_ RPCCaller = (*JSONRPCClient)(nil)
+	_ RPCCaller = (*JSONRPCRequestBatch)(nil)
 )
 
 // NewJSONRPCClient returns a JSONRPCClient pointed at the given address.
