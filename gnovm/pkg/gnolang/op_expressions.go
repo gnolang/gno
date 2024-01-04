@@ -677,11 +677,60 @@ func (m *Machine) doOpStructLit() {
 	})
 }
 
-func (m *Machine) doOpFuncLit() {
-	x := m.PopExpr().(*FuncLitExpr)
-	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+type closureObject struct {
+	data map[string]interface{}
+}
+
+func (m *Machine) doOpPreFuncLit() {
+	debug.Println("-----doOpPreFuncLit")
+	x := m.PeekExpr(1).(*FuncLitExpr)
 	lb := m.LastBlock()
+	b := m.Alloc.NewBlock(x, lb)
+	m.PushBlock(b)
+	m.PushOp(OpPopBlock)
+
+	closure := x.Closure
+	for i, nx := range closure.nxs {
+		debug.Printf("closure[%s]: %v \n", i, nx)
+		m.PushExpr(nx)
+		m.PushOp(OpEval)
+	}
+}
+
+func (m *Machine) doOpFuncLit() {
+	debug.Println("-----doOpFuncLit")
+	x := m.PopExpr().(*FuncLitExpr)
+	lb := m.LastBlock()
+	debug.Printf("lb: %v \n", lb)
+
+	captured := &Captured{}
+	for _, nx := range x.Closure.nxs {
+		debug.Printf("range closures of : %s \n", string(nx.Name))
+		v := *m.PopValue()
+		if !v.IsUndefined() { // e.g. args of func. forward
+			debug.Printf("capturing v: %v \n", v)
+			captured.names = append(captured.names, nx.Name)
+			captured.values = append(captured.values, v)
+		} else {
+			debug.Println("undefined, skip")
+		}
+
+		//var index int
+		//for i, n := range names {
+		//	if name == n { // match and replace
+		//		index = i
+		//		debug.Printf("index of %s is: %d \n", name, index)
+		//		// replace lv values with index
+		//		nb.UpdateValue(index, v)
+		//	}
+		//}
+	}
+	debug.Printf("---captured: %v \n", captured)
+
+	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+
 	m.Alloc.AllocateFunc()
+
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -690,11 +739,11 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
+			Captures:   captured,
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
-		},
-	})
+		}})
 }
 
 func (m *Machine) doOpConvert() {

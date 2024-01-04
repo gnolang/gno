@@ -1605,6 +1605,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 //	     runtime: *TV.GetPointerTo(path)
 //	               -> *DT.GetValueAt(path)
 func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
+	debug.Printf("-----GetValueAt: %v \n", path)
 	switch path.Type {
 	case VPInterface:
 		panic("should not happen")
@@ -1616,7 +1617,9 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 			// Fill in *FV.Closure.
 			ft := mtv.T
 			fv := mtv.V.(*FuncValue).Copy(alloc)
+			debug.Printf("fv: %v \n", fv)
 			fv.Closure = fv.GetClosure(store)
+			debug.Printf("closure: %v \n", fv.Closure)
 			return TypedValue{T: ft, V: fv}
 		} else {
 			panic("DeclaredType.GetValueAt() expects depth == 0")

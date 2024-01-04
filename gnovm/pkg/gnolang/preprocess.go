@@ -8,6 +8,100 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+var closures []*Closure
+var fxs []*FuncLitExpr
+
+func init() {
+	closures = make([]*Closure, 0)
+	fxs = make([]*FuncLitExpr, 0)
+}
+
+func pushClosure(c *Closure) {
+	closures = append(closures, c)
+}
+
+func popClosure() {
+	debug.Println("-c")
+	if len(closures) != 0 {
+		closures = closures[:len(closures)-1]
+	}
+}
+
+func pushFxs(fx *FuncLitExpr) {
+	fxs = append(fxs, fx)
+}
+
+func popFx() {
+	debug.Println("-fx")
+	if len(fxs) != 0 {
+		fxs = fxs[:len(fxs)-1]
+	}
+}
+
+func dumpFxs() {
+	println("============Dump fxs===========")
+	println("len: ", len(fxs))
+	for i, fx := range fxs {
+		fmt.Printf("fx[%d]: %v\n", i, fx)
+	}
+	println("============end===============")
+	println("\n")
+}
+func dumpClosures() {
+	println("============Dump closures=======")
+	println("len: ", len(closures))
+	for _, c := range closures {
+		for i, name := range c.names {
+			fmt.Printf("name[%s]: %v\n", i, name)
+		}
+		for i, nx := range c.nxs {
+			fmt.Printf("nx[%s]: %v\n", i, nx)
+		}
+		//for i, fx := range c.Fxs {
+		//	fmt.Printf("fx[%d]: %v\n", i, fx)
+		//}
+	}
+	println("============end===============")
+	println("\n")
+}
+
+func currentClosure() *Closure {
+	if len(closures) == 0 {
+		return nil
+	}
+	return closures[len(closures)-1]
+}
+
+func currentFx() *FuncLitExpr {
+	if len(fxs) == 0 {
+		return nil
+	}
+	return fxs[len(fxs)-1]
+}
+
+type Closure struct {
+	//nxs   map[Name]*NameExpr
+	names []Name
+	nxs   []*NameExpr
+	//Fxs map[string]FuncLitExpr
+}
+
+func NewClosure() *Closure {
+	return &Closure{}
+}
+
+func (clo *Closure) Push(nx *NameExpr, fx *FuncLitExpr) {
+	debug.Printf("+nx: %v \n", nx)
+	debug.Printf("+fx: %v \n", fx)
+	clo.names = append(clo.names, nx.Name)
+	clo.nxs = append(clo.nxs, nx)
+}
+
+//func (clo *Closure) Pop() {
+//	clo.nxs = clo.nxs[:len(clo.nxs)-1]
+//	clo.Fxs = clo.Fxs[:len(clo.Fxs)-1]
+//}
+
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
@@ -222,6 +316,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
+				debug.Println("-----trans enter Decls")
+				debug.Printf("node: %v \n", n)
 				// NOTE func decl usually must happen with a
 				// file, and so last is usually a *FileNode,
 				// but for testing convenience we allow
@@ -275,6 +371,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
+				debugPP.Println("-----ForStmt-----")
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -287,12 +384,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
+				debugPP.Printf("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
 					tv := ifs.GetValueRef(nil, n)
+					debugPP.Printf("tv : %v, *tv: %v \n", tv, *tv)
 					last.Define(n, *tv)
 				}
 
@@ -356,16 +455,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *FuncLitExpr:
+				debug.Println("---PP funcLitExpr")
+
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 				// define parameters in new block.
 				for _, p := range ft.Params {
+					debug.Println("---PP define params")
 					last.Define(p.Name, anyValue(p.Type))
 				}
 				// define results in new block.
 				for i, rf := range ft.Results {
+					debug.Println("---PP define results")
 					if 0 < len(rf.Name) {
 						last.Define(rf.Name, anyValue(rf.Type))
 					} else {
@@ -375,6 +478,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
+				debug.Println("---PP funcLitExpr end---")
 
 			// TRANS_BLOCK -----------------------
 			case *SelectCaseStmt:
@@ -635,6 +739,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				debug.Println("---PP NameExpr")
+				debug.Println("---PP NameExpr, ftype: ", ftype)
+
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -742,6 +849,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
+				//popClosure()
+				//popFx()
 
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
@@ -1979,7 +2088,7 @@ func pushRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	// anything declared in orig are copied.
 	for _, n := range orig.GetBlockNames() {
 		tv := orig.GetValueRef(nil, n)
-		bn.Define(n, *tv)
+		bn.Define(n, *tv) // pointer, actually
 	}
 }
 
@@ -2985,6 +3094,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
 func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
+	debug.Println("-----tryPredefine")
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
 	}

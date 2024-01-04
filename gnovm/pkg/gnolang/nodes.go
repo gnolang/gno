@@ -494,9 +494,14 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type    FuncTypeExpr // function type
+	Body                 // function body
+	Closure Closure
 }
+
+//type ClosureObject struct {
+//	StaticBlock
+//}
 
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
@@ -1348,6 +1353,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+	debug.Println("-----PrepareNewValues")
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
 		// TODO: double check to see if still relevant.
@@ -1375,6 +1381,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 				// copy function value and assign closure from package value.
 				fv = fv.Copy(nilAllocator)
 				fv.Closure = pv.fBlocksMap[fv.FileName]
+				debug.Printf("fv.Closure: %v \n", fv.Closure)
 				if fv.Closure == nil {
 					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 				}
@@ -1588,6 +1595,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
+	//debug.Printf("-----GetPathForName: %v \n", n)
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_")
 	}
@@ -1701,6 +1709,7 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
+	//debug.Printf("GetLocalIndex: %v \n", n)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {

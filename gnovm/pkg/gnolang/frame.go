@@ -31,7 +31,7 @@ type Frame struct {
 func (fr Frame) String() string {
 	if fr.Func != nil {
 		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v]",
-			fr.Func,
+			*fr.Func,
 			fr.Receiver,
 			fr.NumArgs,
 			fr.NumOps,

@@ -148,6 +148,23 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	// visit any children of n.
 	switch cnn := nn.(type) {
 	case *NameExpr:
+		debug.Printf("-----trans, nameExpr: %v \n", cnn)
+		//dumpClosures()
+		//dumpFxs()
+		// TODO: how to filter out unrelated namedExpr
+		// set current closure
+		// TODO: do we need to filter out already define in current block
+		currentClo := currentClosure()
+		debug.Printf("currentClo: %v \n", currentClo)
+
+		if currentClo != nil {
+			currentClo.Push(cnn, currentFx())
+			currentFx := currentFx()
+			currentFx.Closure = *currentClo
+
+			dumpClosures()
+			dumpFxs()
+		}
 	case *BasicLitExpr:
 	case *BinaryExpr:
 		cnn.Left = transcribe(t, nns, TRANS_BINARY_LEFT, 0, cnn.Left, &c).(Expr) // XXX wished this worked with nil.
@@ -260,6 +277,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn.Elts[idx] = KeyValueExpr{Key: k, Value: v}
 		}
 	case *FuncLitExpr:
+		debug.Printf("-----trans, funcLitExpr: %v \n", cnn)
+		dumpClosures()
+		dumpFxs()
+
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
 			return
@@ -271,14 +292,29 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FuncLitExpr)
 		}
+
+		debug.Println("---start trans funcLit body stmt")
+		debug.Println("push target closure and fx")
+		pushClosure(NewClosure())
+		pushFxs(cnn)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
+
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
+				// pop before return
+				debug.Printf("---stop or skip, pop and return \n")
+				popClosure()
+				popFx()
+
 				return
 			}
 		}
+		// defer pop
+		debug.Printf("---done trans body \n")
+		popClosure()
+		popFx()
 	case *FieldTypeExpr:
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
 		if isStopOrSkip(nc, c) {
@@ -534,6 +570,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *ReturnStmt:
+		debug.Printf("-----trans, return stmt: %v \n", cnn)
 		for idx := range cnn.Results {
 			cnn.Results[idx] = transcribe(t, nns, TRANS_RETURN_RESULT, idx, cnn.Results[idx], &c).(Expr)
 			if isBreak(c) {

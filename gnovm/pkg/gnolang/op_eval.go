@@ -306,7 +306,41 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
 	case *FuncLitExpr:
+		debug.Println("-----FuncLitExpr")
+		b := m.LastBlock()
+		debug.Printf("b: %v \n", b)
+		//debug.Printf("x: %v, body: %v \n", x, x.GetBody())
+		//
+		//bk := x.GetBlock()
+		//bs := x.GetBodyStmt()
+		//names := x.GetBlockNames()
+		//by := x.GetBody()
+		// TODO: capture
+		// 1. span slice for funcLitExpr in preprocess
+		// 2. set value in eval funcLitExpr
+		// 3. add interceptor to nameExpr evaluation process, namely, use captured vars
+
+		// block structure
+		// for block
+		//    funcLitBlock
+
+		//debug.Printf("body:%v\n", by)
+		//debug.Printf("bodyStmt:%v \n", bs)
+		//debug.Printf("block:%v \n", bk)
+		//debug.Printf("names:%v \n", names)
+
+		//bn := m.Alloc.NewBlock(x, m.LastBlock())
+		//b.bodyStmt = bodyStmt{
+		//	Body:          x.Body,
+		//	BodyLen:       len(x.Body),
+		//	NextBodyIndex: -2,
+		//}
+		//debug.Printf("bn: %v \n", bn)
+		//m.PushBlock(bn)
+		//m.PushOp(OpPopBlock)
+
 		m.PushOp(OpFuncLit)
+		m.PushOp(OpPreFuncLit)
 		// evaluate func type
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)

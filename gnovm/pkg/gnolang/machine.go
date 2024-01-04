@@ -905,6 +905,7 @@ const (
 	OpStructLit    Op = 0x50 // X{...}
 	OpFuncLit      Op = 0x51 // func(T){Body}
 	OpConvert      Op = 0x52 // Y(X)
+	OpPreFuncLit   Op = 0x53 //
 
 	/* Native operators */
 	OpArrayLitGoNative  Op = 0x60
@@ -1038,6 +1039,7 @@ const (
 	OpCPUMapLit       = 1
 	OpCPUStructLit    = 1
 	OpCPUFuncLit      = 1
+	OpCPUPreFuncLit   = 1
 	OpCPUConvert      = 1
 
 	/* Native operators */
@@ -1291,6 +1293,9 @@ func (m *Machine) Run() {
 		case OpFuncLit:
 			m.incrCPU(OpCPUFuncLit)
 			m.doOpFuncLit()
+		case OpPreFuncLit:
+			m.incrCPU(OpCPUPreFuncLit)
+			m.doOpPreFuncLit()
 		case OpMapLit:
 			m.incrCPU(OpCPUMapLit)
 			m.doOpMapLit()
@@ -1628,7 +1633,8 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 
 func (m *Machine) PushBlock(b *Block) {
 	if debug {
-		m.Println("+B")
+		//m.Println("+B")
+		m.Printf("+B: %v \n", b)
 	}
 	m.Blocks = append(m.Blocks, b)
 }

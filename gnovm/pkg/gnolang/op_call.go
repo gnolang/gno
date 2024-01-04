@@ -8,7 +8,10 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
+
+	debug.Printf("-----doOpPrecall------callExpr :%v \n", cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
+	debug.Printf("-----doOpPrecall------v :%v \n", v)
 	if debug {
 		if v == nil {
 			// This may happen due to an undefined uverse or
@@ -19,6 +22,9 @@ func (m *Machine) doOpPrecall() {
 	}
 	switch fv := v.(type) {
 	case *FuncValue:
+		debug.Printf("-----funcValue: %v------ \n", fv)
+		debug.Printf("-----body: %v------ \n", fv.GetBodyFromSource(m.Store))
+
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
@@ -46,6 +52,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug.Println("-----doOpCall-----")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -56,6 +63,33 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
+	//debug.Printf("-----fv: %v ----- \n", fv)
+	//debug.Printf("-----ft: %v ----- \n", ft)
+	debug.Printf("-----got closure: %v ----- \n", clo)
+	//debug.Printf("-----func source: %v ----- \n", fr.Func.GetClosure(m.Store))
+	debug.Println("----------")
+	//debugPP.Printf("-----new block for closure: %v ----- \n", b)
+	// TODO: update b here using captured vars
+	captures := fr.Func.Captures
+	if captures != nil {
+		debug.Printf("captures before call: %v, len(names): %d, len(values): %d \n", *captures, len(captures.names), len(captures.values))
+		names := clo.GetSource(m.Store).GetBlockNames()
+		debug.Printf("names: %v \n", names)
+		for i1, n1 := range captures.names {
+			var index int
+			for i2, n2 := range names {
+				if n1 == n2 { // match and replace
+					index = i2
+					debug.Printf("index of %s in target block is: %d \n", n1, index)
+					debug.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
+					// replace lv values with index
+					clo.UpdateValue(index, captures.values[i1])
+				}
+			}
+		}
+	}
+	fr.Func.Captures = nil
+
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
@@ -67,6 +101,7 @@ func (m *Machine) doOpCall() {
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
+		debug.Printf("fbody: %v \n", fbody)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only

@@ -513,6 +513,11 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	return alloc.NewStruct(fields)
 }
 
+type Captured struct {
+	names  []Name
+	values []TypedValue
+}
+
 // ----------------------------------------
 // FuncValue
 
@@ -532,7 +537,8 @@ type FuncValue struct {
 	Source     BlockNode // for block mem allocation
 	Name       Name      // name of function/method
 	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName   Name      // file name where declared
+	Captures   *Captured
+	FileName   Name // file name where declared
 	PkgPath    string
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
@@ -612,8 +618,10 @@ func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 // file-level declared methods and functions. For those, caller
 // should set .Closure manually after *FuncValue.Copy().
 func (fv *FuncValue) GetClosure(store Store) *Block {
+	debug.Println("-----GetClosure")
 	switch cv := fv.Closure.(type) {
 	case nil:
+		debug.Println("-----nil")
 		if fv.FileName == "" {
 			return nil
 		}
@@ -624,10 +632,12 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 		}
 		return fb
 	case RefValue:
+		debug.Printf("-----RefValue, cv.ObjectID: %v \n", cv.ObjectID)
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Closure = block
 		return block
 	case *Block:
+		debug.Println("-----block")
 		return cv
 	default:
 		panic("should not happen")
@@ -1557,6 +1567,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	debug.Printf("Assign, tv:%v, tv2:%v \n", tv, tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1570,6 +1581,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 		}
 	}
 	*tv = tv2.Copy(alloc)
+	debug.Printf("*tv: %+v \n", *tv)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -2252,6 +2264,17 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
+func (b *Block) UpdateValue(index int, tv TypedValue) {
+	debug.Printf("-----UpdateValue, index: %d, tv: %v \n", index, tv)
+	debug.Printf("b before update: %v \n", b)
+	for i, _ := range b.Values {
+		if i == index {
+			b.Values[i] = tv
+		}
+	}
+	debug.Printf("b after update: %v \n", b)
+}
+
 func (b *Block) String() string {
 	return b.StringIndented("    ")
 }
@@ -2310,6 +2333,9 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	debug.Printf("GetPointerToInt, index: %d \n", index)
+	debug.Printf("b: %v \n", b)
+	debug.Printf("len of values: %v \n", len(b.Values))
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2319,6 +2345,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	debug.Printf("-----GetPointerTo, path : %v\n", path)
+	debug.Printf("b: %v \n", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {

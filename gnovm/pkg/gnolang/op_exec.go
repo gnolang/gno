@@ -54,6 +54,7 @@ func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
+		debug.Printf("op: %v\n", op)
 		debug.Printf("%v\n", m)
 	}
 
@@ -431,8 +432,10 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	// TODO: add case log for debug
 	switch cs := s.(type) {
 	case *AssignStmt:
+		debug.Println("-----AssignStmt")
 		switch cs.Op {
 		case ASSIGN:
 			m.PushOp(OpAssign)
@@ -493,8 +496,12 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
+		debug.Println("-----ForStmt")
 		m.PushFrameBasic(cs)
+		debug.Printf("cs: %v \n", cs)
+		debug.Printf("parent: %v \n", m.LastBlock())
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		debug.Printf("b: %v \n", b)
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
