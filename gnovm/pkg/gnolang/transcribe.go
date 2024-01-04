@@ -233,13 +233,16 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *NameExpr:
 		debug.Printf("-----trans, nameExpr: %v \n", cnn)
 		// TODO: do we need to filter out already define in current block
-		currentClo := currentClosure()
-		debug.Printf("currentClo: %v \n", currentClo)
+		//currentClo := currentClosure()
+		//debug.Printf("currentClo: %v \n", currentClo)
+		currentFx := currentFx()
+		debug.Printf("currentFx: %v \n", currentFx)
 
-		if currentClo != nil { // a closure to fill
-			currentClo.Fill(cnn)
-			currentFx := currentFx()
-			currentFx.Closure = *currentClo
+		if currentFx != nil { // a closure to fill
+			clo := &Closure{}
+			clo.Fill(cnn)
+			//currentFx := currentFx()
+			currentFx.Closure = *clo
 			dumpClosures()
 			dumpFxs()
 		}
@@ -373,7 +376,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 
 		debug.Println("---start trans funcLit body stmt")
 		debug.Println("push target closure and fx")
-		pushClosure(&Closure{})
+		//pushClosure(&Closure{})
 		pushFxs(cnn)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
@@ -391,7 +394,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		// defer pop
 		debug.Printf("---done trans body \n")
-		popClosure()
+		//popClosure()
 		popFx()
 	case *FieldTypeExpr:
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
