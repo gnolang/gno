@@ -9,7 +9,7 @@ import (
 func tokenEnd(data []byte) int {
 	for i, tok := range data {
 		switch tok {
-		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken, ValueSeparatorToken, ObjectEndToken, ArrayEndToken:
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken, CommaToken, CurlyCloseToken, SquareCloseToken:
 			return i
 		}
 	}

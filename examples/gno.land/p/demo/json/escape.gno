@@ -51,7 +51,7 @@ var escapeMap = map[byte]byte{
 	'"':  DoublyQuoteToken,
 	'\\': BackSlashToken,
 	'/':  SlashToken,
-	'b':  BackspaceToken,
+	'b':  BackSpaceToken,
 	'f':  FormFeedToken,
 	'n':  NewLineToken,
 	'r':  CarriageReturnToken,

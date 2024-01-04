@@ -82,11 +82,11 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			if keyLevel == len(keys) {
 				return i + 1, nil
 			}
-		case ObjectStartToken:
+		case CurlyOpenToken:
 			// in case parent key is matched then only we will increase the level otherwise can directly
 			// can move to the end of this block
 			if !lastMatched {
-				end := blockEnd(data[i:], ObjectStartToken, ObjectEndToken)
+				end := blockEnd(data[i:], CurlyOpenToken, CurlyCloseToken)
 				if end == -1 {
 					return -1, MalformedJson
 				}
@@ -94,9 +94,9 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			} else {
 				level += 1
 			}
-		case ObjectEndToken:
+		case CurlyCloseToken:
 			level, keyLevel = decreaseLevel(level, keyLevel)
-		case ArrayStartToken:
+		case SquareOpenToken:
 			// if keyLevel == level && keys[level][0] == '[' {
 			// 	keyLen := len(keys[level])
 			// 	if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
@@ -115,7 +115,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			// }
 
 			// if !isArrayKey {
-			// 	arraySkip := blockEnd(data[i:], ArrayStartToken, ArrayEndToken)
+			// 	arraySkip := blockEnd(data[i:], SquareOpenToken, SquareCloseToken)
 			// 	if arraySkip < 0 {
 			// 		return -1, MalformedJson
 			// 	}
@@ -217,7 +217,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 	}
 
 	ln := len(data)
-	if ln > 0 && (data[i] == ObjectStartToken || data[i] == ArrayStartToken) {
+	if ln > 0 && (data[i] == CurlyOpenToken || data[i] == SquareOpenToken) {
 		i += 1
 	}
 
@@ -262,13 +262,13 @@ func findKeyStart(data []byte, key string) (int, error) {
 				return keyBegin - 1, nil
 			}
 
-		case ArrayStartToken:
-			if end := blockEnd(data[i:], data[i], ArrayEndToken); end != -1 {
+		case SquareOpenToken:
+			if end := blockEnd(data[i:], data[i], SquareCloseToken); end != -1 {
 				i = i + end
 			}
 
-		case ObjectStartToken:
-			if end := blockEnd(data[i:], data[i], ObjectEndToken); end != -1 {
+		case CurlyOpenToken:
+			if end := blockEnd(data[i:], data[i], CurlyCloseToken); end != -1 {
 				i = i + end
 			}
 		}

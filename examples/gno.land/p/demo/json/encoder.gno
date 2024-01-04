@@ -55,7 +55,7 @@ func flattenValue(prefix string, val interface{}, flattened map[string]string, b
 func extractKeys(data []byte) (keys []string, err error) {
 	var (
 		// stack tracks nested structures in JSON, such as objects or arrays.
-		// If the top of the stack is an ObjectStartToken ({),
+		// If the top of the stack is an CurlyOpenToken ({),
 		// it confirms we're inside an object.
 		stack []byte
 		// inString flag indicates whether the parser is currently within a string.
@@ -68,9 +68,9 @@ func extractKeys(data []byte) (keys []string, err error) {
 
 	for i := 0; i < len(data); i++ {
 		switch data[i] {
-		case ObjectStartToken, ArrayStartToken:
+		case CurlyOpenToken, SquareOpenToken:
 			stack = append(stack, data[i])
-		case ObjectEndToken, ArrayEndToken:
+		case CurlyCloseToken, SquareCloseToken:
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
 			}
@@ -83,13 +83,13 @@ func extractKeys(data []byte) (keys []string, err error) {
 				// Start of string
 				inString = true
 				potentialKey = ""
-				if len(stack) > 0 && stack[len(stack)-1] == ObjectStartToken {
+				if len(stack) > 0 && stack[len(stack)-1] == CurlyOpenToken {
 					afterString = false
 				}
 			}
 		case ColonToken:
 			// checks if the parser is currently within a key-value pair in a JSON object.
-			if afterString && len(stack) > 0 && stack[len(stack)-1] == ObjectStartToken {
+			if afterString && len(stack) > 0 && stack[len(stack)-1] == CurlyOpenToken {
 				keys = append(keys, potentialKey)
 				afterString = false
 			}

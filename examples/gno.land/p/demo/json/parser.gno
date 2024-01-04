@@ -163,7 +163,7 @@ func ParseUint(b []byte, base, bitSize int) (v uint64, err error) {
 	for _, c := range b {
 		var d byte
 		switch {
-		case c == UnderscoreToken && base0:
+		case c == UnderScoreToken && base0:
 			underscores = true
 			continue
 		case '0' <= c && c <= '9':
@@ -271,20 +271,20 @@ func underscoreOK(s string) bool {
 
 		if isDigit || isHexChar {
 			saw = '0'
-		} else if currentChar == UnderscoreToken {
+		} else if currentChar == UnderScoreToken {
 			if saw != '0' {
 				return false
 			}
-			saw = UnderscoreToken
+			saw = UnderScoreToken
 		} else {
-			if saw == UnderscoreToken {
+			if saw == UnderScoreToken {
 				return false
 			}
 			saw = BangToken
 		}
 	}
 
-	return saw != UnderscoreToken
+	return saw != UnderScoreToken
 }
 
 // getType is a function that takes a byte slice and an offset as input parameters.
@@ -312,7 +312,7 @@ func parseValue(data []byte, offset int) (ValueType, int, error) {
 	switch data[offset] {
 	case DoublyQuoteToken:
 		return parseString(data, offset)
-	case ArrayStartToken, ObjectStartToken:
+	case SquareOpenToken, CurlyOpenToken:
 		return parseContainer(data, offset)
 	}
 
@@ -332,12 +332,12 @@ func parseContainer(data []byte, offset int) (ValueType, int, error) {
 	var containerType ValueType
 	var closing byte
 
-	if data[offset] == ArrayStartToken {
+	if data[offset] == SquareOpenToken {
 		containerType = Array
-		closing = ArrayEndToken
+		closing = SquareCloseToken
 	} else {
 		containerType = Object
-		closing = ObjectEndToken
+		closing = CurlyCloseToken
 	}
 
 	endOffset := blockEnd(data[offset:], data[offset], closing)
@@ -422,7 +422,7 @@ func parseUntilArrayStart(data []byte, offset int) (int, error) {
 		return -1, MalformedJson
 	}
 
-	if data[offset] != ArrayStartToken {
+	if data[offset] != SquareOpenToken {
 		return -1, MalformedArray
 	}
 
@@ -430,7 +430,7 @@ func parseUntilArrayStart(data []byte, offset int) (int, error) {
 }
 
 func parseArrayElements(data []byte, offset int, f func(value []byte, dataType ValueType, offset int, err error)) (int, error) {
-	for data[offset] != ArrayEndToken {
+	for data[offset] != SquareCloseToken {
 		value, valueType, valueOffset, err := Get(data[offset:])
 		if err != nil {
 			return offset, err
@@ -456,7 +456,7 @@ func parseNextElementOrEndArray(data []byte, offset int) (int, error) {
 		return -1, MalformedArray
 	}
 
-	if data[offset] != ValueSeparatorToken && data[offset] != ArrayEndToken {
+	if data[offset] != CommaToken && data[offset] != SquareCloseToken {
 		return -1, MalformedArray
 	}
 
