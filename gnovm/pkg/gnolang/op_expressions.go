@@ -714,16 +714,6 @@ func (m *Machine) doOpFuncLit() {
 		} else {
 			debug.Println("undefined, skip")
 		}
-
-		//var index int
-		//for i, n := range names {
-		//	if name == n { // match and replace
-		//		index = i
-		//		debug.Printf("index of %s is: %d \n", name, index)
-		//		// replace lv values with index
-		//		nb.UpdateValue(index, v)
-		//	}
-		//}
 	}
 	debug.Printf("---captured: %v \n", captured)
 

@@ -63,13 +63,8 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	//debug.Printf("-----fv: %v ----- \n", fv)
-	//debug.Printf("-----ft: %v ----- \n", ft)
 	debug.Printf("-----got closure: %v ----- \n", clo)
-	//debug.Printf("-----func source: %v ----- \n", fr.Func.GetClosure(m.Store))
-	debug.Println("----------")
-	//debugPP.Printf("-----new block for closure: %v ----- \n", b)
-	// TODO: update b here using captured vars
+	// update block vars using captured vars
 	captures := fr.Func.Captures
 	if captures != nil {
 		debug.Printf("captures before call: %v, len(names): %d, len(values): %d \n", *captures, len(captures.names), len(captures.values))
@@ -88,6 +83,8 @@ func (m *Machine) doOpCall() {
 			}
 		}
 	}
+	// only need initial snapshot
+	// TODO: better way to zero it
 	fr.Func.Captures = nil
 
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)

@@ -106,6 +106,89 @@ const (
 	TRANS_FILE_BODY
 )
 
+var closures []*Closure
+var fxs []*FuncLitExpr
+
+func pushClosure(c *Closure) {
+	closures = append(closures, c)
+}
+
+func popClosure() {
+	debug.Println("-c")
+	if len(closures) != 0 {
+		closures = closures[:len(closures)-1]
+	}
+}
+
+func pushFxs(fx *FuncLitExpr) {
+	fxs = append(fxs, fx)
+}
+
+func popFx() {
+	debug.Println("-fx")
+	if len(fxs) != 0 {
+		fxs = fxs[:len(fxs)-1]
+	}
+}
+
+func dumpFxs() {
+	println("============Dump fxs===========")
+	println("len: ", len(fxs))
+	for i, fx := range fxs {
+		fmt.Printf("fx[%d]: %v\n", i, fx)
+	}
+	println("============end===============")
+	println("\n")
+}
+func dumpClosures() {
+	println("============Dump closures=======")
+	println("len: ", len(closures))
+	for _, c := range closures {
+		for i, name := range c.names {
+			fmt.Printf("name[%s]: %v\n", i, name)
+		}
+		for i, nx := range c.nxs {
+			fmt.Printf("nx[%s]: %v\n", i, nx)
+		}
+	}
+	println("============end===============")
+	println("\n")
+}
+
+func currentClosure() *Closure {
+	if len(closures) == 0 {
+		return nil
+	}
+	return closures[len(closures)-1]
+}
+
+func currentFx() *FuncLitExpr {
+	if len(fxs) == 0 {
+		return nil
+	}
+	return fxs[len(fxs)-1]
+}
+
+type Closure struct {
+	names []Name
+	nxs   []*NameExpr
+}
+
+//func NewClosure() *Closure {
+//	return &Closure{}
+//}
+
+func (clo *Closure) Fill(nx *NameExpr) {
+	debug.Printf("+nx: %v \n", nx)
+	clo.names = append(clo.names, nx.Name)
+	clo.nxs = append(clo.nxs, nx)
+}
+
+//func (clo *Closure) Pop() {
+//	clo.nxs = clo.nxs[:len(clo.nxs)-1]
+//	clo.Fxs = clo.Fxs[:len(clo.Fxs)-1]
+//}
+
 // return:
 //   - TRANS_CONTINUE to visit children recursively;
 //   - TRANS_SKIP to break out of the
@@ -149,19 +232,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	switch cnn := nn.(type) {
 	case *NameExpr:
 		debug.Printf("-----trans, nameExpr: %v \n", cnn)
-		//dumpClosures()
-		//dumpFxs()
-		// TODO: how to filter out unrelated namedExpr
-		// set current closure
 		// TODO: do we need to filter out already define in current block
 		currentClo := currentClosure()
 		debug.Printf("currentClo: %v \n", currentClo)
 
-		if currentClo != nil {
-			currentClo.Push(cnn, currentFx())
+		if currentClo != nil { // a closure to fill
+			currentClo.Fill(cnn)
 			currentFx := currentFx()
 			currentFx.Closure = *currentClo
-
 			dumpClosures()
 			dumpFxs()
 		}
@@ -295,7 +373,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 
 		debug.Println("---start trans funcLit body stmt")
 		debug.Println("push target closure and fx")
-		pushClosure(NewClosure())
+		pushClosure(&Closure{})
 		pushFxs(cnn)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
