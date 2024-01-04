@@ -1027,6 +1027,28 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	return
 }
 
+// unrefCopy makes a copy of the underlying value in the case of reference values.
+// It copies other values as expected using the normal Copy method.
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	switch tv.V.(type) {
+	case RefValue:
+		cp.T = tv.T
+		refObject := tv.GetFirstObject(store)
+		switch refObjectValue := refObject.(type) {
+		case *ArrayValue:
+			cp.V = refObjectValue.Copy(alloc)
+		case *StructValue:
+			cp.V = refObjectValue.Copy(alloc)
+		default:
+			cp = tv
+		}
+	default:
+		cp = tv.Copy(alloc)
+	}
+
+	return
+}
+
 // Returns encoded bytes for primitive values.
 // These bytes are used for both value hashes as well
 // as hash key bytes.
