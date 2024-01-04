@@ -1027,9 +1027,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	return
 }
 
-// DeepCopy makes of copy of the underlying value in the case of reference values.
+// unrefCopy makes a copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
-func (tv TypedValue) DeepCopy(alloc *Allocator, store Store) (cp TypedValue) {
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
