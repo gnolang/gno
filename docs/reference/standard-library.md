@@ -14,9 +14,9 @@ Standard libraries packages follow the same semantics as on-chain packages (ie.
 they don't persist state like realms do) and come as a part of the Gno
 programming language rather than with the Gno.land chain.
 
-Many standard libaries are near-identical copies of the equivalent Go standard
+Many standard libraries are near-identical copies of the equivalent Go standard
 libraries; in fact, you can check the current status of implementation of each
-Go standard libarary on [Go\<\>Gno compatibility](go-gno-compatibility.md).
+Go standard library on [Go\<\>Gno compatibility](go-gno-compatibility.md).
 
 ## Gathering documentation
 
@@ -70,7 +70,7 @@ repository which has a `go.mod` dependency on `github.com/gnolang/gno`, which
 can be a simple way to set up your Gno repositories to automatically support
 `gno` commands (aside from `doc`, also `test`, `run`, etc.).
 
-Another alternative is setting your enviornment variable `GNOROOT` to point to
+Another alternative is setting your environment variable `GNOROOT` to point to
 where you cloned the Gno repository. You can set this in your `~/.profile` file
 to be automatically set up in your console:
 
@@ -94,7 +94,7 @@ though support is planned to be added. For now, you can inspect the directory
 New standard libraries may be added by simply creating a new directory (whose
 path relative to the `stdlibs` directory will be the import path used in Gno
 programs). Following that, the suggested approach for adding a Go standard
-libary is to copy the original files from the Go source tree, and renaming their
+library is to copy the original files from the Go source tree, and renaming their
 extensions from `.go` to `.gno`.
 
 > As a small aid, this bash one-liner can be useful to convert all the file
@@ -120,7 +120,7 @@ Some things to keep in mind:
   packages still not available in Gno, such as `fmt` or `encoding/json`.
 - In the package documentation, specify the Go version from which the library
   was taken.
-- All changes from the Go standard libaries must be explicitly marked, possibly
+- All changes from the Go standard libraries must be explicitly marked, possibly
   with `// XXX` comments as needed.
 
 If you intend to create a PR to add a new standard library, remember to update
@@ -129,7 +129,7 @@ If you intend to create a PR to add a new standard library, remember to update
 ## Native bindings
 
 Gno has support for "natively-defined functions" exclusively within the standard
-libaries. These are functions which are _declared_ in Gno code, but only _defined_
+libraries. These are functions which are _declared_ in Gno code, but only _defined_
 in Go. There are generally three reasons why a function should be natively
 defined:
 
@@ -145,7 +145,7 @@ defined:
 
 The takeaway here is that native bindings are a special feature which can be
 useful to overcome pure Gno limitations, but it is not a substitute for writing
-standard libaries in Gno.
+standard libraries in Gno.
 
 There are three components to a natively bound function in Gno:
 
