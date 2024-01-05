@@ -317,6 +317,8 @@ func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) 
 
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = dnode.Config().ChainID()
+	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
 	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
 	loggerweb.SetLevel(tmlog.LevelDebug)
