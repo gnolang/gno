@@ -2,6 +2,7 @@ package rpcclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -28,7 +28,7 @@ const (
 
 // HTTPClient is a common interface for JSONRPCClient and URIClient.
 type HTTPClient interface {
-	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
+	Call(method string, params map[string]any, result any) error
 }
 
 // protocol - client's protocol (for example, "http", "https", "wss", "ws", "tcp")
@@ -119,40 +119,44 @@ func DefaultHTTPClient(remoteAddr string) *http.Client {
 
 // ------------------------------------------------------------------------------------
 
-// jsonRPCBufferedRequest encapsulates a single buffered request, as well as its
-// anticipated response structure.
-type jsonRPCBufferedRequest struct {
-	request types.RPCRequest
-	result  interface{} // The result will be deserialized into this object.
-}
-
-// JSONRPCRequestBatch allows us to buffer multiple request/response structures
-// into a single batch request. Note that this batch acts like a FIFO queue, and
-// is thread-safe.
-type JSONRPCRequestBatch struct {
-	client *JSONRPCClient
-
-	mtx      sync.Mutex
-	requests []*jsonRPCBufferedRequest
-}
-
 // JSONRPCClient takes params as a slice
 type JSONRPCClient struct {
-	address string
-	client  *http.Client
-	id      types.JSONRPCStringID
+	address  string
+	client   *http.Client
+	idPrefix types.JSONRPCStringID
 }
 
 // RPCCaller implementers can facilitate calling the JSON RPC endpoint.
 type RPCCaller interface {
-	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
+	Call(method string, params map[string]any, result any) error
 }
 
-// Both JSONRPCClient and JSONRPCRequestBatch can facilitate calls to the JSON
-// RPC endpoint.
+// wrappedRPCRequest encapsulates a single buffered request, as well as its
+// anticipated response structure
+type wrappedRPCRequest struct {
+	request types.RPCRequest
+	result  any // The result will be deserialized into this object (Amino)
+}
+
+type wrappedRPCRequests []*wrappedRPCRequest
+
+func (w *wrappedRPCRequest) extractRPCRequest() types.RPCRequest {
+	return w.request
+}
+
+func (w *wrappedRPCRequests) extractRPCRequests() types.RPCRequests {
+	requests := make([]types.RPCRequest, 0, len(*w))
+
+	for _, wrappedRequest := range *w {
+		requests = append(requests, wrappedRequest.request)
+	}
+
+	return requests
+}
+
 var (
-	_ RPCCaller = (*JSONRPCClient)(nil)
-	_ RPCCaller = (*JSONRPCRequestBatch)(nil)
+	_ RPCCaller   = (*JSONRPCClient)(nil)
+	_ BatchClient = (*JSONRPCClient)(nil)
 )
 
 // NewJSONRPCClient returns a JSONRPCClient pointed at the given address.
@@ -173,61 +177,67 @@ func NewJSONRPCClientWithHTTPClient(remote string, client *http.Client) *JSONRPC
 	}
 
 	return &JSONRPCClient{
-		address: clientAddress,
-		client:  client,
-		id:      types.JSONRPCStringID("jsonrpc-client-" + random.RandStr(8)),
+		address:  clientAddress,
+		client:   client,
+		idPrefix: types.JSONRPCStringID("jsonrpc-client-" + random.RandStr(8)),
 	}
 }
 
 // Call will send the request for the given method through to the RPC endpoint
 // immediately, without buffering of requests.
-func (c *JSONRPCClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
-	request, err := types.MapToRequest(c.id, method, params)
+func (c *JSONRPCClient) Call(method string, params map[string]any, result any) error {
+	id := generateRequestID(c.idPrefix)
+
+	request, err := types.MapToRequest(id, method, params)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	requestBuf := bytes.NewBuffer(requestBytes)
 	httpResponse, err := c.client.Post(c.address, "text/json", requestBuf)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer httpResponse.Body.Close() //nolint: errcheck
 
 	if !statusOK(httpResponse.StatusCode) {
-		return nil, errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
+		return errors.New("server at '%s' returned %s", c.address, httpResponse.Status)
 	}
 
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return unmarshalResponseBytes(responseBytes, c.id, result)
+
+	var response types.RPCResponse
+
+	err = json.Unmarshal(responseBytes, &response)
+	if err != nil {
+		return errors.Wrap(err, "error unmarshalling rpc response")
+	}
+
+	if response.Error != nil {
+		return errors.Wrap(response.Error, "response error")
+	}
+
+	return unmarshalResponseIntoResult(&response, id, result)
 }
 
-// NewRequestBatch starts a batch of requests for this client.
-func (c *JSONRPCClient) NewRequestBatch() *JSONRPCRequestBatch {
-	return &JSONRPCRequestBatch{
-		requests: make([]*jsonRPCBufferedRequest, 0),
-		client:   c,
+func (c *JSONRPCClient) SendBatch(_ context.Context, wrappedRequests wrappedRPCRequests) (types.RPCResponses, error) {
+	requests := make(types.RPCRequests, 0, len(wrappedRequests))
+	for _, request := range wrappedRequests {
+		requests = append(requests, request.request)
 	}
-}
 
-func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interface{}, error) {
-	reqs := make([]types.RPCRequest, 0, len(requests))
-	results := make([]interface{}, 0, len(requests))
-	for _, req := range requests {
-		reqs = append(reqs, req.request)
-		results = append(results, req.result)
-	}
 	// serialize the array of requests into a single JSON object
-	requestBytes, err := json.Marshal(reqs)
+	requestBytes, err := json.Marshal(requests)
 	if err != nil {
 		return nil, err
 	}
+
 	httpResponse, err := c.client.Post(c.address, "text/json", bytes.NewBuffer(requestBytes))
 	if err != nil {
 		return nil, err
@@ -239,183 +249,88 @@ func (c *JSONRPCClient) sendBatch(requests []*jsonRPCBufferedRequest) ([]interfa
 	}
 
 	responseBytes, err := io.ReadAll(httpResponse.Body)
-	if err != nil {
-		return nil, err
-	}
-	return unmarshalResponseBytesArray(responseBytes, c.id, results)
-}
 
-// -------------------------------------------------------------
+	var responses types.RPCResponses
 
-// Count returns the number of enqueued requests waiting to be sent.
-func (b *JSONRPCRequestBatch) Count() int {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	return len(b.requests)
-}
-
-func (b *JSONRPCRequestBatch) enqueue(req *jsonRPCBufferedRequest) {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	b.requests = append(b.requests, req)
-}
-
-// Clear empties out the request batch.
-func (b *JSONRPCRequestBatch) Clear() int {
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-	return b.clear()
-}
-
-func (b *JSONRPCRequestBatch) clear() int {
-	count := len(b.requests)
-	b.requests = make([]*jsonRPCBufferedRequest, 0)
-	return count
-}
-
-// Send will attempt to send the current batch of enqueued requests, and then
-// will clear out the requests once done. On success, this returns the
-// deserialized list of results from each of the enqueued requests.
-func (b *JSONRPCRequestBatch) Send() ([]interface{}, error) {
-	b.mtx.Lock()
-	defer func() {
-		b.clear()
-		b.mtx.Unlock()
-	}()
-	return b.client.sendBatch(b.requests)
-}
-
-// Call enqueues a request to call the given RPC method with the specified
-// parameters, in the same way that the `JSONRPCClient.Call` function would.
-func (b *JSONRPCRequestBatch) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
-	request, err := types.MapToRequest(b.client.id, method, params)
-	if err != nil {
-		return nil, err
-	}
-	b.enqueue(&jsonRPCBufferedRequest{request: request, result: result})
-	return result, nil
-}
-
-// -------------------------------------------------------------
-
-// URI takes params as a map
-type URIClient struct {
-	address string
-	client  *http.Client
-}
-
-// The function panics if the provided remote is invalid.
-func NewURIClient(remote string) *URIClient {
-	clientAddress, err := toClientAddress(remote)
-	if err != nil {
-		panic(fmt.Sprintf("invalid remote %s: %s", remote, err))
-	}
-	return &URIClient{
-		address: clientAddress,
-		client:  DefaultHTTPClient(remote),
-	}
-}
-
-func (c *URIClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
-	values, err := argsToURLValues(params)
-	if err != nil {
-		return nil, err
-	}
-	// log.Info(Fmt("URI request to %v (%v): %v", c.address, method, values))
-	resp, err := c.client.PostForm(c.address+"/"+method, values)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close() //nolint: errcheck
-
-	if !statusOK(resp.StatusCode) {
-		return nil, errors.New("server at '%s' returned %s", c.address, resp.Status)
+	if err = json.Unmarshal(responseBytes, &responses); err != nil {
+		return nil, errors.Wrap(err, "error unmarshalling rpc responses")
 	}
 
-	responseBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return unmarshalResponseBytes(responseBytes, "", result)
+	return responses, nil
 }
 
-// ------------------------------------------------
+func (c *JSONRPCClient) GetIDPrefix() types.JSONRPCID {
+	return c.idPrefix
+}
 
-func unmarshalResponseBytes(responseBytes []byte, expectedID types.JSONRPCStringID, result interface{}) (interface{}, error) {
+func unmarshalResponseIntoResult(response *types.RPCResponse, expectedID types.JSONRPCID, result any) error {
 	// Read response.  If rpc/core/types is imported, the result will unmarshal
 	// into the correct type.
-	// log.Notice("response", "response", string(responseBytes))
-	var err error
-	response := &types.RPCResponse{}
-	err = json.Unmarshal(responseBytes, response)
-	if err != nil {
-		return nil, errors.Wrap(err, "error unmarshalling rpc response")
-	}
-	if response.Error != nil {
-		return nil, errors.Wrap(response.Error, "response error")
-	}
 	// From the JSON-RPC 2.0 spec:
-	//  id: It MUST be the same as the value of the id member in the Request Object.
+	//  idPrefix: It MUST be the same as the value of the idPrefix member in the Request Object.
 	if err := validateResponseID(response, expectedID); err != nil {
-		return nil, err
+		return err
 	}
+
 	// Unmarshal the RawMessage into the result.
-	err = amino.UnmarshalJSON(response.Result, result)
-	if err != nil {
-		return nil, errors.Wrap(err, "error unmarshalling rpc response result")
+	if err := amino.UnmarshalJSON(response.Result, result); err != nil {
+		return errors.Wrap(err, "error unmarshalling rpc response result")
 	}
-	return result, nil
+
+	return nil
 }
 
-func unmarshalResponseBytesArray(responseBytes []byte, expectedID types.JSONRPCStringID, results []interface{}) ([]interface{}, error) {
-	var (
-		err       error
-		responses []types.RPCResponse
-	)
-	err = json.Unmarshal(responseBytes, &responses)
-	if err != nil {
-		return nil, errors.Wrap(err, "error unmarshalling rpc response")
-	}
+func unmarshalResponsesIntoResults(requests types.RPCRequests, responses types.RPCResponses, results []any) error {
 	// No response error checking here as there may be a mixture of successful
-	// and unsuccessful responses.
-
+	// and unsuccessful responses
 	if len(results) != len(responses) {
-		return nil, errors.New("expected %d result objects into which to inject responses, but got %d", len(responses), len(results))
+		return fmt.Errorf("expected %d result objects into which to inject responses, but got %d", len(responses), len(results))
 	}
 
 	for i, response := range responses {
 		response := response
 		// From the JSON-RPC 2.0 spec:
-		//  id: It MUST be the same as the value of the id member in the Request Object.
-		if err := validateResponseID(&response, expectedID); err != nil {
-			return nil, errors.Wrap(err, "failed to validate response ID in response %d", i)
+		//  idPrefix: It MUST be the same as the value of the idPrefix member in the Request Object.
+
+		// This validation is super sketchy. Why do this here?
+		// This validation passes iff the server returns batch responses
+		// in the same order as the batch request
+		if err := validateResponseID(&response, requests[i].ID); err != nil {
+			return errors.Wrap(err, "failed to validate response ID in response %d", i)
 		}
 		if err := amino.UnmarshalJSON(responses[i].Result, results[i]); err != nil {
-			return nil, errors.Wrap(err, "error unmarshalling rpc response result")
+			return errors.Wrap(err, "error unmarshalling rpc response result")
 		}
 	}
-	return results, nil
-}
 
-func validateResponseID(res *types.RPCResponse, expectedID types.JSONRPCStringID) error {
-	// we only validate a response ID if the expected ID is non-empty
-	if len(expectedID) == 0 {
-		return nil
-	}
-	if res.ID == nil {
-		return errors.New("missing ID in response")
-	}
-	id, ok := res.ID.(types.JSONRPCStringID)
-	if !ok {
-		return errors.New("expected ID string in response but got: %v", id)
-	}
-	if expectedID != id {
-		return errors.New("response ID (%s) does not match request ID (%s)", id, expectedID)
-	}
 	return nil
 }
 
-func argsToURLValues(args map[string]interface{}) (url.Values, error) {
+func validateResponseID(res *types.RPCResponse, expectedID types.JSONRPCID) error {
+	_, isNumValue := expectedID.(types.JSONRPCIntID)
+	stringValue, isStringValue := expectedID.(types.JSONRPCStringID)
+
+	if !isNumValue && !isStringValue {
+		return errors.New("invalid expected ID")
+	}
+
+	// we only validate a response ID if the expected ID is non-empty
+	if isStringValue && len(stringValue) == 0 {
+		return nil
+	}
+
+	if res.ID == nil {
+		return errors.New("missing ID in response")
+	}
+
+	if expectedID != res.ID {
+		return fmt.Errorf("response ID (%s) does not match request ID (%s)", res.ID, expectedID)
+	}
+
+	return nil
+}
+
+func argsToURLValues(args map[string]any) (url.Values, error) {
 	values := make(url.Values)
 	if len(args) == 0 {
 		return values, nil
@@ -430,7 +345,7 @@ func argsToURLValues(args map[string]interface{}) (url.Values, error) {
 	return values, nil
 }
 
-func argsToJSON(args map[string]interface{}) error {
+func argsToJSON(args map[string]any) error {
 	for k, v := range args {
 		rt := reflect.TypeOf(v)
 		isByteSlice := rt.Kind() == reflect.Slice && rt.Elem().Kind() == reflect.Uint8
@@ -450,3 +365,10 @@ func argsToJSON(args map[string]interface{}) error {
 }
 
 func statusOK(code int) bool { return code >= 200 && code <= 299 }
+
+// generateRequestID generates a unique request ID, using the prefix
+// Assuming this is sufficiently random, there shouldn't be any problems.
+// However, using uuid for any kind of ID generation is always preferred
+func generateRequestID(prefix types.JSONRPCID) types.JSONRPCID {
+	return types.JSONRPCStringID(fmt.Sprintf("%s-%s", prefix, random.RandStr(8)))
+}

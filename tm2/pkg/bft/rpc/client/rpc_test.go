@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"sync"
@@ -19,7 +20,7 @@ import (
 
 func getHTTPClient() *client.HTTP {
 	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
-	return client.NewHTTP(rpcAddr, "/websocket")
+	return client.NewHTTP(rpcAddr)
 }
 
 func getLocalClient() *client.Local {
@@ -38,7 +39,7 @@ func TestNilCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 
 	require.Panics(t, func() {
-		client.NewHTTPWithClient("http://example.com", "/websocket", nil)
+		client.NewHTTPWithClient("http://example.com", nil)
 	})
 	require.Panics(t, func() {
 		rpcclient.NewJSONRPCClientWithHTTPClient("http://example.com", nil)
@@ -49,7 +50,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 
 	remote := rpctest.GetConfig().RPC.ListenAddress
-	c := client.NewHTTPWithClient(remote, "/websocket", http.DefaultClient)
+	c := client.NewHTTPWithClient(remote, http.DefaultClient)
 	status, err := c.Status()
 	require.NoError(t, err)
 	require.NotNil(t, status)
@@ -508,7 +509,7 @@ func testBatchedJSONRPCCalls(t *testing.T, c *client.HTTP) {
 	r2, err := batch.BroadcastTxCommit(tx2)
 	require.NoError(t, err)
 	require.Equal(t, 2, batch.Count())
-	bresults, err := batch.Send()
+	bresults, err := batch.Send(context.Background())
 	require.NoError(t, err)
 	require.Len(t, bresults, 2)
 	require.Equal(t, 0, batch.Count())
@@ -528,7 +529,7 @@ func testBatchedJSONRPCCalls(t *testing.T, c *client.HTTP) {
 	q2, err := batch.ABCIQuery("/key", k2)
 	require.NoError(t, err)
 	require.Equal(t, 2, batch.Count())
-	qresults, err := batch.Send()
+	qresults, err := batch.Send(context.Background())
 	require.NoError(t, err)
 	require.Len(t, qresults, 2)
 	require.Equal(t, 0, batch.Count())
@@ -571,8 +572,8 @@ func TestSendingEmptyJSONRPCRequestBatch(t *testing.T) {
 
 	c := getHTTPClient()
 	batch := c.NewBatch()
-	_, err := batch.Send()
-	require.Error(t, err, "sending an empty batch of JSON RPC requests should result in an error")
+	_, err := batch.Send(context.Background())
+	require.Error(t, err, "sending an empty rpcBatch of JSON RPC requests should result in an error")
 }
 
 func TestClearingEmptyJSONRPCRequestBatch(t *testing.T) {
@@ -580,7 +581,7 @@ func TestClearingEmptyJSONRPCRequestBatch(t *testing.T) {
 
 	c := getHTTPClient()
 	batch := c.NewBatch()
-	require.Zero(t, batch.Clear(), "clearing an empty batch of JSON RPC requests should result in a 0 result")
+	require.Zero(t, batch.Clear(), "clearing an empty rpcBatch of JSON RPC requests should result in a 0 result")
 }
 
 func TestConcurrentJSONRPCBatching(t *testing.T) {

@@ -23,6 +23,8 @@ const (
 	defaultPingPeriod           = 0
 )
 
+var _ BatchClient = (*WSClient)(nil)
+
 // WSClient is a WebSocket client. The methods of WSClient are safe for use by
 // multiple goroutines.
 type WSClient struct {
@@ -35,16 +37,16 @@ type WSClient struct {
 	Dialer   func(string, string) (net.Conn, error)
 
 	// Single user facing channel to read RPCResponses from, closed only when the client is being stopped.
-	ResponsesCh chan types.RPCResponse
+	ResponsesCh chan types.RPCResponses
 
 	// Callback, which will be called each time after successful reconnect.
 	onReconnect func()
 
 	// internal channels
-	send            chan types.RPCRequest // user requests
-	backlog         chan types.RPCRequest // stores a single user request received during a conn failure
-	reconnectAfter  chan error            // reconnect requests
-	readRoutineQuit chan struct{}         // a way for readRoutine to close writeRoutine
+	send            chan wrappedRPCRequests // user requests
+	backlog         chan wrappedRPCRequests // stores user requests received during a conn failure
+	reconnectAfter  chan error              // reconnect requests
+	readRoutineQuit chan struct{}           // a way for readRoutine to close writeRoutine
 
 	wg sync.WaitGroup
 
@@ -66,6 +68,31 @@ type WSClient struct {
 
 	// Support both ws and wss protocols
 	protocol string
+
+	idPrefix types.JSONRPCID
+
+	// Since requests are sent in, and responses
+	// are parsed asynchronously in this implementation,
+	// the thread that is parsing the response result
+	// needs to perform Amino decoding.
+	// The thread that spawn the request, and the thread that parses
+	// the request do not live in the same context.
+	// This information (the object type) needs to be available at this moment,
+	// so a map is used to temporarily store those types
+	requestResultsMap map[types.JSONRPCID]any
+}
+
+func (c *WSClient) SendBatch(ctx context.Context, requests wrappedRPCRequests) (types.RPCResponses, error) {
+	if err := c.Send(ctx, requests...); err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("timed out")
+	case responses := <-c.ResponsesCh:
+		return responses, nil
+	}
 }
 
 // NewWSClient returns a new client. See the commentary on the func(*WSClient)
@@ -92,6 +119,8 @@ func NewWSClient(remoteAddr, endpoint string, options ...func(*WSClient)) *WSCli
 		writeWait:            defaultWriteWait,
 		pingPeriod:           defaultPingPeriod,
 		protocol:             protocol,
+		idPrefix:             types.JSONRPCStringID("ws-client-" + random.RandStr(8)),
+		requestResultsMap:    make(map[types.JSONRPCID]any),
 	}
 	c.BaseService = *service.NewBaseService(nil, "WSClient", c)
 	for _, option := range options {
@@ -145,6 +174,10 @@ func (c *WSClient) String() string {
 	return fmt.Sprintf("%s (%s)", c.Address, c.Endpoint)
 }
 
+func (c *WSClient) GetIDPrefix() types.JSONRPCID {
+	return c.idPrefix
+}
+
 // OnStart implements service.Service by dialing a server and creating read and
 // write routines.
 func (c *WSClient) OnStart() error {
@@ -153,15 +186,15 @@ func (c *WSClient) OnStart() error {
 		return err
 	}
 
-	c.ResponsesCh = make(chan types.RPCResponse)
+	c.ResponsesCh = make(chan types.RPCResponses)
 
-	c.send = make(chan types.RPCRequest)
+	c.send = make(chan wrappedRPCRequests)
 	// 1 additional error may come from the read/write
 	// goroutine depending on which failed first.
 	c.reconnectAfter = make(chan error, 1)
 	// capacity for 1 request. a user won't be able to send more because the send
 	// channel is unbuffered.
-	c.backlog = make(chan types.RPCRequest, 1)
+	c.backlog = make(chan wrappedRPCRequests, 1)
 
 	c.startReadWriteRoutines()
 	go c.reconnectRoutine()
@@ -197,10 +230,10 @@ func (c *WSClient) IsActive() bool {
 // Send the given RPC request to the server. Results will be available on
 // ResponsesCh, errors, if any, on ErrorsCh. Will block until send succeeds or
 // ctx.Done is closed.
-func (c *WSClient) Send(ctx context.Context, request types.RPCRequest) error {
+func (c *WSClient) Send(ctx context.Context, requests ...*wrappedRPCRequest) error {
 	select {
-	case c.send <- request:
-		c.Logger.Info("sent a request", "req", request)
+	case c.send <- requests:
+		c.Logger.Info("sent requests", "num", len(requests))
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -208,22 +241,40 @@ func (c *WSClient) Send(ctx context.Context, request types.RPCRequest) error {
 }
 
 // Call the given method. See Send description.
-func (c *WSClient) Call(ctx context.Context, method string, params map[string]interface{}) error {
-	request, err := types.MapToRequest(types.JSONRPCStringID("ws-client"), method, params)
+func (c *WSClient) Call(ctx context.Context, method string, params map[string]any, result any) error {
+	id := generateRequestID(c.idPrefix)
+
+	request, err := types.MapToRequest(id, method, params)
 	if err != nil {
 		return err
 	}
-	return c.Send(ctx, request)
+
+	return c.Send(
+		ctx,
+		&wrappedRPCRequest{
+			request: request,
+			result:  result,
+		},
+	)
 }
 
 // CallWithArrayParams the given method with params in a form of array. See
 // Send description.
-func (c *WSClient) CallWithArrayParams(ctx context.Context, method string, params []interface{}) error {
-	request, err := types.ArrayToRequest(types.JSONRPCStringID("ws-client"), method, params)
+func (c *WSClient) CallWithArrayParams(ctx context.Context, method string, params []any, result any) error {
+	id := generateRequestID(c.idPrefix)
+
+	request, err := types.ArrayToRequest(id, method, params)
 	if err != nil {
 		return err
 	}
-	return c.Send(ctx, request)
+
+	return c.Send(
+		ctx,
+		&wrappedRPCRequest{
+			request: request,
+			result:  result,
+		},
+	)
 }
 
 // -----------
@@ -292,20 +343,24 @@ func (c *WSClient) startReadWriteRoutines() {
 
 func (c *WSClient) processBacklog() error {
 	select {
-	case request := <-c.backlog:
+	case wrappedRequests := <-c.backlog:
 		if c.writeWait > 0 {
 			if err := c.conn.SetWriteDeadline(time.Now().Add(c.writeWait)); err != nil {
 				c.Logger.Error("failed to set write deadline", "err", err)
 			}
 		}
-		if err := c.conn.WriteJSON(request); err != nil {
+
+		writeData := extractWriteData(wrappedRequests)
+
+		if err := c.conn.WriteJSON(writeData); err != nil {
 			c.Logger.Error("failed to resend request", "err", err)
 			c.reconnectAfter <- err
 			// requeue request
-			c.backlog <- request
+			c.backlog <- wrappedRequests
 			return err
 		}
-		c.Logger.Info("resend a request", "req", request)
+
+		c.Logger.Info("resend a request", "req", writeData)
 	default:
 	}
 	return nil
@@ -366,17 +421,25 @@ func (c *WSClient) writeRoutine() {
 
 	for {
 		select {
-		case request := <-c.send:
+		case wrappedRequests := <-c.send:
 			if c.writeWait > 0 {
 				if err := c.conn.SetWriteDeadline(time.Now().Add(c.writeWait)); err != nil {
 					c.Logger.Error("failed to set write deadline", "err", err)
 				}
 			}
-			if err := c.conn.WriteJSON(request); err != nil {
+
+			// Save the results for later lookups
+			for _, req := range wrappedRequests {
+				c.requestResultsMap[req.request.ID] = req.result
+			}
+
+			writeData := extractWriteData(wrappedRequests)
+
+			if err := c.conn.WriteJSON(writeData); err != nil {
 				c.Logger.Error("failed to send request", "err", err)
 				c.reconnectAfter <- err
 				// add request to the backlog, so we don't lose it
-				c.backlog <- request
+				c.backlog <- wrappedRequests
 				return
 			}
 		case <-ticker.C:
@@ -449,19 +512,58 @@ func (c *WSClient) readRoutine() {
 			return
 		}
 
-		var response types.RPCResponse
-		err = json.Unmarshal(data, &response)
-		if err != nil {
-			c.Logger.Error("failed to parse response", "err", err, "data", string(data))
-			continue
+		var responses types.RPCResponses
+
+		// Try to unmarshal as a batch of responses first
+		if err := json.Unmarshal(data, &responses); err != nil {
+			// Try to unmarshal as a single response
+			var response types.RPCResponse
+
+			if err := json.Unmarshal(data, &response); err != nil {
+				c.Logger.Error("failed to parse response", "err", err, "data", string(data))
+
+				continue
+			}
+
+			result, ok := c.requestResultsMap[response.ID]
+			if !ok {
+				c.Logger.Error("response result not set", "id", response.ID, "response", response)
+
+				continue
+			}
+
+			// Clear the expected result for this ID
+			delete(c.requestResultsMap, response.ID)
+
+			if err := unmarshalResponseIntoResult(&response, response.ID, result); err != nil {
+				c.Logger.Error("failed to parse response", "err", err, "data", string(data))
+
+				continue
+			}
+
+			responses = types.RPCResponses{response}
 		}
-		c.Logger.Info("got response", "resp", response.Result)
+
+		for _, userResponse := range responses {
+			c.Logger.Info("got response", "resp", userResponse.Result)
+		}
+
 		// Combine a non-blocking read on BaseService.Quit with a non-blocking write on ResponsesCh to avoid blocking
 		// c.wg.Wait() in c.Stop(). Note we rely on Quit being closed so that it sends unlimited Quit signals to stop
 		// both readRoutine and writeRoutine
 		select {
 		case <-c.Quit():
-		case c.ResponsesCh <- response:
+		case c.ResponsesCh <- responses:
 		}
 	}
+}
+
+// extractWriteData extracts write data (single request or multiple requests)
+// from the given wrapped requests set
+func extractWriteData(wrappedRequests wrappedRPCRequests) any {
+	if len(wrappedRequests) == 1 {
+		return wrappedRequests[0].extractRPCRequest()
+	}
+
+	return wrappedRequests.extractRPCRequests()
 }

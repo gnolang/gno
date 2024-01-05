@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
@@ -18,7 +19,7 @@ func ExampleHTTP_simple() {
 
 	// Create our RPC client
 	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
-	c := client.NewHTTP(rpcAddr, "/websocket")
+	c := client.NewHTTP(rpcAddr)
 
 	// Create a transaction
 	k := []byte("name")
@@ -68,7 +69,7 @@ func ExampleHTTP_batching() {
 
 	// Create our RPC client
 	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
-	c := client.NewHTTP(rpcAddr, "/websocket")
+	c := client.NewHTTP(rpcAddr)
 
 	// Create our two transactions
 	k1 := []byte("firstName")
@@ -81,7 +82,7 @@ func ExampleHTTP_batching() {
 
 	txs := [][]byte{tx1, tx2}
 
-	// Create a new batch
+	// Create a new rpcBatch
 	batch := c.NewBatch()
 
 	// Queue up our transactions
@@ -91,12 +92,12 @@ func ExampleHTTP_batching() {
 		}
 	}
 
-	// Send the batch of 2 transactions
-	if _, err := batch.Send(); err != nil {
+	// Send the rpcBatch of 2 transactions
+	if _, err := batch.Send(context.Background()); err != nil {
 		panic(err)
 	}
 
-	// Now let's query for the original results as a batch
+	// Now let's query for the original results as a rpcBatch
 	keys := [][]byte{k1, k2}
 	for _, key := range keys {
 		if _, err := batch.ABCIQuery("/key", key); err != nil {
@@ -105,7 +106,7 @@ func ExampleHTTP_batching() {
 	}
 
 	// Send the 2 queries and keep the results
-	results, err := batch.Send()
+	results, err := batch.Send(context.Background())
 	if err != nil {
 		panic(err)
 	}

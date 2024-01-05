@@ -36,8 +36,15 @@ func (h *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close() //nolint: errcheck
 	for {
-		messageType, _, err := conn.ReadMessage()
+		messageType, messageRaw, err := conn.ReadMessage()
 		if err != nil {
+			return
+		}
+
+		// Read the message
+		var request types.RPCRequest
+
+		if err := json.Unmarshal(messageRaw, &request); err != nil {
 			return
 		}
 
@@ -49,8 +56,11 @@ func (h *myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.mtx.RUnlock()
 
-		res := json.RawMessage(`{}`)
-		emptyRespBytes, _ := json.Marshal(types.RPCResponse{Result: res})
+		emptyRespBytes, err := json.Marshal(types.RPCResponse{
+			JSONRPC: "2.0",
+			ID:      request.ID,
+			Result:  json.RawMessage(`""`),
+		})
 		if err := conn.WriteMessage(messageType, emptyRespBytes); err != nil {
 			return
 		}
@@ -154,7 +164,10 @@ func TestWSClientReconnectFailure(t *testing.T) {
 	// provide timeout to avoid blocking
 	ctx, cancel := context.WithTimeout(context.Background(), wsCallTimeout)
 	defer cancel()
-	if err := c.Call(ctx, "a", make(map[string]interface{})); err != nil {
+
+	var result string
+
+	if err := c.Call(ctx, "a", make(map[string]any), &result); err != nil {
 		t.Error(err)
 	}
 
@@ -183,7 +196,10 @@ func TestNotBlockingOnStop(t *testing.T) {
 	timeout := 2 * time.Second
 	s := httptest.NewServer(&myHandler{})
 	c := startClient(t, s.Listener.Addr())
-	c.Call(context.Background(), "a", make(map[string]interface{}))
+
+	var result string
+
+	c.Call(context.Background(), "a", make(map[string]any), &result)
 	// Let the readRoutine get around to blocking
 	time.Sleep(time.Second)
 	passCh := make(chan struct{})
@@ -215,7 +231,9 @@ func startClient(t *testing.T, addr net.Addr) *WSClient {
 func call(t *testing.T, method string, c *WSClient) {
 	t.Helper()
 
-	err := c.Call(context.Background(), method, make(map[string]interface{}))
+	var result string
+
+	err := c.Call(context.Background(), method, make(map[string]any), &result)
 	require.NoError(t, err)
 }
 
@@ -224,7 +242,14 @@ func callWgDoneOnResult(t *testing.T, c *WSClient, wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case resp := <-c.ResponsesCh:
+		case resps := <-c.ResponsesCh:
+			if len(resps) != 1 {
+				t.Errorf("invalid number of responses, %d", len(resps))
+
+				return
+			}
+
+			resp := resps[0]
 			if resp.Error != nil {
 				t.Errorf("unexpected error: %v", resp.Error)
 				return

@@ -101,7 +101,7 @@ func queryHandler(cfg *queryCfg) (*ctypes.ResultABCIQuery, error) {
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	cli := client.NewHTTP(remote, "/websocket")
+	cli := client.NewHTTP(remote)
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.path, data, opts2)
 	if err != nil {

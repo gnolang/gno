@@ -115,8 +115,8 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.Han
 
 		// first try to unmarshal the incoming request as an array of RPC requests
 		var (
-			requests  []types.RPCRequest
-			responses []types.RPCResponse
+			requests  types.RPCRequests
+			responses types.RPCResponses
 		)
 		if err := json.Unmarshal(b, &requests); err != nil {
 			// next, try to unmarshal as a single request

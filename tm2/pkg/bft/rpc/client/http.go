@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
@@ -25,7 +26,7 @@ type HTTP struct {
 	*baseRPCClient
 }
 
-// BatchHTTP provides the same interface as `HTTP`, but allows for batching of
+// Batch provides the same interface as `HTTP`, but allows for batching of
 // requests (as per https://www.jsonrpc.org/specification#batch). Do not
 // instantiate directly - rather use the HTTP.NewBatch() method to create an
 // instance of this struct.
@@ -35,8 +36,8 @@ type HTTP struct {
 // HTTP client. Multiple goroutines could also enqueue transactions in a single
 // batch, but ordering of transactions in the batch cannot be guaranteed in such
 // an example.
-type BatchHTTP struct {
-	rpcBatch *rpcclient.JSONRPCRequestBatch
+type Batch struct {
+	rpcBatch *rpcclient.RPCRequestBatch
 	*baseRPCClient
 }
 
@@ -48,23 +49,22 @@ type baseRPCClient struct {
 
 var (
 	_ Client = (*HTTP)(nil)
-	_ Client = (*BatchHTTP)(nil)
+	_ Client = (*Batch)(nil)
 )
 
 // -----------------------------------------------------------------------------
 // HTTP
 
-// NewHTTP takes a remote endpoint in the form <protocol>://<host>:<port> and
-// the websocket path (which always seems to be "/websocket")
+// NewHTTP takes a remote endpoint in the form <protocol>://<host>:<port>
 // The function panics if the provided remote is invalid.<Paste>
-func NewHTTP(remote, wsEndpoint string) *HTTP {
+func NewHTTP(remote string) *HTTP {
 	httpClient := rpcclient.DefaultHTTPClient(remote)
-	return NewHTTPWithClient(remote, wsEndpoint, httpClient)
+	return NewHTTPWithClient(remote, httpClient)
 }
 
 // NewHTTPWithClient allows for setting a custom http client. See NewHTTP
 // The function panics if the provided client is nil or remote is invalid.
-func NewHTTPWithClient(remote, wsEndpoint string, client *http.Client) *HTTP {
+func NewHTTPWithClient(remote string, client *http.Client) *HTTP {
 	if client == nil {
 		panic("nil http.Client provided")
 	}
@@ -77,38 +77,32 @@ func NewHTTPWithClient(remote, wsEndpoint string, client *http.Client) *HTTP {
 	}
 }
 
-// NewBatch creates a new batch client for this HTTP client.
-func (c *HTTP) NewBatch() *BatchHTTP {
-	rpcBatch := c.rpc.NewRequestBatch()
-	return &BatchHTTP{
-		rpcBatch: rpcBatch,
+// NewBatch creates a new rpcBatch client for this HTTP client.
+func (c *HTTP) NewBatch() *Batch {
+	batch := rpcclient.NewRPCRequestBatch(c.rpc)
+	return &Batch{
+		rpcBatch: batch,
 		baseRPCClient: &baseRPCClient{
-			caller: rpcBatch,
+			caller: batch,
 		},
 	}
 }
 
-// -----------------------------------------------------------------------------
-// BatchHTTP
-
-// Send is a convenience function for an HTTP batch that will trigger the
+// Send is a convenience function for an HTTP rpcBatch that will trigger the
 // compilation of the batched requests and send them off using the client as a
 // single request. On success, this returns a list of the deserialized results
-// from each request in the sent batch.
-func (b *BatchHTTP) Send() ([]interface{}, error) {
-	return b.rpcBatch.Send()
+// from each request in the sent rpcBatch.
+func (b *Batch) Send(ctx context.Context) ([]any, error) {
+	return b.rpcBatch.Send(ctx)
 }
 
-// Clear will empty out this batch of requests and return the number of requests
+// Clear will empty out this rpcBatch of requests and return the number of requests
 // that were cleared out.
-func (b *BatchHTTP) Clear() int {
+func (b *Batch) Clear() int {
 	return b.rpcBatch.Clear()
 }
 
 // Count returns the number of enqueued requests waiting to be sent.
-func (b *BatchHTTP) Count() int {
+func (b *Batch) Count() int {
 	return b.rpcBatch.Count()
 }
-
-// -----------------------------------------------------------------------------
-// baseRPCClient

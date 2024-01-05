@@ -21,7 +21,7 @@ func TestArgToJSON(t *testing.T) {
 	require := require.New(t)
 
 	cases := []struct {
-		input    interface{}
+		input    any
 		expected string
 	}{
 		{[]byte("1234"), "0x31323334"},
@@ -30,7 +30,7 @@ func TestArgToJSON(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		args := map[string]interface{}{"data": tc.input}
+		args := map[string]any{"data": tc.input}
 		err := argsToJSON(args)
 		require.Nil(err, "%d: %+v", i, err)
 		require.Equal(1, len(args), "%d", i)
