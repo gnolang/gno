@@ -242,10 +242,10 @@ func RPCServerError(id JSONRPCID, err error) RPCResponse {
 type WSRPCConnection interface {
 	// GetRemoteAddr returns a remote address of the connection.
 	GetRemoteAddr() string
-	// WriteRPCResponse writes the resp onto connection (BLOCKING).
-	WriteRPCResponse(resp RPCResponse)
-	// TryWriteRPCResponse tries to write the resp onto connection (NON-BLOCKING).
-	TryWriteRPCResponse(resp RPCResponse) bool
+	// WriteRPCResponses writes the resp onto connection (BLOCKING).
+	WriteRPCResponses(resp RPCResponses)
+	// TryWriteRPCResponses tries to write the resp onto connection (NON-BLOCKING).
+	TryWriteRPCResponses(resp RPCResponses) bool
 	// Context returns the connection's context.
 	Context() context.Context
 }
