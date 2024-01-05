@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	ioutil "io"
+	"io"
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -21,7 +21,7 @@ type MakeRunCfg struct {
 	RootCfg *client.MakeTxCfg
 }
 
-func NewMakeRunCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
+func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Command {
 	cfg := &MakeRunCfg{
 		RootCfg: rootCfg,
 	}
@@ -34,14 +34,14 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command 
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execMakeRun(cfg, args, io)
+			return execMakeRun(cfg, args, cmdio)
 		},
 	)
 }
 
 func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execMakeRun(cfg *MakeRunCfg, args []string, io commands.IO) error {
+func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
@@ -75,7 +75,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, io commands.IO) error {
 
 	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
-		data, err := ioutil.ReadAll(io.In())
+		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
@@ -129,7 +129,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
+		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err
 		}
