@@ -2333,7 +2333,7 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	debug.Printf("GetPointerToInt, index: %d \n", index)
+	debug.Printf("-----GetPointerToInt, index: %d \n", index)
 	debug.Printf("b: %v \n", b)
 	debug.Printf("len of values: %v \n", len(b.Values))
 	vv := fillValueTV(store, &b.Values[index])

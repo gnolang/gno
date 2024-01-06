@@ -290,7 +290,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
-				debugPP.Printf("-----IfCaseStmt-----")
+				debugPP.Println("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)

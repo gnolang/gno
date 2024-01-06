@@ -67,6 +67,7 @@ func (m *Machine) doOpExec(op Op) {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
 		if bs.NextBodyIndex == -2 { // init
+			debug.Println("---OpBody, init")
 			bs.NumOps = m.NumOps
 			bs.NumValues = m.NumValues
 			bs.NumExprs = len(m.Exprs)
@@ -74,6 +75,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex = 0
 		}
 		if bs.NextBodyIndex < bs.BodyLen {
+			debug.Println("---OpBody, index < body len")
 			next := bs.Body[bs.NextBodyIndex]
 			bs.NextBodyIndex++
 			// continue onto exec stmt.

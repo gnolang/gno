@@ -66,6 +66,9 @@ func (m *Machine) doOpCall() {
 	debug.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
 	captures := fr.Func.Captures
+	if captures == nil {
+		debug.Println("nil captures")
+	}
 	if captures != nil {
 		debug.Printf("captures before call: %v, len(names): %d, len(values): %d \n", *captures, len(captures.names), len(captures.values))
 		names := clo.GetSource(m.Store).GetBlockNames()
@@ -84,7 +87,6 @@ func (m *Machine) doOpCall() {
 		}
 	}
 	// only need initial snapshot
-	// TODO: better way to zero it
 	fr.Func.Captures = nil
 
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)

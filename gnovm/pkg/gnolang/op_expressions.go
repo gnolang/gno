@@ -684,15 +684,32 @@ type closureObject struct {
 func (m *Machine) doOpPreFuncLit() {
 	debug.Println("-----doOpPreFuncLit")
 	x := m.PeekExpr(1).(*FuncLitExpr)
+	debug.Printf("funcLitExpr: %v \n", x)
+	//debug.Printf("pointer of x.Closure: %p \n", x.Closure)
+	debug.Printf("x.Closure: %v \n", &(x.Closure))
 	lb := m.LastBlock()
 	b := m.Alloc.NewBlock(x, lb)
 	m.PushBlock(b)
 	m.PushOp(OpPopBlock)
 
 	closure := x.Closure
-	for i, nx := range closure.nxs {
-		debug.Printf("closure[%s]: %v \n", i, nx)
-		m.PushExpr(nx)
+	debug.Printf("closure nxs len is: %d \n", len(closure.cnxs))
+	for i, cnx := range closure.cnxs {
+		debug.Printf("closure[%d]: %v \n", i, cnx)
+		offset := cnx.offset
+		debug.Printf("offset of %s is %d \n", cnx.nx.Name, offset)
+		vp := cnx.nx.Path
+		debug.Printf("vp of nx[%s] is : %v \n", cnx.nx.Name, vp)
+		nvp := ValuePath{
+			Name:  cnx.nx.Name,
+			Depth: vp.Depth - offset + 1,
+			Index: vp.Index,
+			Type:  vp.Type,
+		}
+		debug.Printf("nvp of nx[%s] is : %v \n", nvp.Name, nvp)
+		nnx := *cnx.nx
+		nnx.Path = nvp
+		m.PushExpr(&nnx)
 		m.PushOp(OpEval)
 	}
 }
@@ -704,12 +721,12 @@ func (m *Machine) doOpFuncLit() {
 	debug.Printf("lb: %v \n", lb)
 
 	captured := &Captured{}
-	for _, nx := range x.Closure.nxs {
-		debug.Printf("range closures of : %s \n", string(nx.Name))
+	for _, cnx := range x.Closure.cnxs {
+		debug.Printf("range closures of : %s \n", string(cnx.nx.Name))
 		v := *m.PopValue()
 		if !v.IsUndefined() { // e.g. args of func. forward
 			debug.Printf("capturing v: %v \n", v)
-			captured.names = append(captured.names, nx.Name)
+			captured.names = append(captured.names, cnx.nx.Name)
 			captured.values = append(captured.values, v)
 		} else {
 			debug.Println("undefined, skip")
