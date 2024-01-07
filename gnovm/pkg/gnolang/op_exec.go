@@ -149,7 +149,7 @@ func (m *Machine) doOpExec(op Op) {
 				*xv = *dv
 			} else {
 				dv = xv
-				*xv = xv.Copy(m.Alloc)
+				*xv = xv.Copy(m.Alloc, m.Store)
 			}
 			ll = dv.GetLength()
 			if ll == 0 { // early termination
@@ -173,7 +173,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(m.Alloc, iv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -188,7 +188,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(m.Alloc, ev, false)
+					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -269,7 +269,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(m.Alloc, iv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -282,7 +282,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(m.Alloc, ev, false)
+					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -362,7 +362,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
-					ptr.TV.Assign(m.Alloc, kv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, kv, false)
 				default:
 					panic("should not happen")
 				}
@@ -375,7 +375,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
-					ptr.TV.Assign(m.Alloc, vv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, vv, false)
 				default:
 					panic("should not happen")
 				}
@@ -885,7 +885,7 @@ func (m *Machine) doOpTypeSwitch() {
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
 					ptr := b.GetPointerTo(m.Store, vp)
-					ptr.TV.Assign(m.Alloc, *xv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, *xv, false)
 				}
 				// expand block size
 				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {

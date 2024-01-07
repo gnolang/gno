@@ -211,7 +211,7 @@ func UverseNode() *PackageNode {
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
 							for i := 0; i < argsl; i++ {
-								list[i] = argsb.List[argso+i].unrefCopy(m.Alloc, m.Store)
+								list[i] = argsb.List[argso+i].Copy(m.Alloc, m.Store)
 							}
 						}
 						m.PushValue(TypedValue{
@@ -296,9 +296,7 @@ func UverseNode() *PackageNode {
 								if argsb.Data == nil {
 									for i := 0; i < argsl; i++ {
 										oldElem := list[xvo+xvl+i]
-										// unrefCopy will resolve references and copy their values
-										// to copy by value rather than by reference.
-										newElem := argsb.List[argso+i].unrefCopy(m.Alloc, m.Store)
+										newElem := argsb.List[argso+i].Copy(m.Alloc, m.Store)
 										list[xvo+xvl+i] = newElem
 
 										m.Realm.DidUpdate(
@@ -376,7 +374,7 @@ func UverseNode() *PackageNode {
 						if 0 < xvl {
 							if xvb.Data == nil {
 								for i := 0; i < xvl; i++ {
-									list[i] = xvb.List[xvo+i].unrefCopy(m.Alloc, m.Store)
+									list[i] = xvb.List[xvo+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
@@ -392,7 +390,7 @@ func UverseNode() *PackageNode {
 						if 0 < argsl {
 							if argsb.Data == nil {
 								for i := 0; i < argsl; i++ {
-									list[xvl+i] = argsb.List[argso+i].unrefCopy(m.Alloc, m.Store)
+									list[xvl+i] = argsb.List[argso+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								copyDataToList(
@@ -473,7 +471,7 @@ func UverseNode() *PackageNode {
 						list := make([]TypedValue, listLen)
 						if 0 < xvl {
 							for i := 0; i < listLen; i++ {
-								list[i] = xvb.List[xvo+i].unrefCopy(m.Alloc, m.Store)
+								list[i] = xvb.List[xvo+i].Copy(m.Alloc, m.Store)
 							}
 						}
 						if 0 < argsl {

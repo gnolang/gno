@@ -97,6 +97,7 @@ func (bv *BigintValue) UnmarshalAmino(s string) error {
 }
 
 func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
+	// XXX touch alloc.
 	return BigintValue{V: big.NewInt(0).Set(bv.V)}
 }
 
@@ -126,6 +127,7 @@ func (bv *BigdecValue) UnmarshalAmino(s string) error {
 }
 
 func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
+	// XXX touch alloc.
 	cp := apd.New(0, 0)
 	_, err := apd.BaseContext.Add(cp, cp, bv.V)
 	if err != nil {
@@ -264,7 +266,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 							tv2.String(), tv.T.String()))
 					}
 				}
-				*tv = tv2.Copy(alloc)
+				tv.CopyFrom(alloc, store, tv2)
+				// *tv = tv2.Copy(alloc)
 			default:
 				panic("should not happen")
 			}
@@ -278,11 +281,11 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		pv.TV.Assign(alloc, tv2, cu)
+		pv.TV.Assign(alloc, store, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
-		pv.TV.Assign(alloc, tv2, cu)
+		pv.TV.Assign(alloc, store, tv2, cu)
 	}
 }
 
@@ -376,20 +379,60 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
+// NOTE: may switch between .Data and .List depending on
+// type of av2, but does not count toward allocation since
+// it replaces one for the other.
+func (av *ArrayValue) CopyFrom(alloc *Allocator, store Store, av2 *ArrayValue) {
+	if debug {
+		if av.GetLength() != av2.GetLength() {
+			panic(fmt.Sprintf(
+				"expected [%d]array but got [%d]array",
+				av.GetLength(),
+				av2.GetLength(),
+			))
+		}
+	}
+	if av2.Data == nil {
+		if av.Data == nil {
+			// already fine.
+		} else {
+			av.Data = nil
+			av.List = make([]TypedValue, len(av2.List))
+		}
+		avl := len(av2.List)
+		for i := 0; i < avl; i++ {
+			av.List[i] = av2.List[i].Copy(alloc, store)
+		}
+	} else { // av2.List == nil
+		if av.List == nil {
+			// already fine.
+		} else {
+			av.Data = make([]byte, len(av2.Data))
+			av.List = nil
+		}
+		copy(av.Data, av2.Data)
+	}
+}
+
+func (av *ArrayValue) Copy(alloc *Allocator, store Store) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
 	*/
 	if av.Data == nil {
-		av2 := alloc.NewListArray(len(av.List))
-		copy(av2.List, av.List)
+		avl := len(av.List)
+		av2 := alloc.NewListArray(avl)
+		for i := 0; i < avl; i++ {
+			av2.List[i] = av.List[i].Copy(
+				alloc, store)
+		}
+		return av2
+	} else { // av.List == nil
+		av2 := alloc.NewDataArray(len(av.Data))
+		copy(av2.Data, av.Data)
 		return av2
 	}
-	av2 := alloc.NewDataArray(len(av.Data))
-	copy(av2.Data, av.Data)
-	return av2
 }
 
 // ----------------------------------------
@@ -494,7 +537,29 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+func (sv *StructValue) CopyFrom(alloc *Allocator, store Store, sv2 *StructValue) {
+	if debug {
+		if len(sv.Fields) != len(sv2.Fields) {
+			panic(fmt.Sprintf(
+				"expected %d fields but got %d",
+				len(sv.Fields),
+				len(sv2.Fields),
+			))
+		}
+	}
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer (*ArrayValue).
+	svf := sv.Fields
+	sv2f := sv2.Fields
+	for i := 0; i < len(svf); i++ {
+		svf[i].CopyFrom(alloc, store, sv2f[i])
+	}
+}
+
+func (sv *StructValue) Copy(alloc *Allocator, store Store) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -507,7 +572,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	// as pointers. A good example of this would be a struct that has
 	// a field that is an array. The value array is represented as a pointer.
 	for i, field := range sv.Fields {
-		fields[i] = field.Copy(alloc)
+		fields[i] = field.Copy(alloc, store)
 	}
 
 	return alloc.NewStruct(fields)
@@ -754,7 +819,7 @@ func (mv *MapValue) GetLength() int {
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
-		key2 := key.Copy(alloc)
+		key2 := key.Copy(alloc, store)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -764,7 +829,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 	}
 	mli := mv.List.Append(alloc, *key)
 	mv.vmap[kmk] = mli
-	key2 := key.Copy(alloc)
+	key2 := key.Copy(alloc, store)
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
 		Base:  mv,
@@ -1007,17 +1072,54 @@ func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
 
-func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+func (tv *TypedValue) CopyFrom(alloc *Allocator, store Store, tv2 TypedValue) {
+	switch tv2v := tv.V.(type) {
+	case BigintValue:
+		*tv = tv2.Copy(alloc, store)
+	case BigdecValue:
+		*tv = tv2.Copy(alloc, store)
+	case *ArrayValue:
+		tv.T = tv2.T
+		tv.V.(*ArrayValue).CopyFrom(
+			alloc, store, tv2v)
+	case *StructValue:
+		tv.T = tv2.T
+		tv.V.(*StructValue).CopyFrom(
+			alloc, store, tv2v)
+	case *NativeValue:
+		tv.T = tv2.T
+		tv.V = tv2v.Copy(alloc) // TODO optimize
+	default:
+		*tv = tv2
+	}
+	return
+}
+
+func (tv TypedValue) Copy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	case BigdecValue:
+		cp.T = tv.T
+		cp.V = cv.Copy(alloc)
+	case RefValue:
+		cp.T = tv.T
+		refObject := tv.GetFirstObject(store)
+		switch refObjectValue := refObject.(type) {
+		case *ArrayValue:
+			cp.V = refObjectValue.Copy(alloc, store)
+		case *StructValue:
+			cp.V = refObjectValue.Copy(alloc, store)
+		default:
+			cp = tv
+		}
 	case *ArrayValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, store)
 	case *StructValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, store)
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
@@ -1027,23 +1129,24 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	return
 }
 
-// unrefCopy makes a copy of the underlying value in the case of reference values.
-// It copies other values as expected using the normal Copy method.
+// XXX DEPRECATED (Copy() now does this).
+// unrefCopy performs a copy but first unrefs if ptr.
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	panic("XXX")
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, store)
 		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, store)
 		default:
 			cp = tv
 		}
 	default:
-		cp = tv.Copy(alloc)
+		cp = tv.Copy(alloc, store)
 	}
 
 	return
@@ -1578,7 +1681,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // addressable NativeValue fields/elems.
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
-func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+func (tv *TypedValue) Assign(alloc *Allocator, store Store, tv2 TypedValue, cu bool) {
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1591,7 +1694,8 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	*tv = tv2.Copy(alloc)
+	tv.CopyFrom(alloc, store, tv2)
+	// *tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -1769,7 +1873,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 				panic("should not happen")
 			}
 		}
-		dtv2 := dtv.Copy(alloc)
+		dtv2 := dtv.Copy(alloc, store)
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
