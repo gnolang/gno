@@ -269,12 +269,12 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(m.Debugging, gStringerType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
 	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
+	if IsImplementedBy(m.Debugging, gErrorType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
@@ -300,10 +300,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		}
 	}
 
-	// otherwise, default behavior.
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		switch bt {
+	handle := func(p *PrimitiveType) string {
+		switch p.Val {
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
@@ -339,6 +337,14 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		default:
 			panic("should not happen")
 		}
+	}
+
+	// otherwise, default behavior.
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	case *PointerType:
 		if tv.V == nil {
 			return "invalid-pointer"
@@ -357,7 +363,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				reflect.TypeOf(tv.V)))
 		}
 	case *InterfaceType:
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if tv.DebugHasValue() {
 				panic("should not happen")
 			}
@@ -385,7 +391,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return s.String()
 		}
 
-		if debug {
+		if tv.Debugging.IsDebug() {
 			panic(fmt.Sprintf(
 				"unexpected type %s",
 				tv.T.String()))
@@ -398,7 +404,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 // ----------------------------------------
 // TypedValue.String()
 
-// For gno debugging/testing.
+// For gno /testing.
 func (tv TypedValue) String() string {
 	return tv.ProtectedString(newSeenValues())
 }
@@ -409,44 +415,54 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	}
 	vs := ""
 	if tv.V == nil {
-		switch baseOf(tv.T) {
-		case BoolType, UntypedBoolType:
-			vs = fmt.Sprintf("%t", tv.GetBool())
-		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
-		case IntType:
-			vs = fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			vs = fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			vs = fmt.Sprintf("%d", tv.GetInt16())
-		case Int32Type, UntypedRuneType:
-			vs = fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			vs = fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			vs = fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			vs = fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			vs = fmt.Sprintf("%d", tv.GetDataByte())
-		case Uint16Type:
-			vs = fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			vs = fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			vs = fmt.Sprintf("%d", tv.GetUint64())
-		case Float32Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat32())
-		case Float64Type:
-			vs = fmt.Sprintf("%v", tv.GetFloat64())
-		// Complex types that require recusion protection.
+		handle := func(t *PrimitiveType) {
+			switch t.Val {
+			case BoolType, UntypedBoolType:
+				vs = fmt.Sprintf("%t", tv.GetBool())
+			case StringType, UntypedStringType:
+				vs = fmt.Sprintf("%s", tv.GetString())
+			case IntType:
+				vs = fmt.Sprintf("%d", tv.GetInt())
+			case Int8Type:
+				vs = fmt.Sprintf("%d", tv.GetInt8())
+			case Int16Type:
+				vs = fmt.Sprintf("%d", tv.GetInt16())
+			case Int32Type, UntypedRuneType:
+				vs = fmt.Sprintf("%d", tv.GetInt32())
+			case Int64Type:
+				vs = fmt.Sprintf("%d", tv.GetInt64())
+			case UintType:
+				vs = fmt.Sprintf("%d", tv.GetUint())
+			case Uint8Type:
+				vs = fmt.Sprintf("%d", tv.GetUint8())
+			case DataByteType:
+				vs = fmt.Sprintf("%d", tv.GetDataByte())
+			case Uint16Type:
+				vs = fmt.Sprintf("%d", tv.GetUint16())
+			case Uint32Type:
+				vs = fmt.Sprintf("%d", tv.GetUint32())
+			case Uint64Type:
+				vs = fmt.Sprintf("%d", tv.GetUint64())
+			case Float32Type:
+				vs = fmt.Sprintf("%v", tv.GetFloat32())
+			case Float64Type:
+				vs = fmt.Sprintf("%v", tv.GetFloat64())
+			// Complex types that require recusion protection.
+			default:
+				vs = nilStr
+			}
+		}
+		switch t := baseOf(tv.T).(type) {
+		case PrimitiveType:
+			handle(&t)
+		case *PrimitiveType:
+			handle(t)
 		default:
 			vs = nilStr
 		}
 	} else {
 		vs = tv.ProtectedSprint(seen, false)
-		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+		if base := baseOf(tv.T); IsPrimitiveType(StringType, base) || IsPrimitiveType(UntypedStringType, base) {
 			vs = strconv.Quote(vs)
 		}
 	}

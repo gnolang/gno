@@ -12,7 +12,7 @@ import (
 
 func AssertOriginCall(m *gno.Machine) {
 	if !IsOriginCall(m) {
-		m.Panic(typedString("invalid non-origin call"))
+		m.Panic(typedString(m.Debugging, "invalid non-origin call"))
 	}
 }
 
@@ -113,14 +113,14 @@ func GetOrigPkgAddr(m *gno.Machine) crypto.Bech32Address {
 func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	if n <= 0 {
 		fmt.Println("QWEQWEQWEQWE", n)
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString(m.Debugging, "GetCallerAt requires positive arg"))
 		return ""
 	}
 	if n > m.NumFrames() {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
 		// package, so need this check.
-		m.Panic(typedString("frame not found"))
+		m.Panic(typedString(m.Debugging, "frame not found"))
 		return ""
 	}
 	if n == m.NumFrames() {
@@ -150,9 +150,9 @@ func GetBanker(m *gno.Machine, bankerType BankerType) gno.TypedValue {
 	m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
 
 	// make gno bankAdapter{rv}
-	btv := gno.Go2GnoNativeValue(m.Alloc, reflect.ValueOf(banker))
+	btv := gno.Go2GnoNativeValue(m.Debugging, m.Alloc, reflect.ValueOf(banker))
 	bsv := m.Alloc.NewStructWithFields(btv)
-	bankAdapterType := m.Store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
+	bankAdapterType := m.Store.GetType(gno.DeclaredTypeID(m.Debugging, "std", "bankAdapter"))
 	res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
 
 	return res0
@@ -180,8 +180,11 @@ func DecodeBech32(addr crypto.Bech32Address) (prefix string, bytes [20]byte, ok 
 	return prefix, bytes, true
 }
 
-func typedString(s gno.StringValue) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
+func typedString(debugging *gno.Debugging, s gno.StringValue) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.StringType,
+		Debugging: debugging,
+	}}
 	tv.SetString(s)
 	return tv
 }

@@ -19,7 +19,7 @@ func TestConvertUntypedBigdecToFloat(t *testing.T) {
 		V: dec,
 	}
 
-	typ := Float64Type
+	typ := PrimitiveType{Val: Float64Type}
 
 	ConvertUntypedBigdecTo(dst, bd, typ)
 

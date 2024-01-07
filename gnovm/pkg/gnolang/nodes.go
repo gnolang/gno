@@ -153,9 +153,10 @@ func (loc Location) IsZero() bool {
 // for preprocessing) are stored in .data.
 
 type Attributes struct {
-	Line  int
-	Label Name
-	data  map[interface{}]interface{} // not persisted
+	Line      int
+	Label     Name
+	data      map[interface{}]interface{} // not persisted
+	debugging *Debugging
 }
 
 func (attr *Attributes) GetLine() int {
@@ -324,9 +325,243 @@ var (
 type Expr interface {
 	Node
 	assertExpr()
+	DeepCopy() Expr
 }
 
 type Exprs []Expr
+
+func (x *NameExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &NameExpr{
+		Attributes: x.Attributes,
+		Path:       x.Path,
+		Name:       x.Name,
+	}
+}
+
+func (x *BasicLitExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &BasicLitExpr{
+		Attributes: x.Attributes,
+		Kind:       x.Kind,
+		Value:      x.Value,
+	}
+}
+
+func (x *BinaryExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &BinaryExpr{
+		Attributes: x.Attributes,
+		Left:       x.Left.DeepCopy(),
+		Op:         x.Op,
+		Right:      x.Right.DeepCopy(),
+	}
+}
+
+func DeepCopyExprs(exprs []Expr) []Expr {
+	nexprs := make([]Expr, len(exprs))
+
+	for i, expr := range exprs {
+		nexprs[i] = expr.DeepCopy()
+	}
+
+	return nexprs
+}
+
+func (x *CallExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &CallExpr{
+		Attributes: x.Attributes,
+		Func:       x.Func.DeepCopy(),
+		Args:       DeepCopyExprs(x.Args),
+		Varg:       x.Varg,
+		NumArgs:    x.NumArgs,
+	}
+}
+
+func (x *IndexExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &IndexExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Index:      x.Index.DeepCopy(),
+		HasOK:      x.HasOK,
+	}
+}
+
+func (x *SelectorExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &SelectorExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Path:       x.Path,
+		Sel:        x.Sel,
+	}
+}
+
+func (x *SliceExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	low := x.Low
+
+	if low != nil {
+		low = low.DeepCopy()
+	}
+
+	max := x.Max
+
+	if max != nil {
+		max = max.DeepCopy()
+	}
+
+	return &SliceExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Low:        low,
+		High:       x.High.DeepCopy(),
+		Max:        max,
+	}
+}
+
+func (x *StarExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &StarExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+	}
+}
+
+func (x *RefExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &RefExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+	}
+}
+
+func (x *TypeAssertExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &TypeAssertExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Type:       x.Type.DeepCopy(),
+		HasOK:      x.HasOK,
+	}
+}
+
+func (x *UnaryExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &UnaryExpr{
+		Attributes: x.Attributes,
+		X:          x.X.DeepCopy(),
+		Op:         x.Op,
+	}
+}
+
+func (x *CompositeLitExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	kvp := make([]KeyValueExpr, len(x.Elts))
+
+	for i, elt := range x.Elts {
+		kvp[i] = *elt.DeepCopy().(*KeyValueExpr)
+	}
+
+	return &CompositeLitExpr{
+		Attributes: x.Attributes,
+		Type:       x.Type,
+		Elts:       kvp,
+	}
+}
+
+func (x *KeyValueExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	key := x.Key
+
+	if key != nil {
+		key = key.DeepCopy()
+	}
+
+	value := x.Value
+
+	if value != nil {
+		value = value.DeepCopy()
+	}
+
+	return &KeyValueExpr{
+		Attributes: x.Attributes,
+		Key:        key,
+		Value:      value,
+	}
+}
+
+func (x *FuncLitExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &FuncLitExpr{
+		Attributes:  x.Attributes,
+		StaticBlock: x.StaticBlock,
+		Type:        *x.Type.Copy().(*FuncTypeExpr),
+		Body:        x.Body,
+	}
+}
+
+func (x *ConstExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	source := x.Source
+
+	if source != nil {
+		source = source.DeepCopy()
+	}
+
+	return &ConstExpr{
+		Attributes: x.Attributes,
+		Source:     source,
+		TypedValue: x.TypedValue.Copy(nil),
+	}
+}
 
 // non-pointer receiver to help make immutable.
 func (*NameExpr) assertExpr()         {}
@@ -535,6 +770,148 @@ func (x *MapTypeExpr) assertTypeExpr()         {}
 func (x *StructTypeExpr) assertTypeExpr()      {}
 func (x *constTypeExpr) assertTypeExpr()       {}
 func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
+
+func (x *FieldTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	t := x.Type
+
+	if t != nil {
+		t = t.DeepCopy()
+	}
+
+	tag := x.Tag
+
+	if tag != nil {
+		tag = tag.DeepCopy()
+	}
+
+	return &FieldTypeExpr{
+		Attributes: x.Attributes,
+		Name:       x.Name,
+		Type:       t,
+		Tag:        tag,
+	}
+}
+
+func (x *ArrayTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &ArrayTypeExpr{
+		Attributes: x.Attributes,
+		Len:        x.Len.DeepCopy(),
+		Elt:        x.Elt.DeepCopy(),
+	}
+}
+
+func (x *SliceTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &SliceTypeExpr{
+		Attributes: x.Attributes,
+		Elt:        x.Elt.DeepCopy(),
+		Vrd:        x.Vrd,
+	}
+}
+
+func (x *InterfaceTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	fte := make([]FieldTypeExpr, len(x.Methods))
+
+	for i, method := range x.Methods {
+		fte[i] = *method.DeepCopy().(*FieldTypeExpr)
+	}
+
+	return &InterfaceTypeExpr{
+		Attributes: x.Attributes,
+		Methods:    fte,
+		Generic:    x.Generic,
+	}
+}
+
+func (x *ChanTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &ChanTypeExpr{
+		Attributes: x.Attributes,
+		Dir:        x.Dir,
+		Value:      x.Value.DeepCopy(),
+	}
+}
+
+func (x *FuncTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &FuncTypeExpr{
+		Attributes: x.Attributes,
+		Params:     DeepCopyFieldTypeExprs(x.Params),
+		Results:    DeepCopyFieldTypeExprs(x.Results),
+	}
+}
+
+func (x *MapTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &MapTypeExpr{
+		Attributes: x.Attributes,
+		Key:        x.Key.DeepCopy(),
+		Value:      x.Value.DeepCopy(),
+	}
+}
+
+func (x *StructTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &StructTypeExpr{
+		Attributes: x.Attributes,
+		Fields:     DeepCopyFieldTypeExprs(x.Fields),
+	}
+}
+
+func (x *constTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	t := x.Type
+
+	if t != nil {
+		t = t.DeepCopy()
+	}
+	return &constTypeExpr{
+		Attributes: x.Attributes,
+		Source:     x.Source,
+		Type:       t,
+	}
+}
+
+func (x *MaybeNativeTypeExpr) DeepCopy() Expr {
+	if x == nil {
+		return nil
+	}
+
+	return &MaybeNativeTypeExpr{
+		Attributes: x.Attributes,
+		Type:       x.Type.DeepCopy(),
+	}
+}
 
 func (x *FieldTypeExpr) assertExpr()       {}
 func (x *ArrayTypeExpr) assertExpr()       {}
@@ -1300,6 +1677,7 @@ type PackageNode struct {
 	PkgPath string
 	PkgName Name
 	*FileSet
+	debugging *Debugging
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1395,17 +1773,17 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 // same as DefineGoNativeValue, which DOES NOT give access to
 // the running machine.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
 
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, x, fd).(*FuncDecl)
+	fd = Preprocess(x.debugging, pState(0), nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
-	if debug {
+	if x.debugging.IsDebug() {
 		if ft == nil {
 			panic("should not happen")
 		}
@@ -1418,8 +1796,8 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 // For example, overriding a native function defined in stdlibs/stdlibs for
 // testing. Caller must ensure that the function type is identical.
 func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
@@ -1485,6 +1863,7 @@ type StaticBlock struct {
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
+	debugging *Debugging
 }
 
 type oldValue struct {
@@ -1619,7 +1998,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		}
 	}
 	// Finally, check uverse.
-	if idx, ok := UverseNode().GetLocalIndex(n); ok {
+	if idx, ok := UverseNode(sb.debugging).GetLocalIndex(n); ok {
 		return NewValuePathUverse(idx, n)
 	}
 	// Name does not exist.
@@ -1669,9 +2048,9 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			idx, ok = bp.GetLocalIndex(n)
 			ts = bp.GetStaticBlock().Types
 			bp = bp.GetParentNode(store)
-		} else if idx, ok := UverseNode().GetLocalIndex(n); ok {
+		} else if idx, ok := UverseNode(sb.debugging).GetLocalIndex(n); ok {
 			path := NewValuePathUverse(idx, n)
-			tv := Uverse().GetValueAt(store, path)
+			tv := Uverse(sb.debugging).GetValueAt(store, path)
 			return tv.T
 		} else {
 			panic(fmt.Sprintf("name %s not declared", n))
@@ -1681,7 +2060,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
-	if debug {
+	if sb.debugging.IsDebug() {
 		if path.Type != VPBlock {
 			panic("should not happen")
 		}
@@ -1703,17 +2082,17 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	for i, name := range sb.Names {
 		if name == n {
-			if debug {
+			if sb.debugging.IsDebug() {
 				nt := reflect.TypeOf(sb.Source).String()
-				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+				sb.debugging.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
 					sb, nt, n, i, name)
 			}
 			return uint16(i), true
 		}
 	}
-	if debug {
+	if sb.debugging.IsDebug() {
 		nt := reflect.TypeOf(sb.Source).String()
-		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+		sb.debugging.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
 			sb, nt, n)
 	}
 	return 0, false
@@ -1762,8 +2141,8 @@ func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
-	if debug {
-		debug.Printf(
+	if sb.debugging.IsDebug() {
+		sb.debugging.Printf(
 			"StaticBlock.Define2(%v, %s, %v, %v)\n",
 			isConst, n, st, tv)
 	}

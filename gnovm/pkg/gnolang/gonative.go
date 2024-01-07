@@ -18,47 +18,89 @@ import (
 // Go to Gno conversion
 
 // See go2GnoValue(); this is lazy.
-func go2GnoType(rt reflect.Type) Type {
+func go2GnoType(debugging *Debugging, rt reflect.Type) Type {
 	if rt.PkgPath() != "" {
 		return &NativeType{Type: rt}
 	}
-	return go2GnoBaseType(rt)
+	return go2GnoBaseType(debugging, rt)
 }
 
 // like go2GnoType() but ignores name declaration.
 // for native type unary/binary expression conversion.
 // also used for untyped gno -> native conversion intermediary.
 // XXX support unary conversions as we did for binary.
-func go2GnoBaseType(rt reflect.Type) Type {
+func go2GnoBaseType(debugging *Debugging, rt reflect.Type) Type {
 	switch rk := rt.Kind(); rk {
 	case reflect.Bool:
-		return BoolType
+		return PrimitiveType{
+			Val:       BoolType,
+			Debugging: debugging,
+		}
 	case reflect.String:
-		return StringType
+		return PrimitiveType{
+			Val:       StringType,
+			Debugging: debugging,
+		}
 	case reflect.Int:
-		return IntType
+		return PrimitiveType{
+			Val:       IntType,
+			Debugging: debugging,
+		}
 	case reflect.Int8:
-		return Int8Type
+		return PrimitiveType{
+			Val:       Int8Type,
+			Debugging: debugging,
+		}
 	case reflect.Int16:
-		return Int16Type
+		return PrimitiveType{
+			Val:       Int16Type,
+			Debugging: debugging,
+		}
 	case reflect.Int32:
-		return Int32Type
+		return PrimitiveType{
+			Val:       Int32Type,
+			Debugging: debugging,
+		}
 	case reflect.Int64:
-		return Int64Type
+		return PrimitiveType{
+			Val:       Int64Type,
+			Debugging: debugging,
+		}
 	case reflect.Uint:
-		return UintType
+		return PrimitiveType{
+			Val:       UintType,
+			Debugging: debugging,
+		}
 	case reflect.Uint8:
-		return Uint8Type
+		return PrimitiveType{
+			Val:       Uint8Type,
+			Debugging: debugging,
+		}
 	case reflect.Uint16:
-		return Uint16Type
+		return PrimitiveType{
+			Val:       Uint16Type,
+			Debugging: debugging,
+		}
 	case reflect.Uint32:
-		return Uint32Type
+		return PrimitiveType{
+			Val:       Uint32Type,
+			Debugging: debugging,
+		}
 	case reflect.Uint64:
-		return Uint64Type
+		return PrimitiveType{
+			Val:       Uint64Type,
+			Debugging: debugging,
+		}
 	case reflect.Float32:
-		return Float32Type
+		return PrimitiveType{
+			Val:       Float32Type,
+			Debugging: debugging,
+		}
 	case reflect.Float64:
-		return Float64Type
+		return PrimitiveType{
+			Val:       Float64Type,
+			Debugging: debugging,
+		}
 	case reflect.Array:
 		return &NativeType{Type: rt}
 	case reflect.Slice:
@@ -182,7 +224,7 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 			}
 		}
 		// memoize t to cache.
-		if debug {
+		if ds.debugging.IsDebug() {
 			if gnot, ok := ds.cacheNativeTypes[rt]; ok {
 				if gnot.TypeID() != baseOf(t).TypeID() {
 					panic("should not happen")
@@ -193,45 +235,87 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 	}()
 	switch rk := rt.Kind(); rk {
 	case reflect.Bool:
-		return BoolType
+		return PrimitiveType{
+			Val:       BoolType,
+			Debugging: ds.debugging,
+		}
 	case reflect.String:
-		return StringType
+		return PrimitiveType{
+			Val:       StringType,
+			Debugging: ds.debugging,
+		}
 	case reflect.Int:
-		return IntType
+		return PrimitiveType{
+			Val:       IntType,
+			Debugging: ds.debugging,
+		}
 	case reflect.Int8:
-		return Int8Type
+		return PrimitiveType{
+			Val:       Int8Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Int16:
-		return Int16Type
+		return PrimitiveType{
+			Val:       Int16Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Int32:
-		return Int32Type
+		return PrimitiveType{
+			Val:       Int32Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Int64:
-		return Int64Type
+		return PrimitiveType{
+			Val:       Int64Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Uint:
-		return UintType
+		return PrimitiveType{
+			Val:       UintType,
+			Debugging: ds.debugging,
+		}
 	case reflect.Uint8:
-		return Uint8Type
+		return PrimitiveType{
+			Val:       Uint8Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Uint16:
-		return Uint16Type
+		return PrimitiveType{
+			Val:       Uint16Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Uint32:
-		return Uint32Type
+		return PrimitiveType{
+			Val:       Uint32Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Uint64:
-		return Uint64Type
+		return PrimitiveType{
+			Val:       Uint64Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Float32:
-		return Float32Type
+		return PrimitiveType{
+			Val:       Float32Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Float64:
-		return Float64Type
+		return PrimitiveType{
+			Val:       Float64Type,
+			Debugging: ds.debugging,
+		}
 	case reflect.Array:
 		// predefine gno type
 		at := &ArrayType{}
 		ds.cacheNativeTypes[rt] = at
 		// define gno type
 		at.Len = rt.Len()
-		at.Elt = go2GnoType(rt.Elem())
+		at.Elt = go2GnoType(ds.debugging, rt.Elem())
 		at.Vrd = false
 		return at
 	case reflect.Slice:
 		return &SliceType{
-			Elt: go2GnoType(rt.Elem()),
+			Elt: go2GnoType(ds.debugging, rt.Elem()),
 			Vrd: false,
 		}
 	case reflect.Chan:
@@ -241,7 +325,7 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		// define gno type
 		chdir := toChanDir(rt.ChanDir())
 		ct.Dir = chdir
-		ct.Elt = go2GnoType(rt.Elem())
+		ct.Elt = go2GnoType(ds.debugging, rt.Elem())
 		return ct
 	case reflect.Func:
 		return ds.go2GnoFuncType(rt)
@@ -267,8 +351,8 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		mt := &MapType{}
 		ds.cacheNativeTypes[rt] = mt
 		// define gno type
-		mt.Key = go2GnoType(rt.Key())
-		mt.Value = go2GnoType(rt.Elem())
+		mt.Key = go2GnoType(ds.debugging, rt.Key())
+		mt.Value = go2GnoType(ds.debugging, rt.Elem())
 		return mt
 	case reflect.Ptr:
 		return &PointerType{
@@ -285,7 +369,7 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 			sf := rt.Field(i)
 			fs[i] = FieldType{
 				Name: Name(sf.Name),
-				Type: go2GnoType(sf.Type),
+				Type: go2GnoType(ds.debugging, sf.Type),
 			}
 		}
 		st.PkgPath = rt.PkgPath()
@@ -310,7 +394,7 @@ func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 	hasVargs := rt.IsVariadic()
 	ins := make([]FieldType, rt.NumIn())
 	for i := 0; i < len(ins); i++ {
-		it := go2GnoType(rt.In(i))
+		it := go2GnoType(ds.debugging, rt.In(i))
 		if hasVargs && i == len(ins)-1 {
 			it = &SliceType{
 				Elt: it.Elem(),
@@ -324,7 +408,7 @@ func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 	}
 	outs := make([]FieldType, rt.NumOut())
 	for i := 0; i < len(outs); i++ {
-		ot := go2GnoType(rt.Out(i))
+		ot := go2GnoType(ds.debugging, rt.Out(i))
 		outs[i] = FieldType{
 			Name: "", // XXX dontcare?
 			Type: ot,
@@ -336,18 +420,18 @@ func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 }
 
 // NOTE: used by vm module.  Recursively converts.
-func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue2(alloc, store, rv, true)
+func Go2GnoValue(debugging *Debugging, alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue) {
+	return go2GnoValue2(debugging, alloc, store, rv, true)
 }
 
 // NOTE: used by vm module. Shallow, preserves native namedness.
-func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue(alloc, rv)
+func Go2GnoNativeValue(debugging *Debugging, alloc *Allocator, rv reflect.Value) (tv TypedValue) {
+	return go2GnoValue(debugging, alloc, rv)
 }
 
 // NOTE: used by imports_test.go TestSetOrigCaller.
-func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
-	return gno2GoValue(tv, rv)
+func Gno2GoValue(debugging *Debugging, tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
+	return gno2GoValue(debugging, tv, rv)
 }
 
 // Default run-time representation of go-native values.  It is
@@ -358,7 +442,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // call go2GnoValue2(), which is used by the implementation of
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
-func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
+func go2GnoValue(debugging *Debugging, alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	if !rv.IsValid() {
 		return
 	}
@@ -375,7 +459,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		tv.V = alloc.NewNative(rv)
 		return
 	}
-	tv.T = alloc.NewType(go2GnoType(rv.Type()))
+	tv.T = alloc.NewType(go2GnoType(debugging, rv.Type()))
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
@@ -436,7 +520,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 // become initialized.  NOTE: Due to limitations of Go 1.15
 // reflection, any child Gno declared types cannot change
 // types, and pointer values cannot change.
-func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
+func go2GnoValueUpdate(debugging *Debugging, alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -514,7 +598,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 	case ArrayKind:
 		av := tv.V.(*ArrayValue)
 		rvl := rv.Len()
-		if debug {
+		if debugging.IsDebug() {
 			if rvl != baseOf(tv.T).(*ArrayType).Len {
 				panic("go-native update error: array length mismatch")
 			}
@@ -532,7 +616,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				if etv.V == nil {
 					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(debugging, alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -543,7 +627,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 	case SliceKind:
 		rvl := rv.Len()
 		if rvl == 0 {
-			if debug {
+			if debugging.IsDebug() {
 				if tv.V != nil && tv.V.(*SliceValue).GetLength() != 0 {
 					panic("should not happen")
 				}
@@ -553,7 +637,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		sv := tv.V.(*SliceValue)
 		svo := sv.Offset
 		svl := sv.Length
-		if debug {
+		if debugging.IsDebug() {
 			if rvl != svl {
 				panic("go-native update error: slice length mismatch")
 			}
@@ -571,7 +655,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				if etv.V == nil {
 					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(debugging, alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -586,7 +670,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		pv := tv.V.(PointerValue)
 		etv := pv.TV
 		erv := rv.Elem()
-		go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+		go2GnoValueUpdate(debugging, alloc, rlm, lvl+1, etv, erv)
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
@@ -601,12 +685,12 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				ftv.V = defaultValue(alloc, ft)
 			}
 			frv := rv.Field(i)
-			go2GnoValueUpdate(alloc, rlm, lvl+1, ftv, frv)
+			go2GnoValueUpdate(debugging, alloc, rlm, lvl+1, ftv, frv)
 		}
 	case PackageKind:
 		panic("not yet implemented")
 	case InterfaceKind:
-		if debug {
+		if debugging.IsDebug() {
 			if !tv.IsNilInterface() {
 				panic("should not happen")
 			}
@@ -641,13 +725,13 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
 			// Update in place.
-			krv := gno2GoValue(ktv, reflect.Value{})
+			krv := gno2GoValue(debugging, ktv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
 			if vrv.IsZero() {
 				// XXX remove key from mv
 				panic("not yet implemented")
 			} else {
-				go2GnoValueUpdate(alloc, rlm, lvl+1, vtv, vrv)
+				go2GnoValueUpdate(debugging, alloc, rlm, lvl+1, vtv, vrv)
 			}
 			// Delete from rv2
 			rv2.SetMapIndex(krv, reflect.Value{})
@@ -658,10 +742,10 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		rv2i := rv2.MapRange()
 		for rv2i.Next() {
 			k, v := rv2i.Key(), rv2i.Value()
-			ktv := go2GnoValue(alloc, k)
-			vtv := go2GnoValue(alloc, v)
+			ktv := go2GnoValue(debugging, alloc, k)
+			vtv := go2GnoValue(debugging, alloc, v)
 			ptr := mv.GetPointerForKey(alloc, nil, &ktv)
-			if debug {
+			if debugging.IsDebug() {
 				if !ptr.TV.IsUndefined() {
 					panic("should not happen")
 				}
@@ -684,8 +768,8 @@ var tError = reflect.TypeOf(new(error)).Elem()
 // converting Go types to Gno types upon an explicit conversion (via
 // ConvertTo).  Panics on unexported/private fields. Some types that cannot be
 // converted remain native. Unlike go2GnoValue(), rv must be valid.
-func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive bool) (tv TypedValue) {
-	if debug {
+func go2GnoValue2(debugging *Debugging, alloc *Allocator, store Store, rv reflect.Value, recursive bool) (tv TypedValue) {
+	if debugging.IsDebug() {
 		if !rv.IsValid() {
 			panic("go2GnoValue2() requires valid rv")
 		}
@@ -732,9 +816,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 			list := av.List
 			for i := 0; i < rvl; i++ {
 				if recursive {
-					list[i] = go2GnoValue2(alloc, store, rv.Index(i), true)
+					list[i] = go2GnoValue2(debugging, alloc, store, rv.Index(i), true)
 				} else {
-					list[i] = go2GnoValue(alloc, rv.Index(i))
+					list[i] = go2GnoValue(debugging, alloc, rv.Index(i))
 				}
 			}
 			tv.V = av
@@ -745,9 +829,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 		list := make([]TypedValue, rvl, rvc)
 		for i := 0; i < rvl; i++ {
 			if recursive {
-				list[i] = go2GnoValue2(alloc, store, rv.Index(i), true)
+				list[i] = go2GnoValue2(debugging, alloc, store, rv.Index(i), true)
 			} else {
-				list[i] = go2GnoValue(alloc, rv.Index(i))
+				list[i] = go2GnoValue(debugging, alloc, rv.Index(i))
 			}
 		}
 		tv.V = alloc.NewSliceFromList(list)
@@ -773,7 +857,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
-		val := go2GnoValue2(alloc, store, rv.Elem(), recursive)
+		val := go2GnoValue2(debugging, alloc, store, rv.Elem(), recursive)
 		tv.V = PointerValue{TV: &val} // heap alloc
 	case reflect.Struct:
 		nf := rv.NumField()
@@ -781,9 +865,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 		for i := 0; i < nf; i++ {
 			frv := rv.Field(i)
 			if recursive {
-				fs[i] = go2GnoValue2(alloc, store, frv, true)
+				fs[i] = go2GnoValue2(debugging, alloc, store, frv, true)
 			} else {
-				fs[i] = go2GnoValue(alloc, frv)
+				fs[i] = go2GnoValue(debugging, alloc, frv)
 			}
 		}
 		tv.V = alloc.NewStruct(fs)
@@ -803,20 +887,20 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 // https://github.com/golang/go/issues/39717.
 func gno2GoType(t Type) reflect.Type {
 	// special case if t == Float32Type or Float64Type
-	if t == Float32Type {
+	if IsPrimitiveType(Float32Type, t) {
 		return reflect.TypeOf(float32(0.0))
-	} else if t == Float64Type {
+	} else if IsPrimitiveType(Float64Type, t) {
 		return reflect.TypeOf(float64(0.0))
 	}
-	switch ct := baseOf(t).(type) {
-	case PrimitiveType:
-		switch ct {
+
+	handle := func(p *PrimitiveType) reflect.Type {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			return reflect.TypeOf(false)
 		case StringType, UntypedStringType:
 			return reflect.TypeOf("")
 		case IntType:
-			return reflect.TypeOf(int(0))
+			return reflect.TypeOf(0)
 		case Int8Type:
 			return reflect.TypeOf(int8(0))
 		case Int16Type:
@@ -846,6 +930,13 @@ func gno2GoType(t Type) reflect.Type {
 		default:
 			panic("should not happen")
 		}
+	}
+
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&ct)
+	case *PrimitiveType:
+		return handle(ct)
 	case *PointerType:
 		et := gno2GoType(ct.Elem())
 		return reflect.PtrTo(et)
@@ -916,19 +1007,19 @@ func gno2GoType(t Type) reflect.Type {
 // This is called when autoNative is true in checkType().
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
-func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
+func gno2GoTypeMatches(debugging *Debugging, t Type, rt reflect.Type) (result bool) {
 	if rt == nil {
 		panic("should not happen")
 	}
 	// special case if t == Float32Type or Float64Type
-	if t == Float32Type {
+	if IsPrimitiveType(Float32Type, t) {
 		return rt.Kind() == reflect.Float32
-	} else if t == Float64Type {
+	} else if IsPrimitiveType(Float64Type, t) {
 		return rt.Kind() == reflect.Float64
 	}
-	switch ct := baseOf(t).(type) {
-	case PrimitiveType:
-		switch ct {
+
+	handle := func(p *PrimitiveType) bool {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			return rt.Kind() == reflect.Bool
 		case StringType, UntypedStringType:
@@ -964,11 +1055,17 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		default:
 			panic("should not happen")
 		}
+	}
+	switch ct := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&ct)
+	case *PrimitiveType:
+		return handle(ct)
 	case *PointerType:
 		if rt.Kind() != reflect.Ptr {
 			return false
 		}
-		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+		return gno2GoTypeMatches(debugging, ct.Elt, rt.Elem())
 	case *ArrayType:
 		if rt.Kind() != reflect.Array {
 			return false
@@ -976,26 +1073,26 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		if ct.Len != rt.Len() {
 			return false
 		}
-		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+		return gno2GoTypeMatches(debugging, ct.Elt, rt.Elem())
 	case *SliceType:
 		if rt.Kind() != reflect.Slice {
 			return false
 		}
-		return gno2GoTypeMatches(ct.Elt, rt.Elem())
+		return gno2GoTypeMatches(debugging, ct.Elt, rt.Elem())
 	case *StructType:
 		// TODO maybe consider automatically skipping private native fields?
 		for i, field := range ct.Fields {
 			rft := rt.Field(i).Type
-			if !gno2GoTypeMatches(field.Type, rft) {
+			if !gno2GoTypeMatches(debugging, field.Type, rft) {
 				return false
 			}
 		}
 		return true
 	case *MapType:
-		if !gno2GoTypeMatches(ct.Key, rt.Key()) {
+		if !gno2GoTypeMatches(debugging, ct.Key, rt.Key()) {
 			return false
 		}
-		if !gno2GoTypeMatches(ct.Value, rt.Elem()) {
+		if !gno2GoTypeMatches(debugging, ct.Value, rt.Elem()) {
 			return false
 		}
 		return true
@@ -1006,16 +1103,16 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		//
 		// args must auto-match.
 		for i, pt := range ct.Params {
-			if !gno2GoTypeMatches(pt.Type, rt.In(i)) {
+			if !gno2GoTypeMatches(debugging, pt.Type, rt.In(i)) {
 				return false
 			}
 		}
 		// go2GnoType(result) must match directly.
 		for i, rct := range ct.Results {
 			rrt := rt.Out(i)
-			gnorrt := go2GnoType(rrt)
+			gnorrt := go2GnoType(debugging, rrt)
 			if rct.Type.Kind() == InterfaceKind {
-				if !IsImplementedBy(rct.Type, gnorrt) {
+				if !IsImplementedBy(debugging, rct.Type, gnorrt) {
 					return false
 				}
 			} else if rct.Type.TypeID() != gnorrt.TypeID() {
@@ -1061,9 +1158,9 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 // gno.PointerValue). In the latter case, an addressable one will be
 // constructed and returned, otherwise returns rv.  if tv is undefined, rv must
 // be valid.
-func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
+func gno2GoValue(debugging *Debugging, tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	if tv.IsUndefined() {
-		if debug {
+		if debugging.IsDebug() {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
 			}
@@ -1077,7 +1174,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		rv = reflect.New(rt).Elem()
 		ret = rv
 	} else if rv.Kind() == reflect.Interface {
-		if debug {
+		if debugging.IsDebug() {
 			if !rv.IsZero() {
 				panic("should not happen")
 			}
@@ -1094,9 +1191,9 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		ret = rv
 		rt = rv.Type()
 	}
-	switch ct := bt.(type) {
-	case PrimitiveType:
-		switch ct {
+
+	handle := func(p *PrimitiveType) {
+		switch p.Val {
 		case BoolType, UntypedBoolType:
 			rv.SetBool(tv.GetBool())
 		case StringType, UntypedStringType:
@@ -1130,6 +1227,13 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				"unexpected type %s",
 				tv.T.String()))
 		}
+	}
+
+	switch ct := bt.(type) {
+	case PrimitiveType:
+		handle(&ct)
+	case *PrimitiveType:
+		handle(ct)
 	case *PointerType:
 		// This doesn't take into account pointer relativity, or even
 		// identical pointers -- every non-nil gno pointer type results in a
@@ -1138,11 +1242,11 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			// do nothing
 		} else {
 			rve := reflect.New(rv.Type().Elem()).Elem()
-			rv2 := gno2GoValue(tv.V.(PointerValue).TV, rve)
+			rv2 := gno2GoValue(debugging, tv.V.(PointerValue).TV, rve)
 			rv.Set(rv2.Addr())
 		}
 	case *ArrayType:
-		if debug {
+		if debugging.IsDebug() {
 			if tv.V == nil {
 				// all arguments and recursively fetched arrays
 				// should have been initialized if not already so.
@@ -1157,7 +1261,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				if etv.IsUndefined() {
 					continue
 				}
-				gno2GoValue(etv, rv.Index(i))
+				gno2GoValue(debugging, etv, rv.Index(i))
 			}
 		} else {
 			for i := 0; i < ct.Len; i++ {
@@ -1184,7 +1288,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				if etv.IsUndefined() {
 					continue
 				}
-				gno2GoValue(etv, rv.Index(i))
+				gno2GoValue(debugging, etv, rv.Index(i))
 			}
 		} else {
 			data := make([]byte, svl, svc)
@@ -1203,7 +1307,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			if ftv.IsUndefined() {
 				continue
 			}
-			gno2GoValue(ftv, rv.Field(i))
+			gno2GoValue(debugging, ftv, rv.Field(i))
 		}
 	case *MapType:
 		// If uninitialized map, return zero value.
@@ -1218,12 +1322,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		vrt := mt.Elem()
 		for head != nil {
 			ktv, vtv := &head.Key, &head.Value
-			krv := gno2GoValue(ktv, reflect.Value{})
+			krv := gno2GoValue(debugging, ktv, reflect.Value{})
 			if vtv.IsUndefined() {
 				vrv := reflect.New(vrt).Elem()
 				rv.SetMapIndex(krv, vrv)
 			} else {
-				vrv := gno2GoValue(vtv, reflect.Value{})
+				vrv := gno2GoValue(debugging, vtv, reflect.Value{})
 				rv.SetMapIndex(krv, vrv)
 			}
 			head = head.Next
@@ -1254,8 +1358,8 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // PackageNode methods
 
 func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
-	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeType(%s)\n", rt.String())
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineGoNativeType(%s)\n", rt.String())
 	}
 	pkgp := rt.PkgPath()
 	if pkgp == "" {
@@ -1282,15 +1386,15 @@ func (x *PackageNode) DefineGoNativeType(rt reflect.Type) {
 }
 
 func (x *PackageNode) DefineGoNativeValue(n Name, nv interface{}) {
-	if debug {
-		debug.Printf("*PackageNode.DefineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
+	if x.debugging.IsDebug() {
+		x.debugging.Printf("*PackageNode.DefineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
 	}
 	rv := reflect.ValueOf(nv)
 	// rv is not settable, so create something that is.
 	rt := rv.Type()
 	rv2 := reflect.New(rt).Elem()
 	rv2.Set(rv)
-	x.Define(n, go2GnoValue(nilAllocator, rv2))
+	x.Define(n, go2GnoValue(x.debugging, nilAllocator, rv2))
 }
 
 // ----------------------------------------
@@ -1312,15 +1416,15 @@ func (m *Machine) doOpArrayLitGoNative() {
 				// XXX why convert? (also see doOpArrayLit())
 				k := kx.(*ConstExpr).ConvertGetInt()
 				rf := rv.Index(k)
-				gno2GoValue(&itvs[i], rf)
+				gno2GoValue(m.Debugging, &itvs[i], rf)
 			} else {
 				rf := rv.Index(i)
-				gno2GoValue(&itvs[i], rf)
+				gno2GoValue(m.Debugging, &itvs[i], rf)
 			}
 		}
 	}
 	// construct and push value.
-	if debug {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != nt {
 			panic("should not happen")
 		}
@@ -1351,15 +1455,15 @@ func (m *Machine) doOpSliceLitGoNative() {
 				// XXX why convert? (also see doOpArrayLit())
 				k := kx.(*ConstExpr).ConvertGetInt()
 				rf := rv.Index(k)
-				gno2GoValue(&itvs[i], rf)
+				gno2GoValue(m.Debugging, &itvs[i], rf)
 			} else {
 				rf := rv.Index(i)
-				gno2GoValue(&itvs[i], rf)
+				gno2GoValue(m.Debugging, &itvs[i], rf)
 			}
 		}
 	}
 	// construct and push value.
-	if debug {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != nt {
 			panic("should not happen")
 		}
@@ -1389,7 +1493,7 @@ func (m *Machine) doOpStructLitGoNative() {
 		ftvs := m.PopValues(el)
 		for i := 0; i < el; i++ {
 			rf := rv.Field(i)
-			gno2GoValue(&ftvs[i], rf)
+			gno2GoValue(m.Debugging, &ftvs[i], rf)
 		}
 	} else {
 		// field values are by name and may be out of order.
@@ -1397,11 +1501,11 @@ func (m *Machine) doOpStructLitGoNative() {
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			rf := rv.FieldByName(string(fnx.Name))
-			gno2GoValue(&ftvs[i], rf)
+			gno2GoValue(m.Debugging, &ftvs[i], rf)
 		}
 	}
 	// construct and push value.
-	if debug {
+	if m.Debugging.IsDebug() {
 		if m.PopValue().V.(TypeValue).Type != nt {
 			panic("should not happen")
 		}
@@ -1437,7 +1541,7 @@ func (m *Machine) doOpCallGoNative() {
 			it = ft.In(i)
 		}
 		erv := reflect.New(it).Elem()
-		prvs = append(prvs, gno2GoValue(ptv, erv))
+		prvs = append(prvs, gno2GoValue(m.Debugging, ptv, erv))
 	}
 	// call and get results.
 	rrvs := []reflect.Value(nil)
@@ -1450,7 +1554,7 @@ func (m *Machine) doOpCallGoNative() {
 	for _, rvs := range rrvs {
 		// TODO instead of this shallow conversion,
 		// look at expected Gno type and convert appropriately.
-		rtv := go2GnoValue(m.Alloc, rvs)
+		rtv := go2GnoValue(m.Debugging, m.Alloc, rvs)
 		m.PushValue(rtv)
 	}
 	// carry writes to params if needed.
@@ -1458,7 +1562,7 @@ func (m *Machine) doOpCallGoNative() {
 		ptv := &ptvs[i]
 		prv := prvs[i]
 		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(m.Alloc, m.Realm, 0, ptv, prv)
+			go2GnoValueUpdate(m.Debugging, m.Alloc, m.Realm, 0, ptv, prv)
 		}
 	}
 	// cleanup

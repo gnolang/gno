@@ -20,7 +20,201 @@ import (
 
 type Value interface {
 	assertValue()
-	String() string // for debugging
+	String() string // for Debugging
+	CopyValue() Value
+}
+
+func (v StringValue) CopyValue() Value {
+	return v
+}
+
+func (bv BigintValue) CopyValue() Value {
+	bb := BigintValue{V: big.NewInt(0)}
+
+	bb.V.Set(bv.V)
+	return bb
+}
+
+func (bv BigdecValue) CopyValue() Value {
+	return bv.Copy(nil)
+}
+
+func (dbv DataByteValue) CopyValue() Value {
+	return DataByteValue{
+		Base:     dbv.Base.Copy(nil),
+		Index:    dbv.Index,
+		ElemType: dbv.ElemType.DeepCopy(),
+	}
+}
+
+func (pv PointerValue) CopyValue() Value {
+	tv := pv.TV.Copy(nil)
+	key := pv.Key
+
+	if key != nil {
+		c := key.Copy(nil)
+		key = &c
+	}
+
+	base := pv.Base
+
+	if base != nil {
+		base = base.CopyValue()
+	}
+
+	return PointerValue{
+		TV:    &tv,
+		Base:  base,
+		Index: pv.Index,
+		Key:   key,
+	}
+}
+
+func (av *ArrayValue) CopyValue() Value {
+	if av == nil {
+		return nil
+	}
+
+	data := make([]byte, len(av.Data))
+	copy(data, av.Data)
+
+	return &ArrayValue{
+		ObjectInfo: av.ObjectInfo.Copy(),
+		List:       DeepCopyTypedValues(av.List),
+		Data:       data,
+	}
+}
+
+func (sv *SliceValue) CopyValue() Value {
+	if sv == nil {
+		return nil
+	}
+
+	return &SliceValue{
+		Base:   sv.Base.CopyValue(),
+		Offset: sv.Offset,
+		Length: sv.Length,
+		Maxcap: sv.Maxcap,
+	}
+}
+
+func (sv *StructValue) CopyValue() Value {
+	if sv == nil {
+		return nil
+	}
+
+	return &StructValue{
+		ObjectInfo: sv.ObjectInfo.Copy(),
+		Fields:     DeepCopyTypedValues(sv.Fields),
+	}
+}
+
+func (fv *FuncValue) CopyValue() Value {
+	if fv == nil {
+		return nil
+	}
+
+	stmts := make([]Stmt, len(fv.body))
+
+	for i, stmt := range fv.body {
+		stmts[i] = stmt.Copy().(Stmt)
+	}
+
+	closure := fv.Closure
+
+	if closure != nil {
+		closure = closure.CopyValue()
+	}
+
+	return &FuncValue{
+		Type:       fv.Type.DeepCopy(),
+		IsMethod:   fv.IsMethod,
+		Source:     fv.Source.Copy().(BlockNode),
+		Name:       fv.Name,
+		Closure:    closure,
+		FileName:   fv.FileName,
+		PkgPath:    fv.PkgPath,
+		body:       stmts,
+		nativeBody: fv.nativeBody,
+	}
+}
+
+func (mv *MapValue) CopyValue() Value {
+	if mv == nil {
+		return nil
+	}
+
+	mm := mv.DeepCopy().(*MapValue)
+	return mm
+}
+
+func (v *BoundMethodValue) CopyValue() Value {
+	if v == nil {
+		return nil
+	}
+
+	mm := v.DeepCopy().(*BoundMethodValue)
+	return mm
+}
+
+func (v TypeValue) CopyValue() Value {
+	return TypeValue{Type: v.Type.DeepCopy()}
+}
+
+func (pv *PackageValue) CopyValue() Value {
+	if pv == nil {
+		return nil
+	}
+
+	names := make([]Name, len(pv.FNames))
+	copy(names, pv.FNames)
+
+	values := make([]Value, len(pv.FBlocks))
+	copy(values, pv.FBlocks)
+
+	fblocksmap := make(map[Name]*Block)
+
+	for name, block := range pv.fBlocksMap {
+		fblocksmap[name] = block.DeepCopy().(*Block)
+	}
+
+	return &PackageValue{
+		ObjectInfo: pv.ObjectInfo.Copy(),
+		Block:      pv.Block.CopyValue(),
+		PkgName:    pv.PkgName,
+		PkgPath:    pv.PkgPath,
+		FNames:     names,
+		FBlocks:    values,
+		Realm:      pv.Realm.DeepCopy(),
+		fBlocksMap: fblocksmap,
+	}
+}
+
+func (nv *NativeValue) CopyValue() Value {
+	if nv == nil {
+		return nil
+	}
+	return &NativeValue{
+		Value: nv.Value,
+		Bytes: nv.Bytes,
+	}
+}
+
+func (b *Block) CopyValue() Value {
+	if b == nil {
+		return nil
+	}
+	bb := b.DeepCopy().(*Block)
+	return bb
+}
+
+func (v RefValue) CopyValue() Value {
+	return RefValue{
+		ObjectID: v.ObjectID,
+		Escaped:  v.Escaped,
+		PkgPath:  v.PkgPath,
+		Hash:     v.Hash.Copy(),
+	}
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -172,10 +366,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	TV        *TypedValue // escape Val if pointer to var.
+	Base      Value       // array/struct/block.
+	Index     int         // list/fields/values index, or -1 or -2 (see below).
+	Key       *TypedValue `json:",omitempty"` // for maps.
+	Debugging *Debugging  `json:"-"`
 }
 
 const (
@@ -211,8 +406,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		rv := pv.Base.(*NativeValue).Value
 		if rv.Kind() == reflect.Map { // go native object
 			// assign value to map directly.
-			krv := gno2GoValue(pv.Key, reflect.Value{})
-			vrv := gno2GoValue(&tv2, reflect.Value{})
+			krv := gno2GoValue(pv.Debugging, pv.Key, reflect.Value{})
+			vrv := gno2GoValue(pv.Debugging, &tv2, reflect.Value{})
 			rv.SetMapIndex(krv, vrv)
 		} else {
 			// assign depending on pv.TV type.
@@ -240,7 +435,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 					// there is no default value, so just assign
 					// rather than .Value.Set().
 					if tv.T.Kind() == FuncKind {
-						if debug {
+						if pv.Debugging.IsDebug() {
 							if tv2.T.Kind() != FuncKind {
 								panic("should not happen")
 							}
@@ -258,7 +453,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 					nv1.Value.Set(v2.Value)
 				}
 			case nil:
-				if debug {
+				if pv.Debugging.IsDebug() {
 					if tv2.T != nil && tv.T.TypeID() != tv2.T.TypeID() {
 						panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
 							tv2.String(), tv.T.String()))
@@ -270,7 +465,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			}
 		}
 		return
-	} else if pv.TV.T == DataByteType {
+	} else if IsPrimitiveType(DataByteType, pv.TV.T) {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
 		return
@@ -287,7 +482,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
-	if pv.TV.T == DataByteType {
+	if IsPrimitiveType(DataByteType, pv.TV.T) {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
@@ -311,6 +506,17 @@ type ArrayValue struct {
 	ObjectInfo
 	List []TypedValue
 	Data []byte
+}
+
+func (av *ArrayValue) DeepCopy() Object {
+	data := make([]byte, len(av.Data))
+	copy(data, av.Data)
+
+	return &ArrayValue{
+		ObjectInfo: av.ObjectInfo.Copy(),
+		List:       DeepCopyTypedValues(av.List),
+		Data:       data,
+	}
 }
 
 // NOTE: Result should not be written to,
@@ -362,7 +568,10 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 		}
 	}
 	bv := &TypedValue{ // heap alloc
-		T: DataByteType,
+		T: PrimitiveType{
+			Val:       DataByteType,
+			Debugging: av.Debuging,
+		},
 		V: DataByteValue{
 			Base:     av,
 			Index:    ii,
@@ -447,9 +656,16 @@ type StructValue struct {
 	Fields []TypedValue
 }
 
+func (sv *StructValue) DeepCopy() Object {
+	return &StructValue{
+		ObjectInfo: sv.ObjectInfo.Copy(),
+		Fields:     DeepCopyTypedValues(sv.Fields),
+	}
+}
+
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
-	if debug {
+	if sv.Debuging.IsDebug() {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
@@ -470,7 +686,7 @@ func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
 
 // Like GetPointerTo*, but returns (a pointer of) a reference to field.
 func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path ValuePath) PointerValue {
-	if debug {
+	if sv.Debuging.IsDebug() {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
@@ -650,6 +866,14 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
+func (v *BoundMethodValue) DeepCopy() Object {
+	return &BoundMethodValue{
+		ObjectInfo: v.ObjectInfo.Copy(),
+		Func:       v.Func.Copy(nil),
+		Receiver:   v.Receiver.Copy(nil),
+	}
+}
+
 // ----------------------------------------
 // MapValue
 
@@ -658,6 +882,79 @@ type MapValue struct {
 	List *MapList
 
 	vmap map[MapKey]*MapListItem // nil if uninitialized
+}
+
+func (mv *MapValue) DeepCopy() Object {
+	return &MapValue{
+		ObjectInfo: mv.ObjectInfo.Copy(),
+		List:       deepCopyMapList(mv.List),
+		vmap:       copyMap(mv.vmap),
+	}
+}
+
+func copyMap(originalMap map[MapKey]*MapListItem) map[MapKey]*MapListItem {
+	// Create a new map to store the copied elements
+	copiedMap := make(map[MapKey]*MapListItem)
+
+	// Iterate over the original map and copy each element
+	for key, value := range originalMap {
+		// Copy the MapListItem and assign it to the new map
+		copiedMap[key] = &MapListItem{
+			Prev:  value.Prev,
+			Next:  value.Next,
+			Key:   value.Key,
+			Value: value.Value,
+		}
+	}
+
+	return copiedMap
+}
+
+func deepCopyMapList(original *MapList) *MapList {
+	if original == nil {
+		return nil
+	}
+
+	copyList := &MapList{}
+
+	// Create a mapping from original MapList items to copied MapList items
+	copyItems := make(map[*MapListItem]*MapListItem)
+
+	// Iterate through the original MapList
+	for current := original.Head; current != nil; current = current.Next {
+		// Create a deep copy of the current MapListItem
+		copyItem := &MapListItem{
+			Key:   current.Key,   // Assuming TypedValue is a value type
+			Value: current.Value, // Assuming TypedValue is a value type
+		}
+
+		// Map the original item to the copied item
+		copyItems[current] = copyItem
+
+		// Update the copyList with the new MapListItem
+		if copyList.Head == nil {
+			copyList.Head = copyItem
+			copyList.Tail = copyItem
+		} else {
+			copyList.Tail.Next = copyItem
+			copyItem.Prev = copyList.Tail
+			copyList.Tail = copyItem
+		}
+
+		copyList.Size++
+	}
+
+	// Update the Next and Prev pointers for each copied MapListItem
+	for original, copy := range copyItems {
+		if original.Next != nil {
+			copy.Next = copyItems[original.Next]
+		}
+		if original.Prev != nil {
+			copy.Prev = copyItems[original.Prev]
+		}
+	}
+
+	return copyList
 }
 
 type MapKey string
@@ -816,6 +1113,11 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+func (pv *PackageValue) DeepCopy() Object {
+	p := pv.CopyValue().(*PackageValue)
+	return p
+}
+
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -938,9 +1240,10 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T         Type       `json:",omitempty"` // never nil
+	V         Value      `json:",omitempty"` // an untyped value
+	N         [8]byte    `json:",omitempty"` // numeric bytes
+	Debugging *Debugging `json:"-"`
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -948,13 +1251,13 @@ func (tv *TypedValue) IsDefined() bool {
 }
 
 func (tv *TypedValue) IsUndefined() bool {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv == nil {
 			panic("should not happen")
 		}
 	}
 	if tv.T == nil {
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if tv.V != nil || tv.N != [8]byte{} {
 				panic(fmt.Sprintf(
 					"corrupted TypeValue (nil T)"))
@@ -970,7 +1273,7 @@ func (tv *TypedValue) IsNilInterface() bool {
 		if tv.V == nil {
 			return true
 		}
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if tv.N != [8]byte{} {
 				panic(fmt.Sprintf(
 					"corrupted TypeValue (nil interface)"))
@@ -988,10 +1291,10 @@ func (tv *TypedValue) HasKind(k Kind) bool {
 	return tv.T.Kind() == k
 }
 
-// for debugging, returns true if V or N is not zero.  just because V and N are
+// for Debugging, returns true if V or N is not zero.  just because V and N are
 // zero doesn't mean it didn't get a value set.
 func (tv *TypedValue) DebugHasValue() bool {
-	if !debug {
+	if !tv.Debugging.IsDebug() {
 		panic("should not happen")
 	}
 	if tv.V != nil {
@@ -1053,62 +1356,74 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 // These bytes are used for both value hashes as well
 // as hash key bytes.
 func (tv *TypedValue) PrimitiveBytes() (data []byte) {
-	switch bt := baseOf(tv.T); bt {
-	case BoolType:
-		if tv.GetBool() {
-			return []byte{0x01}
+	handle := func(bt *PrimitiveType) []byte {
+		switch bt.Val {
+		case BoolType:
+			if tv.GetBool() {
+				return []byte{0x01}
+			}
+			return []byte{0x00}
+		case StringType:
+			return []byte(tv.GetString())
+		case Int8Type:
+			return []byte{uint8(tv.GetInt8())}
+		case Int16Type:
+			data = make([]byte, 2)
+			binary.LittleEndian.PutUint16(
+				data, uint16(tv.GetInt16()))
+			return data
+		case Int32Type:
+			data = make([]byte, 4)
+			binary.LittleEndian.PutUint32(
+				data, uint32(tv.GetInt32()))
+			return data
+		case IntType, Int64Type:
+			data = make([]byte, 8)
+			binary.LittleEndian.PutUint64(
+				data, uint64(tv.GetInt()))
+			return data
+		case Uint8Type:
+			return []byte{tv.GetUint8()}
+		case Uint16Type:
+			data = make([]byte, 2)
+			binary.LittleEndian.PutUint16(
+				data, tv.GetUint16())
+			return data
+		case Uint32Type:
+			data = make([]byte, 4)
+			binary.LittleEndian.PutUint32(
+				data, tv.GetUint32())
+			return data
+		case UintType, Uint64Type:
+			data = make([]byte, 8)
+			binary.LittleEndian.PutUint64(
+				data, uint64(tv.GetUint()))
+			return data
+		case Float32Type:
+			data = make([]byte, 4)
+			u32 := math.Float32bits(tv.GetFloat32())
+			binary.LittleEndian.PutUint32(
+				data, u32)
+			return data
+		case Float64Type:
+			data = make([]byte, 8)
+			u64 := math.Float64bits(tv.GetFloat64())
+			binary.LittleEndian.PutUint64(
+				data, u64)
+			return data
+		case BigintType:
+			return tv.V.(BigintValue).V.Bytes()
+		default:
+			panic(fmt.Sprintf(
+				"unexpected primitive value type: %s",
+				bt.String()))
 		}
-		return []byte{0x00}
-	case StringType:
-		return []byte(tv.GetString())
-	case Int8Type:
-		return []byte{uint8(tv.GetInt8())}
-	case Int16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, uint16(tv.GetInt16()))
-		return data
-	case Int32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, uint32(tv.GetInt32()))
-		return data
-	case IntType, Int64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetInt()))
-		return data
-	case Uint8Type:
-		return []byte{tv.GetUint8()}
-	case Uint16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, tv.GetUint16())
-		return data
-	case Uint32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, tv.GetUint32())
-		return data
-	case UintType, Uint64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetUint()))
-		return data
-	case Float32Type:
-		data = make([]byte, 4)
-		u32 := math.Float32bits(tv.GetFloat32())
-		binary.LittleEndian.PutUint32(
-			data, u32)
-		return data
-	case Float64Type:
-		data = make([]byte, 8)
-		u64 := math.Float64bits(tv.GetFloat64())
-		binary.LittleEndian.PutUint64(
-			data, u64)
-		return data
-	case BigintType:
-		return tv.V.(BigintValue).V.Bytes()
+	}
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1121,7 +1436,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 // values stored without interfaces..
 
 func (tv *TypedValue) SetBool(b bool) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != BoolKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetBool() on type %s",
@@ -1132,7 +1447,7 @@ func (tv *TypedValue) SetBool(b bool) {
 }
 
 func (tv *TypedValue) GetBool() bool {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBool() on type %s",
@@ -1143,7 +1458,7 @@ func (tv *TypedValue) GetBool() bool {
 }
 
 func (tv *TypedValue) SetString(s StringValue) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetString() on type %s",
@@ -1154,7 +1469,7 @@ func (tv *TypedValue) SetString(s StringValue) {
 }
 
 func (tv *TypedValue) GetString() string {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetString() on type %s",
@@ -1168,7 +1483,7 @@ func (tv *TypedValue) GetString() string {
 }
 
 func (tv *TypedValue) SetInt(n int) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != IntKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt() on type %s",
@@ -1183,12 +1498,12 @@ func (tv *TypedValue) SetInt(n int) {
 
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
-	ConvertTo(nilAllocator, store, tv, IntType)
+	ConvertTo(nilAllocator, store, tv, PrimitiveType{Val: IntType, Debugging: tv.Debugging})
 	return tv.GetInt()
 }
 
 func (tv *TypedValue) GetInt() int {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt() on type %s",
@@ -1199,7 +1514,7 @@ func (tv *TypedValue) GetInt() int {
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Int8Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt8() on type %s",
@@ -1210,7 +1525,7 @@ func (tv *TypedValue) SetInt8(n int8) {
 }
 
 func (tv *TypedValue) GetInt8() int8 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt8() on type %s",
@@ -1221,7 +1536,7 @@ func (tv *TypedValue) GetInt8() int8 {
 }
 
 func (tv *TypedValue) SetInt16(n int16) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Int16Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt16() on type %s",
@@ -1232,7 +1547,7 @@ func (tv *TypedValue) SetInt16(n int16) {
 }
 
 func (tv *TypedValue) GetInt16() int16 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt16() on type %s",
@@ -1243,7 +1558,7 @@ func (tv *TypedValue) GetInt16() int16 {
 }
 
 func (tv *TypedValue) SetInt32(n int32) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Int32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt32() on type %s",
@@ -1254,7 +1569,7 @@ func (tv *TypedValue) SetInt32(n int32) {
 }
 
 func (tv *TypedValue) GetInt32() int32 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt32() on type %s",
@@ -1265,7 +1580,7 @@ func (tv *TypedValue) GetInt32() int32 {
 }
 
 func (tv *TypedValue) SetInt64(n int64) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Int64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt64() on type %s",
@@ -1276,7 +1591,7 @@ func (tv *TypedValue) SetInt64(n int64) {
 }
 
 func (tv *TypedValue) GetInt64() int64 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt64() on type %s",
@@ -1287,7 +1602,7 @@ func (tv *TypedValue) GetInt64() int64 {
 }
 
 func (tv *TypedValue) SetUint(n uint) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != UintKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint() on type %s",
@@ -1298,7 +1613,7 @@ func (tv *TypedValue) SetUint(n uint) {
 }
 
 func (tv *TypedValue) GetUint() uint {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint() on type %s",
@@ -1309,13 +1624,14 @@ func (tv *TypedValue) GetUint() uint {
 }
 
 func (tv *TypedValue) SetUint8(n uint8) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Uint8Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint8() on type %s",
 				tv.T.String()))
 		}
-		if tv.T == DataByteType {
+
+		if IsPrimitiveType(DataByteType, tv.T) {
 			panic("DataByteType should call SetDataByte")
 		}
 	}
@@ -1323,13 +1639,14 @@ func (tv *TypedValue) SetUint8(n uint8) {
 }
 
 func (tv *TypedValue) GetUint8() uint8 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint8() on type %s",
 				tv.T.String()))
 		}
-		if tv.T == DataByteType {
+
+		if IsPrimitiveType(DataByteType, tv.T) {
 			panic("DataByteType should call GetDataByte or GetUint8OrDataByte")
 		}
 	}
@@ -1337,8 +1654,8 @@ func (tv *TypedValue) GetUint8() uint8 {
 }
 
 func (tv *TypedValue) SetDataByte(n uint8) {
-	if debug {
-		if tv.T != DataByteType || isNative(tv.T) {
+	if tv.Debugging.IsDebug() {
+		if !IsPrimitiveType(DataByteType, tv.T) || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
 				tv.T.String()))
@@ -1349,8 +1666,8 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 }
 
 func (tv *TypedValue) GetDataByte() uint8 {
-	if debug {
-		if tv.T != nil && tv.T != DataByteType {
+	if tv.Debugging.IsDebug() {
+		if tv.T != nil && !IsPrimitiveType(DataByteType, tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.GetDataByte() on type %s",
 				tv.T.String()))
@@ -1361,7 +1678,7 @@ func (tv *TypedValue) GetDataByte() uint8 {
 }
 
 func (tv *TypedValue) SetUint16(n uint16) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Uint16Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint16() on type %s",
@@ -1372,7 +1689,7 @@ func (tv *TypedValue) SetUint16(n uint16) {
 }
 
 func (tv *TypedValue) GetUint16() uint16 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint16() on type %s",
@@ -1383,7 +1700,7 @@ func (tv *TypedValue) GetUint16() uint16 {
 }
 
 func (tv *TypedValue) SetUint32(n uint32) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Uint32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint32() on type %s",
@@ -1394,7 +1711,7 @@ func (tv *TypedValue) SetUint32(n uint32) {
 }
 
 func (tv *TypedValue) GetUint32() uint32 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint32() on type %s",
@@ -1405,7 +1722,7 @@ func (tv *TypedValue) GetUint32() uint32 {
 }
 
 func (tv *TypedValue) SetUint64(n uint64) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Uint64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint64() on type %s",
@@ -1416,7 +1733,7 @@ func (tv *TypedValue) SetUint64(n uint64) {
 }
 
 func (tv *TypedValue) GetUint64() uint64 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint64() on type %s",
@@ -1427,7 +1744,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 }
 
 func (tv *TypedValue) SetFloat32(n float32) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat32() on type %s",
@@ -1438,7 +1755,7 @@ func (tv *TypedValue) SetFloat32(n float32) {
 }
 
 func (tv *TypedValue) GetFloat32() float32 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat32() on type %s",
@@ -1449,7 +1766,7 @@ func (tv *TypedValue) GetFloat32() float32 {
 }
 
 func (tv *TypedValue) SetFloat64(n float64) {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat64() on type %s",
@@ -1460,7 +1777,7 @@ func (tv *TypedValue) SetFloat64(n float64) {
 }
 
 func (tv *TypedValue) GetFloat64() float64 {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat64() on type %s",
@@ -1471,7 +1788,7 @@ func (tv *TypedValue) GetFloat64() float64 {
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigInt() on type %s",
@@ -1482,7 +1799,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 }
 
 func (tv *TypedValue) GetBigDec() *apd.Decimal {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigDec() on type %s",
@@ -1495,7 +1812,7 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if omitType {
 				panic("should not happen")
 			}
@@ -1510,6 +1827,9 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		pbz := tv.PrimitiveBytes()
+		bz = append(bz, pbz...)
+	case *PrimitiveType:
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
@@ -1579,13 +1899,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	if debug {
-		if tv.T == DataByteType {
+	if tv.Debugging.IsDebug() {
+		if IsPrimitiveType(DataByteType, tv.T) {
 			// assignment to data byte types should only
 			// happen via *PointerValue.Assign2().
 			panic("should not happen")
 		}
-		if tv2.T == DataByteType {
+		if IsPrimitiveType(DataByteType, tv2.T) {
 			// tv2 will never be a DataByte, as it is
 			// retrieved as value.
 			panic("should not happen")
@@ -1593,7 +1913,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
-		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
+		ConvertUntypedTo(pState(0), tv, defaultTypeOf(tv.T))
 	}
 }
 
@@ -1603,7 +1923,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	if debug {
+	if tv.Debugging.IsDebug() {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
 		}
@@ -1612,7 +1932,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
-	var isPtr bool = false
+	isPtr := false
 	switch path.Type {
 	case VPField:
 		switch path.Depth {
@@ -1689,7 +2009,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 	default:
 		dtv = tv
 	}
-	if debug {
+	if tv.Debugging.IsDebug() {
 		path.Validate()
 	}
 
@@ -1732,14 +2052,14 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 				rt := t.Type
 				mt, ok := rt.MethodByName(string(path.Name))
 				if !ok {
-					if debug {
+					if tv.Debugging.IsDebug() {
 						panic(fmt.Sprintf(
 							"native type %s has no method %s",
 							rt.String(), path.Name))
 					}
 					panic("unknown native method selector")
 				}
-				mtv := go2GnoValue(alloc, mt.Func)
+				mtv := go2GnoValue(tv.Debugging, alloc, mt.Func)
 				return PointerValue{
 					TV:   &mtv, // heap alloc
 					Base: nil,
@@ -1764,7 +2084,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
@@ -1789,7 +2109,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
-		if debug {
+		if tv.Debugging.IsDebug() {
 			if !mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
@@ -1854,7 +2174,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			fv = rv.FieldByName(string(path.Name))
 		}
 		if fv.IsValid() {
-			ftv := go2GnoValue(alloc, fv)
+			ftv := go2GnoValue(tv.Debugging, alloc, fv)
 			return PointerValue{
 				TV: &ftv, // heap alloc
 				// TODO consider if needed for persistence:
@@ -1917,19 +2237,24 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
-	iv := TypedValue{T: IntType}
+	iv := TypedValue{T: PrimitiveType{
+		Val:       IntType,
+		Debugging: tv.Debugging,
+	}}
 	iv.SetInt(ii)
 	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		if bt == StringType || bt == UntypedStringType {
+	handle := func(bt *PrimitiveType) PointerValue {
+		if IsPrimitiveType(StringType, bt) || IsPrimitiveType(UntypedStringType, bt) {
 			sv := tv.GetString()
 			ii := iv.ConvertGetInt()
 			bv := &TypedValue{ // heap alloc
-				T: Uint8Type,
+				T: PrimitiveType{
+					Val:       Uint8Type,
+					Debugging: tv.Debugging,
+				},
 			}
 			bv.SetUint8(sv[ii])
 			return PointerValue{
@@ -1940,6 +2265,12 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		panic(fmt.Sprintf(
 			"primitive type %s cannot be indexed",
 			tv.T.String()))
+	}
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		return handle(&bt)
+	case *PrimitiveType:
+		return handle(bt)
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := iv.ConvertGetInt()
@@ -1973,7 +2304,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		case reflect.Array, reflect.Slice, reflect.String:
 			ii := iv.ConvertGetInt()
 			erv := rv.Index(ii)
-			etv := go2GnoValue(alloc, erv)
+			etv := go2GnoValue(tv.Debugging, alloc, erv)
 			return PointerValue{
 				TV: &etv,
 				// TODO consider if needed for persistence:
@@ -1984,9 +2315,9 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				*/
 			}
 		case reflect.Map:
-			krv := gno2GoValue(iv, reflect.Value{})
+			krv := gno2GoValue(tv.Debugging, iv, reflect.Value{})
 			vrv := rv.MapIndex(krv)
-			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
+			etv := go2GnoValue(tv.Debugging, alloc, vrv) // NOTE: lazy, often native.
 			return PointerValue{
 				TV:    &etv, // TODO not needed for assignment.
 				Base:  nv,
@@ -2025,7 +2356,12 @@ func (tv *TypedValue) GetLength() int {
 	if tv.V == nil {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
-			if bt != StringType {
+			if !IsPrimitiveType(StringType, bt) {
+				panic("should not happen")
+			}
+			return 0
+		case *PrimitiveType:
+			if !IsPrimitiveType(StringType, bt) {
 				panic("should not happen")
 			}
 			return 0
@@ -2058,7 +2394,7 @@ func (tv *TypedValue) GetLength() int {
 
 func (tv *TypedValue) GetCapacity() int {
 	if tv.V == nil {
-		if debug {
+		if tv.Debugging.IsDebug() {
 			// assert acceptable type.
 			switch baseOf(tv.T).(type) {
 			// strings have no capacity.
@@ -2108,7 +2444,15 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if t == StringType || t == UntypedStringType {
+		if IsPrimitiveType(StringType, t) || IsPrimitiveType(UntypedStringType, t) {
+			return TypedValue{
+				T: tv.T,
+				V: alloc.NewString(tv.GetString()[low:high]),
+			}
+		}
+		panic("non-string primitive type cannot be sliced")
+	case *PrimitiveType:
+		if IsPrimitiveType(StringType, t) || IsPrimitiveType(UntypedStringType, t) {
 			return TypedValue{
 				T: tv.T,
 				V: alloc.NewString(tv.GetString()[low:high]),
@@ -2261,6 +2605,30 @@ type Block struct {
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
+func (b *Block) DeepCopy() Object {
+	parent := b.Parent
+
+	bodystmt := b.bodyStmt.Copy().(*bodyStmt)
+
+	source := b.Source
+
+	//if source != nil {
+	//	cp := source.Copy()
+	//	if cp != nil {
+	//		source = cp.(BlockNode)
+	//	}
+	//}
+
+	return &Block{
+		ObjectInfo: b.ObjectInfo.Copy(),
+		Source:     source,
+		Values:     DeepCopyTypedValues(b.Values),
+		Parent:     parent,
+		Blank:      b.Blank.Copy(nil),
+		bodyStmt:   *bodystmt,
+	}
+}
+
 // NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
 	var values []TypedValue
@@ -2342,7 +2710,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
-		if debug {
+		if b.Debuging.IsDebug() {
 			if path.Name != "_" {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
@@ -2397,7 +2765,7 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 
 // Used by SwitchStmt upon clause match.
 func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
-	if debug {
+	if b.Debuging.IsDebug() {
 		if len(b.Values) >= int(size) {
 			panic(fmt.Sprintf(
 				"unexpected block size shrinkage: %v vs %v",
@@ -2487,27 +2855,39 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	}
 }
 
-func typedInt(i int) TypedValue {
-	tv := TypedValue{T: IntType}
+func typedInt(debugging *Debugging, i int) TypedValue {
+	tv := TypedValue{T: PrimitiveType{
+		Val:       IntType,
+		Debugging: debugging,
+	}}
 	tv.SetInt(i)
 	return tv
 }
 
-func untypedBool(b bool) TypedValue {
-	tv := TypedValue{T: UntypedBoolType}
+func untypedBool(debugging *Debugging, b bool) TypedValue {
+	tv := TypedValue{T: PrimitiveType{
+		Val:       UntypedBoolType,
+		Debugging: debugging,
+	}}
 	tv.SetBool(b)
 	return tv
 }
 
-func typedRune(r rune) TypedValue {
-	tv := TypedValue{T: Int32Type}
+func typedRune(debugging *Debugging, r rune) TypedValue {
+	tv := TypedValue{T: PrimitiveType{
+		Val:       Int32Type,
+		Debugging: debugging,
+	}}
 	tv.SetInt32(r)
 	return tv
 }
 
 // NOTE: does not allocate; used for panics.
-func typedString(s string) TypedValue {
-	tv := TypedValue{T: StringType}
+func typedString(debugging *Debugging, s string) TypedValue {
+	tv := TypedValue{T: PrimitiveType{
+		Val:       StringType,
+		Debugging: debugging,
+	}}
 	tv.V = StringValue(s)
 	return tv
 }

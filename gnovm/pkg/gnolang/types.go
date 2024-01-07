@@ -21,9 +21,10 @@ type Type interface {
 
 	Kind() Kind     // penetrates *DeclaredType & *NativeType
 	TypeID() TypeID // deterministic
-	String() string // for dev/debugging
+	String() string // for dev/Debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
+	DeepCopy() Type
 }
 
 type TypeID string
@@ -40,11 +41,11 @@ func (tid TypeID) String() string {
 	return string(tid)
 }
 
-func typeid(f string, args ...interface{}) (tid TypeID) {
+func typeid(debugging *Debugging, f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	x := TypeID(fs)
-	if debug {
-		debug.Println("TYPEID", fs)
+	if debugging.IsDebug() {
+		debugging.Println("TYPEID", fs)
 	}
 	return x
 }
@@ -75,10 +76,28 @@ func (MaybeNativeType) assertType() {}
 // ----------------------------------------
 // Primitive types
 
-type PrimitiveType int
+type PrimitiveType struct {
+	Val       PrimitiveTypeValue `json:"value"`
+	Debugging *Debugging         `json:"-"`
+}
+
+func (pt PrimitiveType) DeepCopy() Type {
+	return pt
+}
+
+func IsPrimitiveType(ptv PrimitiveTypeValue, t Type) bool {
+	if a, ok := t.(PrimitiveType); ok {
+		return a.Val == ptv
+	} else if a, ok := t.(*PrimitiveType); ok {
+		return a.Val == ptv
+	}
+	return false
+}
+
+type PrimitiveTypeValue int
 
 const (
-	InvalidType PrimitiveType = 1 << iota
+	InvalidType PrimitiveTypeValue = 1 << iota
 	UntypedBoolType
 	BoolType
 	UntypedStringType
@@ -112,7 +131,7 @@ const (
 // untyped integer constant divided by an untyped complex constant yields an
 // untyped complex constant."
 func (pt PrimitiveType) Specificity() int {
-	switch pt {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no specificity")
 	case BoolType:
@@ -163,7 +182,7 @@ func (pt PrimitiveType) Specificity() int {
 }
 
 func (pt PrimitiveType) Kind() Kind {
-	switch pt {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no kind")
 	case BoolType, UntypedBoolType:
@@ -204,116 +223,116 @@ func (pt PrimitiveType) Kind() Kind {
 }
 
 func (pt PrimitiveType) TypeID() TypeID {
-	switch pt {
+	switch pt.Val {
 	case InvalidType:
 		panic("invalid type has no typeid")
 	case UntypedBoolType:
-		return typeid("<untyped> bool")
+		return typeid(pt.Debugging, "<untyped> bool")
 	case BoolType:
-		return typeid("bool")
+		return typeid(pt.Debugging, "bool")
 	case UntypedStringType:
-		return typeid("<untyped> string")
+		return typeid(pt.Debugging, "<untyped> string")
 	case StringType:
-		return typeid("string")
+		return typeid(pt.Debugging, "string")
 	case IntType:
-		return typeid("int")
+		return typeid(pt.Debugging, "int")
 	case Int8Type:
-		return typeid("int8")
+		return typeid(pt.Debugging, "int8")
 	case Int16Type:
-		return typeid("int16")
+		return typeid(pt.Debugging, "int16")
 	case UntypedRuneType:
-		return typeid("<untyped> rune")
+		return typeid(pt.Debugging, "<untyped> rune")
 	case Int32Type:
-		return typeid("int32")
+		return typeid(pt.Debugging, "int32")
 	case Int64Type:
-		return typeid("int64")
+		return typeid(pt.Debugging, "int64")
 	case UintType:
-		return typeid("uint")
+		return typeid(pt.Debugging, "uint")
 	case Uint8Type:
-		return typeid("uint8")
+		return typeid(pt.Debugging, "uint8")
 	case DataByteType:
 		// should not be persisted...
 		panic("untyped data byte type has no typeid")
 	case Uint16Type:
-		return typeid("uint16")
+		return typeid(pt.Debugging, "uint16")
 	case Uint32Type:
-		return typeid("uint32")
+		return typeid(pt.Debugging, "uint32")
 	case Uint64Type:
-		return typeid("uint64")
+		return typeid(pt.Debugging, "uint64")
 	case Float32Type:
-		return typeid("float32")
+		return typeid(pt.Debugging, "float32")
 	case Float64Type:
-		return typeid("float64")
+		return typeid(pt.Debugging, "float64")
 	case UntypedBigintType:
-		return typeid("<untyped> bigint")
+		return typeid(pt.Debugging, "<untyped> bigint")
 	case BigintType:
-		return typeid("bigint")
+		return typeid(pt.Debugging, "bigint")
 	case UntypedBigdecType:
-		return typeid("<untyped> bigdec")
+		return typeid(pt.Debugging, "<untyped> bigdec")
 	case BigdecType:
-		return typeid("bigdec")
+		return typeid(pt.Debugging, "bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
 }
 
 func (pt PrimitiveType) String() string {
-	switch pt {
+	switch pt.Val {
 	case InvalidType:
-		return string("<invalid type>")
+		return "<invalid type>"
 	case UntypedBoolType:
-		return string("<untyped> bool")
+		return "<untyped> bool"
 	case BoolType:
-		return string("bool")
+		return "bool"
 	case UntypedStringType:
-		return string("<untyped> string")
+		return "<untyped> string"
 	case StringType:
-		return string("string")
+		return "string"
 	case IntType:
-		return string("int")
+		return "int"
 	case Int8Type:
-		return string("int8")
+		return "int8"
 	case Int16Type:
-		return string("int16")
+		return "int16"
 	case UntypedRuneType:
-		return string("<untyped> int32")
+		return "<untyped> int32"
 	case Int32Type:
-		return string("int32")
+		return "int32"
 	case Int64Type:
-		return string("int64")
+		return "int64"
 	case UintType:
-		return string("uint")
+		return "uint"
 	case Uint8Type:
-		return string("uint8")
+		return "uint8"
 	case DataByteType:
-		return string("<databyte> uint8")
+		return "<databyte> uint8"
 	case Uint16Type:
-		return string("uint16")
+		return "uint16"
 	case Uint32Type:
-		return string("uint32")
+		return "uint32"
 	case Uint64Type:
-		return string("uint64")
+		return "uint64"
 	case Float32Type:
-		return string("float32")
+		return "float32"
 	case Float64Type:
-		return string("float64")
+		return "float64"
 	case UntypedBigintType:
-		return string("<untyped> bigint")
+		return "<untyped> bigint"
 	case BigintType:
-		return string("bigint")
+		return "bigint"
 	case UntypedBigdecType:
-		return string("<untyped> bigdec")
+		return "<untyped> bigdec"
 	case BigdecType:
-		return string("bigdec")
+		return "bigdec"
 	default:
-		panic(fmt.Sprintf("unexpected primitive type %d", pt))
+		panic(fmt.Sprintf("unexpected primitive type %d", pt.Val))
 	}
 }
 
 func (pt PrimitiveType) Elem() Type {
 	if pt.Kind() == StringKind {
 		// NOTE: this is different than Go1.
-		return Uint8Type
+		return PrimitiveType{Val: Uint8Type, Debugging: pt.Debugging}
 	} else {
 		panic("non-string primitive types have no elements")
 	}
@@ -329,10 +348,27 @@ func (pt PrimitiveType) GetPkgPath() string {
 type Tag string
 
 type FieldType struct {
-	Name     Name
-	Type     Type
-	Embedded bool
-	Tag      Tag
+	Name      Name
+	Type      Type
+	Embedded  bool
+	Tag       Tag
+	debugging *Debugging
+}
+
+func (ft FieldType) DeepCopy() Type {
+	t := ft.Type
+
+	//todo
+	//if t != nil {
+	//	t = t.DeepCopy()
+	//}
+
+	return &FieldType{
+		Name:     ft.Name,
+		Type:     t,
+		Embedded: ft.Embedded,
+		Tag:      ft.Tag,
+	}
 }
 
 func (ft FieldType) Kind() Kind {
@@ -346,7 +382,7 @@ func (ft FieldType) TypeID() TypeID {
 	} else {
 		s += string(ft.Name) + " " + ft.Type.TypeID().String()
 	}
-	return typeid(s)
+	return typeid(ft.debugging, s)
 }
 
 func (ft FieldType) String() string {
@@ -400,7 +436,14 @@ func (l FieldTypeList) Swap(i, j int) {
 func (l FieldTypeList) TypeID() TypeID {
 	ll := len(l)
 	s := ""
+
+	var dbg *Debugging
+
 	for i, ft := range l {
+		if dbg == nil {
+			dbg = ft.debugging
+		}
+
 		if ft.Name == "" {
 			s += ft.Type.TypeID().String()
 		} else {
@@ -410,7 +453,7 @@ func (l FieldTypeList) TypeID() TypeID {
 			s += ";"
 		}
 	}
-	return typeid(s)
+	return typeid(dbg, s)
 }
 
 // For use in fields of packages, structs, and interfaces, where any
@@ -419,7 +462,13 @@ func (l FieldTypeList) TypeID() TypeID {
 func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 	ll := len(l)
 	s := ""
+	var dbg *Debugging
+
 	for i, ft := range l {
+		if dbg == nil {
+			dbg = ft.debugging
+		}
+
 		fn := ft.Name
 		if isUpper(string(fn)) {
 			s += string(fn) + " " + ft.Type.TypeID().String()
@@ -430,12 +479,12 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 			s += ";"
 		}
 	}
-	return typeid(s)
+	return typeid(dbg, s)
 }
 
-func (l FieldTypeList) HasUnexported() bool {
+func (l FieldTypeList) HasUnexported(debugging *Debugging) bool {
 	for _, ft := range l {
-		if debug {
+		if debugging.IsDebug() {
 			if ft.Name == "" {
 				// incorrect usage.
 				panic("should not happen")
@@ -477,13 +526,19 @@ func (l FieldTypeList) StringWithCommas() string {
 func (l FieldTypeList) UnnamedTypeID() TypeID {
 	ll := len(l)
 	s := ""
+	var dbg *Debugging
+
 	for i, ft := range l {
+		if dbg == nil {
+			dbg = ft.debugging
+		}
+
 		s += ft.Type.TypeID().String()
 		if i != ll-1 {
 			s += ";"
 		}
 	}
-	return typeid(s)
+	return typeid(dbg, s)
 }
 
 func (l FieldTypeList) Types() []Type {
@@ -498,11 +553,21 @@ func (l FieldTypeList) Types() []Type {
 // Array type
 
 type ArrayType struct {
-	Len int
-	Elt Type
-	Vrd bool
+	Len       int
+	Elt       Type
+	Vrd       bool
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (at *ArrayType) DeepCopy() Type {
+	return &ArrayType{
+		Len:       at.Len,
+		Elt:       at.Elt.DeepCopy(),
+		Vrd:       at.Vrd,
+		typeid:    at.typeid,
+		debugging: at.debugging.DeepCopy(),
+	}
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -511,7 +576,7 @@ func (at *ArrayType) Kind() Kind {
 
 func (at *ArrayType) TypeID() TypeID {
 	if at.typeid.IsZero() {
-		at.typeid = typeid("[%d]%s", at.Len, at.Elt.TypeID().String())
+		at.typeid = typeid(at.debugging, "[%d]%s", at.Len, at.Elt.TypeID().String())
 	}
 	return at.typeid
 }
@@ -532,15 +597,27 @@ func (at *ArrayType) GetPkgPath() string {
 // Slice type
 
 var gByteSliceType = &SliceType{
-	Elt: Uint8Type,
+	Elt: PrimitiveType{
+		Val:       Uint8Type,
+		Debugging: nil,
+	},
 	Vrd: false,
 }
 
 type SliceType struct {
-	Elt Type
-	Vrd bool // used for *FuncType.HasVarg()
+	Elt       Type
+	Vrd       bool // used for *FuncType.HasVarg()
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (st *SliceType) DeepCopy() Type {
+	return &SliceType{
+		Elt:       st.Elt.DeepCopy(),
+		Vrd:       st.Vrd,
+		typeid:    st.typeid,
+		debugging: st.debugging.DeepCopy(),
+	}
 }
 
 func (st *SliceType) Kind() Kind {
@@ -550,9 +627,9 @@ func (st *SliceType) Kind() Kind {
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
 		if st.Vrd {
-			st.typeid = typeid("...%s", st.Elt.TypeID().String())
+			st.typeid = typeid(st.debugging, "...%s", st.Elt.TypeID().String())
 		} else {
-			st.typeid = typeid("[]%s", st.Elt.TypeID().String())
+			st.typeid = typeid(st.debugging, "[]%s", st.Elt.TypeID().String())
 		}
 	}
 	return st.typeid
@@ -578,9 +655,17 @@ func (st *SliceType) GetPkgPath() string {
 // Pointer type
 
 type PointerType struct {
-	Elt Type
+	Elt       Type
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (pt *PointerType) DeepCopy() Type {
+	return &PointerType{
+		Elt:       pt.Elt.DeepCopy(),
+		typeid:    pt.typeid,
+		debugging: pt.debugging.DeepCopy(),
+	}
 }
 
 func (pt *PointerType) Kind() Kind {
@@ -589,7 +674,7 @@ func (pt *PointerType) Kind() Kind {
 
 func (pt *PointerType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		pt.typeid = typeid("*%s", pt.Elt.TypeID().String())
+		pt.typeid = typeid(pt.debugging, "*%s", pt.Elt.TypeID().String())
 	}
 	return pt.typeid
 }
@@ -710,10 +795,25 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 // Struct type
 
 type StructType struct {
-	PkgPath string
-	Fields  []FieldType
+	PkgPath   string
+	Fields    []FieldType
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (st *StructType) DeepCopy() Type {
+	fields := make([]FieldType, len(st.Fields))
+
+	for i, field := range st.Fields {
+		fields[i] = *field.DeepCopy().(*FieldType)
+	}
+
+	return &StructType{
+		PkgPath:   st.PkgPath,
+		Fields:    st.Fields,
+		typeid:    st.typeid,
+		debugging: st.debugging.DeepCopy(),
+	}
 }
 
 func (st *StructType) Kind() Kind {
@@ -726,7 +826,7 @@ func (st *StructType) TypeID() TypeID {
 		// may have the same TypeID if and only if neither have
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
-		st.typeid = typeid(
+		st.typeid = typeid(st.debugging,
 			"struct{%s}",
 			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
 		)
@@ -769,7 +869,7 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 }
 
 func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
-	if debug {
+	if st.debugging.IsDebug() {
 		if path.Depth != 0 {
 			panic("expected path.Depth of 0")
 		}
@@ -837,7 +937,12 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 var gPackageType = &PackageType{}
 
 type PackageType struct {
-	typeid TypeID
+	typeid    TypeID
+	debugging *Debugging
+}
+
+func (pt *PackageType) DeepCopy() Type {
+	return &PackageType{typeid: pt.typeid, debugging: pt.debugging.DeepCopy()}
 }
 
 func (pt *PackageType) Kind() Kind {
@@ -850,7 +955,7 @@ func (pt *PackageType) TypeID() TypeID {
 		// TypeID if and only if neither have unexported fields.
 		// pt.Path is only included in field names that are not
 		// uppercase.
-		pt.typeid = typeid("package{}")
+		pt.typeid = typeid(pt.debugging, "package{}")
 	}
 	return pt.typeid
 }
@@ -871,11 +976,21 @@ func (pt *PackageType) GetPkgPath() string {
 // Interface type
 
 type InterfaceType struct {
-	PkgPath string
-	Methods []FieldType
-	Generic Name // for uverse "generics"
+	PkgPath   string
+	Methods   []FieldType
+	Generic   Name // for uverse "generics"
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (it *InterfaceType) DeepCopy() Type {
+	return &InterfaceType{
+		PkgPath:   it.PkgPath,
+		Methods:   DeepCopyFields(it.Methods),
+		Generic:   it.Generic,
+		typeid:    it.typeid,
+		debugging: it.debugging.DeepCopy(),
+	}
 }
 
 // General empty interface.
@@ -889,7 +1004,7 @@ func (it *InterfaceType) Kind() Kind {
 }
 
 func (it *InterfaceType) TypeID() TypeID {
-	if debug {
+	if it.debugging.IsDebug() {
 		if it.Generic != "" {
 			panic("generic type has no TypeID")
 		}
@@ -902,7 +1017,7 @@ func (it *InterfaceType) TypeID() TypeID {
 		ms := FieldTypeList(it.Methods)
 		// XXX pre-sort.
 		sort.Sort(ms)
-		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
+		it.typeid = typeid(it.debugging, "interface{"+ms.TypeIDForPackage(it.PkgPath).String()+"}")
 	}
 	return it.typeid
 }
@@ -962,7 +1077,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
 			} else if trail != nil {
-				if debug {
+				if it.debugging.IsDebug() {
 					if len(trail) != 1 || trail[0].Type != VPInterface {
 						panic("should not happen")
 					}
@@ -976,12 +1091,12 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 
 // For run-time type assertion.
 // TODO: optimize somehow.
-func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
+func (it *InterfaceType) IsImplementedBy(debugging *Debugging, ot Type) (result bool) {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
-			if !im2.IsImplementedBy(ot) {
+			if !im2.IsImplementedBy(debugging, ot) {
 				return false
 			} else {
 				continue
@@ -999,7 +1114,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// im.Type: the desired interface gno type.
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
-			if !gno2GoTypeMatches(im.Type, nft.Type) {
+			if !gno2GoTypeMatches(debugging, im.Type, nft.Type) {
 				return false
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
@@ -1026,10 +1141,18 @@ func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 // Chan type
 
 type ChanType struct {
-	Dir ChanDir
-	Elt Type
+	Dir       ChanDir
+	Elt       Type
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (ct *ChanType) DeepCopy() Type {
+	return &ChanType{
+		Dir:    ct.Dir,
+		Elt:    ct.Elt.DeepCopy(),
+		typeid: ct.typeid,
+	}
 }
 
 func (ct *ChanType) Kind() Kind {
@@ -1040,11 +1163,11 @@ func (ct *ChanType) TypeID() TypeID {
 	if ct.typeid.IsZero() {
 		switch ct.Dir {
 		case SEND | RECV:
-			ct.typeid = typeid("chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeid(ct.debugging, "chan{%s}"+ct.Elt.TypeID().String())
 		case SEND:
-			ct.typeid = typeid("<-chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeid(ct.debugging, "<-chan{%s}"+ct.Elt.TypeID().String())
 		case RECV:
-			ct.typeid = typeid("chan<-{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeid(ct.debugging, "chan<-{%s}"+ct.Elt.TypeID().String())
 		default:
 			panic("should not happen")
 		}
@@ -1076,12 +1199,52 @@ func (ct *ChanType) GetPkgPath() string {
 // ----------------------------------------
 // Function type
 
-type FuncType struct {
-	Params  []FieldType
-	Results []FieldType
+func DeepCopyFields(ft []FieldType) []FieldType {
+	nft := make([]FieldType, len(ft))
 
-	typeid TypeID
-	bound  *FuncType
+	for i, fieldType := range ft {
+		nft[i] = *fieldType.DeepCopy().(*FieldType)
+	}
+
+	return nft
+}
+
+func DeepCopyFieldTypeExprs(ft []FieldTypeExpr) []FieldTypeExpr {
+	nft := make([]FieldTypeExpr, len(ft))
+
+	for i, fieldType := range ft {
+		nft[i] = *fieldType.DeepCopy().(*FieldTypeExpr)
+	}
+
+	return nft
+}
+
+type FuncType struct {
+	Params    []FieldType
+	Results   []FieldType
+	debugging *Debugging
+	typeid    TypeID
+	bound     *FuncType
+}
+
+func (ft *FuncType) DeepCopy() Type {
+	if ft == nil {
+		return nil
+	}
+
+	bound := ft.bound
+
+	if bound != nil {
+		bound = bound.DeepCopy().(*FuncType)
+	}
+
+	return &FuncType{
+		Params:    DeepCopyFields(ft.Params),
+		Results:   DeepCopyFields(ft.Results),
+		typeid:    ft.typeid,
+		bound:     bound,
+		debugging: ft.debugging.DeepCopy(),
+	}
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1092,7 +1255,7 @@ func (ft *FuncType) IsZero() bool {
 
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
-	if debug {
+	if ft.debugging.IsDebug() {
 		if len(ft.Params) == 0 {
 			panic("expected unbound method function type, but found no receiver parameter.")
 		}
@@ -1211,11 +1374,12 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 		if mnpft, ok := pft.Type.(*MaybeNativeType); ok {
 			if nt, ok := argTVs[i].T.(*NativeType); ok {
 				pfts[i] = FieldType{
-					Name: pft.Name,
-					Type: nt,
+					Name:      pft.Name,
+					Type:      nt,
+					debugging: pft.debugging,
 				}
 			} else {
-				pt, _ := applySpecifics(lookup, mnpft.Type)
+				pt, _ := applySpecifics(ft.debugging, lookup, mnpft.Type)
 				pfts[i] = FieldType{
 					Name: pft.Name,
 					Type: pt,
@@ -1224,14 +1388,14 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 			continue
 		}
 		// default case.
-		pt, _ := applySpecifics(lookup, pft.Type)
+		pt, _ := applySpecifics(ft.debugging, lookup, pft.Type)
 		pfts[i] = FieldType{
 			Name: pft.Name,
 			Type: pt,
 		}
 	}
 	for i, rft := range ft.Results {
-		rt, _ := applySpecifics(lookup, rft.Type)
+		rt, _ := applySpecifics(ft.debugging, lookup, rft.Type)
 		rfts[i] = FieldType{
 			Name: rft.Name,
 			Type: rt,
@@ -1256,7 +1420,7 @@ func (ft *FuncType) TypeID() TypeID {
 		}
 	*/
 	if ft.typeid.IsZero() {
-		ft.typeid = typeid(
+		ft.typeid = typeid(ft.debugging,
 			"func(%s)(%s)",
 			// pp,
 			ps.UnnamedTypeID(),
@@ -1303,10 +1467,19 @@ func (ft *FuncType) HasVarg() bool {
 // Map type
 
 type MapType struct {
-	Key   Type
-	Value Type
+	Key       Type
+	Value     Type
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (mt *MapType) DeepCopy() Type {
+	return &MapType{
+		Key:       mt.Key.DeepCopy(),
+		Value:     mt.Value.DeepCopy(),
+		typeid:    mt.typeid,
+		debugging: mt.debugging.DeepCopy(),
+	}
 }
 
 func (mt *MapType) Kind() Kind {
@@ -1315,7 +1488,7 @@ func (mt *MapType) Kind() Kind {
 
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
-		mt.typeid = typeid(
+		mt.typeid = typeid(mt.debugging,
 			"map[%s]%s",
 			mt.Key.TypeID().String(),
 			mt.Value.TypeID().String(),
@@ -1342,6 +1515,11 @@ func (mt *MapType) GetPkgPath() string {
 // Type (typeval) type
 
 type TypeType struct { // nothing yet.
+	debugging *Debugging
+}
+
+func (tt *TypeType) DeepCopy() Type {
+	return &TypeType{debugging: tt.debugging.DeepCopy()}
 }
 
 var gTypeType = &TypeType{}
@@ -1351,7 +1529,7 @@ func (tt *TypeType) Kind() Kind {
 }
 
 func (tt *TypeType) TypeID() TypeID {
-	return typeid("type{}")
+	return typeid(tt.debugging, "type{}")
 }
 
 func (tt *TypeType) String() string {
@@ -1372,13 +1550,53 @@ func (tt *TypeType) GetPkgPath() string {
 // and associated methods.
 
 type DeclaredType struct {
-	PkgPath string
-	Name    Name
-	Base    Type         // not a DeclaredType
-	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
+	PkgPath   string
+	Name      Name
+	Base      Type         // not a DeclaredType
+	Methods   []TypedValue // {T:*FuncType,V:*FuncValue}...
+	debugging *Debugging
+	typeid    TypeID
+	sealed    bool // for ensuring correctness with recursive types.
+}
 
-	typeid TypeID
-	sealed bool // for ensuring correctness with recursive types.
+func DeepCopyTypedValues(tv []TypedValue) []TypedValue {
+	ntv := make([]TypedValue, len(tv))
+
+	for i, value := range tv {
+		var n [8]byte
+
+		for i, b := range value.N {
+			n[i] = b
+		}
+
+		t := value.T
+
+		if t != nil {
+			t = t.DeepCopy()
+		}
+
+		v := value.V
+
+		ntv[i] = TypedValue{
+			T: t,
+			V: v,
+			N: n,
+		}
+	}
+
+	return ntv
+}
+
+func (dt *DeclaredType) DeepCopy() Type {
+	return &DeclaredType{
+		PkgPath:   dt.PkgPath,
+		Name:      dt.Name,
+		Base:      dt.Base,
+		Methods:   DeepCopyTypedValues(dt.Methods),
+		typeid:    dt.typeid,
+		sealed:    dt.sealed,
+		debugging: dt.debugging.DeepCopy(),
+	}
 }
 
 // returns an unsealed *DeclaredType.
@@ -1429,13 +1647,13 @@ func (dt *DeclaredType) checkSeal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.debugging, dt.PkgPath, dt.Name)
 	}
 	return dt.typeid
 }
 
-func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeid("%s.%s", pkgPath, name)
+func DeclaredTypeID(debugging *Debugging, pkgPath string, name Name) TypeID {
+	return typeid(debugging, "%s.%s", pkgPath, name)
 }
 
 func (dt *DeclaredType) String() string {
@@ -1581,7 +1799,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	case VPInterface:
 		return trail, hasPtr, rcvr, ft, false
 	case VPField, VPDerefField:
-		if debug {
+		if dt.debugging.IsDebug() {
 			if trail[0].Depth != 0 && trail[0].Depth != 2 {
 				panic("should not happen")
 			}
@@ -1652,10 +1870,25 @@ func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 // Native type
 
 type NativeType struct {
-	Type reflect.Type // Go "native" type
+	Type      reflect.Type // Go "native" type
+	debugging *Debugging
+	typeid    TypeID
+	gnoType   Type // Gno converted type
+}
 
-	typeid  TypeID
-	gnoType Type // Gno converted type
+func (nt *NativeType) DeepCopy() Type {
+	gnot := nt.gnoType
+
+	if gnot != nil {
+		gnot = gnot.DeepCopy()
+	}
+
+	return &NativeType{
+		Type:      nt.Type,
+		typeid:    nt.typeid,
+		gnoType:   gnot,
+		debugging: nt.debugging.DeepCopy(),
+	}
 }
 
 func (nt *NativeType) Kind() Kind {
@@ -1718,9 +1951,9 @@ func (nt *NativeType) TypeID() TypeID {
 			// > (e.g., base64 instead of "encoding/base64") and is not
 			// > guaranteed to be unique among types. To test for type identity,
 			// > compare the Types directly.
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
+			nt.typeid = typeid(nt.debugging, "go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
 		} else {
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
+			nt.typeid = typeid(nt.debugging, "go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
 		}
 	}
 	return nt.typeid
@@ -1734,7 +1967,7 @@ func (nt *NativeType) String() string {
 func (nt *NativeType) Key() Type {
 	switch nt.Type.Kind() {
 	case reflect.Map:
-		return go2GnoType(nt.Type.Key())
+		return go2GnoType(nt.debugging, nt.Type.Key())
 	default:
 		panic(fmt.Sprintf("unexpected native type %v for .Key",
 			nt.Type.String()))
@@ -1745,7 +1978,7 @@ func (nt *NativeType) Key() Type {
 func (nt *NativeType) Elem() Type {
 	switch nt.Type.Kind() {
 	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map:
-		return go2GnoType(nt.Type.Elem())
+		return go2GnoType(nt.debugging, nt.Type.Elem())
 	default:
 		panic(fmt.Sprintf("unexpected native type %v for .Elem",
 			nt.Type.String()))
@@ -1785,7 +2018,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			trail = []ValuePath{NewValuePathNative(n)}
 			hasPtr = true
 			rcvr = nil
-			field = go2GnoType(rft.Type)
+			field = go2GnoType(nt.debugging, rft.Type)
 			return
 		} else {
 			// deref and continue...
@@ -1797,7 +2030,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		if ok {
 			trail = []ValuePath{NewValuePathNative(n)}
 			rcvr = nil
-			field = go2GnoType(rmt.Type)
+			field = go2GnoType(nt.debugging, rmt.Type)
 			return
 		} else { // no match
 			return nil, false, nil, nil, false
@@ -1808,7 +2041,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 	if ok {
 		trail = []ValuePath{NewValuePathNative(n)}
 		if rmt.Type.In(0).Kind() == reflect.Ptr {
-			if debug {
+			if nt.debugging.IsDebug() {
 				if !hasPtr {
 					panic("should not happen")
 				}
@@ -1817,7 +2050,8 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 		} else {
 			if hasPtr {
 				rcvr = &NativeType{
-					Type: nt.Type.Elem(),
+					Type:      nt.Type.Elem(),
+					debugging: nt.debugging,
 				} // XXX inefficient new/alloc.
 			} else {
 				rcvr = nt
@@ -1837,7 +2071,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			}
 			variadic := rmt.Type.IsVariadic()
 			brmt := reflect.FuncOf(ins, outs, variadic) // bound reflect method type
-			field = go2GnoType(brmt)
+			field = go2GnoType(nt.debugging, brmt)
 		}
 		return
 	}
@@ -1849,7 +2083,7 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 			trail = []ValuePath{NewValuePathNative(n)}
 			hasPtr = false
 			rcvr = nil
-			field = go2GnoType(rft.Type)
+			field = go2GnoType(nt.debugging, rft.Type)
 			return
 		} else { // no match
 			return nil, false, nil, nil, false
@@ -1862,14 +2096,20 @@ func (nt *NativeType) FindEmbeddedFieldType(n Name, m map[Type]struct{}) (
 // ----------------------------------------
 // blockType
 
-type blockType struct{} // no data
+type blockType struct {
+	debugging *Debugging
+} // no data
+
+func (bt blockType) DeepCopy() Type {
+	return &blockType{debugging: bt.debugging.DeepCopy()}
+}
 
 func (bt blockType) Kind() Kind {
 	return BlockKind
 }
 
 func (bt blockType) TypeID() TypeID {
-	return typeid("block")
+	return typeid(bt.debugging, "block")
 }
 
 func (bt blockType) String() string {
@@ -1888,9 +2128,23 @@ func (bt blockType) GetPkgPath() string {
 // tupleType
 
 type tupleType struct {
-	Elts []Type
+	Elts      []Type
+	debugging *Debugging
+	typeid    TypeID
+}
 
-	typeid TypeID
+func (tt *tupleType) DeepCopy() Type {
+	elts := make([]Type, len(tt.Elts))
+
+	for i, elt := range tt.Elts {
+		elts[i] = elt.DeepCopy()
+	}
+
+	return &tupleType{
+		Elts:      elts,
+		typeid:    tt.typeid,
+		debugging: tt.debugging.DeepCopy(),
+	}
 }
 
 func (tt *tupleType) Kind() Kind {
@@ -1908,7 +2162,7 @@ func (tt *tupleType) TypeID() TypeID {
 			}
 		}
 		s += ")"
-		tt.typeid = typeid(s)
+		tt.typeid = typeid(tt.debugging, s)
 	}
 	return tt.typeid
 }
@@ -1938,7 +2192,12 @@ func (tt *tupleType) GetPkgPath() string {
 // RefType
 
 type RefType struct {
-	ID TypeID
+	ID        TypeID
+	debugging *Debugging
+}
+
+func (rt RefType) DeepCopy() Type {
+	return RefType{ID: rt.ID, debugging: rt.debugging.DeepCopy()}
 }
 
 func (RefType) Kind() Kind {
@@ -1969,6 +2228,7 @@ func (rt RefType) GetPkgPath() string {
 // or go2GnoType2(spec) to gno type if spec is native.
 type MaybeNativeType struct {
 	Type
+	// debugging *Debugging
 }
 
 func (mn MaybeNativeType) Kind() Kind {
@@ -2033,9 +2293,8 @@ const (
 
 // This is generally slower than switching on baseOf(t).
 func KindOf(t Type) Kind {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
+	handle := func(t *PrimitiveType) Kind {
+		switch t.Val {
 		case InvalidType:
 			panic("invalid type has no kind")
 		case BoolType, UntypedBoolType:
@@ -2073,6 +2332,12 @@ func KindOf(t Type) Kind {
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
 		}
+	}
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	case *DeclaredType:
 		panic("unexpected nested DeclaredType")
 	case FieldType:
@@ -2119,7 +2384,7 @@ func KindOf(t Type) Kind {
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
-func assertSameTypes(lt, rt Type) {
+func assertSameTypes(debugging *Debugging, lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2136,7 +2401,7 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		debug.Errorf(
+		debugging.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
 			rt.String(),
@@ -2145,7 +2410,7 @@ func assertSameTypes(lt, rt Type) {
 }
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
-func assertEqualityTypes(lt, rt Type) {
+func assertEqualityTypes(debugging *Debugging, lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2154,15 +2419,15 @@ func assertEqualityTypes(lt, rt Type) {
 		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
 	} else if lt.Kind() == InterfaceKind &&
-		IsImplementedBy(lt, rt) {
+		IsImplementedBy(debugging, lt, rt) {
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
-		IsImplementedBy(rt, lt) {
+		IsImplementedBy(debugging, rt, lt) {
 		// lt implements rt (and rt is nil interface).
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		debug.Errorf(
+		debugging.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
 			rt.String(),
@@ -2174,18 +2439,38 @@ func assertEqualityTypes(lt, rt Type) {
 // misc
 
 func isUntyped(t Type) bool {
-	switch t {
-	case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
-		return true
+	handle := func(t *PrimitiveType) bool {
+		switch t.Val {
+		case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
+			return true
+		default:
+			return false
+		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		return false
 	}
 }
 
 func isDataByte(t Type) bool {
-	switch t {
-	case DataByteType:
-		return true
+	handle := func(t *PrimitiveType) bool {
+		switch t.Val {
+		case DataByteType:
+			return true
+		default:
+			return false
+		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		return false
 	}
@@ -2194,17 +2479,27 @@ func isDataByte(t Type) bool {
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
 func defaultTypeOf(t Type) Type {
-	switch t {
-	case UntypedBoolType:
-		return BoolType
-	case UntypedRuneType:
-		return Int32Type
-	case UntypedBigintType:
-		return IntType
-	case UntypedBigdecType:
-		return Float64Type
-	case UntypedStringType:
-		return StringType
+	handle := func(t *PrimitiveType) *PrimitiveType {
+		switch t.Val {
+		case UntypedBoolType:
+			return &PrimitiveType{Val: BoolType, Debugging: t.Debugging}
+		case UntypedRuneType:
+			return &PrimitiveType{Val: Int32Type, Debugging: t.Debugging}
+		case UntypedBigintType:
+			return &PrimitiveType{Val: IntType, Debugging: t.Debugging}
+		case UntypedBigdecType:
+			return &PrimitiveType{Val: Float64Type, Debugging: t.Debugging}
+		case UntypedStringType:
+			return &PrimitiveType{Val: StringType, Debugging: t.Debugging}
+		default:
+			panic("unexpected type for default untyped const conversion")
+		}
+	}
+	switch t := t.(type) {
+	case PrimitiveType:
+		return handle(&t)
+	case *PrimitiveType:
+		return handle(t)
 	default:
 		panic("unexpected type for default untyped const conversion")
 	}
@@ -2214,6 +2509,46 @@ func fillEmbeddedName(ft *FieldType) {
 	if ft.Name != "" {
 		return
 	}
+
+	handle := func(ct *PrimitiveType) {
+		switch ct.Val {
+		case BoolType:
+			ft.Name = "bool"
+		case StringType:
+			ft.Name = "string"
+		case IntType:
+			ft.Name = "int"
+		case Int8Type:
+			ft.Name = "int8"
+		case Int16Type:
+			ft.Name = "int16"
+		case Int32Type:
+			ft.Name = "int32"
+		case Int64Type:
+			ft.Name = "int64"
+		case UintType:
+			ft.Name = "uint"
+		case Uint8Type:
+			ft.Name = "uint8"
+		case Uint16Type:
+			ft.Name = "uint16"
+		case Uint32Type:
+			ft.Name = "uint32"
+		case Uint64Type:
+			ft.Name = "uint64"
+		case Float32Type:
+			ft.Name = "float32"
+		case Float64Type:
+			ft.Name = "float64"
+		case BigintType:
+			ft.Name = "bigint"
+		case BigdecType:
+			ft.Name = "bigdec"
+		default:
+			panic("should not happen")
+		}
+	}
+
 	switch ct := ft.Type.(type) {
 	case *PointerType:
 		// dereference one level
@@ -2228,42 +2563,9 @@ func fillEmbeddedName(ft *FieldType) {
 	case *DeclaredType:
 		ft.Name = ct.Name
 	case PrimitiveType:
-		switch ct {
-		case BoolType:
-			ft.Name = Name("bool")
-		case StringType:
-			ft.Name = Name("string")
-		case IntType:
-			ft.Name = Name("int")
-		case Int8Type:
-			ft.Name = Name("int8")
-		case Int16Type:
-			ft.Name = Name("int16")
-		case Int32Type:
-			ft.Name = Name("int32")
-		case Int64Type:
-			ft.Name = Name("int64")
-		case UintType:
-			ft.Name = Name("uint")
-		case Uint8Type:
-			ft.Name = Name("uint8")
-		case Uint16Type:
-			ft.Name = Name("uint16")
-		case Uint32Type:
-			ft.Name = Name("uint32")
-		case Uint64Type:
-			ft.Name = Name("uint64")
-		case Float32Type:
-			ft.Name = Name("float32")
-		case Float64Type:
-			ft.Name = Name("float64")
-		case BigintType:
-			ft.Name = Name("bigint")
-		case BigdecType:
-			ft.Name = Name("bigdec")
-		default:
-			panic("should not happen")
-		}
+		handle(&ct)
+	case *PrimitiveType:
+		handle(ct)
 	case *NativeType:
 		panic("native type cannot be embedded")
 	default:
@@ -2274,12 +2576,12 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
-func IsImplementedBy(it Type, ot Type) bool {
+func IsImplementedBy(debugging *Debugging, it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
-		return cbt.IsImplementedBy(ot)
+		return cbt.IsImplementedBy(debugging, ot)
 	case *NativeType:
-		return gno2GoTypeMatches(ot, cbt.Type)
+		return gno2GoTypeMatches(debugging, ot, cbt.Type)
 	default:
 		panic("should not happen")
 	}
@@ -2329,25 +2631,32 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				spec.Kind()))
 		}
 	case *SliceType:
-		switch st := baseOf(spec).(type) {
-		case PrimitiveType:
+		handle := func(st *PrimitiveType) {
+			prv := &PrimitiveType{Val: Uint8Type, Debugging: store.Debug()}
+
 			if isGeneric(ct.Elt) {
 				if st.Kind() == StringKind {
-					specifyType(store, lookup, ct.Elt, Uint8Type, nil)
+					specifyType(store, lookup, ct.Elt, prv, nil)
 				} else {
 					panic(fmt.Sprintf(
 						"expected slice kind but got %s",
 						spec.Kind()))
 				}
-			} else if ct.Elt != Uint8Type {
+			} else if ct.Elt != prv {
 				panic(fmt.Sprintf(
 					"expected slice kind but got %s",
 					spec.Kind()))
-			} else if st != StringType {
+			} else if !IsPrimitiveType(StringType, st) {
 				panic(fmt.Sprintf(
 					"expected slice kind (or string type) but got %s",
 					spec.Kind()))
 			}
+		}
+		switch st := baseOf(spec).(type) {
+		case PrimitiveType:
+			handle(&st)
+		case *PrimitiveType:
+			handle(st)
 		case *SliceType:
 			specifyType(store, lookup, ct.Elt, st.Elt, nil)
 		case *NativeType:
@@ -2408,7 +2717,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), false)
+					checkType(store.Debug(), spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2422,7 +2731,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, false)
+					checkType(store.Debug(), spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
@@ -2453,10 +2762,10 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 // lookup map to derive the specific (composite) type from a
 // generic template.  if the input tmpl has no generics, it is
 // simply returned.  if a generic is not yet specified, panics.
-func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
+func applySpecifics(debugging *Debugging, lookup map[Name]Type, tmpl Type) (Type, bool) {
 	switch ct := tmpl.(type) {
 	case *PointerType:
-		pte, ok := applySpecifics(lookup, ct.Elt)
+		pte, ok := applySpecifics(debugging, lookup, ct.Elt)
 		if !ok { // simply return
 			return tmpl, false
 		}
@@ -2464,7 +2773,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 			Elt: pte,
 		}, true
 	case *ArrayType:
-		ate, ok := applySpecifics(lookup, ct.Elt)
+		ate, ok := applySpecifics(debugging, lookup, ct.Elt)
 		if !ok { // simply return
 			return tmpl, false
 		}
@@ -2474,7 +2783,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 			Vrd: ct.Vrd,
 		}, true
 	case *SliceType:
-		ste, ok := applySpecifics(lookup, ct.Elt)
+		ste, ok := applySpecifics(debugging, lookup, ct.Elt)
 		if !ok { // simply return
 			return tmpl, false
 		}
@@ -2483,8 +2792,8 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 			Vrd: ct.Vrd,
 		}, true
 	case *MapType:
-		mtk, okk := applySpecifics(lookup, ct.Key)
-		mtv, okv := applySpecifics(lookup, ct.Value)
+		mtk, okk := applySpecifics(debugging, lookup, ct.Key)
+		mtv, okv := applySpecifics(debugging, lookup, ct.Value)
 		if !okk && !okv { // simply return
 			return tmpl, false
 		}
@@ -2517,7 +2826,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				}
 				// Parse generic to expr.
 				gx := MustParseExpr(string(generic))
-				gx = Preprocess(nil, bs, gx).(Expr)
+				gx = Preprocess(debugging, pState(0), nil, bs, gx).(Expr)
 				// Evaluate type from generic expression.
 				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)

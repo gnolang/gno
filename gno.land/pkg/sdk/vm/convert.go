@@ -17,7 +17,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	tv.T = argT
 	switch bt := gno.BaseOf(argT).(type) {
 	case gno.PrimitiveType:
-		switch bt {
+		switch bt.Val {
 		case gno.BoolType:
 			if arg == "true" {
 				tv.SetBool(true)
@@ -157,7 +157,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
 		}
 	case *gno.ArrayType:
-		if bt.Elt == gno.Uint8Type {
+		if gno.IsPrimitiveType(gno.Uint8Type, bt.Elt) {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -172,7 +172,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			panic("unexpected array type in contract arg")
 		}
 	case *gno.SliceType:
-		if bt.Elt == gno.Uint8Type {
+		if gno.IsPrimitiveType(gno.Uint8Type, bt.Elt) {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(

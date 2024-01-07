@@ -14,12 +14,15 @@ import (
 
 func AssertOriginCall(m *gno.Machine) {
 	if !IsOriginCall(m) {
-		m.Panic(typedString("invalid non-origin call"))
+		m.Panic(typedString(m.Debugging, "invalid non-origin call"))
 	}
 }
 
-func typedString(s gno.StringValue) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
+func typedString(debugging *gno.Debugging, s gno.StringValue) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.PrimitiveType{
+		Val:       gno.StringType,
+		Debugging: debugging,
+	}}
 	tv.SetString(s)
 	return tv
 }
@@ -52,7 +55,7 @@ func TestSkipHeights(m *gno.Machine, count int64) {
 }
 
 func ClearStoreCache(m *gno.Machine) {
-	if gno.IsDebug() && testing.Verbose() {
+	if m.Debugging.IsDebug() && testing.Verbose() {
 		m.Store.Print()
 		fmt.Println("========================================")
 		fmt.Println("CLEAR CACHE (RUNTIME)")
@@ -60,7 +63,7 @@ func ClearStoreCache(m *gno.Machine) {
 	}
 	m.Store.ClearCache()
 	m.PreprocessAllFilesAndSaveBlockNodes()
-	if gno.IsDebug() && testing.Verbose() {
+	if m.Debugging.IsDebug() && testing.Verbose() {
 		m.Store.Print()
 		fmt.Println("========================================")
 		fmt.Println("CLEAR CACHE DONE")
@@ -70,14 +73,14 @@ func ClearStoreCache(m *gno.Machine) {
 
 func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString(m.Debugging, "GetCallerAt requires positive arg"))
 		return ""
 	}
 	if n > m.NumFrames()-1 {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
 		// package, so need this check.
-		m.Panic(typedString("frame not found"))
+		m.Panic(typedString(m.Debugging, "frame not found"))
 		return ""
 	}
 	if n == m.NumFrames()-1 {

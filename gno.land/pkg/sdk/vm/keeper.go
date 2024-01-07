@@ -89,9 +89,9 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
-		gno.DisableDebug()
+		m2.Debugging.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
-		gno.EnableDebug()
+		m2.Debugging.EnableDebug()
 	}
 }
 

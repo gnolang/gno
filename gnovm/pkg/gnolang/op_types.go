@@ -31,7 +31,7 @@ func (m *Machine) doOpArrayType() {
 		t.Vrd = true
 	} else {
 		lv := m.PopValue()
-		if debug {
+		if m.Debugging.IsDebug() {
 			// This is how run-time untyped const
 			// conversions would work, but we
 			// expect the preprocessor to convert
@@ -186,7 +186,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		// NOTE: duplicated from doOpEval
 		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetBlock(nil).GetPointerTo(nil, x.Path)
+			gv := Uverse(m.Debugging).GetBlock(nil).GetPointerTo(nil, x.Path)
 			m.PushValue(asValue(gv.TV.T))
 		} else {
 			// Get static type from source.
@@ -207,10 +207,13 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushExpr(x.Left)
 			m.PushOp(OpStaticTypeOf)
 		case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-			m.PushValue(asValue(UntypedBoolType))
+			m.PushValue(asValue(PrimitiveType{
+				Val:       UntypedBoolType,
+				Debugging: m.Debugging,
+			}))
 		}
 	case *CallExpr:
-		t := getTypeOf(x)
+		t := getTypeOf(m.Debugging, x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
 		start := m.NumValues
@@ -292,7 +295,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		default:
 			dxt = xt
 		}
-		if debug {
+		if m.Debugging.IsDebug() {
 			path.Validate()
 		}
 
@@ -345,14 +348,14 @@ func (m *Machine) doOpStaticTypeOf() {
 					rt := cxt.Type
 					mt, ok := rt.MethodByName(string(x.Sel))
 					if !ok {
-						if debug {
+						if m.Debugging.IsDebug() {
 							panic(fmt.Sprintf(
 								"native type %s has no method %s",
 								rt.String(), x.Sel))
 						}
 						panic("unknown native method selector")
 					}
-					t2 := go2GnoType(mt.Type)
+					t2 := go2GnoType(m.Debugging, mt.Type)
 					m.PushValue(asValue(t2))
 					return
 				default:
@@ -415,7 +418,7 @@ func (m *Machine) doOpStaticTypeOf() {
 					ert := rt.Elem()
 					rft, ok := ert.FieldByName(string(x.Sel))
 					if ok {
-						ft := go2GnoType(rft.Type)
+						ft := go2GnoType(m.Debugging, rft.Type)
 						m.PushValue(asValue(ft))
 						return
 					}
@@ -426,7 +429,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			} else if rt.Kind() == reflect.Struct {
 				rft, ok := rt.FieldByName(string(x.Sel))
 				if ok {
-					ft := go2GnoType(rft.Type)
+					ft := go2GnoType(m.Debugging, rft.Type)
 					m.PushValue(asValue(ft))
 					return
 				}
@@ -472,7 +475,10 @@ func (m *Machine) doOpStaticTypeOf() {
 				Elt: pt.Elt.Elem(),
 			}))
 		} else if xt.Kind() == StringKind {
-			m.PushValue(asValue(StringType))
+			m.PushValue(asValue(PrimitiveType{
+				Val:       StringType,
+				Debugging: m.Debugging,
+			}))
 		} else {
 			m.PushValue(asValue(&SliceType{
 				Elt: xt.Elem(),

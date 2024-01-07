@@ -40,11 +40,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_crypto_sha256.X_sum256(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -67,11 +68,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_math.Float32bits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -94,11 +96,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_math.Float32frombits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -121,11 +124,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_math.Float64bits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -148,11 +152,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_math.Float64frombits(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -183,6 +188,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -202,6 +208,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -221,6 +228,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -240,6 +248,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -259,6 +268,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -278,6 +288,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -297,6 +308,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -316,6 +328,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -335,6 +348,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -357,13 +371,14 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_std.GetCallerAt(
 				m,
 				p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -386,7 +401,7 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_std.GetBanker(
 				m,
@@ -411,11 +426,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_std.DerivePkgAddr(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -441,12 +457,13 @@ var nativeFuncs = [...]nativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
 			r0 := libs_std.EncodeBech32(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -471,21 +488,24 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0, r1, r2 := libs_std.DecodeBech32(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
 			))
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r2).Elem(),
@@ -508,11 +528,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_strconv.Itoa(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -541,13 +562,14 @@ var nativeFuncs = [...]nativeFunc{
 				rp2 = reflect.ValueOf(&p2).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
 
 			r0 := libs_strconv.AppendUint(p0, p1, p2)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -571,16 +593,18 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0, r1 := libs_strconv.Atoi(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
@@ -603,11 +627,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_strconv.CanBackquote(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -633,12 +658,13 @@ var nativeFuncs = [...]nativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
 			r0 := libs_strconv.FormatInt(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -664,12 +690,13 @@ var nativeFuncs = [...]nativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
 			r0 := libs_strconv.FormatUint(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -692,11 +719,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_strconv.Quote(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -719,11 +747,12 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_strconv.QuoteToASCII(p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -745,16 +774,19 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
 			))
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r2).Elem(),

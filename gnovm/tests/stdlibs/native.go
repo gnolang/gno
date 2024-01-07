@@ -45,6 +45,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -64,6 +65,7 @@ var nativeFuncs = [...]nativeFunc{
 			)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -84,7 +86,7 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			testlibs_std.TestSkipHeights(
 				m,
@@ -118,13 +120,14 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := testlibs_std.GetCallerAt(
 				m,
 				p0)
 
 			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
@@ -145,7 +148,7 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			testlibs_std.TestSetOrigCaller(
 				m,
@@ -166,7 +169,7 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			testlibs_std.TestSetOrigPkgAddr(
 				m,
@@ -190,8 +193,8 @@ var nativeFuncs = [...]nativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
 			testlibs_std.TestSetOrigSend(
 				m,
@@ -215,8 +218,8 @@ var nativeFuncs = [...]nativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
 			testlibs_std.TestIssueCoins(
 				m,

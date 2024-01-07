@@ -14,9 +14,8 @@ import (
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
-	if debug {
-		debug.Printf("EVAL: (%T) %v\n", x, x)
-		// fmt.Println(m.String())
+	if m.Debugging.IsDebug() {
+		m.Debugging.Printf("EVAL: (%T) %v\n", x, x)
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -24,7 +23,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
+			gv := Uverse(m.Debugging).GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {
@@ -75,7 +74,10 @@ func (m *Machine) doOpEval() {
 				}
 			}
 			m.PushValue(TypedValue{
-				T: UntypedBigintType,
+				T: PrimitiveType{
+					Val:       UntypedBigintType,
+					Debugging: m.Debugging,
+				},
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
@@ -95,7 +97,10 @@ func (m *Machine) doOpEval() {
 						x.Value))
 				}
 				m.PushValue(TypedValue{
-					T: UntypedBigdecType,
+					T: PrimitiveType{
+						Val:       UntypedBigdecType,
+						Debugging: m.Debugging,
+					},
 					V: BigdecValue{V: bd},
 				})
 				return
@@ -184,7 +189,10 @@ func (m *Machine) doOpEval() {
 				// ----------------------------------------
 
 				m.PushValue(TypedValue{
-					T: UntypedBigdecType,
+					T: PrimitiveType{
+						Val:       UntypedBigdecType,
+						Debugging: m.Debugging,
+					},
 					V: BigdecValue{V: res},
 				})
 				return
@@ -207,12 +215,18 @@ func (m *Machine) doOpEval() {
 			if len(runes) != 1 {
 				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
 			}
-			tv := TypedValue{T: UntypedRuneType}
+			tv := TypedValue{T: PrimitiveType{
+				Val:       UntypedRuneType,
+				Debugging: m.Debugging,
+			}}
 			tv.SetInt32(runes[0])
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{
-				T: UntypedStringType,
+				T: PrimitiveType{
+					Val:       UntypedStringType,
+					Debugging: m.Debugging,
+				},
 				V: m.Alloc.NewString(x.GetString()),
 			})
 		default:

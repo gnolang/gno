@@ -22,7 +22,7 @@ var gErrorType = &DeclaredType{
 					Results: []FieldType{
 						{
 							// Name: "",
-							Type: StringType,
+							Type: PrimitiveType{Val: StringType},
 						},
 					},
 				},
@@ -45,7 +45,7 @@ var gStringerType = &DeclaredType{
 					Results: []FieldType{
 						{
 							// Name: "",
-							Type: StringType,
+							Type: PrimitiveType{Val: StringType},
 						},
 					},
 				},
@@ -65,17 +65,22 @@ var (
 
 const uversePkgPath = ".uverse"
 
+func init() {
+	Uverse(nil)
+	UverseNode(nil)
+}
+
 // Always returns a new copy from the latest state of source.
-func Uverse() *PackageValue {
+func Uverse(debugging *Debugging) *PackageValue {
 	if uverseValue == nil {
-		pn := UverseNode()
+		pn := UverseNode(debugging)
 		uverseValue = pn.NewPackage()
 	}
 	return uverseValue
 }
 
 // Always returns the same instance with possibly differing completeness.
-func UverseNode() *PackageNode {
+func UverseNode(debugging *Debugging) *PackageNode {
 	// Global is singleton.
 	if uverseNode != nil {
 		return uverseNode
@@ -95,23 +100,23 @@ func UverseNode() *PackageNode {
 	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
-	def("bigint", asValue(BigintType))
-	def("bool", asValue(BoolType))
-	def("byte", asValue(Uint8Type))
-	def("float32", asValue(Float32Type))
-	def("float64", asValue(Float64Type))
-	def("int", asValue(IntType))
-	def("int8", asValue(Int8Type))
-	def("int16", asValue(Int16Type))
-	def("int32", asValue(Int32Type))
-	def("int64", asValue(Int64Type))
-	def("rune", asValue(Int32Type))
-	def("string", asValue(StringType))
-	def("uint", asValue(UintType))
-	def("uint8", asValue(Uint8Type))
-	def("uint16", asValue(Uint16Type))
-	def("uint32", asValue(Uint32Type))
-	def("uint64", asValue(Uint64Type))
+	def("bigint", asValue(PrimitiveType{Val: BigintType, Debugging: debugging}))
+	def("bool", asValue(PrimitiveType{Val: BoolType, Debugging: debugging}))
+	def("byte", asValue(PrimitiveType{Val: Uint8Type, Debugging: debugging}))
+	def("float32", asValue(PrimitiveType{Val: Float32Type, Debugging: debugging}))
+	def("float64", asValue(PrimitiveType{Val: Float64Type, Debugging: debugging}))
+	def("int", asValue(PrimitiveType{Val: IntType, Debugging: debugging}))
+	def("int8", asValue(PrimitiveType{Val: Int8Type, Debugging: debugging}))
+	def("int16", asValue(PrimitiveType{Val: Int16Type, Debugging: debugging}))
+	def("int32", asValue(PrimitiveType{Val: Int32Type, Debugging: debugging}))
+	def("int64", asValue(PrimitiveType{Val: Int64Type, Debugging: debugging}))
+	def("rune", asValue(PrimitiveType{Val: Int32Type, Debugging: debugging}))
+	def("string", asValue(PrimitiveType{Val: StringType, Debugging: debugging}))
+	def("uint", asValue(PrimitiveType{Val: UintType, Debugging: debugging}))
+	def("uint8", asValue(PrimitiveType{Val: Uint8Type, Debugging: debugging}))
+	def("uint16", asValue(PrimitiveType{Val: Uint16Type, Debugging: debugging}))
+	def("uint32", asValue(PrimitiveType{Val: Uint32Type, Debugging: debugging}))
+	def("uint64", asValue(PrimitiveType{Val: Uint64Type, Debugging: debugging}))
 	// NOTE on 'typeval': We can't call the type of a TypeValue a
 	// "type", even though we want to, because it conflicts with
 	// the pre-existing syntax for type-switching, `switch
@@ -130,8 +135,8 @@ func UverseNode() *PackageNode {
 	def("error", asValue(gErrorType))
 
 	// Values
-	def("true", untypedBool(true))
-	def("false", untypedBool(false))
+	def("true", untypedBool(debugging, true))
+	def("false", untypedBool(debugging, false))
 
 	// Functions
 	defNative("append",
@@ -155,7 +160,7 @@ func UverseNode() *PackageNode {
 				copy(av.Data, []byte(arg1s))
 				arg1.TV = &TypedValue{
 					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
-						Elt: Uint8Type,
+						Elt: PrimitiveType{Val: Uint8Type, Debugging: m.Debugging},
 						Vrd: true,
 					}),
 					V: m.Alloc.NewSlice(av, 0, len(arg1s), len(arg1s)), // TODO: pool?
@@ -247,7 +252,7 @@ func UverseNode() *PackageNode {
 						// append(nil, *NativeValue) new list --------
 						list := make([]TypedValue, argsl)
 						if 0 < argsl {
-							copyNativeToList(
+							copyNativeToList(debugging,
 								m.Alloc,
 								list[:argsl],
 								argsrv, argsl)
@@ -420,7 +425,7 @@ func UverseNode() *PackageNode {
 							if xvb.Data == nil {
 								// append(*SliceValue.List, *NativeValue) --------
 								list := xvb.List
-								copyNativeToList(
+								copyNativeToList(debugging,
 									m.Alloc,
 									list[xvo:xvo+argsl],
 									argsrv, argsl)
@@ -477,7 +482,7 @@ func UverseNode() *PackageNode {
 							}
 						}
 						if 0 < argsl {
-							copyNativeToList(
+							copyNativeToList(debugging,
 								m.Alloc,
 								list[xvl:xvl+argsl],
 								argsrv, argsl)
@@ -523,7 +528,7 @@ func UverseNode() *PackageNode {
 								if etv.IsUndefined() {
 									continue
 								}
-								erv := gno2GoValue(etv, reflect.Value{})
+								erv := gno2GoValue(m.Debugging, etv, reflect.Value{})
 								argsrv.Index(i).Set(erv)
 							}
 						} else {
@@ -601,7 +606,7 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			res0 := TypedValue{
-				T: IntType,
+				T: PrimitiveType{Val: IntType, Debugging: m.Debugging},
 				V: nil,
 			}
 			res0.SetInt(arg0.TV.GetCapacity())
@@ -624,15 +629,15 @@ func UverseNode() *PackageNode {
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
-				switch bst := baseOf(src.TV.T).(type) {
-				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+				handle := func(bst *PrimitiveType) {
+					if m.Debugging.IsDebug() {
+						m.Debugging.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
 					if bst.Kind() != StringKind {
 						panic("should not happen")
 					}
-					if bdt.Elt != Uint8Type {
+
+					if !IsPrimitiveType(Uint8Type, bdt.Elt) {
 						panic("should not happen")
 					}
 					// NOTE: this implementation is almost identical to the next one.
@@ -646,7 +651,10 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
+						m.PushValue(defaultTypedValue(m.Alloc, PrimitiveType{
+							Val:       IntType,
+							Debugging: m.Debugging,
+						}))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -657,11 +665,21 @@ func UverseNode() *PackageNode {
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
-						T: IntType,
+						T: PrimitiveType{
+							Val:       IntType,
+							Debugging: m.Debugging,
+						},
 						V: nil,
 					}
 					res0.SetInt(minl)
 					m.PushValue(res0)
+				}
+				switch bst := baseOf(src.TV.T).(type) {
+				case PrimitiveType:
+					handle(&bst)
+					return
+				case *PrimitiveType:
+					handle(bst)
 					return
 				case *SliceType:
 					dstl := dst.TV.GetLength()
@@ -672,7 +690,10 @@ func UverseNode() *PackageNode {
 					}
 					if minl == 0 {
 						// return 0.
-						m.PushValue(defaultTypedValue(m.Alloc, IntType))
+						m.PushValue(defaultTypedValue(m.Alloc, PrimitiveType{
+							Val:       IntType,
+							Debugging: m.Debugging,
+						}))
 						return
 					}
 					dstv := dst.TV.V.(*SliceValue)
@@ -683,7 +704,10 @@ func UverseNode() *PackageNode {
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
-						T: IntType,
+						T: PrimitiveType{
+							Val:       IntType,
+							Debugging: m.Debugging,
+						},
 						V: nil,
 					}
 					res0.SetInt(minl)
@@ -717,7 +741,7 @@ func UverseNode() *PackageNode {
 				return
 			case *NativeType:
 				krv := reflect.New(cbt.Type.Key()).Elem()
-				krv = gno2GoValue(&itv, krv)
+				krv = gno2GoValue(m.Debugging, &itv, krv)
 				mrv := arg0.TV.V.(*NativeValue).Value
 				mrv.SetMapIndex(krv, reflect.Value{})
 				return
@@ -738,7 +762,10 @@ func UverseNode() *PackageNode {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			res0 := TypedValue{
-				T: IntType,
+				T: PrimitiveType{
+					Val:       IntType,
+					Debugging: m.Debugging,
+				},
 				V: nil,
 			}
 			res0.SetInt(arg0.TV.GetLength())
@@ -939,7 +966,7 @@ func UverseNode() *PackageNode {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ")
-			if debug {
+			if m.Debugging.IsDebug() {
 				print(rs)
 			}
 			m.Output.Write([]byte(rs))
@@ -960,9 +987,10 @@ func UverseNode() *PackageNode {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ") + "\n"
-			if debug {
+			if m.Debugging.IsDebug() {
 				println("DEBUG/stdout: " + rs)
 			}
+
 			m.Output.Write([]byte(rs))
 		},
 	)
@@ -1004,10 +1032,10 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func copyNativeToList(alloc *Allocator, dst []TypedValue, rv reflect.Value, rvl int) {
+func copyNativeToList(debugging *Debugging, alloc *Allocator, dst []TypedValue, rv reflect.Value, rvl int) {
 	// TODO: redundant go2GnoType() conversions.
 	for i := 0; i < rvl; i++ {
-		dst[i] = go2GnoValue(alloc, rv.Index(i))
+		dst[i] = go2GnoValue(debugging, alloc, rv.Index(i))
 	}
 }
 

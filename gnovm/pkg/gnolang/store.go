@@ -38,6 +38,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	DeepCopy() Store
 	// UNSTABLE
 	SetStrictGo2GnoMapping(bool)
 	AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string)
@@ -62,6 +63,7 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
+	Debug() *Debugging
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -82,6 +84,12 @@ type defaultStore struct {
 	// transient
 	opslog  []StoreOp           // for debugging and testing.
 	current map[string]struct{} // for detecting import cycles.
+
+	debugging *Debugging
+}
+
+func (ds *defaultStore) Debug() *Debugging {
+	return ds.debugging
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -100,6 +108,48 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	}
 	InitStoreCaches(ds)
 	return ds
+}
+
+func (ds *defaultStore) DeepCopy() Store {
+	cachedObjs := make(map[ObjectID]Object)
+
+	for id, object := range ds.cacheObjects {
+		cachedObjs[id] = object.DeepCopy()
+	}
+
+	cacheTypes := make(map[TypeID]Type)
+
+	for id, object := range ds.cacheTypes {
+		cacheTypes[id] = object.DeepCopy()
+	}
+
+	var a *Allocator
+
+	if ds.alloc != nil {
+		a = &*ds.alloc
+	}
+
+	cacheNativeTypes := make(map[reflect.Type]Type)
+
+	for r, t := range ds.cacheNativeTypes {
+		cacheNativeTypes[r] = t.DeepCopy()
+	}
+
+	return &defaultStore{
+		alloc:            a,
+		pkgGetter:        ds.pkgGetter,
+		cacheObjects:     cachedObjs,
+		cacheTypes:       cacheTypes,
+		cacheNodes:       ds.cacheNodes,
+		cacheNativeTypes: cacheNativeTypes,
+		baseStore:        ds.baseStore,
+		iavlStore:        ds.iavlStore,
+		pkgInjector:      ds.pkgInjector,
+		go2gnoMap:        ds.go2gnoMap,
+		go2gnoStrict:     ds.go2gnoStrict,
+		opslog:           ds.opslog,
+		current:          ds.current,
+	}
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -222,7 +272,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		return nil
 	}
 	amino.MustUnmarshal(bz, &rlm)
-	if debug {
+	if ds.debugging.IsDebug() {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -260,7 +310,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
+			if ds.debugging.IsDebug() {
 				if _, ok := oo.(*PackageValue); ok {
 					panic("packages must be fetched with GetPackage()")
 				}
@@ -282,7 +332,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
 		amino.MustUnmarshal(bz, &oo)
-		if debug {
+		if ds.debugging.IsDebug() {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
@@ -301,7 +351,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
-	o2 := copyValueWithRefs(nil, oo)
+	o2 := copyValueWithRefs(ds.debugging, nil, oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -319,7 +369,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		ds.baseStore.Set([]byte(key), hashbz)
 	}
 	// save object to cache.
-	if debug {
+	if ds.debugging.IsDebug() {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
@@ -392,7 +442,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
-			if debug {
+			if ds.debugging.IsDebug() {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -435,7 +485,7 @@ func (ds *defaultStore) SetType(tt Type) {
 	// save type to backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
-		tcopy := copyTypeWithRefs(tt)
+		tcopy := copyTypeWithRefs(ds.debugging, tt)
 		bz := amino.MustMarshalAny(tcopy)
 		ds.baseStore.Set([]byte(key), bz)
 	}
@@ -463,7 +513,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 		if bz != nil {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
-			if debug {
+			if ds.debugging.IsDebug() {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))
@@ -591,7 +641,7 @@ func (ds *defaultStore) ClearObjectCache() {
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
-	ds.SetCachePackage(Uverse())
+	ds.SetCachePackage(Uverse(ds.debugging))
 }
 
 // Unstable.
@@ -612,8 +662,9 @@ func (ds *defaultStore) Fork() Store {
 		go2gnoStrict:     ds.go2gnoStrict,
 		opslog:           nil, // new ops log.
 		current:          make(map[string]struct{}),
+		debugging:        ds.debugging.DeepCopy(),
 	}
-	ds2.SetCachePackage(Uverse())
+	ds2.SetCachePackage(Uverse(ds.debugging))
 	return ds2
 }
 
@@ -719,7 +770,7 @@ func (ds *defaultStore) ClearCache() {
 	InitStoreCaches(ds)
 }
 
-// for debugging
+// for Debugging
 func (ds *defaultStore) Print() {
 	fmt.Println("//----------------------------------------")
 	fmt.Println("defaultStore:baseStore...")
@@ -776,19 +827,89 @@ func backendPackagePathKey(path string) string {
 
 func InitStoreCaches(store Store) {
 	types := []Type{
-		BoolType, UntypedBoolType,
-		StringType, UntypedStringType,
-		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
-		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		BigintType, UntypedBigintType,
+		PrimitiveType{
+			Val:       BoolType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedBoolType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       StringType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedStringType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       IntType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int8Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int16Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Int64Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedRuneType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UintType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint8Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint16Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Uint64Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       BigintType,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       UntypedBigintType,
+			Debugging: store.Debug(),
+		},
 		gTypeType,
 		gPackageType,
 		blockType{},
-		Float32Type, Float64Type,
+		PrimitiveType{
+			Val:       Float32Type,
+			Debugging: store.Debug(),
+		},
+		PrimitiveType{
+			Val:       Float64Type,
+			Debugging: store.Debug(),
+		},
 		gErrorType, // from uverse.go
 	}
 	for _, tt := range types {
 		store.SetCacheType(tt)
 	}
-	store.SetCachePackage(Uverse())
+	store.SetCachePackage(Uverse(store.Debug()))
 }

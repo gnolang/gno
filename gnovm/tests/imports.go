@@ -348,9 +348,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "unicode/utf8":
 				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
 				pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
-				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
-				tv.SetInt32(utf8.RuneSelf)                   // ..
-				pkg.Define("RuneSelf", tv)                   // ..
+				tv := gno.TypedValue{T: gno.PrimitiveType{
+					Val:       gno.UntypedRuneType,
+					Debugging: nil,
+				}} // TODO dry
+				tv.SetInt32(utf8.RuneSelf) // ..
+				pkg.Define("RuneSelf", tv) // ..
 				return pkg, pkg.NewPackage()
 			case "errors":
 				pkg := gno.NewPackageNode("errors", pkgPath, nil)
@@ -469,7 +472,16 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//----------------------------------------
+// ----------------------------------------
+// NOTE: does not allocate; used for panics.
+//func typedString(debugging *gno.Debugging, s string) gno.TypedValue {
+//	tv := gno.TypedValue{T: gno.PrimitiveType{
+//		Val:       gno.StringType,
+//		Debugging: debugging,
+//	}}
+//	tv.V = gno.StringValue(s)
+//	return tv
+//}
 
 type TestReport struct {
 	Name    string

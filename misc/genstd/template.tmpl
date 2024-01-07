@@ -52,7 +52,7 @@ var nativeFuncs = [...]nativeFunc{
 
 				{{ range $pn, $pv := $m.Params -}}
 					{{- if not $pv.IsTypedValue }}
-						gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV, rp{{ $pn }})
+						gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV, rp{{ $pn }})
 					{{- end -}}
 				{{ end }}
 			{{- end }}
@@ -76,6 +76,7 @@ var nativeFuncs = [...]nativeFunc{
 					m.PushValue(r{{ $rn }})
 				{{- else }}
 					m.PushValue(gno.Go2GnoValue(
+					    m.Debugging,
 						m.Alloc,
 						m.Store,
 						reflect.ValueOf(&r{{ $rn }}).Elem(), {{- /* necessary to support interfaces (ie. error) */}}

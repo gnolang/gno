@@ -52,9 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
-	if debug {
-		debug.Printf("PEEK STMT: %v\n", s)
-		debug.Printf("%v\n", m)
+	if m.Debugging.IsDebug() {
+		m.Debugging.Printf("PEEK STMT: %v\n", s)
+		m.Debugging.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -165,7 +165,10 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					Val:       IntType,
+					Debugging: m.Debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
@@ -179,7 +182,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					Val:       IntType,
+					Debugging: m.Debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
@@ -261,7 +267,10 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
+				iv := TypedValue{T: PrimitiveType{
+					Val:       IntType,
+					Debugging: m.Debugging,
+				}}
 				iv.SetInt(bs.ListIndex)
 				switch bs.Op {
 				case ASSIGN:
@@ -275,7 +284,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				ev := typedRune(bs.NextRune)
+				ev := typedRune(m.Debugging, bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
@@ -428,8 +437,8 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
-	if debug {
-		debug.Printf("EXEC: %v\n", s)
+	if m.Debugging.IsDebug() {
+		m.Debugging.Printf("EXEC: %v\n", s)
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
@@ -756,9 +765,9 @@ EXEC_SWITCH:
 		} else {
 			m.PushOp(OpSwitchClause)
 			// push clause index 0
-			m.PushValue(typedInt(0))
+			m.PushValue(typedInt(m.Debugging, 0))
 			// push clause case index 0
-			m.PushValue(typedInt(0))
+			m.PushValue(typedInt(m.Debugging, 0))
 			// evaluate x
 			m.PushExpr(cs.X)
 			m.PushOp(OpEval)
@@ -838,7 +847,7 @@ func (m *Machine) doOpTypeSwitch() {
 		if len(cs.Cases) > 0 {
 			// see if any clause cases match.
 			for _, cx := range cs.Cases {
-				if debug {
+				if m.Debugging.IsDebug() {
 					if !isConstType(cx) {
 						panic(fmt.Sprintf(
 							"should not happen, expected const type expr for case(s) but got %s",
@@ -858,7 +867,7 @@ func (m *Machine) doOpTypeSwitch() {
 					} else {
 						gnot = ct
 					}
-					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
+					if baseOf(gnot).(*InterfaceType).IsImplementedBy(m.Debugging, xv.T) {
 						// match
 						match = true
 					}
@@ -956,10 +965,10 @@ func (m *Machine) doOpSwitchClauseCase() {
 	cliv := m.PeekValue(3) // clause index (reuse)
 
 	// eval whether cv == tv.
-	if debug {
-		assertEqualityTypes(cv.T, tv.T)
+	if m.Debugging.IsDebug() {
+		assertEqualityTypes(m.Debugging, cv.T, tv.T)
 	}
-	match := isEql(m.Store, cv, tv)
+	match := isEql(m.Debugging, m.Store, cv, tv)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

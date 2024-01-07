@@ -18,6 +18,8 @@ import (
 )
 
 func TestPackages(t *testing.T) {
+	t.Parallel()
+
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
@@ -49,9 +51,13 @@ func TestPackages(t *testing.T) {
 	// Sort pkgPaths for determinism.
 	sort.Strings(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
+
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
+		pkgPath := pkgPath
+
 		t.Run(pkgPath, func(t *testing.T) {
+			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
 	}
@@ -64,7 +70,6 @@ func runPackageTest(t *testing.T, dir string, path string) {
 	require.False(t, memPkg.IsEmpty())
 
 	stdin := new(bytes.Buffer)
-	// stdout := new(bytes.Buffer)
 	stdout := os.Stdout
 	stderr := new(bytes.Buffer)
 	rootDir := filepath.Join("..", "..")
@@ -76,7 +81,8 @@ func runPackageTest(t *testing.T, dir string, path string) {
 		Store:   store,
 		Context: nil,
 	})
-	m.TestMemPackage(t, memPkg)
+
+	m.TestMemPackagePar(t, memPkg)
 
 	// Check that machine is empty.
 	err := m.CheckEmpty()
