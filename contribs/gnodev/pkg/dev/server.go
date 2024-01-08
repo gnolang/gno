@@ -1,15 +1,19 @@
-package events
+package dev
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
+	"text/template"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gorilla/websocket"
 )
 
 type Emitter interface {
-	Emit(evt *Event)
+	Emit(evt *events.Event)
 }
 
 type EmitterServer struct {
@@ -55,7 +59,7 @@ func (s *EmitterServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *EmitterServer) Emit(evt *Event) {
+func (s *EmitterServer) Emit(evt *events.Event) {
 	if len(s.clients) == 0 {
 		return
 	}
@@ -72,4 +76,19 @@ func (s *EmitterServer) Emit(evt *Event) {
 			delete(s.clients, conn)
 		}
 	}
+}
+
+var tmplFuncs = template.FuncMap{
+	"jsEventsArray": func(events []events.EventType) string {
+		var b strings.Builder
+		b.WriteString("[")
+		for i, v := range events {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(fmt.Sprintf("%q", v))
+		}
+		b.WriteString("]")
+		return b.String()
+	},
 }
