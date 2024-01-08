@@ -106,86 +106,22 @@ const (
 	TRANS_FILE_BODY
 )
 
-var closures = &Closures{}
+// var closures = &Closures{}
+var CX *ClosureContext
 
-type Closures struct {
-	cs []*Closure
+func init() {
+	CX = &ClosureContext{}
 }
 
-var cnodes []Node
-
-func pushClosure(c *Closure) {
-	if len(cnodes) > 0 {
-		debug.Println("+clo")
-		debug.Println("before push closure")
-		dumpClosures()
-		closures.cs = append(closures.cs, c)
-		debug.Println("end push closure")
-		dumpClosures()
-	} else {
-		debug.Println("no fx in stack, no need push closure")
-	}
+type ClosureContext struct {
+	closures []*Closure
+	nodes    []Node
 }
 
-func popClosure(copy bool) *Closure {
-	if len(cnodes) > 0 {
-		debug.Println("-clo")
-		debug.Println("before pop, dump")
-		dumpClosures()
-		if len(closures.cs) == 0 {
-			return nil
-		} else {
-			c := closures.cs[len(closures.cs)-1] // get current
-			for _, cnx := range c.cnxs {         // pop-> increase
-				debug.Printf("+1 \n")
-				cnx.offset += 1
-			}
-			closures.cs = closures.cs[:len(closures.cs)-1] // shrink
+//var cnodes []Node
 
-			// copy poped to latest, if left at least one closure
-			if copy {
-				currentClo := currentClosure()
-				debug.Printf("currentClo: %v \n", currentClo)
-				if currentClo != nil { // if last closure, just pop, no copy
-					// fill up current closure
-					for _, cnx := range c.cnxs { // trace back captured nxs
-						currentClo.Fill(*cnx)
-					}
-				}
-			}
-			debug.Println("after pop, dump")
-			dumpClosures()
-
-			debug.Printf("c poped: %v, \n", c)
-			return c
-		}
-	} else {
-		debug.Println("should not happen: no fx in stack, no need pop closure")
-		return nil
-	}
-}
-
-func pushCnodes(cn Node) {
-	cnodes = append(cnodes, cn)
-}
-
-func popCnodes() {
-	debug.Println("-fx")
-	if len(cnodes) != 0 {
-		cnodes = cnodes[:len(cnodes)-1]
-	}
-}
-
-func peekCnodes(offset int) Node {
-	debug.Println(":fx")
-	if len(cnodes) >= (1 + offset) {
-		return cnodes[len(cnodes)-(1+offset)]
-	}
-	return nil
-}
-
-func hasClosure() bool {
-	for _, c := range cnodes {
+func (cx *ClosureContext) hasClosure() bool {
+	for _, c := range cx.nodes {
 		if _, ok := c.(*FuncLitExpr); ok {
 			return true
 		}
@@ -193,22 +129,85 @@ func hasClosure() bool {
 	return false
 }
 
-func dumpFxs() {
+func (cx *ClosureContext) push(n Node) bool {
+	cx.nodes = append(cx.nodes, n)
+	if cx.hasClosure() {
+		debug.Println("+clo")
+		debug.Println("before push closure")
+		cx.dumpClosures()
+		cx.closures = append(cx.closures, &Closure{}) // push empty closure to be filled in
+		debug.Println("end push closure")
+		cx.dumpClosures()
+		return true
+	} else {
+		debug.Println("no fx in stack, no need push closure")
+		return false
+	}
+}
+
+func (cx *ClosureContext) pop(copy bool) *Closure {
+	debug.Println("-clo")
+	debug.Println("before pop, dump")
+	cx.dumpClosures()
+	defer func() {
+		if len(cx.nodes) != 0 {
+			debug.Println("-node")
+			cx.nodes = cx.nodes[:len(cx.nodes)-1]
+		}
+	}()
+
+	if len(cx.closures) == 0 {
+		return nil
+	} else {
+		c := cx.closures[len(cx.closures)-1] // get current
+		for _, cnx := range c.cnxs {         // pop-> increase offset
+			debug.Printf("+1 \n")
+			cnx.offset += 1
+		}
+		cx.closures = cx.closures[:len(cx.closures)-1] // shrink
+
+		// copy poped to latest, if left at least one closure
+		if copy {
+			currentClo := cx.currentClosure()
+			debug.Printf("currentClo: %v \n", currentClo)
+			if currentClo != nil { // if last closure, just pop, no copy
+				// fill up current closure
+				for _, cnx := range c.cnxs { // trace back captured nxs
+					currentClo.Fill(*cnx)
+				}
+			}
+		}
+		debug.Println("after pop, dump")
+		cx.dumpClosures()
+		debug.Printf("c poped: %v, \n", c)
+		return c
+	}
+}
+
+func (cx *ClosureContext) peekNodes(offset int) Node {
+	debug.Println("c:node")
+	if len(cx.nodes) >= (1 + offset) {
+		return cx.nodes[len(cx.nodes)-(1+offset)]
+	}
+	return nil
+}
+
+func (cx *ClosureContext) dumpNodes() {
 	if debug {
 		println("============Dump fxs===========")
-		println("len: ", len(cnodes))
-		for i, fx := range cnodes {
-			fmt.Printf("fx[%d]: %v\n", i, fx)
+		println("len: ", len(cx.nodes))
+		for i, n := range cx.nodes {
+			fmt.Printf("node[%d]: %v\n", i, n)
 		}
 		println("============end===============")
 		println("\n")
 	}
 }
-func dumpClosures() {
+func (cx *ClosureContext) dumpClosures() {
 	if debug {
 		println("============Dump closures start=======")
-		debug.Printf("depth of closures: %d \n", len(closures.cs))
-		for _, c := range closures.cs {
+		debug.Printf("depth of closures: %d \n", len(cx.closures))
+		for _, c := range cx.closures {
 			fmt.Printf("===>: %v \n", c)
 		}
 		println("============Dump closures end===============")
@@ -216,12 +215,12 @@ func dumpClosures() {
 	}
 }
 
-func currentClosure() *Closure {
-	debug.Printf("currentClosure, len: %d \n", len(closures.cs))
-	if len(closures.cs) == 0 {
+func (cx *ClosureContext) currentClosure() *Closure {
+	debug.Printf("currentClosure, len: %d \n", len(cx.closures))
+	if len(cx.closures) == 0 {
 		return nil
 	}
-	return closures.cs[len(closures.cs)-1]
+	return cx.closures[len(cx.closures)-1]
 }
 
 type CapturedNx struct {
@@ -310,11 +309,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	// visit any children of n.
 	switch cnn := nn.(type) {
 	case *NameExpr:
+		debug.Printf("-----trans, nameExpr: %v \n", cnn)
 		// TODO: do we need to filter out already define in current block
 		// if nested closure, do not copy!
-		if hasClosure() {
-			debug.Printf("-----trans, nameExpr: %v \n", cnn)
-			currentClo := currentClosure()
+		if CX.hasClosure() {
+			debug.Printf("---has Closure")
+			currentClo := CX.currentClosure()
 			debug.Printf("currentClo: %v \n", currentClo)
 			if currentClo != nil { // a closure to fill
 				if cnn.Path.Depth > 1 { // if local defined, no capture
@@ -324,8 +324,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 					}
 					currentClo.Fill(cnx)
 				}
-				dumpClosures()
-				dumpFxs()
+				CX.dumpClosures()
+				CX.dumpNodes()
 			}
 		}
 	case *BasicLitExpr:
@@ -441,8 +441,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *FuncLitExpr:
 		debug.Printf("-----trans, funcLitExpr: %v \n", cnn)
-		dumpFxs()
-		dumpClosures()
+		CX.dumpNodes()
+		CX.dumpClosures()
 
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
@@ -457,13 +457,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 
 		debug.Println("---start trans funcLit body stmt, push initial closure and fx")
-		pushCnodes(cnn)
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 
 		debug.Printf("---stop or skip, pop and return \n")
-		fx := peekCnodes(1)
+		node := CX.peekNodes(1)
 		isCopy := true
-		if _, ok := fx.(*FuncLitExpr); ok {
+		if _, ok := node.(*FuncLitExpr); ok {
 			isCopy = false
 		}
 
@@ -473,8 +472,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				break
 			} else if isStopOrSkip(nc, c) {
 				// pop before return
-				popClosure(isCopy)
-				popCnodes()
+				if pushed {
+					CX.pop(isCopy)
+				}
 				return
 			}
 		}
@@ -483,12 +483,13 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// TODO: set fx.Closure, and level as well
 		debug.Println("funcLit pop c-----")
 
-		pc := popClosure(isCopy)
-		if pc != nil {
-			cnn.SetClosure(pc)
-			debug.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", cnn, cnn.Closure.String())
+		if pushed {
+			pc := CX.pop(isCopy)
+			if pc != nil {
+				cnn.SetClosure(pc)
+				debug.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", cnn, cnn.Closure.String())
+			}
 		}
-		popCnodes()
 	case *FieldTypeExpr:
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
 		if isStopOrSkip(nc, c) {
@@ -593,17 +594,21 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*BlockStmt)
 		}
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_BLOCK_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
-		popClosure(true)
+		if pushed {
+			CX.pop(true)
+		}
 	case *BranchStmt:
 	case *DeclStmt:
 		for idx := range cnn.Body {
@@ -634,7 +639,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn = cnn2.(*ForStmt)
 		}
 
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_FOR_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
@@ -658,11 +663,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
-		popClosure(true)
+		if pushed {
+			CX.pop(true)
+		}
 	case *GoStmt:
 		cnn.Call = *transcribe(t, nns, TRANS_GO_CALL, 0, &cnn.Call, &c).(*CallExpr)
 		if isStopOrSkip(nc, c) {
@@ -681,7 +690,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn = cnn2.(*IfStmt)
 		}
 
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_IF_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
@@ -701,7 +710,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
-		popClosure(true)
+		if pushed {
+			CX.pop(true)
+		}
 	case *IfCaseStmt:
 		debug.Printf("-----trans, (if---case) stmt: %v \n", cnn)
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
@@ -736,23 +747,29 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*RangeStmt)
 		}
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
-			popClosure(true)
+			if pushed {
+				CX.pop(true)
+			}
 			return
 		}
 		if cnn.Key != nil {
 			cnn.Key = transcribe(t, nns, TRANS_RANGE_KEY, 0, cnn.Key, &c).(Expr)
 			if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
 		if cnn.Value != nil {
 			cnn.Value = transcribe(t, nns, TRANS_RANGE_VALUE, 0, cnn.Value, &c).(Expr)
 			if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
@@ -761,11 +778,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
-		popClosure(true)
+		if pushed {
+			CX.pop(true)
+		}
 	case *ReturnStmt:
 		debug.Printf("-----trans, return stmt: %v \n", cnn)
 		for idx := range cnn.Results {
@@ -828,24 +849,30 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*SwitchStmt)
 		}
-		pushClosure(&Closure{})
+		pushed := CX.push(cnn)
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_SWITCH_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
 		cnn.X = transcribe(t, nns, TRANS_SWITCH_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
-			popClosure(true)
+			if pushed {
+				CX.pop(true)
+			}
 			return
 		}
 		// NOTE: special block case for after .Init and .X.
 		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
-			popClosure(true)
+			if pushed {
+				CX.pop(true)
+			}
 			return
 		} else {
 			cnn = cnn2.(*SwitchStmt)
@@ -855,11 +882,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
-				popClosure(true)
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
-		popClosure(true)
+		if pushed {
+			CX.pop(true)
+		}
 	case *SwitchClauseStmt:
 		// NOTE: unlike the select case, both switch
 		// statements AND switch cases visit with the

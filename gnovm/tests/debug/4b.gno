@@ -20,3 +20,5 @@ func main() {
 }
 
 // Output:
+// 3
+// 4
