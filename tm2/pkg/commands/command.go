@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"text/tabwriter"
 
@@ -102,6 +103,16 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 
 		// Append the subcommand to the parent
 		c.subcommands = append(c.subcommands, cmd)
+	}
+}
+
+// Main is a helper function for the command entry. It wraps the ParseAndRun and handling the flag.ErrHelp error so that every command with -h or --help won't show an error message: "error parsing commandline arguments: flag: help requested"
+func (c *Command) Main(ctx context.Context, args []string) {
+	if err := c.ParseAndRun(ctx, args); err != nil {
+		if !errors.Is(err, flag.ErrHelp) {
+			_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+		}
+		os.Exit(1)
 	}
 }
 
