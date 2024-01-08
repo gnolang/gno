@@ -606,7 +606,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
 				}
 			}
-			// run dependecy declaration
+			// run dependency declaration
 			loopfindr = append(loopfindr, dep)
 			runDeclarationFor(fn, *depdecl)
 			loopfindr = loopfindr[:len(loopfindr)-1]
