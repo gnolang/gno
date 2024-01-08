@@ -44,7 +44,7 @@ package demo
 
 import "testing"
 
-func Test(t *testing.T) {
+func TestHello(t *testing.T) {
   {
   	got := Hello("People")
   	expected := "Hello People!"
@@ -67,7 +67,8 @@ Two conditions exist in the test case above.
 1. "Hello People!" should be returned when calling `Hello("People")`.
 2. "Hello People!" should be returned when calling `Hello("")`.
 
-Upon examination of our realm code and the associated test results, the initial condition exhibited the desired behavior; however, an error was identified in the second condition. Despite the expected outcome of "Hello" being returned, the test case incorrectly specified that the expected output should be "Hello People!" instead.
+Upon examination of our realm code and the associated test results, the initial condition exhibited the desired behavior; however, an error was identified in the second condition.
+Despite the expected outcome of "Hello" being returned, the test case incorrectly specified that the expected output should be "Hello People!" instead.
 
 Replacing the second test case with the following will successfully fix the issue and allow the test to pass.
 
@@ -81,10 +82,15 @@ Replacing the second test case with the following will successfully fix the issu
   }
 ```
 
-## Test standard libraries
+## Blockchain context in tests
+Running `gno test` executes files within the directory that end with `_test.gno` and `_filetest.gno`.
+Internally, a GnoVM instance is initialized to run the test, and, at that moment, 
+a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
+coins, block height, etc. can be mocked.
 
-Some functions and packages in the standard library are exclusively accessible 
-in `_test.gno` and `_filetest.gno` files. These are located in the std package. Their primary role
-is to alter the blockchain context for test runs, such as changing the block height and the transaction caller.
+## Manipulating blockchain context in tests
+Some functions in the `std` package are exclusively accessible in `_test.gno`
+and `_filetest.gno` files. These are located in the `std` package, and heir primary role
+is to alter the blockchain context for test runs.
 
 For detailed information on these functions, refer to their [reference page](../reference/standard-library/std/testing.md).
