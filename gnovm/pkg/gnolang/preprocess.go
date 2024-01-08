@@ -274,10 +274,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
 				pushInitBlock(n, &last, &stack)
+				debug.Println("blockStmt push closure")
+				//pushClosure(&Closure{})
+				//debug.Println("blockStmt pop closure")
+				//popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
-				debugPP.Println("-----ForStmt-----")
+				debug.Println("-----ForStmt-----")
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -292,6 +296,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *IfCaseStmt:
 				debugPP.Println("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
+				//pushClosure(&Closure{})
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
@@ -300,6 +305,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					debugPP.Printf("tv : %v, *tv: %v \n", tv, *tv)
 					last.Define(n, *tv)
 				}
+				//popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -367,6 +373,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
+
+				//pushClosure(&Closure{})
+				//pushFxs(n)
 				// define parameters in new block.
 				for _, p := range ft.Params {
 					debug.Println("---PP define params")
@@ -384,7 +393,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
-				debug.Println("---PP funcLitExpr end---")
+
+				//debug.Println("funcLit pop c-----")
+				//pc := popClosure()
+				////cnn.Closure = c
+				//closure := *pc
+				//n.SetClosure(closure)
+				//debug.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", n, n.Closure.String())
+				//debug.Println("---PP funcLitExpr end---")
 
 			// TRANS_BLOCK -----------------------
 			case *SelectCaseStmt:
@@ -414,6 +430,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushRealBlock(n, &last, &stack)
+				//pushClosure(&Closure{})
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -476,6 +493,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						n.Cases[i] = cx
 					}
 				}
+				//popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *FuncDecl:

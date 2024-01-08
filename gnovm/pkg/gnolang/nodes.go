@@ -496,10 +496,10 @@ type FuncLitExpr struct {
 	StaticBlock
 	Type    FuncTypeExpr // function type
 	Body                 // function body
-	Closure Closure
+	Closure *Closure
 }
 
-func (fx *FuncLitExpr) SetClosure(c Closure) {
+func (fx *FuncLitExpr) SetClosure(c *Closure) {
 	debug.Printf("+++++SetClosure, c: %v \n", c)
 	fx.Closure = c
 }

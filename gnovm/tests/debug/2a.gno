@@ -7,7 +7,7 @@ func bar() func() func() int {
 
 	// First level of closure, modifies x
 	return func() func() int {
-		//x++
+		x++
 		// Second level of closure, returns x
 		return func() int {
 			return x
@@ -23,4 +23,4 @@ func main() {
 }
 
 // Output:
-// 1
+// 2
