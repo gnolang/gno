@@ -107,8 +107,8 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 }
 
 // Main is a helper function for command entry. It wraps ParseAndRun and
-// handles the flag.ErrHelp error, ensuring that every command with -h or 
-// --help won't show an error message: 
+// handles the flag.ErrHelp error, ensuring that every command with -h or
+// --help won't show an error message:
 // 'error parsing commandline arguments: flag: help requested'
 func (c *Command) Main(ctx context.Context, args []string) {
 	if err := c.ParseAndRun(ctx, args); err != nil {
