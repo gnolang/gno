@@ -13,7 +13,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"flag"
 	"fmt"
 	"hash/fnv"
@@ -21,7 +20,6 @@ import (
 	"image/color"
 	"io"
 	"log"
-	"math"
 	"math/big"
 	"math/rand"
 	"net"
@@ -35,7 +33,6 @@ import (
 	"sync/atomic"
 	"text/template"
 	"time"
-	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -231,29 +228,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
 				return pkg, pkg.NewPackage()
-			case "strings":
-				pkg := gno.NewPackageNode("strings", pkgPath, nil)
-				pkg.DefineGoNativeValue("Split", strings.Split)
-				pkg.DefineGoNativeValue("SplitN", strings.SplitN)
-				pkg.DefineGoNativeValue("Contains", strings.Contains)
-				pkg.DefineGoNativeValue("TrimSpace", strings.TrimSpace)
-				pkg.DefineGoNativeValue("HasPrefix", strings.HasPrefix)
-				pkg.DefineGoNativeValue("NewReader", strings.NewReader)
-				pkg.DefineGoNativeValue("Index", strings.Index)
-				pkg.DefineGoNativeValue("IndexRune", strings.IndexRune)
-				pkg.DefineGoNativeValue("Join", strings.Join)
-				pkg.DefineGoNativeType(reflect.TypeOf(strings.Builder{}))
-				return pkg, pkg.NewPackage()
-			case "math":
-				pkg := gno.NewPackageNode("math", pkgPath, nil)
-				pkg.DefineGoNativeValue("Abs", math.Abs)
-				pkg.DefineGoNativeValue("Cos", math.Cos)
-				pkg.DefineGoNativeValue("Pi", math.Pi)
-				pkg.DefineGoNativeValue("Float64bits", math.Float64bits)
-				pkg.DefineGoNativeValue("Pi", math.Pi)
-				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
-				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
-				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
@@ -326,16 +300,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
 				return pkg, pkg.NewPackage()
-			case "io":
-				pkg := gno.NewPackageNode("io", pkgPath, nil)
-				pkg.DefineGoNativeValue("EOF", io.EOF)
-				pkg.DefineGoNativeValue("NopCloser", io.NopCloser)
-				pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
-				pkg.DefineGoNativeValue("ReadAll", io.ReadAll)
-				pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
-				pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
-				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
-				return pkg, pkg.NewPackage()
 			case "log":
 				pkg := gno.NewPackageNode("log", pkgPath, nil)
 				pkg.DefineGoNativeValue("Fatal", log.Fatal)
@@ -343,17 +307,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "text/template":
 				pkg := gno.NewPackageNode("template", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
-				return pkg, pkg.NewPackage()
-			case "unicode/utf8":
-				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
-				pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
-				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
-				tv.SetInt32(utf8.RuneSelf)                   // ..
-				pkg.Define("RuneSelf", tv)                   // ..
-				return pkg, pkg.NewPackage()
-			case "errors":
-				pkg := gno.NewPackageNode("errors", pkgPath, nil)
-				pkg.DefineGoNativeValue("New", errors.New)
 				return pkg, pkg.NewPackage()
 			case "hash/fnv":
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
