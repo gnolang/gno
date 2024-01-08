@@ -106,6 +106,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
+//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -142,6 +143,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
+//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,

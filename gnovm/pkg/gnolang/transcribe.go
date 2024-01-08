@@ -106,7 +106,6 @@ const (
 	TRANS_FILE_BODY
 )
 
-// var closures = &Closures{}
 var CX *ClosureContext
 
 func init() {
@@ -118,11 +117,11 @@ type ClosureContext struct {
 	nodes    []Node
 }
 
-//var cnodes []Node
-
 func (cx *ClosureContext) hasClosure() bool {
 	for _, c := range cx.nodes {
 		if _, ok := c.(*FuncLitExpr); ok {
+			return true
+		} else if _, ok := c.(*FuncDecl); ok {
 			return true
 		}
 	}
@@ -147,8 +146,6 @@ func (cx *ClosureContext) push(n Node) bool {
 
 func (cx *ClosureContext) pop(copy bool) *Closure {
 	debug.Println("-clo")
-	debug.Println("before pop, dump")
-	cx.dumpClosures()
 	defer func() {
 		if len(cx.nodes) != 0 {
 			debug.Println("-node")
@@ -166,10 +163,8 @@ func (cx *ClosureContext) pop(copy bool) *Closure {
 		}
 		cx.closures = cx.closures[:len(cx.closures)-1] // shrink
 
-		// copy poped to latest, if left at least one closure
 		if copy {
 			currentClo := cx.currentClosure()
-			debug.Printf("currentClo: %v \n", currentClo)
 			if currentClo != nil { // if last closure, just pop, no copy
 				// fill up current closure
 				for _, cnx := range c.cnxs { // trace back captured nxs
@@ -325,7 +320,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 					currentClo.Fill(cnx)
 				}
 				CX.dumpClosures()
-				CX.dumpNodes()
+				//CX.dumpNodes()
 			}
 		}
 	case *BasicLitExpr:
@@ -441,7 +436,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *FuncLitExpr:
 		debug.Printf("-----trans, funcLitExpr: %v \n", cnn)
-		CX.dumpNodes()
+		//CX.dumpNodes()
 		CX.dumpClosures()
 
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
@@ -816,6 +811,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*SelectCaseStmt)
 		}
+		pushed := CX.push(cnn)
 		cnn.Comm = transcribe(t, nns, TRANS_SELECTCASE_COMM, 0, cnn.Comm, &c).(Stmt)
 		if isStopOrSkip(nc, c) {
 			return
@@ -825,8 +821,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
+		}
+		if pushed {
+			CX.pop(true)
 		}
 	case *SendStmt:
 		cnn.Chan = transcribe(t, nns, TRANS_SEND_CHAN, 0, cnn.Chan, &c).(Expr)
@@ -937,13 +939,21 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FuncDecl)
 		}
+
+		pushed := CX.push(cnn)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNC_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
+		}
+		if pushed {
+			CX.pop(true)
 		}
 	case *ImportDecl:
 		// nothing to do
@@ -975,13 +985,21 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FileNode)
 		}
+		pushed := CX.push(cnn)
+
 		for idx := range cnn.Decls {
 			cnn.Decls[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Decls[idx], &c).(Decl)
 			if isBreak(c) {
 				break
 			} else if isStopOrSkip(nc, c) {
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
+		}
+		if pushed {
+			CX.pop(true)
 		}
 	case *ConstExpr, *constTypeExpr: // leaf nodes
 		// These nodes get created by the preprocessor while

@@ -294,7 +294,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
-				debugPP.Println("-----IfCaseStmt-----")
+				debug.Println("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
 				//pushClosure(&Closure{})
 				// parent if statement.
@@ -302,7 +302,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
 					tv := ifs.GetValueRef(nil, n)
-					debugPP.Printf("tv : %v, *tv: %v \n", tv, *tv)
+					debug.Printf("tv : %v, *tv: %v \n", tv, *tv)
 					last.Define(n, *tv)
 				}
 				//popClosure()

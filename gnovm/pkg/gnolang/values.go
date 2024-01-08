@@ -2366,6 +2366,11 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
 	for i := uint8(1); i < path.Depth; i++ {
+		//if b == nil {
+		//	fmt.Printf("-----GetPointerTo, path : %v\n", path)
+		//	fmt.Printf("b: %v \n", b)
+		//	panic("------b nil, depth is:" + strconv.Itoa(int(path.Depth)))
+		//}
 		b = b.GetParent(store)
 	}
 	return b.GetPointerToInt(store, int(path.Index))

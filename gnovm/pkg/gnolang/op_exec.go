@@ -55,7 +55,7 @@ func (m *Machine) doOpExec(op Op) {
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("op: %v\n", op)
-		debug.Printf("%v\n", m)
+		//debug.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -83,6 +83,7 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else {
+			debug.Println("---else")
 			m.ForcePopOp()
 			m.ForcePopStmt()
 			return
