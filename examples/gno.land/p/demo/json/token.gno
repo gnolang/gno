@@ -3,9 +3,9 @@ package json
 const (
 	SquareOpenToken     = '['
 	SquareCloseToken    = ']'
-	CurlyOpenToken   	= '{'
+	CurlyOpenToken      = '{'
 	CurlyCloseToken     = '}'
-	CommaToken = ','
+	CommaToken          = ','
 	DotToken            = '.'
 	ColonToken          = ':'
 	BackTickToken       = '`'
@@ -32,6 +32,12 @@ const (
 	nullLiteral  = []byte("null")
 )
 
+const (
+	StructLiteral    = "struct"
+	InterfaceLiteral = "interface{}"
+	MapLiteral       = "map"
+)
+
 type ValueType int
 
 const (
@@ -46,7 +52,7 @@ const (
 	Unknown
 )
 
-func (v ValueType) ToString() string {
+func (v ValueType) String() string {
 	switch v {
 	case NotExist:
 		return "not-exist"
@@ -64,11 +70,7 @@ func (v ValueType) ToString() string {
 		return "null"
 	case Unknown:
 		return "unknown"
+	default:
+		return string(v)
 	}
 }
-
-var (
-	TrueLiteral  = []byte("true")
-	FalseLiteral = []byte("false")
-	NullLiteral  = []byte("null")
-)

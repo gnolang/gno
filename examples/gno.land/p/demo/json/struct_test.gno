@@ -1,35 +1,22 @@
 package json
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
 
 func TestParseStruct(t *testing.T) {
-	data := []byte(`
-		type Person struct {
-			Name string ` + "`" + `json:"name"` + "`" + `
-			Age int ` + "`" + `json:"age"` + "`" + `
-		}
-	`)
+	data := `
+        type Person struct {
+            Name string ` + "`json:\"name\"`" + `
+            Age int ` + "`json:\"age\"`" + `
+        }
+    `
 
-	expectedFields := []FieldMetaData{
-		{
-			Name:       "Name",
-			Type:       "string",
-			Tag:        "name",
-			Depth:      0,
-			IsNested:   false,
-			IsOptional: false,
-		},
-		{
-			Name:       "Age",
-			Type:       "int",
-			Tag:        "age",
-			Depth:      0,
-			IsNested:   false,
-			IsOptional: false,
-		},
+	expectedFields := Fields{
+		{Name: "Name", Type: "string", Tag: "name", Depth: 0},
+		{Name: "Age", Type: "int", Tag: "age", Depth: 0},
 	}
 
 	fields := ParseStruct(data, 0)
@@ -60,29 +47,25 @@ func TestParseStruct(t *testing.T) {
 		if field.IsNested != expectedField.IsNested {
 			t.Errorf("Expected field IsNested %t, but got %t", expectedField.IsNested, field.IsNested)
 		}
-
-		if field.IsOptional != expectedField.IsOptional {
-			t.Errorf("Expected field IsOptional %t, but got %t", expectedField.IsOptional, field.IsOptional)
-		}
 	}
 }
 
 func TestParseNestedStruct(t *testing.T) {
-	data := []byte(`type Server struct {
-		Name string ` + "`json:\"name\"`" + `
-		Config struct {
-			Enabled bool ` + "`json:\"enabled,omitempty\"`" + `
-			Enabled2 bool ` + "`json:\"enabled2\"`" + `
-		} ` + "`json:\"config\"`" + `
-		Age int ` + "`json:\"age\"`" + `
-	}`)
+	data := `type Server struct {
+        Name string ` + "`json:\"name\"`" + `
+        Config struct {
+            Enabled bool ` + "`json:\"enabled,omitempty\"`" + `
+            Enabled2 bool ` + "`json:\"enabled2\"`" + `
+        } ` + "`json:\"config\"`" + `
+        Age int ` + "`json:\"age\"`" + `
+    }`
 
 	expected := []FieldMetaData{
-		{Name: "Server", Type: "struct", Tag: "config", IsNested: true, IsOptional: false, Depth: 0},
-		{Name: "Name", Type: "string", Tag: "name", IsNested: false, IsOptional: false, Depth: 1},
-		{Name: "Enabled", Type: "bool", Tag: "enabled,omitempty", IsNested: false, IsOptional: true, Depth: 1},
-		{Name: "Enabled2", Type: "bool", Tag: "enabled2", IsNested: false, IsOptional: false, Depth: 1},
-		{Name: "Age", Type: "int", Tag: "age", IsNested: false, IsOptional: false, Depth: 0},
+		{Name: "Server", Type: "struct", Tag: "config", IsNested: true, Depth: 0},
+		{Name: "Name", Type: "string", Tag: "name", IsNested: false, Depth: 1},
+		{Name: "Enabled", Type: "bool", Tag: "enabled,omitempty", IsNested: false, Depth: 1},
+		{Name: "Enabled2", Type: "bool", Tag: "enabled2", IsNested: false, Depth: 1},
+		{Name: "Age", Type: "int", Tag: "age", IsNested: false, Depth: 0},
 	}
 
 	actual := ParseStruct(data, 0)
@@ -98,4 +81,101 @@ func TestParseNestedStruct(t *testing.T) {
 			t.Errorf("Field %d - Expected %+v, got %+v", i, expectedField, actualField)
 		}
 	}
+}
+
+func TestExtractNames(t *testing.T) {
+	tests := []struct {
+		fields	 	 Fields
+		expected	 []string
+	}{
+		{
+			fields: Fields {
+				{Name: "Name", Type: "string", Tag: "name", Depth: 0},
+				{Name: "Age", Type: "int", Tag: "age", Depth: 0},
+			},
+			expected: []string{"Name", "Age"},
+		},
+		{
+			fields: Fields{
+				{Name: "Server", Type: "struct", Tag: "config", IsNested: true, Depth: 0},
+				{Name: "Name", Type: "string", Tag: "name", IsNested: false, Depth: 1},
+				{Name: "Enabled", Type: "bool", Tag: "enabled,omitempty", IsNested: false, Depth: 1},
+				{Name: "Enabled2", Type: "bool", Tag: "enabled2", IsNested: false, Depth: 1},
+				{Name: "Age", Type: "int", Tag: "age", IsNested: false, Depth: 0},
+			},
+			expected: []string{"Server", "Name", "Enabled", "Enabled2", "Age"},
+		},
+	}
+
+	for i, test := range tests {
+		actual := test.fields.Names()
+		if len(actual) != len(test.expected) {
+			t.Errorf("Test %d - Expected and actual slice lengths differ. Expected %d, got %d", i, len(test.expected), len(actual))
+			return
+		}
+
+		for j, actualName := range actual {
+			expectedName := test.expected[j]
+			if actualName != expectedName {
+				t.Errorf("Test %d - Expected %s, got %s", i, expectedName, actualName)
+			}
+		}
+	}
+}
+
+func TestZip(t *testing.T) {
+    cases := []struct {
+        name          string
+        json          []byte
+        keys          []string
+        expected      map[string]interface{}
+        expectErr     bool
+    }{
+        {
+            "Valid JSON with String, Number and Boolean",
+            []byte(`{"name":"test","age":30,"active":true, "memo": null}`),
+            []string{"name", "age", "active", "memo"},
+            map[string]interface{}{"name": "test", "age": 30.0, "active": true, "memo": nil},
+            false,
+        },
+		{
+			"whitespace containing JSON",
+			[]byte(`{"name":"value with whitespcae","age":30,"active":true, "memo": null}`),
+			[]string{"name", "age", "active", "memo"},
+			map[string]interface{}{"name": "value with whitespcae", "age": 30.0, "active": true, "memo": nil},
+			false,
+		},
+		{
+			"unknown type throw error",
+			[]byte(`{"name":"test","age":30,"active":true, "memo": None}`),
+			[]string{"name", "age", "active", "memo", "unknown"},
+			map[string]interface{}{"name": "test", "age": 30.0, "active": true, "memo": nil},
+			true,
+		},
+    }
+
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            result, err := Zip(tc.json, tc.keys...)
+            if (err != nil) != tc.expectErr {
+                t.Errorf("Zip(%s) error = %v, expectErr %v", tc.name, err, tc.expectErr)
+                return
+            }
+
+			if tc.expectErr {
+				return
+			}
+
+			for key, value := range result {
+				expectedValue, ok := tc.expected[key]
+				if !ok {
+					t.Errorf("Unexpected zipped field: %s", key)
+				}
+
+				if value != expectedValue {
+					t.Errorf("Expected value %v for field %s, but got %v", expectedValue, key, value)
+				}
+			}
+        })
+    }
 }

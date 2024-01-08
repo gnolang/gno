@@ -1,6 +1,8 @@
 package json
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -77,129 +79,6 @@ func TestFindKeyStart(t *testing.T) {
 	}
 }
 
-// func TestGet(t *testing.T) {
-// 	data := []byte(`{
-// 		"person": {
-// 			"name": {
-// 				"first": "Alex",
-// 				"last": "Johnson",
-// 				"fullName": "Alex Johnson"
-// 			},
-// 			"github": {
-// 				"handle": "alexj",
-// 				"followers": 152
-// 			}
-// 		},
-// 		"company": {
-// 			"name": "company name",
-// 		},
-// 	}
-// 	`)
-
-// 	tests := []struct {
-// 		path     []string
-// 		expected string
-// 	}{
-// 		{[]string{"person", "name", "first"}, "Alex"},
-// 		{[]string{"person", "name", "last"}, "Johnson"},
-// 		{[]string{"person", "name", "fullName"}, "Alex Johnson"},
-// 		{[]string{"person", "github", "handle"}, "alexj"},
-// 		{[]string{"person", "github", "followers"}, "152"},
-// 		{[]string{"company", "name"}, "company name"},
-// 	}
-
-// 	for _, test := range tests {
-// 		value, _, _, err := Get(data, test.path...)
-// 		if err != nil {
-// 			t.Errorf("Got error: %v", err)
-// 		}
-
-// 		if string(value) != test.expected {
-// 			t.Errorf("Expected '%s', got '%s'", test.expected, value)
-// 		}
-// 	}
-// }
-
-func TestMapKeyTypes(t *testing.T) {
-	tests := []struct {
-		name         string
-		data         []byte
-		expectedMap  map[string]ValueType
-		expectedErr  error
-	}{
-		{
-			name: "Test 1",
-			data: []byte(`{"key1": "value1", "key2": 123, "key3": true}`),
-			expectedMap: map[string]ValueType{
-				"key1": String,
-				"key2": Number,
-				"key3": Boolean,
-			},
-			expectedErr: nil,
-		},
-		// {
-		// 	name: "Test 2",
-		// 	data: []byte(`{"key1": "value1", "key2": [1, 2, 3], "key3": {"nested": "value"}}`),
-		// 	expectedMap: map[string]ValueType{
-		// 		"key1": String,
-		// 		"key2": Array,
-		// 		"key3": Object,
-		// 	},
-		// 	expectedErr: nil,
-		// },
-		{
-			name: "Test 3",
-			data: []byte(`{"key1": "value1", "key2": null, "key3": 3.14}`),
-			expectedMap: map[string]ValueType{
-				"key1": String,
-				"key2": Null,
-				"key3": Number,
-			},
-			expectedErr: nil,
-		},
-		// {
-		// 	name: "Test 4",
-		// 	data: []byte(`{"key1": "value1", "key2": {"nested": [1, 2, 3]}, "key3": true}`),
-		// 	expectedMap: map[string]ValueType{
-		// 		"key1": String,
-		// 		"key2": Object,
-		// 		"key3": Boolean,
-		// 	},
-		// 	expectedErr: nil,
-		// },
-		{
-			name: "Test 5",
-			data: []byte(`{"key1": "value1", "key2": "value2", "key3": "value3"}`),
-			expectedMap: map[string]ValueType{
-				"key1": String,
-				"key2": String,
-				"key3": String,
-			},
-			expectedErr: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotMap, gotErr := MapKeyTypes(tt.data)
-
-			if gotMap == nil {
-				t.Errorf("MapKeyTypes() gotMap = %v, expectedMap = %v", gotMap, tt.expectedMap)
-			}
-
-			if gotErr != tt.expectedErr {
-				t.Errorf("MapKeyTypes() gotErr = %v, expectedErr = %v", gotErr, tt.expectedErr)
-			}
-
-			for key, value := range gotMap {
-				if tt.expectedMap[key] != value {
-					t.Errorf("MapKeyTypes() gotMap = %v, expectedMap = %v", gotMap, tt.expectedMap)
-				}
-			}
-		})
-	}
-}
-
 type GetTest struct {
 	desc string
 	json string
@@ -244,16 +123,16 @@ var getTests = []GetTest{
 		data:    `true`,
 	},
 	{
-		desc: "read boolean 2",
-		json: `false`,
+		desc:    "read boolean 2",
+		json:    `false`,
 		isFound: true,
-		data: `false`,
+		data:    `false`,
 	},
 	{
-		desc:   "read null",
-		json:   `null`,
+		desc:    "read null",
+		json:    `null`,
 		isFound: true,
-		data:   `null`,
+		data:    `null`,
 	},
 
 	// Found key tests
@@ -299,13 +178,6 @@ var getTests = []GetTest{
 		isFound: true,
 		data:    `[1,2]`,
 	},
-	// {
-	// 	desc:    `read string values with quotes`,
-	// 	json:    `{"a": "string\"with\"quotes"}`,
-	// 	path:    []string{"a"},
-	// 	isFound: true,
-	// 	data:    `string\"with\"quotes`,
-	// },
 	{
 		desc:    `read object`,
 		json:    `{"a": { "b":{"c":"d" }}}`,
@@ -341,13 +213,6 @@ var getTests = []GetTest{
 		isFound: true,
 		data:    "333",
 	},
-	// {
-	// 	desc:    `escaped backslash quote`,
-	// 	json:    `{"a": "\\\""}`,
-	// 	path:    []string{"a"},
-	// 	isFound: true,
-	// 	data:    `\\\"`,
-	// },
 	{
 		desc:    `unescaped backslash quote`,
 		json:    `{"a": "\\"}`,
@@ -485,7 +350,7 @@ var getTests = []GetTest{
 	// 	isFound: true,
 	// 	data:    `4`,
 	// },
-	// { // Issue #148
+	// {
 	// 	desc:    `missing key in different key same level`,
 	// 	json:    `{"s":"s","ic":2,"r":{"o":"invalid"}}`,
 	// 	path:    []string{"ic", "o"},
@@ -681,4 +546,34 @@ func TestGet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestArrayEach(t *testing.T) {
+	mock := []byte(`{"a": {        "b":[{"x": 1} ,{"x":    2},{ "x":3}, {"x":4} ]}}`)
+	count := 0
+
+	ArrayEach(mock, func(value []byte, dataType ValueType, offset int, err error) {
+		count++
+
+		switch count {
+		case 1:
+			if string(value) != `{"x": 1}` {
+				t.Errorf("Wrong first item: %s", string(value))
+			}
+		case 2:
+			if string(value) != `{"x":    2}` {
+				t.Errorf("Wrong second item: %s", string(value))
+			}
+		case 3:
+			if string(value) != `{ "x":3}` {
+				t.Errorf("Wrong third item: %s", string(value))
+			}
+		case 4:
+			if string(value) != `{"x":4}` {
+				t.Errorf("Wrong forth item: %s", string(value))
+			}
+		default:
+			t.Errorf("Should process only 4 items")
+		}
+	}, "a", "b")
 }

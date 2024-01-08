@@ -9,12 +9,12 @@ import (
 func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset int, err error) {
 	switch b {
 	case 't', 'f':
-		if bytes.Equal(value, TrueLiteral) || bytes.Equal(value, FalseLiteral) {
+		if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
 			dataType = Boolean
 		}
 		return Unknown, offset, UnknownValueType
 	case 'u', 'n':
-		if bytes.Equal(value, NullLiteral) {
+		if bytes.Equal(value, nullLiteral) {
 			dataType = Null
 		}
 		return Unknown, offset, UnknownValueType
@@ -97,73 +97,22 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 		case CurlyCloseToken:
 			level, keyLevel = decreaseLevel(level, keyLevel)
 		case SquareOpenToken:
-			// if keyLevel == level && keys[level][0] == '[' {
-			// 	keyLen := len(keys[level])
-			// 	if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
-			// 		return -1, InvalidArrayIndex
-			// 	}
-			// }
-			// var (
-			// 	curIdx      int
-			// 	valueFound  []byte
-			// 	valueOffset int
-			// )
-
-			// isArrayKey, err := isArrayKey(level, keyLevel, keys)
-			// if err != nil {
-			// 	return -1, err
-			// }
-
-			// if !isArrayKey {
-			// 	arraySkip := blockEnd(data[i:], SquareOpenToken, SquareCloseToken)
-			// 	if arraySkip < 0 {
-			// 		return -1, MalformedJson
-			// 	}
-
-			// 	i += arraySkip - 1
-			// }
-
-			// arrIdx, err := strconv.Atoi(keys[level][1 : len(keys[level])-1])
-			// if err != nil {
-			// 	return -1, InvalidArrayIndex
-			// }
-
-			// currIdx := i
-			// ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
-			// 	if curIdx == arrIdx {
-			// 		valueFound = value
-			// 		valueOffset = offset
-			// 		if dataType == String {
-			// 			valueOffset = valueOffset - 2
-			// 			valueFound = data[currIdx+valueOffset : currIdx+valueOffset+len(value)+2]
-			// 		}
-			// 	}
-			// 	curIdx += 1
-			// })
-
-			// if valueFound == nil {
-			// 	return -1, ArrayIndexNotFound
-			// }
-
-			// subIdx, err := findValueIndex(valueFound, keys[level+1:]...)
-			// if err != nil {
-			// 	return -1, err
-			// }
-
-			// return i + valueOffset + subIdx, nil
 			// If we want to get array element by index
-			if keyLevel == level && keys[level][0] == '[' {
+			if keyLevel == level && keys[level][0] == SquareOpenToken {
 				keyLen := len(keys[level])
-				if keyLen < 3 || keys[level][0] != '[' || keys[level][keyLen-1] != ']' {
+				if keyLen < 3 || keys[level][0] != SquareOpenToken || keys[level][keyLen-1] != SquareCloseToken {
 					return -1, InvalidArrayIndex
 				}
 				aIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
 				if err != nil {
 					return -1, InvalidArrayIndex
 				}
-				var curIdx int
-				var valueFound []byte
-				var valueOffset int
+
+				var (
+					curIdx     int
+					valueFound []byte
+					valueOffset int
+				)
 				curI := i
 				ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
 					if curIdx == aIdx {
@@ -311,22 +260,188 @@ func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset 
 	return a, b, d, e
 }
 
-func MapKeyTypes(data []byte) (map[string]ValueType, error) {
-	keyTypeMap := make(map[string]ValueType)
-
-	keys, err := extractKeys(data)
-	if err != nil {
-		return nil, err
+func ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
+	if len(data) == 0 {
+		return -1, MalformedObject
 	}
 
-	for _, key := range keys {
-		_, typ, _, err := Get(data, key)
-		if err != nil {
-			return nil, err
+	if next, err := nextToken(data); err != nil {
+		return -1, MalformedObject
+	} else {
+		offset += next
+	}
+
+	if len(keys) > 0 {
+		if offset, err = findValueIndex(data, keys...); err != nil {
+			return -1, KeyPathNotFoundError
 		}
 
-		keyTypeMap[key] = typ
+		// go to closest value
+		if n0, err := nextToken(data[offset:]); err != nil {
+			return -1, MalformedObject
+		} else {
+			offset += n0
+		}
+
+		if data[offset] != SquareOpenToken {
+			return -1, MalformedObject
+		} else {
+			offset += 1
+		}
 	}
 
-	return keyTypeMap, nil
+	if n0, err := nextToken(data[offset:]); err != nil {
+		return -1, MalformedObject
+	} else {
+		offset += n0
+	}
+
+	if data[offset] == SquareCloseToken {
+		return -1, nil
+	}
+
+	for true {
+		v, t, o, e := Get(data[offset:])
+
+		if e != nil {
+			return -1, e
+		}
+
+		if o == 0 {
+			break
+		}
+
+		if t != NotExist {
+			cb(v, t, offset+o-len(v), e)
+		}
+
+		if e != nil {
+			break
+		}
+
+		offset += o
+		if skipToToken, err := nextToken(data[offset:]); err != nil {
+			return offset, MalformedArray
+		} else {
+			offset += skipToToken
+		}
+
+		if data[offset] == SquareCloseToken {
+			break
+		}
+
+		if data[offset] != CommaToken {
+			return offset, MalformedArray
+		} else {
+			offset += 1
+		}
+	}
+
+	return offset, nil
+}
+
+func ObjectEach(data []byte, cb func(key []byte, value []byte, dataType ValueType, offset int) error, keys ...string) (err error) {
+	offset := 0
+
+	// descend to the target key.
+	if len(keys) > 0 {
+		if off, err := findValueIndex(data, keys...); err != nil {
+			return KeyPathNotFoundError
+		} else {
+			offset = off
+		}
+	}
+
+	if off, err := nextToken(data[offset:]); err != nil {
+		return MalformedObject
+	} else if offset += off; data[offset] != CurlyOpenToken {
+		return MalformedObject
+	} else {
+		offset += 1
+	}
+
+	// skip to the first token inside the object,
+	// or stop if we find the end of the object.
+	if off, err := nextToken(data[offset:]); err != nil {
+		return MalformedJson
+	} else if offset += off; data[offset] == CurlyCloseToken {
+		return nil
+	}
+
+	for offset < len(data) {
+		// find the next key
+		var key []byte
+
+		// check the type of next token
+		switch data[offset] {
+		case DoublyQuoteToken:
+			offset += 1 // accept as string and skip opening quote
+		case CurlyCloseToken:
+			return nil // found end of the object. stop
+		default:
+			return MalformedObject
+		}
+
+		// find end of the string
+		var keyEscaped bool
+		if off, esc := stringEnd(data[offset:]); off == -1 {
+			return MalformedJson
+		} else {
+			key, keyEscaped = data[offset:offset+off-1], esc
+			offset += off
+		}
+
+		// unescape the string if needed
+		if keyEscaped {
+			// stack allocated array for allocation-free unescaping of small string
+			var stackbuf [UnescapeStackBufSize]byte
+			if ku, err := Unescape(key, stackbuf[:]); err != nil {
+				return MalformedJson
+			} else {
+				key = ku
+			}
+		}
+
+		// skip the colon
+		if off, err := nextToken(data[offset:]); err != nil {
+			return MalformedJson
+		} else if offset += off; data[offset] != ColonToken {
+			return MalformedJson
+		} else {
+			offset += 1
+		}
+
+		if value, valueType, off, err := Get(data[offset:]); err != nil {
+			return err
+		} else if err := cb(key, value, valueType, offset+off); err != nil {
+			return err
+		} else {
+			offset += off
+		}
+
+		// skip over the next comma to the following token, 
+		// or stop if we reach the ending brace.
+		if off, err := nextToken(data[offset:]); err != nil {
+			return MalformedJson
+		} else {
+			offset += off
+			switch data[offset] {
+			case CurlyCloseToken:
+				return nil // found end of the object. stop
+			case CommaToken:
+				offset += 1 // skip comma and move to the next token
+			default:
+				return MalformedObject
+			}
+		}
+
+		// skip to the next token after the comma
+		if off, err := nextToken(data[offset:]); err != nil {
+			return MalformedJson
+		} else {
+			offset += off
+		}
+	}
+
+	return MalformedObject
 }
