@@ -12,7 +12,6 @@ import (
 // Functions starting with "Is" can be used to inspect which table of range a
 // rune belongs to. Note that runes may fit into more than one range.
 func Example_is() {
-
 	// constant with mixed type runes
 	const mixed = "\b5Ὂg̀9! ℃ᾭG"
 	for _, c := range mixed {
@@ -157,6 +156,7 @@ func ExampleToLower() {
 	// Output:
 	// U+0067 'g'
 }
+
 func ExampleToTitle() {
 	const ucG = 'g'
 	fmt.Printf("%#U\n", unicode.ToTitle(ucG))

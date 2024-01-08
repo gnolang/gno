@@ -19,8 +19,10 @@ type floatInfo struct {
 	bias     int
 }
 
-var float32info = floatInfo{23, 8, -127}
-var float64info = floatInfo{52, 11, -1023}
+var (
+	float32info = floatInfo{23, 8, -127}
+	float64info = floatInfo{52, 11, -1023}
+)
 
 // FormatFloat converts the floating-point number f to a string,
 // according to the format fmt and precision prec. It rounds the

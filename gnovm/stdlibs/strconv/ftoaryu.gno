@@ -366,7 +366,8 @@ func computeBounds(mant uint64, exp int, flt *floatInfo) (lower, central, upper 
 }
 
 func ryuDigits(d *decimalSlice, lower, central, upper uint64,
-	c0, cup bool) {
+	c0, cup bool,
+) {
 	lhi, llo := divmod1e9(lower)
 	chi, clo := divmod1e9(central)
 	uhi, ulo := divmod1e9(upper)
@@ -412,7 +413,8 @@ func ryuDigits(d *decimalSlice, lower, central, upper uint64,
 
 // ryuDigits32 emits decimal digits for a number less than 1e9.
 func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
-	c0, cup bool, endindex int) {
+	c0, cup bool, endindex int,
+) {
 	if upper == 0 {
 		d.dp = endindex + 1
 		return
