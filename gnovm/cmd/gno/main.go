@@ -10,7 +10,7 @@ import (
 func main() {
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func newGnocliCmd(io commands.IO) *commands.Command {

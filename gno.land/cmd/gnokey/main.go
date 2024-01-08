@@ -16,5 +16,5 @@ func main() {
 	}
 
 	cmd := client.NewRootCmdWithBaseConfig(commands.NewDefaultIO(), baseCfg)
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }

@@ -12,7 +12,7 @@ func main() {
 	io := commands.NewDefaultIO()
 	cmd := newRootCmd(io)
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func newRootCmd(io commands.IO) *commands.Command {

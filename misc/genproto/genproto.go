@@ -37,7 +37,7 @@ func main() {
 		execGen,
 	)
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func execGen(_ context.Context, _ []string) error {

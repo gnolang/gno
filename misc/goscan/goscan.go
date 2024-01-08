@@ -22,7 +22,7 @@ func main() {
 		execScan,
 	)
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func execScan(_ context.Context, args []string) error {

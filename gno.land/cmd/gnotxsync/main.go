@@ -34,7 +34,7 @@ func main() {
 		newExportCommand(cfg),
 	)
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 func (c *config) RegisterFlags(fs *flag.FlagSet) {
