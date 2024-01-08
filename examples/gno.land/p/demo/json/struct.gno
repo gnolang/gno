@@ -2,7 +2,6 @@ package json
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -140,8 +139,10 @@ func Marshal(data map[string]interface{}) (string, error) {
 		switch v := value.(type) {
 		case string:
 			sb.WriteString(ufmt.Sprintf("\"%s\"", v))
-		case float32:
-			sb.WriteString(ufmt.Sprintf("%f", v))
+		case int, int32, int64:
+			sb.WriteString(ufmt.Sprintf("%d", v))
+		case float32, float64:
+			sb.WriteString(fmt.Sprintf("%f", v))
 		case bool:
 			sb.WriteString(ufmt.Sprintf("%t", v))
 		default:
