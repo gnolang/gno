@@ -284,7 +284,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		// TODO: Should this check that tv2 type is not a reference?
 		if _, ok := pv.TV.V.(RefValue); ok {
-			*pv.TV = pv.TV.DeepCopySetRefObjectInfo(alloc, store)
+			*pv.TV = pv.TV.unrefCopySetRefObjectInfo(alloc, store)
 		}
 
 		// We need the owner to know which parent object to mark as dirty.
@@ -1057,16 +1057,32 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 
 // unrefCopy makes a copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
-func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) TypedValue {
+	return tv.unrefCopyCore(alloc, store, false)
+}
+
+func (tv TypedValue) unrefCopySetRefObjectInfo(alloc *Allocator, store Store) TypedValue {
+	return tv.unrefCopyCore(alloc, store, true)
+}
+
+func (tv TypedValue) unrefCopyCore(alloc *Allocator, store Store, setRefObjectInfo bool) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc)
+			arrayValue := refObjectValue.Copy(alloc)
+			if setRefObjectInfo {
+				arrayValue.ObjectInfo = *refObject.GetObjectInfo()
+			}
+			cp.V = arrayValue
 		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc)
+			structValue := refObjectValue.Copy(alloc)
+			if setRefObjectInfo {
+				structValue.ObjectInfo = *refObject.GetObjectInfo()
+			}
+			cp.V = structValue
 		default:
 			cp = tv
 		}
