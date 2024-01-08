@@ -58,6 +58,13 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
+	if fv.nativeBody == nil && fv.NativePkg != "" {
+		// native function, unmarshaled so doesn't have nativeBody yet
+		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+		if fv.nativeBody == nil {
+			panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
+		}
+	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
@@ -155,7 +162,7 @@ func (m *Machine) doOpCall() {
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
 
-		// Make a copy so that a reference to the arguemnt isn't used
+		// Make a copy so that a reference to the argument isn't used
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)

@@ -1,15 +1,11 @@
 package gnoland
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -37,7 +33,7 @@ func NewAppOptions() *AppOptions {
 	return &AppOptions{
 		Logger:     log.NewNopLogger(),
 		DB:         dbm.NewMemDB(),
-		GnoRootDir: MustGuessGnoRootDir(),
+		GnoRootDir: gnoenv.RootDir(),
 	}
 }
 
@@ -126,6 +122,7 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, m
 	var err error
 
 	cfg := NewAppOptions()
+	cfg.SkipFailingGenesisTxs = skipFailingGenesisTxs
 
 	// Get main DB.
 	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
@@ -161,7 +158,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
-					panic(res.Error)
+					panic(res.Log)
 				}
 			} else {
 				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))
@@ -179,46 +176,4 @@ func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		return abci.ResponseEndBlock{}
 	}
-}
-
-// XXX: all the method bellow should be removed in favor of
-// https://github.com/gnolang/gno/pull/1233
-func MustGuessGnoRootDir() string {
-	root, err := GuessGnoRootDir()
-	if err != nil {
-		panic(err)
-	}
-
-	return root
-}
-
-func GuessGnoRootDir() (string, error) {
-	// First try to get the root directory from the GNOROOT environment variable.
-	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir), nil
-	}
-
-	// Try to guess GNOROOT using the nearest go.mod.
-	if gobin, err := exec.LookPath("go"); err == nil {
-		// If GNOROOT is not set, try to guess the root directory using the `go list` command.
-		cmd := exec.Command(gobin, "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-		out, err := cmd.CombinedOutput()
-		if err == nil {
-			return strings.TrimSpace(string(out)), nil
-		}
-	}
-
-	// Try to guess GNOROOT using caller stack.
-	if _, filename, _, ok := runtime.Caller(1); ok && filepath.IsAbs(filename) {
-		if currentDir := filepath.Dir(filename); currentDir != "" {
-			// Gno root directory relative from `app.go` path:
-			// gno/ .. /gno.land/ .. /pkg/ .. /gnoland/app.go
-			rootdir, err := filepath.Abs(filepath.Join(currentDir, "..", "..", ".."))
-			if err == nil {
-				return rootdir, nil
-			}
-		}
-	}
-
-	return "", errors.New("unable to guess gno's root-directory")
 }

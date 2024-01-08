@@ -35,7 +35,7 @@ type balancesAddCfg struct {
 }
 
 // newBalancesAddCmd creates the genesis balances add subcommand
-func newBalancesAddCmd(rootCfg *balancesCfg, io *commands.IO) *commands.Command {
+func newBalancesAddCmd(rootCfg *balancesCfg, io commands.IO) *commands.Command {
 	cfg := &balancesAddCfg{
 		rootCfg: rootCfg,
 	}
@@ -75,7 +75,7 @@ func (c *balancesAddCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io *commands.IO) error {
+func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {
@@ -232,7 +232,7 @@ func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
 // and construct a balance sheet based off of this information
 func getBalancesFromTransactions(
 	ctx context.Context,
-	io *commands.IO,
+	io commands.IO,
 	reader io.Reader,
 ) (accountBalances, error) {
 	balances := make(accountBalances)

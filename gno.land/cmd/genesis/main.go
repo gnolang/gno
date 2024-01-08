@@ -20,7 +20,7 @@ func main() {
 	}
 }
 
-func newRootCmd(io *commands.IO) *commands.Command {
+func newRootCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",

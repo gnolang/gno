@@ -15,6 +15,8 @@ import (
 )
 
 func TestStoreType(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	store := NewMultiStore(db)
 	store.MountStoreWithDB(
@@ -22,6 +24,8 @@ func TestStoreType(t *testing.T) {
 }
 
 func TestStoreMount(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	store := NewMultiStore(db)
 
@@ -37,6 +41,8 @@ func TestStoreMount(t *testing.T) {
 }
 
 func TestCacheMultiStoreWithVersion(t *testing.T) {
+	t.Parallel()
+
 	var db dbm.DB = dbm.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
@@ -74,6 +80,8 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 }
 
 func TestHashStableWithEmptyCommit(t *testing.T) {
+	t.Parallel()
+
 	var db dbm.DB = dbm.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
@@ -98,6 +106,8 @@ func TestHashStableWithEmptyCommit(t *testing.T) {
 }
 
 func TestMultistoreCommitLoad(t *testing.T) {
+	t.Parallel()
+
 	var db dbm.DB = dbm.NewMemDB()
 	store := newMultiStoreWithMounts(db)
 	err := store.LoadLatestVersion()
@@ -158,6 +168,8 @@ func TestMultistoreCommitLoad(t *testing.T) {
 }
 
 func TestParsePath(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := parsePath("foo")
 	require.Error(t, err)
 
@@ -178,6 +190,8 @@ func TestParsePath(t *testing.T) {
 }
 
 func TestMultiStoreQuery(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	multi := newMultiStoreWithMounts(db)
 	err := multi.LoadLatestVersion()

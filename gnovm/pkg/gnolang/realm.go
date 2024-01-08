@@ -1131,18 +1131,23 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
 		}
-		if cv.nativeBody != nil {
+		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// have NativePkg/Name) can't be persisted, and should not be able
+		// to get here anyway.
+		if cv.nativeBody != nil && cv.NativePkg == "" {
 			panic("should not happen")
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			Type:     ft,
-			IsMethod: cv.IsMethod,
-			Source:   source,
-			Name:     cv.Name,
-			Closure:  closure,
-			FileName: cv.FileName,
-			PkgPath:  cv.PkgPath,
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Closure:    closure,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			NativePkg:  cv.NativePkg,
+			NativeName: cv.NativeName,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)

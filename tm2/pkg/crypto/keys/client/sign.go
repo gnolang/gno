@@ -28,7 +28,7 @@ type signCfg struct {
 	pass         string
 }
 
-func newSignCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newSignCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &signCfg{
 		rootCfg: rootCfg,
 	}
@@ -83,7 +83,7 @@ func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execSign(cfg *signCfg, args []string, io *commands.IO) error {
+func execSign(cfg *signCfg, args []string, io commands.IO) error {
 	var err error
 
 	if len(args) != 1 {

@@ -21,7 +21,7 @@ type sendCfg struct {
 	to   string
 }
 
-func newSendCmd(rootCfg *makeTxCfg, io *commands.IO) *commands.Command {
+func newSendCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 	cfg := &sendCfg{
 		rootCfg: rootCfg,
 	}
@@ -55,7 +55,7 @@ func (c *sendCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execSend(cfg *sendCfg, args []string, io *commands.IO) error {
+func execSend(cfg *sendCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
