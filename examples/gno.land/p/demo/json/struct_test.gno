@@ -85,11 +85,11 @@ func TestParseNestedStruct(t *testing.T) {
 
 func TestExtractNames(t *testing.T) {
 	tests := []struct {
-		fields	 	 Fields
-		expected	 []string
+		fields   Fields
+		expected []string
 	}{
 		{
-			fields: Fields {
+			fields: Fields{
 				{Name: "Name", Type: "string", Tag: "name", Depth: 0},
 				{Name: "Age", Type: "int", Tag: "age", Depth: 0},
 			},
@@ -124,20 +124,20 @@ func TestExtractNames(t *testing.T) {
 }
 
 func TestZip(t *testing.T) {
-    cases := []struct {
-        name          string
-        json          []byte
-        keys          []string
-        expected      map[string]interface{}
-        expectErr     bool
-    }{
-        {
-            "Valid JSON with String, Number and Boolean",
-            []byte(`{"name":"test","age":30,"active":true, "memo": null}`),
-            []string{"name", "age", "active", "memo"},
-            map[string]interface{}{"name": "test", "age": 30.0, "active": true, "memo": nil},
-            false,
-        },
+	cases := []struct {
+		name      string
+		json      []byte
+		keys      []string
+		expected  map[string]interface{}
+		expectErr bool
+	}{
+		{
+			"Valid JSON with String, Number and Boolean",
+			[]byte(`{"name":"test","age":30,"active":true, "memo": null}`),
+			[]string{"name", "age", "active", "memo"},
+			map[string]interface{}{"name": "test", "age": 30.0, "active": true, "memo": nil},
+			false,
+		},
 		{
 			"whitespace containing JSON",
 			[]byte(`{"name":"value with whitespcae","age":30,"active":true, "memo": null}`),
@@ -152,15 +152,15 @@ func TestZip(t *testing.T) {
 			map[string]interface{}{"name": "test", "age": 30.0, "active": true, "memo": nil},
 			true,
 		},
-    }
+	}
 
-    for _, tc := range cases {
-        t.Run(tc.name, func(t *testing.T) {
-            result, err := Zip(tc.json, tc.keys...)
-            if (err != nil) != tc.expectErr {
-                t.Errorf("Zip(%s) error = %v, expectErr %v", tc.name, err, tc.expectErr)
-                return
-            }
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := Zip(tc.json, tc.keys...)
+			if (err != nil) != tc.expectErr {
+				t.Errorf("Zip(%s) error = %v, expectErr %v", tc.name, err, tc.expectErr)
+				return
+			}
 
 			if tc.expectErr {
 				return
@@ -176,6 +176,6 @@ func TestZip(t *testing.T) {
 					t.Errorf("Expected value %v for field %s, but got %v", expectedValue, key, value)
 				}
 			}
-        })
-    }
+		})
+	}
 }

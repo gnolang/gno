@@ -109,8 +109,8 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 				}
 
 				var (
-					curIdx     int
-					valueFound []byte
+					curIdx      int
+					valueFound  []byte
 					valueOffset int
 				)
 				curI := i
@@ -419,7 +419,7 @@ func ObjectEach(data []byte, cb func(key []byte, value []byte, dataType ValueTyp
 			offset += off
 		}
 
-		// skip over the next comma to the following token, 
+		// skip over the next comma to the following token,
 		// or stop if we reach the ending brace.
 		if off, err := nextToken(data[offset:]); err != nil {
 			return MalformedJson

@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Tatget Struct 
+// Tatget Struct
 // -> Extract Fields and Save them in a FieldMetaData Struct
 // -> Search Values from JSON based on the Extracted Fields via Get method
 // -> Zip the Fields with the Values
@@ -21,11 +21,11 @@ const fieldRegex = `(\w+)\s+(\*?\w+|\[\]\w+|struct\s*{[^}]*}|map\[\w+\]\w+|inter
 type Fields []FieldMetaData
 
 type FieldMetaData struct {
-	Name       string
-	Tag        string
-	Type       string
-	IsNested   bool
-	Depth      int
+	Name     string
+	Tag      string
+	Type     string
+	IsNested bool
+	Depth    int
 }
 
 func ParseStruct(data string, depth int) (fields Fields) {
@@ -140,10 +140,14 @@ func Marshal(data map[string]interface{}) (string, error) {
 		switch v := value.(type) {
 		case string:
 			sb.WriteString(ufmt.Sprintf("\"%s\"", v))
-		case float32:
-			sb.WriteString(ufmt.Sprintf("%f", v))
+		case int, int32, int64:
+			sb.WriteString(ufmt.Sprintf("%d", v))
+		case float32.float64:
+			sb.WriteString(fmt.Sprintf("%f", v))
 		case bool:
 			sb.WriteString(ufmt.Sprintf("%t", v))
+		case nil:
+			sb.WriteString("null")
 		default:
 			return "", errors.New("Marshal: unknown data type")
 		}
