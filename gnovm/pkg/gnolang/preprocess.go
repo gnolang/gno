@@ -118,18 +118,6 @@ var preprocessing int
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// When panic, revert any package updates.
-	defer func() {
-		// Revert all new values.
-		// this is needed to revert top level
-		// function redeclarations.
-		if r := recover(); r != nil {
-			pkg := packageOf(ctx)
-			pkg.StaticBlock.revertToOld()
-			panic(r)
-		}
-	}()
-
 	// Increment preprocessing counter while preprocessing.
 	{
 		preprocessing += 1
@@ -2933,7 +2921,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				dt = rt.(*DeclaredType)
 			}
-			dt.DefineMethod(&FuncValue{
+			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
 				Source:     cd,
@@ -2943,7 +2931,13 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-			})
+			}) {
+				// Revert to old function declarations in the package we're preprocessing.
+				pkg := packageOf(last)
+				pkg.StaticBlock.revertToOld()
+				panic(fmt.Sprintf("redeclaration of method %s.%s",
+					dt.Name, cd.Name))
+			}
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
 			ft := ftv.T.(*FuncType)
