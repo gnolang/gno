@@ -265,9 +265,9 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	return pn, pv
 }
 
-type redeclarationError []Name
+type redeclarationErrors []Name
 
-func (r redeclarationError) Error() string {
+func (r redeclarationErrors) Error() string {
 	var b strings.Builder
 	b.WriteString("invalid redeclarations for identifiers: ")
 	for idx, s := range r {
@@ -279,7 +279,7 @@ func (r redeclarationError) Error() string {
 	return b.String()
 }
 
-func (r redeclarationError) add(newI Name) redeclarationError {
+func (r redeclarationErrors) add(newI Name) redeclarationErrors {
 	// TODO: after go.mod switches to go1.21, convert this to slices.Contains
 	for _, s := range r {
 		if s == newI {
@@ -292,7 +292,7 @@ func (r redeclarationError) add(newI Name) redeclarationError {
 // checkDuplicates returns an error if there are duplicate declarations in the fset.
 func checkDuplicates(fset *FileSet) error {
 	defined := make(map[Name]struct{}, 128)
-	var duplicated redeclarationError
+	var duplicated redeclarationErrors
 	for _, f := range fset.Files {
 		for _, d := range f.Decls {
 			var name Name
