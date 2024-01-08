@@ -538,7 +538,7 @@ func testAtof(t *testing.T, opt bool) {
 		outs := FormatFloat(out, 'g', -1, 64)
 		if outs != test.out || !errEqual(err, test.err) {
 			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
-				test.in, out, printError(err), test.out, printError(err))
+				test.in, out, printError(err), test.out, printError(test.err))
 		}
 
 		if float64(float32(out)) == out {

@@ -73,7 +73,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	mant := bits & (uint64(1)<<flt.mantbits - 1)
 
 	switch exp {
-	case 1<<flt.expbits - 1:
+	case int(1)<<flt.expbits - 1:
 		// Inf, NaN
 		var s string
 		switch {
@@ -275,7 +275,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// Our lower bound is halfway between, mantlo*2+1 << explo-mantbits-1.
 	var mantlo uint64
 	var explo int
-	if mant > 1<<flt.mantbits || exp == minexp {
+	if mant > uint64(1)<<flt.mantbits || exp == minexp {
 		mantlo = mant - 1
 		explo = exp
 	} else {
@@ -494,7 +494,7 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
 
 	// Shift digits so leading 1 (if any) is at bit 1<<60.
 	mant <<= 60 - flt.mantbits
-	for mant != 0 && mant&(1<<60) == 0 {
+	for mant != 0 && mant&(uint64(1)<<60) == 0 {
 		mant <<= 1
 		exp--
 	}
@@ -504,11 +504,11 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
 		shift := uint(prec * 4)
 		extra := (mant << shift) & (1<<60 - 1)
 		mant >>= 60 - shift
-		if extra|(mant&1) > 1<<59 {
+		if extra|(mant&1) > uint64(1)<<59 {
 			mant++
 		}
 		mant <<= 60 - shift
-		if mant&(1<<61) != 0 {
+		if mant&(uint64(1)<<61) != 0 {
 			// Wrapped around.
 			mant >>= 1
 			exp++
