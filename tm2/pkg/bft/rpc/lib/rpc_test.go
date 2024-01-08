@@ -158,7 +158,7 @@ func echoViaHTTP(cl client.HTTPClient, val string) (string, error) {
 		"arg": val,
 	}
 	result := new(ResultEcho)
-	if _, err := cl.Call("echo", params, result); err != nil {
+	if err := cl.Call("echo", params, result); err != nil {
 		return "", err
 	}
 	return result.Value, nil
@@ -169,7 +169,7 @@ func echoIntViaHTTP(cl client.HTTPClient, val int) (int, error) {
 		"arg": val,
 	}
 	result := new(ResultEchoInt)
-	if _, err := cl.Call("echo_int", params, result); err != nil {
+	if err := cl.Call("echo_int", params, result); err != nil {
 		return 0, err
 	}
 	return result.Value, nil
@@ -180,7 +180,7 @@ func echoBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
 		"arg": bytes,
 	}
 	result := new(ResultEchoBytes)
-	if _, err := cl.Call("echo_bytes", params, result); err != nil {
+	if err := cl.Call("echo_bytes", params, result); err != nil {
 		return []byte{}, err
 	}
 	return result.Value, nil
@@ -191,7 +191,7 @@ func echoDataBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
 		"arg": bytes,
 	}
 	result := new(ResultEchoDataBytes)
-	if _, err := cl.Call("echo_data_bytes", params, result); err != nil {
+	if err := cl.Call("echo_data_bytes", params, result); err != nil {
 		return []byte{}, err
 	}
 	return result.Value, nil
@@ -225,15 +225,18 @@ func echoViaWS(cl *client.WSClient, val string) (string, error) {
 	params := map[string]interface{}{
 		"arg": val,
 	}
-	err := cl.Call(context.Background(), "echo", params)
+	err := cl.Call(context.Background(), "echo", params, nil)
 	if err != nil {
 		return "", err
 	}
 
-	msg := <-cl.ResponsesCh
-	if msg.Error != nil {
-		return "", err
+	msgs := <-cl.ResponsesCh
+	if len(msgs) != 1 {
+		return "", fmt.Errorf("invalid number of responses, %d", len(msgs))
 	}
+
+	msg := msgs[0]
+
 	result := new(ResultEcho)
 	err = json.Unmarshal(msg.Result, result)
 	if err != nil {
@@ -246,12 +249,17 @@ func echoBytesViaWS(cl *client.WSClient, bytes []byte) ([]byte, error) {
 	params := map[string]interface{}{
 		"arg": bytes,
 	}
-	err := cl.Call(context.Background(), "echo_bytes", params)
+	err := cl.Call(context.Background(), "echo_bytes", params, nil)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	msg := <-cl.ResponsesCh
+	msgs := <-cl.ResponsesCh
+	if len(msgs) != 1 {
+		return nil, fmt.Errorf("invalid number of responses, %d", len(msgs))
+	}
+
+	msg := msgs[0]
 	if msg.Error != nil {
 		return []byte{}, msg.Error
 	}
@@ -302,11 +310,11 @@ func TestServersAndClientsBasic(t *testing.T) {
 	}
 
 	cl1 := client.NewURIClient(tcpServerUnavailableAddr)
-	_, err := cl1.Call("error", nil, nil)
+	err := cl1.Call("error", nil, nil)
 	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
 
 	cl2 := client.NewJSONRPCClient(tcpServerUnavailableAddr)
-	_, err = cl2.Call("error", nil, nil)
+	err = cl2.Call("error", nil, nil)
 	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
 }
 
@@ -345,18 +353,21 @@ func TestWSNewWSRPCFunc(t *testing.T) {
 	params := map[string]interface{}{
 		"arg": val,
 	}
-	err = cl.Call(context.Background(), "echo_ws", params)
+	err = cl.Call(context.Background(), "echo_ws", params, nil)
 	require.Nil(t, err)
 
-	msg := <-cl.ResponsesCh
-	if msg.Error != nil {
-		t.Fatal(err)
+	msgs := <-cl.ResponsesCh
+
+	for _, msg := range msgs {
+		if msg.Error != nil {
+			t.Fatal(err)
+		}
+		result := new(ResultEcho)
+		err = json.Unmarshal(msg.Result, result)
+		require.Nil(t, err)
+		got := result.Value
+		assert.Equal(t, got, val)
 	}
-	result := new(ResultEcho)
-	err = json.Unmarshal(msg.Result, result)
-	require.Nil(t, err)
-	got := result.Value
-	assert.Equal(t, got, val)
 }
 
 func TestWSHandlesArrayParams(t *testing.T) {
@@ -370,18 +381,21 @@ func TestWSHandlesArrayParams(t *testing.T) {
 
 	val := testVal
 	params := []interface{}{val}
-	err = cl.CallWithArrayParams(context.Background(), "echo_ws", params)
+	err = cl.CallWithArrayParams(context.Background(), "echo_ws", params, nil)
 	require.Nil(t, err)
 
-	msg := <-cl.ResponsesCh
-	if msg.Error != nil {
-		t.Fatalf("%+v", err)
+	msgs := <-cl.ResponsesCh
+
+	for _, msg := range msgs {
+		if msg.Error != nil {
+			t.Fatalf("%+v", err)
+		}
+		result := new(ResultEcho)
+		err = json.Unmarshal(msg.Result, result)
+		require.Nil(t, err)
+		got := result.Value
+		assert.Equal(t, got, val)
 	}
-	result := new(ResultEcho)
-	err = json.Unmarshal(msg.Result, result)
-	require.Nil(t, err)
-	got := result.Value
-	assert.Equal(t, got, val)
 }
 
 // TestWSClientPingPong checks that a client & server exchange pings

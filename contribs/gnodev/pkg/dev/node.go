@@ -17,8 +17,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	//backup "github.com/gnolang/tx-archive/backup/client"
-	//restore "github.com/gnolang/tx-archive/restore/client"
+	// backup "github.com/gnolang/tx-archive/backup/client"
+	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
@@ -160,7 +160,6 @@ func (d *Node) ReloadAll(ctx context.Context) error {
 }
 
 func (d *Node) Reload(ctx context.Context) error {
-
 	// save current state
 	state, err := d.saveState(ctx)
 	if err != nil {

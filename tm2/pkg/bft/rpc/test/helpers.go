@@ -38,7 +38,7 @@ func waitForRPC() {
 	client := rpcclient.NewJSONRPCClient(laddr)
 	result := new(ctypes.ResultStatus)
 	for {
-		_, err := client.Call("status", map[string]interface{}{}, result)
+		err := client.Call("status", map[string]interface{}{}, result)
 		if err == nil {
 			return
 		} else {

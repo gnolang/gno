@@ -59,7 +59,7 @@ func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execExport(c *exportCfg) error {
-	node := client.NewHTTP(c.rootCfg.remote, "/websocket")
+	node := client.NewHTTP(c.rootCfg.remote)
 
 	status, err := node.Status()
 	if err != nil {

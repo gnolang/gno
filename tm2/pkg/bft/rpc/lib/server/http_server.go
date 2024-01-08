@@ -118,7 +118,7 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) {
 // WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
 // can write arrays of responses for batched request/response interactions via
 // the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
+func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
 	if len(res) == 1 {
 		WriteRPCResponseHTTP(w, res[0])
 	} else {
@@ -134,7 +134,7 @@ func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // RecoverAndLogHandler wraps an HTTP handler, adding error logging.
 // If the inner function panics, the outer function recovers, logs, sends an

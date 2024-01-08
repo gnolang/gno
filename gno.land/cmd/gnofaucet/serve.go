@@ -173,7 +173,7 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 	if remote == "" || remote == "y" {
 		return errors.New("missing remote url")
 	}
-	cli := rpcclient.NewHTTP(remote, "/websocket")
+	cli := rpcclient.NewHTTP(remote)
 
 	// XXX XXX
 	// Read supply account pubkey.

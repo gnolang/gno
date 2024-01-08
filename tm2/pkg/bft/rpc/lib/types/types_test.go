@@ -15,7 +15,7 @@ type SampleResult struct {
 }
 
 type responseTest struct {
-	id       jsonrpcid
+	id       JSONRPCID
 	expected string
 }
 

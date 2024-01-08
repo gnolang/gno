@@ -100,7 +100,7 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
-	cli := client.NewHTTP(remote, "/websocket")
+	cli := client.NewHTTP(remote)
 
 	if cfg.dryRun {
 		return simulateTx(cli, bz)

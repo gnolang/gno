@@ -62,7 +62,7 @@ func execImport(ctx context.Context, c *importCfg) error {
 	defer file.Close()
 
 	// Start the WS connection to the node
-	node := client.NewHTTP(c.rootCfg.remote, "/websocket")
+	node := client.NewHTTP(c.rootCfg.remote)
 
 	index := 0
 	scanner := bufio.NewScanner(file)

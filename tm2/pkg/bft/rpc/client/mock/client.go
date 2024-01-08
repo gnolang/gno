@@ -45,8 +45,8 @@ var _ client.Client = Client{}
 // It can also be used to configure mock responses.
 type Call struct {
 	Name     string
-	Args     interface{}
-	Response interface{}
+	Args     any
+	Response any
 	Error    error
 }
 
@@ -56,7 +56,7 @@ type Call struct {
 // When configuring a response, if only one of Response or Error is
 // set then that will always be returned. If both are set, then
 // we return Response if the Args match the set args, Error otherwise.
-func (c Call) GetResponse(args interface{}) (interface{}, error) {
+func (c Call) GetResponse(args any) (any, error) {
 	// handle the case with no response
 	if c.Response == nil {
 		if c.Error == nil {
