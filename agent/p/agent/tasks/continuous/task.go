@@ -17,10 +17,14 @@ type Task struct {
 	NextDue             time.Time
 	Interval            time.Duration
 	Aggregator          task.Aggregator
-	Definition          task.Definition
+	definition          task.Definition
 	RespondentWhiteList *avl.Tree
 	Respondents         *avl.Tree
 	History             task.History
+}
+
+func (t Task) Definition() task.Definition {
+	return t.definition
 }
 
 func (t *Task) Finish(origCaller string) {
@@ -63,13 +67,13 @@ func (t Task) MarshalJSON() ([]byte, error) {
 	w := bufio.NewWriter(buf)
 	w.WriteString(
 		`{"id":"` + t.id +
-			`","type":"` + t.Definition.Type() +
+			`","type":"` + t.definition.Type() +
 			`","era":` + strconv.Itoa(t.Era) +
 			`,"next_due":` + strconv.FormatInt(t.NextDue.Unix(), 10) +
 			`,"interval":` + strconv.FormatInt(int64(t.Interval/time.Second), 10) +
 			`,"definition":`,
 	)
-	taskDefinitionBytes, err := t.Definition.MarshalJSON()
+	taskDefinitionBytes, err := t.definition.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}

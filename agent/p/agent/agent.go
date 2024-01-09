@@ -10,28 +10,44 @@ import (
 )
 
 var (
-	tasks        *avl.Tree
+	tasks *avl.Tree
+
+	// Not sure this is necessary.
 	adminAddress string
 )
 
-func HandleRequest(payload string) string {
+const (
+	FunctionFinish  = "finish"
+	FunctionRequest = "request"
+	FunctionSubmit  = "submit"
+)
+
+type PostRequestAction func(function string, task Task)
+
+func HandleRequest(payload string, post PostRequestAction) string {
 	payloadParts := strings.SplitN(payload, ",", 1)
 	if len(payloadParts) != 2 {
 		panic("invalid agent payload")
 	}
 
 	switch function := payloadParts[0]; function {
-	case "finish":
-		FinishTask(payloadParts[1])
-	case "request":
+	case FunctionFinish:
+		task := FinishTask(payloadParts[1])
+		if post != nil {
+			post(function, task)
+		}
+	case FunctionRequest:
 		return RequestTasks()
-	case "submit":
+	case FunctionSubmit:
 		submitArgs := strings.SplitN(payloadParts[1], ",", 1)
 		if len(submitArgs) != 2 {
 			panic("invalid agent submission payload")
 		}
 
 		SubmitTaskValue(submitArgs[0], submitArgs[1])
+		if post != nil {
+			post(function, nil)
+		}
 	default:
 		panic("unknown function " + function)
 	}
@@ -39,13 +55,14 @@ func HandleRequest(payload string) string {
 	return ""
 }
 
-func FinishTask(id string) {
+func FinishTask(id string) Task {
 	task, ok := tasks.Get(id)
 	if !ok {
 		panic("task not found")
 	}
 
 	task.(Task).Finish(string(std.GetOrigCaller()))
+	return task.(Task)
 }
 
 func RequestTasks() string {
@@ -77,20 +94,17 @@ func RequestTasks() string {
 	return buf.String()
 }
 
-func SubmitTaskValue(id, value string) {
+func SubmitTaskValue(id, value string) Task {
 	task, ok := tasks.Get(id)
 	if !ok {
 		panic("task not found")
 	}
 
 	task.(Task).SubmitResult(string(std.GetOrigCaller()), value)
+	return task.(Task)
 }
 
 func AddTask(task Task) {
-	if string(std.GetOrigCaller()) != adminAddress {
-		panic("only admin can add tasks")
-	}
-
 	if tasks.Has(task.ID()) {
 		panic("task id " + task.ID() + " already exists")
 	}
@@ -99,10 +113,6 @@ func AddTask(task Task) {
 }
 
 func RemoveTask(id string) {
-	if string(std.GetOrigCaller()) != adminAddress {
-		panic("only admin can remove tasks")
-	}
-
 	if _, removed := tasks.Remove(id); !removed {
 		panic("task id " + id + " not found")
 	}

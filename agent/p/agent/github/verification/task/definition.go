@@ -8,8 +8,8 @@ import (
 const Type string = "gh-verification"
 
 type Definition struct {
-	Handle    string
-	Signature string
+	Handle  string
+	Address string
 }
 
 func (d Definition) MarshalJSON() ([]byte, error) {
@@ -18,7 +18,7 @@ func (d Definition) MarshalJSON() ([]byte, error) {
 
 	w.WriteString(
 		`{"handle":"` + d.Handle +
-			`","signature":"` + d.Signature + `"}`,
+			`","address":"` + d.Address + `"}`,
 	)
 
 	w.Flush()

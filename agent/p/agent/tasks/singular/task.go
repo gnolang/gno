@@ -25,6 +25,10 @@ func NewTask(id string, definition task.Definition, authorizedRespondent string)
 	}
 }
 
+func (t Task) Definition() task.Definition {
+	return t.definition
+}
+
 func (t Task) Finish(_ string) {
 	panic("singular tasks are implicitly finished when a result is submitted")
 }
