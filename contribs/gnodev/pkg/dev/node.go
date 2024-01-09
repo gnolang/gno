@@ -102,7 +102,8 @@ func (d *Node) GetRemoteAddress() string {
 	return d.Node.Config().RPC.ListenAddress
 }
 
-// UpdatePackages updates the package currently know packages. It will be take in consideration in the next reload of the node.
+// UpdatePackages updates the currently known packages. It will be taken into 
+// consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
 	for _, path := range paths {
 		// List all packages from target path
