@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
     "gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/grc/grc721"
 )
 
 type Marketplace struct {
@@ -13,7 +13,7 @@ type Marketplace struct {
 }
 
 type Listing struct {
-    CompositeTokenID grc721f.TokenID   // TokenID of the composite NFT
+    CompositeTokenID grc721.TokenID   // TokenID of the composite NFT
     BasicTokenIDs    []int64 // Slice of TokenIDs for the basic NFTs contained within the composite NFT
     Seller           std.Address      // Address of the seller
     Price            uint64           // Sale price
@@ -26,7 +26,7 @@ func NewMarketplace() *Marketplace {
     }
 }
 
-func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Address, price uint64) error {
+func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Address, price uint64) error {
     // get tokenURI of the composite NFT
 	basicTokenIDs := GetChildrenOf(string(compositeTokenID))
 	
@@ -43,7 +43,7 @@ func (m *Marketplace) ListNFT(compositeTokenID grc721f.TokenID, seller std.Addre
     return nil
 }
 
-func (m *Marketplace) RemoveListing(compositeTokenID grc721f.TokenID, seller std.Address) error {
+func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.Address) error {
     // Retrieve the listing
     rawListing, exists := m.listings.Get(string(compositeTokenID))
     if !exists {
@@ -93,7 +93,7 @@ func (m *Marketplace) GetListings() string {
     return string(marketplaceJSON)
 }
 
-func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721f.TokenID) error {
+func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) error {
     listingRaw, exists := m.listings.Get(string(compositeTokenID))
     if !exists {
         return error("listing does not exist")

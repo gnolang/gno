@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
 )
 
@@ -170,15 +170,15 @@ func GetArtListings() string {
 }
 
 func ListMarketplaceNFT(compositeTokenID string, seller std.Address, price uint64) error {
-	return marketplace.ListNFT(grc721f.TokenID(compositeTokenID), seller, price);
+	return marketplace.ListNFT(grc721.TokenID(compositeTokenID), seller, price);
 }
 
 func BuyMarketplaceNFT(buyer std.Address, compositeTokenId string, ) error {
-	return marketplace.BuyNFT(buyer, grc721f.TokenID(compositeTokenId)) 
+	return marketplace.BuyNFT(buyer, grc721.TokenID(compositeTokenId)) 
 }
 
 func RemoveMarketplaceNFT(compositeTokenID string, seller std.Address) error {
-	return marketplace.RemoveListing(grc721f.TokenID(compositeTokenID), seller)
+	return marketplace.RemoveListing(grc721.TokenID(compositeTokenID), seller)
 }
 
 func ResetGame(gameId string) {

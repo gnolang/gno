@@ -6,12 +6,12 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
 )
 
 var (
-	flipBasicNFT	= grc721f.NewBasicNFT("Flippando Basic NFT", "BFLP")
+	flipBasicNFT	= grc721.NewBasicNFT("Flippando Basic NFT", "BFLP")
 	basicNFTtokenIDCounter	uint64
 	lockedNFTs avl.Tree // tokenId -> flipAmount
 	childOf avl.Tree // tokenId -> parent (composite) tokenId
@@ -39,7 +39,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	count := flipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
-	tid := grc721f.TokenID(tidString)
+	tid := grc721.TokenID(tidString)
 	mintResultError := flipBasicNFT.Mint(player, tid)
 	if mintResultError == nil {
 		gameSVGData, errSVG := GenerateGrid(currentGame.SolvedGameBoard, currentGame.TileType)
@@ -59,7 +59,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		if err != nil {
 			panic("error in marhasling flipBasicNFTMetaData");
 		}
-		flipBasicNFT.SetTokenURI(tid, grc721f.TokenURI(flipBasicNFTMetaDataJSON))
+		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
 		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
 		// mint fungible FLIP token
@@ -88,7 +88,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 }
 
 func GetBasicTokenURI(tokenID string) string {
-	tid := grc721f.TokenID(tokenID)
+	tid := grc721.TokenID(tokenID)
 	tokenURI, err := flipBasicNFT.TokenURI(tid)
 	if err != nil {
 		return "error"
@@ -105,7 +105,7 @@ func GetParentdOf(tokenId string) string {
 }
 
 func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
-	tokenId := grc721f.TokenID(tid)
+	tokenId := grc721.TokenID(tid)
 	err := flipBasicNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) er
 }
 
 // it is used in marketplace
-func TransferBasicNFTToBuyer(from, to std.Address, tid grc721f.TokenID) error {
+func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
 	err := flipBasicNFT.TransferFrom(from, to, tid)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func TransferBasicNFTToBuyer(from, to std.Address, tid grc721f.TokenID) error {
 }
 
 func GetOwnerOfBasicNFT(tid string) std.Address {
-	tokenId := grc721f.TokenID(tid)
+	tokenId := grc721.TokenID(tid)
 	owner, err := flipBasicNFT.OwnerOf(tokenId)
 	if err != nil {
 		return "can't get owner"
@@ -142,7 +142,7 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
-		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
+		owner, err := flipBasicNFT.OwnerOf(grc721.TokenID(tidString))
 		// debug
 		if err != nil {
 			userNFTsError += err.Error()
@@ -218,7 +218,7 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
-		owner, err := flipBasicNFT.OwnerOf(grc721f.TokenID(tidString))
+		owner, err := flipBasicNFT.OwnerOf(grc721.TokenID(tidString))
 		// debug
 		if err != nil {
 			userNFTsError += err.Error()

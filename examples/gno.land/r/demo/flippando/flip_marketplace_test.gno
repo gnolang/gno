@@ -7,7 +7,7 @@ import (
 	"gno.land/r/demo/users"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/avl"
 )
@@ -22,8 +22,8 @@ func TestListNFT(t *testing.T) {
     marketplace, compositeNFT, _ := setupMockMarketplace()
 
     seller := users.AddressOrName("g1seller")
-    compositeTokenID := grc721f.TokenID("1")
-    basicTokenIDs := []grc721f.TokenID{grc721f.TokenID("1"), grc721f.TokenID("2")}
+    compositeTokenID := grc721.TokenID("1")
+    basicTokenIDs := []grc721.TokenID{grc721.TokenID("1"), grc721.TokenID("2")}
 
     // Mock minting of composite NFT
     compositeNFT.mint(seller.Resolve(), compositeTokenID)
@@ -121,10 +121,10 @@ func TestBuyNFTWithInsufficientFLIP(t *testing.T) {
 }
 
 
-func setupMockMarketplace() (*Marketplace, grc721f.IGRC721, *grc20.AdminToken) {
+func setupMockMarketplace() (*Marketplace, grc721.IGRC721, *grc20.AdminToken) {
     // Mock setup for flipCompositeNFT and FLIP token
-    compositeNFT := grc721f.NewBasicNFT("Flippando Composite NFT", "CFLP")
-    basicNFT := grc721f.NewBasicNFT("Flippando Basic NFT", "BFLP")
+    compositeNFT := grc721.NewBasicNFT("Flippando Composite NFT", "CFLP")
+    basicNFT := grc721.NewBasicNFT("Flippando Basic NFT", "BFLP")
     flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6)
 
     // Create a marketplace instance with mock contracts
@@ -134,7 +134,7 @@ func setupMockMarketplace() (*Marketplace, grc721f.IGRC721, *grc20.AdminToken) {
 
 
 
-func mintMockNFTs(nftContract grc721f.IGRC721, owner std.Address, tokenIDs ...grc721f.TokenID) {
+func mintMockNFTs(nftContract grc721.IGRC721, owner std.Address, tokenIDs ...grc721.TokenID) {
     for _, tokenID := range tokenIDs {
         nftContract.mint(owner, tokenID)
     }

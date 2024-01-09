@@ -7,12 +7,12 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/grc/grc721f"
+	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
 )
 
 var (
-	flipCompositeNFT	= grc721f.NewBasicNFT("Flippando Composite NFT", "CFLP")
+	flipCompositeNFT	= grc721.NewBasicNFT("Flippando Composite NFT", "CFLP")
 	compositeNFTtokenIDCounter	uint64
 	children avl.Tree // compositeNFT tokenId -> []int64 basicNFTs tokenIds
 )
@@ -29,7 +29,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	count := flipCompositeNFT.TokenCount()
 	compositeNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(compositeNFTtokenIDCounter, 10)
-	tid := grc721f.TokenID(tidString)
+	tid := grc721.TokenID(tidString)
 	mintResultError := flipCompositeNFT.Mint(player, tid)
 	if mintResultError == nil {
 		flipCompositeNFTMetaData := &compositeNFTMetaData{
@@ -54,7 +54,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 			UnlockAndTransferFLIP(flipBasicOwner, basicTidString)
 		}
 		// set compositeNFT tokenURI
-		flipCompositeNFT.SetTokenURI(tid, grc721f.TokenURI(flipCompositeNFTMetaDataJSON))
+		flipCompositeNFT.SetTokenURI(tid, grc721.TokenURI(flipCompositeNFTMetaDataJSON))
 		children.Set(tidString, bTokenIDs)
 		// set approval for the realm owner so we can later transfer the NFT
 		flipCompositeNFT.Approve(std.CurrentRealm().Addr(), tid)
@@ -74,21 +74,21 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 
 // it is used in marketplace
 func TransferCompositeNFT(from, to std.Address, tid string) error {
-	tokenId := grc721f.TokenID(tid)
+	tokenId := grc721.TokenID(tid)
 	err := flipCompositeNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
 		return error("transfer composite NFT from error")
 	}
 	bTokenIDs := GetChildrenOf(tid)
 	for _, t := range bTokenIDs {
-		basicTokenId := grc721f.TokenID(strconv.FormatInt(t, 10))
+		basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
 		TransferBasicNFTToBuyer(from, to, basicTokenId)
 	}
 	return nil
 }
 
 func GetCompositeTokenURI(tokenID string) string {
-	tid := grc721f.TokenID(tokenID)
+	tid := grc721.TokenID(tokenID)
 	tokenURI, err := flipCompositeNFT.TokenURI(tid)
 	if err != nil {
 		return "error"
@@ -112,7 +112,7 @@ func GetUserCompositeFlipNFTs(addr std.Address) string {
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
-		owner, err := flipCompositeNFT.OwnerOf(grc721f.TokenID(tidString))
+		owner, err := flipCompositeNFT.OwnerOf(grc721.TokenID(tidString))
 		// debug
 		if err != nil {
 			userNFTsError += err.Error()
