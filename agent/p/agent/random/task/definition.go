@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+const Type string = "random"
+
 // Input in this range.
 type Definition struct {
 	RangeStart uint64
@@ -23,4 +25,8 @@ func (d Definition) MarshalJSON() ([]byte, error) {
 
 	w.Flush()
 	return buf.Bytes(), nil
+}
+
+func (d Definition) Type() string {
+	return Type
 }

@@ -5,6 +5,8 @@ import (
 	"bytes"
 )
 
+const Type string = "gh-verification"
+
 type Definition struct {
 	Handle    string
 	Signature string
@@ -21,4 +23,8 @@ func (d Definition) MarshalJSON() ([]byte, error) {
 
 	w.Flush()
 	return buf.Bytes(), nil
+}
+
+func (d Definition) Type() string {
+	return Type
 }

@@ -57,13 +57,19 @@ func RequestTasks() string {
 			buf.WriteString(",")
 		}
 
-		first = false
 		task := value.(Task)
 		taskBytes, err := task.MarshalJSON()
 		if err != nil {
 			panic(err)
 		}
 
+		// Guard against any tasks that shouldn't be returned; maybe they are not active because they have
+		// already been completed.
+		if len(taskBytes) == 0 {
+			return true
+		}
+
+		first = false
 		buf.Write(taskBytes)
 		return true
 	})
@@ -78,6 +84,28 @@ func SubmitTaskValue(id, value string) {
 	}
 
 	task.(Task).SubmitResult(string(std.GetOrigCaller()), value)
+}
+
+func AddTask(task Task) {
+	if string(std.GetOrigCaller()) != adminAddress {
+		panic("only admin can add tasks")
+	}
+
+	if tasks.Has(task.ID()) {
+		panic("task id " + task.ID() + " already exists")
+	}
+
+	tasks.Set(task.ID(), task)
+}
+
+func RemoveTask(id string) {
+	if string(std.GetOrigCaller()) != adminAddress {
+		panic("only admin can remove tasks")
+	}
+
+	if _, removed := tasks.Remove(id); !removed {
+		panic("task id " + id + " not found")
+	}
 }
 
 func Init(admin std.Address, newTasks ...Task) {

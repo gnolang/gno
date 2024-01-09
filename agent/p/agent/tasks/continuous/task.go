@@ -13,7 +13,6 @@ import (
 
 type Task struct {
 	id                  string
-	Type                uint8
 	Era                 int
 	NextDue             time.Time
 	Interval            time.Duration
@@ -64,8 +63,8 @@ func (t Task) MarshalJSON() ([]byte, error) {
 	w := bufio.NewWriter(buf)
 	w.WriteString(
 		`{"id":"` + t.id +
-			`","type":` + strconv.FormatUint(uint64(t.Type), 10) +
-			`,"era":` + strconv.Itoa(t.Era) +
+			`","type":"` + t.Definition.Type() +
+			`","era":` + strconv.Itoa(t.Era) +
 			`,"next_due":` + strconv.FormatInt(t.NextDue.Unix(), 10) +
 			`,"interval":` + strconv.FormatInt(int64(t.Interval/time.Second), 10) +
 			`,"definition":`,
@@ -75,7 +74,8 @@ func (t Task) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	w.WriteString(string(taskDefinitionBytes) + "}")
+	w.Write(taskDefinitionBytes)
+	w.WriteString("}")
 	w.Flush()
 	return buf.Bytes(), nil
 }
