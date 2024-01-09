@@ -71,21 +71,20 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 
 func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	// check for invalid TokenID
-	owner, found := s.owners.Get(string(tid))
-	if !found {
+	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
 	}
-	
+
 	// check for the right owner
 	owner, err := s.OwnerOf(tid)
 	if err != nil {
+		return false, err
+	}
+	caller := std.PrevRealm().Addr()
+	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
 	s.tokenURIs.Set(string(tid), string(tURI))
-	storedURI, added := s.tokenURIs.Get(string(tid))
-	if !added {
-		return false, ErrTokenURINotSet
-	}
 	return true, nil
 }
 

@@ -1,13 +1,13 @@
 package main
 
 import (
-	imath "internal/math"
+	"math"
 )
 
 func main() {
 	// test float64
 	f := float64(0.3)
-	x := imath.Float64bits(f)
+	x := math.Float64bits(f)
 	e := uint(40)
 	println(f, x, e, (1 << (64 - e)))
 

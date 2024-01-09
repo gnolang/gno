@@ -19,18 +19,9 @@ func main() {
 //
 // <div class="jumbotron">
 //
-// ### WorxDAO (WIP)
+// ### Contributions (WorxDAO & GoR)
 //
-// - A
-//   - A1
-//     - A1A
-//     - A1B
-//   - A2
-//   - A3
-//     - A3A
-//       - A3A1
-// - B
-// - C
+// TODO: GoR dashboard + WorxDAO topics
 // </div><!-- /jumbotron -->
 //
 // ### Explore New Packages and Realms

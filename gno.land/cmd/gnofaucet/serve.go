@@ -337,7 +337,9 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 		Addr:              ":5050",
 		ReadHeaderTimeout: 60 * time.Second,
 	}
-	server.ListenAndServe()
+	if err := server.ListenAndServe(); err != nil {
+		return fmt.Errorf("http server stopped. %w", err)
+	}
 
 	return nil
 }

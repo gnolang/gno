@@ -122,6 +122,7 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, m
 	var err error
 
 	cfg := NewAppOptions()
+	cfg.SkipFailingGenesisTxs = skipFailingGenesisTxs
 
 	// Get main DB.
 	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
@@ -157,7 +158,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
-					panic(res.Error)
+					panic(res.Log)
 				}
 			} else {
 				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))

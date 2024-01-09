@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.3
-	github.com/cockroachdb/apd v1.1.0
+	github.com/cockroachdb/apd/v3 v3.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/dgraph-io/badger/v3 v3.2103.4
@@ -60,7 +60,6 @@ require (
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.10.7 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
