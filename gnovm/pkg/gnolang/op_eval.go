@@ -18,6 +18,8 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
+
+	debugPP.Printf("EVAL: (%T) %v\n", x, x)
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -306,9 +308,9 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
 	case *FuncLitExpr:
-		debug.Println("-----FuncLitExpr")
+		debugPP.Println("-----FuncLitExpr")
 		b := m.LastBlock()
-		debug.Printf("b: %v \n", b)
+		debugPP.Printf("b: %v \n", b)
 		m.PushOp(OpFuncLit)
 		m.PushOp(OpPreFuncLit)
 		// evaluate func type

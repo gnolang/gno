@@ -52,7 +52,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	debug.Println("-----doOpCall-----")
+	debugPP.Println("-----doOpCall-----")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -62,24 +62,25 @@ func (m *Machine) doOpCall() {
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
+	debugPP.Printf("fv is: %v \n", fv)
 	clo := fr.Func.GetClosure(m.Store)
-	debug.Printf("-----got closure: %v ----- \n", clo)
+	debugPP.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
 	captures := fr.Func.Captures
 	if captures == nil {
-		debug.Println("nil captures")
+		debugPP.Println("nil captures")
 	}
 	if captures != nil {
 		debug.Printf("captures before call: %v, len(names): %d, len(values): %d \n", *captures, len(captures.names), len(captures.values))
 		names := clo.GetSource(m.Store).GetBlockNames()
-		debug.Printf("names: %v \n", names)
+		debugPP.Printf("names: %v \n", names)
 		for i1, n1 := range captures.names {
 			var index int
 			for i2, n2 := range names {
 				if n1 == n2 { // match and replace
 					index = i2
-					debug.Printf("index of %s in target block is: %d \n", n1, index)
-					debug.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
+					debugPP.Printf("index of %s in target block is: %d \n", n1, index)
+					debugPP.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
 					// replace lv values with index
 					clo.UpdateValue(index, captures.values[i1])
 				}

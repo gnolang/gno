@@ -682,11 +682,11 @@ type closureObject struct {
 }
 
 func (m *Machine) doOpPreFuncLit() {
-	debug.Println("-----doOpPreFuncLit")
+	debugPP.Println("-----doOpPreFuncLit")
 	x := m.PeekExpr(1).(*FuncLitExpr)
-	debug.Printf("funcLitExpr: %v \n", x)
+	debugPP.Printf("funcLitExpr: %v \n", x)
 	//debug.Printf("pointer of x.Closure: %p \n", x.Closure)
-	debug.Printf("x.Closure: %v \n", x.Closure)
+	debugPP.Printf("x.Closure: %v \n", x.Closure)
 	lb := m.LastBlock()
 	b := m.Alloc.NewBlock(x, lb)
 	m.PushBlock(b)
@@ -694,20 +694,23 @@ func (m *Machine) doOpPreFuncLit() {
 
 	closure := x.Closure
 	if closure != nil {
-		debug.Printf("closure nxs len is: %d \n", len(closure.cnxs))
+		debugPP.Printf("closure nxs len is: %d \n", len(closure.cnxs))
 		for i, cnx := range closure.cnxs {
-			debug.Printf("closure[%d]: %v \n", i, cnx)
+			debugPP.Printf("closure[%d]: %v \n", i, cnx)
 			offset := cnx.offset
-			debug.Printf("offset of %s is %d \n", cnx.nx.Name, offset)
+			debugPP.Printf("offset of %s is %d \n", cnx.nx.Name, offset)
 			vp := cnx.nx.Path
-			debug.Printf("vp of nx[%s] is : %v \n", cnx.nx.Name, vp)
+			debugPP.Printf("vp of nx[%s] is : %v \n", cnx.nx.Name, vp)
+			if (vp.Depth + 1) < offset {
+				panic("---incorrect offset for:" + cnx.nx.Name)
+			}
 			nvp := ValuePath{
 				Name:  cnx.nx.Name,
 				Depth: vp.Depth - offset + 1,
 				Index: vp.Index,
 				Type:  vp.Type,
 			}
-			debug.Printf("nvp of nx[%s] is : %v \n", nvp.Name, nvp)
+			debugPP.Printf("nvp of nx[%s] is : %v \n", nvp.Name, nvp)
 			nnx := *cnx.nx
 			nnx.Path = nvp
 			m.PushExpr(&nnx)
@@ -717,26 +720,26 @@ func (m *Machine) doOpPreFuncLit() {
 }
 
 func (m *Machine) doOpFuncLit() {
-	debug.Println("-----doOpFuncLit")
+	debugPP.Println("-----doOpFuncLit")
 	x := m.PopExpr().(*FuncLitExpr)
 	lb := m.LastBlock()
-	debug.Printf("lb: %v \n", lb)
+	debugPP.Printf("lb: %v \n", lb)
 
 	captured := &Captured{}
 	if x.Closure != nil {
 		for _, cnx := range x.Closure.cnxs {
-			debug.Printf("range closures of : %s \n", string(cnx.nx.Name))
+			debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
 			v := *m.PopValue()
 			if !v.IsUndefined() { // e.g. args of func. forward
-				debug.Printf("capturing v: %v \n", v)
+				debugPP.Printf("capturing v: %v \n", v)
 				captured.names = append(captured.names, cnx.nx.Name)
 				captured.values = append(captured.values, v)
 			} else {
-				debug.Println("undefined, skip")
+				debugPP.Println("undefined, skip")
 			}
 		}
 	}
-	debug.Printf("---captured: %v \n", captured)
+	debugPP.Printf("---captured: %v \n", captured)
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 
