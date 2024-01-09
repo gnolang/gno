@@ -65,11 +65,11 @@ const sidebars = {
             type: 'category',
             label: 'Gno Tooling',
             items: [
-                'concepts/gno-tooling/cli/gno-tooling-gno',
-                'concepts/gno-tooling/cli/gno-tooling-gnokey',
-                'concepts/gno-tooling/cli/gno-tooling-gnofaucet',
-                'concepts/gno-tooling/cli/gno-tooling-gnoland',
-                'concepts/gno-tooling/cli/gno-tooling-tm2txsync',
+                'gno-tooling/cli/gno-tooling-gno',
+                'gno-tooling/cli/gno-tooling-gnokey',
+                'gno-tooling/cli/gno-tooling-gnofaucet',
+                'gno-tooling/cli/gno-tooling-gnoland',
+                'gno-tooling/cli/gno-tooling-tm2txsync',
             ]
         },
         {
