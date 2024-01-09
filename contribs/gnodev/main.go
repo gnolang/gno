@@ -128,7 +128,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths, gnoroot)
+	devNode, err := setupDevNode(ctx, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
 	logger := tmlog.NewTMLogger(nodeOut)
