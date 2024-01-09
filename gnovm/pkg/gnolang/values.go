@@ -266,8 +266,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 							tv2.String(), tv.T.String()))
 					}
 				}
-				tv.CopyFrom(alloc, store, tv2)
-				// *tv = tv2.Copy(alloc)
+				// tv.CopyFrom(alloc, store, tv2)
+				*tv = tv2.Copy(alloc, store)
 			default:
 				panic("should not happen")
 			}
@@ -287,6 +287,39 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	} else {
 		pv.TV.Assign(alloc, store, tv2, cu)
 	}
+}
+
+// Like Assign2 but allocates first if needed.
+// The type is copied from tv2, and a new value is
+// constructed of the correct size.
+// This is more expensive, and should only be called for :=
+// define and var decls.
+func (pv PointerValue) Assign3(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	if pv.TV.IsUndefined() {
+		pv.TV.T = tv2.T
+		switch tv2v := tv2.V.(type) {
+		case *ArrayValue:
+			if tv2v.Data == nil {
+				pv.TV.V = alloc.NewListArray(
+					tv2v.GetLength())
+			} else {
+				pv.TV.V = alloc.NewDataArray(
+					tv2v.GetLength())
+			}
+		case *StructValue:
+			fields := alloc.NewStructFields(
+				len(tv2v.Fields))
+			sv := alloc.NewStruct(fields)
+			pv.TV.V = sv
+		default:
+			pv.TV.V = nil
+		}
+	}
+
+	// This is a bit weird because NativeValue
+	// is not handled above, but Native support
+	// will be removed anyways so it will resolve.
+	pv.Assign2(alloc, store, rlm, tv2, cu)
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
@@ -382,7 +415,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 // NOTE: may switch between .Data and .List depending on
 // type of av2, but does not count toward allocation since
 // it replaces one for the other.
-func (av *ArrayValue) CopyFrom(alloc *Allocator, store Store, av2 *ArrayValue) {
+func (av *ArrayValue) CopyFrom(alloc *Allocator, store Store, av2 *ArrayValue, et Type) {
 	if debug {
 		if av.GetLength() != av2.GetLength() {
 			panic(fmt.Sprintf(
@@ -395,19 +428,25 @@ func (av *ArrayValue) CopyFrom(alloc *Allocator, store Store, av2 *ArrayValue) {
 	if av2.Data == nil {
 		if av.Data == nil {
 			// already fine.
-		} else {
+		} else { // av.Data != nil
+			// convert to .List.
+			av.List = make([]TypedValue, len(av.Data))
+			// XXX no need to do this.
+			// copyDataToList(av.List, av.Data, et)
 			av.Data = nil
-			av.List = make([]TypedValue, len(av2.List))
 		}
 		avl := len(av2.List)
 		for i := 0; i < avl; i++ {
 			av.List[i] = av2.List[i].Copy(alloc, store)
 		}
-	} else { // av2.List == nil
+	} else { // av2.Data != nil
 		if av.List == nil {
 			// already fine.
-		} else {
-			av.Data = make([]byte, len(av2.Data))
+		} else { // av.List != nil
+			// convert to .Data.
+			av.Data = make([]byte, len(av.List))
+			// XXX no need to do this.
+			// copyListToData(av.Data, av.List)
 			av.List = nil
 		}
 		copy(av.Data, av2.Data)
@@ -421,12 +460,17 @@ func (av *ArrayValue) Copy(alloc *Allocator, store Store) *ArrayValue {
 	}
 	*/
 	if av.Data == nil {
-		avl := len(av.List)
-		av2 := alloc.NewListArray(avl)
-		for i := 0; i < avl; i++ {
-			av2.List[i] = av.List[i].Copy(
-				alloc, store)
-		}
+		/*
+			avl := len(av.List)
+			av2 := alloc.NewListArray(avl)
+			for i := 0; i < avl; i++ {
+				av2.List[i] = av.List[i].Copy(
+					alloc, store)
+			}
+			return av2
+		*/
+		av2 := alloc.NewListArray(len(av.List))
+		copy(av2.List, av.List)
 		return av2
 	} else { // av.List == nil
 		av2 := alloc.NewDataArray(len(av.Data))
@@ -1073,22 +1117,30 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv *TypedValue) CopyFrom(alloc *Allocator, store Store, tv2 TypedValue) {
-	switch tv2v := tv.V.(type) {
+	switch tv.V.(type) {
 	case BigintValue:
 		*tv = tv2.Copy(alloc, store)
 	case BigdecValue:
 		*tv = tv2.Copy(alloc, store)
 	case *ArrayValue:
 		tv.T = tv2.T
+		tv2v := tv2.V.(*ArrayValue)
 		tv.V.(*ArrayValue).CopyFrom(
-			alloc, store, tv2v)
+			alloc, store, tv2v, tv.T.Elem())
 	case *StructValue:
 		tv.T = tv2.T
+		tv2v := tv2.V.(*StructValue)
 		tv.V.(*StructValue).CopyFrom(
 			alloc, store, tv2v)
 	case *NativeValue:
-		tv.T = tv2.T
-		tv.V = tv2v.Copy(alloc) // TODO optimize
+		if tv2.IsUndefined() {
+			tv.T = nil
+			tv.V = nil
+		} else {
+			tv.T = tv2.T
+			tv2v := tv2.V.(*NativeValue)
+			tv.V = tv2v.Copy(alloc) // TODO optimize
+		}
 	default:
 		*tv = tv2
 	}
@@ -1103,17 +1155,19 @@ func (tv TypedValue) Copy(alloc *Allocator, store Store) (cp TypedValue) {
 	case BigdecValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
-	case RefValue:
-		cp.T = tv.T
-		refObject := tv.GetFirstObject(store)
-		switch refObjectValue := refObject.(type) {
-		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc, store)
-		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc, store)
-		default:
-			cp = tv
-		}
+		/*
+			case RefValue:
+				cp.T = tv.T
+				refObject := tv.GetFirstObject(store)
+				switch refObjectValue := refObject.(type) {
+				case *ArrayValue:
+					cp.V = refObjectValue.Copy(alloc, store)
+				case *StructValue:
+					cp.V = refObjectValue.Copy(alloc, store)
+				default:
+					cp = tv
+				}
+		*/
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, store)
@@ -1132,7 +1186,6 @@ func (tv TypedValue) Copy(alloc *Allocator, store Store) (cp TypedValue) {
 // XXX DEPRECATED (Copy() now does this).
 // unrefCopy performs a copy but first unrefs if ptr.
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
-	panic("XXX")
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
@@ -1695,7 +1748,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, store Store, tv2 TypedValue, cu b
 		}
 	}
 	tv.CopyFrom(alloc, store, tv2)
-	// *tv = tv2.Copy(alloc)
+	// *tv = tv2.Copy(alloc, store)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}

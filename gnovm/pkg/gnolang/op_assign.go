@@ -20,7 +20,7 @@ func (m *Machine) doOpDefine() {
 				}
 			}
 		}
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		ptr.Assign3(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 
