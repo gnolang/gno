@@ -8,7 +8,7 @@ id: simple-library
 
 This guide shows you how to write a simple library (Package) in Gnolang, which can be used by other Packages and Realms.
 Packages are _stateless_, meaning they do not hold state like regular Realms (Smart Contracts). To learn more about the
-intricacies of Packages, please see the [Packages reference](../explanation/packages.md).
+intricacies of Packages, please see the [Packages reference](../concepts/packages.md).
 
 The Package we will be writing today will be a simple library for suggesting a random tapas dish.
 We will define a set list of tapas, and define a method that randomly selects a dish from the list.
