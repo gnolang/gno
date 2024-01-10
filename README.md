@@ -39,7 +39,7 @@ Once you're done, learn how to set up your local environment with the
 
 You can discover additional details about current tools and Gno documentation on
 our official documentation page. Additionally, the [awesome-gno](https://github.com/gnolang/awesome-gno)
-repository offers more information. We are eager to see your first PR!
+repository offers more resources to dig into. We are eager to see your first PR!
 
 ## Repository structure
 
