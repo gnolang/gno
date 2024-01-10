@@ -53,7 +53,7 @@ gno {SUB_COMMAND}
 | `verbose`   | Boolean | Displays extended information.                                  |
 | `skip-fmt`  | Boolean | Skips the syntax checking of generated `.go` files.             |
 | `go-binary` | String  | The go binary to use for building (default: `go`).              |
-| `go-binary` | String  | The gofmt binary to use for syntax checking (default: `gofmt`). |
+| `gofmt`     | String  | The gofmt binary to use for syntax checking (default: `gofmt`). |
 | `output`    | String  | The output directory (default: `.`).                            |
 
 ### `repl`
