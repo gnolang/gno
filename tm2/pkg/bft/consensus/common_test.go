@@ -815,12 +815,12 @@ func newPersistentKVStoreWithPath(dbDir string) abci.Application {
 // ------------------------------------
 
 func ensureDrainedChannels(t *testing.T, channels ...any) {
+	t.Helper()
+
 	r := recover()
 	if r == nil {
 		return
 	}
-
-	t.Helper()
 
 	t.Logf("checking for drained channel")
 	leaks := make(map[string]int)
@@ -848,8 +848,7 @@ func ensureDrainedChannels(t *testing.T, channels ...any) {
 	}
 
 	for leak, count := range leaks {
-		fmt.Printf("channel %q: %d events left\n", leak, count)
-		// assert.Fail(t, "event leak", "channel %q: %d events left", leak, count)
+		t.Logf("channel %q: %d events left\n", leak, count)
 	}
 
 	panic(r)

@@ -165,7 +165,6 @@ func TestStateEnterProposeNoPrivValidator(t *testing.T) {
 	if ensureGetRoundState(cs).Proposal != nil {
 		t.Error("Expected to make no proposal, since no privValidator")
 	}
-
 }
 
 // a validator should not timeout of the prevote round (TODO: unless the block is really big!)
@@ -309,7 +308,6 @@ func TestStateFullRound1(t *testing.T) {
 	ensureNewRound(newRoundCh, height+1, 0)
 
 	validateLastPrecommit(cs, vss[0], propBlockHash)
-
 }
 
 // nil is proposed, so prevote and precommit nil
