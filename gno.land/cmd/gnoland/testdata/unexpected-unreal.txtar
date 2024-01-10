@@ -12,7 +12,7 @@ stdout OK!
 
 # execute Delta for the first time
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!xx
+stdout OK!
 
 -- gno.mod --
 module gno.land/r/demo/xx

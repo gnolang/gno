@@ -390,8 +390,21 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if !oo.GetObjectID().IsZero() {
 		return
 	}
-	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo)
+	noid := oo.GetNextObjectID()
+	if !noid.IsZero() {
+		// consume NextObjectID.
+		oo.SetObjectID(noid)
+		oo.SetNextObjectID(ObjectID{})
+		// rlm.created not touched, not actually.
+		// instead, is considered updated.
+		rlm.updated = append(rlm.updated, oo)
+		// however, we do need the following
+		// recurse logic to inc refcount
+		// children of this replacement object.
+	} else {
+		rlm.assignNewObjectID(oo)
+		rlm.created = append(rlm.created, oo)
+	}
 	// RECURSE GUARD END
 
 	// recurse for children.
@@ -683,7 +696,6 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
-	fmt.Println("!!!!!", oo, ">>", unsaved)
 	for _, uch := range unsaved {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
@@ -823,7 +835,6 @@ func getChildObjects(val Value, more []Value) []Value {
 	case DataByteValue:
 		panic("should not happen")
 	case PointerValue:
-		fmt.Println("GETCHILDOBJECTS:POINTER", cv)
 		if cv.Base != nil {
 			more = getSelfOrChildObjects(cv.Base, more)
 		} else {
@@ -839,7 +850,6 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
-		fmt.Println("STRUCT", cv)
 		for _, ctv := range cv.Fields {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
@@ -904,7 +914,6 @@ func getChildObjects2(store Store, val Value) []Object {
 // Shallow; doesn't recurse into objects.
 func getUnsavedChildObjects(val Value) []Object {
 	vals := getChildObjects(val, nil)
-	fmt.Println("getChildObjects", val, ">>", vals)
 	unsaved := make([]Object, 0, len(vals))
 	for _, val := range vals {
 		// sanity check:
@@ -918,7 +927,6 @@ func getUnsavedChildObjects(val Value) []Object {
 			// is already saved.
 		} else if obj, ok := val.(Object); ok {
 			// if object...
-			fmt.Println("isUnsaved", obj, ">>", isUnsaved(obj))
 			if isUnsaved(obj) {
 				unsaved = append(unsaved, obj)
 			}
@@ -1439,7 +1447,6 @@ func toRefValue(parent Object, val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			fmt.Println("!!!", oo.GetObjectInfo())
 			panic("unexpected unreal object")
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular

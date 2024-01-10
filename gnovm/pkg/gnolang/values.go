@@ -284,13 +284,26 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			oo1 := pv.TV.GetFirstObject(store)
 			pv.TV.Assign(alloc, store, tv2, cu)
 			// preserve id if oo1 was real.
-			if oo1.GetIsReal() {
+			oo1id := oo1.GetObjectID()
+			if oo1id.IsZero() {
+				// passed by intermediary.
+				oo1id = oo1.GetNextObjectID()
+			}
+			// if oo1 is/was real escaped:
+			if !oo1id.IsZero() {
+				oo1id := oo1.GetObjectID()
+				oo1rc := oo1.GetRefCount()
 				oo2 := pv.TV.GetFirstObject(store)
-				oo2.SetObjectID(oo1.GetObjectID())
-				oo2.SetRefCount(oo1.GetRefCount())
-				fmt.Println(">>>>", oo2.GetObjectID(), oo2.GetIsReal(), oo2.GetIsDirty())
-				rlm.DidUpdate(oo2, nil, nil) // XXX ???
-				fmt.Println(">>>>", oo2.GetObjectID(), oo2.GetIsReal(), oo2.GetIsDirty())
+				// oo1 is deleted
+				oo1.SetRefCount(0)
+				rlm.MarkNewDeleted(oo1)
+
+				// oo2 is updated
+				oo2.SetRefCount(oo1rc)
+				// SetNextObjectID() makes
+				// this register as updated.
+				oo2.SetNextObjectID(oo1id)
+				rlm.MarkNewReal(oo2)
 			}
 		} else { // pv.Base != nil
 			oo1 := pv.TV.GetFirstObject(store)
