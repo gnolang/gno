@@ -76,6 +76,7 @@ func TestStateProposerSelection0(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, newRoundCh)
 
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
@@ -121,19 +122,20 @@ func TestStateProposerSelection2(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, newRoundCh)
 
 	ensureNewRound(newRoundCh, height, round) // wait for the new round
 
 	// everyone just votes nil. we get a new proposer each round
 	for i := 0; i < len(vss); i++ {
-		prop := cs1.GetRoundState().Validators.GetProposer()
+		prop := ensureGetRoundState(cs1).Validators.GetProposer()
 		addr := vss[(i+round)%len(vss)].GetPubKey().Address()
 		correctProposer := addr
 		if prop.Address != correctProposer {
 			panic(fmt.Sprintf("expected RoundState.Validators.GetProposer() to be validator %d. Got %X", (i+2)%len(vss), prop.Address))
 		}
 
-		rs := cs1.GetRoundState()
+		rs := ensureGetRoundState(cs1)
 		signAddVotes(cs1, types.PrecommitType, nil, rs.ProposalBlockParts.Header(), vss[1:]...)
 		ensureNewRound(newRoundCh, height, i+round+1) // wait for the new round event each round
 		incrementRound(vss[1:]...)
@@ -156,13 +158,14 @@ func TestStateEnterProposeNoPrivValidator(t *testing.T) {
 		cs.Stop()
 		cs.Wait()
 	}()
-
+	defer ensureDrainedChannels(t, timeoutCh)
 	// if we're not a validator, EnterPropose should timeout
 	ensureNewTimeout(timeoutCh, height, round, cs.config.TimeoutPropose.Nanoseconds())
 
-	if cs.GetRoundState().Proposal != nil {
+	if ensureGetRoundState(cs).Proposal != nil {
 		t.Error("Expected to make no proposal, since no privValidator")
 	}
+
 }
 
 // a validator should not timeout of the prevote round (TODO: unless the block is really big!)
@@ -183,13 +186,14 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 		cs.Stop()
 		cs.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, newRoundCh, timeoutCh)
 
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
 
 	// Check that Proposal, ProposalBlock, ProposalBlockParts are set.
-	rs := cs.GetRoundState()
+	rs := ensureGetRoundState(cs)
 	if rs.Proposal == nil {
 		t.Error("rs.Proposal should be set")
 	}
@@ -247,6 +251,7 @@ func TestStateBadProposal(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, voteCh)
 
 	// wait for proposal
 	ensureProposal(proposalCh, height, round, blockID)
@@ -285,11 +290,12 @@ func TestStateFullRound1(t *testing.T) {
 		cs.Stop()
 		cs.Wait()
 	}()
+	defer ensureDrainedChannels(t, newRoundCh, voteCh, propCh)
 
 	ensureNewRound(newRoundCh, height, round)
 
 	ensureNewProposal(propCh, height, round)
-	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
+	propBlockHash := ensureGetRoundState(cs).ProposalBlock.Hash()
 
 	ensurePrevote(voteCh, height, round) // wait for prevote
 	validatePrevote(cs, round, vss[0], propBlockHash)
@@ -319,6 +325,7 @@ func TestStateFullRoundNil(t *testing.T) {
 		cs.Stop()
 		cs.Wait()
 	}()
+	defer ensureDrainedChannels(t, voteCh)
 
 	ensurePrevote(voteCh, height, round)   // prevote
 	ensurePrecommit(voteCh, height, round) // precommit
@@ -345,11 +352,12 @@ func TestStateFullRound2(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, voteCh, newBlockCh)
 
 	ensurePrevote(voteCh, height, round) // prevote
 
 	// we should be stuck in limbo waiting for more prevotes
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	propBlockHash, propPartsHeader := rs.ProposalBlock.Hash(), rs.ProposalBlockParts.Header()
 
 	// prevote arrives from vs2:
@@ -390,6 +398,8 @@ func TestStateLockNoPOL(t *testing.T) {
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, voteCh)
+
 	/*
 		Round1 (cs1, B) // B B // B B2
 	*/
@@ -400,7 +410,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round)
 
 	ensureNewProposal(proposalCh, height, round)
-	roundState := cs1.GetRoundState()
+	roundState := ensureGetRoundState(cs1)
 	theBlockHash := roundState.ProposalBlock.Hash()
 	thePartSetHeader := roundState.ProposalBlockParts.Header()
 
@@ -441,7 +451,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	// now we're on a new round and not the proposer, so wait for timeout
 	ensureNewTimeout(timeoutProposeCh, height, round, cs1.config.Propose(round).Nanoseconds())
 
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 
 	if rs.ProposalBlock != nil {
 		panic("Expected proposal block to be nil")
@@ -483,7 +493,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	incrementRound(vs2)
 
 	ensureNewProposal(proposalCh, height, round)
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 
 	// now we're on a new round and are the proposer
 	if !bytes.Equal(rs.ProposalBlock.Hash(), rs.LockedBlock.Hash()) {
@@ -579,10 +589,11 @@ func TestStateLockPOLRelock(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, newRoundCh, newBlockCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	theBlockHash := rs.ProposalBlock.Hash()
 	theBlockParts := rs.ProposalBlockParts.Header()
 
@@ -676,10 +687,11 @@ func TestStateLockPOLUnlock(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, newRoundCh, voteCh, unlockCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	theBlockHash := rs.ProposalBlock.Hash()
 	theBlockParts := rs.ProposalBlockParts.Header()
 
@@ -770,10 +782,11 @@ func TestStateLockPOLSafety1(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	propBlock := rs.ProposalBlock
 
 	ensurePrevote(voteCh, height, round)
@@ -813,7 +826,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 
 	ensureNewProposal(proposalCh, height, round)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 
 	if rs.LockedBlock != nil {
 		panic("we should not be locked!")
@@ -854,6 +867,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	validatePrevote(cs1, round, vss[0], propBlockHash)
 
 	newStepCh := subscribe(cs1.evsw, cstypes.EventNewRoundStep{})
+	defer ensureDrainedChannels(t, newStepCh)
 
 	// before prevotes from the previous round are added
 	// add prevotes from the earlier round
@@ -912,6 +926,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, newRoundCh, unlockCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	if err := cs1.SetProposalAndBlock(prop1, propBlock1, propBlockParts1, "some peer"); err != nil {
@@ -992,9 +1007,11 @@ func TestProposeValidBlock(t *testing.T) {
 		cs1.Wait()
 	}()
 
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, timeoutProposeCh, newRoundCh, unlockCh, voteCh)
+
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	propBlock := rs.ProposalBlock
 	propBlockHash := propBlock.Hash()
 
@@ -1056,7 +1073,7 @@ func TestProposeValidBlock(t *testing.T) {
 
 	ensureNewProposal(proposalCh, height, round)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 	assert.True(t, bytes.Equal(rs.ProposalBlock.Hash(), propBlockHash))
 	assert.True(t, bytes.Equal(rs.ProposalBlock.Hash(), rs.ValidBlock.Hash()))
 	assert.True(t, rs.Proposal.POLRound == rs.ValidRound)
@@ -1087,10 +1104,11 @@ func TestSetValidBlockOnDelayedPrevote(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutWaitCh, newRoundCh, validBlockCh, voteCh, proposalCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	propBlock := rs.ProposalBlock
 	propBlockHash := propBlock.Hash()
 	propBlockParts := propBlock.MakePartSet(partSize)
@@ -1110,7 +1128,7 @@ func TestSetValidBlockOnDelayedPrevote(t *testing.T) {
 	// we should have precommitted
 	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 
 	assert.True(t, rs.ValidBlock == nil)
 	assert.True(t, rs.ValidBlockParts == nil)
@@ -1121,7 +1139,7 @@ func TestSetValidBlockOnDelayedPrevote(t *testing.T) {
 
 	ensureNewValidBlock(validBlockCh, height, round)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 
 	assert.True(t, bytes.Equal(rs.ValidBlock.Hash(), propBlockHash))
 	assert.True(t, rs.ValidBlockParts.Header().Equals(propBlockParts.Header()))
@@ -1156,6 +1174,7 @@ func TestSetValidBlockOnDelayedProposal(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutWaitCh, timeoutProposeCh, newRoundCh, validBlockCh, voteCh, proposalCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewTimeout(timeoutProposeCh, height, round, cs1.config.Propose(round).Nanoseconds())
@@ -1181,7 +1200,7 @@ func TestSetValidBlockOnDelayedProposal(t *testing.T) {
 	}
 
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 
 	assert.True(t, bytes.Equal(rs.ValidBlock.Hash(), propBlockHash))
 	assert.True(t, rs.ValidBlockParts.Header().Equals(propBlockParts.Header()))
@@ -1207,6 +1226,7 @@ func TestWaitingTimeoutOnNilPolka(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutWaitCh, newRoundCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	signAddVotes(cs1, types.PrecommitType, nil, types.PartSetHeader{}, vs2, vs3, vs4)
@@ -1236,6 +1256,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutWaitCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensurePrevote(voteCh, height, round)
@@ -1246,7 +1267,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)
 
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	assert.True(t, rs.Step == cstypes.RoundStepPropose) // P0 does not prevote before timeoutPropose expires
 
 	ensureNewTimeout(timeoutWaitCh, height, round, cs1.config.Propose(round).Nanoseconds())
@@ -1276,6 +1297,7 @@ func TestRoundSkipOnNilPolkaFromHigherRound(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutWaitCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensurePrevote(voteCh, height, round)
@@ -1316,6 +1338,7 @@ func TestWaitTimeoutProposeOnNilPolkaForTheCurrentRound(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, timeoutProposeCh, newRoundCh, voteCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	incrementRound(vss[1:]...)
@@ -1353,13 +1376,14 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, newRoundCh, newRoundCh, validBlockCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	// vs2, vs3 and vs4 send precommit for propBlock
 	signAddVotes(cs1, types.PrecommitType, propBlockHash, propBlockParts.Header(), vs2, vs3, vs4)
 	ensureNewValidBlock(validBlockCh, height, round)
 
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
 	assert.True(t, rs.ProposalBlock == nil)
 	assert.True(t, rs.ProposalBlockParts.Header().Equals(propBlockParts.Header()))
@@ -1391,6 +1415,7 @@ func TestCommitFromPreviousRound(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, newRoundCh, validBlockCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	// vs2, vs3 and vs4 send precommit for propBlock for the previous round
@@ -1398,7 +1423,7 @@ func TestCommitFromPreviousRound(t *testing.T) {
 
 	ensureNewValidBlock(validBlockCh, height, round)
 
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
 	assert.True(t, rs.CommitRound == vs2.Round)
 	assert.True(t, rs.ProposalBlock == nil)
@@ -1446,10 +1471,11 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, newRoundCh, voteCh, newBlockHeader)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	theBlockHash := rs.ProposalBlock.Hash()
 	theBlockParts := rs.ProposalBlockParts.Header()
 
@@ -1468,7 +1494,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	signAddVotes(cs1, types.PrecommitType, theBlockHash, theBlockParts, vs4)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 	assert.True(t, rs.TriggeredTimeoutPrecommit)
 
 	ensureNewBlockHeader(newBlockHeader, height, theBlockHash)
@@ -1478,7 +1504,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	height, round = height+1, 0
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewTimeout(timeoutProposeCh, height, round, cs1.config.Propose(round).Nanoseconds())
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 	assert.False(t, rs.TriggeredTimeoutPrecommit, "triggeredTimeoutPrecommit should be false at the beginning of each round")
 }
 
@@ -1507,10 +1533,11 @@ func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, newRoundCh, voteCh, newBlockHeader)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	theBlockHash := rs.ProposalBlock.Hash()
 	theBlockParts := rs.ProposalBlockParts.Header()
 
@@ -1538,7 +1565,7 @@ func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 	ensureNewRound(newRoundCh, height+1, 0)
 	ensureNewProposal(proposalCh, height+1, 0)
 
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 	assert.False(t, rs.TriggeredTimeoutPrecommit, "triggeredTimeoutPrecommit should be false at the beginning of each height")
 }
 
@@ -1653,10 +1680,11 @@ func TestFlappyStateHalt1(t *testing.T) {
 		cs1.Stop()
 		cs1.Wait()
 	}()
+	defer ensureDrainedChannels(t, proposalCh, timeoutWaitCh, newRoundCh, voteCh, newBlockCh)
 
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	rs := cs1.GetRoundState()
+	rs := ensureGetRoundState(cs1)
 	propBlock := rs.ProposalBlock
 	propBlockParts := propBlock.MakePartSet(partSize)
 
@@ -1682,7 +1710,7 @@ func TestFlappyStateHalt1(t *testing.T) {
 	round++ // moving to the next round
 
 	ensureNewRound(newRoundCh, height, round)
-	rs = cs1.GetRoundState()
+	rs = ensureGetRoundState(cs1)
 
 	t.Log("### ONTO ROUND 1")
 	/*Round2

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -563,6 +564,22 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 	}
 }
 
+func ensureGetRoundState(to *ConsensusState) (rs *cstypes.RoundState) {
+	time.Sleep(time.Second * 5)
+	crs := make(chan *cstypes.RoundState)
+	go func() {
+		crs <- to.GetRoundState()
+	}()
+
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for GetRoundState")
+	case rs = <-crs:
+	}
+
+	return
+}
+
 // -------------------------------------------------------------------------------
 // consensus nets
 
@@ -793,4 +810,47 @@ func newPersistentKVStore() abci.Application {
 
 func newPersistentKVStoreWithPath(dbDir string) abci.Application {
 	return kvstore.NewPersistentKVStoreApplication(dbDir)
+}
+
+// ------------------------------------
+
+func ensureDrainedChannels(t *testing.T, channels ...any) {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	t.Helper()
+
+	t.Logf("checking for drained channel")
+	leaks := make(map[string]int)
+	for _, ch := range channels {
+		chVal := reflect.ValueOf(ch)
+		if chVal.Kind() != reflect.Chan {
+			panic(chVal.Type().Name() + " not a channel")
+		}
+
+		// Use a select statement with reflection
+		cases := []reflect.SelectCase{
+			{Dir: reflect.SelectRecv, Chan: chVal},
+			{Dir: reflect.SelectDefault},
+		}
+
+		for {
+			chosen, recv, recvOK := reflect.Select(cases)
+			if chosen != 0 || !recvOK {
+				break
+			}
+
+			leaks[reflect.TypeOf(recv.Interface()).String()]++
+			time.Sleep(time.Millisecond * 500)
+		}
+	}
+
+	for leak, count := range leaks {
+		fmt.Printf("channel %q: %d events left\n", leak, count)
+		// assert.Fail(t, "event leak", "channel %q: %d events left", leak, count)
+	}
+
+	panic(r)
 }
