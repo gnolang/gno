@@ -158,7 +158,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
-					panic(res.Error)
+					panic(res.Log)
 				}
 			} else {
 				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))
