@@ -1,54 +1,51 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/json"
 )
 
-func Marshal(data map[string]interface{}) (string, error) {
-	var sb strings.Builder
-	sb.WriteString("{")
-
-	isFirst := true
-	for key, value := range data {
-		if !isFirst {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
-
-		switch v := value.(type) {
-		case string:
-			sb.WriteString(ufmt.Sprintf("\"%s\"", v))
-		case int, int32, int64:
-			sb.WriteString(ufmt.Sprintf("%d", v))
-		case float32, float64:
-			sb.WriteString(fmt.Sprintf("%f", v))
-		case bool:
-			sb.WriteString(ufmt.Sprintf("%t", v))
-		case nil:
-			sb.WriteString("null")
-		default:
-			return "", errors.New("Marshal: unknown data type")
-		}
-
-		isFirst = false
-	}
-
-	sb.WriteString("}")
-	return sb.String(), nil
-}
-
 func main() {
-	zippedData := map[string]interface{}{
-		"name":     "John Doe",
-		"age":      30,
-		"height":   1.8,
-		"isMember": true,
-		"address":  nil,
+	character := map[string]interface{}{
+		"name": "Eldon",
+		"class": "Wizard",
+		"race": "Elf",
+		"level": 5,
+		"stats": map[string]interface{}{
+			"strength": 8.5,
+			"dexterity": 14,
+			"constitution": 10,
+			"intelligence": 18,
+			"wisdom": 12,
+			"charisma": 11,
+		},
+		"hitPoints": 27,
+		"alignment": "Neutral Good",
+		"skills": map[string]interface{}{
+			"arcana": 7,
+			"history": 7,
+			"investigation": 6,
+			"nature": 5,
+			"religion": 5,
+		},
+		"spells": []interface{}{"Magic Missile", "Fireball", "Invisibility", "Shield"},
+		"inventory": map[string]interface{}{
+			"weapons": []interface{}{"Quarterstaff", "Dagger"},
+			"armor": "Mage Armor",
+			"items": []interface{}{"Potion of Healing", "Spellbook"},
+			"gold": 120,
+		},
+		"background": map[string]interface{}{
+			"story": "Raised by a secret society of wizards...",
+			"traits": []interface{}{"Curious", "Cautious"},
+			"ideals": "Knowledge is the path to power and domination.",
+			"bonds": "Must protect ancient wizardry tome.",
+			"flaws": "Can't resist a new mystery.",
+		},
 	}
-	json, _ := Marshal(zippedData)
+
+	json, err := json.Marshal(character)
+	if err != nil { panic(err) }
 	fmt.Println(json)
 }

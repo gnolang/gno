@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
@@ -126,35 +127,68 @@ func Zip(json []byte, extractedKeys ...string) (zippedData map[string]interface{
 	return zippedData, nil
 }
 
-func Marshal(data map[string]interface{}) (string, error) {
+// Marshal converts the map to JSON string.
+func Marshal(data interface{}) (string, error) {
 	var sb strings.Builder
-	sb.WriteString("{")
 
-	isFirst := true
-	for key, value := range data {
-		if !isFirst {
-			sb.WriteString(", ")
+	switch v := data.(type) {
+	case map[string]interface{}:
+		sb.WriteString("{")
+		isFirst := true
+		for key, value := range v {
+			if !isFirst {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
+
+			if marshaledValue, err := Marshal(value); err != nil {
+				return "", err
+			} else {
+				sb.WriteString(marshaledValue)
+			}
+
+			isFirst = false
 		}
-		sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
-
-		switch v := value.(type) {
-		case string:
-			sb.WriteString(ufmt.Sprintf("\"%s\"", v))
-		case int, int32, int64:
-			sb.WriteString(ufmt.Sprintf("%d", v))
-		case float32.float64:
-			sb.WriteString(fmt.Sprintf("%f", v))
-		case bool:
-			sb.WriteString(ufmt.Sprintf("%t", v))
-		case nil:
-			sb.WriteString("null")
-		default:
-			return "", errors.New("Marshal: unknown data type")
+		sb.WriteString("}")
+	case []interface{}:
+		sb.WriteString("[")
+		for i, value := range v {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if marshaledValue, err := Marshal(value); err != nil {
+				return "", err
+			} else {
+				sb.WriteString(marshaledValue)
+			}
 		}
-
-		isFirst = false
+		sb.WriteString("]")
+	case string:
+		sb.WriteString(fmt.Sprintf("\"%s\"", v))
+	case int, int8, int16, int32, int64:
+		sb.WriteString(fmt.Sprintf("%d", v))
+	case uint, uint8, uint16, uint32, uint64:
+		sb.WriteString(fmt.Sprintf("%d", v))
+	case float32, float64:
+		sb.WriteString(fmt.Sprintf("%f", v))
+	case bool:
+		sb.WriteString(fmt.Sprintf("%t", v))
+	case nil:
+		sb.WriteString("null")
+	default:
+		return "", errors.New("Marshal: unknown data type")
 	}
 
-	sb.WriteString("}")
 	return sb.String(), nil
 }
+
+func Unmarshal(json []byte, data interface{}) error {
+	jsonString := string(json)
+	// 1. get field names from the struct
+
+	// 2. get values from json
+
+	// 3. zip the fields with the values
+}
+
+// TODO: pretty print

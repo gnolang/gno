@@ -179,3 +179,45 @@ func TestZip(t *testing.T) {
 		})
 	}
 }
+
+func TestMarshal(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    map[string]interface{}
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "Test with various data types",
+			data: map[string]interface{}{
+				"name":  "John Doe",
+				"age":   30,
+				"admin": true,
+				"score": 99.5,
+				"attributes": map[string]interface{}{
+					"intelligence": 100,
+					"strength":     80,
+				},
+				"friends": []interface{}{
+					"Jane Doe",
+					"Richard Roe",
+				},
+			},
+			want:    `{"name": "John Doe", "age": 30, "admin": true, "score": 99.500000, "attributes": {"intelligence": 100, "strength": 80}, "friends": ["Jane Doe", "Richard Roe"]}`,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Marshal(tt.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Marshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Marshal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
