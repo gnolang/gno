@@ -22,7 +22,7 @@ echo "Running local development setup"
 # - start the backup service for transactions
 (
   echo "Starting Gno node..."
-  make gnoland.start
+  make start.gnoland
   teardown
 ) &
 (
