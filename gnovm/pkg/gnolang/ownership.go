@@ -104,6 +104,7 @@ type Object interface {
 	IncRefCount() int
 	DecRefCount() int
 	GetRefCount() int
+	SetRefCount(int)
 	GetIsDirty() bool
 	SetIsDirty(bool, uint64)
 	GetIsEscaped() bool
@@ -263,6 +264,10 @@ func (oi *ObjectInfo) DecRefCount() int {
 
 func (oi *ObjectInfo) GetRefCount() int {
 	return oi.RefCount
+}
+
+func (oi *ObjectInfo) SetRefCount(rc int) {
+	oi.RefCount = rc
 }
 
 func (oi *ObjectInfo) GetIsDirty() bool {

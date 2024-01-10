@@ -287,7 +287,10 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			if oo1.GetIsReal() {
 				oo2 := pv.TV.GetFirstObject(store)
 				oo2.SetObjectID(oo1.GetObjectID())
+				oo2.SetRefCount(oo1.GetRefCount())
+				fmt.Println(">>>>", oo2.GetObjectID(), oo2.GetIsReal(), oo2.GetIsDirty())
 				rlm.DidUpdate(oo2, nil, nil) // XXX ???
+				fmt.Println(">>>>", oo2.GetObjectID(), oo2.GetIsReal(), oo2.GetIsDirty())
 			}
 		} else { // pv.Base != nil
 			oo1 := pv.TV.GetFirstObject(store)
