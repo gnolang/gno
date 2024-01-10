@@ -15,6 +15,10 @@ stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 
+# should fail if user is added after node is started
+! adduser test5
+stderr '"adduser" error: adduser must be used before starting node'
+
 -- bar/bar.gno --
 package bar
 
