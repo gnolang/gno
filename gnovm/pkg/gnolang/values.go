@@ -279,11 +279,22 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		return
 	}
 	// General case
-	if rlm != nil && pv.Base != nil {
-		oo1 := pv.TV.GetFirstObject(store)
-		pv.TV.Assign(alloc, store, tv2, cu)
-		oo2 := pv.TV.GetFirstObject(store)
-		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+	if rlm != nil {
+		if pv.Base == nil {
+			oo1 := pv.TV.GetFirstObject(store)
+			pv.TV.Assign(alloc, store, tv2, cu)
+			// preserve id if oo1 was real.
+			if oo1.GetIsReal() {
+				oo2 := pv.TV.GetFirstObject(store)
+				oo2.SetObjectID(oo1.GetObjectID())
+				rlm.DidUpdate(oo2, nil, nil) // XXX ???
+			}
+		} else { // pv.Base != nil
+			oo1 := pv.TV.GetFirstObject(store)
+			pv.TV.Assign(alloc, store, tv2, cu)
+			oo2 := pv.TV.GetFirstObject(store)
+			rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+		}
 	} else {
 		pv.TV.Assign(alloc, store, tv2, cu)
 	}
@@ -416,6 +427,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 // type of av2, but does not count toward allocation since
 // it replaces one for the other.
 func (av *ArrayValue) CopyFrom(alloc *Allocator, store Store, av2 *ArrayValue, et Type) {
+	panic("!!")
 	if debug {
 		if av.GetLength() != av2.GetLength() {
 			panic(fmt.Sprintf(
@@ -1747,8 +1759,8 @@ func (tv *TypedValue) Assign(alloc *Allocator, store Store, tv2 TypedValue, cu b
 			panic("should not happen")
 		}
 	}
-	tv.CopyFrom(alloc, store, tv2)
-	// *tv = tv2.Copy(alloc, store)
+	//tv.CopyFrom(alloc, store, tv2)
+	*tv = tv2.Copy(alloc, store)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
