@@ -62,7 +62,11 @@ func (m *Machine) doOpCall() {
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
-	debugPP.Printf("fv is: %v \n", fv)
+	debugPP.Printf("fv is:---")
+	fv.dump()
+	debugPP.Printf("fv.captures is: %v \n", fv.Captures)
+	debugPP.Printf("fv.address is: %p \n", fv)
+
 	clo := fr.Func.GetClosure(m.Store)
 	debugPP.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
@@ -71,7 +75,7 @@ func (m *Machine) doOpCall() {
 		debugPP.Println("nil captures")
 	}
 	if captures != nil {
-		debug.Printf("captures before call: %v, len(names): %d, len(values): %d \n", *captures, len(captures.names), len(captures.values))
+		debugPP.Printf("captures before call: %v, len(names): %d, len(values): %d \n", captures, len(captures.names), len(captures.values))
 		names := clo.GetSource(m.Store).GetBlockNames()
 		debugPP.Printf("names: %v \n", names)
 		for i1, n1 := range captures.names {
@@ -89,6 +93,7 @@ func (m *Machine) doOpCall() {
 	}
 	// only need initial snapshot
 	fr.Func.Captures = nil
+	//fr.Func.Captures = Captured{}
 
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)

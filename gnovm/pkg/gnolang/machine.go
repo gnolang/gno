@@ -926,6 +926,8 @@ const (
 	OpMaybeNativeType Op = 0x79 // maybenative{X}
 
 	/* Statement operators */
+	OpPreAssign   Op = 0x92
+	OpPostAssign  Op = 0x93
 	OpAssign      Op = 0x80 // Lhs = Rhs
 	OpAddAssign   Op = 0x81 // Lhs += Rhs
 	OpSubAssign   Op = 0x82 // Lhs -= Rhs
@@ -1061,7 +1063,9 @@ const (
 	OpCPUMaybeNativeType = 1
 
 	/* Statement operators */
+	OpCPUPreAssign   = 1
 	OpCPUAssign      = 1
+	OpCPUPostAssign  = 1
 	OpCPUAddAssign   = 1
 	OpCPUSubAssign   = 1
 	OpCPUMulAssign   = 1
@@ -1347,9 +1351,15 @@ func (m *Machine) Run() {
 			m.incrCPU(OpCPUMaybeNativeType)
 			m.doOpMaybeNativeType()
 		/* Statement operators */
+		case OpPreAssign:
+			m.incrCPU(OpCPUPreAssign)
+			m.doOpPreAssign()
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
+		case OpPostAssign:
+			m.incrCPU(OpCPUPostAssign)
+			m.doOpPostAssign()
 		case OpAddAssign:
 			m.incrCPU(OpCPUAddAssign)
 			m.doOpAddAssign()

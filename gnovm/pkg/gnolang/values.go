@@ -518,6 +518,19 @@ type Captured struct {
 	values []TypedValue
 }
 
+func (c *Captured) String() {
+	var s string
+	s += "\n"
+	for i, n := range c.names {
+		s += fmt.Sprintf("name[%d] is: %s: \n", i, n)
+	}
+	for i, v := range c.values {
+		s += fmt.Sprintf("value[%d] is: %v: \n", i, v)
+	}
+	s += "\n"
+	fmt.Println(s)
+}
+
 // ----------------------------------------
 // FuncValue
 
@@ -545,6 +558,12 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+}
+
+func (fv *FuncValue) dump() {
+	if debugPP {
+		fmt.Printf("funcValue, name: %s, captures: %s \n", fv.Name, fv.Captures)
+	}
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -2333,9 +2352,9 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	debug.Printf("-----GetPointerToInt, index: %d \n", index)
-	debug.Printf("b: %v \n", b)
-	debug.Printf("len of values: %v \n", len(b.Values))
+	debugPP.Printf("-----GetPointerToInt, index: %d \n", index)
+	debugPP.Printf("b: %v \n", b)
+	debugPP.Printf("len of values: %v \n", len(b.Values))
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2345,8 +2364,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	debug.Printf("-----GetPointerTo, path : %v\n", path)
-	debug.Printf("b: %v \n", b)
+	debugPP.Printf("-----GetPointerTo, path : %v\n", path)
+	debugPP.Printf("b: %v \n", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {

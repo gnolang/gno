@@ -438,10 +438,14 @@ EXEC_SWITCH:
 	// TODO: add case log for debug
 	switch cs := s.(type) {
 	case *AssignStmt:
-		debug.Println("-----AssignStmt")
+		debugPP.Printf("-----AssignStmt: %v \n", cs)
 		switch cs.Op {
 		case ASSIGN:
+			// post assign, use value of lhs to update captured value, name as ID
+			//m.PushOp(OpPostAssign)
 			m.PushOp(OpAssign)
+			// pre assign, check rhs is funcLitExpr
+			//m.PushOp(OpPreAssign)
 		case ADD_ASSIGN:
 			m.PushOp(OpAddAssign)
 		case SUB_ASSIGN:
@@ -479,6 +483,8 @@ EXEC_SWITCH:
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
+		m.PushOp(OpPreAssign)
+
 		if cs.Op != DEFINE {
 			// For each Lhs, push eval operation if needed.
 			for i := len(cs.Lhs) - 1; 0 <= i; i-- {

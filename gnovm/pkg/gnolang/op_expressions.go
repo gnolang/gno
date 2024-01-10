@@ -677,10 +677,6 @@ func (m *Machine) doOpStructLit() {
 	})
 }
 
-type closureObject struct {
-	data map[string]interface{}
-}
-
 func (m *Machine) doOpPreFuncLit() {
 	debugPP.Println("-----doOpPreFuncLit")
 	x := m.PeekExpr(1).(*FuncLitExpr)
@@ -730,10 +726,19 @@ func (m *Machine) doOpFuncLit() {
 		for _, cnx := range x.Closure.cnxs {
 			debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
 			v := *m.PopValue()
-			if !v.IsUndefined() { // e.g. args of func. forward
+			debugPP.Printf("v got is: %v \n", v)
+
+			//c := *m.PopValue()
+			//debugPP.Printf("---c is: %v \n", c)
+
+			if !v.IsUndefined() { // e.g. args of func. forward // TODO: consider this
+				//if v.V != nil { // TODO: consider this, this only happens when recursive closure
 				debugPP.Printf("capturing v: %v \n", v)
+				debugPP.Printf("captured before update: \n %s \n", captured)
 				captured.names = append(captured.names, cnx.nx.Name)
 				captured.values = append(captured.values, v)
+				debugPP.Printf("captured after update: \n %s \n", captured)
+				//}
 			} else {
 				debugPP.Println("undefined, skip")
 			}
@@ -745,19 +750,26 @@ func (m *Machine) doOpFuncLit() {
 
 	m.Alloc.AllocateFunc()
 
+	fv := &FuncValue{
+		Type:       ft,
+		IsMethod:   false,
+		Source:     x,
+		Name:       "",
+		Closure:    lb,
+		Captures:   captured,
+		PkgPath:    m.Package.PkgPath,
+		body:       x.Body,
+		nativeBody: nil,
+	}
+
+	debugPP.Printf("fv is:------")
+	fv.dump()
+	debugPP.Printf("fv.captures is: %v \n", fv.Captures)
+	debugPP.Printf("fv.address is: %p \n", fv)
+
 	m.PushValue(TypedValue{
 		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			Captures:   captured,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
-		}})
+		V: fv})
 }
 
 func (m *Machine) doOpConvert() {

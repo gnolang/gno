@@ -106,17 +106,91 @@ const (
 	TRANS_FILE_BODY
 )
 
+// rules of closure capture
+// closure captures namedExprs(nx)
+// closure captures nx when:
+// 1. defined outside the closure block, which implies nxs defined inside do not need to be captured,
+//    it's evaluated naturally.
+// 2. nx defined outside closure block are not all captured. it's captured only when it's volatile
+//    e.g. a nx if mutated when the outside block is rangeStmt, for stmt, which dynamically
+//    mutating the target nx. namely, any case you can not get a final value of the nx, you should
+//    capture it. any time it's deemed final, no need to capture.
+
+// FLOW:
+// 1. start capture work when peeking funcLitExpr
+// 2. do the capture work when traversing to nameExpr, check `hasClosure` to determine if capture needed
+// 3. exclude any nxs that is not eligible:
+//    a. defined locally
+//    this is something tricky
+//    one method is to give every nx an absolute level，so any nx can be compared by the `level`
+//    with the level of the closure block to determine if it's defined inside or outside of the
+//    closure block.
+//    a second method is by checking the operators of `define` and `assign`, to filter out locally
+//    defined nxs. TODO: is it doable?
+//    ###whitelist is a collect of names to be whitelisted while capturing nxs, it contains:
+//    1. params and results of funcLitExpr,
+//    2. LHS of := and =
+//    3. how about RHS? rhs can be either literals, or nxs(locally or not), it is defined locally,
+//       it's bypassed by rule2. if is not local, capture it. so what we need is LHS.
+//    FLOW of whitelist:
+//    everytime encounter assign(assignStmt, init of if/range/for/switch stmt), push the whitelist
+//    map with key of operator(define, assign), with value of assignStruct
+//    while in traversing nx, first peek operator, the `check` the corresponding nx according to the
+//    proper num set previously, the number should be counted, if counts to `num`, pop the operator,
+//    implies an end for a assign/define stmt.
+//    what the `check` does is to put the name of nx into the names, which is used to filter nxs.
+
+//		b. final nx. TODO: this left a todo
+//       it's can be done by traversing parent blocks, similar as `hasClosure`, to determine if there
+//       is volatile blocks outside
+
 var CX *ClosureContext
 
 func init() {
-	CX = &ClosureContext{localNx: make(map[Name]bool)}
+	CX = &ClosureContext{whitelist: make(map[Name]bool)}
+}
+
+// AssignOperand is metadata to describe how much (left)nxs is related to an assign/define operator
+type AssignOperand struct {
+	num     int // num of lhs
+	counter int // counter increased every time checked in traversing nx, if counter == num, mean it's resolved, and pop operator
+}
+
+func (ao *AssignOperand) String() string {
+	var s string
+	s += fmt.Sprintf("assign operand num: %d \n", ao.num)
+	s += fmt.Sprintf("assign operand counter: %d \n", ao.counter)
+	return s
+}
+
+type CNode struct {
+	name Name
+	n    Node
 }
 
 type ClosureContext struct {
 	closures []*Closure
 	nodes    []Node
-	ops      []Word
-	localNx  map[Name]bool
+	ops      []Word           // assign/define related logic
+	operands []*AssignOperand // assign/define related logic, per operator, e.g. a, b := 0, 1
+	//rc        []*RecursiveContext // detect cyclic, to find recursive closure, could converge with `nodes`
+	whitelist map[Name]bool // use to filter out nxs
+}
+
+func (cx *ClosureContext) clearWhiteList() {
+	debugPP.Println("clear whitelist")
+	cx.whitelist = make(map[Name]bool)
+	//cx.popOp()
+	//cx.popOperand()
+}
+
+func (cx *ClosureContext) dumpWhitelist() string {
+	var s string
+	s += "===whitelist=== \n"
+	for n, _ := range cx.whitelist {
+		s += fmt.Sprintf("name is: %v \n", n)
+	}
+	return s
 }
 
 func (cx *ClosureContext) pushOp(op Word) {
@@ -129,7 +203,7 @@ func (cx *ClosureContext) popOp() {
 	}
 }
 
-func (cx *ClosureContext) currentOp() Word {
+func (cx *ClosureContext) peekOp() Word {
 	if len(cx.ops) != 0 {
 		return cx.ops[len(cx.ops)-1]
 	} else {
@@ -137,20 +211,58 @@ func (cx *ClosureContext) currentOp() Word {
 	}
 }
 
+func (cx *ClosureContext) popOperand() {
+	if len(cx.operands) != 0 {
+		cx.operands = cx.operands[:len(cx.operands)-1]
+	}
+}
+
+func (cx *ClosureContext) peekOperand() *AssignOperand {
+	if len(cx.operands) != 0 {
+		return cx.operands[len(cx.operands)-1]
+	} else {
+		return nil
+	}
+}
+
+func (cx *ClosureContext) dumpOps() string {
+	var s string
+	s += "\n"
+	for _, o := range cx.ops {
+		s += fmt.Sprintf("op: %v \n", o)
+	}
+	return s
+}
+
+// 1. has funcLitExpr
+// 2. it's embedded in another volatile block, for/range stmt
+// 2. no recursive closure(not support for now)
 func (cx *ClosureContext) hasClosure() bool {
-	for _, c := range cx.nodes {
-		if _, ok := c.(*FuncLitExpr); ok {
+	for _, cn := range cx.nodes {
+		if _, ok := cn.(*FuncLitExpr); ok {
 			return true
 		}
 		//else if _, ok := c.(*FuncDecl); ok {
 		//	return true
 		//}
 	}
+
+	// detect cyclic
+	// 1. encounter a nx, its type is funcLitExpr, name it t; how to get it?
+	// 2. compare t with parent node type, could be direct ancestor, or indirect
+	//    namely, if two(or more) same funcLitExpr appears in stack, have cyclic
+	// which implies !hasClosure
+
 	return false
 }
 
 func (cx *ClosureContext) push(n Node) bool {
+	// push nodes stack
+	//cn := &CNode{
+	//	n: n,
+	//}
 	cx.nodes = append(cx.nodes, n)
+	// push closure
 	if cx.hasClosure() {
 		debug.Println("+clo")
 		debug.Println("before push closure")
@@ -178,7 +290,7 @@ func (cx *ClosureContext) pop(copy bool) *Closure {
 		return nil
 	} else {
 		if len(cx.closures) == 1 { // last one, clean context
-			cx.localNx = make(map[Name]bool)
+			cx.whitelist = make(map[Name]bool)
 		}
 		c := cx.closures[len(cx.closures)-1] // get current
 		for _, cnx := range c.cnxs {         // pop-> increase offset
@@ -253,8 +365,9 @@ func (cnx *CapturedNx) String() string {
 
 // captured NameExpr
 type Closure struct {
-	names []Name
-	cnxs  []*CapturedNx
+	names     []Name
+	cnxs      []*CapturedNx
+	recursive bool
 }
 
 func (c *Closure) String() string {
@@ -329,31 +442,44 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	switch cnn := nn.(type) {
 	case *NameExpr:
 		debugPP.Printf("-----trans, nameExpr: %v \n", cnn)
-		// TODO: do we need to filter out already define in current block
-
 		if CX.hasClosure() {
-			debugPP.Println("---has Closure")
-			debugPP.Println("---currentOp: ", CX.currentOp())
-			// always recording
-			if CX.currentOp() == DEFINE || CX.currentOp() == ASSIGN {
-				// record local defined
-				CX.localNx[cnn.Name] = true
-			} // if nested closure, do not copy!
-
-			currentClo := CX.currentClosure()
-			debugPP.Printf("currentClo: %v \n", currentClo)
-			if currentClo != nil { // a closure to fill
-				//if cnn.Path.Depth < 1 { // if local defined, no capture
-				if !CX.localNx[cnn.Name] {
+			debugPP.Printf("---has Closure, check: %v \n", cnn)
+			debugPP.Println("---currentOp: ", CX.peekOp())
+			debugPP.Println("---dump ops: ", CX.dumpOps())
+			// recording names defined in closure as a whitelist
+			if CX.peekOp() == DEFINE || CX.peekOp() == ASSIGN {
+				ao := CX.peekOperand()
+				if ao != nil { // staff to do
+					debugPP.Printf("ao is: %v \n", ao)
+					// in scope of define/assign op, record to whitelist
+					ao.counter += 1
+					// add nx to whitelist until resolved
+					CX.whitelist[cnn.Name] = true
+					debugPP.Println(CX.dumpWhitelist())
+					if ao.counter == ao.num { // all resolved
+						//CX.clearWhiteList()
+						CX.popOp()
+						CX.popOperand()
+					}
+				}
+			}
+			// capture logic
+			// not exist in whitelist, capture
+			if _, ok := CX.whitelist[cnn.Name]; !ok {
+				debugPP.Printf("nx need capture: %s \n", string(cnn.Name))
+				currentClo := CX.currentClosure()
+				debugPP.Printf("currentClo: %v \n", currentClo)
+				if currentClo != nil { // a closure to fill
+					//if cnn.Path.Depth < 1 { // if local defined, no capture
 					debugPP.Printf("---capture: %v \n", cnn)
 					cnx := CapturedNx{
 						nx:     cnn,
 						offset: 0,
 					}
 					currentClo.Fill(cnx)
+					CX.dumpClosures()
+					//CX.dumpNodes()
 				}
-				CX.dumpClosures()
-				//CX.dumpNodes()
 			}
 		}
 	case *BasicLitExpr:
@@ -483,12 +609,18 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FuncLitExpr)
 		}
-
-		debug.Println("---start trans funcLit body stmt, push initial closure and fx")
+		// TODO: get all param and result names to filter out captured nxs
+		// whitelist
+		for i, n := range cnn.Names {
+			debugPP.Printf("name[%d] in staticBlock is: %s \n", i, string(n))
+			// put in whitelist, which is per traverse
+			CX.whitelist[n] = true
+		}
+		debugPP.Println("---start trans funcLit body stmt, push initial closure and fx")
 		pushed := CX.push(cnn)
 		//var pushed bool
 
-		debug.Printf("---stop or skip, pop and return \n")
+		debugPP.Printf("---stop or skip, pop and return \n")
 		node := CX.peekNodes(1)
 		isCopy := true
 		if _, ok := node.(*FuncLitExpr); ok {
@@ -508,15 +640,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 		// defer pop
-		debug.Printf("---done trans body \n")
+		debugPP.Printf("---done trans body \n")
 		// TODO: set fx.Closure, and level as well
-		debug.Println("funcLit pop c-----")
+		debugPP.Println("funcLit pop c-----")
 
 		if pushed {
 			pc := CX.pop(isCopy)
 			if pc != nil {
 				cnn.SetClosure(pc)
-				debug.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", cnn, cnn.Closure.String())
+				debugPP.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", cnn, cnn.Closure.String())
 			}
 		}
 	case *FieldTypeExpr:
@@ -599,8 +731,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *AssignStmt:
-		if cnn.Op == DEFINE {
-			CX.pushOp(cnn.Op)
+		debugPP.Printf("---assignStmt: %v \n", cnn)
+		if CX.hasClosure() {
+			debugPP.Println("---push op and operands")
+			// push op(assign/define) and operands
+			CX.ops = append(CX.ops, cnn.Op)
+			ao := &AssignOperand{}
+			ao.num = len(cnn.Lhs)
+			CX.operands = append(CX.operands, ao)
 		}
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
@@ -618,7 +756,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		CX.popOp()
 	case *BlockStmt:
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
@@ -674,6 +811,8 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn = cnn2.(*ForStmt)
 		}
 
+		pushed := CX.push(cnn)
+
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_FOR_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
@@ -692,8 +831,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-
-		pushed := CX.push(cnn)
 
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)
@@ -727,6 +864,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn = cnn2.(*IfStmt)
 		}
 
+		pushed := CX.push(cnn)
+
+		// nx in init is always treat defined locally
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_IF_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
@@ -738,7 +878,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 
-		pushed := CX.push(cnn)
 		cnn.Then = *transcribe(t, nns, TRANS_IF_BODY, 0, &cnn.Then, &c).(*IfCaseStmt)
 		if isStopOrSkip(nc, c) {
 			return
@@ -777,6 +916,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *RangeStmt:
+		debugPP.Printf("---range stmt: %v \n", cnn)
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -784,33 +924,44 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*RangeStmt)
 		}
+
+		pushed := CX.push(cnn)
+
 		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
-			//if pushed {
-			//	CX.pop(true)
-			//}
+			if pushed {
+				CX.pop(true)
+			}
 			return
 		}
 
+		if CX.hasClosure() { // TODO: do we need this?
+			debugPP.Println("---push op and operands")
+			// push op(assign/define) and operands
+			CX.ops = append(CX.ops, cnn.Op)
+			ao := &AssignOperand{}
+			ao.num = 2 // key, value
+			CX.operands = append(CX.operands, ao)
+		}
 		if cnn.Key != nil {
 			cnn.Key = transcribe(t, nns, TRANS_RANGE_KEY, 0, cnn.Key, &c).(Expr)
 			if isStopOrSkip(nc, c) {
-				//if pushed {
-				//	CX.pop(true)
-				//}
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
 		if cnn.Value != nil {
 			cnn.Value = transcribe(t, nns, TRANS_RANGE_VALUE, 0, cnn.Value, &c).(Expr)
 			if isStopOrSkip(nc, c) {
-				//if pushed {
-				//	CX.pop(true)
-				//}
+				if pushed {
+					CX.pop(true)
+				}
 				return
 			}
 		}
-		pushed := CX.push(cnn)
+
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_RANGE_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
@@ -883,6 +1034,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *SwitchStmt:
+		debugPP.Printf("---switchStmt: %v \n", cnn)
 		// NOTE: unlike the select case, and like if stmts, both
 		// switch statements AND contained cases visit with the
 		// TRANS_BLOCK stage, even though during runtime only one
@@ -894,7 +1046,15 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*SwitchStmt)
 		}
+
+		if cnn.IsTypeSwitch {
+			debugPP.Printf("is type switch, init is :%v \n", cnn.Init)
+			debugPP.Printf("is type switch, X is :%v \n", cnn.X)
+			debugPP.Printf("is type switch, varName is :%v \n", cnn.VarName)
+			CX.whitelist[cnn.VarName] = true
+		}
 		pushed := CX.push(cnn)
+
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_SWITCH_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {
@@ -1001,7 +1161,16 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *ImportDecl:
 		// nothing to do
 	case *ValueDecl:
-		CX.pushOp(ASSIGN)
+		debugPP.Println("---value decl")
+		if CX.hasClosure() {
+			debugPP.Println("---push op and operands")
+			// push op(assign/define) and operands
+			CX.ops = append(CX.ops, ASSIGN)
+			ao := &AssignOperand{}
+			ao.num = len(cnn.NameExprs)
+			CX.operands = append(CX.operands, ao)
+		}
+
 		if cnn.Type != nil {
 			cnn.Type = transcribe(t, nns, TRANS_VAR_TYPE, 0, cnn.Type, &c).(Expr)
 			if isStopOrSkip(nc, c) {
