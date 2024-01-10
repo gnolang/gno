@@ -143,7 +143,7 @@ function! s:on_lsp_buffer_enabled() abort
     setlocal omnifunc=lsp#complete
     " Format on save
     autocmd BufWritePre <buffer> LspDocumentFormatSync
-    " Some optionnal mappings
+    " Some optional mappings
     nmap <buffer> <leader>i <Plug>(lsp-hover) 
     " Following mappings are not supported yet by gnols
     " nmap <buffer> gd <plug>(lsp-definition)     
