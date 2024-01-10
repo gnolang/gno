@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	// TODO: set this to the address of the gnorkle agent that is authorized to submit verification tasks.
 	authorizedAgentAddress string = ""
 	verified                      = "OK"
 )
@@ -26,6 +27,9 @@ func init() {
 	gnorkleInstance = agent.Init(std.GetOrigCaller())
 }
 
+// This is a callback function that is invoked at the end of the GnorkleAgentSubmitAction execution.
+// It only cares about submissions because we want to save the result of the verification and clean
+// up the finished task.
 func updateVerifiedGHData(function string, task agent.Task) {
 	if function != agent.FunctionSubmit {
 		return
@@ -50,12 +54,21 @@ func updateVerifiedGHData(function string, task agent.Task) {
 
 	// It's been verified so clean it up.
 	gnorkleInstance.RemoveTask(task.ID())
+
+	// TODO: should it also clean up tasks that failed to verify?
 }
 
+// This is called by the gnorkle agent. The payload contains a function and optional data.
+// In the case of this contract, it should only be called with payloads of:
+//   - request (returns all verification tasks in the queue)
+//   - submit,<id>,<data> (submits a verification result for the given task id where data is "OK" or not)
 func GnorkleAgentSubmitAction(payload string) string {
 	return gnorkleInstance.HandleRequest(payload, updateVerifiedGHData)
 }
 
+// RequestVerification will request that the gnorkle agent verify the given handle/address pair.
+// A new tasks is created to be processed by the agent and verify there is a github repo of
+// github.com/<handle>/gno-verification with a file "address.txt" that contains the given address.
 func RequestVerification(handle, address string) {
 	if address == "" {
 		address = string(std.GetOrigCaller())
@@ -70,6 +83,7 @@ func RequestVerification(handle, address string) {
 	)
 }
 
+// Render will return all of the verified handle -> gno address pairs.
 func Render(_ string) string {
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
