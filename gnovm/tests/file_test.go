@@ -53,8 +53,8 @@ func TestTypes2(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	baseDir := filepath.Join(".", "files/debug")
-	runFileTests(t, baseDir, nil)
+	baseDir := filepath.Join(".", "debug")
+	runFileTests(t, baseDir, []string{"*_native*"})
 }
 
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {

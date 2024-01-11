@@ -1146,49 +1146,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						debugPP.Printf("---callExpr, arg is binary expr, bx: %v \n", arg0)
 						ct := evalStaticType(store, last, n.Func)
 						debugPP.Printf("ct: %v \n", ct)
-
 						switch arg0.Op {
 						case EQL, NEQ, LSS, GTR, LEQ, GEQ:
 							break // quick forward
 						default:
 							checkOrConvertType(store, last, &n.Args[0], ct, false, true)
 						}
-
-						//xt := n.GetAttribute(ATTR_TYPEOF_VALUE)
-						//debugPP.Printf("pt: %v \n", xt)
-						//
-						//ct := evalStaticType(store, last, n.Func)
-						//debugPP.Printf("ct: %v \n", ct)
-						//
-						//if ppt, ok := xt.(Type); ok {
-						//	if cct, ok := ct.(Type); ok {
-						//		if ppt.TypeID() == cct.TypeID() {
-						//			debugPP.Printf("---------equal, avoid reentry: %v \n", ct)
-						//			//n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						//			//return n, TRANS_CONTINUE
-						//			break
-						//		}
-						//	}
-						//}
 					case *UnaryExpr:
 						debugPP.Printf("---callExpr, arg is unary expr, bx: %v \n", arg0)
-
-						//xt := n.GetAttribute(ATTR_TYPEOF_VALUE)
-						//debugPP.Printf("pt: %v \n", xt)
-						//
 						ct := evalStaticType(store, last, n.Func)
 						debugPP.Printf("ct: %v \n", ct)
-						//
-						//if ppt, ok := xt.(Type); ok {
-						//	if cct, ok := ct.(Type); ok {
-						//		if ppt.TypeID() == cct.TypeID() {
-						//			debugPP.Printf("---------equal, avoid reentry: %v \n", ct)
-						//			//n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						//			//return n, TRANS_CONTINUE
-						//			break
-						//		}
-						//	}
-						//}
 						checkOrConvertType(store, last, &n.Args[0], ct, false, true)
 					default:
 						// do nothing
@@ -2577,7 +2544,7 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerType()
 // TODO: replace all ConvertConst with this
-// TODO: more doc
+// TODO: more docs
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool, coerce bool) {
 	debugPP.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	if cx, ok := (*x).(*ConstExpr); ok {
@@ -2598,19 +2565,22 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				t = xt // xt maybe typed while assign, with t is the type of LHS
 			}
 		}
+		// deal with binary expr(bx.Left), determine its type
 		if coerce { // mostly when explicitly conversion, type call, while arg is binary expr
 			checkOp(store, last, &bx.Left, t, bx.Op, Binary) // left is the target operand
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-		} else if !coerce && isUntyped(xt) { // assign, func call(param)
-			if _, ok := t.(*InterfaceType); !ok { // TODO: consider this
+		} else if !coerce && isUntyped(xt) { // not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
+			// TODO: consider this: one example for interface type, println(x), where target t is interface
+			// can this special case expanded?
+			if _, ok := t.(*InterfaceType); !ok {
 				checkOp(store, last, &bx.Left, t, bx.Op, Binary)
 				// "push" expected type into shift binary's left operand.
 				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 			} else {
-				checkConvertible(xt, t, false)
+				// checkConvertible(xt, t, false) // XXX, seems unreachable
 			}
-		} else {
+		} else { // not coerce, xt is typed. refer to 10a17b1, param is typed, check convertable
 			checkConvertible(xt, t, false)
 		}
 
@@ -2668,35 +2638,15 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					checkOp(store, last, &bx.Right, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Right, t, autoNative, coerce)
 					return
-				//case SHL, SHR: // is this duplicated?
-				//	debugPP.Printf("xt not nil, shift, Op: %v, t: %v, t.kind: %v \n", bx.Op, t, t.Kind())
-				//	// push t into bx.Left
-				//	if coerce {
-				//		checkOp(store, last, &bx.Left, t, bx.Op, Binary)
-				//		// "push" expected type into shift binary's left operand.
-				//		checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-				//	} else if !coerce && isUntyped(xt) {
-				//		if _, ok := t.(*InterfaceType); !ok { // concrete type
-				//			checkOp(store, last, &bx.Left, t, bx.Op, Binary)
-				//			// "push" expected type into shift binary's left operand.
-				//			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-				//		} else {
-				//			checkConvertible(xt, t, false)
-				//		}
-				//	} else {
-				//		checkConvertible(xt, t, false)
-				//	}
-				//	return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
 					// nothing to do, quick forward
 					debugPP.Printf("compare, bx: %v, op: %v \n", bx, bx.Op)
 				default:
-					//
+					// do nothing
 				}
 			}
 			// general case
 			cx := Expr(Call(constType(nil, t), *x))
-			// cx.SetAttribute(ATTR_TYPEOF_VALUE, t) // as a flag for processor
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
 		}
@@ -2888,7 +2838,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-// TODO: name. convertible is for value, not type, should be check assignable?
+// TODO: proper name
 func checkConvertible(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
 	debugPP.Printf("checkConvertible, xt: %v, dt: %v \n", xt, dt)
 	if xt == nil || dt == nil { // refer to 0f18_filetest, assign8.gno

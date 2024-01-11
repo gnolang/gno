@@ -2423,13 +2423,13 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 	}
 }
 
-// check if xt can be converted to dt, conversionNeeded indicates further conversion needed from unnamed -> named
+// check if xt can be assigned to dt, conversionNeeded indicates further conversion needed from unnamed -> named
 // case 1. untyped const to typed const with same kind
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general convert, for composite types check
 // XXX. the name of assignable should be considered, or convertable?
-// they have same function but implies different application scenarios
+// seems they have same function but implies different application scenarios
 func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	debugPP.Printf("assignable, xt: %v dt: %v \n", xt, dt)
 	// case3
@@ -2438,7 +2438,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	if dt.Kind() == InterfaceKind {
 		debugPP.Println("dt is interface")
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
-			if idt.IsEmptyInterface() {
+			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				debugPP.Println("dt is empty interface")
 				// if dt is an empty Gno interface, any x ok.
 				return // ok
@@ -2446,7 +2446,7 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
-			} else if iot, ok := xt.(*InterfaceType); ok { // case 0f38_stdlibs_filetest.gno
+			} else if iot, ok := xt.(*InterfaceType); ok { // XXX. case 0f38_stdlibs_filetest.gno
 				debugPP.Println("xt is empty interface: ", iot)
 				if iot.IsEmptyInterface() {
 					return // ok
