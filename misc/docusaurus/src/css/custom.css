@@ -81,7 +81,7 @@ pre code {
   box-shadow: var(--ring-offset-shadow, 0 0 #0000), var(--ring-shadow, 0 0 #0000), var(--shadow);
 }
 
-body nav[class*="navbarHidden_node_modules"] {
+body nav[class*="navbarHidden"] {
   transform: translate3d(0, calc(-100% - 2px - 1rem), 0) !important;
 }
 
