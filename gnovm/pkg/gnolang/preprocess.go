@@ -2784,7 +2784,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 			} else {
 				// two steps of check:
 				// first, check is the dt type satisfies op, the switch logic
-				// second, xt can be converted to dt, this is done below this
+				// second, xt can be converted to dt, this is done after checkOp, in checkOrConvert stage
 				// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
 				if pred, ok := binaryPredicates[op]; ok {
 					if !pred(dt) {

@@ -2353,13 +2353,17 @@ func assertEqualityTypes(lt, rt Type) {
 }
 
 // maybeIdenticalType is more relaxed than isIdentical, it's used in preprocess.
-// The logic here is, when != or == shows up, check if t is maybeIdenticalType, if yes,
+// The logic here is, when != or == shows up, check if `dt` is maybeIdenticalType(TODO: a better name
+// indicates operand with dt can be used as with == or !=). if this check pass,
 // then check the corresponding type(the other side of the operator) is convertable to t.
+// this is located in checkOrConvertType->checkConvertable stage.
+// so, checkOp is working as a pre-check.
+// TODO: just panic
 func maybeIdenticalType(xt, dt Type) (bool, string) {
 	debugPP.Printf("---check maybeIdenticalType---, xt: %v, dt: %v \n", xt, dt)
 	// primitive is maybeIdenticalType
 	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType: // TODO: more strict when both typed primitive
+	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage
 		debugPP.Println("primitive type, return true, fallthrough")
 		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
