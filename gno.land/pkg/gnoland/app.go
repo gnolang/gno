@@ -80,10 +80,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.SkipFailingGenesisTxs))
 
 	// Set AnteHandler
-	vmah := vm.NewAnteHandler(vmKpr)
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: false, // for development
-		AnteHandlerChain:        []sdk.AnteHandler{vmah},
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)

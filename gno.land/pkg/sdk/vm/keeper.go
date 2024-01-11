@@ -136,7 +136,7 @@ const (
 )
 
 // AddPackage adds a package with given fileset.
-func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
+func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
@@ -172,7 +172,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// - check if caller is in Admins or Editors.
 	// - check if namespace is not in pause.
 
-	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
+	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
 	}
@@ -201,13 +201,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
-				r, m2.String())
-			  consumeGas(ctx, m2, logPrefixAddPkg, pkgPath, "")
-			  return
+					r, m2.String())
+				consumeGas(ctx, m2, logPrefixAddPkg, pkgPath, "")
+				m2.Release()
+				return
 			}
 		}
 		m2.Release()
@@ -290,12 +291,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
 					r, m.String())
 				consumeGas(ctx, m, logPrefixCall, pkgPath, fnc)
+				m.Release()
 				return
 			}
 		}
@@ -364,12 +366,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
 					r, m.String())
 				consumeGas(ctx, m, logPrefixRun, pkgPath, "add_main")
+				m.Release()
 				return
 			}
 		}
@@ -392,12 +395,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
 					r, m2.String())
 				consumeGas(ctx, m2, logPrefixRun, pkgPath, "main")
+				m2.Release()
 				return
 			}
 		}
@@ -513,12 +517,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 					r, m.String())
 				consumeGas(ctx, m, logPrefixQeval, pkgPath, expr)
+				m.Release()
 				return
 			}
 		}
@@ -580,12 +585,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:  // panic in consumeGas()
+			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 					r, m.String())
 				consumeGas(ctx, m, logPrefixQevalStr, pkgPath, expr)
+				m.Release()
 				return
 			}
 		}
