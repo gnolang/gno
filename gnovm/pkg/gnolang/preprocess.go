@@ -2571,14 +2571,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 		} else if !coerce && isUntyped(xt) { // not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
-			// TODO: consider this: one example for interface type, println(x), where target t is interface
-			// can this special case expanded?
-			if _, ok := t.(*InterfaceType); !ok {
+			// dt not interface type
+			if _, ok := t.(*InterfaceType); !ok { // t could be nil in case of assignStmt and lhs is untyped, pass nil
 				checkOp(store, last, &bx.Left, t, bx.Op, Binary)
 				// "push" expected type into shift binary's left operand.
 				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 			} else {
-				// checkConvertible(xt, t, false) // XXX, seems unreachable
+				checkConvertible(xt, t, false) // XXX, left is interface, refer to 0_a_2.gno, 0_a_3.gno
 			}
 		} else { // not coerce, xt is typed. refer to 10a17b1, param is typed, check convertable
 			checkConvertible(xt, t, false)

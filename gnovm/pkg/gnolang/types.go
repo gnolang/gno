@@ -2263,7 +2263,7 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		//panic("panic assertSameTypes")
+		// panic("panic assertSameTypes")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
