@@ -90,7 +90,7 @@ coins, block height, etc. can be mocked.
 
 ## Manipulating blockchain context in tests
 Some functions in the `std` package are exclusively accessible in `_test.gno`
-and `_filetest.gno` files. These are located in the `std` package, and heir primary role
+and `_filetest.gno` files. These are located in the `std` package, and their primary role
 is to alter the blockchain context for test runs.
 
 For detailed information on these functions, refer to their [reference page](../reference/standard-library/std/testing.md).
