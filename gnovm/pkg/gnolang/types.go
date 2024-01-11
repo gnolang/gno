@@ -2244,6 +2244,7 @@ func KindOf(t Type) Kind {
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
+// TODO: consider use mayeIdenticalType and isIdentical instead
 func assertSameTypes(lt, rt Type) {
 	debugPP.Println("assert same types")
 	if lt == nil && rt == nil {
@@ -2262,7 +2263,7 @@ func assertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		panic("panic assertSameTypes")
+		//panic("panic assertSameTypes")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -2271,10 +2272,10 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
+// only used in runtime. this assume all operands are typed after prerocess and doOpConvert
+// TODO: consider. is untyped 100% excluded? this is major difference from assertSameTypes
 // both typed, or one is nil, or data byte(special case)
-// only for runtime type checks, op_binary
 // any implicit identical check is in preprocess stage and excluded from here
-// TODO: is untyped 100% excluded? this is major difference from assertSameTypes
 func isIdenticalType(lt, rt Type) bool {
 	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
@@ -2298,7 +2299,7 @@ func isIdenticalType(lt, rt Type) bool {
 		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
-		//} else if lt.Kind() == rt.Kind() && // TODO: this should not be right. keep untyped, there would be runtime untyped, e.g. `hello`[1:0] will create a runtime untype string, and
+		//} else if lt.Kind() == rt.Kind() &&
 		//	isUntyped(lt) || isUntyped(rt) {
 		//	// one is untyped of same kind.
 	} else if lt.Kind() == rt.Kind() &&
