@@ -483,7 +483,7 @@ EXEC_SWITCH:
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
-		m.PushOp(OpPreAssign)
+		//m.PushOp(OpPreAssign)
 
 		if cs.Op != DEFINE {
 			// For each Lhs, push eval operation if needed.

@@ -62,10 +62,10 @@ func (m *Machine) doOpCall() {
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
-	debugPP.Printf("fv is:---")
-	fv.dump()
-	debugPP.Printf("fv.captures is: %v \n", fv.Captures)
-	debugPP.Printf("fv.address is: %p \n", fv)
+	//debugPP.Printf("fv is:---")
+	//fv.dump()
+	//debugPP.Printf("fv.captures is: %v \n", fv.Captures)
+	//debugPP.Printf("fv.address is: %p \n", fv)
 
 	clo := fr.Func.GetClosure(m.Store)
 	debugPP.Printf("-----got closure: %v ----- \n", clo)

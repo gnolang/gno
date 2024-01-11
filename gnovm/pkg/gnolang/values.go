@@ -2352,6 +2352,11 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		debugPP.Printf("r: %v \n", r)
+	//	}
+	//}()
 	debugPP.Printf("-----GetPointerToInt, index: %d \n", index)
 	debugPP.Printf("b: %v \n", b)
 	debugPP.Printf("len of values: %v \n", len(b.Values))

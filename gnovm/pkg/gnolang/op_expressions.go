@@ -87,6 +87,7 @@ func (m *Machine) doOpSelector() {
 }
 
 func (m *Machine) doOpSlice() {
+	debugPP.Println("-----doOpSlice")
 	sx := m.PopExpr().(*SliceExpr)
 	var low, high, max int = -1, -1, -1
 	// max
@@ -105,6 +106,7 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	debugPP.Printf("---xv: %v \n", xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
@@ -715,6 +717,14 @@ func (m *Machine) doOpPreFuncLit() {
 	}
 }
 
+func isZeroArray(arr [8]byte) bool {
+	for _, v := range arr {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
 func (m *Machine) doOpFuncLit() {
 	debugPP.Println("-----doOpFuncLit")
 	x := m.PopExpr().(*FuncLitExpr)
@@ -725,19 +735,31 @@ func (m *Machine) doOpFuncLit() {
 	if x.Closure != nil {
 		for _, cnx := range x.Closure.cnxs {
 			debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
-			v := *m.PopValue()
-			debugPP.Printf("v got is: %v \n", v)
+			tv := *m.PopValue()
+			debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
 
 			//c := *m.PopValue()
 			//debugPP.Printf("---c is: %v \n", c)
 
-			if !v.IsUndefined() { // e.g. args of func. forward // TODO: consider this
-				//if v.V != nil { // TODO: consider this, this only happens when recursive closure
-				debugPP.Printf("capturing v: %v \n", v)
-				debugPP.Printf("captured before update: \n %s \n", captured)
-				captured.names = append(captured.names, cnx.nx.Name)
-				captured.values = append(captured.values, v)
-				debugPP.Printf("captured after update: \n %s \n", captured)
+			if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
+				pass := true
+				if _, ok := tv.T.(*FuncType); ok {
+					if tv.V == nil {
+						pass = false
+					}
+				} else {
+					if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
+						pass = false
+					}
+				}
+				if pass {
+					//if v.V != nil { // TODO: consider this, this only happens when recursive closure
+					debugPP.Printf("capturing v: %v \n", tv)
+					//debugPP.Printf("captured before update: \n %s \n", captured)
+					captured.names = append(captured.names, cnx.nx.Name)
+					captured.values = append(captured.values, tv)
+					//debugPP.Printf("captured after update: \n %s \n", captured)
+				}
 				//}
 			} else {
 				debugPP.Println("undefined, skip")
@@ -762,10 +784,10 @@ func (m *Machine) doOpFuncLit() {
 		nativeBody: nil,
 	}
 
-	debugPP.Printf("fv is:------")
-	fv.dump()
-	debugPP.Printf("fv.captures is: %v \n", fv.Captures)
-	debugPP.Printf("fv.address is: %p \n", fv)
+	//debugPP.Printf("fv is:------")
+	//fv.dump()
+	//debugPP.Printf("fv.captures is: %v \n", fv.Captures)
+	//debugPP.Printf("fv.address is: %p \n", fv)
 
 	m.PushValue(TypedValue{
 		T: ft,

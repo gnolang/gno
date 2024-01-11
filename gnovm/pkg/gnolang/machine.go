@@ -747,7 +747,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 // static types of nodes.
 func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
-		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
+		//m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {

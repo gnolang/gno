@@ -187,7 +187,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 		}()
 		if debug {
-			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			//debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
