@@ -46,7 +46,7 @@ func (t Task) ID() string {
 }
 
 func (t Task) MarshalJSON() ([]byte, error) {
-	if !t.isInactive {
+	if t.isInactive {
 		return nil, nil
 	}
 

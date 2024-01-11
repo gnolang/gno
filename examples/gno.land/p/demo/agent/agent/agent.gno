@@ -25,23 +25,31 @@ const (
 type PostRequestAction func(function string, task Task)
 
 func (i *Instance) HandleRequest(payload string, post PostRequestAction) string {
-	payloadParts := strings.SplitN(payload, ",", 1)
-	if len(payloadParts) != 2 {
-		panic("invalid agent payload")
+	payloadParts := strings.SplitN(payload, ",", 2)
+	if len(payloadParts) == 0 {
+		panic("invalid empty agent payload")
 	}
 
 	switch function := payloadParts[0]; function {
+	case FunctionRequest:
+		return i.RequestTasks()
 	case FunctionFinish:
+		if len(payloadParts) != 2 {
+			panic("invalid agent finish payload")
+		}
+
 		task := i.FinishTask(payloadParts[1])
 		if post != nil {
 			post(function, task)
 		}
-	case FunctionRequest:
-		return i.RequestTasks()
 	case FunctionSubmit:
-		submitArgs := strings.SplitN(payloadParts[1], ",", 1)
-		if len(submitArgs) != 2 {
+		if len(payloadParts) != 2 {
 			panic("invalid agent submission payload")
+		}
+
+		submitArgs := strings.SplitN(payloadParts[1], ",", 2)
+		if len(submitArgs) != 2 {
+			panic("invalid agent submission args")
 		}
 
 		task := i.SubmitTaskValue(submitArgs[0], submitArgs[1])
@@ -49,7 +57,7 @@ func (i *Instance) HandleRequest(payload string, post PostRequestAction) string 
 			post(function, task)
 		}
 	default:
-		panic("unknown function " + function)
+		panic("unknown agent payload function " + function)
 	}
 
 	return ""
@@ -69,12 +77,17 @@ func (i *Instance) RequestTasks() string {
 	buf := new(strings.Builder)
 	buf.WriteString("[")
 	first := true
+
 	i.tasks.Iterate("", "", func(_ string, value interface{}) bool {
 		if !first {
 			buf.WriteString(",")
 		}
 
-		task := value.(Task)
+		task, ok := value.(Task)
+		if !ok {
+			panic("invalid task type")
+		}
+
 		taskBytes, err := task.MarshalJSON()
 		if err != nil {
 			panic(err)
