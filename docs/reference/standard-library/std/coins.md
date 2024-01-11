@@ -8,8 +8,8 @@ id: coins
 
 ```go
 type Coins []Coin
-func (cz Coins) String() string {...}
-func (cz Coins) AmountOf(denom string) int64 {...}
+func (c Coins) String() string {...}
+func (c Coins) AmountOf(denom string) int64 {...}
 func (a Coins)  Add(b Coins) Coins {...}
 ```
 
