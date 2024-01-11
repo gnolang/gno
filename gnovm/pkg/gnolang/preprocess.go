@@ -2577,10 +2577,10 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// "push" expected type into shift binary's left operand.
 				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 			} else {
-				checkConvertible(xt, t, false) // XXX, left is interface, refer to 0_a_2.gno, 0_a_3.gno
+				checkConvertible(xt, t, false) // XXX, left is interface, right untyped, 0_a_3b.gno
 			}
 		} else { // not coerce, xt is typed. refer to 10a17b1, param is typed, check convertable
-			checkConvertible(xt, t, false)
+			checkConvertible(xt, t, false) // XXX, left is interface, right is typed refer to 0_a_2.gno, 0_a_3.gno
 		}
 
 	} else if ux, ok := (*x).(*UnaryExpr); ok {
