@@ -4,127 +4,144 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
+	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
 
-// Tatget Struct
-// -> Extract Fields and Save them in a FieldMetaData Struct
-// -> Search Values from JSON based on the Extracted Fields via Get method
-// -> Zip the Fields with the Values
-// -> Return the Zipped Data
+const (
+	StringType  FieldType = "string"
+	IntType     		  = "int"
+	FloatType   		  = "float"
+	BooleanType 		  = "boolean"
+	NilType     		  = "nil"
+)
 
-// TODO: current regex approach is not robust and flexible. So, it needs to be improved while maintaining the recursive descent approach.
-const fieldRegex = `(\w+)\s+(\*?\w+|\[\]\w+|struct\s*{[^}]*}|map\[\w+\]\w+|interface{})\s+` + "`" + `json:"([^"]+)"` + "`"
+type FieldType string
 
-type Fields []FieldMetaData
-
-type FieldMetaData struct {
-	Name     string
-	Tag      string
-	Type     string
-	IsNested bool
-	Depth    int
+type Field struct {
+	Name  string
+	Type  FieldType
+	Value interface{}
 }
 
-func ParseStruct(data string, depth int) (fields Fields) {
-	// separate fields using regular expressions
-	re := regexp.MustCompile(fieldRegex)
-	matches := re.FindAllStringSubmatch(data, -1)
+type Struct struct {
+	Fields []Field
+}
 
-	for _, match := range matches {
-		field := FieldMetaData{
-			Name:  match[1],
-			Tag:   match[3],
-			Depth: depth,
+func NewStruct() *Struct {
+	return &Struct{}
+}
+
+func (s *Struct) AddField(name string, fieldType FieldType, value interface{}) *Struct {
+	field := Field{Name: name, Type: fieldType, Value: value}
+	s.Fields = append(s.Fields, field)
+	return s
+}
+
+func (s *Struct) AddStringField(name string, value string) *Struct {
+	return s.AddField(name, StringType, value)
+}
+
+func (s *Struct) AddIntField(name string, value int) *Struct {
+	return s.AddField(name, IntType, value)
+}
+
+func (s *Struct) AddFloatField(name string, value float64) *Struct {
+	return s.AddField(name, FloatType, value)
+}
+
+func (s *Struct) AddBoolField(name string, value bool) *Struct {
+	return s.AddField(name, BooleanType, value)
+}
+
+func (s *Struct) AddNilField(name string) *Struct {
+	return s.AddField(name, NilType, nil)
+}
+
+func (s *Struct) Marshal() (string, error) {
+	var sb strings.Builder
+	sb.WriteString("{")
+
+	for i, field := range s.Fields {
+		if i > 0 {
+			sb.WriteString(", ")
 		}
 
-		// check if the field is a nested struct
-		fieldType := match[2]
-		field = field.checkFieldType(fieldType)
-		fields = append(fields, field)
+		sb.WriteString(fmt.Sprintf("\"%s\": ", field.Name))
 
-		// apply recursion when the field is a nested structure
-		if field.IsNested {
-			nestedData := match[2]
-			nestedFields := ParseStruct(nestedData, depth+1)
-			fields = append(fields, nestedFields...)
-		}
+		if valueStr, err := marshalValue(field.Value); err != nil {
+			return "", err
+		} else {
+		sb.WriteString(valueStr)
+    }
 	}
 
-	return fields
+	sb.WriteString("}")
+	return sb.String(), nil
 }
 
-func (f FieldMetaData) checkFieldType(hayStack string) FieldMetaData {
-	switch {
-	case strings.HasPrefix(hayStack, StructLiteral):
-		f.Type = "struct"
-		f.IsNested = true
-	case strings.HasPrefix(hayStack, MapLiteral):
-		f.Type = "map"
-		f.IsNested = false
-		panic("ParseStruct: map type not supported")
-	case strings.HasPrefix(hayStack, InterfaceLiteral):
-		f.Type = "interface"
-		panic("ParseStruct: interface type not supported")
+type CustomMarshaller interface {
+	MarshalCustom() (string, error)
+}
+
+func marshalValue(value interface{}) (string, error) {
+	if customVal, ok := value.(CustomMarshaller); ok {
+		return customVal.MarshalCustom()
+	}
+
+	var sb strings.Builder
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		sb.WriteString("{")
+		isFirst := true
+		for key, value := range v {
+			if !isFirst {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
+
+			if marshaledValue, err := marshalValue(value); err != nil {
+				return "", err
+			} else {
+				sb.WriteString(marshaledValue)
+			}
+
+			isFirst = false
+		}
+		sb.WriteString("}")
+	case []interface{}:
+		sb.WriteString("[")
+		for i, value := range v {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			if marshaledValue, err := marshalValue(value); err != nil {
+				return "", err
+			} else {
+				sb.WriteString(marshaledValue)
+			}
+		}
+		sb.WriteString("]")
+	case string:
+		sb.WriteString(strconv.Quote(v))
+	case int, int8, int16, int32, int64:
+		sb.WriteString(fmt.Sprintf("%d", v))
+	case uint, uint8, uint16, uint32, uint64:
+		sb.WriteString(fmt.Sprintf("%d", v))
+	case float32, float64:
+		sb.WriteString(fmt.Sprintf("%g", v))
+	case bool:
+		sb.WriteString(fmt.Sprintf("%t", v))
+	case nil:
+		sb.WriteString("null")
 	default:
-		f.Type = hayStack
-		f.IsNested = false
+		return "", errors.New("Marshal: unknown data type")
 	}
 
-	return f
-}
-
-// Names returns the names of the fields
-// which will used to search the values from JSON.
-func (fs *Fields) Names() (names []string) {
-	for _, f := range *fs {
-		names = append(names, f.Name)
-	}
-
-	return names
-}
-
-// TODO: support for complex types
-// Zip zips the fields with the values from JSON.
-func Zip(json []byte, extractedKeys ...string) (zippedData map[string]interface{}, err error) {
-	zippedData = make(map[string]interface{})
-
-	for _, key := range extractedKeys {
-		value, dataType, offset, err := Get(json, key)
-		if err != nil {
-			return nil, err
-		}
-
-		switch dataType {
-		case String:
-			zippedData[key] = string(value)
-		case Number:
-			if n, err := ParseFloatLiteral(value); err != nil {
-				return nil, err
-			} else {
-				zippedData[key] = n
-			}
-		case Boolean:
-			if b, err := ParseBoolLiteral(value); err != nil {
-				return nil, err
-			} else {
-				zippedData[key] = b
-			}
-		case Array:
-			panic("Zip: TODO array type not supported")
-		case Object:
-			panic("Zip: TODO object type not supported")
-		case Null:
-			zippedData[key] = nil
-		default:
-			return nil, errors.New("Zip: unknown data type")
-		}
-	}
-
-	return zippedData, nil
+	return sb.String(), nil
 }
 
 // Marshal converts the map to JSON string.
@@ -182,13 +199,31 @@ func Marshal(data interface{}) (string, error) {
 	return sb.String(), nil
 }
 
-func Unmarshal(json []byte, data interface{}) error {
-	jsonString := string(json)
-	// 1. get field names from the struct
+func Unmarshal(data []byte, s *Struct) error {
+    for _, field := range s.Fields {
+        value, dataType, _, err := Get(data, field.Name)
+        if err != nil {
+            return err
+        }
 
-	// 2. get values from json
-
-	// 3. zip the fields with the values
+        switch dataType {
+        case String:
+            field.Value = string(value)
+        case Number, Float:
+			if n, err := ParseFloatLiteral(value); err != nil {
+				return err
+			} else {
+				field.Value = n
+			}
+        case Boolean:
+			if b, err := ParseBoolLiteral(value); err != nil {
+				return err
+			} else {
+				field.Value = b
+			}
+        default:
+            return fmt.Errorf("unsupported type: %v", dataType)
+        }
+    }
+    return nil
 }
-
-// TODO: pretty print
