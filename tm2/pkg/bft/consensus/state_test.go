@@ -190,7 +190,8 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
-	require.FailNow(t, "XXX: new round loop block get round state")
+
+	// XXX(FIXME): new round loop block get round state
 
 	// Check that Proposal, ProposalBlock, ProposalBlockParts are set.
 	rs := ensureGetRoundState(cs)
@@ -296,7 +297,7 @@ func TestStateFullRound1(t *testing.T) {
 
 	ensureNewProposal(propCh, height, round)
 
-	require.FailNow(t, "XXX: unable to get the proper order to avoid failing")
+	// XXX(FIXME): unable to get the proper order to avoid failing
 	propBlockHash := ensureGetRoundState(cs).ProposalBlock.Hash()
 
 	ensurePrevote(voteCh, height, round) // wait for prevote
@@ -1265,7 +1266,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)
 
-	require.FailNow(t, "XXX: this part is flaky")
+	// XXX(FIXME): this part is flaky
 
 	rs := ensureGetRoundState(cs1)
 	assert.True(t, rs.Step == cstypes.RoundStepPropose) // P0 does not prevote before timeoutPropose expires
@@ -1494,9 +1495,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	signAddVotes(cs1, types.PrecommitType, theBlockHash, theBlockParts, vs4)
 
-	require.FailNow(t, "XXX: this part is flaky")
-
-	// XXX: this make the test hang indefinitely need double check
+	// XXX(FIXME): this make the test hang indefinitely
 	rs = ensureGetRoundState(cs1)
 	assert.True(t, rs.TriggeredTimeoutPrecommit)
 
