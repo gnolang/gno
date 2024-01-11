@@ -2576,22 +2576,21 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 // for native function calls, where gno values are
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerType()
-// TODO: use opts instead?
+// TODO: replace all ConvertConst with this
+// TODO: more doc
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool, coerce bool) {
 	debugPP.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
-		// TODO: other bypass situations like cast
 		if !coerce {
-			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno
-				// TODO: make it flag
+			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno, TODO: make it !coerced
 				checkConvertible(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
 			}
 		}
 		convertConst(store, last, cx, t)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
-		debugPP.Printf("shift,xt: %v, Op: %v, t: %v \n", *x, bx.Op, t)
+		debugPP.Printf("shift, xt: %v, Op: %v, t: %v \n", *x, bx.Op, t)
 		if t == nil {
 			if isUntyped(xt) {
 				t = defaultTypeOf(xt)
@@ -2599,11 +2598,11 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				t = xt // xt maybe typed while assign, with t is the type of LHS
 			}
 		}
-		if coerce { // mostly when explicitly conversion, type call
-			checkOp(store, last, &bx.Left, t, bx.Op, Binary)
+		if coerce { // mostly when explicitly conversion, type call, while arg is binary expr
+			checkOp(store, last, &bx.Left, t, bx.Op, Binary) // left is the target operand
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-		} else if !coerce && isUntyped(xt) { // assign, func call
+		} else if !coerce && isUntyped(xt) { // assign, func call(param)
 			if _, ok := t.(*InterfaceType); !ok { // TODO: consider this
 				checkOp(store, last, &bx.Left, t, bx.Op, Binary)
 				// "push" expected type into shift binary's left operand.
@@ -2669,26 +2668,27 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					checkOp(store, last, &bx.Right, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Right, t, autoNative, coerce)
 					return
-				case SHL, SHR: // is this duplicated?
-					debugPP.Printf("xt not nil, shift, Op: %v, t: %v, t.kind: %v \n", bx.Op, t, t.Kind())
-					// push t into bx.Left
-					if coerce {
-						checkOp(store, last, &bx.Left, t, bx.Op, Binary)
-						// "push" expected type into shift binary's left operand.
-						checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-					} else if !coerce && isUntyped(xt) {
-						if _, ok := t.(*InterfaceType); !ok { // concrete type
-							checkOp(store, last, &bx.Left, t, bx.Op, Binary)
-							// "push" expected type into shift binary's left operand.
-							checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-						} else {
-							checkConvertible(xt, t, false)
-						}
-					} else {
-						checkConvertible(xt, t, false)
-					}
-					return
+				//case SHL, SHR: // is this duplicated?
+				//	debugPP.Printf("xt not nil, shift, Op: %v, t: %v, t.kind: %v \n", bx.Op, t, t.Kind())
+				//	// push t into bx.Left
+				//	if coerce {
+				//		checkOp(store, last, &bx.Left, t, bx.Op, Binary)
+				//		// "push" expected type into shift binary's left operand.
+				//		checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
+				//	} else if !coerce && isUntyped(xt) {
+				//		if _, ok := t.(*InterfaceType); !ok { // concrete type
+				//			checkOp(store, last, &bx.Left, t, bx.Op, Binary)
+				//			// "push" expected type into shift binary's left operand.
+				//			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
+				//		} else {
+				//			checkConvertible(xt, t, false)
+				//		}
+				//	} else {
+				//		checkConvertible(xt, t, false)
+				//	}
+				//	return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// nothing to do, quick forward
 					debugPP.Printf("compare, bx: %v, op: %v \n", bx, bx.Op)
 				default:
 					//
