@@ -45,11 +45,10 @@ const config = {
     ({
       navbar: {
         hideOnScroll: true,
-        title: "Gno.land",
         logo: {
           alt: "Gno.land Logo",
-          src: "img/logo.svg",
-          srcDark: "img/logo_light.svg",
+          src: "img/gnoland.svg",
+          srcDark: "img/gnoland_light.svg",
         },
         items: [
           {
