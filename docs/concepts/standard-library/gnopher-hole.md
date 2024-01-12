@@ -73,13 +73,13 @@ programs). Following that, the suggested approach for adding a Go standard
 library is to copy the original files from the Go source tree, and renaming their
 extensions from `.go` to `.gno`.
 
-> As a small aid, this bash one-liner can be useful to convert all the file
-> extensions:
->
-> ```sh
-> for i in *.go; do mv $i "$(echo $i | sed 's/\.go$/.gno/')"; done
-> ```
-
+:::note
+As a small aid, this bash one-liner can be useful to convert all the file
+extensions:
+```sh
+for i in *.go; do mv $i "$(echo $i | sed 's/\.go$/.gno/')"; done
+```
+:::  
 Following that, the suggested approach is to iteratively try running `gno test .`,
 while fixing any errors that may come out of trying to test the package.
 
