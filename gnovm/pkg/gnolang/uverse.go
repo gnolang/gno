@@ -304,7 +304,7 @@ func UverseNode() *PackageNode {
 										list[arg0Offset+arg0Length+i] = newElem
 
 										m.Realm.DidUpdate(
-											arg1Base,
+											arg0Base,
 											oldElem.GetFirstObject(m.Store),
 											newElem.GetFirstObject(m.Store),
 										)
@@ -323,7 +323,7 @@ func UverseNode() *PackageNode {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg1Base, nil, nil)
+									m.Realm.DidUpdate(arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
