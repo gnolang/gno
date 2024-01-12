@@ -80,7 +80,7 @@ func TestIssueCoins(addr Address, coins Coins)
 Issues testing context **coins** to **addr**.
 #### Usage
 ```go
-issue:= std.Coins{{"coin1", 100}, {"coin2", 200}}
+issue := std.Coins{{"coin1", 100}, {"coin2", 200}}
 addr := "g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"
 std.TestIssueCoins(addr, issue)
 ```
