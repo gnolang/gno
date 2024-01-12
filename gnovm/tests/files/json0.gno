@@ -1,12 +1,8 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/json"
 )
 
@@ -17,18 +13,19 @@ func main() {
 		AddStringField("Name", "John Doe").
 		AddIntField("Age", 30).
 		AddBoolField("IsActive", true).
-		AddFloatField("Score", 4.5)
+		AddFloatField("Score", 4.5).
+		AddNullField("Option")
 
-	jsonStr, err := s.Marshal() 
+	jsonStr, err := s.Marshaler() 
 	if err != nil {
 		fmt.Println("Error marshaling:", err)
 		return
 	}
 	println("Marshalled:")
-	println(jsonStr)
+	println(string(jsonStr))
 	println("--------------------")
 
-	if json.Unmarshal(data, s); err != nil {
+	if json.Unmarshaler(data, s); err != nil {
 		fmt.Println("Error unmarshaling:", err)
 		return
 	}
@@ -40,12 +37,13 @@ func main() {
 }
 
 
-// output:
+// Output:
 // Marshalled:
-// {"Name": "John Doe", "Age": 30, "IsActive": true, "Score": 4.5}
+// {"Name": "John Doe", "Age": 30, "IsActive": true, "Score": 4.5, "Option": null}
 // --------------------
 // Unmarshalled:
 // Name: John Doe
 // Age: 30
 // IsActive: true
 // Score: 4.5
+// Option: <nil>

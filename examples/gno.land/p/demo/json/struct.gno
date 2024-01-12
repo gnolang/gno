@@ -10,196 +10,207 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-const (
-	StringType  FieldType = "string"
-	IntType     		  = "int"
-	FloatType   		  = "float"
-	BooleanType 		  = "boolean"
-	NilType     		  = "nil"
-)
-
 type FieldType string
 
+// Field stores each field's information.
 type Field struct {
-	Name  string
-	Type  FieldType
-	Value interface{}
+	Name  		 	string
+	Type  		 	ValueType
+	Value 		 	interface{}
+	ArrayValues  	[]interface{}
+	NestedStruct	*Struct
 }
 
+// Struct holds the whole structure of target struct.
 type Struct struct {
 	Fields []Field
 }
 
+// NewStruct create new empty struct placeholder.
 func NewStruct() *Struct {
 	return &Struct{}
 }
 
-func (s *Struct) AddField(name string, fieldType FieldType, value interface{}) *Struct {
+// addField adds a field to the struct. The order of the fields is preserved.
+func (s *Struct) addField(name string, fieldType ValueType, value interface{}) *Struct {
 	field := Field{Name: name, Type: fieldType, Value: value}
 	s.Fields = append(s.Fields, field)
 	return s
 }
 
 func (s *Struct) AddStringField(name string, value string) *Struct {
-	return s.AddField(name, StringType, value)
+	return s.addField(name, String, value)
 }
 
 func (s *Struct) AddIntField(name string, value int) *Struct {
-	return s.AddField(name, IntType, value)
+	return s.addField(name, Number, value)
 }
 
 func (s *Struct) AddFloatField(name string, value float64) *Struct {
-	return s.AddField(name, FloatType, value)
+	return s.addField(name, Float, value)
 }
 
 func (s *Struct) AddBoolField(name string, value bool) *Struct {
-	return s.AddField(name, BooleanType, value)
+	return s.addField(name, Boolean, value)
 }
 
-func (s *Struct) AddNilField(name string) *Struct {
-	return s.AddField(name, NilType, nil)
+func (s *Struct) AddNullField(name string) *Struct {
+	return s.addField(name, Null, nil)
 }
 
-func (s *Struct) Marshal() (string, error) {
-	var sb strings.Builder
-	sb.WriteString("{")
+func (s *Struct) AddObjectField(name string, inner *Struct) *Struct {
+	f := Field {
+		Name: name,
+		Type: Object,
+		NestedStruct: inner,
+	}
+	s.Fields = append(s.Fields, f)
+
+	return s
+}
+
+func (s *Struct) AddArrayField(name string, array []interface{}) *Struct {
+	f := Field {
+		Name: name,
+		Type: Array,
+		ArrayValues: array,
+	}
+	s.Fields = append(s.Fields, f)
+
+	return s
+}
+
+// Marshaler marshals the struct into a JSON byte slice
+func (s *Struct) Marshaler() ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteByte('{')
 
 	for i, field := range s.Fields {
+		// separate fields with comma
 		if i > 0 {
-			sb.WriteString(", ")
+			buf.WriteByte(',')
+			buf.WriteByte(' ')
 		}
 
-		sb.WriteString(fmt.Sprintf("\"%s\": ", field.Name))
+		// `"name": `
+		buf.WriteString(strconv.Quote(field.Name))
+		buf.WriteByte(':')
+		buf.WriteByte(' ')
 
-		if valueStr, err := marshalValue(field.Value); err != nil {
-			return "", err
+		if field.NestedStruct != nil {
+			if nestedJSON, err := field.NestedStruct.Marshaler(); err != nil {
+				return nil, err
+			} else {
+				buf.Write(nestedJSON)
+			}
+		} else if len(field.ArrayValues) > 0 {
+			buf.WriteByte('[')
+			for i, value := range field.ArrayValues {
+				if i > 0 {
+					buf.WriteByte(',')
+					buf.WriteByte(' ')
+				}
+				if valueStr, err := marshalValue(value); err != nil {
+					return nil, err
+				} else {
+					buf.Write(valueStr)
+				}
+			}
+			buf.WriteByte(']')
 		} else {
-		sb.WriteString(valueStr)
-    }
+			if valueStr, err := marshalValue(field.Value); err != nil {
+				return nil, err
+			} else {
+				buf.Write(valueStr)
+			}
+		}
 	}
 
-	sb.WriteString("}")
-	return sb.String(), nil
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
 
+// CustomMarshaller interface that the custom type should implement.
 type CustomMarshaller interface {
-	MarshalCustom() (string, error)
+	MarshalCustom() ([]byte, error)
 }
 
-func marshalValue(value interface{}) (string, error) {
+func marshalValue(value interface{}) ([]byte, error) {
 	if customVal, ok := value.(CustomMarshaller); ok {
-		return customVal.MarshalCustom()
+		if marshaled, err := customVal.MarshalCustom(); err != nil {
+			return nil, err
+		} else {
+			return marshaled, nil
+		}
 	}
 
-	var sb strings.Builder
+	var buf bytes.Buffer
 
 	switch v := value.(type) {
+	// Object
 	case map[string]interface{}:
-		sb.WriteString("{")
+		buf.WriteByte('{')
 		isFirst := true
 		for key, value := range v {
 			if !isFirst {
-				sb.WriteString(", ")
+				buf.WriteByte(',')
+				buf.WriteByte(' ')
 			}
-			sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
+
+			buf.WriteString(strconv.Quote(key))
+			buf.WriteByte(':')
+			buf.WriteByte(' ')
 
 			if marshaledValue, err := marshalValue(value); err != nil {
-				return "", err
+				return nil, err
 			} else {
-				sb.WriteString(marshaledValue)
+				buf.Write(marshaledValue)
 			}
 
 			isFirst = false
 		}
-		sb.WriteString("}")
+		buf.WriteByte('}')
+	// Array
 	case []interface{}:
-		sb.WriteString("[")
+		buf.WriteByte('[')
 		for i, value := range v {
 			if i > 0 {
-				sb.WriteString(", ")
+				buf.WriteByte(',')
+				buf.WriteByte(' ')
 			}
 			if marshaledValue, err := marshalValue(value); err != nil {
-				return "", err
+				return nil, err
 			} else {
-				sb.WriteString(marshaledValue)
+				buf.Write(marshaledValue)
 			}
 		}
-		sb.WriteString("]")
+		buf.WriteByte(']')
 	case string:
-		sb.WriteString(strconv.Quote(v))
+		// must handle escape characters
+		quoted := strconv.Quote(v)
+		buf.WriteString(quoted)
 	case int, int8, int16, int32, int64:
-		sb.WriteString(fmt.Sprintf("%d", v))
+		buf.WriteString(fmt.Sprintf("%d", v))
 	case uint, uint8, uint16, uint32, uint64:
-		sb.WriteString(fmt.Sprintf("%d", v))
+		buf.WriteString(fmt.Sprintf("%d", v))
 	case float32, float64:
-		sb.WriteString(fmt.Sprintf("%g", v))
+		buf.WriteString(fmt.Sprintf("%g", v))
 	case bool:
-		sb.WriteString(fmt.Sprintf("%t", v))
+		buf.WriteString(fmt.Sprintf("%t", v))
 	case nil:
-		sb.WriteString("null")
+		buf.WriteByte('n')
+		buf.WriteByte('u')
+		buf.WriteByte('l')
+		buf.WriteByte('l')
 	default:
-		return "", errors.New("Marshal: unknown data type")
+		return nil, errors.New("Marshal: unknown data type")
 	}
 
-	return sb.String(), nil
+	return buf.Bytes(), nil
 }
 
-// Marshal converts the map to JSON string.
-func Marshal(data interface{}) (string, error) {
-	var sb strings.Builder
-
-	switch v := data.(type) {
-	case map[string]interface{}:
-		sb.WriteString("{")
-		isFirst := true
-		for key, value := range v {
-			if !isFirst {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(ufmt.Sprintf("\"%s\": ", key))
-
-			if marshaledValue, err := Marshal(value); err != nil {
-				return "", err
-			} else {
-				sb.WriteString(marshaledValue)
-			}
-
-			isFirst = false
-		}
-		sb.WriteString("}")
-	case []interface{}:
-		sb.WriteString("[")
-		for i, value := range v {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			if marshaledValue, err := Marshal(value); err != nil {
-				return "", err
-			} else {
-				sb.WriteString(marshaledValue)
-			}
-		}
-		sb.WriteString("]")
-	case string:
-		sb.WriteString(fmt.Sprintf("\"%s\"", v))
-	case int, int8, int16, int32, int64:
-		sb.WriteString(fmt.Sprintf("%d", v))
-	case uint, uint8, uint16, uint32, uint64:
-		sb.WriteString(fmt.Sprintf("%d", v))
-	case float32, float64:
-		sb.WriteString(fmt.Sprintf("%f", v))
-	case bool:
-		sb.WriteString(fmt.Sprintf("%t", v))
-	case nil:
-		sb.WriteString("null")
-	default:
-		return "", errors.New("Marshal: unknown data type")
-	}
-
-	return sb.String(), nil
-}
-
-func Unmarshal(data []byte, s *Struct) error {
+// Unmarshaler unmarshals the JSON string into the struct.
+func Unmarshaler(data []byte, s *Struct) error {
     for _, field := range s.Fields {
         value, dataType, _, err := Get(data, field.Name)
         if err != nil {
@@ -221,8 +232,18 @@ func Unmarshal(data []byte, s *Struct) error {
 			} else {
 				field.Value = b
 			}
+		case Object:
+			if field.NestedStruct != nil {
+				if val, _, _, err := Get(data, field.Name); err != nil {
+					return err
+				} else {
+					if err = Unmarshaler(val, field.NestedStruct); err != nil {
+						return err
+					}
+				}
+			}
         default:
-            return fmt.Errorf("unsupported type: %v", dataType)
+            return fmt.Errorf("json.Unmarshaler: unsupported type: %v", dataType)
         }
     }
     return nil
