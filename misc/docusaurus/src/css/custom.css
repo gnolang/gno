@@ -81,7 +81,7 @@ pre code {
   box-shadow: var(--ring-offset-shadow, 0 0 #0000), var(--ring-shadow, 0 0 #0000), var(--shadow);
 }
 
-.navbarHidden_node_modules-\@docusaurus-theme-classic-lib-theme-Navbar-Layout-styles-module {
+body nav[class*="navbarHidden"] {
   transform: translate3d(0, calc(-100% - 2px - 1rem), 0) !important;
 }
 
