@@ -47,7 +47,7 @@ We look forward to seeing your first PR!
 </a>
 </br></br>
 
-[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on Gno.land, while being able to collaborate with peers to work on projects together and seek assistance.
+[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on Gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
 
 ## Repository structure
 
