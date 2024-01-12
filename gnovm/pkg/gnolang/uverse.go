@@ -376,9 +376,9 @@ func UverseNode() *PackageNode {
 						// append(*SliceValue, *SliceValue) new list ---------
 						list := make([]TypedValue, arg0Length+arg1Length)
 						if 0 < arg0Length {
-							if arg1Base.Data == nil {
+							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
-									list[i] = arg1Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+									list[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
