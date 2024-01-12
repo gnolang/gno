@@ -430,7 +430,7 @@ func (pkg *pkgPrinter) packageClause() {
 	// If we did a file system scan, we knew the import path when we found the directory.
 	// But if we started with a directory name, we never knew the import path.
 	// Either way, we don't know it now, and it's cheap to (re)compute it.
-	/* TODO: add when supporting gnodev doc on local directories
+	/* TODO: add when supporting gno doc on local directories
 	if usingModules {
 		for _, root := range codeRoots() {
 			if pkg.build.Dir == root.dir {

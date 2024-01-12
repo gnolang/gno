@@ -75,19 +75,6 @@ func runKnownQueries(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 	}
 }
 
-func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int) *iavl.MutableTree {
-	b.Helper()
-
-	for i := 1; i <= b.N; i++ {
-		t.Set(randBytes(keyLen), randBytes(dataLen))
-		if i%blockSize == 0 {
-			t.Hash()
-			t.SaveVersion()
-		}
-	}
-	return t
-}
-
 func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
 	b.Helper()
 
@@ -95,23 +82,6 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 	for i := 1; i <= b.N; i++ {
 		key := keys[rand.Int31n(l)]
 		t.Set(key, randBytes(dataLen))
-		if i%blockSize == 0 {
-			commitTree(b, t)
-		}
-	}
-	return t
-}
-
-func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) *iavl.MutableTree {
-	b.Helper()
-
-	var key []byte
-	l := int32(len(keys))
-	for i := 1; i <= b.N; i++ {
-		key = keys[rand.Int31n(l)]
-		// key = randBytes(16)
-		// TODO: test if removed, use more keys (from insert)
-		t.Remove(key)
 		if i%blockSize == 0 {
 			commitTree(b, t)
 		}

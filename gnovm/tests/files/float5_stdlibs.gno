@@ -2,13 +2,11 @@ package main
 
 import (
 	"math"
-
-	imath "internal/math"
 )
 
 func main() {
-	println(math.MaxFloat32, imath.Float32bits(math.MaxFloat32))
-	println(math.MaxFloat64, imath.Float64bits(math.MaxFloat64))
+	println(math.MaxFloat32, math.Float32bits(math.MaxFloat32))
+	println(math.MaxFloat64, math.Float64bits(math.MaxFloat64))
 }
 
 // Output:

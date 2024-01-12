@@ -19,7 +19,7 @@ build: precompile
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test --verbose .
+	go run ../gnovm/cmd/gno test --verbose ./...
 
 .PHONY: lint
 lint:
@@ -27,7 +27,7 @@ lint:
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test --verbose --update-golden-tests .
+	go run ../gnovm/cmd/gno test --verbose --update-golden-tests ./...
 
 .PHONY: clean
 clean:
@@ -37,3 +37,7 @@ clean:
 GOFMT_FLAGS ?= -w
 fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
+
+.PHONY: tidy
+tidy:
+	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;

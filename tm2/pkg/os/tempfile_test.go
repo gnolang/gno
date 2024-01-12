@@ -5,7 +5,6 @@ package os
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		perm os.FileMode = 0o600
 	)
 
-	f, err := ioutil.TempFile("/tmp", "write-atomic-test-")
+	f, err := os.CreateTemp("/tmp", "write-atomic-test-")
 	if err != nil {
 		t.Fatal(err)
 	}

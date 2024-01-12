@@ -18,6 +18,7 @@ type precompileCfg struct {
 	verbose     bool
 	skipFmt     bool
 	skipImports bool
+	gobuild     bool
 	goBinary    string
 	gofmtBinary string
 	output      string
@@ -28,6 +29,11 @@ type precompileOptions struct {
 	// precompiled is the set of packages already
 	// precompiled from .gno to .go.
 	precompiled map[importPath]struct{}
+}
+
+var defaultPrecompileCfg = &precompileCfg{
+	verbose:  false,
+	goBinary: "go",
 }
 
 func newPrecompileOptions(cfg *precompileCfg) *precompileOptions {
@@ -47,7 +53,7 @@ func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
 	p.precompiled[pkg] = struct{}{}
 }
 
-func newPrecompileCmd(io *commands.IO) *commands.Command {
+func newPrecompileCmd(io commands.IO) *commands.Command {
 	cfg := &precompileCfg{}
 
 	return commands.NewCommand(
@@ -85,6 +91,13 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 		"do not precompile imports recursively",
 	)
 
+	fs.BoolVar(
+		&c.gobuild,
+		"gobuild",
+		false,
+		"run go build on generated go files, ignoring test files",
+	)
+
 	fs.StringVar(
 		&c.goBinary,
 		"go-binary",
@@ -107,7 +120,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
+func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -125,13 +138,33 @@ func execPrecompile(cfg *precompileCfg, args []string, io *commands.IO) error {
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)
 			io.ErrPrintfln("%s", err.Error())
-
 			errCount++
 		}
 	}
 
 	if errCount > 0 {
 		return fmt.Errorf("%d precompile errors", errCount)
+	}
+
+	if cfg.gobuild {
+		paths, err := gnoPackagesFromArgs(args)
+		if err != nil {
+			return fmt.Errorf("list packages: %w", err)
+		}
+
+		errCount = 0
+		for _, pkgPath := range paths {
+			_ = pkgPath
+			err = goBuildFileOrPkg(pkgPath, cfg)
+			if err != nil {
+				err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
+				io.ErrPrintfln("%s\n", err.Error())
+				errCount++
+			}
+		}
+		if errCount > 0 {
+			return fmt.Errorf("%d build errors", errCount)
+		}
 	}
 
 	return nil
@@ -218,4 +251,15 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	return nil
+}
+
+func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
+	verbose := cfg.verbose
+	goBinary := cfg.goBinary
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
+	}
+
+	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
 }

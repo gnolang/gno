@@ -86,7 +86,7 @@ func (t *timeoutTicker) stopTimer() {
 }
 
 // send on tickChan to start a new timer.
-// timers are interupted and replaced by new ticks from later steps
+// timers are interrupted and replaced by new ticks from later steps
 // timeouts of 0 on the tickChan will be immediately relayed to the tockChan
 func (t *timeoutTicker) timeoutRoutine() {
 	t.Logger.Debug("Starting timeout routine")

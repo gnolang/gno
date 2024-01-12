@@ -7,6 +7,8 @@ import (
 )
 
 func Test_parseRemoteAddr(t *testing.T) {
+	t.Parallel()
+
 	tt := []struct {
 		remoteAddr              string
 		network, s, errContains string
@@ -32,6 +34,8 @@ func Test_parseRemoteAddr(t *testing.T) {
 // and other protocols are left intact from parseRemoteAddr()
 
 func Test_makeHTTPDialer(t *testing.T) {
+	t.Parallel()
+
 	dl := makeHTTPDialer("https://.")
 	_, err := dl("hello", "world")
 	if assert.NotNil(t, err) {
@@ -42,6 +46,8 @@ func Test_makeHTTPDialer(t *testing.T) {
 }
 
 func Test_makeHTTPDialer_noConvert(t *testing.T) {
+	t.Parallel()
+
 	dl := makeHTTPDialer("udp://.")
 	_, err := dl("hello", "world")
 	if assert.NotNil(t, err) {
