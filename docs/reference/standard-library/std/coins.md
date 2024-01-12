@@ -10,7 +10,7 @@ id: coins
 type Coins []Coin
 func (c Coins) String() string {...}
 func (c Coins) AmountOf(denom string) int64 {...}
-func (a Coins)  Add(b Coins) Coins {...}
+func (c Coins)  Add(other Coins) Coins {...}
 ```
 
 ### String
@@ -37,14 +37,14 @@ coins.AmountOf("foo") // 150
 ---
 
 ### Add
-Updates the amount of specified coin in the `Coins` set. If the specified coin does not exist, `Add` adds it to the set. 
+Adds (or updates) the amount of specified coins in the `Coins` set. If the specified coin does not exist, `Add` adds it to the set. 
 
 ### Parameters
-- `b` **Coin** to add to `Coins` set
+- `other` **Coins** to add to `Coins` set
 
 #### Usage
 ```go
 coins := // ...
-newCoin := std.Coin{"baz", 150}
-coins.Add(newCoin)
+otherCoins := // ...
+coins.Add(otherCoins)
 ```

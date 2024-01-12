@@ -17,7 +17,7 @@ const (
 
 type Banker interface {
     GetCoins(addr Address) (dst Coins)
-    SendCoins(from, to Address, amt Coins)
+    SendCoins(from, to Address, coins Coins)
     IssueCoin(addr Address, denom string, amount int64)
     RemoveCoin(addr Address, denom string, amount int64)
 }
@@ -54,43 +54,43 @@ coins := banker.GetCoins(addr)
 ---
 
 ## SendCoins
-Sends `amt` from address `from` to address `to`. `amt` needs to be a well-defined
+Sends `coins` from address `from` to address `to`. `coins` needs to be a well-defined
 `Coins` slice.
 
 #### Parameters
 - `from` **Address** to send from
 - `to` **Address** to send to
-- `amt` **Coins** to send
+- `coins` **Coins** to send
 
 #### Usage
 ```go
-banker.SendCoins(from, to, amt)
+banker.SendCoins(from, to, coins)
 ```
 ---
 
 ## IssueCoin
-Issues `amt` of coin with a denomination `denom` to address `addr`.
+Issues `amount` of coin with a denomination `denom` to address `addr`.
 
 #### Parameters
 - `addr` **Address** to issue coins to
 - `denom` **string** denomination of coin to issue
-- `amt` **int64** amount of coin to issue
+- `amount` **int64** amount of coin to issue
 
 #### Usage
 ```go
-banker.IssueCoin(addr, denom, amt)
+banker.IssueCoin(addr, denom, amount)
 ```
 ---
 
 ## RemoveCoin
-Removes (burns) `amt` of coin with a denomination `denom` from address `addr`.
+Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
 
 #### Parameters
 - `addr` **Address** to remove coins from
 - `denom` **string** denomination of coin to remove
-- `amt` **int64** amount of coin to remove
+- `amount` **int64** amount of coin to remove
 
 #### Usage
 ```go
-banker.RemoveCoin(addr, denom, amt)
+banker.RemoveCoin(addr, denom, amount)
 ```
