@@ -82,12 +82,6 @@ Replacing the second test case with the following will successfully fix the issu
   }
 ```
 
-## Blockchain context in tests
-Running `gno test` executes files within the directory that end with `_test.gno` and `_filetest.gno`.
-Internally, a GnoVM instance is initialized to run the test, and, at that moment, 
-a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
-coins, block height, etc. can be mocked.
-
 ## Manipulating blockchain context in tests
 Some functions in the `std` package are exclusively accessible in `_test.gno`
 and `_filetest.gno` files. These are located in the `std` package, and their primary role
