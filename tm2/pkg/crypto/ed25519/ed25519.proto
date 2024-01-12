@@ -5,9 +5,9 @@ option go_package = "github.com/gnolang/gno/tm2/pkg/crypto/ed25519/pb";
 
 // messages
 message PubKeyEd25519 {
-	bytes Value = 1;
+	bytes value = 1;
 }
 
 message PrivKeyEd25519 {
-	bytes Value = 1;
+	bytes value = 1;
 }

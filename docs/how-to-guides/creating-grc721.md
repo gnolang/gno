@@ -6,8 +6,8 @@ id: creating-grc721
 
 ## Overview
 
-This guide shows you how to write a simple _GRC721_ Smart Contract, or rather a [Realm](../explanation/realms.md),
-in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see
+This guide shows you how to write a simple _GRC721_ Smart Contract, or rather a [Realm](../concepts/realms.md),
+in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see
 the [deployment](deploy.md) guide.
 
 Our _GRC721_ Realm will have the following functionality:
@@ -20,7 +20,7 @@ Our _GRC721_ Realm will have the following functionality:
 
 We will proceed using the typical directory structure for a Realm found within
 the [simple-contract guide](simple-contract.md). It is also worthwhile to consult
-the [GRC721 interface](../../examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within
+the [GRC721 interface](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within
 this guide.
 
 ## 1. Importing token package
@@ -59,7 +59,7 @@ In this code preview, we have:
 ## 2. Adding token functionality
 
 The following section will be about introducing Public functions to expose functionality imported from
-the [grc721 package](../../examples/gno.land/p/demo/grc/grc721).
+the [grc721 package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/grc/grc721).
 
 [embedmd]:# (../assets/how-to-guides/creating-grc721/mynonfungibletoken-2.gno go)
 ```go
@@ -186,7 +186,7 @@ Detailing what is happening in the above code:
   method on the `grc721` instance we instantiated at the top of the file; this method returns a formatted string that
   includes the token: symbol, supply and account balances (`balances avl.Tree`) which is a mapping denoted
   as: `OwnerAddress -> TokenCount`; otherwise returns false and renders a `404`; you can find more information about
-  this `Render` method and how it's used [here](../explanation/realms.md).
+  this `Render` method and how it's used [here](../concepts/realms.md).
 - Finally, we provide a local function to assert that the calling account is in fact the owner, otherwise panic. This is
   a very important function that serves to prevent abuse by non-administrators.
 

@@ -6,7 +6,7 @@ id: creating-grc20
 
 ## Overview
 
-This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../explanation/realms.md), in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
+This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../concepts/realms.md), in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
 Our _GRC20_ Realm will have the following functionality:
 
@@ -16,7 +16,7 @@ Our _GRC20_ Realm will have the following functionality:
 
 ## Prerequisites
 
-We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC20 interface](../../examples/gno.land/p/demo/grc/grc20/igrc20.gno) which we will be importing and utilizing within this guide.
+We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC20 interface](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc20/igrc20.gno) which we will be importing and utilizing within this guide.
 
 ## 1. Importing token package
 For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token factory realm.
@@ -54,7 +54,7 @@ In this code preview, we have:
 
 ## 2. Adding token functionality
 
-The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](../../examples/gno.land/p/demo/grc/grc20).
+The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/grc/grc20).
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
@@ -153,7 +153,7 @@ Detailing what is happening in the above code:
 - Calling the `Mint` method would create a configurable number of tokens by the administrator.
 - Calling the `Burn` method would destroy a configurable number of tokens by the administrator.
 - Calling the `Render` method would return a user's `balance` as a formatted string. Learn more about the `Render`
-  method and how it's used [here](../explanation/realms.md).
+  method and how it's used [here](../concepts/realms.md).
 - Finally, we provide a local function to assert that the calling account is in fact the owner, otherwise panic. This is a very important function that serves to prevent abuse by non-administrators.
 
 ## Conclusion

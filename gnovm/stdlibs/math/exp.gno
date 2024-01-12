@@ -14,11 +14,6 @@ package math
 // Very large values overflow to 0 or +Inf.
 // Very small values underflow to 1.
 func Exp(x float64) float64 {
-	/* XXX
-	if haveArchExp {
-		return archExp(x)
-	}
-	*/
 	return exp(x)
 }
 
@@ -142,11 +137,6 @@ func exp(x float64) float64 {
 //
 // Special cases are the same as Exp.
 func Exp2(x float64) float64 {
-	/* XXX
-	if haveArchExp2 {
-		return archExp2(x)
-	}
-	*/
 	return exp2(x)
 }
 

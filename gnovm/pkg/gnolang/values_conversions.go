@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 )
 
 // t cannot be nil or untyped or DataByteType.
@@ -77,6 +77,10 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
+		switch t.Kind() {
+		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
+			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))
+		}
 		tv.T = t
 		return
 	}
@@ -1113,7 +1117,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		return // done
 	case BigdecKind:
 		dst.T = t
-		dst.V = BigdecValue{V: apd.NewWithBigInt(bi, 0)}
+		dst.V = BigdecValue{V: apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(bi), 0)}
 		return // done
 	default:
 		panic(fmt.Sprintf(

@@ -5,9 +5,9 @@ option go_package = "github.com/gnolang/gno/tm2/pkg/crypto/hd/pb";
 
 // messages
 message Bip44Params {
-	uint32 Purpose = 1;
-	uint32 CoinType = 2;
-	uint32 Account = 3;
-	bool Change = 4;
-	uint32 AddressIndex = 5;
+	uint32 purpose = 1;
+	uint32 coin_type = 2 [json_name = "coinType"];
+	uint32 account = 3;
+	bool change = 4;
+	uint32 address_index = 5 [json_name = "addressIndex"];
 }

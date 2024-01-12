@@ -1,0 +1,6 @@
+# Run gno precompile without args
+
+! gno precompile
+
+! stdout .+ 
+stderr 'flag: help requested'

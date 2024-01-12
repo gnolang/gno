@@ -212,9 +212,9 @@ func UverseNode() *PackageNode {
 						// append(nil, *SliceValue) new list ---------
 						list := make([]TypedValue, arg1Length)
 						if 0 < arg1Length {
-							copy(
-								list[:arg1Length],
-								arg1Base.List[arg1Offset:arg1EndIndex])
+							for i := 0; i < arg1Length; i++ {
+								list[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+							}
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
@@ -296,14 +296,25 @@ func UverseNode() *PackageNode {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
 								if arg1Base.Data == nil {
-									copy(
-										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
-										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
+									for i := 0; i < arg1Length; i++ {
+										oldElem := list[arg0Offset+arg0Length+i]
+										// unrefCopy will resolve references and copy their values
+										// to copy by value rather than by reference.
+										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+										list[arg0Offset+arg0Length+i] = newElem
+
+										m.Realm.DidUpdate(
+											arg1Base,
+											oldElem.GetFirstObject(m.Store),
+											newElem.GetFirstObject(m.Store),
+										)
+									}
 								} else {
 									copyDataToList(
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
+									m.Realm.DidUpdate(arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -312,6 +323,7 @@ func UverseNode() *PackageNode {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
+									m.Realm.DidUpdate(arg1Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -364,26 +376,20 @@ func UverseNode() *PackageNode {
 						// append(*SliceValue, *SliceValue) new list ---------
 						list := make([]TypedValue, arg0Length+arg1Length)
 						if 0 < arg0Length {
-							if arg0Base.Data == nil {
-								copy(
-									list[:arg0Length],
-									arg0Base.List[arg0Offset:arg0Offset+arg0Length])
+							if arg1Base.Data == nil {
+								for i := 0; i < arg0Length; i++ {
+									list[i] = arg1Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+								}
 							} else {
 								panic("should not happen")
-								/*
-									copyDataToList(
-										list[:xvl],
-										xvb.Data[xvo:xvo+xvl],
-										xt.Elem(),
-									)
-								*/
 							}
 						}
+
 						if 0 < arg1Length {
 							if arg1Base.Data == nil {
-								copy(
-									list[arg0Length:arg0Length+arg1Length],
-									arg1Base.List[arg1Offset:arg1Offset+arg1Length])
+								for i := 0; i < arg1Length; i++ {
+									list[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+								}
 							} else {
 								copyDataToList(
 									list[arg0Length:arg0Length+arg1Length],
@@ -459,16 +465,17 @@ func UverseNode() *PackageNode {
 						return
 					} else {
 						// append(*SliceValue, *NativeValue) new list --------
-						list := make([]TypedValue, arg0Length+arg1NativeValueLength)
+						listLen := arg0Length + arg1NativeValueLength
+						list := make([]TypedValue, listLen)
 						if 0 < arg0Length {
-							copy(
-								list[:arg0Length],
-								arg0Base.List[arg0Offset:arg0Offset+arg0Length])
+							for i := 0; i < listLen; i++ {
+								list[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+							}
 						}
 						if 0 < arg1NativeValueLength {
 							copyNativeToList(
 								m.Alloc,
-								list[arg0Length:arg0Length+arg1NativeValueLength],
+								list[arg0Length:listLen],
 								arg1NativeValue, arg1NativeValueLength)
 						}
 						m.PushValue(TypedValue{
