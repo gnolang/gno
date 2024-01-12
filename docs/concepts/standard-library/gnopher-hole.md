@@ -80,6 +80,7 @@ extensions:
 for i in *.go; do mv $i "$(echo $i | sed 's/\.go$/.gno/')"; done
 ```
 :::  
+
 Following that, the suggested approach is to iteratively try running `gno test .`,
 while fixing any errors that may come out of trying to test the package.
 

@@ -5,8 +5,6 @@ id: address
 # Address
 Native address type in Gno, conforming to the Bech32 format.
 
-[//]: # (TODO fix: might cause confusion since googling links to BTC)
-
 ```go
 type Address string
 func (a Address) String() string {...}
