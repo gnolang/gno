@@ -42,7 +42,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		// generate
 		// "vm" -- starts an in-memory chain that can be interacted with?
 		// bug -- start a bug report
-		// version -- show gnodev, golang versions
+		// version -- show gno, golang versions
 	)
 
 	return cmd

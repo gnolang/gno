@@ -408,6 +408,8 @@ func newNode(logger log.Logger, genesis gnoland.GnoGenesisState) (*node.Node, er
 
 	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
 	nodeConfig.SkipFailingGenesisTxs = true
+	nodeConfig.TMConfig.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
+
 	nodeConfig.Genesis.AppState = genesis
 	return gnoland.NewInMemoryNode(logger, nodeConfig)
 }
