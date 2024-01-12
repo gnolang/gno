@@ -25,26 +25,44 @@ func main() {
 	systray.Run(onReady, onExit)
 }
 
+const (
+	startGnodevStr = "Start Gnodev..."
+	stopGnodevStr  = "Stop Gnodev..."
+	openGnolandStr = "Open Gnoland RPC in browser"
+	openGnowebStr  = "Open Gnoweb in browser"
+	openGnodevStr  = "Open Gnodev Folder"
+	helpStr        = "Help"
+	quitStr        = "Quit"
+)
+
 func onReady() {
-	systray.SetTitle("Gnodev") // TODO: use a small icon instead of a title.
+	var (
+		gnowebListener net.Listener
+		node           *gnodev.Node
+		nodeCancel     context.CancelCauseFunc = func(error) {} // noop
+	)
+
+	systray.SetTitle("Gnodev 👋") // TODO: use a small icon instead of a title.
 	systray.SetTooltip("Local Gno.land Node Manager")
 
 	// TODO: when ready -> green dot
 	// TODO: when error -> red dot
 
-	mStartGnodev := systray.AddMenuItem("Start Gnodev...", "")
-	mOpenGnolandRPC := systray.AddMenuItem("Open Gnoland RPC in browser", "")
+	mStartGnodev := systray.AddMenuItem(startGnodevStr, "")
+	mStopGnodev := systray.AddMenuItem(stopGnodevStr, "")
+	mStopGnodev.Disable()
+	mOpenGnolandRPC := systray.AddMenuItem(openGnolandStr, "")
 	mOpenGnolandRPC.Disable()
-	mOpenGnoweb := systray.AddMenuItem("Open Gnoweb in browser", "")
+	mOpenGnoweb := systray.AddMenuItem(openGnowebStr, "")
 	mOpenGnoweb.Disable()
-	mOpenFolder := systray.AddMenuItem("Open Gnodev Folder", "")
+	mOpenFolder := systray.AddMenuItem(openGnodevStr, "")
 	mOpenGnoweb.Disable()
 	systray.AddSeparator()
-	//mSettings := systray.AddMenuItem("Settings", "Settings")
-	//mSettings.AddSubMenuItemCheckbox("Open at login", "TODO", false)
-	//mSettings.AddSubMenuItemCheckbox("Debug/Verbose", "TODO", false)
-	mHelp := systray.AddMenuItem("Help", "Help")
-	mQuit := systray.AddMenuItem("Quit", "Quit")
+	// mSettings := systray.AddMenuItem("Settings", "Settings")
+	// mSettings.AddSubMenuItemCheckbox("Open at login", "TODO", false)
+	// mSettings.AddSubMenuItemCheckbox("Debug/Verbose", "TODO", false)
+	mHelp := systray.AddMenuItem(helpStr, "")
+	mQuit := systray.AddMenuItem(quitStr, "")
 
 	// show git sha version
 	// show port
@@ -54,15 +72,18 @@ func onReady() {
 	// "save archive/dump"
 
 	_ = integration.TestingInMemoryNode
-	//node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
-	//println(node, remoteAddr)
+	// node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	// println(node, remoteAddr)
 
 	go func() {
 		for {
 			select {
 			case <-mStartGnodev.ClickedCh:
+				systray.SetTitle("Gnodev 🪫")
 				mStartGnodev.SetTitle("Starting...")
+				mStartGnodev.Disable()
 				ctx, cancel := context.WithCancelCause(context.Background())
+				nodeCancel = cancel
 				defer cancel(nil)
 				gnoroot := gnoenv.RootDir()
 				examplesDir := filepath.Join(gnoroot, "examples")
@@ -75,27 +96,25 @@ func onReady() {
 				nodeOut := os.Stdout
 				logger := tmlog.NewTMLogger(nodeOut)
 				logger.SetLevel(tmlog.LevelError)
-				node, err := gnodev.NewDevNode(ctx, logger, pkgpaths)
+				var err error
+				node, err = gnodev.NewDevNode(ctx, logger, pkgpaths)
 				if err != nil {
 					panic(err)
 				}
-				defer node.Close()
 
 				log.Printf("Listener: %s\n", node.GetRemoteAddress())
 				log.Printf("Default Address: %s\n", gnodev.DefaultCreator.String())
 				log.Printf("Chain ID: %s\n", node.Config().ChainID())
 
-				gnodevListen := ":8000"
+				gnowebListen := ":8000" // TODO: make custom?
 
 				// TODO: auto-reload
 
 				// gnoweb
-				l, err := net.Listen("tcp", gnodevListen)
+				gnowebListener, err = net.Listen("tcp", gnowebListen)
 				if err != nil {
-					panic(fmt.Errorf("unable to listen to %q: %w", gnodevListen, err))
+					panic(fmt.Errorf("unable to listen to %q: %w", gnowebListen, err))
 				}
-				defer l.Close()
-
 				serveGnoWebServer := func(l net.Listener, dnode *gnodev.Node) error {
 					var server http.Server
 
@@ -116,15 +135,36 @@ func onReady() {
 
 					return nil
 				}
-
-				// Run GnoWeb server
 				go func() {
-					cancel(serveGnoWebServer(l, node))
+					cancel(serveGnoWebServer(gnowebListener, node))
 				}()
+				log.Printf("Listener: http://%s\n", gnowebListener.Addr().String())
 
-				log.Printf("Listener: http://%s\n", l.Addr())
+				go func() {
+					started := time.Now()
+					ticker := time.NewTicker(1 * time.Second)
+					defer ticker.Stop()
 
-				mStartGnodev.SetTitle("Started...")
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-ticker.C:
+							since := formatDuration(time.Since(started))
+							mStartGnodev.SetTitle("Running... " + since)
+						}
+					}
+				}()
+				mStartGnodev.SetTitle("Running...")
+				mStopGnodev.Enable()
+				systray.SetTitle("Gnodev 🟢")
+			case <-mStopGnodev.ClickedCh:
+				mStopGnodev.Disable()
+				mStopGnodev.SetTitle("Stopping...")
+				nodeCancel(nil)
+				node.Close()
+				mStopGnodev.SetTitle("Stopped")
+
 			case <-mOpenGnolandRPC.ClickedCh:
 				// open.Run("http://127.0.0.1:XXX/")
 				log.Println("NOT IMPLEMENTED")
@@ -148,4 +188,13 @@ func onReady() {
 func onExit() {
 	// clean up here
 	log.Println("Exited.")
+}
+
+func formatDuration(d time.Duration) string {
+	totalSeconds := int(d.Seconds())
+	seconds := totalSeconds % 60
+	minutes := (totalSeconds / 60) % 60
+	hours := totalSeconds / 3600
+
+	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 }
