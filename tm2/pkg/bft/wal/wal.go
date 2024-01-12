@@ -499,7 +499,15 @@ func (enc *WALWriter) Write(v TimedWALMessage) error {
 
 	line64 := base64stdnp.EncodeToString(line)
 	line64 += "\n"
-	_, err := enc.wr.Write([]byte(line64))
+
+	input := []byte(line64)
+
+	n, err := enc.wr.Write(input)
+
+	if len(input) != n {
+		return fmt.Errorf("could not write msg: %+v bytes", input)
+	}
+
 	return err
 }
 

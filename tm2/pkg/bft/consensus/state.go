@@ -69,9 +69,8 @@ func (ti *timeoutInfo) String() string {
 func (ti *timeoutInfo) GetHRS() cstypes.HRS {
 	if ti == nil {
 		return cstypes.HRS{}
-	} else {
-		return cstypes.HRS{ti.Height, ti.Round, ti.Step}
 	}
+	return cstypes.HRS{ti.Height, ti.Round, ti.Step}
 }
 
 // interface to the mempool
