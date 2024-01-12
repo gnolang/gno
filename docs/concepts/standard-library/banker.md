@@ -8,8 +8,6 @@ The Banker's main purpose is to handle balance changes of [native coins](./coin.
 
 The Banker module can be cast into 4 subtypes of bankers that expose different functionalities and safety features within your packages and realms.
 
-[//]: # (The banker module is injected into the GnoVM runtime at execution. )
-
 ### Banker Types
 
 1. `BankerTypeReadOnly` - read-only access to coin balances
