@@ -260,22 +260,19 @@ func (pt PrimitiveType) TypeID() TypeID {
 type category int
 
 const (
-	IsInvalid          = 0
+	IsInvalid category = 0
 	IsBoolean category = 1 << iota
 	IsInteger
 	IsUnsigned
 	IsFloat
-	IsComplex // no use for now
 	IsString
-	IsUntyped
 	IsBigInt
 	IsBigDec
 	IsRune
 
-	IsOrdered    = IsInteger | IsFloat | IsString | IsBigInt | IsBigDec | IsUnsigned
-	IsNumeric    = IsInteger | IsUnsigned | IsFloat | IsComplex | IsBigInt | IsBigDec
+	IsNumeric    = IsInteger | IsUnsigned | IsFloat | IsBigInt | IsBigDec
+	IsOrdered    = IsNumeric | IsString
 	IsIntOrFloat = IsInteger | IsUnsigned | IsFloat | IsBigInt | IsBigDec
-	// IsConstType = IsBoolean | IsNumeric | IsString
 )
 
 // category makes it more convenient than compare with types
@@ -2272,15 +2269,21 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// only used in runtime. this assume all operands are typed after prerocess and doOpConvert
-// TODO: consider. is untyped 100% excluded? this is major difference from assertSameTypes
-// both typed, or one is nil, or data byte(special case)
-// any implicit identical check is in preprocess stage and excluded from here
+// Only used in runtime. this implies all operands are typed after preprocess and doOpConvert.
+// This check has narrow conditions compared to assertEqualityTypes(), it's used to replace assertEqualityTypes()
+
+// the key difference with assertEqualityTypes() is that here excludes untyped == typed(we assume
+// all types are typed), and Foo_interface == Foo_xxx case(refer to 0f_2d), since in preprocess stage,
+// if Foo_xxx does not satisfy Foo_interface, the checkConvertible() will fail, otherwise, Foo_xxx will
+// still remain its type since target type in interface, this logic is located in convertConst().
+
+// Cases checked here consists:
+// both typed, or one/both is nil, or data byte(special case) TODO: link test case
 func isIdenticalType(lt, rt Type) bool {
 	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
 	if lpt, ok := lt.(*PointerType); ok {
-		if isDataByte(lpt.Elt) {
+		if isDataByte(lpt.Elt) { // refer to 0f31
 			debugPP.Println("lt is pointer type and base type is data byte")
 			return true
 		}
@@ -2311,7 +2314,7 @@ func isIdenticalType(lt, rt Type) bool {
 	} else if lt.TypeID() == rt.TypeID() {
 		debugPP.Println("typeID equal")
 		// non-nil types are identical.
-	} else if ilt, ok := baseOf(lt).(*InterfaceType); ok {
+	} else if ilt, ok := baseOf(lt).(*InterfaceType); ok { // refer to 0f48
 		if ilt.IsEmptyInterface() {
 			return true
 		}
@@ -2432,7 +2435,7 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 // case 1. untyped const to typed const with same kind
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
-// case 4. general convert, for composite types check
+// case 4. general cases.
 // XXX. the name of assignable should be considered, or convertable?
 // seems they have same function but implies different application scenarios
 func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {

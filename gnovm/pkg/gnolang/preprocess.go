@@ -8,68 +8,50 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-type f func(t Type) bool
-
 var (
-	binaryPredicates     = make(map[Word]f)
-	unaryPredicates      = make(map[Word]f)
-	IncDecStmtPredicates = make(map[Word]f)
-	AssignStmtPredicates = make(map[Word]f)
+	binaryPredicates = map[Word]func(t Type) bool{
+		ADD:      isNumericOrString,
+		SUB:      isNumeric,
+		MUL:      isNumeric,
+		QUO:      isNumeric,
+		REM:      isIntNum,
+		SHL:      isIntNum, // NOTE: 1.0 << 1 is legal in Go. consistent with op_binary for now.
+		SHR:      isIntNum,
+		BAND:     isIntNum, // bit ops
+		XOR:      isIntNum,
+		BOR:      isIntNum,
+		BAND_NOT: isIntNum,
+		LAND:     isBoolean, // logic
+		LOR:      isBoolean,
+		LSS:      isOrdered, // compare
+		LEQ:      isOrdered,
+		GTR:      isOrdered,
+		GEQ:      isOrdered,
+	}
+	unaryPredicates = map[Word]func(t Type) bool{
+		ADD: isNumeric,
+		SUB: isNumeric,
+		XOR: isIntNum,
+		NOT: isBoolean,
+	}
+	IncDecStmtPredicates = map[Word]func(t Type) bool{ // NOTE: to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
+		INC: isNumeric,
+		DEC: isNumeric,
+	}
+	AssignStmtPredicates = map[Word]func(t Type) bool{
+		ADD_ASSIGN:      isNumericOrString,
+		SUB_ASSIGN:      isNumeric,
+		MUL_ASSIGN:      isNumeric,
+		QUO_ASSIGN:      isNumeric,
+		REM_ASSIGN:      isIntNum,
+		SHL_ASSIGN:      isNumeric,
+		SHR_ASSIGN:      isNumeric,
+		BAND_ASSIGN:     isIntNum,
+		XOR_ASSIGN:      isIntNum,
+		BOR_ASSIGN:      isIntNum,
+		BAND_NOT_ASSIGN: isIntNum,
+	}
 )
-
-func init() {
-	binaryPredicates[ADD] = isNumericOrString
-	binaryPredicates[SUB] = isNumeric
-	binaryPredicates[MUL] = isNumeric
-	binaryPredicates[QUO] = isNumeric
-	binaryPredicates[REM] = isIntNum
-	// binaryPredicates[SHL] = isIntOrFloat // NOTE: 1.0 << 1 is legal
-	// binaryPredicates[SHR] = isIntOrFloat
-
-	binaryPredicates[SHL] = isIntNum // NOTE: consistent with op_binary for now
-	binaryPredicates[SHR] = isIntNum
-
-	// bit op
-	binaryPredicates[BAND] = isIntNum
-	binaryPredicates[XOR] = isIntNum
-	binaryPredicates[BOR] = isIntNum
-	binaryPredicates[BAND_NOT] = isIntNum
-	// logic op
-	binaryPredicates[LAND] = isBoolean
-	binaryPredicates[LOR] = isBoolean
-
-	// compare
-	binaryPredicates[LSS] = isOrdered
-	binaryPredicates[LEQ] = isOrdered
-	binaryPredicates[GTR] = isOrdered
-	binaryPredicates[GEQ] = isOrdered
-
-	// unary
-	unaryPredicates[ADD] = isNumeric
-	unaryPredicates[SUB] = isNumeric
-	unaryPredicates[XOR] = isIntNum
-	unaryPredicates[NOT] = isBoolean
-
-	// Inc Dec stmt
-	// NOTE: special case to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
-	IncDecStmtPredicates[INC] = isNumeric
-	IncDecStmtPredicates[DEC] = isNumeric
-
-	// assign stmt
-	AssignStmtPredicates[ADD_ASSIGN] = isNumericOrString
-	AssignStmtPredicates[SUB_ASSIGN] = isNumeric
-	AssignStmtPredicates[MUL_ASSIGN] = isNumeric
-	AssignStmtPredicates[QUO_ASSIGN] = isNumeric
-	AssignStmtPredicates[REM_ASSIGN] = isIntNum
-	AssignStmtPredicates[SHL_ASSIGN] = isNumeric
-	AssignStmtPredicates[SHR_ASSIGN] = isNumeric
-	AssignStmtPredicates[BAND_ASSIGN] = isIntNum
-	AssignStmtPredicates[XOR_ASSIGN] = isIntNum
-	AssignStmtPredicates[BOR_ASSIGN] = isIntNum
-	AssignStmtPredicates[BAND_NOT_ASSIGN] = isIntNum
-}
-
-// -------------------------------------------------------------------------------------------
 
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
@@ -1831,6 +1813,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
 							checkOp(store, last, &n.Rhs[i], lt, n.Op, Assign)
+							// if lt is interface, nothing will happen
 							checkOrConvertType(store, last, &n.Rhs[i], lt, true, false)
 						}
 					}
@@ -2680,6 +2663,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 				return
 			}
 		}
+		debugPP.Println(("set interface to nil, nothing else happens"))
 		t = nil
 	}
 	if isUntyped(cx.T) {
@@ -2725,13 +2709,20 @@ const (
 	Assign
 )
 
-// check operand types with operators
+// checkOp works as a pre-check prior to checkOrConvertType()
+// It checks expressions to ensure the compatibility between operands and operators.
+// e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
+// Overall,it efficiently filters out incompatible expressions, stopping before the next
+// checkOrConvertType() operation to optimize performance.
+
+// there are two steps of check:
+// first, check is the dt type satisfies op;
+// second, check if xt can be converted to dt, this is done after checkOp, in checkOrConvertType(),
 func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType) {
 	debugPP.Printf("checkOp, dt: %v, op: %v, nt: %v \n", dt, op, nt)
 	if nt == Unary || nt == IncDec {
 		switch nt {
 		case Unary:
-			// unary
 			if pred, ok := unaryPredicates[op]; ok {
 				if !pred(dt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
@@ -2758,21 +2749,13 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 			if isComparison(op) {
 				switch op {
 				case EQL, NEQ: // check maybeIdenticalType
-					// check typed primitives
-					//if !isUntyped(xt) && !isUntyped(dt) {
-					//	if xt != nil && dt != nil {
-					//		if xt.TypeID() != dt.TypeID() {
-					//			panic(fmt.Sprintf("incompatible type of, xt: %v, dt: %v \n", xt, dt))
-					//		}
-					//	}
-					//}
-					// NOTE: not checking types strict identical here, unlike ADD, etc
-					// this will pass the case one is interface and the other implements this interface
+					// NOTE: not checking types strict identical here, unlike ADD, etc.
+					// this will pass the case of lhs is interface and rhs implements this interface, vice versa.
 					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkConvertible -> assignable
 					if ok, code := maybeIdenticalType(xt, dt); !ok {
 						panic(code)
 					}
-				case LSS, LEQ, GTR, GEQ: // check if is ordered, primitive && numericOrString
+				case LSS, LEQ, GTR, GEQ:
 					if pred, ok := binaryPredicates[op]; ok {
 						if !pred(dt) {
 							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
@@ -2782,10 +2765,6 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 					panic("invalid comparison operator")
 				}
 			} else {
-				// two steps of check:
-				// first, check is the dt type satisfies op, the switch logic
-				// second, xt can be converted to dt, this is done after checkOp, in checkOrConvert stage
-				// NOTE: dt has a higher precedence, which means it would be the type of xt after conversion, that used for evaluation, so only check dt
 				if pred, ok := binaryPredicates[op]; ok {
 					if !pred(dt) {
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
@@ -2802,11 +2781,8 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 						}
 						debugPP.Println("typed and identical as maybeIdenticalType")
 					}
-				case SHL, SHR:
-					// TODO: check float like 1.0 would work, 1.2 won't
-					// Currently, the check is relaxed(with runtime strict, to be consistent)
 				default:
-					// Note: others no check, assign will be check in assignable
+					// do nothing
 				}
 			}
 		case Assign:
@@ -2826,7 +2802,7 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 						debugPP.Println("typed and identical as maybeIdenticalType")
 					}
 				default:
-					// Note: others no check, assign will be check in assignable
+					// do nothing
 				}
 			}
 		default:
@@ -2838,11 +2814,9 @@ func checkOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-// TODO: proper name
 func checkConvertible(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
 	debugPP.Printf("checkConvertible, xt: %v, dt: %v \n", xt, dt)
 	if xt == nil || dt == nil { // refer to 0f18_filetest, assign8.gno
-		debugPP.Println("checkConvertible, xt or dt is nil")
 		return
 	}
 	return assignable(xt, dt, autoNative)

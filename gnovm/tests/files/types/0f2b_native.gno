@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f2b_filetest.gno:19: operator <= not defined on: .uverse.error
+// main/files/types/0f2b_native.gno:19: operator <= not defined on: gonative{error}
