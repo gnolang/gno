@@ -237,9 +237,7 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 				tokenURI := GetBasicTokenURI(tidString)
 				tokenURIs = append(tokenURIs, tokenURI)
 			}
-		
 		}
-	
 	}
 
 	fetchedUserNFTs := &userNFTsResult{
@@ -252,4 +250,9 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 	}
 
 	return string(userNFTs)
+}
+
+func GetAllUnlockedNFTs() int {
+	tokenCount := flipBasicNFT.TokenCount()
+	return tokenCount - lockedNFTs.Size()
 }

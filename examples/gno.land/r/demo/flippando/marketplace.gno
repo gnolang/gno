@@ -113,25 +113,3 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID)
     m.listings.Remove(string(compositeTokenID))
     return nil
 }
-
-
-func parseBTokenIDs(jsonStr string) ([]int64, error) {
-    prefix := `"bTokenIDs":[`
-    suffix := `]`
-
-    startIndex := strings.Index(jsonStr, prefix)
-    if startIndex == -1 {
-        return nil, error("bTokenIDs not found")
-    }
-
-    startIndex += len(prefix)
-    endIndex := strings.Index(jsonStr[startIndex:], suffix)
-    if endIndex == -1 {
-        return nil, error("malformed JSON")
-    }
-
-	endIndex += startIndex
-
-	bTokenIDsStr := jsonStr[startIndex:endIndex]
-    return ParseString(bTokenIDsStr)
-}
