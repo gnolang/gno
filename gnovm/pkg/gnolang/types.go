@@ -2279,9 +2279,10 @@ func assertSameTypes(lt, rt Type) {
 
 // Cases checked here consists:
 // both typed, or one/both is nil, or data byte(special case) TODO: link test case
-func isIdenticalType(lt, rt Type) bool {
+func isEqualityType(lt, rt Type) bool {
 	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
+	// XXX consider, is it the only case of runtime untyped?
 	if lpt, ok := lt.(*PointerType); ok {
 		if isDataByte(lpt.Elt) { // refer to 0f31
 			debugPP.Println("lt is pointer type and base type is data byte")
@@ -2294,20 +2295,14 @@ func isIdenticalType(lt, rt Type) bool {
 			return true
 		}
 	}
-	if isDataByte(lt) || isDataByte(rt) {
-		return true
-	}
 	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
-		//} else if lt.Kind() == rt.Kind() &&
-		//	isUntyped(lt) || isUntyped(rt) {
-		//	// one is untyped of same kind.
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
-		// left is databyteinvalide operation of same kind,
+		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
@@ -2322,6 +2317,27 @@ func isIdenticalType(lt, rt Type) bool {
 		if irt.IsEmptyInterface() {
 			return true
 		}
+	} else {
+		return false
+	}
+	return true
+}
+
+// similar with isEqualityType
+func isSameType(lt, rt Type) bool {
+	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else if lt.TypeID() == rt.TypeID() {
+		debugPP.Println("typeID equal")
 	} else {
 		return false
 	}
