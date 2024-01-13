@@ -53,6 +53,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			version: "1.0.0",
 			gameId: currentGame.ID,
 			gameType: currentGame.TileType,
+			gameLevel: strconv.Itoa(len(currentGame.SolvedGameBoard)),
 			svgData: gameSVGData,
 		}
 		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
@@ -254,5 +255,7 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 
 func GetAllUnlockedNFTs() int {
 	tokenCount := flipBasicNFT.TokenCount()
-	return tokenCount - lockedNFTs.Size()
+	lockedNFTs := lockedNFTs.Size()
+	totalUnlocked := int(tokenCount) - lockedNFTs
+	return int(totalUnlocked)
 }

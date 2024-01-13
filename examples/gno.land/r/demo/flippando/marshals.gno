@@ -38,6 +38,7 @@ type basicNFTMetaData struct {
 	version	string	`json:"version"`
 	gameId	string`json:"gameId"`
 	gameType string `json:"gameType"`
+	gameLevel string `json:"gameLevel"`
 	svgData	string `json:"svgData"`
 }
 
@@ -163,6 +164,10 @@ func (fbn basicNFTMetaData) MarshalJSON() (_ []byte, err error) {
 
 	b.WriteString(`"gameType":"`)
 	b.WriteString(fbn.gameType)
+	b.WriteString(`",`)
+
+	b.WriteString(`"gameLevel":"`)
+	b.WriteString(fbn.gameLevel)
 	b.WriteString(`",`)
 	
 	b.WriteString(`"svgData":"`)

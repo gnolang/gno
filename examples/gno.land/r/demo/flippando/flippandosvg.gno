@@ -48,6 +48,10 @@ func GenerateGrid(solvedBoard []int64, gridType string) (string, error) {
 
 func generateColorSquareGrid(solvedBoard []int64, gridType string, size int) (string, error) {
 	svgSquare := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
+	if size == 8 {
+		svgSquare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">`
+	}
+	
 	for i := int64(0); i < int64(size); i++ {
 		for j := int64(0); j < int64(size); j++ {
 			index := i*int64(size) + j
@@ -74,7 +78,11 @@ func generateDiceGrid(solvedBoard []int64, size int) (string, error) {
 	}
 
 	var svg strings.Builder
-	svg.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`)
+	svgSquare := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
+	if size == 8 {
+		svgSquare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">`
+	}
+	svg.WriteString(svgSquare)
 
 	for i := int(0); i < size; i++ {
 		for j := int(0); j < size; j++ {
@@ -115,7 +123,11 @@ func generateHexagramGrid(solvedBoard []int64, size int) (string, error) {
 	}
 
 	var svg strings.Builder
-	svg.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`)
+	svgSquare := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`
+	if size == 8 {
+		svgSquare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">`
+	}
+	svg.WriteString(svgSquare)
 
 	for i := int(0); i < size; i++ {
 		for j := int(0); j < size; j++ {

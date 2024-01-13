@@ -72,7 +72,7 @@ func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int
 func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions []int64, seed int64) ([]int64, []int64) {
 	//   - returns the current game board, and the solved game board
 	
-	randomNumberSlice := GenerateRandomNumbers(2, 1, len(board)/4, seed)
+	randomNumberSlice := GenerateRandomNumbers(2, 1, len(gameTiles), seed)
 
 	// Safety check for 'positions' slice
     if len(positions) < 2 {
