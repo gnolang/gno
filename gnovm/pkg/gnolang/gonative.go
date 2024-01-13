@@ -359,7 +359,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
 func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
-	debugPP.Printf("go2GnoValue---, rv: %v \n", rv)
+	debugPP.Printf("go2GnoValue---, rv: %v \n", rv.Kind())
 	if !rv.IsValid() {
 		return
 	}

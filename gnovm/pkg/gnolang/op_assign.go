@@ -52,7 +52,7 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -77,7 +77,7 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -101,7 +101,7 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -125,7 +125,7 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -149,7 +149,7 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -173,7 +173,7 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -197,7 +197,7 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -221,7 +221,7 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}
@@ -245,7 +245,7 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameType(lv.TV.T, rv.T) {
+		if !isSameTypes(lv.TV.T, rv.T) {
 			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
 		}
 	}

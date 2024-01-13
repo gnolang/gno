@@ -2241,7 +2241,6 @@ func KindOf(t Type) Kind {
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
-// TODO: consider use mayeIdenticalType and isIdentical instead
 func assertSameTypes(lt, rt Type) {
 	debugPP.Println("assert same types")
 	if lt == nil && rt == nil {
@@ -2269,20 +2268,10 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// Only used in runtime. this implies all operands are typed after preprocess and doOpConvert.
-// This check has narrow conditions compared to assertEqualityTypes(), it's used to replace assertEqualityTypes()
-
-// the key difference with assertEqualityTypes() is that here excludes untyped == typed(we assume
-// all types are typed), and Foo_interface == Foo_xxx case(refer to 0f_2d), since in preprocess stage,
-// if Foo_xxx does not satisfy Foo_interface, the checkConvertible() will fail, otherwise, Foo_xxx will
-// still remain its type since target type in interface, this logic is located in convertConst().
-
-// Cases checked here consists:
-// both typed, or one/both is nil, or data byte(special case) TODO: link test case
-func isEqualityType(lt, rt Type) bool {
+func isEqualityTypes(lt, rt Type) bool {
 	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	// refer to std3.gno, untyped byte has no typeID
-	// XXX consider, is it the only case of runtime untyped?
+	// quich pick
 	if lpt, ok := lt.(*PointerType); ok {
 		if isDataByte(lpt.Elt) { // refer to 0f31
 			debugPP.Println("lt is pointer type and base type is data byte")
@@ -2297,51 +2286,64 @@ func isEqualityType(lt, rt Type) bool {
 	}
 	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
+		return true
 		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
+		return true
 	} else if lt.Kind() == rt.Kind() &&
-		isDataByte(lt) {
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+		return true
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) { // XXX, what hit this
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-	} else if lt.TypeID() == rt.TypeID() {
+		return true
+	} else if lt.TypeID() == rt.TypeID() { // order matters
 		debugPP.Println("typeID equal")
 		// non-nil types are identical.
-	} else if ilt, ok := baseOf(lt).(*InterfaceType); ok { // refer to 0f48
-		if ilt.IsEmptyInterface() {
-			return true
-		}
-	} else if irt, ok := baseOf(rt).(*InterfaceType); ok {
-		if irt.IsEmptyInterface() {
-			return true
-		}
-	} else {
-		return false
+		return true
+	} else if lt.Kind() == InterfaceKind &&
+		IsImplementedBy(lt, rt) {
+		// one is untyped of same kind.
+		// rt implements lt (and lt is nil interface).
+		return true
+	} else if rt.Kind() == InterfaceKind &&
+		IsImplementedBy(rt, lt) {
+		// lt implements rt (and rt is nil interface).
+		return true
 	}
-	return true
+	return false
 }
 
-// similar with isEqualityType
-func isSameType(lt, rt Type) bool {
+// similar with isEqualityTypes
+func isSameTypes(lt, rt Type) bool {
 	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	if lt == nil && rt == nil {
 		// both are nil.
+		return true
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
+		return true
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+		return true
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
+		return true
 	} else if lt.TypeID() == rt.TypeID() {
 		debugPP.Println("typeID equal")
-	} else {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
