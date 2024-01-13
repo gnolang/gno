@@ -56,11 +56,19 @@ func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int
 		rng = int64(8)
 	} else if tileType == "hexagrams" {
 		rng = int64(4)
+		// adjust for bigger board
+		if len(gameTiles) == 8 {
+			gameTiles = make([]int64, 4)
+		}
 	} else if tileType == "dice" {
 		rng = int64(6)
+		// adjust for bigger board
+		if len(gameTiles) == 8 {
+			gameTiles = make([]int64, 6)
+		}
 	}
 	// Generating random numbers for gameTiles
-    generatedNumbers := GenerateRandomNumbers(gameTilesLength, 1, int(rng), seed)
+    generatedNumbers := GenerateRandomNumbers(len(gameTiles), 1, int(rng), seed)
     for i, num := range generatedNumbers {
         gameTiles[i] = int64(num)
     }
