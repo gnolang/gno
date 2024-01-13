@@ -2269,7 +2269,13 @@ func assertSameTypes(lt, rt Type) {
 }
 
 func isEqualityTypes(lt, rt Type) bool {
-	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	debugPP.Printf("check isEqualityTypes, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	if lt != nil {
+		debugPP.Printf("lt.Kind: %v \n", lt.Kind())
+	}
+	if rt != nil {
+		debugPP.Printf("rt.Kind: %v \n", rt.Kind())
+	}
 	// refer to std3.gno, untyped byte has no typeID
 	// quich pick
 	if lpt, ok := lt.(*PointerType); ok {
@@ -2374,20 +2380,18 @@ func assertEqualityTypes(lt, rt Type) {
 	}
 }
 
-// maybeIdenticalType is more relaxed than isIdentical, it's used in preprocess.
-// The logic here is, when != or == shows up, check if `dt` is maybeIdenticalType(TODO: a better name
+// assertEqualityCompatible is used in preprocess.
+// The logic here is, when != or == shows up, check if `dt` is equalilty eval compatible.
 // indicates operand with dt can be used as with == or !=). if this check pass,
 // then check the corresponding type(the other side of the operator) is convertable to t.
 // this is located in checkOrConvertType->checkConvertable stage.
-// so, checkOp is working as a pre-check.
+// so, checkOperandWithOp is working as a pre-check.
 // TODO: just panic
-func maybeIdenticalType(xt, dt Type) (bool, string) {
-	debugPP.Printf("---check maybeIdenticalType---, xt: %v, dt: %v \n", xt, dt)
-	// primitive is maybeIdenticalType
+func assertEqualityCompatible(xt, dt Type) {
+	debugPP.Printf("--- assertEqualityCompatible---, xt: %v, dt: %v \n", xt, dt)
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage
 		debugPP.Println("primitive type, return true, fallthrough")
-		return true, ""
 	case *ArrayType: // NOTE: no recursive allowed
 		// TODO: check at least length here
 		switch baseOf(cdt.Elem()).(type) {
@@ -2395,57 +2399,48 @@ func maybeIdenticalType(xt, dt Type) (bool, string) {
 			switch cxt := baseOf(xt).(type) {
 			case *ArrayType:
 				if cxt.Len != cdt.Len {
-					return false, fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt)
+					panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
 				}
-				return true, ""
 			default:
-				return false, fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt)
+				panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
 			}
 		default:
-			return false, fmt.Sprintf("%v cannot be compared \n", cdt)
+			panic(fmt.Sprintf("%v cannot be compared \n", cdt))
 		}
 	case *StructType:
 		for _, f := range cdt.Fields {
 			switch baseOf(f.Type).(type) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
-				return true, ""
 			default:
-				return false, fmt.Sprintf("%v cannot be compared \n", cdt)
+				panic(fmt.Sprintf("%v cannot be compared \n", cdt))
 			}
 		}
-		return true, ""
 	case *PointerType:
-		return true, ""
 	case *InterfaceType:
-		return true, ""
 	case *SliceType, *FuncType, *MapType:
 		if xt != nil {
-			return false, fmt.Sprintf("%v can only be compared to nil \n", dt)
+			panic(fmt.Sprintf("%v can only be compared to nil \n", dt))
 		} else {
-			// only maybeIdenticalType with nil, runtime check
-			return true, ""
+			// do nothing
 		}
 	case *NativeType:
-		if cdt.Type.Comparable() {
-			return true, ""
+		if !cdt.Type.Comparable() {
+			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
-		return false, fmt.Sprintf("%v is not comparable \n", dt)
 	case nil: // refer to 0a01_filetest, 0f32_filetest.
 		switch cxt := baseOf(xt).(type) {
 		case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
-			return true, ""
 		case *NativeType:
 			switch nk := cxt.Type.Kind(); nk {
 			case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
-				return true, ""
 			default:
-				return false, fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk)
+				panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk))
 			}
 		default:
-			return false, fmt.Sprintf("invalid operation, nil can not be compared to nil \n")
+			panic(fmt.Sprintf("invalid operation, nil can not be compared to nil \n"))
 		}
 	default:
-		return false, fmt.Sprintf("%v is not comparable \n", dt)
+		panic(fmt.Sprintf("%v is not comparable \n", dt))
 	}
 }
 
