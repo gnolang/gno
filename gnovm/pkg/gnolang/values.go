@@ -1454,129 +1454,86 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
-// Sign returns -1, 0, or 1 depending on whether x < 0, x == 0, or x > 0;
-func (tv *TypedValue) Sign() int {
+// returns true if tv is zero
+func (tv *TypedValue) isZero() bool {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
 	switch tv.T.Kind() {
 	case IntKind:
 		v := tv.GetInt()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Int8Kind:
 		v := tv.GetInt8()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Int16Kind:
 		v := tv.GetInt16()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Int32Kind:
 		v := tv.GetInt32()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Int64Kind:
 		v := tv.GetInt64()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case UintKind:
 		v := tv.GetUint()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Uint8Kind:
 		v := tv.GetUint8()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Uint16Kind:
 		v := tv.GetUint16()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Uint32Kind:
 		v := tv.GetUint32()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Uint64Kind:
 		v := tv.GetUint64()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Float32Kind:
 		v := tv.GetFloat32()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case Float64Kind:
 		v := tv.GetFloat64()
-		if v < 0 {
-			return -1
-		} else if v == 0 {
-			return 0
-		} else {
-			return 1
+		if v == 0 {
+			return true
 		}
 	case BigintKind:
 		v := tv.GetBigInt()
-		return v.Sign()
+		if v.Sign() == 0 {
+			return true
+		}
 	case BigdecKind:
 		v := tv.GetBigDec()
-		return v.Sign()
+		if v.Sign() == 0 {
+			return true
+		}
 	default:
 		panic("not numeric")
 	}
+	return false
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
@@ -2419,6 +2376,8 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	debugPP.Printf("---GetPointerToInt, path: %v \n", index)
+	debugPP.Printf("---GetPointerToInt, b: %v \n", b)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2428,6 +2387,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	debugPP.Printf("---GetPointerTo, path: %v \n", path)
+	debugPP.Printf("---GetPointerTo, b: %v \n", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {

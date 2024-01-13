@@ -1124,12 +1124,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// the ATTR_TYPEOF_VALUE is still interface.
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
-					case *BinaryExpr:
+					case *BinaryExpr: // when arg is untyped expression and contains SHL/SHR expression, call type convert explicitly to give it type
 						debugPP.Printf("---callExpr, arg is binary expr, bx: %v \n", arg0)
 						ct := evalStaticType(store, last, n.Func)
 						debugPP.Printf("ct: %v \n", ct)
 						switch arg0.Op {
-						case EQL, NEQ, LSS, GTR, LEQ, GEQ:
+						case EQL, NEQ, LSS, GTR, LEQ, GEQ: // refer to 10a0012
 							break // quick forward
 						default:
 							checkOrConvertType(store, last, &n.Args[0], ct, false, true)
@@ -1142,7 +1142,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					default:
 						// do nothing
 					}
-					debugPP.Println("else")
+					debugPP.Println("general case")
 					ct := evalStaticType(store, last, n.Func)
 					debugPP.Printf("ct: %v \n", ct)
 					n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
@@ -1228,7 +1228,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else if !hasVarg {
-					debugPP.Println("no varg")
 					argTVs = evalStaticTypedValues(store, last, n.Args...)
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
@@ -1296,7 +1295,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
-					debugPP.Println("no embeded")
 					for i := range n.Args { // iterate args
 						if hasVarg {
 							if (len(spts) - 1) <= i {
@@ -1304,21 +1302,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									if len(spts) <= i {
 										panic("expected final vargs slice but got many")
 									}
-									debugPP.Println("1")
 									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
 								} else {
-									debugPP.Println("2")
-									at := evalStaticTypeOf(store, last, n.Args[i])
-									debugPP.Printf("at: %v \n", at)
 									checkOrConvertType(store, last, &n.Args[i],
 										spts[len(spts)-1].Type.Elem(), true, false)
 								}
 							} else {
-								debugPP.Println("3")
 								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
 							}
 						} else {
-							debugPP.Println("4")
 							// TODO: check if type bx
 							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
 						}
@@ -1754,6 +1746,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								last.Define(ln, anyValue(rt))
 							}
+							// in define, when RHS is untyped and contains SHR/SHL expression, explicitly
+							// call this, to give the SHR/SHL a type
 							checkOrConvertType(store, last, &n.Rhs[i], nil, false, false) // 10a03
 						}
 					}
@@ -1796,8 +1790,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							panic("should not happen")
 						}
 						// Special case if shift assign <<= or >>=.
-						// TODO: no need here, like index convert
-						// checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
 						checkOp(store, last, &n.Lhs[0], lt, n.Op, Assign)
@@ -2686,7 +2678,7 @@ func isQuoOrRem(op Word) bool {
 }
 
 func checkOperand(cx *ConstExpr) {
-	if cx.TypedValue.Sign() == 0 {
+	if cx.TypedValue.isZero() {
 		panic("invalid operation: division by zero")
 	}
 }
