@@ -52,6 +52,8 @@ func CreateGameBoard(tileType string, boardSize int, seed int64) ([]int64, []int
 	rng := int64(4)
 	if tileType == "squareGrid" {
 		rng = int64(16)
+	} else if tileType == "greyGradient" || tileType == "redGradient" || tileType == "blueGradient" || tileType == "greenGradient" {
+		rng = int64(8)
 	} else if tileType == "hexagrams" {
 		rng = int64(4)
 	} else if tileType == "dice" {
@@ -118,21 +120,6 @@ func FlipTiles(board []int64, solvedBoard []int64, gameTiles []int64, positions 
 
 	return board, solvedBoard
 
-	// check for game solved
-	// todo: promote this check to the realm? that's where we send user events
-	/*
-	   unsolvedTiles = 0
-
-	   for j := 0; j < len(board); j++ {
-	       if(solvedBoard[j] == 0){
-	           unsolvedTiles = unsolvedTiles + 1
-	       }
-	   }
-	   if(unsolvedTiles == 0){
-	       // call flippandoGameMaster finishGame
-	       flippandoGameMaster.finishGame(id, games[id].player);
-	       emit GameSolved(id, games[id])
-	   }*/
 }
 
 func GenerateRandomNumbers(howMany, min, max int, seed int64) []int {
