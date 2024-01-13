@@ -59,7 +59,7 @@ additional specified paths.`,
 			return execDev(cfg, args, stdio)
 		})
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(

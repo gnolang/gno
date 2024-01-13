@@ -15,7 +15,7 @@ func main() {
 	cmd := client.NewRootCmd(wrappedio)
 	cmd.AddSubCommands(newKcCmd(stdio))
 
-	cmd.Main(context.Background(), os.Args[1:])
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 type wrappedIO struct {
