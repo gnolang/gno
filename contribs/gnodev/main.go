@@ -59,10 +59,7 @@ additional specified paths.`,
 			return execDev(cfg, args, stdio)
 		})
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
