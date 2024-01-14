@@ -903,11 +903,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertType(store, last, &n.Left, rt, false, false)
 							}
 						}
-					} else if lcx.T == nil { // LHS is nil // TODO: this seems unreachable
+					} else if lcx.T == nil { // LHS is nil
 						debugPP.Println("lcx.T is nil")
-						// convert n.Left to typed-nil type.
-						checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
-						checkOrConvertType(store, last, &n.Left, rt, false, false)
+						if !isShift {
+							// convert n.Left to typed-nil type.
+							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+							checkOrConvertType(store, last, &n.Left, rt, false, false)
+						} else {
+							// check lhs of shift
+							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
+						}
 					} else { // left is typed const, right is not const(also typed), and not nil
 						if isShift {
 							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
@@ -960,7 +965,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if rcx.T == nil { // RHS is nil
-						// TODO: check lt maybeIdentical
+						// no need to check lhs here since if rhs type is nil, it would fail earlier
 						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
 						//if lnt, ok := lt.(*NativeType); ok {
 						//	if ilnt, ok := baseOf(lnt).(*InterfaceType); ok {
@@ -971,8 +976,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// in case of rcx.T == nil(untyped nil), require lt is maybeNil
 						checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false, false)
-						//// TODO: shift
-						//// convert n.Right to typed-nil type.
 					} else if !isShift { // left not const(typed), right is typed const, both typed
 						// TODO: if left untyped?
 						if isUntyped(lt) {
