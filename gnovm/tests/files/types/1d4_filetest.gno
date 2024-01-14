@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/1d4_filetest.gno:7: invalid operation: mismatched types int and interface{}
+// main/files/types/1d4_filetest.gno:7: operator + not defined on: interface{}

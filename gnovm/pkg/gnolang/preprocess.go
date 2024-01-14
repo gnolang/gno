@@ -1055,8 +1055,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							} else { // both typed vars, refer to 0a1f_filetest
 								if !isShift {
-									checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
-									checkOrConvertType(store, last, &n.Left, rt, false, false)
+									debugPP.Println("---both typed")
+									cmp := cmpSpecificity(lt, rt)
+									debugPP.Println("cmp: ", cmp)
+									if cmp == -1 {
+										checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+										checkOrConvertType(store, last, &n.Left, rt, false, false)
+									} else if cmp == 1 {
+										checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+										checkOrConvertType(store, last, &n.Right, lt, false, false)
+									} else {
+										checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+										checkOrConvertType(store, last, &n.Left, rt, false, false)
+									}
 								}
 							}
 						}
@@ -2487,6 +2498,20 @@ func isConstType(x Expr) bool {
 
 func cmpSpecificity(t1, t2 Type) int {
 	debugPP.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
+	// debugPP.Printf("comSpecificity, t1: %T, t2: %T \n", t1, t2)
+	// debugPP.Printf("comSpecificity, t1.kind: %v, t2.kind: %v \n", t1.Kind(), t2.Kind())
+	if it1, ok := baseOf(t1).(*InterfaceType); ok {
+		debugPP.Printf("it1: %v: \n", it1)
+		if it2, ok := baseOf(t2).(*InterfaceType); ok {
+			debugPP.Printf("it1: %v: \n", it2)
+			return 0
+		} else {
+			return 1
+		}
+	} else if _, ok := t2.(*InterfaceType); ok {
+		return -1
+	}
+
 	t1s, t2s := 0, 0
 	if t1p, ok := t1.(PrimitiveType); ok {
 		t1s = t1p.Specificity()

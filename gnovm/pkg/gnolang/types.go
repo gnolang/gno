@@ -2242,7 +2242,6 @@ func KindOf(t Type) Kind {
 // and others serve as empty values.  See doOpAdd()
 // usage: if debug { assertSameTypes() }
 func assertSameTypes(lt, rt Type) {
-	debugPP.Println("assert same types")
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2298,7 +2297,7 @@ func isEqualityTypes(lt, rt Type) bool {
 		// one is nil.  see function comment.
 		return true
 	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
+		isUntyped(lt) || isUntyped(rt) { // XXX, is this necessary?
 		// one is untyped of same kind.
 		return true
 	} else if lt.Kind() == rt.Kind() &&
@@ -2320,33 +2319,6 @@ func isEqualityTypes(lt, rt Type) bool {
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
 		// lt implements rt (and rt is nil interface).
-		return true
-	}
-	return false
-}
-
-// similar with isEqualityTypes
-func isSameTypes(lt, rt Type) bool {
-	debugPP.Printf("check isIdenticalType, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
-	if lt == nil && rt == nil {
-		// both are nil.
-		return true
-	} else if lt == nil || rt == nil {
-		// one is nil.  see function comment.
-		return true
-	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
-		// one is untyped of same kind.
-		return true
-	} else if lt.Kind() == rt.Kind() &&
-		isDataByte(lt) {
-		// left is databyte of same kind,
-		// specifically for assignments.
-		// TODO: make another function
-		// and remove this case?
-		return true
-	} else if lt.TypeID() == rt.TypeID() {
-		debugPP.Println("typeID equal")
 		return true
 	}
 	return false

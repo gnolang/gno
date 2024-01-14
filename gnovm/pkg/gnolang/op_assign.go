@@ -1,7 +1,5 @@
 package gnolang
 
-import "fmt"
-
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -52,9 +50,7 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -77,9 +73,7 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -101,9 +95,7 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -125,9 +117,7 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -149,9 +139,7 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -173,9 +161,7 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -197,9 +183,7 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -221,9 +205,7 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -245,9 +227,7 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		if !isSameTypes(lv.TV.T, rv.T) {
-			panic(fmt.Sprintf("incompatible operands in binary expression: %s and %s", lv.TV.T.String(), rv.T.String()))
-		}
+		assertSameTypes(lv.TV.T, rv.T)
 	}
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
