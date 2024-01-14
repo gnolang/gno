@@ -30,7 +30,7 @@ Returns `Banker` of the specified type.
 - `BankerType` - type of Banker to get:
     - `BankerTypeReadOnly` - read-only access to coin balances
     - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
-    - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaciton
+    - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
 
 #### Usage
