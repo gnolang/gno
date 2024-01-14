@@ -5,11 +5,13 @@ import (
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	hariom := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	admin := pusers.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	hariom := pusers.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	for i, tc := range []struct {
 		name     string

@@ -1,7 +1,5 @@
 package users
 
-import "std"
-
 type AddressOrName string
 
 func (aon AddressOrName) IsName() bool {
