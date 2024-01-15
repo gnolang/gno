@@ -18,5 +18,4 @@ func main() {
 
 	cmd := keyscli.NewRootCmd(commands.NewDefaultIO(), baseCfg)
 	cmd.Execute(context.Background(), os.Args[1:])
-
 }
