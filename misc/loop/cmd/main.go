@@ -75,6 +75,14 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 			}
 		}
 		return nil
+	} else if s.portalLoopURL == "" {
+		for _, p := range containers[0].Ports {
+			if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
+				s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
+				s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL)
+				break
+			}
+		}
 	}
 
 	// 3. Check if there is a new image
@@ -149,6 +157,8 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 			if !strings.HasPrefix(err.Error(), "blocks: ") {
 				logrus.WithError(err).Error()
 			}
+		} else {
+			break
 		}
 		time.Sleep(time.Second * 2)
 	}

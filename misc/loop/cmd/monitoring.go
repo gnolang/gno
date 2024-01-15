@@ -45,7 +45,7 @@ func (s *service) recordMetrics() {
 	m := metrics{}
 
 	m.backupTXS = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "backup_txs",
+		Name: "portal_loop_backup_txs",
 		Help: "The number of line backed up",
 		ConstLabels: prometheus.Labels{
 			"portal_loop_container_name": s.portalLoop.containerName,

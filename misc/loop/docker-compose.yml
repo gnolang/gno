@@ -38,8 +38,6 @@ services:
     image: ghcr.io/gnolang/gno/gnoweb-slim
     network_mode: host
     restart: unless-stopped
-    volumes:
-      - ../../gno.land/pkg/gnoweb/views:/opt/gno/src/gnoweb/views
     entrypoint:
       - gnoweb
       - --bind=localhost:8888
@@ -80,11 +78,13 @@ services:
       - ./backups:/backups
       - ./traefik:/etc/traefik/configs
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - 9090:9090
     environment:
       HOST_PWD: $PWD
       BACKUP_DIR: "/backups"
       RPC_URL: "http://rpc.portal.gno.local:81"
-      PROM_ADDR: ":9090"
+      PROM_ADDR: "0.0.0.0:9090"
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1
