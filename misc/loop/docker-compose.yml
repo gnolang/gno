@@ -88,3 +88,9 @@ services:
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30
