@@ -140,7 +140,6 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 	tokenURIs := []string{}
 	userNFTsError := ""
 
-	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
 		owner, err := flipBasicNFT.OwnerOf(grc721.TokenID(tidString))
