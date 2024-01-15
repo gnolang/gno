@@ -2,10 +2,11 @@ package consensus
 
 import (
 	"fmt"
-	"log/slog"
 	"reflect"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"

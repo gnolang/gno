@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -312,20 +313,14 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 		}
 	})
 
-	var level zapcore.Level
-
-	switch lvl := os.Getenv("LOG_LEVEL"); strings.ToLower(lvl) {
-	case "error":
-		level = zapcore.ErrorLevel
-	case "debug":
-		level = zapcore.DebugLevel
-	case "warn":
-		level = zapcore.WarnLevel
-	default:
-		level = zapcore.InfoLevel
+	// Initialize the logger
+	logLevel, err := zapcore.ParseLevel(strings.ToLower(os.Getenv("LOG_LEVEL")))
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level, %w", err)
 	}
 
-	logger, _ := log.NewLogger(f, level)
+	zapLogger, _ := log.NewZapLogger(f, logLevel)
+	logger := log.ZapLoggerToSlog(zapLogger)
 
 	env.T().Log("starting logger: %q", path)
 	return logger, nil

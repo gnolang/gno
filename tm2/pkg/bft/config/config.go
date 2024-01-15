@@ -115,9 +115,6 @@ func (cfg *Config) EnsureDirs() {
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *Config) ValidateBasic() error {
-	if err := cfg.BaseConfig.ValidateBasic(); err != nil {
-		return err
-	}
 	if err := cfg.RPC.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [rpc] section")
 	}
@@ -135,13 +132,6 @@ func (cfg *Config) ValidateBasic() error {
 
 // -----------------------------------------------------------------------------
 // BaseConfig
-
-const (
-	// LogFormatPlain is a format for colored text
-	LogFormatPlain = "plain"
-	// LogFormatJSON is a format for json output
-	LogFormatJSON = "json"
-)
 
 var (
 	defaultConfigDir = "config"
@@ -202,12 +192,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir"`
 
-	// Output level for logging
-	LogLevel string `toml:"log_level"`
-
-	// Output format: 'plain' (colored text) or 'json'
-	LogFormat string `toml:"log_format"`
-
 	// Path to the JSON file containing the initial validator set and other meta data
 	Genesis string `toml:"genesis_file"`
 
@@ -245,8 +229,6 @@ func DefaultBaseConfig() BaseConfig {
 		Moniker:            defaultMoniker,
 		ProxyApp:           "tcp://127.0.0.1:26658",
 		ABCI:               "socket",
-		LogLevel:           DefaultPackageLogLevels(),
-		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
 		FilterPeers:        false,
@@ -292,28 +274,6 @@ func (cfg BaseConfig) NodeKeyFile() string {
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
 	return join(cfg.RootDir, cfg.DBPath)
-}
-
-// ValidateBasic performs basic validation (checking param bounds, etc.) and
-// returns an error if any check fails.
-func (cfg BaseConfig) ValidateBasic() error {
-	switch cfg.LogFormat {
-	case LogFormatPlain, LogFormatJSON:
-	default:
-		return errors.New("unknown log_format (must be 'plain' or 'json')")
-	}
-	return nil
-}
-
-// DefaultLogLevel returns a default log level of "error"
-func DefaultLogLevel() string {
-	return "error"
-}
-
-// DefaultPackageLogLevels returns a default log level setting so all packages
-// log at "error", while the `state` and `main` packages log at "info"
-func DefaultPackageLogLevels() string {
-	return fmt.Sprintf("main:info,state:info,*:%s", DefaultLogLevel())
 }
 
 var defaultMoniker = getDefaultMoniker()

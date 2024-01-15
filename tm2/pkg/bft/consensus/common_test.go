@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"fmt"
-	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/counter"

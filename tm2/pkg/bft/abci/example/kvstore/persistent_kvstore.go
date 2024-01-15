@@ -3,9 +3,10 @@ package kvstore
 import (
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"

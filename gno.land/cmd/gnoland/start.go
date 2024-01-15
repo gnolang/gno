@@ -42,6 +42,8 @@ type startCfg struct {
 	txEventStoreType string
 	txEventStorePath string
 	nodeConfigPath   string
+
+	logLevel string
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -166,6 +168,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 
+	fs.StringVar(
+		&c.logLevel,
+		"log-level",
+		zapcore.DebugLevel.String(),
+		"log level for the gnoland node,",
+	)
+
 	// XXX(deprecated): use data-dir instead
 	fs.StringVar(
 		&c.dataDir,
@@ -197,25 +206,20 @@ func execStart(c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
 	}
 
-	var level zapcore.Level
-
-	switch strings.ToLower(cfg.LogLevel) {
-	case "info":
-		level = zapcore.InfoLevel
-	case "error":
-		level = zapcore.ErrorLevel
-	case "debug":
-		level = zapcore.DebugLevel
-	case "warn":
-		level = zapcore.WarnLevel
-	default:
-		level = zapcore.DebugLevel
+	// Initialize the log level
+	logLevel, err := zapcore.ParseLevel(c.logLevel)
+	if err != nil {
+		return fmt.Errorf("unable to parse log level, %w", err)
 	}
 
-	logger, err := log.NewLogger(io.Out(), level)
+	// Initialize the zap logger
+	zapLogger, err := log.NewZapLogger(io.Out(), logLevel)
 	if err != nil {
 		return err
 	}
+
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
 
 	// Write genesis file if missing.
 	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
@@ -268,6 +272,9 @@ func execStart(c *startCfg, io commands.IO) error {
 		if gnoNode.IsRunning() {
 			_ = gnoNode.Stop()
 		}
+
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
 	})
 
 	// Run forever

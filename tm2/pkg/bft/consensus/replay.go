@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"reflect"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"

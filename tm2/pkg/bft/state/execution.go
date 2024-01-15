@@ -2,7 +2,8 @@ package state
 
 import (
 	"fmt"
-	"log/slog"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"

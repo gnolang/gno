@@ -61,6 +61,7 @@ additional specified paths.`,
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
+
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.webListenerAddr,
@@ -89,7 +90,6 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultDevOptions.noWatch,
 		"do not watch for files change",
 	)
-
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) error {

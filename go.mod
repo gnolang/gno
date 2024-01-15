@@ -32,16 +32,22 @@ require (
 	go.etcd.io/bbolt v1.3.8
 	go.uber.org/multierr v1.10.0
 	go.uber.org/zap v1.24.0
-	go.uber.org/zap/exp v0.2.0
-	golang.org/x/crypto v0.15.0
+	// This version of zap/exp is a requirement until we
+	// upgrade to go 1.21 (https://github.com/uber-go/zap/blob/master/exp/CHANGELOG.md)
+	go.uber.org/zap/exp v0.1.0
+	golang.org/x/crypto v0.18.0
 	golang.org/x/mod v0.14.0
-	golang.org/x/net v0.17.0
-	golang.org/x/term v0.14.0
-	golang.org/x/tools v0.14.0
+	golang.org/x/net v0.20.0
+	golang.org/x/term v0.16.0
+	golang.org/x/tools v0.17.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 	moul.io/zapconfig v1.4.0
 )
+
+require golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
+
+require go.uber.org/atomic v1.10.0 // indirect
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
@@ -59,7 +65,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
@@ -68,7 +73,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	go.opencensus.io v0.22.5 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )

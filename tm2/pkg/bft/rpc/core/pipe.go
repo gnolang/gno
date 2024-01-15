@@ -2,7 +2,8 @@ package core
 
 import (
 	"fmt"
-	"log/slog"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"

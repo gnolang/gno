@@ -2,8 +2,9 @@ package privval
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"

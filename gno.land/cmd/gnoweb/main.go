@@ -42,10 +42,12 @@ func runMain(args []string) error {
 		return err
 	}
 
-	logger, err := log.NewLogger(os.Stdout, zapcore.DebugLevel)
+	zapLogger, err := log.NewZapLogger(os.Stdout, zapcore.DebugLevel)
 	if err != nil {
 		return err
 	}
+
+	logger := log.ZapLoggerToSlog(zapLogger)
 
 	logger.Info("Running", "listener", "http://"+bindAddress)
 	server := &http.Server{
@@ -57,5 +59,6 @@ func runMain(args []string) error {
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
 	}
-	return nil
+
+	return zapLogger.Sync()
 }

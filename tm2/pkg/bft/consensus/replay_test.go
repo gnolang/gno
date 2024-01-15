@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

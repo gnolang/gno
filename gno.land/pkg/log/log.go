@@ -3,8 +3,9 @@ package log
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"net/url"
+
+	"golang.org/x/exp/slog"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
@@ -26,7 +27,8 @@ func (cw customWriter) Sync() error {
 	return nil
 }
 
-func NewLogger(w io.Writer, level zapcore.Level) (*slog.Logger, error) {
+// NewZapLogger creates a new zap logger instance, for the given level and writer
+func NewZapLogger(w io.Writer, level zapcore.Level) (*zap.Logger, error) {
 	if err := zap.RegisterSink(
 		customWriterKey,
 		func(u *url.URL) (zap.Sink, error) {
@@ -45,14 +47,10 @@ func NewLogger(w io.Writer, level zapcore.Level) (*slog.Logger, error) {
 		return nil, fmt.Errorf("unable to build logger, %w", err)
 	}
 
-	defer zapLogger.Sync()
+	return zapLogger, nil
+}
 
-	handler := zapslog.NewHandler(
-		zapLogger.Core(),
-		&zapslog.HandlerOptions{
-			LoggerName: "gno.land",
-		},
-	)
-
-	return slog.New(handler), nil
+// ZapLoggerToSlog wraps the given zap logger to an log/slog Logger
+func ZapLoggerToSlog(logger *zap.Logger) *slog.Logger {
+	return slog.New(zapslog.NewHandler(logger.Core()))
 }

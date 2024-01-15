@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
 
@@ -86,19 +85,6 @@ func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
 	os.Exit(code)
-}
-
-var colorFn = func(keyvals ...interface{}) colors.Color {
-	for i := 0; i < len(keyvals)-1; i += 2 {
-		if keyvals[i] == "socket" {
-			if keyvals[i+1] == "tcp" {
-				return colors.Blue
-			} else if keyvals[i+1] == "unix" {
-				return colors.Cyan
-			}
-		}
-	}
-	return colors.None
 }
 
 // launch unix and tcp servers

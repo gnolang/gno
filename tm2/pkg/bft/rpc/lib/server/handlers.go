@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"reflect"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gorilla/websocket"
 

@@ -2,10 +2,11 @@ package consensus
 
 import (
 	"fmt"
-	"log/slog"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 

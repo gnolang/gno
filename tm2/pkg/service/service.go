@@ -3,8 +3,9 @@ package service
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync/atomic"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/log"
 )

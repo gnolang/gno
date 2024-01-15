@@ -17,8 +17,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	//backup "github.com/gnolang/tx-archive/backup/client"
-	//restore "github.com/gnolang/tx-archive/restore/client"
+	// backup "github.com/gnolang/tx-archive/backup/client"
+	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
@@ -102,7 +102,7 @@ func (d *Node) GetRemoteAddress() string {
 	return d.Node.Config().RPC.ListenAddress
 }
 
-// UpdatePackages updates the currently known packages. It will be taken into 
+// UpdatePackages updates the currently known packages. It will be taken into
 // consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
 	for _, path := range paths {
