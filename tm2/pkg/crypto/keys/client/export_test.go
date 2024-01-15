@@ -202,3 +202,19 @@ func TestExport_ExportKey(t *testing.T) {
 		})
 	}
 }
+
+func TestExport_ExportKeyWithEmptyName(t *testing.T) {
+	// Generate a temporary key-base directory
+	_, kbHome := newTestKeybase(t)
+	err := exportKey(
+		testExportKeyOpts{
+			testCmdKeyOptsBase: testCmdKeyOptsBase{
+				kbHome:  kbHome,
+				keyName: "",
+			},
+		},
+		nil,
+	)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "key to be exported shouldn't be empty")
+}
