@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-func TestMain_Gnodev(t *testing.T) {
+func TestMain_Gno(t *testing.T) {
 	tc := []testMainCase{
 		{args: []string{""}, errShouldBe: "flag: help requested"},
 	}
