@@ -213,10 +213,8 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the zap logger
-	zapLogger, err := log.NewZapLogger(io.Out(), logLevel)
-	if err != nil {
-		return err
-	}
+	zapLogger := log.NewZapConsoleLogger(io.Out(), logLevel)
+	defer zapLogger.Sync()
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)

@@ -304,7 +304,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
-	zapLogger, err := log.NewZapLogger(nodeOut, zapcore.ErrorLevel)
+	zapLogger, err := log.NewZapConsoleLogger(nodeOut, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create logger, %w", err)
 	}
@@ -321,7 +321,7 @@ func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) 
 	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
-	zapLogger, err := log.NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
+	zapLogger, err := log.NewZapConsoleLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 	if err != nil {
 		return fmt.Errorf("unable to create logger, %w", err)
 	}

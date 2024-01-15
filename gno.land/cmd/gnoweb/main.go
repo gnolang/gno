@@ -42,11 +42,7 @@ func runMain(args []string) error {
 		return err
 	}
 
-	zapLogger, err := log.NewZapLogger(os.Stdout, zapcore.DebugLevel)
-	if err != nil {
-		return err
-	}
-
+	zapLogger := log.NewZapConsoleLogger(os.Stdout, zapcore.DebugLevel)
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	logger.Info("Running", "listener", "http://"+bindAddress)

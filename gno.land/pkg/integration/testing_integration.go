@@ -295,7 +295,7 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 
 		var err error
 		if path, err = filepath.Abs(filepath.Join(logdir, logname)); err != nil {
-			return nil, fmt.Errorf("uanble to get absolute path of logdir %q", logdir)
+			return nil, fmt.Errorf("unable to get absolute path of logdir %q", logdir)
 		}
 	} else if workdir := env.Getenv("WORK"); workdir != "" {
 		path = filepath.Join(workdir, logname)
@@ -320,14 +320,11 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 		return nil, fmt.Errorf("unable to parse log level, %w", err)
 	}
 
-	zapLogger, err := log.NewZapLogger(f, logLevel)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create logger, %w", err)
-	}
+	// Build zap logger for testing
+	zapLogger := log.NewZapTestingLogger(f, logLevel)
+	env.Defer(func() { zapLogger.Sync() })
 
-	logger := log.ZapLoggerToSlog(zapLogger)
-
-	env.T().Log("starting logger: %q", path)
+	env.T().Log("starting logger", path)
 	return logger, nil
 }
 
