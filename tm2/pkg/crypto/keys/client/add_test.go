@@ -1,16 +1,32 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// generateTestMnemonic generates a random mnemonic
+func generateTestMnemonic(t *testing.T) string {
+	t.Helper()
+
+	entropy, entropyErr := bip39.NewEntropy(256)
+	require.NoError(t, entropyErr)
+
+	mnemonic, mnemonicErr := bip39.NewMnemonic(entropy)
+	require.NoError(t, mnemonicErr)
+
+	return mnemonic
+}
 
 func Test_execAddBasic(t *testing.T) {
 	t.Parallel()
@@ -113,4 +129,54 @@ func Test_execAddRecover(t *testing.T) {
 
 	s := fmt.Sprintf("%s", keypub)
 	assert.Equal(t, s, test2PubkeyBech32)
+}
+
+func Test_execAddDerive(t *testing.T) {
+	t.Parallel()
+
+	var (
+		mnemonic            = generateTestMnemonic(t)
+		accountIndex uint64 = 0
+		numAccounts  uint64 = 10
+
+		dummyPass = "dummy-pass"
+	)
+
+	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
+	require.NotNil(t, kbHome)
+	defer kbCleanUp()
+
+	cfg := &addCfg{
+		rootCfg: &baseCfg{
+			BaseOptions: BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			},
+		},
+		recover:        true,
+		deriveAccounts: numAccounts,
+		account:        accountIndex,
+	}
+
+	mockOut := bytes.NewBufferString("")
+
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(dummyPass + "\n" + dummyPass + "\n" + mnemonic + "\n"))
+	io.SetOut(commands.WriteNopCloser(mockOut))
+
+	require.NoError(t, execAdd(cfg, []string{"example-key"}, io))
+
+	// Verify the addresses are derived correctly
+	expectedAccounts := generateAccounts(
+		mnemonic,
+		accountIndex,
+		numAccounts,
+	)
+
+	// Grab the output
+	deriveOutput := mockOut.String()
+
+	for _, expectedAccount := range expectedAccounts {
+		assert.Contains(t, deriveOutput, expectedAccount.String())
+	}
 }

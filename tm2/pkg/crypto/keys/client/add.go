@@ -10,8 +10,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 type addCfg struct {
@@ -27,6 +29,7 @@ type addCfg struct {
 	dryRun            bool
 	account           uint64
 	index             uint64
+	deriveAccounts    uint64
 }
 
 func newAddCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
@@ -115,6 +118,13 @@ func (c *addCfg) RegisterFlags(fs *flag.FlagSet) {
 		"index",
 		0,
 		"Address index number for HD derivation",
+	)
+
+	fs.Uint64Var(
+		&c.deriveAccounts,
+		"derive-accounts",
+		0,
+		"the number of accounts to derive from the mnemonic",
 	)
 }
 
@@ -238,7 +248,9 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 			return err
 		}
 
-		return printCreate(info, false, "", io)
+		printCreate(info, false, "", io)
+
+		return nil
 	}
 
 	// Get bip39 mnemonic
@@ -269,6 +281,9 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	// Print the derived address info
+	printDerive(mnemonic, cfg.index, cfg.deriveAccounts, io)
+
 	// Recover key from seed passphrase
 	if cfg.recover {
 		// Hide mnemonic from output
@@ -276,10 +291,13 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 		mnemonic = ""
 	}
 
-	return printCreate(info, showMnemonic, mnemonic, io)
+	// Print the key create info
+	printCreate(info, showMnemonic, mnemonic, io)
+
+	return nil
 }
 
-func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) error {
+func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) {
 	io.Println("")
 	printNewInfo(info, io)
 
@@ -291,8 +309,6 @@ It is the only way to recover your account if you ever forget your password.
 %v
 `, mnemonic)
 	}
-
-	return nil
 }
 
 func printNewInfo(info keys.Info, io commands.IO) {
@@ -304,4 +320,60 @@ func printNewInfo(info keys.Info, io commands.IO) {
 
 	io.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
 		keyname, keytype, keyaddr, keypub, keypath)
+}
+
+// printDerive prints the derived accounts, if any
+func printDerive(
+	mnemonic string,
+	accountIndex,
+	numAccounts uint64,
+	io commands.IO,
+) {
+	if numAccounts == 0 {
+		// No accounts to print
+		return
+	}
+
+	// Generate the accounts
+	accounts := generateAccounts(
+		mnemonic,
+		accountIndex,
+		numAccounts,
+	)
+
+	io.Printf("[Derived Accounts]\n\n")
+	io.Printf("Account Index: %d\n\n", accountIndex)
+
+	// Print them out
+	for index, account := range accounts {
+		io.Printfln("%d. %s", index, account.String())
+	}
+}
+
+// generateAccounts the accounts using the provided mnemonics
+func generateAccounts(mnemonic string, accountIndex, numAccounts uint64) []crypto.Address {
+	addresses := make([]crypto.Address, numAccounts)
+
+	// Generate the seed
+	seed := bip39.NewSeed(mnemonic, "")
+
+	for i := uint64(0); i < numAccounts; i++ {
+		key := generateKeyFromSeed(seed, uint32(accountIndex), uint32(i))
+		address := key.PubKey().Address()
+
+		addresses[i] = address
+	}
+
+	return addresses
+}
+
+// generateKeyFromSeed generates a private key from
+// the provided seed and index
+func generateKeyFromSeed(seed []byte, account, index uint32) crypto.PrivKey {
+	pathParams := hd.NewFundraiserParams(account, crypto.CoinType, index)
+
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, pathParams.String())
+
+	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }
