@@ -877,7 +877,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if lnt, ok := lt.(*NativeType); ok {
 						if debug {
 							if !isShift {
-								assertSameTypes(lt, rt)
+								assertAssignable(lt, rt)
 							}
 						}
 						// If left and right are native type,
