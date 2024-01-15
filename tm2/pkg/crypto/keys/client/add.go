@@ -187,7 +187,7 @@ func execAdd(cfg *addCfg, args []string, io commands.IO) error {
 			// Handle --nosort
 			if !cfg.noSort {
 				sort.Slice(pks, func(i, j int) bool {
-					return pks[i].Address().Compare(pks[j].Address()) < 0
+					return pks[i].Address().Compare(pks[j].Address()).IsLess()
 				})
 			}
 

@@ -1320,7 +1320,7 @@ func (valz validatorsByPriority) Less(i, j int) bool {
 	if valz[i].ProposerPriority > valz[j].ProposerPriority {
 		return false
 	}
-	return valz[i].Address.Compare(valz[j].Address) < 0
+	return valz[i].Address.Compare(valz[j].Address).IsLess()
 }
 
 func (valz validatorsByPriority) Swap(i, j int) {

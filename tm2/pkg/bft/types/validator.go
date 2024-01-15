@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/tm2/ordering"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -59,10 +61,10 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 		return other
 	default:
 		result := v.Address.Compare(other.Address)
-		switch {
-		case result < 0:
+		switch result {
+		case ordering.Less:
 			return v
-		case result > 0:
+		case ordering.Greater:
 			return other
 		default:
 			panic("Cannot compare identical validators")

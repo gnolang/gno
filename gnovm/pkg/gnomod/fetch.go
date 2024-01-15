@@ -12,6 +12,7 @@ func queryChain(remote string, qpath string, data []byte) (res *abci.ResponseQue
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
+
 	cli := client.NewHTTP(remote, "/websocket")
 	qres, err := cli.ABCIQueryWithOptions(qpath, data, opts2)
 	if err != nil {
