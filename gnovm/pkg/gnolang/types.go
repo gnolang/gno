@@ -2110,59 +2110,40 @@ func assertSameTypes(lt, rt Type) {
 
 func isEqualityTypes(lt, rt Type) bool {
 	debugPP.Printf("check isEqualityTypes, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
-	if lt != nil {
-		debugPP.Printf("lt.Kind: %v \n", lt.Kind())
-	}
-	if rt != nil {
-		debugPP.Printf("rt.Kind: %v \n", rt.Kind())
-	}
-	// refer to std3.gno, untyped byte has no typeID
-	// quich pick
-	if lpt, ok := lt.(*PointerType); ok {
-		if isDataByte(lpt.Elt) { // refer to 0f31
-			debugPP.Println("lt is pointer type and base type is data byte")
-			return true
-		}
+	if lpt, ok := lt.(*PointerType); ok { // refer to 0f31
+		lt = lpt.Elt
 	}
 	if rpt, ok := rt.(*PointerType); ok {
-		if isDataByte(rpt.Elt) {
-			debugPP.Println("rt is pointer type and base type is data byte")
-			return true
-		}
+		rt = rpt.Elt
 	}
 	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
 	if lt == nil && rt == nil {
-		return true
 		// both are nil.
 	} else if lt == nil || rt == nil {
 		// one is nil.  see function comment.
-		return true
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) { // XXX, is this necessary?
 		// one is untyped of same kind.
-		return true
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) { // XXX, what hit this
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-		return true
-	} else if lt.TypeID() == rt.TypeID() { // order matters
-		debugPP.Println("typeID equal")
-		// non-nil types are identical.
-		return true
 	} else if lt.Kind() == InterfaceKind &&
 		IsImplementedBy(lt, rt) {
 		// one is untyped of same kind.
 		// rt implements lt (and lt is nil interface).
-		return true
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
 		// lt implements rt (and rt is nil interface).
-		return true
+	} else if lt.TypeID() == rt.TypeID() { // order matters
+		debugPP.Println("typeID equal")
+		// non-nil types are identical.
+	} else {
+		return false
 	}
-	return false
+	return true
 }
 
 // Like assertSameTypes(), but more relaxed, for == and !=.
