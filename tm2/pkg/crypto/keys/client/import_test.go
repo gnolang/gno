@@ -22,16 +22,16 @@ func importKey(
 	importOpts testImportKeyOpts,
 	input io.Reader,
 ) error {
-	cfg := &importCfg{
-		rootCfg: &baseCfg{
+	cfg := &ImportCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  importOpts.kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		keyName:   importOpts.keyName,
-		armorPath: importOpts.armorPath,
-		unsafe:    importOpts.unsafe,
+		KeyName:   importOpts.keyName,
+		ArmorPath: importOpts.armorPath,
+		Unsafe:    importOpts.unsafe,
 	}
 
 	cmdIO := commands.NewTestIO()
@@ -151,4 +151,20 @@ func TestImport_ImportKey(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestImport_ImportKeyWithEmptyName(t *testing.T) {
+	// Generate a temporary key-base directory
+	_, kbHome := newTestKeybase(t)
+	err := importKey(
+		testImportKeyOpts{
+			testCmdKeyOptsBase: testCmdKeyOptsBase{
+				kbHome:  kbHome,
+				keyName: "",
+			},
+		},
+		nil,
+	)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "name shouldn't be empty")
 }
