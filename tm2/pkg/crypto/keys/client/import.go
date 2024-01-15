@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -60,6 +61,11 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execImport(cfg *ImportCfg, io commands.IO) error {
+	// check keyname
+	if cfg.keyName == "" {
+		return errors.New("name shouldn't be empty")
+	}
+
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
@@ -88,7 +94,7 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 	if !cfg.Unsafe {
 		// Get the armor decrypt password
 		decryptPassword, err = io.GetPassword(
-			"Enter a passphrase to decrypt your private key armor:",
+			"Enter the passphrase to decrypt your private key armor:",
 			cfg.RootCfg.InsecurePasswordStdin,
 		)
 		if err != nil {

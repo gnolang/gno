@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -60,6 +61,11 @@ func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execExport(cfg *ExportCfg, io commands.IO) error {
+	// check keyname
+	if cfg.NameOrBech32 == "" {
+		return errors.New("key to be exported shouldn't be empty")
+	}
+
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
