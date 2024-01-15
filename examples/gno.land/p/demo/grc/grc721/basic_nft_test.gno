@@ -6,8 +6,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/users"
-
-	rusers "gno.land/r/demo/users" // TODO(hariom): move this to realm?
 )
 
 var (
@@ -70,8 +68,8 @@ func TestBalanceOf(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	balanceAddr1, err := dummy.BalanceOf(addr1)
 	if err != nil {
@@ -108,8 +106,8 @@ func TestOwnerOf(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	owner, err := dummy.OwnerOf(TokenID("invalid"))
 	if err == nil {
@@ -144,8 +142,8 @@ func TestIsApprovedForAll(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	if isApprovedForAll != false {
@@ -160,7 +158,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	if isApprovedForAll != false {
@@ -197,7 +195,7 @@ func TestApprove(t *testing.T) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	dummy.mint(caller, TokenID("1"))
 
@@ -227,7 +225,7 @@ func TestTransferFrom(t *testing.T) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
@@ -272,7 +270,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
@@ -316,8 +314,8 @@ func TestMint(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	err := dummy.Mint(addr1, TokenID("1"))
 	if err != nil {
@@ -354,7 +352,7 @@ func TestBurn(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	dummy.mint(addr, TokenID("1"))
 	dummy.mint(addr, TokenID("2"))
@@ -377,8 +375,8 @@ func TestSetTokenURI(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 	tokenURI := "http://example.com/token"
 
 	std.TestSetOrigCaller(std.Address(addr1)) // addr1

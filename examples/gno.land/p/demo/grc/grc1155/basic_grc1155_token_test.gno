@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/users"
-
-	rusers "gno.land/r/demo/users" // TODO(hariom): move this to realm?
 )
 
 const dummyURI = "ipfs://xyz"
@@ -37,8 +35,8 @@ func TestBalanceOf(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -88,8 +86,8 @@ func TestBalanceOfBatch(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -128,8 +126,8 @@ func TestIsApprovedForAll(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	if isApprovedForAll != false {
@@ -144,7 +142,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	if isApprovedForAll != false {
@@ -179,7 +177,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	tid := TokenID("1")
 
@@ -226,7 +224,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -282,8 +280,8 @@ func TestSafeMint(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -329,8 +327,8 @@ func TestSafeBatchMint(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
-	addr2 := rusers.Resolve(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	addr1 := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr2 := std.Address(users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -376,7 +374,7 @@ func TestBurn(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -419,7 +417,7 @@ func TestBatchBurn(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr := rusers.Resolve(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
+	addr := std.Address(users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm"))
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
