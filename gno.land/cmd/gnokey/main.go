@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
@@ -18,9 +17,6 @@ func main() {
 	}
 
 	cmd := keyscli.NewRootCmd(commands.NewDefaultIO(), baseCfg)
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
+	cmd.Execute(context.Background(), os.Args[1:])
 
-		os.Exit(1)
-	}
 }

@@ -22,6 +22,15 @@ const config = {
     locales: ["en"],
   },
 
+  scripts: [
+    {
+      // 100% privacy-first analytics
+      src: "https://sa.gno.services/latest.js",
+      async: true,
+      defer: true,
+    }
+  ],
+
   presets: [
     [
       "classic",

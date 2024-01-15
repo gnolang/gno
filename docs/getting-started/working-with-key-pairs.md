@@ -51,8 +51,6 @@ FLAGS
   -insecure-password-stdin=false                       WARNING! take password from stdin
   -quiet=false                                         suppress output during execution
   -remote 127.0.0.1:26657                              remote node URL
-
-error parsing commandline arguments: flag: help requested
 ```
 
 In this example, the directory where `gnokey` will store working data
