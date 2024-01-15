@@ -59,16 +59,16 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 		return v
 	case v.ProposerPriority < other.ProposerPriority:
 		return other
+	}
+
+	result := v.Address.Compare(other.Address)
+	switch result {
+	case ordering.Less:
+		return v
+	case ordering.Greater:
+		return other
 	default:
-		result := v.Address.Compare(other.Address)
-		switch result {
-		case ordering.Less:
-			return v
-		case ordering.Greater:
-			return other
-		default:
-			panic("Cannot compare identical validators")
-		}
+		panic("Cannot compare identical validators")
 	}
 }
 
