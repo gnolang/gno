@@ -319,7 +319,11 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 		return nil, fmt.Errorf("unable to parse log level, %w", err)
 	}
 
-	zapLogger, _ := log.NewZapLogger(f, logLevel)
+	zapLogger, err := log.NewZapLogger(f, logLevel)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create logger, %w", err)
+	}
+
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	env.T().Log("starting logger: %q", path)
