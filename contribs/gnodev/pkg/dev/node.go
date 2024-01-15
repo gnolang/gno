@@ -15,8 +15,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/exp/slog"
 	// backup "github.com/gnolang/tx-archive/backup/client"
 	// restore "github.com/gnolang/tx-archive/restore/client"
 )
@@ -27,7 +27,7 @@ const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be 
 type Node struct {
 	*node.Node
 
-	logger log.Logger
+	logger *slog.Logger
 	pkgs   PkgsMap // path -> pkg
 }
 
@@ -42,7 +42,7 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, logger log.Logger, pkgslist []string) (*Node, error) {
+func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*Node, error) {
 	mpkgs, err := newPkgsMap(pkgslist)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -403,7 +403,7 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(logger log.Logger, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func newNode(logger *slog.Logger, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
 	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
