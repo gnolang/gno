@@ -331,11 +331,15 @@ func (m *Machine) doOpBandn() {
 func isEql(store Store, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
+	// XXX check to see if IsUndefined() is needed. Why check interface nils?
 	lvu := lv.IsUndefined()
 	rvu := rv.IsUndefined()
 	if lvu {
 		return rvu
 	} else if rvu {
+		return false
+	}
+	if !isSameType(lv.T, rv.T) {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
