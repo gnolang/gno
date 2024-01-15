@@ -7,6 +7,8 @@ import (
 )
 
 func TestKVPairs(t *testing.T) {
+	t.Parallel()
+
 	kvs := KVPairs{
 		{Key: []byte("k2"), Value: []byte("")},
 		{Key: []byte("k1"), Value: []byte("2")},
@@ -32,6 +34,8 @@ func TestKVPairs(t *testing.T) {
 }
 
 func TestKI64Pairs(t *testing.T) {
+	t.Parallel()
+
 	kvs := KI64Pairs{
 		{Key: []byte("k2"), Value: 0},
 		{Key: []byte("k1"), Value: 2},

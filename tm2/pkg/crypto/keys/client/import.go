@@ -18,7 +18,7 @@ type importCfg struct {
 	unsafe    bool
 }
 
-func newImportCmd(rootCfg *baseCfg, io *commands.IO) *commands.Command {
+func newImportCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	cfg := &importCfg{
 		rootCfg: rootCfg,
 	}
@@ -59,7 +59,7 @@ func (c *importCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execImport(cfg *importCfg, io *commands.IO) error {
+func execImport(cfg *importCfg, io commands.IO) error {
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
 	if err != nil {

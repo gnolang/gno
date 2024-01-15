@@ -58,6 +58,8 @@ func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanup
 }
 
 func TestLoadBlockStoreStateJSON(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 
 	bsj := &BlockStoreStateJSON{Height: 1000}
@@ -69,6 +71,8 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 }
 
 func TestNewBlockStore(t *testing.T) {
+	t.Parallel()
+
 	db := dbm.NewMemDB()
 	db.Set(blockStoreKey, []byte(`{"height": "10000"}`))
 	bs := NewBlockStore(db)
@@ -130,6 +134,8 @@ func TestMain(m *testing.M) {
 // TODO: This test should be simplified ...
 
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
+	t.Parallel()
+
 	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
@@ -326,6 +332,8 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 }
 
 func TestLoadBlockPart(t *testing.T) {
+	t.Parallel()
+
 	bs, db := freshBlockStore()
 	height, index := int64(10), 1
 	loadPart := func() (interface{}, error) {
@@ -355,6 +363,8 @@ func TestLoadBlockPart(t *testing.T) {
 }
 
 func TestLoadBlockMeta(t *testing.T) {
+	t.Parallel()
+
 	bs, db := freshBlockStore()
 	height := int64(10)
 	loadMeta := func() (interface{}, error) {
@@ -385,6 +395,8 @@ func TestLoadBlockMeta(t *testing.T) {
 }
 
 func TestBlockFetchAtHeight(t *testing.T) {
+	t.Parallel()
+
 	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")

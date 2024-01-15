@@ -72,6 +72,8 @@ func makePeers(numPeers int, minHeight, maxHeight int64) testPeers {
 }
 
 func TestBlockPoolBasic(t *testing.T) {
+	t.Parallel()
+
 	start := int64(42)
 	peers := makePeers(10, start+1, 1000)
 	errorsCh := make(chan peerError, 1000)
@@ -128,6 +130,8 @@ func TestBlockPoolBasic(t *testing.T) {
 }
 
 func TestBlockPoolTimeout(t *testing.T) {
+	t.Parallel()
+
 	start := int64(42)
 	peers := makePeers(10, start+1, 1000)
 	errorsCh := make(chan peerError, 1000)
@@ -187,6 +191,8 @@ func TestBlockPoolTimeout(t *testing.T) {
 }
 
 func TestBlockPoolRemovePeer(t *testing.T) {
+	t.Parallel()
+
 	peers := make(testPeers, 10)
 	for i := 0; i < 10; i++ {
 		peerID := p2p.ID(fmt.Sprintf("%d", i+1))

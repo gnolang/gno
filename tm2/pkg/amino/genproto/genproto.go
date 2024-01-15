@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -120,7 +120,6 @@ func (p3c *P3Context) GetP3ImportPath(p3type P3Type, implicit bool) string {
 func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type) (p3msg P3Message) {
 	if p3doc.PackageName == "" {
 		panic(fmt.Sprintf("cannot generate message partials in the root package \"\"."))
-		return
 	}
 	if rt.Kind() == reflect.Ptr {
 		panic("pointers not yet supported. if you meant pointer-preferred (for decoding), pass in rt.Elem()")
@@ -191,6 +190,15 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 
 	p3msg.Name = info.Name // not rinfo.
 
+	var fieldComments map[string]string
+	if rinfo.Package != nil {
+		if pkgType, ok := rinfo.Package.GetType(rt); ok {
+			p3msg.Comment = pkgType.Comment
+			// We will check for optional field comments below.
+			fieldComments = pkgType.FieldComments
+		}
+	}
+
 	// Append to p3msg.Fields, fields of the struct.
 	for _, field := range rsfields { // rinfo.
 		fp3, fp3IsRepeated, implicit := typeToP3Type(info.Package, field.TypeInfo, field.FieldOptions)
@@ -206,8 +214,12 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 		p3Field := P3Field{
 			Repeated: fp3IsRepeated,
 			Type:     fp3,
-			Name:     field.Name,
+			Name:     stringutil.ToLowerSnakeCase(field.Name),
+			JSONName: field.JSONName,
 			Number:   field.FieldOptions.BinFieldNum,
+		}
+		if fieldComments != nil {
+			p3Field.Comment = fieldComments[field.Name]
 		}
 		p3msg.Fields = append(p3msg.Fields, p3Field)
 	}
@@ -220,7 +232,6 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 func (p3c *P3Context) GenerateProto3ListPartial(p3doc *P3Doc, nl NList) (p3msg P3Message) {
 	if p3doc.PackageName == "" {
 		panic(fmt.Sprintf("cannot generate message partials in the root package \"\"."))
-		return
 	}
 
 	ep3 := nl.ElemP3Type()
@@ -496,7 +507,7 @@ func RunProtoc(pkg *amino.Package, protosDir string) {
 		}
 	}
 	// First generate output to a temp dir.
-	tempDir, err := ioutil.TempDir("", "amino-genproto")
+	tempDir, err := os.MkdirTemp("", "amino-genproto")
 	if err != nil {
 		return
 	}

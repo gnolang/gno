@@ -12,6 +12,8 @@ import (
 )
 
 func TestBcryptingIsEasy(t *testing.T) {
+	t.Parallel()
+
 	pass := []byte("mypassword")
 	salt := []byte("1234567890123456")
 	hp, err := GenerateFromPassword(salt, pass, 0)
@@ -31,6 +33,8 @@ func TestBcryptingIsEasy(t *testing.T) {
 }
 
 func TestBcryptingIsCorrect(t *testing.T) {
+	t.Parallel()
+
 	pass := []byte("allmine")
 	salt := []byte("XajjQvNhvvRt5GSeFk1xFe")
 	expectedHash := []byte("$2a$10$XajjQvNhvvRt5GSeFk1xFeyqRrsxkhBkUiQeg0dt.wU1qD4aFDcga")
@@ -56,6 +60,8 @@ func TestBcryptingIsCorrect(t *testing.T) {
 }
 
 func TestVeryShortPasswords(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("k")
 	salt := []byte("XajjQvNhvvRt5GSeFk1xFe")
 	_, err := bcrypt(key, 10, salt)
@@ -65,6 +71,8 @@ func TestVeryShortPasswords(t *testing.T) {
 }
 
 func TestTooLongPasswordsWork(t *testing.T) {
+	t.Parallel()
+
 	salt := []byte("XajjQvNhvvRt5GSeFk1xFe")
 	// One byte over the usual 56 byte limit that blowfish has
 	tooLongPass := []byte("012345678901234567890123456789012345678901234567890123456")
@@ -92,6 +100,8 @@ var invalidTests = []InvalidHashTest{
 }
 
 func TestInvalidHashErrors(t *testing.T) {
+	t.Parallel()
+
 	check := func(name string, expected, err error) {
 		if err == nil {
 			t.Errorf("%s: Should have returned an error", name)
@@ -109,6 +119,8 @@ func TestInvalidHashErrors(t *testing.T) {
 }
 
 func TestUnpaddedBase64Encoding(t *testing.T) {
+	t.Parallel()
+
 	original := []byte{101, 201, 101, 75, 19, 227, 199, 20, 239, 236, 133, 32, 30, 109, 243, 30}
 	encodedOriginal := []byte("XajjQvNhvvRt5GSeFk1xFe")
 
@@ -129,6 +141,8 @@ func TestUnpaddedBase64Encoding(t *testing.T) {
 }
 
 func TestCost(t *testing.T) {
+	t.Parallel()
+
 	suffix := "XajjQvNhvvRt5GSeFk1xFe5l47dONXg781AmZtd869sO8zfsHuw7C"
 	for _, vers := range []string{"2a", "2"} {
 		for _, cost := range []int{4, 10} {
@@ -151,6 +165,8 @@ func TestCost(t *testing.T) {
 }
 
 func TestCostValidationInHash(t *testing.T) {
+	t.Parallel()
+
 	if testing.Short() {
 		return
 	}
@@ -185,6 +201,8 @@ func TestCostValidationInHash(t *testing.T) {
 }
 
 func TestCostReturnsWithLeadingZeroes(t *testing.T) {
+	t.Parallel()
+
 	salt := []byte("1234567890123456")
 	hp, _ := newFromPassword(salt, []byte("abcdefgh"), 7)
 	cost := hp.Hash()[4:7]
@@ -196,6 +214,8 @@ func TestCostReturnsWithLeadingZeroes(t *testing.T) {
 }
 
 func TestMinorNotRequired(t *testing.T) {
+	t.Parallel()
+
 	noMinorHash := []byte("$2$10$XajjQvNhvvRt5GSeFk1xFeyqRrsxkhBkUiQeg0dt.wU1qD4aFDcga")
 	h, err := newFromHash(noMinorHash)
 	if err != nil {
@@ -233,6 +253,8 @@ func BenchmarkDefaultCost(b *testing.B) {
 
 // See Issue https://github.com/golang/go/issues/20425.
 func TestNoSideEffectsFromCompare(t *testing.T) {
+	t.Parallel()
+
 	source := []byte("passw0rd123456")
 	password := source[:len(source)-6]
 	token := source[len(source)-6:]

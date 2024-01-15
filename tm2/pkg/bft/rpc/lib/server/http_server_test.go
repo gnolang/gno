@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +20,8 @@ import (
 )
 
 func TestMaxOpenConnections(t *testing.T) {
+	t.Parallel()
+
 	const max = 5 // max simultaneous connections
 
 	// Start the server.
@@ -57,7 +58,7 @@ func TestMaxOpenConnections(t *testing.T) {
 				return
 			}
 			defer r.Body.Close()
-			io.Copy(ioutil.Discard, r.Body)
+			io.Copy(io.Discard, r.Body)
 		}()
 	}
 	wg.Wait()
@@ -70,6 +71,8 @@ func TestMaxOpenConnections(t *testing.T) {
 }
 
 func TestStartHTTPAndTLSServer(t *testing.T) {
+	t.Parallel()
+
 	ln, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	defer ln.Close()
@@ -90,12 +93,14 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 	defer res.Body.Close()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("some body"), body)
 }
 
 func TestRecoverAndLogHandler(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		panicArg         any
@@ -158,6 +163,8 @@ func TestRecoverAndLogHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				req, _ = http.NewRequest(http.MethodGet, "", nil)
 				resp   = httptest.NewRecorder()

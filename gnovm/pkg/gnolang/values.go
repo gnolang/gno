@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -43,7 +43,8 @@ func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
 const (
-	nilStr = "nil"
+	nilStr       = "nil"
+	undefinedStr = "undefined"
 )
 
 var (
@@ -500,7 +501,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-	copy(fields, sv.Fields)
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer.
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+
 	return alloc.NewStruct(fields)
 }
 
@@ -518,16 +527,30 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type     Type      // includes unbound receiver(s)
-	IsMethod bool      // is an (unbound) method
-	Source   BlockNode // for block mem allocation
-	Name     Name      // name of function/method
-	Closure  Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName Name      // file name where declared
-	PkgPath  string
+	Type       Type      // includes unbound receiver(s)
+	IsMethod   bool      // is an (unbound) method
+	Source     BlockNode // for block mem allocation
+	Name       Name      // name of function/method
+	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	FileName   Name      // file name where declared
+	PkgPath    string
+	NativePkg  string // for native bindings through NativeStore
+	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+}
+
+func (fv *FuncValue) IsNative() bool {
+	if fv.NativePkg == "" && fv.NativeName == "" {
+		return false
+	}
+	if fv.NativePkg == "" || fv.NativeName == "" {
+		panic(fmt.Sprintf("function (%q).%s has invalid native pkg/name ((%q).%s)",
+			fv.Source.GetLocation().PkgPath, fv.Name,
+			fv.NativePkg, fv.NativeName))
+	}
+	return true
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
@@ -540,6 +563,8 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		Closure:    fv.Closure,
 		FileName:   fv.FileName,
 		PkgPath:    fv.PkgPath,
+		NativePkg:  fv.NativePkg,
+		NativeName: fv.NativeName,
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
@@ -999,6 +1024,28 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	default:
 		cp = tv
 	}
+	return
+}
+
+// unrefCopy makes a copy of the underlying value in the case of reference values.
+// It copies other values as expected using the normal Copy method.
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	switch tv.V.(type) {
+	case RefValue:
+		cp.T = tv.T
+		refObject := tv.GetFirstObject(store)
+		switch refObjectValue := refObject.(type) {
+		case *ArrayValue:
+			cp.V = refObjectValue.Copy(alloc)
+		case *StructValue:
+			cp.V = refObjectValue.Copy(alloc)
+		default:
+			cp = tv
+		}
+	default:
+		cp = tv.Copy(alloc)
+	}
+
 	return
 }
 
@@ -2312,12 +2359,8 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
-	i := uint8(1)
-LOOP:
-	if i < path.Depth {
+	for i := uint8(1); i < path.Depth; i++ {
 		b = b.GetParent(store)
-		i++
-		goto LOOP
 	}
 	return b.GetPointerToInt(store, int(path.Index))
 }

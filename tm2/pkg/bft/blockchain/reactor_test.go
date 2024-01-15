@@ -116,6 +116,8 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 }
 
 func TestNoBlockResponse(t *testing.T) {
+	t.Parallel()
+
 	config = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)
@@ -175,6 +177,8 @@ func TestNoBlockResponse(t *testing.T) {
 // Alternatively we could actually dial a TCP conn but
 // that seems extreme.
 func TestFlappyBadBlockStopsPeer(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	config = cfg.ResetTestRoot("blockchain_reactor_test")
@@ -246,6 +250,8 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 }
 
 func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName      string
 		requestHeight int64
@@ -259,6 +265,8 @@ func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			request := bcBlockRequestMessage{Height: tc.requestHeight}
 			assert.Equal(t, tc.expectErr, request.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
@@ -266,6 +274,8 @@ func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 }
 
 func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName          string
 		nonResponseHeight int64
@@ -279,6 +289,8 @@ func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			nonResponse := bcNoBlockResponseMessage{Height: tc.nonResponseHeight}
 			assert.Equal(t, tc.expectErr, nonResponse.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
@@ -286,6 +298,8 @@ func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
 }
 
 func TestBcStatusRequestMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName      string
 		requestHeight int64
@@ -299,6 +313,8 @@ func TestBcStatusRequestMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			request := bcStatusRequestMessage{Height: tc.requestHeight}
 			assert.Equal(t, tc.expectErr, request.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
@@ -306,6 +322,8 @@ func TestBcStatusRequestMessageValidateBasic(t *testing.T) {
 }
 
 func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName       string
 		responseHeight int64
@@ -319,6 +337,8 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			response := bcStatusResponseMessage{Height: tc.responseHeight}
 			assert.Equal(t, tc.expectErr, response.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})

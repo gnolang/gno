@@ -37,3 +37,7 @@ clean:
 GOFMT_FLAGS ?= -w
 fmt:
 	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
+
+.PHONY: tidy
+tidy:
+	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;

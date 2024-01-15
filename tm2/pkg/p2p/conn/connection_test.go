@@ -37,6 +37,8 @@ func createMConnectionWithCallbacks(conn net.Conn, onReceive func(chID byte, msg
 }
 
 func TestMConnectionSendFlushStop(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close() //nolint: errcheck
 	defer client.Close() //nolint: errcheck
@@ -82,6 +84,8 @@ func TestMConnectionSendFlushStop(t *testing.T) {
 }
 
 func TestMConnectionSend(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close() //nolint: errcheck
 	defer client.Close() //nolint: errcheck
@@ -113,6 +117,8 @@ func TestMConnectionSend(t *testing.T) {
 }
 
 func TestMConnectionReceive(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close() //nolint: errcheck
 	defer client.Close() //nolint: errcheck
@@ -149,6 +155,8 @@ func TestMConnectionReceive(t *testing.T) {
 }
 
 func TestMConnectionStatus(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close() //nolint: errcheck
 	defer client.Close() //nolint: errcheck
@@ -164,6 +172,8 @@ func TestMConnectionStatus(t *testing.T) {
 }
 
 func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
+	t.Parallel()
+
 	server, client := net.Pipe()
 	defer server.Close()
 	defer client.Close()
@@ -203,6 +213,8 @@ func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
 }
 
 func TestMConnectionMultiplePongsInTheBeginning(t *testing.T) {
+	t.Parallel()
+
 	server, client := net.Pipe()
 	defer server.Close()
 	defer client.Close()
@@ -256,6 +268,8 @@ func TestMConnectionMultiplePongsInTheBeginning(t *testing.T) {
 }
 
 func TestMConnectionMultiplePings(t *testing.T) {
+	t.Parallel()
+
 	server, client := net.Pipe()
 	defer server.Close()
 	defer client.Close()
@@ -293,6 +307,8 @@ func TestMConnectionMultiplePings(t *testing.T) {
 }
 
 func TestMConnectionPingPongs(t *testing.T) {
+	t.Parallel()
+
 	// check that we are not leaking any go-routines
 	defer leaktest.CheckTimeout(t, 10*time.Second)()
 
@@ -348,6 +364,8 @@ func TestMConnectionPingPongs(t *testing.T) {
 }
 
 func TestMConnectionStopsAndReturnsError(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close() //nolint: errcheck
 	defer client.Close() //nolint: errcheck
@@ -422,6 +440,8 @@ func expectSend(ch chan struct{}) bool {
 }
 
 func TestMConnectionReadErrorBadEncoding(t *testing.T) {
+	t.Parallel()
+
 	chOnErr := make(chan struct{})
 	mconnClient, mconnServer := newClientAndServerConnsForReadErrors(t, chOnErr)
 	defer mconnClient.Stop()
@@ -440,6 +460,8 @@ func TestMConnectionReadErrorBadEncoding(t *testing.T) {
 }
 
 func TestMConnectionReadErrorUnknownChannel(t *testing.T) {
+	t.Parallel()
+
 	chOnErr := make(chan struct{})
 	mconnClient, mconnServer := newClientAndServerConnsForReadErrors(t, chOnErr)
 	defer mconnClient.Stop()
@@ -457,6 +479,8 @@ func TestMConnectionReadErrorUnknownChannel(t *testing.T) {
 }
 
 func TestMConnectionReadErrorLongMessage(t *testing.T) {
+	t.Parallel()
+
 	chOnErr := make(chan struct{})
 	chOnRcv := make(chan struct{})
 
@@ -499,6 +523,8 @@ func TestMConnectionReadErrorLongMessage(t *testing.T) {
 }
 
 func TestMConnectionReadErrorUnknownMsgType(t *testing.T) {
+	t.Parallel()
+
 	chOnErr := make(chan struct{})
 	mconnClient, mconnServer := newClientAndServerConnsForReadErrors(t, chOnErr)
 	defer mconnClient.Stop()
@@ -513,6 +539,8 @@ func TestMConnectionReadErrorUnknownMsgType(t *testing.T) {
 }
 
 func TestMConnectionTrySend(t *testing.T) {
+	t.Parallel()
+
 	server, client := NetPipe()
 	defer server.Close()
 	defer client.Close()

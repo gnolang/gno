@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"log/slog"
 	"reflect"
@@ -21,8 +20,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
-
-var crc32c = crc32.MakeTable(crc32.Castagnoli)
 
 // Functionality to replay blocks and messages on recovery from a crash.
 // There are two general failure scenarios:
