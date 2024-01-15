@@ -62,7 +62,7 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execImport(cfg *ImportCfg, io commands.IO) error {
 	// check keyname
-	if cfg.keyName == "" {
+	if cfg.KeyName == "" {
 		return errors.New("name shouldn't be empty")
 	}
 
