@@ -23,12 +23,6 @@ import (
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
 
-// DevNode is a backup.Client
-// var _ backup.Client = (*Node)(nil)
-
-// DevNode is a restore.Client
-// var _ restore.Client = (*Node)(nil)
-
 // Node is not thread safe
 type Node struct {
 	*node.Node
@@ -108,14 +102,17 @@ func (d *Node) GetRemoteAddress() string {
 	return d.Node.Config().RPC.ListenAddress
 }
 
+// UpdatePackages updates the currently known packages. It will be taken into 
+// consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
 	for _, path := range paths {
-		// list all packages from target path
+		// List all packages from target path
 		pkgslist, err := gnomod.ListPkgs(path)
 		if err != nil {
 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
 		}
 
+		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
 			d.pkgs[pkg.Dir] = pkg
 		}
@@ -124,14 +121,17 @@ func (d *Node) UpdatePackages(paths ...string) error {
 	return nil
 }
 
+// Reset stops the node, if running, and reloads it with a new genesis state,
+// effectively ignoring the current state.
 func (d *Node) Reset(ctx context.Context) error {
+	// Stop the node if it's currently running.
 	if d.Node.IsRunning() {
 		if err := d.Node.Stop(); err != nil {
 			return fmt.Errorf("unable to stop the node: %w", err)
 		}
 	}
 
-	// generate genesis
+	// Generate a new genesis state based on the current packages
 	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
@@ -142,9 +142,11 @@ func (d *Node) Reset(ctx context.Context) error {
 		Txs:      txs,
 	}
 
+	// Reset the node with the new genesis state.
 	return d.reset(ctx, genesis)
 }
 
+// ReloadAll updates all currently known packages and then reloads the node.
 func (d *Node) ReloadAll(ctx context.Context) error {
 	pkgs := d.ListPkgs()
 	paths := make([]string, len(pkgs))
@@ -159,22 +161,25 @@ func (d *Node) ReloadAll(ctx context.Context) error {
 	return d.Reload(ctx)
 }
 
+// Reload saves the current state, stops the node if running, starts a new node,
+// and re-apply previously saved state along with packages updated by `UpdatePackages`.
+// If any transaction, including 'addpkg', fails, it will be ignored.
+// Use 'Reset' to completely reset the node's state in case of persistent errors.
 func (d *Node) Reload(ctx context.Context) error {
-
-	// save current state
+	// Save the current state of the node.
 	state, err := d.saveState(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
 
-	// stop the node if not already stopped
+	// Stop the node if it's currently running.
 	if d.Node.IsRunning() {
 		if err := d.Node.Stop(); err != nil {
 			return fmt.Errorf("unable to stop the node: %w", err)
 		}
 	}
 
-	// generate genesis
+	// Generate a new genesis state based on the current packages.
 	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
@@ -185,14 +190,14 @@ func (d *Node) Reload(ctx context.Context) error {
 		Txs:      txs,
 	}
 
-	// try to reset the node
+	// Reset the node with the new genesis state.
 	if err := d.reset(ctx, genesis); err != nil {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
+	// Attempt to resend transactions from the saved state.
 	for _, tx := range state {
-		// skip empty transaction
-		if len(tx.Msgs) == 0 {
+		if len(tx.Msgs) == 0 { // Skip empty transactions.
 			continue
 		}
 
@@ -207,11 +212,12 @@ func (d *Node) Reload(ctx context.Context) error {
 func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
 	var err error
 
+	// recoverError handles panics and converts them to errors.
 	recoverError := func() {
 		if r := recover(); r != nil {
 			panicErr, ok := r.(error)
 			if !ok {
-				panic(r)
+				panic(r) // Re-panic if not an error.
 			}
 
 			err = panicErr
@@ -235,15 +241,15 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 		d.Node = node
 	}
 
-	// create the node
+	// Execute node creation and handle any errors.
 	createNode()
 	if err != nil {
 		return err
 	}
 
-	// wait for readiness
+	// Wait for the node to be ready
 	select {
-	case <-d.GetNodeReadiness(): // ok
+	case <-d.GetNodeReadiness(): // Ok
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -401,6 +407,9 @@ func newNode(logger log.Logger, genesis gnoland.GnoGenesisState) (*node.Node, er
 	rootdir := gnoenv.RootDir()
 
 	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
+	nodeConfig.SkipFailingGenesisTxs = true
+	nodeConfig.TMConfig.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
+
 	nodeConfig.Genesis.AppState = genesis
 	return gnoland.NewInMemoryNode(logger, nodeConfig)
 }

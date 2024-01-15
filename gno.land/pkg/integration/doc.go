@@ -17,6 +17,10 @@
 //   - `--remote`, `--insecure-password-stdin`, and `--home` flags are set automatically to
 //     communicate with the gnoland node.
 //
+// 3. `adduser`:
+//   - Creates a new user in the default keybase directory.
+//   - Must be run before `gnoland start`.
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much

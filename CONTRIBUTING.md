@@ -163,7 +163,7 @@ Inside `lsp#register_server()`, you also have to replace
 `workspace_config.root` and `workspace_config.gno` with the correct directories
 from your machine.
 
-Additionaly, it's not possible to use `gofumpt` for code formatting with
+Additionally, it's not possible to use `gofumpt` for code formatting with
 `gnols` for now.
 
 #### Emacs Support

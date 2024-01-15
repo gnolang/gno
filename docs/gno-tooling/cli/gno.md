@@ -18,19 +18,9 @@ gno {SUB_COMMAND}
 
 | Name         | Description                                |
 | ------------ | ------------------------------------------ |
-| `build`      | Builds a gno package.                      |
 | `test`       | Tests a gno package.                       |
 | `precompile` | Precompiles a `.gno` file to a `.go` file. |
 | `repl`       | Starts a GnoVM REPL.                       |
-
-### `build`
-
-#### **Options**
-
-| Name      | Type    | Description                                    |
-| --------- | ------- | ---------------------------------------------- |
-| `verbose` | Boolean | Displays extended information.                 |
-| go-binary | String  | Go binary to use for building (default: `go`). |
 
 ### `test`
 
@@ -52,8 +42,9 @@ gno {SUB_COMMAND}
 | ----------- | ------- | --------------------------------------------------------------- |
 | `verbose`   | Boolean | Displays extended information.                                  |
 | `skip-fmt`  | Boolean | Skips the syntax checking of generated `.go` files.             |
+| `gobuild`   | Boolean | Run `go build` on generated `.go` files, ignoring test files.   |
 | `go-binary` | String  | The go binary to use for building (default: `go`).              |
-| `go-binary` | String  | The gofmt binary to use for syntax checking (default: `gofmt`). |
+| `gofmt`     | String  | The gofmt binary to use for syntax checking (default: `gofmt`). |
 | `output`    | String  | The output directory (default: `.`).                            |
 
 ### `repl`
