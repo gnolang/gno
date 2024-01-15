@@ -102,7 +102,7 @@ func GetParentdOf(tokenId string) string {
 	if exists {
 		return string(parentTokenId);
 	} 
-	return nil
+	return "" 
 }
 
 func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
