@@ -165,7 +165,7 @@ func (m *Machine) doOpCall() {
 		// Make a copy so that a reference to the argument isn't used
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
-		b.Values[i] = pv.Copy(m.Alloc)
+		b.Values[i] = pv.Copy(m.Alloc, m.Store)
 	}
 }
 
@@ -400,7 +400,7 @@ func (m *Machine) doOpDefer() {
 
 func (m *Machine) doOpPanic1() {
 	// Pop exception
-	var ex TypedValue = m.PopValue().Copy(m.Alloc)
+	var ex TypedValue = m.PopValue().Copy(m.Alloc, m.Store)
 	// Panic
 	m.Panic(ex)
 }

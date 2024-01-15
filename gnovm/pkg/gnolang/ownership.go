@@ -104,6 +104,7 @@ type Object interface {
 	IncRefCount() int
 	DecRefCount() int
 	GetRefCount() int
+	SetRefCount(int)
 	GetIsDirty() bool
 	SetIsDirty(bool, uint64)
 	GetIsEscaped() bool
@@ -117,6 +118,8 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
+	GetNextObjectID() ObjectID
+	SetNextObjectID(ObjectID)
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
@@ -144,6 +147,7 @@ type ObjectInfo struct {
 	isNewReal    bool
 	isNewEscaped bool
 	isNewDeleted bool
+	nextID       ObjectID // set if replacing pre-existing object.
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -164,6 +168,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
 		isNewDeleted: oi.isNewDeleted,
+		nextID:       oi.nextID,
 	}
 }
 
@@ -265,6 +270,10 @@ func (oi *ObjectInfo) GetRefCount() int {
 	return oi.RefCount
 }
 
+func (oi *ObjectInfo) SetRefCount(rc int) {
+	oi.RefCount = rc
+}
+
 func (oi *ObjectInfo) GetIsDirty() bool {
 	return oi.isDirty
 }
@@ -322,6 +331,14 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 
 func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
+}
+
+func (oi *ObjectInfo) GetNextObjectID() ObjectID {
+	return oi.nextID
+}
+
+func (oi *ObjectInfo) SetNextObjectID(nid ObjectID) {
+	oi.nextID = nid
 }
 
 func (tv *TypedValue) GetFirstObject(store Store) Object {

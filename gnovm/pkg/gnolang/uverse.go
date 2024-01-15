@@ -296,8 +296,6 @@ func UverseNode() *PackageNode {
 								if argsb.Data == nil {
 									for i := 0; i < argsl; i++ {
 										oldElem := list[xvo+xvl+i]
-										// unrefCopy will resolve references and copy their values
-										// to copy by value rather than by reference.
 										newElem := argsb.List[argso+i].unrefCopy(m.Alloc, m.Store)
 										list[xvo+xvl+i] = newElem
 

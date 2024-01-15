@@ -390,8 +390,21 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if !oo.GetObjectID().IsZero() {
 		return
 	}
-	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo)
+	noid := oo.GetNextObjectID()
+	if !noid.IsZero() {
+		// consume NextObjectID.
+		oo.SetObjectID(noid)
+		oo.SetNextObjectID(ObjectID{})
+		// rlm.created not touched, not actually.
+		// instead, is considered updated.
+		rlm.updated = append(rlm.updated, oo)
+		// however, we do need the following
+		// recurse logic to inc refcount
+		// children of this replacement object.
+	} else {
+		rlm.assignNewObjectID(oo)
+		rlm.created = append(rlm.created, oo)
+	}
 	// RECURSE GUARD END
 
 	// recurse for children.
