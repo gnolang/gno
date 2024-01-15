@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/14f3_filetest.gno:27: operator -= not defined on: main.E
+// main/files/types/14f3_filetest.gno:27: operator -= not defined on: InterfaceKind

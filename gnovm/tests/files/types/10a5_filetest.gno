@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/10a5_filetest.gno:4: operator << not defined on: <untyped> bigdec
+// main/files/types/10a5_filetest.gno:5: operator << not defined on: BigdecKind

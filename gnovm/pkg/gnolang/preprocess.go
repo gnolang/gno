@@ -8,51 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-var (
-	binaryPredicates = map[Word]func(t Type) bool{
-		ADD:      isNumericOrString,
-		SUB:      isNumeric,
-		MUL:      isNumeric,
-		QUO:      isNumeric,
-		REM:      isIntNum,
-		SHL:      isIntNum, // NOTE: 1.0 << 1 is legal in Go. consistent with op_binary for now.
-		SHR:      isIntNum,
-		BAND:     isIntNum, // bit ops
-		XOR:      isIntNum,
-		BOR:      isIntNum,
-		BAND_NOT: isIntNum,
-		LAND:     isBoolean, // logic
-		LOR:      isBoolean,
-		LSS:      isOrdered, // compare
-		LEQ:      isOrdered,
-		GTR:      isOrdered,
-		GEQ:      isOrdered,
-	}
-	unaryPredicates = map[Word]func(t Type) bool{
-		ADD: isNumeric,
-		SUB: isNumeric,
-		XOR: isIntNum,
-		NOT: isBoolean,
-	}
-	IncDecStmtPredicates = map[Word]func(t Type) bool{ // NOTE: to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
-		INC: isNumeric,
-		DEC: isNumeric,
-	}
-	AssignStmtPredicates = map[Word]func(t Type) bool{
-		ADD_ASSIGN:      isNumericOrString,
-		SUB_ASSIGN:      isNumeric,
-		MUL_ASSIGN:      isNumeric,
-		QUO_ASSIGN:      isNumeric,
-		REM_ASSIGN:      isIntNum,
-		SHL_ASSIGN:      isNumeric,
-		SHR_ASSIGN:      isNumeric,
-		BAND_ASSIGN:     isIntNum,
-		XOR_ASSIGN:      isIntNum,
-		BOR_ASSIGN:      isIntNum,
-		BAND_NOT_ASSIGN: isIntNum,
-	}
-)
-
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
@@ -797,6 +752,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				isShift := n.Op == SHL || n.Op == SHR
 				// special case of shift
 				if isShift {
+					// check LHS type compatibility
+					checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
+					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
 						// checkOperandWithOp(store, last, &n.Left, lt, n.Op, true) // check lt with op, sh*
 						// convert n.Right to (gno) uint type,
@@ -854,10 +812,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									panic("invalid operation: division by zero")
 								}
 							}
-						} else {
-							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
 						}
 						// Then, evaluate the expression.
+						// also for shift
 						cx := evalConst(store, last, n)
 						debugPP.Printf("const evaluated: %v \n", cx)
 						return cx, TRANS_CONTINUE
@@ -890,14 +847,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// gno, never with reflect.
 						} else {
 							debugPP.Println("right not native")
-							if isShift {
-								checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
-								debugPP.Println("shift checkOperandWithOp pass, postpone processing when assign or type cast")
-								// nothing to do, right type is (already) uint type.
-								// we don't yet know what this type should be,
-								// but another checkOrConvertType() later does.
-								// (e.g. from AssignStmt or other).
-							} else { // not shift
+							if !isShift {
 								// convert n.Left to right type.
 								checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false, false)
@@ -909,16 +859,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// convert n.Left to typed-nil type.
 							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
-						} else {
-							// check lhs of shift
-							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
 						}
 					} else { // left is typed const, right is not const(also typed), and not nil
-						if isShift {
-							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
-							// do nothing, final type is bind to left
-							// convertConstType(store, last, &n.Left, lt, false) // bypass check
-						} else { // ? dir makes sense here, since non-const(right) implies more dynamic(interface)
+						if !isShift { // ? dir makes sense here, since non-const(right) implies more dynamic(interface)
 							// TODO: check if right untyped
 							if isUntyped(rt) {
 								checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
@@ -933,10 +876,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else if ric { // right is const, left is not---
 					if isUntyped(rcx.T) {
 						// Left not, Right untyped const ----------------
-						if isShift {
-							// do nothing
-							checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
-						} else {
+						if !isShift {
 							if lnt, ok := lt.(*NativeType); ok {
 								// get concrete native base type.
 								pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
@@ -985,9 +925,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Right, lt, false, false)
 						}
-					} else if isShift {
-						// check if LHS is valid
-						checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
 					}
 					// check special case first
 					if isQuoOrRem(n.Op) {
@@ -1074,8 +1011,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						}
-					} else {
-						checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
 					}
 				}
 			// TRANS_LEAVE -----------------------
@@ -2739,13 +2674,21 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 		case Unary:
 			if pred, ok := unaryPredicates[op]; ok {
 				if !pred(dt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					if dt != nil {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+					} else {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					}
 				}
 			}
 		case IncDec:
 			if pred, ok := IncDecStmtPredicates[op]; ok {
 				if !pred(dt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					if dt != nil {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+					} else {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					}
 				}
 			}
 		default:
@@ -2770,7 +2713,11 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				case LSS, LEQ, GTR, GEQ:
 					if pred, ok := binaryPredicates[op]; ok {
 						if !pred(dt) {
-							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+							if dt != nil {
+								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+							} else {
+								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+							}
 						}
 					}
 				default:
@@ -2779,7 +2726,11 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 			} else {
 				if pred, ok := binaryPredicates[op]; ok {
 					if !pred(dt) {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						if dt != nil {
+							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+						} else {
+							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						}
 					}
 				}
 				switch op {
@@ -2791,7 +2742,6 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
 							}
 						}
-						debugPP.Println("typed and identical as maybeIdenticalType")
 					}
 				default:
 					// do nothing
@@ -2800,7 +2750,11 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 		case Assign:
 			if pred, ok := AssignStmtPredicates[op]; ok {
 				if !pred(dt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					if dt != nil {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+					} else {
+						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+					}
 				}
 				switch op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
@@ -2811,7 +2765,6 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", dt, xt))
 							}
 						}
-						debugPP.Println("typed and identical as maybeIdenticalType")
 					}
 				default:
 					// do nothing

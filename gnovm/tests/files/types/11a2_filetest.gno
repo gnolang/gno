@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/11a2_filetest.gno:5: operator && not defined on: <untyped> bigint
+// main/files/types/11a2_filetest.gno:5: operator && not defined on: BigintKind

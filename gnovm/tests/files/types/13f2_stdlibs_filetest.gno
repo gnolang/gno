@@ -42,4 +42,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13f2_stdlibs_filetest.gno:40: operator += not defined on: .uverse.error
+// main/files/types/13f2_stdlibs_filetest.gno:40: operator += not defined on: InterfaceKind

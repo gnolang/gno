@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f26_stdlibs_filetest.gno:19: operator > not defined on: .uverse.error
+// main/files/types/0f26_stdlibs_filetest.gno:19: operator > not defined on: InterfaceKind

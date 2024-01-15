@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/10a02_filetest.gno:5: operator << not defined on: <untyped> bigdec
+// main/files/types2/10a02_filetest.gno:7: operator << not defined on: BigdecKind

@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/23a0c_filetest.gno:7: operator + not defined on: string
+// main/files/types/23a0c_filetest.gno:7: operator + not defined on: StringKind

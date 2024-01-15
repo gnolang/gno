@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/10a14_filetest.gno:3: operator << not defined on: string
+// main/files/types/10a14_filetest.gno:5: operator << not defined on: StringKind

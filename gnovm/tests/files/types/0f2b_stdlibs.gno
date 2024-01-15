@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f2b_stdlibs.gno:19: operator <= not defined on: .uverse.error
+// main/files/types/0f2b_stdlibs.gno:19: operator <= not defined on: InterfaceKind

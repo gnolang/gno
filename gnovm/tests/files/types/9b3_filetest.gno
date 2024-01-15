@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/9b3_filetest.gno:5: operator &^ not defined on: <untyped> string
+// main/files/types/9b3_filetest.gno:5: operator &^ not defined on: StringKind

@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/2f2_filetest.gno:27: operator - not defined on: main.E
+// main/files/types/2f2_filetest.gno:27: operator - not defined on: InterfaceKind

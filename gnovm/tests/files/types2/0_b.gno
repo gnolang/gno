@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/0_b.gno:15: operator << not defined on: float32
+// main/files/types2/0_b.gno:15: operator << not defined on: Float32Kind

@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/11a7_LAND_filetest.gno:4: operator && not defined on: int
+// main/files/types/11a7_LAND_filetest.gno:4: operator && not defined on: IntKind

@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/26a0_runtime_filetest.gno:5: operator ++ not defined on: bool
+// main/files/types/26a0_runtime_filetest.gno:5: operator ++ not defined on: BoolKind

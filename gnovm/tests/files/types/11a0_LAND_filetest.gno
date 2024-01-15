@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/11a0_LAND_filetest.gno:5: operator && not defined on: int
+// main/files/types/11a0_LAND_filetest.gno:5: operator && not defined on: IntKind

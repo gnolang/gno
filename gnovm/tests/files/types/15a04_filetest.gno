@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/15a04_filetest.gno:5: operator %= not defined on: float64
+// main/files/types/15a04_filetest.gno:5: operator %= not defined on: Float64Kind

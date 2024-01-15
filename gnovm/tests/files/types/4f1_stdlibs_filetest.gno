@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/4f1_stdlibs_filetest.gno:19: operator / not defined on: .uverse.error
+// main/files/types/4f1_stdlibs_filetest.gno:19: operator / not defined on: InterfaceKind

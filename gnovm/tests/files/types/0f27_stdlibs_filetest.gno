@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f27_stdlibs_filetest.gno:13: operator > not defined on: .uverse.error
+// main/files/types/0f27_stdlibs_filetest.gno:13: operator > not defined on: InterfaceKind

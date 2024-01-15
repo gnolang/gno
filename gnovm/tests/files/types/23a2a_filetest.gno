@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/23a2a_filetest.gno:7: operator ! not defined on: int
+// main/files/types/23a2a_filetest.gno:7: operator ! not defined on: IntKind

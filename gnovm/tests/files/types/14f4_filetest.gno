@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/14f4_filetest.gno:5: operator -= not defined on: <untyped> string
+// main/files/types/14f4_filetest.gno:5: operator -= not defined on: StringKind
