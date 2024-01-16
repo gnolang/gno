@@ -2156,8 +2156,8 @@ func assertAssignable(lt, rt Type) {
 
 func isSameType(lt, rt Type) bool {
 	return lt == nil && rt == nil || // both are nil/undefined
-		(lt != nil && rt != nil && // both are defined and equal.
-			lt.TypeID() == rt.TypeID())
+		(lt != nil && rt != nil) && // both are defined
+			(lt.TypeID() == rt.TypeID()) // and identical.
 }
 
 // ----------------------------------------
