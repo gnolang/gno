@@ -15,5 +15,9 @@ func main() {
 		panic(err)
 	}
 
+	// `String()` method use Marshal internally to generate human readable JSON.
 	fmt.Println(s.String())
 }
+
+// Output:
+// {"name": "Foo", "age": 20, "score": 4.2, "subscribed": true, "option": null}
