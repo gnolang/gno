@@ -7,6 +7,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/gnolang/gno v0.0.0-20231124185034-aaeb808f18d7
 	github.com/gnolang/tx-archive v0.1.1
+	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
 )

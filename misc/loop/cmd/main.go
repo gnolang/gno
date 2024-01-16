@@ -14,7 +14,17 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+
+	ff "github.com/peterbourgon/ff/v4"
+	"github.com/peterbourgon/ff/v4/ffhelp"
 )
+
+type service struct {
+	// TODO(albttx): put getter on it with RMutex
+	portalLoop *snapshotter
+
+	portalLoopURL string
+}
 
 func init() {
 	if os.Getenv("HOST_PWD") == "" {
@@ -38,14 +48,122 @@ func init() {
 	}
 }
 
-type service struct {
-	// TODO(albttx): put getter on it with RMutex
-	portalLoop *snapshotter
+func main() {
+	s := &service{}
 
-	portalLoopURL string
+	serveCmd := &ff.Command{
+		Name: "serve",
+		Exec: s.execServe,
+	}
+	switchCmd := &ff.Command{
+		Name: "switch",
+		Exec: s.execSwitch,
+	}
+	backupCmd := &ff.Command{
+		Name: "backup",
+		Exec: s.execBackup,
+	}
+
+	rootCmd := &ff.Command{
+		Name: "portalloopd",
+		Subcommands: []*ff.Command{
+			serveCmd,
+			switchCmd,
+			backupCmd,
+		},
+	}
+
+	if err := rootCmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", ffhelp.Command(rootCmd))
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
 }
 
-func (s *service) startPortalLoop(ctx context.Context) error {
+func (s *service) execServe(ctx context.Context, args []string) error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+
+	// Serve monitoring
+	go func() {
+		for s.portalLoopURL == "" {
+			time.Sleep(time.Second * 1)
+		}
+
+		go s.recordMetrics()
+
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(os.Getenv("PROM_ADDR"), nil)
+
+	}()
+
+	// the loop
+	for {
+		s.portalLoop, err = NewSnapshotter(dockerClient, config{
+			backupDir:      os.Getenv("BACKUP_DIR"),
+			rpcAddr:        os.Getenv("RPC_URL"),
+			hostPWD:        os.Getenv("HOST_PWD"),
+			traefikGnoFile: os.Getenv("TRAEFIK_GNO_FILE"),
+		})
+		if err != nil {
+			return err
+		}
+
+		err = s.startPortalLoop(ctx, false)
+		if err != nil {
+			logrus.WithError(err).Error()
+		}
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func (s *service) execSwitch(ctx context.Context, args []string) error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+
+	s.portalLoop, err = NewSnapshotter(dockerClient, config{
+		backupDir:      os.Getenv("BACKUP_DIR"),
+		rpcAddr:        os.Getenv("RPC_URL"),
+		hostPWD:        os.Getenv("HOST_PWD"),
+		traefikGnoFile: os.Getenv("TRAEFIK_GNO_FILE"),
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.startPortalLoop(ctx, true)
+}
+
+func (s *service) execBackup(ctx context.Context, args []string) error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+
+	s.portalLoop, err = NewSnapshotter(dockerClient, config{
+		backupDir:      os.Getenv("BACKUP_DIR"),
+		rpcAddr:        os.Getenv("RPC_URL"),
+		hostPWD:        os.Getenv("HOST_PWD"),
+		traefikGnoFile: os.Getenv("TRAEFIK_GNO_FILE"),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = s.startPortalLoop(ctx, false)
+	if err != nil {
+		return err
+	}
+
+	return s.portalLoop.backupTXs(ctx)
+}
+
+func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 	logrus.Info("Starting the Portal Loop")
 
 	// 1. Pull latest docker image
@@ -53,12 +171,14 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	logrus.WithField("is_new", isNew).Info("Pulled latest image")
 
 	// 2. Get existing portal loop
 	containers, err := s.portalLoop.getPortalLoopContainers(ctx)
 	if err != nil {
 		return err
 	}
+	logrus.WithField("containers", containers).Info("Get containers")
 
 	if len(containers) == 0 {
 		logrus.Info("No portal loop instance found, starting one")
@@ -77,18 +197,20 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 			}
 		}
 		return nil
-	} else if s.portalLoopURL == "" {
-		for _, p := range containers[0].Ports {
-			if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-				s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
-				s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL)
-				break
-			}
+	}
+
+	for _, p := range containers[0].Ports {
+		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
+			s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
+			s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL)
+			break
 		}
 	}
 
+	logrus.Info("Current Portal Loop is running on : ", s.portalLoopURL)
+
 	// 3. Check if there is a new image
-	if !isNew {
+	if !isNew && !force {
 		return nil
 	}
 
@@ -191,48 +313,4 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func (s *service) ServeMonitoring() {
-	// Wait for portal loop to start
-	for s.portalLoopURL == "" {
-		time.Sleep(time.Second * 1)
-	}
-
-	go s.recordMetrics()
-
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(os.Getenv("PROM_ADDR"), nil)
-}
-
-func main() {
-	s := &service{}
-
-	var err error
-
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		logrus.WithError(err).Fatal()
-	}
-
-	go s.ServeMonitoring()
-
-	for {
-		s.portalLoop, err = NewSnapshotter(dockerClient, config{
-			backupDir:      os.Getenv("BACKUP_DIR"),
-			rpcAddr:        os.Getenv("RPC_URL"),
-			hostPWD:        os.Getenv("HOST_PWD"),
-			traefikGnoFile: os.Getenv("TRAEFIK_GNO_FILE"),
-		})
-		if err != nil {
-			logrus.WithError(err).Fatal()
-		}
-
-		ctx := context.Background()
-		err = s.startPortalLoop(ctx)
-		if err != nil {
-			logrus.WithError(err).Error()
-		}
-		time.Sleep(time.Second * 10)
-	}
 }

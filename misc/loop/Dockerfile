@@ -13,3 +13,5 @@ RUN apk add bash curl jq
 COPY --from=builder /app/portalloopd /usr/bin/portalloopd
 
 ENTRYPOINT [ "/usr/bin/portalloopd" ]
+
+CMD [ "serve" ]
