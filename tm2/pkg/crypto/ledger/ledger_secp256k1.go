@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 
+	ledger "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
@@ -18,7 +19,6 @@ import (
 
 // discoverLedger defines a function to be invoked at runtime for discovering
 // a connected Ledger device.
-var discoverLedger discoverLedgerFn
 
 type (
 	// discoverLedgerFn defines a Ledger discovery function that returns a
@@ -66,6 +66,15 @@ func NewPrivKeyLedgerSecp256k1Unsafe(path hd.BIP44Params) (crypto.PrivKey, error
 	}
 
 	return PrivKeyLedgerSecp256k1{pubKey, path}, nil
+}
+
+func discoverLedger() (LedgerSECP256K1, error) {
+	device, err := ledger.FindLedgerCosmosUserApp()
+	if err != nil {
+		return nil, err
+	}
+
+	return device, nil
 }
 
 // NewPrivKeyLedgerSecp256k1 will generate a new key and store the public key for later use.
@@ -196,9 +205,6 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 }
 
 func getLedgerDevice() (LedgerSECP256K1, error) {
-	if discoverLedger == nil {
-		return nil, errors.New("no Ledger discovery function defined")
-	}
 
 	device, err := discoverLedger()
 	if err != nil {
