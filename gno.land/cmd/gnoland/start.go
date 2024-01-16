@@ -220,8 +220,11 @@ func execStart(c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to parse log level, %w", err)
 	}
 
+	// Initialize the log format
+	logFormat := log.Format(strings.ToLower(c.logFormat))
+
 	// Initialize the zap logger
-	zapLogger := log.GetZapLoggerFn(log.Format(c.logFormat))(io.Out(), logLevel)
+	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
 	defer zapLogger.Sync()
 
 	// Wrap the zap logger
