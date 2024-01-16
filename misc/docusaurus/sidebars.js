@@ -38,10 +38,64 @@ const sidebars = {
         },
         {
             type: 'category',
+            label: 'Concepts',
+            items: [
+                'concepts/realms',
+                'concepts/packages',
+                {
+                    type: 'category',
+                    label: 'Standard Libraries',
+                    items: [
+                        'concepts/standard-library/overview',
+                        'concepts/standard-library/banker',
+                        'concepts/standard-library/coin',
+                        'concepts/standard-library/gnopher-hole-stdlib',
+                    ]
+                },
+                'concepts/tendermint2',
+                'concepts/gnovm',
+                'concepts/proof-of-contribution',
+                'concepts/gno-language',
+                'concepts/gno-modules',
+                'concepts/gno-test',
+                'concepts/from-go-to-gno',
+            ],
+        },
+        {
+            type: 'category',
+            label: 'Gno Tooling',
+            items: [
+                'gno-tooling/cli/gno-tooling-gno',
+                'gno-tooling/cli/gno-tooling-gnokey',
+                'gno-tooling/cli/gno-tooling-gnofaucet',
+                'gno-tooling/cli/gno-tooling-gnoland',
+                'gno-tooling/cli/gno-tooling-tm2txsync',
+            ]
+        },
+        {
+            type: 'category',
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
-                'reference/standard-library',
+                {
+                    type: 'category',
+                    label: 'Standard Libraries',
+                    items: [
+                        'reference/standard-library/overview',
+                        {
+                            type: 'category',
+                            label: 'std',
+                            items: [
+                                'reference/standard-library/std/address',
+                                'reference/standard-library/std/banker',
+                                'reference/standard-library/std/coin',
+                                'reference/standard-library/std/coins',
+                                'reference/standard-library/std/chain',
+                                'reference/standard-library/std/testing',
+                            ]
+                        }
+                    ]
+                },
                 'reference/go-gno-compatibility',
                 {
                     type: 'category',
@@ -77,31 +131,6 @@ const sidebars = {
                         'reference/gno-js-client/gno-js-getting-started',
                         'reference/gno-js-client/gno-js-provider',
                         'reference/gno-js-client/gno-js-wallet',
-                    ]
-                },
-            ],
-        },
-        {
-            type: 'category',
-            label: 'Explanation',
-            items: [
-                'explanation/realms',
-                'explanation/tendermint2',
-                'explanation/gnovm',
-                'explanation/proof-of-contribution',
-                'explanation/gno-language',
-                'explanation/gno-modules',
-                'explanation/gno-test',
-                'explanation/from-go-to-gno',
-                {
-                    type: 'category',
-                    label: 'Gno Tooling',
-                    items: [
-                        'explanation/gno-tooling/cli/gno-tooling-gno',
-                        'explanation/gno-tooling/cli/gno-tooling-gnokey',
-                        'explanation/gno-tooling/cli/gno-tooling-gnofaucet',
-                        'explanation/gno-tooling/cli/gno-tooling-gnoland',
-                        'explanation/gno-tooling/cli/gno-tooling-tm2txsync',
                     ]
                 },
             ],

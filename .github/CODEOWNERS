@@ -3,7 +3,6 @@
 # Primary repo maintainers.
 *                            @gnolang/tech-staff
 
-
 # Tendermint2 (Gno version).
 tm2/*                        @gnolang/tech-staff
 tm2/pkg                      @jaekwon @moul
@@ -11,8 +10,8 @@ tm2/pkg                      @jaekwon @moul
 
 
 # Docs & Content.
-docs/                        @gnolang/tech-staff
-*.md                         @gnolang/tech-staff
+docs/                        @gnolang/devrels @gnolang/tech-staff
+misc/docusaurus/             @gnolang/devrels @gnolang/tech-staff
 # TODO: add non-tech people here.
 
 
@@ -37,6 +36,3 @@ PHILOSOPHY.md                @jaekwon @moul
 CONTRIBUTING.md              @jaekwon @moul
 LICENSE.md                   @jaekwon @moul
 .github/CODEOWNERS           @jaekwon @moul
-
-# Documentation.
-docs/*                       @gnolang/devrels

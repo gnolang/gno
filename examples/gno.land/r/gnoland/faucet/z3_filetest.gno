@@ -18,21 +18,21 @@ func main() {
 	)
 	std.TestSetOrigCaller(adminaddr)
 	err := faucet.AdminAddController(controlleraddr1)
-	if err != nil {
+	if err != "" {
 		panic(err)
 	}
 	err = faucet.AdminAddController(controlleraddr2)
-	if err != nil {
+	if err != "" {
 		panic(err)
 	}
 	std.TestSetOrigCaller(controlleraddr1)
 	err = faucet.Transfer(testaddr1, 1000000)
-	if err != nil {
+	if err != "" {
 		panic(err)
 	}
 	std.TestSetOrigCaller(controlleraddr2)
 	err = faucet.Transfer(testaddr1, 2000000)
-	if err != nil {
+	if err != "" {
 		panic(err)
 	}
 	println(faucet.Render(""))

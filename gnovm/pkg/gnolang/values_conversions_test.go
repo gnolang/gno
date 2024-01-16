@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 	"github.com/stretchr/testify/require"
 )
 
