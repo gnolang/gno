@@ -58,7 +58,9 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 	containers, err := s.portalLoop.getPortalLoopContainers(ctx)
 	if err != nil {
 		return err
-	} else if len(containers) == 0 {
+	}
+
+	if len(containers) == 0 {
 		logrus.Info("No portal loop instance found, starting one")
 		// Portal loop isn't running, Starting it
 		container, err := s.portalLoop.startPortalLoopContainer(context.Background())
@@ -148,17 +150,18 @@ func (s *service) startPortalLoop(ctx context.Context) error {
 			currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
 			if err != nil {
 				return err
-			} else if currentBlock >= 5 {
+			}
+			if currentBlock >= 5 {
 				return nil
 			}
 			return fmt.Errorf("blocks: %d/5", currentBlock)
 		}()
-		if err != nil {
-			if !strings.HasPrefix(err.Error(), "blocks: ") {
-				logrus.WithError(err).Error()
-			}
-		} else {
+		if err == nil {
 			break
+		}
+
+		if !strings.HasPrefix(err.Error(), "blocks: ") {
+			logrus.WithError(err).Error()
 		}
 		time.Sleep(time.Second * 2)
 	}
