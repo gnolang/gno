@@ -2,21 +2,25 @@ package blog
 
 import (
 	"errors"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+
 	"std"
 	"strconv"
 	"strings"
 	"time"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 )
 
 type Blog struct {
-	Title        string
-	Prefix       string   // i.e. r/gnoland/blog:
-	Posts        avl.Tree // slug -> Post
-	NoBreadcrumb bool
+	Title             string
+	Prefix            string   // i.e. r/gnoland/blog:
+	Posts             avl.Tree // slug -> *Post
+	PostsPublished    avl.Tree // published-date -> *Post
+	PostsAlphabetical avl.Tree // title -> *Post
+	NoBreadcrumb      bool
+	PostIndex         seqid.ID
 }
 
 func (b Blog) RenderLastPostsWidget(limit int) string {
@@ -42,7 +46,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("<div class='columns-3'>")
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.Iterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 		res.Write(post.RenderListItem())
 		return false
@@ -157,9 +161,15 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	// more input sanitization?
 
 	post.Blog = b
-	post.UpdatedAt = time.Now()
+	post.UpdatedAt = post.CreatedAt
+
+	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
+	pubDateKey := makePubDate(post.CreatedAt, int64(b.PostIndex.Next()))
+	b.PostsAlphabetical.Set(trimmedTitleKey, post)
+	b.PostsPublished.Set(pubDateKey, post)
 
 	b.Posts.Set(post.Slug, post)
+
 	return nil
 }
 
@@ -236,6 +246,7 @@ func (p *Post) RenderListItem() string {
 	output := "<div>\n\n"
 	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	output += ufmt.Sprintf("**[Learn More](%s)**\n", p.URL())
+
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
