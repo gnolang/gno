@@ -143,7 +143,7 @@ function! s:on_lsp_buffer_enabled() abort
     setlocal omnifunc=lsp#complete
     " Format on save
     autocmd BufWritePre <buffer> LspDocumentFormatSync
-    " Some optionnal mappings
+    " Some optional mappings
     nmap <buffer> <leader>i <Plug>(lsp-hover) 
     " Following mappings are not supported yet by gnols
     " nmap <buffer> gd <plug>(lsp-definition)     
@@ -163,7 +163,7 @@ Inside `lsp#register_server()`, you also have to replace
 `workspace_config.root` and `workspace_config.gno` with the correct directories
 from your machine.
 
-Additionaly, it's not possible to use `gofumpt` for code formatting with
+Additionally, it's not possible to use `gofumpt` for code formatting with
 `gnols` for now.
 
 #### Emacs Support

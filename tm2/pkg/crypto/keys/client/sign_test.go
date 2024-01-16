@@ -23,17 +23,17 @@ func Test_execSign(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	cfg := &signCfg{
-		rootCfg: &baseCfg{
+	cfg := &SignCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		txPath:        "-", // stdin
-		chainID:       "dev",
-		accountNumber: 0,
-		sequence:      0,
+		TxPath:        "-", // stdin
+		ChainID:       "dev",
+		AccountNumber: 0,
+		Sequence:      0,
 	}
 
 	fakeKeyName1 := "signApp_Key1"
@@ -43,7 +43,7 @@ func Test_execSign(t *testing.T) {
 	io := commands.NewTestIO()
 
 	// add test account to keybase.
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	assert.NoError(t, err)
 	acc, err := kb.CreateAccount(fakeKeyName1, testMnemonic, "", encPassword, 0, 0)
 	addr := acc.GetAddress()
