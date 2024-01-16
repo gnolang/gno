@@ -1037,6 +1037,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					at := evalStaticTypeOf(store, last, n.Args[0])
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
+						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check, TODO: refer to
 							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
@@ -1698,7 +1699,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							// in define, when RHS is untyped and contains SHR/SHL expression, explicitly
 							// call this, to give the SHR/SHL a type, the dest type is a faux type.
-							checkOrConvertType(store, last, &n.Rhs[i], &InterfaceType{}, false, false) // 10a03
+							checkOrConvertType(store, last, &n.Rhs[i], nil, false, false) // 10a03
 						}
 					}
 				} else { // ASSIGN.
@@ -2499,13 +2500,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		debugPP.Printf("shift, xt: %v, Op: %v, t: %v \n", *x, bx.Op, t)
-		//if t == nil {
-		//	if isUntyped(xt) {
-		//		t = defaultTypeOf(xt)
-		//	} else {
-		//		t = xt // xt maybe typed while assign, with t is the type of LHS
-		//	}
-		//}
+		if t == nil {
+			if isUntyped(xt) {
+				t = defaultTypeOf(xt)
+			} else {
+				t = xt // xt maybe typed while assign, with t is the type of LHS
+			}
+		}
 		if _, ok := t.(*InterfaceType); ok {
 			if isUntyped(xt) {
 				t = defaultTypeOf(xt)
@@ -2535,13 +2536,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	} else if ux, ok := (*x).(*UnaryExpr); ok {
 		debugPP.Printf("unary expr: %v, Op: %v, t: %v \n", ux, ux.Op, t)
 		xt := evalStaticTypeOf(store, last, *x)
-		//if t == nil {
-		//	if isUntyped(xt) {
-		//		t = defaultTypeOf(xt)
-		//	} else {
-		//		t = xt
-		//	}
-		//}
+		if t == nil {
+			if isUntyped(xt) {
+				t = defaultTypeOf(xt)
+			} else {
+				t = xt
+			}
+		}
 		if _, ok := t.(*InterfaceType); ok {
 			if isUntyped(xt) {
 				t = defaultTypeOf(xt)
@@ -2577,9 +2578,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		}
 		if isUntyped(xt) {
 			debugPP.Println("xt untyped")
-			//if t == nil {
-			//	t = defaultTypeOf(xt)
-			//}
+			if t == nil {
+				t = defaultTypeOf(xt)
+			}
 			if _, ok := t.(*InterfaceType); ok {
 				t = defaultTypeOf(xt)
 			}

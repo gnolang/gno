@@ -85,7 +85,7 @@ func (m *Machine) doOpEql() {
 	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
-	if isEqualityTypes(lv.T, rv.T) {
+	if maybeEqual(lv.T, rv.T) {
 		debugPP.Println("-----type identical------")
 		res = isEql(m.Store, lv, rv)
 	} else {
@@ -108,7 +108,7 @@ func (m *Machine) doOpNeq() {
 	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
-	if isEqualityTypes(lv.T, rv.T) {
+	if maybeEqual(lv.T, rv.T) {
 		res = !isEql(m.Store, lv, rv)
 	} else {
 		debugPP.Println("-----type not identical------")

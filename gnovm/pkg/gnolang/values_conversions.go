@@ -15,6 +15,9 @@ import (
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	debugPP.Printf("--------------ConvertTo, tv: %v, t: %v \n", tv, t)
+	//if t == nil {
+	//	t = defaultTypeOf(tv.T) // TODO: check this on master
+	//}
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -80,9 +83,13 @@ GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
 		if tv.IsUndefined() { // set interface type
-			if _, ok := t.(*NativeType); !ok {
-				debugPP.Println("t is interface and not native")
-				tv.T = t
+			debugPP.Printf("-----convertTo, tv: %v, tv.T: %v \n", tv, tv.T)
+			if tv.T == nil { // nil T and nil Value. not a nil interface but a nil
+				debugPP.Println("tv.T is nil")
+				if _, ok := t.(*NativeType); !ok {
+					debugPP.Printf("t is interface and not native, t: %v \n", t)
+					tv.T = t
+				}
 			}
 		}
 		return
