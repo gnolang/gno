@@ -325,7 +325,7 @@ func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error)
 	env.Defer(func() { zapLogger.Sync() })
 
 	env.T().Log("starting logger", path)
-	return logger, nil
+	return log.ZapLoggerToSlog(zapLogger), nil
 }
 
 func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {

@@ -12,6 +12,8 @@ require (
 	golang.org/x/term v0.16.0
 )
 
+require github.com/kr/pretty v0.2.1 // indirect
+
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
@@ -63,5 +65,4 @@ require (
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	moul.io/zapconfig v1.4.0 // indirect
 )

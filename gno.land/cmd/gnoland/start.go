@@ -43,7 +43,8 @@ type startCfg struct {
 	txEventStorePath string
 	nodeConfigPath   string
 
-	logLevel string
+	logLevel  string
+	logFormat string
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -175,6 +176,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"log level for the gnoland node,",
 	)
 
+	fs.StringVar(
+		&c.logFormat,
+		"log-format",
+		log.ConsoleFormat.String(),
+		"log format for the gnoland node",
+	)
+
 	// XXX(deprecated): use data-dir instead
 	fs.StringVar(
 		&c.dataDir,
@@ -213,7 +221,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the zap logger
-	zapLogger := log.NewZapConsoleLogger(io.Out(), logLevel)
+	zapLogger := log.GetZapLoggerFn(log.Format(c.logFormat))(io.Out(), logLevel)
 	defer zapLogger.Sync()
 
 	// Wrap the zap logger

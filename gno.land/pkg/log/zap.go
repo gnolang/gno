@@ -10,6 +10,22 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// NewZapLoggerFn is the zap logger init declaration
+type NewZapLoggerFn func(w io.Writer, level zapcore.Level, opts ...zap.Option) *zap.Logger
+
+// GetZapLoggerFn returns the appropriate init callback
+// for the zap logger, given the requested format
+func GetZapLoggerFn(format Format) NewZapLoggerFn {
+	switch format {
+	case JSONFormat:
+		return NewZapJSONLogger
+	case TestingFormat:
+		return NewZapTestingLogger
+	default:
+		return NewZapConsoleLogger
+	}
+}
+
 // NewZapJSONLogger creates a zap logger with a JSON encoder for production use.
 func NewZapJSONLogger(w io.Writer, level zapcore.Level, opts ...zap.Option) *zap.Logger {
 	// Build encoder config
@@ -24,7 +40,6 @@ func NewZapJSONLogger(w io.Writer, level zapcore.Level, opts ...zap.Option) *zap
 func NewZapConsoleLogger(w io.Writer, level zapcore.Level, opts ...zap.Option) *zap.Logger {
 	// Build encoder config
 	consoleConfig := zap.NewDevelopmentEncoderConfig()
-	consoleConfig.TimeKey = ""
 	consoleConfig.EncodeLevel = stableWidthCapitalColorLevelEncoder
 	consoleConfig.EncodeName = stableWidthNameEncoder
 

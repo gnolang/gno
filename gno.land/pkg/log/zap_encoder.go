@@ -14,7 +14,7 @@ func stableWidthNameEncoder(loggerName string, enc zapcore.PrimitiveArrayEncoder
 	enc.AppendString(fmt.Sprintf("%-18s", loggerName))
 }
 
-// nolint:varcheck,deadcode // we don't care if it's deadcode
+//nolint:varcheck,deadcode // we don't care if it's unused
 const (
 	black uint8 = iota + 30
 	red
