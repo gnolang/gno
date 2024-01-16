@@ -85,14 +85,10 @@ func (m *Machine) doOpEql() {
 	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
-	if maybeEqual(lv.T, rv.T) {
-		debugPP.Println("-----type identical------")
-		res = isEql(m.Store, lv, rv)
-	} else {
-		debugPP.Println("-----type not identical------")
-		res = false
+	if debug {
+		assertAssignable(lv.T, rv.T)
 	}
-
+	res = isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -108,12 +104,10 @@ func (m *Machine) doOpNeq() {
 	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
-	if maybeEqual(lv.T, rv.T) {
-		res = !isEql(m.Store, lv, rv)
-	} else {
-		debugPP.Println("-----type not identical------")
-		res = true
+	if debug {
+		assertAssignable(lv.T, rv.T)
 	}
+	res = !isEql(m.Store, lv, rv)
 	debugPP.Println("------res:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
@@ -351,6 +345,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if lvu {
 		return rvu
 	} else if rvu {
+		return false
+	}
+	if !isSameType(lv.T, rv.T) {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {

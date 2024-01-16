@@ -2108,67 +2108,30 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// TODO: break down this
-func maybeEqual(lt, rt Type) bool {
-	debugPP.Printf("check maybeEqual, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
-	if lpt, ok := lt.(*PointerType); ok { // refer to 0f31
-		lt = lpt.Elt
-		maybeEqual(lt, rt)
-	}
-	if rpt, ok := rt.(*PointerType); ok {
-		rt = rpt.Elt
-		maybeEqual(lt, rt)
-	}
-	// lt or rt could be nil in runtime, e.g. a == nil, type of RHS would be nil
-	if lt == nil && rt == nil {
-		debugPP.Println("0")
-		// both are nil.
-	} else if lt == nil || rt == nil {
-		// one is nil.
-		debugPP.Println("1")
+func isSameType(lt, rt Type) bool {
+	return lt == nil && rt == nil || // both are nil/undefined
+		(lt != nil && rt != nil) && // both are defined
+			(lt.TypeID() == rt.TypeID()) // and identical.
+}
+
+func assertAssignable(lt, rt Type) {
+	debugPP.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	if isSameType(lt, rt) {
+		// both are nil/undefined or same type.
+	} else if lt == nil || rt == nil { // TODO: consider this. files/context.gno
+		// LHS is undefined
 	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) { // XXX, is this necessary?
+		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
-		debugPP.Println("2")
 	} else if lt.Kind() == rt.Kind() &&
-		isDataByte(lt) { // XXX, what hit this
+		isDataByte(lt) {
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-		debugPP.Println("3")
-	} else if lt.TypeID() == rt.TypeID() {
-		debugPP.Println("typeID equal")
-		// non-nil types are identical.
-		debugPP.Println("6")
 	} else {
-		return false
-	}
-	return true
-}
-
-// Like assertSameTypes(), but more relaxed, for == and !=.
-func assertEqualityTypes(lt, rt Type) {
-	if lt == nil && rt == nil {
-		// both are nil.
-	} else if lt == nil || rt == nil {
-		// one is nil.  see function comment.
-	} else if lt.Kind() == rt.Kind() &&
-		isUntyped(lt) || isUntyped(rt) {
-		// one is untyped of same kind.
-	} else if lt.Kind() == InterfaceKind &&
-		IsImplementedBy(lt, rt) {
-		// one is untyped of same kind.
-		// rt implements lt (and lt is nil interface).
-	} else if rt.Kind() == InterfaceKind &&
-		IsImplementedBy(rt, lt) {
-		// lt implements rt (and rt is nil interface).
-	} else if lt.TypeID() == rt.TypeID() {
-		// non-nil types are identical.
-	} else {
-		// panic("7, incompatible operands")
 		debug.Errorf(
-			"incompatible operands in binary (eql/neq) expression: %s and %s",
+			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
 			rt.String(),
 		)
