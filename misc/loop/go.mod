@@ -49,7 +49,6 @@ require (
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-	moul.io/zapconfig v1.4.0 // indirect
 )
 
 replace github.com/gnolang/gno => ../../
