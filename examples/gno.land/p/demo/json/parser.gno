@@ -7,10 +7,111 @@ import (
 	"strconv"
 )
 
-func ParseStringLiteral(data []byte) (string, error) {
-	var buf [UnescapeStackBufSize]byte
+func tokenEnd(data []byte) int {
+	for i, tok := range data {
+		switch tok {
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken, CommaToken, CurlyCloseToken, SquareCloseToken:
+			return i
+		}
+	}
 
-	bf, err := Unescape(data, buf[:])
+	return len(data)
+}
+
+func nextToken(data []byte) (int, error) {
+	for i, c := range data {
+		switch c {
+		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken:
+			continue
+		default:
+			return i, nil
+		}
+	}
+
+	return -1, TokenNotFound
+}
+
+func stringEnd(data []byte) (lastCharIdx int, escaped bool) {
+	escaped = false
+	for lastCharIdx, c := range data {
+		switch c {
+		case DoublyQuoteToken:
+			if !escaped {
+				return lastCharIdx + 1, false
+			}
+
+			prevCharIdx := lastCharIdx - 1
+			for prevCharIdx >= 0 && data[prevCharIdx] == BackSlashToken {
+				prevCharIdx--
+			}
+
+			if (lastCharIdx-prevCharIdx)%2 == 0 {
+				return lastCharIdx + 1, true
+			}
+
+			return lastCharIdx + 1, false
+		case BackSlashToken:
+			escaped = true
+		}
+	}
+
+	return -1, escaped
+}
+
+// Find end of the data structure, array or object.
+// For array openSym and closeSym will be '[' and ']', for object '{' and '}'
+func blockEnd(data []byte, openSym byte, closeSym byte) int {
+	level := 0
+
+	for i := 0; i < len(data); i++ {
+		switch data[i] {
+		case DoublyQuoteToken:
+			se, _ := stringEnd(data[i+1:])
+			if se == -1 {
+				return -1
+			}
+			i += se
+		case openSym:
+			level += 1
+		case closeSym:
+			level -= 1
+			if level == 0 {
+				return i + 1
+			}
+		}
+	}
+
+	return -1
+}
+
+func keyMatched(
+	key []byte,
+	keyEscaped bool,
+	stackbuf [unescapeStackBufSize]byte,
+	keys []string, level int,
+) (keyUnesc []byte, err error) {
+	if !keyEscaped {
+		keyUnesc = key
+	}
+
+	if ku, err := unescape(key, stackbuf[:]); err != nil {
+		return nil, err
+	} else {
+		keyUnesc = ku
+	}
+
+	if level > len(keys) {
+		return nil, KeyLevelNotMatched
+	}
+
+	return keyUnesc, err
+}
+
+// PaseStringLiteral parses a string from the given byte slice.
+func ParseStringLiteral(data []byte) (string, error) {
+	var buf [unescapeStackBufSize]byte
+
+	bf, err := unescape(data, buf[:])
 	if err != nil {
 		return "", MalformedString
 	}
@@ -18,6 +119,7 @@ func ParseStringLiteral(data []byte) (string, error) {
 	return string(bf), nil
 }
 
+// ParseBoolLiteral parses a boolean value from the given byte slice.
 func ParseBoolLiteral(data []byte) (bool, error) {
 	switch {
 	case bytes.Equal(data, []byte("true")):
@@ -29,6 +131,11 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 	}
 }
 
+// PaseFloatLiteral parses a float64 from the given byte slice.
+//
+// It utilizes double-precision (64-bit) floating-point format as defined
+// by the IEEE 754 standard, providing a decimal precision of approximately 15 digits.
+// TODO: support for 32-bit floating-point format
 func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	if len(bytes) == 0 {
 		return -1, EmptyBytes
@@ -58,6 +165,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 		exp10 += exp
 	}
 
+	// for fast float64 conversion
 	f, success := eiselLemire64(man, exp10, neg)
 	if !success {
 		return 0, nil
@@ -106,95 +214,6 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	}
 
 	return int64(n), nil
-}
-
-func ParseUint(b []byte, base, bitSize int) (v uint64, err error) {
-	if len(b) == 0 {
-		return 0, EmptyBytes
-	}
-
-	base0 := base == 0
-	s0 := string(b)
-
-	switch {
-	case 2 <= base && base <= 36:
-		// do nothing
-	case base == 0:
-		base = 10
-		if b[0] == '0' {
-			switch {
-			case len(b) >= 3 && lower(b[1]) == 'b':
-				base = 2
-				b = b[2:]
-			case len(b) >= 3 && lower(b[1]) == 'o':
-				base = 8
-				b = b[2:]
-			case len(b) >= 3 && lower(b[1]) == 'x':
-				base = 16
-				b = b[2:]
-			default:
-				base = 8
-				b = b[1:]
-			}
-		}
-	default:
-		return 0, errors.New("Base Error")
-	}
-
-	if bitSize == 0 {
-		bitSize = IntSize
-	} else if bitSize < 0 || bitSize > 64 {
-		return 0, errors.New("BitSize Error")
-	}
-
-	var cutoff uint64
-	switch base {
-	case 10:
-		cutoff = maxUint64/10 + 1
-	case 16:
-		cutoff = maxUint64/16 + 1
-	default:
-		cutoff = maxUint64/uint64(base) + 1
-	}
-
-	maxVal := uint64(1)<<uint(bitSize) - 1
-	underscores := false
-	var n uint64
-	for _, c := range b {
-		var d byte
-		switch {
-		case c == UnderScoreToken && base0:
-			underscores = true
-			continue
-		case '0' <= c && c <= '9':
-			d = c - '0'
-		case 'a' <= lower(c) && lower(c) <= 'z':
-			d = lower(c) - 'a' + 10
-		default:
-			return 0, errors.New("ParseUint Syntax Error")
-		}
-
-		if d >= byte(base) {
-			return 0, errors.New("ParseUint Syntax Error")
-		}
-
-		if n >= cutoff {
-			return maxVal, errors.New("ParseUint Range Error")
-		}
-		n *= uint64(base)
-
-		n1 := n + uint64(d)
-		if n1 < n || n1 > maxVal {
-			return maxVal, errors.New("ParseUint Range Error")
-		}
-		n = n1
-	}
-
-	if underscores && !underscoreOK(s0) {
-		return 0, errors.New("ParseUint Syntax Error")
-	}
-
-	return n, nil
 }
 
 // lower is a lower-case letter if and only if
@@ -287,13 +306,13 @@ func underscoreOK(s string) bool {
 	return saw != UnderScoreToken
 }
 
-// getType is a function that takes a byte slice and an offset as input parameters.
+// getTypeFromByteSlice is a function that takes a byte slice and an offset as input parameters.
 // It returns a byte slice representing the data type, a ValueType indicating the type of data,
 // an integer representing the end offset, and an error if any.
 // If the input byte slice is empty, it returns an error indicating that no JSON data was provided.
 // Otherwise, it calls the parseValue function to parse the value and returns the parsed data type,
 // the end offset, and any error encountered during parsing.
-func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
+func getTypeFromByteSlice(data []byte, offset int) ([]byte, ValueType, int, error) {
 	if len(data) == 0 {
 		return nil, Unknown, offset, errors.New("no JSON data provided")
 	}
@@ -304,6 +323,28 @@ func getType(data []byte, offset int) ([]byte, ValueType, int, error) {
 	}
 
 	return data[offset:endOffset], dataType, endOffset, nil
+}
+
+// getTypeFromValue check the type of the given value and returns the corresponding ValueType.
+func getTypeFromValue(v interface{}) ValueType {
+	switch v.(type) {
+	case string:
+		return String
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return Number
+	case float32, float64:
+		return Float
+	case bool:
+		return Boolean
+	case nil:
+		return Null
+	case map[string]interface{}:
+		return Object
+	case []interface{}:
+		return Array
+	default:
+		return Unknown
+	}
 }
 
 // parseValue parses a JSON value from the given data starting at the specified offset.

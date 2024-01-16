@@ -4,26 +4,33 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"strings"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
 
-type FieldType string
-
 // Field stores each field's information.
 type Field struct {
-	Name  		 	string
-	Type  		 	ValueType
-	Value 		 	interface{}
-	ArrayValues  	[]interface{}
-	NestedStruct	*Struct
+	// name holds the field name.
+	name string
+	// typ holds the field type.
+	typ ValueType
+	// value holds the field value.
+	value interface{}
+	// arrayValues store the each value of the array.
+	arrayValues []interface{}
+	// nestedStruct represents the JSON object.
+	nestedStruct *Struct
 }
 
 // Struct holds the whole structure of target struct.
 type Struct struct {
-	Fields []Field
+	// fields holds the fields of the struct.
+	fields []Field
+	// TODO: may use map to speed up the search.
+	// fmap   map[string]*Field
 }
 
 // NewStruct create new empty struct placeholder.
@@ -33,8 +40,8 @@ func NewStruct() *Struct {
 
 // addField adds a field to the struct. The order of the fields is preserved.
 func (s *Struct) addField(name string, fieldType ValueType, value interface{}) *Struct {
-	field := Field{Name: name, Type: fieldType, Value: value}
-	s.Fields = append(s.Fields, field)
+	field := Field{name: name, typ: fieldType, value: value}
+	s.fields = append(s.fields, field)
 	return s
 }
 
@@ -59,57 +66,58 @@ func (s *Struct) AddNullField(name string) *Struct {
 }
 
 func (s *Struct) AddObjectField(name string, inner *Struct) *Struct {
-	f := Field {
-		Name: name,
-		Type: Object,
-		NestedStruct: inner,
+	f := Field{
+		name:         name,
+		typ:          Object,
+		nestedStruct: inner,
 	}
-	s.Fields = append(s.Fields, f)
+	s.fields = append(s.fields, f)
 
 	return s
 }
 
 func (s *Struct) AddArrayField(name string, array []interface{}) *Struct {
-	f := Field {
-		Name: name,
-		Type: Array,
-		ArrayValues: array,
+	f := Field{
+		name:        name,
+		typ:         Array,
+		arrayValues: array,
 	}
-	s.Fields = append(s.Fields, f)
+	s.fields = append(s.fields, f)
 
 	return s
 }
 
-// Marshaler marshals the struct into a JSON byte slice
-func (s *Struct) Marshaler() ([]byte, error) {
+/*           Encoder              */
+
+// Marshaler marshals the struct into a JSON byte slice.
+func (s *Struct) Marshal() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 
-	for i, field := range s.Fields {
-		// separate fields with comma
+	for i, field := range s.fields {
 		if i > 0 {
-			buf.WriteByte(',')
-			buf.WriteByte(' ')
+			buf.WriteString(", ")
 		}
 
 		// `"name": `
-		buf.WriteString(strconv.Quote(field.Name))
-		buf.WriteByte(':')
-		buf.WriteByte(' ')
+		buf.WriteString(strconv.Quote(field.name))
+		buf.WriteString(": ")
 
-		if field.NestedStruct != nil {
-			if nestedJSON, err := field.NestedStruct.Marshaler(); err != nil {
+		if field.nestedStruct != nil {
+			// nested struct are considered as object.
+			// need to apply marshaler to each field.
+			if nestedJSON, err := field.nestedStruct.Marshal(); err != nil {
 				return nil, err
 			} else {
 				buf.Write(nestedJSON)
 			}
-		} else if len(field.ArrayValues) > 0 {
+		} else if len(field.arrayValues) > 0 {
 			buf.WriteByte('[')
-			for i, value := range field.ArrayValues {
+			for i, value := range field.arrayValues {
 				if i > 0 {
-					buf.WriteByte(',')
-					buf.WriteByte(' ')
+					buf.WriteString(", ")
 				}
+				// apply marshaler to each value
 				if valueStr, err := marshalValue(value); err != nil {
 					return nil, err
 				} else {
@@ -118,7 +126,7 @@ func (s *Struct) Marshaler() ([]byte, error) {
 			}
 			buf.WriteByte(']')
 		} else {
-			if valueStr, err := marshalValue(field.Value); err != nil {
+			if valueStr, err := marshalValue(field.value); err != nil {
 				return nil, err
 			} else {
 				buf.Write(valueStr)
@@ -135,6 +143,7 @@ type CustomMarshaller interface {
 	MarshalCustom() ([]byte, error)
 }
 
+// marshalValue marshals the value by its type.
 func marshalValue(value interface{}) ([]byte, error) {
 	if customVal, ok := value.(CustomMarshaller); ok {
 		if marshaled, err := customVal.MarshalCustom(); err != nil {
@@ -153,13 +162,12 @@ func marshalValue(value interface{}) ([]byte, error) {
 		isFirst := true
 		for key, value := range v {
 			if !isFirst {
-				buf.WriteByte(',')
-				buf.WriteByte(' ')
+				buf.WriteString(", ")
 			}
 
+			// `"<key>": `
 			buf.WriteString(strconv.Quote(key))
-			buf.WriteByte(':')
-			buf.WriteByte(' ')
+			buf.WriteString(": ")
 
 			if marshaledValue, err := marshalValue(value); err != nil {
 				return nil, err
@@ -175,8 +183,7 @@ func marshalValue(value interface{}) ([]byte, error) {
 		buf.WriteByte('[')
 		for i, value := range v {
 			if i > 0 {
-				buf.WriteByte(',')
-				buf.WriteByte(' ')
+				buf.WriteString(", ")
 			}
 			if marshaledValue, err := marshalValue(value); err != nil {
 				return nil, err
@@ -198,53 +205,146 @@ func marshalValue(value interface{}) ([]byte, error) {
 	case bool:
 		buf.WriteString(fmt.Sprintf("%t", v))
 	case nil:
-		buf.WriteByte('n')
-		buf.WriteByte('u')
-		buf.WriteByte('l')
-		buf.WriteByte('l')
+		buf.WriteString("null")
 	default:
-		return nil, errors.New("Marshal: unknown data type")
+		return nil, errors.New(fmt.Sprintf("json.Marshal: unsupported type %s", value))
 	}
 
 	return buf.Bytes(), nil
 }
 
-// Unmarshaler unmarshals the JSON string into the struct.
-func Unmarshaler(data []byte, s *Struct) error {
-    for _, field := range s.Fields {
-        value, dataType, _, err := Get(data, field.Name)
-        if err != nil {
-            return err
-        }
+/*              Decoder              */
 
-        switch dataType {
-        case String:
-            field.Value = string(value)
-        case Number, Float:
-			if n, err := ParseFloatLiteral(value); err != nil {
+// Unmarshal unmarshals the JSON data into the struct.
+// The struct should be declared as a Struct instance.
+func Unmarshal(data []byte, s *Struct) error {
+	keys, err := extractKeysFromJSON(data)
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+		// regex-parsed key contains double quotes, so need to remove them.
+		// this is unnecessary if we don't use regex when retrieving keys.
+		key = strings.ReplaceAll(key, `"`, "")
+		val, typ, _, err := Get(data, key)
+		if err != nil {
+			return err
+		}
+
+		switch typ {
+		case String:
+			s.AddStringField(key, string(val))
+		case Number, Float:
+			if got, err := ParseFloatLiteral(val); err != nil {
 				return err
 			} else {
-				field.Value = n
+				s.AddFloatField(key, got)
 			}
-        case Boolean:
-			if b, err := ParseBoolLiteral(value); err != nil {
+		case Boolean:
+			if got, err := ParseBoolLiteral(val); err != nil {
 				return err
 			} else {
-				field.Value = b
+				s.AddBoolField(key, got)
 			}
-		case Object:
-			if field.NestedStruct != nil {
-				if val, _, _, err := Get(data, field.Name); err != nil {
-					return err
-				} else {
-					if err = Unmarshaler(val, field.NestedStruct); err != nil {
-						return err
-					}
-				}
-			}
-        default:
-            return fmt.Errorf("json.Unmarshaler: unsupported type: %v", dataType)
-        }
-    }
-    return nil
+		case Null:
+			s.AddNullField(key)
+		// TODO: Support Array and Object types
+		default:
+			return errors.New("json.Unmarshal: unknown data type")
+		}
+	}
+
+	return nil
+}
+
+func extractKeysFromJSON(data []byte) ([]string, error) {
+	// parse the JSON key names.
+	// TODO: reduce overhead. regex is easy to use but slow.
+	re := regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
+
+	// check if the JSON is valid.
+	if !re.Match(data) {
+		return nil, errors.New("Invalid JSON format")
+	}
+
+	var keys []string
+	matches := re.FindAllSubmatch(data, -1)
+	for _, match := range matches {
+		key := string(match[0])
+
+		// reject empty keys
+		if key == "" {
+			return nil, errors.New("json: key cannot be an empty string")
+		}
+
+		key = strings.TrimSuffix(key, ":")
+		key = strings.TrimSpace(key)
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+// String apply the marshaler to the struct and return the JSON string.
+func (s *Struct) String() string {
+	if json, err := s.Marshal(); err != nil {
+		return err.Error()
+	} else {
+		return string(json)
+	}
+}
+
+/*           CRUD          */
+// CRUD operations for the struct.
+// by using this methods, we can modify the struct also the JSON data easily.
+
+// Search finds a field by name and returns it.
+func (s *Struct) Search(name string) (*Field, error) {
+	for i, field := range s.fields {
+		if field.name == name {
+			return &s.fields[i], nil
+		}
+	}
+
+	return nil, errors.New(fmt.Sprintf("json.Search: Field name %s not found", name))
+}
+
+// Remove removes a field from the struct instance.
+func (s *Struct) Remove(name string) error {
+	for i, field := range s.fields {
+		if field.name == name {
+			// arranges the slice to remove the field.
+			s.fields = append(s.fields[:i], s.fields[i+1:]...)
+			break
+		}
+	}
+
+	return errors.New(fmt.Sprintf("json.Search: Field name %s not found", name))
+}
+
+// Update updates the value of the field.
+//
+// The updated value must be the same type as the original one.
+// Otherwise, it will return an error.
+func (s *Struct) Update(name string, newVal interface{}) error {
+	// search field by name
+	f, err := s.Search(name)
+	if err != nil {
+		return errors.New(fmt.Sprintf("json.Update: Field name %s not found", name))
+	}
+
+	// type assertion
+	newValType := getTypeFromValue(newVal)
+	if f.typ != newValType {
+		return errors.New(
+			fmt.Sprintf("json.Update: Field type mismatch. Expected %s, got %s",
+				f.typ.String(),
+				newValType.String(),
+			))
+	}
+
+	// update the value
+	f.value = newVal
+	return nil
 }

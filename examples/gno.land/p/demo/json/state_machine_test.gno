@@ -577,3 +577,12 @@ func TestArrayEach(t *testing.T) {
 		}
 	}, "a", "b")
 }
+
+func TestArrayEach2(t *testing.T) {
+	test := []byte(`{"a": ["string", 42, true, false, null, {"b": 1}, [1, 2, 3]]}`)
+	ArrayEach(test, func(value []byte, dataType ValueType, offset int, err error) {
+		if string(value) != "string" && string(value) != "42" && string(value) != "true" && string(value) != "false" && string(value) != "null" && string(value) != `{"b": 1}` && string(value) != "[1, 2, 3]" {
+			t.Errorf("Wrong item: %s", string(value))
+		}
+	}, "a")
+}

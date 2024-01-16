@@ -69,7 +69,7 @@ func TestParseBoolLiteral(t *testing.T) {
 }
 
 func TestParseFloatLiteral(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		input    string
 		expected float64
 	}{
@@ -85,18 +85,18 @@ func TestParseFloatLiteral(t *testing.T) {
 		{"999999999999999999999", -1},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			got, _ := ParseFloatLiteral([]byte(tc.input))
-			if got != tc.expected {
-				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, _ := ParseFloatLiteral([]byte(tt.input))
+			if got != tt.expected {
+				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tt.input, got, tt.expected)
 			}
 		})
 	}
 }
 
 func TestParseFloatWithScientificNotation(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		input    string
 		expected float64
 	}{
@@ -120,22 +120,22 @@ func TestParseFloatWithScientificNotation(t *testing.T) {
 		{"-1E-1", -0.1},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			got, err := ParseFloatLiteral([]byte(tc.input))
-			if got != tc.expected {
-				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := ParseFloatLiteral([]byte(tt.input))
+			if got != tt.expected {
+				t.Errorf("ParseFloatLiteral(%s): got %v, want %v", tt.input, got, tt.expected)
 			}
 
 			if err != nil {
-				t.Errorf("ParseFloatLiteral(%s): got error %v", tc.input, err)
+				t.Errorf("ParseFloatLiteral(%s): got error %v", tt.input, err)
 			}
 		})
 	}
 }
 
 func TestParseIntLiteral(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		input    string
 		expected int64
 	}{
@@ -159,11 +159,11 @@ func TestParseIntLiteral(t *testing.T) {
 		{"-27670116110564327410", 0},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			got, _ := ParseIntLiteral([]byte(tc.input))
-			if got != tc.expected {
-				t.Errorf("ParseIntLiteral(%s): got %v, want %v", tc.input, got, tc.expected)
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, _ := ParseIntLiteral([]byte(tt.input))
+			if got != tt.expected {
+				t.Errorf("ParseIntLiteral(%s): got %v, want %v", tt.input, got, tt.expected)
 			}
 		})
 	}
@@ -195,58 +195,6 @@ var parseUint64Tests = []parseUint64Test{
 	{"+1", 0, true},
 }
 
-type parseUint32Test struct {
-	in  string
-	out uint32
-	err bool
-}
-
-var parseUint32Tests = []parseUint32Test{
-	{"", 0, true},
-	{"0", 0, nil},
-	{"1", 1, nil},
-	{"12345", 12345, nil},
-	{"012345", 12345, nil},
-	{"12345x", 0, true},
-	{"987654321", 987654321, nil},
-	{"4294967295", 1<<32 - 1, nil},
-	{"4294967296", 1<<32 - 1, true},
-	{"1_2_3_4_5", 0, true}, // base=10 so no underscores allowed
-	{"_12345", 0, true},
-	{"_12345", 0, true},
-	{"1__2345", 0, true},
-	{"12345_", 0, true},
-}
-
-func TestParseUint(t *testing.T) {
-	switch IntSize {
-	case 32:
-		for _, tc := range parseUint32Tests {
-			t.Run(tc.in, func(t *testing.T) {
-				got, err := ParseUint([]byte(tc.in), 10, 32)
-				if got != tc.out {
-					t.Errorf("ParseUint(%s): got %v, want %v", tc.in, got, tc.out)
-				}
-				if (err != nil) != tc.err {
-					t.Errorf("ParseUint(%s): got error %v", tc.in, err)
-				}
-			})
-		}
-	case 64:
-		for _, tc := range parseUint64Tests {
-			t.Run(tc.in, func(t *testing.T) {
-				got, err := ParseUint([]byte(tc.in), 10, 64)
-				if got != tc.out {
-					t.Errorf("ParseUint(%s): got %v, want %v", tc.in, got, tc.out)
-				}
-				if (err != nil) != tc.err {
-					t.Errorf("ParseUint(%s): got error %v", tc.in, err)
-				}
-			})
-		}
-	}
-}
-
 func TestGetType(t *testing.T) {
 	tests := []struct {
 		data     []byte
@@ -265,7 +213,7 @@ func TestGetType(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		gotData, gotVT, _, gotErr := getType(tt.data, tt.offset)
+		gotData, gotVT, _, gotErr := getTypeFromByteSlice(tt.data, tt.offset)
 
 		if !bytes.Equal(gotData, tt.expected) {
 			t.Errorf("%d. expected data=%s, but got data=%s", i, tt.expected, gotData)

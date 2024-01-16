@@ -177,7 +177,7 @@ func TestUnescape(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			output, _ := Unescape(tc.input, make([]byte, len(tc.input)+10))
+			output, _ := unescape(tc.input, make([]byte, len(tc.input)+10))
 			if !bytes.Equal(output, tc.expected) {
 				t.Errorf("unescape(%q) = %q; want %q", tc.input, output, tc.expected)
 			}

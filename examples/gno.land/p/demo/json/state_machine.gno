@@ -37,7 +37,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 		keyLevel    int
 		level       int
 		lastMatched bool = true
-		stackbuf    [UnescapeStackBufSize]byte
+		stackbuf    [unescapeStackBufSize]byte
 	)
 
 	for i := 0; i < len(data); i++ {
@@ -170,8 +170,8 @@ func findKeyStart(data []byte, key string) (int, error) {
 		i += 1
 	}
 
-	var stackbuf [UnescapeStackBufSize]byte
-	if ku, err := Unescape([]byte(key), stackbuf[:]); err == nil {
+	var stackbuf [unescapeStackBufSize]byte
+	if ku, err := unescape([]byte(key), stackbuf[:]); err == nil {
 		key = string(ku)
 	}
 
@@ -200,7 +200,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 			// for unescape: if there are no escape sequences, this is cheap; if there are, it is a
 			// bit more expensive, but causes no allocations unless len(key) > unescapeStackBufSize
 			if keyEscaped {
-				if ku, err := Unescape(k, stackbuf[:]); err != nil {
+				if ku, err := unescape(k, stackbuf[:]); err != nil {
 					break
 				} else {
 					k = ku
@@ -241,7 +241,7 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 	}
 
 	offset += nO
-	if value, dataType, endOffset, err = getType(data, offset); err != nil {
+	if value, dataType, endOffset, err = getTypeFromByteSlice(data, offset); err != nil {
 		return value, dataType, offset, endOffset, err
 	}
 

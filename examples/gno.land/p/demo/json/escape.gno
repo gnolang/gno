@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-func Unescape(input, output []byte) ([]byte, error) {
+func unescape(input, output []byte) ([]byte, error) {
 	firstBackslash := bytes.IndexByte(input, BackSlashToken)
 	if firstBackslash == -1 {
 		return input, nil

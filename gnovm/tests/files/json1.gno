@@ -26,7 +26,7 @@ func main() {
     s := json.NewStruct().
         AddObjectField("user", userStruct)
 
-    jsonStr, err := s.Marshaler()
+    jsonStr, err := s.Marshal()
     if err != nil {
         fmt.Println("Error marshaling:", err)
         return

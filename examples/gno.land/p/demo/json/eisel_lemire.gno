@@ -1,3 +1,5 @@
+package json
+
 // This file implements the Eisel-Lemire ParseFloat algorithm, published in
 // 2020 and discussed extensively at
 // https://nigeltao.github.io/blog/2020/eisel-lemire.html
@@ -10,7 +12,6 @@
 //
 // Additional testing (on over several million test strings) is done by
 // https://github.com/nigeltao/parse-number-fxx-test-data/blob/5280dcfccf6d0b02a65ae282dad0b6d9de50e039/script/test-go-strconv.go
-package json
 
 import (
 	"math"

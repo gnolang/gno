@@ -10,7 +10,7 @@ const (
 
 	BadHex = -1
 
-	UnescapeStackBufSize = 64
+	unescapeStackBufSize = 64
 )
 
 const (
