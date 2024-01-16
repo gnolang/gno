@@ -151,6 +151,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
+
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
@@ -166,6 +167,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			rlm.MarkNewReal(co)
 		}
 	}
+
 	if xo != nil {
 		xo.DecRefCount()
 		if xo.GetRefCount() == 0 {

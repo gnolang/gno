@@ -14,18 +14,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type broadcastCfg struct {
-	rootCfg *baseCfg
+type BroadcastCfg struct {
+	RootCfg *BaseCfg
 
-	dryRun bool
+	DryRun bool
 
 	// internal
 	tx *std.Tx
 }
 
-func newBroadcastCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &broadcastCfg{
-		rootCfg: rootCfg,
+func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &BroadcastCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
@@ -41,16 +41,16 @@ func newBroadcastCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *broadcastCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *BroadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
-		&c.dryRun,
+		&c.DryRun,
 		"dry-run",
 		false,
 		"perform a dry-run broadcast",
 	)
 }
 
-func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
+func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -67,7 +67,7 @@ func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
 	}
 	cfg.tx = &tx
 
-	res, err := broadcastHandler(cfg)
+	res, err := BroadcastHandler(cfg)
 	if err != nil {
 		return err
 	}
@@ -85,12 +85,12 @@ func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	if cfg.tx == nil {
 		return nil, errors.New("invalid tx")
 	}
 
-	remote := cfg.rootCfg.Remote
+	remote := cfg.RootCfg.Remote
 	if remote == "" || remote == "y" {
 		return nil, errors.New("missing remote url")
 	}
@@ -102,8 +102,8 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 
 	cli := client.NewHTTP(remote, "/websocket")
 
-	if cfg.dryRun {
-		return simulateTx(cli, bz)
+	if cfg.DryRun {
+		return SimulateTx(cli, bz)
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)
@@ -114,7 +114,7 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	return bres, nil
 }
 
-func simulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
+func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
 	bres, err := cli.ABCIQuery(".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")

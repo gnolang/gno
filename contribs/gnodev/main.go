@@ -59,10 +59,7 @@ additional specified paths.`,
 			return execDev(cfg, args, stdio)
 		})
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
@@ -128,7 +125,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths, gnoroot)
+	devNode, err := setupDevNode(ctx, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -303,7 +300,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
 	logger := tmlog.NewTMLogger(nodeOut)
@@ -317,6 +314,8 @@ func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) 
 
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = dnode.Config().ChainID()
+	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
 	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
 	loggerweb.SetLevel(tmlog.LevelDebug)
