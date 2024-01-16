@@ -62,7 +62,8 @@ func TestImport_ImportKey(t *testing.T) {
 			},
 			strings.NewReader(
 				fmt.Sprintf(
-					"%s\n%s\n%s\n",
+					"%s\n%s\n%s\n%s\n",
+					importKeyName,
 					password, // decrypt
 					password, // key-base encrypt
 					password, // key-base encrypt confirm
@@ -76,7 +77,8 @@ func TestImport_ImportKey(t *testing.T) {
 			},
 			strings.NewReader(
 				fmt.Sprintf(
-					"%s\n%s\n",
+					"%s\n%s\n%s\n",
+					importKeyName,
 					password, // key-base encrypt
 					password, // key-base encrypt confirm
 				),
@@ -134,7 +136,7 @@ func TestImport_ImportKey(t *testing.T) {
 						kbHome: kbHome,
 						// Change the import key name so the existing one (in the key-base)
 						// doesn't get overwritten
-						keyName: importKeyName,
+						keyName: "",
 						unsafe:  testCase.baseOpts.unsafe,
 					},
 					armorPath: outputFile.Name(),
@@ -163,7 +165,7 @@ func TestImport_ImportKeyWithEmptyName(t *testing.T) {
 				keyName: "",
 			},
 		},
-		nil,
+		strings.NewReader("\n"),
 	)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "name shouldn't be empty")

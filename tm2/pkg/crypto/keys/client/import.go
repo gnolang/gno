@@ -63,7 +63,16 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 func execImport(cfg *ImportCfg, io commands.IO) error {
 	// check keyname
 	if cfg.KeyName == "" {
-		return errors.New("name shouldn't be empty")
+		inputName, err := io.GetString(
+			"WARNING: --name is required, please provide a value here:",
+		)
+		if err != nil {
+			return err
+		}
+		if inputName == "" {
+			return errors.New("name shouldn't be empty")
+		}
+		cfg.KeyName = inputName
 	}
 
 	// Create a new instance of the key-base

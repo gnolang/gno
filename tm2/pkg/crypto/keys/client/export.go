@@ -63,7 +63,16 @@ func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 func execExport(cfg *ExportCfg, io commands.IO) error {
 	// check keyname
 	if cfg.NameOrBech32 == "" {
-		return errors.New("key to be exported shouldn't be empty")
+		inputName, err := io.GetString(
+			"WARNING: --key is required, please provide a value here:",
+		)
+		if err != nil {
+			return err
+		}
+		if inputName == "" {
+			return errors.New("key to be exported shouldn't be empty")
+		}
+		cfg.NameOrBech32 = inputName
 	}
 
 	// Create a new instance of the key-base

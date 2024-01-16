@@ -205,7 +205,7 @@ func TestExport_ExportKey(t *testing.T) {
 
 func TestExport_ExportKeyWithEmptyName(t *testing.T) {
 	// Generate a temporary key-base directory
-	_, kbHome := newTestKeybase(t)
+	kb, kbHome := newTestKeybase(t)
 	err := exportKey(
 		testExportKeyOpts{
 			testCmdKeyOptsBase: testCmdKeyOptsBase{
@@ -213,8 +213,50 @@ func TestExport_ExportKeyWithEmptyName(t *testing.T) {
 				keyName: "",
 			},
 		},
-		nil,
+		strings.NewReader("\n"),
 	)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "key to be exported shouldn't be empty")
+
+	const (
+		keyName  = "key name"
+		password = "password"
+	)
+	// Add an initial key to the key base
+	info, err := addRandomKeyToKeybase(kb, keyName, password)
+	if err != nil {
+		t.Fatalf(
+			"unable to create a key base account, %v",
+			err,
+		)
+	}
+
+	outputFile, outputCleanupFn := testutils.NewTestFile(t)
+	t.Cleanup(func() {
+		outputCleanupFn()
+	})
+
+	// Make sure the command executes correctly
+	assert.NoError(
+		t,
+		exportKey(
+			testExportKeyOpts{
+				testCmdKeyOptsBase: testCmdKeyOptsBase{
+					kbHome:  kbHome,
+					keyName: "",
+					unsafe:  false,
+				},
+				outputPath: outputFile.Name(),
+			},
+			strings.NewReader(
+				fmt.Sprintf(
+					"%s\n%s\n%s\n%s\n",
+					info.GetName(),
+					password, // decrypt
+					password, // encrypt
+					password, // encrypt confirm
+				),
+			),
+		),
+	)
 }
