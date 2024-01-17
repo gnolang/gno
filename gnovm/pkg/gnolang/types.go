@@ -2145,6 +2145,7 @@ func assertAssignable(lt, rt Type) {
 // then check the corresponding type(the other side of the operator) is convertable to t.
 // this is located in checkOrConvertType->checkConvertable stage.
 // so, checkOperandWithOp is working as a pre-check.
+// TODO: consider and tune log
 func assertEqualityCompatible(xt, dt Type) {
 	debugPP.Printf("--- assertEqualityCompatible---, xt: %v, dt: %v \n", xt, dt)
 	switch cdt := baseOf(dt).(type) {
@@ -2186,15 +2187,15 @@ func assertEqualityCompatible(xt, dt Type) {
 			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
 	case nil: // refer to 0a01_filetest, 0f32_filetest.
-		assertMaybeNil(xt)
+		assertMaybeNil("invalid operation, nil can not be compared to", xt)
 	default:
 		panic(fmt.Sprintf("%v is not comparable \n", dt))
 	}
 }
 
-func assertMaybeNil(t Type) {
+func assertMaybeNil(msg string, t Type) {
 	if t == nil {
-		panic(fmt.Sprintf("invalid operation, nil can not be compared to nil \n"))
+		panic(fmt.Sprintf("%s %s \n", msg, "nil"))
 	}
 	switch cxt := baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
@@ -2202,10 +2203,10 @@ func assertMaybeNil(t Type) {
 		switch nk := cxt.Type.Kind(); nk {
 		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
 		default:
-			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk))
+			panic(fmt.Sprintf("%s %s \n", msg, nk))
 		}
 	default:
-		panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", t))
+		panic(fmt.Sprintf("%s %s \n", msg, t))
 	}
 }
 
@@ -2225,7 +2226,7 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	debugPP.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
 	// case0
 	if xt == nil { // refer to 0f18_filetest
-		assertMaybeNil(dt)
+		assertMaybeNil("invalid operation, nil can not be compared to", dt)
 		return
 	}
 	if dt == nil { // refer to assign8.gno
@@ -2346,7 +2347,6 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					"cannot use %s as %s without explicit conversion",
 					dxt.String(),
 					dt.String()))
-				// xt = dxt.Base
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base
