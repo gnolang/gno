@@ -88,9 +88,15 @@ services:
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
       - rpc.portal.gno.local:127.0.0.1
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
 
   watchtower:
     image: containrrr/watchtower
+    command: --interval 30 --http-api-metrics
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 30
+    environment:
+      WATCHTOWER_HTTP_API_TOKEN: "mytoken"
+    ports:
+      - 127.0.0.1:8000:8080
