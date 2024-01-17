@@ -24,21 +24,19 @@ func ensureFiles(t *testing.T, rootDir string, files ...string) {
 func TestEnsureRoot(t *testing.T) {
 	t.Parallel()
 
-	require := require.New(t)
-
 	// setup temp dir for test
 	tmpDir := t.TempDir()
 
 	// create root dir
 	throwaway := DefaultConfig()
 	throwaway.SetRootDir(tmpDir)
-	throwaway.EnsureDirs()
+	require.NoError(t, throwaway.EnsureDirs())
 	configPath := join(tmpDir, defaultConfigFilePath)
-	WriteConfigFile(configPath, throwaway)
+	require.NoError(t, WriteConfigFile(configPath, throwaway))
 
 	// make sure config is set properly
 	data, err := os.ReadFile(join(tmpDir, defaultConfigFilePath))
-	require.Nil(err)
+	require.Nil(t, err)
 
 	if !checkConfig(string(data)) {
 		t.Fatalf("config file missing some information")

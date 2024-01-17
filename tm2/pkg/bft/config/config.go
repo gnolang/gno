@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -20,7 +21,7 @@ type Config struct {
 	// Top level options use an anonymous struct
 	BaseConfig `toml:",squash"`
 
-	// Options for services
+	// Option for services
 	RPC          *rpc.RPCConfig       `toml:"rpc"`
 	P2P          *p2p.P2PConfig       `toml:"p2p"`
 	Mempool      *mem.MempoolConfig   `toml:"mempool"`
@@ -40,37 +41,62 @@ func DefaultConfig() *Config {
 	}
 }
 
-type ConfigOptions func(cfg *Config)
+type Option func(cfg *Config)
 
 // LoadOrMakeConfigWithOptions loads configuration or saves one
 // made by modifying the default config with override options
-func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, error) {
-	var cfg *Config
+func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
+	// Initialize the config as default
+	var (
+		cfg        = DefaultConfig()
+		configPath = join(root, defaultConfigFilePath)
+	)
 
-	configPath := join(root, defaultConfigFilePath)
+	// Check if the config exists
 	if osm.FileExists(configPath) {
-		var loadErr error
-
 		// Load the configuration
-		if cfg, loadErr = LoadConfigFile(configPath); loadErr != nil {
+		loadedCfg, loadErr := LoadConfigFile(configPath)
+		if loadErr != nil {
 			return nil, loadErr
 		}
 
-		cfg.SetRootDir(root)
-		cfg.EnsureDirs()
-	} else {
-		cfg = DefaultConfig()
-		if options != nil {
-			options(cfg)
+		// Merge the loaded config with the default values
+		if err := mergo.Merge(cfg, loadedCfg); err != nil {
+			return nil, err
 		}
-		cfg.SetRootDir(root)
-		cfg.EnsureDirs()
-		WriteConfigFile(configPath, cfg)
 
-		// Validate the configuration
-		if validateErr := cfg.ValidateBasic(); validateErr != nil {
-			return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+		// Set the root directory
+		cfg.SetRootDir(root)
+
+		// Make sure the directories are initialized
+		if err := cfg.EnsureDirs(); err != nil {
+			return nil, err
 		}
+
+		return cfg, nil
+	}
+
+	// Config doesn't exist, create it
+	// from the default one
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	cfg.SetRootDir(root)
+
+	// Make sure the directories are initialized
+	if err := cfg.EnsureDirs(); err != nil {
+		return nil, err
+	}
+
+	// Save the config
+	if err := WriteConfigFile(configPath, cfg); err != nil {
+		return nil, err
+	}
+
+	// Validate the configuration
+	if validateErr := cfg.ValidateBasic(); validateErr != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
 	}
 
 	return cfg, nil
@@ -79,7 +105,7 @@ func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (*Config, e
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig:   TestBaseConfig(),
+		BaseConfig:   testBaseConfig(),
 		RPC:          rpc.TestRPCConfig(),
 		P2P:          p2p.TestP2PConfig(),
 		Mempool:      mem.TestMempoolConfig(),
@@ -95,21 +121,27 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+
 	return cfg
 }
 
 // EnsureDirs ensures default directories in root dir (and root dir).
-func (cfg *Config) EnsureDirs() {
+func (cfg *Config) EnsureDirs() error {
 	rootDir := cfg.BaseConfig.RootDir
+
 	if err := osm.EnsureDir(rootDir, DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no root directory, %w", err)
 	}
+
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no config directory, %w", err)
 	}
+
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no data directory, %w", err)
 	}
+
+	return nil
 }
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
@@ -255,8 +287,8 @@ func DefaultBaseConfig() BaseConfig {
 	}
 }
 
-// TestBaseConfig returns a base configuration for testing a Tendermint node
-func TestBaseConfig() BaseConfig {
+// testBaseConfig returns a base configuration for testing a Tendermint node
+func testBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
 	cfg.chainID = "tendermint_test"
 	cfg.ProxyApp = "mock://kvstore"

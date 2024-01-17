@@ -2,7 +2,7 @@ package config
 
 import "github.com/gnolang/gno/tm2/pkg/errors"
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // MempoolConfig
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
