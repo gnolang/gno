@@ -4,7 +4,7 @@ id: gno-language
 
 # The Gno Language
 
-Gno (Gno) is an interpretation of the widely-used Go (Go) programming language for blockchain created by Cosmos
+Gno (Gnolang) is an interpretation of the widely-used Go (Golang) programming language for blockchain created by Cosmos
 co-founder Jae Kwon in 2021 to mark a new era in smart contracting. Gno is almost identical to Go, so Go developers can
 quickly start using it, with minimal effort. For example, Gno comes with blockchain-specific standard libraries, but any
 code that doesn’t use blockchain-specific logic can run in Go with minimal processing. Libraries that could lead to
