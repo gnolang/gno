@@ -169,32 +169,6 @@ func TestParseIntLiteral(t *testing.T) {
 	}
 }
 
-type parseUint64Test struct {
-	in  string
-	out uint64
-	err bool
-}
-
-var parseUint64Tests = []parseUint64Test{
-	{"", 0, true},
-	{"0", 0, nil},
-	{"1", 1, nil},
-	{"12345", 12345, nil},
-	{"012345", 12345, nil},
-	{"12345x", 0, true},
-	{"98765432100", 98765432100, nil},
-	{"18446744073709551615", 1<<64 - 1, nil},
-	{"18446744073709551616", 1<<64 - 1, true},
-	{"18446744073709551620", 1<<64 - 1, true},
-	{"1_2_3_4_5", 0, true}, // base=10 so no underscores allowed
-	{"_12345", 0, true},
-	{"1__2345", 0, true},
-	{"12345_", 0, true},
-	{"-0", 0, true},
-	{"-1", 0, true},
-	{"+1", 0, true},
-}
-
 func TestGetType(t *testing.T) {
 	tests := []struct {
 		data     []byte

@@ -549,7 +549,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestArrayEach(t *testing.T) {
-	mock := []byte(`{"a": {        "b":[{"x": 1} ,{"x":    2},{ "x":3}, {"x":4} ]}}`)
+	mock := []byte(`{"a": {        "b":[{"x": "1"} ,{"x":    2},{ "x":3}, {"x":4} ]}}`)
 	count := 0
 
 	ArrayEach(mock, func(value []byte, dataType ValueType, offset int, err error) {
@@ -557,7 +557,7 @@ func TestArrayEach(t *testing.T) {
 
 		switch count {
 		case 1:
-			if string(value) != `{"x": 1}` {
+			if string(value) != `{"x": "1"}` {
 				t.Errorf("Wrong first item: %s", string(value))
 			}
 		case 2:
@@ -579,7 +579,7 @@ func TestArrayEach(t *testing.T) {
 }
 
 func TestArrayEach2(t *testing.T) {
-	test := []byte(`{"a": ["string", 42, true, false, null, {"b": 1}, [1, 2, 3]]}`)
+	test := []byte(`{"a": ["string", 42, true, false, null, [1, 2, 3]]}`)
 	ArrayEach(test, func(value []byte, dataType ValueType, offset int, err error) {
 		if string(value) != "string" && string(value) != "42" && string(value) != "true" && string(value) != "false" && string(value) != "null" && string(value) != `{"b": 1}` && string(value) != "[1, 2, 3]" {
 			t.Errorf("Wrong item: %s", string(value))

@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"errors"
+	"regexp"
 	"strconv"
 )
 
@@ -245,16 +246,45 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 		return value, dataType, offset, endOffset, err
 	}
 
-	// Strip quotes from string values
+	// strip quotes from string values
 	if dataType == String {
 		value = value[1 : len(value)-1]
+	}
+
+	// remove unnecessary whitespace characters to make more readable
+	if dataType == Object {
+		value = adjustIndentation(value)
 	}
 
 	return value[:len(value):len(value)], dataType, offset, endOffset, nil
 }
 
+// adjustIndentation is a kind of hack to remove the extra tabs and spaces from the Object values.
+// TODO: storing depth information while parsing step, may allows us to avoid regex.
+func adjustIndentation(value []byte) []byte {
+	re := regexp.MustCompile(`(?m)^\t+`)
+
+	// remove the rest, leaving only one of the tabs at the beginning of each line
+	value = re.ReplaceAll(value, []byte("\t"))
+
+	// remove the last line's spaces
+	reLastLineSpaces := regexp.MustCompile(`(?m)^\s+\}`)
+	value = reLastLineSpaces.ReplaceAll(value, []byte("}"))
+
+	return value
+}
+
 // Get is a function that retrieves a value from the given data based on the provided keys.
-// It returns the value, data type, offset, and any error encountered during the retrieval process.
+// It returns the value, data type, offset (position), and any error encountered during the retrieval process.
+//
+// For example:
+//
+// ``` gno
+// data := []byte(`{"name":{"first":"Janet","last":"Prichard"},"age":47}`)
+// value, dataType, offset, err := json.Get(data, "name", "last")
+// ```
+//
+// It returns the value `Prichard` with data type `String`, the offset `37`, and `nil` for the error.
 func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset int, err error) {
 	a, b, _, d, e := internalGet(data, keys...)
 	return a, b, d, e
