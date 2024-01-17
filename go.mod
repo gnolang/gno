@@ -40,7 +40,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require dario.cat/mergo v1.0.0 // indirect
+require dario.cat/mergo v1.0.0
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
