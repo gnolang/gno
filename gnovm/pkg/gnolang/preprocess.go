@@ -958,6 +958,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
@@ -974,10 +975,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
+
+							convertConst(store, last, arg0, ct)
+							constConverted = true
 						}
+
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, nil)
+						if !constConverted {
+							convertConst(store, last, arg0, nil)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,

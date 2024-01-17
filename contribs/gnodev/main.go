@@ -59,10 +59,7 @@ additional specified paths.`,
 			return execDev(cfg, args, stdio)
 		})
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
@@ -317,6 +314,8 @@ func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) 
 
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = dnode.Config().ChainID()
+	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
 	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
 	loggerweb.SetLevel(tmlog.LevelDebug)
