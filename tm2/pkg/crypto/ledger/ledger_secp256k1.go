@@ -48,6 +48,15 @@ type (
 	}
 )
 
+var discoverLedger discoverLedgerFn = func() (LedgerSECP256K1, error) {
+	device, err := ledger.FindLedgerCosmosUserApp()
+	if err != nil {
+		return nil, err
+	}
+
+	return device, nil
+}
+
 // NewPrivKeyLedgerSecp256k1Unsafe will generate a new key and store the public key for later use.
 //
 // This function is marked as unsafe as it will retrieve a pubkey without user verification.
@@ -66,15 +75,6 @@ func NewPrivKeyLedgerSecp256k1Unsafe(path hd.BIP44Params) (crypto.PrivKey, error
 	}
 
 	return PrivKeyLedgerSecp256k1{pubKey, path}, nil
-}
-
-func discoverLedger() (LedgerSECP256K1, error) {
-	device, err := ledger.FindLedgerCosmosUserApp()
-	if err != nil {
-		return nil, err
-	}
-
-	return device, nil
 }
 
 // NewPrivKeyLedgerSecp256k1 will generate a new key and store the public key for later use.
@@ -205,7 +205,6 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 }
 
 func getLedgerDevice() (LedgerSECP256K1, error) {
-
 	device, err := discoverLedger()
 	if err != nil {
 		return nil, errors.Wrap(err, "ledger nano S")
