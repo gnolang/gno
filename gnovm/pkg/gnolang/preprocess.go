@@ -1106,7 +1106,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
-				// In general, a string is not assignbaleTo to []bytes
+				// In general, a string is not checkAssignable to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
@@ -1699,7 +1699,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							// in define, when RHS is untyped and contains SHR/SHL expression, explicitly
 							// call this, to give the SHR/SHL a type, the dest type is a faux type.
-							checkOrConvertType(store, last, &n.Rhs[i], nil, false, false) // 10a03
+							switch n.Rhs[i].(type) {
+							case *BinaryExpr, *UnaryExpr:
+								checkOrConvertType(store, last, &n.Rhs[i], nil, false, false) // 10a03
+							default:
+								// do nothing
+							}
 						}
 					}
 				} else { // ASSIGN.
@@ -2498,6 +2503,10 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
 		if !coerce {
 			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno, TODO: make it !coerced
+				// the reason why we need this is that the checkOperandWithOp can not filter out all mismatch case,
+				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=, it's actually postponed to runtime check.)
+				// we still need a safe guard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
+				// It does not guarantee convertible, e.g. s1{foo: 1} == 1), why this pass check? XXX.
 				checkAssignable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
 			}
 		}
@@ -2735,7 +2744,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				case EQL, NEQ:
 					// NOTE: not checking types strict identical here, unlike ADD, etc.
 					// this will pass the case of lhs is interface and rhs implements this interface, vice versa.
-					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkAssignable -> assignbaleTo
+					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkAssignable
 					assertEqualityCompatible(xt, dt)
 				case LSS, LEQ, GTR, GEQ:
 					if pred, ok := binaryPredicates[op]; ok {
@@ -2801,17 +2810,6 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 			panic("should not happen")
 		}
 	}
-}
-
-// Assert that xt can be assigned as dt (dest type).
-// If autoNative is true, a broad range of xt can match against
-// a target native dt type, if and only if dt is a native type.
-func checkAssignable(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
-	debugPP.Printf("checkAssignable, xt: %v, dt: %v \n", xt, dt)
-	if xt == nil || dt == nil { // refer to 0f18_filetest, assign8.gno
-		return
-	}
-	return assignbaleTo(xt, dt, autoNative)
 }
 
 // Returns any names not yet defined nor predefined in expr.  These happen

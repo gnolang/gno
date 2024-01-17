@@ -2145,7 +2145,6 @@ func assertAssignable(lt, rt Type) {
 // then check the corresponding type(the other side of the operator) is convertable to t.
 // this is located in checkOrConvertType->checkConvertable stage.
 // so, checkOperandWithOp is working as a pre-check.
-// TODO: just panic
 func assertEqualityCompatible(xt, dt Type) {
 	debugPP.Printf("--- assertEqualityCompatible---, xt: %v, dt: %v \n", xt, dt)
 	switch cdt := baseOf(dt).(type) {
@@ -2187,32 +2186,53 @@ func assertEqualityCompatible(xt, dt Type) {
 			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
 	case nil: // refer to 0a01_filetest, 0f32_filetest.
-		switch cxt := baseOf(xt).(type) {
-		case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
-		case *NativeType:
-			switch nk := cxt.Type.Kind(); nk {
-			case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
-			default:
-				panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk))
-			}
-		default:
-			panic(fmt.Sprintf("invalid operation, nil can not be compared to nil \n"))
-		}
+		assertMaybeNil(xt)
 	default:
 		panic(fmt.Sprintf("%v is not comparable \n", dt))
 	}
 }
 
-// check if xt can be assigned to dt, conversionNeeded indicates further conversion needed especially from unnamed -> named
+func assertMaybeNil(t Type) {
+	if t == nil {
+		panic(fmt.Sprintf("invalid operation, nil can not be compared to nil \n"))
+	}
+	switch cxt := baseOf(t).(type) {
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+	case *NativeType:
+		switch nk := cxt.Type.Kind(); nk {
+		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
+		default:
+			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", nk))
+		}
+	default:
+		panic(fmt.Sprintf("invalid operation, nil can not be compared to %v \n", t))
+	}
+}
+
+// Assert that xt can be assigned as dt (dest type).
+// If autoNative is true, a broad range of xt can match against
+// a target native dt type, if and only if dt is a native type.
+
+// check if xt can be assigned to dt. conversionNeeded indicates further conversion needed especially from unnamed -> named
+// case 0. nil check
 // case 1. untyped const to typed const with same kind
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
-// case 4. general cases.
-// XXX. the name of assignbaleTo should be considered.
-func assignbaleTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
-	debugPP.Printf("assignbaleTo, xt: %v dt: %v \n", xt, dt)
+// case 4. general cases for primitives and composite.
+// XXX. the name of checkAssignable should be considered.
+// we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
+func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+	debugPP.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
+	// case0
+	if xt == nil { // refer to 0f18_filetest
+		assertMaybeNil(dt)
+		return
+	}
+	if dt == nil { // refer to assign8.gno
+		return
+	}
 	// case3
-	// if xt or dt is empty interface, assignbaleTo
+	// if xt or dt is empty interface, checkAssignable
 	// if no empty interface, then check if xt satisfied dt
 	if dt.Kind() == InterfaceKind {
 		debugPP.Println("dt is interface")
@@ -2337,7 +2357,7 @@ func assignbaleTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok {
-			debugPP.Println("xt is primitiveType")
+			debugPP.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {
 				panic(fmt.Sprintf(
@@ -2408,23 +2428,23 @@ func assignbaleTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := assignbaleTo(pt.Elt, cdt.Elt, false)
+			cdt := checkAssignable(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := assignbaleTo(at.Elt, cdt.Elt, false)
+			cdt := checkAssignable(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := assignbaleTo(st.Elt, cdt.Elt, false)
+			cdt := checkAssignable(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := assignbaleTo(mt.Key, cdt.Key, false)
-			cn2 := assignbaleTo(mt.Value, cdt.Value, false)
+			cn1 := checkAssignable(mt.Key, cdt.Key, false)
+			cn2 := checkAssignable(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -2576,7 +2596,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
-// TODO: empty interface? refer to assignbaleTo
+// TODO: empty interface? refer to checkAssignable
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
