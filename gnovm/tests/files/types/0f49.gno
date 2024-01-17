@@ -5,7 +5,7 @@ import (
 )
 
 // implicit type conversion and equality
-// NOTE:, the output type is incorrect, but the == eval is right
+// NOTE: the output type is incorrect, but the == eval is right
 func main() {
 	{ // case 1 with slices
 		type X []byte

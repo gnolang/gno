@@ -2376,8 +2376,8 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	//debugPP.Printf("---GetPointerToInt, path: %v \n", index)
-	//debugPP.Printf("---GetPointerToInt, b: %v \n", b)
+	// debugPP.Printf("---GetPointerToInt, path: %v \n", index)
+	// debugPP.Printf("---GetPointerToInt, b: %v \n", b)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2387,8 +2387,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	//debugPP.Printf("---GetPointerTo, path: %v \n", path)
-	//debugPP.Printf("---GetPointerTo, b: %v \n", b)
+	// debugPP.Printf("---GetPointerTo, path: %v \n", path)
+	// debugPP.Printf("---GetPointerTo, b: %v \n", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {

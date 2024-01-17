@@ -43,7 +43,7 @@ func (m *Machine) doOpBinary1() {
 // XXX. in preprocess stage, we have checked:
 // 1. if dt(type of lhs or rhs, depends on its convert dir);
 // 2. whether lt and rt is identical if they are typed(typeID ==); or if one is not typed, but is
-// assignable to the other side.
+// assignbaleTo to the other side.
 // so, logically, there's no need to check the type equivalence here. leave the check in debug mode.
 // NOTE: one exception is for == and !=, where there's a relaxed scope of operands for compare(maybeIdentical),
 // there might be cases lt and rt is not identical. e.g. two different types conform same interface.
@@ -89,6 +89,7 @@ func (m *Machine) doOpEql() {
 		assertAssignable(lv.T, rv.T)
 	}
 	res = isEql(m.Store, lv, rv)
+	debugPP.Println("------is EQL:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -108,7 +109,7 @@ func (m *Machine) doOpNeq() {
 		assertAssignable(lv.T, rv.T)
 	}
 	res = !isEql(m.Store, lv, rv)
-	debugPP.Println("------res:-----", res)
+	debugPP.Println("------is NEQ:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)

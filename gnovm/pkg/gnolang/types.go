@@ -2114,6 +2114,7 @@ func isSameType(lt, rt Type) bool {
 			(lt.TypeID() == rt.TypeID()) // and identical.
 }
 
+// TODO: use another name to reduce confusion, we already have checkAssignableTo(or change this)
 func assertAssignable(lt, rt Type) {
 	debugPP.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	if isSameType(lt, rt) {
@@ -2202,17 +2203,16 @@ func assertEqualityCompatible(xt, dt Type) {
 	}
 }
 
-// check if xt can be assigned to dt, conversionNeeded indicates further conversion needed from unnamed -> named
+// check if xt can be assigned to dt, conversionNeeded indicates further conversion needed especially from unnamed -> named
 // case 1. untyped const to typed const with same kind
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general cases.
-// XXX. the name of assignable should be considered, or convertable?
-// seems they have same function but implies different application scenarios
-func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
-	debugPP.Printf("assignable, xt: %v dt: %v \n", xt, dt)
+// XXX. the name of assignbaleTo should be considered.
+func assignbaleTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+	debugPP.Printf("assignbaleTo, xt: %v dt: %v \n", xt, dt)
 	// case3
-	// if xt or dt is empty interface, assignable
+	// if xt or dt is empty interface, assignbaleTo
 	// if no empty interface, then check if xt satisfied dt
 	if dt.Kind() == InterfaceKind {
 		debugPP.Println("dt is interface")
@@ -2267,64 +2267,6 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 						"cannot use %s as %s",
 						pxt.String(),
 						nidt.String()))
-				}
-			} else {
-				panic(fmt.Sprintf(
-					"unexpected type pair: cannot use %s as %s",
-					xt.String(),
-					dt.String()))
-			}
-		} else {
-			panic("should not happen")
-		}
-	} else if xt.Kind() == InterfaceKind {
-		debugPP.Println("xt is interface")
-		if ixt, ok := baseOf(xt).(*InterfaceType); ok {
-			if ixt.IsEmptyInterface() {
-				debugPP.Println("xt is empty interface")
-				// if dt is an empty Gno interface, any x ok.
-				return // ok
-			} else if ixt.IsImplementedBy(dt) {
-				debugPP.Println("xt is implemented by dt")
-				// if dt implements idt, ok.
-				return // ok
-			} else if idt, ok := dt.(*InterfaceType); ok {
-				if idt.IsEmptyInterface() {
-					return
-				}
-			} else {
-				panic(fmt.Sprintf(
-					"%s does not implement %s",
-					dt.String(), xt.String()))
-			}
-		} else if nxt, ok := baseOf(xt).(*NativeType); ok {
-			nixt := nxt.Type
-			if nixt.NumMethod() == 0 {
-				// if dt is an empty Go native interface, ditto.
-				return // ok
-			} else if ndt, ok := baseOf(dt).(*NativeType); ok {
-				// if xt has native base, do the naive native.
-				if nxt.Type.AssignableTo(nixt) {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use %s as %s",
-						nixt.String(), ndt.String()))
-				}
-			} else if pdt, ok := baseOf(dt).(*PointerType); ok {
-				nxt, ok := pdt.Elt.(*NativeType)
-				if !ok {
-					panic(fmt.Sprintf(
-						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
-						nixt.String(), pdt.String()))
-				}
-				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nixt) {
-					return // ok
-				} else {
-					panic(fmt.Sprintf(
-						"cannot use %s as %s",
-						nixt.String(), pdt.String()))
 				}
 			} else {
 				panic(fmt.Sprintf(
@@ -2466,23 +2408,23 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := assignable(pt.Elt, cdt.Elt, false)
+			cdt := assignbaleTo(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := assignable(at.Elt, cdt.Elt, false)
+			cdt := assignbaleTo(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := assignable(st.Elt, cdt.Elt, false)
+			cdt := assignbaleTo(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := assignable(mt.Key, cdt.Key, false)
-			cn2 := assignable(mt.Value, cdt.Value, false)
+			cn1 := assignbaleTo(mt.Key, cdt.Key, false)
+			cn2 := assignbaleTo(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -2528,7 +2470,6 @@ func assignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		"cannot use %s as %s",
 		xt.String(),
 		dt.String()))
-	//}
 }
 
 // ----------------------------------------
@@ -2635,7 +2576,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
-// TODO: empty interface? refer to assignable
+// TODO: empty interface? refer to assignbaleTo
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
@@ -2770,7 +2711,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkConvertible(spec, match.Elem(), false)
+					checkAssignable(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2784,7 +2725,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkConvertible(spec, match, false)
+					checkAssignable(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
