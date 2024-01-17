@@ -61,19 +61,19 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 		}
 
 		// Merge the loaded config with the default values
-		if err := mergo.Merge(cfg, loadedCfg); err != nil {
+		if err := mergo.Merge(loadedCfg, cfg); err != nil {
 			return nil, err
 		}
 
 		// Set the root directory
-		cfg.SetRootDir(root)
+		loadedCfg.SetRootDir(root)
 
 		// Make sure the directories are initialized
-		if err := cfg.EnsureDirs(); err != nil {
+		if err := loadedCfg.EnsureDirs(); err != nil {
 			return nil, err
 		}
 
-		return cfg, nil
+		return loadedCfg, nil
 	}
 
 	// Config doesn't exist, create it
@@ -89,14 +89,14 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 		return nil, err
 	}
 
-	// Save the config
-	if err := WriteConfigFile(configPath, cfg); err != nil {
-		return nil, err
-	}
-
 	// Validate the configuration
 	if validateErr := cfg.ValidateBasic(); validateErr != nil {
 		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+	}
+
+	// Save the config
+	if err := WriteConfigFile(configPath, cfg); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil

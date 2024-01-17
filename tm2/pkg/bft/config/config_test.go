@@ -21,6 +21,9 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 		cfg := DefaultConfig()
 		cfg.SetRootDir(cfgDir)
 
+		// Make an incremental changes
+		cfg.Moniker = "custom monkier"
+
 		// Make sure the cfg paths are initialized
 		require.NoError(t, cfg.EnsureDirs())
 
