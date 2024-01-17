@@ -9,7 +9,7 @@ http:
 
     gnofaucet:
       service: gnofaucet
-      rule: "Host(`faucet.portal.gno.land`) || Host(`faucet.portal.gnoteam.com`)"
+      rule: "Host(`faucet.gno.land`) || Host(`faucet.portal.gnoteam.com`)"
       tls:
         certResolver: le
       entrypoints: ["web", "websecure"]

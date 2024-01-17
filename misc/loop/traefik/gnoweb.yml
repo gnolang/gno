@@ -9,7 +9,7 @@ http:
 
     gnoweb:
       service: gnoweb
-      rule: "Host(`portal.gno.land`) || Host(`portal.gnoteam.com`)"
+      rule: "Host(`gno.land`) || Host(`portal.gnoteam.com`)"
       tls:
         certResolver: le
       entrypoints: ["web", "websecure"]
