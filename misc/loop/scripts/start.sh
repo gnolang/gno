@@ -9,10 +9,11 @@ GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
+cat ${GENESIS_BACKUP_FILE} >> /opt/gno/src/gno.land/genesis/genesis_txs.txt
+
 gnoland start \
     --skip-start=true \
-    --skip-failing-genesis-txs \
-    --genesis-txs-file "/${GENESIS_BACKUP_FILE}"
+    --skip-failing-genesis-txs
 
 sed -i "s#^moniker = \".*\"#moniker = \"${MONIKER}\"#" ./testdir/config/config.toml
 sed -i "s#^laddr = \".*:26656\"#laddr = \"${P2P_LADDR}\"#" ./testdir/config/config.toml
