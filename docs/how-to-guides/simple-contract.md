@@ -7,7 +7,7 @@ id: simple-contract
 ## Overview
 
 This guide shows you how to write a simple _Counter_ Smart Contract, or rather a [Realm](../concepts/realms.md),
-in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see
+in [Gno (Gno)](../concepts/gno-language.md). For actually deploying the Realm, please see
 the [deployment](deploy.md) guide.
 
 Our _Counter_ Realm will have the following functionality:
@@ -21,7 +21,7 @@ Our _Counter_ Realm will have the following functionality:
 - **Text editor**
 
 :::info Editor support
-The Gno language is based on Golang, but it does not have all the bells and whistles in major text editors like Go.
+The Gno language is based on Go, but it does not have all the bells and whistles in major text editors like Go.
 Advanced language features like IntelliSense are still in the works.
 
 Currently, we officially have language support
@@ -80,7 +80,7 @@ touch counter.gno
 ```
 
 :::info Gno file extension
-All Gno (Gnolang) source code has the file extension `.gno`.
+All Gno (Gno) source code has the file extension `.gno`.
 
 This file extension is required for existing gno tools and processes to work.
 :::

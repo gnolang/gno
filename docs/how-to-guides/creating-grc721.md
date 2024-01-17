@@ -7,7 +7,7 @@ id: creating-grc721
 ## Overview
 
 This guide shows you how to write a simple _GRC721_ Smart Contract, or rather a [Realm](../concepts/realms.md),
-in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see
+in [Gno (Gno)](../concepts/gno-language.md). For actually deploying the Realm, please see
 the [deployment](deploy.md) guide.
 
 Our _GRC721_ Realm will have the following functionality:
