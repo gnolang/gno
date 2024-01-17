@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"text/template"
@@ -471,8 +472,12 @@ func runTestFiles(
 	printRuntimeMetrics bool,
 	runFlag string,
 	io commands.IO,
-) error {
-	var errs error
+) (errs error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
+		}
+	}()
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,

@@ -1,10 +1,10 @@
-package client
+package keyscli
 
 import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -12,17 +12,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type runCfg struct {
-	rootCfg *makeTxCfg
+type MakeRunCfg struct {
+	RootCfg *client.MakeTxCfg
 }
 
-func newRunCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
-	cfg := &runCfg{
-		rootCfg: rootCfg,
+func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Command {
+	cfg := &MakeRunCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
@@ -33,21 +34,21 @@ func newRunCmd(rootCfg *makeTxCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return runRun(cfg, args, io)
+			return execMakeRun(cfg, args, cmdio)
 		},
 	)
 }
 
-func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {}
+func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func runRun(cfg *runCfg, args []string, io commands.IO) error {
+func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
-	if cfg.rootCfg.gasWanted == 0 {
+	if cfg.RootCfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
-	if cfg.rootCfg.gasFee == "" {
+	if cfg.RootCfg.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
 
@@ -55,7 +56,7 @@ func runRun(cfg *runCfg, args []string, io commands.IO) error {
 	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
 
 	// read account pubkey.
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -66,15 +67,15 @@ func runRun(cfg *runCfg, args []string, io commands.IO) error {
 	caller := info.GetAddress()
 
 	// parse gas wanted & fee.
-	gaswanted := cfg.rootCfg.gasWanted
-	gasfee, err := std.ParseCoin(cfg.rootCfg.gasFee)
+	gaswanted := cfg.RootCfg.GasWanted
+	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
 	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
-		data, err := ioutil.ReadAll(io.In())
+		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
@@ -124,11 +125,11 @@ func runRun(cfg *runCfg, args []string, io commands.IO) error {
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,
-		Memo:       cfg.rootCfg.memo,
+		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
+	if cfg.RootCfg.Broadcast {
+		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err
 		}
