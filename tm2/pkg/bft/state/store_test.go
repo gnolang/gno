@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
+	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"

@@ -33,6 +33,10 @@ func calcABCIResponsesKey(height int64) []byte {
 	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
 }
 
+func calcTxResultKey(hash []byte) []byte {
+	return []byte(fmt.Sprintf("txResultKey:%v", hash))
+}
+
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
 // or creates a new one from the given genesisFilePath and persists the result
 // to the database.
@@ -170,6 +174,29 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
 func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 	db.SetSync(calcABCIResponsesKey(height), abciResponses.Bytes())
+}
+
+// LoadTxResult loads the tx result associated with the given
+// tx hash from the database, if any
+func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
+	buf := db.Get(calcTxResultKey(txHash))
+	if buf == nil {
+		return nil, NoTxResultForHashError{txHash}
+	}
+
+	txResult := new(types.TxResult)
+	if err := amino.Unmarshal(buf, txResult); err != nil {
+		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+		osm.Exit(fmt.Sprintf(`LoadTxResult: Data has been corrupted or its spec has
+                changed: %v\n`, err))
+	}
+
+	return txResult, nil
+}
+
+// saveTxResult persists the transaction result to the database
+func saveTxResult(db dbm.DB, txResult *types.TxResult) {
+	db.SetSync(calcTxResultKey(txResult.Tx.Hash()), txResult.Bytes())
 }
 
 // -----------------------------------------------------------------------------

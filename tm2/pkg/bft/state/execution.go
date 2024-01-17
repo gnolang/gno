@@ -17,7 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BlockExecutor handles block execution and state updates.
 // It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
 // then commits and updates the mempool atomically, then saves state.
@@ -108,6 +108,18 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Save the results before we commit.
 	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+
+	// Save the transaction results
+	for index, tx := range block.Txs {
+		txResult := &types.TxResult{
+			Height:   block.Height,
+			Index:    uint32(index),
+			Tx:       tx,
+			Response: abciResponses.DeliverTxs[index],
+		}
+
+		saveTxResult(blockExec.db, txResult)
+	}
 
 	fail.Fail() // XXX
 
@@ -200,7 +212,7 @@ func (blockExec *BlockExecutor) Commit(
 	return res.Data, err
 }
 
-//---------------------------------------------------------
+// ---------------------------------------------------------
 // Helper functions for executing blocks and updating state
 
 // Executes block's transactions on proxyAppConn.
@@ -425,7 +437,7 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 	}
 }
 
-//----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 // Execute block without state. TODO: eliminate
 
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
