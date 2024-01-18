@@ -91,7 +91,9 @@ We can finally write out the logic of the _Counter_ Smart Contract in `counter.g
 ```go
 package counter
 
-import "fmt"
+import (
+	"gno.land/p/demo/ufmt"
+)
 
 var count int
 
@@ -104,7 +106,7 @@ func Decrement() {
 }
 
 func Render(_ string) string {
-	return fmt.Sprintf("Count: %d", count)
+	return ufmt.Sprintf("Count: %d", count)
 }
 ```
 
