@@ -46,7 +46,7 @@ misc/genstd                  @thehowl
 
 # Special files.
 PLAN.md                      @jaekwon @moul
-PHILOSOPHY.md                @jaekwon @moul
-CONTRIBUTING.md              @jaekwon @moul
-LICENSE.md                   @jaekwon @moul
+PHILOSOPHY.md                @jaekwon
+CONTRIBUTING.md              @jaekwon @moul @gnolang/tech-staff
+LICENSE.md                   @jaekwon
 .github/CODEOWNERS           @jaekwon @moul
