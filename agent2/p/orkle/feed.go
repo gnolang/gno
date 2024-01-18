@@ -1,12 +1,14 @@
 package orkle
 
-import "github.com/gnolang/gno/agent2/p/orkle/feed"
+import (
+	"github.com/gnolang/gno/agent2/p/orkle/feed"
+	"github.com/gnolang/gno/agent2/p/orkle/message"
+)
 
 type Feed interface {
 	ID() string // necessary?
 	Type() feed.Type
-	Value() (value feed.Value, dataType string)
-	Ingest(rawMessage, providerAddress string)
-	Consumable() bool
+	Value() (value feed.Value, dataType string, consumable bool)
+	Ingest(funcType message.FuncType, rawMessage, providerAddress string)
 	MarshalJSON() ([]byte, error)
 }
