@@ -36,7 +36,8 @@ func calcABCIResponsesKey(height int64) []byte {
 	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
 }
 
-func calcTxResultKey(hash []byte) []byte {
+// CalcTxResultKey calculates the storage key for the transaction result
+func CalcTxResultKey(hash []byte) []byte {
 	return []byte(fmt.Sprintf("txResultKey:%v", hash))
 }
 
@@ -182,7 +183,7 @@ func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 // LoadTxResult loads the tx result associated with the given
 // tx hash from the database, if any
 func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
-	buf := db.Get(calcTxResultKey(txHash))
+	buf := db.Get(CalcTxResultKey(txHash))
 	if buf == nil {
 		return nil, NoTxResultForHashError{txHash}
 	}
@@ -197,7 +198,7 @@ func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
 
 // saveTxResult persists the transaction result to the database
 func saveTxResult(db dbm.DB, txResult *types.TxResult) {
-	db.SetSync(calcTxResultKey(txResult.Tx.Hash()), txResult.Bytes())
+	db.SetSync(CalcTxResultKey(txResult.Tx.Hash()), txResult.Bytes())
 }
 
 // -----------------------------------------------------------------------------

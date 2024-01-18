@@ -1,8 +1,6 @@
 package core
 
 import (
-	"fmt"
-
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -15,7 +13,7 @@ func Tx(_ *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	// Get the result from storage, if any
 	result, err := sm.LoadTxResult(stateDB, hash)
 	if err != nil {
-		return nil, fmt.Errorf("tx (%X) not found", hash)
+		return nil, err
 	}
 
 	// Return the response

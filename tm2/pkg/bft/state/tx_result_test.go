@@ -93,7 +93,7 @@ func TestStoreLoadTxResult(t *testing.T) {
 		)
 
 		// Save the "corrupted" result to the DB
-		stateDB.SetSync(calcTxResultKey(hash), []byte(corruptedResult))
+		stateDB.SetSync(CalcTxResultKey(hash), []byte(corruptedResult))
 
 		txResult, err := LoadTxResult(stateDB, hash)
 		require.Nil(t, txResult)
