@@ -6,31 +6,34 @@
 # Tendermint2 (Gno version).
 tm2/*                        @gnolang/tech-staff
 tm2/pkg                      @jaekwon @piux2 @moul @zivkovicmilos
+tm2/pkg/crypto               @jaekwon @moul @gnolang/security
 # TODO: add per package exceptions
+# ...
 
 # Docs & Content.
 docs/                        @gnolang/devrels
-misc/docusaurus/             @gnolang/devrels @gnolang/tech-staff
-# TODO: add non-tech people here.
+misc/docusaurus/             @gnolang/devrels
+README.md                    @gnolang/devrels
+.gitpod.yml                  @gnolang/devrels
 
 # Gno examples and default contracts.
-examples/*                    @gnolang/tech-staff @gnolang/devrels
-examples/gno.land/r/gnoland/* @moul
-examples/gno.land/r/gov/*     @moul
-examples/gno.land/r/sys/*     @moul
-examples/gno.land/r/worx/*    @moul
-examples/gno.land/r/x         @gnolang/devrels
+examples/                    @gnolang/tech-staff @gnolang/devrels
+examples/gno.land/r/gnoland/ @moul
+examples/gno.land/r/gov/     @moul
+examples/gno.land/r/sys/     @moul
+examples/gno.land/r/worx/    @moul
+examples/gno.land/r/x        @gnolang/devrels
 # TODO: add people from the community here.
-examples/gno.land/r/jaekwon/* @jaekwon
-examples/gno.land/r/manfred/* @moul
+examples/gno.land/r/jaekwon/ @jaekwon
+examples/gno.land/r/manfred/ @moul
 
 # Gno.land.
-gno.land/*                   @moul
+gno.land/                    @moul
 gno.land/pkg/integration     @gfanton
 #...
 
 # GnoVM/Gnolang.
-gnovm/*                      @gnolang/tech-staff
+gnovm/                       @gnolang/tech-staff
 gnovm/stdlibs                @jaekwon @thehowl
 gnovm/pkg/gnolang            @jaekwon @piux2 @thehowl @moul
 gnovm/pkg/doc                @thehowl
@@ -40,14 +43,14 @@ gnovm/pkg/integration        @gfanton
 #gnovm/pkg/repl
 
 # Contribs
-contribs/*                   @gnolang/tech-staff
+contribs/                    @gnolang/tech-staff
 contribs/gnodev              @gfanton
 contribs/gnokeykc            @moul
 contribs/gnomd               @moul
 #...
 
 # Misc
-misc/*                       @gnolang/tech-staff
+misc/                        @gnolang/tech-staff
 misc/loop                    @moul @gnolang/devops
 misc/deployments             @moul @gnolang/devops
 misc/genstd                  @thehowl
