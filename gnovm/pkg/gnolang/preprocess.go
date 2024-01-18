@@ -2438,11 +2438,6 @@ func anyValue(t Type) TypedValue {
 	}
 }
 
-//func isConst(x Expr) bool {
-//	_, ok := x.(*ConstExpr)
-//	return ok
-//}
-
 func isConstType(x Expr) bool {
 	_, ok := x.(*constTypeExpr)
 	return ok
@@ -2450,18 +2445,22 @@ func isConstType(x Expr) bool {
 
 func cmpSpecificity(t1, t2 Type) int {
 	debugPP.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
-	// debugPP.Printf("comSpecificity, t1: %T, t2: %T \n", t1, t2)
-	// debugPP.Printf("comSpecificity, t1.kind: %v, t2.kind: %v \n", t1.Kind(), t2.Kind())
 	if it1, ok := baseOf(t1).(*InterfaceType); ok {
-		debugPP.Printf("it1: %v: \n", it1)
-		if it2, ok := baseOf(t2).(*InterfaceType); ok {
-			debugPP.Printf("it1: %v: \n", it2)
-			return 0
+		if it1.IsEmptyInterface() {
+			return 1 // left empty interface
 		} else {
-			return 1
+			if it2, ok := baseOf(t2).(*InterfaceType); ok {
+				if it2.IsEmptyInterface() { // right empty interface
+					return -1
+				} else {
+					return 0 // both non-empty interface
+				}
+			} else {
+				return 1 // right not interface
+			}
 		}
 	} else if _, ok := t2.(*InterfaceType); ok {
-		return -1
+		return -1 // left not interface, right is interface
 	}
 
 	t1s, t2s := 0, 0
@@ -2500,13 +2499,13 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool, coerce bool) {
 	debugPP.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	if cx, ok := (*x).(*ConstExpr); ok {
-		// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
 		if !coerce {
+			// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
 			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno, TODO: make it !coerced
 				// the reason why we need this is that the checkOperandWithOp can not filter out all mismatch case,
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=, it's actually postponed to runtime check.)
 				// we still need a safe guard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
-				// It does not guarantee convertible, e.g. s1{foo: 1} == 1), why this pass check? XXX.
+				// It does not guarantee convertible, e.g. s1{foo: 1} == 1), why this is considered as assignable? pass check? XXX.
 				checkAssignable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
 			}
 		}
@@ -2514,14 +2513,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
 		debugPP.Printf("shift, xt: %v, Op: %v, t: %v \n", *x, bx.Op, t)
-		if t == nil {
-			if isUntyped(xt) {
-				t = defaultTypeOf(xt)
-			} else {
-				t = xt // xt maybe typed while assign, with t is the type of LHS
-			}
-		}
-		if _, ok := t.(*InterfaceType); ok {
+		if _, ok := t.(*InterfaceType); ok || t == nil {
 			if isUntyped(xt) {
 				t = defaultTypeOf(xt)
 			} else {
@@ -2535,14 +2527,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 		} else if !coerce && isUntyped(xt) { // not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
 			// dt not interface type
-			// if _, ok := t.(*InterfaceType); !ok { // t could be nil in case of assignStmt and lhs is untyped, pass nil
 			checkOperandWithOp(store, last, &bx.Left, t, bx.Op, Binary)
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-			//} else {
-			// XXX, this should be unreachable, if lhs is interface type and rhs is untyped shift expr, it will fail in checkOperandWithOp
-			// checkAssignable(xt, t, false) // XXX, left is interface, right untyped, 0_a_3b.gno
-			//}
 		} else { // not coerce, xt is typed. refer to 10a17b1, param is typed, check convertable
 			checkAssignable(xt, t, false) // XXX, left is interface, right is typed refer to 0_a_2.gno, 0_a_3.gno
 		}
@@ -2550,18 +2537,11 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	} else if ux, ok := (*x).(*UnaryExpr); ok {
 		debugPP.Printf("unary expr: %v, Op: %v, t: %v \n", ux, ux.Op, t)
 		xt := evalStaticTypeOf(store, last, *x)
-		if t == nil {
+		if _, ok := t.(*InterfaceType); ok || t == nil {
 			if isUntyped(xt) {
 				t = defaultTypeOf(xt)
 			} else {
 				t = xt
-			}
-		}
-		if _, ok := t.(*InterfaceType); ok {
-			if isUntyped(xt) {
-				t = defaultTypeOf(xt)
-			} else {
-				t = xt // xt maybe typed while assign, with t is the type of LHS
 			}
 		}
 		if coerce { // mostly when explicitly conversion, type call
@@ -2583,19 +2563,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// checkOrConvertType(store, last, &ux.X, t, autoNative, coerce)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
-		debugPP.Printf("else expr, xt not nil,x: %v, xt: %v, t: %v \n", *x, xt, t)
-
-		// check convertible prior
-		var isUnamed bool
+		debugPP.Printf("else expr, xt not nil,x: %v, xt: %v, t: %v, isUntyped: %v \n", *x, xt, t, isUntyped(xt))
+		var isUnnamed bool
 		if t != nil && !coerce {
-			isUnamed = checkAssignable(xt, t, autoNative)
+			isUnnamed = checkAssignable(xt, t, autoNative)
 		}
 		if isUntyped(xt) {
-			debugPP.Println("xt untyped")
-			if t == nil {
-				t = defaultTypeOf(xt)
-			}
-			if _, ok := t.(*InterfaceType); ok {
+			if _, ok := t.(*InterfaceType); ok || t == nil {
 				t = defaultTypeOf(xt)
 			}
 			debugPP.Printf("default type of t: %v \n", t)
@@ -2604,7 +2578,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				switch bx.Op {
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 					BAND_NOT, LAND, LOR:
-					debugPP.Println("binary, going recursive call")
 					// push t into bx.Left and bx.Right, recursively
 					checkOperandWithOp(store, last, &bx.Left, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
@@ -2612,9 +2585,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					checkOrConvertType(store, last, &bx.Right, t, autoNative, coerce)
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					// TODO: convert untyped to typed
 					// nothing to do, quick forward
-					debugPP.Printf("compare, bx: %v, op: %v \n", bx, bx.Op)
 				default:
 					// do nothing
 				}
@@ -2625,8 +2596,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			*x = cx
 		}
 
-		// cover all declared type case
-		if isUnamed {
+		// unnamed to named
+		if isUnnamed {
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
@@ -2708,7 +2679,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 	if nt == Unary || nt == IncDec {
 		switch nt {
 		case Unary:
-			if pred, ok := unaryPredicates[op]; ok {
+			if pred, ok := unaryChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
@@ -2718,7 +2689,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				}
 			}
 		case IncDec:
-			if pred, ok := IncDecStmtPredicates[op]; ok {
+			if pred, ok := IncDecStmtChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
@@ -2745,9 +2716,9 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 					// NOTE: not checking types strict identical here, unlike ADD, etc.
 					// this will pass the case of lhs is interface and rhs implements this interface, vice versa.
 					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkAssignable
-					assertEqualityCompatible(xt, dt)
+					assertComparable(xt, dt)
 				case LSS, LEQ, GTR, GEQ:
-					if pred, ok := binaryPredicates[op]; ok {
+					if pred, ok := binaryChecker[op]; ok {
 						if !pred(dt) {
 							if dt != nil {
 								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
@@ -2760,7 +2731,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 					panic("invalid comparison operator")
 				}
 			} else {
-				if pred, ok := binaryPredicates[op]; ok {
+				if pred, ok := binaryChecker[op]; ok {
 					if !pred(dt) {
 						if dt != nil {
 							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
@@ -2784,7 +2755,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				}
 			}
 		case Assign:
-			if pred, ok := AssignStmtPredicates[op]; ok {
+			if pred, ok := AssignStmtChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))

@@ -2,8 +2,11 @@ package gnolang
 
 import "fmt"
 
+// here are a range of rules predefines for preprocessor to check the compatibility between operands and operators
+// e,g. for binary expr x + y, x, y can only be numeric or string, 1+2, "a" + "b"
+// this is used in checkOperandWithOp().
 var (
-	binaryPredicates = map[Word]func(t Type) bool{
+	binaryChecker = map[Word]func(t Type) bool{
 		ADD:      isNumericOrString,
 		SUB:      isNumeric,
 		MUL:      isNumeric,
@@ -22,17 +25,17 @@ var (
 		GTR:      isOrdered,
 		GEQ:      isOrdered,
 	}
-	unaryPredicates = map[Word]func(t Type) bool{
+	unaryChecker = map[Word]func(t Type) bool{
 		ADD: isNumeric,
 		SUB: isNumeric,
 		XOR: isIntNum,
 		NOT: isBoolean,
 	}
-	IncDecStmtPredicates = map[Word]func(t Type) bool{ // NOTE: to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
+	IncDecStmtChecker = map[Word]func(t Type) bool{ // NOTE: to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
 		INC: isNumeric,
 		DEC: isNumeric,
 	}
-	AssignStmtPredicates = map[Word]func(t Type) bool{
+	AssignStmtChecker = map[Word]func(t Type) bool{
 		ADD_ASSIGN:      isNumericOrString,
 		SUB_ASSIGN:      isNumeric,
 		MUL_ASSIGN:      isNumeric,

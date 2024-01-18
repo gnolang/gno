@@ -977,14 +977,6 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
-	debugPP.Printf("isImplementedBy, it %v, ot:%v \n", it, ot)
-	//// empty interface{}
-	//if iot, ok := ot.(*InterfaceType); ok {
-	//	if iot.IsEmptyInterface() {
-	//		return true
-	//	}
-	//}
-
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
@@ -2114,12 +2106,12 @@ func isSameType(lt, rt Type) bool {
 			(lt.TypeID() == rt.TypeID()) // and identical.
 }
 
-// TODO: use another name to reduce confusion, we already have checkAssignableTo(or change this)
+// runtime assert
 func assertAssignable(lt, rt Type) {
 	debugPP.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	if isSameType(lt, rt) {
 		// both are nil/undefined or same type.
-	} else if lt == nil || rt == nil { // TODO: consider this. files/context.gno
+	} else if lt == nil || rt == nil { // has support (interface{}) typed-nil, yet support for (native interface{}) typed-nil
 		// LHS is undefined
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
@@ -2139,18 +2131,16 @@ func assertAssignable(lt, rt Type) {
 	}
 }
 
-// assertEqualityCompatible is used in preprocess.
+// assertComparable is used in preprocess.
 // The logic here is, when != or == shows up, check if `dt` is equalilty eval compatible.
 // indicates operand with dt can be used as with == or !=). if this check pass,
 // then check the corresponding type(the other side of the operator) is convertable to t.
 // this is located in checkOrConvertType->checkConvertable stage.
 // so, checkOperandWithOp is working as a pre-check.
-// TODO: consider and tune log
-func assertEqualityCompatible(xt, dt Type) {
-	debugPP.Printf("--- assertEqualityCompatible---, xt: %v, dt: %v \n", xt, dt)
+func assertComparable(xt, dt Type) {
+	debugPP.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
 	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage
-		debugPP.Println("primitive type, return true, fallthrough")
+	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage?
 	case *ArrayType: // NOTE: no recursive allowed
 		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
@@ -2173,13 +2163,11 @@ func assertEqualityCompatible(xt, dt Type) {
 				panic(fmt.Sprintf("%v and %v cannot be compared \n", xt, cdt))
 			}
 		}
-	case *PointerType:
-	case *InterfaceType:
+	case *PointerType: // &a == &b
+	case *InterfaceType: // var a, b interface{}
 	case *SliceType, *FuncType, *MapType:
 		if xt != nil {
 			panic(fmt.Sprintf("%v can only be compared to nil \n", dt))
-		} else {
-			// do nothing
 		}
 	case *NativeType:
 		if !cdt.Type.Comparable() {
@@ -2245,11 +2233,6 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
-			} else if iot, ok := xt.(*InterfaceType); ok { // XXX. case 0f38_stdlibs_filetest.gno
-				debugPP.Println("xt is empty interface: ", iot)
-				if iot.IsEmptyInterface() {
-					return // ok
-				}
 			} else {
 				panic(fmt.Sprintf(
 					"%s does not implement %s",
@@ -2348,7 +2331,7 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					dt.String()))
 			} else {
 				// carry on with baseOf(dxt)
-				xt = dxt.Base
+				xt = dxt.Base // set as base to do the rest check
 				conversionNeeded = true
 			}
 		}
