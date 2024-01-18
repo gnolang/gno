@@ -14,8 +14,15 @@ misc/docusaurus/             @gnolang/devrels @gnolang/tech-staff
 # TODO: add non-tech people here.
 
 # Gno examples and default contracts.
-examples/*                   @gnolang/tech-staff @gnolang/devrels
+examples/*                    @gnolang/tech-staff @gnolang/devrels
+examples/gno.land/r/gnoland/* @moul
+examples/gno.land/r/gov/*     @moul
+examples/gno.land/r/sys/*     @moul
+examples/gno.land/r/worx/*    @moul
+examples/gno.land/r/x         @gnolang/devrels
 # TODO: add people from the community here.
+examples/gno.land/r/jaekwon/* @jaekwon
+examples/gno.land/r/manfred/* @moul
 
 # Gno.land.
 gno.land/*                   @moul
