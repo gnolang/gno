@@ -366,10 +366,7 @@ func TestNumUnconfirmedTxs(t *testing.T) {
 	mempool.Flush()
 }
 
-/*
 func TestTx(t *testing.T) {
-	t.Parallel()
-
 	// first we broadcast a tx
 	c := getHTTPClient()
 	_, _, tx := MakeTxKV()
@@ -384,24 +381,21 @@ func TestTx(t *testing.T) {
 	cases := []struct {
 		valid bool
 		hash  []byte
-		prove bool
 	}{
 		// only valid if correct hash provided
-		{true, txHash, false},
-		{true, txHash, true},
-		{false, anotherTxHash, false},
-		{false, anotherTxHash, true},
-		{false, nil, false},
-		{false, nil, true},
+		{true, txHash},
+		{true, txHash},
+		{false, anotherTxHash},
+		{false, anotherTxHash},
+		{false, nil},
+		{false, nil},
 	}
 
-	for i, c := range GetClients() {
-		for j, tc := range cases {
-			t.Logf("client %d, case %d", i, j)
-
+	for _, c := range GetClients() {
+		for _, tc := range cases {
 			// now we query for the tx.
 			// since there's only one tx, we know index=0.
-			ptx, err := c.Tx(tc.hash, tc.prove)
+			ptx, err := c.Tx(tc.hash)
 
 			if !tc.valid {
 				require.NotNil(t, err)
@@ -412,17 +406,12 @@ func TestTx(t *testing.T) {
 				assert.Zero(t, ptx.Index)
 				assert.True(t, ptx.TxResult.IsOK())
 				assert.EqualValues(t, txHash, ptx.Hash)
-
-				// time to verify the proof
-				proof := ptx.Proof
-				if tc.prove && assert.EqualValues(t, tx, proof.Data) {
-					assert.NoError(t, proof.Proof.Verify(proof.RootHash, txHash))
-				}
 			}
 		}
 	}
 }
 
+/*
 func TestTxSearch(t *testing.T) {
 	t.Parallel()
 
