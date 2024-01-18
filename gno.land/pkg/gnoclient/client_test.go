@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -31,7 +31,7 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 }
 
 func TestClient_Request(t *testing.T) {
-	config, _ := integration.TestingNodeConfig(t, gnoland.MustGuessGnoRootDir())
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
 
