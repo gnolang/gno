@@ -1,6 +1,8 @@
 ---
 id: overview
 slug: /
+description: "Gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
+version of the Go programming language called Gnolang."
 ---
 
 # Overview
@@ -43,3 +45,12 @@ In comparison to Ethereum, Gno.land offers distinct advantages:
 2. **General-Purpose Language**: Gno.land's Gnolang is a general-purpose language, similar to Go, extending its
    usability beyond the context of blockchain. In contrast, Solidity is designed specifically for Smart Contracts on the
    Ethereum platform.
+
+## Using the Gno.land Documentation
+
+Gno.land's documentation adopts the [Diataxis](https://diataxis.fr/) framework, ensuring structured and predictable content. It includes:
+- A [Getting Started](./getting-started/local-setup.md) section, covering simple instructions on how to begin your journey into Gno.land.
+- Concise how-to guides for specific technical tasks.
+- Conceptual explanations, offering context and usage insights.
+- Detailed reference sections with implementation specifics.
+- Tutorials aimed at beginners to build fundamental skills for developing in Gno.land.

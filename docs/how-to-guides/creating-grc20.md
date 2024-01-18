@@ -6,7 +6,7 @@ id: creating-grc20
 
 ## Overview
 
-This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../explanation/realms.md), in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
+This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../concepts/realms.md), in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
 Our _GRC20_ Realm will have the following functionality:
 
@@ -153,7 +153,7 @@ Detailing what is happening in the above code:
 - Calling the `Mint` method would create a configurable number of tokens by the administrator.
 - Calling the `Burn` method would destroy a configurable number of tokens by the administrator.
 - Calling the `Render` method would return a user's `balance` as a formatted string. Learn more about the `Render`
-  method and how it's used [here](../explanation/realms.md).
+  method and how it's used [here](../concepts/realms.md).
 - Finally, we provide a local function to assert that the calling account is in fact the owner, otherwise panic. This is a very important function that serves to prevent abuse by non-administrators.
 
 ## Conclusion
