@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -18,6 +19,8 @@ const (
 	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators)
 	valSetCheckpointInterval = 100000
 )
+
+var errTxResultCorrupted = errors.New("tx result corrupted")
 
 // ------------------------------------------------------------------------
 
@@ -186,9 +189,7 @@ func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
 
 	txResult := new(types.TxResult)
 	if err := amino.Unmarshal(buf, txResult); err != nil {
-		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
-		osm.Exit(fmt.Sprintf(`LoadTxResult: Data has been corrupted or its spec has
-                changed: %v\n`, err))
+		return nil, fmt.Errorf("%w, %w", errTxResultCorrupted, err)
 	}
 
 	return txResult, nil

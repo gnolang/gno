@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// generateTxResults generates test transaction results
 func generateTxResults(t *testing.T, count int) []*types.TxResult {
 	t.Helper()
 
@@ -40,21 +41,63 @@ func generateTxResults(t *testing.T, count int) []*types.TxResult {
 func TestStoreLoadTxResult(t *testing.T) {
 	t.Parallel()
 
-	var (
-		stateDB   = dbm.NewMemDB()
-		txResults = generateTxResults(t, 100)
-	)
+	t.Run("results found", func(t *testing.T) {
+		t.Parallel()
 
-	// Save the results
-	for _, txResult := range txResults {
-		saveTxResult(stateDB, txResult)
-	}
+		var (
+			stateDB   = dbm.NewMemDB()
+			txResults = generateTxResults(t, 100)
+		)
 
-	// Verify they are saved correctly
-	for _, txResult := range txResults {
-		dbResult, err := LoadTxResult(stateDB, txResult.Tx.Hash())
-		require.NoError(t, err)
+		// Save the results
+		for _, txResult := range txResults {
+			saveTxResult(stateDB, txResult)
+		}
 
-		assert.Equal(t, txResult, dbResult)
-	}
+		// Verify they are saved correctly
+		for _, txResult := range txResults {
+			dbResult, err := LoadTxResult(stateDB, txResult.Tx.Hash())
+			require.NoError(t, err)
+
+			assert.Equal(t, txResult, dbResult)
+		}
+	})
+
+	t.Run("results not found", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			stateDB   = dbm.NewMemDB()
+			txResults = generateTxResults(t, 10)
+		)
+
+		// Verify they are not present
+		for _, txResult := range txResults {
+			_, err := LoadTxResult(stateDB, txResult.Tx.Hash())
+
+			expectedErr := NoTxResultForHashError{
+				Hash: txResult.Tx.Hash(),
+			}
+
+			require.ErrorContains(t, err, expectedErr.Error())
+		}
+	})
+
+	t.Run("results corrupted", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			stateDB         = dbm.NewMemDB()
+			corruptedResult = "totally valid amino"
+			hash            = []byte("tx hash")
+		)
+
+		// Save the "corrupted" result to the DB
+		stateDB.SetSync(calcTxResultKey(hash), []byte(corruptedResult))
+
+		txResult, err := LoadTxResult(stateDB, hash)
+		require.Nil(t, txResult)
+
+		assert.ErrorIs(t, err, errTxResultCorrupted)
+	})
 }
