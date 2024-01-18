@@ -8,11 +8,11 @@ A realm refers to a specific instance of a smart contract that can be written
 in [Gnolang](./gno-language.md). The most important characteristics of realms are the following:
 
 * Realms are stateful
-* Realms can own assets ([coins](todo link concepts/coin))
-* Each realm is deployed under a unique package path, i.e. `gno.land/r/blog`, and also has a Gno 
+* Realms can own assets ([coins](./standard-library/coin.md))
+* Each realm is deployed under a unique package path, i.e. `gno.land/r/blog`, and also has a Gno
   address derived from it, i.e. `g1n2j0gdyv45aem9p0qsfk5d2gqjupv5z536na3d`
 * They are deployed with a package path beginning with `gno.land/r/`
-* Realms can import packages from `gno.land/p/demo/` to gain more functionality
+* Realms can import packages from `gno.land/p/` to gain more functionality
 * Realms can implement `Render(path string) string` to simplify dApp frontend development by allowing users to request
   markdown renderings from validators and full nodes without a transaction
 
@@ -26,16 +26,15 @@ transparency, and censorship resistance. Here are some ideas of what you can bui
 * Fair and accessible voting systems.
 * Logistics and supply chain networks. // todo add non-blockchain stuff? ie r/GH, twitter clone, svg generator, gnochess?
 
-Example realms can be found on the Gno monorepo in the [examples folder](https://github.com/gnolang/gno/tree/master/examples/gno.land/r), or on-chain, under the `gno.land/r/` path.
+Example realms can be found on the Gno.land monorepo in the [examples folder](https://github.com/gnolang/gno/tree/master/examples/gno.land/r), or on-chain, under the `gno.land/r/` path.
 
-// todo move to a new page? explain how to utilize arg path for muxing?
 A notable feature of realms is the `Render()` function.
 
 ```go
 package demo
 
 func Render(path string) string {
-	return "# Hello Gno!"
+  return "# Hello Gno!"
 }
 ```
 
