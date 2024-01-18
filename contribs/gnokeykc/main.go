@@ -14,10 +14,8 @@ import (
 func main() {
 	stdio := commands.NewDefaultIO()
 	wrappedio := &wrappedIO{IO: stdio}
-	baseCfg := client.BaseOptions{
-		Home:   gnoenv.HomeDir(),
-		Remote: "127.0.0.1:26657",
-	}
+	baseCfg := client.DefaultBaseOptions
+	baseCfg.Home = gnoenv.HomeDir()
 	cmd := client.NewRootCmdWithBaseConfig(wrappedio, baseCfg)
 	cmd.AddSubCommands(newKcCmd(stdio))
 
