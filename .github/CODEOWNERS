@@ -48,8 +48,8 @@ contribs/gnomd               @moul
 
 # Misc
 misc/*                       @gnolang/tech-staff
-misc/loop                    @moul @albttx
-misc/deployments             @moul @albttx
+misc/loop                    @moul @gnolang/devops
+misc/deployments             @moul @gnolang/devops
 misc/genstd                  @thehowl
 #...
 
