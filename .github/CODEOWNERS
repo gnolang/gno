@@ -40,12 +40,14 @@ gnovm/pkg/integration        @gfanton
 #gnovm/pkg/repl
 
 # Contribs
+contribs/*                   @gnolang/tech-staff
 contribs/gnodev              @gfanton
 contribs/gnokeykc            @moul
 contribs/gnomd               @moul
 #...
 
 # Misc
+misc/*                       @gnolang/tech-staff
 misc/loop                    @moul @albttx
 misc/deployments             @moul @albttx
 misc/genstd                  @thehowl
