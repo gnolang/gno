@@ -5,11 +5,11 @@
 
 # Tendermint2 (Gno version).
 tm2/*                        @gnolang/tech-staff
-tm2/pkg                      @jaekwon @piux2 @moul
+tm2/pkg                      @jaekwon @piux2 @moul @zivkovicmilos
 # TODO: add per package exceptions
 
 # Docs & Content.
-docs/                        @gnolang/devrels @gnolang/tech-staff
+docs/                        @gnolang/devrels
 misc/docusaurus/             @gnolang/devrels @gnolang/tech-staff
 # TODO: add non-tech people here.
 
@@ -18,7 +18,8 @@ examples/*                   @gnolang/tech-staff @gnolang/devrels
 # TODO: add people from the community here.
 
 # Gno.land.
-gno.land/*                   @moul @gnolang/tech-staff
+gno.land/*                   @moul
+gno.land/pkg/integration     @gfanton
 #...
 
 # GnoVM/Gnolang.
@@ -38,8 +39,9 @@ contribs/gnomd               @moul
 #...
 
 # Misc
-misc/loop                    @moul
-misc/deployments             @moul
+misc/loop                    @moul @albttx
+misc/deployments             @moul @albttx
+misc/genstd                  @thehowl
 #...
 
 # Special files.
