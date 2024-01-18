@@ -1,7 +1,6 @@
 package gnoclient
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -44,11 +43,10 @@ func TestClient_Request(t *testing.T) {
 
 	data, res, err := client.Render("gno.land/r/demo/boards", "")
 	require.NoError(t, err)
+	require.NotEmpty(t, data)
+
+	require.NotNil(t, res)
+	require.NotEmpty(t, res.Response.Data)
 
 	// XXX: need more test
-
-	// XXX: need validation
-	fmt.Println("data:", data)
-	fmt.Println("res: ", res)
-	require.FailNow(t, "forcing failure: replace this by a real test")
 }
