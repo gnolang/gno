@@ -61,4 +61,5 @@ PLAN.md                      @jaekwon @moul
 PHILOSOPHY.md                @jaekwon
 CONTRIBUTING.md              @jaekwon @moul @gnolang/tech-staff
 LICENSE.md                   @jaekwon
+.github/                     @moul @gnolang/tech-staff
 .github/CODEOWNERS           @jaekwon @moul
