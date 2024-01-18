@@ -4,9 +4,9 @@ import "fmt"
 
 type integer int
 
-func main() { // TODO: refer to 47a, this shoul be solved
-	// m(nil) is a conversion from nil to m, whose underlying type is map[string]int
-	// lv: (nil main.m), rv: (undefined)
+func main() { // TODO: same with 47a
+	// illegal conversion
+	// should not work
 	if integer(nil) == nil {
 		fmt.Println("integer is nil")
 	} else {

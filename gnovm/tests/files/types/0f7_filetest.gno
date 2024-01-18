@@ -13,11 +13,10 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
-// specil case:
+// special case:
 // one is interface
 func main() {
 	if errCmp == Error(1) {
-		//if errCmp == 1 {
 		println("what the firetruck?")
 	} else {
 		println("something else")

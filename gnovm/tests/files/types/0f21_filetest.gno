@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f21_filetest.gno:10: [2]main.f cannot be compared
+// main/files/types/0f21_filetest.gno:10: [2]main.f and [2]main.f cannot be compared

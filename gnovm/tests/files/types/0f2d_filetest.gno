@@ -14,13 +14,13 @@ func (e Error) Error() string {
 	return "error: " + strconv.Itoa(int(e))
 }
 
-// specil case:
+// special case:
 // one is interface
 func main() {
 	var e0 E
 	e0 = Error(0)
 	fmt.Printf("%T \n", e0)
-	if e0 == Error(0) { // this would not convert, errCmp is interface, refer to preprocess, line2526
+	if e0 == Error(0) {
 		println("what the firetruck?")
 	} else {
 		println("something else")

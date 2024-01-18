@@ -2152,26 +2152,25 @@ func assertEqualityCompatible(xt, dt Type) {
 	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage
 		debugPP.Println("primitive type, return true, fallthrough")
 	case *ArrayType: // NOTE: no recursive allowed
-		// TODO: check at least length here
 		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
 			switch cxt := baseOf(xt).(type) {
 			case *ArrayType:
-				if cxt.Len != cdt.Len {
+				if cxt.Len != cdt.Len { // check length
 					panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
 				}
 			default:
 				panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
 			}
 		default:
-			panic(fmt.Sprintf("%v cannot be compared \n", cdt))
+			panic(fmt.Sprintf("%v and %v cannot be compared \n", xt, cdt))
 		}
 	case *StructType:
 		for _, f := range cdt.Fields {
 			switch baseOf(f.Type).(type) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
 			default:
-				panic(fmt.Sprintf("%v cannot be compared \n", cdt))
+				panic(fmt.Sprintf("%v and %v cannot be compared \n", xt, cdt))
 			}
 		}
 	case *PointerType:

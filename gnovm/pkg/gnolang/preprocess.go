@@ -1039,7 +1039,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					case *ConstExpr:
 						// check legal type for nil
 						if arg0.IsUndefined() {
-							switch ct.Kind() { // special case for nil conversion check, TODO: refer to
+							switch ct.Kind() { // special case for nil conversion check. refer to 0f47a
 							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
 								dt = ct // convert nil to typed-nil
 							default:
@@ -2704,7 +2704,7 @@ const (
 // first, check is the dt type satisfies op;
 // second, check if xt can be converted to dt, this is done after checkOperandWithOp, in checkOrConvertType(),
 func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType) {
-	debugPP.Printf("checkOperandWithOp, dt: %v, op: %v, nt: %v \n", dt, op, nt)
+	debugPP.Printf("checkOperandWithOp, dt: %v,op: %v, nt: %v \n", dt, op, nt)
 	if nt == Unary || nt == IncDec {
 		switch nt {
 		case Unary:

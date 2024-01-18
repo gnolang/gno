@@ -8,7 +8,7 @@ type integer interface{}
 // ---BinaryExpr---, OP: EQL, lx: (const (undefined)), rx: (const (undefined)), lt: interface{}, rt: <nil>, isLeftConstExpr: true, isRightConstExpr true, isLeftUntyped: false, isRightUntyped: false
 func main() {
 	//println(integer(nil) == nil)
-	println(interface{}(nil) == nil)
+	println(interface{}(nil) == nil) // refer to convertConst and convertTo
 	fmt.Printf("%T \n", interface{}(nil))
 }
 

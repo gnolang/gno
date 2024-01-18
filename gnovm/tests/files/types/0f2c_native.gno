@@ -13,7 +13,7 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
-// specil case:
+// special case:
 // one is interface
 func main() {
 	if Error(0) < errCmp {
@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f2c_native.gno:19: operator < not defined on: gonative{error}
+// main/files/types/0f2c_native.gno:19: operator < not defined on: InterfaceKind

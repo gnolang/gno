@@ -13,7 +13,7 @@ func gen() error {
 	return nil
 }
 
-func main() {
+func main() { // about untyped nil to (interface{})typed-nil, no support for native for now.
 	r := gen()
 	testEql(r, error(nil))
 }

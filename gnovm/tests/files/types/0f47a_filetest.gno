@@ -3,7 +3,7 @@ package main
 type integer int
 
 func main() {
-	println(integer(nil)) // TODO: this should be a conversion error: cannot convert nil to type integer
+	println(integer(nil)) // preprocess, 1042
 }
 
 // Error:

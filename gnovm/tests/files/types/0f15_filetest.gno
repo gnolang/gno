@@ -7,7 +7,6 @@ func gen() interface{} {
 	return 1
 }
 
-// TODO: should stop at comparable check
 func main() {
 	a = [2]interface{}{gen(), gen()}
 	c = [2]interface{}{gen(), gen()}

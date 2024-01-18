@@ -1,17 +1,5 @@
 package main
 
-import (
-	"strconv"
-)
-
-type Error int8
-
-func (e Error) Error() string {
-	return "error: " + strconv.Itoa(int(e))
-}
-
-// left is untyped const, right is not const
-
 var a int8
 
 func main() {
