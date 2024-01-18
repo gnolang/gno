@@ -2,7 +2,7 @@ package gnolang
 
 import "fmt"
 
-// here are a range of rules predefines for preprocessor to check the compatibility between operands and operators
+// here are a range of rules predefined for preprocessor to check the compatibility between operands and operators
 // e,g. for binary expr x + y, x, y can only be numeric or string, 1+2, "a" + "b"
 // this is used in checkOperandWithOp().
 var (

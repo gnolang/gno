@@ -2132,11 +2132,8 @@ func assertAssignable(lt, rt Type) {
 }
 
 // assertComparable is used in preprocess.
-// The logic here is, when != or == shows up, check if `dt` is equalilty eval compatible.
-// indicates operand with dt can be used as with == or !=). if this check pass,
-// then check the corresponding type(the other side of the operator) is convertable to t.
-// this is located in checkOrConvertType->checkConvertable stage.
-// so, checkOperandWithOp is working as a pre-check.
+// assert value with dt is comparable
+// special case when both typed, check if type identical
 func assertComparable(xt, dt Type) {
 	debugPP.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
 	switch cdt := baseOf(dt).(type) {
@@ -2173,7 +2170,7 @@ func assertComparable(xt, dt Type) {
 		if !cdt.Type.Comparable() {
 			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
-	case nil: // refer to 0a01_filetest, 0f32_filetest.
+	case nil: // refer to 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
 		assertMaybeNil("invalid operation, nil can not be compared to", xt)
 	default:
 		panic(fmt.Sprintf("%v is not comparable \n", dt))
@@ -2220,17 +2217,12 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		return
 	}
 	// case3
-	// if xt or dt is empty interface, checkAssignable
-	// if no empty interface, then check if xt satisfied dt
 	if dt.Kind() == InterfaceKind {
-		debugPP.Println("dt is interface")
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
-				debugPP.Println("dt is empty interface")
 				// if dt is an empty Gno interface, any x ok.
 				return // ok
 			} else if idt.IsImplementedBy(xt) {
-				debugPP.Println("dt is implemented by xt")
 				// if dt implements idt, ok.
 				return // ok
 			} else {
@@ -2331,8 +2323,8 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					dt.String()))
 			} else {
 				// carry on with baseOf(dxt)
-				xt = dxt.Base // set as base to do the rest check
-				conversionNeeded = true
+				xt = dxt.Base           // set as base to do the rest check
+				conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
@@ -2350,11 +2342,10 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		} else {
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
-			conversionNeeded = true
+			conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
 		}
 	}
 
-	// case 1 plus composite part
 	// General cases.
 	switch cdt := dt.(type) {
 	case PrimitiveType: // case 1

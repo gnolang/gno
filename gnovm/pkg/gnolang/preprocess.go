@@ -790,13 +790,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else if cmp == 0 {
 								debugPP.Println("cmp == 0")
 								// to typed-nil. refer to 0f46
-								if lcx.T == nil {
+								if lcx.T == nil { // TODO: make nil check happen in cmpSpecificity
 									checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 								} else if rcx.T == nil {
 									checkOperandWithOp(store, last, &n.Right, lcx.T, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
-								} else { // default case
+								} else { // default case, e.g. int(1) == int8(1), will also conduct type check
 									checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 								}
@@ -819,7 +819,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						debugPP.Printf("const evaluated: %v \n", cx)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) { // untyped -> not const
-						debugPP.Printf("left: %v is untyped const, right: %v is not const \n", lt, rt)
 						// Left untyped const, Right not const ----------------
 						if rnt, ok := rt.(*NativeType); ok { // untyped -> gno(native) TODO: check this case
 							if isShift { // RHS of shift should not be native
@@ -860,12 +859,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						}
-					} else { // left is typed const, right is not const(also typed), and not nil
-						if !isShift { // ? dir makes sense here, since non-const(right) implies more dynamic(interface)
-							// TODO: check if right untyped
-							if isUntyped(rt) {
+					} else { // left is typed const, right not const
+						if !isShift {
+							if isUntyped(rt) { // refer to 0_d.gno
 								checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
-								// the other way round should work too
 								checkOrConvertType(store, last, &n.Right, lt, false, false)
 							} else {
 								checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
@@ -905,20 +902,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if rcx.T == nil { // RHS is nil
-						// no need to check lhs here since if rhs type is nil, it would fail earlier
 						debugPP.Println("rcx.T == nil ") // refer to 0f20_filetest
-						//if lnt, ok := lt.(*NativeType); ok {
-						//	if ilnt, ok := baseOf(lnt).(*InterfaceType); ok {
-						//		checkOperandWithOp(store, last, &n.Right, ilnt, n.Op, Binary)
-						//		checkOrConvertType(store, last, &n.Right, ilnt, false)
-						//	}
-						//}
-						// in case of rcx.T == nil(untyped nil), require lt is maybeNil
 						checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false, false)
 					} else if !isShift { // left not const(typed), right is typed const, both typed
-						// TODO: if left untyped?
-						if isUntyped(lt) {
+						if isUntyped(lt) { // refer to 0_d.gno
 							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						} else {
@@ -937,7 +925,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if lnt, ok := lt.(*NativeType); ok {
 							if debug {
 								if !isShift {
-									assertSameTypes(lt, rt) // TODO: what is this for? possible untyped?
+									assertAssignable(lt, rt)
 								}
 							}
 							// If left and right are native type,
@@ -993,7 +981,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Right, lt, false, false)
 								}
-							} else { // both typed vars, refer to 0a1f_filetest
+							} else { // both typed, refer to 0a1f
 								if !isShift {
 									debugPP.Println("---both typed")
 									cmp := cmpSpecificity(lt, rt)
@@ -1748,19 +1736,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Special case if shift assign <<= or >>=.
 						convertConstType(store, last, &n.Rhs[0], UintType, false) // bypass check
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
-						checkOperandWithOp(store, last, &n.Lhs[0], lt, n.Op, Assign)
+						checkOperandWithOp(store, last, &n.Lhs[0], lt, n.Op, XAssign)
 					} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 						// e.g. a += b, single value for lhs and rhs,
 						// TODO: assert length
 						lt := evalStaticTypeOf(store, last, n.Lhs[0])
 						// a += b, requires b -> a conversion
-						checkOperandWithOp(store, last, &n.Rhs[0], lt, n.Op, Assign)
+						checkOperandWithOp(store, last, &n.Rhs[0], lt, n.Op, XAssign)
 						checkOrConvertType(store, last, &n.Rhs[0], lt, true, false)
 					} else { // all else, like BAND_ASSIGN, etc
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
 							lt := evalStaticTypeOf(store, last, lx)
-							checkOperandWithOp(store, last, &n.Rhs[i], lt, n.Op, Assign)
+							if n.Op != ASSIGN { // filter out =
+								checkOperandWithOp(store, last, &n.Rhs[i], lt, n.Op, XAssign)
+							}
 							// if lt is interface, nothing will happen
 							checkOrConvertType(store, last, &n.Rhs[i], lt, true, false)
 						}
@@ -2662,7 +2652,7 @@ const (
 	Binary = iota
 	Unary
 	IncDec
-	Assign
+	XAssign
 )
 
 // checkOperandWithOp works as a pre-check prior to checkOrConvertType()
@@ -2671,9 +2661,6 @@ const (
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 
-// there are two steps of check:
-// first, check is the dt type satisfies op;
-// second, check if xt can be converted to dt, this is done after checkOperandWithOp, in checkOrConvertType(),
 func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType) {
 	debugPP.Printf("checkOperandWithOp, dt: %v,op: %v, nt: %v \n", dt, op, nt)
 	if nt == Unary || nt == IncDec {
@@ -2687,6 +2674,8 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 					}
 				}
+			} else {
+				panic("should not happen")
 			}
 		case IncDec:
 			if pred, ok := IncDecStmtChecker[op]; ok {
@@ -2697,6 +2686,8 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 					}
 				}
+			} else {
+				panic("should not happen")
 			}
 		default:
 			panic("should not happen")
@@ -2713,9 +2704,6 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 			if isComparison(op) {
 				switch op {
 				case EQL, NEQ:
-					// NOTE: not checking types strict identical here, unlike ADD, etc.
-					// this will pass the case of lhs is interface and rhs implements this interface, vice versa.
-					// as for the general case int(1) == int(8), the work is left to checkOrConvertType -> checkAssignable
 					assertComparable(xt, dt)
 				case LSS, LEQ, GTR, GEQ:
 					if pred, ok := binaryChecker[op]; ok {
@@ -2726,6 +2714,8 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 							}
 						}
+					} else {
+						panic("should not happen")
 					}
 				default:
 					panic("invalid comparison operator")
@@ -2739,6 +2729,8 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
 						}
 					}
+				} else {
+					panic("should not happen")
 				}
 				switch op {
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
@@ -2754,7 +2746,7 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 					// do nothing
 				}
 			}
-		case Assign:
+		case XAssign:
 			if pred, ok := AssignStmtChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
@@ -2776,6 +2768,8 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				default:
 					// do nothing
 				}
+			} else {
+				panic("should not happen")
 			}
 		default:
 			panic("should not happen")
