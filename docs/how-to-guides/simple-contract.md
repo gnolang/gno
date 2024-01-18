@@ -21,7 +21,7 @@ Our _Counter_ Realm will have the following functionality:
 - **Text editor**
 
 :::info Editor support
-The Gno language is based on Golang, but it does not have all the bells and whistles in major text editors like Go.
+The Gno language is based on Go, but it does not have all the bells and whistles in major text editors like Go.
 Advanced language features like IntelliSense are still in the works.
 
 Currently, we officially have language support
