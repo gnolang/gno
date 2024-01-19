@@ -93,7 +93,7 @@ services:
 
   watchtower:
     image: containrrr/watchtower
-    command: --interval 30 --http-api-metrics
+    command: --interval 30 --http-api-metrics --label-enable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
