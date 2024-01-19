@@ -116,7 +116,7 @@ func (s *service) execServe(ctx context.Context, args []string) error {
 		if err != nil {
 			logrus.WithError(err).Error()
 		}
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 120)
 	}
 }
 
