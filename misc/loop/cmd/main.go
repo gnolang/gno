@@ -164,21 +164,21 @@ func (s *service) execBackup(ctx context.Context, args []string) error {
 }
 
 func (s *service) startPortalLoop(ctx context.Context, force bool) error {
-	logrus.Info("Starting the Portal Loop")
+	l := logrus.WithFields(logrus.Fields{})
 
 	// 1. Pull latest docker image
 	isNew, err := s.portalLoop.pullLatestImage(ctx)
 	if err != nil {
 		return err
 	}
-	logrus.WithField("is_new", isNew).Info("Pulled latest image")
+	l.WithField("is_new", isNew).Info("Starting the Portal Loop")
 
 	// 2. Get existing portal loop
 	containers, err := s.portalLoop.getPortalLoopContainers(ctx)
 	if err != nil {
 		return err
 	}
-	logrus.WithField("containers", containers).Info("Get containers")
+	l.WithField("containers", containers).Info("Get containers")
 
 	if len(containers) == 0 {
 		logrus.Info("No portal loop instance found, starting one")
@@ -207,13 +207,17 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 		}
 	}
 
-	logrus.Info("Current Portal Loop is running on : ", s.portalLoopURL)
+	l = l.WithFields(logrus.Fields{
+		"portal.url": s.portalLoopURL,
+	})
+	l.Info("Current portal loop")
 
 	// 3. Check if there is a new image
 	if !isNew && !force {
 		return nil
 	}
 
+	l.Info("Set read only mode")
 	// 4. Set traefik in READ ONLY mode
 	err = s.portalLoop.switchTraefikMode(setReadOnly)
 	if err != nil {
@@ -221,12 +225,14 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 	}
 
 	defer func() {
+		l.Info("Unset read only mode")
 		err = s.portalLoop.switchTraefikMode(unsetReadOnly)
 		if err != nil {
 			logrus.WithError(err).Error()
 		}
 	}()
 
+	l.Info("Backup txs")
 	// 5. Backup TXs
 	err = s.portalLoop.backupTXs(ctx)
 	if err != nil {
@@ -244,6 +250,10 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 			break
 		}
 	}
+	l = l.WithFields(logrus.Fields{
+		"new_portal.url": s.portalLoopURL,
+	})
+	l.Info("setup new portal loop")
 
 	// 7. Wait 5 blocks new portal loop to be ready
 	now := time.Now()
@@ -273,6 +283,8 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 			if err != nil {
 				return err
 			}
+			l.WithField("new_portal.current_block", currentBlock)
+
 			if currentBlock >= 5 {
 				return nil
 			}
@@ -288,6 +300,7 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 		time.Sleep(time.Second * 2)
 	}
 
+	l.Info("update traefik portal loop url")
 	// 8. Update traefik portal loop rpc url
 	if err := s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL); err != nil {
 		return err
@@ -295,6 +308,10 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 
 	// 9. Remove old portal loop
 	for _, c := range containers {
+		l.WithFields(logrus.Fields{
+			"container.id":    c.ID,
+			"container.ports": c.Ports,
+		}).Infof("remove container")
 		err = s.portalLoop.dockerClient.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{
 			Force:         true,  // Force the removal of a running container
 			RemoveVolumes: true,  // Remove the volumes associated with the container
