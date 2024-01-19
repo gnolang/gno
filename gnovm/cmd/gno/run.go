@@ -16,9 +16,11 @@ import (
 )
 
 type runCfg struct {
-	verbose bool
-	rootDir string
-	expr    string
+	verbose   bool
+	rootDir   string
+	expr      string
+	debug     bool
+	debugAddr string
 }
 
 func newRunCmd(io commands.IO) *commands.Command {
@@ -58,6 +60,20 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		"main()",
 		"value of expression to evaluate. Defaults to executing function main() with no args",
 	)
+
+	fs.BoolVar(
+		&c.debug,
+		"debug",
+		false,
+		"enable interactive debugger using stdin and stdout",
+	)
+
+	fs.StringVar(
+		&c.debugAddr,
+		"debug-addr",
+		"",
+		"enable interactive debugger using tcp address in the form [host]:port",
+	)
 }
 
 func execRun(cfg *runCfg, args []string, io commands.IO) error {
@@ -96,9 +112,11 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	}
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: string(files[0].PkgName),
-		Output:  stdout,
-		Store:   testStore,
+		PkgPath:   string(files[0].PkgName),
+		Output:    stdout,
+		Store:     testStore,
+		Debug:     cfg.debug || cfg.debugAddr != "",
+		DebugAddr: cfg.debugAddr,
 	})
 
 	defer m.Release()

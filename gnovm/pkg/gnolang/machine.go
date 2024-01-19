@@ -36,6 +36,8 @@ type Machine struct {
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
 
+	Debugger
+
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
@@ -66,6 +68,8 @@ type MachineOptions struct {
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
+	Debug         bool
+	DebugAddr     string // debugger io stream address (stdin/stdout if empty)
 	Output        io.Writer
 	Store         Store
 	Context       interface{}
@@ -125,6 +129,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
+	mm.DebugEnabled = opts.Debug
+	mm.DebugAddr = opts.DebugAddr
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -1020,6 +1026,9 @@ const (
 
 func (m *Machine) Run() {
 	for {
+		if m.DebugEnabled {
+			m.Debug()
+		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
