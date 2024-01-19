@@ -11,9 +11,15 @@ type Simple struct {
 	maxValues int
 }
 
+func NewSimple(maxValues int) *Simple {
+	return &Simple{
+		maxValues: maxValues,
+	}
+}
+
 func (s *Simple) Put(value string) {
 	s.values = append(s.values, feed.Value{String: value, Time: time.Now()})
-	if len(s.values) > s.maxValues {
+	if len(s.values) > s.maxValues && !(len(s.values) == 1 && s.maxValues == 0) {
 		s.values = s.values[1:]
 	}
 }

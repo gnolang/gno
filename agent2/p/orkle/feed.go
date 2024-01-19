@@ -11,4 +11,6 @@ type Feed interface {
 	Value() (value feed.Value, dataType string, consumable bool)
 	Ingest(funcType message.FuncType, rawMessage, providerAddress string)
 	MarshalJSON() ([]byte, error)
+	HasAddressWhitelisted(address string) (isWhitelisted, feedHasWhitelist bool)
+	Tasks() []feed.Task
 }
