@@ -46,7 +46,7 @@ services:
       - --faucet-url
       - "http://localhost:9000"
       - --help-chainid
-      - dev
+      - portal-loop
       - --help-remote
       - https://rpc.portal.gno.land:443
     extra_hosts:

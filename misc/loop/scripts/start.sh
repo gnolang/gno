@@ -4,6 +4,8 @@ MONIKER=${MONIKER:-"gnode"}
 P2P_LADDR=${P2P_LADDR:-"tcp://0.0.0.0:26656"}
 RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 
+CHAIN_ID=${CHAIN_ID:-"portal-loop"}
+
 GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
 
 SEEDS=${SEEDS:-""}
@@ -12,6 +14,7 @@ PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 cat ${GENESIS_BACKUP_FILE} >> /opt/gno/src/gno.land/genesis/genesis_txs.txt
 
 gnoland start \
+    --chainid="${CHAIN_ID}" \
     --skip-start=true \
     --skip-failing-genesis-txs
 
