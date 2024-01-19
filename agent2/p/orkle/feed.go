@@ -13,4 +13,5 @@ type Feed interface {
 	MarshalJSON() ([]byte, error)
 	HasAddressWhitelisted(address string) (isWhitelisted, feedHasWhitelist bool)
 	Tasks() []feed.Task
+	IsActive() bool
 }

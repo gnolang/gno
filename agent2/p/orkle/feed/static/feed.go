@@ -142,3 +142,7 @@ func (f *Feed) HasAddressWhitelisted(address string) (isWhitelisted, feedHasWhit
 func (f *Feed) Tasks() []feed.Task {
 	return f.tasks
 }
+
+func (f *Feed) IsActive() bool {
+	return !f.isLocked
+}

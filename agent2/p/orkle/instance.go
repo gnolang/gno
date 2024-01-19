@@ -129,7 +129,12 @@ func (i *Instance) GetFeedDefinitions(forAddress string) string {
 	i.feeds.Iterate("", "", func(_ string, value interface{}) bool {
 		feed, ok := value.(Feed)
 		if !ok {
-			panic("invalid task type")
+			panic("invalid feed type")
+		}
+
+		// Don't give agents the ability to try to publish to inactive feeds.
+		if !feed.IsActive() {
+			return true
 		}
 
 		// Skip feeds the address is not whitelisted for.
