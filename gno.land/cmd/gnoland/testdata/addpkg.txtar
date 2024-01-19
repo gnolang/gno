@@ -3,21 +3,34 @@
 ## start a new node
 gnoland start
 
-## add bar.gno package located in $WORK directory as gno.land/r/foobar/bar
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## add hello.gno package located in $WORK directory as gno.land/r/hello
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
-## execute Render
-gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+## compare AddPkg
+cmp stdout stdout.addpkg.success
 
-## compare render
-stdout '("hello from foo" string)'
-stdout 'OK!'
-stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED:   [0-9]+'
 
--- bar.gno --
-package bar
+## execute SayHello
+gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000  -broadcast -chainid=tendermint_test test1
 
-func Render(path string) string {
- 	return "hello from foo"
+## compare SayHello
+cmp stdout stdout.call.success
+
+-- hello.gno --
+package hello
+
+func SayHello() string {
+ 	return "hello world!"
 }
+
+
+-- stdout.addpkg.success --
+
+OK!
+GAS WANTED: 2000000
+GAS USED:   117850
+-- stdout.call.success --
+("hello world!" string)
+OK!
+GAS WANTED: 2000000
+GAS USED:   66711

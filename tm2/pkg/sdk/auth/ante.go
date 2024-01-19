@@ -393,6 +393,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			if fgd == gpd {
 				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
 				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
+				// This is equivalent to checking
+				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
+				// This approach helps us avoid dealing with configurations where the value of
+				// the minimum gas price is set to 0.00001ugnot/gas.
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {

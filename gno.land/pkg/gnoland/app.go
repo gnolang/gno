@@ -60,6 +60,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
+	// TODO: Add a flag to set min gas prices for the node, by default it does not check.
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
@@ -131,7 +132,7 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, m
 	}
 
 	cfg.Logger = logger
-
+	cfg.SkipFailingGenesisTxs = skipFailingGenesisTxs
 	return NewAppWithOptions(cfg)
 }
 
