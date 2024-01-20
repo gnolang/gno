@@ -2330,7 +2330,7 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	} else if ddt, ok := dt.(*DeclaredType); ok {
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
-		if _, ok := xt.(PrimitiveType); ok {
+		if _, ok := xt.(PrimitiveType); ok { // e.g. 1 == Int(1)
 			debugPP.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {
@@ -2338,9 +2338,10 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					"cannot use %s as %s without explicit conversion",
 					xt.String(),
 					ddt.String()))
+			} else { // xt untyped, carry on with check below
+				dt = ddt.Base
 			}
 		} else {
-			// carry on with baseOf(ddt)
 			dt = ddt.Base
 			conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
 		}

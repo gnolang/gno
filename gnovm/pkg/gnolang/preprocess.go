@@ -2495,8 +2495,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// the reason why we need this is that the checkOperandWithOp() can not filter out all mismatch case,
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=).
 				// we still need a safeguard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
-				// It does not guarantee convertible, e.g. s1{foo: 1} == 1). (why this is considered as assignable and pass check?).
-				checkAssignable(cx.T, t, autoNative) // refer to 22a17a_filetest, check args
+				checkAssignable(cx.T, t, autoNative) // refer to 22a17a
 			}
 		}
 		convertConst(store, last, cx, t)
