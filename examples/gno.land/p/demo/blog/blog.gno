@@ -44,7 +44,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("<div class='columns-3'>")
-	b.PostsPublished.Iterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 		res.Write(post.RenderListItem())
 		return false
