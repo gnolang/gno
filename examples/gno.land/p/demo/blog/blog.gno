@@ -4,7 +4,6 @@ import (
 	"errors"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 
 	"std"
@@ -20,7 +19,6 @@ type Blog struct {
 	PostsPublished    avl.Tree // published-date -> *Post
 	PostsAlphabetical avl.Tree // title -> *Post
 	NoBreadcrumb      bool
-	PostIndex         seqid.ID
 }
 
 func (b Blog) RenderLastPostsWidget(limit int) string {
@@ -261,6 +259,7 @@ func (p *Post) RenderListItem() string {
 	return output
 }
 
+// Render post tags
 func (p *Post) RenderTagList() string {
 	if p == nil {
 		return "error: no such post\n"
@@ -276,9 +275,11 @@ func (p *Post) RenderTagList() string {
 	return output
 }
 
+// Render authors if there are any
 func (p *Post) RenderAuthorList() string {
-	out := "Written by: "
+	out := ""
 	if p.Authors != nil {
+		out = "Written by: "
 		for idx, author := range p.Authors {
 			out += author
 			if idx < len(p.Authors)-1 {
