@@ -21,6 +21,30 @@ type CallCfg struct {
 	Memo           string   // Memo
 }
 
+// type MsgCall struct {
+//	Caller  crypto.Address `json:"caller" yaml:"caller"`
+//	Send    std.Coins      `json:"send" yaml:"send"`
+//	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+//	Func    string         `json:"func" yaml:"func"`
+//	Args    []string       `json:"args" yaml:"args"`
+//}
+
+// MultiCallCfg contains configuration options for executing a contract call.
+type MultiCallCfg struct {
+	// Per MsgCall
+	PkgPath  string   // Package path
+	FuncName string   // Function name
+	Args     []string // Function arguments
+	Send     string   // Send amount
+
+	// Per TX
+	GasFee         string // Gas fee
+	GasWanted      int64  // Gas wanted
+	AccountNumber  uint64 // Account number
+	SequenceNumber uint64 // Sequence number
+	Memo           string // Memo
+}
+
 // Call executes a contract call on the blockchain.
 func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
@@ -76,6 +100,77 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		Fee:        std.NewFee(gasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       memo,
+	}
+
+	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+}
+
+// MultiCall executes a contract call on the blockchain.
+func (c *Client) MultiCall(cfgs []CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, errors.Wrap(err, "validate signer")
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, errors.Wrap(err, "validate RPC client")
+	}
+
+	sequenceNumber := cfg.SequenceNumber
+	accountNumber := cfg.AccountNumber
+
+	var gasWanted int64
+	var gasFee string
+	gasFeeCoins, err := std.ParseCoin(gasFee)
+
+	var msgs []vm.MsgCall
+
+	for _, cfg := range cfgs {
+		pkgPath := cfg.PkgPath
+		funcName := cfg.FuncName
+		args := cfg.Args
+		send := cfg.Send
+
+		// Validate config.
+		if pkgPath == "" {
+			return nil, errors.New("missing PkgPath")
+		}
+		if funcName == "" {
+			return nil, errors.New("missing FuncName")
+		}
+
+		// Parse send amount.
+		sendCoins, err := std.ParseCoins(send)
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing send coins")
+		}
+
+		if err != nil {
+			return nil, errors.Wrap(err, "parsing gas fee coin")
+		}
+
+		caller := c.Signer.Info().GetAddress()
+
+		// Construct message & transaction and marshal.
+		msgs = append(msgs, vm.MsgCall{
+			Caller:  caller,
+			Send:    sendCoins,
+			PkgPath: pkgPath,
+			Func:    funcName,
+			Args:    args,
+		})
+
+	}
+
+	stdMsgs := make([]std.Msg, len(msgs))
+	for i, msg := range msgs {
+		stdMsgs[i] = msg
+	}
+
+	tx := std.Tx{
+		Msgs:       stdMsgs,
+		Fee:        std.NewFee(gasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       "",
 	}
 
 	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
