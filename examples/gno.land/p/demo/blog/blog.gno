@@ -66,19 +66,12 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
-	if !b.NoBreadcrumb {
-		breadStr := breadcrumb([]string{
-			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-			"p",
-			p.Title,
-		})
-		res.Write(breadStr)
-	}
-
-	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
 	res.Write(p.Body + "\n\n")
+	res.Write("---\n\n")
+
 	res.Write(p.RenderTagList() + "\n\n")
-	res.Write(formatAuthorAndDate(p.Author, p.CreatedAt) + "\n\n")
+	res.Write(p.RenderAuthorList() + "\n\n")
+	res.Write(p.RenderPublishData() + "\n\n")
 
 	// comments
 	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
@@ -128,19 +121,32 @@ func (b Blog) Render(path string) string {
 	return router.Render(path)
 }
 
-func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
+func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
 	_, found := b.Posts.Get(slug)
 	if found {
-		return errors.New("slug already exists.")
+		return errors.New("slug already exists")
+	}
+
+	var parsedTime time.Time
+	var err error
+	if pubDate != "" {
+		parsedTime, err = time.Parse(time.RFC3339, pubDate)
+		if err != nil {
+			return err
+		}
+	} else {
+		// If no publication date was passed in by caller, take current block time
+		parsedTime = time.Now()
 	}
 
 	post := Post{
-		Author:    author,
+		Publisher: publisher,
+		Authors:   authors,
 		Slug:      slug,
 		Title:     title,
 		Body:      body,
 		Tags:      tags,
-		CreatedAt: time.Now(),
+		CreatedAt: parsedTime,
 	}
 	return b.prepareAndSetPost(&post)
 }
@@ -150,24 +156,23 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Body = strings.TrimSpace(post.Body)
 
 	if post.Title == "" {
-		return errors.New("title is missing.")
+		return errors.New("title is missing")
 	}
 	if post.Body == "" {
-		return errors.New("body is missing.")
+		return errors.New("body is missing")
 	}
 	if post.Slug == "" {
-		return errors.New("slug is missing.")
+		return errors.New("slug is missing")
 	}
-	// more input sanitization?
 
 	post.Blog = b
 	post.UpdatedAt = post.CreatedAt
 
 	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
-	pubDateKey := makePubDate(post.CreatedAt, int64(b.PostIndex.Next()))
+	pubDateKey := post.CreatedAt.Format(time.RFC3339)
+
 	b.PostsAlphabetical.Set(trimmedTitleKey, post)
 	b.PostsPublished.Set(pubDateKey, post)
-
 	b.Posts.Set(post.Slug, post)
 
 	return nil
@@ -189,7 +194,8 @@ type Post struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	Comments     avl.Tree
-	Author       std.Address
+	Authors      []string
+	Publisher    std.Address
 	Tags         []string
 	CommentIndex int
 }
@@ -259,7 +265,7 @@ func (p *Post) RenderTagList() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := ""
+	output := "Tags: "
 	for idx, tag := range p.Tags {
 		if idx > 0 {
 			output += " "
@@ -268,6 +274,29 @@ func (p *Post) RenderTagList() string {
 		output += ufmt.Sprintf("[#%s](%s)", tag, tagURL)
 	}
 	return output
+}
+
+func (p *Post) RenderAuthorList() string {
+	out := "Written by: "
+	if p.Authors != nil {
+		for idx, author := range p.Authors {
+			out += author
+			if idx < len(p.Authors)-1 {
+				out += ", "
+			}
+		}
+	}
+
+	return out
+}
+
+func (p *Post) RenderPublishData() string {
+	out := "Published on "
+	out += p.CreatedAt.Format("02 Jan 2006") + " "
+	out += "by " + p.Publisher.String() + " "
+	out += "to " + p.Blog.Title
+
+	return out
 }
 
 func (p *Post) URL() string {
@@ -298,15 +327,9 @@ type Comment struct {
 }
 
 func (c Comment) RenderListItem() string {
-	output := ""
-	output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
+	output := "" // todo see where it is used
+	//output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
 	output += c.Comment + "\n"
 	output += "\n"
 	return output
-}
-
-func formatAuthorAndDate(author std.Address, createdAt time.Time) string {
-	authorString := author.String() // FIXME: username.
-	createdAtString := createdAt.Format("2006-01-02 3:04pm MST")
-	return ufmt.Sprintf("by %s on %s", authorString, createdAtString)
 }

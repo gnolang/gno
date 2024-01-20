@@ -40,5 +40,5 @@ Rendered by Gno.
 - Engage in workshops.
 - Connect and have fun with colleagues.
 `
-	_ = b.NewPost(adminAddr, path, title, body, []string{"demo", "portal-loop", "miami"})
+	_ = b.NewPost(adminAddr, path, title, body, "", nil, []string{"demo", "portal-loop", "miami"})
 }

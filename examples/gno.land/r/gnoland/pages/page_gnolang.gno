@@ -39,5 +39,5 @@ Using Gno, developers can rapidly accelerate application development and adopt a
 
 The Go language is so well designed that the Gno smart contract system will become the new gold standard for smart contract development and other blockchain applications. As a programming language that is universally adopted, secure, composable, and complete, Gno is essential for the broader adoption of web3 and its sustainable growth.`
 	)
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "", nil, nil)
 }

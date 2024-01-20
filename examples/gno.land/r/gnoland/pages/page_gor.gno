@@ -217,5 +217,5 @@ Game of Realms participants and core contributors have made significant progress
 </div>
 <!-- /mailchimp -->
 `
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "", nil, nil)
 }

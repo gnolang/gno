@@ -7,5 +7,5 @@ func init() {
 		// XXX: description = """
 		body = `Lorem Ipsum`
 	)
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "", nil, nil)
 }

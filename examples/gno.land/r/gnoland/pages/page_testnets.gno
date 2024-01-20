@@ -15,5 +15,5 @@ func init() {
 
 See CONTRIBUTING.md on GitHub.
 `
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "", nil, nil)
 }
