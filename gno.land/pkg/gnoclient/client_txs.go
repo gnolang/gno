@@ -28,7 +28,6 @@ type CallCfg struct {
 
 // MultiCallCfg contains configuration options for executing a contract call.
 type MultiCallCfg struct {
-	// Per MsgCall
 	Msgs []MsgCall
 
 	// Per Tx
