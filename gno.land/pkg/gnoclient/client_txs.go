@@ -8,36 +8,30 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// CallCfg contains configuration options for executing a contract call.
-type CallCfg struct {
-	PkgPath        string   // Package path
-	FuncName       string   // Function name
-	Args           []string // Function arguments
-	GasFee         string   // Gas fee
-	GasWanted      int64    // Gas wanted
-	Send           string   // Send amount
-	AccountNumber  uint64   // Account number
-	SequenceNumber uint64   // Sequence number
-	Memo           string   // Memo
-}
-
-// type MsgCall struct {
-//	Caller  crypto.Address `json:"caller" yaml:"caller"`
-//	Send    std.Coins      `json:"send" yaml:"send"`
-//	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-//	Func    string         `json:"func" yaml:"func"`
-//	Args    []string       `json:"args" yaml:"args"`
-//}
-
-// MultiCallCfg contains configuration options for executing a contract call.
-type MultiCallCfg struct {
-	// Per MsgCall
+// MsgCall - syntax sugar for vm.MsgCall
+type MsgCall struct {
 	PkgPath  string   // Package path
 	FuncName string   // Function name
 	Args     []string // Function arguments
 	Send     string   // Send amount
+}
 
-	// Per TX
+// CallCfg contains configuration options for executing a contract call.
+type CallCfg struct {
+	MsgCall
+	GasFee         string // Gas fee
+	GasWanted      int64  // Gas wanted
+	AccountNumber  uint64 // Account number
+	SequenceNumber uint64 // Sequence number
+	Memo           string // Memo
+}
+
+// MultiCallCfg contains configuration options for executing a contract call.
+type MultiCallCfg struct {
+	// Per MsgCall
+	Msgs []MsgCall
+
+	// Per Tx
 	GasFee         string // Gas fee
 	GasWanted      int64  // Gas wanted
 	AccountNumber  uint64 // Account number
@@ -106,7 +100,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 }
 
 // MultiCall executes a contract call on the blockchain.
-func (c *Client) MultiCall(cfgs []CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, errors.Wrap(err, "validate signer")
@@ -118,17 +112,12 @@ func (c *Client) MultiCall(cfgs []CallCfg) (*ctypes.ResultBroadcastTxCommit, err
 	sequenceNumber := cfg.SequenceNumber
 	accountNumber := cfg.AccountNumber
 
-	var gasWanted int64
-	var gasFee string
-	gasFeeCoins, err := std.ParseCoin(gasFee)
-
 	var msgs []vm.MsgCall
-
-	for _, cfg := range cfgs {
-		pkgPath := cfg.PkgPath
-		funcName := cfg.FuncName
-		args := cfg.Args
-		send := cfg.Send
+	for _, msg := range cfg.Msgs {
+		pkgPath := msg.PkgPath
+		funcName := msg.FuncName
+		args := msg.Args
+		send := msg.Send
 
 		// Validate config.
 		if pkgPath == "" {
@@ -150,7 +139,6 @@ func (c *Client) MultiCall(cfgs []CallCfg) (*ctypes.ResultBroadcastTxCommit, err
 
 		caller := c.Signer.Info().GetAddress()
 
-		// Construct message & transaction and marshal.
 		msgs = append(msgs, vm.MsgCall{
 			Caller:  caller,
 			Send:    sendCoins,
@@ -166,9 +154,15 @@ func (c *Client) MultiCall(cfgs []CallCfg) (*ctypes.ResultBroadcastTxCommit, err
 		stdMsgs[i] = msg
 	}
 
+	// Parse gas wanted & fee.
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing gas fee coin")
+	}
+
 	tx := std.Tx{
 		Msgs:       stdMsgs,
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       "",
 	}
