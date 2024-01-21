@@ -148,6 +148,7 @@ func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, e
 
 	}
 
+	// Cast vm.MsgCall back into std.Msg
 	stdMsgs := make([]std.Msg, len(msgs))
 	for i, msg := range msgs {
 		stdMsgs[i] = msg
@@ -159,6 +160,7 @@ func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, e
 		return nil, errors.Wrap(err, "parsing gas fee coin")
 	}
 
+	// Pack transaction
 	tx := std.Tx{
 		Msgs:       stdMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
