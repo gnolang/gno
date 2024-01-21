@@ -111,7 +111,7 @@ func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, e
 	sequenceNumber := cfg.SequenceNumber
 	accountNumber := cfg.AccountNumber
 
-	var msgs []vm.MsgCall
+	msgs := make([]vm.MsgCall, 0, len(cfg.Msgs))
 	for _, msg := range cfg.Msgs {
 		pkgPath := msg.PkgPath
 		funcName := msg.FuncName
@@ -145,7 +145,6 @@ func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, e
 			Func:    funcName,
 			Args:    args,
 		})
-
 	}
 
 	// Cast vm.MsgCall back into std.Msg
