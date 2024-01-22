@@ -21,7 +21,7 @@ type Config struct {
 	// Top level options use an anonymous struct
 	BaseConfig `toml:",squash"`
 
-	// Option for services
+	// Options for services
 	RPC          *rpc.RPCConfig       `toml:"rpc" comment:"##### rpc server configuration options #####"`
 	P2P          *p2p.P2PConfig       `toml:"p2p" comment:"##### peer to peer configuration options #####"`
 	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
