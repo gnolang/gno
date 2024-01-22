@@ -108,14 +108,14 @@ comment2
 
 	// edit post.
 	{
-		ModEditPost("slug2", "title2++", "body2++", "tag1,tag4")
+		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred ", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `
 # [Gnoland's Blog](/r/gnoland/blog:) / p / title2++
 
 body2++
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
+[#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)	
 
 by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 

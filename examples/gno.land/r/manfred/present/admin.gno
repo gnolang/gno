@@ -49,11 +49,13 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, tags string) {
+func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.GetPost(slug).Update(title, body, tagList)
+	authorList := strings.Split(authors, ",")
+
+	err := b.GetPost(slug).Update(title, body, publicationDate, authorList, tagList)
 	checkErr(err)
 }
 

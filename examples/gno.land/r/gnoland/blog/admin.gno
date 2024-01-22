@@ -17,8 +17,8 @@ var (
 func init() {
 	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
 	//adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // mafnred
-	//adminAddr = "g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de" // dev
-	adminAddr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // test1
+	adminAddr = "g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de" // dev
+	//adminAddr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // test1
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -52,11 +52,13 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, tags string) {
+func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.GetPost(slug).Update(title, body, tagList)
+	authorList := strings.Split(authors, ",")
+
+	err := b.GetPost(slug).Update(title, body, publicationDate, authorList, tagList)
 	checkErr(err)
 }
 

@@ -164,7 +164,7 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	}
 
 	post.Blog = b
-	post.UpdatedAt = post.CreatedAt
+	post.UpdatedAt = time.Now()
 
 	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
 	pubDateKey := post.CreatedAt.Format(time.RFC3339)
@@ -198,10 +198,18 @@ type Post struct {
 	CommentIndex int
 }
 
-func (p *Post) Update(title, body string, tags []string) error {
+func (p *Post) Update(title, body, publicationDate string, authors, tags []string) error {
 	p.Title = title
 	p.Body = body
 	p.Tags = tags
+	p.Authors = authors
+
+	parsedTime, err := time.Parse(time.RFC3339, publicationDate)
+	if err != nil {
+		return err
+	}
+
+	p.CreatedAt = parsedTime
 	return p.Blog.prepareAndSetPost(p)
 }
 
