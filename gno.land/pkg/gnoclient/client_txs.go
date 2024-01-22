@@ -36,9 +36,6 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		return nil, errors.Wrap(err, "validate RPC client")
 	}
 
-	sequenceNumber := cfg.SequenceNumber
-	accountNumber := cfg.AccountNumber
-
 	msgs := make([]vm.MsgCall, 0, len(cfg.Msgs))
 	for _, msg := range cfg.Msgs {
 		// Validate config.
@@ -90,7 +87,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		Memo:       "",
 	}
 
-	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result.
