@@ -89,6 +89,7 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
+		lb := m.LastBlock()
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
@@ -117,7 +118,25 @@ func (m *Machine) doOpExec(op Op) {
 			bs.Active = next
 			s = next
 			goto EXEC_SWITCH
-		} else if bs.NextBodyIndex == bs.BodyLen {
+		} else if bs.NextBodyIndex == bs.BodyLen { // TODO: Update ts slice?
+			debugPP.Printf("---end of body, current block is: %v \n", m.LastBlock())
+			// update fv.Capture if value changed
+			if bs.isLoop {
+				if bs.Ts != nil {
+					for i, t := range bs.Ts.transient {
+						debugPP.Printf("ts[%d] name is %v, path: %v \n", i, t.nx.Name, t.nx.Path)
+						nvp := lb.Source.GetPathForName(m.Store, t.nx.Name)
+						ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+						tv := ptr.Deref()
+						debugPP.Printf("--- new tv : %v \n", tv)
+						//t.value = tv
+						// set back
+						bs.Ts.transient[i].values = append(bs.Ts.transient[i].values, tv)
+						debugPP.Printf("len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
+					}
+				}
+			}
+
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
@@ -517,6 +536,7 @@ EXEC_SWITCH:
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
+			isLoop:        true,
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)

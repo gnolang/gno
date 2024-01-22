@@ -513,6 +513,16 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	return alloc.NewStruct(fields)
 }
 
+type TimeSeriesBag struct {
+	isSealed  bool
+	transient []Transient
+}
+
+type Transient struct {
+	nx     *NameExpr
+	values []TypedValue
+}
+
 type Captured struct {
 	names  []Name
 	values []TypedValue
@@ -551,6 +561,7 @@ type FuncValue struct {
 	Name       Name      // name of function/method
 	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures   *Captured
+	Ts         *TimeSeriesBag
 	FileName   Name // file name where declared
 	PkgPath    string
 	NativePkg  string // for native bindings through NativeStore

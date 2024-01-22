@@ -187,7 +187,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 		}()
 		if debug {
-			//debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -1986,6 +1986,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	debugPP.Printf("pushInitBlock : %v \n", bn)
 	if !bn.IsInitialized() {
 		bn.InitStaticBlock(bn, *last)
 	} else {
@@ -1997,6 +1998,7 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
 	}
+	//bn.GetStaticBlock().String()
 	*last = bn
 	*stack = append(*stack, bn)
 }

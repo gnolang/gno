@@ -883,15 +883,17 @@ type SwitchClauseStmt struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                       // for non-loop stmts
-	BodyLen       int          // for for-continue
-	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
-	NumExprs      int          // number of Exprs, for goto
-	NumStmts      int          // number of Stmts, for goto
-	Cond          Expr         // for ForStmt
-	Post          Stmt         // for ForStmt
+	Body               // for non-loop stmts
+	BodyLen       int  // for for-continue
+	NextBodyIndex int  // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps        int  // number of Ops, for goto
+	NumValues     int  // number of Values, for goto
+	NumExprs      int  // number of Exprs, for goto
+	NumStmts      int  // number of Stmts, for goto
+	Cond          Expr // for ForStmt
+	Post          Stmt // for ForStmt
+	Ts            *TimeSeriesBag
+	isLoop        bool
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
@@ -1496,6 +1498,33 @@ type StaticBlock struct {
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
+}
+
+func (sb *StaticBlock) String() {
+	fmt.Println("==============static block==============")
+	for i, t := range sb.Types {
+		fmt.Printf("types[%d] is %v \n", i, t)
+	}
+	fmt.Printf("numNames is %d \n", sb.NumNames)
+	for i, t := range sb.Names {
+		fmt.Printf("names[%d] is %v \n", i, t)
+	}
+	for i, t := range sb.Consts {
+		fmt.Printf("consts[%d] is %v \n", i, t)
+	}
+	for i, t := range sb.Externs {
+		fmt.Printf("externs[%d] is %v \n", i, t)
+	}
+	for i, t := range sb.oldValues {
+		fmt.Printf("oldValues[%d] is %v \n", i, t)
+	}
+	fmt.Printf("sb objectInfo %v \n", sb.GetObjectInfo())
+	fmt.Printf("sb isEscaped %v \n", sb.GetIsEscaped())
+	fmt.Printf("sb isTransient %v \n", sb.GetIsTransient())
+	//fmt.Printf("sb getOwnder, getOwnerID %v \n", sb.GetOwner(), sb.GetOwnerID())
+	fmt.Println("=================block==================")
+	fmt.Printf("block: %v \n", sb.Block)
+	fmt.Println("==================end===================")
 }
 
 type oldValue struct {

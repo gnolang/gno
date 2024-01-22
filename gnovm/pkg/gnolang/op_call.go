@@ -74,23 +74,57 @@ func (m *Machine) doOpCall() {
 	if captures == nil {
 		debugPP.Println("nil captures")
 	}
-	if captures != nil {
-		debugPP.Printf("captures before call: %v, len(names): %d, len(values): %d \n", captures, len(captures.names), len(captures.values))
-		names := clo.GetSource(m.Store).GetBlockNames()
-		debugPP.Printf("names: %v \n", names)
-		for i1, n1 := range captures.names {
+	//if captures != nil {
+	//	debugPP.Printf("captures before call: %v, len(names): %d, len(values): %d \n", captures, len(captures.names), len(captures.values))
+	//	names := clo.GetSource(m.Store).GetBlockNames()
+	//	debugPP.Printf("names: %v \n", names)
+	//	for i1, n1 := range captures.names {
+	//		var index int
+	//		for i2, n2 := range names {
+	//			if n1 == n2 { // match and replace
+	//				index = i2
+	//				debugPP.Printf("index of %s in target block is: %d \n", n1, index)
+	//				debugPP.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
+	//				// replace lv values with index
+	//				clo.UpdateValue(index, captures.values[i1])
+	//			}
+	//		}
+	//	}
+	//}
+	debugPP.Println("---parse transient")
+	if fv.Ts != nil {
+		var end bool
+		for i, t := range fv.Ts.transient {
+			debugPP.Printf("Ts.transient[%d] name is %v, path: %v, len of values is: %v \n", i, t.nx.Name, t.nx.Path, len(t.values))
+			for i, v := range t.values {
+				debugPP.Printf("values[%d] is %v \n", i, v)
+			}
+			//debugPP.Println("?????????nil", fv.Ts == nil)
+
+			names := clo.GetSource(m.Store).GetBlockNames()
 			var index int
-			for i2, n2 := range names {
-				if n1 == n2 { // match and replace
-					index = i2
-					debugPP.Printf("index of %s in target block is: %d \n", n1, index)
-					debugPP.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
-					// replace lv values with index
-					clo.UpdateValue(index, captures.values[i1])
+			var match bool
+			for i, n := range names {
+				if n == t.nx.Name {
+					index = i
+					match = true
+				}
+			}
+			if match {
+				clo.UpdateValue(index, t.values[0])
+				nvs := t.values[1:]
+				//debugPP.Println("nil????????", fv.Ts == nil)
+				fv.Ts.transient[i].values = nvs
+				if len(fv.Ts.transient[i].values) == 0 { // loop end
+					end = true
 				}
 			}
 		}
+		if end {
+			fv.Ts = nil
+		}
 	}
+
 	// only need initial snapshot
 	fr.Func.Captures = nil
 	//fr.Func.Captures = Captured{}

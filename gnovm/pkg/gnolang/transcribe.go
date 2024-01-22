@@ -169,6 +169,8 @@ func (ao *AssignOperand) String() string {
 //}
 
 type ClosureContext struct {
+	hasLoop  bool
+	hasClo   bool
 	closures []*Closure
 	nodes    []Node
 	ops      []Word           // assign/define related logic
@@ -238,33 +240,46 @@ func (cx *ClosureContext) dumpOps() string {
 // 2. it's embedded in another volatile block, for/range stmt
 // 2. no recursive closure(not support for now)
 func (cx *ClosureContext) hasClosure() bool {
-	loopBlock := false
-	for _, n := range cx.nodes {
-		switch n.(type) {
-		case *ForStmt, *RangeStmt:
-			loopBlock = true
-		case *FuncLitExpr:
-			return loopBlock // has loopBlock ahead
-		default:
-			// do nothing
-		}
-		//if _, ok := n.(*FuncLitExpr); ok {
-		//	return true
-		//}
-	}
-
+	return cx.hasClo
+	//loopBlock := false
+	//for _, n := range cx.nodes {
+	//	switch n.(type) {
+	//	case *ForStmt, *RangeStmt:
+	//		loopBlock = true
+	//	case *FuncLitExpr:
+	//		return loopBlock // has loopBlock ahead
+	//	default:
+	//		// do nothing
+	//	}
+	//	//if _, ok := n.(*FuncLitExpr); ok {
+	//	//	return true
+	//	//}
+	//}
+	//
 	// detect cyclic
 	// 1. encounter a nx, its type is funcLitExpr, name it t; how to get it?
 	// 2. compare t with parent node type, could be direct ancestor, or indirect
 	//    namely, if two(or more) same funcLitExpr appears in stack, have cyclic
 	// which implies !hasClosure
 
-	return false
+	//return false
 }
 
 func (cx *ClosureContext) pushNode(n Node) {
-	debugPP.Println("+++Cx push node")
-	debugPP.Println("+node")
+	debugPP.Println("+++Cx push node, node++")
+	if !cx.hasLoop {
+		switch n.(type) {
+		case *ForStmt, *RangeStmt:
+			cx.hasLoop = true
+		default:
+			// do nothing
+		}
+	} else { // has loop
+		if _, ok := n.(*FuncLitExpr); ok {
+			cx.hasClo = true
+		}
+	}
+
 	cx.nodes = append(cx.nodes, n)
 }
 
@@ -274,6 +289,10 @@ func (cx *ClosureContext) popNode() {
 		debugPP.Println("-node")
 		cx.nodes = cx.nodes[:len(cx.nodes)-1]
 		debugPP.Printf("len of node: %d \n", len(cx.nodes))
+		if len(cx.nodes) == 0 { // reset flag
+			cx.hasLoop = false
+			cx.hasClo = false
+		}
 	}
 }
 
@@ -306,7 +325,7 @@ func (cx *ClosureContext) popClosure(copy bool) *Closure {
 		c := cx.closures[len(cx.closures)-1] // get current
 		for _, cnx := range c.cnxs {         // pop-> increase offset
 			debug.Printf("+1 \n") // mutate offset
-			cnx.offset += 1
+			cnx.offset += 1       // from bottom up
 		}
 		cx.closures = cx.closures[:len(cx.closures)-1] // shrink
 
@@ -394,10 +413,6 @@ func (c *Closure) String() string {
 	return s
 }
 
-//func NewClosure() *Closure {
-//	return &Closure{}
-//}
-
 func (clo *Closure) Fill(cnx CapturedNx) {
 	debug.Printf("+nx: %v \n", cnx.nx)
 	for _, n := range clo.names { // filter out existed nx
@@ -439,6 +454,7 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
+	debugPP.Printf("transcribe, n is: %v \n", n)
 	// transcribe n on the way in.
 	var c TransCtrl
 	nn, c = t(ns, ftype, index, n, TRANS_ENTER)
@@ -453,6 +469,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	switch cnn := nn.(type) {
 	case *NameExpr:
 		debugPP.Printf("-----trans, nameExpr: %v \n", cnn)
+		//deps := make(map[Name]struct{})
+		//findDependentNames(cnn, deps)
+		//for k, v := range deps {
+		//	debugPP.Printf("%s depends on %v \n", k, v)
+		//}
+
 		if CX.hasClosure() {
 			debugPP.Printf("---has Closure, check: %v \n", cnn)
 			debugPP.Println("---currentOp: ", CX.peekOp())
@@ -651,7 +673,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				if pushed {
 					CX.popClosure(isCopy)
 				}
-				CX.popNode()
+				//CX.popNode()
 				return
 			}
 		}
@@ -832,6 +854,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn = cnn2.(*ForStmt)
 		}
 
+		// after block structure is build
 		CX.pushNode(cnn)
 		pushed := CX.pushClosure()
 

@@ -686,35 +686,61 @@ func (m *Machine) doOpPreFuncLit() {
 	//debug.Printf("pointer of x.Closure: %p \n", x.Closure)
 	debugPP.Printf("x.Closure: %v \n", x.Closure)
 	lb := m.LastBlock()
+	debugPP.Printf("lb: %v \n", lb)
+
+	// push block
 	b := m.Alloc.NewBlock(x, lb)
+	debugPP.Printf("b: %v \n", b)
+
 	m.PushBlock(b)
 	m.PushOp(OpPopBlock)
 
-	closure := x.Closure
-	if closure != nil {
-		debugPP.Printf("closure nxs len is: %d \n", len(closure.cnxs))
-		for i, cnx := range closure.cnxs {
-			debugPP.Printf("closure[%d]: %v \n", i, cnx)
-			offset := cnx.offset
-			debugPP.Printf("offset of %s is %d \n", cnx.nx.Name, offset)
-			vp := cnx.nx.Path
-			debugPP.Printf("vp of nx[%s] is : %v \n", cnx.nx.Name, vp)
-			if (vp.Depth + 1) < offset {
-				panic("---incorrect offset for:" + cnx.nx.Name)
-			}
-			nvp := ValuePath{
-				Name:  cnx.nx.Name,
-				Depth: vp.Depth - offset + 1,
-				Index: vp.Index,
-				Type:  vp.Type,
-			}
-			debugPP.Printf("nvp of nx[%s] is : %v \n", nvp.Name, nvp)
-			nnx := *cnx.nx
-			nnx.Path = nvp
-			m.PushExpr(&nnx)
-			m.PushOp(OpEval)
+	// get names
+	//x.StaticBlock.String()
+
+	//debugPP.Printf("x.staticBlock.ExternNames: %v \n", x.StaticBlock.GetExternNames())
+	for i, n := range x.GetExternNames() {
+		debugPP.Printf("x.staticBlock.ExternNames[%d] %v \n", i, n)
+		vp := x.GetPathForName(m.Store, n)
+		debugPP.Printf("%v's value path is: %v \n", n, vp)
+		if vp.Depth == 0 {
+			continue
 		}
+		debugPP.Println("-------got target of: ", n)
+		nx := &NameExpr{
+			Name: n,
+			Path: vp,
+		}
+		debugPP.Printf("nx is: %v \n", nx)
+		//m.PushExpr(nx)
+		//m.PushOp(OpEval)
 	}
+
+	//closure := x.Closure
+	//if closure != nil {
+	//	debugPP.Printf("closure nxs len is: %d \n", len(closure.cnxs))
+	//	for i, cnx := range closure.cnxs {
+	//		debugPP.Printf("closure[%d]: %v \n", i, cnx)
+	//		offset := cnx.offset
+	//		debugPP.Printf("offset of %s is %d \n", cnx.nx.Name, offset)
+	//		vp := cnx.nx.Path
+	//		debugPP.Printf("vp of nx[%s] is : %v \n", cnx.nx.Name, vp)
+	//		if (vp.Depth + 1) < offset {
+	//			panic("---incorrect offset for:" + cnx.nx.Name)
+	//		}
+	//		nvp := ValuePath{
+	//			Name:  cnx.nx.Name,
+	//			Depth: vp.Depth - offset + 1,
+	//			Index: vp.Index,
+	//			Type:  vp.Type,
+	//		}
+	//		debugPP.Printf("nvp of nx[%s] is : %v \n", nvp.Name, nvp)
+	//		nnx := *cnx.nx
+	//		nnx.Path = nvp
+	//		m.PushExpr(&nnx)
+	//		m.PushOp(OpEval)
+	//	}
+	//}
 }
 
 func isZeroArray(arr [8]byte) bool {
@@ -728,45 +754,115 @@ func isZeroArray(arr [8]byte) bool {
 func (m *Machine) doOpFuncLit() {
 	debugPP.Println("-----doOpFuncLit")
 	x := m.PopExpr().(*FuncLitExpr)
+	debugPP.Printf("-----doOpFuncLit, x: %v \n", x)
 	lb := m.LastBlock()
 	debugPP.Printf("lb: %v \n", lb)
 
-	captured := &Captured{}
-	if x.Closure != nil {
-		for _, cnx := range x.Closure.cnxs {
-			debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
-			tv := *m.PopValue()
-			debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
+	var tsb *TimeSeriesBag
+	// if loop block outside
+	if lb.GetBodyStmt().isLoop { // TODO: should recursive check
+		tsb = lb.GetBodyStmt().Ts
+		debugPP.Printf("tsb: %v \n", tsb)
+		if tsb == nil {
+			tsb = &TimeSeriesBag{} // init
+		}
 
-			//c := *m.PopValue()
-			//debugPP.Printf("---c is: %v \n", c)
-
-			if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
-				pass := true
-				if _, ok := tv.T.(*FuncType); ok {
-					if tv.V == nil {
-						pass = false
-					}
-				} else {
-					if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
-						pass = false
-					}
+		for _, n := range x.GetExternNames() {
+			vp := x.GetPathForName(m.Store, n)
+			debugPP.Printf("%v's value path is: %v \n", n, vp)
+			if vp.Depth == 0 {
+				continue
+			}
+			//vp.Depth -= 1
+			// update tsb
+			if !tsb.isSealed { // only once
+				nx := &NameExpr{
+					Name: n,
+					Path: vp,
 				}
-				if pass {
-					//if v.V != nil { // TODO: consider this, this only happens when recursive closure
-					debugPP.Printf("capturing v: %v \n", tv)
-					//debugPP.Printf("captured before update: \n %s \n", captured)
-					captured.names = append(captured.names, cnx.nx.Name)
-					captured.values = append(captured.values, tv)
-					//debugPP.Printf("captured after update: \n %s \n", captured)
+				tst := Transient{
+					nx: nx,
 				}
+				//tsb := TimeSeriesBag{
+				tsb.transient = append(tsb.transient, tst)
 				//}
-			} else {
-				debugPP.Println("undefined, skip")
+				// set back
+				lb.GetBodyStmt().Ts = tsb
+				debugPP.Printf("address of Ts is : %p \n", lb.GetBodyStmt().Ts)
 			}
 		}
+		tsb.isSealed = true
 	}
-	debugPP.Printf("---captured: %v \n", captured)
+
+	//captured := &Captured{}
+	//for _, n := range x.GetExternNames() {
+	//	vp := x.GetPathForName(m.Store, n)
+	//	debugPP.Printf("%v's value path is: %v \n", n, vp)
+	//	if vp.Depth == 0 {
+	//		continue
+	//	}
+	//	tv := *m.PopValue()
+	//	debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
+	//	if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
+	//		pass := true
+	//		if _, ok := tv.T.(*FuncType); ok {
+	//			if tv.V == nil {
+	//				pass = false
+	//			}
+	//		} else {
+	//			if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
+	//				pass = false
+	//			}
+	//		}
+	//		if pass {
+	//			//if v.V != nil { // TODO: consider this, this only happens when recursive closure
+	//			debugPP.Printf("capturing v: %v \n", tv)
+	//			//debugPP.Printf("captured before update: \n %s \n", captured)
+	//			captured.names = append(captured.names, n)
+	//			captured.values = append(captured.values, tv)
+	//			//debugPP.Printf("captured after update: \n %s \n", captured)
+	//		}
+	//		//}
+	//	} else {
+	//		debugPP.Println("undefined, skip")
+	//	}
+	//}
+
+	//captured := &Captured{}
+	//if x.Closure != nil {
+	//	for _, cnx := range x.Closure.cnxs {
+	//		debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
+	//		tv := *m.PopValue()
+	//		debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
+	//
+	//		//c := *m.PopValue()
+	//		//debugPP.Printf("---c is: %v \n", c)
+	//
+	//		if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
+	//			pass := true
+	//			if _, ok := tv.T.(*FuncType); ok {
+	//				if tv.V == nil {
+	//					pass = false
+	//				}
+	//			} else {
+	//				if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
+	//					pass = false
+	//				}
+	//			}
+	//			if pass {
+	//				//if v.V != nil { // TODO: consider this, this only happens when recursive closure
+	//				debugPP.Printf("capturing v: %v \n", tv)
+	//				//debugPP.Printf("captured before update: \n %s \n", captured)
+	//				captured.names = append(captured.names, cnx.nx.Name)
+	//				captured.values = append(captured.values, tv)
+	//				//debugPP.Printf("captured after update: \n %s \n", captured)
+	//			}
+	//			//}
+	//		} else {
+	//			debugPP.Println("undefined, skip")
+	//		}
+	//	}
+	//}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 
@@ -778,7 +874,7 @@ func (m *Machine) doOpFuncLit() {
 		Source:     x,
 		Name:       "",
 		Closure:    lb,
-		Captures:   captured,
+		Ts:         tsb,
 		PkgPath:    m.Package.PkgPath,
 		body:       x.Body,
 		nativeBody: nil,
