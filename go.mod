@@ -36,6 +36,7 @@ require (
 	// upgrade to go 1.21 (https://github.com/uber-go/zap/blob/master/exp/CHANGELOG.md)
 	go.uber.org/zap/exp v0.1.0
 	golang.org/x/crypto v0.18.0
+	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
 	golang.org/x/mod v0.14.0
 	golang.org/x/net v0.20.0
 	golang.org/x/term v0.16.0
@@ -43,8 +44,6 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-require golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
 
 require (
 	github.com/kr/text v0.2.0 // indirect
