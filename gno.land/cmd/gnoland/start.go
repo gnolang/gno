@@ -225,7 +225,6 @@ func execStart(c *startCfg, io commands.IO) error {
 
 	// Initialize the zap logger
 	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
-	defer zapLogger.Sync()
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
