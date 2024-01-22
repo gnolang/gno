@@ -63,6 +63,10 @@ func TestRunApp(t *testing.T) {
 			args:                []string{"run", "-expr", "WithArg(-255)", "../../tests/integ/run-package"},
 			stdoutShouldContain: "out of range!",
 		},
+		{
+			args:                 []string{"run", "../../tests/integ/undefined-variable-test/undefined_variables_test.gno"},
+			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
+		},
 		// TODO: a test file
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
