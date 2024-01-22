@@ -46,12 +46,6 @@ require (
 )
 
 require (
-	github.com/kr/text v0.2.0 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-)
-
-require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -70,11 +64,14 @@ require (
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	go.opencensus.io v0.22.5 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
