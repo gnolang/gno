@@ -283,7 +283,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", "num-cycles", m.Cycles)
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
