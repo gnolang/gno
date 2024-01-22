@@ -186,26 +186,3 @@ func TestUpdateField(t *testing.T) {
 		})
 	}
 }
-
-func fieldsMatch(fs []Field, names []string) bool {
-	if len(fs) != len(names) {
-		return false
-	}
-
-	for i, f := range fs {
-		if f.name != names[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func fieldNames(fs []Field) []string {
-	names := make([]string, len(fs))
-	for i, f := range fs {
-		names[i] = f.name
-	}
-
-	return names
-}

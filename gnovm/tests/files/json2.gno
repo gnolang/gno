@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/json"
 )
 
+// Unmarshal JSON data into a struct.
 func main() {
 	data := []byte(`{"name": "Foo", "age": 20, "score": 4.2, "subscribed": true, "option": null}`)
 

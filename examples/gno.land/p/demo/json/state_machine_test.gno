@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"testing"
@@ -585,4 +586,168 @@ func TestArrayEach2(t *testing.T) {
 			t.Errorf("Wrong item: %s", string(value))
 		}
 	}, "a")
+}
+
+func TestObjectEach(t *testing.T) {
+    tests := []struct {
+        name     string
+        input    []byte
+        expected map[string]string
+        root     string
+		isErr    bool
+    }{
+		{
+			name: "empty object",
+			input: []byte(`{}`),
+			expected: map[string]string{},
+			root: "",
+		},
+		{
+			name: "single key",
+			input: []byte(`{"a": 1}`),
+			expected: map[string]string{"a": "1"},
+			root: "",
+		},
+		{
+            name:     "two keys",
+            input:    []byte(`{"a": {"b": 1, "c": 2}}`),
+            expected: map[string]string{"b": "1", "c": "2"},
+            root:     "a",
+        },
+		{
+			name: "two keys 2",
+			input: []byte(`{"a": {"b": 1, "c": 2}, "d": 4}`),
+			expected: map[string]string{"b": "1", "c": "2"},
+			root: "a",
+		},
+        {
+            name:     "another set of keys",
+            input:    []byte(`{"x": {"y": 3, "z": 4}}`),
+            expected: map[string]string{"y": "3", "z": "4"},
+            root:     "x",
+        },
+		{
+			name: "multiple key-value object with many value types",
+			input: []byte(`{
+				"key1": null,
+				"key2": true,
+				"key3": 1.23,
+				"key4": "string value",
+				"key5": [1,2,3],
+				"key6": {"a":"b"}
+			}`),
+			expected: map[string]string{
+				"key1": "null",
+				"key2": "true",
+				"key3": "1.23",
+				"key4": "string value",
+				"key5": "[1,2,3]",
+				"key6": `{"a":"b"}`,
+			},
+		},
+		{
+			name: "so many white spaces",
+			input: []byte(`{"a"               :                 1}`),
+			expected: map[string]string{"a": "1"},
+		},
+		/* Error Cases */
+		{
+			name: "unmatched brace",
+			input: []byte(`{`),
+			isErr: true,
+		},
+		{
+			name: "unmatched brace 2",
+			input: []byte(`{"a": 1`),
+			root: "a",
+			isErr: true,
+		},
+		{
+			name: "unmatched brace 3",
+			input: []byte(`}`),
+			isErr: true,
+		},
+		{
+			name: "unmatched brace 3",
+			input: []byte(`{{}}{`),
+			isErr: true,
+		},
+		{
+			name: "no object present",
+			input: []byte(`\t\n\r`),
+			isErr: true,
+		},
+		{
+			name: "malformed key",
+			input: []byte(`{"foo: 1}`),
+			isErr: true,
+		},
+		{
+			name: "malformed key 2",
+			input: []byte(`{"foo": 1, "bar: "11"}`),
+			root: "foo",
+			isErr: true,
+		},
+		{
+			name: "malformed key in nested object",
+			input: []byte(`{"foo": {"bar: 1}}`),
+			root: "foo",
+			isErr: true,
+		},
+		{
+			name: "bad value",
+			input: []byte(`{"foo": bar}`),
+			isErr: true,
+		},
+		{
+			name: "no colon",
+			input: []byte(`{"foo" "bar"}`),
+			isErr: true,
+		},
+		{
+			name: "no colon 2",
+			input: []byte(`{"foo""bar"}`),
+			isErr: true,
+		},
+		{
+			name: "no colon 3",
+			input: []byte(`{"foo"; "bar"}`),
+			isErr: true,
+		},
+		{
+			name: "invalid colon",
+			input: []byte(`{"foo":: "bar"}`),
+			isErr: true,
+		},
+		{
+			name: "no trailing comma",
+			input: []byte(`{"foo": "bar" "baz": "qux"}`),
+			root: "foo",
+			isErr: true,
+		},
+		{
+			name: "key with unicode escape",
+			input: []byte(`{"b": 10, "c": {"a\uD83D\uDE03b":1, "aa": false}}`),
+			root: "b",
+			isErr: true,
+		},
+    }
+
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+            err := ObjectEach(tc.input, func(key, value []byte, dataType ValueType, offset int) error {
+                expectedValue, ok := tc.expected[string(key)]
+                if !ok {
+                    t.Errorf("Unexpected key: %s", string(key))
+                } else if string(value) != expectedValue {
+                    t.Errorf("Wrong value for key %s: got %s, want %s", string(key), string(value), expectedValue)
+                }
+                return nil
+            }, tc.root)
+
+			if (err != nil) != tc.isErr {
+                t.Errorf("ObjectEach(%s) error = %v, wantErr %v", tc.name, err, tc.isErr)
+            }
+        })
+    }
 }

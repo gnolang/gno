@@ -6,15 +6,22 @@ import (
 	"unicode/utf8"
 )
 
+// unescape takes an input byte slice, processes it to unescape certain characters,
+// and writes the result into an output byte slice.
+//
+// it returns the processed slice and any error encountered during the unescape operation.
 func unescape(input, output []byte) ([]byte, error) {
+	// find the index of the first backslash in the input slice.
 	firstBackslash := bytes.IndexByte(input, BackSlashToken)
 	if firstBackslash == -1 {
 		return input, nil
 	}
 
+	// ensure the output slice has enough capacity to hold the result.
 	if cap(output) < len(input) {
 		output = make([]byte, len(input))
 	} else {
+		// if the capacity is sufficient, slice the output to the length of the input.
 		output = output[0:len(input)]
 	}
 
@@ -23,15 +30,16 @@ func unescape(input, output []byte) ([]byte, error) {
 	buf := output[firstBackslash:]
 
 	for len(input) > 0 {
-		inLen, bufLen := processEscapedUTF8(input, buf)
-		if inLen == -1 {
-			return nil, errors.New("Encountered an invalid escape sequence in a string")
+		// inLen is the number of bytes consumed in the input
+		// bufLen is the number of bytes written to buf.
+		if inLen, bufLen := processEscapedUTF8(input, buf); inLen == -1 {
+			return nil, errors.New("JSON Error: Encountered an invalid escape sequence in a string.")
+		} else {
+			input = input[inLen:]
+			buf = buf[bufLen:]
 		}
 
-		input = input[inLen:]
-		buf = buf[bufLen:]
-
-		// copy everything until the next backslash
+		// find the next backslash in the remaining input.
 		nextBackslash := bytes.IndexByte(input, BackSlashToken)
 		if nextBackslash == -1 {
 			copy(buf, input)
@@ -45,17 +53,6 @@ func unescape(input, output []byte) ([]byte, error) {
 	}
 
 	return output[:len(output)-len(buf)], nil
-}
-
-var escapeMap = map[byte]byte{
-	'"':  DoublyQuoteToken,
-	'\\': BackSlashToken,
-	'/':  SlashToken,
-	'b':  BackSpaceToken,
-	'f':  FormFeedToken,
-	'n':  NewLineToken,
-	'r':  CarriageReturnToken,
-	't':  TabToken,
 }
 
 // isSurrogatePair returns true if the rune is a surrogate pair.
@@ -118,6 +115,17 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 	return combineSurrogates(r, r2), 12
 }
 
+var escapeByteSet = [256]byte{
+	'"':  DoublyQuoteToken,
+	'\\': BackSlashToken,
+	'/':  SlashToken,
+	'b':  BackSpaceToken,
+	'f':  FormFeedToken,
+	'n':  NewLineToken,
+	'r':  CarriageReturnToken,
+	't':  TabToken,
+}
+
 // processEscapedUTF8 processes the escape sequence in the given byte slice and
 // and converts them to UTF-8 characters. The function returns the length of the processed input and output.
 //
@@ -135,15 +143,18 @@ func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
 		return -1, -1
 	}
 
-	if val, ok := escapeMap[in[1]]; ok {
-		out[0] = val
-		return 2, 1
-	}
-
-	if in[1] == 'u' {
+	escapeSeqLen := 2
+	escapeChar := in[1]
+	if escapeChar == 'u' {
 		if r, size := decodeUnicodeEscape(in); size != -1 {
 			outLen = utf8.EncodeRune(out, r)
 			return size, outLen
+		}
+	} else {
+		val := escapeByteSet[escapeChar]
+		if val != 0 {
+			out[0] = val
+			return escapeSeqLen, 1
 		}
 	}
 

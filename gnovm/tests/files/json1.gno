@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/json"
 )
 
+// Marshaling example
 func main() {
     contactStruct := json.NewStruct().
         AddStringField("email", "john@example.com").

@@ -31,13 +31,13 @@ func nextToken(data []byte) (int, error) {
 	return -1, TokenNotFound
 }
 
-func stringEnd(data []byte) (lastCharIdx int, escaped bool) {
+func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 	escaped = false
 	for lastCharIdx, c := range data {
 		switch c {
 		case DoublyQuoteToken:
 			if !escaped {
-				return lastCharIdx + 1, false
+				return lastCharIdx + 1, false, nil
 			}
 
 			prevCharIdx := lastCharIdx - 1
@@ -46,42 +46,42 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool) {
 			}
 
 			if (lastCharIdx-prevCharIdx)%2 == 0 {
-				return lastCharIdx + 1, true
+				return lastCharIdx + 1, true, nil
 			}
 
-			return lastCharIdx + 1, false
+			return lastCharIdx + 1, false, nil
 		case BackSlashToken:
 			escaped = true
 		}
 	}
 
-	return -1, escaped
+	return -1, escaped, MalformedString
 }
 
 // Find end of the data structure, array or object.
 // For array openSym and closeSym will be '[' and ']', for object '{' and '}'
-func blockEnd(data []byte, openSym byte, closeSym byte) int {
+func blockEnd(data []byte, openSym byte, closeSym byte) (int, error) {
 	level := 0
 
 	for i := 0; i < len(data); i++ {
 		switch data[i] {
 		case DoublyQuoteToken:
-			se, _ := stringEnd(data[i+1:])
-			if se == -1 {
-				return -1
+			if se, _, err := stringEnd(data[i+1:]); err != nil {
+				return -1, err
+			} else {
+				i += se
 			}
-			i += se
 		case openSym:
 			level += 1
 		case closeSym:
 			level -= 1
 			if level == 0 {
-				return i + 1
+				return i + 1, nil
 			}
 		}
 	}
 
-	return -1
+	return -1, errors.New("JSON Error: malformed data structure found while parsing container value")
 }
 
 func keyMatched(
@@ -127,7 +127,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 	case bytes.Equal(data, []byte("false")):
 		return false, nil
 	default:
-		return false, MalformedValue
+		return false, errors.New("JSON Error: malformed boolean value found while parsing boolean value")
 	}
 }
 
@@ -145,7 +145,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 
 	var exponentPart []byte
 	for i, c := range bytes {
-		if c == 'e' || c == 'E' {
+		if lower(c) == 'e' {
 			exponentPart = bytes[i+1:]
 			bytes = bytes[:i]
 			break
@@ -216,14 +216,13 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	return int64(n), nil
 }
 
-// lower is a lower-case letter if and only if
-// c is either that lower-case letter or the equivalent upper-case letter.
-// Instead of writing c == 'x' || c == 'X' one can write lower(c) == 'x'.
-// Note that lower of non-letters can produce other non-letters.
-func lower(c byte) byte {
-	return c | ('x' - 'X')
-}
-
+// extractMantissaAndExp10 parses a byte slice representing a decimal number and extracts the mantissa and the exponent of its base-10 representation.
+// It iterates through the bytes, constructing the mantissa by treating each byte as a digit.
+// If a decimal point is encountered, the function keeps track of the position of the decimal point to calculate the exponent.
+// The function ensures that:
+// - The number contains at most one decimal point.
+// - All characters in the byte slice are digits or a single decimal point.
+// - The resulting mantissa does not overflow a uint64.
 func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	var man uint64
 	var exp10 int
@@ -258,66 +257,16 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	return man, exp10, nil
 }
 
-// underscoreOK reports whether the underscores in s are allowed.
-// Checking them in this one function lets all the parsers skip over them simply.
-// Underscore must appear only between digits or between a base prefix and a digit.
-func underscoreOK(s string) bool {
-	// saw tracks the last character (class) we saw:
-	// ^ for beginning of number,
-	// 0 for a digit or base prefix,
-	// _ for an underscore,
-	// ! for none of the above.
-	saw := '^'
-	i := 0
-
-	// Optional sign.
-	if len(s) >= 1 && (s[0] == MinusToken || s[0] == PlusToken) {
-		s = s[1:]
-	}
-
-	// Optional base prefix.
-	hex := false
-	if len(s) >= 2 && s[0] == '0' && (lower(s[1]) == 'b' || lower(s[1]) == 'o' || lower(s[1]) == 'x') {
-		i = 2
-		saw = '0' // base prefix counts as a digit for "underscore as digit separator"
-		hex = lower(s[1]) == 'x'
-	}
-
-	for ; i < len(s); i++ {
-		currentChar := s[i]
-		isDigit := '0' <= currentChar && currentChar <= '9'
-		isHexChar := hex && 'a' <= lower(currentChar) && lower(currentChar) <= 'f'
-
-		if isDigit || isHexChar {
-			saw = '0'
-		} else if currentChar == UnderScoreToken {
-			if saw != '0' {
-				return false
-			}
-			saw = UnderScoreToken
-		} else {
-			if saw == UnderScoreToken {
-				return false
-			}
-			saw = BangToken
-		}
-	}
-
-	return saw != UnderScoreToken
-}
-
 // getTypeFromByteSlice is a function that takes a byte slice and an offset as input parameters.
+//
 // It returns a byte slice representing the data type, a ValueType indicating the type of data,
 // an integer representing the end offset, and an error if any.
-// If the input byte slice is empty, it returns an error indicating that no JSON data was provided.
-// Otherwise, it calls the parseValue function to parse the value and returns the parsed data type,
-// the end offset, and any error encountered during parsing.
 func getTypeFromByteSlice(data []byte, offset int) ([]byte, ValueType, int, error) {
 	if len(data) == 0 {
-		return nil, Unknown, offset, errors.New("no JSON data provided")
+		return nil, Unknown, offset, errors.New("JSON Error: JSON data not provided.")
 	}
 
-	dataType, endOffset, err := parseValue(data, offset)
+	dataType, endOffset, err := ParseValue(data, offset)
 	if err != nil {
 		return nil, dataType, offset, err
 	}
@@ -347,9 +296,9 @@ func getTypeFromValue(v interface{}) ValueType {
 	}
 }
 
-// parseValue parses a JSON value from the given data starting at the specified offset.
+// ParseValue parses a JSON value from the given data starting at the specified offset.
 // It returns the parsed value, the new offset after parsing, and an error if any.
-func parseValue(data []byte, offset int) (ValueType, int, error) {
+func ParseValue(data []byte, offset int) (ValueType, int, error) {
 	switch data[offset] {
 	case DoublyQuoteToken:
 		return parseString(data, offset)
@@ -362,10 +311,11 @@ func parseValue(data []byte, offset int) (ValueType, int, error) {
 
 // parseString parses a JSON string and returns its type and the end position.
 func parseString(data []byte, offset int) (ValueType, int, error) {
-	if idx, _ := stringEnd(data[offset+1:]); idx != -1 {
+	if idx, _, err := stringEnd(data[offset+1:]); err == nil {
 		return String, offset + idx + 1, nil
 	}
-	return String, offset, errors.New("malformed string")
+
+	return String, offset, errors.New("JSON Error: Invalid string input found while parsing string value")
 }
 
 // parseContainer parses a JSON array or object and returns its type and the end position.
@@ -381,9 +331,9 @@ func parseContainer(data []byte, offset int) (ValueType, int, error) {
 		closing = CurlyCloseToken
 	}
 
-	endOffset := blockEnd(data[offset:], data[offset], closing)
+	endOffset, err := blockEnd(data[offset:], data[offset], closing)
 	if endOffset == -1 {
-		return containerType, offset, MalformedType
+		return containerType, offset, err
 	}
 
 	return containerType, offset + endOffset, nil
@@ -392,13 +342,13 @@ func parseContainer(data []byte, offset int) (ValueType, int, error) {
 func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 	end := tokenEnd(data[offset:])
 	if end == -1 {
-		return Unknown, offset, errors.New("malformed value")
+		return Unknown, offset, errors.New("JSON Error: malformed value found while parsing primitive value")
 	}
 	value := data[offset : offset+end]
 
 	switch data[offset] {
 	case 't', 'f':
-		if _boolValue, err := ParseBoolLiteral(value); err != nil {
+		if _b, err := ParseBoolLiteral(value); err != nil {
 			return Unknown, offset, err
 		}
 		return Boolean, offset + end, nil
@@ -406,20 +356,20 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		if bytes.Equal(value, nullLiteral) {
 			return Null, offset + end, nil
 		}
-		return Unknown, offset, errors.New("unknown null type")
+		return Unknown, offset, UnknownValueType
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		if !bytes.ContainsAny(value, ".eE") {
-			if _intValue, err := ParseIntLiteral(value); err != nil {
+			if _i, err := ParseIntLiteral(value); err != nil {
 				return Number, offset + end, err
 			}
 		}
 
-		if _floatValue, err := ParseFloatLiteral(value); err != nil {
+		if _f, err := ParseFloatLiteral(value); err != nil {
 			return Number, offset + end, err
 		}
 
 		return Number, offset + end, nil
 	}
 
-	return Unknown, offset, errors.New("unknown value type")
+	return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
 }

@@ -38,6 +38,10 @@ func NewStruct() *Struct {
 	return &Struct{}
 }
 
+func (s *Struct) Fields() []Field {
+    return s.fields
+}
+
 // addField adds a field to the struct. The order of the fields is preserved.
 func (s *Struct) addField(name string, fieldType ValueType, value interface{}) *Struct {
 	field := Field{name: name, typ: fieldType, value: value}
@@ -76,15 +80,15 @@ func (s *Struct) AddObjectField(name string, inner *Struct) *Struct {
 	return s
 }
 
-func (s *Struct) AddArrayField(name string, array []interface{}) *Struct {
-	f := Field{
-		name:        name,
-		typ:         Array,
-		arrayValues: array,
-	}
-	s.fields = append(s.fields, f)
+func (s *Struct) AddArrayField(name string, arrayStruct *Struct) *Struct {
+    f := Field{
+        name:        name,
+        typ:         Array,
+        arrayValues: arrayStruct.Fields(),
+    }
+    s.fields = append(s.fields, f)
 
-	return s
+    return s
 }
 
 /*           Encoder              */
@@ -249,7 +253,27 @@ func Unmarshal(data []byte, s *Struct) error {
 			}
 		case Null:
 			s.AddNullField(key)
-		// TODO: Support Array and Object types
+		// case Object:
+		// 	nestedStruct := NewStruct()
+		// 	if err := ObjectEach(val, func(innerKey, innerValue []byte, innerDataType ValueType, offset int) error {
+		// 		return Unmarshal(innerValue, nestedStruct)
+		// 	}); err != nil {
+		// 		return err
+		// 	}
+		// 	s.AddObjectField(key, nestedStruct)
+		// case Array:
+		// 	arrayStruct := NewStruct()
+		// 	_, err := ArrayEach(val, func(value []byte, dataType ValueType, offset int, err error) {
+		// 		if err != nil {
+		// 			return
+		// 		}
+		// 		// unmarshal here
+		// 	})
+	
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	s.AddArrayField(key, arrayStruct)
 		default:
 			return errors.New("json.Unmarshal: unknown data type")
 		}

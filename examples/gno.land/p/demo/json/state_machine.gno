@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 )
@@ -47,10 +48,11 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			i += 1
 			keyBegin := i
 
-			strEnd, keyEscaped := stringEnd(data[i:])
-			if strEnd == -1 {
-				return -1, MalformedJson
+			strEnd, keyEscaped, err := stringEnd(data[i:])
+			if err != nil {
+				return -1, err
 			}
+
 			i += strEnd
 			keyEnd := i - 1
 
@@ -87,9 +89,9 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			// in case parent key is matched then only we will increase the level otherwise can directly
 			// can move to the end of this block
 			if !lastMatched {
-				end := blockEnd(data[i:], CurlyOpenToken, CurlyCloseToken)
+				end, err := blockEnd(data[i:], CurlyOpenToken, CurlyCloseToken)
 				if end == -1 {
-					return -1, MalformedJson
+					return -1, err
 				}
 				i += end - 1
 			} else {
@@ -138,13 +140,13 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 				}
 			} else {
 				// Do not search for keys inside arrays
-				if arraySkip := blockEnd(data[i:], '[', ']'); arraySkip == -1 {
-					return -1, MalformedJson
+				if arraySkip, err := blockEnd(data[i:], SquareOpenToken, SquareCloseToken); arraySkip == -1 {
+					return -1, err
 				} else {
 					i += arraySkip - 1
 				}
 			}
-		case ColonToken: // If encountered, JSON data is malformed
+		case ColonToken:
 			return -1, MalformedJson
 		}
 	}
@@ -160,6 +162,7 @@ func decreaseLevel(level, keyLevel int) (int, int) {
 	return level, keyLevel
 }
 
+// findKeyStart finds the start of a specific key in a given byte array.
 func findKeyStart(data []byte, key string) (int, error) {
 	i, _ := nextToken(data)
 	if i == -1 {
@@ -182,7 +185,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 			i++
 			keyBegin := i
 
-			strEnd, keyEscaped := stringEnd(data[i:])
+			strEnd, keyEscaped, _ := stringEnd(data[i:])
 			if strEnd == -1 {
 				break
 			}
@@ -213,12 +216,12 @@ func findKeyStart(data []byte, key string) (int, error) {
 			}
 
 		case SquareOpenToken:
-			if end := blockEnd(data[i:], data[i], SquareCloseToken); end != -1 {
+			if end, _ := blockEnd(data[i:], data[i], SquareCloseToken); end != -1 {
 				i = i + end
 			}
 
 		case CurlyOpenToken:
-			if end := blockEnd(data[i:], data[i], CurlyCloseToken); end != -1 {
+			if end, _ := blockEnd(data[i:], data[i], CurlyCloseToken); end != -1 {
 				i = i + end
 			}
 		}
@@ -290,7 +293,11 @@ func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset 
 	return a, b, d, e
 }
 
-func ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int, err error), keys ...string) (offset int, err error) {
+func ArrayEach(
+	data []byte,
+	cb func(value []byte, dataType ValueType, offset int, err error),
+	keys ...string,
+) (offset int, err error) {
 	if len(data) == 0 {
 		return -1, MalformedObject
 	}
@@ -368,4 +375,120 @@ func ArrayEach(data []byte, cb func(value []byte, dataType ValueType, offset int
 	}
 
 	return offset, nil
+}
+
+func ObjectEach(
+	data []byte,
+	cb func(key, value []byte, dataType ValueType, offset int) error,
+	keys ...string,
+) (err error) {
+	offset := 0
+
+	// descent to desired key
+	if len(keys) > 0 {
+		if off, err := findValueIndex(data, keys...); err != nil {
+			errors.New("json.ObjectEach: key path not found")
+		} else {
+			offset += off
+		}
+	}
+
+	// validate and skip past opening token
+	if off, err := nextToken(data[offset:]); err != nil {
+		return MalformedObject
+	} else if offset += off; data[offset] != CurlyOpenToken {
+		return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+	} else {
+		offset += 1
+	}
+
+	// skip to the 1st token insize the object
+	if off, err := nextToken(data[offset:]); err != nil {
+		return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+	} else if offset += off; data[offset] == CurlyCloseToken {
+		// find the end of the object. should return here
+		return nil
+	}
+
+	for offset < len(data) {
+		// find the next key
+		var key []byte
+
+		// check the next token kind
+		switch data[offset] {
+		case DoublyQuoteToken:
+			offset += 1 // consider as a string type and skip the first quote
+		case CurlyCloseToken:
+			return nil // end of the object
+		default:
+			return MalformedObject // invalid token found
+		}
+
+		// find the end of the key
+		var escaped bool
+		if off, ok, err := stringEnd(data[offset:]); err != nil {
+			return errors.New(fmt.Sprintf("json.ObjectEach: invalid string at offset %d", offset))
+		} else {
+			key, escaped = data[offset:offset+off-1], ok
+			offset += off
+		}
+
+		// unescape the key if necessary
+		if escaped {
+			var stackbuf [unescapeStackBufSize]byte
+			if ku, err := unescape(key, stackbuf[:]); err != nil {
+				return errors.New("json.ObjectEach: string is not valid UTF-8")
+			} else {
+				key = ku
+			}
+		}
+
+		// skip colon
+		if off, err := nextToken(data[offset:]); err != nil {
+			return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+		} else if offset += off; data[offset] != ColonToken {
+			return errors.New(fmt.Sprintf("json.ObjectEach: cannot find colon at expected offset %d", offset))
+		} else {
+			offset += 1
+		}
+
+		// find nearby value, call callback
+		if value, typ, off, err := Get(data[offset:]); err != nil {
+			return err
+		} else if err := cb(key, value, typ, offset+off); err != nil {
+			return err
+		} else {
+			offset += off
+		}
+
+		// skip the next comma to the following token
+		if off, err := nextToken(data[offset:]); err != nil {
+			return errors.New(fmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
+		} else {
+			offset += off
+
+			switch data[offset] {
+			case CurlyCloseToken:
+				return nil // end of the object. should stop here.
+			case CommaToken:
+				offset += 1 // skip the comma and continue
+			default:
+				return errors.New(
+					fmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset),
+				)
+			}
+		}
+
+		// skip the next token if comma is found
+		if off, err := nextToken(data[offset:]); err != nil {
+			return errors.New(fmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
+		} else {
+			offset += off // skip the next token
+		}
+
+		// reset the key
+		key = nil
+	}
+
+	return errors.New(fmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset))
 }
