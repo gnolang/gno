@@ -22,7 +22,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 		cfg.SetRootDir(cfgDir)
 
 		// Make an incremental changes
-		cfg.Moniker = "custom monkier"
+		cfg.Moniker = "custom moniker"
 
 		// Make sure the cfg paths are initialized
 		require.NoError(t, cfg.EnsureDirs())
@@ -65,7 +65,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 	t.Run("no existing config, with options", func(t *testing.T) {
 		t.Parallel()
 
-		monkier := "dummy monkier"
+		moniker := "dummy moniker"
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
@@ -74,7 +74,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 		cfg, err := LoadOrMakeConfigWithOptions(
 			cfgDir,
 			func(cfg *Config) {
-				cfg.BaseConfig.Moniker = monkier
+				cfg.BaseConfig.Moniker = moniker
 			},
 		)
 		require.NoError(t, err)
