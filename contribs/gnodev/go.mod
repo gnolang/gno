@@ -12,8 +12,6 @@ require (
 	golang.org/x/term v0.16.0
 )
 
-require github.com/kr/pretty v0.2.1 // indirect
-
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
@@ -41,6 +39,7 @@ require (
 	github.com/jaekwon/testify v1.6.1 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
+	github.com/kr/pretty v0.2.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/linxGnu/grocksdb v1.8.5 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
