@@ -22,11 +22,11 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Option for services
-	RPC          *rpc.RPCConfig       `toml:"rpc"`
-	P2P          *p2p.P2PConfig       `toml:"p2p"`
-	Mempool      *mem.MempoolConfig   `toml:"mempool"`
-	Consensus    *cns.ConsensusConfig `toml:"consensus"`
-	TxEventStore *eventstore.Config   `toml:"tx_event_store"`
+	RPC          *rpc.RPCConfig       `toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P          *p2p.P2PConfig       `toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -204,18 +204,18 @@ type BaseConfig struct {
 	// TCP or UNIX socket address of the ABCI application,
 	// or the name of an ABCI application compiled in with the Tendermint binary,
 	// or empty if local application instance.
-	ProxyApp string `toml:"proxy_app"`
+	ProxyApp string `toml:"proxy_app" comment:"TCP or UNIX socket address of the ABCI application, \n or the name of an ABCI application compiled in with the Tendermint binary"`
 
 	// Local application instance in lieu of remote app.
 	LocalApp abci.Application
 
 	// A custom human readable name for this node
-	Moniker string `toml:"moniker"`
+	Moniker string `toml:"moniker" comment:"A custom human readable name for this node"`
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool `toml:"fast_sync"`
+	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
 	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
@@ -229,42 +229,42 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
-	DBPath string `toml:"db_dir"`
+	DBPath string `toml:"db_dir" comment:"Database directory"`
 
 	// Output level for logging
-	LogLevel string `toml:"log_level"`
+	LogLevel string `toml:"log_level" comment:"Output level for logging, including package level options"`
 
 	// Output format: 'plain' (colored text) or 'json'
-	LogFormat string `toml:"log_format"`
+	LogFormat string `toml:"log_format" comment:"Output format: 'plain' (colored text) or 'json'"`
 
 	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file"`
+	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
 
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
-	PrivValidatorKey string `toml:"priv_validator_key_file"`
+	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
 	// Path to the JSON file containing the last sign state of a validator
-	PrivValidatorState string `toml:"priv_validator_state_file"`
+	PrivValidatorState string `toml:"priv_validator_state_file" comment:"Path to the JSON file containing the last sign state of a validator"`
 
 	// TCP or UNIX socket address for Tendermint to listen on for
 	// connections from an external PrivValidator process
-	PrivValidatorListenAddr string `toml:"priv_validator_laddr"`
+	PrivValidatorListenAddr string `toml:"priv_validator_laddr" comment:"TCP or UNIX socket address for Tendermint to listen on for\n connections from an external PrivValidator process"`
 
 	// A JSON file containing the private key to use for p2p authenticated encryption
-	NodeKey string `toml:"node_key_file"`
+	NodeKey string `toml:"node_key_file" comment:"Path to the JSON file containing the private key to use for node authentication in the p2p protocol"`
 
 	// Mechanism to connect to the ABCI application: local | socket
-	ABCI string `toml:"abci"`
+	ABCI string `toml:"abci" comment:"Mechanism to connect to the ABCI application: socket | grpc"`
 
 	// TCP or UNIX socket address for the profiling server to listen on
-	ProfListenAddress string `toml:"prof_laddr"`
+	ProfListenAddress string `toml:"prof_laddr" comment:"TCP or UNIX socket address for the profiling server to listen on"`
 
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
-	FilterPeers bool `toml:"filter_peers"` // false
+	FilterPeers bool `toml:"filter_peers" comment:"If true, query the ABCI app on connecting to a new peer\n so the app can decide if we should keep the connection or not"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
