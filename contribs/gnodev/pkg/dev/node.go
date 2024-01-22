@@ -28,10 +28,11 @@ const loadedPacakgesDelimiter = "LoadedPacakges"
 type Node struct {
 	*node.Node
 
-	client        client.Client
-	logger        log.Logger
-	pkgs          PkgsMap // path -> pkg
-	loadPkgsIndex int
+	client client.Client
+	logger log.Logger
+	pkgs   PkgsMap // path -> pkg
+	// keep track of number of loaded package to be able to skip them on backup
+	loadedPackages int
 }
 
 var (
@@ -82,10 +83,10 @@ func NewDevNode(ctx context.Context, logger log.Logger, pkgslist []string) (*Nod
 	return &Node{
 		Node: node,
 
-		client:        client,
-		pkgs:          mpkgs,
-		logger:        logger,
-		loadPkgsIndex: len(pkgsTxs),
+		client:         client,
+		pkgs:           mpkgs,
+		logger:         logger,
+		loadedPackages: len(pkgsTxs),
 	}, nil
 }
 
@@ -173,8 +174,7 @@ func (d *Node) ReloadAll(ctx context.Context) error {
 // If any transaction, including 'addpkg', fails, it will be ignored.
 // Use 'Reset' to completely reset the node's state in case of persistent errors.
 func (d *Node) Reload(ctx context.Context) error {
-	// get current blockstore state
-	// it will ingore any previous genesis tx prior to DelimMsg (bellow)
+	// Get current blockstore state
 	state, err := d.getBlockStoreState(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to save state: %s", err.Error())
@@ -187,13 +187,13 @@ func (d *Node) Reload(ctx context.Context) error {
 		}
 	}
 
-	// Generate a new genesis state based on the current packages.
+	// Load genesis packages
 	pkgsTxs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
-	// generate the new genesis
+	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
 		Balances: DefaultBalance,
 		Txs:      append(pkgsTxs, state...),
@@ -204,7 +204,8 @@ func (d *Node) Reload(ctx context.Context) error {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
-	d.loadPkgsIndex = len(pkgsTxs)
+	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+	d.loadedPackages = len(pkgsTxs)
 
 	return nil
 }
@@ -261,13 +262,14 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
-	b := d.Node.BlockStore().LoadBlock(int64(blockNum))
-	if b == nil {
-		return []std.Tx{}, nil // nothing to see here
+	int64BlockNum := int64(blockNum)
+	b, err := d.client.Block(&int64BlockNum)
+	if err != nil {
+		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
 	}
 
-	txs := make([]std.Tx, len(b.Data.Txs))
-	for i, encodedTx := range b.Data.Txs {
+	txs := make([]std.Tx, len(b.Block.Data.Txs))
+	for i, encodedTx := range b.Block.Data.Txs {
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
@@ -314,18 +316,10 @@ func (d *Node) SendTransaction(tx *std.Tx) error {
 }
 
 func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
-	state := make([]std.Tx, 0)
+	// get current genesis state
+	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	// get genesis block
-	var genesisTxs []std.Tx
-	if genesis, ok := n.GenesisDoc().AppState.(gnoland.GnoGenesisState); ok {
-		genesisTxs = genesis.Txs
-	}
-
-	if len(genesisTxs) >= n.loadPkgsIndex {
-		state = genesisTxs[n.loadPkgsIndex:] // ignore previously loaded packages
-	}
-
+	state := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
 	lastBlock := n.getLatestBlockNumber()
 	var blocnum uint64 = 1
 	for ; blocnum <= lastBlock; blocnum++ {
@@ -393,13 +387,13 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	nonDraft := sorted.GetNonDraftPkgs()
 	txs := []std.Tx{}
 	for _, pkg := range nonDraft {
-		// open files in directory as MemPackage.
+		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
 		if err := memPkg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
 
-		// create transaction
+		// Create transaction
 		tx := std.Tx{
 			Fee: fee,
 			Msgs: []std.Msg{
