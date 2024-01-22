@@ -18,19 +18,7 @@ type MsgCall struct {
 
 // CallCfg contains configuration options for executing a contract call.
 type CallCfg struct {
-	MsgCall
-	GasFee         string // Gas fee
-	GasWanted      int64  // Gas wanted
-	AccountNumber  uint64 // Account number
-	SequenceNumber uint64 // Sequence number
-	Memo           string // Memo
-}
-
-// MultiCallCfg contains configuration options for executing a contract call.
-type MultiCallCfg struct {
-	Msgs []MsgCall
-
-	// Per Tx
+	Msgs           []MsgCall
 	GasFee         string // Gas fee
 	GasWanted      int64  // Gas wanted
 	AccountNumber  uint64 // Account number
@@ -48,86 +36,21 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		return nil, errors.Wrap(err, "validate RPC client")
 	}
 
-	pkgPath := cfg.PkgPath
-	funcName := cfg.FuncName
-	args := cfg.Args
-	gasWanted := cfg.GasWanted
-	gasFee := cfg.GasFee
-	send := cfg.Send
-	sequenceNumber := cfg.SequenceNumber
-	accountNumber := cfg.AccountNumber
-	memo := cfg.Memo
-
-	// Validate config.
-	if pkgPath == "" {
-		return nil, errors.New("missing PkgPath")
-	}
-	if funcName == "" {
-		return nil, errors.New("missing FuncName")
-	}
-
-	// Parse send amount.
-	sendCoins, err := std.ParseCoins(send)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing send coins")
-	}
-
-	// Parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(gasFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	caller := c.Signer.Info().GetAddress()
-
-	// Construct message & transaction and marshal.
-	msg := vm.MsgCall{
-		Caller:  caller,
-		Send:    sendCoins,
-		PkgPath: pkgPath,
-		Func:    funcName,
-		Args:    args,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
-		Signatures: nil,
-		Memo:       memo,
-	}
-
-	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
-}
-
-// MultiCall executes a contract call on the blockchain.
-func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
-	// Validate required client fields.
-	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
-	}
-	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
-	}
-
 	sequenceNumber := cfg.SequenceNumber
 	accountNumber := cfg.AccountNumber
 
 	msgs := make([]vm.MsgCall, 0, len(cfg.Msgs))
 	for _, msg := range cfg.Msgs {
-		pkgPath := msg.PkgPath
-		funcName := msg.FuncName
-		args := msg.Args
-		send := msg.Send
-
 		// Validate config.
-		if pkgPath == "" {
+		if msg.PkgPath == "" {
 			return nil, errors.New("missing PkgPath")
 		}
-		if funcName == "" {
+		if msg.FuncName == "" {
 			return nil, errors.New("missing FuncName")
 		}
 
 		// Parse send amount.
-		sendCoins, err := std.ParseCoins(send)
+		sendCoins, err := std.ParseCoins(msg.Send)
 		if err != nil {
 			return nil, errors.Wrap(err, "parsing send coins")
 		}
@@ -141,9 +64,9 @@ func (c *Client) MultiCall(cfg MultiCallCfg) (*ctypes.ResultBroadcastTxCommit, e
 		msgs = append(msgs, vm.MsgCall{
 			Caller:  caller,
 			Send:    sendCoins,
-			PkgPath: pkgPath,
-			Func:    funcName,
-			Args:    args,
+			PkgPath: msg.PkgPath,
+			Func:    msg.FuncName,
+			Args:    msg.Args,
 		})
 	}
 
