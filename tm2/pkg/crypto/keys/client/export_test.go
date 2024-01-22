@@ -81,16 +81,16 @@ func exportKey(
 	exportOpts testExportKeyOpts,
 	input io.Reader,
 ) error {
-	cfg := &exportCfg{
-		rootCfg: &baseCfg{
+	cfg := &ExportCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  exportOpts.kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		nameOrBech32: exportOpts.keyName,
-		outputPath:   exportOpts.outputPath,
-		unsafe:       exportOpts.unsafe,
+		NameOrBech32: exportOpts.keyName,
+		OutputPath:   exportOpts.outputPath,
+		Unsafe:       exportOpts.unsafe,
 	}
 
 	cmdIO := commands.NewTestIO()
@@ -201,4 +201,20 @@ func TestExport_ExportKey(t *testing.T) {
 			assert.Greater(t, numLines(string(buff)), 1)
 		})
 	}
+}
+
+func TestExport_ExportKeyWithEmptyName(t *testing.T) {
+	// Generate a temporary key-base directory
+	_, kbHome := newTestKeybase(t)
+	err := exportKey(
+		testExportKeyOpts{
+			testCmdKeyOptsBase: testCmdKeyOptsBase{
+				kbHome:  kbHome,
+				keyName: "",
+			},
+		},
+		nil,
+	)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "key to be exported shouldn't be empty")
 }
