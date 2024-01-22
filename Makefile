@@ -45,3 +45,9 @@ fmt:
 .PHONY: lint
 lint:
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
+
+.PHONY: imports
+imports:
+	$(MAKE) --no-print-directory -C tm2      imports
+	$(MAKE) --no-print-directory -C gnovm    imports
+	$(MAKE) --no-print-directory -C gno.land imports
