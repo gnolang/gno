@@ -43,10 +43,10 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	for _, msg := range cfg.Msgs {
 		// Validate config.
 		if msg.PkgPath == "" {
-			return nil, errors.New("missing PkgPath")
+			return nil, errInvalidPkgPath
 		}
 		if msg.FuncName == "" {
-			return nil, errors.New("missing FuncName")
+			return nil, errInvalidFuncName
 		}
 
 		// Parse send amount.
