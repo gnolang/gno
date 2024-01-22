@@ -54,8 +54,6 @@ require (
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	// This version of zap/exp is a requirement until we
-	// upgrade to go 1.21 (https://github.com/uber-go/zap/blob/master/exp/CHANGELOG.md)
 	go.uber.org/zap/exp v0.1.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect

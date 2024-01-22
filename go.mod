@@ -32,8 +32,6 @@ require (
 	go.etcd.io/bbolt v1.3.8
 	go.uber.org/multierr v1.10.0
 	go.uber.org/zap v1.24.0
-	// This version of zap/exp is a requirement until we
-	// upgrade to go 1.21 (https://github.com/uber-go/zap/blob/master/exp/CHANGELOG.md)
 	go.uber.org/zap/exp v0.1.0
 	golang.org/x/crypto v0.18.0
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
