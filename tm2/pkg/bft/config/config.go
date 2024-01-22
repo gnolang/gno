@@ -43,14 +43,23 @@ func DefaultConfig() *Config {
 
 type Option func(cfg *Config)
 
-// LoadOrMakeConfigWithOptions loads configuration or saves one
-// made by modifying the default config with override options
+// LoadOrMakeConfigWithOptions loads the configuration located in the given
+// root directory, at [defaultConfigFilePath].
+//
+// If the config does not exist, it is created, starting from the values in
+// `DefaultConfig` and applying the defaults in opts.
 func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	// Initialize the config as default
 	var (
 		cfg        = DefaultConfig()
 		configPath = join(root, defaultConfigFilePath)
 	)
+
+	// Config doesn't exist, create it
+	// from the default one
+	for _, opt := range opts {
+		opt(cfg)
+	}
 
 	// Check if the config exists
 	if osm.FileExists(configPath) {
@@ -74,12 +83,6 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 		}
 
 		return loadedCfg, nil
-	}
-
-	// Config doesn't exist, create it
-	// from the default one
-	for _, opt := range opts {
-		opt(cfg)
 	}
 
 	cfg.SetRootDir(root)
