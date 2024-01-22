@@ -364,7 +364,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}()
 	m2.RunMain()
 	ctx.Logger().Info("CPUCYCLES call",
-		 "cycles", m2.Cycles,
+		"cycles", m2.Cycles,
 	)
 	res = buf.String()
 	return res, nil
