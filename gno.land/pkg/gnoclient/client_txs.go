@@ -30,10 +30,10 @@ type CallCfg struct {
 func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
+		return nil, err
 	}
 	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
+		return nil, err
 	}
 
 	msgs := make([]vm.MsgCall, 0, len(cfg.Msgs))

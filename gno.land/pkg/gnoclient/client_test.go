@@ -50,3 +50,107 @@ func TestClient_Request(t *testing.T) {
 
 	// XXX: need more test
 }
+
+func TestClient_Call(t *testing.T) {
+	t.Parallel()
+
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	defer node.Stop()
+
+	signer := newInMemorySigner(t, config.TMConfig.ChainID())
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	cfg := CallCfg{
+		Msgs: []MsgCall{
+			{
+				PkgPath:  "gno.land/r/demo/deep/very/deep",
+				FuncName: "Render",
+				Args:     []string{""},
+				Send:     "",
+			},
+		},
+		GasFee:         "1000000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+	}
+
+	_, err := client.Call(cfg)
+	require.NoError(t, err)
+}
+
+func TestClient_Call_Errors(t *testing.T) {
+	t.Parallel()
+
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	defer node.Stop()
+
+	signer := newInMemorySigner(t, config.TMConfig.ChainID())
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	testCases := []struct {
+		name          string
+		client        Client
+		cfg           CallCfg
+		expectedError error
+	}{
+		{
+			name: "Invalid Signer",
+			client: Client{
+				nil,
+				rpcClient,
+			},
+			cfg:           CallCfg{},
+			expectedError: errMissingSigner,
+		},
+		{
+			name: "Invalid RPCClient",
+			client: Client{
+				signer,
+				nil,
+			},
+			cfg:           CallCfg{},
+			expectedError: errMissingRPCClient,
+		},
+		{
+			name: "Invalid PkgPath",
+			client: Client{
+				signer,
+				rpcClient,
+			},
+			cfg: CallCfg{
+				Msgs: []MsgCall{
+					{PkgPath: ""},
+				},
+			},
+			expectedError: errInvalidPkgPath,
+		},
+		{
+			name: "Invalid FuncName",
+			client: Client{
+				signer,
+				rpcClient,
+			},
+			cfg: CallCfg{
+				Msgs: []MsgCall{
+					{PkgPath: "random/path", FuncName: ""},
+				},
+			},
+			expectedError: errInvalidFuncName,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.client.Call(tc.cfg)
+			require.Equal(t, err, tc.expectedError)
+		})
+	}
+}
