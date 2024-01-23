@@ -76,6 +76,15 @@ func FromBinary(b string) (ID, bool) {
 
 // FromString creates a new ID from the given string, expected to be a string
 // representation using cford32, such as that returned by [ID.String].
+//
+// The encoding scheme used by cford32 allows the same ID to have many
+// different representations (though the one returned by [ID.String] is only
+// one, deterministic and safe to be used in AVL). The encoding scheme is
+// "human-centric" and is thus case insensitive, and maps some ambiguous
+// characters to be the same, ie. L = I = 1, O = 0. For this reason, when
+// parsing user input to retrieve a key (encoded as a string), always sanitize
+// it first using FromString, then run String(), instead of using the user's
+// input directly.
 func FromString(b string) (ID, error) {
 	n, err := cford32.Uint64([]byte(b))
 	return ID(n), err
