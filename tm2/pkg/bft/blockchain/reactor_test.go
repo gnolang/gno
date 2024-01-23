@@ -79,7 +79,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 	// pool.height is determined from the store.
 	fastSync := true
 	db := dbm.NewMemDB()
-	blockExec := sm.NewBlockExecutor(db, log.NewNoopLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(db, logger, proxyApp.Consensus(), mock.Mempool{})
 	sm.SaveState(db, state)
 
 	// let's add some blocks in
@@ -127,8 +127,8 @@ func TestNoBlockResponse(t *testing.T) {
 
 	reactorPairs := make([]BlockchainReactorPair, 2)
 
-	reactorPairs[0] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, maxBlockHeight)
-	reactorPairs[1] = newBlockchainReactor(log.NewNoopLogger(), genDoc, privVals, 0)
+	reactorPairs[0] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, maxBlockHeight)
+	reactorPairs[1] = newBlockchainReactor(log.NewTestingLogger(t), genDoc, privVals, 0)
 
 	p2p.MakeConnectedSwitches(config.P2P, 2, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("BLOCKCHAIN", reactorPairs[i].reactor)

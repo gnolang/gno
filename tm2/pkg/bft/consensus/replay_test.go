@@ -72,7 +72,7 @@ func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *
 ) {
 	t.Helper()
 
-	logger := log.NewNoopLogger()
+	logger := log.NewTestingLogger(t)
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
@@ -171,7 +171,7 @@ LOOP:
 		t.Logf("====== LOOP %d\n", i)
 
 		// create consensus state from a clean slate
-		logger := log.NewNoopLogger()
+		logger := log.NewTestingLogger(t)
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
@@ -572,7 +572,7 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 func TestMockProxyApp(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewNoopLogger()
+	logger := log.NewTestingLogger(t)
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
 
@@ -664,7 +664,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 		wal, err := walm.NewWAL(walFile, maxMsgSize)
 		require.NoError(t, err)
-		wal.SetLogger(log.NewNoopLogger())
+		wal.SetLogger(log.NewTestingLogger(t))
 		err = wal.Start()
 		require.NoError(t, err)
 		defer wal.Stop()

@@ -40,7 +40,7 @@ func TestMaxOpenConnections(t *testing.T) {
 	l, err := Listen("tcp://127.0.0.1:0", config)
 	require.NoError(t, err)
 	defer l.Close()
-	go StartHTTPServer(l, mux, log.NewNoopLogger(), config)
+	go StartHTTPServer(l, mux, log.NewTestingLogger(t), config)
 
 	// Make N GET calls to the server.
 	attempts := max * 2
@@ -82,7 +82,7 @@ func TestStartHTTPAndTLSServer(t *testing.T) {
 		fmt.Fprint(w, "some body")
 	})
 
-	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.NewNoopLogger(), DefaultConfig())
+	go StartHTTPAndTLSServer(ln, mux, "test.crt", "test.key", log.NewTestingLogger(t), DefaultConfig())
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

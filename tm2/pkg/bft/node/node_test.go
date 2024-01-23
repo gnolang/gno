@@ -96,7 +96,7 @@ func TestNodeDelayedStart(t *testing.T) {
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	n.GenesisDoc().GenesisTime = now.Add(2 * time.Second)
 	require.NoError(t, err)
 
@@ -113,7 +113,7 @@ func TestNodeSetAppVersion(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// default config uses the kvstore app
@@ -138,7 +138,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	dialer := privval.DialTCPFn(addr, 100*time.Millisecond, ed25519.GenPrivKey())
 	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.NewNoopLogger(),
+		log.NewTestingLogger(t),
 		dialer,
 	)
 	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
@@ -157,7 +157,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	}()
 	defer signerServer.Stop()
 
-	n, err := DefaultNewNode(config, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -170,7 +170,7 @@ func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
 
-	_, err := DefaultNewNode(config, log.NewNoopLogger())
+	_, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	assert.Error(t, err)
 }
 
@@ -184,7 +184,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 
 	dialer := privval.DialUnixFn(tmpfile)
 	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.NewNoopLogger(),
+		log.NewTestingLogger(t),
 		dialer,
 	)
 	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
@@ -201,7 +201,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	}()
 	defer pvsc.Stop()
 
-	n, err := DefaultNewNode(config, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -228,7 +228,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	require.Nil(t, err)
 	defer proxyApp.Stop()
 
-	logger := log.NewNoopLogger()
+	logger := log.NewTestingLogger(t)
 
 	var height int64 = 1
 	state, stateDB := state(1, height)
@@ -289,7 +289,7 @@ func TestNodeNewNodeCustomReactors(t *testing.T) {
 		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(config),
 		DefaultDBProvider,
-		log.NewNoopLogger(),
+		log.NewTestingLogger(t),
 		CustomReactors(map[string]p2p.Reactor{"FOO": cr, "BLOCKCHAIN": customBlockchainReactor}),
 	)
 	require.NoError(t, err)

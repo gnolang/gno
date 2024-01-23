@@ -279,7 +279,7 @@ func TestServersAndClientsBasic(t *testing.T) {
 		testWithHTTPClient(t, cl2)
 
 		cl3 := client.NewWSClient(addr, websocketEndpoint)
-		cl3.SetLogger(log.NewNoopLogger())
+		cl3.SetLogger(log.NewTestingLogger(t))
 		err := cl3.Start()
 		require.Nil(t, err)
 		fmt.Printf("=== testing server on %s using WS client", addr)
@@ -322,7 +322,7 @@ func TestWSNewWSRPCFunc(t *testing.T) {
 	t.Parallel()
 
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.NewNoopLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -349,7 +349,7 @@ func TestWSHandlesArrayParams(t *testing.T) {
 	t.Parallel()
 
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.NewNoopLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -376,7 +376,7 @@ func TestWSClientPingPong(t *testing.T) {
 	t.Parallel()
 
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.NewNoopLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
