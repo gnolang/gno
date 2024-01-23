@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"sort"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -751,118 +752,161 @@ func isZeroArray(arr [8]byte) bool {
 	}
 	return true
 }
+
+func findNearestLoopBlock(store Store, b *Block) *Block {
+	nb := b.GetParent(store)
+	for {
+		if nb != nil {
+			if nb.GetBodyStmt().isLoop {
+				return nb
+			} else {
+				nb = nb.GetParent(store)
+				continue
+			}
+		} else {
+			return nil
+		}
+	}
+}
+
+// find nearest block is loop and contains name of n
+func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr) (*Block, bool, uint8) {
+	var gen uint8 = 1
+	for i := uint8(1); i < nx.Path.Depth; i++ { // find target block at certain depth
+		b = b.GetParent(store)
+		gen++
+	}
+
+	debugPP.Printf("---b is: %v, \n", b)
+	if b.GetBodyStmt().isLoop { // is loop
+		names := b.GetSource(store).GetBlockNames()
+		for _, name := range names {
+			if nx.Name == name { // find n in this block
+				return b, true, gen
+			}
+		}
+	}
+	return nil, false, gen
+
+	//debugPP.Printf("findLoopBlockWithPath for %s, b is: %v, \n", nx.Name, b)
+	//for {
+	//	if b != nil {
+	//		debugPP.Printf("b is: %v, \n", b)
+	//		if b.GetBodyStmt().isLoop { // is loop
+	//			names := b.GetSource(store).GetBlockNames()
+	//			for _, name := range names {
+	//				if n == name { // find n in this block
+	//					return b, true
+	//				}
+	//			}
+	//			// not match
+	//			b = b.GetParent(store)
+	//			continue
+	//		} else {
+	//			b = b.GetParent(store)
+	//			continue
+	//		}
+	//	} else {
+	//		return nil, false
+	//	}
+	//}
+}
+
 func (m *Machine) doOpFuncLit() {
-	debugPP.Println("-----doOpFuncLit")
 	x := m.PopExpr().(*FuncLitExpr)
 	debugPP.Printf("-----doOpFuncLit, x: %v \n", x)
 	lb := m.LastBlock()
 	debugPP.Printf("lb: %v \n", lb)
 
-	var tsb *TimeSeriesBag
-	// if loop block outside
-	if lb.GetBodyStmt().isLoop { // TODO: should recursive check
-		tsb = lb.GetBodyStmt().Ts
-		debugPP.Printf("tsb: %v \n", tsb)
-		if tsb == nil {
-			tsb = &TimeSeriesBag{} // init
+	var captures []*NameExpr
+	for _, n := range x.GetExternNames() {
+		debugPP.Println("iterating extern names, n: ", n)
+		vp := x.GetPathForName(m.Store, n)
+		debugPP.Printf("%v's value path is: %v \n", n, vp)
+		if vp.Depth == 0 {
+			continue
 		}
-
-		for _, n := range x.GetExternNames() {
-			vp := x.GetPathForName(m.Store, n)
-			debugPP.Printf("%v's value path is: %v \n", n, vp)
-			if vp.Depth == 0 {
-				continue
-			}
-			//vp.Depth -= 1
-			// update tsb
-			if !tsb.isSealed { // only once
-				nx := &NameExpr{
-					Name: n,
-					Path: vp,
-				}
-				tst := Transient{
-					nx: nx,
-				}
-				//tsb := TimeSeriesBag{
-				tsb.transient = append(tsb.transient, tst)
-				//}
-				// set back
-				lb.GetBodyStmt().Ts = tsb
-				debugPP.Printf("address of Ts is : %p \n", lb.GetBodyStmt().Ts)
-			}
+		vp.Depth -= 1 // from funcLit block not inside
+		nx := &NameExpr{
+			Name: n,
+			Path: vp,
 		}
-		tsb.isSealed = true
+		captures = append(captures, nx)
 	}
 
-	//captured := &Captured{}
-	//for _, n := range x.GetExternNames() {
-	//	vp := x.GetPathForName(m.Store, n)
-	//	debugPP.Printf("%v's value path is: %v \n", n, vp)
-	//	if vp.Depth == 0 {
-	//		continue
-	//	}
-	//	tv := *m.PopValue()
-	//	debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
-	//	if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
-	//		pass := true
-	//		if _, ok := tv.T.(*FuncType); ok {
-	//			if tv.V == nil {
-	//				pass = false
-	//			}
-	//		} else {
-	//			if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
-	//				pass = false
-	//			}
-	//		}
-	//		if pass {
-	//			//if v.V != nil { // TODO: consider this, this only happens when recursive closure
-	//			debugPP.Printf("capturing v: %v \n", tv)
-	//			//debugPP.Printf("captured before update: \n %s \n", captured)
-	//			captured.names = append(captured.names, n)
-	//			captured.values = append(captured.values, tv)
-	//			//debugPP.Printf("captured after update: \n %s \n", captured)
-	//		}
-	//		//}
-	//	} else {
-	//		debugPP.Println("undefined, skip")
-	//	}
+	sortDepth := func(i, j int) bool {
+		return int(captures[i].Path.Depth) < int(captures[j].Path.Depth)
+	}
+	sort.Slice(captures, sortDepth)
+	debugPP.Println("---done sort")
+	//for i, nx := range captures {
+	//	debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
 	//}
 
-	//captured := &Captured{}
-	//if x.Closure != nil {
-	//	for _, cnx := range x.Closure.cnxs {
-	//		debugPP.Printf("range closures of : %s \n", string(cnx.nx.Name))
-	//		tv := *m.PopValue()
-	//		debugPP.Printf("tv got is: %+v, tv.T: %v, tv.V: %v, tv.N: %v \n", tv, tv.T, tv.V, tv.N)
-	//
-	//		//c := *m.PopValue()
-	//		//debugPP.Printf("---c is: %v \n", c)
-	//
-	//		if !tv.IsUndefined() { // e.g. args of func. forward // TODO: consider this
-	//			pass := true
-	//			if _, ok := tv.T.(*FuncType); ok {
-	//				if tv.V == nil {
-	//					pass = false
-	//				}
-	//			} else {
-	//				if tv.T == nil && tv.V == nil && isZeroArray(tv.N) {
-	//					pass = false
-	//				}
-	//			}
-	//			if pass {
-	//				//if v.V != nil { // TODO: consider this, this only happens when recursive closure
-	//				debugPP.Printf("capturing v: %v \n", tv)
-	//				//debugPP.Printf("captured before update: \n %s \n", captured)
-	//				captured.names = append(captured.names, cnx.nx.Name)
-	//				captured.values = append(captured.values, tv)
-	//				//debugPP.Printf("captured after update: \n %s \n", captured)
-	//			}
-	//			//}
-	//		} else {
-	//			debugPP.Println("undefined, skip")
-	//		}
-	//	}
-	//}
+	var isLoop bool
+	var loopBlock *Block
+	var bag *TimeSeriesBag
+
+	var gen uint8
+	var lastGen uint8
+	//var changed bool
+	//var isSet bool
+	var isReuse bool
+	var Tss []*TimeSeriesBag
+	for i, nx := range captures {
+		debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
+		// start search block, in the order of small depth to big depth
+		loopBlock, isLoop, gen = findLoopBlockWithPath(m.Store, lb, nx)
+		if lastGen == 0 {
+			lastGen = gen
+		} else if gen != lastGen {
+			//changed = true
+			lastGen = gen
+			// set last state
+			if bag != nil {
+				bag.isSealed = true
+				Tss = append(Tss, bag)
+			}
+			debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
+			//isSet = true
+		}
+		if isLoop {
+			bag = loopBlock.GetBodyStmt().Ts // get bag from loop block, fill name
+			debugPP.Printf("got initial bag from target loop block: %v \n", bag)
+			if bag == nil {
+				bag = &TimeSeriesBag{} // init
+			}
+			if !bag.isSealed { // only once
+				debugPP.Println("---not sealed---, should pack only once for n: ", nx.Name)
+				tst := &Transient{
+					nx:          nx,
+					expandRatio: 1, // default 1
+				}
+				bag.transient = append(bag.transient, tst)
+				// set back to loop block properly
+				loopBlock.GetBodyStmt().Ts = bag
+				// seal this layer
+				//if changed { // mean end of a layer, into high layer
+				//	//bag.isSealed = true
+				//	//Tss = append(Tss, bag)
+				//	changed = false
+				//}
+			} else { // repack when iterates, this should be optimized
+				isReuse = true
+				Tss = append(Tss, bag)
+			}
+		}
+	}
+	// tail set
+	if bag != nil && !isReuse {
+		bag.isSealed = true    // set for the last bag
+		Tss = append(Tss, bag) // collect the last bag
+		debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
+	}
+
+	for i, ts := range Tss {
+		debugPP.Printf("========Tss[%d] is: %s, addr: %p \n", i, ts, &ts)
+	}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 
@@ -874,7 +918,7 @@ func (m *Machine) doOpFuncLit() {
 		Source:     x,
 		Name:       "",
 		Closure:    lb,
-		Ts:         tsb,
+		Tss:        Tss,
 		PkgPath:    m.Package.PkgPath,
 		body:       x.Body,
 		nativeBody: nil,

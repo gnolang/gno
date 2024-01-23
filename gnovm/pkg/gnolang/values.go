@@ -1,7 +1,9 @@
 package gnolang
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -515,12 +517,34 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 
 type TimeSeriesBag struct {
 	isSealed  bool
-	transient []Transient
+	transient []*Transient
+}
+
+func (tsb *TimeSeriesBag) setRatio(r int8) {
+	for _, tt := range tsb.transient {
+		tt.expandRatio = r
+	}
+}
+
+func (tsb *TimeSeriesBag) String() string {
+	var s string
+	s += "\n"
+	s += "==================time bag===================\n"
+	s += fmt.Sprintf("isSealed: %v \n", tsb.isSealed)
+	for i, t := range tsb.transient {
+		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
+		for j, v := range t.values {
+			s += fmt.Sprintf("values[%d]: %v \n", j, v)
+		}
+	}
+	s += "====================end======================\n"
+	return s
 }
 
 type Transient struct {
-	nx     *NameExpr
-	values []TypedValue
+	nx          *NameExpr
+	expandRatio int8         // TODO: determine proper type
+	values      []TypedValue // one name with multi snapshot
 }
 
 type Captured struct {
@@ -561,7 +585,7 @@ type FuncValue struct {
 	Name       Name      // name of function/method
 	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures   *Captured
-	Ts         *TimeSeriesBag
+	Tss        []*TimeSeriesBag
 	FileName   Name // file name where declared
 	PkgPath    string
 	NativePkg  string // for native bindings through NativeStore
@@ -2294,6 +2318,21 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
+func (b *Block) Hash() string {
+	// Convert the struct to a byte slice (serialization)
+	structBytes := []byte(fmt.Sprintf("%s%d", b.ObjectInfo, b.Source, b.Values, b.Parent, b.Blank, b.bodyStmt))
+
+	// Hash the byte slice using SHA-256
+	hash := sha256.Sum256(structBytes)
+
+	// Convert the hash to a hexadecimal string
+	hashHex := hex.EncodeToString(hash[:])
+
+	fmt.Println("Original struct:", b)
+	fmt.Println("Hashed value:", hashHex)
+	return hashHex
+}
+
 func (b *Block) UpdateValue(index int, tv TypedValue) {
 	debug.Printf("-----UpdateValue, index: %d, tv: %v \n", index, tv)
 	debug.Printf("b before update: %v \n", b)
@@ -2316,8 +2355,8 @@ func (b *Block) StringIndented(indent string) string {
 	}
 	lines := []string{}
 	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+		fmt.Sprintf("Block(ID:%v,HASH:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b.ObjectInfo.Hash, b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		if _, ok := b.Source.(RefNode); ok {
 			lines = append(lines,
@@ -2377,6 +2416,13 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 		Base:  b,
 		Index: index,
 	}
+}
+
+func (b *Block) GetBlockWithDepth(store Store, path ValuePath) *Block {
+	for i := uint8(1); i < path.Depth; i++ {
+		b = b.GetParent(store)
+	}
+	return b
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {

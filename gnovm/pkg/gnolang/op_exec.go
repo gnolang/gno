@@ -118,21 +118,49 @@ func (m *Machine) doOpExec(op Op) {
 			bs.Active = next
 			s = next
 			goto EXEC_SWITCH
-		} else if bs.NextBodyIndex == bs.BodyLen { // TODO: Update ts slice?
-			debugPP.Printf("---end of body, current block is: %v \n", m.LastBlock())
+		} else if bs.NextBodyIndex == bs.BodyLen {
+			debugPP.Printf("---end of loop body, going to update value--- \n")
 			// update fv.Capture if value changed
-			if bs.isLoop {
-				if bs.Ts != nil {
+			//if _, ok := findLoopBlockWithPath(m.Store, lb); ok {
+			if lb.GetBodyStmt().isLoop {
+				debugPP.Printf("---------isLoop, current block is: %v \n", m.LastBlock())
+				if bs.Ts != nil && bs.Ts.isSealed {
+					debugPP.Printf("---addr of bs.Ts is: %p \n", &bs.Ts)
+					names := lb.Source.GetBlockNames()
+					var found bool
 					for i, t := range bs.Ts.transient {
-						debugPP.Printf("ts[%d] name is %v, path: %v \n", i, t.nx.Name, t.nx.Path)
-						nvp := lb.Source.GetPathForName(m.Store, t.nx.Name)
-						ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
-						tv := ptr.Deref()
-						debugPP.Printf("--- new tv : %v \n", tv)
-						//t.value = tv
-						// set back
-						bs.Ts.transient[i].values = append(bs.Ts.transient[i].values, tv)
-						debugPP.Printf("len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
+						debugPP.Printf("transient[%d] name is %v, path: %v \n", i, t.nx.Name, t.nx.Path)
+						// first check if name is in current block, it not, stop
+						for _, name := range names {
+							if t.nx.Name == name {
+								debugPP.Printf("found %s in current block: %v \n", t.nx.Name, lb)
+								found = true
+							}
+						}
+						if found {
+							nvp := lb.Source.GetPathForName(m.Store, t.nx.Name)
+							ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+							tv := ptr.Deref()
+							debugPP.Printf("--- new tv : %v \n", tv)
+							//t.value = tv
+							// set back
+							debugPP.Printf("before update, len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
+
+							expandRatio := bs.Ts.transient[i].expandRatio
+							debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
+							for j := int8(0); j < expandRatio; j++ {
+								bs.Ts.transient[i].values = append(bs.Ts.transient[i].values, tv)
+							}
+							debugPP.Printf("after update, len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
+							// update higher level if it is also a loop, repeat state.
+							upperBlock := findNearestLoopBlock(m.Store, lb)
+							debugPP.Printf("upperBlock is: %v \n", upperBlock)
+							if upperBlock != nil {
+								upperBlock.GetBodyStmt().Ts.setRatio(int8(len(bs.Ts.transient[i].values)))
+							}
+						} else {
+							debugPP.Printf("---not found %s in current block, b: %v \n", t.nx.Name, lb)
+						}
 					}
 				}
 			}

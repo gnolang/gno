@@ -61,11 +61,6 @@ func (m *Machine) doOpCall() {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
-	// Create new block scope.
-	//debugPP.Printf("fv is:---")
-	//fv.dump()
-	//debugPP.Printf("fv.captures is: %v \n", fv.Captures)
-	//debugPP.Printf("fv.address is: %p \n", fv)
 
 	clo := fr.Func.GetClosure(m.Store)
 	debugPP.Printf("-----got closure: %v ----- \n", clo)
@@ -74,54 +69,48 @@ func (m *Machine) doOpCall() {
 	if captures == nil {
 		debugPP.Println("nil captures")
 	}
-	//if captures != nil {
-	//	debugPP.Printf("captures before call: %v, len(names): %d, len(values): %d \n", captures, len(captures.names), len(captures.values))
-	//	names := clo.GetSource(m.Store).GetBlockNames()
-	//	debugPP.Printf("names: %v \n", names)
-	//	for i1, n1 := range captures.names {
-	//		var index int
-	//		for i2, n2 := range names {
-	//			if n1 == n2 { // match and replace
-	//				index = i2
-	//				debugPP.Printf("index of %s in target block is: %d \n", n1, index)
-	//				debugPP.Printf("target tv[%d] in captured values is :%v \n", i1, captures.values[i1])
-	//				// replace lv values with index
-	//				clo.UpdateValue(index, captures.values[i1])
-	//			}
-	//		}
-	//	}
-	//}
-	debugPP.Println("---parse transient")
-	if fv.Ts != nil {
+	var targetB *Block
+	debugPP.Println("================parse transient for fv====================")
+	if fv.Tss != nil {
 		var end bool
-		for i, t := range fv.Ts.transient {
-			debugPP.Printf("Ts.transient[%d] name is %v, path: %v, len of values is: %v \n", i, t.nx.Name, t.nx.Path, len(t.values))
-			for i, v := range t.values {
-				debugPP.Printf("values[%d] is %v \n", i, v)
-			}
-			//debugPP.Println("?????????nil", fv.Ts == nil)
+		for i, bag := range fv.Tss { // each bag is for a certain level of block
+			debugPP.Printf("Level[%d] bag is : %v \n", i, bag)
+			for j, t := range bag.transient { // unpack vars belong to a specific block
+				if t != nil {
 
-			names := clo.GetSource(m.Store).GetBlockNames()
-			var index int
-			var match bool
-			for i, n := range names {
-				if n == t.nx.Name {
-					index = i
-					match = true
-				}
-			}
-			if match {
-				clo.UpdateValue(index, t.values[0])
-				nvs := t.values[1:]
-				//debugPP.Println("nil????????", fv.Ts == nil)
-				fv.Ts.transient[i].values = nvs
-				if len(fv.Ts.transient[i].values) == 0 { // loop end
-					end = true
+					debugPP.Printf("Ts.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
+					for k, v := range t.values {
+						debugPP.Printf("values[%d] is %v \n", k, v)
+					}
+
+					targetB = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
+					// check if exists, should always be?
+					names := targetB.GetSource(m.Store).GetBlockNames()
+					var index int
+					var match bool
+					for l, n := range names {
+						if n == t.nx.Name {
+							debugPP.Printf("name: %s match \n", n)
+							index = l
+							match = true
+							break
+						}
+					}
+					if match {
+						debugPP.Println("===match")
+						targetB.UpdateValue(index, t.values[0])
+						nvs := t.values[1:]
+						bag.transient[j].values = nvs
+						if len(bag.transient[j].values) == 0 { // loop end
+							bag.transient[j] = nil // empty a name and value
+							end = true
+						}
+					}
 				}
 			}
 		}
 		if end {
-			fv.Ts = nil
+			fv.Tss = nil
 		}
 	}
 
