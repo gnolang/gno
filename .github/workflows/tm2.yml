@@ -42,6 +42,7 @@ jobs:
         working-directory: tm2
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ${{ matrix.program }}
 
+
   test:
     strategy:
       fail-fast: false
@@ -62,9 +63,9 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - name: Set environment variables for debug mode
-        if: env.ACTIONS_STEP_DEBUG == 'true'
+        if: ${{ runner.debug == 1 }}
         run: |
-          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          export LOG_PATH_DIR=${{ runner.temp }}/logs-go${{ matrix.goversion }}-${{ matrix.args }}
           mkdir -p $LOG_PATH_DIR
 
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
@@ -81,6 +82,12 @@ jobs:
         with:
           name: ${{runner.os}}-coverage-tm2-${{ matrix.args}}-${{matrix.goversion}}
           path: ./tm2/coverage.out
+      - uses: actions/upload-artifact@v3
+        if: ${{ runner.debug == 1 }}
+        with:
+          name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
+          path: ${{ env.LOG_PATH_DIR }}
+
 
   upload-coverage:
     needs: test
