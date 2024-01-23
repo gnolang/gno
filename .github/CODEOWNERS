@@ -35,6 +35,8 @@
 # GnoVM/Gnolang.
 /gnovm/                       @gnolang/tech-staff
 /gnovm/stdlibs                @jaekwon @thehowl
+/gnovm/tests                  @jaekwon @piux2 @thehowl @moul
+/gnovm/cmd/gno                @jaekwon @thehowl @harry-hov @moul
 /gnovm/pkg/gnolang            @jaekwon @piux2 @thehowl @moul
 /gnovm/pkg/doc                @thehowl
 /gnovm/pkg/gnomod             @harry-hov
