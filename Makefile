@@ -51,3 +51,7 @@ imports:
 	$(MAKE) --no-print-directory -C tm2      imports
 	$(MAKE) --no-print-directory -C gnovm    imports
 	$(MAKE) --no-print-directory -C gno.land imports
+
+.PHONY: tidy
+tidy:
+	$(MAKE) --no-print-directory -C misc     tidy
