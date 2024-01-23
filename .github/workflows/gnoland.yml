@@ -60,7 +60,7 @@ jobs:
           - _test.gnoland
           - _test.gnokey
           - _test.pkgs
-          - _test.gnoweb 
+          - _test.gnoweb
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -69,7 +69,7 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - name: Set environment variables for debug mode
-        # if: ${{ runner.debug == 1 }}
+        if: ${{ runner.debug == 1 }}
         run: |
           export LOG_PATH_DIR=${{ runner.temp }}/logs-go${{ matrix.goversion }}-${{ matrix.args }}
           mkdir -p $LOG_PATH_DIR
@@ -89,8 +89,7 @@ jobs:
           path: ./gno.land/coverage.out
       - name: Upload Debug Logs
         uses: actions/upload-artifact@v3
-        # if:  ${{ always() && runner.debug == 1 }}
-        if: always()
+        if: ${{ always() && runner.debug == 1 }}
         with:
           name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
           path: ${{ env.LOG_PATH_DIR }}/**/*
@@ -107,7 +106,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
   docker-integration:
