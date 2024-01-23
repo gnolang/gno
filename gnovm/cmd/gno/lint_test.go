@@ -11,6 +11,12 @@ func TestLintApp(t *testing.T) {
 			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run-main/"},
 			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
 		}, {
+			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/undefined-variable-test/undefined_variables_test.gno"},
+			stderrShouldContain: "undefined_variables_test.gno:6: name toto not declared (code=2)",
+		}, {
+			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/package-not-declared/main.gno"},
+			stderrShouldContain: "main.gno:4: name fmt not declared (code=2).",
+		}, {
 			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run-main/"},
 			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
 		}, {
@@ -20,6 +26,7 @@ func TestLintApp(t *testing.T) {
 			args: []string{"lint", "--set-exit-status=0", "../../tests/integ/invalid-module-name/"},
 			// TODO: raise an error because gno.mod is invalid
 		},
+
 		// TODO: 'gno mod' is valid?
 		// TODO: is gno source valid?
 		// TODO: are dependencies valid?
