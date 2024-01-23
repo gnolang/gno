@@ -37,7 +37,7 @@ func TestID_Binary(t *testing.T) {
 	for j := 0; j < 1000; j++ {
 		cur := i.Next().Binary()
 		if cur <= prev {
-			t.Fatalf("cur %x <= prev %x", cur, prev)
+			t.Fatalf("cur %x > prev %x", cur, prev)
 		}
 		prev = cur
 	}
@@ -50,7 +50,7 @@ func TestID_String(t *testing.T) {
 	for j := 0; j < 1000; j++ {
 		cur := i.Next().String()
 		if cur <= prev {
-			t.Fatalf("cur %x <= prev %x", cur, prev)
+			t.Fatalf("cur %s > prev %s", cur, prev)
 		}
 		prev = cur
 	}
@@ -61,7 +61,7 @@ func TestID_String(t *testing.T) {
 		cur := i.Next().String()
 		// println(cur)
 		if cur <= prev {
-			t.Fatalf("cur %x <= prev %x", cur, prev)
+			t.Fatalf("cur %s > prev %s", cur, prev)
 		}
 		prev = cur
 	}
