@@ -39,5 +39,30 @@ func TestID_Binary(t *testing.T) {
 		if cur <= prev {
 			t.Fatalf("cur %x <= prev %x", cur, prev)
 		}
+		prev = cur
+	}
+}
+
+func TestID_String(t *testing.T) {
+	var i ID
+	prev := i.String()
+
+	for j := 0; j < 1000; j++ {
+		cur := i.Next().String()
+		if cur <= prev {
+			t.Fatalf("cur %x <= prev %x", cur, prev)
+		}
+		prev = cur
+	}
+
+	// Test for when cford32 switches over to the long encoding.
+	i = 1<<34 - 512
+	for j := 0; j < 1024; j++ {
+		cur := i.Next().String()
+		// println(cur)
+		if cur <= prev {
+			t.Fatalf("cur %x <= prev %x", cur, prev)
+		}
+		prev = cur
 	}
 }
