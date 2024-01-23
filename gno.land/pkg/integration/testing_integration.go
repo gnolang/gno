@@ -112,7 +112,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			{
 				logger = tm2Log.NewNoopLogger()
 				if persistWorkDir || os.Getenv("LOG_DIR") != "" {
-					logname := fmt.Sprintf("gnoland-%s.log", sid)
+					logname := fmt.Sprintf("txtar-gnoland-%s.log", sid)
 					logger, err = getTestingLogger(env, logname)
 					if err != nil {
 						return fmt.Errorf("unable to setup logger: %w", err)
@@ -288,7 +288,7 @@ func nodeIsRunning(nodes map[string]*testNode, sid string) bool {
 func getTestingLogger(env *testscript.Env, logname string) (*slog.Logger, error) {
 	var path string
 
-	if logdir := os.Getenv("LOG_DIR"); logdir != "" {
+	if logdir := os.Getenv("LOG_PATH_DIR"); logdir != "" {
 		if err := os.MkdirAll(logdir, 0o755); err != nil {
 			return nil, fmt.Errorf("unable to make log directory %q", logdir)
 		}

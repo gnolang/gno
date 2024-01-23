@@ -68,6 +68,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
+      - name: Set environment variables for debug mode
         if: ${{ runner.debug == 1 }}
         run: |
           export LOG_PATH_DIR=${{ runner.temp }}/logs-go${{ matrix.goversion }}-${{ matrix.args }}
@@ -80,25 +81,18 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
-          export LOG_DIR="${{ runner.temp }}/logs/test-${{ matrix.goversion }}-gnoland"
           make ${{ matrix.args }}
-      - name: Upload Test Log
-        if: always() 
-        uses: actions/upload-artifact@v3
-        with:
-          name: logs-test-gnoland-go${{ matrix.goversion }}
-          path: ${{ runner.temp }}/logs/**/*.log
       - uses: actions/upload-artifact@v3
         if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
         with:
           name: ${{runner.os}}-coverage-gnoland-${{ matrix.args}}-${{matrix.goversion}}
           path: ./gno.land/coverage.out
-      - uses: actions/upload-artifact@v3
+      - name: Upload Debug Logs
+        uses: actions/upload-artifact@v3
         if: ${{ runner.debug == 1 }}
         with:
           name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
           path: ${{ env.LOG_PATH_DIR }}
-
 
   upload-coverage:
     needs: test
