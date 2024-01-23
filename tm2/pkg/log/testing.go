@@ -3,8 +3,10 @@ package log
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jaekwon/testify/require"
 	"golang.org/x/exp/slog"
@@ -20,7 +22,7 @@ func NewTestingLogger(t *testing.T) *slog.Logger {
 
 	// Parse the environment vars
 	envLevel := os.Getenv("LOG_LEVEL")
-	envPath := os.Getenv("LOG_PATH")
+	envPath := os.Getenv("LOG_PATH_DIR")
 
 	// Default logger config
 	logLevel := slog.LevelError
@@ -38,13 +40,19 @@ func NewTestingLogger(t *testing.T) *slog.Logger {
 
 	// Check if the log output needs to be a file
 	if envPath != "" {
-		logFile, err := os.Create(
-			fmt.Sprintf(
-				"%s_%s",
-				envPath,
-				t.Name(),
-			),
+		// Create the top-level log directory
+		if err := os.Mkdir(envPath, 0o755); err != nil && !os.IsExist(err) {
+			t.Fatalf("Failed to create log directory: %v", err)
+		}
+
+		logName := fmt.Sprintf(
+			"%s-%d.log",
+			t.Name(),          // unique test name
+			time.Now().Unix(), // unique test timestamp
 		)
+		logPath := filepath.Join(envPath, logName)
+
+		logFile, err := os.Create(logPath)
 		require.NoError(t, err)
 
 		t.Cleanup(func() {
