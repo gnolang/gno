@@ -1,23 +1,23 @@
-package ghverify
+package gh
 
 import (
 	"bufio"
 	"bytes"
 )
 
-type Task struct {
+type verificationTask struct {
 	gnoAddress   string
 	githubHandle string
 }
 
-func NewTask(gnoAddress, githubHandle string) *Task {
-	return &Task{
+func NewVerificationTask(gnoAddress, githubHandle string) *verificationTask {
+	return &verificationTask{
 		gnoAddress:   gnoAddress,
 		githubHandle: githubHandle,
 	}
 }
 
-func (t *Task) MarshalToJSON() ([]byte, error) {
+func (t *verificationTask) MarshalToJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 
@@ -29,10 +29,10 @@ func (t *Task) MarshalToJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (t *Task) GnoAddress() string {
+func (t *verificationTask) GnoAddress() string {
 	return t.gnoAddress
 }
 
-func (t *Task) GithubHandle() string {
+func (t *verificationTask) GithubHandle() string {
 	return t.githubHandle
 }

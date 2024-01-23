@@ -3,7 +3,6 @@ package gh
 import (
 	"github.com/gnolang/gno/agent2/p/orkle"
 	"github.com/gnolang/gno/agent2/p/orkle/feed/static"
-	"github.com/gnolang/gno/agent2/p/orkle/feed/tasks/ghverify"
 	"github.com/gnolang/gno/agent2/p/orkle/message"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/std"
@@ -50,7 +49,7 @@ func (h postOrkleMessageHandler) Handle(i *orkle.Instance, funcType message.Func
 		panic("expected feed to have exactly one task")
 	}
 
-	task, ok := feedTasks[0].(*ghverify.Task)
+	task, ok := feedTasks[0].(*verificationTask)
 	if !ok {
 		panic("expected ghverify task")
 	}
@@ -65,7 +64,7 @@ func RequestVerification(githubHandle string) {
 			githubHandle,
 			"string",
 			nil,
-			ghverify.NewTask(string(std.GetOrigCaller()), githubHandle),
+			NewVerificationTask(string(std.GetOrigCaller()), githubHandle),
 		),
 	)
 }
