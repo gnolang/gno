@@ -16,9 +16,8 @@ const (
 
 var (
 	ownerAddress = string(std.GetOrigCaller())
-
-	oracle      *gnorkle.Instance
-	postHandler postGnorkleMessageHandler
+	oracle       *gnorkle.Instance
+	postHandler  postGnorkleMessageHandler
 
 	handleToAddressMap = avl.NewTree()
 	addressToHandleMap = avl.NewTree()
