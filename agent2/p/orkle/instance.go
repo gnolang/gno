@@ -3,6 +3,7 @@ package orkle
 import (
 	"strings"
 
+	"github.com/gnolang/gno/agent2/p/orkle/agent"
 	"github.com/gnolang/gno/agent2/p/orkle/feed"
 	"github.com/gnolang/gno/agent2/p/orkle/message"
 	"gno.land/p/demo/avl"
@@ -10,37 +11,47 @@ import (
 )
 
 type Instance struct {
-	feeds        *avl.Tree
-	whitelist    *avl.Tree
-	ownerAddress string
+	feeds     *avl.Tree
+	whitelist agent.Whitelist
 }
 
-func NewInstance(ownerAddress string) *Instance {
+func NewInstance() *Instance {
 	return &Instance{
-		ownerAddress: ownerAddress,
+		feeds: avl.NewTree(),
 	}
 }
 
-func (i *Instance) WithWhitelist(addresses ...string) *Instance {
-	i.whitelist = avl.NewTree()
-	for _, address := range addresses {
-		i.whitelist.Set(address, struct{}{})
+func assertNonEmptyString(s string) {
+	if len(s) == 0 {
+		panic("feed ids cannot be empty")
 	}
-	return i
-}
-
-func (i *Instance) WithFeeds(feeds ...Feed) *Instance {
-	i.feeds = avl.NewTree()
-	for _, feed := range feeds {
-		i.feeds.Set(feed.ID(), feed)
-	}
-	return i
 }
 
 func (i *Instance) AddFeeds(feeds ...Feed) {
 	for _, feed := range feeds {
-		i.feeds.Set(feed.ID(), feed)
+		assertNonEmptyString(feed.ID())
+		i.feeds.Set(
+			feed.ID(),
+			FeedWithWhitelist{Feed: feed},
+		)
 	}
+}
+
+func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
+	for _, feed := range feeds {
+		assertNonEmptyString(feed.ID())
+		i.feeds.Set(
+			feed.ID(),
+			FeedWithWhitelist{
+				Whitelist: feed.Whitelist,
+				Feed:      feed,
+			},
+		)
+	}
+}
+
+func (i *Instance) RemoveFeed(id string) {
+	i.feeds.Remove(id)
 }
 
 type PostMessageHandler interface {
@@ -58,47 +69,20 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) str
 
 	default:
 		id, msg := message.ParseID(msg)
-		feed := i.getFeed(id)
+		feedWithWhitelist := i.getFeedWithWhitelist(id)
 
-		if !addressWhitelisted(i.hasAddressWhitelisted(caller), caller, feed) {
+		if addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
 			panic("caller not whitelisted")
 		}
 
-		feed.Ingest(funcType, msg, caller)
+		feedWithWhitelist.Ingest(funcType, msg, caller)
 
 		if postHandler != nil {
-			postHandler.Handle(i, funcType, feed)
+			postHandler.Handle(i, funcType, feedWithWhitelist)
 		}
 	}
 
 	return ""
-}
-
-func (i *Instance) RemoveFeed(id string) {
-	i.feeds.Remove(id)
-}
-
-// TODO: test this.
-
-// addressWhiteListed returns true if:
-// - the feed has a white list and the address is whitelisted, or
-// - the feed has no white list and the instance has a white list and the address is whitelisted, or
-// - the feed has no white list and the instance has no white list.
-func addressWhitelisted(isInstanceWhitelisted bool, address string, feed Feed) bool {
-	// A feed whitelist takes priority, so it will return false if the feed has a whitelist and the caller is
-	// not a part of it. An empty whitelist defers to the instance whitelist.
-	var isWhitelisted, hasWhitelist bool
-	if isWhitelisted, hasWhitelist = feed.HasAddressWhitelisted(address); !isWhitelisted && hasWhitelist {
-		return false
-	}
-
-	return (isWhitelisted && hasWhitelist) || isInstanceWhitelisted
-}
-
-// hasAddressWhitelisted returns true if the address is whitelisted for the instance or if the instance has
-// no whitelist.
-func (i *Instance) hasAddressWhitelisted(address string) bool {
-	return i.whitelist == nil || i.whitelist.Has(address)
 }
 
 func (i *Instance) getFeed(id string) Feed {
@@ -115,34 +99,48 @@ func (i *Instance) getFeed(id string) Feed {
 	return feed
 }
 
+func (i *Instance) getFeedWithWhitelist(id string) FeedWithWhitelist {
+	untypedFeedWithWhitelist, ok := i.feeds.Get(id)
+	if !ok {
+		panic("invalid ingest id: " + id)
+	}
+
+	feedWithWhitelist, ok := untypedFeedWithWhitelist.(FeedWithWhitelist)
+	if !ok {
+		panic("invalid feed with whitelist type")
+	}
+
+	return feedWithWhitelist
+}
+
 func (i *Instance) GetFeedValue(id string) (feed.Value, string, bool) {
 	return i.getFeed(id).Value()
 }
 
 func (i *Instance) GetFeedDefinitions(forAddress string) string {
-	instanceHasAddressWhitelisted := i.hasAddressWhitelisted(forAddress)
+	instanceHasAddressWhitelisted := !i.whitelist.HasDefinition() || i.whitelist.HasAddress(forAddress)
 
 	buf := new(strings.Builder)
 	buf.WriteString("[")
 	first := true
 
 	i.feeds.Iterate("", "", func(_ string, value interface{}) bool {
-		feed, ok := value.(Feed)
+		feedWithWhitelist, ok := value.(FeedWithWhitelist)
 		if !ok {
 			panic("invalid feed type")
 		}
 
 		// Don't give agents the ability to try to publish to inactive feeds.
-		if !feed.IsActive() {
+		if !feedWithWhitelist.IsActive() {
 			return true
 		}
 
 		// Skip feeds the address is not whitelisted for.
-		if !addressWhitelisted(instanceHasAddressWhitelisted, forAddress, feed) {
+		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, forAddress, &instanceHasAddressWhitelisted) {
 			return true
 		}
 
-		taskBytes, err := feed.MarshalJSON()
+		taskBytes, err := feedWithWhitelist.Feed.MarshalJSON()
 		if err != nil {
 			panic(err)
 		}

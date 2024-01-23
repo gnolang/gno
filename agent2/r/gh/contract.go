@@ -15,12 +15,17 @@ const (
 )
 
 var (
-	oracle      orkle.Instance
+	oracle      *orkle.Instance
 	postHandler postOrkleMessageHandler
 
 	handleToAddressMap = avl.NewTree()
 	addressToHandleMap = avl.NewTree()
 )
+
+func init() {
+	oracle = orkle.NewInstance()
+	oracle.AddToWhitelist("", []string{whitelistedAgentAddress})
+}
 
 type postOrkleMessageHandler struct{}
 
@@ -52,11 +57,6 @@ func (h postOrkleMessageHandler) Handle(i *orkle.Instance, funcType message.Func
 
 	handleToAddressMap.Set(task.GithubHandle(), task.GnoAddress())
 	addressToHandleMap.Set(task.GnoAddress(), task.GithubHandle())
-}
-
-func init() {
-	oracle = *orkle.NewInstance(string(std.GetOrigCaller())).
-		WithWhitelist(whitelistedAgentAddress)
 }
 
 func RequestVerification(githubHandle string) {
