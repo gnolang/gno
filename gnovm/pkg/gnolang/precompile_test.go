@@ -12,6 +12,8 @@ import (
 )
 
 func TestPrecompile(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name                      string
 		source                    string
@@ -56,6 +58,8 @@ func TestPrecompile(t *testing.T) {
 	for _, c := range cases {
 		c := c // scopelint
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
 			// parse gno
 			fset := token.NewFileSet()
 			f, err := parser.ParseFile(fset, "foo.go", c.source, parser.ParseComments)

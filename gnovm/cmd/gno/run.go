@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -20,7 +21,7 @@ type runCfg struct {
 	expr    string
 }
 
-func newRunCmd(io *commands.IO) *commands.Command {
+func newRunCmd(io commands.IO) *commands.Command {
 	cfg := &runCfg{}
 
 	return commands.NewCommand(
@@ -48,7 +49,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -59,18 +60,18 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execRun(cfg *runCfg, args []string, io *commands.IO) error {
+func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	stdin := io.In
-	stdout := io.Out
-	stderr := io.Err
+	stdin := io.In()
+	stdout := io.Out()
+	stderr := io.Err()
 
 	// init store and machine
 	testStore := tests.TestStore(cfg.rootDir,
@@ -143,7 +144,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 		n := f.Name()
 		if isGnoFile(f) &&
 			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasPrefix(n, "_filetest.gno") {
+			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))
 		}
 	}

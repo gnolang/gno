@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -11,14 +10,10 @@ import (
 func main() {
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
-func newGnocliCmd(io *commands.IO) *commands.Command {
+func newGnocliCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
@@ -33,11 +28,11 @@ func newGnocliCmd(io *commands.IO) *commands.Command {
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
-		newBuildCmd(io),
 		newPrecompileCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),
 		newDocCmd(io),
+		newEnvCmd(io),
 		// fmt -- gofmt
 		// graph
 		// vendor -- download deps from the chain in vendor/
@@ -47,7 +42,7 @@ func newGnocliCmd(io *commands.IO) *commands.Command {
 		// generate
 		// "vm" -- starts an in-memory chain that can be interacted with?
 		// bug -- start a bug report
-		// version -- show gnodev, golang versions
+		// version -- show gno, golang versions
 	)
 
 	return cmd

@@ -4,9 +4,8 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestTestdata(t *testing.T) {
-	testscript.Run(t, integration.SetupGnolandTestScript(t, "testdata"))
+	integration.RunGnolandTestscripts(t, "testdata")
 }

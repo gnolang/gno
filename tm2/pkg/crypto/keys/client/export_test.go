@@ -44,7 +44,7 @@ func addRandomKeyToKeybase(
 	encryptPassword string,
 ) (keys.Info, error) {
 	// Generate a random mnemonic
-	mnemonic, err := generateMnemonic(mnemonicEntropySize)
+	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"unable to generate a mnemonic phrase, %w",
@@ -64,11 +64,9 @@ func addRandomKeyToKeybase(
 }
 
 type testCmdKeyOptsBase struct {
-	kbHome          string
-	keyName         string
-	decryptPassword string
-	encryptPassword string
-	unsafe          bool
+	kbHome  string
+	keyName string
+	unsafe  bool
 }
 
 type testExportKeyOpts struct {
@@ -83,16 +81,16 @@ func exportKey(
 	exportOpts testExportKeyOpts,
 	input io.Reader,
 ) error {
-	cfg := &exportCfg{
-		rootCfg: &baseCfg{
+	cfg := &ExportCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  exportOpts.kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		nameOrBech32: exportOpts.keyName,
-		outputPath:   exportOpts.outputPath,
-		unsafe:       exportOpts.unsafe,
+		NameOrBech32: exportOpts.keyName,
+		OutputPath:   exportOpts.outputPath,
+		Unsafe:       exportOpts.unsafe,
 	}
 
 	cmdIO := commands.NewTestIO()
@@ -203,4 +201,20 @@ func TestExport_ExportKey(t *testing.T) {
 			assert.Greater(t, numLines(string(buff)), 1)
 		})
 	}
+}
+
+func TestExport_ExportKeyWithEmptyName(t *testing.T) {
+	// Generate a temporary key-base directory
+	_, kbHome := newTestKeybase(t)
+	err := exportKey(
+		testExportKeyOpts{
+			testCmdKeyOptsBase: testCmdKeyOptsBase{
+				kbHome:  kbHome,
+				keyName: "",
+			},
+		},
+		nil,
+	)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "key to be exported shouldn't be empty")
 }

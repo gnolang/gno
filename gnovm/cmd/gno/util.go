@@ -5,14 +5,13 @@ import (
 	"go/ast"
 	"io"
 	"io/fs"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
@@ -193,22 +192,6 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-func guessRootDir() string {
-	// try to get the root directory from the GNOROOT environment variable.
-	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir)
-	}
-
-	// if GNOROOT is not set, try to guess the root directory using the `go list` command.
-	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal("can't guess --root-dir, please fill it manually or define the GNOROOT environment variable globally.")
-	}
-	rootDir := strings.TrimSpace(string(out))
-	return rootDir
-}
-
 // makeTestGoMod creates the temporary go.mod for test
 func makeTestGoMod(path string, packageName string, goversion string) error {
 	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
@@ -242,7 +225,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }

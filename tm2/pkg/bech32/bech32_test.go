@@ -12,6 +12,8 @@ import (
 )
 
 func TestEncodeAndDecode(t *testing.T) {
+	t.Parallel()
+
 	sum := sha256.Sum256([]byte("hello world\n"))
 
 	bech, err := bech32.ConvertAndEncode("shasum", sum[:])
@@ -39,6 +41,8 @@ var (
 )
 
 func TestEncode(t *testing.T) {
+	t.Parallel()
+
 	bz, err := hex.DecodeString(pubkeyBytes)
 
 	assert.NoError(t, err)
@@ -49,6 +53,8 @@ func TestEncode(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
+	t.Parallel()
+
 	hrp, b1, err := bech32.Decode(pubkeyBech32)
 
 	assert.NoError(t, err)
