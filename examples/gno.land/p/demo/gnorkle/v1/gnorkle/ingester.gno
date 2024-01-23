@@ -1,6 +1,6 @@
-package orkle
+package gnorkle
 
-import "gno.land/p/demo/orkle/v1/ingester"
+import "gno.land/p/demo/gnorkle/v1/ingester"
 
 type Ingester interface {
 	Type() ingester.Type

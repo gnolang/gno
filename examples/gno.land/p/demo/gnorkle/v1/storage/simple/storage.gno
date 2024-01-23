@@ -3,7 +3,7 @@ package simple
 import (
 	"time"
 
-	"gno.land/p/demo/orkle/v1/feed"
+	"gno.land/p/demo/gnorkle/v1/feed"
 )
 
 type Storage struct {

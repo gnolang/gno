@@ -1,8 +1,8 @@
 package single
 
 import (
-	"gno.land/p/demo/orkle/v1/ingester"
-	"gno.land/p/demo/orkle/v1/orkle"
+	"gno.land/p/demo/gnorkle/v1/gnorkle"
+	"gno.land/p/demo/gnorkle/v1/ingester"
 )
 
 type ValueIngester struct {
@@ -18,6 +18,6 @@ func (i *ValueIngester) Ingest(value, providerAddress string) bool {
 	return true
 }
 
-func (i *ValueIngester) CommitValue(valueStorer orkle.Storage, providerAddress string) {
+func (i *ValueIngester) CommitValue(valueStorer gnorkle.Storage, providerAddress string) {
 	valueStorer.Put(i.value)
 }

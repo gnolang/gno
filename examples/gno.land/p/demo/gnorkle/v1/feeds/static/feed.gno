@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"bytes"
 
-	"gno.land/p/demo/orkle/v1/feed"
-	"gno.land/p/demo/orkle/v1/ingesters/single"
-	"gno.land/p/demo/orkle/v1/message"
-	"gno.land/p/demo/orkle/v1/orkle"
-	"gno.land/p/demo/orkle/v1/storage/simple"
+	"gno.land/p/demo/gnorkle/v1/feed"
+	"gno.land/p/demo/gnorkle/v1/gnorkle"
+	"gno.land/p/demo/gnorkle/v1/ingesters/single"
+	"gno.land/p/demo/gnorkle/v1/message"
+	"gno.land/p/demo/gnorkle/v1/storage/simple"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -16,16 +16,16 @@ type Feed struct {
 	id            string
 	isLocked      bool
 	valueDataType string
-	ingester      orkle.Ingester
-	storage       orkle.Storage
+	ingester      gnorkle.Ingester
+	storage       gnorkle.Storage
 	tasks         []feed.Task
 }
 
 func NewFeed(
 	id string,
 	valueDataType string,
-	ingester orkle.Ingester,
-	storage orkle.Storage,
+	ingester gnorkle.Ingester,
+	storage gnorkle.Storage,
 	tasks ...feed.Task,
 ) *Feed {
 	return &Feed{

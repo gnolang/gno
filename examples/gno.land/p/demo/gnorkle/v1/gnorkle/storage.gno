@@ -1,6 +1,6 @@
-package orkle
+package gnorkle
 
-import "gno.land/p/demo/orkle/v1/feed"
+import "gno.land/p/demo/gnorkle/v1/feed"
 
 type Storage interface {
 	Put(value string)

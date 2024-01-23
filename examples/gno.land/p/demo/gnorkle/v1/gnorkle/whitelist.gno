@@ -1,4 +1,4 @@
-package orkle
+package gnorkle
 
 type Whitelist interface {
 	ClearAddresses()

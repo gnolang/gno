@@ -1,8 +1,8 @@
-package orkle
+package gnorkle
 
 import (
-	"gno.land/p/demo/orkle/v1/feed"
-	"gno.land/p/demo/orkle/v1/message"
+	"gno.land/p/demo/gnorkle/v1/feed"
+	"gno.land/p/demo/gnorkle/v1/message"
 )
 
 type Feed interface {

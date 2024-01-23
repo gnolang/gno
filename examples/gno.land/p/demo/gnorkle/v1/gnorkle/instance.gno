@@ -1,13 +1,13 @@
-package orkle
+package gnorkle
 
 import (
 	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/orkle/v1/agent"
-	"gno.land/p/demo/orkle/v1/feed"
-	"gno.land/p/demo/orkle/v1/message"
+	"gno.land/p/demo/gnorkle/v1/agent"
+	"gno.land/p/demo/gnorkle/v1/feed"
+	"gno.land/p/demo/gnorkle/v1/message"
 )
 
 type Instance struct {

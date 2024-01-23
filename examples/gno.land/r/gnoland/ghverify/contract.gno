@@ -4,9 +4,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/orkle/v1/feeds/static"
-	"gno.land/p/demo/orkle/v1/message"
-	"gno.land/p/demo/orkle/v1/orkle"
+	"gno.land/p/demo/gnorkle/v1/feeds/static"
+	"gno.land/p/demo/gnorkle/v1/gnorkle"
+	"gno.land/p/demo/gnorkle/v1/message"
 )
 
 const (
@@ -15,21 +15,21 @@ const (
 )
 
 var (
-	oracle      *orkle.Instance
-	postHandler postOrkleMessageHandler
+	oracle      *gnorkle.Instance
+	postHandler postGnorkleMessageHandler
 
 	handleToAddressMap = avl.NewTree()
 	addressToHandleMap = avl.NewTree()
 )
 
 func init() {
-	oracle = orkle.NewInstance()
+	oracle = gnorkle.NewInstance()
 	oracle.AddToWhitelist("", []string{whitelistedAgentAddress})
 }
 
-type postOrkleMessageHandler struct{}
+type postGnorkleMessageHandler struct{}
 
-func (h postOrkleMessageHandler) Handle(i *orkle.Instance, funcType message.FuncType, feed orkle.Feed) {
+func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.FuncType, feed gnorkle.Feed) {
 	if funcType != message.FuncTypeIngest {
 		return
 	}
@@ -70,6 +70,9 @@ func RequestVerification(githubHandle string) {
 	)
 }
 
-func OrkleEntrypoint(message string) string {
+func GnorkleEntrypoint(message string) string {
 	return oracle.HandleMessage(message, postHandler)
+}
+
+func Render(_ string) string {
 }
