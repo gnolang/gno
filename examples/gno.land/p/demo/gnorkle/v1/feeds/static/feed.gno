@@ -26,7 +26,7 @@ func NewFeed(
 	valueDataType string,
 	ingester gnorkle.Ingester,
 	storage gnorkle.Storage,
-	tasks ...feed.Task,
+	tasks []feed.Task,
 ) *Feed {
 	return &Feed{
 		id:            id,
@@ -40,14 +40,14 @@ func NewFeed(
 func NewSingleValueFeed(
 	id string,
 	valueDataType string,
-	tasks ...feed.Task,
+	tasks []feed.Task,
 ) *Feed {
 	return NewFeed(
 		id,
 		valueDataType,
 		&single.ValueIngester{},
 		simple.NewStorage(1),
-		tasks...,
+		tasks,
 	)
 }
 
@@ -92,7 +92,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 
 	w.Write([]byte(
 		`{"id":"` + f.id +
-			`","type":"` + ufmt.Sprintf("%d", f.Type()) +
+			`","type":"` + ufmt.Sprintf("%d", int(f.Type())) +
 			`","value_type":"` + f.valueDataType +
 			`","tasks":[`),
 	)

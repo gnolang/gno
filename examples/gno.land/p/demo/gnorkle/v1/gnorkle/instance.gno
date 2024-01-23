@@ -32,7 +32,10 @@ func (i *Instance) AddFeeds(feeds ...Feed) {
 		assertNonEmptyString(feed.ID())
 		i.feeds.Set(
 			feed.ID(),
-			FeedWithWhitelist{Feed: feed},
+			FeedWithWhitelist{
+				Whitelist: new(agent.Whitelist),
+				Feed:      feed,
+			},
 		)
 	}
 }
@@ -71,7 +74,7 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) str
 		id, msg := message.ParseID(msg)
 		feedWithWhitelist := i.getFeedWithWhitelist(id)
 
-		if addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
+		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
 			panic("caller not whitelisted")
 		}
 
