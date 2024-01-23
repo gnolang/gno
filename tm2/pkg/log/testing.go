@@ -16,13 +16,13 @@ import (
 func NewTestingLogger(t *testing.T) *slog.Logger {
 	t.Helper()
 
-	if !testing.Verbose() {
-		return NewNoopLogger()
-	}
-
 	// Parse the environment vars
 	envLevel := os.Getenv("LOG_LEVEL")
 	envPath := os.Getenv("LOG_PATH_DIR")
+
+	if !testing.Verbose() && envLevel == "" && envPath == "" {
+		return NewNoopLogger()
+	}
 
 	// Default logger config
 	logLevel := slog.LevelError
@@ -47,8 +47,8 @@ func NewTestingLogger(t *testing.T) *slog.Logger {
 
 		logName := fmt.Sprintf(
 			"%s-%d.log",
-			t.Name(),          // unique test name
-			time.Now().Unix(), // unique test timestamp
+			strings.ReplaceAll(t.Name(), "/", "_"), // unique test name
+			time.Now().Unix(),                      // unique test timestamp
 		)
 		logPath := filepath.Join(envPath, logName)
 
