@@ -46,6 +46,9 @@
 // to use it unless you have a requirement or preferences for IDs consistently
 // being always the same size.
 //
+// To use the cford32 encoding for IDs, you may want to consider using package
+// [gno.land/p/demo/seqid].
+//
 // [specified by Douglas Crockford]: https://www.crockford.com/base32.html
 package cford32
 

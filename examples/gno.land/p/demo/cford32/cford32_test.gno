@@ -138,6 +138,7 @@ func TestDecode(t *testing.T) {
 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
 
+		// XXX: https://github.com/gnolang/gno/issues/1570
 		dst, err := AppendDecode(append([]byte(nil), []byte("lead")...), []byte(p.encoded))
 		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
@@ -145,6 +146,8 @@ func TestDecode(t *testing.T) {
 		dst2, err := AppendDecode(dst[:0:len(p.decoded)], []byte(p.encoded))
 		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, `AppendDecode("", %q) = %q, want %q`, p.encoded, string(dst2), p.decoded)
+		// XXX: https://github.com/gnolang/gno/issues/1569
+		// old used &dst2[0] != &dst[0] as a check.
 		if len(dst) > 0 && len(dst2) > 0 && cap(dst2) != len(p.decoded) {
 			t.Errorf("unexpected capacity growth: got %d, want %d", cap(dst2), len(p.decoded))
 		}
