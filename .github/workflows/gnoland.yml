@@ -92,7 +92,7 @@ jobs:
         if: ${{ runner.debug == 1 }}
         with:
           name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
-          path: ${{ env.LOG_PATH_DIR }}
+          path: ${{ env.LOG_PATH_DIR }}/**/*
 
   upload-coverage:
     needs: test

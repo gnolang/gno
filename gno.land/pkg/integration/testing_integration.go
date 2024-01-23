@@ -111,7 +111,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			var logger *slog.Logger
 			{
 				logger = tm2Log.NewNoopLogger()
-				if persistWorkDir || os.Getenv("LOG_DIR") != "" {
+				if persistWorkDir || os.Getenv("LOG_PATH_DIR") != "" {
 					logname := fmt.Sprintf("txtar-gnoland-%s.log", sid)
 					logger, err = getTestingLogger(env, logname)
 					if err != nil {
