@@ -15,9 +15,8 @@ const (
 )
 
 var (
-	oracle       *gnorkle.Instance
-	postHandler  postGnorkleMessageHandler
 	ownerAddress = string(std.GetOrigCaller())
+
 	oracle      *gnorkle.Instance
 	postHandler postGnorkleMessageHandler
 
