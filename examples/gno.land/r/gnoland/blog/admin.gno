@@ -45,8 +45,15 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	caller := std.GetOrigCaller()
-	tagList := strings.Split(tags, ",")
-	authorList := strings.Split(authors, ",")
+
+	var tagList []string
+	if tags != "" {
+		tagList = strings.Split(tags, ",")
+	}
+	var authorList []string
+	if authors != "" {
+		authorList = strings.Split(authors, ",")
+	}
 
 	err := b.NewPost(caller, slug, title, body, publicationDate, authorList, tagList)
 	checkErr(err)

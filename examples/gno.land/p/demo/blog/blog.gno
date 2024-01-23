@@ -256,12 +256,12 @@ func (p *Post) RenderListItem() string {
 		return "error: no such post\n"
 	}
 	output := "<div>\n\n"
-	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += ufmt.Sprintf("**[Learn More](%s)**\n", p.URL())
+	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
+	//output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
+	output += " " + p.CreatedAt.String() + " "
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
-	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	output += "</div>"
 	return output
@@ -279,29 +279,32 @@ func (p *Post) RenderTagList() string {
 		}
 		tagURL := p.Blog.Prefix + "t/" + tag
 		output += ufmt.Sprintf("[#%s](%s)", tag, tagURL)
+
 	}
 	return output
 }
 
 // Render authors if there are any
 func (p *Post) RenderAuthorList() string {
-	out := ""
-	if p.Authors != nil {
-		out = "Written by: "
-		for idx, author := range p.Authors {
-			out += author
-			if idx < len(p.Authors)-1 {
-				out += ", "
-			}
-		}
-	}
+	out := "Written "
+	if len(p.Authors) != 0 {
+		out += "by " + p.Authors[0]
 
+		//for idx, author := range p.Authors {
+		//	out += author
+		//	if idx < len(p.Authors)-1 {
+		//		out += ", "
+		//	}
+		//}
+	}
+	//str := p.CreatedAt.String()
+	//out += " on " + str + " "
+	//_ = str
 	return out
 }
 
 func (p *Post) RenderPublishData() string {
-	out := "Published on "
-	out += p.CreatedAt.Format("02 Jan 2006") + " "
+	out := "Published "
 	out += "by " + p.Publisher.String() + " "
 	out += "to " + p.Blog.Title
 
