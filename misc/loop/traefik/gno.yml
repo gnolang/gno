@@ -25,4 +25,4 @@ http:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://localhost:33010"
+          - url: "http://localhost:32780"
