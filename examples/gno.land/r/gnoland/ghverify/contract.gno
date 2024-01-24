@@ -88,14 +88,12 @@ func SetOwner(owner string) {
 }
 
 func GetHandleByAddress(address string) string {
-	var value string
-	value, _ = addressToHandleMap.Get(address)
+	value, _ := addressToHandleMap.Get(address)
 	return value.(string)
 }
 
 func GetAddressByHandle(handle string) string {
-	var value string
-	value, _ = handleToAddressMap.Get(handle)
+	value, _ := handleToAddressMap.Get(handle)
 	return value.(string)
 }
 
