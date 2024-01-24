@@ -23,7 +23,7 @@
 //
 // 4. `withuser`:
 //   - usage is `withuser <username> gnokey`.
-//   - username should be registered username, either prepopulated or added via the adduser command.
+//   - username should be a username registered via the `adduser“ command.
 //   - using the placeholder USERADDRESS in the command will be replaced with the user's address.
 //   - example `withuser test8 gnokey maketx call ... -func Render -args 'USERADDRESS' ... `
 //
