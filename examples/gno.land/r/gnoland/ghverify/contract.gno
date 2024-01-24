@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// The agent should send this value if it has verified the github handle.
 	verifiedResult = "OK"
 )
 
@@ -30,6 +31,8 @@ func init() {
 
 type postGnorkleMessageHandler struct{}
 
+// Handle does post processing after a message is ingested by the oracle feed. It extracts the value to realm
+// storage and removes the feed from the oracle.
 func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.FuncType, feed gnorkle.Feed) {
 	if funcType != message.FuncTypeIngest {
 		return
@@ -40,8 +43,11 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 		return
 	}
 
+	// The value is consumable, meaning the ingestion occurred, so we can remove the feed from the oracle
+	// after saving it to realm storage.
 	defer oracle.RemoveFeed(feed.ID())
 
+	// Couldn't verify; nothing to do.
 	if result.String != verifiedResult {
 		return
 	}
@@ -56,24 +62,33 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 		panic("expected ghverify task")
 	}
 
-	handleToAddressMap.Set(task.GithubHandle(), task.GnoAddress())
-	addressToHandleMap.Set(task.GnoAddress(), task.GithubHandle())
+	handleToAddressMap.Set(task.githubHandle, task.gnoAddress)
+	addressToHandleMap.Set(task.gnoAddress, task.githubHandle)
 }
 
+// RequestVerification creates a new static feed with a single task that will
+// instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(githubHandle string) {
 	oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			githubHandle,
 			"string",
-			[]feed.Task{NewVerificationTask(string(std.GetOrigCaller()), githubHandle)},
+			[]feed.Task{
+				&verificationTask{
+					gnoAddress:   string(std.GetOrigCaller()),
+					githubHandle: githubHandle,
+				},
+			},
 		),
 	)
 }
 
+// GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
 func GnorkleEntrypoint(message string) string {
 	return oracle.HandleMessage(message, postHandler)
 }
 
+// SetOwner transfers ownership of the contract to the given address.
 func SetOwner(owner string) {
 	if ownerAddress != string(std.GetOrigCaller()) {
 		panic("only the owner can set a new owner")
@@ -87,16 +102,19 @@ func SetOwner(owner string) {
 	oracle.AddToWhitelist("", []string{ownerAddress})
 }
 
+// GetHandleByAddress returns the github handle associated with the given gno address.
 func GetHandleByAddress(address string) string {
 	value, _ := addressToHandleMap.Get(address)
 	return value.(string)
 }
 
+// GetAddressByHandle returns the gno address associated with the given github handle.
 func GetAddressByHandle(handle string) string {
 	value, _ := handleToAddressMap.Get(handle)
 	return value.(string)
 }
 
+// Render returns a json object string will all verified handle -> address mappings.
 func Render(_ string) string {
 	result := "{"
 	var appendComma bool

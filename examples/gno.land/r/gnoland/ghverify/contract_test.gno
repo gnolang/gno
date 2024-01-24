@@ -33,8 +33,8 @@ func TestVerificationLifecycle(t *testing.T) {
 	// invocation.
 	std.TestSetOrigCaller(defaultAddress)
 	result = GnorkleEntrypoint("request")
-	expResult := `[{"id":"deelawn","type":"0","value_type":"string","tasks":[{"gnoAddress":"` +
-		string(userAddress) + `","githubHandle":"deelawn"}]}]`
+	expResult := `[{"id":"deelawn","type":"0","value_type":"string","tasks":[{"gno_address":"` +
+		string(userAddress) + `","github_handle":"deelawn"}]}]`
 	if result != expResult {
 		t.Fatalf("expected request result %s, got %s", expResult, result)
 	}
