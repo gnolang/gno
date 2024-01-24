@@ -22,7 +22,6 @@ import (
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
-const loadedPacakgesDelimiter = "LoadedPacakges"
 
 // Node is not thread safe
 type Node struct {
@@ -31,7 +30,7 @@ type Node struct {
 	client client.Client
 	logger log.Logger
 	pkgs   PkgsMap // path -> pkg
-	// keep track of number of loaded package to be able to skip them on backup
+	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 }
 
