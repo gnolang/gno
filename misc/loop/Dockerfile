@@ -13,6 +13,7 @@ FROM alpine AS autocounterd
 COPY --from=builder /app/autocounterd /usr/bin/autocounterd
 
 ENTRYPOINT [ "/usr/bin/autocounterd" ]
+CMD [ "start" ]
 
 # Final image for portalloopd
 FROM docker AS portalloopd
@@ -22,5 +23,4 @@ RUN apk add bash curl jq
 COPY --from=builder /app/portalloopd /usr/bin/portalloopd
 
 ENTRYPOINT [ "/usr/bin/portalloopd" ]
-
 CMD [ "serve" ]
