@@ -253,6 +253,7 @@ func main() {
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
 //                                 },
+//                                 "Tss": null,
 //                                 "Type": {
 //                                     "@type": "/gno.FuncType",
 //                                     "Params": [
@@ -360,6 +361,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -427,6 +429,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -484,6 +487,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -531,6 +535,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -588,6 +593,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -635,6 +641,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -682,6 +689,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -742,6 +750,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -792,6 +801,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -829,6 +839,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -866,6 +877,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -913,6 +925,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -970,6 +983,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -1028,6 +1042,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [

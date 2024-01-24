@@ -1297,9 +1297,6 @@ func (m *Machine) Run() {
 		case OpFuncLit:
 			m.incrCPU(OpCPUFuncLit)
 			m.doOpFuncLit()
-		case OpPreFuncLit:
-			m.incrCPU(OpCPUPreFuncLit)
-			m.doOpPreFuncLit()
 		case OpMapLit:
 			m.incrCPU(OpCPUMapLit)
 			m.doOpMapLit()
@@ -1351,9 +1348,6 @@ func (m *Machine) Run() {
 			m.incrCPU(OpCPUMaybeNativeType)
 			m.doOpMaybeNativeType()
 		/* Statement operators */
-		case OpPreAssign:
-			m.incrCPU(OpCPUPreAssign)
-			m.doOpPreAssign()
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()

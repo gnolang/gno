@@ -312,7 +312,7 @@ func (m *Machine) doOpEval() {
 		b := m.LastBlock()
 		debugPP.Printf("b: %v \n", b)
 		m.PushOp(OpFuncLit)
-		m.PushOp(OpPreFuncLit)
+		//m.PushOp(OpPreFuncLit)
 		// evaluate func type
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)

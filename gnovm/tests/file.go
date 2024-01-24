@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -151,7 +150,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			}
 
 			if !gno.IsRealmPath(pkgPath) {
-				startTime := time.Now()
+				//startTime := time.Now()
 
 				// simple case.
 				pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
@@ -166,17 +165,17 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					f.logger("RUN MAIN")
 					f.logger("========================================")
 				}
-				endTime := time.Now()
-				elapsedTime := endTime.Sub(startTime)
-				fmt.Printf("Run Init took %s to execute\n", elapsedTime)
+				//endTime := time.Now()
+				//elapsedTime := endTime.Sub(startTime)
+				//fmt.Printf("Run Init took %s to execute\n", elapsedTime)
 
-				startTime = time.Now()
+				//startTime = time.Now()
 
 				m.RunMain()
-				endTime = time.Now()
-				elapsedTime = endTime.Sub(startTime)
+				//endTime = time.Now()
+				//elapsedTime = endTime.Sub(startTime)
 
-				fmt.Printf("Run Main took %s to execute\n", elapsedTime)
+				//fmt.Printf("Run Main took %s to execute\n", elapsedTime)
 				if f.logger != nil {
 					f.logger("========================================")
 					f.logger("RUN MAIN END")

@@ -75,37 +75,44 @@ func (m *Machine) doOpCall() {
 		var end bool
 		for i, bag := range fv.Tss { // each bag is for a certain level of block
 			debugPP.Printf("Level[%d] bag is : %v \n", i, bag)
-			for j, t := range bag.transient { // unpack vars belong to a specific block
-				if t != nil {
+			if bag != nil {
+				if bag.isSealed {
+					if bag != nil && !bag.isEmpty() { // NOTE: for some reasons won't pack value
+						for j, t := range bag.transient { // unpack vars belong to a specific block
+							if t != nil {
+								debugPP.Printf("Bag.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
+								for k, v := range t.values {
+									debugPP.Printf("values[%d] is %v \n", k, v)
+								}
 
-					debugPP.Printf("Ts.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
-					for k, v := range t.values {
-						debugPP.Printf("values[%d] is %v \n", k, v)
-					}
-
-					targetB = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
-					// check if exists, should always be?
-					names := targetB.GetSource(m.Store).GetBlockNames()
-					var index int
-					var match bool
-					for l, n := range names {
-						if n == t.nx.Name {
-							debugPP.Printf("name: %s match \n", n)
-							index = l
-							match = true
-							break
+								targetB = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
+								// check if exists, should always be?
+								names := targetB.GetSource(m.Store).GetBlockNames()
+								var index int
+								var match bool
+								for l, n := range names {
+									if n == t.nx.Name {
+										debugPP.Printf("name: %s match \n", n)
+										index = l
+										match = true
+										break
+									}
+								}
+								if match {
+									debugPP.Println("===match")
+									targetB.UpdateValue(index, t.values[0])
+									nvs := t.values[1:]
+									bag.transient[j].values = nvs
+									if len(bag.transient[j].values) == 0 { // loop end
+										bag.transient[j] = nil // empty a name and value
+										end = true
+									}
+								}
+							}
 						}
 					}
-					if match {
-						debugPP.Println("===match")
-						targetB.UpdateValue(index, t.values[0])
-						nvs := t.values[1:]
-						bag.transient[j].values = nvs
-						if len(bag.transient[j].values) == 0 { // loop end
-							bag.transient[j] = nil // empty a name and value
-							end = true
-						}
-					}
+				} else { // not sealed will be tainted
+					fv.Tss[i].isTainted = true
 				}
 			}
 		}

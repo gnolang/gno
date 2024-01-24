@@ -119,48 +119,55 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
-			debugPP.Printf("---end of loop body, going to update value--- \n")
-			// update fv.Capture if value changed
-			//if _, ok := findLoopBlockWithPath(m.Store, lb); ok {
-			if lb.GetBodyStmt().isLoop {
+			debugPP.Printf("---end of loop body, going to update value using current state--- \n")
+			if lb.GetBodyStmt().isLoop { // do we need this?
 				debugPP.Printf("---------isLoop, current block is: %v \n", m.LastBlock())
-				if bs.Ts != nil && bs.Ts.isSealed {
-					debugPP.Printf("---addr of bs.Ts is: %p \n", &bs.Ts)
+				debugPP.Printf("---------bag, %v \n", bs.Bag)
+				if bs.Bag != nil && bs.Bag.isFilled && !bs.Bag.isTainted {
+					debugPP.Printf("---addr of bs.Bag is: %p \n", &bs.Bag)
 					names := lb.Source.GetBlockNames()
 					var found bool
-					for i, t := range bs.Ts.transient {
-						debugPP.Printf("transient[%d] name is %v, path: %v \n", i, t.nx.Name, t.nx.Path)
-						// first check if name is in current block, it not, stop
-						for _, name := range names {
-							if t.nx.Name == name {
-								debugPP.Printf("found %s in current block: %v \n", t.nx.Name, lb)
-								found = true
+					var isSealed bool
+					for i, tt := range bs.Bag.transient {
+						if tt != nil {
+							debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
+							// first check if name is in current block, it not, stop
+							for _, name := range names {
+								if tt.nx.Name == name {
+									debugPP.Printf("found %s in current block: %v \n", tt.nx.Name, lb)
+									found = true
+								}
 							}
-						}
-						if found {
-							nvp := lb.Source.GetPathForName(m.Store, t.nx.Name)
-							ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
-							tv := ptr.Deref()
-							debugPP.Printf("--- new tv : %v \n", tv)
-							//t.value = tv
-							// set back
-							debugPP.Printf("before update, len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
+							if found {
+								nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
+								ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+								tv := ptr.Deref()
+								debugPP.Printf("--- new tv : %v \n", tv)
+								// set back
+								debugPP.Printf("before update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
 
-							expandRatio := bs.Ts.transient[i].expandRatio
-							debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
-							for j := int8(0); j < expandRatio; j++ {
-								bs.Ts.transient[i].values = append(bs.Ts.transient[i].values, tv)
+								expandRatio := bs.Bag.transient[i].expandRatio
+								debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
+								for j := int8(0); j < expandRatio; j++ {
+									bs.Bag.transient[i].values = append(bs.Bag.transient[i].values, tv)
+								}
+								debugPP.Printf("after update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
+
+								// update higher level if it is also a loop, padding.
+								upperBlock := findNearestLoopBlock(m.Store, lb)
+								debugPP.Printf("upperBlock is: %v \n", upperBlock)
+								if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
+									upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
+								}
+								isSealed = true
+							} else {
+								debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)
+								isSealed = false
 							}
-							debugPP.Printf("after update, len of Ts values is : %d \n", len(bs.Ts.transient[i].values))
-							// update higher level if it is also a loop, repeat state.
-							upperBlock := findNearestLoopBlock(m.Store, lb)
-							debugPP.Printf("upperBlock is: %v \n", upperBlock)
-							if upperBlock != nil {
-								upperBlock.GetBodyStmt().Ts.setRatio(int8(len(bs.Ts.transient[i].values)))
-							}
-						} else {
-							debugPP.Printf("---not found %s in current block, b: %v \n", t.nx.Name, lb)
 						}
+					}
+					if isSealed {
+						bs.Bag.isSealed = true // seal for this bag of this block
 					}
 				}
 			}

@@ -516,13 +516,26 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 }
 
 type TimeSeriesBag struct {
+	isFilled  bool
 	isSealed  bool
+	isTainted bool
 	transient []*Transient
+}
+
+func (tsb *TimeSeriesBag) isEmpty() bool {
+	for _, tt := range tsb.transient {
+		if tt != nil && tt.values != nil && len(tt.values) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (tsb *TimeSeriesBag) setRatio(r int8) {
 	for _, tt := range tsb.transient {
-		tt.expandRatio = r
+		if tt != nil {
+			tt.expandRatio = r
+		}
 	}
 }
 
@@ -530,7 +543,7 @@ func (tsb *TimeSeriesBag) String() string {
 	var s string
 	s += "\n"
 	s += "==================time bag===================\n"
-	s += fmt.Sprintf("isSealed: %v \n", tsb.isSealed)
+	s += fmt.Sprintf("isFilled: %v \n", tsb.isFilled)
 	for i, t := range tsb.transient {
 		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
 		for j, v := range t.values {

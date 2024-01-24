@@ -30,41 +30,6 @@ func (m *Machine) doOpDefine() {
 	}
 }
 
-func (m *Machine) doOpPreAssign() {
-	debugPP.Println("---doOpPreAssign")
-	// check rhs type
-	s := m.PeekStmt1().(*AssignStmt)
-
-	// TODO: this is expensive, should quick return
-
-	var ln Name
-	if n, ok := s.Lhs[0].(*NameExpr); ok {
-		debugPP.Printf("name of lhs is: %s \n", n.Name)
-		ln = n.Name
-	}
-
-	debugPP.Printf("s peeked: %v, len of RHS: %d \n", s, len(s.Rhs))
-	// rhs is funcLitExpr, set a flag, to record lhs and use it update captured in postAssign
-	if fx, ok := s.Rhs[0].(*FuncLitExpr); ok {
-		debugPP.Printf("fx: %v, closure: %v \n", fx, fx.Closure)
-		if fx.Closure != nil {
-			if len(fx.Closure.names) > 0 {
-				for _, n := range fx.Closure.names {
-					if n == ln { // contains
-						//if fx.Closure.names[0] == ln {
-						debugPP.Println("-----recursive closure")
-						//fx.Closure.recursive = true
-						fx.Closure = nil // no support for recursive closure
-					}
-				}
-			}
-		}
-	}
-	//m.PushValue(typedString("x"))
-
-	debugPP.Println("---end")
-}
-
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	debugPP.Printf("---doOpAssign, s: %v \n", s)

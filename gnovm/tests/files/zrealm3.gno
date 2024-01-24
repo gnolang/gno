@@ -186,6 +186,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -223,6 +224,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
+//                 "Tss": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],

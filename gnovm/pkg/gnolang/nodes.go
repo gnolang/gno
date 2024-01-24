@@ -494,14 +494,8 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type    FuncTypeExpr // function type
-	Body                 // function body
-	Closure *Closure
-}
-
-func (fx *FuncLitExpr) SetClosure(c *Closure) {
-	debug.Printf("+++++SetClosure, c: %v \n", c)
-	fx.Closure = c
+	Type FuncTypeExpr // function type
+	Body              // function body
 }
 
 //type ClosureObject struct {
@@ -892,7 +886,7 @@ type bodyStmt struct {
 	NumStmts      int  // number of Stmts, for goto
 	Cond          Expr // for ForStmt
 	Post          Stmt // for ForStmt
-	Ts            *TimeSeriesBag
+	Bag           *TimeSeriesBag
 	isLoop        bool
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
