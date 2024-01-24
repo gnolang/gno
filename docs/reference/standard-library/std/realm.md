@@ -1,0 +1,34 @@
+---
+id: realm
+---
+
+# Realm
+Structure repesenting a Realm in Gno. 
+
+```go
+type Realm struct {
+    addr    crypto.Bech32Address
+    pkgPath string
+}
+
+func (r Realm) Addr() Addres {...}
+func (r Realm) PkgPath() string {...}
+func (r Realm) IsUser() bool {}
+
+```
+
+## Addr
+Returns the **Address** field of the realm it was called upon.
+
+#### Usage
+```go
+realmAddr := r.Addr() // eg. g1n2j0gdyv45aem9p0qsfk5d2gqjupv5z536na3d
+```
+---
+## PkgPath
+Returns the **string** package path of the realm it was called upon.
+
+#### Usage
+```go
+realmPath := r.PkgPath() // eg. gno.land/r/gnoland/blog
+```
