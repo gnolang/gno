@@ -1,5 +1,6 @@
 package gnorkle
 
+// Whitelist is used to manage which agents are allowed to interact.
 type Whitelist interface {
 	ClearAddresses()
 	AddAddresses(addresses []string)
@@ -8,6 +9,7 @@ type Whitelist interface {
 	HasAddress(address string) bool
 }
 
+// ClearWhitelist clears the whitelist of the instance or feed depending on the feed ID.
 func (i *Instance) ClearWhitelist(feedID string) {
 	if feedID == "" {
 		i.whitelist.ClearAddresses()
@@ -18,6 +20,7 @@ func (i *Instance) ClearWhitelist(feedID string) {
 	feedWithWhitelist.ClearAddresses()
 }
 
+// AddToWhitelist adds the given addresses to the whitelist of the instance or feed depending on the feed ID.
 func (i *Instance) AddToWhitelist(feedID string, addresses []string) {
 	if feedID == "" {
 		i.whitelist.AddAddresses(addresses)
@@ -28,6 +31,7 @@ func (i *Instance) AddToWhitelist(feedID string, addresses []string) {
 	feedWithWhitelist.AddAddresses(addresses)
 }
 
+// RemoveFromWhitelist removes the given address from the whitelist of the instance or feed depending on the feed ID.
 func (i *Instance) RemoveFromWhitelist(feedID string, address string) {
 	if feedID == "" {
 		i.whitelist.RemoveAddress(address)

@@ -5,6 +5,8 @@ import (
 	"gno.land/p/demo/gnorkle/v1/message"
 )
 
+// Feed is an abstraction used by a gnorkle `Instance` to ingest data from
+// agents and provide data feeds to consumers.
 type Feed interface {
 	ID() string // necessary?
 	Type() feed.Type
@@ -15,6 +17,7 @@ type Feed interface {
 	IsActive() bool
 }
 
+// FeedWithWhitelist associates a `Whitelist` with a `Feed`.
 type FeedWithWhitelist struct {
 	Feed
 	Whitelist

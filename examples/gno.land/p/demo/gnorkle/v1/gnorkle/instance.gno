@@ -10,26 +10,33 @@ import (
 	"gno.land/p/demo/gnorkle/v1/message"
 )
 
+// Instance is a single instance of an oracle.
 type Instance struct {
 	feeds     *avl.Tree
 	whitelist agent.Whitelist
 }
 
+// NewInstance creates a new instance of an oracle.
 func NewInstance() *Instance {
 	return &Instance{
 		feeds: avl.NewTree(),
 	}
 }
 
-func assertNonEmptyString(s string) {
-	if len(s) == 0 {
+func assertValidID(id string) {
+	if len(id) == 0 {
 		panic("feed ids cannot be empty")
+	}
+
+	if strings.Contains(id, ",") {
+		panic("feed ids cannot contain commas")
 	}
 }
 
+// AddFeeds adds feeds to the instance with empty whitelists.
 func (i *Instance) AddFeeds(feeds ...Feed) {
 	for _, feed := range feeds {
-		assertNonEmptyString(feed.ID())
+		assertValidID(feed.ID())
 		i.feeds.Set(
 			feed.ID(),
 			FeedWithWhitelist{
@@ -40,9 +47,10 @@ func (i *Instance) AddFeeds(feeds ...Feed) {
 	}
 }
 
+// AddFeedsWithWhitelists adds feeds to the instance with the given whitelists.
 func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
 	for _, feed := range feeds {
-		assertNonEmptyString(feed.ID())
+		assertValidID(feed.ID())
 		i.feeds.Set(
 			feed.ID(),
 			FeedWithWhitelist{
@@ -53,14 +61,22 @@ func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
 	}
 }
 
+// RemoveFeed removes a feed from the instance.
 func (i *Instance) RemoveFeed(id string) {
 	i.feeds.Remove(id)
 }
 
+// PostMessageHandler is a type that allows for post-processing of feed state after a feed
+// ingests a message from an agent.
 type PostMessageHandler interface {
 	Handle(i *Instance, funcType message.FuncType, feed Feed)
 }
 
+// HandleMessage handles a message from an agent and routes to either the logic that returns
+// feed definitions or the logic that allows a feed to ingest a message.
+//
+// TODO: Consider further message types that could allow administrative action such as modifying
+// a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) string {
 	caller := string(std.GetOrigCaller())
 
@@ -72,8 +88,9 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) str
 
 	default:
 		id, msg := message.ParseID(msg)
-		feedWithWhitelist := i.getFeedWithWhitelist(id)
+		assertValidID(id)
 
+		feedWithWhitelist := i.getFeedWithWhitelist(id)
 		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
 			panic("caller not whitelisted")
 		}
@@ -116,10 +133,15 @@ func (i *Instance) getFeedWithWhitelist(id string) FeedWithWhitelist {
 	return feedWithWhitelist
 }
 
-func (i *Instance) GetFeedValue(id string) (feed.Value, string, bool) {
+// GetFeedValue returns the most recently published value of a feed along with a string
+// representation of the value's type and boolean indicating whether the value is
+// okay for consumption.
+func (i *Instance) GetFeedValue(id string) (value feed.Value, valueType string, consumable bool) {
 	return i.getFeed(id).Value()
 }
 
+// GetFeedDefinitions returns a JSON string representing the feed definitions for which the given
+// agent address is whitelisted to provide values for ingestion.
 func (i *Instance) GetFeedDefinitions(forAddress string) string {
 	instanceHasAddressWhitelisted := !i.whitelist.HasDefinition() || i.whitelist.HasAddress(forAddress)
 
