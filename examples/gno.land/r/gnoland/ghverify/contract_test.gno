@@ -74,4 +74,12 @@ func TestVerificationLifecycle(t *testing.T) {
 	if result != "[]" {
 		t.Fatalf("expected empty request result, got %s", result)
 	}
+
+	// Check that the accessor functions are working as expected.
+	if handle := GetHandleByAddress(string(userAddress)); handle != "deelawn" {
+		t.Fatalf("expected deelawn, got %s", handle)
+	}
+	if address := GetAddressByHandle("deelawn"); address != string(userAddress) {
+		t.Fatalf("expected %s, got %s", string(userAddress), address)
+	}
 }

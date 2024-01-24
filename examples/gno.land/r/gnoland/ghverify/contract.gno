@@ -87,6 +87,18 @@ func SetOwner(owner string) {
 	oracle.AddToWhitelist("", []string{ownerAddress})
 }
 
+func GetHandleByAddress(address string) string {
+	var value string
+	value, _ = addressToHandleMap.Get(address)
+	return value.(string)
+}
+
+func GetAddressByHandle(handle string) string {
+	var value string
+	value, _ = handleToAddressMap.Get(handle)
+	return value.(string)
+}
+
 func Render(_ string) string {
 	result := "{"
 	var appendComma bool
