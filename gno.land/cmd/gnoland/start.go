@@ -190,7 +190,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir, nil)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
 	}
 
 	if loadCfgErr != nil {
