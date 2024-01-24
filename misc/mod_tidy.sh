@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 
 # This script finds and tidies all go.mod
-# files recursively from the repository root
+# files recursively from the repository root and
+# optionally verifies the last echo based on an
+# environment variable VERIFY_MOD_SUMS
 
 set -e # exit on error
 
 # CD into the repo root
 cd ..
 
+# Check for the verify argument
+verify=${VERIFY_MOD_SUMS:-false}
+
 # Find all go.mod files
 gomods=$(find . -type f -name go.mod)
 
-# Calculate sums for all go.mod files
-sums=$(shasum $gomods)
+if $verify; then
+  # Calculate sums for all go.mod files
+  sums=$(shasum $gomods)
+fi
 
 # Tidy each go.mod file
 for modfile in $gomods; do
@@ -22,5 +29,10 @@ for modfile in $gomods; do
   (cd "$dir" && go mod tidy -v) || exit 1
 done
 
-# Verify the sums
-echo "$sums" | shasum -c
+# Optionally verify the sums
+if $verify; then
+  echo "Verifying sums..."
+  echo "$sums" | shasum -c
+else
+  echo "Skipping sum verification"
+fi

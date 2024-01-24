@@ -28,8 +28,9 @@ _test.genstd:
 	go test ./genstd/... $(GOTEST_FLAGS)
 
 .PHONY: tidy
+VERIFY_MOD_SUMS ?= false
 tidy:
 	# Give execute permissions
 	chmod +x ./mod_tidy.sh
 	# Tidy go mods
-	./mod_tidy.sh
+	VERIFY_MOD_SUMS=$(VERIFY_MOD_SUMS) ./mod_tidy.sh

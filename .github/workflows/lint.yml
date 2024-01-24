@@ -74,9 +74,11 @@ jobs:
         run: sudo apt-get install -y make
 
       - name: Check go.mods
+        env:
+          VERIFY_MOD_SUMS: true
         run: |
           # Ensure Make is installed
           make --version
           
-          # Run the tidy target from the Makefile
+          # Run the tidy target
           make tidy
