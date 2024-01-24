@@ -22,6 +22,21 @@ func TestVerificationLifecycle(t *testing.T) {
 	std.TestSetOrigCaller(userAddress)
 	RequestVerification("deelawn")
 
+	// A subsequent request from the same address should panic because there is
+	// already a feed with an ID of this user's address.
+	var errMsg string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errMsg = r.(string)
+			}
+		}()
+		RequestVerification("deelawn")
+	}()
+	if errMsg != "feed already exists" {
+		t.Fatalf("expected feed already exists, got %s", errMsg)
+	}
+
 	// Verify the request returns no feeds for this non-whitelisted user.
 	result = GnorkleEntrypoint("request")
 	if result != "[]" {
@@ -33,7 +48,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	// invocation.
 	std.TestSetOrigCaller(defaultAddress)
 	result = GnorkleEntrypoint("request")
-	expResult := `[{"id":"deelawn","type":"0","value_type":"string","tasks":[{"gno_address":"` +
+	expResult := `[{"id":"` + string(userAddress) + `","type":"0","value_type":"string","tasks":[{"gno_address":"` +
 		string(userAddress) + `","github_handle":"deelawn"}]}]`
 	if result != expResult {
 		t.Fatalf("expected request result %s, got %s", expResult, result)
@@ -41,14 +56,13 @@ func TestVerificationLifecycle(t *testing.T) {
 
 	// Try to trigger feed ingestion from the non-authorized user.
 	std.TestSetOrigCaller(userAddress)
-	var errMsg string
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
 				errMsg = r.(string)
 			}
 		}()
-		GnorkleEntrypoint("ingest,deelawn,OK")
+		GnorkleEntrypoint("ingest," + string(userAddress) + ",OK")
 	}()
 	if errMsg != "caller not whitelisted" {
 		t.Fatalf("expected caller not whitelisted, got %s", errMsg)
@@ -60,7 +74,7 @@ func TestVerificationLifecycle(t *testing.T) {
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
 	std.TestSetOrigCaller(userAddress)
-	GnorkleEntrypoint("ingest,deelawn,OK")
+	GnorkleEntrypoint("ingest," + string(userAddress) + ",OK")
 
 	// Verify the ingestion autocommitted the value and triggered the post handler.
 	data := Render("")

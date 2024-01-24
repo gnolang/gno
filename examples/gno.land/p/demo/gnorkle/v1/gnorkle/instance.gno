@@ -33,10 +33,17 @@ func assertValidID(id string) {
 	}
 }
 
+func (i *Instance) assertFeedDoesNotExist(id string) {
+	if i.feeds.Has(id) {
+		panic("feed already exists")
+	}
+}
+
 // AddFeeds adds feeds to the instance with empty whitelists.
 func (i *Instance) AddFeeds(feeds ...Feed) {
 	for _, feed := range feeds {
 		assertValidID(feed.ID())
+		i.assertFeedDoesNotExist(feed.ID())
 		i.feeds.Set(
 			feed.ID(),
 			FeedWithWhitelist{
@@ -50,6 +57,7 @@ func (i *Instance) AddFeeds(feeds ...Feed) {
 // AddFeedsWithWhitelists adds feeds to the instance with the given whitelists.
 func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
 	for _, feed := range feeds {
+		i.assertFeedDoesNotExist(feed.ID())
 		assertValidID(feed.ID())
 		i.feeds.Set(
 			feed.ID(),

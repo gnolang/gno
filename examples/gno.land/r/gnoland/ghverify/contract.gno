@@ -69,13 +69,14 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(githubHandle string) {
+	gnoAddress := string(std.GetOrigCaller())
 	oracle.AddFeeds(
 		static.NewSingleValueFeed(
-			githubHandle,
+			gnoAddress,
 			"string",
 			[]feed.Task{
 				&verificationTask{
-					gnoAddress:   string(std.GetOrigCaller()),
+					gnoAddress:   gnoAddress,
 					githubHandle: githubHandle,
 				},
 			},
