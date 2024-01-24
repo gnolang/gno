@@ -48,39 +48,11 @@ jobs:
 
       # inspired by:
       # https://github.com/Jerome1337/gofmt-action/blob/d5eabd189843f1d568286a54578159978b7c0fb1/entrypoint.sh
-      - name: Check gofumpt
+      - name: Check gofumpt / goimports
         run: |
-          output="$(GOFMT_FLAGS=-l make -s fmt)"
+          output="$(GOFMT_FLAGS=-l GOIMPORTS_FLAGS=-l make -s fmt)"
           if [ ! -z "$output" ]; then
-            echo "The following files are not properly formatted; run 'make fmt' to format them."
-            echo "$output"
-            exit 1
-          else
-            echo 'Succeeded.'
-          fi
-  imports:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21.x
-
-      - name: Install make
-        run: sudo apt-get install -y make
-
-      # prefill dependencies so that mod messages don't show up in make output
-      - name: Fetch dependencies
-        run: go mod download -modfile ./misc/devdeps/go.mod -x
-
-      - name: Check goimports
-        run: |
-          output="$(GOIMPORTS_FLAGS=-l make -s imports)"
-          if [ ! -z "$output" ]; then
-            echo "The following files are not properly formatted; run 'make imports' to format them."
+            echo "The following files are not properly formatted; run 'make fmt imports' to format them."
             echo "$output"
             exit 1
           else
