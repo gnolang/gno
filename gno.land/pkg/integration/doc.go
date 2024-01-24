@@ -21,6 +21,12 @@
 //   - Creates a new user in the default keybase directory.
 //   - Must be run before `gnoland start`.
 //
+// 4. `withuser`:
+//   - usage is `withuser <username> gnokey`.
+//   - username should be registered username, either prepopulated or added via the adduser command.
+//   - using the placeholder USERADDRESS in the command will be replaced with the user's address.
+//   - example `withuser test8 gnokey maketx call ... -func Render -args 'USERADDRESS' ... `
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much

@@ -24,7 +24,10 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
-const numTestAccounts int = 4
+const (
+	numTestAccounts int    = 4
+	gnokeyCmd       string = "gnokey"
+)
 
 type tSeqShim struct{ *testing.T }
 
@@ -80,7 +83,49 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 	// Track new user balances added via the `adduser` command. These are added to the genesis
 	// state when the node is started.
-	var newUserBalances []gnoland.Balance
+	var (
+		newUserBalances    []gnoland.Balance
+		addedUserAddresses = make(map[string]string)
+	)
+
+	gnokeyFunc := func(ts *testscript.TestScript, neg bool, args []string) {
+		logger := ts.Value("_logger").(log.Logger) // grab logger
+		sid := ts.Getenv("SID")                    // grab session id
+
+		// Setup IO command
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(ts.Stdout()))
+		io.SetErr(commands.WriteNopCloser(ts.Stderr()))
+		cmd := keyscli.NewRootCmd(io, client.DefaultBaseOptions)
+
+		io.SetIn(strings.NewReader("\n")) // Inject empty password to stdin.
+		defaultArgs := []string{
+			"-home", gnoHomeDir,
+			"-insecure-password-stdin=true", // There no use to not have this param by default.
+		}
+
+		if n, ok := nodes[sid]; ok {
+			if raddr := n.Config().RPC.ListenAddress; raddr != "" {
+				defaultArgs = append(defaultArgs, "-remote", raddr)
+			}
+
+			n.nGnoKeyExec++
+			headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
+
+			// Log the command inside gnoland logger, so we can better scope errors.
+			logger.Info(headerlog, strings.Join(args, " "))
+			defer logger.Info(headerlog, "END")
+		}
+
+		// Inject default argument, if duplicate
+		// arguments, it should be override by the ones
+		// user provided.
+		args = append(defaultArgs, args...)
+
+		err := cmd.ParseAndRun(context.Background(), args)
+
+		tsValidateError(ts, gnokeyCmd, neg, err)
+	}
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
@@ -207,44 +252,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				tsValidateError(ts, "gnoland "+cmd, neg, err)
 			},
-			"gnokey": func(ts *testscript.TestScript, neg bool, args []string) {
-				logger := ts.Value("_logger").(log.Logger) // grab logger
-				sid := ts.Getenv("SID")                    // grab session id
-
-				// Setup IO command
-				io := commands.NewTestIO()
-				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
-				io.SetErr(commands.WriteNopCloser(ts.Stderr()))
-				cmd := keyscli.NewRootCmd(io, client.DefaultBaseOptions)
-
-				io.SetIn(strings.NewReader("\n")) // Inject empty password to stdin.
-				defaultArgs := []string{
-					"-home", gnoHomeDir,
-					"-insecure-password-stdin=true", // There no use to not have this param by default.
-				}
-
-				if n, ok := nodes[sid]; ok {
-					if raddr := n.Config().RPC.ListenAddress; raddr != "" {
-						defaultArgs = append(defaultArgs, "-remote", raddr)
-					}
-
-					n.nGnoKeyExec++
-					headerlog := fmt.Sprintf("%.02d!EXEC_GNOKEY", n.nGnoKeyExec)
-
-					// Log the command inside gnoland logger, so we can better scope errors.
-					logger.Info(headerlog, strings.Join(args, " "))
-					defer logger.Info(headerlog, "END")
-				}
-
-				// Inject default argument, if duplicate
-				// arguments, it should be override by the ones
-				// user provided.
-				args = append(defaultArgs, args...)
-
-				err := cmd.ParseAndRun(context.Background(), args)
-
-				tsValidateError(ts, "gnokey", neg, err)
-			},
+			gnokeyCmd: gnokeyFunc,
 			// adduser commands must be executed before starting the node; it errors out otherwise.
 			"adduser": func(ts *testscript.TestScript, neg bool, args []string) {
 				if nodeIsRunning(nodes, getNodeSID(ts)) {
@@ -261,12 +269,32 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("unable to get keybase")
 				}
 
-				balance, err := createAccount(ts, kb, args[0])
+				username := args[0]
+				balance, err := createAccount(ts, kb, username)
 				if err != nil {
 					ts.Fatalf("error creating account %s: %s", args[0], err)
 				}
 
 				newUserBalances = append(newUserBalances, balance)
+				addedUserAddresses[username] = balance.Address.String()
+			},
+			"withuser": func(ts *testscript.TestScript, neg bool, args []string) {
+				if len(args) < 2 || args[1] != gnokeyCmd {
+					ts.Fatalf("usage: withuser <username> " + gnokeyCmd)
+				}
+
+				accountAddress, ok := addedUserAddresses[args[0]]
+				if !ok {
+					ts.Fatalf("user %s not added using `adduser`", args[1])
+				}
+
+				for i, arg := range args {
+					if strings.Contains(arg, "USERADDRESS") {
+						args[i] = strings.Replace(arg, "USERADDRESS", accountAddress, 1)
+					}
+				}
+
+				gnokeyFunc(ts, neg, args[2:])
 			},
 		},
 	}
