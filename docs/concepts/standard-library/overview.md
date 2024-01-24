@@ -5,7 +5,7 @@ id: overview
 # Overview
 
 Gno comes with a set of standard libraries which are included to ease development and provide extended functionality to the language. These include:
-- standard libraries as we know them in classic Golang, i.e. `encoding/binary`, `strings`, `testing`, etc.
+- standard libraries as we know them in classic Go, i.e. `encoding/binary`, `strings`, `testing`, etc.
 - a special `std` package, which contains types, interfaces, and APIs created to handle blockchain-related functionality.
 
 
