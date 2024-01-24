@@ -43,6 +43,61 @@ SelectStmt ->
 
 */
 
+func updateCapturedValue(m *Machine, lb *Block) {
+	if lb.GetBodyStmt().isLoop { // do we need this?
+		bs := lb.GetBodyStmt()
+		debugPP.Printf("---------isLoop, current block is: %v \n", lb)
+		debugPP.Printf("---------bag, %v \n", bs.Bag)
+		if bs.Bag != nil && bs.Bag.isFilled && !bs.Bag.isTainted {
+			debugPP.Printf("---addr of bs.Bag is: %p \n", &bs.Bag)
+			names := lb.Source.GetBlockNames()
+			var found bool
+			var isSealed bool
+			for i, tt := range bs.Bag.transient {
+				if tt != nil {
+					debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
+					// first check if name is in current block, it not, stop
+					for _, name := range names {
+						if tt.nx.Name == name {
+							debugPP.Printf("found %s in current block: %v \n", tt.nx.Name, lb)
+							found = true
+						}
+					}
+					if found {
+						nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
+						ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+						tv := ptr.Deref()
+						debugPP.Printf("--- new tv : %v \n", tv)
+						// set back
+						debugPP.Printf("before update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
+
+						expandRatio := bs.Bag.transient[i].expandRatio
+						debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
+						for j := int8(0); j < expandRatio; j++ {
+							bs.Bag.transient[i].values = append(bs.Bag.transient[i].values, tv)
+						}
+						debugPP.Printf("after update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
+
+						// update higher level if it is also a loop, padding.
+						upperBlock := findNearestLoopBlock(m.Store, lb)
+						debugPP.Printf("upperBlock is: %v \n", upperBlock)
+						if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
+							upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
+						}
+						isSealed = true
+					} else {
+						debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)
+						isSealed = false
+					}
+				}
+			}
+			if isSealed {
+				bs.Bag.isSealed = true // seal for this bag of this block
+			}
+		}
+	}
+}
+
 //----------------------------------------
 // doOpExec
 //
@@ -119,59 +174,8 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
-			debugPP.Printf("---end of loop body, going to update value using current state--- \n")
-			if lb.GetBodyStmt().isLoop { // do we need this?
-				debugPP.Printf("---------isLoop, current block is: %v \n", m.LastBlock())
-				debugPP.Printf("---------bag, %v \n", bs.Bag)
-				if bs.Bag != nil && bs.Bag.isFilled && !bs.Bag.isTainted {
-					debugPP.Printf("---addr of bs.Bag is: %p \n", &bs.Bag)
-					names := lb.Source.GetBlockNames()
-					var found bool
-					var isSealed bool
-					for i, tt := range bs.Bag.transient {
-						if tt != nil {
-							debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
-							// first check if name is in current block, it not, stop
-							for _, name := range names {
-								if tt.nx.Name == name {
-									debugPP.Printf("found %s in current block: %v \n", tt.nx.Name, lb)
-									found = true
-								}
-							}
-							if found {
-								nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
-								ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
-								tv := ptr.Deref()
-								debugPP.Printf("--- new tv : %v \n", tv)
-								// set back
-								debugPP.Printf("before update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
-
-								expandRatio := bs.Bag.transient[i].expandRatio
-								debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
-								for j := int8(0); j < expandRatio; j++ {
-									bs.Bag.transient[i].values = append(bs.Bag.transient[i].values, tv)
-								}
-								debugPP.Printf("after update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
-
-								// update higher level if it is also a loop, padding.
-								upperBlock := findNearestLoopBlock(m.Store, lb)
-								debugPP.Printf("upperBlock is: %v \n", upperBlock)
-								if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
-									upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
-								}
-								isSealed = true
-							} else {
-								debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)
-								isSealed = false
-							}
-						}
-					}
-					if isSealed {
-						bs.Bag.isSealed = true // seal for this bag of this block
-					}
-				}
-			}
-
+			debugPP.Printf("---for loop end of loop body, going to update value using current state--- \n")
+			updateCapturedValue(m, lb)
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
@@ -264,6 +268,9 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
+				// update captured values
+				debugPP.Printf("---range array end of loop body, going to update value using current state--- \n")
+				updateCapturedValue(m, m.LastBlock())
 				if bs.ListIndex < bs.ListLen-1 {
 					// set up next assign if needed.
 					switch bs.Op {
@@ -358,6 +365,8 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
+				debugPP.Printf("---range of string end of loop body, going to update value using current state--- \n")
+				updateCapturedValue(m, m.LastBlock())
 				if bs.StrIndex < bs.StrLen {
 					// set up next assign if needed.
 					switch bs.Op {
@@ -451,6 +460,8 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
+				debugPP.Printf("---range of map, end of loop body, going to update value using current state--- \n")
+				updateCapturedValue(m, m.LastBlock())
 				nnext := bs.NextItem.Next
 				if nnext == nil {
 					// done with range.
@@ -658,6 +669,7 @@ EXEC_SWITCH:
 			Key:           cs.Key,
 			Value:         cs.Value,
 			Op:            cs.Op,
+			isLoop:        true,
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".

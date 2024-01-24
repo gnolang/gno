@@ -29,7 +29,7 @@ func main() {
 
 // Output:
 // Factorial of 0 is: 1
-// 1
+// 2
 // Factorial of 1 is: 1
 // 2
 // 2
