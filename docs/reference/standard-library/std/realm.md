@@ -3,7 +3,7 @@ id: realm
 ---
 
 # Realm
-Structure repesenting a Realm in Gno. 
+Structure representing a Realm in Gno. See concept page [here](../../../concepts/realms.md). 
 
 ```go
 type Realm struct {
@@ -14,7 +14,6 @@ type Realm struct {
 func (r Realm) Addr() Addres {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {}
-
 ```
 
 ## Addr
