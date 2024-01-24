@@ -149,10 +149,32 @@ func GetUserGames(user std.Address) []*Game {
 	return val.([]*Game)
 }
 
-//func GetUserGamesResult(user std.Address) string {
-	//[]*games := GetUserGames(user)
-	// iterate and generate GameResult and then add them to UserGameResult
-//}
+func GetUserGamesByStatus(user std.Address, status string) string {
+	val, exist := user2Games.Get(user.String())
+	if !exist {
+		return nil
+	}
+
+	allGames := val.([]*Game)
+	var matchingGames []Game
+	for _, game := range allGames {
+		if game.GameStatus == status {
+			matchingGames = append(matchingGames, *game) 
+		}
+	}
+
+	ugr := UserGamesResult{
+		UserGames: matchingGames,
+	}
+
+	ugrJSON, err := ugr.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+
+	return string(ugrJSON)
+}
+
 
 func addToUser2Games(addr std.Address, game *Game) {
 	var games []*Game

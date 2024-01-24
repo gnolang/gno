@@ -24,12 +24,12 @@ type Game struct {
 
 type GameResult struct {
 	ID			string `json:"id"`
-	GameBoard 	string `json:"gmaeBoard"`
+	GameBoard 	string `json:"gameBoard"`
 	TileType	string `json:"tileTpye"`
 }
 
 type UserGamesResult struct {
-	UserGames 	[]string `json:"userGames"`
+	UserGames []Game `json:"userGames"`
 }
 
 type basicNFTMetaData struct {
@@ -135,6 +135,27 @@ func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
 	b.WriteString(writeIntSlice(gb.GameTiles))
 	b.WriteString(`]`)
 	
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func (ugr UserGamesResult) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	b.WriteString(`"userGames":[`)
+	for i, game := range ugr.UserGames {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		gameJSON, err := game.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		b.Write(gameJSON)
+	}
+	b.WriteString(`]`)
 	b.WriteByte('}')
 
 	return b.Bytes(), nil
