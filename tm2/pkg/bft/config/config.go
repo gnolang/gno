@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -15,6 +16,35 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
 )
+
+var (
+	errInvalidMoniker                    = errors.New("moniker not set")
+	errInvalidDBBackend                  = errors.New("invalid DB backend")
+	errInvalidDBPath                     = errors.New("invalid DB path")
+	errInvalidGenesisPath                = errors.New("invalid genesis path")
+	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
+	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
+	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
+	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
+	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
+	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
+)
+
+const (
+	levelDBName  = "goleveldb"
+	clevelDBName = "cleveldb"
+	boltDBName   = "boltdb"
+)
+
+const (
+	localABCI  = "local"
+	socketABCI = "socket"
+)
+
+// Regular expression for TCP or UNIX socket address
+// TCP address: host:port (IPv4 example)
+// UNIX address: unix:// followed by the path
+var tcpUnixAddressRegex = regexp.MustCompile(`^(?:[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]+|unix://.+)`)
 
 // Config defines the top level configuration for a Tendermint node
 type Config struct {
@@ -150,6 +180,9 @@ func (cfg *Config) EnsureDirs() error {
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *Config) ValidateBasic() error {
+	if err := cfg.BaseConfig.ValidateBasic(); err != nil {
+		return err
+	}
 	if err := cfg.RPC.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [rpc] section")
 	}
@@ -321,4 +354,64 @@ func getDefaultMoniker() string {
 		moniker = "anonymous"
 	}
 	return moniker
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg BaseConfig) ValidateBasic() error {
+	// Verify the moniker
+	if cfg.Moniker == "" {
+		return errInvalidMoniker
+	}
+
+	// Verify the DB backend
+	if cfg.DBBackend != levelDBName &&
+		cfg.DBBackend != clevelDBName &&
+		cfg.DBBackend != boltDBName {
+		return errInvalidDBBackend
+	}
+
+	// Verify the DB path is set
+	if cfg.DBPath == "" {
+		return errInvalidDBPath
+	}
+
+	// Verify the genesis path is set
+	if cfg.Genesis == "" {
+		return errInvalidGenesisPath
+	}
+
+	// Verify the validator private key path is set
+	if cfg.PrivValidatorKey == "" {
+		return errInvalidPrivValidatorKeyPath
+	}
+
+	// Verify the validator state file path is set
+	if cfg.PrivValidatorState == "" {
+		return errInvalidPrivValidatorStatePath
+	}
+
+	// Verify the PrivValidator listen address
+	if cfg.PrivValidatorListenAddr != "" &&
+		!tcpUnixAddressRegex.MatchString(cfg.PrivValidatorListenAddr) {
+		return errInvalidPrivValidatorListenAddress
+	}
+
+	// Verify the p2p private key exists
+	if cfg.NodeKey == "" {
+		return errInvalidNodeKeyPath
+	}
+
+	// Verify the correct ABCI mechanism is set
+	if cfg.ABCI != localABCI &&
+		cfg.ABCI != socketABCI {
+		return errInvalidABCIMechanism
+	}
+
+	// Verify the profiling listen address
+	if cfg.ProfListenAddress != "" && !tcpUnixAddressRegex.MatchString(cfg.ProfListenAddress) {
+		return errInvalidProfListenAddress
+	}
+
+	return nil
 }
