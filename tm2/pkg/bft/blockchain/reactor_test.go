@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
@@ -21,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/stretchr/testify/assert"
 )
 
 var config *cfg.Config
