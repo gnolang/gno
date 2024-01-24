@@ -43,6 +43,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require dario.cat/mergo v1.0.0
+
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
