@@ -11,6 +11,9 @@ cd ..
 # Find all go.mod files
 gomods=$(find . -type f -name go.mod)
 
+# Calculate sums for all go.mod files
+sums=$(shasum $gomods)
+
 # Tidy each go.mod file
 for modfile in $gomods; do
   dir=$(dirname "$modfile")
@@ -18,3 +21,6 @@ for modfile in $gomods; do
   # Run go mod tidy in the directory
   (cd "$dir" && go mod tidy -v) || exit 1
 done
+
+# Verify the sums
+echo "$sums" | shasum -c
