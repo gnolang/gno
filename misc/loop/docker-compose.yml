@@ -67,9 +67,10 @@ services:
   #   ports:
   #     - 5050
 
-  snapshotter:
+  portalloopd:
     build:
       dockerfile: ./Dockerfile
+      target: portalloopd
     restart: unless-stopped
     working_dir: /app
     network_mode: host
