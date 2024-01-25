@@ -54,7 +54,7 @@ func TestClient_Request(t *testing.T) {
 
 func TestClient_Run(t *testing.T) {
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
 	signer := newInMemorySigner(t, config.TMConfig.ChainID())
