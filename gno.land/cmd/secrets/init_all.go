@@ -22,7 +22,7 @@ func newInitAllCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "all",
 			ShortUsage: "init all [flags]",
-			ShortHelp:  "Initializes required Gno secrets",
+			ShortHelp:  "Initializes required Gno secrets in a common directory",
 			LongHelp:   "Initializes the validator private key, the node p2p key and the validator's last sign state",
 		},
 		cfg,
@@ -56,35 +56,16 @@ func execInitAll(cfg *initAllCfg, io commands.IO) error {
 		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
 	)
 
-	// Initialize the validator's private key
-	privateKey := generateValidatorPrivateKey()
-
-	// Save the key
-	if err := saveValidatorPrivateKey(privateKey, validatorKeyPath); err != nil {
+	// Initialize and save the validator's private key
+	if err := initAndSaveValidatorKey(validatorKeyPath, io); err != nil {
 		return err
 	}
 
-	io.Printfln("Validator private key saved at %s", validatorKeyPath)
-
-	// Initialize the validator's last sign state
-	validatorState := generateLastSignValidatorState()
-
-	// Save the last sign state
-	if err := saveLastSignValidatorState(validatorState, validatorStatePath); err != nil {
+	// Initialize and save the validator's last sign state
+	if err := initAndSaveValidatorState(validatorStatePath, io); err != nil {
 		return err
 	}
 
-	io.Printfln("Validator last sign state saved at %s", validatorStatePath)
-
-	// Initialize the node's p2p key
-	nodeKey := generateNodeKey()
-
-	// Save the node key
-	if err := saveNodeKey(nodeKey, nodeKeyPath); err != nil {
-		return err
-	}
-
-	io.Printfln("Node key saved at %s", validatorStatePath)
-
-	return nil
+	// Initialize and save the node's p2p key
+	return initAndSaveNodeKey(nodeKeyPath, io)
 }

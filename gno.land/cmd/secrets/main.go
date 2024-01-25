@@ -61,16 +61,16 @@ func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-// commonIndividualCfg is the common
+// commonSingleCfg is the common
 // configuration for secrets commands
 // that require individual secret path management
-type commonIndividualCfg struct {
+type commonSingleCfg struct {
 	validatorKeyPath   string
 	validatorStatePath string
 	nodeKeyPath        string
 }
 
-func (c *commonIndividualCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *commonSingleCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.validatorKeyPath,
 		"validator-key-path",

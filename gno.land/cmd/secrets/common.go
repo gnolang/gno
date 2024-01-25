@@ -21,41 +21,9 @@ func generateValidatorPrivateKey() privval.FilePVKey {
 	}
 }
 
-// saveValidatorPrivateKey saves the validator's private key to the given path
-func saveValidatorPrivateKey(key privval.FilePVKey, path string) error {
-	// Get Amino JSON
-	marshalledKey, err := amino.MarshalJSONIndent(key, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal validator private key into JSON, %w", err)
-	}
-
-	// Save the key to disk
-	if err := os.WriteFile(path, marshalledKey, 0o644); err != nil {
-		return fmt.Errorf("unable to save validator private key, %w", err)
-	}
-
-	return nil
-}
-
 // generateLastSignValidatorState generates the empty last sign state
 func generateLastSignValidatorState() privval.FilePVLastSignState {
 	return privval.FilePVLastSignState{} // Empty last sign state
-}
-
-// saveLastSignValidatorState saves the last sign validator state to the given path
-func saveLastSignValidatorState(state privval.FilePVLastSignState, path string) error {
-	// Get Amino JSON
-	marshalledState, err := amino.MarshalJSONIndent(state, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal last validator sign state into JSON, %w", err)
-	}
-
-	// Save the sign state to disk
-	if err := os.WriteFile(path, marshalledState, 0o644); err != nil {
-		return fmt.Errorf("unable to save last validator sign state, %w", err)
-	}
-
-	return nil
 }
 
 // generateNodeKey generates the p2p node key
@@ -67,17 +35,17 @@ func generateNodeKey() *p2p.NodeKey {
 	}
 }
 
-// saveNodeKey saves the node key to the given path
-func saveNodeKey(key *p2p.NodeKey, path string) error {
+// saveDataToPath saves the given data as Amino JSON to the path
+func saveDataToPath(data any, path string) error {
 	// Get Amino JSON
-	marshalledKey, err := amino.MarshalJSON(key)
+	marshalledState, err := amino.MarshalJSONIndent(data, "", "  ")
 	if err != nil {
-		return fmt.Errorf("unable to marshal node key into JSON, %w", err)
+		return fmt.Errorf("unable to marshal data into JSON, %w", err)
 	}
 
-	// Save the sign state to disk
-	if err := os.WriteFile(path, marshalledKey, 0o644); err != nil {
-		return fmt.Errorf("unable to save node key, %w", err)
+	// Save the data to disk
+	if err := os.WriteFile(path, marshalledState, 0o644); err != nil {
+		return fmt.Errorf("unable to save data to disk, %w", err)
 	}
 
 	return nil
