@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -15,6 +16,35 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
 )
+
+var (
+	errInvalidMoniker                    = errors.New("moniker not set")
+	errInvalidDBBackend                  = errors.New("invalid DB backend")
+	errInvalidDBPath                     = errors.New("invalid DB path")
+	errInvalidGenesisPath                = errors.New("invalid genesis path")
+	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
+	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
+	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
+	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
+	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
+	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
+)
+
+const (
+	levelDBName  = "goleveldb"
+	clevelDBName = "cleveldb"
+	boltDBName   = "boltdb"
+)
+
+const (
+	localABCI  = "local"
+	socketABCI = "socket"
+)
+
+// Regular expression for TCP or UNIX socket address
+// TCP address: host:port (IPv4 example)
+// UNIX address: unix:// followed by the path
+var tcpUnixAddressRegex = regexp.MustCompile(`^(?:[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]+|unix://.+)`)
 
 // Config defines the top level configuration for a Tendermint node
 type Config struct {
@@ -171,13 +201,6 @@ func (cfg *Config) ValidateBasic() error {
 // -----------------------------------------------------------------------------
 // BaseConfig
 
-const (
-	// LogFormatPlain is a format for colored text
-	LogFormatPlain = "plain"
-	// LogFormatJSON is a format for json output
-	LogFormatJSON = "json"
-)
-
 var (
 	defaultConfigDir = "config"
 	defaultDataDir   = "data"
@@ -237,12 +260,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Output level for logging
-	LogLevel string `toml:"log_level" comment:"Output level for logging, including package level options"`
-
-	// Output format: 'plain' (colored text) or 'json'
-	LogFormat string `toml:"log_format" comment:"Output format: 'plain' (colored text) or 'json'"`
-
 	// Path to the JSON file containing the initial validator set and other meta data
 	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
 
@@ -280,8 +297,6 @@ func DefaultBaseConfig() BaseConfig {
 		Moniker:            defaultMoniker,
 		ProxyApp:           "tcp://127.0.0.1:26658",
 		ABCI:               "socket",
-		LogLevel:           DefaultPackageLogLevels(),
-		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
 		FilterPeers:        false,
@@ -329,28 +344,6 @@ func (cfg BaseConfig) DBDir() string {
 	return join(cfg.RootDir, cfg.DBPath)
 }
 
-// ValidateBasic performs basic validation (checking param bounds, etc.) and
-// returns an error if any check fails.
-func (cfg BaseConfig) ValidateBasic() error {
-	switch cfg.LogFormat {
-	case LogFormatPlain, LogFormatJSON:
-	default:
-		return errors.New("unknown log_format (must be 'plain' or 'json')")
-	}
-	return nil
-}
-
-// DefaultLogLevel returns a default log level of "error"
-func DefaultLogLevel() string {
-	return "error"
-}
-
-// DefaultPackageLogLevels returns a default log level setting so all packages
-// log at "error", while the `state` and `main` packages log at "info"
-func DefaultPackageLogLevels() string {
-	return fmt.Sprintf("main:info,state:info,*:%s", DefaultLogLevel())
-}
-
 var defaultMoniker = getDefaultMoniker()
 
 // getDefaultMoniker returns a default moniker, which is the host name. If runtime
@@ -361,4 +354,64 @@ func getDefaultMoniker() string {
 		moniker = "anonymous"
 	}
 	return moniker
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg BaseConfig) ValidateBasic() error {
+	// Verify the moniker
+	if cfg.Moniker == "" {
+		return errInvalidMoniker
+	}
+
+	// Verify the DB backend
+	if cfg.DBBackend != levelDBName &&
+		cfg.DBBackend != clevelDBName &&
+		cfg.DBBackend != boltDBName {
+		return errInvalidDBBackend
+	}
+
+	// Verify the DB path is set
+	if cfg.DBPath == "" {
+		return errInvalidDBPath
+	}
+
+	// Verify the genesis path is set
+	if cfg.Genesis == "" {
+		return errInvalidGenesisPath
+	}
+
+	// Verify the validator private key path is set
+	if cfg.PrivValidatorKey == "" {
+		return errInvalidPrivValidatorKeyPath
+	}
+
+	// Verify the validator state file path is set
+	if cfg.PrivValidatorState == "" {
+		return errInvalidPrivValidatorStatePath
+	}
+
+	// Verify the PrivValidator listen address
+	if cfg.PrivValidatorListenAddr != "" &&
+		!tcpUnixAddressRegex.MatchString(cfg.PrivValidatorListenAddr) {
+		return errInvalidPrivValidatorListenAddress
+	}
+
+	// Verify the p2p private key exists
+	if cfg.NodeKey == "" {
+		return errInvalidNodeKeyPath
+	}
+
+	// Verify the correct ABCI mechanism is set
+	if cfg.ABCI != localABCI &&
+		cfg.ABCI != socketABCI {
+		return errInvalidABCIMechanism
+	}
+
+	// Verify the profiling listen address
+	if cfg.ProfListenAddress != "" && !tcpUnixAddressRegex.MatchString(cfg.ProfListenAddress) {
+		return errInvalidProfListenAddress
+	}
+
+	return nil
 }
