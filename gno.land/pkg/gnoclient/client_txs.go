@@ -1,12 +1,28 @@
 package gnoclient
 
 import (
+	"fmt"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var (
+	errInvalidPkgPath   = errors.New("invalid pkgpath")
+	errInvalidFuncName  = errors.New("invalid function name")
+	errMissingSigner    = errors.New("missing Signer")
+	errMissingRPCClient = errors.New("missing RPCClient")
+)
+
+type BaseTxCfg struct {
+	GasFee         string // Gas fee
+	GasWanted      int64  // Gas wanted
+	AccountNumber  uint64 // Account number
+	SequenceNumber uint64 // Sequence number
+	Memo           string // Memo
+}
 
 // MsgCall - syntax sugar for vm.MsgCall
 type MsgCall struct {
@@ -16,18 +32,23 @@ type MsgCall struct {
 	Send     string   // Send amount
 }
 
-// CallCfg contains configuration options for executing a contract call.
-type CallCfg struct {
-	Msgs           []MsgCall
-	GasFee         string // Gas fee
-	GasWanted      int64  // Gas wanted
-	AccountNumber  uint64 // Account number
-	SequenceNumber uint64 // Sequence number
-	Memo           string // Memo
+func (cfg BaseTxCfg) validateBaseTxConfig() error {
+	// todo implement
+	return nil
+}
+
+func validateMsgCall(msg MsgCall) error {
+	if msg.PkgPath == "" {
+		return errInvalidPkgPath
+	}
+	if msg.FuncName == "" {
+		return errInvalidFuncName
+	}
+	return nil
 }
 
 // Call executes a contract call on the blockchain.
-func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
@@ -35,43 +56,39 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
 
-	msgs := make([]vm.MsgCall, 0, len(cfg.Msgs))
-	for _, msg := range cfg.Msgs {
-		// Validate config.
-		if msg.PkgPath == "" {
-			return nil, errInvalidPkgPath
-		}
-		if msg.FuncName == "" {
-			return nil, errInvalidFuncName
+	vmMsgs := make([]vm.MsgCall, len(msgs))
+	for _, msg := range msgs {
+		if err := validateMsgCall(msg); err != nil {
+			return nil, err
 		}
 
-		// Parse send amount.
-		sendCoins, err := std.ParseCoins(msg.Send)
+		send, err := std.ParseCoins(msg.Send)
 		if err != nil {
-			return nil, errors.Wrap(err, "parsing send coins")
+			return nil, fmt.Errorf("%w", err)
 		}
 
-		// Pack message
-		msgs = append(msgs, vm.MsgCall{
+		vmMsgs = append(vmMsgs, vm.MsgCall{
 			Caller:  c.Signer.Info().GetAddress(),
-			Send:    sendCoins,
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
-			Args:    msg.Args,
+			Send:    send,
 		})
 	}
 
 	// Cast vm.MsgCall back into std.Msg
-	stdMsgs := make([]std.Msg, len(msgs))
-	for i, msg := range msgs {
+	stdMsgs := make([]std.Msg, len(vmMsgs))
+	for i, msg := range vmMsgs {
 		stdMsgs[i] = msg
 	}
 
 	// Parse gas wanted & fee.
 	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing gas fee coin")
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	// Pack transaction
@@ -79,7 +96,7 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		Msgs:       stdMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
-		Memo:       "",
+		Memo:       cfg.Memo,
 	}
 
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
