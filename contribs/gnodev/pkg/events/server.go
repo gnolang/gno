@@ -1,4 +1,4 @@
-package dev
+package events
 
 import (
 	"fmt"
@@ -7,24 +7,23 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gorilla/websocket"
 )
 
 type Emitter interface {
-	Emit(evt *events.Event)
+	Emit(evt *Event)
 }
 
-type EmitterServer struct {
+type Server struct {
 	logger    log.Logger
 	upgrader  websocket.Upgrader
 	clients   map[*websocket.Conn]struct{}
-	muClients sync.Mutex
+	muClients sync.RWMutex
 }
 
-func NewEmitterServer(logger log.Logger) *EmitterServer {
-	return &EmitterServer{
+func NewEmitterServer(logger log.Logger) *Server {
+	return &Server{
 		logger:  logger,
 		clients: make(map[*websocket.Conn]struct{}),
 		upgrader: websocket.Upgrader{
@@ -36,10 +35,10 @@ func NewEmitterServer(logger log.Logger) *EmitterServer {
 }
 
 // ws handler
-func (s *EmitterServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		s.logger.Error("unable to upgrade connection", "error", err)
+		s.logger.Error("unable to upgrade connection", "remote", r.RemoteAddr, "error", err)
 		return
 	}
 	defer conn.Close()
@@ -59,19 +58,23 @@ func (s *EmitterServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *EmitterServer) Emit(evt *events.Event) {
+func (s *Server) Emit(evt *Event) {
+	go s.emit(evt)
+}
+
+func (s *Server) emit(evt *Event) {
+	s.muClients.RLock()
+	defer s.muClients.RUnlock()
+
+	s.logger.Info("sending event to clients", "clients", len(s.clients), "event", evt.Type, "data", evt.Data)
 	if len(s.clients) == 0 {
 		return
 	}
 
-	s.muClients.Lock()
-	defer s.muClients.Unlock()
-
-	s.logger.Info("sending json", "clients", len(s.clients), "event", evt.Type, "data", evt.Data)
 	for conn := range s.clients {
 		err := conn.WriteJSON(evt)
 		if err != nil {
-			s.logger.Error("write json", "error", err)
+			s.logger.Error("write json event", "error", err)
 			conn.Close()
 			delete(s.clients, conn)
 		}
@@ -79,7 +82,7 @@ func (s *EmitterServer) Emit(evt *events.Event) {
 }
 
 var tmplFuncs = template.FuncMap{
-	"jsEventsArray": func(events []events.EventType) string {
+	"jsEventsArray": func(events []EventType) string {
 		var b strings.Builder
 		b.WriteString("[")
 		for i, v := range events {

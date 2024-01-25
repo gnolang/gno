@@ -7,8 +7,8 @@ replace github.com/gnolang/gno => ../..
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
-	golang.org/x/term v0.16.0
 	github.com/gorilla/websocket v1.5.1
+	golang.org/x/term v0.16.0
 )
 
 require (

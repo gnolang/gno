@@ -1,16 +1,26 @@
 package events
 
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
 type EventType string
 
 const (
-	EvtReload         EventType = "NODE_RELOAD"
-	EvtReset          EventType = "NODE_RESET"
-	EvtPackagesUpdate EventType = "PACKAGES_UPDATE"
+	EvtReload         EventType = "EVENT_NODE_RELOAD"
+	EvtReset          EventType = "EVENT_NODE_RESET"
+	EvtPackagesUpdate EventType = "EVENT_PACKAGES_UPDATE"
+	EvtTxResult       EventType = "EVENT_TX_RESULT"
 )
 
 type Event struct {
-	Type EventType   `json:"type"`
-	Data interface{} `json:"data"`
+	Type EventType `json:"type"`
+	Data any       `json:"data"`
 }
 
 // Event Reload
@@ -30,7 +40,7 @@ type EventReset struct{}
 
 func NewEventReset() *Event {
 	return &Event{
-		Type: EvtReload,
+		Type: EvtReset,
 		Data: &EventReset{},
 	}
 }
@@ -53,4 +63,29 @@ func NewPackagesUpdateEvent(pkgs []PackageUpdate) *Event {
 			Pkgs: pkgs,
 		},
 	}
+}
+
+// Event Tx is an alias to TxResult
+
+type EventTxResult struct {
+	Height   int64                  `json:"height"`
+	Index    uint32                 `json:"index"`
+	Tx       std.Tx                 `json:"tx"`
+	Response abci.ResponseDeliverTx `json:"response"`
+}
+
+func NewTxEventResult(result types.TxResult) (*Event, error) {
+	evt := &EventTxResult{
+		Height:   result.Height,
+		Index:    result.Index,
+		Response: result.Response,
+	}
+	if err := amino.Unmarshal(result.Tx, &evt.Tx); err != nil {
+		return nil, fmt.Errorf("unable unmarshal tx: %w", err)
+	}
+
+	return &Event{
+		Type: EvtTxResult,
+		Data: evt,
+	}, nil
 }

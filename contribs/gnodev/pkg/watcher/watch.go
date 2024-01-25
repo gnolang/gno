@@ -36,17 +36,75 @@ func NewPackageWatcher(logger log.Logger, emitter events.Emitter) (*PackageWatch
 
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &PackageWatcher{
+		ctx:     ctx,
+		stop:    cancel,
 		pkgsDir: []string{},
 		logger:  logger,
 		watcher: watcher,
-		ctx:     ctx,
-		stop:    cancel,
 		emitter: emitter,
 	}
 
 	p.startWatching()
 
 	return p, nil
+}
+
+func (p *PackageWatcher) startWatching() {
+	const timeout = time.Millisecond * 500 // Debounce interval
+
+	errorsChan := make(chan error, 1)
+	pkgsUpdateChan := make(chan PackageUpdateList)
+
+	go func() {
+		defer close(errorsChan)
+		defer close(pkgsUpdateChan)
+
+		var debounceTimer <-chan time.Time
+		var pathList = []string{}
+		var err error
+
+		for err == nil {
+			select {
+			case <-p.ctx.Done():
+				err = p.ctx.Err()
+			case watchErr := <-p.watcher.Errors:
+				err = fmt.Errorf("watch error: %w", watchErr)
+			case <-debounceTimer:
+				// Process and emit package updates after the debounce interval
+				updates := p.generatePackagesUpdateList(pathList)
+				for _, update := range updates {
+					p.logger.Info("packages update",
+						"pkg", update.Package,
+						"files", update.Files,
+					)
+				}
+
+				// Send updates
+				pkgsUpdateChan <- updates
+				p.emitter.Emit(events.NewPackagesUpdateEvent(updates))
+
+				// Reset the path list and debounce timer
+				pathList = []string{}
+				debounceTimer = nil
+			case evt := <-p.watcher.Events:
+				// Only handle write operations
+				if evt.Op != fsnotify.Write {
+					continue
+				}
+
+				pathList = append(pathList, evt.Name)
+
+				// Set up the debounce timer
+				debounceTimer = time.After(timeout)
+			}
+		}
+
+		errorsChan <- err // Send any final error to the channel
+	}()
+
+	// Set update channels
+	p.PackagesUpdate = pkgsUpdateChan
+	p.Errors = errorsChan
 }
 
 func (p *PackageWatcher) Stop() {
@@ -83,64 +141,6 @@ func (p *PackageWatcher) AddPackages(pkgs ...gnomod.Pkg) error {
 	}
 
 	return nil
-}
-
-func (p *PackageWatcher) startWatching() {
-	const timeout = time.Millisecond * 500 // Debounce interval
-
-	cErrors := make(chan error, 1)
-	cPkgUpdate := make(chan PackageUpdateList)
-
-	go func() {
-		defer close(cErrors)
-		defer close(cPkgUpdate)
-
-		var debounceTimer <-chan time.Time
-		var pathList = []string{}
-		var err error
-
-		for err == nil {
-			select {
-			case <-p.ctx.Done():
-				err = p.ctx.Err()
-			case watchErr := <-p.watcher.Errors:
-				err = fmt.Errorf("watch error: %w", watchErr)
-			case <-debounceTimer:
-				// Process and emit package updates after the debounce interval
-				updates := p.generatePackagesUpdateList(pathList)
-				for _, update := range updates {
-					p.logger.Error("packages update",
-						"pkg", update.Package,
-						"files", update.Files,
-					)
-				}
-
-				// Send updates
-				cPkgUpdate <- updates
-				p.emitter.Emit(events.NewPackagesUpdateEvent(updates))
-
-				// Reset the path list and debounce timer
-				pathList = []string{}
-				debounceTimer = nil
-			case evt := <-p.watcher.Events:
-				// Only handle write operations
-				if evt.Op != fsnotify.Write {
-					continue
-				}
-
-				pathList = append(pathList, evt.Name)
-
-				// Set up the debounce timer
-				debounceTimer = time.After(timeout)
-			}
-		}
-
-		cErrors <- err // Send any final error to the channel
-	}()
-
-	// Set update channels
-	p.PackagesUpdate = cPkgUpdate
-	p.Errors = cErrors
 }
 
 func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {

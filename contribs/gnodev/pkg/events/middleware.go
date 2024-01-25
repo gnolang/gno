@@ -1,4 +1,4 @@
-package dev
+package events
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 	"text/template"
-
-	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 )
 
 //go:embed static/hotreload.js
@@ -55,7 +53,7 @@ func (m *Middleware) UpdateRemote(remote string) {
 
 type data struct {
 	Remote       string
-	ReloadEvents []events.EventType
+	ReloadEvents []EventType
 }
 
 func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -75,7 +73,8 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	m.next.ServeHTTP(mw, req)
 
 	// Check for any "text/html" answer
-	if content := mw.ResponseWriter.Header().Get("Content-Type"); !strings.Contains(content, "text/html") {
+	content := mw.ResponseWriter.Header().Get("Content-Type")
+	if !strings.Contains(content, "text/html") {
 		rw.Write(buffer.Bytes())
 		return
 	}
@@ -85,7 +84,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		script.WriteString(`<script type="text/javascript">`)
 		err := m.tmpl.Execute(script, &data{
 			Remote:       m.remote,
-			ReloadEvents: []events.EventType{events.EvtReload, events.EvtReset},
+			ReloadEvents: []EventType{EvtReload, EvtReset, EvtTxResult},
 		})
 
 		if err != nil {
@@ -96,12 +95,11 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		m.script = script.Bytes()
 	})
 
-	// Modify the response: inject the script before </body>
-	modifiedContent := bytes.Replace(
+	// Inject the script before </body>
+	updated := bytes.Replace(
 		buffer.Bytes(),
 		[]byte("</body>"),
-		m.script, 1) // only the first occurance
+		m.script, 1)
 
-	// Write the modified content to the original ResponseWriter
-	rw.Write(modifiedContent)
+	rw.Write(updated)
 }

@@ -304,16 +304,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 
 	// correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
-
-	restoreWithRecover := func() error {
-		if r := recover(); r != nil {
-			rt.Taskf("panic", "%v\n", r)
-		}
-
-		return restore()
-	}
-
-	return rt, restoreWithRecover, nil
+	return rt, restore, nil
 }
 
 // setupDevNode initializes and returns a new DevNode.
@@ -322,7 +313,7 @@ func setupDevNode(ctx context.Context, emitter events.Emitter, rt *rawterm.RawTe
 
 	logger := tmlog.NewTMLogger(nodeOut)
 	logger.SetLevel(tmlog.LevelError)
-	return gnodev.NewDevNode(ctx, emitter, logger, pkgspath)
+	return gnodev.NewDevNode(ctx, logger, emitter, pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.

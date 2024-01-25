@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	//backup "github.com/gnolang/tx-archive/backup/client"
@@ -28,10 +29,10 @@ const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be 
 type Node struct {
 	*node.Node
 
-	events events.Emitter
-	client client.Client
-	logger log.Logger
-	pkgs   PkgsMap // path -> pkg
+	emitter events.Emitter
+	client  client.Client
+	logger  log.Logger
+	pkgs    PkgsMap // path -> pkg
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 }
@@ -47,7 +48,7 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, emitter events.Emitter, logger log.Logger, pkgslist []string) (*Node, error) {
+func NewDevNode(ctx context.Context, logger log.Logger, emitter events.Emitter, pkgslist []string) (*Node, error) {
 	mpkgs, err := newPkgsMap(pkgslist)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -64,27 +65,16 @@ func NewDevNode(ctx context.Context, emitter events.Emitter, logger log.Logger, 
 		Txs:      pkgsTxs,
 	}
 
-	node, err := newNode(logger, genesis)
+	node, err := newNode(ctx, logger, emitter, genesis)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the node: %w", err)
 	}
 	client := client.NewLocal(node)
 
-	if err := node.Start(); err != nil {
-		return nil, fmt.Errorf("unable to start node: %w", err)
-	}
-
-	// Wait for readiness
-	select {
-	case <-gnoland.GetNodeReadiness(node): // ok
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
 	return &Node{
 		Node: node,
 
-		events:         emitter,
+		emitter:        emitter,
 		client:         client,
 		pkgs:           mpkgs,
 		logger:         logger,
@@ -153,11 +143,13 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	if err := d.reset(ctx, genesis); err != nil {
+	node, err := newNode(ctx, d.logger, d.emitter, genesis)
+	if err != nil {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
-	d.events.Emit(events.NewEventReset())
+	d.Node = node
+	d.emitter.Emit(events.NewEventReset())
 	return nil
 }
 
@@ -207,68 +199,19 @@ func (d *Node) Reload(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	if err := d.reset(ctx, genesis); err != nil {
+	node, err := newNode(ctx, d.logger, d.emitter, genesis)
+	if err != nil {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
 	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+
+	// Update node infos
+	d.Node = node
 	d.loadedPackages = len(pkgsTxs)
 
-	if err != nil {
-		return fmt.Errorf("unable to reload the node: %w", err)
-	}
-
-	d.events.Emit(events.NewEventReload())
+	d.emitter.Emit(events.NewEventReload())
 	return nil
-}
-
-func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
-	var err error
-
-	// recoverError handles panics and converts them to errors.
-	recoverError := func() {
-		if r := recover(); r != nil {
-			panicErr, ok := r.(error)
-			if !ok {
-				panic(r) // Re-panic if not an error.
-			}
-
-			err = panicErr
-		}
-	}
-
-	createNode := func() {
-		defer recoverError()
-
-		node, nodeErr := newNode(d.logger, genesis)
-		if nodeErr != nil {
-			err = fmt.Errorf("unable to create node: %w", nodeErr)
-			return
-		}
-
-		if startErr := node.Start(); startErr != nil {
-			err = fmt.Errorf("unable to start the node: %w", startErr)
-			return
-		}
-
-		d.Node = node
-		d.client = client.NewLocal(d.Node)
-	}
-
-	// Execute node creation and handle any errors.
-	createNode()
-	if err != nil {
-		return err
-	}
-
-	// Wait for the node to be ready
-	select {
-	case <-d.GetNodeReadiness(): // Ok
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	return err
 }
 
 // GetBlockTransactions returns the transactions contained
@@ -424,13 +367,71 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(logger log.Logger, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func newNode(ctx context.Context, logger log.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
+	// Setup node config
 	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
 	nodeConfig.SkipFailingGenesisTxs = true
 	nodeConfig.TMConfig.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
-
 	nodeConfig.Genesis.AppState = genesis
-	return gnoland.NewInMemoryNode(logger, nodeConfig)
+
+	// Generate a new node
+	var err error
+
+	// recoverError handles panics and converts them to errors.
+	recoverError := func() {
+		if r := recover(); r != nil {
+			panicErr, ok := r.(error)
+			if !ok {
+				panic(r) // Re-panic if not an error.
+			}
+
+			err = panicErr
+		}
+	}
+
+	createNode := func() *node.Node {
+		defer recoverError()
+
+		node, nodeErr := gnoland.NewInMemoryNode(logger, nodeConfig)
+		if nodeErr != nil {
+			err = fmt.Errorf("unable to create node: %w", nodeErr)
+			return nil
+		}
+
+		node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
+			switch data := evt.(type) {
+			case bft.EventTx:
+				evtTx, err := events.NewTxEventResult(data.Result)
+				if err != nil {
+					logger.Error("unable to create an event from tx result", "error", err)
+					return
+				}
+
+				emitter.Emit(evtTx)
+			}
+		})
+
+		if startErr := node.Start(); startErr != nil {
+			err = fmt.Errorf("unable to start the node: %w", startErr)
+			return nil
+		}
+
+		return node
+	}
+
+	// Execute node creation and handle any errors.
+	node := createNode()
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for the node to be ready
+	select {
+	case <-gnoland.GetNodeReadiness(node): // Ok
+		return node, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
