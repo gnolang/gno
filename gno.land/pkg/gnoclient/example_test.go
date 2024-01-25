@@ -34,7 +34,7 @@ func Example_withInMemCrypto() {
 	account := uint32(0)
 	index := uint32(0)
 	chainID := "dev"
-	signer, _ := gnoclient.SignerFromBip39(chainID, mnemo, bip39Passphrase, account, index)
+	signer, _ := gnoclient.SignerFromBip39(mnemo, chainID, bip39Passphrase, account, index)
 
 	remote := "127.0.0.1:26657"
 	rpcClient := rpcclient.NewHTTP(remote, "/websocket")
