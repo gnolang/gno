@@ -46,26 +46,20 @@ SelectStmt ->
 func updateCapturedValue(m *Machine, lb *Block) {
 	if lb.GetBodyStmt().isLoop { // do we need this?
 		bs := lb.GetBodyStmt()
-		debugPP.Printf("---------LoopValuesBox, %v \n", bs.LoopValuesBox)
 		if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
 			var isSealed bool
 			for i, tt := range bs.LoopValuesBox.transient {
-				debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
 				nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
 				ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
 				tv := ptr.Deref()
-				debugPP.Printf("--- new tv : %v \n", tv)
 				// update context use previously recorded value
-				debugPP.Printf("before update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
 				// inner loops iterates twice while outer loop iterates once.
 				// it's an alignment for the values of out loop block.
 				// TODO: hard to understand, more doc or e.g.
 				expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
-				debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
 				for j := 0; j < expandRatio; j++ {
 					bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
 				}
-				debugPP.Printf("after update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
 				isSealed = true
 			}
 			if isSealed {
@@ -151,7 +145,6 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
-			debugPP.Printf("---for loop end of loop body, going to update value using current state--- \n")
 			updateCapturedValue(m, lb)
 			// (queue to) go back.
 			if bs.Cond != nil {
@@ -246,7 +239,6 @@ func (m *Machine) doOpExec(op Op) {
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
 				// update captured values
-				debugPP.Printf("---range array end of loop body, going to update value using current state--- \n")
 				updateCapturedValue(m, m.LastBlock())
 				if bs.ListIndex < bs.ListLen-1 {
 					// set up next assign if needed.
@@ -342,7 +334,6 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
-				debugPP.Printf("---range of string end of loop body, going to update value using current state--- \n")
 				updateCapturedValue(m, m.LastBlock())
 				if bs.StrIndex < bs.StrLen {
 					// set up next assign if needed.
@@ -437,7 +428,6 @@ func (m *Machine) doOpExec(op Op) {
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
 			} else if bs.NextBodyIndex == bs.BodyLen {
-				debugPP.Printf("---range of map, end of loop body, going to update value using current state--- \n")
 				updateCapturedValue(m, m.LastBlock())
 				nnext := bs.NextItem.Next
 				if nnext == nil {
@@ -480,7 +470,6 @@ EXEC_SWITCH:
 	// TODO: add case log for debug
 	switch cs := s.(type) {
 	case *AssignStmt:
-		debugPP.Printf("-----AssignStmt: %v \n", cs)
 		switch cs.Op {
 		case ASSIGN:
 			// post assign, use value of lhs to update captured value, name as ID

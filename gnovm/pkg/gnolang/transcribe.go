@@ -135,7 +135,6 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
-	debugPP.Printf("transcribe, n is: %v \n", n)
 	// transcribe n on the way in.
 	var c TransCtrl
 	nn, c = t(ns, ftype, index, n, TRANS_ENTER)
@@ -149,55 +148,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	// visit any children of n.
 	switch cnn := nn.(type) {
 	case *NameExpr:
-		debugPP.Printf("-----trans, nameExpr: %v \n", cnn)
-		//deps := make(map[Name]struct{})
-		//findDependentNames(cnn, deps)
-		//for k, v := range deps {
-		//	debugPP.Printf("%s depends on %v \n", k, v)
-		//}
-
-		//if CX.hasClosure() {
-		//	debugPP.Printf("---has Closure, check: %v \n", cnn)
-		//	debugPP.Println("---currentOp: ", CX.peekOp())
-		//	debugPP.Println("---dump ops: ", CX.dumpOps())
-		//	// recording names defined in closure as a whitelist
-		//	if CX.peekOp() == DEFINE || CX.peekOp() == ASSIGN {
-		//		ao := CX.peekOperand()
-		//		if ao != nil { // staff to do
-		//			debugPP.Printf("ao is: %v \n", ao)
-		//			// in scope of define/assign op, record to whitelist
-		//			ao.counter += 1
-		//			// add nx to whitelist until resolved
-		//			CX.whitelist[cnn.Name] = true
-		//			debugPP.Println(CX.dumpWhitelist())
-		//			if ao.counter == ao.num { // all resolved
-		//				//CX.clearWhiteList()
-		//				CX.popOp()
-		//				CX.popOperand()
-		//			}
-		//		}
-		//	}
-		//	// capture logic
-		//	// not exist in whitelist, capture
-		//	if _, ok := CX.whitelist[cnn.Name]; !ok {
-		//		debugPP.Printf("nx need capture: %s \n", string(cnn.Name))
-		//		currentClo := CX.currentClosure()
-		//		debugPP.Printf("currentClo: %v \n", currentClo)
-		//		if currentClo != nil { // a closure to fill
-		//			//if cnn.Path.Depth < 1 { // if local defined, no capture
-		//			debugPP.Printf("---capture: %v \n", cnn)
-		//			cnx := CapturedNx{
-		//				nx:     cnn,
-		//				offset: 0,
-		//			}
-		//			currentClo.Fill(cnx)
-		//			CX.dumpClosures()
-		//			//CX.dumpNodes()
-		//		}
-		//	}
-		//} else {
-		//	debugPP.Println("---no closure in place")
-		//}
 	case *BasicLitExpr:
 	case *BinaryExpr:
 		cnn.Left = transcribe(t, nns, TRANS_BINARY_LEFT, 0, cnn.Left, &c).(Expr) // XXX wished this worked with nil.
@@ -310,8 +260,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn.Elts[idx] = KeyValueExpr{Key: k, Value: v}
 		}
 	case *FuncLitExpr:
-		debug.Printf("-----trans, funcLitExpr: %v \n", cnn)
-
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
 			return
@@ -411,7 +359,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *AssignStmt:
-		debugPP.Printf("---assignStmt: %v \n", cnn)
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if isBreak(c) {
@@ -446,7 +393,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *BranchStmt:
 	case *DeclStmt:
-		// CX.pushOp(ASSIGN)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)
 			if isBreak(c) {
@@ -455,7 +401,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		// CX.popOp()
 	case *DeferStmt:
 		cnn.Call = *transcribe(t, nns, TRANS_DEFER_CALL, 0, &cnn.Call, &c).(*CallExpr)
 		if isStopOrSkip(nc, c) {
@@ -509,7 +454,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *IfStmt:
-		debug.Println("-----trans, if stmt")
 		// NOTE: like switch stmts, both if statements AND
 		// contained cases visit with the TRANS_BLOCK stage, even
 		// though during runtime only one block is created.
@@ -542,7 +486,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *IfCaseStmt:
-		debug.Printf("-----trans, (if---case) stmt: %v \n", cnn)
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -559,15 +502,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		// debug.Println("if-case pop c-----")
-
 	case *IncDecStmt:
 		cnn.X = transcribe(t, nns, TRANS_INCDEC_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
 			return
 		}
 	case *RangeStmt:
-		debugPP.Printf("---range stmt: %v \n", cnn)
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -602,7 +542,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *ReturnStmt:
-		debug.Printf("-----trans, return stmt: %v \n", cnn)
 		for idx := range cnn.Results {
 			cnn.Results[idx] = transcribe(t, nns, TRANS_RETURN_RESULT, idx, cnn.Results[idx], &c).(Expr)
 			if isBreak(c) {
@@ -652,7 +591,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *SwitchStmt:
-		debugPP.Printf("---switchStmt: %v \n", cnn)
 		// NOTE: unlike the select case, and like if stmts, both
 		// switch statements AND contained cases visit with the
 		// TRANS_BLOCK stage, even though during runtime only one
@@ -663,12 +601,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		} else {
 			cnn = cnn2.(*SwitchStmt)
-		}
-
-		if cnn.IsTypeSwitch {
-			debugPP.Printf("is type switch, init is :%v \n", cnn.Init)
-			debugPP.Printf("is type switch, X is :%v \n", cnn.X)
-			debugPP.Printf("is type switch, varName is :%v \n", cnn.VarName)
 		}
 
 		if cnn.Init != nil {
@@ -755,8 +687,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *ImportDecl:
 		// nothing to do
 	case *ValueDecl:
-		debugPP.Println("---value decl")
-
 		if cnn.Type != nil {
 			cnn.Type = transcribe(t, nns, TRANS_VAR_TYPE, 0, cnn.Type, &c).(Expr)
 			if isStopOrSkip(nc, c) {

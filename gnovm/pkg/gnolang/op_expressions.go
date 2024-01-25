@@ -88,7 +88,6 @@ func (m *Machine) doOpSelector() {
 }
 
 func (m *Machine) doOpSlice() {
-	debugPP.Println("-----doOpSlice")
 	sx := m.PopExpr().(*SliceExpr)
 	var low, high, max int = -1, -1, -1
 	// max
@@ -107,7 +106,6 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
-	debugPP.Printf("---xv: %v \n", xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
@@ -680,31 +678,9 @@ func (m *Machine) doOpStructLit() {
 	})
 }
 
-// find nearest block is loop and contains name of n
-func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr) (*Block, bool, uint8) {
-	var gen uint8 = 1
-	for i := uint8(1); i < nx.Path.Depth; i++ { // find target block at certain depth
-		b = b.GetParent(store)
-		gen++
-	}
-
-	debugPP.Printf("---b is: %v, \n", b)
-	if b.GetBodyStmt().isLoop { // is loop
-		names := b.GetSource(store).GetBlockNames()
-		for _, name := range names {
-			if nx.Name == name { // find n in this block
-				return b, true, gen
-			}
-		}
-	}
-	return nil, false, gen
-}
-
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	lb := m.LastBlock()
-	debugPP.Printf("doOpFuncLit, x: %v, lb: %v \n", x, lb)
-
 	var captures []*NameExpr
 	for _, n := range x.GetExternNames() {
 		vp := x.GetPathForName(m.Store, n)
@@ -744,11 +720,9 @@ func (m *Machine) doOpFuncLit() {
 	// the transient state of x, y is: [0,0], [0,1], [1,0], [1,1].
 	// the outer block will hold transient values of [0,0,1,1] for `x`, and inner block 1 will hold [0,1] for `y`,
 	// another inner block 2 holds [0,1] for y too.
-	for i, nx := range captures {
-		debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
+	for _, nx := range captures {
 		// start search block, in the order of small depth to big depth
 		loopBlock, isLoopBlock, gen = findLoopBlockWithPath(m.Store, lb, nx)
-		debugPP.Printf("loopBlock: %v,  isLoopBlock: %v, gen: %v,  cursor: %v \n", loopBlock, isLoopBlock, gen)
 		if lastGen == 0 {
 			lastGen = gen
 		} else if gen != lastGen { // if enter new level of block, pack last box
@@ -757,18 +731,15 @@ func (m *Machine) doOpFuncLit() {
 				lvBox.isFilled = true
 				loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
 			}
-			debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 		}
 		if isLoopBlock {
 			// every loopBlock holds a loopValuesBox that contains a slice of transient value generated as the iterations goes on.
 			// funcValue references this loopValuesBox for future use(when closure executing)
 			lvBox = loopBlock.GetBodyStmt().LoopValuesBox // get LoopValuesBox from specific block, that is shared across current level of for/range loop
-			debugPP.Printf("got initial LoopValuesBox from target loop block: %v \n", lvBox)
 			if lvBox == nil {
 				lvBox = &LoopValuesBox{} // init
 			}
 			if !lvBox.isFilled { // for replicas of fv, the captured names are same, so fill only once for further reuse.
-				debugPP.Println("---not filled---")
 				tst := &Transient{
 					nx:     nx,
 					cursor: 0, // inc every iteration, implies sequence of a fv, and index of transient values.
@@ -789,11 +760,12 @@ func (m *Machine) doOpFuncLit() {
 	if lvBox != nil && !lvBox.isFilled && !isReuse {
 		lvBox.isFilled = true // set for the last LoopValuesBox of last loopBlock
 		loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
-		debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 	}
 
-	for i, ts := range loopData {
-		debugPP.Printf("========TransientLoopData[%d] is: %s, addr: %p, index: %d \n", i, ts.loopValuesBox, &ts.loopValuesBox, ts.index)
+	if debug {
+		for i, ts := range loopData {
+			fmt.Printf("========TransientLoopData[%d] is: %s, addr: %p, index: %d \n", i, ts.loopValuesBox, &ts.loopValuesBox, ts.index)
+		}
 	}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)

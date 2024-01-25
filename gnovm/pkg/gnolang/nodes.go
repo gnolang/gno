@@ -498,10 +498,6 @@ type FuncLitExpr struct {
 	Body              // function body
 }
 
-//type ClosureObject struct {
-//	StaticBlock
-//}
-
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
 type ConstExpr struct {
@@ -1354,7 +1350,6 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	debug.Println("-----PrepareNewValues")
 	if pv.PkgPath == "" {
 		// nothing to prepare for throwaway packages.
 		// TODO: double check to see if still relevant.
@@ -1494,33 +1489,6 @@ type StaticBlock struct {
 	oldValues []oldValue
 }
 
-func (sb *StaticBlock) String() {
-	fmt.Println("==============static block==============")
-	for i, t := range sb.Types {
-		fmt.Printf("types[%d] is %v \n", i, t)
-	}
-	fmt.Printf("numNames is %d \n", sb.NumNames)
-	for i, t := range sb.Names {
-		fmt.Printf("names[%d] is %v \n", i, t)
-	}
-	for i, t := range sb.Consts {
-		fmt.Printf("consts[%d] is %v \n", i, t)
-	}
-	for i, t := range sb.Externs {
-		fmt.Printf("externs[%d] is %v \n", i, t)
-	}
-	for i, t := range sb.oldValues {
-		fmt.Printf("oldValues[%d] is %v \n", i, t)
-	}
-	fmt.Printf("sb objectInfo %v \n", sb.GetObjectInfo())
-	fmt.Printf("sb isEscaped %v \n", sb.GetIsEscaped())
-	fmt.Printf("sb isTransient %v \n", sb.GetIsTransient())
-	// fmt.Printf("sb getOwnder, getOwnerID %v \n", sb.GetOwner(), sb.GetOwnerID())
-	fmt.Println("=================block==================")
-	fmt.Printf("block: %v \n", sb.Block)
-	fmt.Println("==================end===================")
-}
-
 type oldValue struct {
 	idx   uint16
 	value Value
@@ -1622,7 +1590,6 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	// debug.Printf("-----GetPathForName: %v \n", n)
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_")
 	}
@@ -1736,7 +1703,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
-	// debug.Printf("GetLocalIndex: %v \n", n)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {

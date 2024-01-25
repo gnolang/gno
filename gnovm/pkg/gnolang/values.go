@@ -579,15 +579,6 @@ func (tsb *LoopValuesBox) getIndexByName(n Name) int {
 	return -1 // never reach
 }
 
-func (tsb *LoopValuesBox) isEmpty() bool {
-	for _, tt := range tsb.transient {
-		if tt != nil && tt.values != nil && len(tt.values) != 0 {
-			return false
-		}
-	}
-	return true
-}
-
 func (tsb *LoopValuesBox) String() string {
 	var s string
 	s += "\n"
@@ -2337,14 +2328,11 @@ func (b *Block) Hash() string {
 }
 
 func (b *Block) UpdateValue(index int, tv TypedValue) {
-	debug.Printf("-----UpdateValue, index: %d, tv: %v \n", index, tv)
-	debug.Printf("b before update: %v \n", b)
 	for i := range b.Values {
 		if i == index {
 			b.Values[i] = tv
 		}
 	}
-	debug.Printf("b after update: %v \n", b)
 }
 
 func (b *Block) String() string {
@@ -2405,14 +2393,6 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		debugPP.Printf("r: %v \n", r)
-	//	}
-	//}()
-	debugPP.Printf("-----GetPointerToInt, index: %d \n", index)
-	debugPP.Printf("b: %v \n", b)
-	debugPP.Printf("len of values: %v \n", len(b.Values))
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2429,8 +2409,6 @@ func (b *Block) GetBlockWithDepth(store Store, path ValuePath) *Block {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	debugPP.Printf("-----GetPointerTo, path : %v\n", path)
-	debugPP.Printf("b: %v \n", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {
@@ -2450,14 +2428,28 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
 	for i := uint8(1); i < path.Depth; i++ {
-		//if b == nil {
-		//	fmt.Printf("-----GetPointerTo, path : %v\n", path)
-		//	fmt.Printf("b: %v \n", b)
-		//	panic("------b nil, depth is:" + strconv.Itoa(int(path.Depth)))
-		//}
 		b = b.GetParent(store)
 	}
 	return b.GetPointerToInt(store, int(path.Index))
+}
+
+// find nearest block is loop and contains name of n
+func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr) (*Block, bool, uint8) {
+	var gen uint8 = 1
+	for i := uint8(1); i < nx.Path.Depth; i++ { // find target block at certain depth
+		b = b.GetParent(store)
+		gen++
+	}
+
+	if b.GetBodyStmt().isLoop { // is loop
+		names := b.GetSource(store).GetBlockNames()
+		for _, name := range names {
+			if nx.Name == name { // find n in this block
+				return b, true, gen
+			}
+		}
+	}
+	return nil, false, gen
 }
 
 // Result is used has lhs for any assignments to "_".

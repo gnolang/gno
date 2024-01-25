@@ -222,8 +222,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
-				debug.Println("-----trans enter Decls")
-				debug.Printf("node: %v \n", n)
 				// NOTE func decl usually must happen with a
 				// file, and so last is usually a *FileNode,
 				// but for testing convenience we allow
@@ -274,14 +272,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
 				pushInitBlock(n, &last, &stack)
-				debug.Println("blockStmt push closure")
-				// pushClosure(&Closure{})
-				// debug.Println("blockStmt pop closure")
-				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
-				debug.Println("-----ForStmt-----")
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -294,7 +287,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
-				debug.Println("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
 				// pushClosure(&Closure{})
 				// parent if statement.
@@ -302,10 +294,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
 					tv := ifs.GetValueRef(nil, n)
-					debug.Printf("tv : %v, *tv: %v \n", tv, *tv)
 					last.Define(n, *tv)
 				}
-				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -367,23 +357,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *FuncLitExpr:
-				debug.Println("---PP funcLitExpr")
-
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 
-				// pushClosure(&Closure{})
-				// pushFxs(n)
-				// define parameters in new block.
 				for _, p := range ft.Params {
-					debug.Println("---PP define params")
 					last.Define(p.Name, anyValue(p.Type))
 				}
 				// define results in new block.
 				for i, rf := range ft.Results {
-					debug.Println("---PP define results")
 					if 0 < len(rf.Name) {
 						last.Define(rf.Name, anyValue(rf.Type))
 					} else {
@@ -393,15 +376,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
-
-				//debug.Println("funcLit pop c-----")
-				//pc := popClosure()
-				////cnn.Closure = c
-				//closure := *pc
-				//n.SetClosure(closure)
-				//debug.Printf("---done FuncLit trans, fx: %v, closure: %+v \n", n, n.Closure.String())
-				//debug.Println("---PP funcLitExpr end---")
-
 			// TRANS_BLOCK -----------------------
 			case *SelectCaseStmt:
 				pushInitBlock(n, &last, &stack)
@@ -663,9 +637,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
-				debug.Println("---PP NameExpr")
-				debug.Println("---PP NameExpr, ftype: ", ftype)
-
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1986,7 +1957,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
-	debugPP.Printf("pushInitBlock : %v \n", bn)
 	if !bn.IsInitialized() {
 		bn.InitStaticBlock(bn, *last)
 	} else {
@@ -3020,7 +2990,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
 func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
-	debug.Println("-----tryPredefine")
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
 	}

@@ -46,7 +46,6 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	debugPP.Println("-----doOpCall-----")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -57,19 +56,17 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 
 	clo := fr.Func.GetClosure(m.Store) // this is "static"
-	debugPP.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
-	var loopBlock *Block // target loop block with values to be updated
-	debugPP.Println("================parse transient for fv====================")
+	var loopBlock *Block             // target loop block with values to be updated
 	if fv.TransientLoopData != nil { // it captured a bundle of values
 		for i, loopData := range fv.TransientLoopData { // each LoopValuesBox is for a certain level of block
 			box := loopData.loopValuesBox
-			debugPP.Printf("Level[%d] LoopValuesBox is : %v \n", i, box)
 			if box.isSealed {
-				for j, t := range box.transient { // unpack vars belong to a specific block
-					debugPP.Printf("LoopValuesBox.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
-					for k, v := range t.values {
-						debugPP.Printf("values[%d] is %v \n", k, v)
+				for _, t := range box.transient { // unpack vars belong to a specific block
+					if debug {
+						for k, v := range t.values {
+							fmt.Printf("values[%d] is %v \n", k, v)
+						}
 					}
 					loopBlock = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
 					// check if exists, should always be?
@@ -78,14 +75,12 @@ func (m *Machine) doOpCall() {
 					var match bool
 					for l, n := range names {
 						if n == t.nx.Name {
-							debugPP.Printf("name: %s match \n", n)
 							index = l
 							match = true
 							break
 						}
 					}
 					if match {
-						debugPP.Println("===match, cursor is:", loopData.index)
 						// update values in context with previously captured.
 						loopBlock.UpdateValue(index, t.values[loopData.index])
 					}
