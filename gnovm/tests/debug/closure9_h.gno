@@ -2,22 +2,29 @@ package main
 
 func main() {
 	var fns []func() int
-
 	for i := 0; i < 2; i++ {
 		x := i
-		f := func() int {
-			for i := 0; i < 1; i++ {
-				x++
+		for j := 0; j < 2; j++ {
+			y := j
+			f := func() int {
+				return x + y
 			}
-			return x
+			fns = append(fns, f)
 		}
-		fns = append(fns, f)
 	}
 	for _, fn := range fns {
 		println(fn())
 	}
 }
 
+// Go Output:
+// 0
+// 1
+// 1
+// 2
+
 // Output:
+// 0
+// 1
 // 1
 // 2

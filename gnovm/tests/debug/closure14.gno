@@ -13,11 +13,14 @@ func foo() (err error) {
 			}
 		}
 	}()
-	return
+
+	panic("xxx")
 }
 
 func main() {
-	foo()
+	err := foo()
+	println(err.Error())
 }
 
 // Output:
+// xxx

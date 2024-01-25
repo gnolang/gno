@@ -1,14 +1,11 @@
 package main
 
+// this is a fix, intuitive, same with go loopVar experiment feature.
 func main() {
 	var fns []func() int
-	for i := 0; i < 2; i++ {
-		x := i
-		y := 0
+	for i := 0; i < 5; i++ {
 		f := func() int {
-			x += y
-			x += 1
-			return x
+			return i
 		}
 		fns = append(fns, f)
 	}
@@ -17,6 +14,16 @@ func main() {
 	}
 }
 
+// Go Output:
+// 5
+// 5
+// 5
+// 5
+// 5
+
 // Output:
+// 0
 // 1
 // 2
+// 3
+// 4

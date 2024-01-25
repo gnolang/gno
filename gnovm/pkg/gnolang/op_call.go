@@ -65,26 +65,21 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	debugPP.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
-	captures := fr.Func.Captures
-	if captures == nil {
-		debugPP.Println("nil captures")
-	}
 	var targetB *Block
 	debugPP.Println("================parse transient for fv====================")
-	if fv.Tss != nil {
-		for i, loopData := range fv.Tss { // each bag is for a certain level of block
-			bag := loopData.bag
-			debugPP.Printf("Level[%d] bag is : %v \n", i, bag)
+	if fv.TransientLoopData != nil {
+		for i, loopData := range fv.TransientLoopData { // each LoopValuesBox is for a certain level of block
+			bag := loopData.loopValuesBox
+			debugPP.Printf("Level[%d] LoopValuesBox is : %v \n", i, bag)
 			if bag != nil {
 				if bag.isSealed {
 					if bag != nil && !bag.isEmpty() { // NOTE: for some reasons won't pack value
 						for j, t := range bag.transient { // unpack vars belong to a specific block
 							if t != nil {
-								debugPP.Printf("Bag.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
+								debugPP.Printf("LoopValuesBox.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
 								for k, v := range t.values {
 									debugPP.Printf("values[%d] is %v \n", k, v)
 								}
-
 								targetB = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
 								// check if exists, should always be?
 								names := targetB.GetSource(m.Store).GetBlockNames()
@@ -100,32 +95,20 @@ func (m *Machine) doOpCall() {
 								}
 								if match {
 									debugPP.Println("===match, cursor is:", loopData.index)
-
+									// update values in context with previously captured.
 									targetB.UpdateValue(index, t.values[loopData.index])
-									//nvs := t.values[1:]
-									//bag.transient[j].values = nvs
-									//if len(bag.transient[j].values) == 0 { // loop end
-									//	bag.transient[j] = nil // empty a name and value
-									//	end = true
-									//}
 								}
 							}
 						}
 					}
-				} else { // not sealed will be tainted
+				} else { // not sealed will be tainted, indicates it's not a closure.
 					debugPP.Println("---taint this var")
-					fv.Tss[i].bag.isTainted = true
+					fv.TransientLoopData[i].loopValuesBox.isTainted = true
 				}
 			}
 		}
-		//if end {
-		fv.Tss = nil
-		//}
+		fv.TransientLoopData = nil
 	}
-
-	// only need initial snapshot
-	fr.Func.Captures = nil
-	//fr.Func.Captures = Captured{}
 
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)

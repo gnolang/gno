@@ -718,7 +718,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if debug {
-		//m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
+		// m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
@@ -747,7 +747,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 // static types of nodes.
 func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
-		//m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
+		// m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
@@ -905,7 +905,6 @@ const (
 	OpStructLit    Op = 0x50 // X{...}
 	OpFuncLit      Op = 0x51 // func(T){Body}
 	OpConvert      Op = 0x52 // Y(X)
-	OpPreFuncLit   Op = 0x53 //
 
 	/* Native operators */
 	OpArrayLitGoNative  Op = 0x60
@@ -1041,7 +1040,6 @@ const (
 	OpCPUMapLit       = 1
 	OpCPUStructLit    = 1
 	OpCPUFuncLit      = 1
-	OpCPUPreFuncLit   = 1
 	OpCPUConvert      = 1
 
 	/* Native operators */
@@ -1637,7 +1635,7 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 
 func (m *Machine) PushBlock(b *Block) {
 	if debug {
-		//m.Println("+B")
+		// m.Println("+B")
 		m.Printf("+B: %v \n", b)
 	}
 	m.Blocks = append(m.Blocks, b)

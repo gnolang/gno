@@ -886,7 +886,7 @@ type bodyStmt struct {
 	NumStmts      int            // number of Stmts, for goto
 	Cond          Expr           // for ForStmt
 	Post          Stmt           // for ForStmt
-	Bag           *TimeSeriesBag // a series of values of captured vars
+	LoopValuesBox *LoopValuesBox // a series of transient values of captured var generated as the iteration goes on
 	isLoop        bool
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
@@ -1515,7 +1515,7 @@ func (sb *StaticBlock) String() {
 	fmt.Printf("sb objectInfo %v \n", sb.GetObjectInfo())
 	fmt.Printf("sb isEscaped %v \n", sb.GetIsEscaped())
 	fmt.Printf("sb isTransient %v \n", sb.GetIsTransient())
-	//fmt.Printf("sb getOwnder, getOwnerID %v \n", sb.GetOwner(), sb.GetOwnerID())
+	// fmt.Printf("sb getOwnder, getOwnerID %v \n", sb.GetOwner(), sb.GetOwnerID())
 	fmt.Println("=================block==================")
 	fmt.Printf("block: %v \n", sb.Block)
 	fmt.Println("==================end===================")
@@ -1622,7 +1622,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	//debug.Printf("-----GetPathForName: %v \n", n)
+	// debug.Printf("-----GetPathForName: %v \n", n)
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_")
 	}
@@ -1736,7 +1736,7 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
-	//debug.Printf("GetLocalIndex: %v \n", n)
+	// debug.Printf("GetLocalIndex: %v \n", n)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {

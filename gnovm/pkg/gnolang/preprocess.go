@@ -275,9 +275,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BlockStmt:
 				pushInitBlock(n, &last, &stack)
 				debug.Println("blockStmt push closure")
-				//pushClosure(&Closure{})
-				//debug.Println("blockStmt pop closure")
-				//popClosure()
+				// pushClosure(&Closure{})
+				// debug.Println("blockStmt pop closure")
+				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
@@ -296,7 +296,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *IfCaseStmt:
 				debug.Println("-----IfCaseStmt-----")
 				pushRealBlock(n, &last, &stack)
-				//pushClosure(&Closure{})
+				// pushClosure(&Closure{})
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
@@ -305,7 +305,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					debug.Printf("tv : %v, *tv: %v \n", tv, *tv)
 					last.Define(n, *tv)
 				}
-				//popClosure()
+				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -374,8 +374,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 
-				//pushClosure(&Closure{})
-				//pushFxs(n)
+				// pushClosure(&Closure{})
+				// pushFxs(n)
 				// define parameters in new block.
 				for _, p := range ft.Params {
 					debug.Println("---PP define params")
@@ -430,7 +430,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushRealBlock(n, &last, &stack)
-				//pushClosure(&Closure{})
+				// pushClosure(&Closure{})
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -493,7 +493,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						n.Cases[i] = cx
 					}
 				}
-				//popClosure()
+				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *FuncDecl:
@@ -773,8 +773,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
-				//popClosure()
-				//popFx()
+				// popClosure()
+				// popFx()
 
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
@@ -1998,7 +1998,7 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
 	}
-	//bn.GetStaticBlock().String()
+	// bn.GetStaticBlock().String()
 	*last = bn
 	*stack = append(*stack, bn)
 }

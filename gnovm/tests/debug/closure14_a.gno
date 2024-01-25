@@ -10,15 +10,18 @@ func foo() (err error) {
 		if r := recover(); r != nil {
 			switch y {
 			case 1:
-				err = errors.New("xxx")
+				err = errors.New("ok")
 			default:
 				err = nil
 			}
 		}
 	}()
-	return
+	panic(y)
 }
 
 func main() {
-	foo()
+	println(foo())
 }
+
+// Output:
+// ok

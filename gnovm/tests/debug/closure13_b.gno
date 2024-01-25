@@ -40,7 +40,8 @@ func main() {
 	withFooBar(func() {
 		expectRead(5, "foo ", nil)
 	})
-
+	println("ok")
 }
 
 // Output:
+// ok

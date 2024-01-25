@@ -2,24 +2,27 @@ package main
 
 func main() {
 	var fns []func() int
-
 	for i := 0; i < 2; i++ {
-		x := i
-		f := func() int {
-			if true {
-				if true {
-					return x
-				}
+		for j := 0; j < 2; j++ {
+			f := func() int {
+				return i + j
 			}
-			return 0
+			fns = append(fns, f)
 		}
-		fns = append(fns, f)
 	}
 	for _, fn := range fns {
 		println(fn())
 	}
 }
 
+// Go Output:
+// 4
+// 4
+// 4
+// 4
+
 // Output:
 // 0
 // 1
+// 1
+// 2

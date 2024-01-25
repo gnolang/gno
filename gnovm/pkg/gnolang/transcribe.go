@@ -446,7 +446,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *BranchStmt:
 	case *DeclStmt:
-		//CX.pushOp(ASSIGN)
+		// CX.pushOp(ASSIGN)
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)
 			if isBreak(c) {
@@ -455,7 +455,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		//CX.popOp()
+		// CX.popOp()
 	case *DeferStmt:
 		cnn.Call = *transcribe(t, nns, TRANS_DEFER_CALL, 0, &cnn.Call, &c).(*CallExpr)
 		if isStopOrSkip(nc, c) {
@@ -550,7 +550,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*IfCaseStmt)
 		}
-		//pushClosure(&Closure{})
+		// pushClosure(&Closure{})
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_CASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
@@ -559,7 +559,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		//debug.Println("if-case pop c-----")
+		// debug.Println("if-case pop c-----")
 
 	case *IncDecStmt:
 		cnn.X = transcribe(t, nns, TRANS_INCDEC_X, 0, cnn.X, &c).(Expr)

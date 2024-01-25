@@ -7,7 +7,7 @@ func (m *Machine) doOpDefine() {
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
-	//m.PopValue()
+	// m.PopValue()
 	rvs := m.PopValues(len(s.Lhs))
 	debug.Printf("s:%v \n", s)
 	debug.Printf("lhs:%v \n", s.Lhs)

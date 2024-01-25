@@ -680,31 +680,6 @@ func (m *Machine) doOpStructLit() {
 	})
 }
 
-func isZeroArray(arr [8]byte) bool {
-	for _, v := range arr {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func findNearestLoopBlock(store Store, b *Block) *Block {
-	nb := b.GetParent(store)
-	for {
-		if nb != nil {
-			if nb.GetBodyStmt().isLoop {
-				return nb
-			} else {
-				nb = nb.GetParent(store)
-				continue
-			}
-		} else {
-			return nil
-		}
-	}
-}
-
 // find nearest block is loop and contains name of n
 func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr) (*Block, bool, uint8) {
 	var gen uint8 = 1
@@ -739,7 +714,7 @@ func (m *Machine) doOpFuncLit() {
 		if vp.Depth == 0 {
 			continue
 		}
-		vp.Depth -= 1 // from funcLit block not inside
+		vp.Depth -= 1 // from funcLit block
 		nx := &NameExpr{
 			Name: n,
 			Path: vp,
@@ -754,22 +729,23 @@ func (m *Machine) doOpFuncLit() {
 	sort.Slice(captures, sortDepth)
 	debugPP.Println("---done sort")
 
-	var isLoopBlock bool
-	var loopBlock *Block
-	var bag *TimeSeriesBag
-
-	var lastGen, gen uint8
-	var isReuse bool
-	var Tss []*LoopData
-	//var Tss *LoopData
+	var (
+		isLoopBlock  bool
+		loopBlock    *Block
+		lvBox        *LoopValuesBox
+		lastGen, gen uint8
+		isReuse      bool
+		loopData     []*LoopBlockData
+	)
+	// var TransientLoopData *TransientLoopData
 	// start search every captured var in target block via path
-	// 1. Tss is a slice of bag, one bag is for one loop block.
-	// 2. new a `bag` for every block, the bag has a flag of isFilled for reuse,
+	// 1. TransientLoopData is a slice of LoopValuesBox, one LoopValuesBox is for one loop block.
+	// 2. new a `LoopValuesBox` for every block, the LoopValuesBox has a flag of isFilled for reuse,
 	// and a []transient for vars in on loop block, that each transient contains an
 	// nameExpr, and a slice of values that is value of var in specific time slice.
-	// Tss -> []bag -> isFilled, []transient -> nx:nameExpr, values:[]TypedValue.
-	// XXX, Tss if for fv, which is the concrete entity of closure.
-	// in case for i:=0, i++; i<2{ x := i }, Tss will have one bag for the only loop block,
+	// TransientLoopData -> []LoopValuesBox -> isFilled, []transient -> nx:nameExpr, values:[]TypedValue.
+	// XXX, TransientLoopData if for fv, which is the concrete entity of closure.
+	// in case for i:=0, i++; i<2{ x := i }, TransientLoopData will have one LoopValuesBox for the only loop block,
 	// and one nx for x, and 2 values of [0,1], fv will have 2 replica in this case, and they
 	// share the same loopBlock.
 	// there are some more complex situation like:
@@ -778,8 +754,8 @@ func (m *Machine) doOpFuncLit() {
 	// left 2 is the inner blocks, since as the outer for loop execute, will yield due num of
 	// sub blocks.
 	// an intuitive state for state of x, y is: [0,0], [0,1], [1,0], [1,1].
-	// in the impl, the outer block has a bag of [0,0,1,1], and inner block 1, has a bag [0,1]
-	// and inner block 2 has a bag[0,1].
+	// in the impl, the outer block has a LoopValuesBox of [0,0,1,1], and inner block 1, has a LoopValuesBox [0,1]
+	// and inner block 2 has a LoopValuesBox[0,1].
 	for i, nx := range captures {
 		debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
 		// start search block, in the order of small depth to big depth
@@ -787,53 +763,50 @@ func (m *Machine) doOpFuncLit() {
 		debugPP.Printf("loopBlock: %v,  isLoopBlock: %v, gen: %v,  cursor: %v \n", loopBlock, isLoopBlock, gen)
 		if lastGen == 0 {
 			lastGen = gen
-		} else if gen != lastGen { // if enter new level of block, means last block is all done, pack bag
+		} else if gen != lastGen { // if enter new level of block, means last block is all done, pack LoopValuesBox
 			lastGen = gen
 			// set last state
-			if bag != nil && !isReuse { // has something to pack
-				bag.isFilled = true
-				Tss = append(Tss, &LoopData{index: 0, bag: bag}) // pack per level of block
-				//Tss = append(Tss, bag)
+			if lvBox != nil && !isReuse { // has something to pack
+				lvBox.isFilled = true
+				loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox}) // pack per level of block
 			}
-			debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
+			debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 		}
 		if isLoopBlock {
-			bag = loopBlock.GetBodyStmt().Bag // get bag from specific block, that is shared across current level of for/range loop
-			debugPP.Printf("got initial bag from target loop block: %v \n", bag)
-			if bag == nil {
-				bag = &TimeSeriesBag{} // init
+			lvBox = loopBlock.GetBodyStmt().LoopValuesBox // get LoopValuesBox from specific block, that is shared across current level of for/range loop
+			debugPP.Printf("got initial LoopValuesBox from target loop block: %v \n", lvBox)
+			if lvBox == nil {
+				lvBox = &LoopValuesBox{} // init
 			}
-			if !bag.isFilled { // only once
+			if !lvBox.isFilled { // only once for further reuse
 				debugPP.Println("---not sealed---, should pack only once for n: ", nx.Name)
 				tst := &Transient{
-					nx:          nx,
-					expandRatio: 1, // default 1
-					cursor:      0,
+					nx:     nx,
+					cursor: 0,
 				}
-				bag.transient = append(bag.transient, tst)
+				lvBox.transient = append(lvBox.transient, tst)
 				// set back to loop block properly
-				loopBlock.GetBodyStmt().Bag = bag
+				loopBlock.GetBodyStmt().LoopValuesBox = lvBox
 			} else { // repack when iterates, this should be optimized
 				isReuse = true // use isFilled instead
 				// get cursor by name
-				debugPP.Println("---reuse, current cursor is: ", bag.transient[bag.getIndexByName(nx.Name)].cursor)
-				bag.transient[bag.getIndexByName(nx.Name)].cursor++ // only inc in reuse, that is iteration
-				//Tss = append(Tss, bag)
-				// cursor indicates num  of iterations of fv
-				Tss = append(Tss, &LoopData{index: bag.transient[bag.getIndexByName(nx.Name)].cursor, bag: bag})
+				debugPP.Println("---reuse, current cursor is: ", lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor)
+				lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // only inc in reuse, that is iteration
+				// cursor indicates num of iterations of fv
+				loopData = append(loopData, &LoopBlockData{index: lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor, loopValuesBox: lvBox})
 			}
 		}
 	}
-	// tail set
-	if bag != nil && !bag.isFilled && !isReuse {
+	// set fill flag
+	if lvBox != nil && !lvBox.isFilled && !isReuse {
 		debugPP.Println("---tail pack")
-		bag.isFilled = true                              // set for the last bag
-		Tss = append(Tss, &LoopData{index: 0, bag: bag}) // collect the last bag
-		debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
+		lvBox.isFilled = true                                                       // set for the last LoopValuesBox
+		loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox}) // collect the last LoopValuesBox
+		debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 	}
 
-	for i, ts := range Tss {
-		debugPP.Printf("========Tss[%d] is: %s, addr: %p, index: %d \n", i, ts.bag, &ts.bag, ts.index)
+	for i, ts := range loopData {
+		debugPP.Printf("========TransientLoopData[%d] is: %s, addr: %p, index: %d \n", i, ts.loopValuesBox, &ts.loopValuesBox, ts.index)
 	}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
@@ -841,25 +814,21 @@ func (m *Machine) doOpFuncLit() {
 	m.Alloc.AllocateFunc()
 
 	fv := &FuncValue{
-		Type:       ft,
-		IsMethod:   false,
-		Source:     x,
-		Name:       "",
-		Closure:    lb,
-		Tss:        Tss,
-		PkgPath:    m.Package.PkgPath,
-		body:       x.Body,
-		nativeBody: nil,
+		Type:              ft,
+		IsMethod:          false,
+		Source:            x,
+		Name:              "",
+		Closure:           lb,
+		TransientLoopData: loopData,
+		PkgPath:           m.Package.PkgPath,
+		body:              x.Body,
+		nativeBody:        nil,
 	}
-
-	//debugPP.Printf("fv is:------")
-	//fv.dump()
-	//debugPP.Printf("fv.captures is: %v \n", fv.Captures)
-	//debugPP.Printf("fv.address is: %p \n", fv)
 
 	m.PushValue(TypedValue{
 		T: ft,
-		V: fv})
+		V: fv,
+	})
 }
 
 func (m *Machine) doOpConvert() {

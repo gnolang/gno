@@ -33,9 +33,10 @@ func TestFiles(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
+	// baseDir := filepath.Join(".", "debug2")
 	baseDir := filepath.Join(".", "debug")
 	runFileTests(t, baseDir, []string{"*_native*"})
-	//runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
+	// runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
 func TestChallenges(t *testing.T) {

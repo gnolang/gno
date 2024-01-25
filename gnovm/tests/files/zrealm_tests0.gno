@@ -235,7 +235,6 @@ func main() {
 //                             },
 //                             "V": {
 //                                 "@type": "/gno.FuncValue",
-//                                 "Captures": null,
 //                                 "Closure": null,
 //                                 "FileName": "tests.gno",
 //                                 "IsMethod": true,
@@ -253,7 +252,7 @@ func main() {
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
 //                                 },
-//                                 "Tss": null,
+//                                 "TransientLoopData": null,
 //                                 "Type": {
 //                                     "@type": "/gno.FuncType",
 //                                     "Params": [
@@ -339,7 +338,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -361,7 +359,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -407,7 +405,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -429,7 +426,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -465,7 +462,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -487,7 +483,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -513,7 +509,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -535,7 +530,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -571,7 +566,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -593,7 +587,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -619,7 +613,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -641,7 +634,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -667,7 +660,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -689,7 +681,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -728,7 +720,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -750,7 +741,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
@@ -779,7 +770,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -801,7 +791,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -817,7 +807,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -839,7 +828,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -855,7 +844,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -877,7 +865,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -903,7 +891,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -925,7 +912,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -961,7 +948,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -983,7 +969,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
@@ -1020,7 +1006,6 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
-//                 "Captures": null,
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
@@ -1042,7 +1027,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
-//                 "Tss": null,
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [

@@ -515,80 +515,6 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	return alloc.NewStruct(fields)
 }
 
-type TimeSeriesBag struct {
-	isFilled  bool
-	isSealed  bool
-	isTainted bool
-	transient []*Transient
-}
-
-func (tsb *TimeSeriesBag) getIndexByName(n Name) int {
-	for i, tt := range tsb.transient {
-		if n == tt.nx.Name {
-			return i
-		}
-	}
-	return -1 // never reach
-}
-
-func (tsb *TimeSeriesBag) isEmpty() bool {
-	for _, tt := range tsb.transient {
-		if tt != nil && tt.values != nil && len(tt.values) != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func (tsb *TimeSeriesBag) setRatio(r int8) {
-	for _, tt := range tsb.transient {
-		if tt != nil {
-			tt.expandRatio = r
-		}
-	}
-}
-
-func (tsb *TimeSeriesBag) String() string {
-	var s string
-	s += "\n"
-	s += "==================time bag===================\n"
-	s += fmt.Sprintf("isFilled: %v \n", tsb.isFilled)
-	for i, t := range tsb.transient {
-		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
-		for j, v := range t.values {
-			s += fmt.Sprintf("values[%d]: %v \n", j, v)
-		}
-		s += fmt.Sprintf("cursor: %v \n", t.cursor)
-	}
-	s += "====================end======================\n"
-	return s
-}
-
-type Transient struct {
-	nx          *NameExpr
-	expandRatio int8         // TODO: determine proper type
-	values      []TypedValue // one name with multi snapshot
-	cursor      int          // cursor per fv to find value in time series
-}
-
-type Captured struct {
-	names  []Name
-	values []TypedValue
-}
-
-func (c *Captured) String() {
-	var s string
-	s += "\n"
-	for i, n := range c.names {
-		s += fmt.Sprintf("name[%d] is: %s: \n", i, n)
-	}
-	for i, v := range c.values {
-		s += fmt.Sprintf("value[%d] is: %v: \n", i, v)
-	}
-	s += "\n"
-	fmt.Println(s)
-}
-
 // ----------------------------------------
 // FuncValue
 
@@ -603,31 +529,79 @@ func (c *Captured) String() {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type      // includes unbound receiver(s)
-	IsMethod   bool      // is an (unbound) method
-	Source     BlockNode // for block mem allocation
-	Name       Name      // name of function/method
-	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	Captures   *Captured
-	Tss        []*LoopData
-	FileName   Name // file name where declared
-	PkgPath    string
-	NativePkg  string // for native bindings through NativeStore
-	NativeName Name   // not redundant with Name; this cannot be changed in userspace
+	Type              Type      // includes unbound receiver(s)
+	IsMethod          bool      // is an (unbound) method
+	Source            BlockNode // for block mem allocation
+	Name              Name      // name of function/method
+	Closure           Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	TransientLoopData []*LoopBlockData
+	FileName          Name // file name where declared
+	PkgPath           string
+	NativePkg         string // for native bindings through NativeStore
+	NativeName        Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
 }
 
-type LoopData struct {
-	index int            // index for fv to look for var
-	bag   *TimeSeriesBag // per loop block
+// LoopBlockData is a wrap of LoopValuesBox, index indicates iteration number of fv.
+// there are n replicas of fv generated as the iteration goes on, we have to identify
+// which replica is executing thus find proper value in the box to update context(replay).
+type LoopBlockData struct { // every fv points to n loopData
+	index         int
+	loopValuesBox *LoopValuesBox // per loop block
 }
 
-func (fv *FuncValue) dump() {
-	if debugPP {
-		fmt.Printf("funcValue, name: %s, captures: %s \n", fv.Name, fv.Captures)
+// Transient record all dynamic value for captured variable as iteration goes on.
+// e.g. for i:=0;i<2;i++{func(){println(i)}, i will have a [0,1] values.
+type Transient struct {
+	nx     *NameExpr
+	values []TypedValue // one name with multi snapshot
+	cursor int          // cursor per fv to find value in time series
+}
+
+// LoopValuesBox stores a slice of transient values of captured vars dynamically
+// generated as the iterations goes on.
+// it is used for a closure execution.
+type LoopValuesBox struct {
+	isFilled  bool
+	isSealed  bool
+	isTainted bool
+	transient []*Transient
+}
+
+func (tsb *LoopValuesBox) getIndexByName(n Name) int {
+	for i, tt := range tsb.transient {
+		if n == tt.nx.Name {
+			return i
+		}
 	}
+	return -1 // never reach
+}
+
+func (tsb *LoopValuesBox) isEmpty() bool {
+	for _, tt := range tsb.transient {
+		if tt != nil && tt.values != nil && len(tt.values) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (tsb *LoopValuesBox) String() string {
+	var s string
+	s += "\n"
+	s += "==================time LoopValuesBox===================\n"
+	s += fmt.Sprintf("isFilled: %v \n", tsb.isFilled)
+	for i, t := range tsb.transient {
+		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
+		for j, v := range t.values {
+			s += fmt.Sprintf("values[%d]: %v \n", j, v)
+		}
+		s += fmt.Sprintf("cursor: %v \n", t.cursor)
+	}
+	s += "====================end======================\n"
+	return s
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -2365,7 +2339,7 @@ func (b *Block) Hash() string {
 func (b *Block) UpdateValue(index int, tv TypedValue) {
 	debug.Printf("-----UpdateValue, index: %d, tv: %v \n", index, tv)
 	debug.Printf("b before update: %v \n", b)
-	for i, _ := range b.Values {
+	for i := range b.Values {
 		if i == index {
 			b.Values[i] = tv
 		}

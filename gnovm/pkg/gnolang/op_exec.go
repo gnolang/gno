@@ -47,13 +47,12 @@ func updateCapturedValue(m *Machine, lb *Block) {
 	if lb.GetBodyStmt().isLoop { // do we need this?
 		bs := lb.GetBodyStmt()
 		debugPP.Printf("---------isLoop, current block is: %v \n", lb)
-		debugPP.Printf("---------bag, %v \n", bs.Bag)
-		if bs.Bag != nil && bs.Bag.isFilled && !bs.Bag.isTainted {
-			debugPP.Printf("---addr of bs.Bag is: %p \n", &bs.Bag)
+		debugPP.Printf("---------LoopValuesBox, %v \n", bs.LoopValuesBox)
+		if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
 			names := lb.Source.GetBlockNames()
 			var found bool
 			var isSealed bool
-			for i, tt := range bs.Bag.transient {
+			for i, tt := range bs.LoopValuesBox.transient {
 				if tt != nil {
 					debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
 					// first check if name is in current block, it not, stop
@@ -69,22 +68,15 @@ func updateCapturedValue(m *Machine, lb *Block) {
 						tv := ptr.Deref()
 						debugPP.Printf("--- new tv : %v \n", tv)
 						// set back
-						debugPP.Printf("before update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
-
-						//expandRatio := bs.Bag.transient[i].expandRatio
-						expandRatio := bs.Bag.transient[i].cursor + 1 - len(bs.Bag.transient[i].values) // 2 - 0
+						debugPP.Printf("before update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
+						// inner loops iterates twice while outer loop iterates once.
+						// it's an alignment for the values of out loop block.
+						expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
 						debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
 						for j := 0; j < expandRatio; j++ {
-							bs.Bag.transient[i].values = append(bs.Bag.transient[i].values, tv)
+							bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
 						}
-						debugPP.Printf("after update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
-
-						// update higher level if it is also a loop, padding.
-						//upperBlock := findNearestLoopBlock(m.Store, lb)
-						//debugPP.Printf("upperBlock is: %v \n", upperBlock)
-						//if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
-						//	upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
-						//}
+						debugPP.Printf("after update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
 						isSealed = true
 					} else {
 						debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)
@@ -93,7 +85,7 @@ func updateCapturedValue(m *Machine, lb *Block) {
 				}
 			}
 			if isSealed {
-				bs.Bag.isSealed = true // seal for this bag of this block
+				bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox of this block
 			}
 		}
 	}
@@ -111,7 +103,7 @@ func (m *Machine) doOpExec(op Op) {
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("op: %v\n", op)
-		//debug.Printf("%v\n", m)
+		// debug.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -508,10 +500,10 @@ EXEC_SWITCH:
 		switch cs.Op {
 		case ASSIGN:
 			// post assign, use value of lhs to update captured value, name as ID
-			//m.PushOp(OpPostAssign)
+			// m.PushOp(OpPostAssign)
 			m.PushOp(OpAssign)
 			// pre assign, check rhs is funcLitExpr
-			//m.PushOp(OpPreAssign)
+			// m.PushOp(OpPreAssign)
 		case ADD_ASSIGN:
 			m.PushOp(OpAddAssign)
 		case SUB_ASSIGN:
@@ -549,7 +541,7 @@ EXEC_SWITCH:
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
-		//m.PushOp(OpPreAssign)
+		// m.PushOp(OpPreAssign)
 
 		if cs.Op != DEFINE {
 			// For each Lhs, push eval operation if needed.
