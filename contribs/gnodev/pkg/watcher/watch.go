@@ -129,10 +129,13 @@ func (p *PackageWatcher) AddPackages(pkgs ...gnomod.Pkg) error {
 			return len(p.pkgsDir[i]) <= len(dir) // Longest paths first
 		})
 
-		// Check for duplicates at the insertion point to avoid redundancy
+		// Check for duplicates
 		if index < len(p.pkgsDir) && p.pkgsDir[index] == dir {
 			continue // Skip
 		}
+
+		// Insert the package
+		p.pkgsDir = append(p.pkgsDir[:index], append([]string{abs}, p.pkgsDir[index:]...)...)
 
 		// Add the package to the watcher and handle any errors
 		if err := p.watcher.Add(abs); err != nil {
@@ -149,8 +152,10 @@ func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdat
 	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
 	for _, path := range paths {
 		for _, pkg := range p.pkgsDir {
-			// Check if the path is inside the package directory
-			if !strings.HasPrefix(pkg, path) {
+			dirPath := filepath.Dir(path)
+
+			// Check if a package directory contain our path directory
+			if !strings.HasPrefix(pkg, dirPath) {
 				continue
 			}
 
