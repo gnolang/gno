@@ -26,7 +26,7 @@ func (s *service) NewStartCmd() *ff.Command {
 }
 
 func (s *service) execStart(ctx context.Context, args []string) error {
-	signer, err := gnoclient.SignerFromBip39("portal-loop", s.MustGetMnemonic(), "", uint32(0), uint32(0))
+	signer, err := gnoclient.SignerFromBip39(s.MustGetMnemonic(), "portal-loop", "", uint32(0), uint32(0))
 	if err != nil {
 		return err
 	}

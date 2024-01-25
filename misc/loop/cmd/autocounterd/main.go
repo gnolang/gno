@@ -30,8 +30,6 @@ func (s service) MustGetRPC() string {
 
 func main() {
 	s := &service{}
-	// rootFlags := ff.NewFlagSet("autocounterd")
-	// s.mnemonic = rootFlags.StringLong("mnemonic", "", "mnemonic")
 
 	rootCmd := &ff.Command{
 		Name: "autocounterd",

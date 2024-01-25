@@ -4,8 +4,6 @@ COPY . /go/src/github.com/gnolang/gno/misc/loop
 
 WORKDIR /go/src/github.com/gnolang/gno/misc/loop
 
-RUN pwd && ls -lR /go/src/
-
 RUN go build -o /build/portalloopd ./cmd/portalloopd
 RUN go build -o /build/autocounterd ./cmd/autocounterd
 

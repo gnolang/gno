@@ -56,8 +56,7 @@ services:
 
   portalloopd:
     build:
-      context: ../..
-      dockerfile: misc/loop/Dockerfile
+      context: .
       target: portalloopd
     restart: unless-stopped
     working_dir: /app
