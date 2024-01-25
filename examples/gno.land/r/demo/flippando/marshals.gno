@@ -19,7 +19,7 @@ type Game struct {
 	GameBoard 	[]int64	`json:"gameBoard"`
 	SolvedGameBoard	[]int64	`json:"solvedGameBoard"`
 	GameTiles	[]int64	`json:"gameTiles"`
-	TileType	string	`json:"-"`
+	TileType	string	`json:"tileType"`
 }
 
 type GameResult struct {
@@ -110,6 +110,10 @@ func (g Game) MarshalJSON() (_ []byte, err error) {
 	
 	b.WriteString(`"gameStatus":"`)
 	b.WriteString(g.GameStatus)
+	b.WriteString(`",`)
+
+	b.WriteString(`"tileType":"`)
+	b.WriteString(g.TileType)
 	b.WriteString(`"`)
 	
 	b.WriteByte('}')
