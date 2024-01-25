@@ -25,9 +25,11 @@ type Debugger struct {
 	DebugEnabled bool
 	DebugAddr    string
 	DebugState
+	DebugIn  io.ReadCloser
+	DebugOut io.Writer
+
 	lastDebugCmd string
-	DebugIn      io.ReadCloser
-	DebugOut     io.Writer
+	DebugLoc     Location
 }
 
 type debugCommand struct {
@@ -90,14 +92,18 @@ loop:
 			os.Exit(0)
 		}
 	}
-	fmt.Fprintln(m.DebugOut, "in debug, NumOps:", m.NumOps, ", NumValues:", m.NumValues, len(m.Exprs), len(m.Blocks), len(m.Stmts), m.LastBlock().Source.GetLocation())
+	debugUpdateLoc(m)
+	fmt.Fprintln(m.DebugOut, "in debug:", m.DebugLoc)
 }
 
+// debugCmd processes a debugger REPL command. It displays a prompt, then
+// reads and parses a command from the debugger input stream, then executes
+// the corresponding function or returns an error.
 func debugCmd(m *Machine) error {
 	var cmd, arg string
 	fmt.Fprint(m.DebugOut, "dbg> ")
 	if n, err := fmt.Fscanln(m.DebugIn, &cmd, &arg); errors.Is(err, io.EOF) {
-		return debugDetach(m, arg)
+		return debugDetach(m, arg) // Clean close of debugger, the target program resumes.
 	} else if n == 0 {
 		return nil
 	}
@@ -109,6 +115,13 @@ func debugCmd(m *Machine) error {
 	return c.debugFunc(m, arg)
 }
 
+// initDebugIO initializes the debugger standard input and output streams.
+// If no debug address was specified at program start, the debugger will inherit its
+// standard input and output from the process, which will be shared with the target program.
+// If the debug address is specified, the program will be blocked until
+// a client connection is established. The debugger will use this connection and
+// not affecting the target program's.
+// An error at connection setting will result in program panic.
 func initDebugIO(m *Machine) {
 	if m.DebugAddr == "" {
 		m.DebugIn = os.Stdin
@@ -127,6 +140,39 @@ func initDebugIO(m *Machine) {
 	println(" connected!")
 	m.DebugIn = conn
 	m.DebugOut = conn
+}
+
+// debugUpdateLoc computes the source code location of the last VM operation.
+// The result is stored in Debugger.DebugLoc.
+func debugUpdateLoc(m *Machine) {
+	loc := m.LastBlock().Source.GetLocation()
+
+	if m.DebugLoc.PkgPath == "" ||
+		loc.PkgPath != "" && loc.PkgPath != m.DebugLoc.PkgPath ||
+		loc.File != "" && loc.File != m.DebugLoc.File {
+		m.Debugger.DebugLoc = loc
+	}
+
+	// The location computed from above points to the block start. Examine
+	// expressions and statements to have the exact line within the block.
+
+	nx := len(m.Exprs)
+	for i := nx - 1; i >= 0; i-- {
+		expr := m.Exprs[i]
+		if l := expr.GetLine(); l > 0 {
+			m.DebugLoc.Line = l
+			return
+		}
+	}
+
+	if len(m.Stmts) > 0 {
+		if stmt := m.PeekStmt1(); stmt != nil {
+			if l := stmt.GetLine(); l > 0 {
+				m.DebugLoc.Line = l
+				return
+			}
+		}
+	}
 }
 
 // ---------------------------------------
