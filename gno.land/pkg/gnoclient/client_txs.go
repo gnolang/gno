@@ -10,10 +10,12 @@ import (
 )
 
 var (
-	errInvalidPkgPath   = errors.New("invalid pkgpath")
-	errInvalidFuncName  = errors.New("invalid function name")
-	errMissingSigner    = errors.New("missing Signer")
-	errMissingRPCClient = errors.New("missing RPCClient")
+	errInvalidPkgPath     = errors.New("invalid pkgpath")
+	errInvalidFuncName    = errors.New("invalid function name")
+	errInvalidGasWanted   = errors.New("invalid gas-wanted")
+	errInvalidAccOrSeqNum = errors.New("invalid account or sequence number")
+	errMissingSigner      = errors.New("missing Signer")
+	errMissingRPCClient   = errors.New("missing RPCClient")
 )
 
 type BaseTxCfg struct {
@@ -33,11 +35,16 @@ type MsgCall struct {
 }
 
 func (cfg BaseTxCfg) validateBaseTxConfig() error {
-	// todo implement
+	if cfg.GasWanted < 0 {
+		return errInvalidGasWanted
+	}
+	if cfg.AccountNumber < 0 || cfg.SequenceNumber < 0 {
+		return errInvalidAccOrSeqNum
+	}
 	return nil
 }
 
-func validateMsgCall(msg MsgCall) error {
+func (msg MsgCall) validateMsgCall() error {
 	if msg.PkgPath == "" {
 		return errInvalidPkgPath
 	}
@@ -56,21 +63,27 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
+
+	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
 	}
 
+	// Parse MsgCall slice
 	vmMsgs := make([]vm.MsgCall, len(msgs))
 	for _, msg := range msgs {
-		if err := validateMsgCall(msg); err != nil {
+		// Validate MsgCall fields
+		if err := msg.validateMsgCall(); err != nil {
 			return nil, err
 		}
 
+		// Parse send coins
 		send, err := std.ParseCoins(msg.Send)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 
+		// Create
 		vmMsgs = append(vmMsgs, vm.MsgCall{
 			Caller:  c.Signer.Info().GetAddress(),
 			PkgPath: msg.PkgPath,
@@ -85,7 +98,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 		stdMsgs[i] = msg
 	}
 
-	// Parse gas wanted & fee.
+	// Parse gas fee
 	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
