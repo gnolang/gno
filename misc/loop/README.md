@@ -19,7 +19,7 @@ $ docker compose up -d
 $ make
 ```
 
-The `snapshotter` container will exec the script [switch.sh](./scripts/switch.sh) every day at 10am (defined in the docker image).
+The [`portalloopd`](./cmd/portalloopd) binary is starting inside of the docker container `portalloopd`
 
 This script is doing:
 
@@ -38,5 +38,5 @@ You can find a [Makefile](./Makefile) to help you interact with the portal loop
 - Force switch of the portal loop with a new version
 
 ```bash
-make snapshotter.switch-now
+make portalloopd.switch
 ```

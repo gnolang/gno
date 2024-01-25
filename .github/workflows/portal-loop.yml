@@ -38,7 +38,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: misc/loop
+          target: ${{ matrix.image }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          target: ${{ matrix.image }}
