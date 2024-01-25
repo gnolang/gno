@@ -760,7 +760,8 @@ func (m *Machine) doOpFuncLit() {
 
 	var lastGen, gen uint8
 	var isReuse bool
-	var Tss []*TimeSeriesBag
+	var Tss []*LoopData
+	//var Tss *LoopData
 	// start search every captured var in target block via path
 	// 1. Tss is a slice of bag, one bag is for one loop block.
 	// 2. new a `bag` for every block, the bag has a flag of isFilled for reuse,
@@ -783,14 +784,16 @@ func (m *Machine) doOpFuncLit() {
 		debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
 		// start search block, in the order of small depth to big depth
 		loopBlock, isLoopBlock, gen = findLoopBlockWithPath(m.Store, lb, nx)
+		debugPP.Printf("loopBlock: %v,  isLoopBlock: %v, gen: %v,  cursor: %v \n", loopBlock, isLoopBlock, gen)
 		if lastGen == 0 {
 			lastGen = gen
 		} else if gen != lastGen { // if enter new level of block, means last block is all done, pack bag
 			lastGen = gen
 			// set last state
-			if bag != nil { // has something to pack
+			if bag != nil && !isReuse { // has something to pack
 				bag.isFilled = true
-				Tss = append(Tss, bag)
+				Tss = append(Tss, &LoopData{index: 0, bag: bag}) // pack per level of block
+				//Tss = append(Tss, bag)
 			}
 			debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
 		}
@@ -805,25 +808,32 @@ func (m *Machine) doOpFuncLit() {
 				tst := &Transient{
 					nx:          nx,
 					expandRatio: 1, // default 1
+					cursor:      0,
 				}
 				bag.transient = append(bag.transient, tst)
 				// set back to loop block properly
 				loopBlock.GetBodyStmt().Bag = bag
 			} else { // repack when iterates, this should be optimized
 				isReuse = true // use isFilled instead
-				Tss = append(Tss, bag)
+				// get cursor by name
+				debugPP.Println("---reuse, current cursor is: ", bag.transient[bag.getIndexByName(nx.Name)].cursor)
+				bag.transient[bag.getIndexByName(nx.Name)].cursor++ // only inc in reuse, that is iteration
+				//Tss = append(Tss, bag)
+				// cursor indicates num  of iterations of fv
+				Tss = append(Tss, &LoopData{index: bag.transient[bag.getIndexByName(nx.Name)].cursor, bag: bag})
 			}
 		}
 	}
 	// tail set
-	if bag != nil && !isReuse {
-		bag.isFilled = true    // set for the last bag
-		Tss = append(Tss, bag) // collect the last bag
+	if bag != nil && !bag.isFilled && !isReuse {
+		debugPP.Println("---tail pack")
+		bag.isFilled = true                              // set for the last bag
+		Tss = append(Tss, &LoopData{index: 0, bag: bag}) // collect the last bag
 		debugPP.Printf("========packed bag for %v is: %s \n", loopBlock, bag)
 	}
 
 	for i, ts := range Tss {
-		debugPP.Printf("========Tss[%d] is: %s, addr: %p \n", i, ts, &ts)
+		debugPP.Printf("========Tss[%d] is: %s, addr: %p, index: %d \n", i, ts.bag, &ts.bag, ts.index)
 	}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)

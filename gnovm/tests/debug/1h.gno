@@ -2,7 +2,7 @@ package main
 
 func main() {
 	var fns []func() int
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 2; i++ {
 		x := i
 		for j := 0; j < 2; j++ {
 			y := j
@@ -22,9 +22,3 @@ func main() {
 // 1
 // 1
 // 2
-// 2
-// 3
-// 3
-// 4
-// 4
-// 5

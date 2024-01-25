@@ -877,16 +877,16 @@ type SwitchClauseStmt struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body               // for non-loop stmts
-	BodyLen       int  // for for-continue
-	NextBodyIndex int  // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int  // number of Ops, for goto
-	NumValues     int  // number of Values, for goto
-	NumExprs      int  // number of Exprs, for goto
-	NumStmts      int  // number of Stmts, for goto
-	Cond          Expr // for ForStmt
-	Post          Stmt // for ForStmt
-	Bag           *TimeSeriesBag
+	Body                         // for non-loop stmts
+	BodyLen       int            // for for-continue
+	NextBodyIndex int            // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps        int            // number of Ops, for goto
+	NumValues     int            // number of Values, for goto
+	NumExprs      int            // number of Exprs, for goto
+	NumStmts      int            // number of Stmts, for goto
+	Cond          Expr           // for ForStmt
+	Post          Stmt           // for ForStmt
+	Bag           *TimeSeriesBag // a series of values of captured vars
 	isLoop        bool
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt

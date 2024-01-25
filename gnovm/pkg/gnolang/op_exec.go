@@ -71,19 +71,20 @@ func updateCapturedValue(m *Machine, lb *Block) {
 						// set back
 						debugPP.Printf("before update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
 
-						expandRatio := bs.Bag.transient[i].expandRatio
+						//expandRatio := bs.Bag.transient[i].expandRatio
+						expandRatio := bs.Bag.transient[i].cursor + 1 - len(bs.Bag.transient[i].values) // 2 - 0
 						debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
-						for j := int8(0); j < expandRatio; j++ {
+						for j := 0; j < expandRatio; j++ {
 							bs.Bag.transient[i].values = append(bs.Bag.transient[i].values, tv)
 						}
 						debugPP.Printf("after update, len of Bag values is : %d \n", len(bs.Bag.transient[i].values))
 
 						// update higher level if it is also a loop, padding.
-						upperBlock := findNearestLoopBlock(m.Store, lb)
-						debugPP.Printf("upperBlock is: %v \n", upperBlock)
-						if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
-							upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
-						}
+						//upperBlock := findNearestLoopBlock(m.Store, lb)
+						//debugPP.Printf("upperBlock is: %v \n", upperBlock)
+						//if upperBlock != nil && upperBlock.GetBodyStmt().Bag != nil {
+						//	upperBlock.GetBodyStmt().Bag.setRatio(int8(len(bs.Bag.transient[i].values)))
+						//}
 						isSealed = true
 					} else {
 						debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)

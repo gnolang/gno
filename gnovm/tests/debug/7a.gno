@@ -11,10 +11,10 @@ func main() {
 	for i := 0; i < 3; i++ {
 		recursiveFunc = func(num int) int {
 			x := i
+			println("value of x: ", x)
 			if num <= 0 {
 				return 1
 			}
-			println(x)
 			return num * recursiveFunc(num-1)
 		}
 		fns = append(fns, recursiveFunc)
@@ -28,9 +28,12 @@ func main() {
 }
 
 // Output:
+// value of x:  0
 // Factorial of 0 is: 1
-// 2
+// value of x:  1
+// value of x:  2
 // Factorial of 1 is: 1
-// 2
-// 2
+// value of x:  2
+// value of x:  2
+// value of x:  2
 // Factorial of 2 is: 2

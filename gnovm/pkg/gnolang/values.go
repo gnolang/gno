@@ -522,6 +522,15 @@ type TimeSeriesBag struct {
 	transient []*Transient
 }
 
+func (tsb *TimeSeriesBag) getIndexByName(n Name) int {
+	for i, tt := range tsb.transient {
+		if n == tt.nx.Name {
+			return i
+		}
+	}
+	return -1 // never reach
+}
+
 func (tsb *TimeSeriesBag) isEmpty() bool {
 	for _, tt := range tsb.transient {
 		if tt != nil && tt.values != nil && len(tt.values) != 0 {
@@ -549,6 +558,7 @@ func (tsb *TimeSeriesBag) String() string {
 		for j, v := range t.values {
 			s += fmt.Sprintf("values[%d]: %v \n", j, v)
 		}
+		s += fmt.Sprintf("cursor: %v \n", t.cursor)
 	}
 	s += "====================end======================\n"
 	return s
@@ -558,6 +568,7 @@ type Transient struct {
 	nx          *NameExpr
 	expandRatio int8         // TODO: determine proper type
 	values      []TypedValue // one name with multi snapshot
+	cursor      int          // cursor per fv to find value in time series
 }
 
 type Captured struct {
@@ -598,7 +609,7 @@ type FuncValue struct {
 	Name       Name      // name of function/method
 	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures   *Captured
-	Tss        []*TimeSeriesBag
+	Tss        []*LoopData
 	FileName   Name // file name where declared
 	PkgPath    string
 	NativePkg  string // for native bindings through NativeStore
@@ -606,6 +617,11 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+}
+
+type LoopData struct {
+	index int            // index for fv to look for var
+	bag   *TimeSeriesBag // per loop block
 }
 
 func (fv *FuncValue) dump() {

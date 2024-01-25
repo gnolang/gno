@@ -72,8 +72,8 @@ func (m *Machine) doOpCall() {
 	var targetB *Block
 	debugPP.Println("================parse transient for fv====================")
 	if fv.Tss != nil {
-		var end bool
-		for i, bag := range fv.Tss { // each bag is for a certain level of block
+		for i, loopData := range fv.Tss { // each bag is for a certain level of block
+			bag := loopData.bag
 			debugPP.Printf("Level[%d] bag is : %v \n", i, bag)
 			if bag != nil {
 				if bag.isSealed {
@@ -99,26 +99,28 @@ func (m *Machine) doOpCall() {
 									}
 								}
 								if match {
-									debugPP.Println("===match")
-									targetB.UpdateValue(index, t.values[0])
-									nvs := t.values[1:]
-									bag.transient[j].values = nvs
-									if len(bag.transient[j].values) == 0 { // loop end
-										bag.transient[j] = nil // empty a name and value
-										end = true
-									}
+									debugPP.Println("===match, cursor is:", loopData.index)
+
+									targetB.UpdateValue(index, t.values[loopData.index])
+									//nvs := t.values[1:]
+									//bag.transient[j].values = nvs
+									//if len(bag.transient[j].values) == 0 { // loop end
+									//	bag.transient[j] = nil // empty a name and value
+									//	end = true
+									//}
 								}
 							}
 						}
 					}
 				} else { // not sealed will be tainted
-					fv.Tss[i].isTainted = true
+					debugPP.Println("---taint this var")
+					fv.Tss[i].bag.isTainted = true
 				}
 			}
 		}
-		if end {
-			fv.Tss = nil
-		}
+		//if end {
+		fv.Tss = nil
+		//}
 	}
 
 	// only need initial snapshot
