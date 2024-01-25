@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
@@ -141,18 +142,30 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Float32Type:
 			assertCharNotPlus(arg[0])
-			f32, err := strconv.ParseFloat(arg, 32)
+			dec, _, err := apd.NewFromString(arg)
 			if err != nil {
 				panic(fmt.Sprintf("error parsing float32 %q: %v", arg, err))
 			}
+
+			f32, err := strconv.ParseFloat(dec.String(), 32)
+			if err != nil {
+				panic(fmt.Sprintf("error value exceeds float32 precision %q: %v", arg, err))
+			}
+
 			tv.SetFloat32(float32(f32))
 			return
 		case gno.Float64Type:
 			assertCharNotPlus(arg[0])
-			f64, err := strconv.ParseFloat(arg, 64)
+			dec, _, err := apd.NewFromString(arg)
 			if err != nil {
 				panic(fmt.Sprintf("error parsing float64 %q: %v", arg, err))
 			}
+
+			f64, err := dec.Float64()
+			if err != nil {
+				panic(fmt.Sprintf("error value exceeds float64 precision %q: %v", arg, err))
+			}
+
 			tv.SetFloat64(f64)
 			return
 		default:
