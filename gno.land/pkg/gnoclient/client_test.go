@@ -75,14 +75,16 @@ func TestClient_Call(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "100ugnot",
+	msg := []MsgCall{
+		{
+			PkgPath:  "gno.land/r/demo/deep/very/deep",
+			FuncName: "Render",
+			Args:     []string{""},
+			Send:     "100ugnot",
+		},
 	}
 
-	res, err := client.Call(cfg, msg)
+	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 }
