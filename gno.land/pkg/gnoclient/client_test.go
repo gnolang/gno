@@ -67,23 +67,24 @@ func TestClient_Call(t *testing.T) {
 		RPCClient: rpcClient,
 	}
 
-	cfg := CallCfg{
-		Msgs: []MsgCall{
-			{
-				PkgPath:  "gno.land/r/demo/deep/very/deep",
-				FuncName: "Render",
-				Args:     []string{""},
-				Send:     "",
-			},
-		},
-		GasFee:         "1000000ugnot",
-		GasWanted:      8000000,
-		AccountNumber:  0,
-		SequenceNumber: 0,
+	cfg := BaseTxCfg{
+		GasWanted:      100000,
+		GasFee:         "10000ugnot",
+		AccountNumber:  1,
+		SequenceNumber: 1,
+		Memo:           "Test memo",
 	}
 
-	_, err := client.Call(cfg)
-	require.NoError(t, err)
+	msg := MsgCall{
+		PkgPath:  "gno.land/r/demo/deep/very/deep",
+		FuncName: "Render",
+		Args:     []string{""},
+		Send:     "100ugnot",
+	}
+
+	res, err := client.Call(cfg, msg)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
 }
 
 func TestClient_Call_Errors(t *testing.T) {
@@ -110,7 +111,21 @@ func TestClient_Call_Errors(t *testing.T) {
 				nil,
 				rpcClient,
 			},
-			cfg:           BaseTxCfg{},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "RandomName",
+					Send:     "",
+					Args:     []string{},
+				},
+			},
 			expectedError: errMissingSigner,
 		},
 		{
@@ -119,7 +134,21 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				nil,
 			},
-			cfg:           BaseTxCfg{},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "RandomName",
+					Send:     "",
+					Args:     []string{},
+				},
+			},
 			expectedError: errMissingRPCClient,
 		},
 		{
@@ -129,7 +158,17 @@ func TestClient_Call_Errors(t *testing.T) {
 				rpcClient,
 			},
 			cfg: BaseTxCfg{
-				GasFee: "",
+				GasWanted:      100000,
+				GasFee:         "",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "RandomName",
+				},
 			},
 			expectedError: errInvalidGasFee,
 		},
@@ -140,7 +179,19 @@ func TestClient_Call_Errors(t *testing.T) {
 				rpcClient,
 			},
 			cfg: BaseTxCfg{
-				GasWanted: -20,
+				GasWanted:      -1,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "RandomName",
+					Send:     "",
+					Args:     []string{},
+				},
 			},
 			expectedError: errInvalidGasWanted,
 		},
@@ -151,7 +202,19 @@ func TestClient_Call_Errors(t *testing.T) {
 				rpcClient,
 			},
 			cfg: BaseTxCfg{
-				GasWanted: 0,
+				GasWanted:      0,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "RandomName",
+					Send:     "",
+					Args:     []string{},
+				},
 			},
 			expectedError: errInvalidGasWanted,
 		},
@@ -161,10 +224,19 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				rpcClient,
 			},
-			cfg: BaseTxCfg{},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
 			msgs: []MsgCall{
 				{
-					PkgPath: "",
+					PkgPath:  "",
+					FuncName: "RandomName",
+					Send:     "",
+					Args:     []string{},
 				},
 			},
 			expectedError: errInvalidPkgPath,
@@ -175,11 +247,19 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				rpcClient,
 			},
-			cfg: BaseTxCfg{},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
 			msgs: []MsgCall{
 				{
 					PkgPath:  "random/path",
 					FuncName: "",
+					Send:     "",
+					Args:     []string{},
 				},
 			},
 			expectedError: errInvalidFuncName,
@@ -190,9 +270,9 @@ func TestClient_Call_Errors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := tc.client.Call(tc.cfg)
+			res, err := tc.client.Call(tc.cfg, tc.msgs...)
 			assert.Equal(t, err, tc.expectedError)
-			assert.NotNil(t, res)
+			assert.Nil(t, res)
 		})
 	}
 }
