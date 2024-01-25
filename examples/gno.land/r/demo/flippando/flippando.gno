@@ -152,7 +152,7 @@ func GetUserGames(user std.Address) []*Game {
 func GetUserGamesByStatus(user std.Address, status string) string {
 	val, exist := user2Games.Get(user.String())
 	if !exist {
-		return nil
+		return "{\"userGames\":[]}"
 	}
 
 	allGames := val.([]*Game)
