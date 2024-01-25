@@ -8,10 +8,7 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
-
-	debug.Printf("-----doOpPrecall------callExpr :%v \n", cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
-	debug.Printf("-----doOpPrecall------v :%v \n", v)
 	if debug {
 		if v == nil {
 			// This may happen due to an undefined uverse or
@@ -22,9 +19,6 @@ func (m *Machine) doOpPrecall() {
 	}
 	switch fv := v.(type) {
 	case *FuncValue:
-		debug.Printf("-----funcValue: %v------ \n", fv)
-		debug.Printf("-----body: %v------ \n", fv.GetBodyFromSource(m.Store))
-
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
@@ -62,49 +56,42 @@ func (m *Machine) doOpCall() {
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 
-	clo := fr.Func.GetClosure(m.Store)
+	clo := fr.Func.GetClosure(m.Store) // this is "static"
 	debugPP.Printf("-----got closure: %v ----- \n", clo)
 	// update block vars using captured vars
-	var targetB *Block
+	var loopBlock *Block // target loop block with values to be updated
 	debugPP.Println("================parse transient for fv====================")
-	if fv.TransientLoopData != nil {
+	if fv.TransientLoopData != nil { // it captured a bundle of values
 		for i, loopData := range fv.TransientLoopData { // each LoopValuesBox is for a certain level of block
-			bag := loopData.loopValuesBox
-			debugPP.Printf("Level[%d] LoopValuesBox is : %v \n", i, bag)
-			if bag != nil {
-				if bag.isSealed {
-					if bag != nil && !bag.isEmpty() { // NOTE: for some reasons won't pack value
-						for j, t := range bag.transient { // unpack vars belong to a specific block
-							if t != nil {
-								debugPP.Printf("LoopValuesBox.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
-								for k, v := range t.values {
-									debugPP.Printf("values[%d] is %v \n", k, v)
-								}
-								targetB = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
-								// check if exists, should always be?
-								names := targetB.GetSource(m.Store).GetBlockNames()
-								var index int
-								var match bool
-								for l, n := range names {
-									if n == t.nx.Name {
-										debugPP.Printf("name: %s match \n", n)
-										index = l
-										match = true
-										break
-									}
-								}
-								if match {
-									debugPP.Println("===match, cursor is:", loopData.index)
-									// update values in context with previously captured.
-									targetB.UpdateValue(index, t.values[loopData.index])
-								}
-							}
+			box := loopData.loopValuesBox
+			debugPP.Printf("Level[%d] LoopValuesBox is : %v \n", i, box)
+			if box.isSealed {
+				for j, t := range box.transient { // unpack vars belong to a specific block
+					debugPP.Printf("LoopValuesBox.transient[%d] name is %v, path: %v, len of values is: %v \n", j, t.nx.Name, t.nx.Path, len(t.values))
+					for k, v := range t.values {
+						debugPP.Printf("values[%d] is %v \n", k, v)
+					}
+					loopBlock = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
+					// check if exists, should always be?
+					names := loopBlock.GetSource(m.Store).GetBlockNames()
+					var index int
+					var match bool
+					for l, n := range names {
+						if n == t.nx.Name {
+							debugPP.Printf("name: %s match \n", n)
+							index = l
+							match = true
+							break
 						}
 					}
-				} else { // not sealed will be tainted, indicates it's not a closure.
-					debugPP.Println("---taint this var")
-					fv.TransientLoopData[i].loopValuesBox.isTainted = true
+					if match {
+						debugPP.Println("===match, cursor is:", loopData.index)
+						// update values in context with previously captured.
+						loopBlock.UpdateValue(index, t.values[loopData.index])
+					}
 				}
+			} else { // not sealed will be tainted, indicates not sealed with values when loopBlock ends, it's not a closure.
+				fv.TransientLoopData[i].loopValuesBox.isTainted = true
 			}
 		}
 		fv.TransientLoopData = nil

@@ -560,13 +560,13 @@ type Transient struct {
 	cursor int          // cursor per fv to find value in time series
 }
 
-// LoopValuesBox stores a slice of transient values of captured vars dynamically
-// generated as the iterations goes on.
+// LoopValuesBox stores a slice of transient values of captured vars
+// that generated as the iterations goes on.
 // it is used for a closure execution.
 type LoopValuesBox struct {
-	isFilled  bool
-	isSealed  bool
-	isTainted bool
+	isFilled  bool // filled with names, no values
+	isSealed  bool // filled with names and values
+	isTainted bool // with names but no values. for cases funcLit is called before loop block ends, makes it not a closure.
 	transient []*Transient
 }
 

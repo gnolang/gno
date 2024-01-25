@@ -46,46 +46,30 @@ SelectStmt ->
 func updateCapturedValue(m *Machine, lb *Block) {
 	if lb.GetBodyStmt().isLoop { // do we need this?
 		bs := lb.GetBodyStmt()
-		debugPP.Printf("---------isLoop, current block is: %v \n", lb)
 		debugPP.Printf("---------LoopValuesBox, %v \n", bs.LoopValuesBox)
 		if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
-			names := lb.Source.GetBlockNames()
-			var found bool
 			var isSealed bool
 			for i, tt := range bs.LoopValuesBox.transient {
-				if tt != nil {
-					debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
-					// first check if name is in current block, it not, stop
-					for _, name := range names {
-						if tt.nx.Name == name {
-							debugPP.Printf("found %s in current block: %v \n", tt.nx.Name, lb)
-							found = true
-						}
-					}
-					if found {
-						nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
-						ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
-						tv := ptr.Deref()
-						debugPP.Printf("--- new tv : %v \n", tv)
-						// set back
-						debugPP.Printf("before update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
-						// inner loops iterates twice while outer loop iterates once.
-						// it's an alignment for the values of out loop block.
-						expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
-						debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
-						for j := 0; j < expandRatio; j++ {
-							bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
-						}
-						debugPP.Printf("after update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
-						isSealed = true
-					} else {
-						debugPP.Printf("---not found %s in current block, b: %v \n", tt.nx.Name, lb)
-						isSealed = false
-					}
+				debugPP.Printf("transient[%d] name is %v, path: %v \n", i, tt.nx.Name, tt.nx.Path)
+				nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
+				ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+				tv := ptr.Deref()
+				debugPP.Printf("--- new tv : %v \n", tv)
+				// update context use previously recorded value
+				debugPP.Printf("before update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
+				// inner loops iterates twice while outer loop iterates once.
+				// it's an alignment for the values of out loop block.
+				// TODO: hard to understand, more doc or e.g.
+				expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
+				debugPP.Printf("--- expand ratio is: %d \n", expandRatio)
+				for j := 0; j < expandRatio; j++ {
+					bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
 				}
+				debugPP.Printf("after update, len of LoopValuesBox values is : %d \n", len(bs.LoopValuesBox.transient[i].values))
+				isSealed = true
 			}
 			if isSealed {
-				bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox of this block
+				bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox for closure execution.
 			}
 		}
 	}

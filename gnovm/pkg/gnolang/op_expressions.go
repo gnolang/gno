@@ -702,19 +702,16 @@ func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr) (*Block, bool, u
 
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
-	debugPP.Printf("-----doOpFuncLit, x: %v \n", x)
 	lb := m.LastBlock()
-	debugPP.Printf("last block: %v \n", lb)
+	debugPP.Printf("doOpFuncLit, x: %v, lb: %v \n", x, lb)
 
 	var captures []*NameExpr
 	for _, n := range x.GetExternNames() {
-		debugPP.Println("iterating extern names, n: ", n)
 		vp := x.GetPathForName(m.Store, n)
-		debugPP.Printf("%v's value path is: %v \n", n, vp)
-		if vp.Depth == 0 {
+		if vp.Depth == 0 { // skip uverse name
 			continue
 		}
-		vp.Depth -= 1 // from funcLit block
+		vp.Depth -= 1 // from the perspective of funcLit block
 		nx := &NameExpr{
 			Name: n,
 			Path: vp,
@@ -722,40 +719,31 @@ func (m *Machine) doOpFuncLit() {
 		captures = append(captures, nx)
 	}
 
-	// sort it so to traverse block in an order of inner to outer
+	// sort it so to traverse block in order from inner to outer
 	sortDepth := func(i, j int) bool {
 		return int(captures[i].Path.Depth) < int(captures[j].Path.Depth)
 	}
 	sort.Slice(captures, sortDepth)
-	debugPP.Println("---done sort")
 
 	var (
 		isLoopBlock  bool
-		loopBlock    *Block
-		lvBox        *LoopValuesBox
+		loopBlock    *Block         // e.g. a `for` block that is  outside of funcLit block
+		lvBox        *LoopValuesBox // container per block to store transient values for captured vars
 		lastGen, gen uint8
 		isReuse      bool
-		loopData     []*LoopBlockData
+		loopData     []*LoopBlockData // for fv to track all transient values
 	)
-	// var TransientLoopData *TransientLoopData
-	// start search every captured var in target block via path
-	// 1. TransientLoopData is a slice of LoopValuesBox, one LoopValuesBox is for one loop block.
-	// 2. new a `LoopValuesBox` for every block, the LoopValuesBox has a flag of isFilled for reuse,
-	// and a []transient for vars in on loop block, that each transient contains an
-	// nameExpr, and a slice of values that is value of var in specific time slice.
-	// TransientLoopData -> []LoopValuesBox -> isFilled, []transient -> nx:nameExpr, values:[]TypedValue.
-	// XXX, TransientLoopData if for fv, which is the concrete entity of closure.
-	// in case for i:=0, i++; i<2{ x := i }, TransientLoopData will have one LoopValuesBox for the only loop block,
-	// and one nx for x, and 2 values of [0,1], fv will have 2 replica in this case, and they
-	// share the same loopBlock.
-	// there are some more complex situation like:
+
+	// when iterating goes on, funcValue will yield several replicas, each of which should capture a slice of
+	// transient values for a nameExpr.
+	// e.g. `for i:=0, i++; i<2{ x := i }`, the transient values for x should be [0 ,1], this is recorded and
+	// used when the funcLit is executed, namely, closure.
+	// more complex situation like:
 	// for i:=0, i++; i<2{ x := i for j:=0, j++; j<2{y := j}},
-	// in this case, there will be 4 replica of fv, and 3 loopBlock, 1 if for the outer loop,
-	// left 2 is the inner blocks, since as the outer for loop execute, will yield due num of
-	// sub blocks.
-	// an intuitive state for state of x, y is: [0,0], [0,1], [1,0], [1,1].
-	// in the impl, the outer block has a LoopValuesBox of [0,0,1,1], and inner block 1, has a LoopValuesBox [0,1]
-	// and inner block 2 has a LoopValuesBox[0,1].
+	// in this case, there will be 4 replica of fv, and 3 loopBlock.
+	// the transient state of x, y is: [0,0], [0,1], [1,0], [1,1].
+	// the outer block will hold transient values of [0,0,1,1] for `x`, and inner block 1 will hold [0,1] for `y`,
+	// another inner block 2 holds [0,1] for y too.
 	for i, nx := range captures {
 		debugPP.Printf("captures[%d] is : %v \n", i, nx.Name)
 		// start search block, in the order of small depth to big depth
@@ -763,45 +751,44 @@ func (m *Machine) doOpFuncLit() {
 		debugPP.Printf("loopBlock: %v,  isLoopBlock: %v, gen: %v,  cursor: %v \n", loopBlock, isLoopBlock, gen)
 		if lastGen == 0 {
 			lastGen = gen
-		} else if gen != lastGen { // if enter new level of block, means last block is all done, pack LoopValuesBox
+		} else if gen != lastGen { // if enter new level of block, pack last box
 			lastGen = gen
-			// set last state
 			if lvBox != nil && !isReuse { // has something to pack
 				lvBox.isFilled = true
-				loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox}) // pack per level of block
+				loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
 			}
 			debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 		}
 		if isLoopBlock {
+			// every loopBlock holds a loopValuesBox that contains a slice of transient value generated as the iterations goes on.
+			// funcValue references this loopValuesBox for future use(when closure executing)
 			lvBox = loopBlock.GetBodyStmt().LoopValuesBox // get LoopValuesBox from specific block, that is shared across current level of for/range loop
 			debugPP.Printf("got initial LoopValuesBox from target loop block: %v \n", lvBox)
 			if lvBox == nil {
 				lvBox = &LoopValuesBox{} // init
 			}
-			if !lvBox.isFilled { // only once for further reuse
-				debugPP.Println("---not sealed---, should pack only once for n: ", nx.Name)
+			if !lvBox.isFilled { // for replicas of fv, the captured names are same, so fill only once for further reuse.
+				debugPP.Println("---not filled---")
 				tst := &Transient{
 					nx:     nx,
-					cursor: 0,
+					cursor: 0, // inc every iteration, implies sequence of a fv, and index of transient values.
 				}
 				lvBox.transient = append(lvBox.transient, tst)
-				// set back to loop block properly
+				// record in loop block
 				loopBlock.GetBodyStmt().LoopValuesBox = lvBox
-			} else { // repack when iterates, this should be optimized
+			} else { // reuse last replica's. (in same block).
 				isReuse = true // use isFilled instead
 				// get cursor by name
-				debugPP.Println("---reuse, current cursor is: ", lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor)
-				lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // only inc in reuse, that is iteration
-				// cursor indicates num of iterations of fv
+				lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // inc by iteration
+				// each fv may have n outer loopBlock, reference them all
 				loopData = append(loopData, &LoopBlockData{index: lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor, loopValuesBox: lvBox})
 			}
 		}
 	}
-	// set fill flag
+	// set as a deferred operation
 	if lvBox != nil && !lvBox.isFilled && !isReuse {
-		debugPP.Println("---tail pack")
-		lvBox.isFilled = true                                                       // set for the last LoopValuesBox
-		loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox}) // collect the last LoopValuesBox
+		lvBox.isFilled = true // set for the last LoopValuesBox of last loopBlock
+		loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
 		debugPP.Printf("========packed LoopValuesBox for %v is: %s \n", loopBlock, lvBox)
 	}
 

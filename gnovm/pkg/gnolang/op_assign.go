@@ -51,38 +51,6 @@ func (m *Machine) doOpAssign() {
 		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
-
-	//// after assign, get lhs, when recursive closure
-	//if len(s.Rhs) == 1 {
-	//	// push evaluated v
-	//	if fx, ok := s.Rhs[0].(*FuncLitExpr); ok {
-	//		debugPP.Printf("---fx.closure: %v \n", fx.Closure)
-	//		if fx.Closure.recursive {
-	//			// is recursive, push value
-	//			//m.PushValue(rvs[0])
-	//			rx := s.Rhs[0]
-	//			// evaluate Rhs
-	//			m.PushExpr(rx)
-	//			m.PushOp(OpEval)
-	//			//m.PushOp(OpFuncLit) // eval again to update captured nx
-	//		}
-	//	} else {
-	//		//m.PushValue(typedString("x"))
-	//	}
-	//}
-}
-
-func (m *Machine) doOpPostAssign() {
-	debugPP.Println("---doOpPostAssign")
-	//// get lhs name and value
-	//x := m.PopExpr()
-	//// use this value to replace captured, in funcLit
-	//v := m.PopValue()
-	//debugPP.Printf("pop x: %v \n", x)
-	//debugPP.Printf("pop value: %v \n", v)
-	//if fx, ok := x.(*FuncLitExpr); ok {
-	//	//fx.Closure
-	//}
 }
 
 func (m *Machine) doOpAddAssign() {

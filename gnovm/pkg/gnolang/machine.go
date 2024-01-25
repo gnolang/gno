@@ -1061,9 +1061,7 @@ const (
 	OpCPUMaybeNativeType = 1
 
 	/* Statement operators */
-	OpCPUPreAssign   = 1
 	OpCPUAssign      = 1
-	OpCPUPostAssign  = 1
 	OpCPUAddAssign   = 1
 	OpCPUSubAssign   = 1
 	OpCPUMulAssign   = 1
@@ -1349,9 +1347,6 @@ func (m *Machine) Run() {
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
-		case OpPostAssign:
-			m.incrCPU(OpCPUPostAssign)
-			m.doOpPostAssign()
 		case OpAddAssign:
 			m.incrCPU(OpCPUAddAssign)
 			m.doOpAddAssign()
