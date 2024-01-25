@@ -52,14 +52,9 @@ func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 			return nil, errors.Wrap(err, "parsing send coins")
 		}
 
-		if err != nil {
-			return nil, errors.Wrap(err, "parsing gas fee coin")
-		}
-
-		caller := c.Signer.Info().GetAddress()
-
+		// Pack message
 		msgs = append(msgs, vm.MsgCall{
-			Caller:  caller,
+			Caller:  c.Signer.Info().GetAddress(),
 			Send:    sendCoins,
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
