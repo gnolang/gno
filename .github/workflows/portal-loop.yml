@@ -12,7 +12,8 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     strategy:
-      image: ["autocounterd", "portalloopd"]
+      matrix:
+        image: ["autocounterd", "portalloopd"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
