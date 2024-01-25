@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	NodeLogName      = "Node"
-	WebLogName       = "GnoWeb"
-	KeyPressLogName  = "KeyPress"
-	HotReloadLogName = "HotReload"
+	NodeLogName        = "Node"
+	WebLogName         = "GnoWeb"
+	KeyPressLogName    = "KeyPress"
+	EventServerLogName = "Events"
 )
 
 type devCfg struct {
@@ -125,8 +125,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
-	loggerHotReload := tmlog.NewTMLogger(rt.NamespacedWriter(HotReloadLogName))
-	emitterServer := events.NewEmitterServer(loggerHotReload)
+	loggerEvents := tmlog.NewTMLogger(rt.NamespacedWriter(EventServerLogName))
+	emitterServer := events.NewEmitterServer(loggerEvents)
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
@@ -167,7 +167,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	rt.Taskf(WebLogName, "Listener: http://%s\n", server.Addr)
 
-	watcher, err := watcher.NewPackageWatcher(loggerHotReload, emitterServer)
+	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
 	if err != nil {
 		return fmt.Errorf("unable to setup packages watcher")
 	}
