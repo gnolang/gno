@@ -11,8 +11,8 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -27,8 +27,11 @@ const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be 
 type Node struct {
 	*node.Node
 
+	client client.Client
 	logger *slog.Logger
 	pkgs   PkgsMap // path -> pkg
+	// keep track of number of loaded package to be able to skip them on restore
+	loadedPackages int
 }
 
 var (
@@ -48,7 +51,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
 
-	txs, err := mpkgs.Load(DefaultCreator, DefaultFee, nil)
+	pkgsTxs, err := mpkgs.Load(DefaultCreator, DefaultFee, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
@@ -56,13 +59,14 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: DefaultBalance,
-		Txs:      txs,
+		Txs:      pkgsTxs,
 	}
 
 	node, err := newNode(logger, genesis)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the node: %w", err)
 	}
+	client := client.NewLocal(node)
 
 	if err := node.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start node: %w", err)
@@ -76,9 +80,12 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 	}
 
 	return &Node{
-		Node:   node,
-		pkgs:   mpkgs,
-		logger: logger,
+		Node: node,
+
+		client:         client,
+		pkgs:           mpkgs,
+		logger:         logger,
+		loadedPackages: len(pkgsTxs),
 	}, nil
 }
 
@@ -166,8 +173,8 @@ func (d *Node) ReloadAll(ctx context.Context) error {
 // If any transaction, including 'addpkg', fails, it will be ignored.
 // Use 'Reset' to completely reset the node's state in case of persistent errors.
 func (d *Node) Reload(ctx context.Context) error {
-	// Save the current state of the node.
-	state, err := d.saveState(ctx)
+	// Get current blockstore state
+	state, err := d.getBlockStoreState(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
@@ -179,15 +186,16 @@ func (d *Node) Reload(ctx context.Context) error {
 		}
 	}
 
-	// Generate a new genesis state based on the current packages.
-	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	// Load genesis packages
+	pkgsTxs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
+	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
 		Balances: DefaultBalance,
-		Txs:      txs,
+		Txs:      append(pkgsTxs, state...),
 	}
 
 	// Reset the node with the new genesis state.
@@ -195,16 +203,8 @@ func (d *Node) Reload(ctx context.Context) error {
 		return fmt.Errorf("unable to reset the node: %w", err)
 	}
 
-	// Attempt to resend transactions from the saved state.
-	for _, tx := range state {
-		if len(tx.Msgs) == 0 { // Skip empty transactions.
-			continue
-		}
-
-		if err := d.SendTransaction(&tx); err != nil {
-			return fmt.Errorf("unable to send transaction: %w", err)
-		}
-	}
+	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+	d.loadedPackages = len(pkgsTxs)
 
 	return nil
 }
@@ -239,6 +239,7 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 		}
 
 		d.Node = node
+		d.client = client.NewLocal(d.Node)
 	}
 
 	// Execute node creation and handle any errors.
@@ -260,9 +261,14 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
-	b := d.Node.BlockStore().LoadBlock(int64(blockNum))
-	txs := make([]std.Tx, len(b.Txs))
-	for i, encodedTx := range b.Txs {
+	int64BlockNum := int64(blockNum)
+	b, err := d.client.Block(&int64BlockNum)
+	if err != nil {
+		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
+	}
+
+	txs := make([]std.Tx, len(b.Block.Data.Txs))
+	for i, encodedTx := range b.Block.Data.Txs {
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
@@ -281,36 +287,39 @@ func (d *Node) GetLatestBlockNumber() (uint64, error) {
 	return d.getLatestBlockNumber(), nil
 }
 
-// SendTransaction executes a broadcast sync send
+// SendTransaction executes a broadcast commit send
 // of the specified transaction to the chain
 func (d *Node) SendTransaction(tx *std.Tx) error {
-	resCh := make(chan abci.Response, 1)
-
 	aminoTx, err := amino.Marshal(tx)
 	if err != nil {
 		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
 	}
 
-	err = d.Node.Mempool().CheckTx(aminoTx, func(res abci.Response) {
-		resCh <- res
-	})
+	// we use BroadcastTxCommit to ensure to have one block with the given tx
+	res, err := d.client.BroadcastTxCommit(aminoTx)
 	if err != nil {
-		return fmt.Errorf("unable to check tx: %w", err)
+		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
 	}
 
-	res := <-resCh
-	r := res.(abci.ResponseCheckTx)
-	if r.Error != nil {
-		return fmt.Errorf("unable to broadcast tx: %w\nLog: %s", r.Error, r.Log)
+	if res.CheckTx.Error != nil {
+		d.logger.Error("check tx error trace", "log", res.CheckTx.Log)
+		return fmt.Errorf("check transaction error: %w", res.CheckTx.Error)
+	}
+
+	if res.DeliverTx.Error != nil {
+		d.logger.Error("deliver tx error trace", "log", res.CheckTx.Log)
+		return fmt.Errorf("deliver transaction error: %w", res.DeliverTx.Error)
 	}
 
 	return nil
 }
 
-func (n *Node) saveState(ctx context.Context) ([]std.Tx, error) {
-	lastBlock := n.getLatestBlockNumber()
+func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
+	// get current genesis state
+	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	state := make([]std.Tx, 0, int(lastBlock))
+	state := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	lastBlock := n.getLatestBlockNumber()
 	var blocnum uint64 = 1
 	for ; blocnum <= lastBlock; blocnum++ {
 		select {
@@ -324,7 +333,6 @@ func (n *Node) saveState(ctx context.Context) ([]std.Tx, error) {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
 
-		// Skip empty blocks
 		state = append(state, txs...)
 	}
 
