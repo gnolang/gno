@@ -42,8 +42,6 @@ func (i *Instance) RemoveFromWhitelist(feedID string, address string) {
 	feedWithWhitelist.RemoveAddress(address)
 }
 
-// TODO: test this.
-
 // addressWhiteListed returns true if:
 // - the feed has a white list and the address is whitelisted, or
 // - the feed has no white list and the instance has a white list and the address is whitelisted, or
