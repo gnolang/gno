@@ -36,6 +36,7 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v4
+        working-directory: misc/loop
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
