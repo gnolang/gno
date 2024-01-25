@@ -1,1 +1,1 @@
-module gno.land/p/demo/testutils
+module gno.land/p/demo/testutils v0.0.1

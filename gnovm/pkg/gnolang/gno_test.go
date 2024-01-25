@@ -200,7 +200,9 @@ func main() {
 func BenchmarkPreprocess(b *testing.B) {
 	pkg := &PackageNode{
 		PkgName: "main",
-		PkgPath: ".main",
+		ModFile: &ModFileNode{
+			Path: ".main",
+		},
 		FileSet: nil,
 	}
 	pkg.InitStaticBlock(pkg, nil)

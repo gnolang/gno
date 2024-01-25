@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/mod/semver"
 )
 
 //----------------------------------------
@@ -67,6 +68,7 @@ func NewMachine(pkgPath string, store Store) *Machine {
 type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
 	PkgPath       string
+	PkgVersion    string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
 	Output        io.Writer // default os.Stdout
@@ -114,10 +116,13 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	pv := (*PackageValue)(nil)
 	if opts.PkgPath != "" {
-		pv = store.GetPackage(opts.PkgPath, false)
+		pv = store.GetPackage(opts.PkgPath, opts.PkgVersion, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
-			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
+			pn := NewPackageNode(pkgName, &ModFileNode{
+				Path:    opts.PkgPath,
+				Version: opts.PkgVersion,
+			}, &FileSet{})
 			pv = pn.NewPackage()
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
@@ -186,28 +191,35 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
-	ch := m.Store.IterMemPackage()
-	for memPkg := range ch {
-		fset := ParseMemPackage(memPkg)
-		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
-		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
-		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
-			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
-		}
-		// Normally, the fileset would be added onto the
-		// package node only after runFiles(), but we cannot
-		// run files upon restart (only preprocess them).
-		// So, add them here instead.
-		// TODO: is this right?
-		if pn.FileSet == nil {
-			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
+	ch := m.Store.IterMemPackageInfo()
+	for memPkgInfo := range ch {
+		for _, ver := range memPkgInfo.Versions {
+			fset := ParseMemPackage(ver)
+			mfn := &ModFileNode{
+				Path:    ver.ModFile.ImportPath,
+				Version: ver.ModFile.Version,
+				Require: ver.ModFile.Requires,
+			}
+			pn := NewPackageNode(Name(ver.Name), mfn, fset)
+			m.Store.SetBlockNode(pn)
+			PredefineFileSet(m.Store, pn, fset)
+			for _, fn := range fset.Files {
+				// Save Types to m.Store (while preprocessing).
+				fn = Preprocess(m.Store, pn, fn).(*FileNode)
+				// Save BlockNodes to m.Store.
+				SaveBlockNodes(m.Store, fn)
+			}
+			// Normally, the fileset would be added onto the
+			// package node only after runFiles(), but we cannot
+			// run files upon restart (only preprocess them).
+			// So, add them here instead.
+			// TODO: is this right?
+			if pn.FileSet == nil {
+				pn.FileSet = fset
+			} else {
+				// This happens for non-realm file tests.
+				// TODO ensure the files are the same.
+			}
 		}
 	}
 }
@@ -234,17 +246,24 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides && checkDuplicates(files) {
-		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
+		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.ModFile.ImportPath))
 	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
-	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+	if m.Package != nil &&
+		m.Package.ModFile.Path == memPkg.ModFile.ImportPath &&
+		m.Package.ModFile.Version == memPkg.ModFile.Version {
 		pv = m.Package
-		loc := PackageNodeLocation(memPkg.Path)
+		loc := PackageNodeLocation(memPkg.ModFile.ImportPath, memPkg.ModFile.Version)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
-		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		mfn := &ModFileNode{
+			Path:    memPkg.ModFile.ImportPath,
+			Version: memPkg.ModFile.Version,
+			Require: memPkg.ModFile.Requires,
+		}
+		pn = NewPackageNode(Name(memPkg.Name), mfn, &FileSet{})
 		pv = pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
@@ -254,10 +273,31 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	m.RunFiles(files.Files...)
 	// maybe save package value and mempackage.
 	if save {
+		memPkgInfo, err := m.Store.GetMemPackageInfo(memPkg.ModFile.ImportPath)
+		if err != nil {
+			memPkgInfo = &std.MemPackageInfo{
+				Name:     memPkg.Name,
+				Path:     memPkg.ModFile.ImportPath,
+				Versions: []*std.MemPackage{memPkg},
+			}
+		} else {
+			versionCount := len(memPkgInfo.Versions)
+			if versionCount < 1 {
+				panic("empty memPackageInfo")
+			}
+			latest := memPkgInfo.Versions[versionCount-1]
+			if semver.Compare(memPkg.ModFile.Version, latest.ModFile.Version) <= 0 {
+				panic(fmt.Sprintf("version should be greater then %q", latest.ModFile.Version))
+			}
+			memPkgInfo.Versions = append(memPkgInfo.Versions, memPkg)
+		}
+
 		// store package values and types
 		m.savePackageValuesAndTypes()
 		// store mempackage
-		m.Store.AddMemPackage(memPkg)
+		// TODO(hariom): Maintain 2 separate entries? to save gas cost?
+		// MemPackageInfo and Mempackage?
+		m.Store.AddMemPackageInfo(memPkgInfo)
 	}
 	return pn, pv
 }
@@ -324,7 +364,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
-		pv := m.Store.GetPackage(memPkg.Path, false)
+		pv := m.Store.GetPackage(memPkg.ModFile.ImportPath, memPkg.ModFile.Version, false)
 		pvBlock := pv.GetBlock(m.Store)
 		pvSize := len(pvBlock.Values)
 		m.SetActivePackage(pv)
@@ -337,7 +377,12 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		}
 	}
 	{ // run all (import) tests in test files.
-		pn := NewPackageNode(Name(memPkg.Name+"_test"), memPkg.Path+"_test", itfiles)
+		mfn := &ModFileNode{
+			Path:    memPkg.ModFile.ImportPath + "_test",
+			Version: memPkg.ModFile.Version,
+			Require: memPkg.ModFile.Requires,
+		}
+		pn := NewPackageNode(Name(memPkg.Name+"_test"), mfn, itfiles)
 		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
@@ -364,7 +409,7 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	// XXX ensure correct func type.
 	name := string(tv.V.(*FuncValue).Name)
 	// prefetch the testing package.
-	testingpv := m.Store.GetPackage("testing", false)
+	testingpv := m.Store.GetPackage("testing", "", false)
 	testingtv := TypedValue{T: gPackageType, V: testingpv}
 	testingcx := &ConstExpr{TypedValue: testingtv}
 
@@ -494,6 +539,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	}
 
 	// Predefine declarations across all files.
+	// TODO(hariom): Resolve import version
 	PredefineFileSet(m.Store, pn, fs)
 
 	// Preprocess each new file.
@@ -624,7 +670,7 @@ func (m *Machine) savePackageValuesAndTypes() {
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
-		rlm := NewRealm(pv.PkgPath)
+		rlm := NewRealm(pv.ModFile.Path, pv.ModFile.Version)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 	}
@@ -1688,7 +1734,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
-		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
+		panic(fmt.Sprintf("package value missing in store: %s(%s)", fv.PkgPath, fv.PkgVersion))
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()
@@ -1976,7 +2022,7 @@ func (m *Machine) String() string {
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
-			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, pv.PkgPath))
+			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, pv.ModFile.Path))
 		} else {
 			bsi := b.StringIndented("            ")
 			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))

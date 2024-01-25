@@ -13,16 +13,49 @@ type MemFile struct {
 	Body string
 }
 
-// MemPackage represents the information and files of a package which will be
+type MemMod struct {
+	ImportPath string
+	Version    string
+	Requires   []*Requirements
+}
+
+type Requirements struct {
+	Path    string
+	Version string
+}
+
+// MemPackageInfo represents the information and versions of a package
+type MemPackageInfo struct {
+	Name     string // package name as declared by `package`
+	Path     string // import path
+	Versions []*MemPackage
+}
+
+func (mempkgInfo *MemPackageInfo) Validate() error {
+	if !rePkgName.MatchString(mempkgInfo.Name) {
+		return errors.New(fmt.Sprintf("invalid package name %q", mempkgInfo.Name))
+	}
+	if !rePkgOrRlmPath.MatchString(mempkgInfo.Path) {
+		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkgInfo.Path))
+	}
+	for _, version := range mempkgInfo.Versions {
+		if err := version.Validate(); err != nil {
+			return errors.New("error validating version")
+		}
+	}
+	return nil
+}
+
+// MemPackage represents the single version and files of a package which will be
 // stored in memory. It will generally be initialized by package gnolang's
 // ReadMemPackage.
 //
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string // package name as declared by `package`
-	Path  string // import path
-	Files []*MemFile
+	Name    string
+	ModFile *MemMod
+	Files   []*MemFile
 }
 
 func (mempkg *MemPackage) GetFile(name string) *MemFile {
@@ -53,8 +86,9 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return errors.New(fmt.Sprintf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName))
 	}
-	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
+
+	if !rePkgOrRlmPath.MatchString(mempkg.ModFile.ImportPath) {
+		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.ModFile.ImportPath, rePkgOrRlmPath))
 	}
 	fnames := map[string]struct{}{}
 	for _, memfile := range mempkg.Files {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -74,6 +75,13 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	if cfg.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
+	parts := strings.Split(cfg.PkgPath, "@")
+	if len(parts) != 2 {
+		return errors.New("expected: module/path@v1.2.3")
+	}
+	pkgPath := parts[0]
+	pkgVersion := parts[1]
+
 	if cfg.FuncName == "" {
 		return errors.New("func not specified")
 	}
@@ -118,11 +126,12 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
-		Caller:  caller,
-		Send:    send,
-		PkgPath: cfg.PkgPath,
-		Func:    fnc,
-		Args:    cfg.Args,
+		Caller:     caller,
+		Send:       send,
+		PkgPath:    pkgPath,
+		PkgVersion: pkgVersion,
+		Func:       fnc,
+		Args:       cfg.Args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

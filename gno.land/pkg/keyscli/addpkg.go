@@ -19,7 +19,6 @@ import (
 type MakeAddPkgCfg struct {
 	RootCfg *client.MakeTxCfg
 
-	PkgPath string
 	PkgDir  string
 	Deposit string
 }
@@ -44,13 +43,6 @@ func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Comma
 
 func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.PkgPath,
-		"pkgpath",
-		"",
-		"package path (required)",
-	)
-
-	fs.StringVar(
 		&c.PkgDir,
 		"pkgdir",
 		"",
@@ -66,9 +58,6 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
-	if cfg.PkgPath == "" {
-		return errors.New("pkgpath not specified")
-	}
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
@@ -97,9 +86,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(cfg.PkgDir, cfg.PkgPath)
+	// lazily parse pkgPath from gno.mod
+	memPkg := gno.ReadMemPackage(cfg.PkgDir, "")
 	if memPkg.IsEmpty() {
-		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
+		panic(fmt.Sprintf("found an empty package ar dir %q", cfg.PkgDir))
 	}
 
 	// transpile and validate syntax

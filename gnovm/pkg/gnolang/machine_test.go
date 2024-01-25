@@ -29,7 +29,9 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	m := NewMachine("std", store)
 	m.RunMemPackageWithOverrides(&std.MemPackage{
 		Name: "std",
-		Path: "std",
+		ModFile: &std.MemMod{
+			ImportPath: "std",
+		},
 		Files: []*std.MemFile{
 			{Name: "a.gno", Body: `package std; func Redecl(x int) string { return "1" }`},
 		},
@@ -40,7 +42,9 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		}()
 		m.RunMemPackageWithOverrides(&std.MemPackage{
 			Name: "std",
-			Path: "std",
+			ModFile: &std.MemMod{
+				ImportPath: "std",
+			},
 			Files: []*std.MemFile{
 				{Name: "b.gno", Body: `package std; func Redecl(x int) string { var y string; _, _ = y; return "2" }`},
 			},

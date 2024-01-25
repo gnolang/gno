@@ -534,6 +534,7 @@ type FuncValue struct {
 	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	FileName   Name      // file name where declared
 	PkgPath    string
+	PkgVersion string
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
@@ -563,6 +564,7 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		Closure:    fv.Closure,
 		FileName:   fv.FileName,
 		PkgPath:    fv.PkgPath,
+		PkgVersion: fv.PkgVersion,
 		NativePkg:  fv.NativePkg,
 		NativeName: fv.NativeName,
 		body:       fv.body,
@@ -604,7 +606,7 @@ func (fv *FuncValue) GetSource(store Store) BlockNode {
 }
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
-	pv := store.GetPackage(fv.PkgPath, false)
+	pv := store.GetPackage(fv.PkgPath, fv.PkgVersion, false)
 	return pv
 }
 
@@ -807,7 +809,7 @@ type PackageValue struct {
 	ObjectInfo // is a separate object from .Block.
 	Block      Value
 	PkgName    Name
-	PkgPath    string
+	ModFile    *ModFileNode
 	FNames     []Name
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
@@ -817,7 +819,7 @@ type PackageValue struct {
 }
 
 func (pv *PackageValue) IsRealm() bool {
-	return IsRealmPath(pv.PkgPath)
+	return IsRealmPath(pv.ModFile.Path)
 }
 
 func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
@@ -916,7 +918,7 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
-	return DerivePkgAddr(pv.PkgPath)
+	return DerivePkgAddr(pv.ModFile.Path, pv.ModFile.Version)
 }
 
 // ----------------------------------------
@@ -1558,7 +1560,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		panic("should not happen")
 	case *PackageType:
 		pv := tv.V.(*PackageValue)
-		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
+		bz = append(bz, []byte(strconv.Quote(pv.ModFile.Path))...)
 	case *ChanType:
 		panic("not yet implemented")
 	case *NativeType:
@@ -2412,10 +2414,11 @@ func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
 
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID   ObjectID  `json:",omitempty"`
+	Escaped    bool      `json:",omitempty"`
+	PkgPath    string    `json:",omitempty"`
+	PkgVersion string    `json:",omitempty"`
+	Hash       ValueHash `json:",omitempty"`
 }
 
 // ----------------------------------------
@@ -2516,7 +2519,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
-			tv.V = store.GetPackage(cv.PkgPath, false)
+			tv.V = store.GetPackage(cv.PkgPath, cv.PkgVersion, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)

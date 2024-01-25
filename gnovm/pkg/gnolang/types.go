@@ -1434,7 +1434,7 @@ func (dt *DeclaredType) TypeID() TypeID {
 	return dt.typeid
 }
 
-func DeclaredTypeID(pkgPath string, name Name) TypeID {
+func DeclaredTypeID(pkgPath string, name Name) TypeID { // TODO(hariom): include version?
 	return typeid("%s.%s", pkgPath, name)
 }
 
@@ -2520,7 +2520,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				// Construct BlockStmt from map.
 				// TODO: make arg type be this
 				// to reduce redundant steps.
-				pn := NewPackageNode("", "", nil)
+				pn := NewPackageNode("", &ModFileNode{}, nil)
 				bs := new(BlockStmt)
 				bs.InitStaticBlock(bs, pn)
 				for n, t := range lookup {

@@ -11,9 +11,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"golang.org/x/mod/module"
 )
 
 type modDownloadCfg struct {
@@ -204,9 +206,66 @@ func execModInit(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := gnomod.CreateGnoModFile(dir, modPath); err != nil {
+	if err := CreateGnoModFile(dir, modPath); err != nil {
 		return fmt.Errorf("create gno.mod file: %w", err)
 	}
+
+	return nil
+}
+
+func CreateGnoModFile(rootDir, modPath string) error {
+	if !filepath.IsAbs(rootDir) {
+		return fmt.Errorf("dir %q is not absolute", rootDir)
+	}
+
+	modFilePath := filepath.Join(rootDir, "gno.mod")
+	if _, err := os.Stat(modFilePath); err == nil {
+		return errors.New("gno.mod file already exists")
+	}
+
+	if modPath == "" {
+		// Check .gno files for package name
+		// and use it as modPath
+		files, err := os.ReadDir(rootDir)
+		if err != nil {
+			return fmt.Errorf("read dir %q: %w", rootDir, err)
+		}
+
+		var pkgName gnolang.Name
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".gno") || strings.HasSuffix(file.Name(), "_filetest.gno") {
+				continue
+			}
+
+			fpath := filepath.Join(rootDir, file.Name())
+			bz, err := os.ReadFile(fpath)
+			if err != nil {
+				return fmt.Errorf("read file %q: %w", fpath, err)
+			}
+
+			pn := gnolang.PackageNameFromFileBody(file.Name(), string(bz))
+			if strings.HasSuffix(string(pkgName), "_test") {
+				pkgName = pkgName[:len(pkgName)-len("_test")]
+			}
+			if pkgName == "" {
+				pkgName = pn
+			}
+			if pkgName != pn {
+				return fmt.Errorf("package name mismatch: [%q] and [%q]", pkgName, pn)
+			}
+		}
+		if pkgName == "" {
+			return errors.New("cannot determine package name")
+		}
+		modPath = string(pkgName)
+	}
+	if err := module.CheckImportPath(modPath); err != nil {
+		return err
+	}
+
+	modfile := new(gnomod.File)
+	modfile.AddModuleStmt(modPath)
+	modfile.Write(filepath.Join(rootDir, "gno.mod"))
 
 	return nil
 }
@@ -240,7 +299,7 @@ func execModTidy(args []string, io commands.IO) error {
 		if im == gm.Module.Mod.Path {
 			continue
 		}
-		gm.AddRequire(im, "v0.0.0-latest")
+		gm.AddRequire(im, "v0.0.0")
 	}
 
 	gm.Write(fname)

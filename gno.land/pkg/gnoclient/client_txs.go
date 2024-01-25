@@ -14,6 +14,7 @@ import (
 var (
 	ErrEmptyPackage      = errors.New("empty package to run")
 	ErrEmptyPkgPath      = errors.New("empty pkg path")
+	ErrEmptyPkgVersion   = errors.New("empty pkg version")
 	ErrEmptyFuncName     = errors.New("empty function name")
 	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
 	ErrInvalidGasFee     = errors.New("invalid gas fee")
@@ -33,10 +34,11 @@ type BaseTxCfg struct {
 
 // MsgCall - syntax sugar for vm.MsgCall
 type MsgCall struct {
-	PkgPath  string   // Package path
-	FuncName string   // Function name
-	Args     []string // Function arguments
-	Send     string   // Send amount
+	PkgPath    string   // Package path
+	PkgVersion string   // Package version
+	FuncName   string   // Function name
+	Args       []string // Function arguments
+	Send       string   // Send amount
 }
 
 // MsgSend - syntax sugar for bank.MsgSend minus fields in BaseTxCfg
@@ -82,11 +84,12 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
-			Caller:  c.Signer.Info().GetAddress(),
-			PkgPath: msg.PkgPath,
-			Func:    msg.FuncName,
-			Args:    msg.Args,
-			Send:    send,
+			Caller:     c.Signer.Info().GetAddress(),
+			PkgPath:    msg.PkgPath,
+			PkgVersion: msg.PkgVersion,
+			Func:       msg.FuncName,
+			Args:       msg.Args,
+			Send:       send,
 		}))
 	}
 
@@ -144,7 +147,12 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		}
 
 		msg.Package.Name = "main"
-		msg.Package.Path = ""
+		if msg.Package.ModFile == nil {
+			msg.Package.ModFile = &std.MemMod{
+				ImportPath: "",
+				Version:    "",
+			}
+		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{

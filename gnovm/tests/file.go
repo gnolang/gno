@@ -35,8 +35,8 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
 	// FIXME: create a better package to manage this, with custom constructors
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
-	caller := gno.DerivePkgAddr("user1.gno")
+	pkgAddr := gno.DerivePkgAddr(pkgPath, "")    // the addr of the pkgPath called.
+	caller := gno.DerivePkgAddr("user1.gno", "") // TODO: verision??
 
 	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
@@ -97,7 +97,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		opt(&f)
 	}
 
-	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, pkgVersion, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -150,7 +150,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			}
 			if !gno.IsRealmPath(pkgPath) {
 				// simple case.
-				pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
+				pn := gno.NewPackageNode(pkgName, &gno.ModFileNode{
+					Path:    pkgPath,
+					Version: pkgVersion,
+				}, &gno.FileSet{})
 				pv := pn.NewPackage()
 				store.SetBlockNode(pn)
 				store.SetCachePackage(pv)
@@ -175,7 +178,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				// save package using realm crawl procedure.
 				memPkg := &std.MemPackage{
 					Name: string(pkgName),
-					Path: pkgPath,
+					ModFile: &std.MemMod{
+						ImportPath: pkgPath,
+					},
 					Files: []*std.MemFile{
 						{
 							Name: "main.gno", // dontcare
@@ -216,7 +221,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					f.logger("========================================")
 					store.Print()
 				}
-				pv2 := store.GetPackage(pkgPath, false)
+				pv2 := store.GetPackage(pkgPath, pkgVersion, false)
 				m.SetActivePackage(pv2)
 				gno.EnableDebug()
 				if rops != "" {
@@ -364,7 +369,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, pkgVersion, res, err, rops string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -378,6 +383,9 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 		if strings.HasPrefix(text, "PKGPATH:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			pkgPath = strings.TrimSpace(strings.TrimPrefix(line, "PKGPATH:"))
+		} else if strings.HasPrefix(text, "VERSION:") {
+			line := strings.SplitN(text, "\n", 2)[0]
+			pkgVersion = strings.TrimSpace(strings.TrimPrefix(line, "VERSION:"))
 		} else if strings.HasPrefix(text, "MAXALLOC:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			maxstr := strings.TrimSpace(strings.TrimPrefix(line, "MAXALLOC:"))

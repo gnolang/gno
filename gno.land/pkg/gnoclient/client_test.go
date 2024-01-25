@@ -96,10 +96,11 @@ func TestCallSingle(t *testing.T) {
 
 	msg := []MsgCall{
 		{
-			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "Render",
-			Args:     []string{""},
-			Send:     "100ugnot",
+			PkgPath:    "gno.land/r/demo/deep/very/deep",
+			PkgVersion: "v0.0.1",
+			FuncName:   "Render",
+			Args:       []string{""},
+			Send:       "100ugnot",
 		},
 	}
 
@@ -155,22 +156,25 @@ func TestCallMultiple(t *testing.T) {
 
 	msg := []MsgCall{
 		{
-			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "Render",
-			Args:     []string{""},
-			Send:     "100ugnot",
+			PkgPath:    "gno.land/r/demo/deep/very/deep",
+			PkgVersion: "v0.0.1",
+			FuncName:   "Render",
+			Args:       []string{""},
+			Send:       "100ugnot",
 		},
 		{
-			PkgPath:  "gno.land/r/demo/wugnot",
-			FuncName: "Deposit",
-			Args:     []string{""},
-			Send:     "1000ugnot",
+			PkgPath:    "gno.land/r/demo/wugnot",
+			PkgVersion: "v0.0.1",
+			FuncName:   "Deposit",
+			Args:       []string{""},
+			Send:       "1000ugnot",
 		},
 		{
-			PkgPath:  "gno.land/r/demo/tamagotchi",
-			FuncName: "Feed",
-			Args:     []string{""},
-			Send:     "",
+			PkgPath:    "gno.land/r/demo/tamagotchi",
+			PkgVersion: "v0.0.1",
+			FuncName:   "Feed",
+			Args:       []string{""},
+			Send:       "",
 		},
 	}
 
@@ -204,10 +208,11 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.0",
+					FuncName:   "RandomName",
+					Send:       "",
+					Args:       []string{},
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -227,10 +232,11 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.0",
+					FuncName:   "RandomName",
+					Send:       "",
+					Args:       []string{},
 				},
 			},
 			expectedError: ErrMissingRPCClient,
@@ -250,8 +256,9 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.0",
+					FuncName:   "RandomName",
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -271,10 +278,11 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.0",
+					FuncName:   "RandomName",
+					Send:       "",
+					Args:       []string{},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -294,10 +302,11 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.0",
+					FuncName:   "RandomName",
+					Send:       "",
+					Args:       []string{},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -326,6 +335,30 @@ func TestCallErrors(t *testing.T) {
 			expectedError: ErrEmptyPkgPath,
 		},
 		{
+			name: "Invalid PkgVersion",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgCall{
+				{
+					PkgPath:    "random/path",
+					PkgVersion: "",
+					FuncName:   "RandomName",
+					Send:       "",
+					Args:       []string{},
+				},
+			},
+			expectedError: ErrEmptyPkgVersion,
+		},
+		{
 			name: "Invalid FuncName",
 			client: Client{
 				Signer:    &mockSigner{},
@@ -340,10 +373,11 @@ func TestCallErrors(t *testing.T) {
 			},
 			msgs: []MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "",
-					Send:     "",
-					Args:     []string{},
+					PkgPath:    "random/path",
+					PkgVersion: "v0.0.1",
+					FuncName:   "",
+					Send:       "",
+					Args:       []string{},
 				},
 			},
 			expectedError: ErrEmptyFuncName,
@@ -726,7 +760,10 @@ func TestRunErrors(t *testing.T) {
 				{
 					Package: &std.MemPackage{
 						Name: "",
-						Path: "",
+						ModFile: &std.MemMod{
+							ImportPath: "",
+							Version:    "",
+						},
 						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
@@ -772,7 +809,10 @@ func TestRunErrors(t *testing.T) {
 				{
 					Package: &std.MemPackage{
 						Name: "",
-						Path: "",
+						ModFile: &std.MemMod{
+							ImportPath: "",
+							Version:    "",
+						},
 						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
@@ -802,7 +842,10 @@ func TestRunErrors(t *testing.T) {
 				{
 					Package: &std.MemPackage{
 						Name: "",
-						Path: "",
+						ModFile: &std.MemMod{
+							ImportPath: "",
+							Version:    "",
+						},
 						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
@@ -832,7 +875,10 @@ func TestRunErrors(t *testing.T) {
 				{
 					Package: &std.MemPackage{
 						Name: "",
-						Path: "",
+						ModFile: &std.MemMod{
+							ImportPath: "",
+							Version:    "",
+						},
 						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",

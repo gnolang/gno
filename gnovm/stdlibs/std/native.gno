@@ -37,8 +37,8 @@ func GetCallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 
-func DerivePkgAddr(pkgPath string) Address {
-	return Address(derivePkgAddr(pkgPath))
+func DerivePkgAddr(pkgPath, pkgVersion string) Address {
+	return Address(derivePkgAddr(pkgPath, pkgVersion))
 }
 
 func EncodeBech32(prefix string, bz [20]byte) Address {
@@ -55,6 +55,6 @@ func origCaller() string
 func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
-func derivePkgAddr(pkgPath string) string
+func derivePkgAddr(pkgPath, pkgVersion string) string
 func encodeBech32(prefix string, bz [20]byte) string
 func decodeBech32(addr string) (prefix string, bz [20]byte, ok bool)

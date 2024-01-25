@@ -1,1 +1,1 @@
-module gno.land/r/manfred/config
+module gno.land/r/manfred/config v0.0.1

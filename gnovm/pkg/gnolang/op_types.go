@@ -121,7 +121,7 @@ func (m *Machine) doOpStructType() {
 	}
 	// push struct type
 	st := &StructType{
-		PkgPath: m.Package.PkgPath,
+		PkgPath: m.Package.ModFile.Path,
 		Fields:  fields,
 	}
 	m.PushValue(TypedValue{
@@ -142,7 +142,7 @@ func (m *Machine) doOpInterfaceType() {
 	}
 	// push interface type
 	it := &InterfaceType{
-		PkgPath: m.Package.PkgPath,
+		PkgPath: m.Package.ModFile.Path,
 		Methods: methods,
 		Generic: x.Generic,
 	}

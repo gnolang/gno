@@ -150,13 +150,14 @@ func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci
 func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	if len(reqParts) != 3 {
+		panic("expected three lines in query input data")
 	}
 	pkgPath := reqParts[0]
-	path := reqParts[1]
+	pkgVersion := reqParts[1]
+	path := reqParts[2]
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	result, err := vh.vm.QueryEvalString(ctx, pkgPath, pkgVersion, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -169,11 +170,12 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 1 {
-		panic("expected one line in query input data")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
 	}
 	pkgPath := reqParts[0]
-	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
+	pkgVersion := reqParts[1]
+	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath, pkgVersion)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -186,12 +188,13 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	if len(reqParts) != 3 {
+		panic("expected three lines in query input data")
 	}
 	pkgPath := reqParts[0]
-	expr := reqParts[1]
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
+	pkgVersion := reqParts[1]
+	expr := reqParts[2]
+	result, err := vh.vm.QueryEval(ctx, pkgPath, pkgVersion, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
@@ -205,7 +208,8 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 // if dir, res.Value is []byte("dir").
 func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	filepath := string(req.Data)
-	result, err := vh.vm.QueryFile(ctx, filepath)
+	version := "" // TODO(hariom): get version from abci req
+	result, err := vh.vm.QueryFile(ctx, version, filepath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

@@ -116,6 +116,7 @@ type Name string
 
 type Location struct {
 	PkgPath string
+	Version string
 	File    string
 	Line    int
 	Nonce   int
@@ -123,14 +124,16 @@ type Location struct {
 
 func (loc Location) String() string {
 	if loc.Nonce == 0 {
-		return fmt.Sprintf("%s/%s:%d",
+		return fmt.Sprintf("%s@%s/%s:%d",
 			loc.PkgPath,
+			loc.Version,
 			loc.File,
 			loc.Line,
 		)
 	} else {
-		return fmt.Sprintf("%s/%s:%d#%d",
+		return fmt.Sprintf("%s@%s/%s:%d#%d",
 			loc.PkgPath,
+			loc.Version,
 			loc.File,
 			loc.Line,
 			loc.Nonce,
@@ -140,6 +143,7 @@ func (loc Location) String() string {
 
 func (loc Location) IsZero() bool {
 	return loc.PkgPath == "" &&
+		loc.Version == "" &&
 		loc.File == "" &&
 		loc.Line == 0 &&
 		loc.Nonce == 0
@@ -1134,8 +1138,22 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
 func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
-	memPkg := &std.MemPackage{Path: pkgPath}
+	memPkg := &std.MemPackage{ModFile: &std.MemMod{
+		ImportPath: pkgPath,
+	}}
 	var pkgName Name
+	// read modfile
+	// TODO(hariom): improve
+	if len(list) < 1 {
+		panic("requires alteast 1 file")
+	}
+	dir := filepath.Dir(list[0])
+	// skip stdlibs, as they dont contains gno.mod file
+	if !strings.Contains(dir, "/stdlibs/") { // TODO(hariom): find a better way
+		gm := ParseMemMod(dir)
+		memPkg.ModFile = gm
+	}
+
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
@@ -1149,6 +1167,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		}
+
 		memPkg.Files = append(memPkg.Files,
 			&std.MemFile{
 				Name: fname,
@@ -1160,6 +1179,9 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	if !memPkg.IsEmpty() {
 		validatePkgName(string(pkgName))
 		memPkg.Name = string(pkgName)
+	}
+	if memPkg.ModFile.ImportPath == "" {
+		panic("empty importpath")
 	}
 
 	return memPkg
@@ -1294,29 +1316,36 @@ type FileNode struct {
 	Decls
 }
 
+type ModFileNode struct {
+	Path    string
+	Version string
+	Require []*std.Requirements
+}
+
 type PackageNode struct {
 	Attributes
 	StaticBlock
-	PkgPath string
 	PkgName Name
+	ModFile *ModFileNode
 	*FileSet
 }
 
-func PackageNodeLocation(path string) Location {
+func PackageNodeLocation(path, version string) Location {
 	return Location{
 		PkgPath: path,
+		Version: version,
 		File:    "",
 		Line:    0,
 	}
 }
 
-func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
+func NewPackageNode(name Name, modFile *ModFileNode, fset *FileSet) *PackageNode {
 	pn := &PackageNode{
-		PkgPath: path,
 		PkgName: name,
+		ModFile: modFile,
 		FileSet: fset,
 	}
-	pn.SetLocation(PackageNodeLocation(path))
+	pn.SetLocation(PackageNodeLocation(modFile.Path, modFile.Version))
 	pn.InitStaticBlock(pn, nil)
 	return pn
 }
@@ -1327,13 +1356,13 @@ func (x *PackageNode) NewPackage() *PackageValue {
 			Source: x,
 		},
 		PkgName:    x.PkgName,
-		PkgPath:    x.PkgPath,
+		ModFile:    x.ModFile,
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(x.PkgPath) {
-		rlm := NewRealm(x.PkgPath)
+	if IsRealmPath(x.ModFile.Path) {
+		rlm := NewRealm(x.ModFile.Path, x.ModFile.Version)
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
@@ -1348,7 +1377,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	if pv.PkgPath == "" {
+	if pv.ModFile.Path == "" {
 		// nothing to prepare for throwaway packages.
 		// TODO: double check to see if still relevant.
 		return nil
@@ -1357,7 +1386,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	block := pv.Block.(*Block)
 	if block.Source != x {
 		// special case if block.Source is ref node
-		if ref, ok := block.Source.(RefNode); ok && ref.Location == PackageNodeLocation(pv.PkgPath) {
+		if ref, ok := block.Source.(RefNode); ok && ref.Location == PackageNodeLocation(pv.ModFile.Path, pv.ModFile.Version) {
 			// this is fine
 		} else {
 			panic("PackageNode.PrepareNewValues() package mismatch")

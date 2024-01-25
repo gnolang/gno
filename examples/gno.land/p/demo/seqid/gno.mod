@@ -1,3 +1,3 @@
-module gno.land/p/demo/seqid
+module gno.land/p/demo/seqid v0.0.1
 
-require gno.land/p/demo/cford32 v0.0.0-latest
+require gno.land/p/demo/cford32 v0.0.1

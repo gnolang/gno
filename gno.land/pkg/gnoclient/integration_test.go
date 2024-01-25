@@ -42,10 +42,11 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Make Msg config
 	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+		PkgPath:    "gno.land/r/demo/deep/very/deep",
+		PkgVersion: "v0.0.1",
+		FuncName:   "Render",
+		Args:       []string{"test argument"},
+		Send:       "",
 	}
 
 	// Execute call
@@ -85,18 +86,20 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Make Msg configs
 	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "",
+		PkgPath:    "gno.land/r/demo/deep/very/deep",
+		PkgVersion: "v0.0.1",
+		FuncName:   "Render",
+		Args:       []string{""},
+		Send:       "",
 	}
 
 	// Same call, different argument
 	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+		PkgPath:    "gno.land/r/demo/deep/very/deep",
+		PkgVersion: "v0.0.1",
+		FuncName:   "Render",
+		Args:       []string{"test argument"},
+		Send:       "",
 	}
 
 	expected := "(\"it works!\" string)(\"hi test argument\" string)"
@@ -254,6 +257,14 @@ func main() {
 	// Make Msg configs
 	msg := MsgRun{
 		Package: &std.MemPackage{
+			ModFile: &std.MemMod{
+				ImportPath: "",
+				Version:    "",
+				Requires: []*std.Requirements{
+					{"gno.land/p/demo/ufmt", "v0.0.1"},
+					{"gno.land/r/demo/tests", "v0.0.1"},
+				},
+			},
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -322,6 +333,14 @@ func main() {
 	// Make Msg configs
 	msg1 := MsgRun{
 		Package: &std.MemPackage{
+			ModFile: &std.MemMod{
+				ImportPath: "",
+				Version:    "",
+				Requires: []*std.Requirements{
+					{"gno.land/p/demo/ufmt", "v0.0.1"},
+					{"gno.land/r/demo/tests", "v0.0.1"},
+				},
+			},
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -333,6 +352,14 @@ func main() {
 	}
 	msg2 := MsgRun{
 		Package: &std.MemPackage{
+			ModFile: &std.MemMod{
+				ImportPath: "",
+				Version:    "",
+				Requires: []*std.Requirements{
+					{"gno.land/p/demo/ufmt", "v0.0.1"},
+					{"gno.land/r/demo/deep/very/deep", "v0.0.1"},
+				},
+			},
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",

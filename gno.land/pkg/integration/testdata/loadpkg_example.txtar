@@ -4,16 +4,18 @@ loadpkg gno.land/p/demo/ufmt
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/importtest -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## execute Render
-gnokey maketx call -pkgpath gno.land/r/importtest -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/importtest@v0.0.0 -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("92054" string)'
 stdout OK!
 
 -- gno.mod --
-module gno.land/r/importtest
+module gno.land/r/importtest v0.0.0
+
+require gno.land/p/demo/ufmt v0.0.1
 
 -- import.gno --
 package importtest

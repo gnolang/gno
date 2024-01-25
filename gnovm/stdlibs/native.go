@@ -566,7 +566,7 @@ var nativeFuncs = [...]nativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := libs_std.X_derivePkgAddr(p0)
+			r0 := libs_std.X_derivePkgAddr(p0, "")
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,

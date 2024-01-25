@@ -25,6 +25,8 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+	pkgPath := "gno.land/r/test"
+
 	// Create test package.
 	files := []*std.MemFile{
 		{
@@ -38,14 +40,18 @@ func Echo() string {
 }`,
 		},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
-	assert.Nil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
+	assert.Nil(t, env.vmk.gnoStore.GetPackage(pkgPath, modfile.Version, false))
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+	assert.NotNil(t, env.vmk.gnoStore.GetPackage(pkgPath, modfile.Version, false))
 
 	err = env.vmk.AddPackage(ctx, msg1)
 
@@ -65,6 +71,8 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+	pkgPath := "gno.land/r/test"
+
 	// Create test package.
 	files := []*std.MemFile{
 		{"init.gno", `
@@ -84,14 +92,18 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -109,6 +121,8 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	pkgPath := "gno.land/r/test"
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -137,14 +151,18 @@ func GetAdmin() string {
 }
 `},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("11000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
 	assert.Equal(t, res, "")
@@ -164,6 +182,8 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+	pkgPath := "gno.land/r/test"
+
 	// Create test package.
 	files := []*std.MemFile{
 		{"init.gno", `
@@ -183,14 +203,18 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -208,6 +232,8 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+	pkgPath := "gno.land/r/test"
+
 	// Create test package.
 	files := []*std.MemFile{
 		{"init.gno", `
@@ -227,14 +253,18 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("10000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, `("echo:hello world" string)`)
@@ -252,6 +282,8 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
+	pkgPath := "gno.land/r/test"
+
 	// Create test package.
 	files := []*std.MemFile{
 		{"init.gno", `
@@ -271,14 +303,18 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run Echo function.
 	coins := std.MustParseCoins("9000000ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -295,6 +331,8 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	env.acck.SetAccount(ctx, acc)
 	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	pkgPath := "gno.land/r/test"
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -324,14 +362,18 @@ func GetAdmin() string {
 
 `},
 	}
-	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Run GetAdmin()
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
 	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
 	assert.NoError(t, err)
@@ -348,6 +390,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
+	pkgPath := "gno.land/r/test"
 	files := []*std.MemFile{
 		{"script.gno", `
 package main
@@ -357,9 +400,13 @@ func main() {
 }
 `},
 	}
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
 
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgRun(addr, coins, files)
+	msg2 := NewMsgRun(addr, coins, modfile, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, res, "hello world!\n")
@@ -375,6 +422,7 @@ func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
+	pkgPath := "gno.land/r/test"
 	files := []*std.MemFile{
 		{"script.gno", `
 package main
@@ -387,9 +435,13 @@ func main() {
 }
 `},
 	}
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
 
 	coins := std.MustParseCoins("")
-	msg2 := NewMsgRun(addr, coins, files)
+	msg2 := NewMsgRun(addr, coins, modfile, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
@@ -421,13 +473,17 @@ func Echo(msg string) string {
 		},
 	}
 	pkgPath := "gno.land/r/test"
-	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	modfile := &std.MemMod{
+		ImportPath: pkgPath,
+		Version:    "v0.0.0",
+	}
+	msg1 := NewMsgAddPackage(addr, modfile, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
 	// Call Echo function with wrong number of arguments
 	coins := std.MustParseCoins("1ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
+	msg2 := NewMsgCall(addr, coins, pkgPath, modfile.Version, "Echo", []string{"hello world", "extra arg"})
 	assert.PanicsWithValue(
 		t,
 		func() {

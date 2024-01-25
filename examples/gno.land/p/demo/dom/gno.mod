@@ -1,3 +1,3 @@
-module gno.land/p/demo/dom
+module gno.land/p/demo/dom v0.0.1
 
-require gno.land/p/demo/avl v0.0.0-latest
+require gno.land/p/demo/avl v0.0.1

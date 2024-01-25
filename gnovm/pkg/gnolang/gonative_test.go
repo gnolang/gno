@@ -19,7 +19,7 @@ func gonativeTestStore(args ...interface{}) Store {
 		for i := 0; i < len(args)/2; i++ {
 			pn := args[i*2].(*PackageNode)
 			pv := args[i*2+1].(*PackageValue)
-			if pkgPath == pv.PkgPath {
+			if pkgPath == pv.ModFile.Path {
 				return pn, pv
 			}
 		}
@@ -38,7 +38,7 @@ type Foo struct {
 
 func TestGoNativeDefine(t *testing.T) {
 	// Create package foo and define Foo.
-	pkg := NewPackageNode("foo", "test.foo", nil)
+	pkg := NewPackageNode("foo", &ModFileNode{Path: "test.gno"}, nil)
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
 	nt := pkg.GetValueRef(nil, Name("Foo")).GetType().(*NativeType)
@@ -64,7 +64,7 @@ func TestGoNativeDefine(t *testing.T) {
 
 func TestGoNativeDefine2(t *testing.T) {
 	// Create package foo and define Foo.
-	pkg := NewPackageNode("foo", "test.foo", nil)
+	pkg := NewPackageNode("foo", &ModFileNode{Path: "test.gno"}, nil)
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
 	pv := pkg.NewPackage()
@@ -102,7 +102,7 @@ func TestGoNativeDefine3(t *testing.T) {
 
 	// Create package foo and define Foo.
 	out := new(bytes.Buffer)
-	pkg := NewPackageNode("foo", "test.foo", nil)
+	pkg := NewPackageNode("foo", &ModFileNode{Path: "test.gno"}, nil)
 	pkg.DefineGoNativeType(reflect.TypeOf(Foo{}))
 	pkg.DefineGoNativeValue("PrintFoo", func(f Foo) {
 		out.Write([]byte(fmt.Sprintf("A: %v\n", f.A)))

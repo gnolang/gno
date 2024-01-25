@@ -39,7 +39,7 @@ func (fr Frame) String() string {
 			fr.NumExprs,
 			fr.NumStmts,
 			fr.NumBlocks,
-			fr.LastPackage.PkgPath,
+			fr.LastPackage.ModFile.Path,
 			fr.LastRealm)
 	} else if fr.GoFunc != nil {
 		return fmt.Sprintf("[FRAME GOFUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d]",

@@ -22,6 +22,18 @@ import (
 	"golang.org/x/mod/module"
 )
 
+// TODO(hariom): temporarily copied from pkg/gnolang to avoid import cycle
+const (
+	GnoRealmPkgsPrefixBefore = "gno.land/r/"
+	GnoRealmPkgsPrefixAfter  = "github.com/gnolang/gno/examples/gno.land/r/"
+	GnoPackagePrefixBefore   = "gno.land/p/demo/"
+	GnoPackagePrefixAfter    = "github.com/gnolang/gno/examples/gno.land/p/demo/"
+	GnoStdPkgBefore          = "std"
+	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"
+
+	ImportPrefix = "github.com/gnolang/gno"
+)
+
 // Parsed gno.mod file.
 type File struct {
 	Draft   bool

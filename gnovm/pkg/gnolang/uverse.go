@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // ----------------------------------------
@@ -64,6 +66,7 @@ var (
 )
 
 const uversePkgPath = ".uverse"
+const uversePkgVersion = "v0.0.1"
 
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
@@ -82,7 +85,11 @@ func UverseNode() *PackageNode {
 	}
 
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
-	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
+	uverseNode = NewPackageNode("uverse", &ModFileNode{
+		Path:    uversePkgPath,
+		Version: uversePkgVersion,
+		Require: make([]*std.Requirements, 0),
+	}, nil)
 
 	// temporary convenience functions.
 	def := func(n Name, tv TypedValue) {

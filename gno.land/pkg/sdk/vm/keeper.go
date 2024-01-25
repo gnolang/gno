@@ -136,7 +136,8 @@ var reRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
-	pkgPath := msg.Package.Path
+	pkgPath := msg.Package.ModFile.ImportPath
+	pkgVersion := msg.Package.ModFile.Version
 	memPkg := msg.Package
 	deposit := msg.Deposit
 	store := vm.getGnoStore(ctx)
@@ -152,7 +153,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
-	if pv := store.GetPackage(pkgPath, false); pv != nil {
+	if pv := store.GetPackage(pkgPath, pkgVersion, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 
@@ -161,7 +162,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	}
 
 	// Pay deposit from creator.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath, pkgVersion)
 
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
@@ -189,12 +190,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    os.Stdout, // XXX
-			Store:     store,
-			Alloc:     store.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
+			PkgPath:    "",
+			PkgVersion: pkgVersion,
+			Output:     os.Stdout, // XXX
+			Store:      store,
+			Alloc:      store.GetAllocator(),
+			Context:    msgCtx,
+			MaxCycles:  vm.maxCycles,
 		})
 	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
@@ -206,15 +208,20 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 // Calls calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
+	pkgVersion := msg.PkgVersion
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
 	// Get the package and function type.
-	pv := store.GetPackage(pkgPath, false)
-	pl := gno.PackageNodeLocation(pkgPath)
+	pv := store.GetPackage(pkgPath, pkgVersion, false)
+	pl := gno.PackageNodeLocation(pkgPath, pkgVersion)
 	pn := store.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
 	// Make main Package with imports.
-	mpn := gno.NewPackageNode("main", "main", nil)
+	mpn := gno.NewPackageNode("main", &gno.ModFileNode{
+		Path:    "main",
+		Version: pv.ModFile.Version,
+		Require: pv.ModFile.Require,
+	}, nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
 	// Parse expression.
@@ -228,7 +235,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath, pkgVersion)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
@@ -306,7 +313,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
+	memPkg.ModFile.ImportPath = "gno.land/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -377,7 +384,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 }
 
 // QueryFuncs returns public facing function signatures.
-func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
+func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath, pkgVersion string) (fsigs FunctionSignatures, err error) {
 	store := vm.getGnoStore(ctx)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
@@ -386,7 +393,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 		return nil, err
 	}
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := store.GetPackage(pkgPath, pkgVersion, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -439,12 +446,12 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath, pkgVersion string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath, pkgVersion)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := store.GetPackage(pkgPath, pkgVersion, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -469,12 +476,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
-			Output:    os.Stdout, // XXX
-			Store:     store,
-			Context:   msgCtx,
-			Alloc:     alloc,
-			MaxCycles: vm.maxCycles,
+			PkgPath:    pkgPath,
+			PkgVersion: "",        // TODO(hariom): version?
+			Output:     os.Stdout, // XXX
+			Store:      store,
+			Context:    msgCtx,
+			Alloc:      alloc,
+			MaxCycles:  vm.maxCycles,
 		})
 	defer func() {
 		if r := recover(); r != nil {
@@ -499,12 +507,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // The result is expected to be a single string (not a tuple).
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "EvalString".
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath, pkgVersion string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
 	store := vm.getGnoStore(ctx)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgAddr(pkgPath, pkgVersion)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := store.GetPackage(pkgPath, pkgVersion, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -554,17 +562,17 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	return res, nil
 }
 
-func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
+func (vm *VMKeeper) QueryFile(ctx sdk.Context, version, filepath string) (res string, err error) {
 	store := vm.getGnoStore(ctx)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
-		memFile := store.GetMemFile(dirpath, filename)
+		memFile := store.GetMemFile(dirpath, version, filename)
 		if memFile == nil {
 			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
 		}
 		return memFile.Body, nil
 	} else {
-		memPkg := store.GetMemPackage(dirpath)
+		memPkg := store.GetMemPackage(dirpath, version)
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
 				res += "\n"

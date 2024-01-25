@@ -25,7 +25,7 @@ import (
 const (
 	GnoRealmPkgsPrefixBefore = "gno.land/r/"
 	GnoRealmPkgsPrefixAfter  = "github.com/gnolang/gno/examples/gno.land/r/"
-	GnoPackagePrefixBefore   = "gno.land/p/demo/"
+	GnoPackagePrefixBefore   = "gno.land/p/"
 	GnoPackagePrefixAfter    = "github.com/gnolang/gno/examples/gno.land/p/demo/"
 	GnoStdPkgBefore          = "std"
 	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"

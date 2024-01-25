@@ -69,13 +69,13 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
-func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+func PkgIDFromPkgPath(path, version string) PkgID {
+	return PkgID{HashBytes([]byte(path + "@" + version))}
 }
 
-func ObjectIDFromPkgPath(path string) ObjectID {
+func ObjectIDFromPkgPath(path, version string) ObjectID {
 	return ObjectID{
-		PkgID:   PkgIDFromPkgPath(path),
+		PkgID:   PkgIDFromPkgPath(path, version),
 		NewTime: 1, // by realm logic.
 	}
 }
@@ -84,9 +84,10 @@ func ObjectIDFromPkgPath(path string) ObjectID {
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   PkgID
-	Path string
-	Time uint64
+	ID      PkgID
+	Path    string
+	Version string
+	Time    uint64
 
 	newCreated []Object
 	newEscaped []Object
@@ -99,12 +100,13 @@ type Realm struct {
 }
 
 // Creates a blank new realm with counter 0.
-func NewRealm(path string) *Realm {
-	id := PkgIDFromPkgPath(path)
+func NewRealm(path, version string) *Realm {
+	id := PkgIDFromPkgPath(path, version)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:      id,
+		Path:    path,
+		Version: version,
+		Time:    0,
 	}
 }
 
@@ -906,7 +908,7 @@ func getUnsavedChildObjects(val Value) []Object {
 		// sanity check:
 		if pv, ok := val.(*PackageValue); ok {
 			if !pv.IsRealm() && pv.GetIsDirty() {
-				panic("unexpected dirty non-realm package " + pv.PkgPath)
+				panic("unexpected dirty non-realm package " + pv.ModFile.Path)
 			}
 		}
 		// ...
@@ -1146,6 +1148,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			Closure:    closure,
 			FileName:   cv.FileName,
 			PkgPath:    cv.PkgPath,
+			PkgVersion: cv.PkgVersion,
 			NativePkg:  cv.NativePkg,
 			NativeName: cv.NativeName,
 		}
@@ -1180,7 +1183,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Block:      block,
 			PkgName:    cv.PkgName,
-			PkgPath:    cv.PkgPath,
+			ModFile:    cv.ModFile,
 			FNames:     cv.FNames, // no copy
 			FBlocks:    fblocks,
 			Realm:      cv.Realm,
@@ -1430,10 +1433,11 @@ func toRefValue(parent Object, val Value) RefValue {
 	} else if oo, ok := val.(Object); ok {
 		if pv, ok := val.(*PackageValue); ok {
 			if pv.GetIsDirty() {
-				panic("unexpected dirty package " + pv.PkgPath)
+				panic("unexpected dirty package " + pv.ModFile.Path)
 			}
 			return RefValue{
-				PkgPath: pv.PkgPath,
+				PkgPath:    pv.ModFile.Path,
+				PkgVersion: pv.ModFile.Version,
 			}
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")

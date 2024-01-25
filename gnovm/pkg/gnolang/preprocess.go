@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -15,7 +16,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		SetNodeLocations(pn.ModFile.Path, pn.ModFile.Version, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -133,9 +134,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
-		pkgPath := ctx.(*PackageNode).PkgPath
+		pn := ctx.(*PackageNode)
+		pkgPath := pn.ModFile.Path
+		pkgVersion := pn.ModFile.Version
 		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn)
+		SetNodeLocations(pkgPath, pkgVersion, fileName, fn)
 	}
 
 	// create stack of BlockNodes.
@@ -1345,10 +1348,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
+					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.ModFile.Path, cxt, n.Sel, nil)
 					if aerr {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
-							cxt.String(), n.Sel, lastpn.PkgPath))
+							cxt.String(), n.Sel, lastpn.ModFile.Path))
 					} else if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
@@ -1444,9 +1447,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					pn := pv.GetPackageNode(store)
 					// ensure exposed or package path match.
-					if !isUpper(string(n.Sel)) && lastpn.PkgPath != pv.PkgPath {
+					if !isUpper(string(n.Sel)) && lastpn.ModFile.Path != pv.ModFile.Path {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
-							pv.PkgPath, n.Sel, lastpn.PkgPath))
+							pv.ModFile.Path, n.Sel, lastpn.ModFile.Path))
 					} else {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
@@ -1927,7 +1930,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					// if store has this type, use that.
-					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
+					tid := DeclaredTypeID(lastpn.ModFile.Path, n.Name)
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
@@ -1939,7 +1942,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this is where declared types are
 						// actually instantiated, not in
 						// machine.go:runDeclaration().
-						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
+						dt2 := declareWith(lastpn.ModFile.Path, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
 						// }
@@ -2020,12 +2023,12 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	}
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
-	if store != nil && pn.PkgPath != uversePkgPath {
+	if store != nil && pn.ModFile.Path != uversePkgPath {
 		pv := pn.NewPackage() // temporary
 		store = store.Fork()
 		store.SetCachePackage(pv)
 	}
-	m := NewMachine(pn.PkgPath, store)
+	m := NewMachine(pn.ModFile.Path, store)
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
@@ -2094,12 +2097,12 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// and the preprocessor will panic when
 		// package values are already there that weren't
 		// yet predefined this time around.
-		if store != nil && pn.PkgPath != uversePkgPath {
+		if store != nil && pn.ModFile.Path != uversePkgPath {
 			pv := pn.NewPackage() // temporary
 			store = store.Fork()
 			store.SetCachePackage(pv)
 		}
-		m := NewMachine(pn.PkgPath, store)
+		m := NewMachine(pn.ModFile.Path, store)
 		t = m.EvalStaticTypeOf(last, x)
 		m.Release()
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
@@ -2965,7 +2968,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				Name:       cd.Name,
 				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
-				PkgPath:    pkg.PkgPath,
+				PkgPath:    pkg.ModFile.Path,
+				PkgVersion: pkg.ModFile.Version,
 				body:       cd.Body,
 				nativeBody: nil,
 			}) {
@@ -3031,11 +3035,28 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
-		pv := store.GetPackage(d.PkgPath, true)
+		pn := packageOf(last)
+		var version string
+		if strings.HasPrefix(d.PkgPath, "gno.land") {
+			for _, req := range pn.ModFile.Require {
+				if req.Path == d.PkgPath {
+					version = req.Version
+					break
+				}
+			}
+			if version == "" {
+				panic(fmt.Sprintf(
+					"cannot get version for package %s",
+					d.PkgPath))
+			}
+		}
+
+		// TODO(hariom): create helper
+		pv := store.GetPackage(d.PkgPath, version, true) // TODO(hariom): temp; fix
 		if pv == nil {
 			panic(fmt.Sprintf(
-				"unknown import path %s",
-				d.PkgPath))
+				"unknown import path %s (%s)",
+				d.PkgPath, version))
 		}
 		if d.Name == "" { // use default
 			d.Name = pv.PkgName
@@ -3150,7 +3171,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			} else {
 				// create new declared type.
 				pn := packageOf(last)
-				t = declareWith(pn.PkgPath, d.Name, t)
+				t = declareWith(pn.ModFile.Path, d.Name, t)
 			}
 			// fill in later.
 			last2.Define(d.Name, asValue(t))
@@ -3196,18 +3217,19 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				Name:       d.Name,
 				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
-				PkgPath:    pkg.PkgPath,
+				PkgPath:    pkg.ModFile.Path,
+				PkgVersion: pkg.ModFile.Version,
 				body:       d.Body,
 				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
 			if fv.body == nil && store != nil {
-				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
+				fv.nativeBody = store.GetNative(pkg.ModFile.Path, d.Name)
 				if fv.nativeBody == nil {
 					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
 				}
-				fv.NativePkg = pkg.PkgPath
+				fv.NativePkg = pkg.ModFile.Path
 				fv.NativeName = d.Name
 			}
 			pkg.Define(d.Name, TypedValue{
@@ -3571,12 +3593,13 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 // Iterate over all block nodes recursively and sets location information
 // based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func SetNodeLocations(pkgPath string, fileName string, n Node) {
+func SetNodeLocations(pkgPath, pkgVersion string, fileName string, n Node) {
 	if n.GetAttribute(ATTR_LOCATIONED) == true {
 		return // locations already set (typically n is a filenode).
 	}
-	if pkgPath == "" || fileName == "" {
-		panic("missing package path or file name")
+	if pkgPath == "" || fileName == "" { //  TODO(hariom): assert empty pkgVersion if not stdlib
+		panic(fmt.Sprintf("missing package path: %q(%q) or file name(%q)",
+			pkgPath, pkgVersion, fileName)) // TODO(hariom): better error
 	}
 	lastLine := 0
 	nextNonce := 0
@@ -3595,6 +3618,7 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 			}
 			loc := Location{
 				PkgPath: pkgPath,
+				Version: pkgVersion,
 				File:    fileName,
 				Line:    line,
 				Nonce:   nextNonce,
@@ -3614,9 +3638,10 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	// First, get the package and file names.
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
-	pkgPath := pn.PkgPath
+	pkgPath := pn.ModFile.Path
+	pkgVersion := pn.ModFile.Version
 	fileName := string(fn.Name)
-	if pkgPath == "" || fileName == "" {
+	if pkgPath == "" || fileName == "" { //  TODO(hariom): assert empty pkgVersion if not stdlib
 		panic("missing package path or file name")
 	}
 	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -3632,6 +3657,9 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 			}
 			if loc.PkgPath != pkgPath {
 				panic("unexpected pkg path in node location")
+			}
+			if loc.Version != pkgVersion {
+				panic("unexpected pkg version in node location")
 			}
 			if loc.File != fileName {
 				panic("unexpected file name in node location")

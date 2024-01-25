@@ -2,16 +2,19 @@
 
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/bug97 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97@v0.0.0' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall2' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97@v0.0.0' -func 'RealmCall2' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath 'gno.land/r/demo/bug97' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+gnokey maketx call -pkgpath 'gno.land/r/demo/bug97@v0.0.0' -func 'RealmCall1' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
 stdout 'OK!'
+
+-- gno.mod --
+module gno.land/r/demo/bug97 v0.0.0
 
 -- bug97.gno --
 package bug97

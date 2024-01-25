@@ -1,5 +1,7 @@
 package gnolang
 
+import "github.com/gnolang/gno/tm2/pkg/std"
+
 // Copy should happen before any preprocessing.
 // * Attributes are not copied.
 // * Paths are not copied.
@@ -369,9 +371,24 @@ func (x *FileNode) Copy() Node {
 
 func (x *PackageNode) Copy() Node {
 	return &PackageNode{
-		PkgPath: x.PkgPath,
 		PkgName: x.PkgName,
+		ModFile: x.ModFile.Copy(),
 		FileSet: x.FileSet.CopyFileSet(),
+	}
+}
+
+func (x *ModFileNode) Copy() *ModFileNode {
+	req := make([]*std.Requirements, 0)
+	for _, r := range x.Require {
+		req = append(req, &std.Requirements{
+			Path:    r.Path,
+			Version: r.Version,
+		})
+	}
+	return &ModFileNode{
+		Path:    x.Path,
+		Version: x.Version,
+		Require: req,
 	}
 }
 

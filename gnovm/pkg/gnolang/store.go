@@ -23,9 +23,10 @@ type NativeStore func(pkgName string, name Name) func(m *Machine)
 type Store interface {
 	// STABLE
 	SetPackageGetter(PackageGetter)
-	GetPackage(pkgPath string, isImport bool) *PackageValue
+	GetPackage(pkgPath, version string, isImport bool) *PackageValue
+	// GetPackageInfo(pkgPath string, isImport bool) *std.MemPackageInfo
 	SetCachePackage(*PackageValue)
-	GetPackageRealm(pkgPath string) *Realm
+	GetPackageRealm(pkgPath, pkgVersion string) *Realm
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
@@ -46,10 +47,11 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *std.MemPackage)
-	GetMemPackage(path string) *std.MemPackage
-	GetMemFile(path string, name string) *std.MemFile
-	IterMemPackage() <-chan *std.MemPackage
+	AddMemPackageInfo(memPkg *std.MemPackageInfo)
+	GetMemPackage(path, version string) *std.MemPackage
+	GetMemPackageInfo(path string) (*std.MemPackageInfo, error)
+	GetMemFile(path, version, name string) *std.MemFile
+	IterMemPackageInfo() <-chan *std.MemPackageInfo
 	ClearObjectCache()                                    // for each delivertx.
 	Fork() Store                                          // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store)          // for gas wrappers.
@@ -108,7 +110,8 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 }
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
-func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+func (ds *defaultStore) GetPackage(pkgPath, version string, isImport bool) *PackageValue {
+	// fmt.Println("GetPackage:", pkgPath, version, isImport)
 	// detect circular imports
 	if isImport {
 		if _, exists := ds.current[pkgPath]; exists {
@@ -118,7 +121,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 		defer delete(ds.current, pkgPath)
 	}
 	// first, check cache.
-	oid := ObjectIDFromPkgPath(pkgPath)
+	oid := ObjectIDFromPkgPath(pkgPath, version)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
 		return pv
@@ -130,11 +133,11 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
+				rlm := ds.GetPackageRealm(pkgPath, version)
 				pv.Realm = rlm
 			}
 			// get package node.
-			pl := PackageNodeLocation(pkgPath)
+			pl := PackageNodeLocation(pkgPath, version)
 			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
 			if !ok {
 				// Do not inject packages from packageGetter
@@ -203,16 +206,17 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 
 // Used to set throwaway packages.
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
-	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	oid := ObjectIDFromPkgPath(pv.ModFile.Path, pv.ModFile.Version)
 	if _, exists := ds.cacheObjects[oid]; exists {
-		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
+		panic(fmt.Sprintf("package %s(%s) already exists in cache",
+			pv.ModFile.Path, pv.ModFile.Version))
 	}
 	ds.cacheObjects[oid] = pv
 }
 
 // Some atomic operation.
-func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
-	oid := ObjectIDFromPkgPath(pkgPath)
+func (ds *defaultStore) GetPackageRealm(pkgPath, pkgVersion string) (rlm *Realm) {
+	oid := ObjectIDFromPkgPath(pkgPath, pkgVersion)
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get([]byte(key))
 	if bz == nil {
@@ -230,7 +234,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
-	oid := ObjectIDFromPkgPath(rlm.Path)
+	oid := ObjectIDFromPkgPath(rlm.Path, rlm.Version)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
 	ds.baseStore.Set([]byte(key), bz)
@@ -522,35 +526,57 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
-	memPkg.Validate() // NOTE: duplicate validation.
+func (ds *defaultStore) AddMemPackageInfo(memPkgInfo *std.MemPackageInfo) {
+	memPkgInfo.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
-	bz := amino.MustMarshal(memPkg)
-	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
-	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	bz := amino.MustMarshal(memPkgInfo)
+	ds.baseStore.Set(idxkey, []byte(memPkgInfo.Path))
+	pathkey := []byte(backendPackagePathKey(memPkgInfo.Path))
 	ds.iavlStore.Set(pathkey, bz)
 }
 
-func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+func (ds *defaultStore) GetMemPackageInfo(path string) (*std.MemPackageInfo, error) {
+	pathkey := []byte(backendPackagePathKey(path))
+	bz := ds.iavlStore.Get(pathkey)
+	if bz == nil {
+		return nil, fmt.Errorf("missing package at path %s", string(pathkey))
+	}
+	var memPkgInfo *std.MemPackageInfo
+	amino.MustUnmarshal(bz, &memPkgInfo)
+	return memPkgInfo, nil
+}
+
+func (ds *defaultStore) GetMemPackage(path, version string) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
 		panic(fmt.Sprintf(
 			"missing package at path %s", string(pathkey)))
 	}
+	var memPkgInfo *std.MemPackageInfo
+	amino.MustUnmarshal(bz, &memPkgInfo)
 	var memPkg *std.MemPackage
-	amino.MustUnmarshal(bz, &memPkg)
+	for _, ver := range memPkgInfo.Versions {
+		if ver.ModFile.Version == version {
+			memPkg = ver
+			break
+		}
+	}
+	if memPkg == nil {
+		panic(fmt.Sprintf(
+			"missing package version %s at path %s", version, string(pathkey)))
+	}
 	return memPkg
 }
 
-func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	memPkg := ds.GetMemPackage(path)
+func (ds *defaultStore) GetMemFile(path, version, name string) *std.MemFile {
+	memPkg := ds.GetMemPackage(path, version)
 	memFile := memPkg.GetFile(name)
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
+func (ds *defaultStore) IterMemPackageInfo() <-chan *std.MemPackageInfo {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -560,7 +586,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *std.MemPackageInfo, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -569,8 +595,11 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
-				memPkg := ds.GetMemPackage(string(path))
-				ch <- memPkg
+				memPkgInfo, err := ds.GetMemPackageInfo(string(path))
+				if err != nil {
+					panic(err)
+				}
+				ch <- memPkgInfo
 			}
 			close(ch)
 		}()
@@ -764,7 +793,7 @@ func backendPackageIndexKey(index uint64) string {
 }
 
 func backendPackagePathKey(path string) string {
-	return fmt.Sprintf("pkg:" + path)
+	return fmt.Sprintf("pkg:%s", path)
 }
 
 // ----------------------------------------
