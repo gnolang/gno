@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"github.com/jaekwon/testify/assert"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -88,6 +89,7 @@ func TestClient_Call(t *testing.T) {
 func TestClient_Call_Errors(t *testing.T) {
 	t.Parallel()
 
+	// todo Replace with mock client
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
 	defer node.Stop()
@@ -98,7 +100,8 @@ func TestClient_Call_Errors(t *testing.T) {
 	testCases := []struct {
 		name          string
 		client        Client
-		cfg           CallCfg
+		cfg           BaseTxCfg
+		msgs          []MsgCall
 		expectedError error
 	}{
 		{
@@ -107,7 +110,7 @@ func TestClient_Call_Errors(t *testing.T) {
 				nil,
 				rpcClient,
 			},
-			cfg:           CallCfg{},
+			cfg:           BaseTxCfg{},
 			expectedError: errMissingSigner,
 		},
 		{
@@ -116,8 +119,41 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				nil,
 			},
-			cfg:           CallCfg{},
+			cfg:           BaseTxCfg{},
 			expectedError: errMissingRPCClient,
+		},
+		{
+			name: "Invalid Gas Fee",
+			client: Client{
+				signer,
+				rpcClient,
+			},
+			cfg: BaseTxCfg{
+				GasFee: "",
+			},
+			expectedError: errInvalidGasFee,
+		},
+		{
+			name: "Negative Gas Wanted",
+			client: Client{
+				signer,
+				rpcClient,
+			},
+			cfg: BaseTxCfg{
+				GasWanted: -20,
+			},
+			expectedError: errInvalidGasWanted,
+		},
+		{
+			name: "0 Gas Wanted",
+			client: Client{
+				signer,
+				rpcClient,
+			},
+			cfg: BaseTxCfg{
+				GasWanted: 0,
+			},
+			expectedError: errInvalidGasWanted,
 		},
 		{
 			name: "Invalid PkgPath",
@@ -125,9 +161,10 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				rpcClient,
 			},
-			cfg: CallCfg{
-				Msgs: []MsgCall{
-					{PkgPath: ""},
+			cfg: BaseTxCfg{},
+			msgs: []MsgCall{
+				{
+					PkgPath: "",
 				},
 			},
 			expectedError: errInvalidPkgPath,
@@ -138,9 +175,11 @@ func TestClient_Call_Errors(t *testing.T) {
 				signer,
 				rpcClient,
 			},
-			cfg: CallCfg{
-				Msgs: []MsgCall{
-					{PkgPath: "random/path", FuncName: ""},
+			cfg: BaseTxCfg{},
+			msgs: []MsgCall{
+				{
+					PkgPath:  "random/path",
+					FuncName: "",
 				},
 			},
 			expectedError: errInvalidFuncName,
@@ -149,8 +188,11 @@ func TestClient_Call_Errors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := tc.client.Call(tc.cfg)
-			require.Equal(t, err, tc.expectedError)
+			t.Parallel()
+
+			res, err := tc.client.Call(tc.cfg)
+			assert.Equal(t, err, tc.expectedError)
+			assert.NotNil(t, res)
 		})
 	}
 }

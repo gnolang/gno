@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	errInvalidPkgPath     = errors.New("invalid pkgpath")
-	errInvalidFuncName    = errors.New("invalid function name")
-	errInvalidGasWanted   = errors.New("invalid gas-wanted")
-	errInvalidAccOrSeqNum = errors.New("invalid account or sequence number")
-	errMissingSigner      = errors.New("missing Signer")
-	errMissingRPCClient   = errors.New("missing RPCClient")
+	errInvalidPkgPath   = errors.New("invalid pkgpath")
+	errInvalidFuncName  = errors.New("invalid function name")
+	errInvalidGasWanted = errors.New("invalid gas wanted")
+	errInvalidGasFee    = errors.New("invalid gas fee")
+	errMissingSigner    = errors.New("missing Signer")
+	errMissingRPCClient = errors.New("missing RPCClient")
 )
 
 type BaseTxCfg struct {
@@ -38,9 +38,10 @@ func (cfg BaseTxCfg) validateBaseTxConfig() error {
 	if cfg.GasWanted < 0 {
 		return errInvalidGasWanted
 	}
-	if cfg.AccountNumber < 0 || cfg.SequenceNumber < 0 {
-		return errInvalidAccOrSeqNum
+	if cfg.GasFee < "" {
+		return errInvalidGasFee
 	}
+
 	return nil
 }
 
@@ -83,7 +84,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 			return nil, fmt.Errorf("%w", err)
 		}
 
-		// Create
+		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, vm.MsgCall{
 			Caller:  c.Signer.Info().GetAddress(),
 			PkgPath: msg.PkgPath,
