@@ -82,7 +82,14 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 func FlipTiles(player std.Address, gameID string, positions string) (string) {
 	// get the current game of the player
 	games := GetUserGames(player)
-	currentGame := games[0]
+	var currentGame *Game // Declare a pointer to a Game
+	for _, game := range games {
+		if game.ID == gameID {
+			currentGame = game
+			break // Stop the loop once the game is found
+		}
+	}
+	//currentGame := games[0]
 	currentGamePositions, err := ParseString(positions)
 	
 	// call real FlipTiles on flippandoserver, which does the game mechanics
