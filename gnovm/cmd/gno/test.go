@@ -499,10 +499,6 @@ func runTestFiles(
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
-		if verbose {
-			io.ErrPrintfln("=== RUN   %s", test.Name)
-		}
-
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
 		startedAt := time.Now()
@@ -529,7 +525,6 @@ func runTestFiles(
 
 		switch {
 		case rep.Filtered:
-			io.ErrPrintfln("--- FILT: %s", test.Name)
 			// noop
 		case rep.Skipped:
 			if verbose {

@@ -131,7 +131,7 @@ func (t *T) Run(name string, f testingFunc) bool {
 	}
 	t.subs = append(t.subs, subT)
 
-	tRunner(subT, f, true)
+	tRunner(subT, f, t.verbose)
 	return true
 }
 
@@ -271,7 +271,7 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 		t.runFilter = splitRegexp(runFlag)
 	}
 
-	tRunner(t, test.F, false)
+	tRunner(t, test.F, verbose)
 
 doReport:
 	report := t.report()
@@ -282,9 +282,6 @@ doReport:
 func tRunner(t *T, fn testingFunc, logSteps bool) {
 	if !t.shouldRun(t.name) {
 		t.filtered = true
-		if logSteps {
-			// fmt.Printf("--- FILT  %s\n", t.name)
-		}
 		return
 	}
 
