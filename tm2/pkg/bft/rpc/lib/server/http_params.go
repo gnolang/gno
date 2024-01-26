@@ -15,13 +15,13 @@ var (
 	dotAtom = atom + `(?:\.` + atom + `)*`
 	domain  = `[A-Z0-9.-]+\.[A-Z]{2,4}`
 
-	RE_INT     = regexp.MustCompile(`^-?[0-9]+$`)
-	RE_HEX     = regexp.MustCompile(`^(?i)[a-f0-9]+$`)
-	RE_EMAIL   = regexp.MustCompile(`^(?i)(` + dotAtom + `)@(` + dotAtom + `)$`)
-	RE_ADDRESS = regexp.MustCompile(`^(?i)[a-z0-9]{25,34}$`)
-	RE_HOST    = regexp.MustCompile(`^(?i)(` + domain + `)$`)
+	reInt     = regexp.MustCompile(`^-?[0-9]+$`)
+	reHex     = regexp.MustCompile(`^(?i)[a-f0-9]+$`)
+	reEmail   = regexp.MustCompile(`^(?i)(` + dotAtom + `)@(` + dotAtom + `)$`)
+	reAddress = regexp.MustCompile(`^(?i)[a-z0-9]{25,34}$`)
+	reHost    = regexp.MustCompile(`^(?i)(` + domain + `)$`)
 
-	// RE_ID12       = regexp.MustCompile(`^[a-zA-Z0-9]{12}$`)
+	// reID12       = regexp.MustCompile(`^[a-zA-Z0-9]{12}$`)
 )
 
 func GetParam(r *http.Request, param string) string {
