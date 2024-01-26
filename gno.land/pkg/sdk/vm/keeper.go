@@ -3,9 +3,8 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
-	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"strings"
 
@@ -85,7 +84,7 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
-				Output:  os.Stdout, // XXX
+				Output:  io.Discard,
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
@@ -192,7 +191,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
-			Output:    os.Stdout, // XXX
+			Output:    io.Discard,
 			Store:     store,
 			Alloc:     store.GetAllocator(),
 			Context:   msgCtx,
@@ -267,7 +266,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
-			Output:    os.Stdout, // XXX
+			Output:    io.Discard,
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     store.GetAllocator(),
@@ -330,11 +329,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		Banker:        NewSDKBanker(vm, ctx),
 	}
 	// Parse and run the files, construct *PV.
-	buf := new(bytes.Buffer)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
-			Output:    buf,
+			Output:    io.Discard,
 			Store:     store,
 			Alloc:     store.GetAllocator(),
 			Context:   msgCtx,
@@ -347,7 +345,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
-			Output:    buf,
+			Output:    io.Discard,
 			Store:     store,
 			Alloc:     store.GetAllocator(),
 			Context:   msgCtx,
@@ -362,11 +360,15 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		}
 		m2.Release()
 	}()
-	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call",
-		"cycles", m2.Cycles,
-	)
-	res = buf.String()
+
+	rtvs := m2.Eval(gno.Call(gno.X("main")))
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m2.Cycles)
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
 	return res, nil
 }
 
@@ -464,7 +466,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
-			Output:    os.Stdout, // XXX
+			Output:    io.Discard,
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
@@ -524,7 +526,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
-			Output:    os.Stdout, // XXX
+			Output:    io.Discard,
 			Store:     store,
 			Context:   msgCtx,
 			Alloc:     alloc,
