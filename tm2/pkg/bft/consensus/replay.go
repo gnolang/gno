@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
@@ -196,7 +198,7 @@ type Handshaker struct {
 	store        sm.BlockStore
 	evsw         events.EventSwitch
 	genDoc       *types.GenesisDoc
-	logger       log.Logger
+	logger       *slog.Logger
 
 	nBlocks int // number of blocks applied to the state
 }
@@ -210,12 +212,12 @@ func NewHandshaker(stateDB dbm.DB, state sm.State,
 		store:        store,
 		evsw:         events.NilEventSwitch(),
 		genDoc:       genDoc,
-		logger:       log.NewNopLogger(),
+		logger:       log.NewNoopLogger(),
 		nBlocks:      0,
 	}
 }
 
-func (h *Handshaker) SetLogger(l log.Logger) {
+func (h *Handshaker) SetLogger(l *slog.Logger) {
 	h.logger = l
 }
 
