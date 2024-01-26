@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"strconv"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/integration"
@@ -9,8 +11,10 @@ import (
 )
 
 func Test_ScriptsTest(t *testing.T) {
+	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	p := testscript.Params{
-		Dir: "testdata/gno_test",
+		UpdateScripts: updateScripts,
+		Dir:           "testdata/gno_test",
 	}
 
 	if coverdir, ok := integration.ResolveCoverageDir(); ok {

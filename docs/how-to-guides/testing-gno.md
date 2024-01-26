@@ -26,7 +26,9 @@ the [How to write a simple Gno Smart Contract (Realm)](simple-contract.md) guide
 
 package counter
 
-import "fmt"
+import (
+	"gno.land/p/demo/ufmt"
+)
 
 var count int
 
@@ -39,7 +41,7 @@ func Decrement() {
 }
 
 func Render(_ string) string {
-	return fmt.Sprintf("Count: %d", count)
+	return ufmt.Sprintf("Count: %d", count)
 }
 ```
 

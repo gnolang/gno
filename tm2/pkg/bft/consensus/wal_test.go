@@ -54,7 +54,7 @@ func TestWALTruncate(t *testing.T) {
 	const walChunkSize = 409610 // 4KB
 	wal := makeTempWAL(t, walChunkSize)
 
-	wal.SetLogger(log.TestingLogger())
+	wal.SetLogger(log.NewTestingLogger(t))
 
 	type grouper interface {
 		Group() *auto.Group
