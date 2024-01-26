@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -70,7 +72,7 @@ func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *
 ) {
 	t.Helper()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
@@ -169,7 +171,7 @@ LOOP:
 		t.Logf("====== LOOP %d\n", i)
 
 		// create consensus state from a clean slate
-		logger := log.NewNopLogger()
+		logger := log.NewTestingLogger(t)
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
@@ -253,7 +255,7 @@ func (e ReachedLastBlockHeightError) Error() string {
 	return fmt.Sprintf("reached height to stop %d", e.height)
 }
 
-func (w *crashingWAL) SetLogger(logger log.Logger) {
+func (w *crashingWAL) SetLogger(logger *slog.Logger) {
 	w.next.SetLogger(logger)
 }
 
@@ -570,7 +572,7 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 func TestMockProxyApp(t *testing.T) {
 	t.Parallel()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
 
@@ -662,7 +664,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 		wal, err := walm.NewWAL(walFile, maxMsgSize)
 		require.NoError(t, err)
-		wal.SetLogger(log.TestingLogger())
+		wal.SetLogger(log.NewTestingLogger(t))
 		err = wal.Start()
 		require.NoError(t, err)
 		defer wal.Stop()
@@ -733,7 +735,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp proxy.AppConns) sm.State {
 	testPartSize := types.BlockPartSizeBytes
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 
 	blkID := types.BlockID{Hash: blk.Hash(), PartsHeader: blk.MakePartSet(testPartSize).Header()}
 	newState, err := blockExec.ApplyBlock(st, blkID, blk)

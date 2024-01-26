@@ -48,6 +48,14 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
+      - name: Set environment variables for debug mode
+        if: env.ACTIONS_STEP_DEBUG == 'true'
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          mkdir -p $LOG_PATH_DIR
+
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno test --verbose ./examples/...
   lint:

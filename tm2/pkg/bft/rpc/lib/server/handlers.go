@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gorilla/websocket"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -25,7 +27,7 @@ import (
 
 // RegisterRPCFuncs adds a route for each function in the funcMap, as well as general jsonrpc and websocket handlers for all functions.
 // "result" is the interface on which the result objects are registered, and is populated with every RPCResponse
-func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger log.Logger) {
+func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger *slog.Logger) {
 	// HTTP endpoints
 	for funcName, rpcFunc := range funcMap {
 		mux.HandleFunc("/"+funcName, makeHTTPHandler(rpcFunc, logger))
@@ -99,7 +101,7 @@ func funcReturnTypes(f interface{}) []reflect.Type {
 // rpc.json
 
 // jsonrpc calls grab the given method's function info and runs reflect.Call
-func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.HandlerFunc {
+func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -256,7 +258,7 @@ func jsonParamsToArgs(rpcFunc *RPCFunc, raw []byte) ([]reflect.Value, error) {
 // rpc.http
 
 // convert from a function name to the http handler
-func makeHTTPHandler(rpcFunc *RPCFunc, logger log.Logger) func(http.ResponseWriter, *http.Request) {
+func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) func(http.ResponseWriter, *http.Request) {
 	// Exception for websocket endpoints
 	if rpcFunc.ws {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -758,7 +760,7 @@ type WebsocketManager struct {
 	websocket.Upgrader
 
 	funcMap       map[string]*RPCFunc
-	logger        log.Logger
+	logger        *slog.Logger
 	wsConnOptions []func(*wsConnection)
 }
 
@@ -773,13 +775,13 @@ func NewWebsocketManager(funcMap map[string]*RPCFunc, wsConnOptions ...func(*wsC
 				return true
 			},
 		},
-		logger:        log.NewNopLogger(),
+		logger:        log.NewNoopLogger(),
 		wsConnOptions: wsConnOptions,
 	}
 }
 
 // SetLogger sets the logger.
-func (wm *WebsocketManager) SetLogger(l log.Logger) {
+func (wm *WebsocketManager) SetLogger(l *slog.Logger) {
 	wm.logger = l
 }
 
