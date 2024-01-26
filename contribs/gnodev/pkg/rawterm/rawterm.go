@@ -11,9 +11,7 @@ import (
 	"golang.org/x/term"
 )
 
-var (
-	CRLF = []byte{'\r', '\n'}
-)
+var CRLF = []byte{'\r', '\n'}
 
 // rawTerminal wraps an io.Writer, converting \n to \r\n
 type RawTerm struct {

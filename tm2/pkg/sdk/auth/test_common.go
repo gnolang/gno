@@ -31,7 +31,7 @@ func setupTestEnv() testEnv {
 	acck := NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
 
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
 		Block: &abci.BlockParams{

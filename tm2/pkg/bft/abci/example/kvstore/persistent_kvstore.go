@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -31,7 +33,7 @@ type PersistentKVStoreApplication struct {
 	// validator set
 	ValSetChanges []abci.ValidatorUpdate
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
@@ -45,11 +47,11 @@ func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication
 
 	return &PersistentKVStoreApplication{
 		app:    &KVStoreApplication{state: state},
-		logger: log.NewNopLogger(),
+		logger: log.NewNoopLogger(),
 	}
 }
 
-func (app *PersistentKVStoreApplication) SetLogger(l log.Logger) {
+func (app *PersistentKVStoreApplication) SetLogger(l *slog.Logger) {
 	app.logger = l
 }
 

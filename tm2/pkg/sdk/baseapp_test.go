@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"testing"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,7 +17,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -55,8 +56,10 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	return tx
 }
 
-func defaultLogger() log.Logger {
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
+func defaultLogger() *slog.Logger {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	return logger.With("module", "sdk/app")
 }
 
 func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
