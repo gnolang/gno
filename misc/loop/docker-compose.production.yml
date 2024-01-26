@@ -57,6 +57,8 @@ services:
       - https://rpc.portal.gno.land:443
     networks:
       - portal-loop
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   # gnofaucet:
   #   image: gnofaucet
@@ -94,7 +96,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"
+      - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
     image: ghcr.io/albttx/gno/autocounterd
@@ -104,6 +106,8 @@ services:
       COUNTER_RPC: "http://traefik:81"
     networks:
       - portal-loop
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   watchtower:
     image: containrrr/watchtower
