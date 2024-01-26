@@ -17,10 +17,10 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	//backup "github.com/gnolang/tx-archive/backup/client"
-	//restore "github.com/gnolang/tx-archive/restore/client"
+	"golang.org/x/exp/slog"
+	// backup "github.com/gnolang/tx-archive/backup/client"
+	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
@@ -31,7 +31,7 @@ type Node struct {
 
 	emitter events.Emitter
 	client  client.Client
-	logger  log.Logger
+	logger  slog.Logger
 	pkgs    PkgsMap // path -> pkg
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
@@ -48,7 +48,7 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, logger log.Logger, emitter events.Emitter, pkgslist []string) (*Node, error) {
+func NewDevNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, pkgslist []string) (*Node, error) {
 	mpkgs, err := newPkgsMap(pkgslist)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -367,7 +367,7 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(ctx context.Context, logger log.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func newNode(ctx context.Context, logger slog.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
 	// Setup node config
