@@ -681,7 +681,7 @@ func (m *Machine) doOpStructLit() {
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	lb := m.LastBlock()
-	var captures []*NameExpr
+	captures := make([]*NameExpr, 0)
 	for _, n := range x.GetExternNames() {
 		vp := x.GetPathForName(m.Store, n)
 		if vp.Depth == 0 { // skip uverse name
@@ -706,7 +706,7 @@ func (m *Machine) doOpFuncLit() {
 		loopBlock    *Block         // e.g. a `for` block that is  outside of funcLit block
 		lvBox        *LoopValuesBox // container per block to store transient values for captured vars
 		lastGen, gen uint8
-		isFilled     bool
+		isReuse      bool
 		loopData     []*LoopBlockData // for fv to track all transient values
 	)
 
@@ -727,7 +727,7 @@ func (m *Machine) doOpFuncLit() {
 			lastGen = gen
 		} else if gen != lastGen { // if enter new level of block, pack last box
 			lastGen = gen
-			if lvBox != nil && !isFilled { // has something to pack
+			if lvBox != nil && !isReuse { // has something to pack
 				lvBox.isFilled = true
 				loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
 			}
@@ -748,7 +748,7 @@ func (m *Machine) doOpFuncLit() {
 				// record in loop block
 				loopBlock.GetBodyStmt().LoopValuesBox = lvBox
 			} else { // reuse last replica's. (in same block).
-				isFilled = true // use isFilled instead
+				isReuse = true // use isFilled instead
 				// get cursor by name
 				lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // inc by iteration
 				// each fv may have n outer loopBlock, reference them all
@@ -757,7 +757,7 @@ func (m *Machine) doOpFuncLit() {
 		}
 	}
 	// set as a deferred operation
-	if lvBox != nil && !lvBox.isFilled && !isFilled {
+	if lvBox != nil && !lvBox.isFilled && !isReuse {
 		lvBox.isFilled = true // set for the last LoopValuesBox of last loopBlock
 		loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
 	}

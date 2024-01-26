@@ -709,8 +709,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
-								cx.T.Kind() == FuncKind &&
-								ftype != TRANS_CALL_FUNC {
+							cx.T.Kind() == FuncKind &&
+							ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
@@ -1352,8 +1352,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Case 1: If receiver is pointer type but n.X is
 					// not:
 					if rcvr != nil &&
-							rcvr.Kind() == PointerKind &&
-							nxt2.Kind() != PointerKind {
+						rcvr.Kind() == PointerKind &&
+						nxt2.Kind() != PointerKind {
 						// Go spec: "If x is addressable and &x's
 						// method set contains m, x.m() is shorthand
 						// for (&x).m()"
@@ -1385,8 +1385,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							))
 						}
 					} else if len(tr) > 0 &&
-							tr[len(tr)-1].IsDerefType() &&
-							nxt2.Kind() != PointerKind {
+						tr[len(tr)-1].IsDerefType() &&
+						nxt2.Kind() != PointerKind {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
@@ -1525,7 +1525,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if len(n.Lhs) != len(cft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
-											"%d variables but %s returns %d values",
+										"%d variables but %s returns %d values",
 									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
 							for i, lx := range n.Lhs {
@@ -1594,7 +1594,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if len(n.Lhs) != len(cft.Results) {
 								panic(fmt.Sprintf(
 									"assignment mismatch: "+
-											"%d variables but %s returns %d values",
+										"%d variables but %s returns %d values",
 									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
 						case *TypeAssertExpr:
@@ -1833,7 +1833,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// evaluate typed value for static definition.
 					for i, vx := range n.Values {
 						if cx, ok := vx.(*ConstExpr); ok &&
-								!cx.TypedValue.IsUndefined() {
+							!cx.TypedValue.IsUndefined() {
 							if n.Const {
 								// const _ = <const_expr>: static block should contain value
 								tvs[i] = cx.TypedValue
@@ -2219,7 +2219,7 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-		bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -2470,8 +2470,8 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
 			if !dxt.sealed && !ddt.sealed &&
-					dxt.PkgPath == ddt.PkgPath &&
-					dxt.Name == ddt.Name { // not yet sealed
+				dxt.PkgPath == ddt.PkgPath &&
+				dxt.Name == ddt.Name { // not yet sealed
 				return // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return // ok
