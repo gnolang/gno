@@ -45,7 +45,7 @@ const (
 	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
 	reRlmPath      = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
 	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
-	reFileName     = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
+	reFileName     = `^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`
 )
 
 // path must not contain any dots after the first domain component.
