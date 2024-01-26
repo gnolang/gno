@@ -4,6 +4,10 @@ networks:
   portal-loop:
     name: portal-loop
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.42.0.0/16
 
 services:
   traefik:

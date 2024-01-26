@@ -190,7 +190,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 	return nil, fmt.Errorf("container not found")
 }
 
-func (s snapshotter) backupTXs(ctx context.Context) error {
+func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	cfg := backup.DefaultConfig()
 	cfg.FromBlock = 1
 	cfg.Watch = false
@@ -202,7 +202,8 @@ func (s snapshotter) backupTXs(ctx context.Context) error {
 	defer instanceBackupFile.Close()
 
 	w := legacy.NewWriter(instanceBackupFile)
-	client := http.NewClient(s.cfg.rpcAddr)
+	// client := http.NewClient(s.cfg.rpcAddr)
+	client := http.NewClient(rpcURL)
 
 	backupService := backup.NewService(client, w)
 

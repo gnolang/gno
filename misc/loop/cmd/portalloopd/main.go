@@ -160,7 +160,7 @@ func (s *service) execBackup(ctx context.Context, args []string) error {
 		return err
 	}
 
-	return s.portalLoop.backupTXs(ctx)
+	return s.portalLoop.backupTXs(ctx, s.portalLoopURL)
 }
 
 func (s *service) startPortalLoop(ctx context.Context, force bool) error {
@@ -227,7 +227,7 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 
 	l.Info("Backup txs")
 	// 5. Backup TXs
-	err = s.portalLoop.backupTXs(ctx)
+	err = s.portalLoop.backupTXs(ctx, s.portalLoopURL)
 	if err != nil {
 		return err
 	}

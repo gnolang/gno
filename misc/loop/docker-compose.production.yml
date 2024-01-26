@@ -4,6 +4,9 @@ networks:
   portal-loop:
     name: portal-loop
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16
 
 services:
   traefik:
@@ -73,7 +76,6 @@ services:
   portalloopd:
     image: ghcr.io/albttx/gno/portalloopd
     restart: unless-stopped
-    working_dir: /app
     volumes:
       - ./scripts:/scripts
       - ./backups:/backups

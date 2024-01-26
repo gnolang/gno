@@ -5,12 +5,13 @@ http:
       ipWhiteList:
         sourceRange:
           - "127.0.0.1/32"
+          - "172.42.0.1/32"
 
   routers:
     gno-portal-loop-local:
       service: gno-portal-loop
-      rule: "Host(`rpc.portal.gno.local`)"
-      entrypoints: ["web", "private"]
+      rule: "PathPrefix(`/`)"
+      entrypoints: ["private"]
       middlewares: []
 
     gno-portal-loop:
@@ -25,4 +26,4 @@ http:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://localhost:32780"
+          - url: "http://172.42.0.6:26657"
