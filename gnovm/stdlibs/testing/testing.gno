@@ -13,13 +13,13 @@ import (
 //----------------------------------------
 // Top level functions
 
-type skipErr struct {
-	fn string
-}
+// skipErr is the type of the panic created by SkipNow
+// and FailNow. Having it as a simple string means that it can be fmt.Printf'd
+// easily (and doesn't get "corrupted" through gno2go).
+type skipErr string
 
 func (s skipErr) Error() string {
-	return "testing: you have recovered a panic attempting to interrupt a test, " +
-		"as a consequence of " + s.fn + ". please use testing.Recover to recover panics within tests"
+	return string(s)
 }
 
 // Recover functions like recover(), but it ensures that the recovered error is
@@ -32,7 +32,7 @@ func (s skipErr) Error() string {
 // NOTE: Recover() is likely to be removed.
 func Recover() interface{} {
 	r := recover()
-	if _, ok := r.(*skipErr); ok {
+	if _, ok := r.(skipErr); ok {
 		panic(r)
 	}
 	return r
@@ -95,7 +95,8 @@ func (t *T) Fail() {
 
 func (t *T) FailNow() {
 	t.Fail()
-	panic(&skipErr{fn: "FailNow"})
+	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of FailNow. " +
+		"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Failed() bool {
@@ -178,7 +179,8 @@ func (t *T) Skip(args ...interface{}) {
 
 func (t *T) SkipNow() {
 	t.skipped = true
-	panic(&skipErr{fn: "SkipNow"})
+	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of SkipNow. " +
+		"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Skipped() bool {
@@ -327,10 +329,10 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 		err := recover()
 		switch err.(type) {
 		case nil:
-		case *skipErr:
+		case skipErr:
 		default:
 			t.Fail()
-			fmt.Fprintf(os.Stderr, "panic: %v", err)
+			fmt.Fprintf(os.Stderr, "panic: %v\n", err)
 		}
 
 		dur := unixNano() - start
