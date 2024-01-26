@@ -42,8 +42,6 @@ const rePathPart = `[a-z][a-z0-9_]*`
 
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgPath      = regexp.MustCompile(`gno\.land/p(?:/` + rePathPart + `)+`)
-	reRlmPath      = regexp.MustCompile(`gno\.land/r(?:/` + rePathPart + `)+`)
 	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
 	reFileName     = regexp.MustCompile(`^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`)
 )
