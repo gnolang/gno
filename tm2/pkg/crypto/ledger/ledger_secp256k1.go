@@ -17,9 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// discoverLedger defines a function to be invoked at runtime for discovering
-// a connected Ledger device.
-
 type (
 	// discoverLedgerFn defines a Ledger discovery function that returns a
 	// connected device or an error upon failure. Its allows a method to avoid CGO
@@ -48,6 +45,8 @@ type (
 	}
 )
 
+// discoverLedger defines a function to be invoked at runtime for discovering
+// a connected Ledger device.
 var discoverLedger discoverLedgerFn = func() (LedgerSECP256K1, error) {
 	device, err := ledger.FindLedgerCosmosUserApp()
 	if err != nil {
