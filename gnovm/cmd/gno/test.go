@@ -501,16 +501,13 @@ func runTestFiles(
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
-		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
@@ -519,29 +516,13 @@ func runTestFiles(
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
-		switch {
-		case rep.Filtered:
-			// noop
-		case rep.Skipped:
-			if verbose {
-				io.ErrPrintfln("--- SKIP: %s", test.Name)
-			}
-		case rep.Failed:
+		if rep.Failed {
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
-		default:
-			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
-			}
-		}
-
-		if rep.Output != "" && (verbose || rep.Failed) {
-			io.ErrPrintfln("output: %s", rep.Output)
 		}
 
 		if printRuntimeMetrics {
@@ -569,12 +550,8 @@ func runTestFiles(
 
 // mirror of stdlibs/testing.Report
 type report struct {
-	Name     string
-	Verbose  bool
-	Failed   bool
-	Skipped  bool
-	Filtered bool
-	Output   string
+	Failed  bool
+	Skipped bool
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
