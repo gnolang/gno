@@ -102,7 +102,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 		return err
 	}
 
-	regex := regexp.MustCompile(`http://localhost:[0-9]+`)
+	regex := regexp.MustCompile(`http://.*:[0-9]+`)
 	output := regex.ReplaceAllLiteral(input, []byte(url))
 
 	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
@@ -163,6 +163,11 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 			fmt.Sprintf("%s:/opt/gno/src/testdir", s.containerName),
 		},
 	}, nil, nil, s.containerName)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", container.ID, nil)
 	if err != nil {
 		return nil, err
 	}

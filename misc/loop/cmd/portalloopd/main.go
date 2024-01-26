@@ -188,20 +188,13 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 			return err
 		}
 		containers = []types.Container{*container}
-
-		for _, p := range container.Ports {
-			if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-				s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
-				s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL)
-				break
-			}
-		}
-		return nil
+		force = true
 	}
 
 	for _, p := range containers[0].Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-			s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
+			ip := containers[0].NetworkSettings.Networks["portal-loop"].IPAddress
+			s.portalLoopURL = fmt.Sprintf("http://%s:%d", ip, int(p.PrivatePort))
 			s.portalLoop.switchTraefikPortalLoop(s.portalLoopURL)
 			break
 		}
@@ -246,7 +239,8 @@ func (s *service) startPortalLoop(ctx context.Context, force bool) error {
 	}
 	for _, p := range container.Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-			s.portalLoopURL = fmt.Sprintf("http://localhost:%d", int(p.PublicPort))
+			ip := containers[0].NetworkSettings.Networks["portal-loop"].IPAddress
+			s.portalLoopURL = fmt.Sprintf("http://%s:%d", ip, int(p.PrivatePort))
 			break
 		}
 	}

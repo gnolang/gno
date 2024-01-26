@@ -1,28 +1,33 @@
 version: "3"
+
+networks:
+  portal-loop:
+    name: portal-loop
+    driver: bridge
+
 services:
   traefik:
     image: "traefik:v2.10"
     restart: unless-stopped
-    network_mode: host
-    container_name: "traefik"
     command:
       - "--api.insecure=true"
       - "--providers.file=true"
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.private.address=127.0.0.1:81"
+      - "--entrypoints.private.address=:81"
       # - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       # - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
       # - "--entryPoints.web.forwardedHeaders.insecure"
       - "--entrypoints.traefik.address=:8080"
-      - "--entrypoints.traefik.address=127.0.0.1:8080"
 
       - "--entrypoints.websecure.address=:443"
       # - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
       - "--certificatesresolvers.le.acme.email=dev@gno.land"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+    networks:
+      - portal-loop
     ports:
       # useless because of network_mode: host
       # just here for readability
@@ -35,21 +40,20 @@ services:
 
   gnoweb:
     image: ghcr.io/gnolang/gno/gnoweb-slim
-    network_mode: host
     restart: unless-stopped
     entrypoint:
       - gnoweb
-      - --bind=localhost:8888
-      - --remote=rpc.portal.gno.local:81
+      - --bind=0.0.0.0:8888
+      - --remote=traefik:81
       # - --faucet-url="http://faucet.portal.gno.local:81"
-      - --faucet-url
-      - "http://localhost:9000"
+      # - --faucet-url
+      # - "http://localhost:9000"
       - --help-chainid
       - portal-loop
       - --help-remote
       - https://rpc.portal.gno.land:443
-    extra_hosts:
-      - rpc.portal.gno.local:127.0.0.1
+    networks:
+      - portal-loop
 
   # gnofaucet:
   #   image: gnofaucet
@@ -67,27 +71,37 @@ services:
   #     - 5050
 
   portalloopd:
-    image: ghcr.io/gnolang/gno/portalloopd
+    image: ghcr.io/albttx/gno/portalloopd
     restart: unless-stopped
     working_dir: /app
-    network_mode: host
     volumes:
       - ./scripts:/scripts
       - ./backups:/backups
       - ./traefik:/etc/traefik/configs
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - portal-loop
     ports:
-      - 9090:9090
+      - 127.0.0.1:9090:9090
     environment:
       HOST_PWD: $PWD
       BACKUP_DIR: "/backups"
-      RPC_URL: "http://rpc.portal.gno.local:81"
+      RPC_URL: "http://traefik:81"
       PROM_ADDR: "0.0.0.0:9090"
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
-      - rpc.portal.gno.local:127.0.0.1
+      - host.docker.internal:host-gateway
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
+
+  autocounterd:
+    image: ghcr.io/albttx/gno/autocounterd
+    restart: unless-stopped
+    environment:
+      COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+      COUNTER_RPC: "http://traefik:81"
+    networks:
+      - portal-loop
 
   watchtower:
     image: containrrr/watchtower
