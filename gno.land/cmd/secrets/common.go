@@ -38,13 +38,13 @@ func generateNodeKey() *p2p.NodeKey {
 // saveDataToPath saves the given data as Amino JSON to the path
 func saveDataToPath(data any, path string) error {
 	// Get Amino JSON
-	marshalledState, err := amino.MarshalJSONIndent(data, "", "  ")
+	marshalledData, err := amino.MarshalJSONIndent(data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("unable to marshal data into JSON, %w", err)
 	}
 
 	// Save the data to disk
-	if err := os.WriteFile(path, marshalledState, 0o644); err != nil {
+	if err := os.WriteFile(path, marshalledData, 0o644); err != nil {
 		return fmt.Errorf("unable to save data to disk, %w", err)
 	}
 
