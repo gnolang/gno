@@ -39,7 +39,7 @@ func readAndShowValidatorKey(path string, io commands.IO) error {
 
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
-	if _, err := fmt.Fprintln(w, "[Validator Key Info]\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "[Validator Key Info]\n\n"); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func readAndShowValidatorState(path string, io commands.IO) error {
 
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
-	if _, err := fmt.Fprintln(w, "[Last Validator Sign State Info]\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "[Last Validator Sign State Info]\n\n"); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
-	if _, err := fmt.Fprintln(w, "[Node P2P Info]\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "[Node P2P Info]\n\n"); err != nil {
 		return err
 	}
 
