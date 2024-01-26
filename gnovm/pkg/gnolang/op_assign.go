@@ -1,17 +1,12 @@
 package gnolang
 
 func (m *Machine) doOpDefine() {
-	debug.Println("-----doOpDefine")
 	s := m.PopStmt().(*AssignStmt)
-	debug.Printf("m.NumValues: %d \n", m.NumValues)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	// m.PopValue()
 	rvs := m.PopValues(len(s.Lhs))
-	debug.Printf("s:%v \n", s)
-	debug.Printf("lhs:%v \n", s.Lhs)
-	debug.Printf("rvs:%v \n", rvs)
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.

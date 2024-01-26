@@ -925,8 +925,6 @@ const (
 	OpMaybeNativeType Op = 0x79 // maybenative{X}
 
 	/* Statement operators */
-	OpPreAssign   Op = 0x92
-	OpPostAssign  Op = 0x93
 	OpAssign      Op = 0x80 // Lhs = Rhs
 	OpAddAssign   Op = 0x81 // Lhs += Rhs
 	OpSubAssign   Op = 0x82 // Lhs -= Rhs
@@ -1630,7 +1628,6 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 
 func (m *Machine) PushBlock(b *Block) {
 	if debug {
-		// m.Println("+B")
 		m.Printf("+B: %v \n", b)
 	}
 	m.Blocks = append(m.Blocks, b)
