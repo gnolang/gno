@@ -259,7 +259,7 @@ func (p *Post) RenderListItem() string {
 	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
 	//output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
-	output += " " + p.CreatedAt.String() + " "
+	output += " " + p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	output += "\n"
@@ -288,18 +288,17 @@ func (p *Post) RenderTagList() string {
 func (p *Post) RenderAuthorList() string {
 	out := "Written "
 	if len(p.Authors) != 0 {
-		out += "by " + p.Authors[0]
+		out += "by "
 
-		//for idx, author := range p.Authors {
-		//	out += author
-		//	if idx < len(p.Authors)-1 {
-		//		out += ", "
-		//	}
-		//}
+		for idx, author := range p.Authors {
+			out += author
+			if idx < len(p.Authors)-1 {
+				out += ", "
+			}
+		}
 	}
-	//str := p.CreatedAt.String()
-	//out += " on " + str + " "
-	//_ = str
+	out += " on " + p.CreatedAt.Format("02 Jan 2006")
+
 	return out
 }
 
