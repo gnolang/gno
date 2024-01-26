@@ -68,17 +68,20 @@ func TestClient_Run(t *testing.T) {
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/tests"
 )
 
-func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+func main() string {
+	var buf strings.Builder
+	buf.WriteString(ufmt.Sprintf("- before: %d\n", tests.Counter()))
 	for i := 0; i < 10; i++ {
 		tests.IncCounter()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	buf.WriteString(ufmt.Sprintf("- after: %d\n", tests.Counter()))
+	return buf.String()
 }`
 	memPkg := &std.MemPackage{
 		Files: []*std.MemFile{
@@ -96,5 +99,5 @@ func main() {
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.NotEmpty(t, res.DeliverTx.Data)
-	require.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+	require.Contains(t, string(res.DeliverTx.Data), `"- before: 0\n- after: 10\n"`)
 }

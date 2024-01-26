@@ -352,8 +352,8 @@ func TestVMKeeperRunSimple(t *testing.T) {
 		{"script.gno", `
 package main
 
-func main() {
-	println("hello world!")
+func main() string {
+	return "hello world!"
 }
 `},
 	}
@@ -362,7 +362,7 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, "hello world!\n")
+	assert.Contains(t, res, `"hello world!" string`)
 }
 
 // Call Run with stdlibs.
@@ -381,9 +381,9 @@ package main
 
 import "std"
 
-func main() {
+func main() string {
 	addr := std.GetOrigCaller()
-	println("hello world!", addr)
+	return "hello world! " + addr.String()
 }
 `},
 	}
@@ -392,6 +392,6 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
-	assert.Equal(t, res, expectedString)
+	expectedString := fmt.Sprintf("hello world! %s", addr.String())
+	assert.Contains(t, res, expectedString)
 }
