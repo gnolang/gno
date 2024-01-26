@@ -764,7 +764,7 @@ func (m *Machine) doOpFuncLit() {
 
 	if debug {
 		for i, ts := range loopData {
-			fmt.Printf("========TransientLoopData[%d] is: %s, addr: %p, index: %d \n", i, ts.loopValuesBox, &ts.loopValuesBox, ts.index)
+			fmt.Printf("========TransientLoopData[%d] is: %s, index: %d \n", i, ts.loopValuesBox, ts.index)
 		}
 	}
 
