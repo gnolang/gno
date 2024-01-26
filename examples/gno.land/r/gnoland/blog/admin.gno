@@ -54,6 +54,7 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	}
 
 	err := b.NewPost(caller, slug, title, body, publicationDate, authorList, tagList)
+
 	checkErr(err)
 }
 

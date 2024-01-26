@@ -21,11 +21,10 @@ No posts.
 `
 		assertMDEquals(t, got, expected)
 	}
-
 	// create two posts, list post.
 	{
-		ModAddPost("slug1", "title1", "body1", "tag1,tag2")
-		ModAddPost("slug2", "title2", "body2", "tag1,tag3")
+		ModAddPost("slug1", "title1", "body1", "2022-05-02T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost("slug2", "title2", "body2", "2022-05-02T13:17:22Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
 # Gnoland's Blog
@@ -108,7 +107,7 @@ comment2
 
 	// edit post.
 	{
-		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred ", "tag1,tag4")
+		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `
 # [Gnoland's Blog](/r/gnoland/blog:) / p / title2++

@@ -257,7 +257,7 @@ func (p *Post) RenderListItem() string {
 	}
 	output := "<div>\n\n"
 	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
-	//output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
+	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
 	output += " " + p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
@@ -339,7 +339,7 @@ type Comment struct {
 
 func (c Comment) RenderListItem() string {
 	output := "" // todo see where it is used
-	//output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
+	// output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
 	output += c.Comment + "\n"
 	output += "\n"
 	return output
