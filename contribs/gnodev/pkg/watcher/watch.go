@@ -9,10 +9,10 @@ import (
 	"time"
 
 	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"golang.org/x/exp/slog"
 )
 
 type PackageWatcher struct {
@@ -22,13 +22,13 @@ type PackageWatcher struct {
 	ctx  context.Context
 	stop context.CancelFunc
 
-	logger  log.Logger
+	logger  *slog.Logger
 	watcher *fsnotify.Watcher
 	pkgsDir []string
 	emitter events.Emitter
 }
 
-func NewPackageWatcher(logger log.Logger, emitter events.Emitter) (*PackageWatcher, error) {
+func NewPackageWatcher(logger *slog.Logger, emitter events.Emitter) (*PackageWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("unable to watch files: %w", err)

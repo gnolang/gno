@@ -31,7 +31,7 @@ type Node struct {
 
 	emitter events.Emitter
 	client  client.Client
-	logger  slog.Logger
+	logger  *slog.Logger
 	pkgs    PkgsMap // path -> pkg
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
@@ -367,7 +367,7 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(ctx context.Context, logger slog.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func newNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
 	// Setup node config

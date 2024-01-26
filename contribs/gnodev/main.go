@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -126,7 +127,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
-	loggerEvents := tmlog.NewTMLogger(rt.NamespacedWriter(EventServerLogName))
+	zapLoggerEvents := NewZapLogger(rt.NamespacedWriter(EventServerLogName), zapcore.DebugLevel)
+	loggerEvents := log.ZapLoggerToSlog(zapLoggerEvents)
 	emitterServer := events.NewEmitterServer(loggerEvents)
 
 	// Setup Dev Node
@@ -311,8 +313,8 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, emitter events.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
-	zapLogger := log.NewZapConsoleLogger(nodeOut, zapcore.ErrorLevel)
-	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), pkgspath)
+	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
+	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), emitter, pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
@@ -322,7 +324,7 @@ func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) htt
 	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
-	zapLogger := log.NewZapConsoleLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
+	zapLogger := NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)
 	return app.Router
 }
@@ -369,4 +371,17 @@ func checkForError(w io.Writer, err error) {
 	}
 
 	fmt.Fprintln(w, "[DONE]")
+}
+
+// NewZapLogger creates a zap logger with a console encoder for development use.
+func NewZapLogger(w io.Writer, level zapcore.Level) *zap.Logger {
+	// Build encoder config
+	consoleConfig := zap.NewDevelopmentEncoderConfig()
+	consoleConfig.TimeKey = ""
+	consoleConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleConfig.EncodeName = zapcore.FullNameEncoder
+
+	// Build encoder
+	enc := zapcore.NewConsoleEncoder(consoleConfig)
+	return log.NewZapLogger(enc, w, level)
 }

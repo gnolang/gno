@@ -9,6 +9,7 @@ require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/gorilla/websocket v1.5.1
 	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
 	golang.org/x/term v0.16.0
 )
 
@@ -46,6 +47,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
@@ -55,7 +57,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap/exp v0.1.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
-	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gorilla/websocket"
+	"golang.org/x/exp/slog"
 )
 
 type Emitter interface {
@@ -16,13 +16,13 @@ type Emitter interface {
 }
 
 type Server struct {
-	logger    log.Logger
+	logger    *slog.Logger
 	upgrader  websocket.Upgrader
 	clients   map[*websocket.Conn]struct{}
 	muClients sync.RWMutex
 }
 
-func NewEmitterServer(logger log.Logger) *Server {
+func NewEmitterServer(logger *slog.Logger) *Server {
 	return &Server{
 		logger:  logger,
 		clients: make(map[*websocket.Conn]struct{}),
