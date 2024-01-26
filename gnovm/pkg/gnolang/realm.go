@@ -1053,7 +1053,6 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(parent Object, val Value) Value {
-	debug.Println("-----copyValueWithRefs")
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1130,7 +1129,6 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
 		}
-		debug.Printf("closure: %v \n", closure)
 		// nativeBody funcs which don't come from NativeStore (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.

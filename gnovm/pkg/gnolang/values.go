@@ -1,9 +1,7 @@
 package gnolang
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -666,10 +664,8 @@ func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 // file-level declared methods and functions. For those, caller
 // should set .Closure manually after *FuncValue.Copy().
 func (fv *FuncValue) GetClosure(store Store) *Block {
-	debug.Println("-----GetClosure")
 	switch cv := fv.Closure.(type) {
 	case nil:
-		debug.Println("-----nil")
 		if fv.FileName == "" {
 			return nil
 		}
@@ -680,12 +676,10 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 		}
 		return fb
 	case RefValue:
-		debug.Printf("-----RefValue, cv.ObjectID: %v \n", cv.ObjectID)
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Closure = block
 		return block
 	case *Block:
-		debug.Println("-----block")
 		return cv
 	default:
 		panic("should not happen")
@@ -1615,7 +1609,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	debug.Printf("Assign, tv:%v, tv2:%v \n", tv, tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1629,7 +1622,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 		}
 	}
 	*tv = tv2.Copy(alloc)
-	debug.Printf("*tv: %+v \n", *tv)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -2310,21 +2302,6 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		Values: values,
 		Parent: parent,
 	}
-}
-
-func (b *Block) Hash() string {
-	// Convert the struct to a byte slice (serialization)
-	structBytes := []byte(fmt.Sprintf("%s%d", b.ObjectInfo, b.Source, b.Values, b.Parent, b.Blank, b.bodyStmt))
-
-	// Hash the byte slice using SHA-256
-	hash := sha256.Sum256(structBytes)
-
-	// Convert the hash to a hexadecimal string
-	hashHex := hex.EncodeToString(hash[:])
-
-	fmt.Println("Original struct:", b)
-	fmt.Println("Hashed value:", hashHex)
-	return hashHex
 }
 
 func (b *Block) UpdateValue(index int, tv TypedValue) {

@@ -361,7 +361,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
-
 				for _, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
 				}
@@ -467,7 +466,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						n.Cases[i] = cx
 					}
 				}
-				// popClosure()
 
 			// TRANS_BLOCK -----------------------
 			case *FuncDecl:
@@ -744,9 +742,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
-				// popClosure()
-				// popFx()
-
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
 				// Replace with *ConstExpr.
@@ -1968,7 +1963,6 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
 	}
-	// bn.GetStaticBlock().String()
 	*last = bn
 	*stack = append(*stack, bn)
 }
@@ -1984,7 +1978,7 @@ func pushRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	// anything declared in orig are copied.
 	for _, n := range orig.GetBlockNames() {
 		tv := orig.GetValueRef(nil, n)
-		bn.Define(n, *tv) // pointer, actually
+		bn.Define(n, *tv)
 	}
 }
 
