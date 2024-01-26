@@ -52,7 +52,7 @@ func (s *service) execStart(ctx context.Context, args []string) error {
 		_ = res
 
 		if err != nil {
-			fmt.Printf("[ERROR] Failed to call Incr on gno.land/r/portal/counter, %w\n", err)
+			fmt.Printf("[ERROR] Failed to call Incr on gno.land/r/portal/counter, %+v\n", err.Error())
 		} else {
 			fmt.Println("[INFO] Counter incremented with success")
 		}
