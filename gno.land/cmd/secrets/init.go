@@ -33,7 +33,7 @@ func initAndSaveValidatorKey(path string, io commands.IO) error {
 	privateKey := generateValidatorPrivateKey()
 
 	// Save the key
-	if err := saveDataToPath(privateKey, path); err != nil {
+	if err := saveSecretData(privateKey, path); err != nil {
 		return fmt.Errorf("unable to save validator key, %w", err)
 	}
 
@@ -48,7 +48,7 @@ func initAndSaveValidatorState(path string, io commands.IO) error {
 	validatorState := generateLastSignValidatorState()
 
 	// Save the last sign state
-	if err := saveDataToPath(validatorState, path); err != nil {
+	if err := saveSecretData(validatorState, path); err != nil {
 		return fmt.Errorf("unable to save last validator sign state, %w", err)
 	}
 
@@ -63,7 +63,7 @@ func initAndSaveNodeKey(path string, io commands.IO) error {
 	nodeKey := generateNodeKey()
 
 	// Save the node key
-	if err := saveDataToPath(nodeKey, path); err != nil {
+	if err := saveSecretData(nodeKey, path); err != nil {
 		return fmt.Errorf("unable to save node p2p key, %w", err)
 	}
 

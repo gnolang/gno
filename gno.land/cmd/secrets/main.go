@@ -38,7 +38,7 @@ func newRootCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newInitCmd(io),
-		// newVerifyCmd(io),
+		newVerifyCmd(io),
 		// newShowCmd(io),
 	)
 

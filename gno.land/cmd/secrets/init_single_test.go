@@ -32,24 +32,24 @@ func TestSecrets_Init_Single(t *testing.T) {
 		t.Parallel()
 
 		testTable := []struct {
-			name       string
-			flagValue  string
-			validateFn func(*testing.T, string)
+			name      string
+			flagValue string
+			verifyFn  func(*testing.T, string)
 		}{
 			{
 				"validator key initialized",
 				"--validator-key-path",
-				validateValidatorKey,
+				verifyValidatorKey,
 			},
 			{
 				"validator state initialized",
 				"--validator-state-path",
-				validateValidatorState,
+				verifyValidatorState,
 			},
 			{
 				"node p2p initialized",
 				"--node-key-path",
-				validateNodeKey,
+				verifyNodeKey,
 			},
 		}
 
@@ -80,7 +80,7 @@ func TestSecrets_Init_Single(t *testing.T) {
 				require.NoError(t, cmdErr)
 
 				// Verify the validator key is saved
-				testCase.validateFn(t, expectedPath)
+				testCase.verifyFn(t, expectedPath)
 			})
 		}
 	})

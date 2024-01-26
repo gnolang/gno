@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/stretchr/testify/assert"
@@ -55,39 +52,30 @@ func TestSecrets_Init_All(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the validator key is saved
-		validateValidatorKey(t, filepath.Join(tempDir, defaultValidatorKeyName))
+		verifyValidatorKey(t, filepath.Join(tempDir, defaultValidatorKeyName))
 
 		// Verify the last sign validator state is saved
-		validateValidatorState(t, filepath.Join(tempDir, defaultValidatorStateName))
+		verifyValidatorState(t, filepath.Join(tempDir, defaultValidatorStateName))
 
 		// Verify the node p2p key is saved
-		validateNodeKey(t, filepath.Join(tempDir, defaultNodeKeyName))
+		verifyNodeKey(t, filepath.Join(tempDir, defaultNodeKeyName))
 	})
 }
 
-func validateValidatorKey(t *testing.T, path string) {
+func verifyValidatorKey(t *testing.T, path string) {
 	t.Helper()
 
-	validatorKeyRaw, err := os.ReadFile(path)
+	validatorKey, err := readSecretData[privval.FilePVKey](path)
 	require.NoError(t, err)
 
-	var validatorKey privval.FilePVKey
-	require.NoError(t, amino.UnmarshalJSON(validatorKeyRaw, &validatorKey))
-
-	assert.NotNil(t, validatorKey.Address)
-	assert.NotEqual(t, types.Address{}, validatorKey.Address)
-	assert.NotNil(t, validatorKey.PrivKey)
-	assert.NotNil(t, validatorKey.PubKey)
+	assert.NoError(t, validateValidatorKey(validatorKey))
 }
 
-func validateValidatorState(t *testing.T, path string) {
+func verifyValidatorState(t *testing.T, path string) {
 	t.Helper()
 
-	validatorStateRaw, err := os.ReadFile(path)
+	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
 	require.NoError(t, err)
-
-	var validatorState privval.FilePVLastSignState
-	require.NoError(t, amino.UnmarshalJSON(validatorStateRaw, &validatorState))
 
 	assert.Zero(t, validatorState.Height)
 	assert.Zero(t, validatorState.Round)
@@ -96,14 +84,11 @@ func validateValidatorState(t *testing.T, path string) {
 	assert.Nil(t, validatorState.SignBytes)
 }
 
-func validateNodeKey(t *testing.T, path string) {
+func verifyNodeKey(t *testing.T, path string) {
 	t.Helper()
 
-	nodeKeyRaw, err := os.ReadFile(path)
+	nodeKey, err := readSecretData[p2p.NodeKey](path)
 	require.NoError(t, err)
 
-	var nodeKey p2p.NodeKey
-	require.NoError(t, amino.UnmarshalJSON(nodeKeyRaw, &nodeKey))
-
-	assert.NotNil(t, nodeKey.PrivKey)
+	assert.NoError(t, validateNodeKey(nodeKey))
 }
