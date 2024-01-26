@@ -45,6 +45,7 @@ func readAndVerifyValidatorKey(path string, io commands.IO) (*privval.FilePVKey,
 	return validatorKey, nil
 }
 
+// readAndVerifyValidatorState reads the validator state from the given path and verifies it
 func readAndVerifyValidatorState(path string, io commands.IO) (*privval.FilePVLastSignState, error) {
 	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
 	if err != nil {
@@ -60,6 +61,7 @@ func readAndVerifyValidatorState(path string, io commands.IO) (*privval.FilePVLa
 	return validatorState, nil
 }
 
+// readAndVerifyNodeKey reads the node p2p key from the given path and verifies it
 func readAndVerifyNodeKey(path string, io commands.IO) error {
 	nodeKey, err := readSecretData[p2p.NodeKey](path)
 	if err != nil {
