@@ -1012,6 +1012,7 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case BigintValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+		cp.N = tv.N
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
@@ -1468,6 +1469,17 @@ func (tv *TypedValue) GetFloat64() float64 {
 		}
 	}
 	return *(*float64)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) SetBigInt(bi *big.Int) {
+	if debug {
+		if tv.T.Kind() != BigintKind || isNative(tv.T) {
+			panic(fmt.Sprintf(
+				"TypedValue.SetBigInt() on type %s",
+				tv.T.String()))
+		}
+	}
+	tv.V = BigintValue{bi}
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
@@ -2473,6 +2485,10 @@ func defaultValue(alloc *Allocator, t Type) Value {
 			)
 		}
 	default:
+		switch t.Kind() {
+		case BigintKind:
+			return BigintValue{V: big.NewInt(0)}
+		}
 		return nil
 	}
 }

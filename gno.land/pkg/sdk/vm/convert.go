@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"strconv"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -152,6 +153,18 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg, err))
 			}
 			tv.SetUint64(u64)
+			return
+		case gno.BigintType:
+			if arg[0] == '+' {
+				panic("numbers cannot start with +")
+			}
+			bi, ok := big.NewInt(0).SetString(arg, 10)
+			if !ok {
+				panic(fmt.Sprintf(
+					"error parsing bigint %v", arg))
+			}
+
+			tv.SetBigInt(bi)
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
