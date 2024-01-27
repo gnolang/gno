@@ -9,4 +9,4 @@ func main() {
 // XXX show what was redeclared.
 
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration2": duplicate declarations not allowed
+// running package "github.com/gnolang/gno/_test/redeclaration2": invalid redeclarations for identifiers: "a"
