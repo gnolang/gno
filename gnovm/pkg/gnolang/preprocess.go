@@ -947,6 +947,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				debug.Printf("---CallExpr: %v \n", n)
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
@@ -961,6 +962,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						debug.Printf("---type type, const, arg0: %v \n", arg0)
 						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
@@ -983,18 +985,37 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							constConverted = true
 						}
 
-						// (const) untyped decimal -> float64.
-						// (const) untyped bigint -> int.
-						if !constConverted {
-							convertConst(store, last, arg0, nil)
+						debug.Printf("---going to convert const, ct: %v \n", ct)
+						debug.Println("---is data byte slice: ?", isDataByte(ct))
+						var isByteSlice bool
+						if ct != nil {
+							if ct.Kind() == SliceKind {
+								debug.Printf("slice kind, elm type: %v \n", ct.Elem().TypeID())
+								if ct.Elem().Kind() == Uint8Kind {
+									isByteSlice = true
+								}
+							}
 						}
 
-						// evaluate the new expression.
-						cx := evalConst(store, last, n)
-						// Though cx may be undefined if ct is interface,
-						// the ATTR_TYPEOF_VALUE is still interface.
-						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						return cx, TRANS_CONTINUE
+						if !isByteSlice {
+							// (const) untyped decimal -> float64.
+							// (const) untyped bigint -> int.
+							if !constConverted {
+								convertConst(store, last, arg0, nil)
+							}
+
+							debug.Println("---going to eval const")
+							// evaluate the new expression.
+							cx := evalConst(store, last, n)
+							// Though cx may be undefined if ct is interface,
+							// the ATTR_TYPEOF_VALUE is still interface.
+							cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+							return cx, TRANS_CONTINUE
+						} else {
+							ct := evalStaticType(store, last, n.Func)
+							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+							return n, TRANS_CONTINUE
+						}
 					} else {
 						ct := evalStaticType(store, last, n.Func)
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
