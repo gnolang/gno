@@ -113,7 +113,7 @@ func (t *T) Failed() bool {
 
 // only called when verbose == false
 func (t *T) printFailure() {
-	fmt.Fprintf(os.Stderr, "=== RUN   %s\n", t.name)
+	fmt.Fprintf(os.Stderr, "--- FAIL: %s (%s)\n", t.name, t.dur)
 	if t.failed {
 		fmt.Fprint(os.Stderr, string(t.output))
 	}
@@ -122,7 +122,6 @@ func (t *T) printFailure() {
 			sub.printFailure()
 		}
 	}
-	fmt.Fprintf(os.Stderr, "--- FAIL: %s (%s)\n", t.name, t.dur)
 }
 
 func (t *T) Fatal(args ...interface{}) {
