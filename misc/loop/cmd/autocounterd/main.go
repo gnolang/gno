@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	ff "github.com/peterbourgon/ff/v4"
 	"github.com/peterbourgon/ff/v4/ffhelp"
 )
 
 type service struct {
-	mnemonic *string
-	rpcURL   *string
+	mnemonic          *string
+	rpcURL            *string
+	incrementInterval *time.Duration
 }
 
 func (s service) MustGetMnemonic() string {
@@ -26,6 +28,13 @@ func (s service) MustGetRPC() string {
 		return *s.rpcURL
 	}
 	panic("rpc url is empty")
+}
+
+func (s service) MustGetIncrementInterval() time.Duration {
+	if s.incrementInterval != nil {
+		return *s.incrementInterval
+	}
+	panic("increment interval is empty")
 }
 
 func main() {

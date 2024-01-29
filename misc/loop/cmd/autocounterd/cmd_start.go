@@ -15,6 +15,7 @@ func (s *service) NewStartCmd() *ff.Command {
 	rootFlags := ff.NewFlagSet("autocounterd")
 	s.mnemonic = rootFlags.StringLong("mnemonic", "", "mnemonic")
 	s.rpcURL = rootFlags.StringLong("rpc", "127.0.0.1:26657", "rpc url endpoint")
+	s.incrementInterval = rootFlags.DurationLong("interval", 15*time.Second, "Increment counter interval")
 
 	cmd := &ff.Command{
 		Name:  "start",
@@ -56,6 +57,6 @@ func (s *service) execStart(ctx context.Context, args []string) error {
 		} else {
 			fmt.Println("[INFO] Counter incremented with success")
 		}
-		time.Sleep(time.Second * 10)
+		time.Sleep(s.MustGetIncrementInterval())
 	}
 }
