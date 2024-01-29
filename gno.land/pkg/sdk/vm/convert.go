@@ -141,32 +141,12 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
-			assertCharNotPlus(arg[0])
-			dec, _, err := apd.NewFromString(arg)
-			if err != nil {
-				panic(fmt.Sprintf("error parsing float32 %q: %v", arg, err))
-			}
-
-			f32, err := strconv.ParseFloat(dec.String(), 32)
-			if err != nil {
-				panic(fmt.Sprintf("error value exceeds float32 precision %q: %v", arg, err))
-			}
-
-			tv.SetFloat32(float32(f32))
+			value := convertFloat(arg, 32)
+			tv.SetFloat32(float32(value))
 			return
 		case gno.Float64Type:
-			assertCharNotPlus(arg[0])
-			dec, _, err := apd.NewFromString(arg)
-			if err != nil {
-				panic(fmt.Sprintf("error parsing float64 %q: %v", arg, err))
-			}
-
-			f64, err := dec.Float64()
-			if err != nil {
-				panic(fmt.Sprintf("error value exceeds float64 precision %q: %v", arg, err))
-			}
-
-			tv.SetFloat64(f64)
+			value := convertFloat(arg, 64)
+			tv.SetFloat64(value)
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
@@ -209,4 +189,19 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	default:
 		panic(fmt.Sprintf("unexpected type in contract arg: %v", argT))
 	}
+}
+
+func convertFloat(value string, precision int) float64 {
+	assertCharNotPlus(value[0])
+	dec, _, err := apd.NewFromString(value)
+	if err != nil {
+		panic(fmt.Sprintf("error parsing float%d %s: %v", precision, value, err))
+	}
+
+	f64, err := strconv.ParseFloat(dec.String(), precision)
+	if err != nil {
+		panic(fmt.Sprintf("error value exceeds float%d precision %s: %v", precision, value, err))
+	}
+
+	return f64
 }
