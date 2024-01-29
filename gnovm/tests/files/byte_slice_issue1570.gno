@@ -2,7 +2,7 @@ package main
 
 func main() {
 	for i := 0; i < 2; i++ {
-		l := []byte{'a', 'b', 'c', 'd'}
+		l := []byte("lead")
 		if i == 0 {
 			l[0] = 'f'
 		}
@@ -11,5 +11,5 @@ func main() {
 }
 
 // Output:
-// fbcd
-// abcd
+// fead
+// lead
