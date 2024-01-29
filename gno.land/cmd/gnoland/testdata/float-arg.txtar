@@ -1,4 +1,4 @@
-# test for add package
+# test for float args
 
 ## start a new node
 gnoland start
