@@ -76,7 +76,7 @@ services:
   #     - 5050
 
   portalloopd:
-    image: ghcr.io/albttx/gno/portalloopd
+    image: ghcr.io/gnolang/gno/portalloopd
     restart: unless-stopped
     volumes:
       - ./scripts:/scripts
@@ -99,7 +99,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
-    image: ghcr.io/albttx/gno/autocounterd
+    image: ghcr.io/gnolang/gno/autocounterd
     restart: unless-stopped
     environment:
       COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
