@@ -1,7 +1,6 @@
 package gnoclient
 
 import (
-	"fmt"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -92,7 +91,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 		// Parse send coins
 		send, err := std.ParseCoins(msg.Send)
 		if err != nil {
-			return nil, fmt.Errorf("%w", err)
+			return nil, err
 		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
@@ -113,7 +112,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	// Parse gas fee
 	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, err
 	}
 
 	// Pack transaction
