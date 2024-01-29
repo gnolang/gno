@@ -11,12 +11,12 @@ import (
 )
 
 var (
-	errInvalidPkgPath   = errors.New("invalid pkgpath")
-	errInvalidFuncName  = errors.New("invalid function name")
-	errInvalidGasWanted = errors.New("invalid gas wanted")
-	errInvalidGasFee    = errors.New("invalid gas fee")
-	errMissingSigner    = errors.New("missing Signer")
-	errMissingRPCClient = errors.New("missing RPCClient")
+	ErrInvalidPkgPath   = errors.New("invalid pkgpath")
+	ErrInvalidFuncName  = errors.New("invalid function name")
+	ErrInvalidGasWanted = errors.New("invalid gas wanted")
+	ErrInvalidGasFee    = errors.New("invalid gas fee")
+	ErrMissingSigner    = errors.New("missing Signer")
+	ErrMissingRPCClient = errors.New("missing RPCClient")
 )
 
 type BaseTxCfg struct {
@@ -37,10 +37,10 @@ type MsgCall struct {
 
 func (cfg BaseTxCfg) validateBaseTxConfig() error {
 	if cfg.GasWanted < 0 {
-		return errInvalidGasWanted
+		return ErrInvalidGasWanted
 	}
 	if cfg.GasFee < "" {
-		return errInvalidGasFee
+		return ErrInvalidGasFee
 	}
 
 	return nil
@@ -48,10 +48,10 @@ func (cfg BaseTxCfg) validateBaseTxConfig() error {
 
 func (msg MsgCall) validateMsgCall() error {
 	if msg.PkgPath == "" {
-		return errInvalidPkgPath
+		return ErrInvalidPkgPath
 	}
 	if msg.FuncName == "" {
-		return errInvalidFuncName
+		return ErrInvalidFuncName
 	}
 	return nil
 }

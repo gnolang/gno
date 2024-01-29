@@ -128,7 +128,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errMissingSigner,
+			expectedError: ErrMissingSigner,
 		},
 		{
 			name: "Invalid RPCClient",
@@ -151,7 +151,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errMissingRPCClient,
+			expectedError: ErrMissingRPCClient,
 		},
 		{
 			name: "Invalid Gas Fee",
@@ -172,7 +172,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					FuncName: "RandomName",
 				},
 			},
-			expectedError: errInvalidGasFee,
+			expectedError: ErrInvalidGasFee,
 		},
 		{
 			name: "Negative Gas Wanted",
@@ -195,7 +195,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errInvalidGasWanted,
+			expectedError: ErrInvalidGasWanted,
 		},
 		{
 			name: "0 Gas Wanted",
@@ -218,7 +218,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errInvalidGasWanted,
+			expectedError: ErrInvalidGasWanted,
 		},
 		{
 			name: "Invalid PkgPath",
@@ -241,7 +241,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errInvalidPkgPath,
+			expectedError: ErrInvalidPkgPath,
 		},
 		{
 			name: "Invalid FuncName",
@@ -264,7 +264,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: errInvalidFuncName,
+			expectedError: ErrInvalidFuncName,
 		},
 	}
 
