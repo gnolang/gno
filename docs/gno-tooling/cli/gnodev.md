@@ -13,10 +13,12 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
 ## Features
 - **In-Memory Node**: Gnodev starts an in-memory node, and automatically loads
 the **examples** folder and any user-specified paths.
-- **Web Interface Server**: Starts a `gnoweb` server on `localhost:8888`.
-- **Hot Reload**: Monitors the example packages folder and specified directories for file changes,
-reloading the package and automatically restarting the node as needed.
-- **State Maintenance**: Ensures the current state is preserved by replay all transactions.
+- **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
+[`localhost:8888`](https://localhost:8888).
+- **Hot Reload**: Gnodev monitors the **examples** folder and any specified for file changes,
+reloading and automatically restarting the node as needed.
+- **State Maintenance**: Gnodev replays all transactions in between reloads,
+ensuring the previous node state is preserved.
 
 ## Installation
 Gnodev can be found in the `contribs` folder in the monorepo.
