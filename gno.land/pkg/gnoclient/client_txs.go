@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrInvalidPkgPath   = errors.New("invalid pkgpath")
-	ErrInvalidFuncName  = errors.New("invalid function name")
+	ErrEmptyPkgPath     = errors.New("empty pkgpath")
+	ErrEmptyFuncName    = errors.New("empty function name")
 	ErrInvalidGasWanted = errors.New("invalid gas wanted")
 	ErrInvalidGasFee    = errors.New("invalid gas fee")
 	ErrMissingSigner    = errors.New("missing Signer")
@@ -47,10 +47,10 @@ func (cfg BaseTxCfg) validateBaseTxConfig() error {
 
 func (msg MsgCall) validateMsgCall() error {
 	if msg.PkgPath == "" {
-		return ErrInvalidPkgPath
+		return ErrEmptyPkgPath
 	}
 	if msg.FuncName == "" {
-		return ErrInvalidFuncName
+		return ErrEmptyFuncName
 	}
 	return nil
 }

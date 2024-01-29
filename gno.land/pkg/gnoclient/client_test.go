@@ -241,7 +241,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: ErrInvalidPkgPath,
+			expectedError: ErrEmptyPkgPath,
 		},
 		{
 			name: "Invalid FuncName",
@@ -264,7 +264,7 @@ func TestClient_Call_Errors(t *testing.T) {
 					Args:     []string{},
 				},
 			},
-			expectedError: ErrInvalidFuncName,
+			expectedError: ErrEmptyFuncName,
 		},
 	}
 
