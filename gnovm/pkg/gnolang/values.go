@@ -178,6 +178,15 @@ type PointerValue struct {
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
+//func (pv *PointerValue) String() string {
+//	var s string
+//	s += fmt.Sprintf("TV: %v \n", pv.TV)
+//	s += fmt.Sprintf("Base: %v \n", pv.Base)
+//	s += fmt.Sprintf("Index: %v \n", pv.Index)
+//	s += fmt.Sprintf("Key: %v \n", pv.Key)
+//	return s
+//}
+
 const (
 	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
 	PointerIndexMap        = -2 // Base is Map, use Key.
@@ -205,6 +214,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	debug.Printf("---Assign2, pv: %v, tv2: %v \n", pv, tv2)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -271,8 +281,11 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		}
 		return
 	} else if pv.TV.T == DataByteType {
+		debug.Println("---data byte type")
 		// Special case of DataByte into (base=*SliceValue).Data.
+		debug.Printf("pv.Tv before set: %v \n", pv.TV.V)
 		pv.TV.SetDataByte(tv2.GetUint8())
+		debug.Printf("pv.Tv after set: %v \n", pv.TV.V)
 		return
 	}
 	// General case
@@ -353,6 +366,7 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	debug.Printf("---Array_GetPointerAtIndexInt2, av: %v, ii: %v, et: %v \n", av, ii, et)
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -369,6 +383,10 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
+	debug.Printf("---bv: %v \n", bv)
+	debug.Printf("---bv.T: %v \n", bv.T)
+	debug.Printf("---bv.Base.String: %v \n", bv.V.String())
+	debug.Printf("---bv.p: %p \n", bv)
 	return PointerValue{
 		TV:    bv,
 		Base:  av,
@@ -427,6 +445,7 @@ func (sv *SliceValue) GetLength() int {
 
 // et is only required for .List byte-slices.
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	debug.Printf("---GetPointerAtIndexInt2, sv: %v, ii: %v, et: %v \n", sv, ii, et)
 	// Necessary run-time slice bounds check
 	if ii < 0 {
 		panic(fmt.Sprintf(
@@ -1345,7 +1364,9 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 		}
 	}
 	dbv := tv.V.(DataByteValue)
+	debug.Printf("dbv before set: %v \n", dbv)
 	dbv.SetByte(n)
+	debug.Printf("dbv after set: %v \n", dbv)
 }
 
 func (tv *TypedValue) GetDataByte() uint8 {
@@ -1923,6 +1944,7 @@ func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 }
 
 func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+	debug.Println("---GetPointerAtIndex")
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1945,6 +1967,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		ii := iv.ConvertGetInt()
 		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *SliceType:
+		debug.Println("---slice type")
 		if tv.V == nil {
 			panic("nil slice index (out of bounds)")
 		}

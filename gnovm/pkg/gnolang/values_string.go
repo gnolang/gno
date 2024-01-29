@@ -322,6 +322,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%d", tv.GetUint())
 		case Uint8Type:
 			return fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
 		case Uint16Type:
 			return fmt.Sprintf("%d", tv.GetUint16())
 		case Uint32Type:
@@ -337,6 +339,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case UntypedBigdecType, BigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
+			debug.Println("---default type is : %v \n", bt)
 			panic("should not happen")
 		}
 	case *PointerType:
@@ -390,6 +393,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				"unexpected type %s",
 				tv.T.String()))
 		} else {
+			debug.Println("---2 default type is : %v \n", bt)
 			panic("should not happen")
 		}
 	}

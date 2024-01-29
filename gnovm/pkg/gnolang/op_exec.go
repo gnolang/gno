@@ -85,7 +85,9 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
+		debug.Println("---op for loop")
 		bs := m.LastBlock().GetBodyStmt()
+		debug.Printf("---bs: %v \n", bs)
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = m.NumOps
@@ -111,6 +113,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
 			bs.Active = next
+			debug.Printf("bs.Active: %v \n", bs.Active)
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
@@ -493,6 +496,7 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
+		debug.Println("---forStmt")
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
@@ -502,6 +506,7 @@ EXEC_SWITCH:
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}
+		debug.Printf("---b: %v \n", b)
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
 		m.PushStmt(b.GetBodyStmt())

@@ -335,6 +335,8 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
+	debug.Printf("---isEql, lv.V: %p, rv.V: %p \n", lv.V, rv.V)
+	debug.Printf("---isEql, lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -344,6 +346,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
+	debug.Println("---no undefined case")
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -475,8 +478,46 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
+		debug.Println("---pointer kind")
+		//debug.Printf("---lv.V : %v, rv.V: %v \n", lv.V, rv.V)
+		//debug.Println("---1 equal? ", lv.V == rv.V)
+		//debug.Println("---2 equal? ", lv.V.(PointerValue).Deref() == rv.V.(PointerValue).Deref())
+		//debug.Println("---3 equal? ", lv.V.(PointerValue).Base == rv.V.(PointerValue).Base)
+		//debug.Println("---4 equal? ", lv.V.(PointerValue).TV == rv.V.(PointerValue).TV)
+		//debug.Printf("---4.0 equal, lv.Tv: %v, rv.Tv: %v \n", lv.V.(PointerValue).TV, rv.V.(PointerValue).TV)
+		//debug.Println("---4.1 equal? ", lv.V.(PointerValue).TV.T == rv.V.(PointerValue).TV.T)
+		//debug.Println("---4.2 equal? ", lv.V.(PointerValue).TV.V == rv.V.(PointerValue).TV.V)
+		//debug.Println("---4.3 equal? ", lv.V.(PointerValue).TV.N == rv.V.(PointerValue).TV.N)
+		//debug.Println("---5 equal? ", lv.V.(PointerValue).Index == rv.V.(PointerValue).Index)
+		//debug.Println("---6 equal? ", lv.V.(PointerValue).Key == rv.V.(PointerValue).Key)
 		// TODO: assumes runtime instance normalization.
-		return lv.V == rv.V
+		if lv.V != nil && rv.V != nil {
+			lpv := lv.V.(PointerValue)
+			rpv := rv.V.(PointerValue)
+			debug.Printf("lpv.Base: %v, rpv.Base: %v, equal: %v \n", lpv.Base, rpv.Base, lpv.Base == rpv.Base)
+			debug.Printf("lpv.Index: %v, rpv.Index: %v \n", lpv.Index, rpv.Index)
+			debug.Printf("lpv.Tv: %v, rpv.Tv: %v, equal: %v \n", lpv.TV, rpv.TV, lpv.TV == rpv.TV)
+			debug.Printf("*lpv.Tv: %v, *rpv.Tv: %v, equal: %v \n", *lpv.TV, *rpv.TV, *lpv.TV == *rpv.TV)
+			debug.Printf("lpv.key: %v, rpv.key: %v, equal: %v \n", lpv.Key, rpv.Key, lpv.Key == rpv.Key)
+			debug.Printf("lpv: %v, rpv: %v, equal: %v \n", lpv, rpv, lpv == rpv)
+			return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+		} else {
+			return lv.V == rv.V
+		}
+
+		//if lpv, ok := lv.V.(PointerValue); ok {
+		//	if rpv, ok := rv.V.(PointerValue); ok {
+		//		debug.Printf("lpv.Base: %v, rpv.Base: %v, equal: %v \n", lpv.Base, rpv.Base, lpv.Base == rpv.Base)
+		//		debug.Printf("lpv.Index: %v, rpv.Index: %v \n", lpv.Index, rpv.Index)
+		//		debug.Printf("lpv.Tv: %v, rpv.Tv: %v, equal: %v \n", lpv.TV, rpv.TV, lpv.TV == rpv.TV)
+		//		debug.Printf("*lpv.Tv: %v, *rpv.Tv: %v, equal: %v \n", *lpv.TV, *rpv.TV, *lpv.TV == *rpv.TV)
+		//		debug.Printf("lpv.key: %v, rpv.key: %v, equal: %v \n", lpv.Key, rpv.Key, lpv.Key == rpv.Key)
+		//		debug.Printf("lpv: %v, rpv: %v, equal: %v \n", lpv, rpv, lpv == rpv)
+		//		return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+		//	}
+		//}
+		//debug.Printf("lv.V: %v, rv.V: %v, equal: %v \n", lv.V, rv.V, lv.V == rv.V)
+		//return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",
