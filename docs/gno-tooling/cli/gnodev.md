@@ -28,7 +28,7 @@ To install `gnodev`, run `make install`.
 Gnodev can be anywhere within the monorepo, and it will automatically load the examples
 folder, providing all the packages and realms found in it for use.
 
-![gnodev_usage](../../assets/reference/gnodev/gnodev.gif)
+![gnodev_usage](../../assets/gno-tooling/gnodev/gnodev.gif)
 
 For hot reloading, `gnodev` watches the examples folder, as well as any specified folder:
 ```
