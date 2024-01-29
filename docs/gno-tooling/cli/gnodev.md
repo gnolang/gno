@@ -2,7 +2,7 @@
 id: gno-tooling-gnodev
 ---
 
-# Gnodev
+# gnodev
 
 Gnodev allows for quick and efficient development of Gno code.
 
