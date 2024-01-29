@@ -37,13 +37,13 @@ gnodev ./myrealm
 
 While `gnodev` is running, the following shortcuts are available:
 - To reload manually, press `R`.
-- To reset the state of the node, press `CMD+R`
-- To see help, press `H`
-- To stop `gnodev`, press `CMD+C`
+- To reset the state of the node, press `CMD+R`.
+- To see help, press `H`.
+- To stop `gnodev`, press `CMD+C`.
 
 ### Options
 
 | Flag       | Effect                                              |
 |------------|-----------------------------------------------------|
 | --minimal  | Start `gnodev` without loading the examples folder. |
-| --no-watch | Disable hot reload.                                  |
+| --no-watch | Disable hot reload.                                 |
