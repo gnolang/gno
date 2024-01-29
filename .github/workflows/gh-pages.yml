@@ -39,5 +39,5 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     needs: build
     steps:
-      - uses: actions/deploy-pages@v2
+      - uses: actions/deploy-pages@v4
         id: deployment
