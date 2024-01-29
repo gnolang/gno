@@ -11,7 +11,7 @@
 - **Web Interface Server**: Starts a `gnoweb` server on `localhost:8888`.
 - **Hot Reload**: Monitors the example packages folder and specified directories for file changes,
   reloading the package and automatically restarting the node as needed.
-- **State Maintenance**: Ensures the current state is preserved by replay all transactions.
+- **State Maintenance**: Ensures the current state is preserved by replaying all transactions.
 
 ### Commands
 While `gnodev` is running, the user can trigger specific actions by pressing
