@@ -299,15 +299,14 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				switch len(args) {
 				case 1:
 					var path string
-					if path == "all" {
+					if args[0] == "all" {
 						// if `all` is specified fully load example folder
 						path = examplesDir
 					} else {
 						path = filepath.Clean(args[0])
-					}
-
-					if !strings.HasPrefix(path, workDir) {
-						path = filepath.Join(examplesDir, path)
+						if !strings.HasPrefix(path, workDir) {
+							path = filepath.Join(examplesDir, path)
+						}
 					}
 
 					var err error

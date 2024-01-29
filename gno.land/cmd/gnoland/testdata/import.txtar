@@ -1,4 +1,5 @@
 # test that the example packages directory is loaded and usable.
+use gno.land/p/demo/ufmt
 
 ## start a new node
 gnoland start
