@@ -17,8 +17,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -26,6 +28,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"go.uber.org/zap/zapcore"
+)
+
+const (
+	envKeyGenesis int = iota
+	envKeyLogger
 )
 
 const numTestAccounts int = 4
@@ -82,9 +89,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	nodes := map[string]*testNode{}
 
-	// Track new user balances added via the `adduser` command. These are added to the genesis
-	// state when the node is started.
-	var newUserBalances []gnoland.Balance
+	// type packagesTxs struct {
+	// 	[]gnoland.Balance
+	// 	[]
+	// }
 
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
@@ -119,7 +127,15 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 				}
 
-				env.Values["_logger"] = logger
+				env.Values[envKeyLogger] = logger
+			}
+
+			// Track new user balances added via the `adduser`
+			// command and packages added with the `use` commnand.
+			// This genesis will be use when node is started.
+			genesis := &gnoland.GnoGenesisState{
+				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
+				Txs:      []std.Tx{},
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
@@ -138,9 +154,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					return fmt.Errorf("error creating account %s: %w", accountName, err)
 				}
 
-				newUserBalances = append(newUserBalances, balance)
+				genesis.Balances = append(genesis.Balances, balance)
 			}
-
+			env.Values[envKeyGenesis] = genesis
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
 
@@ -153,8 +169,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					return
 				}
 
-				logger := ts.Value("_logger").(*slog.Logger) // grab logger
-				sid := getNodeSID(ts)                        // grab session id
+				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
+				sid := getNodeSID(ts)                           // grab session id
 
 				var cmd string
 				cmd, args = args[0], args[1:]
@@ -167,20 +183,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
+					// get pacakges
+
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
 					// Generate config and node
-					cfg, _ := TestingNodeConfig(t, gnoRootDir)
+					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 
-					// Add balances for users added via the `adduser` command.
-					genesis := cfg.Genesis
-					genesisState := gnoland.GnoGenesisState{
-						Balances: genesis.AppState.(gnoland.GnoGenesisState).Balances,
-						Txs:      genesis.AppState.(gnoland.GnoGenesisState).Txs,
-					}
-					genesisState.Balances = append(genesisState.Balances, newUserBalances...)
-					cfg.Genesis.AppState = genesisState
+					// setup genesis state
+					cfg.Genesis.AppState = *genesis
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
@@ -197,7 +210,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						err = fmt.Errorf("node not started cannot be stopped")
 						break
 					}
-
 					if err = n.Stop(); err == nil {
 						delete(nodes, sid)
 
@@ -212,8 +224,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				tsValidateError(ts, "gnoland "+cmd, neg, err)
 			},
 			"gnokey": func(ts *testscript.TestScript, neg bool, args []string) {
-				logger := ts.Value("_logger").(*slog.Logger) // grab logger
-				sid := ts.Getenv("SID")                      // grab session id
+				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
+				sid := ts.Getenv("SID")                         // grab session id
 
 				// Setup IO command
 				io := commands.NewTestIO()
@@ -270,7 +282,66 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("error creating account %s: %s", args[0], err)
 				}
 
-				newUserBalances = append(newUserBalances, balance)
+				// Add balance to genesis
+				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+				genesis.Balances = append(genesis.Balances, balance)
+			},
+			// use load a specific packagae from the example folder or from the working directory
+			"use": func(ts *testscript.TestScript, neg bool, args []string) {
+				creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+				defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+
+				// special dirs
+				workDir := ts.Getenv("WORK")
+				examplesDir := filepath.Join(gnoRootDir, "examples")
+
+				var txs []std.Tx
+				switch len(args) {
+				case 1:
+					var path string
+					if path == "all" {
+						// if `all` is specified fully load example folder
+						path = examplesDir
+					} else {
+						path = filepath.Clean(args[0])
+					}
+
+					if !strings.HasPrefix(path, workDir) {
+						path = filepath.Join(examplesDir, path)
+					}
+
+					var err error
+					txs, err = gnoland.LoadPackagesFromDir(path, creator, defaultFee, nil)
+					if err != nil {
+						ts.Fatalf("`use` unable to load package(s) %s: %s", path, err)
+					}
+				case 2:
+					path := filepath.Clean(args[0])
+					if !strings.HasPrefix(path, workDir) {
+						path = filepath.Join(examplesDir, path)
+					}
+
+					pkg := gnomod.Pkg{
+						Dir:      path,
+						Name:     filepath.Clean(args[1]),
+						Draft:    false,
+						Requires: []string{},
+					}
+					tx, err := gnoland.LoadPackage(pkg, creator, defaultFee, nil)
+					if err != nil {
+						ts.Fatalf("`use` unable to load package(s) %s: %s", path, err)
+					}
+					txs = []std.Tx{tx}
+				case 0:
+					ts.Fatalf("`use`: no arguements specified")
+				default:
+					ts.Fatalf("`use`: too many arguements specified")
+				}
+
+				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+				// Add packages txs to genesis
+				genesis.Txs = append(genesis.Txs, txs...)
+				ts.Logf("%s package was added to genesis", args[0])
 			},
 		},
 	}

@@ -21,6 +21,18 @@
 //   - Creates a new user in the default keybase directory.
 //   - Must be run before `gnoland start`.
 //
+// 4. `use`:
+//   - Loads a specific package from the example folder or from the working ($WORK) directory.
+//   - Can be used to load a single package or all packages within a directory.
+//   - The command takes either one or two arguments. The first argument is the path to the package(s),
+//     and the second (optional) argument is the name of the package.
+//     Examples:
+//       - # Load a package from the example packages directory:
+//         use gno.land/p/demo/ufmt
+//       - # Load a package from the current working directory with the name `gno.land/r/foobar/bar`:
+//         use $WORK/bar gno.land/r/foobar/bar
+//   - If the path is not prefixed with the working directory, it is assumed to be relative to the examples directory.
+
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
