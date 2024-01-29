@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 	"testing"
 
@@ -55,15 +56,17 @@ func TestClient_Request(t *testing.T) {
 func TestClient_Call(t *testing.T) {
 	t.Parallel()
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
-	defer node.Stop()
-
-	signer := newInMemorySigner(t, config.TMConfig.ChainID())
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	client := Client{
-		Signer:    signer,
+		Signer: &mockSigner{
+		sign: func(cfg SignCfg) (*std.Tx, error) {
+			return &cfg.UnsignedTX, nil
+		},
+		info: func() keys.Info {
+			return mockKeysInfo{}
+		},
+		},
 		RPCClient: rpcClient,
 	}
 
@@ -89,16 +92,9 @@ func TestClient_Call(t *testing.T) {
 	assert.NotNil(t, res)
 }
 
+
 func TestClient_Call_Errors(t *testing.T) {
 	t.Parallel()
-
-	// todo Replace with mock client
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
-	defer node.Stop()
-
-	signer := newInMemorySigner(t, config.TMConfig.ChainID())
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	testCases := []struct {
 		name          string
@@ -111,7 +107,7 @@ func TestClient_Call_Errors(t *testing.T) {
 			name: "Invalid Signer",
 			client: Client{
 				nil,
-				rpcClient,
+				,
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
@@ -133,7 +129,7 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Invalid RPCClient",
 			client: Client{
-				signer,
+				&mockSigner{},
 				nil,
 			},
 			cfg: BaseTxCfg{
