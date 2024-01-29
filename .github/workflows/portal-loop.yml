@@ -32,7 +32,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata (autcounterd)
+      - name: Docker metadata ${{ matrix.image }}
         id: meta
         uses: docker/metadata-action@v5
         with:
