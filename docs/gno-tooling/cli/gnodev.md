@@ -23,15 +23,28 @@ Gnodev can be found in the `contribs` folder in the monorepo.
 To install `gnodev`, run `make install`.
 
 ## Usage
+Gnodev can be anywhere within the monorepo, and it will automatically load the examples
+folder, providing all the packages and realms found in it for use.
 
 ![gnodev_usage](../../assets/reference/gnodev/gnodev.gif)
 
-[//]: # (todo)
+For hot reloading, `gnodev` watches the examples folder, as well as any specified folder:
+```
+gnodev ./myrealm
+```
 
-[//]: # (specify flags)
+While `gnodev` is running, the following shortcuts are available:
+- To reload manually, press `R`.
+- To reset the state of the node, press `CMD+R`
+- To see help, press `H`
+- To stop `gnodev`, press `CMD+C`
 
-[//]: # (usage gif)
+### Options
 
+| Flag       | Effect                                              |
+|------------|-----------------------------------------------------|
+| --mininal  | Start `gnodev` without loading the examples folder. |
+| --no-watch | Disable hot reload                                  |
 
 
 
