@@ -947,7 +947,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				debug.Printf("---CallExpr: %v \n", n)
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
@@ -962,10 +961,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
-						debug.Printf("---type type, const, arg0: %v \n", arg0)
 						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
-						debug.Printf("---going to convert const, ct: %v \n", ct)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -985,30 +982,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							constConverted = true
 						case SliceKind:
 							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
-								debug.Println("---slice if uint8")
 								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 								return n, TRANS_CONTINUE
 							}
 						}
-
-						debug.Println("---is data byte slice: ?", isDataByte(ct))
-						//var isByteSlice bool
-						//if ct != nil {
-						//	if ct.Kind() == SliceKind {
-						//		debug.Printf("slice kind, elm type: %v \n", ct.Elem().TypeID())
-						//		if ct.Elem().Kind() == Uint8Kind {
-						//			isByteSlice = true
-						//		}
-						//	}
-						//}
-
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
 							convertConst(store, last, arg0, nil)
 						}
 
-						debug.Println("---going to eval const")
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
