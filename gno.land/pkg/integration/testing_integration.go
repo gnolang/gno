@@ -332,9 +332,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 					txs = []std.Tx{tx}
 				case 0:
-					ts.Fatalf("`use`: no arguements specified")
+					ts.Fatalf("`use`: no arguments specified")
 				default:
-					ts.Fatalf("`use`: too many arguements specified")
+					ts.Fatalf("`use`: too many arguments specified")
 				}
 
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
