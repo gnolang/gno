@@ -43,10 +43,5 @@ While `gnodev` is running, the following shortcuts are available:
 
 | Flag       | Effect                                              |
 |------------|-----------------------------------------------------|
-| --mininal  | Start `gnodev` without loading the examples folder. |
+| --minimal  | Start `gnodev` without loading the examples folder. |
 | --no-watch | Disable hot reload                                  |
-
-
-
-
-
