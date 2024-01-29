@@ -55,6 +55,7 @@ const sidebars = {
                 'concepts/tendermint2',
                 'concepts/gnovm',
                 'concepts/proof-of-contribution',
+                'concepts/portal-loop',
                 'concepts/gno-language',
                 'concepts/gno-modules',
                 'concepts/gno-test',
