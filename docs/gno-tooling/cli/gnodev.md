@@ -25,7 +25,7 @@ Gnodev can be found in the `contribs` folder in the monorepo.
 To install `gnodev`, run `make install`.
 
 ## Usage
-Gnodev can be anywhere within the monorepo, and it will automatically load the examples
+Gnodev can be run from anywhere within the monorepo, and it will automatically load the examples
 folder, providing all the packages and realms found in it for use.
 
 ![gnodev_usage](../../assets/gno-tooling/gnodev/gnodev.gif)
