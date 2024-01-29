@@ -21,6 +21,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 		}
@@ -36,6 +37,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--validator-key-path",
@@ -62,6 +64,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--validator-key-path",
@@ -88,6 +91,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--validator-state-path",
@@ -118,6 +122,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--validator-key-path",
@@ -146,6 +151,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--node-key-path",
@@ -176,6 +182,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"single",
 			"--validator-key-path",

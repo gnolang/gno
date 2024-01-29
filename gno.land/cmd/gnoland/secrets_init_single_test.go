@@ -19,6 +19,7 @@ func TestSecrets_Init_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"init",
 			"single",
 		}
@@ -69,6 +70,7 @@ func TestSecrets_Init_Single(t *testing.T) {
 				// Create the command
 				cmd := newRootCmd(commands.NewTestIO())
 				args := []string{
+					"secrets",
 					"init",
 					"single",
 					testCase.flagValue,

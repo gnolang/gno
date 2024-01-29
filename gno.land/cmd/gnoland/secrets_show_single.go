@@ -18,7 +18,7 @@ func newShowSingleCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "single",
-			ShortUsage: "show single [flags]",
+			ShortUsage: "secrets show single [flags]",
 			ShortHelp:  "Shows required Gno secrets individually",
 			LongHelp: "Shows the validator private key, the node p2p key and the validator's last sign state" +
 				" at custom paths",

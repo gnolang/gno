@@ -21,6 +21,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"all",
 			"--data-dir",
@@ -50,6 +51,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"verify",
 			"all",
 			"--data-dir",
@@ -72,6 +74,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 
 		// Run the init command
 		initArgs := []string{
+			"secrets",
 			"init",
 			"all",
 			"--data-dir",
@@ -95,6 +98,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 
 		// Run the verify command
 		verifyArgs := []string{
+			"secrets",
 			"verify",
 			"all",
 			"--data-dir",
@@ -119,6 +123,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 
 		// Run the init command
 		initArgs := []string{
+			"secrets",
 			"init",
 			"all",
 			"--data-dir",
@@ -132,6 +137,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 
 		// Run the verify command
 		verifyArgs := []string{
+			"secrets",
 			"verify",
 			"all",
 			"--data-dir",
@@ -181,6 +187,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 
 			// Run the init command
 			initArgs := []string{
+				"secrets",
 				"init",
 				"all",
 				"--data-dir",
@@ -197,6 +204,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 
 			// Run the verify command
 			verifyArgs := []string{
+				"secrets",
 				"verify",
 				"all",
 				"--data-dir",
@@ -222,6 +230,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 
 		// Run the init command
 		initArgs := []string{
+			"secrets",
 			"init",
 			"all",
 			"--data-dir",
@@ -238,6 +247,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 
 		// Run the verify command
 		verifyArgs := []string{
+			"secrets",
 			"verify",
 			"all",
 			"--data-dir",

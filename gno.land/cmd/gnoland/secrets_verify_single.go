@@ -19,7 +19,7 @@ func newVerifySingleCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "single",
-			ShortUsage: "verify single [flags]",
+			ShortUsage: "secrets verify single [flags]",
 			ShortHelp:  "Verifies required Gno secrets individually",
 			LongHelp: "Verifies the validator private key, the node p2p key and the validator's last sign state" +
 				" at custom paths",

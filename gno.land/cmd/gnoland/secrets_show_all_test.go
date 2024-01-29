@@ -24,6 +24,7 @@ func TestSecrets_Show_All(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"show",
 			"all",
 			"--data-dir",
@@ -46,6 +47,7 @@ func TestSecrets_Show_All(t *testing.T) {
 
 		// Run the init command
 		initArgs := []string{
+			"secrets",
 			"init",
 			"all",
 			"--data-dir",
@@ -78,6 +80,7 @@ func TestSecrets_Show_All(t *testing.T) {
 
 		// Run the show command
 		showArgs := []string{
+			"secrets",
 			"show",
 			"all",
 			"--data-dir",

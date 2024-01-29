@@ -21,7 +21,7 @@ func newInitAllCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "all",
-			ShortUsage: "init all [flags]",
+			ShortUsage: "secrets init all [flags]",
 			ShortHelp:  "Initializes required Gno secrets in a common directory",
 			LongHelp:   "Initializes the validator private key, the node p2p key and the validator's last sign state",
 		},

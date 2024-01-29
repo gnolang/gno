@@ -13,7 +13,7 @@ func newVerifyCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "verify",
-			ShortUsage: "verify [subcommand] [flags]",
+			ShortUsage: "secrets verify <subcommand> [flags]",
 			ShortHelp:  "Verifies the Gno node secrets",
 			LongHelp:   "Verifies the Gno node secrets locally, including the validator key, validator state and node key",
 		},

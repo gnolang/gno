@@ -14,7 +14,7 @@ func newShowCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "show",
-			ShortUsage: "show [subcommand] [flags]",
+			ShortUsage: "secrets show <subcommand> [flags]",
 			ShortHelp:  "Shows the Gno node secrets",
 			LongHelp:   "Shows the Gno node secrets locally, including the validator key, validator state and node key",
 		},

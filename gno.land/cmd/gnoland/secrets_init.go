@@ -11,7 +11,7 @@ func newInitCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init [subcommand] [flags]",
+			ShortUsage: "secrets init <subcommand> [flags]",
 			ShortHelp:  "Initializes the Gno node secrets",
 			LongHelp:   "Initializes the Gno node secrets locally, including the validator key, validator state and node key",
 		},

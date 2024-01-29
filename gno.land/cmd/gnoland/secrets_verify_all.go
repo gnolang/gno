@@ -19,7 +19,7 @@ func newVerifyAllCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "all",
-			ShortUsage: "verify all [flags]",
+			ShortUsage: "secrets verify all [flags]",
 			ShortHelp:  "Verifies all Gno secrets in a common directory",
 			LongHelp:   "Verifies the validator private key, the node p2p key and the validator's last sign state",
 		},

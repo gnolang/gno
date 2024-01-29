@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -18,19 +16,14 @@ const (
 	defaultValidatorStateName = "priv_validator_state.json"
 )
 
-func main() {
-	io := commands.NewDefaultIO()
-	cmd := newRootCmd(io)
-
-	cmd.Execute(context.Background(), os.Args[1:])
-}
-
-// newRootCmd creates the new secrets root command
-func newRootCmd(io commands.IO) *commands.Command {
+// newSecretsCmd creates the new secrets root command
+func newSecretsCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Gno secrets manipulation suite",
+			Name:       "secrets",
+			ShortUsage: "secrets <subcommand> [flags] [<arg>...]",
+			ShortHelp:  "Gno secrets manipulation suite",
+			LongHelp:   "Gno secrets manipulation suite, for managing the validator key, p2p key and validator state",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,

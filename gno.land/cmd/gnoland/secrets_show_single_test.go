@@ -22,6 +22,7 @@ func TestSecrets_Show_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"secrets",
 			"show",
 			"single",
 		}
@@ -48,6 +49,7 @@ func TestSecrets_Show_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(io)
 		args := []string{
+			"secrets",
 			"show",
 			"single",
 			"--validator-key-path",
@@ -90,6 +92,7 @@ func TestSecrets_Show_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(io)
 		args := []string{
+			"secrets",
 			"show",
 			"single",
 			"--validator-state-path",
@@ -138,6 +141,7 @@ func TestSecrets_Show_Single(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(io)
 		args := []string{
+			"secrets",
 			"show",
 			"single",
 			"--node-key-path",

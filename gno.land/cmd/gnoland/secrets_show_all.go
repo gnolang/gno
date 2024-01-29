@@ -19,7 +19,7 @@ func newShowAllCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "all",
-			ShortUsage: "show all [flags]",
+			ShortUsage: "secrets show all [flags]",
 			ShortHelp:  "Shows all Gno secrets in a common directory",
 			LongHelp:   "Shows the validator private key, the node p2p key and the validator's last sign state",
 		},

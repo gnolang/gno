@@ -21,7 +21,7 @@ func newInitSingleCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "single",
-			ShortUsage: "init single [flags]",
+			ShortUsage: "secrets init single [flags]",
 			ShortHelp:  "Initializes required Gno secrets individually",
 			LongHelp: "Initializes the validator private key, the node p2p key and the validator's last sign state" +
 				" at custom paths",
