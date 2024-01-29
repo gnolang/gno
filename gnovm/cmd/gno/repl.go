@@ -8,11 +8,23 @@ import (
 	"fmt"
 	"go/scanner"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+)
+
+const (
+	srcCommand    = "/src"
+	editorCommand = "/editor"
+	resetCommand  = "/reset"
+	exitCommand   = "/exit"
+	clearCommand  = "/clear"
+	gnoREPL       = "gno> "
+	inEditMode    = "...  "
 )
 
 type replCfg struct {
@@ -107,18 +119,41 @@ func runRepl(cfg *replCfg) error {
 		handleInput(r, cfg.initialCommand)
 	}
 
-	fmt.Fprint(os.Stdout, "gno> ")
+	fmt.Fprint(os.Stdout, gnoREPL)
+
+	const indentSize = 4
 
 	inEdit := false
 	prev := ""
 	liner := bufio.NewScanner(os.Stdin)
+	indentLevel := 0
 
 	for liner.Scan() {
 		line := liner.Text()
 
+		openCount, closeCount := 0, 0
+        for _, char := range line {
+            switch char {
+            case '{', '(', '[':
+                openCount++
+            case '}', ')', ']':
+                closeCount++
+            }
+        }
+
+		if closeCount > 0 && strings.HasSuffix(strings.TrimSpace(line), "}") || strings.HasSuffix(strings.TrimSpace(line), ")") || strings.HasSuffix(strings.TrimSpace(line), "]") {
+            indentLevel--
+        }
+
+		indentLevel += openCount - closeCount
+
+		if strings.HasSuffix(strings.TrimSpace(line), ":") {
+            indentLevel++
+        }
+
 		if l := strings.TrimSpace(line); l == ";" {
 			line, inEdit = "", false
-		} else if l == "/editor" {
+		} else if l == editorCommand {
 			line, inEdit = "", true
 			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
 		}
@@ -127,7 +162,7 @@ func runRepl(cfg *replCfg) error {
 			prev = ""
 		}
 		if inEdit {
-			fmt.Fprint(os.Stdout, "...  ")
+			fmt.Fprint(os.Stdout, inEditMode)
 			prev = line
 			continue
 		}
@@ -135,7 +170,7 @@ func runRepl(cfg *replCfg) error {
 		if err := handleInput(r, line); err != nil {
 			var goScanError scanner.ErrorList
 			if errors.As(err, &goScanError) {
-				// We assune that a Go scanner error indicates an incomplete Go statement.
+				// We assume that a Go scanner error indicates an incomplete Go statement.
 				// Append next line and retry.
 				prev = line
 			} else {
@@ -144,10 +179,10 @@ func runRepl(cfg *replCfg) error {
 		}
 
 		if prev == "" {
-			fmt.Fprint(os.Stdout, "gno> ")
-		} else {
-			fmt.Fprint(os.Stdout, "...  ")
-		}
+            fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
+        } else {
+            fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
+        }
 	}
 	return nil
 }
@@ -155,11 +190,13 @@ func runRepl(cfg *replCfg) error {
 // handleInput executes specific "/" commands, or evaluates input as Gno source code.
 func handleInput(r *repl.Repl, input string) error {
 	switch strings.TrimSpace(input) {
-	case "/reset":
+	case resetCommand:
 		r.Reset()
-	case "/src":
+	case srcCommand:
 		fmt.Fprintln(os.Stdout, r.Src())
-	case "/exit":
+	case clearCommand:
+		clearScreen()
+	case exitCommand:
 		os.Exit(0)
 	case "":
 		// Avoid to increase the repl execution counter if no input.
@@ -171,4 +208,17 @@ func handleInput(r *repl.Repl, input string) error {
 		fmt.Fprintln(os.Stdout, out)
 	}
 	return nil
+}
+
+func clearScreen() {
+    var cmd *exec.Cmd
+
+    if runtime.GOOS == "windows" {
+        cmd = exec.Command("cmd", "/c", "cls")
+    } else {
+        cmd = exec.Command("clear")
+    }
+
+    cmd.Stdout = os.Stdout
+    cmd.Run()
 }
