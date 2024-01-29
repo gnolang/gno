@@ -17,12 +17,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
+const indentSize = 4
+
 const (
 	srcCommand    = "/src"
 	editorCommand = "/editor"
 	resetCommand  = "/reset"
 	exitCommand   = "/exit"
 	clearCommand  = "/clear"
+	helpCommand   = "/help"
 	gnoREPL       = "gno> "
 	inEditMode    = "...  "
 )
@@ -98,15 +101,7 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if !cfg.skipUsage {
-		fmt.Fprint(os.Stderr, `// Usage:
-//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
-//   gno> func a() string { return "a" }   // declare a new function named a
-//   gno> /src                             // print current generated source
-//   gno> /editor                          // enter in multi-line mode, end with ';'
-//   gno> /reset                           // remove all previously inserted code
-//   gno> println(a())                     // print the result of calling a()
-//   gno> /exit                            // alternative to <Ctrl-D>
-`)
+		printHelp()
 	}
 
 	return runRepl(cfg)
@@ -121,8 +116,6 @@ func runRepl(cfg *replCfg) error {
 
 	fmt.Fprint(os.Stdout, gnoREPL)
 
-	const indentSize = 4
-
 	inEdit := false
 	prev := ""
 	liner := bufio.NewScanner(os.Stdin)
@@ -131,39 +124,49 @@ func runRepl(cfg *replCfg) error {
 	for liner.Scan() {
 		line := liner.Text()
 
+		trimmedLine := strings.TrimSpace(line)
 		openCount, closeCount := 0, 0
-        for _, char := range line {
-            switch char {
-            case '{', '(', '[':
-                openCount++
-            case '}', ')', ']':
-                closeCount++
-            }
-        }
 
-		if closeCount > 0 && strings.HasSuffix(strings.TrimSpace(line), "}") || strings.HasSuffix(strings.TrimSpace(line), ")") || strings.HasSuffix(strings.TrimSpace(line), "]") {
-            indentLevel--
-        }
+		for _, char := range trimmedLine {
+			switch char {
+			case '{', '(', '[':
+				openCount++
+			case '}', ')', ']':
+				closeCount++
+			}
+		}
 
-		indentLevel += openCount - closeCount
+		if closeCount > 0 {
+			indentLevel -= closeCount
+		}
 
-		if strings.HasSuffix(strings.TrimSpace(line), ":") {
-            indentLevel++
-        }
+		indentLevel += openCount
+
+		if indentLevel < 0 {
+			indentLevel = 0
+		}
+
+		if strings.HasSuffix(trimmedLine, ":") {
+			indentLevel++
+		}
 
 		if l := strings.TrimSpace(line); l == ";" {
 			line, inEdit = "", false
 		} else if l == editorCommand {
 			line, inEdit = "", true
+
 			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
 		}
+
 		if prev != "" {
 			line = prev + "\n" + line
 			prev = ""
 		}
+
 		if inEdit {
 			fmt.Fprint(os.Stdout, inEditMode)
 			prev = line
+
 			continue
 		}
 
@@ -179,17 +182,19 @@ func runRepl(cfg *replCfg) error {
 		}
 
 		if prev == "" {
-            fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
-        } else {
-            fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
-        }
+			fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
+		} else {
+			fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
+		}
 	}
+
 	return nil
 }
 
 // handleInput executes specific "/" commands, or evaluates input as Gno source code.
 func handleInput(r *repl.Repl, input string) error {
-	switch strings.TrimSpace(input) {
+	input = strings.TrimSpace(input)
+	switch input {
 	case resetCommand:
 		r.Reset()
 	case srcCommand:
@@ -198,6 +203,8 @@ func handleInput(r *repl.Repl, input string) error {
 		clearScreen()
 	case exitCommand:
 		os.Exit(0)
+	case helpCommand:
+		printHelp()
 	case "":
 		// Avoid to increase the repl execution counter if no input.
 	default:
@@ -205,20 +212,48 @@ func handleInput(r *repl.Repl, input string) error {
 		if err != nil {
 			return err
 		}
+
 		fmt.Fprintln(os.Stdout, out)
 	}
+
 	return nil
 }
 
 func clearScreen() {
-    var cmd *exec.Cmd
+	var cmd *exec.Cmd
 
-    if runtime.GOOS == "windows" {
-        cmd = exec.Command("cmd", "/c", "cls")
-    } else {
-        cmd = exec.Command("clear")
-    }
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "cls")
+	} else {
+		cmd = exec.Command("clear")
+	}
 
-    cmd.Stdout = os.Stdout
-    cmd.Run()
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+}
+
+func printHelp() {
+	fmt.Fprint(os.Stderr, `Gno REPL Usage Instructions:
+--------------------------------
+- /src:      Display the current generated source code.
+	Example:   Prints the current generated source code to the console.
+
+- /editor:   Enter multi-line mode. End input with ';'.
+	Example:   Allows writing code in multiple lines, finish by entering ';'.
+
+- /clear:    Clear the screen.
+
+- /reset:    Remove all previously inserted code and reset the session.
+	Example:   Clears all code entered in the current REPL session.
+
+- /exit:     Exit the REPL session (alternative to pressing <Ctrl-D>).
+	Example:   Exits the REPL session.
+
+- println:   Execute a function and print the result.
+	Usage:     gno> println(a())
+	Example:   Prints the result of calling the function 'a'.
+
+Note: Prefix commands with 'gno>' to execute in the Gno REPL environment.
+
+`)
 }
