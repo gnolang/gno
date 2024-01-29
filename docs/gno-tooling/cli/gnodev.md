@@ -20,11 +20,11 @@ reloading the package and automatically restarting the node as needed.
 
 ## Installation
 Gnodev can be found in the `contribs` folder in the monorepo.
-Run `make install`  to install `gnodev`.
-
-[//]: # (todo add isntallation gif)
+To install `gnodev`, run `make install`.
 
 ## Usage
+
+![gnodev_usage](../../assets/reference/gnodev/gnodev.gif)
 
 [//]: # (todo)
 
