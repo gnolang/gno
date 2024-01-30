@@ -508,7 +508,6 @@ func (pkgs pkgsLoader) loadPackages(modroot string, path, name string) error {
 		for _, req := range gnoMod.Require {
 			pkg.Requires = append(pkg.Requires, req.Mod.Path)
 		}
-
 	}
 
 	if pkg.Draft {
