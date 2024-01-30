@@ -32,6 +32,7 @@ type Debugger struct {
 	lastDebugCmd string
 	lastDebugArg string
 	DebugLoc     Location
+	PrevDebugLoc Location
 }
 
 type debugCommand struct {
@@ -53,6 +54,7 @@ func init() {
 		"help":     {debugHelp, helpUsage, helpShort, ""},
 		"list":     {debugList, listUsage, listShort, ""},
 		"print":    {debugPrint, printUsage, printShort, ""},
+		"step":     {debugStep, stepUsage, stepShort, ""},
 		"stepi":    {debugStepi, stepiUsage, stepiShort, ""},
 	}
 
@@ -70,6 +72,7 @@ func init() {
 	debugCmds["p"] = debugCmds["print"]
 	debugCmds["quit"] = debugCmds["exit"]
 	debugCmds["q"] = debugCmds["exit"]
+	debugCmds["s"] = debugCmds["step"]
 	debugCmds["si"] = debugCmds["stepi"]
 }
 
@@ -89,8 +92,17 @@ loop:
 			}
 		case DebugAtRun:
 			// TODO: here, check matching breakpoint condition and set DebugAtCmd if match.
-			if m.lastDebugCmd == "stepi" || m.lastDebugCmd == "si" {
+			switch m.lastDebugCmd {
+			case "si", "stepi":
 				m.DebugState = DebugAtCmd
+				break
+			case "s", "step":
+				if m.DebugLoc != m.PrevDebugLoc {
+					m.DebugState = DebugAtCmd
+					m.PrevDebugLoc = m.DebugLoc
+					debugList(m, "")
+					break
+				}
 			}
 			break loop
 		case DebugAtExit:
@@ -299,6 +311,15 @@ const printShort = `Print a variable or expression.`
 
 func debugPrint(m *Machine, arg string) error {
 	println("not implemented yet")
+	return nil
+}
+
+// ---------------------------------------
+const stepUsage = `step|s`
+const stepShort = `Single step through program.`
+
+func debugStep(m *Machine, arg string) error {
+	m.DebugState = DebugAtRun
 	return nil
 }
 
