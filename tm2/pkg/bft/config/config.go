@@ -31,14 +31,14 @@ var (
 )
 
 const (
-	levelDBName  = "goleveldb"
-	clevelDBName = "cleveldb"
-	boltDBName   = "boltdb"
+	LevelDBName  = "goleveldb"
+	ClevelDBName = "cleveldb"
+	BoltDBName   = "boltdb"
 )
 
 const (
-	localABCI  = "local"
-	socketABCI = "socket"
+	LocalABCI  = "local"
+	SocketABCI = "socket"
 )
 
 // Regular expression for TCP or UNIX socket address
@@ -365,9 +365,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != levelDBName &&
-		cfg.DBBackend != clevelDBName &&
-		cfg.DBBackend != boltDBName {
+	if cfg.DBBackend != LevelDBName &&
+		cfg.DBBackend != ClevelDBName &&
+		cfg.DBBackend != BoltDBName {
 		return errInvalidDBBackend
 	}
 
@@ -403,8 +403,8 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the correct ABCI mechanism is set
-	if cfg.ABCI != localABCI &&
-		cfg.ABCI != socketABCI {
+	if cfg.ABCI != LocalABCI &&
+		cfg.ABCI != SocketABCI {
 		return errInvalidABCIMechanism
 	}
 
