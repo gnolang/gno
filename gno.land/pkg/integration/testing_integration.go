@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
@@ -33,6 +34,7 @@ import (
 const (
 	envKeyGenesis int = iota
 	envKeyLogger
+	envKeyPkgs
 )
 
 const numTestAccounts int = 4
@@ -89,11 +91,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	nodes := map[string]*testNode{}
 
-	// type packagesTxs struct {
-	// 	[]gnoland.Balance
-	// 	[]
-	// }
-
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
@@ -145,18 +142,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
-			// Create test accounts starting from test2.
-			for i := 1; i < numTestAccounts; i++ {
-				accountName := "test" + strconv.Itoa(i+1)
-
-				balance, err := createAccount(env, kb, accountName)
-				if err != nil {
-					return fmt.Errorf("error creating account %s: %w", accountName, err)
-				}
-
-				genesis.Balances = append(genesis.Balances, balance)
-			}
 			env.Values[envKeyGenesis] = genesis
+			env.Values[envKeyPkgs] = pkgsLoader{}
+
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
 
@@ -184,6 +172,13 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 
 					// get pacakges
+					pkgs := ts.Value(envKeyPkgs).(pkgsLoader)                       // grab logger
+					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+					pkgsTxs, err := pkgs.Txs(creator, defaultFee, nil)
+					if err != nil {
+						ts.Fatalf("unable to load packages txs: %s", err)
+					}
 
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
@@ -191,6 +186,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// Generate config and node
 					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
@@ -286,61 +282,50 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 			},
-			// use load a specific packagae from the example folder or from the working directory
+			// use load a specific package from the example folder or from the working directory
 			"use": func(ts *testscript.TestScript, neg bool, args []string) {
-				creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-				defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-
 				// special dirs
 				workDir := ts.Getenv("WORK")
 				examplesDir := filepath.Join(gnoRootDir, "examples")
 
-				var txs []std.Tx
+				pkgs := ts.Value(envKeyPkgs).(pkgsLoader)
+
+				var path, name string
 				switch len(args) {
-				case 1:
-					var path string
-					if args[0] == "all" {
-						// if `all` is specified fully load example folder
-						path = examplesDir
-					} else {
-						path = filepath.Clean(args[0])
-						if !strings.HasPrefix(path, workDir) {
-							path = filepath.Join(examplesDir, path)
-						}
-					}
-
-					var err error
-					txs, err = gnoland.LoadPackagesFromDir(path, creator, defaultFee, nil)
-					if err != nil {
-						ts.Fatalf("`use` unable to load package(s) %s: %s", path, err)
-					}
 				case 2:
-					path := filepath.Clean(args[0])
-					if !strings.HasPrefix(path, workDir) {
-						path = filepath.Join(examplesDir, path)
-					}
-
-					pkg := gnomod.Pkg{
-						Dir:      path,
-						Name:     filepath.Clean(args[1]),
-						Draft:    false,
-						Requires: []string{},
-					}
-					tx, err := gnoland.LoadPackage(pkg, creator, defaultFee, nil)
-					if err != nil {
-						ts.Fatalf("`use` unable to load package(s) %s: %s", path, err)
-					}
-					txs = []std.Tx{tx}
+					name = args[0]
+					path = filepath.Clean(args[1])
+				case 1:
+					path = filepath.Clean(args[0])
 				case 0:
 					ts.Fatalf("`use`: no arguments specified")
 				default:
 					ts.Fatalf("`use`: too many arguments specified")
 				}
 
-				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-				// Add packages txs to genesis
-				genesis.Txs = append(genesis.Txs, txs...)
-				ts.Logf("%s package was added to genesis", args[0])
+				// if `all` is specified fully load example folder
+				// NOTE: in 99% of cases, this is not needed and
+				// packages should be load individually
+				if path == "all" {
+					ts.Logf("warning: loading all packages")
+					err := pkgs.loadPackagesFromDir(examplesDir)
+					if err != nil {
+						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
+					}
+
+					return
+				}
+
+				if !strings.HasPrefix(path, workDir) {
+					path = filepath.Join(examplesDir, path)
+				}
+
+				err := pkgs.loadPackages(examplesDir, path, name)
+				if err != nil {
+					ts.Fatalf("`use` unable to load package(s) from %q: %s", args[0], err)
+				}
+
+				ts.Logf("%q package was added to genesis", args[0])
 			},
 		},
 	}
@@ -439,6 +424,109 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin("ugnot", 1000000000000000000)},
+		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
 	}, nil
+}
+
+type pkgsLoader map[string]gnomod.Pkg
+
+func (pkgs pkgsLoader) list() gnomod.PkgList {
+	list := make([]gnomod.Pkg, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		list = append(list, pkg)
+	}
+	return list
+}
+
+func (pkgs pkgsLoader) Txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	pkgslist, err := pkgs.list().Sort()
+	if err != nil {
+		return nil, fmt.Errorf("uanble to sort packages: %w", err)
+	}
+
+	txs := make([]std.Tx, len(pkgslist))
+	for i, pkg := range pkgslist {
+		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
+		}
+		txs[i] = tx
+	}
+
+	return txs, nil
+}
+
+func (pkgs pkgsLoader) loadPackagesFromDir(path string) error {
+	// list all packages from target path
+	pkgslist, err := gnomod.ListPkgs(path)
+	if err != nil {
+		return fmt.Errorf("listing gno packages: %w", err)
+	}
+
+	for _, pkg := range pkgslist {
+		if _, ok := pkgs[pkg.Name]; !ok {
+			pkgs[pkg.Name] = pkg
+		}
+	}
+
+	return nil
+}
+
+func (pkgs pkgsLoader) loadPackages(modroot string, path, name string) error {
+	if path == "" {
+		return fmt.Errorf("no path specified for package")
+	}
+
+	pkg := gnomod.Pkg{
+		Dir:  path,
+		Name: name,
+	}
+
+	if pkg.Name == "" {
+		// try to load `gno.mod` informations
+		gnoModPath := filepath.Join(pkg.Dir, "gno.mod")
+		data, err := os.ReadFile(gnoModPath)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no name specified /gnomod doesn't exist (%q)", gnoModPath)
+		}
+
+		if err != nil {
+			return fmt.Errorf("unable to load gno.mod: %w", err)
+		}
+
+		gnoMod, err := gnomod.Parse(gnoModPath, data)
+		if err != nil {
+			return fmt.Errorf("%q parse gnomod error: %w", gnoModPath, err)
+		}
+
+		gnoMod.Sanitize()
+		if err := gnoMod.Validate(); err != nil {
+			return fmt.Errorf("validate %q error: %w", gnoModPath, err)
+		}
+
+		// override pkg info with mod infos
+		pkg.Name = gnoMod.Module.Mod.Path
+		pkg.Draft = gnoMod.Draft
+		for _, req := range gnoMod.Require {
+			pkg.Requires = append(pkg.Requires, req.Mod.Path)
+		}
+	}
+
+	if pkg.Draft {
+		return nil // skip draft package
+	}
+
+	if _, ok := pkgs[pkg.Name]; ok {
+		return nil // we already know this pkg
+	}
+	pkgs[pkg.Name] = pkg
+
+	for _, pkgpath := range pkg.Requires {
+		pkgpath := filepath.Join(modroot, pkgpath)
+		if err := pkgs.loadPackages(modroot, pkgpath, ""); err != nil {
+			return fmt.Errorf("require %q: %w", pkgpath, err)
+		}
+	}
+
+	return nil
 }

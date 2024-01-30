@@ -93,7 +93,6 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 		return nil, fmt.Errorf("listing gno packages: %w", err)
 	}
 
-	pkgs.Sort()
 	// Sort packages by dependencies.
 	sortedPkgs, err := pkgs.Sort()
 	if err != nil {

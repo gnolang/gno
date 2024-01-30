@@ -1,4 +1,4 @@
-use all
+use gno.land/r/demo/wugnot
 
 gnoland start
 
