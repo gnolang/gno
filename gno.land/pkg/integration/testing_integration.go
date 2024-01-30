@@ -37,8 +37,6 @@ const (
 	envKeyPkgs
 )
 
-const numTestAccounts int = 4
-
 type tSeqShim struct{ *testing.T }
 
 // noop Parallel method allow us to run test sequentially
