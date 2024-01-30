@@ -287,9 +287,5 @@ func parseToggleValue(value string) (bool, error) {
 		return false, errInvalidToggleValue
 	}
 
-	if value == onValue {
-		return true, nil
-	}
-
 	return value == onValue, nil
 }
