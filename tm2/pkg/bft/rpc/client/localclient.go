@@ -3,7 +3,6 @@ package client
 import (
 	"golang.org/x/exp/slog"
 
-	nm "github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -36,8 +35,10 @@ type Local struct {
 // you can only have one node per process.  So make sure test cases
 // don't run in parallel, or try to simulate an entire network in
 // one process...
-func NewLocal(node *nm.Node) *Local {
-	node.ConfigureRPC()
+//
+// Before using a Local client, callers are responsible for calling
+// Node.ConfigureRPC().
+func NewLocal() *Local {
 	return &Local{
 		Logger: log.NewNoopLogger(),
 		ctx:    &rpctypes.Context{},

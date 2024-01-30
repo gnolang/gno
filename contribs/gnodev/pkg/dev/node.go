@@ -66,7 +66,8 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the node: %w", err)
 	}
-	client := client.NewLocal(node)
+	node.ConfigureRPC()
+	client := client.NewLocal()
 
 	if err := node.Start(); err != nil {
 		return nil, fmt.Errorf("unable to start node: %w", err)
@@ -239,7 +240,8 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 		}
 
 		d.Node = node
-		d.client = client.NewLocal(d.Node)
+		node.ConfigureRPC()
+		d.client = client.NewLocal()
 	}
 
 	// Execute node creation and handle any errors.
