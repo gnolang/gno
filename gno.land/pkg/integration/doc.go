@@ -24,15 +24,16 @@
 // 4. `use`:
 //   - Loads a specific package from the example folder or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
-//   - The command takes either one or two arguments. The first argument is the path to the package(s),
-//     and the second (optional) argument is the name of the package.
+//   - The command takes either one or two arguments. The first argument is the name of the package(s),
+//     and the second (optional) argument is the path to the package(s).
 //     Examples:
-//       - # Load a package from the example packages directory:
-//         use gno.land/p/demo/ufmt
-//       - # Load a package from the current working directory with the name `gno.land/r/foobar/bar`:
-//         use $WORK/bar gno.land/r/foobar/bar
+//     -- # Load a package from the example packages directory:
+//     -- use gno.land/p/demo/ufmt
+//     -- # Load a package `./bar` from the current testscript's working directory with the name `gno.land/r/foobar/bar`:
+//     -- use gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the examples directory.
-
+//   - The command should always be executed before `gnoland start` to ensure loading
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
