@@ -1878,16 +1878,13 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	debug.Printf("---PopAsPointer: %v \n", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
 		return lb.GetPointerTo(m.Store, lx.Path)
 	case *IndexExpr:
 		iv := m.PopValue()
-		debug.Printf("---iv: %v \n", iv)
 		xv := m.PopValue()
-		debug.Printf("---xv: %v \n", xv)
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()

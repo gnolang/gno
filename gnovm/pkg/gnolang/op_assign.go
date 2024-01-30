@@ -25,17 +25,14 @@ func (m *Machine) doOpDefine() {
 }
 
 func (m *Machine) doOpAssign() {
-	debug.Println("---doOpAssign")
 	s := m.PopStmt().(*AssignStmt)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		debug.Println("----prepare lv")
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		debug.Printf("---lv: %v \n", lv)
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := lv.Base.(Object); ok {
