@@ -25,7 +25,7 @@ func newConfigCmd(io commands.IO) *commands.Command {
 		newConfigRPCCmd(io),
 		newConfigP2PCmd(io),
 		newConfigConsensusCmd(io),
-		// newConfigEventStoreCmd(io),
+		newConfigEventsCmd(io),
 	)
 
 	return cmd
