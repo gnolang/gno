@@ -10,6 +10,7 @@ import (
 	"github.com/jaekwon/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 

@@ -1,13 +1,16 @@
-//go:build cleveldb
+//go:build cgo
 
-package db
+package cleveldb
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,11 +19,11 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 	b.StopTimer()
 
 	numItems := int64(1000000)
-	internal := map[int64]int64{}
+	mrand := map[int64]int64{}
 	for i := 0; i < int(numItems); i++ {
-		internal[int64(i)] = int64(0)
+		mrand[int64(i)] = int64(0)
 	}
-	db, err := NewCLevelDB(fmt.Sprintf("test_%x", randStr(12)), "")
+	db, err := NewCLevelDB(fmt.Sprintf("test_%x", internal.RandStr(12)), "")
 	if err != nil {
 		b.Fatal(err.Error())
 		return
@@ -33,8 +36,8 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 		// Write something
 		{
 			idx := (int64(rand.Int()) % numItems)
-			internal[idx]++
-			val := internal[idx]
+			mrand[idx]++
+			val := mrand[idx]
 			idxBytes := int642Bytes(int64(idx))
 			valBytes := int642Bytes(int64(val))
 			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
@@ -46,7 +49,7 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 		// Read something
 		{
 			idx := (int64(rand.Int()) % numItems)
-			val := internal[idx]
+			val := mrand[idx]
 			idxBytes := int642Bytes(int64(idx))
 			valBytes := db.Get(idxBytes)
 			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
@@ -75,7 +78,6 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 	db.Close()
 }
 
-/*
 func int642Bytes(i int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
@@ -85,15 +87,14 @@ func int642Bytes(i int64) []byte {
 func bytes2Int64(buf []byte) int64 {
 	return int64(binary.BigEndian.Uint64(buf))
 }
-*/
 
 func TestCLevelDBBackend(t *testing.T) {
 	t.Parallel()
 
-	name := fmt.Sprintf("test_%x", randStr(12))
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	// Can't use "" (current directory) or "./" here because levigo.Open returns:
 	// "Error initializing DB: IO error: test_XXX.db: Invalid argument"
-	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
+	db, err := db.NewDB(name, db.CLevelDBBackend, t.TempDir())
 	require.NoError(t, err)
 
 	_, ok := db.(*CLevelDB)
@@ -103,8 +104,8 @@ func TestCLevelDBBackend(t *testing.T) {
 func TestCLevelDBStats(t *testing.T) {
 	t.Parallel()
 
-	name := fmt.Sprintf("test_%x", randStr(12))
-	db, err := NewDB(name, CLevelDBBackend, t.TempDir())
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := db.NewDB(name, db.CLevelDBBackend, t.TempDir())
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, db.Stats())

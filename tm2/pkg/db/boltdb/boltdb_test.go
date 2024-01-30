@@ -1,18 +1,17 @@
-//go:build boltdb
-
-package db
+package boltdb
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBoltDBNewBoltDB(t *testing.T) {
 	t.Parallel()
 
-	name := fmt.Sprintf("test_%x", randStr(12))
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 
 	db, err := NewBoltDB(name, t.TempDir())
 	require.NoError(t, err)
@@ -24,12 +23,12 @@ func BenchmarkBoltDBRandomReadsWrites(b *testing.B) {
 		b.Skip("skipping testing in short mode")
 	}
 
-	name := fmt.Sprintf("test_%x", randStr(12))
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	db, err := NewBoltDB(name, b.TempDir())
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer db.Close()
 
-	benchmarkRandomReadsWrites(b, db)
+	internal.BenchmarkRandomReadsWrites(b, db)
 }

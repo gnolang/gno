@@ -1,4 +1,4 @@
-package db
+package goleveldb
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/gnolang/goleveldb/leveldb"
 	"github.com/gnolang/goleveldb/leveldb/errors"
 	"github.com/gnolang/goleveldb/leveldb/iterator"
@@ -13,13 +15,13 @@ import (
 )
 
 func init() {
-	dbCreator := func(name string, dir string) (DB, error) {
+	dbCreator := func(name string, dir string) (db.DB, error) {
 		return NewGoLevelDB(name, dir)
 	}
-	registerDBCreator(GoLevelDBBackend, dbCreator, false)
+	db.InternalRegisterDBCreator(db.GoLevelDBBackend, dbCreator, false)
 }
 
-var _ DB = (*GoLevelDB)(nil)
+var _ db.DB = (*GoLevelDB)(nil)
 
 type GoLevelDB struct {
 	db *leveldb.DB
@@ -43,7 +45,7 @@ func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, 
 
 // Implements DB.
 func (db *GoLevelDB) Get(key []byte) []byte {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	res, err := db.db.Get(key, nil)
 	if err != nil {
 		if goerrors.Is(err, errors.ErrNotFound) {
@@ -61,8 +63,8 @@ func (db *GoLevelDB) Has(key []byte) bool {
 
 // Implements DB.
 func (db *GoLevelDB) Set(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(key, value, nil)
 	if err != nil {
 		panic(err)
@@ -71,8 +73,8 @@ func (db *GoLevelDB) Set(key []byte, value []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) SetSync(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(key, value, &opt.WriteOptions{Sync: true})
 	if err != nil {
 		panic(err)
@@ -81,7 +83,7 @@ func (db *GoLevelDB) SetSync(key []byte, value []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) Delete(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(key, nil)
 	if err != nil {
 		panic(err)
@@ -90,7 +92,7 @@ func (db *GoLevelDB) Delete(key []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) DeleteSync(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(key, &opt.WriteOptions{Sync: true})
 	if err != nil {
 		panic(err)
@@ -146,7 +148,7 @@ func (db *GoLevelDB) Stats() map[string]string {
 // Batch
 
 // Implements DB.
-func (db *GoLevelDB) NewBatch() Batch {
+func (db *GoLevelDB) NewBatch() db.Batch {
 	batch := new(leveldb.Batch)
 	return &goLevelDBBatch{db, batch}
 }
@@ -192,13 +194,13 @@ func (mBatch *goLevelDBBatch) Close() {}
 // Before creating a third version, refactor.
 
 // Implements DB.
-func (db *GoLevelDB) Iterator(start, end []byte) Iterator {
+func (db *GoLevelDB) Iterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(nil, nil)
 	return newGoLevelDBIterator(itr, start, end, false)
 }
 
 // Implements DB.
-func (db *GoLevelDB) ReverseIterator(start, end []byte) Iterator {
+func (db *GoLevelDB) ReverseIterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(nil, nil)
 	return newGoLevelDBIterator(itr, start, end, true)
 }
@@ -211,7 +213,7 @@ type goLevelDBIterator struct {
 	isInvalid bool
 }
 
-var _ Iterator = (*goLevelDBIterator)(nil)
+var _ db.Iterator = (*goLevelDBIterator)(nil)
 
 func newGoLevelDBIterator(source iterator.Iterator, start, end []byte, isReverse bool) *goLevelDBIterator {
 	if isReverse {
@@ -292,7 +294,7 @@ func (itr *goLevelDBIterator) Key() []byte {
 	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
-	return cp(itr.source.Key())
+	return append([]byte{}, itr.source.Key()...)
 }
 
 // Implements Iterator.
@@ -301,7 +303,7 @@ func (itr *goLevelDBIterator) Value() []byte {
 	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
-	return cp(itr.source.Value())
+	return append([]byte{}, itr.source.Value()...)
 }
 
 // Implements Iterator.
