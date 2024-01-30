@@ -1,4 +1,4 @@
-use $WORK/bar gno.land/r/foobar/bar
+use gno.land/r/foobar/bar $WORK/bar 
 
 ## start a new node
 gnoland start

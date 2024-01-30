@@ -1,6 +1,6 @@
 # load a package from the example packages directory.
 use gno.land/p/demo/ufmt
-use $WORK gno.land/r/importtest
+use gno.land/r/importtest $WORK 
 
 ## start a new node
 gnoland start
