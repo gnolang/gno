@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -234,22 +233,21 @@ func debugBreak(m *Machine, arg string) error {
 }
 
 func arg2loc(m *Machine, arg string) (loc Location, err error) {
-	var filename string
 	var line int
-
 	loc = m.DebugLoc
+
 	if strings.Contains(arg, ":") {
 		// Location is specified by filename:line or function:line
 		strs := strings.Split(arg, ":")
-		filename = strs[0]
+		if strs[0] != "" {
+			if loc.File, err = filepath.Abs(strs[0]); err != nil {
+				return loc, err
+			}
+			loc.File = filepath.Clean(loc.File)
+		}
 		if line, err = strconv.Atoi(strs[1]); err != nil {
 			return loc, err
 		}
-		if loc.File, err = filepath.Abs(filename); err != nil {
-			return loc, err
-		}
-		loc.PkgPath = m.DebugLoc.PkgPath
-		loc.File = path.Clean(loc.File)
 		loc.Line = line
 		return loc, nil
 	}
