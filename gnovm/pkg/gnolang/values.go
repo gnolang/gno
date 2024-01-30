@@ -353,19 +353,15 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
-	debug.Printf("---Array_GetPointerAtIndexInt2, av: %v, av.p: %p, ii: %v, et: %v \n", av, av, ii, et)
 	if av.Data == nil {
-		debug.Println("---av.Data is nil")
-		debug.Printf("---&av.List[ii] before fill is: %v, T is: %T, addr: %p \n", &av.List[ii], &av.List[ii], &av.List[ii])
 		ev := fillValueTV(store, &av.List[ii]) // by reference
-		debug.Printf("---ev after fill is: %v, addr: %p \n", ev, ev)
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc
+	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer in isEql(), line 482
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -373,9 +369,6 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
-	//bbv.SetDataByte(av.Data[ii])
-	//bv := fillValueTV(store)
-	//bv := fillValueTV(store, &av.Data[ii]) // by reference
 
 	return PointerValue{
 		TV:    bv,

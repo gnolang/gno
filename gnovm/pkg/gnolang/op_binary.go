@@ -478,22 +478,11 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		if lv.V != nil && rv.V != nil {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)
-			debug.Printf("lpv.Base: %v, rpv.Base: %v, equal: %v \n", lpv.Base, rpv.Base, lpv.Base == rpv.Base)
-			debug.Printf("lpv.Base.P: %p, rpv.Base.P: %p, equal: %v \n", lpv.Base, rpv.Base, &lpv.Base == &rpv.Base)
-			debug.Printf("lpv.Index: %v, rpv.Index: %v \n", lpv.Index, rpv.Index)
-			debug.Printf("lpv.Tv: %v, rpv.Tv: %v, equal: %v \n", lpv.TV, rpv.TV, lpv.TV == rpv.TV)
-			debug.Printf("lpv.Tv.P: %p, rpv.Tv.P: %p, equal: %v \n", lpv.TV, rpv.TV, lpv.TV == rpv.TV)
-			debug.Printf("*lpv.Tv: %v, *rpv.Tv: %v, equal: %v \n", *lpv.TV, *rpv.TV, *lpv.TV == *rpv.TV)
-			debug.Printf("lpv.key: %v, rpv.key: %v, equal: %v \n", lpv.Key, rpv.Key, lpv.Key == rpv.Key)
-			debug.Printf("lpv: %v, rpv: %v, equal: %v \n", lpv, rpv, lpv == rpv)
 			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
 				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
 			}
 		}
-		//else {
 		return lv.V == rv.V
-		//}
-		//return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(
 			"comparison operator == not defined for %s",
