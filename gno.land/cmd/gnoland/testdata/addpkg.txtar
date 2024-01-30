@@ -33,4 +33,4 @@ GAS USED:   117850
 ("hello world!" string)
 OK!
 GAS WANTED: 2000000
-GAS USED:   66711
+GAS USED:   53445

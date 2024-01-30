@@ -14,6 +14,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/overflow"
 )
 
 //----------------------------------------
@@ -41,9 +43,10 @@ type Machine struct {
 	ReadOnly   bool
 	MaxCycles  int64
 
-	Output  io.Writer
-	Store   Store
-	Context interface{}
+	Output     io.Writer
+	Store      Store
+	Context    interface{}
+	VMGasMeter store.GasMeter
 }
 
 // machine.Release() must be called on objects
@@ -72,6 +75,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+	VMGasMeter    store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -91,6 +95,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
+	vmGasMeter := opts.VMGasMeter
+
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -125,6 +131,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
+	mm.VMGasMeter = vmGasMeter
+
+	if mm.Alloc != nil {
+		mm.Alloc.vmGasMeter = &mm.VMGasMeter
+	}
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -881,10 +892,17 @@ const (
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
+const GasFactorCpu int64 = 1
+
 //----------------------------------------
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
+	if m.VMGasMeter != nil {
+		gasCpu := overflow.Mul64p(cycles, GasFactorCpu)
+		m.VMGasMeter.ConsumeGas(gasCpu, "CpuCycles")
+	}
+
 	m.Cycles += cycles
 	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
 		panic("CPU cycle overrun")
