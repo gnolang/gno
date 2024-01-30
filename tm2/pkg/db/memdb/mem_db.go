@@ -5,18 +5,18 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/gnolang/gno/tm2/pkg/db"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func init() {
-	db.InternalRegisterDBCreator(db.MemDBBackend, func(name, dir string) (db.DB, error) {
+	dbm.InternalRegisterDBCreator(dbm.MemDBBackend, func(name, dir string) (dbm.DB, error) {
 		return NewMemDB(), nil
 	}, false)
 }
 
-var _ db.DB = (*MemDB)(nil)
+var _ dbm.DB = (*MemDB)(nil)
 
 type MemDB struct {
 	mtx sync.Mutex
@@ -154,7 +154,7 @@ func (db *MemDB) Stats() map[string]string {
 }
 
 // Implements DB.
-func (db *MemDB) NewBatch() db.Batch {
+func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -165,7 +165,7 @@ func (db *MemDB) NewBatch() db.Batch {
 // Iterator
 
 // Implements DB.
-func (db *MemDB) Iterator(start, end []byte) db.Iterator {
+func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -174,7 +174,7 @@ func (db *MemDB) Iterator(start, end []byte) db.Iterator {
 }
 
 // Implements DB.
-func (db *MemDB) ReverseIterator(start, end []byte) db.Iterator {
+func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -185,10 +185,10 @@ func (db *MemDB) ReverseIterator(start, end []byte) db.Iterator {
 // ----------------------------------------
 // Misc.
 
-func (memdb *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
+func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 	keys := []string{}
-	for key := range memdb.db {
-		inDomain := db.IsKeyInDomain([]byte(key), start, end)
+	for key := range db.db {
+		inDomain := dbm.IsKeyInDomain([]byte(key), start, end)
 		if inDomain {
 			keys = append(keys, key)
 		}

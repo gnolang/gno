@@ -9,6 +9,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -17,7 +18,7 @@ import (
 func TestStoreType(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := NewMultiStore(db)
 	store.MountStoreWithDB(
 		types.NewStoreKey("store1"), iavl.StoreConstructor, db)
@@ -26,7 +27,7 @@ func TestStoreType(t *testing.T) {
 func TestStoreMount(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := NewMultiStore(db)
 
 	key1 := types.NewStoreKey("store1")
@@ -43,7 +44,7 @@ func TestStoreMount(t *testing.T) {
 func TestCacheMultiStoreWithVersion(t *testing.T) {
 	t.Parallel()
 
-	var db dbm.DB = dbm.NewMemDB()
+	var db dbm.DB = memdb.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
 	require.Nil(t, err)
@@ -82,7 +83,7 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 func TestHashStableWithEmptyCommit(t *testing.T) {
 	t.Parallel()
 
-	var db dbm.DB = dbm.NewMemDB()
+	var db dbm.DB = memdb.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
 	require.Nil(t, err)
@@ -108,7 +109,7 @@ func TestHashStableWithEmptyCommit(t *testing.T) {
 func TestMultistoreCommitLoad(t *testing.T) {
 	t.Parallel()
 
-	var db dbm.DB = dbm.NewMemDB()
+	var db dbm.DB = memdb.NewMemDB()
 	store := newMultiStoreWithMounts(db)
 	err := store.LoadLatestVersion()
 	require.Nil(t, err)
@@ -192,7 +193,7 @@ func TestParsePath(t *testing.T) {
 func TestMultiStoreQuery(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	multi := newMultiStoreWithMounts(db)
 	err := multi.LoadLatestVersion()
 	require.Nil(t, err)
