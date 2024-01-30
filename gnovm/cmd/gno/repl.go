@@ -116,47 +116,21 @@ func runRepl(cfg *replCfg) error {
 
 	fmt.Fprint(os.Stdout, gnoREPL)
 
-	inEdit := false
-	prev := ""
+	var (
+		inEdit      bool
+		prev        string
+		indentLevel int
+	)
+
 	liner := bufio.NewScanner(os.Stdin)
-	indentLevel := 0
 
 	for liner.Scan() {
 		line := liner.Text()
 
 		trimmedLine := strings.TrimSpace(line)
-		openCount, closeCount := 0, 0
 
-		for _, char := range trimmedLine {
-			switch char {
-			case '{', '(', '[':
-				openCount++
-			case '}', ')', ']':
-				closeCount++
-			}
-		}
-
-		if closeCount > 0 {
-			indentLevel -= closeCount
-		}
-
-		indentLevel += openCount
-
-		if indentLevel < 0 {
-			indentLevel = 0
-		}
-
-		if strings.HasSuffix(trimmedLine, ":") {
-			indentLevel++
-		}
-
-		if l := strings.TrimSpace(line); l == ";" {
-			line, inEdit = "", false
-		} else if l == editorCommand {
-			line, inEdit = "", true
-
-			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
-		}
+		indentLevel = updateIndentLevel(trimmedLine, indentLevel)
+		line, inEdit = handleEditor(line)
 
 		if prev != "" {
 			line = prev + "\n" + line
@@ -181,14 +155,84 @@ func runRepl(cfg *replCfg) error {
 			}
 		}
 
-		if prev == "" {
-			fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
-		} else {
-			fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
-		}
+		printPrompt(indentLevel, prev)
 	}
 
 	return nil
+}
+
+func processLine(r *repl.Repl, line string, inEdit bool, prev string) (string, bool, string) {
+	if l := strings.TrimSpace(line); l == ";" {
+		line, inEdit = "", false
+	} else if l == editorCommand {
+		line, inEdit = "", true
+
+		fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
+	}
+
+	if prev != "" {
+		line = prev + "\n" + line
+		prev = ""
+	}
+
+	if !inEdit {
+		if err := handleInput(r, line); err != nil {
+			var goScanError scanner.ErrorList
+			if errors.As(err, &goScanError) {
+				prev = line
+			} else {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
+	} else {
+		prev = line
+	}
+
+	return line, inEdit, prev
+}
+
+func handleEditor(line string) (string, bool) {
+	if l := strings.TrimSpace(line); l == ";" {
+		return "", false
+	} else if l == editorCommand {
+		fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
+
+		return "", true
+	}
+
+	return line, false
+}
+
+func updateIndentLevel(line string, indentLevel int) int {
+	openCount, closeCount := 0, 0
+
+	for _, char := range line {
+		switch char {
+		case '{', '(', '[':
+			openCount++
+		case '}', ')', ']':
+			closeCount++
+		}
+	}
+
+	indentLevel += openCount - closeCount
+	if indentLevel < 0 {
+		indentLevel = 0
+	}
+
+	if strings.HasSuffix(line, ":") {
+		indentLevel++
+	}
+
+	return indentLevel
+}
+
+func printPrompt(indentLevel int, prev string) {
+	if prev == "" {
+		fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
+	} else {
+		fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
+	}
 }
 
 // handleInput executes specific "/" commands, or evaluates input as Gno source code.
@@ -233,27 +277,14 @@ func clearScreen() {
 }
 
 func printHelp() {
-	fmt.Fprint(os.Stderr, `Gno REPL Usage Instructions:
---------------------------------
-- /src:      Display the current generated source code.
-	Example:   Prints the current generated source code to the console.
-
-- /editor:   Enter multi-line mode. End input with ';'.
-	Example:   Allows writing code in multiple lines, finish by entering ';'.
-
-- /clear:    Clear the screen.
-
-- /reset:    Remove all previously inserted code and reset the session.
-	Example:   Clears all code entered in the current REPL session.
-
-- /exit:     Exit the REPL session (alternative to pressing <Ctrl-D>).
-	Example:   Exits the REPL session.
-
-- println:   Execute a function and print the result.
-	Usage:     gno> println(a())
-	Example:   Prints the result of calling the function 'a'.
-
-Note: Prefix commands with 'gno>' to execute in the Gno REPL environment.
+	fmt.Fprint(os.Stderr, `// Usage:
+//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
+//   gno> func a() string { return "a" }   // declare a new function named a
+//   gno> /src                             // print current generated source
+//   gno> /editor                          // enter in multi-line mode, end with ';'
+//   gno> /reset                           // remove all previously inserted code
+//   gno> println(a())                     // print the result of calling a()
+//   gno> /exit                            // alternative to <Ctrl-D>
 
 `)
 }
