@@ -34,7 +34,7 @@ import (
 const (
 	envKeyGenesis int = iota
 	envKeyLogger
-	envKeyPkgs
+	envKeyPkgsLoader
 )
 
 type tSeqShim struct{ *testing.T }
@@ -141,7 +141,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
 			env.Values[envKeyGenesis] = genesis
-			env.Values[envKeyPkgs] = pkgsLoader{}
+			env.Values[envKeyPkgsLoader] = pkgsLoader{}
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -170,7 +170,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 
 					// get pacakges
-					pkgs := ts.Value(envKeyPkgs).(pkgsLoader)                       // grab logger
+					pkgs := ts.Value(envKeyPkgsLoader).(pkgsLoader)                 // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 					pkgsTxs, err := pkgs.Txs(creator, defaultFee, nil)
@@ -286,7 +286,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				workDir := ts.Getenv("WORK")
 				examplesDir := filepath.Join(gnoRootDir, "examples")
 
-				pkgs := ts.Value(envKeyPkgs).(pkgsLoader)
+				pkgs := ts.Value(envKeyPkgsLoader).(pkgsLoader)
 
 				var path, name string
 				switch len(args) {
