@@ -32,7 +32,9 @@
 //     -- # Load a package `./bar` from the current testscript's working directory with the name `gno.land/r/foobar/bar`:
 //     -- use gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the examples directory.
-//   - The command should always be executed before `gnoland start` to ensure loading
+//   - It's important to note that the load order is significant when using
+//     multiple use command; packages should be loaded in the order they are
+//     dependent upon.
 //
 // Logging:
 //

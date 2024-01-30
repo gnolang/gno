@@ -508,10 +508,20 @@ func (pkgs pkgsLoader) loadPackages(modroot string, path, name string) error {
 		for _, req := range gnoMod.Require {
 			pkg.Requires = append(pkg.Requires, req.Mod.Path)
 		}
+
 	}
 
 	if pkg.Draft {
 		return nil // skip draft package
+	}
+
+	// if no require pkgs are declared, use previous one to keep load order
+	// XXX: find a better way to achieve this
+	if !strings.HasPrefix(pkg.Dir, modroot) && len(pkg.Requires) == 0 {
+		pkg.Requires = make([]string, 0, len(pkgs))
+		for name := range pkgs {
+			pkg.Requires = append(pkg.Requires, name)
+		}
 	}
 
 	if _, ok := pkgs[pkg.Name]; ok {
