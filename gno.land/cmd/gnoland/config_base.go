@@ -63,7 +63,7 @@ func (c *configBaseCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"the root directory for all data",
+		"the root directory for all base data",
 	)
 
 	fs.StringVar(
@@ -272,7 +272,7 @@ func execConfigBase(cfg *configBaseCfg, io commands.IO) error {
 		return fmt.Errorf("unable to save updated config, %w", err)
 	}
 
-	io.Printfln("Updated configuration saved at %s", cfg.configPath)
+	io.Printfln("Updated base configuration saved at %s", cfg.configPath)
 
 	return nil
 }

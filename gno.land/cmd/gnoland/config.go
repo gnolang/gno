@@ -22,7 +22,7 @@ func newConfigCmd(io commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newConfigInitCmd(io),
 		newConfigBaseCmd(io),
-		// newConfigRPCCmd(io),
+		newConfigRPCCmd(io),
 		// newConfigP2PCmd(io),
 		// newConfigConsensusCmd(io),
 		// newConfigEventStoreCmd(io),

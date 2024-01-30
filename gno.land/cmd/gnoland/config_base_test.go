@@ -294,7 +294,7 @@ func TestConfig_Base_Valid(t *testing.T) {
 			cmdErr := cmd.ParseAndRun(context.Background(), args)
 			require.NoError(t, cmdErr)
 
-			// Make sure the root dir was updated
+			// Make sure the config was updated
 			loadedCfg, err := config.LoadConfigFile(path)
 			require.NoError(t, err)
 
