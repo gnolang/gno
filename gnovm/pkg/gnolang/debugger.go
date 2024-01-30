@@ -7,7 +7,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"path"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -33,6 +36,7 @@ type Debugger struct {
 	lastDebugArg string
 	DebugLoc     Location
 	PrevDebugLoc Location
+	breakpoints  []Location
 }
 
 type debugCommand struct {
@@ -48,14 +52,17 @@ func init() {
 
 	// Register debugger commands.
 	debugCmds = map[string]debugCommand{
-		"continue": {debugContinue, continueUsage, continueShort, ""},
-		"detach":   {debugDetach, detachUsage, detachShort, ""},
-		"exit":     {debugExit, exitUsage, exitShort, ""},
-		"help":     {debugHelp, helpUsage, helpShort, ""},
-		"list":     {debugList, listUsage, listShort, ""},
-		"print":    {debugPrint, printUsage, printShort, ""},
-		"step":     {debugStep, stepUsage, stepShort, ""},
-		"stepi":    {debugStepi, stepiUsage, stepiShort, ""},
+		"break":       {debugBreak, breakUsage, breakShort, breakLong},
+		"breakpoints": {debugBreakpoints, breakpointsUsage, breakpointsShort, ""},
+		"clear":       {debugClear, clearUsage, clearShort, ""},
+		"continue":    {debugContinue, continueUsage, continueShort, ""},
+		"detach":      {debugDetach, detachUsage, detachShort, ""},
+		"exit":        {debugExit, exitUsage, exitShort, ""},
+		"help":        {debugHelp, helpUsage, helpShort, ""},
+		"list":        {debugList, listUsage, listShort, ""},
+		"print":       {debugPrint, printUsage, printShort, ""},
+		"step":        {debugContinue, stepUsage, stepShort, ""},
+		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
 	}
 
 	// Sort command names for help.
@@ -66,6 +73,8 @@ func init() {
 	sort.SliceStable(debugCmdNames, func(i, j int) bool { return debugCmdNames[i] < debugCmdNames[j] })
 
 	// Set command aliases.
+	debugCmds["b"] = debugCmds["break"]
+	debugCmds["bp"] = debugCmds["breakpoints"]
 	debugCmds["c"] = debugCmds["continue"]
 	debugCmds["h"] = debugCmds["help"]
 	debugCmds["l"] = debugCmds["list"]
@@ -91,17 +100,25 @@ loop:
 				fmt.Fprintln(m.DebugOut, "Command failed:", err)
 			}
 		case DebugAtRun:
-			// TODO: here, check matching breakpoint condition and set DebugAtCmd if match.
 			switch m.lastDebugCmd {
 			case "si", "stepi":
 				m.DebugState = DebugAtCmd
-				break
+				debugLineInfo(m)
 			case "s", "step":
 				if m.DebugLoc != m.PrevDebugLoc {
 					m.DebugState = DebugAtCmd
 					m.PrevDebugLoc = m.DebugLoc
 					debugList(m, "")
-					break
+					continue loop
+				}
+			default:
+				for _, b := range m.breakpoints {
+					if b == m.DebugLoc && m.DebugLoc != m.PrevDebugLoc {
+						m.DebugState = DebugAtCmd
+						m.PrevDebugLoc = m.DebugLoc
+						debugList(m, "")
+						continue loop
+					}
 				}
 			}
 			break loop
@@ -196,8 +213,99 @@ func debugUpdateLoc(m *Machine) {
 }
 
 // ---------------------------------------
+const breakUsage = `break|b [locspec]`
+const breakShort = `Set a breakpoint.`
+const breakLong = `
+The syntax accepted for locspec is:
+- <filename>:<line> specifies the line in filename. Filename can be relative.
+- <line> specifies the line in the current source file.
+- +<offset> specifies the line offset lines after the current one.
+- -<offset> specifies the line offset lines before the current one.
+`
+
+func debugBreak(m *Machine, arg string) error {
+	loc, err := arg2loc(m, arg)
+	if err != nil {
+		return err
+	}
+	m.breakpoints = append(m.breakpoints, loc)
+	fmt.Fprintf(m.DebugOut, "Breakpoint %d at %s %s:%d\n", len(m.breakpoints)-1, loc.PkgPath, loc.File, loc.Line)
+	return nil
+}
+
+func arg2loc(m *Machine, arg string) (loc Location, err error) {
+	var filename string
+	var line int
+
+	loc = m.DebugLoc
+	if strings.Contains(arg, ":") {
+		// Location is specified by filename:line or function:line
+		strs := strings.Split(arg, ":")
+		filename = strs[0]
+		if line, err = strconv.Atoi(strs[1]); err != nil {
+			return loc, err
+		}
+		if loc.File, err = filepath.Abs(filename); err != nil {
+			return loc, err
+		}
+		loc.PkgPath = m.DebugLoc.PkgPath
+		loc.File = path.Clean(loc.File)
+		loc.Line = line
+		return loc, nil
+	}
+	if strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-") {
+		// Location is specified as offset from current file.
+		if line, err = strconv.Atoi(arg); err != nil {
+			return
+		}
+		loc.Line += line
+		return loc, nil
+	}
+	if line, err = strconv.Atoi(arg); err == nil {
+		// Location is the line number in the current file.
+		loc.Line = line
+		return loc, nil
+	}
+	return
+}
+
+// ---------------------------------------
+const breakpointsUsage = `breakpoints|bp`
+const breakpointsShort = `Print out info for active breakpoints.`
+
+func debugBreakpoints(m *Machine, arg string) error {
+	for i, b := range m.breakpoints {
+		fmt.Fprintf(m.DebugOut, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
+	}
+	return nil
+}
+
+// ---------------------------------------
+const clearUsage = `clear [id]`
+const clearShort = `Delete breakpoint (all if no id).`
+
+func debugClear(m *Machine, arg string) error {
+	if arg != "" {
+		id, err := strconv.Atoi(arg)
+		if err != nil || id < 0 || id >= len(m.breakpoints) {
+			return fmt.Errorf("invalid breakpoint id: %v", arg)
+		}
+		m.breakpoints = append(m.breakpoints[:id], m.breakpoints[id+1:]...)
+		return nil
+	}
+	m.breakpoints = nil
+	return nil
+}
+
+// ---------------------------------------
 const continueUsage = `continue|c`
 const continueShort = `Run until breakpoint or program termination.`
+
+const stepUsage = `step|s`
+const stepShort = `Single step through program.`
+
+const stepiUsage = `stepi|si`
+const stepiShort = `Single step a single VM instruction.`
 
 func debugContinue(m *Machine, arg string) error { m.DebugState = DebugAtRun; return nil }
 
@@ -230,7 +338,7 @@ func debugHelp(m *Machine, arg string) error {
 	if ok {
 		t := fmt.Sprintf("%-25s %s", c.usage, c.short)
 		if c.long != "" {
-			t += "\n\n" + c.long
+			t += "\n" + c.long
 		}
 		fmt.Fprintln(m.DebugOut, t)
 		return nil
@@ -247,7 +355,7 @@ func debugHelp(m *Machine, arg string) error {
 
 // ---------------------------------------
 const listUsage = `list|l`
-const listShort = `Show source code`
+const listShort = `Show source code.`
 
 func debugList(m *Machine, arg string) error {
 	debugLineInfo(m)
@@ -311,24 +419,5 @@ const printShort = `Print a variable or expression.`
 
 func debugPrint(m *Machine, arg string) error {
 	println("not implemented yet")
-	return nil
-}
-
-// ---------------------------------------
-const stepUsage = `step|s`
-const stepShort = `Single step through program.`
-
-func debugStep(m *Machine, arg string) error {
-	m.DebugState = DebugAtRun
-	return nil
-}
-
-// ---------------------------------------
-const stepiUsage = `stepi|si`
-const stepiShort = `Single step a single VM instruction.`
-
-func debugStepi(m *Machine, arg string) error {
-	debugLineInfo(m)
-	m.DebugState = DebugAtRun
 	return nil
 }
