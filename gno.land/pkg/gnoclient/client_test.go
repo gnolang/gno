@@ -8,6 +8,7 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/require"
 )
 
@@ -31,7 +32,7 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 
 func TestClient_Request(t *testing.T) {
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
 	signer := newInMemorySigner(t, config.TMConfig.ChainID())
@@ -49,4 +50,51 @@ func TestClient_Request(t *testing.T) {
 	require.NotEmpty(t, res.Response.Data)
 
 	// XXX: need more test
+}
+
+func TestClient_Run(t *testing.T) {
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	signer := newInMemorySigner(t, config.TMConfig.ChainID())
+
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcclient.NewHTTP(remoteAddr, "/websocket"),
+	}
+
+	code := `package main
+
+import (
+	"std"
+
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/tests"
+)
+
+func main() {
+	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	for i := 0; i < 10; i++ {
+		tests.IncCounter()
+	}
+	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+}`
+	memPkg := &std.MemPackage{
+		Files: []*std.MemFile{
+			{
+				Name: "main.gno",
+				Body: code,
+			},
+		},
+	}
+	res, err := client.Run(RunCfg{
+		Package:   memPkg,
+		GasFee:    "1ugnot",
+		GasWanted: 100000000,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.NotEmpty(t, res.DeliverTx.Data)
+	require.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
 }

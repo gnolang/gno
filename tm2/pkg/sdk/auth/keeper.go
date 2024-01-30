@@ -3,9 +3,10 @@ package auth
 import (
 	"fmt"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -32,7 +33,7 @@ func NewAccountKeeper(
 }
 
 // Logger returns a module-specific logger.
-func (ak AccountKeeper) Logger(ctx sdk.Context) log.Logger {
+func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("auth"))
 }
 

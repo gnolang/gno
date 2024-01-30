@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
@@ -37,7 +39,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
 	defer app.Close()
 
-	logger := log.TestingLogger().With("wal_generator", "wal_generator")
+	logger := log.NewNoopLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
 
 	// -----------
@@ -75,7 +77,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	}
 	defer evsw.Stop()
 	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
 	consensusState.SetLogger(logger)
 	consensusState.SetEventSwitch(evsw)
@@ -159,13 +161,13 @@ type heightStopWAL struct {
 	heightToStop      int64
 	signalWhenStopsTo chan<- struct{}
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 // needed for determinism
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
 
-func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
+func newHeightStopWAL(logger *slog.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
 	return &heightStopWAL{
 		enc:               enc,
 		heightToStop:      nBlocks,
@@ -174,7 +176,7 @@ func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, sig
 	}
 }
 
-func (w *heightStopWAL) SetLogger(logger log.Logger) {
+func (w *heightStopWAL) SetLogger(logger *slog.Logger) {
 	w.logger = logger
 }
 

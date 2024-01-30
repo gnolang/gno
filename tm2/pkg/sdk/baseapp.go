@@ -8,12 +8,13 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -27,7 +28,7 @@ var (
 // BaseApp reflects the ABCI application implementation.
 type BaseApp struct {
 	// initialized on creation
-	logger log.Logger
+	logger *slog.Logger
 	name   string                 // application name from abci.Info
 	db     dbm.DB                 // common DB backend
 	cms    store.CommitMultiStore // Main (uncached) state
@@ -80,7 +81,12 @@ var _ abci.Application = (*BaseApp)(nil)
 //
 // NOTE: The db is used to store the version number for now.
 func NewBaseApp(
-	name string, logger log.Logger, db dbm.DB, baseKey store.StoreKey, mainKey store.StoreKey, options ...func(*BaseApp),
+	name string,
+	logger *slog.Logger,
+	db dbm.DB,
+	baseKey store.StoreKey,
+	mainKey store.StoreKey,
+	options ...func(*BaseApp),
 ) *BaseApp {
 	app := &BaseApp{
 		logger:  logger,
@@ -109,7 +115,7 @@ func (app *BaseApp) AppVersion() string {
 }
 
 // Logger returns the logger of the BaseApp.
-func (app *BaseApp) Logger() log.Logger {
+func (app *BaseApp) Logger() *slog.Logger {
 	return app.logger
 }
 

@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -14,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -72,7 +73,7 @@ var (
 	gTxDispatcher    *txDispatcher
 	mempool          mempl.Mempool
 
-	logger log.Logger
+	logger *slog.Logger
 
 	config cfg.RPCConfig
 )
@@ -117,7 +118,7 @@ func SetConsensusReactor(conR *consensus.ConsensusReactor) {
 	consensusReactor = conR
 }
 
-func SetLogger(l log.Logger) {
+func SetLogger(l *slog.Logger) {
 	logger = l
 }
 
