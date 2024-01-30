@@ -14,6 +14,7 @@ import (
 
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
@@ -139,7 +140,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	sm.SaveState(stateDB, state)
 	blockStore := store.NewBlockStore(blockStoreDB)
 
-	proxyApp := proxy.NewAppConns(proxy.NewLocalClientCreator(app))
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return errors.Wrap(err, "failed to start proxy app connections")
