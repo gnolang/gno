@@ -43,22 +43,126 @@ func TestClient_Request(t *testing.T) {
 		},
 		RPCClient: mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				return &ctypes.ResultBroadcastTxCommit{}, nil
+				res := &ctypes.ResultBroadcastTxCommit{
+					CheckTx: abci.ResponseCheckTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   nil,
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+					},
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   nil,
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+						GasWanted: 0,
+						GasUsed:   0,
+					},
+					Hash:   nil,
+					Height: 0,
+				}
+
+				return res, nil
 			},
 		},
 	}
 
-	data, res, err := client.Render("gno.land/r/demo/boards", "")
+	res, data, err := client.Render("gno.land/r/demo/boards", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, data)
+	require.NotEmpty(t, res)
 
-	require.NotNil(t, res)
-	require.NotEmpty(t, res.Response.Data)
-
-	// XXX: need more test
 }
 
-func TestClient_Call(t *testing.T) {
+func TestClient_CallSingle(t *testing.T) {
+	t.Parallel()
+
+	client := Client{
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return mockKeysInfo{}
+			},
+		},
+		RPCClient: mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				res := &ctypes.ResultBroadcastTxCommit{
+					CheckTx: abci.ResponseCheckTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   nil,
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+					},
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   []byte("it works!"),
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+						GasWanted: 0,
+						GasUsed:   0,
+					},
+					Hash:   nil,
+					Height: 0,
+				}
+
+				return res, nil
+			},
+			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				res := &ctypes.ResultABCIQuery{
+					Response: abci.ResponseQuery{
+						ResponseBase: abci.ResponseBase{},
+						Key:          nil,
+						Value:        nil,
+						Proof:        nil,
+						Height:       0,
+					},
+				}
+
+				return res, nil
+
+			},
+		},
+	}
+
+	cfg := BaseTxCfg{
+		GasWanted:      100000,
+		GasFee:         "10000ugnot",
+		AccountNumber:  1,
+		SequenceNumber: 1,
+		Memo:           "Test memo",
+	}
+
+	msg := []MsgCall{
+		{
+			PkgPath:  "gno.land/r/demo/deep/very/deep",
+			FuncName: "Render",
+			Args:     []string{""},
+			Send:     "100ugnot",
+		},
+	}
+
+	res, err := client.Call(cfg, msg...)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+
+}
+
+func TestClient_CallMultiple(t *testing.T) {
 	t.Parallel()
 
 	client := Client{
@@ -116,6 +220,18 @@ func TestClient_Call(t *testing.T) {
 			FuncName: "Render",
 			Args:     []string{""},
 			Send:     "100ugnot",
+		},
+		{
+			PkgPath:  "gno.land/r/demo/wugnot",
+			FuncName: "Deposit",
+			Args:     []string{""},
+			Send:     "1000ugnot",
+		},
+		{
+			PkgPath:  "gno.land/r/demo/tamagotchi",
+			FuncName: "Feed",
+			Args:     []string{},
+			Send:     "",
 		},
 	}
 
