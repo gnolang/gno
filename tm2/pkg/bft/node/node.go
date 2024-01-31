@@ -670,8 +670,8 @@ func (n *Node) OnStop() {
 	}
 }
 
-// FirstBlockReceived returns a channel that gets closed when the node receives its first block.
-func (n *Node) FirstBlockReceived() <-chan struct{} {
+// Ready signals that the node is ready by returning a blocking channel. This channel is closed when the node receives its first block.
+func (n *Node) Ready() <-chan struct{} {
 	return n.firstBlockSignal
 }
 

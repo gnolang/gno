@@ -108,7 +108,7 @@ func TestNodeDelayedStart(t *testing.T) {
 	assert.Equal(t, true, startTime.After(n.GenesisDoc().GenesisTime))
 }
 
-func TestNodeFirstBlockSignal(t *testing.T) {
+func TestNodeReady(t *testing.T) {
 	config := cfg.ResetTestRoot("node_node_test")
 	defer os.RemoveAll(config.RootDir)
 
@@ -119,9 +119,9 @@ func TestNodeFirstBlockSignal(t *testing.T) {
 	// Assert that blockstore has zero block before waiting for the first block
 	require.Equal(t, int64(0), n.BlockStore().Height())
 
-	// Assert that first block signal is not alreay received
+	// Assert that first block signal is not alreay received by calling Ready
 	select {
-	case <-n.FirstBlockReceived():
+	case <-n.Ready():
 		require.FailNow(t, "first block signal should not be close before starting the node")
 	default: // ok
 	}
@@ -130,11 +130,11 @@ func TestNodeFirstBlockSignal(t *testing.T) {
 	require.NoError(t, err)
 	defer n.Stop()
 
-	// Wait until we got the first block or timeout
+	// Wait until the node is ready or timeout
 	select {
 	case <-time.After(time.Second):
 		require.FailNow(t, "timeout while waiting for first block signal")
-	case <-n.FirstBlockReceived(): // ready
+	case <-n.Ready(): // ready
 	}
 
 	// Check that blockstore have at last one block
