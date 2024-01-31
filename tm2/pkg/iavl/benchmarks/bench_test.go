@@ -160,24 +160,27 @@ func backendList() []db.BackendType {
 }
 
 func BenchmarkSmall(b *testing.B) {
-	var bs []benchmark
-	for _, backend := range backendList() {
+	ls := backendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 1_000, 100, 16, 40})
 	}
 	runBenchmarks(b, bs)
 }
 
 func BenchmarkMedium(b *testing.B) {
-	var bs []benchmark
-	for _, backend := range backendList() {
+	ls := backendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 100_000, 100, 16, 40})
 	}
 	runBenchmarks(b, bs)
 }
 
 func BenchmarkLarge(b *testing.B) {
-	var bs []benchmark
-	for _, backend := range backendList() {
+	ls := backendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 1_000_000, 100, 16, 40})
 	}
 	runBenchmarks(b, bs)
