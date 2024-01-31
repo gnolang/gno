@@ -80,8 +80,7 @@ func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
-		debug.Printf("op: %v\n", op)
-		// debug.Printf("%v\n", m)
+		debug.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -464,16 +463,11 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	// TODO: add case log for debug
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
 		case ASSIGN:
-			// post assign, use value of lhs to update captured value, name as ID
-			// m.PushOp(OpPostAssign)
 			m.PushOp(OpAssign)
-			// pre assign, check rhs is funcLitExpr
-			// m.PushOp(OpPreAssign)
 		case ADD_ASSIGN:
 			m.PushOp(OpAddAssign)
 		case SUB_ASSIGN:
@@ -511,8 +505,6 @@ EXEC_SWITCH:
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
-		// m.PushOp(OpPreAssign)
-
 		if cs.Op != DEFINE {
 			// For each Lhs, push eval operation if needed.
 			for i := len(cs.Lhs) - 1; 0 <= i; i-- {
@@ -533,12 +525,8 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
-		debug.Println("-----ForStmt")
 		m.PushFrameBasic(cs)
-		debug.Printf("cs: %v \n", cs)
-		debug.Printf("parent: %v \n", m.LastBlock())
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
-		debug.Printf("b: %v \n", b)
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
