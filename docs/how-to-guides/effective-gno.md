@@ -99,8 +99,17 @@ But, when you use `panic` in Gno, it stops your code right away, says it failed,
 and doesn't save any changes you made. This is safer when you want to stop
 everything and not save wrong changes.
 
-In general, it's good to use `panic()` in realms. In reusable packages, you can
-use either `panic` or `error`, depending on what you need.
+In Gno, the use of `panic()` and `error` should be context-dependent to ensure
+clarity and proper error handling:
+- Use `panic()` to immediately halt execution and roll back the transaction when
+  encountering critical issues or invalid inputs that cannot be recovered from. 
+- Return an `error` when the situation allows for the possibility of recovery or
+  when the caller should decide how to handle the error.
+
+Consequently, reusable packages should avoid `panic()` except in assert-like
+functions, such as `Must*` or `Assert*`, which are explicit about their
+behavior. Packages should be designed to be flexible and not impose restrictions
+that could lead to user frustration or the need to fork the code.
 
 ```go
 import "std"
