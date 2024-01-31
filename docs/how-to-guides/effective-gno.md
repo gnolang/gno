@@ -106,7 +106,7 @@ use either `panic` or `error`, depending on what you need.
 import "std"
 
 func Foobar() {
-    caller := std.GetOrigCaller()
+    caller := std.PrevRealm().Addr()
     if caller != "g1xxxxx" {
         panic("permission denied")
     }
@@ -390,7 +390,7 @@ certain operations.
 import "std"
 
 func PublicMethod(nb int) {
-    caller := std.GetOrigCaller()
+    caller := std.PrevRealm().Addr()
     privateMethod(caller, nb)
 }
 
@@ -398,8 +398,8 @@ func privateMethod(caller std.Address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `std.GetOrigCaller()`, and then
-passes it to `privateMethod`, which is a private function that performs the
+realms. It retrieves the caller's address using `std.PrevRealm().Addr()`, and
+then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
@@ -418,9 +418,14 @@ whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-One approach is to look at the EOA (Externally Owned Account), which is the
-original caller. For this, you should call `std.GetOrigCaller()`, which returns
-the public address of the account that signed the transaction.
+One strategy is to look at the caller with `std.PrevRealm()`, which could be the
+EOA (Externally Owned Account), or the preceding realm in the call stack.
+
+Another approach is to look specifically at the EOA. For this, you should call
+`std.GetOrigCaller()`, which returns the public address of the account that
+signed the transaction.
+
+TODO: explain when to use `std.GetOrigCaller`.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers including all the functions, anonymous functions, other realms, and
@@ -435,7 +440,7 @@ import "std"
 var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction() {
-    caller := std.GetOrigCaller()
+    caller := std.PrevRealm().Addr()
     if caller != admin {
         panic("permission denied")
     }
@@ -446,13 +451,10 @@ func AdminOnlyFunction() {
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `std.GetOrigCaller()`, and
-then checks if the caller is the admin. If not, it panics and stops the
-execution.
-
-Another approach is to use `std.PrevRealm().Addr()`, which returns the previous
-realm. This can be either another realm contract, or the calling user if there
-is no other intermediary realm.
+the admin. It retrieves the caller's address using `std.PrevRealm().Addr()`,
+this can be either another realm contract, or the calling user if there is no
+other intermediary realm. and then checks if the caller is the admin. If not, it
+panics and stops the execution.
 
 The goal of this approach is to allow a contract to own assets (like grc20 or
 native tokens), so that you can create contracts that can be called by another
@@ -552,7 +554,7 @@ type MySafeStruct {
 }
 
 func NewSafeStruct() *MySafeStruct {
-    caller := std.GetOrigCaller()
+    caller := std.PrevRealm().Addr()
     return &MySafeStruct{
         counter: 0,
         admin: caller,
@@ -561,7 +563,7 @@ func NewSafeStruct() *MySafeStruct {
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc() {
-    caller := std.GetOrigCaller()
+    caller := std.PrevRealm().Addr()
     if caller != s.admin {
         panic("permission denied")
     }
@@ -625,7 +627,7 @@ import "gno.land/p/demo/grc/grc20"
 var fooToken grc20.AdminToken = grc20.NewAdminToken("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	balance, _ := fooToken.BalanceOf(caller)
 	return balance
 }
