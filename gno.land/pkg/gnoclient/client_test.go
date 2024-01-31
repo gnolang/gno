@@ -1,83 +1,55 @@
 package gnoclient
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/jaekwon/testify/require"
 )
 
-func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
-	t.Helper()
+func TestClient_Render(t *testing.T) {
+	testRealmPath := "gno.land/r/demo/deep/very/deep"
+	expectedRender := []byte("it works!")
 
-	mmeonic := integration.DefaultAccount_Seed
-	name := integration.DefaultAccount_Name
-
-	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(name, mmeonic, "", "", uint32(0), uint32(0))
-	require.NoError(t, err)
-
-	return &SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
-		Account:  name,    // Account name or bech32 format
-		Password: "",      // Password for encryption
-		ChainID:  chainid, // Chain ID for transaction signing
-	}
-}
-
-func TestClient_Request(t *testing.T) {
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{}
+				return mockKeysInfo{
+					getAddress: func() crypto.Address {
+						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+						return adr
+					},
+				}
 			},
 		},
 		RPCClient: mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				res := &ctypes.ResultBroadcastTxCommit{
-					CheckTx: abci.ResponseCheckTx{
+			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				res := &ctypes.ResultABCIQuery{
+					Response: abci.ResponseQuery{
 						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   nil,
-							Events: nil,
-							Log:    "",
-							Info:   "",
+							Data: expectedRender,
 						},
-					},
-					DeliverTx: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   nil,
-							Events: nil,
-							Log:    "",
-							Info:   "",
-						},
-						GasWanted: 0,
-						GasUsed:   0,
-					},
-					Hash:   nil,
-					Height: 0,
-				}
-
+					}}
 				return res, nil
 			},
 		},
 	}
 
-	res, data, err := client.Render("gno.land/r/demo/boards", "")
-	require.NoError(t, err)
-	require.NotEmpty(t, data)
-	require.NotEmpty(t, res)
-
+	res, data, err := client.Render(testRealmPath, "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, data.Response.Data)
+	assert.NotEmpty(t, res)
+	assert.Equal(t, data.Response.Data, expectedRender)
 }
 
 func TestClient_CallSingle(t *testing.T) {
@@ -89,51 +61,24 @@ func TestClient_CallSingle(t *testing.T) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{}
+				return mockKeysInfo{
+					getAddress: func() crypto.Address {
+						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+						return adr
+					},
+				}
 			},
 		},
 		RPCClient: mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
-					CheckTx: abci.ResponseCheckTx{
-						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   nil,
-							Events: nil,
-							Log:    "",
-							Info:   "",
-						},
-					},
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   []byte("it works!"),
-							Events: nil,
-							Log:    "",
-							Info:   "",
+							Data: []byte("it works!"),
 						},
-						GasWanted: 0,
-						GasUsed:   0,
-					},
-					Hash:   nil,
-					Height: 0,
-				}
-
-				return res, nil
-			},
-			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-				res := &ctypes.ResultABCIQuery{
-					Response: abci.ResponseQuery{
-						ResponseBase: abci.ResponseBase{},
-						Key:          nil,
-						Value:        nil,
-						Proof:        nil,
-						Height:       0,
 					},
 				}
-
 				return res, nil
-
 			},
 		},
 	}
@@ -159,7 +104,6 @@ func TestClient_CallSingle(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
-
 }
 
 func TestClient_CallMultiple(t *testing.T) {
@@ -171,7 +115,12 @@ func TestClient_CallMultiple(t *testing.T) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{}
+				return mockKeysInfo{
+					getAddress: func() crypto.Address {
+						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+						return adr
+					},
+				}
 			},
 		},
 		RPCClient: mockRPCClient{
@@ -186,19 +135,6 @@ func TestClient_CallMultiple(t *testing.T) {
 							Info:   "",
 						},
 					},
-					DeliverTx: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   nil,
-							Events: nil,
-							Log:    "",
-							Info:   "",
-						},
-						GasWanted: 0,
-						GasUsed:   0,
-					},
-					Hash:   nil,
-					Height: 0,
 				}
 
 				return res, nil
@@ -419,5 +355,23 @@ func TestClient_Call_Errors(t *testing.T) {
 			assert.Equal(t, err, tc.expectedError)
 			assert.Nil(t, res)
 		})
+	}
+}
+
+func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
+	t.Helper()
+
+	mmemonic := integration.DefaultAccount_Seed
+	name := integration.DefaultAccount_Name
+
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount(name, mmemonic, "", "", uint32(0), uint32(0))
+	require.NoError(t, err)
+
+	return &SignerFromKeybase{
+		Keybase:  kb,      // Stores keys in memory or on disk
+		Account:  name,    // Account name or bech32 format
+		Password: "",      // Password for encryption
+		ChainID:  chainid, // Chain ID for transaction signing
 	}
 }

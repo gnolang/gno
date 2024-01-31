@@ -27,48 +27,75 @@ func (m *mockSigner) Sign(cfg SignCfg) (*std.Tx, error) {
 	if m.sign != nil {
 		return m.sign(cfg)
 	}
-
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m *mockSigner) Info() keys.Info {
 	if m.info != nil {
 		return m.info()
 	}
-
-	return nil
+	panic("no implementation passed in")
 }
 
 func (m *mockSigner) Validate() error {
 	if m.validate != nil {
 		return m.validate()
 	}
-
-	return nil
+	panic("no implementation passed in")
 }
 
-type mockKeysInfo struct{}
+// Keys Info
+
+type (
+	mockGetAddress func() crypto.Address
+	mockGetType    func() keys.KeyType
+	mockGetName    func() string
+	mockGetPubKey  func() crypto.PubKey
+	mockGetPath    func() (*hd.BIP44Params, error)
+)
+
+type mockKeysInfo struct {
+	getAddress mockGetAddress
+	getType    mockGetType
+	getName    mockGetName
+	getPubKey  mockGetPubKey
+	getPath    mockGetPath
+}
 
 func (m mockKeysInfo) GetAddress() crypto.Address {
-	adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	return adr
+	if m.getAddress != nil {
+		return m.getAddress()
+	}
+
+	panic("no implementation passed in")
 }
 
 func (m mockKeysInfo) GetType() keys.KeyType {
-	return 0
+	if m.getType != nil {
+		return m.getType()
+	}
+	panic("no implementation passed in")
 }
 
 func (m mockKeysInfo) GetName() string {
-	return "mockKeyInfoName"
+	if m.getName != nil {
+		return m.getName()
+	}
+	panic("no implementation passed in")
 }
 
 func (m mockKeysInfo) GetPubKey() crypto.PubKey {
-	pubkey, _ := crypto.PubKeyFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	return pubkey
+	if m.getPubKey != nil {
+		return m.getPubKey()
+	}
+	panic("no implementation passed in")
 }
 
 func (m mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
-	return nil, nil
+	if m.getPath != nil {
+		return m.getPath()
+	}
+	panic("no implementation passed in")
 }
 
 // RPC Client mock
@@ -122,138 +149,138 @@ func (m mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTx
 	if m.broadcastTxCommit != nil {
 		return m.broadcastTxCommit(tx)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQuery != nil {
 		return m.abciQuery(path, data)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 	if m.abciInfo != nil {
 		return m.ABCIInfo()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQueryWithOptions != nil {
 		return m.abciQueryWithOptions(path, data, opts)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxAsync != nil {
 		return m.broadcastTxAsync(tx)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxSync != nil {
 		return m.broadcastTxSync(tx)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Genesis() (*ctypes.ResultGenesis, error) {
 	if m.genesis != nil {
 		return m.genesis()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	if m.blockchainInfo != nil {
 		return m.blockchainInfo(minHeight, maxHeight)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) NetInfo() (*ctypes.ResultNetInfo, error) {
 	if m.netInfo != nil {
 		return m.netInfo()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 	if m.dumpConsensusState != nil {
 		return m.dumpConsensusState()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
 	if m.consensusState != nil {
 		return m.consensusState()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
 	if m.consensusParams != nil {
 		return m.consensusParams(height)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Health() (*ctypes.ResultHealth, error) {
 	if m.health != nil {
 		return m.health()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Block(height *int64) (*ctypes.ResultBlock, error) {
 	if m.block != nil {
 		return m.block(height)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	if m.blockResults != nil {
 		return m.blockResults(height)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
 	if m.commit != nil {
 		return m.commit(height)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) {
 	if m.validators != nil {
 		return m.validators(height)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) Status() (*ctypes.ResultStatus, error) {
 	if m.status != nil {
 		return m.status()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.unconfirmedTxs != nil {
 		return m.unconfirmedTxs(limit)
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
 
 func (m mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.numUnconfirmedTxs != nil {
 		return m.numUnconfirmedTxs()
 	}
-	return nil, nil
+	panic("no implementation passed in")
 }
