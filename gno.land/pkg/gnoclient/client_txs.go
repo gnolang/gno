@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrEmptyPkgPath     = errors.New("empty pkgpath")
+	ErrEmptyPkgPath     = errors.New("empty pkg path")
 	ErrEmptyFuncName    = errors.New("empty function name")
 	ErrInvalidGasWanted = errors.New("invalid gas wanted")
 	ErrInvalidGasFee    = errors.New("invalid gas fee")
@@ -32,27 +32,6 @@ type MsgCall struct {
 	FuncName string   // Function name
 	Args     []string // Function arguments
 	Send     string   // Send amount
-}
-
-func (cfg BaseTxCfg) validateBaseTxConfig() error {
-	if cfg.GasWanted < 0 {
-		return ErrInvalidGasWanted
-	}
-	if cfg.GasFee < "" {
-		return ErrInvalidGasFee
-	}
-
-	return nil
-}
-
-func (msg MsgCall) validateMsgCall() error {
-	if msg.PkgPath == "" {
-		return ErrEmptyPkgPath
-	}
-	if msg.FuncName == "" {
-		return ErrEmptyFuncName
-	}
-	return nil
 }
 
 // RunCfg contains configuration options for running a temporary package on the blockchain.

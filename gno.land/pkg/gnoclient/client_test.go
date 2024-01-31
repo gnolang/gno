@@ -1,15 +1,14 @@
 package gnoclient
 
 import (
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/jaekwon/testify/require"
 )
 
@@ -32,15 +31,20 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 }
 
 func TestClient_Request(t *testing.T) {
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
-	defer node.Stop()
-
-	signer := newInMemorySigner(t, config.TMConfig.ChainID())
-
 	client := Client{
-		Signer:    signer,
-		RPCClient: rpcclient.NewHTTP(remoteAddr, "/websocket"),
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return mockKeysInfo{}
+			},
+		},
+		RPCClient: mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				return &ctypes.ResultBroadcastTxCommit{}, nil
+			},
+		},
 	}
 
 	data, res, err := client.Render("gno.land/r/demo/boards", "")
@@ -56,18 +60,20 @@ func TestClient_Request(t *testing.T) {
 func TestClient_Call(t *testing.T) {
 	t.Parallel()
 
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
-
 	client := Client{
 		Signer: &mockSigner{
-		sign: func(cfg SignCfg) (*std.Tx, error) {
-			return &cfg.UnsignedTX, nil
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return mockKeysInfo{}
+			},
 		},
-		info: func() keys.Info {
-			return mockKeysInfo{}
+		RPCClient: mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				return &ctypes.ResultBroadcastTxCommit{}, nil
+			},
 		},
-		},
-		RPCClient: rpcClient,
 	}
 
 	cfg := BaseTxCfg{
@@ -92,7 +98,6 @@ func TestClient_Call(t *testing.T) {
 	assert.NotNil(t, res)
 }
 
-
 func TestClient_Call_Errors(t *testing.T) {
 	t.Parallel()
 
@@ -106,8 +111,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Invalid Signer",
 			client: Client{
-				nil,
-				,
+				Signer:    nil,
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
@@ -152,8 +157,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Invalid Gas Fee",
 			client: Client{
-				signer,
-				rpcClient,
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
@@ -173,8 +178,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Negative Gas Wanted",
 			client: Client{
-				signer,
-				rpcClient,
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
@@ -196,8 +201,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "0 Gas Wanted",
 			client: Client{
-				signer,
-				rpcClient,
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      0,
@@ -219,8 +224,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Invalid PkgPath",
 			client: Client{
-				signer,
-				rpcClient,
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
@@ -242,8 +247,8 @@ func TestClient_Call_Errors(t *testing.T) {
 		{
 			name: "Invalid FuncName",
 			client: Client{
-				signer,
-				rpcClient,
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,

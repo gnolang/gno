@@ -1,12 +1,16 @@
 package gnoclient
 
 import (
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Signer
 type (
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
 	mockInfo     func() keys.Info
@@ -65,4 +69,104 @@ func (m mockKeysInfo) GetPubKey() crypto.PubKey {
 
 func (m mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
 	return nil, nil
+}
+
+// RPC Client
+type (
+	mockBroadcastTxCommit func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
+	mockABCIQuery         func(path string, data []byte) (*ctypes.ResultABCIQuery, error)
+)
+
+type mockRPCClient struct {
+	broadcastTxCommit mockBroadcastTxCommit
+	abciQuery         mockABCIQuery
+}
+
+func (m mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	if m.broadcastTxCommit != nil {
+		return m.broadcastTxCommit(tx)
+	}
+
+	return nil, nil
+}
+
+func (m mockRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+	if m.abciQuery != nil {
+		return m.abciQuery(path, data)
+	}
+	return nil, nil
+}
+
+// Unused RPC Client functions
+
+func (m mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Genesis() (*ctypes.ResultGenesis, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) NetInfo() (*ctypes.ResultNetInfo, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Health() (*ctypes.ResultHealth, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Block(height *int64) (*ctypes.ResultBlock, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) Status() (*ctypes.ResultStatus, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+	panic("implement me")
+}
+
+func (m mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
+	panic("implement me")
 }
