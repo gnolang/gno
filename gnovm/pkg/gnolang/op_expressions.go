@@ -748,7 +748,7 @@ func (m *Machine) doOpFuncLit() {
 				// record in loop block
 				loopBlock.GetBodyStmt().LoopValuesBox = lvBox
 			} else { // reuse last replica's. (in same block).
-				isReuse = true // use isFilled instead
+				isReuse = true
 				// get cursor by name
 				lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // inc by iteration
 				// each fv may have n outer loopBlock, reference them all
