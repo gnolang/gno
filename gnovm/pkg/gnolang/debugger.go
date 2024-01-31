@@ -36,6 +36,7 @@ type Debugger struct {
 	DebugLoc     Location
 	PrevDebugLoc Location
 	breakpoints  []Location
+	debugCall    []Location // should be provided by machine frame
 }
 
 type debugCommand struct {
@@ -58,8 +59,9 @@ func init() {
 		"detach":      {debugDetach, detachUsage, detachShort, ""},
 		"exit":        {debugExit, exitUsage, exitShort, ""},
 		"help":        {debugHelp, helpUsage, helpShort, ""},
-		"list":        {debugList, listUsage, listShort, ""},
+		"list":        {debugList, listUsage, listShort, listLong},
 		"print":       {debugPrint, printUsage, printShort, ""},
+		"stack":       {debugStack, stackUsage, stackShort, ""},
 		"step":        {debugContinue, stepUsage, stepShort, ""},
 		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
 	}
@@ -74,6 +76,7 @@ func init() {
 	// Set command aliases.
 	debugCmds["b"] = debugCmds["break"]
 	debugCmds["bp"] = debugCmds["breakpoints"]
+	debugCmds["bt"] = debugCmds["stack"]
 	debugCmds["c"] = debugCmds["continue"]
 	debugCmds["h"] = debugCmds["help"]
 	debugCmds["l"] = debugCmds["list"]
@@ -126,6 +129,15 @@ loop:
 		}
 	}
 	debugUpdateLoc(m)
+
+	// Keep track of exact locations when performing calls.
+	op := m.Ops[m.NumOps-1]
+	switch op {
+	case OpCall:
+		m.debugCall = append(m.debugCall, m.DebugLoc)
+	case OpReturn:
+		m.debugCall = m.debugCall[:len(m.debugCall)-1]
+	}
 }
 
 // debugCmd processes a debugger REPL command. It displays a prompt, then
@@ -183,6 +195,11 @@ func initDebugIO(m *Machine) {
 func debugUpdateLoc(m *Machine) {
 	loc := m.LastBlock().Source.GetLocation()
 
+	// File must have an unambiguous absolute path.
+	if loc.File != "" && !filepath.IsAbs(loc.File) {
+		loc.File, _ = filepath.Abs(loc.File)
+	}
+
 	if m.DebugLoc.PkgPath == "" ||
 		loc.PkgPath != "" && loc.PkgPath != m.DebugLoc.PkgPath ||
 		loc.File != "" && loc.File != m.DebugLoc.File {
@@ -237,7 +254,7 @@ func arg2loc(m *Machine, arg string) (loc Location, err error) {
 	loc = m.DebugLoc
 
 	if strings.Contains(arg, ":") {
-		// Location is specified by filename:line or function:line
+		// Location is specified by filename:line.
 		strs := strings.Split(arg, ":")
 		if strs[0] != "" {
 			if loc.File, err = filepath.Abs(strs[0]); err != nil {
@@ -252,9 +269,9 @@ func arg2loc(m *Machine, arg string) (loc Location, err error) {
 		return loc, nil
 	}
 	if strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-") {
-		// Location is specified as offset from current file.
+		// Location is specified as a line offset from the current line.
 		if line, err = strconv.Atoi(arg); err != nil {
-			return
+			return loc, err
 		}
 		loc.Line += line
 		return loc, nil
@@ -264,7 +281,7 @@ func arg2loc(m *Machine, arg string) (loc Location, err error) {
 		loc.Line = line
 		return loc, nil
 	}
-	return
+	return loc, err
 }
 
 // ---------------------------------------
@@ -352,35 +369,48 @@ func debugHelp(m *Machine, arg string) error {
 }
 
 // ---------------------------------------
-const listUsage = `list|l`
+const listUsage = `list|l [locspec]`
 const listShort = `Show source code.`
+const listLong = `
+See 'help break' for locspec syntax. If locspec is empty,
+list shows the source code around the current line.
+`
 
 func debugList(m *Machine, arg string) error {
-	debugLineInfo(m)
-	lines, offset, err := sourceLines(m.DebugLoc.File, m.DebugLoc.Line)
+	file, line := m.DebugLoc.File, m.DebugLoc.Line
+
+	if arg == "" {
+		debugLineInfo(m)
+	} else {
+		loc, err := arg2loc(m, arg)
+		if err != nil {
+			return err
+		}
+		file, line = loc.File, loc.Line
+		fmt.Fprintf(m.DebugOut, "Showing %s:%d\n", file, line)
+	}
+	lines, offset, err := sourceLines(file, line)
 	if err != nil {
 		return err
 	}
-	for i, line := range lines {
+	for i, l := range lines {
 		cursor := ""
-		if m.DebugLoc.Line == i+offset {
+		if file == m.DebugLoc.File && m.DebugLoc.Line == i+offset {
 			cursor = "=>"
 		}
-		fmt.Fprintf(m.DebugOut, "%2s %4d: %s\n", cursor, i+offset, line)
+		fmt.Fprintf(m.DebugOut, "%2s %4d: %s\n", cursor, i+offset, l)
 	}
 	return nil
 }
 
 func debugLineInfo(m *Machine) {
 	line := string(m.Package.PkgName)
-
 	if len(m.Frames) > 0 {
 		f := m.Frames[len(m.Frames)-1]
 		if f.Func != nil {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-
 	fmt.Fprintf(m.DebugOut, "> %s %s:%d\n", line, m.DebugLoc.File, m.DebugLoc.Line)
 }
 
@@ -416,6 +446,29 @@ const printUsage = `print|p <expression>`
 const printShort = `Print a variable or expression.`
 
 func debugPrint(m *Machine, arg string) error {
-	println("not implemented yet")
+	return errors.New("not yet implemented")
+}
+
+// ---------------------------------------
+const stackUsage = `stack|bt`
+const stackShort = `Print stack trace.`
+
+func debugStack(m *Machine, arg string) error {
+	l := len(m.Frames) - 1
+	// List frames from top to bottom.
+	for i := l; i >= 0; i-- {
+		f := m.Frames[i]
+		loc := debugFrameLoc(m, l-i)
+		t := fmt.Sprintf("%-3d in %s.%s\n    at %s:%d", l-i, f.LastPackage.PkgPath, f.Func, loc.File, loc.Line)
+		fmt.Fprintln(m.DebugOut, t)
+	}
 	return nil
+}
+
+func debugFrameLoc(m *Machine, n int) Location {
+	l := len(m.debugCall) - 1
+	if loc := m.DebugLoc; l == n {
+		return loc
+	}
+	return m.debugCall[l-n]
 }
