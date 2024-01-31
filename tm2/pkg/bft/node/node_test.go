@@ -113,7 +113,7 @@ func TestNodeFirstBlockSignal(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// Create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// Assert that blockstore has zero block before waiting for the first block
