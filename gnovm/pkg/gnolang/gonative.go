@@ -359,7 +359,6 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // ConvertTo().
 // Unlike go2GnoValue2(), rv may be invalid.
 func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
-	debugPP.Printf("go2GnoValue---, rv: %v \n", rv.Kind())
 	if !rv.IsValid() {
 		return
 	}
@@ -438,7 +437,6 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 // reflection, any child Gno declared types cannot change
 // types, and pointer values cannot change.
 func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
-	debugPP.Println("go2GnoValueUpdate---")
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -1407,7 +1405,6 @@ func (m *Machine) doOpStructLitGoNative() {
 // NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
 func (m *Machine) doOpCallGoNative() {
-	debugPP.Println("doOpCallGoNative---")
 	fr := m.LastFrame()
 	fv := fr.GoFunc
 	ft := fv.Value.Type()

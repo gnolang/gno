@@ -1011,7 +1011,6 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				debugPP.Println("fourth false")
 				return false
 			}
 		}
@@ -2108,7 +2107,9 @@ func isSameType(lt, rt Type) bool {
 
 // runtime assert
 func assertAssignable(lt, rt Type) {
-	debugPP.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	if debug {
+		debug.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	}
 	if isSameType(lt, rt) {
 		// both are nil/undefined or same type.
 	} else if lt == nil || rt == nil { // has support (interface{}) typed-nil, yet support for (native interface{}) typed-nil
@@ -2135,7 +2136,9 @@ func assertAssignable(lt, rt Type) {
 // assert value with dt is comparable
 // special case when both typed, check if type identical
 func assertComparable(xt, dt Type) {
-	debugPP.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
+	if debug {
+		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
+	}
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage?
 	case *ArrayType: // NOTE: no recursive allowed
@@ -2207,7 +2210,9 @@ func assertMaybeNil(msg string, t Type) {
 // XXX. the name of checkAssignable should be considered.
 // we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
 func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
-	debugPP.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
+	if debug {
+		debug.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
+	}
 	// case0
 	if xt == nil { // refer to 0f18_filetest
 		assertMaybeNil("invalid operation, nil can not be compared to", dt)
@@ -2331,7 +2336,9 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok { // e.g. 1 == Int(1)
-			debugPP.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
+			if debug {
+				debug.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
+			}
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {
 				panic(fmt.Sprintf(
@@ -2350,7 +2357,6 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	// General cases.
 	switch cdt := dt.(type) {
 	case PrimitiveType: // case 1
-		debugPP.Println("primitive type")
 		// if xt is untyped, ensure dt is compatible.
 		switch xt {
 		case UntypedBoolType:
@@ -2441,7 +2447,9 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *NativeType:
 		if !autoNative {
-			debugPP.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
+			if debug {
+				debug.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
+			}
 			if xt.TypeID() == cdt.TypeID() {
 				return // ok
 			}
@@ -2453,7 +2461,6 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			if gno2GoTypeMatches(xt, cdt.Type) {
 				return // ok
 			}
-			debugPP.Println("gno2Go type not match")
 		}
 	default:
 		panic(fmt.Sprintf(

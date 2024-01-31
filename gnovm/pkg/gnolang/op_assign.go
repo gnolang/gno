@@ -75,6 +75,7 @@ func (m *Machine) doOpSubAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -97,6 +98,7 @@ func (m *Machine) doOpMulAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -119,6 +121,7 @@ func (m *Machine) doOpQuoAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -141,6 +144,7 @@ func (m *Machine) doOpRemAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -163,6 +167,7 @@ func (m *Machine) doOpBandAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -185,6 +190,7 @@ func (m *Machine) doOpBandnAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -207,6 +213,7 @@ func (m *Machine) doOpBorAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {
@@ -229,6 +236,7 @@ func (m *Machine) doOpXorAssign() {
 	if debug {
 		assertSameTypes(lv.TV.T, rv.T)
 	}
+
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
 		if oo, ok := lv.Base.(Object); ok {

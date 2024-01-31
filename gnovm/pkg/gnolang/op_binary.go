@@ -40,13 +40,6 @@ func (m *Machine) doOpBinary1() {
 	}
 }
 
-// XXX. in preprocess stage, we have checked:
-// 1. if dt(type of lhs or rhs, depends on its convert dir);
-// 2. whether lt and rt is identical if they are typed(typeID ==); or if one is not typed, but is
-// checkAssignable to the other side.
-// so, logically, there's no need to check the type equivalence here. leave the check in debug mode.
-// NOTE: one exception is for == and !=, where there's a relaxed scope of operands for compare(maybeIdentical),
-// there might be cases lt and rt is not identical. e.g. two different types conform same interface.
 func (m *Machine) doOpLor() {
 	// get right and left operands.
 	rv := m.PopValue()
@@ -54,6 +47,7 @@ func (m *Machine) doOpLor() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set result in lv.
 	if isUntyped(lv.T) {
 		lv.T = rv.T
@@ -68,6 +62,7 @@ func (m *Machine) doOpLand() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set result in lv.
 	if isUntyped(lv.T) {
 		lv.T = rv.T
@@ -76,40 +71,35 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	debugPP.Println("doOpEql---")
 	m.PopExpr()
 
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
 	if debug {
 		assertAssignable(lv.T, rv.T)
 	}
 	res = isEql(m.Store, lv, rv)
-	debugPP.Println("------is EQL:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
-	debugPP.Println("doOpNeq---")
 	m.PopExpr()
 
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	debugPP.Printf("lv: %v, rv: %v \n", lv, rv)
 
 	var res bool
 	if debug {
 		assertAssignable(lv.T, rv.T)
 	}
+
 	res = !isEql(m.Store, lv, rv)
-	debugPP.Println("------is NEQ:-----", res)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -124,6 +114,7 @@ func (m *Machine) doOpLss() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set the result in lv.
 	res := isLss(lv, rv)
 	lv.T = UntypedBoolType
@@ -140,6 +131,7 @@ func (m *Machine) doOpLeq() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set the result in lv.
 	res := isLeq(lv, rv)
 	lv.T = UntypedBoolType
@@ -156,6 +148,7 @@ func (m *Machine) doOpGtr() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set the result in lv.
 	res := isGtr(lv, rv)
 	lv.T = UntypedBoolType
@@ -172,6 +165,7 @@ func (m *Machine) doOpGeq() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// set the result in lv.
 	res := isGeq(lv, rv)
 	lv.T = UntypedBoolType
@@ -188,6 +182,7 @@ func (m *Machine) doOpAdd() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// add rv to lv.
 	addAssign(m.Alloc, lv, rv)
 }
@@ -201,6 +196,7 @@ func (m *Machine) doOpSub() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// sub rv from lv.
 	subAssign(lv, rv)
 }
@@ -214,6 +210,7 @@ func (m *Machine) doOpBor() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// lv | rv
 	borAssign(lv, rv)
 }
@@ -227,6 +224,7 @@ func (m *Machine) doOpXor() {
 	if debug {
 		assertSameTypes(lv.T, rv.T)
 	}
+
 	// lv ^ rv
 	xorAssign(lv, rv)
 }
@@ -338,7 +336,6 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
-	debugPP.Printf("isEql: lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -458,11 +455,12 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		// if debug {
-		if lv.V != nil && rv.V != nil {
-			panic("function can only be compared with `nil`")
+		if debug {
+			if lv.V != nil && rv.V != nil {
+				panic("function can only be compared with `nil`")
+			}
 		}
-		//}
+
 		if _, ok := lv.V.(*BoundMethodValue); ok {
 			// BoundMethodValues are objects so just compare.
 			return lv.V == rv.V
@@ -926,7 +924,7 @@ func remAssign(lv, rv *TypedValue) {
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
-			"operators rem and rem= not defined for %s",
+			"operators %% and %%= not defined for %s",
 			lv.T,
 		))
 	}
@@ -1090,7 +1088,6 @@ func xorAssign(lv, rv *TypedValue) {
 
 // for doOpShl and doOpShlAssign.
 func shlAssign(lv, rv *TypedValue) {
-	debugPP.Println("---shl Assign")
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {

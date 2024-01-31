@@ -14,7 +14,6 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	debugPP.Printf("--------------ConvertTo, tv: %v, t: %v \n", tv, t)
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -33,9 +32,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	ntv, tvIsNat := tv.T.(*NativeType)
 	nt, tIsNat := t.(*NativeType)
 	if tvIsNat {
-		debugPP.Println("tvIsNat")
 		if tIsNat {
-			debugPP.Println("t IsNat")
 			// both NativeType, use reflect to assert.
 			if debug {
 				if !ntv.Type.ConvertibleTo(nt.Type) {
@@ -47,12 +44,10 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			debugPP.Println("t not IsNat")
 			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
-			debugPP.Printf("tv after conversion: %v \n", tv)
 			return
 		}
 	} else {
@@ -80,10 +75,8 @@ GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
 		if tv.IsUndefined() && tv.T == nil { // if tv.T == nil, nil T and nil Value. not a nil interface
-			debugPP.Printf("-----convertTo, tv: %v, tv.T: %v \n", tv, tv.T)
-			debugPP.Println("tv.T is nil")
 			if _, ok := t.(*NativeType); !ok { // no support for native now
-				debugPP.Printf("t is interface and not native, t: %v \n", t)
+				debug.Printf("t is interface and not native, t: %v \n", t)
 				tv.T = t
 			}
 		}
@@ -91,7 +84,6 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
-		debugPP.Println("case of undefined")
 		tv.T = t
 		return
 	}
@@ -880,7 +872,6 @@ GNO_CASE:
 				tv.T.String(), k.String()))
 		}
 	case BigintKind:
-		debugPP.Println("---bigIntKind---")
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	default:
 		panic(fmt.Sprintf(
@@ -895,10 +886,11 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	debugPP.Printf("---ConvertUntypedTo---, tv:%v, t:%v \n", tv, t)
-	defer func() {
-		debugPP.Printf("---after ConvertUntypedTo---, tv:%v \n", tv)
-	}()
+	if debug {
+		defer func() {
+			debug.Printf("---after ConvertUntypedTo---, tv:%v \n", tv)
+		}()
+	}
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
@@ -925,7 +917,6 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	// special case: native
 	if nt, ok := t.(*NativeType); ok {
-		debugPP.Println("native type")
 		// first convert untyped to typed gno value.
 		gnot := go2GnoBaseType(nt.Type)
 		if debug {
@@ -941,13 +932,11 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
 		tv.T = t
-		debugPP.Printf("simple conversion, tv.T: %v \n", tv.T)
 		return
 	}
 	// general case
 	if t == nil {
 		t = defaultTypeOf(tv.T)
-		debugPP.Printf("give t its default type, to be:%v \n", t)
 	}
 	switch tv.T {
 	case UntypedBoolType:
@@ -970,13 +959,11 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		debugPP.Println("untyped string to string")
 		if preprocessing == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {
 			tv.T = t
-			debugPP.Printf("tv.T %v \n", tv.T)
 			return
 		} else {
 			ConvertTo(nilAllocator, nil, tv, t)
@@ -1076,7 +1063,6 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 }
 
 func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
-	debugPP.Printf("ConvertUntypedBigintTo, dst: %v, bv:%v, t:%v \n", dst, bv, t)
 	k := t.Kind()
 	bi := bv.V
 	var sv int64 = 0  // if signed.
