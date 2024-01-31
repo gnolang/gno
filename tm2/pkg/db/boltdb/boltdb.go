@@ -44,6 +44,10 @@ func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (db.DB, err
 		return nil, errors.New("ReadOnly: true is not supported")
 	}
 
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("error creating dir: %w", err)
+	}
+
 	dbPath := filepath.Join(dir, name+".db")
 	db, err := bbolt.Open(dbPath, os.ModePerm, opts)
 	if err != nil {
