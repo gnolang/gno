@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -71,7 +72,32 @@ func TestClient_Call(t *testing.T) {
 		},
 		RPCClient: mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				return &ctypes.ResultBroadcastTxCommit{}, nil
+				res := &ctypes.ResultBroadcastTxCommit{
+					CheckTx: abci.ResponseCheckTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   nil,
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+					},
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Error:  nil,
+							Data:   nil,
+							Events: nil,
+							Log:    "",
+							Info:   "",
+						},
+						GasWanted: 0,
+						GasUsed:   0,
+					},
+					Hash:   nil,
+					Height: 0,
+				}
+
+				return res, nil
 			},
 		},
 	}
