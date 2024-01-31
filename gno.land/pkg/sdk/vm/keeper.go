@@ -131,9 +131,7 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-const (
-	reReservedPath = `gno\.land/r/g[a-z0-9]+/run`
-)
+var reReservedPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
@@ -158,7 +156,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 
-	if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
+	if reReservedPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 

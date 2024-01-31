@@ -382,30 +382,25 @@ func GetCallersDirname() string {
 	return dirName
 }
 
+const (
+	reDomain    = `[[:alnum:]-_]+[[:alnum:]-_.]+\.[a-zA-Z]{2,4}`
+	reGoPkgPart = `[[:alpha:]-_]+`
+	reR3PkgPart = `[[:alpha:]_]+`
+)
+
 var (
-	RE_DOMAIN     = `[[:alnum:]-_]+[[:alnum:]-_.]+\.[a-zA-Z]{2,4}`
-	RE_GOPKG_PART = `[[:alpha:]-_]+`
-	RE_GOPKG      = fmt.Sprintf(`(?:%v|%v)(?:/%v)*`, RE_DOMAIN, RE_GOPKG_PART, RE_GOPKG_PART)
-	RE_P3PKG_PART = `[[:alpha:]_]+`
-	RE_P3PKG      = fmt.Sprintf(`%v(?:\.:%v)*`, RE_P3PKG_PART, RE_P3PKG_PART)
+	reGoPkg = regexp.MustCompile(fmt.Sprintf(`(?:%v|%v)(?:/%v)*`, reDomain, reGoPkgPart, reGoPkgPart))
+	reR3Pkg = regexp.MustCompile(fmt.Sprintf(`%v(?:\.:%v)*`, reR3PkgPart, reR3PkgPart))
 )
 
 func assertValidGoPkgPath(gopkgPath string) {
-	matched, err := regexp.Match(RE_GOPKG, []byte(gopkgPath))
-	if err != nil {
-		panic(err)
-	}
-	if !matched {
+	if !reGoPkg.Match([]byte(gopkgPath)) {
 		panic(fmt.Sprintf("not a valid go package path: %v", gopkgPath))
 	}
 }
 
 func assertValidP3PkgName(p3pkgName string) {
-	matched, err := regexp.Match(RE_P3PKG, []byte(p3pkgName))
-	if err != nil {
-		panic(err)
-	}
-	if !matched {
+	if !reR3Pkg.Match([]byte(p3pkgName)) {
 		panic(fmt.Sprintf("not a valid proto3 package path: %v", p3pkgName))
 	}
 }
