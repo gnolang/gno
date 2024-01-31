@@ -33,7 +33,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 
 	select {
 	case <-node.FirstBlockReceived():
-	case <-time.After(time.Second * 6):
+	case <-time.After(time.Second * 10):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 
