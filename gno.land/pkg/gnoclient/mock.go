@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Signer
+// Signer mock
 type (
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
 	mockInfo     func() keys.Info
@@ -44,8 +44,7 @@ func (m *mockSigner) Validate() error {
 	panic("no implementation passed in")
 }
 
-// Keys Info
-
+// Keys Info mock
 type (
 	mockGetAddress func() crypto.Address
 	mockGetType    func() keys.KeyType

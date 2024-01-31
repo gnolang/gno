@@ -6,12 +6,12 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 	"github.com/jaekwon/testify/require"
-	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"testing"
 )
 
 func TestClient_Render(t *testing.T) {

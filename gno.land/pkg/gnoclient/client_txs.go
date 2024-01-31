@@ -60,7 +60,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	}
 
 	// Parse MsgCall slice
-	vmMsgs := make([]vm.MsgCall, len(msgs))
+	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
 		if err := msg.validateMsgCall(); err != nil {
@@ -83,7 +83,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	}
 
 	// Cast vm.MsgCall back into std.Msg
-	stdMsgs := make([]std.Msg, len(vmMsgs))
+	stdMsgs := make([]std.Msg, 0, len(vmMsgs))
 	for i, msg := range vmMsgs {
 		stdMsgs[i] = msg
 	}
