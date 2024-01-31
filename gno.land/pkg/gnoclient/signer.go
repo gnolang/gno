@@ -124,7 +124,7 @@ var _ Signer = (*SignerFromKeybase)(nil)
 // This can be useful in scenarios where storing private keys in the filesystem isn't feasible.
 //
 // Warning: Using keys.NewKeyBaseFromDir is recommended where possible, as it is more secure.
-func SignerFromBip39(mnemonic string, passphrase string, account uint32, index uint32) (Signer, error) {
+func SignerFromBip39(mnemonic string, chainID string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"
 	password := "" // Password isn't needed for in-memory storage
@@ -138,6 +138,7 @@ func SignerFromBip39(mnemonic string, passphrase string, account uint32, index u
 		Keybase:  kb,
 		Account:  name,
 		Password: password,
+		ChainID:  chainID,
 	}
 
 	return &signer, nil
