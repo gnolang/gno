@@ -83,7 +83,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	}
 
 	// Cast vm.MsgCall back into std.Msg
-	stdMsgs := make([]std.Msg, 0, len(vmMsgs))
+	stdMsgs := make([]std.Msg, len(vmMsgs))
 	for i, msg := range vmMsgs {
 		stdMsgs[i] = msg
 	}
