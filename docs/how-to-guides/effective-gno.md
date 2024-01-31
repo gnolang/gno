@@ -520,10 +520,11 @@ In this example, `GetPost` is a function that retrieves a post from the
 `avl.Tree` using an ID. It only loads the post with the specified ID, without
 loading any other posts.
 
-In the future, we plan to add internal "map" support that will be as efficient
-as an `avl.Tree` but with a more idiomatic API. For now, consider storing things
-in slices when you know the structure will stay small, and consider using
-`avl.Tree` each time you can make direct access.
+In the future, we plan to add built-in "map" support that will match the
+efficienty of an `avl.Tree` while offering a more intuitive API. Until then, if
+you're dealing with a compact dataset, it's probably best to use slices.
+For larger datasets where you need to quickly retrieve elements by keys,
+`avl.Tree` is the way to go.
 
 You can also create SQL-like indexes by having multiple `avl.Tree` instances for
 different fields. For example, you can have an `avl.Tree` for ID to *post, then
