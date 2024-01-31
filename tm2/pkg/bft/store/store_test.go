@@ -1,13 +1,14 @@
 package store
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Bl
 	return block
 }
 
-func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore, cleanupFunc) {
+func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
 	config := cfg.ResetTestRoot("blockchain_reactor_test")
 	// blockDB := dbm.NewDebugDB("blockDB", dbm.NewMemDB())
 	// stateDB := dbm.NewDebugDB("stateDB", dbm.NewMemDB())
@@ -119,7 +120,8 @@ var (
 
 func TestMain(m *testing.M) {
 	var cleanup cleanupFunc
-	state, _, cleanup = makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+
+	state, _, cleanup = makeStateAndBlockStore(log.NewNoopLogger())
 	block = makeBlock(1, state, new(types.Commit))
 	partSet = block.MakePartSet(2)
 	part1 = partSet.GetPart(0)
@@ -135,7 +137,7 @@ func TestMain(m *testing.M) {
 func TestBlockStoreSaveLoadBlock(t *testing.T) {
 	t.Parallel()
 
-	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 
@@ -396,7 +398,7 @@ func TestLoadBlockMeta(t *testing.T) {
 func TestBlockFetchAtHeight(t *testing.T) {
 	t.Parallel()
 
-	state, bs, cleanup := makeStateAndBlockStore(log.NewTMLogger(new(bytes.Buffer)))
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
 	defer cleanup()
 	require.Equal(t, bs.Height(), int64(0), "initially the height should be zero")
 	block := makeBlock(bs.Height()+1, state, new(types.Commit))

@@ -16,11 +16,12 @@ import (
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -61,6 +62,7 @@ additional specified paths.`,
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
+
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.webListenerAddr,
@@ -89,7 +91,6 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultDevOptions.noWatch,
 		"do not watch for files change",
 	)
-
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) error {
@@ -303,9 +304,9 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 
-	logger := tmlog.NewTMLogger(nodeOut)
-	logger.SetLevel(tmlog.LevelError)
-	return gnodev.NewDevNode(ctx, logger, pkgspath)
+	zapLogger := log.NewZapConsoleLogger(nodeOut, zapcore.ErrorLevel)
+
+	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
@@ -317,10 +318,9 @@ func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) 
 	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
-	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
-	loggerweb.SetLevel(tmlog.LevelDebug)
+	zapLogger := log.NewZapConsoleLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 
-	app := gnoweb.MakeApp(loggerweb, webConfig)
+	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)
 
 	server.ReadHeaderTimeout = 60 * time.Second
 	server.Handler = app.Router
