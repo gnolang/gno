@@ -174,6 +174,8 @@ func TestClient_CallMultiple(t *testing.T) {
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
+
+	// todo check for res data?
 }
 
 func TestClient_Call_Errors(t *testing.T) {
@@ -361,11 +363,11 @@ func TestClient_Call_Errors(t *testing.T) {
 func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 	t.Helper()
 
-	mmemonic := integration.DefaultAccount_Seed
+	mnemonic := integration.DefaultAccount_Seed
 	name := integration.DefaultAccount_Name
 
 	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(name, mmemonic, "", "", uint32(0), uint32(0))
+	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
 	require.NoError(t, err)
 
 	return &SignerFromKeybase{
