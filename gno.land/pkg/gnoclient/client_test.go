@@ -174,8 +174,6 @@ func TestClient_CallMultiple(t *testing.T) {
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
-
-	// todo check for res data?
 }
 
 func TestClient_Call_Errors(t *testing.T) {
