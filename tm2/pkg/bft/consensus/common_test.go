@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/counter"
@@ -24,13 +25,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
-	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 const (
@@ -282,7 +281,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 
 	// Make Mempool
 	mempool := mempl.NewCListMempool(thisConfig.Mempool, proxyAppConnMem, 0, state.ConsensusParams.Block.MaxTxBytes)
-	mempool.SetLogger(log.TestingLogger().With("module", "mempool"))
+	mempool.SetLogger(log.NewNoopLogger().With("module", "mempool"))
 	if thisConfig.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()
 	}
@@ -290,13 +289,13 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 	// Make ConsensusState
 	stateDB := blockDB
 	sm.SaveState(stateDB, state) // for save height 1's validators info
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyAppConnCon, mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyAppConnCon, mempool)
 	cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool)
-	cs.SetLogger(log.TestingLogger().With("module", "consensus"))
+	cs.SetLogger(log.NewNoopLogger().With("module", "consensus"))
 	cs.SetPrivValidator(pv)
 
 	evsw := events.NewEventSwitch()
-	evsw.SetLogger(log.TestingLogger().With("module", "events"))
+	evsw.SetLogger(log.NewNoopLogger().With("module", "events"))
 	evsw.Start()
 	cs.SetEventSwitch(evsw)
 	return cs
@@ -568,46 +567,13 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 // -------------------------------------------------------------------------------
 // consensus nets
 
-// consensusLogger is a TestingLogger which uses a different
-// color for each validator ("validator" key must exist).
-func consensusLogger() log.Logger {
-	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) colors.Color {
-		for i := 0; i < len(keyvals)-1; i += 2 {
-			if keyvals[i] == "validator" {
-				num := keyvals[i+1].(int)
-				switch num % 8 {
-				case 0:
-					return colors.Red
-				case 1:
-					return colors.Green
-				case 2:
-					return colors.Yellow
-				case 3:
-					return colors.Blue
-				case 4:
-					return colors.Magenta
-				case 5:
-					return colors.Cyan
-				case 6:
-					return colors.White
-				case 7:
-					return colors.Gray
-				default:
-					panic("should not happen")
-				}
-			}
-		}
-		return colors.None
-	}).With("module", "consensus")
-}
-
 func randConsensusNet(nValidators int, testName string, tickerFunc func() TimeoutTicker,
 	appFunc func() abci.Application, configOpts ...func(*cfg.Config),
 ) ([]*ConsensusState, cleanupFunc) {
 	genDoc, privVals := randGenesisDoc(nValidators, false, 30)
 	css := make([]*ConsensusState, nValidators)
 	apps := make([]abci.Application, nValidators)
-	logger := consensusLogger()
+	logger := log.NewNoopLogger()
 	configRootDirs := make([]string, 0, nValidators)
 	for i := 0; i < nValidators; i++ {
 		stateDB := dbm.NewMemDB() // each state needs its own db
@@ -646,7 +612,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 	genDoc, privVals := randGenesisDoc(nValidators, false, testMinPower)
 	css := make([]*ConsensusState, nPeers)
 	apps := make([]abci.Application, nPeers)
-	logger := consensusLogger()
+	logger := log.NewNoopLogger()
 	var peer0Config *cfg.Config
 	configRootDirs := make([]string, 0, nPeers)
 	for i := 0; i < nPeers; i++ {
@@ -662,11 +628,11 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		if i < nValidators {
 			privVal = privVals[i]
 		} else {
-			tempKeyFile, err := ioutil.TempFile("", "priv_validator_key_")
+			tempKeyFile, err := os.CreateTemp("", "priv_validator_key_")
 			if err != nil {
 				panic(err)
 			}
-			tempStateFile, err := ioutil.TempFile("", "priv_validator_state_")
+			tempStateFile, err := os.CreateTemp("", "priv_validator_state_")
 			if err != nil {
 				panic(err)
 			}
@@ -700,15 +666,6 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 			app.Close()
 		}
 	}
-}
-
-func getSwitchIndex(switches []*p2p.Switch, peer p2p.Peer) int {
-	for i, s := range switches {
-		if peer.NodeInfo().ID() == s.NodeInfo().ID() {
-			return i
-		}
-	}
-	panic("didnt find peer in switches")
 }
 
 // -------------------------------------------------------------------------------
@@ -786,7 +743,7 @@ func (m *mockTicker) Chan() <-chan timeoutInfo {
 	return m.c
 }
 
-func (*mockTicker) SetLogger(log.Logger) {}
+func (*mockTicker) SetLogger(_ *slog.Logger) {}
 
 // ------------------------------------
 
@@ -795,7 +752,7 @@ func newCounter() abci.Application {
 }
 
 func newPersistentKVStore() abci.Application {
-	dir, err := ioutil.TempDir("", "persistent-kvstore")
+	dir, err := os.MkdirTemp("", "persistent-kvstore")
 	if err != nil {
 		panic(err)
 	}

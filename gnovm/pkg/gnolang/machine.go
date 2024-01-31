@@ -46,14 +46,15 @@ type Machine struct {
 	Context interface{}
 }
 
-// machine.Release() must be called on objects
-// created via this constructor
-// Machine with new package of given path.
-// Creates a new MemRealmer for any new realms.
-// Looks in store for package of pkgPath; if not found,
-// creates new instances as necessary.
-// If pkgPath is zero, the machine has no active package
-// and one must be set prior to usage.
+// NewMachine initializes a new gno virtual machine, acting as a shorthand
+// for [NewMachineWithOptions], setting the given options PkgPath and Store.
+//
+// The machine will run on the package at the given path, which will be
+// retrieved through the given store. If it is not set, the machine has no
+// active package, and one must be set prior to usage.
+//
+// Like for [NewMachineWithOptions], Machines initialized through this
+// constructor must be finalized with [Machine.Release].
 func NewMachine(pkgPath string, store Store) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
@@ -62,12 +63,14 @@ func NewMachine(pkgPath string, store Store) *Machine {
 		})
 }
 
+// MachineOptions is used to pass options to [NewMachineWithOptions].
 type MachineOptions struct {
+	// Active package of the given machine; must be set before execution.
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
-	Output        io.Writer
-	Store         Store
+	Output        io.Writer // default os.Stdout
+	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
@@ -87,6 +90,11 @@ var machinePool = sync.Pool{
 	},
 }
 
+// NewMachineWithOptions initializes a new gno virtual machine with the given
+// options.
+//
+// Machines initialized through this constructor must be finalized with
+// [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
@@ -141,11 +149,10 @@ var (
 	valueZeroed [VMSliceSize]TypedValue
 )
 
-// m should not be used after this call
-// if m is nil, this will panic
-// this is on purpose, to discourage misuse
-// and prevent objects that were not taken from
-// the pool, to call Release
+// Release resets some of the values of *Machine and puts back m into the
+// machine pool; for this reason, Release() should be called as a finalizer,
+// and m should not be used after this call. Only Machines initialized with this
+// package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
 	m.NumOps = 0
@@ -175,6 +182,9 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 
 // Upon restart, preprocess all MemPackage and save blocknodes.
 // This is a temporary measure until we optimize/make-lazy.
+//
+// NOTE: package paths not beginning with gno.land will be allowed to override,
+// to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
@@ -209,8 +219,23 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, false)
+}
+
+// RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
+// declarations are filtered removing duplicate declarations.
+// To control which declaration overrides which, use [ReadMemPackageFromList],
+// putting the overrides at the top of the list.
+func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, true)
+}
+
+func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
+	if !overrides && checkDuplicates(files) {
+		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
+	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -235,6 +260,56 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 		m.Store.AddMemPackage(memPkg)
 	}
 	return pn, pv
+}
+
+// checkDuplicates returns true if there duplicate declarations in the fset.
+func checkDuplicates(fset *FileSet) bool {
+	defined := make(map[Name]struct{}, 128)
+	for _, f := range fset.Files {
+		for _, d := range f.Decls {
+			var name Name
+			switch d := d.(type) {
+			case *FuncDecl:
+				if d.Name == "init" { //nolint:goconst
+					continue
+				}
+				name = d.Name
+				if d.IsMethod {
+					name = Name(destar(d.Recv.Type).String()) + "." + name
+				}
+			case *TypeDecl:
+				name = d.Name
+			case *ValueDecl:
+				for _, nx := range d.NameExprs {
+					if nx.Name == "_" {
+						continue
+					}
+					if _, ok := defined[nx.Name]; ok {
+						return true
+					}
+					defined[nx.Name] = struct{}{}
+				}
+				continue
+			default:
+				continue
+			}
+			if name == "_" {
+				continue
+			}
+			if _, ok := defined[name]; ok {
+				return true
+			}
+			defined[name] = struct{}{}
+		}
+	}
+	return false
+}
+
+func destar(x Expr) Expr {
+	if x, ok := x.(*StarExpr); ok {
+		return x.X
+	}
+	return x
 }
 
 // Tests all test files in a mempackage.
@@ -316,12 +391,8 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 
 		// mirror of stdlibs/testing.Report
 		var report struct {
-			Name     string
-			Verbose  bool
-			Failed   bool
-			Skipped  bool
-			Filtered bool
-			Output   string
+			Skipped bool
+			Failed  bool
 		}
 		err := json.Unmarshal([]byte(ret), &report)
 		if err != nil {
@@ -330,16 +401,10 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 		}
 
 		switch {
-		case report.Filtered:
-			// noop
 		case report.Skipped:
 			t.SkipNow()
 		case report.Failed:
 			t.Fail()
-		}
-
-		if report.Output != "" && (report.Verbose || report.Failed) {
-			t.Log(report.Output)
 		}
 	})
 }
@@ -500,7 +565,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
 				}
 			}
-			// run dependecy declaration
+			// run dependency declaration
 			loopfindr = append(loopfindr, dep)
 			runDeclarationFor(fn, *depdecl)
 			loopfindr = loopfindr[:len(loopfindr)-1]

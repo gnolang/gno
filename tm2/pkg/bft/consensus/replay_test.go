@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,7 +72,7 @@ func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *
 ) {
 	t.Helper()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
@@ -124,6 +125,8 @@ func sendTxs(ctx context.Context, cs *ConsensusState) {
 
 // TestWALCrash uses crashing WAL to test we can recover from any WAL failure.
 func TestWALCrash(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name            string
 		initFn          func(dbm.DB, *ConsensusState, context.Context)
@@ -147,6 +150,8 @@ func TestWALCrash(t *testing.T) {
 		tc := tc
 		consensusReplayConfig := ResetConfig(fmt.Sprintf("%s_%d", t.Name(), i))
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			crashWALandCheckLiveness(t, consensusReplayConfig, tc.initFn, tc.lastBlockHeight)
 		})
 	}
@@ -166,7 +171,7 @@ LOOP:
 		t.Logf("====== LOOP %d\n", i)
 
 		// create consensus state from a clean slate
-		logger := log.NewNopLogger()
+		logger := log.NewTestingLogger(t)
 		blockDB := dbm.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
@@ -250,7 +255,7 @@ func (e ReachedLastBlockHeightError) Error() string {
 	return fmt.Sprintf("reached height to stop %d", e.height)
 }
 
-func (w *crashingWAL) SetLogger(logger log.Logger) {
+func (w *crashingWAL) SetLogger(logger *slog.Logger) {
 	w.next.SetLogger(logger)
 }
 
@@ -507,6 +512,8 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 
 // Sync from scratch
 func TestHandshakeReplayAll(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 0, m, nil)
 	}
@@ -519,6 +526,8 @@ func TestHandshakeReplayAll(t *testing.T) {
 
 // Sync many, not from scratch
 func TestHandshakeReplaySome(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 1, m, nil)
 	}
@@ -531,6 +540,8 @@ func TestHandshakeReplaySome(t *testing.T) {
 
 // Sync from lagging by one
 func TestHandshakeReplayOne(t *testing.T) {
+	t.Parallel()
+
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks-1, m, nil)
 	}
@@ -543,6 +554,8 @@ func TestHandshakeReplayOne(t *testing.T) {
 
 // Sync from caught up
 func TestFlappyHandshakeReplayNone(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, m := range modes {
@@ -557,7 +570,9 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 
 // Test mockProxyApp should not panic when app return ABCIResponses with some empty ResponseDeliverTx
 func TestMockProxyApp(t *testing.T) {
-	logger := log.TestingLogger()
+	t.Parallel()
+
+	logger := log.NewTestingLogger(t)
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
 
@@ -604,7 +619,7 @@ func TestMockProxyApp(t *testing.T) {
 }
 
 func tempWALWithData(data []byte) string {
-	walFile, err := ioutil.TempFile("", "wal")
+	walFile, err := os.CreateTemp("", "wal")
 	if err != nil {
 		panic(fmt.Sprintf("failed to create temp WAL file: %v", err))
 	}
@@ -649,7 +664,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 		wal, err := walm.NewWAL(walFile, maxMsgSize)
 		require.NoError(t, err)
-		wal.SetLogger(log.TestingLogger())
+		wal.SetLogger(log.NewTestingLogger(t))
 		err = wal.Start()
 		require.NoError(t, err)
 		defer wal.Stop()
@@ -720,7 +735,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp proxy.AppConns) sm.State {
 	testPartSize := types.BlockPartSizeBytes
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 
 	blkID := types.BlockID{Hash: blk.Hash(), PartsHeader: blk.MakePartSet(testPartSize).Header()}
 	newState, err := blockExec.ApplyBlock(st, blkID, blk)
@@ -811,6 +826,8 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 }
 
 func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
+	t.Parallel()
+
 	// 1. Initialize tendermint and commit 3 blocks with the following app hashes:
 	//		- 0x01
 	//		- 0x02
@@ -1090,6 +1107,8 @@ func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
 // Test handshake/init chain
 
 func TestHandshakeUpdatesValidators(t *testing.T) {
+	t.Parallel()
+
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
 	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}

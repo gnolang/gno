@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -10,12 +12,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -25,7 +25,7 @@ const (
 	maxPerPage     = 100
 )
 
-//----------------------------------------------
+// ----------------------------------------------
 // These interfaces are used by RPC and must be thread safe
 
 type Consensus interface {
@@ -50,7 +50,7 @@ type peers interface {
 	Peers() p2p.IPeerSet
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // These package level globals come with setters
 // that are expected to be called only once, on startup
 
@@ -68,13 +68,12 @@ var (
 	// objects
 	pubKey           crypto.PubKey
 	genDoc           *types.GenesisDoc // cache the genesis structure
-	txIndexer        txindex.TxIndexer
 	consensusReactor *consensus.ConsensusReactor
 	evsw             events.EventSwitch
 	gTxDispatcher    *txDispatcher
 	mempool          mempl.Mempool
 
-	logger log.Logger
+	logger *slog.Logger
 
 	config cfg.RPCConfig
 )
@@ -115,15 +114,11 @@ func SetProxyAppQuery(appConn proxy.AppConnQuery) {
 	proxyAppQuery = appConn
 }
 
-func SetTxIndexer(indexer txindex.TxIndexer) {
-	txIndexer = indexer
-}
-
 func SetConsensusReactor(conR *consensus.ConsensusReactor) {
 	consensusReactor = conR
 }
 
-func SetLogger(l log.Logger) {
+func SetLogger(l *slog.Logger) {
 	logger = l
 }
 
@@ -168,13 +163,4 @@ func validatePerPage(perPage int) int {
 		return maxPerPage
 	}
 	return perPage
-}
-
-func validateSkipCount(page, perPage int) int {
-	skipCount := (page - 1) * perPage
-	if skipCount < 0 {
-		return 0
-	}
-
-	return skipCount
 }

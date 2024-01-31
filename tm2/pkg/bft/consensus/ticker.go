@@ -3,7 +3,8 @@ package consensus
 import (
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -18,7 +19,7 @@ type TimeoutTicker interface {
 	Chan() <-chan timeoutInfo       // on which to receive a timeout
 	ScheduleTimeout(ti timeoutInfo) // reset the timer
 
-	SetLogger(log.Logger)
+	SetLogger(*slog.Logger)
 }
 
 // timeoutTicker wraps time.Timer,
@@ -71,7 +72,7 @@ func (t *timeoutTicker) ScheduleTimeout(ti timeoutInfo) {
 	t.tickChan <- ti
 }
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
 
 // stop the timer and drain if necessary
 func (t *timeoutTicker) stopTimer() {
@@ -86,7 +87,7 @@ func (t *timeoutTicker) stopTimer() {
 }
 
 // send on tickChan to start a new timer.
-// timers are interupted and replaced by new ticks from later steps
+// timers are interrupted and replaced by new ticks from later steps
 // timeouts of 0 on the tickChan will be immediately relayed to the tockChan
 func (t *timeoutTicker) timeoutRoutine() {
 	t.Logger.Debug("Starting timeout routine")

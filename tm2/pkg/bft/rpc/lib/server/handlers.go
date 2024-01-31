@@ -6,13 +6,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
+	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/gorilla/websocket"
 
@@ -25,7 +28,7 @@ import (
 
 // RegisterRPCFuncs adds a route for each function in the funcMap, as well as general jsonrpc and websocket handlers for all functions.
 // "result" is the interface on which the result objects are registered, and is populated with every RPCResponse
-func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger log.Logger) {
+func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger *slog.Logger) {
 	// HTTP endpoints
 	for funcName, rpcFunc := range funcMap {
 		mux.HandleFunc("/"+funcName, makeHTTPHandler(rpcFunc, logger))
@@ -99,9 +102,9 @@ func funcReturnTypes(f interface{}) []reflect.Type {
 // rpc.json
 
 // jsonrpc calls grab the given method's function info and runs reflect.Call
-func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger log.Logger) http.HandlerFunc {
+func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body")))
 			return
@@ -256,7 +259,7 @@ func jsonParamsToArgs(rpcFunc *RPCFunc, raw []byte) ([]reflect.Value, error) {
 // rpc.http
 
 // convert from a function name to the http handler
-func makeHTTPHandler(rpcFunc *RPCFunc, logger log.Logger) func(http.ResponseWriter, *http.Request) {
+func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) func(http.ResponseWriter, *http.Request) {
 	// Exception for websocket endpoints
 	if rpcFunc.ws {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -356,9 +359,11 @@ func nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool
 	}
 }
 
+var reInt = regexp.MustCompile(`^-?[0-9]+$`)
+
 // NOTE: rt.Kind() isn't a pointer.
 func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	isIntString := RE_INT.Match([]byte(arg))
+	isIntString := reInt.Match([]byte(arg))
 	isQuotedString := strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`)
 	isHexString := strings.HasPrefix(strings.ToLower(arg), "0x")
 
@@ -758,7 +763,7 @@ type WebsocketManager struct {
 	websocket.Upgrader
 
 	funcMap       map[string]*RPCFunc
-	logger        log.Logger
+	logger        *slog.Logger
 	wsConnOptions []func(*wsConnection)
 }
 
@@ -773,13 +778,13 @@ func NewWebsocketManager(funcMap map[string]*RPCFunc, wsConnOptions ...func(*wsC
 				return true
 			},
 		},
-		logger:        log.NewNopLogger(),
+		logger:        log.NewNoopLogger(),
 		wsConnOptions: wsConnOptions,
 	}
 }
 
 // SetLogger sets the logger.
-func (wm *WebsocketManager) SetLogger(l log.Logger) {
+func (wm *WebsocketManager) SetLogger(l *slog.Logger) {
 	wm.logger = l
 }
 

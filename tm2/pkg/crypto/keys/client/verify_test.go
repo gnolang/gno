@@ -21,14 +21,14 @@ func Test_execVerify(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	cfg := &verifyCfg{
-		rootCfg: &baseCfg{
+	cfg := &VerifyCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		docPath: "",
+		DocPath: "",
 	}
 
 	io := commands.NewTestIO()

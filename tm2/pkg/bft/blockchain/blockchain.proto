@@ -11,21 +11,21 @@ import "github.com/gnolang/gno/tm2/pkg/bitarray/bitarray.proto";
 
 // messages
 message BlockRequest {
-	sint64 Height = 1;
+	sint64 height = 1 [json_name = "Height"];
 }
 
 message BlockResponse {
-	Block Block = 1;
+	Block block = 1 [json_name = "Block"];
 }
 
 message NoBlockResponse {
-	sint64 Height = 1;
+	sint64 height = 1 [json_name = "Height"];
 }
 
 message StatusRequest {
-	sint64 Height = 1;
+	sint64 height = 1 [json_name = "Height"];
 }
 
 message StatusResponse {
-	sint64 Height = 1;
+	sint64 height = 1 [json_name = "Height"];
 }

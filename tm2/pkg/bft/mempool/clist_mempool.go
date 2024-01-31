@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -63,7 +65,7 @@ type CListMempool struct {
 	// A log of mempool txs
 	wal *auto.AutoFile
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 var _ Mempool = &CListMempool{}
@@ -91,7 +93,7 @@ func NewCListMempool(
 		rechecking:    0,
 		recheckCursor: nil,
 		recheckEnd:    nil,
-		logger:        log.NewNopLogger(),
+		logger:        log.NewNoopLogger(),
 	}
 	if config.CacheSize > 0 {
 		mempool.cache = newMapTxCache(config.CacheSize)
@@ -111,7 +113,7 @@ func (mem *CListMempool) EnableTxsAvailable() {
 }
 
 // SetLogger sets the Logger.
-func (mem *CListMempool) SetLogger(l log.Logger) {
+func (mem *CListMempool) SetLogger(l *slog.Logger) {
 	mem.logger = l
 }
 

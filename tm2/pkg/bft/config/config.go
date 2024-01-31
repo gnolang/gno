@@ -4,15 +4,47 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
+	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
+	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
 )
+
+var (
+	errInvalidMoniker                    = errors.New("moniker not set")
+	errInvalidDBBackend                  = errors.New("invalid DB backend")
+	errInvalidDBPath                     = errors.New("invalid DB path")
+	errInvalidGenesisPath                = errors.New("invalid genesis path")
+	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
+	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
+	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
+	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
+	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
+	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
+)
+
+const (
+	levelDBName  = "goleveldb"
+	clevelDBName = "cleveldb"
+	boltDBName   = "boltdb"
+)
+
+const (
+	localABCI  = "local"
+	socketABCI = "socket"
+)
+
+// Regular expression for TCP or UNIX socket address
+// TCP address: host:port (IPv4 example)
+// UNIX address: unix:// followed by the path
+var tcpUnixAddressRegex = regexp.MustCompile(`^(?:[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]+|unix://.+)`)
 
 // Config defines the top level configuration for a Tendermint node
 type Config struct {
@@ -20,59 +52,98 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC       *rpc.RPCConfig       `toml:"rpc"`
-	P2P       *p2p.P2PConfig       `toml:"p2p"`
-	Mempool   *mem.MempoolConfig   `toml:"mempool"`
-	Consensus *cns.ConsensusConfig `toml:"consensus"`
+	RPC          *rpc.RPCConfig       `toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P          *p2p.P2PConfig       `toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig: DefaultBaseConfig(),
-		RPC:        rpc.DefaultRPCConfig(),
-		P2P:        p2p.DefaultP2PConfig(),
-		Mempool:    mem.DefaultMempoolConfig(),
-		Consensus:  cns.DefaultConsensusConfig(),
+		BaseConfig:   DefaultBaseConfig(),
+		RPC:          rpc.DefaultRPCConfig(),
+		P2P:          p2p.DefaultP2PConfig(),
+		Mempool:      mem.DefaultMempoolConfig(),
+		Consensus:    cns.DefaultConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
 }
 
-// Like LoadOrMakeConfigWithOptions() but without overriding any defaults.
-func LoadOrMakeDefaultConfig(root string) (cfg *Config) {
-	return LoadOrMakeConfigWithOptions(root, nil)
-}
+type Option func(cfg *Config)
 
-type ConfigOptions func(cfg *Config)
+// LoadOrMakeConfigWithOptions loads the configuration located in the given
+// root directory, at [defaultConfigFilePath].
+//
+// If the config does not exist, it is created, starting from the values in
+// `DefaultConfig` and applying the defaults in opts.
+func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
+	// Initialize the config as default
+	var (
+		cfg        = DefaultConfig()
+		configPath = join(root, defaultConfigFilePath)
+	)
 
-// LoadOrMakeConfigWithOptions() loads configuration or saves one
-// made by modifying the default config with override options
-func LoadOrMakeConfigWithOptions(root string, options ConfigOptions) (cfg *Config) {
-	configPath := join(root, defaultConfigFilePath)
+	// Config doesn't exist, create it
+	// from the default one
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	// Check if the config exists
 	if osm.FileExists(configPath) {
-		cfg = LoadConfigFile(configPath)
-		cfg.SetRootDir(root)
-		cfg.EnsureDirs()
-	} else {
-		cfg = DefaultConfig()
-		options(cfg)
-		cfg.SetRootDir(root)
-		cfg.EnsureDirs()
-		WriteConfigFile(configPath, cfg)
+		// Load the configuration
+		loadedCfg, loadErr := LoadConfigFile(configPath)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+
+		// Merge the loaded config with the default values
+		if err := mergo.Merge(loadedCfg, cfg); err != nil {
+			return nil, err
+		}
+
+		// Set the root directory
+		loadedCfg.SetRootDir(root)
+
+		// Make sure the directories are initialized
+		if err := loadedCfg.EnsureDirs(); err != nil {
+			return nil, err
+		}
+
+		return loadedCfg, nil
 	}
-	if err := cfg.ValidateBasic(); err != nil {
-		panic(err)
+
+	cfg.SetRootDir(root)
+
+	// Make sure the directories are initialized
+	if err := cfg.EnsureDirs(); err != nil {
+		return nil, err
 	}
-	return cfg
+
+	// Validate the configuration
+	if validateErr := cfg.ValidateBasic(); validateErr != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", validateErr)
+	}
+
+	// Save the config
+	if err := WriteConfigFile(configPath, cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig: TestBaseConfig(),
-		RPC:        rpc.TestRPCConfig(),
-		P2P:        p2p.TestP2PConfig(),
-		Mempool:    mem.TestMempoolConfig(),
-		Consensus:  cns.TestConsensusConfig(),
+		BaseConfig:   testBaseConfig(),
+		RPC:          rpc.TestRPCConfig(),
+		P2P:          p2p.TestP2PConfig(),
+		Mempool:      mem.TestMempoolConfig(),
+		Consensus:    cns.TestConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
 	}
 }
 
@@ -83,21 +154,27 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+
 	return cfg
 }
 
 // EnsureDirs ensures default directories in root dir (and root dir).
-func (cfg *Config) EnsureDirs() {
+func (cfg *Config) EnsureDirs() error {
 	rootDir := cfg.BaseConfig.RootDir
+
 	if err := osm.EnsureDir(rootDir, DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no root directory, %w", err)
 	}
+
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no config directory, %w", err)
 	}
+
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
-		panic(err.Error())
+		return fmt.Errorf("no data directory, %w", err)
 	}
+
+	return nil
 }
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
@@ -121,15 +198,8 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BaseConfig
-
-const (
-	// LogFormatPlain is a format for colored text
-	LogFormatPlain = "plain"
-	// LogFormatJSON is a format for json output
-	LogFormatJSON = "json"
-)
 
 var (
 	defaultConfigDir = "config"
@@ -160,18 +230,18 @@ type BaseConfig struct {
 	// TCP or UNIX socket address of the ABCI application,
 	// or the name of an ABCI application compiled in with the Tendermint binary,
 	// or empty if local application instance.
-	ProxyApp string `toml:"proxy_app"`
+	ProxyApp string `toml:"proxy_app" comment:"TCP or UNIX socket address of the ABCI application, \n or the name of an ABCI application compiled in with the Tendermint binary"`
 
 	// Local application instance in lieu of remote app.
 	LocalApp abci.Application
 
 	// A custom human readable name for this node
-	Moniker string `toml:"moniker"`
+	Moniker string `toml:"moniker" comment:"A custom human readable name for this node"`
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool `toml:"fast_sync"`
+	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
 	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
@@ -185,42 +255,36 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
-	DBPath string `toml:"db_dir"`
-
-	// Output level for logging
-	LogLevel string `toml:"log_level"`
-
-	// Output format: 'plain' (colored text) or 'json'
-	LogFormat string `toml:"log_format"`
+	DBPath string `toml:"db_dir" comment:"Database directory"`
 
 	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file"`
+	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
 
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
-	PrivValidatorKey string `toml:"priv_validator_key_file"`
+	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
 	// Path to the JSON file containing the last sign state of a validator
-	PrivValidatorState string `toml:"priv_validator_state_file"`
+	PrivValidatorState string `toml:"priv_validator_state_file" comment:"Path to the JSON file containing the last sign state of a validator"`
 
 	// TCP or UNIX socket address for Tendermint to listen on for
 	// connections from an external PrivValidator process
-	PrivValidatorListenAddr string `toml:"priv_validator_laddr"`
+	PrivValidatorListenAddr string `toml:"priv_validator_laddr" comment:"TCP or UNIX socket address for Tendermint to listen on for\n connections from an external PrivValidator process"`
 
 	// A JSON file containing the private key to use for p2p authenticated encryption
-	NodeKey string `toml:"node_key_file"`
+	NodeKey string `toml:"node_key_file" comment:"Path to the JSON file containing the private key to use for node authentication in the p2p protocol"`
 
 	// Mechanism to connect to the ABCI application: local | socket
-	ABCI string `toml:"abci"`
+	ABCI string `toml:"abci" comment:"Mechanism to connect to the ABCI application: socket | grpc"`
 
 	// TCP or UNIX socket address for the profiling server to listen on
-	ProfListenAddress string `toml:"prof_laddr"`
+	ProfListenAddress string `toml:"prof_laddr" comment:"TCP or UNIX socket address for the profiling server to listen on"`
 
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
-	FilterPeers bool `toml:"filter_peers"` // false
+	FilterPeers bool `toml:"filter_peers" comment:"If true, query the ABCI app on connecting to a new peer\n so the app can decide if we should keep the connection or not"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
@@ -233,8 +297,6 @@ func DefaultBaseConfig() BaseConfig {
 		Moniker:            defaultMoniker,
 		ProxyApp:           "tcp://127.0.0.1:26658",
 		ABCI:               "socket",
-		LogLevel:           DefaultPackageLogLevels(),
-		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
 		FilterPeers:        false,
@@ -243,8 +305,8 @@ func DefaultBaseConfig() BaseConfig {
 	}
 }
 
-// TestBaseConfig returns a base configuration for testing a Tendermint node
-func TestBaseConfig() BaseConfig {
+// testBaseConfig returns a base configuration for testing a Tendermint node
+func testBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
 	cfg.chainID = "tendermint_test"
 	cfg.ProxyApp = "mock://kvstore"
@@ -282,28 +344,6 @@ func (cfg BaseConfig) DBDir() string {
 	return join(cfg.RootDir, cfg.DBPath)
 }
 
-// ValidateBasic performs basic validation (checking param bounds, etc.) and
-// returns an error if any check fails.
-func (cfg BaseConfig) ValidateBasic() error {
-	switch cfg.LogFormat {
-	case LogFormatPlain, LogFormatJSON:
-	default:
-		return errors.New("unknown log_format (must be 'plain' or 'json')")
-	}
-	return nil
-}
-
-// DefaultLogLevel returns a default log level of "error"
-func DefaultLogLevel() string {
-	return "error"
-}
-
-// DefaultPackageLogLevels returns a default log level setting so all packages
-// log at "error", while the `state` and `main` packages log at "info"
-func DefaultPackageLogLevels() string {
-	return fmt.Sprintf("main:info,state:info,*:%s", DefaultLogLevel())
-}
-
 var defaultMoniker = getDefaultMoniker()
 
 // getDefaultMoniker returns a default moniker, which is the host name. If runtime
@@ -314,4 +354,64 @@ func getDefaultMoniker() string {
 		moniker = "anonymous"
 	}
 	return moniker
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg BaseConfig) ValidateBasic() error {
+	// Verify the moniker
+	if cfg.Moniker == "" {
+		return errInvalidMoniker
+	}
+
+	// Verify the DB backend
+	if cfg.DBBackend != levelDBName &&
+		cfg.DBBackend != clevelDBName &&
+		cfg.DBBackend != boltDBName {
+		return errInvalidDBBackend
+	}
+
+	// Verify the DB path is set
+	if cfg.DBPath == "" {
+		return errInvalidDBPath
+	}
+
+	// Verify the genesis path is set
+	if cfg.Genesis == "" {
+		return errInvalidGenesisPath
+	}
+
+	// Verify the validator private key path is set
+	if cfg.PrivValidatorKey == "" {
+		return errInvalidPrivValidatorKeyPath
+	}
+
+	// Verify the validator state file path is set
+	if cfg.PrivValidatorState == "" {
+		return errInvalidPrivValidatorStatePath
+	}
+
+	// Verify the PrivValidator listen address
+	if cfg.PrivValidatorListenAddr != "" &&
+		!tcpUnixAddressRegex.MatchString(cfg.PrivValidatorListenAddr) {
+		return errInvalidPrivValidatorListenAddress
+	}
+
+	// Verify the p2p private key exists
+	if cfg.NodeKey == "" {
+		return errInvalidNodeKeyPath
+	}
+
+	// Verify the correct ABCI mechanism is set
+	if cfg.ABCI != localABCI &&
+		cfg.ABCI != socketABCI {
+		return errInvalidABCIMechanism
+	}
+
+	// Verify the profiling listen address
+	if cfg.ProfListenAddress != "" && !tcpUnixAddressRegex.MatchString(cfg.ProfListenAddress) {
+		return errInvalidProfListenAddress
+	}
+
+	return nil
 }

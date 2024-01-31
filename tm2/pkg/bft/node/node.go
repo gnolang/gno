@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/slog"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -26,8 +29,8 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex/null"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -36,7 +39,6 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -74,12 +76,12 @@ func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
 }
 
 // NodeProvider takes a config and a logger and returns a ready to go Node.
-type NodeProvider func(*cfg.Config, log.Logger) (*Node, error)
+type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
+func DefaultNewNode(config *cfg.Config, logger *slog.Logger) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -155,19 +157,19 @@ type Node struct {
 	isListening bool
 
 	// services
-	evsw             events.EventSwitch
-	stateDB          dbm.DB
-	blockStore       *store.BlockStore // store the blockchain to disk
-	bcReactor        p2p.Reactor       // for fast-syncing
-	mempoolReactor   *mempl.Reactor    // for gossipping transactions
-	mempool          mempl.Mempool
-	consensusState   *cs.ConsensusState   // latest consensus state
-	consensusReactor *cs.ConsensusReactor // for participating in the consensus
-	proxyApp         proxy.AppConns       // connection to the application
-	rpcListeners     []net.Listener       // rpc servers
-	txIndexer        txindex.TxIndexer
-	indexerService   *txindex.IndexerService
-	firstBlockSignal <-chan struct{}
+	evsw              events.EventSwitch
+	stateDB           dbm.DB
+	blockStore        *store.BlockStore // store the blockchain to disk
+	bcReactor         p2p.Reactor       // for fast-syncing
+	mempoolReactor    *mempl.Reactor    // for gossipping transactions
+	mempool           mempl.Mempool
+	consensusState    *cs.ConsensusState   // latest consensus state
+	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
+	proxyApp          proxy.AppConns       // connection to the application
+	rpcListeners      []net.Listener       // rpc servers
+	txEventStore      eventstore.TxEventStore
+	eventStoreService *eventstore.Service
+	firstBlockSignal  <-chan struct{}
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -186,7 +188,7 @@ func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.Block
 	return
 }
 
-func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
+func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (proxy.AppConns, error) {
 	proxyApp := proxy.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
@@ -195,40 +197,40 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 	return proxyApp, nil
 }
 
-func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
-	evsw events.EventSwitch, logger log.Logger,
-) (*txindex.IndexerService, txindex.TxIndexer, error) {
-	var txIndexer txindex.TxIndexer = &null.TxIndex{}
-	/*
-		switch config.TxIndex.Indexer {
-		case "kv":
-			store, err := dbProvider(&DBContext{"tx_index", config})
-			if err != nil {
-				return nil, nil, err
-			}
-			switch {
-			case config.TxIndex.IndexTags != "":
-				txIndexer = kv.NewTxIndex(store, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
-			case config.TxIndex.IndexAllTags:
-				txIndexer = kv.NewTxIndex(store, kv.IndexAllTags())
-			default:
-				txIndexer = kv.NewTxIndex(store)
-			}
-		default:
-			txIndexer = &null.TxIndex{}
-		}
-	*/
+func createAndStartEventStoreService(
+	cfg *cfg.Config,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+) (*eventstore.Service, eventstore.TxEventStore, error) {
+	var (
+		err          error
+		txEventStore eventstore.TxEventStore
+	)
 
-	indexerService := txindex.NewIndexerService(txIndexer, evsw)
-	indexerService.SetLogger(logger.With("module", "txindex"))
+	// Instantiate the event store based on the configuration
+	switch cfg.TxEventStore.EventStoreType {
+	case file.EventStoreType:
+		// Transaction events should be logged to files
+		txEventStore, err = file.NewTxEventStore(cfg.TxEventStore)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to create file tx event store, %w", err)
+		}
+	default:
+		// Transaction event storing should be omitted
+		txEventStore = null.NewNullEventStore()
+	}
+
+	indexerService := eventstore.NewEventStoreService(txEventStore, evsw)
+	indexerService.SetLogger(logger.With("module", "eventstore"))
 	if err := indexerService.Start(); err != nil {
 		return nil, nil, err
 	}
-	return indexerService, txIndexer, nil
+
+	return indexerService, txEventStore, nil
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
-	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger log.Logger,
+	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger *slog.Logger,
 ) error {
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
@@ -239,7 +241,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	return nil
 }
 
-func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger log.Logger) {
+func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger *slog.Logger) {
 	// Log the version info.
 	logger.Info("Version info",
 		"version", version.Version,
@@ -263,7 +265,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, logger log.Logger,
+	state sm.State, logger *slog.Logger,
 ) (*mempl.Reactor, *mempl.CListMempool) {
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
@@ -287,7 +289,7 @@ func createBlockchainReactor(config *cfg.Config,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (bcReactor p2p.Reactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 
@@ -303,7 +305,7 @@ func createConsensusReactor(config *cfg.Config,
 	privValidator types.PrivValidator,
 	fastSync bool,
 	evsw events.EventSwitch,
-	consensusLogger log.Logger,
+	consensusLogger *slog.Logger,
 ) (*cs.ConsensusReactor, *cs.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
@@ -388,7 +390,7 @@ func createSwitch(config *cfg.Config,
 	consensusReactor *cs.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger,
+	p2pLogger *slog.Logger,
 ) *p2p.Switch {
 	sw := p2p.NewSwitch(
 		config.P2P,
@@ -414,7 +416,7 @@ func NewNode(config *cfg.Config,
 	clientCreator proxy.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
-	logger log.Logger,
+	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
 	blockStore, stateDB, err := initDBs(config, dbProvider)
@@ -433,8 +435,8 @@ func NewNode(config *cfg.Config,
 		return nil, err
 	}
 
-	// EventSwitch and IndexerService must be started before the handshake because
-	// we might need to index the txs of the replayed block as this might not have happened
+	// EventSwitch and EventStoreService must be started before the handshake because
+	// we might need to store the txs of the replayed block as this might not have happened
 	// when the node stopped last time (i.e. the node stopped after it saved the block
 	// but before it indexed the txs, or, endblocker panicked)
 	evsw := events.NewEventSwitch()
@@ -453,8 +455,8 @@ func NewNode(config *cfg.Config,
 		}
 	})
 
-	// Transaction indexing
-	indexerService, txIndexer, err := createAndStartIndexerService(config, dbProvider, evsw, logger)
+	// Transaction event storing
+	eventStoreService, txEventStore, err := createAndStartEventStoreService(config, evsw, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -516,7 +518,7 @@ func NewNode(config *cfg.Config,
 		privValidator, fastSync, evsw, consensusLogger,
 	)
 
-	nodeInfo, err := makeNodeInfo(config, nodeKey, txIndexer, genDoc, state)
+	nodeInfo, err := makeNodeInfo(config, nodeKey, txEventStore, genDoc, state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making NodeInfo")
 	}
@@ -557,19 +559,18 @@ func NewNode(config *cfg.Config,
 		nodeInfo:  nodeInfo,
 		nodeKey:   nodeKey,
 
-		evsw:             evsw,
-		stateDB:          stateDB,
-		blockStore:       blockStore,
-		bcReactor:        bcReactor,
-		mempoolReactor:   mempoolReactor,
-		mempool:          mempool,
-		consensusState:   consensusState,
-		consensusReactor: consensusReactor,
-		proxyApp:         proxyApp,
-		txIndexer:        txIndexer,
-		indexerService:   indexerService,
-
-		firstBlockSignal: cFirstBlock,
+		evsw:              evsw,
+		stateDB:           stateDB,
+		blockStore:        blockStore,
+		bcReactor:         bcReactor,
+		mempoolReactor:    mempoolReactor,
+		mempool:           mempool,
+		consensusState:    consensusState,
+		consensusReactor:  consensusReactor,
+		proxyApp:          proxyApp,
+		txEventStore:      txEventStore,
+		eventStoreService: eventStoreService,
+		firstBlockSignal:  cFirstBlock,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -644,7 +645,7 @@ func (n *Node) OnStop() {
 
 	// first stop the non-reactor services
 	n.evsw.Stop()
-	n.indexerService.Stop()
+	n.eventStoreService.Stop()
 
 	// now stop the reactors
 	n.sw.Stop()
@@ -687,7 +688,6 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetTxIndexer(n.txIndexer)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetEventSwitch(n.evsw)
@@ -862,15 +862,13 @@ func (n *Node) NodeInfo() p2p.NodeInfo {
 func makeNodeInfo(
 	config *cfg.Config,
 	nodeKey *p2p.NodeKey,
-	txIndexer txindex.TxIndexer,
+	txEventStore eventstore.TxEventStore,
 	genDoc *types.GenesisDoc,
 	state sm.State,
 ) (p2p.NodeInfo, error) {
-	txIndexerStatus := "on"
-	if _, ok := txIndexer.(*null.TxIndex); ok {
-		txIndexerStatus = "off"
-	} else if txIndexer == nil {
-		txIndexerStatus = "none"
+	txIndexerStatus := eventstore.StatusOff
+	if txEventStore.GetType() != null.EventStoreType {
+		txIndexerStatus = eventstore.StatusOn
 	}
 
 	bcChannel := bc.BlockchainChannel
@@ -962,7 +960,7 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 
 func createAndStartPrivValidatorSocketClient(
 	listenAddr string,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (types.PrivValidator, error) {
 	pve, err := privval.NewSignerListener(listenAddr, logger)
 	if err != nil {

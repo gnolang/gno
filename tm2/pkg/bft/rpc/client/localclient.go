@@ -1,6 +1,8 @@
 package client
 
 import (
+	"golang.org/x/exp/slog"
+
 	nm "github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -24,7 +26,7 @@ For real clients, you probably want to use client.HTTP.  For more
 powerful control during testing, you probably want the "client/mock" package.
 */
 type Local struct {
-	Logger log.Logger
+	Logger *slog.Logger
 	ctx    *rpctypes.Context
 }
 
@@ -37,7 +39,7 @@ type Local struct {
 func NewLocal(node *nm.Node) *Local {
 	node.ConfigureRPC()
 	return &Local{
-		Logger: log.NewNopLogger(),
+		Logger: log.NewNoopLogger(),
 		ctx:    &rpctypes.Context{},
 	}
 }
@@ -45,7 +47,7 @@ func NewLocal(node *nm.Node) *Local {
 var _ Client = (*Local)(nil)
 
 // SetLogger allows to set a logger on the client.
-func (c *Local) SetLogger(l log.Logger) {
+func (c *Local) SetLogger(l *slog.Logger) {
 	c.Logger = l
 }
 

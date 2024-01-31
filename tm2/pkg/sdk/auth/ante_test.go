@@ -59,6 +59,8 @@ func defaultAnteOptions() AnteOptions {
 
 // Test various error cases in the AnteHandler control flow.
 func TestAnteHandlerSigErrors(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -107,6 +109,8 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 
 // Test logic around account number checking with one signer and many signers.
 func TestAnteHandlerAccountNumbers(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -164,6 +168,8 @@ func TestAnteHandlerAccountNumbers(t *testing.T) {
 
 // Test logic around account number checking with many signers when BlockHeight is 0.
 func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -223,6 +229,8 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 
 // Test logic around sequence checking with one signer and many signers.
 func TestAnteHandlerSequences(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -300,6 +308,8 @@ func TestAnteHandlerSequences(t *testing.T) {
 
 // Test logic around fee deduction.
 func TestAnteHandlerFees(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -341,6 +351,8 @@ func TestAnteHandlerFees(t *testing.T) {
 
 // Test logic around memo gas consumption.
 func TestAnteHandlerMemoGas(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -381,6 +393,8 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 }
 
 func TestAnteHandlerMultiSigner(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -431,6 +445,8 @@ func TestAnteHandlerMultiSigner(t *testing.T) {
 }
 
 func TestAnteHandlerBadSignBytes(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -508,6 +524,8 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 }
 
 func TestAnteHandlerSetPubKey(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -560,6 +578,8 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 }
 
 func TestProcessPubKey(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -588,7 +608,10 @@ func TestProcessPubKey(t *testing.T) {
 		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, false},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := ProcessPubKey(tt.args.acc, tt.args.sig, tt.args.simulate)
 			require.Equal(t, tt.wantErr, !err.IsOK())
 		})
@@ -596,6 +619,8 @@ func TestProcessPubKey(t *testing.T) {
 }
 
 func TestConsumeSignatureVerificationGas(t *testing.T) {
+	t.Parallel()
+
 	params := DefaultParams()
 	msg := []byte{1, 2, 3, 4}
 
@@ -625,7 +650,10 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			res := DefaultSigVerificationGasConsumer(tt.args.meter, tt.args.sig, tt.args.pubkey, tt.args.params)
 
 			if tt.shouldErr {
@@ -671,6 +699,8 @@ func expectedGasCostByKeys(pubkeys []crypto.PubKey) int64 {
 }
 
 func TestCountSubkeys(t *testing.T) {
+	t.Parallel()
+
 	genPubKeys := func(n int) []crypto.PubKey {
 		var ret []crypto.PubKey
 		for i := 0; i < n; i++ {
@@ -698,13 +728,18 @@ func TestCountSubkeys(t *testing.T) {
 		{"multi level multikey", args{multiLevelMultiKey}, 11},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(T *testing.T) {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			require.Equal(t, tt.want, std.CountSubKeys(tt.args.pub))
 		})
 	}
 }
 
 func TestAnteHandlerSigLimitExceeded(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -742,6 +777,8 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 }
 
 func TestEnsureSufficientMempoolFees(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx.WithMinGasPrices(
@@ -775,6 +812,8 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 
 // Test custom SignatureVerificationGasConsumer
 func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	// setup an ante handler that only accepts PubKeyEd25519

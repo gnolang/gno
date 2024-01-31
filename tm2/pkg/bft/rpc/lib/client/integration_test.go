@@ -19,6 +19,8 @@ import (
 )
 
 func TestWSClientReconnectWithJitter(t *testing.T) {
+	t.Parallel()
+
 	n := 8
 	maxReconnectAttempts := 3
 	// Max wait time is ceil(1+0.999) + ceil(2+0.999) + ceil(4+0.999) + ceil(...) = 2 + 3 + 5 = 10s + ...
@@ -27,7 +29,7 @@ func TestWSClientReconnectWithJitter(t *testing.T) {
 	errNotConnected := errors.New("not connected")
 	clientMap := make(map[int]*WSClient)
 	buf := new(bytes.Buffer)
-	logger := log.NewTMLogger(buf)
+	logger := log.NewNoopLogger()
 	for i := 0; i < n; i++ {
 		c := NewWSClient("tcp://foo", "/websocket")
 		c.Dialer = func(string, string) (net.Conn, error) {

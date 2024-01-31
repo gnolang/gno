@@ -774,7 +774,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 			if strings.Contains(ns, "@") {
 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
 			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
 		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
@@ -796,6 +796,8 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	}, nil
 }
 
+var reDeprecation = regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
+
 // parseDeprecation extracts the text of comments on a "module" directive and
 // extracts a deprecation message from that.
 //
@@ -806,8 +808,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 // parseDeprecation returns the message from the first.
 func parseDeprecation(block *modfile.LineBlock, line *modfile.Line) string {
 	text := parseDirectiveComment(block, line)
-	rx := regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
-	m := rx.FindStringSubmatch(text)
+	m := reDeprecation.FindStringSubmatch(text)
 	if m == nil {
 		return ""
 	}
