@@ -24,8 +24,6 @@ services:
     networks:
       - portal-loop
     ports:
-      # useless because of network_mode: host
-      # just here for readability
       - "80:80"
       - "8080:8080"
     volumes:
@@ -42,7 +40,6 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=traefik:81
-      # - --faucet-url="http://faucet.portal.gno.local:81"
       - --faucet-url
       - "http://localhost:9000"
       - --help-chainid
@@ -87,14 +84,3 @@ services:
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
       - host.docker.internal:host-gateway
-
-  autocounterd:
-    build:
-      context: .
-      target: autocounterd
-    restart: unless-stopped
-    environment:
-      COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-      COUNTER_RPC: "http://traefik:81"
-    networks:
-      - portal-loop
