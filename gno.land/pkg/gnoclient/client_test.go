@@ -103,7 +103,7 @@ func TestClient_CallSingle(t *testing.T) {
 
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
-	assert.NotNil(t, res)
+	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
 }
 
