@@ -104,7 +104,6 @@ func TestClient_Call_Multiple_Integration(t *testing.T) {
 	got := string(res.DeliverTx.Data)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
-
 }
 
 // todo add more integration tests.
