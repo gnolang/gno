@@ -1,6 +1,8 @@
 package gnoclient
 
 import (
+	"testing"
+
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -8,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestClient_Call_Single_Integration(t *testing.T) {
