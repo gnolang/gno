@@ -678,7 +678,7 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 - subscription model
 - forking contracts
 - finished packages
-- packages for developeres, realms for users (NPM vs App Store)
+- packages for developers, realms for users (NPM vs App Store)
 - cross-realm ownership: function pointer, callback, inline function ownership
 - advanced usages of the frame stack
 -->
