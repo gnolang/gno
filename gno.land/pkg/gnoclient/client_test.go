@@ -1,18 +1,16 @@
 package gnoclient
 
 import (
-	"errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/integration"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
 )
 
 func TestClient_Render(t *testing.T) {
@@ -355,26 +353,9 @@ func TestClient_Call_Errors(t *testing.T) {
 			t.Parallel()
 
 			res, err := tc.client.Call(tc.cfg, tc.msgs...)
-			errors.Is(err, tc.expectedError)
+			assert.Error(t, err, tc.expectedError)
 			assert.Nil(t, res)
+			assert.ErrorIs(t, err, tc.expectedError)
 		})
-	}
-}
-
-func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
-	t.Helper()
-
-	mnemonic := integration.DefaultAccount_Seed
-	name := integration.DefaultAccount_Name
-
-	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
-	require.NoError(t, err)
-
-	return &SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
-		Account:  name,    // Account name or bech32 format
-		Password: "",      // Password for encryption
-		ChainID:  chainid, // Chain ID for transaction signing
 	}
 }
