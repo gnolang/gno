@@ -52,7 +52,6 @@ func TestClient_Call_Single_Integration(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
-
 }
 
 func TestClient_Call_Multiple_Integration(t *testing.T) {
