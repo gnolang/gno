@@ -425,24 +425,14 @@ func Echo(msg string) string {
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
 
-	// Call Echo function with not enough arguments.
+	// Call Echo function with wrong number of arguments
 	coins := std.MustParseCoins("1ugnot")
-	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{})
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
 	assert.PanicsWithValue(
 		t,
 		func() {
 			env.vmk.Call(ctx, msg2)
 		},
-		"not enough arguments in call to Echo",
-	)
-
-	// Call Echo function with too many arguments.
-	msg3 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
-	assert.PanicsWithValue(
-		t,
-		func() {
-			env.vmk.Call(ctx, msg3)
-		},
-		"too many arguments in call to Echo",
+		"wrong number of arguments in call to Echo: want 1 got 2",
 	)
 }

@@ -243,7 +243,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		panic("variadic calls not yet supported")
 	}
 	if len(msg.Args) != len(ft.Params) {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args))
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
 	}
 	for i, arg := range msg.Args {
 		argType := ft.Params[i].Type
