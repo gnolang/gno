@@ -114,7 +114,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 	return txs, nil
 }
 
-// LoadPackage load a single package into a tx
+// LoadPackage loads a single package into a `std.Tx`
 func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 

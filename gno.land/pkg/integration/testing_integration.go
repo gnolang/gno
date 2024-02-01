@@ -280,7 +280,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 			},
-			// use load a specific package from the example folder or from the working directory
+			// `use` load a specific package from the example folder or from the working directory
 			"use": func(ts *testscript.TestScript, neg bool, args []string) {
 				// special dirs
 				workDir := ts.Getenv("WORK")
@@ -301,9 +301,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("`use`: too many arguments specified")
 				}
 
-				// if `all` is specified fully load example folder
-				// NOTE: in 99% of cases, this is not needed and
-				// packages should be load individually
+				// If `all` is specified, fully load example folder.
+				// NOTE: In 99% of cases, this is not needed, and
+				// packages should be loaded individually.
 				if path == "all" {
 					ts.Logf("warning: loading all packages")
 					err := pkgs.loadPackagesFromDir(examplesDir)
@@ -318,8 +318,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					path = filepath.Join(examplesDir, path)
 				}
 
-				err := pkgs.loadPackages(examplesDir, path, name)
-				if err != nil {
+				if err := pkgs.loadPackages(examplesDir, path, name); err != nil {
 					ts.Fatalf("`use` unable to load package(s) from %q: %s", args[0], err)
 				}
 
@@ -439,7 +438,7 @@ func (pkgs pkgsLoader) list() gnomod.PkgList {
 func (pkgs pkgsLoader) Txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
 	pkgslist, err := pkgs.list().Sort()
 	if err != nil {
-		return nil, fmt.Errorf("uanble to sort packages: %w", err)
+		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
 	txs := make([]std.Tx, len(pkgslist))
@@ -483,29 +482,17 @@ func (pkgs pkgsLoader) loadPackages(modroot string, path, name string) error {
 	if pkg.Name == "" {
 		// try to load `gno.mod` informations
 		gnoModPath := filepath.Join(pkg.Dir, "gno.mod")
-		data, err := os.ReadFile(gnoModPath)
-		if os.IsNotExist(err) {
-			return fmt.Errorf("no name specified /gnomod doesn't exist (%q)", gnoModPath)
-		}
-
+		gm, err := gnomod.ParseGnoMod(gnoModPath)
 		if err != nil {
-			return fmt.Errorf("unable to load gno.mod: %w", err)
+			return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
 		}
 
-		gnoMod, err := gnomod.Parse(gnoModPath, data)
-		if err != nil {
-			return fmt.Errorf("%q parse gnomod error: %w", gnoModPath, err)
-		}
-
-		gnoMod.Sanitize()
-		if err := gnoMod.Validate(); err != nil {
-			return fmt.Errorf("validate %q error: %w", gnoModPath, err)
-		}
+		gm.Sanitize()
 
 		// override pkg info with mod infos
-		pkg.Name = gnoMod.Module.Mod.Path
-		pkg.Draft = gnoMod.Draft
-		for _, req := range gnoMod.Require {
+		pkg.Name = gm.Module.Mod.Path
+		pkg.Draft = gm.Draft
+		for _, req := range gm.Require {
 			pkg.Requires = append(pkg.Requires, req.Mod.Path)
 		}
 	}
