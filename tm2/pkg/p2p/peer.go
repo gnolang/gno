@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/cmap"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	connm "github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -156,7 +157,7 @@ func (p *peer) String() string {
 // Implements service.Service
 
 // SetLogger implements BaseService.
-func (p *peer) SetLogger(l log.Logger) {
+func (p *peer) SetLogger(l *slog.Logger) {
 	p.Logger = l
 	p.mconn.SetLogger(l)
 }
