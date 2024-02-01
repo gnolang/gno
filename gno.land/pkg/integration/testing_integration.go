@@ -436,8 +436,8 @@ func (pl *pkgsLoader) list() gnomod.PkgList {
 	return pl.pkgs
 }
 
-func (pkgs *pkgsLoader) txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
-	pkgslist, err := pkgs.list().Sort()
+func (pl *pkgsLoader) txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	pkgslist, err := pl.list().Sort()
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
