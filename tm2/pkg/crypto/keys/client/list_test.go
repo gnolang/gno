@@ -36,7 +36,7 @@ func Test_execList(t *testing.T) {
 	for _, tt := range testData {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set current home
-			cfg := &baseCfg{
+			cfg := &BaseCfg{
 				BaseOptions: BaseOptions{
 					Home: tt.kbDir,
 				},

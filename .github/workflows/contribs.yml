@@ -24,6 +24,7 @@ jobs:
           - "1.21.x"
         program:
           - "gnomd"
+          - "gnodev"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -796,6 +796,8 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	}, nil
 }
 
+var reDeprecation = regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
+
 // parseDeprecation extracts the text of comments on a "module" directive and
 // extracts a deprecation message from that.
 //
@@ -806,8 +808,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 // parseDeprecation returns the message from the first.
 func parseDeprecation(block *modfile.LineBlock, line *modfile.Line) string {
 	text := parseDirectiveComment(block, line)
-	rx := regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
-	m := rx.FindStringSubmatch(text)
+	m := reDeprecation.FindStringSubmatch(text)
 	if m == nil {
 		return ""
 	}

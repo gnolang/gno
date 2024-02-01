@@ -617,7 +617,7 @@ u.prototype.scroll = function () {
 
 
 // [INTERNAL USE ONLY]
-// Select the adecuate part from the context
+// Select the adequate part from the context
 u.prototype.select = function (parameter, context) {
   // Allow for spaces before or after
   parameter = parameter.replace(/^\s*/, '').replace(/\s*$/, '');
