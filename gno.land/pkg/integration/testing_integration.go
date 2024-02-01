@@ -176,7 +176,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-					pkgsTxs, err := pkgs.Txs(creator, defaultFee, nil)
+					pkgsTxs, err := pkgs.txs(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
@@ -436,7 +436,7 @@ func (pl *pkgsLoader) list() gnomod.PkgList {
 	return pl.pkgs
 }
 
-func (pkgs *pkgsLoader) Txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func (pkgs *pkgsLoader) txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
 	pkgslist, err := pkgs.list().Sort()
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
