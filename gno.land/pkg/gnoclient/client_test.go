@@ -26,7 +26,7 @@ func TestClient_Render(t *testing.T) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{
+				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
@@ -34,7 +34,7 @@ func TestClient_Render(t *testing.T) {
 				}
 			},
 		},
-		RPCClient: mockRPCClient{
+		RPCClient: &mockRPCClient{
 			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 				res := &ctypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
@@ -63,7 +63,7 @@ func TestClient_CallSingle(t *testing.T) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{
+				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
@@ -71,7 +71,7 @@ func TestClient_CallSingle(t *testing.T) {
 				}
 			},
 		},
-		RPCClient: mockRPCClient{
+		RPCClient: &mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
@@ -117,7 +117,7 @@ func TestClient_CallMultiple(t *testing.T) {
 				return &std.Tx{}, nil
 			},
 			info: func() keys.Info {
-				return mockKeysInfo{
+				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
@@ -125,7 +125,7 @@ func TestClient_CallMultiple(t *testing.T) {
 				}
 			},
 		},
-		RPCClient: mockRPCClient{
+		RPCClient: &mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{

@@ -61,35 +61,35 @@ type mockKeysInfo struct {
 	getPath    mockGetPath
 }
 
-func (m mockKeysInfo) GetAddress() crypto.Address {
+func (m *mockKeysInfo) GetAddress() crypto.Address {
 	if m.getAddress != nil {
 		return m.getAddress()
 	}
 	return crypto.Address{}
 }
 
-func (m mockKeysInfo) GetType() keys.KeyType {
+func (m *mockKeysInfo) GetType() keys.KeyType {
 	if m.getType != nil {
 		return m.getType()
 	}
 	return 0
 }
 
-func (m mockKeysInfo) GetName() string {
+func (m *mockKeysInfo) GetName() string {
 	if m.getName != nil {
 		return m.getName()
 	}
 	return ""
 }
 
-func (m mockKeysInfo) GetPubKey() crypto.PubKey {
+func (m *mockKeysInfo) GetPubKey() crypto.PubKey {
 	if m.getPubKey != nil {
 		return m.getPubKey()
 	}
 	return nil
 }
 
-func (m mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
+func (m *mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
 	if m.getPath != nil {
 		return m.getPath()
 	}
@@ -143,140 +143,140 @@ type mockRPCClient struct {
 	numUnconfirmedTxs    mockNumUnconfirmedTxs
 }
 
-func (m mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (m *mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	if m.broadcastTxCommit != nil {
 		return m.broadcastTxCommit(tx)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+func (m *mockRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQuery != nil {
 		return m.abciQuery(path, data)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
+func (m *mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 	if m.abciInfo != nil {
 		return m.ABCIInfo()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (m *mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQueryWithOptions != nil {
 		return m.abciQueryWithOptions(path, data, opts)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (m *mockRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxAsync != nil {
 		return m.broadcastTxAsync(tx)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (m *mockRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxSync != nil {
 		return m.broadcastTxSync(tx)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Genesis() (*ctypes.ResultGenesis, error) {
+func (m *mockRPCClient) Genesis() (*ctypes.ResultGenesis, error) {
 	if m.genesis != nil {
 		return m.genesis()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (m *mockRPCClient) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	if m.blockchainInfo != nil {
 		return m.blockchainInfo(minHeight, maxHeight)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) NetInfo() (*ctypes.ResultNetInfo, error) {
+func (m *mockRPCClient) NetInfo() (*ctypes.ResultNetInfo, error) {
 	if m.netInfo != nil {
 		return m.netInfo()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
+func (m *mockRPCClient) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 	if m.dumpConsensusState != nil {
 		return m.dumpConsensusState()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
+func (m *mockRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
 	if m.consensusState != nil {
 		return m.consensusState()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
+func (m *mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
 	if m.consensusParams != nil {
 		return m.consensusParams(height)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Health() (*ctypes.ResultHealth, error) {
+func (m *mockRPCClient) Health() (*ctypes.ResultHealth, error) {
 	if m.health != nil {
 		return m.health()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Block(height *int64) (*ctypes.ResultBlock, error) {
+func (m *mockRPCClient) Block(height *int64) (*ctypes.ResultBlock, error) {
 	if m.block != nil {
 		return m.block(height)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+func (m *mockRPCClient) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	if m.blockResults != nil {
 		return m.blockResults(height)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
+func (m *mockRPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
 	if m.commit != nil {
 		return m.commit(height)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) {
+func (m *mockRPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) {
 	if m.validators != nil {
 		return m.validators(height)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) Status() (*ctypes.ResultStatus, error) {
+func (m *mockRPCClient) Status() (*ctypes.ResultStatus, error) {
 	if m.status != nil {
 		return m.status()
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+func (m *mockRPCClient) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.unconfirmedTxs != nil {
 		return m.unconfirmedTxs(limit)
 	}
 	return nil, nil
 }
 
-func (m mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
+func (m *mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.numUnconfirmedTxs != nil {
 		return m.numUnconfirmedTxs()
 	}
