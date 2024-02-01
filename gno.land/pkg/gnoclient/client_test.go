@@ -2,6 +2,8 @@ package gnoclient
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -11,8 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/assert"
 	"github.com/jaekwon/testify/require"
-
-	"testing"
 )
 
 func TestClient_Render(t *testing.T) {
@@ -41,7 +41,8 @@ func TestClient_Render(t *testing.T) {
 						ResponseBase: abci.ResponseBase{
 							Data: expectedRender,
 						},
-					}}
+					},
+				}
 				return res, nil
 			},
 		},
