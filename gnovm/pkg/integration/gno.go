@@ -18,6 +18,7 @@ import (
 // The function also include the `gno` command into `p.Cmds` to and wrap environment into p.Setup
 // to correctly set up the environment variables needed for the `gno` command.
 func SetupGno(p *testscript.Params, buildDir string) error {
+	fmt.Println("---SetupGno")
 	// Try to fetch `GNOROOT` from the environment variables
 	gnoroot := gnoenv.RootDir()
 
@@ -43,7 +44,8 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 
 		// Append the path to the gno command source
 		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot, "gnovm", "cmd", "gno"))
-
+		//gnoArgsBuilder = append(gnoArgsBuilder, "/usr/local/go/bin")
+		fmt.Printf("---gnoArgsBuilder: ", gnoArgsBuilder)
 		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
 			return fmt.Errorf("unable to build gno binary: %w", err)
 		}
@@ -93,6 +95,62 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		// Compare the command's success status with the expected outcome.
 		if commandSucceeded != successExpected {
 			ts.Fatalf("unexpected gno command outcome (err=%t expected=%t)", commandSucceeded, successExpected)
+		}
+	}
+
+	return nil
+}
+
+func SetupGo(p *testscript.Params, buildDir string) error {
+	fmt.Println("---SetupGo")
+	// Try to fetch `GNOROOT` from the environment variables
+	goroot := gnoenv.RootDir()
+
+	// Store the original setup scripts for potential wrapping
+	origSetup := p.Setup
+	p.Setup = func(env *testscript.Env) error {
+		// If there's an original setup, execute it
+		if origSetup != nil {
+			if err := origSetup(env); err != nil {
+				return err
+			}
+		}
+
+		// Set the GNOROOT environment variable
+		env.Setenv("GOROOT4GNO", goroot)
+
+		// Create a temporary home directory because certain commands require access to $HOME/.cache/go-build
+		home, err := os.MkdirTemp("", "gno")
+		if err != nil {
+			return fmt.Errorf("unable to create temporary home directory: %w", err)
+		}
+		env.Setenv("HOME", home)
+
+		// Cleanup home folder
+		env.Defer(func() { os.RemoveAll(home) })
+
+		return nil
+	}
+
+	// Initialize cmds map if needed
+	if p.Cmds == nil {
+		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
+	}
+
+	gnoBin := "/usr/local/go/bin"
+	// Register the gno command for testscripts
+	p.Cmds["go"] = func(ts *testscript.TestScript, neg bool, args []string) {
+		err := ts.Exec(gnoBin, args...)
+		if err != nil {
+			ts.Logf("go command error: %+v", err)
+		}
+
+		commandSucceeded := (err == nil)
+		successExpected := !neg
+
+		// Compare the command's success status with the expected outcome.
+		if commandSucceeded != successExpected {
+			ts.Fatalf("unexpected go command outcome (err=%t expected=%t)", commandSucceeded, successExpected)
 		}
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/integration"
 )
 
+// TODO: make it a necessity for any gno file, not only for test
 func Test_ScriptsPrecompile(t *testing.T) {
 	p := testscript.Params{
 		Dir: "testdata/gno_precompile",
@@ -20,6 +21,9 @@ func Test_ScriptsPrecompile(t *testing.T) {
 	}
 
 	err := integration.SetupGno(&p, t.TempDir())
+	require.NoError(t, err)
+
+	err = integration.SetupGo(&p, t.TempDir())
 	require.NoError(t, err)
 
 	testscript.Run(t, p)
