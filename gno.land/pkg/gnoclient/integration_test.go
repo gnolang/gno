@@ -107,6 +107,8 @@ func TestClient_Call_Multiple_Integration(t *testing.T) {
 
 }
 
+// todo add more integration tests.
+
 func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 	t.Helper()
 
