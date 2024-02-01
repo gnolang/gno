@@ -31,12 +31,13 @@ type Debugger struct {
 	DebugIn  io.ReadCloser
 	DebugOut io.Writer
 
-	lastDebugCmd string
-	lastDebugArg string
-	DebugLoc     Location
-	PrevDebugLoc Location
-	breakpoints  []Location
-	debugCall    []Location // should be provided by machine frame
+	lastDebugCmd    string
+	lastDebugArg    string
+	DebugLoc        Location
+	PrevDebugLoc    Location
+	breakpoints     []Location
+	debugCall       []Location // should be provided by machine frame
+	debugFrameLevel int
 }
 
 type debugCommand struct {
@@ -57,6 +58,7 @@ func init() {
 		"clear":       {debugClear, clearUsage, clearShort, ""},
 		"continue":    {debugContinue, continueUsage, continueShort, ""},
 		"detach":      {debugDetach, detachUsage, detachShort, ""},
+		"down":        {debugDown, downUsage, downShort, ""},
 		"exit":        {debugExit, exitUsage, exitShort, ""},
 		"help":        {debugHelp, helpUsage, helpShort, ""},
 		"list":        {debugList, listUsage, listShort, listLong},
@@ -64,6 +66,7 @@ func init() {
 		"stack":       {debugStack, stackUsage, stackShort, ""},
 		"step":        {debugContinue, stepUsage, stepShort, ""},
 		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
+		"up":          {debugUp, upUsage, upShort, ""},
 	}
 
 	// Sort command names for help.
@@ -135,7 +138,7 @@ loop:
 	switch op {
 	case OpCall:
 		m.debugCall = append(m.debugCall, m.DebugLoc)
-	case OpReturn:
+	case OpReturn, OpReturnFromBlock:
 		m.debugCall = m.debugCall[:len(m.debugCall)-1]
 	}
 }
@@ -336,6 +339,24 @@ func debugDetach(m *Machine, arg string) error {
 }
 
 // ---------------------------------------
+const downUsage = `down [n]`
+const downShort = `Move the current frame down by n (default 1).`
+
+func debugDown(m *Machine, arg string) (err error) {
+	n := 1
+	if arg != "" {
+		if n, err = strconv.Atoi(arg); err != nil {
+			return err
+		}
+	}
+	if level := m.debugFrameLevel - n; level >= 0 && level < len(m.debugCall) {
+		m.debugFrameLevel = level
+	}
+	debugList(m, "")
+	return nil
+}
+
+// ---------------------------------------
 const exitUsage = `exit|quit|q`
 const exitShort = `Exit the debugger and program.`
 
@@ -376,26 +397,31 @@ See 'help break' for locspec syntax. If locspec is empty,
 list shows the source code around the current line.
 `
 
-func debugList(m *Machine, arg string) error {
-	file, line := m.DebugLoc.File, m.DebugLoc.Line
+func debugList(m *Machine, arg string) (err error) {
+	loc := m.DebugLoc
+	hideCursor := false
 
 	if arg == "" {
 		debugLineInfo(m)
+		if m.lastDebugCmd == "up" || m.lastDebugCmd == "down" {
+			loc = debugFrameLoc(m, m.debugFrameLevel)
+			fmt.Fprintf(m.DebugOut, "Frame %d: %s:%d\n", m.debugFrameLevel, loc.File, loc.Line)
+		}
 	} else {
-		loc, err := arg2loc(m, arg)
-		if err != nil {
+		if loc, err = arg2loc(m, arg); err != nil {
 			return err
 		}
-		file, line = loc.File, loc.Line
-		fmt.Fprintf(m.DebugOut, "Showing %s:%d\n", file, line)
+		hideCursor = true
+		fmt.Fprintf(m.DebugOut, "Showing %s:%d\n", loc.File, loc.Line)
 	}
+	file, line := loc.File, loc.Line
 	lines, offset, err := sourceLines(file, line)
 	if err != nil {
 		return err
 	}
 	for i, l := range lines {
 		cursor := ""
-		if file == m.DebugLoc.File && m.DebugLoc.Line == i+offset {
+		if !hideCursor && file == loc.File && loc.Line == i+offset {
 			cursor = "=>"
 		}
 		fmt.Fprintf(m.DebugOut, "%2s %4d: %s\n", cursor, i+offset, l)
@@ -469,4 +495,22 @@ func debugFrameLoc(m *Machine, n int) Location {
 		return m.DebugLoc
 	}
 	return m.debugCall[len(m.debugCall)-n]
+}
+
+// ---------------------------------------
+const upUsage = `up [n]`
+const upShort = `Move the current frame up by n (default 1).`
+
+func debugUp(m *Machine, arg string) (err error) {
+	n := 1
+	if arg != "" {
+		if n, err = strconv.Atoi(arg); err != nil {
+			return err
+		}
+	}
+	if level := m.debugFrameLevel + n; level >= 0 && level < len(m.debugCall) {
+		m.debugFrameLevel = level
+	}
+	debugList(m, "")
+	return nil
 }
