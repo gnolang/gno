@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"errors"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -353,7 +354,7 @@ func TestClient_Call_Errors(t *testing.T) {
 			t.Parallel()
 
 			res, err := tc.client.Call(tc.cfg, tc.msgs...)
-			assert.Equal(t, err, tc.expectedError)
+			errors.Is(err, tc.expectedError)
 			assert.Nil(t, res)
 		})
 	}
