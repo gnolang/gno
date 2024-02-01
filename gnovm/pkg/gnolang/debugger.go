@@ -455,20 +455,18 @@ const stackShort = `Print stack trace.`
 
 func debugStack(m *Machine, arg string) error {
 	l := len(m.Frames) - 1
-	// List frames from top to bottom.
+	// List stack frames in reverse array order. Deepest level is 0.
 	for i := l; i >= 0; i-- {
 		f := m.Frames[i]
 		loc := debugFrameLoc(m, l-i)
-		t := fmt.Sprintf("%-3d in %s.%s\n    at %s:%d", l-i, f.LastPackage.PkgPath, f.Func, loc.File, loc.Line)
-		fmt.Fprintln(m.DebugOut, t)
+		fmt.Fprintf(m.DebugOut, "%d\tin %s.%s\n\tat %s:%d\n", l-i, f.LastPackage.PkgPath, f.Func, loc.File, loc.Line)
 	}
 	return nil
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
-	l := len(m.debugCall) - 1
-	if loc := m.DebugLoc; l == n {
-		return loc
+	if n == 0 || len(m.debugCall) == 0 {
+		return m.DebugLoc
 	}
-	return m.debugCall[l-n]
+	return m.debugCall[len(m.debugCall)-n]
 }
