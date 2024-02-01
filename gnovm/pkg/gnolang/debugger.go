@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -49,8 +48,6 @@ var debugCmds map[string]debugCommand
 var debugCmdNames []string
 
 func init() {
-	log.SetFlags(log.Lshortfile)
-
 	// Register debugger commands.
 	debugCmds = map[string]debugCommand{
 		"break":       {debugBreak, breakUsage, breakShort, breakLong},
