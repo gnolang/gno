@@ -27,21 +27,21 @@ func (m *mockSigner) Sign(cfg SignCfg) (*std.Tx, error) {
 	if m.sign != nil {
 		return m.sign(cfg)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m *mockSigner) Info() keys.Info {
 	if m.info != nil {
 		return m.info()
 	}
-	panic("no implementation passed in")
+	return nil
 }
 
 func (m *mockSigner) Validate() error {
 	if m.validate != nil {
 		return m.validate()
 	}
-	panic("no implementation passed in")
+	return nil
 }
 
 // Keys Info mock
@@ -65,36 +65,35 @@ func (m mockKeysInfo) GetAddress() crypto.Address {
 	if m.getAddress != nil {
 		return m.getAddress()
 	}
-
-	panic("no implementation passed in")
+	return crypto.Address{}
 }
 
 func (m mockKeysInfo) GetType() keys.KeyType {
 	if m.getType != nil {
 		return m.getType()
 	}
-	panic("no implementation passed in")
+	return 0
 }
 
 func (m mockKeysInfo) GetName() string {
 	if m.getName != nil {
 		return m.getName()
 	}
-	panic("no implementation passed in")
+	return ""
 }
 
 func (m mockKeysInfo) GetPubKey() crypto.PubKey {
 	if m.getPubKey != nil {
 		return m.getPubKey()
 	}
-	panic("no implementation passed in")
+	return nil
 }
 
 func (m mockKeysInfo) GetPath() (*hd.BIP44Params, error) {
 	if m.getPath != nil {
 		return m.getPath()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 // RPC Client mock
@@ -148,138 +147,138 @@ func (m mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTx
 	if m.broadcastTxCommit != nil {
 		return m.broadcastTxCommit(tx)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQuery != nil {
 		return m.abciQuery(path, data)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 	if m.abciInfo != nil {
 		return m.ABCIInfo()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQueryWithOptions != nil {
 		return m.abciQueryWithOptions(path, data, opts)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxAsync != nil {
 		return m.broadcastTxAsync(tx)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	if m.broadcastTxSync != nil {
 		return m.broadcastTxSync(tx)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Genesis() (*ctypes.ResultGenesis, error) {
 	if m.genesis != nil {
 		return m.genesis()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	if m.blockchainInfo != nil {
 		return m.blockchainInfo(minHeight, maxHeight)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) NetInfo() (*ctypes.ResultNetInfo, error) {
 	if m.netInfo != nil {
 		return m.netInfo()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 	if m.dumpConsensusState != nil {
 		return m.dumpConsensusState()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) ConsensusState() (*ctypes.ResultConsensusState, error) {
 	if m.consensusState != nil {
 		return m.consensusState()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
 	if m.consensusParams != nil {
 		return m.consensusParams(height)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Health() (*ctypes.ResultHealth, error) {
 	if m.health != nil {
 		return m.health()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Block(height *int64) (*ctypes.ResultBlock, error) {
 	if m.block != nil {
 		return m.block(height)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	if m.blockResults != nil {
 		return m.blockResults(height)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
 	if m.commit != nil {
 		return m.commit(height)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) {
 	if m.validators != nil {
 		return m.validators(height)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) Status() (*ctypes.ResultStatus, error) {
 	if m.status != nil {
 		return m.status()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.unconfirmedTxs != nil {
 		return m.unconfirmedTxs(limit)
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
 
 func (m mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
 	if m.numUnconfirmedTxs != nil {
 		return m.numUnconfirmedTxs()
 	}
-	panic("no implementation passed in")
+	return nil, nil
 }
