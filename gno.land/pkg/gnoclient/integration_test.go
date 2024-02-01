@@ -88,6 +88,7 @@ func TestClient_Call_Multiple_Integration(t *testing.T) {
 		Send:     "",
 	}
 
+	// Same call, different argument
 	msg2 := MsgCall{
 		PkgPath:  "gno.land/r/demo/deep/very/deep",
 		FuncName: "Render",
