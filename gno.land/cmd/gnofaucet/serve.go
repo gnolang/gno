@@ -7,23 +7,33 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/faucet"
+	tm2Client "github.com/gnolang/faucet/client/http"
+	"github.com/gnolang/faucet/config"
+	"github.com/gnolang/faucet/estimate/static"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/zap/zapcore"
+)
+
+const (
+	defaultGasFee        = "1000000ugnot"
+	defaultGasWanted     = "100000"
+	defaultRemote        = "http://127.0.0.1:26657"
+	defaultListenAddress = "http://127.0.0.1:5050"
 )
 
 // url & struct for verify captcha
 const siteVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
+
+var remoteRegex = regexp.MustCompile(`^https?://[a-z\d.-]+(:\d+)?(?:/[a-z\d]+)*$`)
 
 type SiteVerifyResponse struct {
 	Success     bool      `json:"success"`
@@ -34,414 +44,242 @@ type SiteVerifyResponse struct {
 	ErrorCodes  []string  `json:"error-codes"`
 }
 
-type config struct {
-	client.BaseOptions // home, ...
+type serveCfg struct {
+	listenAddress string
+	chainID       string
+	mnemonic      string
+	sendAmount    string
+	numAccounts   uint64
 
-	ChainID               string
-	GasWanted             int64
-	GasFee                string
-	Memo                  string
-	TestTo                string
-	Send                  string
-	CaptchaSecret         string
-	IsBehindProxy         bool
-	InsecurePasswordStdin bool
+	remote string
+
+	captchaSecret string
+	isBehindProxy bool
 }
 
 func newServeCmd() *commands.Command {
-	cfg := &config{}
+	cfg := &serveCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "serve",
-			ShortUsage: "serve [flags] <key>",
+			ShortUsage: "serve [flags]",
 			LongHelp:   "Serves the gno.land faucet to users",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
-			return execServe(cfg, args, commands.NewDefaultIO())
+		func(ctx context.Context, args []string) error {
+			return execServe(ctx, cfg, commands.NewDefaultIO())
 		},
 	)
 }
 
-func (c *config) RegisterFlags(fs *flag.FlagSet) {
-	// Base config options
+func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.BaseOptions.Home,
-		"home",
-		client.DefaultBaseOptions.Home,
-		"home directory",
+		&c.listenAddress,
+		"listen-address",
+		defaultListenAddress,
+		"the faucet server listen address",
 	)
 
 	fs.StringVar(
-		&c.BaseOptions.Remote,
+		&c.remote,
 		"remote",
-		client.DefaultBaseOptions.Remote,
+		defaultRemote,
 		"remote node URL",
 	)
 
-	fs.BoolVar(
-		&c.BaseOptions.Quiet,
-		"quiet",
-		client.DefaultBaseOptions.Quiet,
-		"for parsing output",
+	fs.StringVar(
+		&c.mnemonic,
+		"mnemonic",
+		"",
+		"the mnemonic for faucet keys",
 	)
 
-	// Command options
+	fs.Uint64Var(
+		&c.numAccounts,
+		"num-accounts",
+		1,
+		"the number of faucet accounts, based on the mnemonic",
+	)
+
 	fs.StringVar(
-		&c.ChainID,
+		&c.chainID,
 		"chain-id",
 		"",
-		"the ID of the chain",
-	)
-
-	fs.Int64Var(
-		&c.GasWanted,
-		"gas-wanted",
-		50000,
-		"gas requested for the tx",
+		"the chain ID associated with the remote Gno chain",
 	)
 
 	fs.StringVar(
-		&c.GasFee,
-		"gas-fee",
-		"1000000ugnot",
-		"gas payment fee",
-	)
-
-	fs.StringVar(
-		&c.Memo,
-		"memo",
-		"",
-		"any descriptive text",
-	)
-
-	fs.StringVar(
-		&c.TestTo,
-		"test-to",
-		"",
-		"test address (optional)",
-	)
-
-	fs.StringVar(
-		&c.Send,
+		&c.sendAmount,
 		"send",
 		"1000000ugnot",
-		"send coins",
+		"the static send amount (native currency)",
 	)
 
 	fs.StringVar(
-		&c.CaptchaSecret,
+		&c.captchaSecret,
 		"captcha-secret",
 		"",
 		"recaptcha secret key (if empty, captcha are disabled)",
 	)
 
 	fs.BoolVar(
-		&c.IsBehindProxy,
+		&c.isBehindProxy,
 		"is-behind-proxy",
 		false,
 		"use X-Forwarded-For IP for throttling",
 	)
-
-	fs.BoolVar(
-		&c.InsecurePasswordStdin,
-		"insecure-password-stdin",
-		false,
-		"WARNING! take password from stdin",
-	)
 }
 
-func execServe(cfg *config, args []string, io commands.IO) error {
-	if len(args) != 1 {
-		return flag.ErrHelp
-	}
+// generateFaucetConfig generates the Faucet configuration
+// based on the flag data
+func (c *serveCfg) generateFaucetConfig() *config.Config {
+	// Create the default configuration
+	cfg := config.DefaultConfig()
 
-	if cfg.ChainID == "" {
-		return errors.New("chain-id not specified")
-	}
+	cfg.ListenAddress = c.listenAddress
+	cfg.ChainID = c.chainID
+	cfg.Mnemonic = c.mnemonic
+	cfg.SendAmount = c.sendAmount
+	cfg.NumAccounts = c.numAccounts
 
-	if cfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
+	return cfg
+}
 
-	if cfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
+func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
+	// Parse static gas values.
+	// It is worth noting that this is temporary,
+	// and will be removed once gas estimation is enabled
+	// on Gno.land
+	gasFee := std.MustParseCoin(defaultGasFee)
 
-	remote := cfg.Remote
-	if remote == "" || remote == "y" {
-		return errors.New("missing remote url")
-	}
-	cli := rpcclient.NewHTTP(remote, "/websocket")
-
-	// XXX XXX
-	// Read supply account pubkey.
-	name := args[0]
-	kb, err := keys.NewKeyBaseFromDir(cfg.Home)
+	gasWanted, err := strconv.ParseInt(defaultGasWanted, 10, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid gas wanted, %w", err)
 	}
 
-	// Get password for supply account.
-	// Test by signing a dummy message;
-	const dummy = "test"
-	var pass string
-	if cfg.Quiet {
-		pass, err = io.GetPassword("", cfg.InsecurePasswordStdin)
-	} else {
-		pass, err = io.GetPassword("Enter password", cfg.InsecurePasswordStdin)
-	}
-
+	// Parse the send amount
+	_, err = std.ParseCoins(cfg.sendAmount)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid send amount, %w", err)
 	}
 
-	_, _, err = kb.Sign(name, pass, []byte(dummy))
-	if err != nil {
-		return err
+	// Validate the remote address
+	if !remoteRegex.MatchString(cfg.remote) {
+		return errors.New("invalid remote address")
 	}
 
-	// Parse send amount.
-	send, err := std.ParseCoins(cfg.Send)
-	if err != nil {
-		return errors.Wrap(err, "parsing send coins")
-	}
+	// Create the client (HTTP)
+	cli := tm2Client.NewClient(cfg.remote)
 
-	// Parse test-to address. If present, send and quit.
-	if cfg.TestTo != "" {
-		testToAddr, err := crypto.AddressFromBech32(cfg.TestTo)
-		if err != nil {
-			return err
-		}
-		err = sendAmountTo(cfg, cli, io, name, pass, testToAddr, send)
-		return err
-	}
+	// Set up the logger
+	logger := log.NewZapJSONLogger(io.Out(), zapcore.DebugLevel)
 
 	// Start throttled faucet.
 	st := NewSubnetThrottler()
-	st.Start()
-
-	// handle route using handler function
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		host := ""
-		if !cfg.IsBehindProxy {
-			addr := r.RemoteAddr
-			host_, _, err := net.SplitHostPort(addr)
-			if err != nil {
-				return
-			}
-			host = host_
-		} else if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
-			host = xff[0]
-		}
-
-		// if can't identify the IP, everyone is in the same pool.
-		// if host using ipv6 loopback addr, make it ipv4
-		if host == "" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
-			host = "127.0.0.1"
-		}
-		ip := net.ParseIP(host)
-		if ip == nil {
-			fmt.Println("no ip found")
-			w.Write([]byte("no ip found"))
-			return
-		}
-
-		allowed, reason := st.Request(ip)
-		if !allowed {
-			msg := fmt.Sprintf("abuse protection system (%s)", reason)
-			fmt.Println(ip, msg)
-			w.Write([]byte(msg))
-			return
-		}
-
-		r.ParseForm()
-
-		// only when command line argument 'captcha-secret' has entered > captcha are enabled.
-		// verify captcha
-		if cfg.CaptchaSecret != "" {
-			passedMsg := r.Form["g-recaptcha-response"]
-			if passedMsg == nil {
-				fmt.Println(ip, "no 'captcha' request")
-				w.Write([]byte("check captcha request"))
-				return
-			}
-
-			capMsg := strings.TrimSpace(passedMsg[0])
-
-			if err := checkRecaptcha(cfg.CaptchaSecret, capMsg); err != nil {
-				fmt.Printf("%s recaptcha failed; %v\n", ip, err)
-				w.Write([]byte("Unauthorized"))
-				return
-			}
-		}
-
-		passedAddr := r.Form["toaddr"]
-		if passedAddr == nil {
-			fmt.Println(ip, "no address found")
-			w.Write([]byte("no address found"))
-			return
-		}
-
-		toAddrStr := strings.TrimSpace(passedAddr[0])
-
-		// OK.
-		toAddr, err := crypto.AddressFromBech32(toAddrStr)
-		if err != nil {
-			fmt.Println(ip, "invalid address format", err)
-			w.Write([]byte("invalid address format"))
-			return
-		}
-		err = sendAmountTo(cfg, cli, io, name, pass, toAddr, send)
-		if err != nil {
-			fmt.Println(ip, "faucet failed", err)
-			w.Write([]byte("faucet failed"))
-			return
-		} else {
-			fmt.Println(ip, "faucet success")
-			w.Write([]byte("faucet success"))
-		}
-	})
-
-	// listen to port
-	fmt.Println("Starting server at port 5050")
-
-	server := &http.Server{
-		Addr:              ":5050",
-		ReadHeaderTimeout: 60 * time.Second,
-	}
-	if err := server.ListenAndServe(); err != nil {
-		return fmt.Errorf("http server stopped. %w", err)
+	if err = st.Start(); err != nil {
+		return fmt.Errorf("unable to start throttler service, %w", err)
 	}
 
-	return nil
+	// Prepare the middleware
+	middleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				host := ""
+				if !cfg.isBehindProxy {
+					addr := r.RemoteAddr
+					host_, _, err := net.SplitHostPort(addr)
+					if err != nil {
+						return
+					}
+					host = host_
+				} else if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
+					host = xff[0]
+				}
+
+				// if can't identify the IP, everyone is in the same pool.
+				// if host using ipv6 loopback addr, make it ipv4
+				if host == "" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
+					host = "127.0.0.1"
+				}
+
+				ip := net.ParseIP(host)
+
+				if ip == nil {
+					io.Println("No IP found")
+
+					http.Error(w, "No IP found", http.StatusUnauthorized)
+
+					return
+				}
+
+				allowed, reason := st.Request(ip)
+				if !allowed {
+					msg := fmt.Sprintf("abuse protection system (%s)", reason)
+
+					io.Println(msg)
+					http.Error(w, msg, http.StatusUnauthorized)
+
+					return
+				}
+
+				if err = r.ParseForm(); err != nil {
+					http.Error(w, "Invalid form", http.StatusBadRequest)
+
+					return
+				}
+
+				// only when command line argument 'captcha-secret' has entered > captcha are enabled.
+				// verify captcha
+				if cfg.captchaSecret != "" {
+					passedMsg := r.Form["g-recaptcha-response"]
+
+					if passedMsg == nil {
+						http.Error(w, "Invalid captcha request", http.StatusInternalServerError)
+
+						return
+					}
+
+					capMsg := strings.TrimSpace(passedMsg[0])
+
+					if err = checkRecaptcha(cfg.captchaSecret, capMsg); err != nil {
+						io.Printf("%s recaptcha failed; %v\n", ip, err)
+
+						http.Error(w, "Invalid captcha", http.StatusUnauthorized)
+
+						return
+					}
+				}
+
+				// Continue with serving the faucet request
+				next.ServeHTTP(w, r)
+			},
+		)
+	}
+
+	// Create a new faucet with
+	// static gas estimation
+	f, err := faucet.NewFaucet(
+		static.New(gasFee, gasWanted),
+		cli,
+		faucet.WithLogger(log.ZapLoggerToSlog(logger)),
+		faucet.WithConfig(cfg.generateFaucetConfig()),
+		faucet.WithMiddlewares([]faucet.Middleware{middleware}),
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create faucet, %w", err)
+	}
+
+	return f.Serve(ctx)
 }
 
-func sendAmountTo(
-	cfg *config,
-	cli rpcclient.Client,
-	io commands.IO,
-	name,
-	pass string,
-	toAddr crypto.Address,
-	send std.Coins,
-) error {
-	// Read supply account pubkey.
-	kb, err := keys.NewKeyBaseFromDir(cfg.Home)
-	if err != nil {
-		return err
-	}
-	info, err := kb.GetByName(name)
-	if err != nil {
-		return err
-	}
-	fromAddr := info.GetAddress()
-	pub := info.GetPubKey()
-
-	// parse gas wanted & fee.
-	gaswanted := cfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	// construct msg & tx and marshal.
-	msg := bank.MsgSend{
-		FromAddress: fromAddr,
-		ToAddress:   toAddr,
-		Amount:      send,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       cfg.Memo,
-	}
-	// fill tx signatures.
-	signers := tx.GetSigners()
-	if tx.Signatures == nil {
-		for range signers {
-			tx.Signatures = append(tx.Signatures, std.Signature{
-				PubKey:    nil, // zero signature
-				Signature: nil, // zero signature
-			})
-		}
-	}
-	err = tx.ValidateBasic()
-	if err != nil {
-		return err
-	}
-	// fmt.Println("will sign:", string(amino.MustMarshalJSON(tx)))
-
-	// query for the account number and sequence each time in case the node is reset
-	path := fmt.Sprintf("auth/accounts/%s", fromAddr.String())
-	data := []byte(nil)
-	opts2 := rpcclient.ABCIQueryOptions{}
-	qres, err := cli.ABCIQueryWithOptions(
-		path, data, opts2)
-	if err != nil {
-		return errors.Wrap(err, "querying")
-	}
-	if qres.Response.Error != nil {
-		fmt.Printf("Log: %s\n",
-			qres.Response.Log)
-		return qres.Response.Error
-	}
-	resdata := qres.Response.Data
-	var acc gnoland.GnoAccount
-	amino.MustUnmarshalJSON(resdata, &acc)
-	accountNumber := acc.BaseAccount.AccountNumber
-	sequence := acc.BaseAccount.Sequence
-
-	// get sign-bytes and make signature.
-	chainID := cfg.ChainID
-	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
-	sig, _, err := kb.Sign(name, pass, signbz)
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for i := range tx.Signatures {
-		// override signature for matching slot.
-		if signers[i] == fromAddr {
-			found = true
-			tx.Signatures[i] = std.Signature{
-				PubKey:    pub,
-				Signature: sig,
-			}
-		}
-	}
-	if !found {
-		return errors.New("addr %v (%s) not in signer set",
-			fromAddr, name)
-	}
-	fmt.Println("will deliver:", string(amino.MustMarshalJSON(tx)))
-
-	// construct tx serialized bytes.
-	txbz := amino.MustMarshal(tx)
-
-	// broadcast tx bytes.
-	bres, err := cli.BroadcastTxCommit(txbz)
-	if err != nil {
-		return errors.Wrap(err, "broadcasting bytes")
-	}
-	if bres.CheckTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.CheckTx.Log)
-	} else if bres.DeliverTx.IsErr() {
-		return errors.New("transaction failed %#v\nlog %s", bres, bres.DeliverTx.Log)
-	} else {
-		io.Println(string(bres.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	}
-	return nil
-}
-
+// checkRecaptcha checks the recaptcha secret
 func checkRecaptcha(secret, response string) error {
-	req, err := http.NewRequest(http.MethodPost, siteVerifyURL, nil)
+	req, err := http.NewRequest(
+		http.MethodPost,
+		siteVerifyURL,
+		nil,
+	)
 	if err != nil {
 		return err
 	}
