@@ -306,8 +306,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// packages should be loaded individually.
 				if path == "all" {
 					ts.Logf("warning: loading all packages")
-					err := pkgs.loadPackagesFromDir(examplesDir)
-					if err != nil {
+					if err := pkgs.loadPackagesFromDir(examplesDir); err != nil {
 						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
 					}
 
