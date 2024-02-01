@@ -325,7 +325,11 @@ const stepShort = `Single step through program.`
 const stepiUsage = `stepi|si`
 const stepiShort = `Single step a single VM instruction.`
 
-func debugContinue(m *Machine, arg string) error { m.DebugState = DebugAtRun; return nil }
+func debugContinue(m *Machine, arg string) error {
+	m.DebugState = DebugAtRun
+	m.debugFrameLevel = 0
+	return nil
+}
 
 // ---------------------------------------
 const detachUsage = `detach`
@@ -472,7 +476,18 @@ const printUsage = `print|p <expression>`
 const printShort = `Print a variable or expression.`
 
 func debugPrint(m *Machine, arg string) error {
-	return errors.New("not yet implemented")
+	if arg == "" {
+		return errors.New("missing argument")
+	}
+	b := m.Blocks[len(m.Blocks)-1-m.debugFrameLevel]
+	for i, name := range b.Source.GetBlockNames() {
+		// TODO: handle index and selector expressions.
+		if string(name) == arg {
+			fmt.Fprintln(m.DebugOut, b.Values[i])
+			return nil
+		}
+	}
+	return fmt.Errorf("could not find symbol value for %s", arg)
 }
 
 // ---------------------------------------
