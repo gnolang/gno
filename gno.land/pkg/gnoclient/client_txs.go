@@ -9,17 +9,29 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// CallCfg contains configuration options for executing a contract call.
-type CallCfg struct {
-	PkgPath        string   // Package path
-	FuncName       string   // Function name
-	Args           []string // Function arguments
-	GasFee         string   // Gas fee
-	GasWanted      int64    // Gas wanted
-	Send           string   // Send amount
-	AccountNumber  uint64   // Account number
-	SequenceNumber uint64   // Sequence number
-	Memo           string   // Memo
+var (
+	ErrEmptyPkgPath     = errors.New("empty pkg path")
+	ErrEmptyFuncName    = errors.New("empty function name")
+	ErrInvalidGasWanted = errors.New("invalid gas wanted")
+	ErrInvalidGasFee    = errors.New("invalid gas fee")
+	ErrMissingSigner    = errors.New("missing Signer")
+	ErrMissingRPCClient = errors.New("missing RPCClient")
+)
+
+type BaseTxCfg struct {
+	GasFee         string // Gas fee
+	GasWanted      int64  // Gas wanted
+	AccountNumber  uint64 // Account number
+	SequenceNumber uint64 // Sequence number
+	Memo           string // Memo
+}
+
+// MsgCall - syntax sugar for vm.MsgCall
+type MsgCall struct {
+	PkgPath  string   // Package path
+	FuncName string   // Function name
+	Args     []string // Function arguments
+	Send     string   // Send amount
 }
 
 // RunCfg contains configuration options for running a temporary package on the blockchain.
@@ -33,63 +45,64 @@ type RunCfg struct {
 }
 
 // Call executes a contract call on the blockchain.
-func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
+		return nil, err
 	}
 	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
+		return nil, err
 	}
 
-	pkgPath := cfg.PkgPath
-	funcName := cfg.FuncName
-	args := cfg.Args
-	gasWanted := cfg.GasWanted
-	gasFee := cfg.GasFee
-	send := cfg.Send
-	sequenceNumber := cfg.SequenceNumber
-	accountNumber := cfg.AccountNumber
-	memo := cfg.Memo
-
-	// Validate config.
-	if pkgPath == "" {
-		return nil, errors.New("missing PkgPath")
-	}
-	if funcName == "" {
-		return nil, errors.New("missing FuncName")
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
 	}
 
-	// Parse send amount.
-	sendCoins, err := std.ParseCoins(send)
+	// Parse MsgCall slice
+	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgCall fields
+		if err := msg.validateMsgCall(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unwrap syntax sugar to vm.MsgCall slice
+		vmMsgs = append(vmMsgs, vm.MsgCall{
+			Caller:  c.Signer.Info().GetAddress(),
+			PkgPath: msg.PkgPath,
+			Func:    msg.FuncName,
+			Send:    send,
+		})
+	}
+
+	// Cast vm.MsgCall back into std.Msg
+	stdMsgs := make([]std.Msg, len(vmMsgs))
+	for i, msg := range vmMsgs {
+		stdMsgs[i] = msg
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing send coins")
+		return nil, err
 	}
 
-	// Parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(gasFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	caller := c.Signer.Info().GetAddress()
-
-	// Construct message & transaction and marshal.
-	msg := vm.MsgCall{
-		Caller:  caller,
-		Send:    sendCoins,
-		PkgPath: pkgPath,
-		Func:    funcName,
-		Args:    args,
-	}
+	// Pack transaction
 	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
+		Msgs:       stdMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
-		Memo:       memo,
+		Memo:       cfg.Memo,
 	}
 
-	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // Temporarily load cfg.Package on the blockchain and run main() which can
