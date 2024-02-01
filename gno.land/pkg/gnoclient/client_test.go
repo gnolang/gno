@@ -15,6 +15,7 @@ import (
 )
 
 func TestClient_Render(t *testing.T) {
+	t.Parallel()
 	testRealmPath := "gno.land/r/demo/deep/very/deep"
 	expectedRender := []byte("it works!")
 
