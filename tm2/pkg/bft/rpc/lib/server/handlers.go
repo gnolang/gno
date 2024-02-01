@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -358,9 +359,11 @@ func nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool
 	}
 }
 
+var reInt = regexp.MustCompile(`^-?[0-9]+$`)
+
 // NOTE: rt.Kind() isn't a pointer.
 func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	isIntString := RE_INT.Match([]byte(arg))
+	isIntString := reInt.Match([]byte(arg))
 	isQuotedString := strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`)
 	isHexString := strings.HasPrefix(strings.ToLower(arg), "0x")
 
