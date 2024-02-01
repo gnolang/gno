@@ -354,7 +354,6 @@ func TestClient_Call_Errors(t *testing.T) {
 			t.Parallel()
 
 			res, err := tc.client.Call(tc.cfg, tc.msgs...)
-			assert.Error(t, err, tc.expectedError)
 			assert.Nil(t, res)
 			assert.ErrorIs(t, err, tc.expectedError)
 		})
