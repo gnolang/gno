@@ -7,10 +7,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -23,13 +23,35 @@ import (
 
 const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
 
+type NodeConfig struct {
+	PackagesPathList      []string
+	TMConfig              *tmcfg.Config
+	SkipFailingGenesisTxs bool
+	NoReplay              bool
+	MaxGasPerBlock        int64
+}
+
+func DefaultNodeConfig(rootdir string) *NodeConfig {
+	tmc := gnoland.NewDefaultTMConfig(rootdir)
+	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
+
+	return &NodeConfig{
+		PackagesPathList:      []string{},
+		TMConfig:              tmc,
+		SkipFailingGenesisTxs: true,
+		MaxGasPerBlock:        10_000_000_000,
+	}
+}
+
 // Node is not thread safe
 type Node struct {
 	*node.Node
 
+	config *NodeConfig
 	client client.Client
 	logger *slog.Logger
 	pkgs   PkgsMap // path -> pkg
+
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 }
@@ -45,8 +67,8 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*Node, error) {
-	mpkgs, err := newPkgsMap(pkgslist)
+func NewDevNode(ctx context.Context, logger *slog.Logger, cfg *NodeConfig) (*Node, error) {
+	mpkgs, err := newPkgsMap(cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
@@ -62,7 +84,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 		Txs:      pkgsTxs,
 	}
 
-	node, err := newNode(logger, genesis)
+	node, err := newNode(logger, cfg, genesis)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the node: %w", err)
 	}
@@ -82,6 +104,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, pkgslist []string) (*N
 	return &Node{
 		Node: node,
 
+		config:         cfg,
 		client:         client,
 		pkgs:           mpkgs,
 		logger:         logger,
@@ -128,31 +151,6 @@ func (d *Node) UpdatePackages(paths ...string) error {
 	return nil
 }
 
-// Reset stops the node, if running, and reloads it with a new genesis state,
-// effectively ignoring the current state.
-func (d *Node) Reset(ctx context.Context) error {
-	// Stop the node if it's currently running.
-	if d.Node.IsRunning() {
-		if err := d.Node.Stop(); err != nil {
-			return fmt.Errorf("unable to stop the node: %w", err)
-		}
-	}
-
-	// Generate a new genesis state based on the current packages
-	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
-	if err != nil {
-		return fmt.Errorf("unable to load pkgs: %w", err)
-	}
-
-	genesis := gnoland.GnoGenesisState{
-		Balances: DefaultBalance,
-		Txs:      txs,
-	}
-
-	// Reset the node with the new genesis state.
-	return d.reset(ctx, genesis)
-}
-
 // ReloadAll updates all currently known packages and then reloads the node.
 func (d *Node) ReloadAll(ctx context.Context) error {
 	pkgs := d.ListPkgs()
@@ -173,6 +171,12 @@ func (d *Node) ReloadAll(ctx context.Context) error {
 // If any transaction, including 'addpkg', fails, it will be ignored.
 // Use 'Reset' to completely reset the node's state in case of persistent errors.
 func (d *Node) Reload(ctx context.Context) error {
+	if d.config.NoReplay {
+		// If NoReplay is true, reload as the same effect as reset
+		d.logger.Warn("replay disable")
+		return d.Reset(ctx)
+	}
+
 	// Get current blockstore state
 	state, err := d.getBlockStoreState(ctx)
 	if err != nil {
@@ -209,6 +213,31 @@ func (d *Node) Reload(ctx context.Context) error {
 	return nil
 }
 
+// Reset stops the node, if running, and reloads it with a new genesis state,
+// effectively ignoring the current state.
+func (d *Node) Reset(ctx context.Context) error {
+	// Stop the node if it's currently running.
+	if d.Node.IsRunning() {
+		if err := d.Node.Stop(); err != nil {
+			return fmt.Errorf("unable to stop the node: %w", err)
+		}
+	}
+
+	// Generate a new genesis state based on the current packages
+	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
+	}
+
+	genesis := gnoland.GnoGenesisState{
+		Balances: DefaultBalance,
+		Txs:      txs,
+	}
+
+	// Reset the node with the new genesis state.
+	return d.reset(ctx, genesis)
+}
+
 func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
 	var err error
 
@@ -227,7 +256,7 @@ func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 	createNode := func() {
 		defer recoverError()
 
-		node, nodeErr := newNode(d.logger, genesis)
+		node, nodeErr := newNode(d.logger, d.config, genesis)
 		if nodeErr != nil {
 			err = fmt.Errorf("unable to create node: %w", nodeErr)
 			return
@@ -411,13 +440,34 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(logger *slog.Logger, genesis gnoland.GnoGenesisState) (*node.Node, error) {
-	rootdir := gnoenv.RootDir()
-
-	nodeConfig := gnoland.NewDefaultInMemoryNodeConfig(rootdir)
-	nodeConfig.SkipFailingGenesisTxs = true
-	nodeConfig.TMConfig.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
-
-	nodeConfig.Genesis.AppState = genesis
+func newNode(logger *slog.Logger, cfg *NodeConfig, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+	nodeConfig := newNodeConfig(cfg.TMConfig, genesis)
+	nodeConfig.SkipFailingGenesisTxs = cfg.SkipFailingGenesisTxs
+	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = cfg.MaxGasPerBlock
 	return gnoland.NewInMemoryNode(logger, nodeConfig)
+}
+
+func newNodeConfig(tmc *tmcfg.Config, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+	// Create Mocked Identity
+	pv := gnoland.NewMockedPrivValidator()
+	genesis := gnoland.NewDefaultGenesisConfig(pv.GetPubKey(), tmc.ChainID())
+	genesis.AppState = appstate
+
+	// Add self as validator
+	self := pv.GetPubKey()
+	genesis.Validators = []bft.GenesisValidator{
+		{
+			Address: self.Address(),
+			PubKey:  self,
+			Power:   10,
+			Name:    "self",
+		},
+	}
+
+	return &gnoland.InMemoryNodeConfig{
+		PrivValidator:      pv,
+		TMConfig:           tmc,
+		Genesis:            genesis,
+		GenesisMaxVMCycles: 10_000_000,
+	}
 }
