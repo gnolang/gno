@@ -189,9 +189,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		)
 	}
 
-	// introduce enforcement of lexical/non-lexical
 	// sort filenames based on Go conventions
-	// slices.Sort sorts any type that supports the operators < <= >= >
+	// https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/sort/sort.go;l=39
 	sort.Strings(pkgNames)
 
 	var memPkgSorted std.MemPackage
