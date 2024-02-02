@@ -436,28 +436,6 @@ EXEC_SWITCH:
 		switch cs.Op {
 		case ASSIGN:
 			m.PushOp(OpAssign)
-		case ADD_ASSIGN:
-			m.PushOp(OpAddAssign)
-		case SUB_ASSIGN:
-			m.PushOp(OpSubAssign)
-		case MUL_ASSIGN:
-			m.PushOp(OpMulAssign)
-		case QUO_ASSIGN:
-			m.PushOp(OpQuoAssign)
-		case REM_ASSIGN:
-			m.PushOp(OpRemAssign)
-		case BAND_ASSIGN:
-			m.PushOp(OpBandAssign)
-		case BOR_ASSIGN:
-			m.PushOp(OpBorAssign)
-		case XOR_ASSIGN:
-			m.PushOp(OpXorAssign)
-		case SHL_ASSIGN:
-			m.PushOp(OpShlAssign)
-		case SHR_ASSIGN:
-			m.PushOp(OpShrAssign)
-		case BAND_NOT_ASSIGN:
-			m.PushOp(OpBandnAssign)
 		case DEFINE:
 			m.PushOp(OpDefine)
 		default:
@@ -473,7 +451,7 @@ EXEC_SWITCH:
 			m.PushExpr(rx)
 			m.PushOp(OpEval)
 		}
-		if cs.Op != DEFINE {
+		if cs.Op == ASSIGN {
 			// For each Lhs, push eval operation if needed.
 			for i := len(cs.Lhs) - 1; 0 <= i; i-- {
 				lx := cs.Lhs[i]

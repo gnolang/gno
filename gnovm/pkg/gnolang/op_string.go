@@ -90,20 +90,9 @@ func _() {
 	_ = x[OpStructType-120]
 	_ = x[OpMaybeNativeType-121]
 	_ = x[OpAssign-128]
-	_ = x[OpAddAssign-129]
-	_ = x[OpSubAssign-130]
-	_ = x[OpMulAssign-131]
-	_ = x[OpQuoAssign-132]
-	_ = x[OpRemAssign-133]
-	_ = x[OpBandAssign-134]
-	_ = x[OpBandnAssign-135]
-	_ = x[OpBorAssign-136]
-	_ = x[OpXorAssign-137]
-	_ = x[OpShlAssign-138]
-	_ = x[OpShrAssign-139]
-	_ = x[OpDefine-140]
-	_ = x[OpInc-141]
-	_ = x[OpDec-142]
+	_ = x[OpDefine-129]
+	_ = x[OpInc-130]
+	_ = x[OpDec-131]
 	_ = x[OpValueDecl-144]
 	_ = x[OpTypeDecl-145]
 	_ = x[OpSticky-208]
@@ -123,7 +112,7 @@ const (
 	_Op_name_3 = "OpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvert"
 	_Op_name_4 = "OpArrayLitGoNativeOpSliceLitGoNativeOpStructLitGoNativeOpCallGoNative"
 	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpMaybeNativeType"
-	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
+	_Op_name_6 = "OpAssignOpDefineOpIncOpDec"
 	_Op_name_7 = "OpValueDeclOpTypeDecl"
 	_Op_name_8 = "OpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefers"
 )
@@ -135,7 +124,7 @@ var (
 	_Op_index_3 = [...]uint8{0, 6, 15, 23, 31, 41, 48, 54, 59, 72, 85, 99, 113, 123, 133, 144, 152, 163, 172, 181}
 	_Op_index_4 = [...]uint8{0, 18, 36, 55, 69}
 	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102, 119}
-	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
+	_Op_index_6 = [...]uint8{0, 8, 16, 21, 26}
 	_Op_index_7 = [...]uint8{0, 11, 21}
 	_Op_index_8 = [...]uint8{0, 8, 14, 23, 34, 51, 65, 84, 102}
 )
@@ -159,7 +148,7 @@ func (i Op) String() string {
 	case 112 <= i && i <= 121:
 		i -= 112
 		return _Op_name_5[_Op_index_5[i]:_Op_index_5[i+1]]
-	case 128 <= i && i <= 142:
+	case 128 <= i && i <= 131:
 		i -= 128
 		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
 	case 144 <= i && i <= 145:

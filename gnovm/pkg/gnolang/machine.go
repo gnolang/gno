@@ -915,21 +915,10 @@ const (
 	OpMaybeNativeType Op = 0x79 // maybenative{X}
 
 	/* Statement operators */
-	OpAssign      Op = 0x80 // Lhs = Rhs
-	OpAddAssign   Op = 0x81 // Lhs += Rhs
-	OpSubAssign   Op = 0x82 // Lhs -= Rhs
-	OpMulAssign   Op = 0x83 // Lhs *= Rhs
-	OpQuoAssign   Op = 0x84 // Lhs /= Rhs
-	OpRemAssign   Op = 0x85 // Lhs %= Rhs
-	OpBandAssign  Op = 0x86 // Lhs &= Rhs
-	OpBandnAssign Op = 0x87 // Lhs &^= Rhs
-	OpBorAssign   Op = 0x88 // Lhs |= Rhs
-	OpXorAssign   Op = 0x89 // Lhs ^= Rhs
-	OpShlAssign   Op = 0x8A // Lhs <<= Rhs
-	OpShrAssign   Op = 0x8B // Lhs >>= Rhs
-	OpDefine      Op = 0x8C // X... := Y...
-	OpInc         Op = 0x8D // X++
-	OpDec         Op = 0x8E // X--
+	OpAssign Op = 0x80 // Lhs = Rhs
+	OpDefine Op = 0x81 // X... := Y...
+	OpInc    Op = 0x82 // X++
+	OpDec    Op = 0x83 // X--
 
 	/* Decl operators */
 	OpValueDecl Op = 0x90 // var/const ...
@@ -1335,39 +1324,6 @@ func (m *Machine) Run() {
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
 			m.doOpAssign()
-		case OpAddAssign:
-			m.incrCPU(OpCPUAddAssign)
-			m.doOpAddAssign()
-		case OpSubAssign:
-			m.incrCPU(OpCPUSubAssign)
-			m.doOpSubAssign()
-		case OpMulAssign:
-			m.incrCPU(OpCPUMulAssign)
-			m.doOpMulAssign()
-		case OpQuoAssign:
-			m.incrCPU(OpCPUQuoAssign)
-			m.doOpQuoAssign()
-		case OpRemAssign:
-			m.incrCPU(OpCPURemAssign)
-			m.doOpRemAssign()
-		case OpBandAssign:
-			m.incrCPU(OpCPUBandAssign)
-			m.doOpBandAssign()
-		case OpBandnAssign:
-			m.incrCPU(OpCPUBandnAssign)
-			m.doOpBandnAssign()
-		case OpBorAssign:
-			m.incrCPU(OpCPUBorAssign)
-			m.doOpBorAssign()
-		case OpXorAssign:
-			m.incrCPU(OpCPUXorAssign)
-			m.doOpXorAssign()
-		case OpShlAssign:
-			m.incrCPU(OpCPUShlAssign)
-			m.doOpShlAssign()
-		case OpShrAssign:
-			m.incrCPU(OpCPUShrAssign)
-			m.doOpShrAssign()
 		case OpDefine:
 			m.incrCPU(OpCPUDefine)
 			m.doOpDefine()

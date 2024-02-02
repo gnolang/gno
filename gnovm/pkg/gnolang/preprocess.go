@@ -207,8 +207,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if !defined {
 						panic(fmt.Sprintf("nothing defined in assignment %s", n.String()))
 					}
-				} else {
-					// nothing defined.
+				} else if n.Op.isAssignmentOperation() {
+					// convert operation and simplify to simple assignment stmt + expr.
+					if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
+						panic(fmt.Sprintf("assignment operation %s requires exactly 1 expression on left and right hand side", n.Op))
+					}
+					if nx, ok := n.Lhs[0].(*NameExpr); ok && nx.Name == "_" {
+						panic(fmt.Sprintf("assignment operation %s cannot have blank identifier on left hand side", n.Op))
+					}
+					n.Rhs[0] = &BinaryExpr{
+						Left:  n.Lhs[0],
+						Op:    n.Op.convertAssignmentOperation(),
+						Right: n.Rhs[0],
+					}
+					n.Op = ASSIGN
 				}
 
 			// TRANS_ENTER -----------------------
@@ -1636,12 +1648,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
-					} else if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
-						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
-						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {

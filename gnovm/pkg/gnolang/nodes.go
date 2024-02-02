@@ -47,6 +47,9 @@ const (
 	SHR      // >>
 	BAND_NOT // &^
 
+	// NOTE: keep following combined assignment operations in sync with
+	// min/maxAssignmentOperationed
+
 	ADD_ASSIGN      // +=
 	SUB_ASSIGN      // -=
 	MUL_ASSIGN      // *=
@@ -107,6 +110,50 @@ const (
 	TYPE
 	VAR
 )
+
+const (
+	minAssignmentOperation = ADD_ASSIGN
+	maxAssignmentOperation = BAND_NOT_ASSIGN
+)
+
+func (w Word) isAssignmentOperation() bool {
+	return w >= minAssignmentOperation && w <= maxAssignmentOperation
+}
+
+// convertAssignemntOperation converts w to its equivalent binary operation in
+// the case of an assignemnt operation; for instance,
+// ADD_ASSIGN.convertAssignmentOperation() returns ADD.
+//
+// If w is not an assignment operation, ILLEGAL is returned.
+func (w Word) convertAssignmentOperation() Word {
+	// XXX: is this inlined? if not, would lookup table make it inlined / better?
+	switch w {
+	case ADD_ASSIGN:
+		return ADD
+	case SUB_ASSIGN:
+		return SUB
+	case MUL_ASSIGN:
+		return MUL
+	case QUO_ASSIGN:
+		return QUO
+	case REM_ASSIGN:
+		return REM
+	case BAND_ASSIGN:
+		return BAND
+	case BOR_ASSIGN:
+		return BOR
+	case XOR_ASSIGN:
+		return XOR
+	case SHL_ASSIGN:
+		return SHL
+	case SHR_ASSIGN:
+		return SHR
+	case BAND_NOT_ASSIGN:
+		return BAND_NOT
+	default:
+		return ILLEGAL
+	}
+}
 
 type Name string
 
