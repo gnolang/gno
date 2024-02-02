@@ -3,10 +3,9 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"regexp"
+	"slices"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -29,7 +28,6 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -131,8 +129,6 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-var reReservedPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
-
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
@@ -155,11 +151,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
-
-	if reReservedPath.MatchString(pkgPath) {
-		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
-	}
-
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
@@ -174,12 +165,62 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO
+	// enforce sorting msg.Files based on Go conventions for predictability
+	pkgNames := []string{}
+
+	// add std.MemFile.Name to slice -> sort
+	// create slice of file names
+	for _, pkgFile := range msg.Package.Files {
+		pkgNames = append(
+			pkgNames,
+			pkgFile.Name, // string
+		)
+	}
+
+	// introduce enforcement of lexical/non-lexical
+	// sort filenames based on Go conventions
+	// slices.Sort sorts any type that supports the operators < <= >= >
+	slices.Sort(pkgNames)
+
+	var memPkgSorted std.MemPackage
+	pFiles := make([]*std.MemFile, 0, len(msg.Package.Files))
+
+	// add to new []*std.MemFile to enforce order
+	for _, pkgName := range pkgNames {
+		for _, nsFile := range msg.Package.Files {
+			// bail if not the most immediate pkgName
+			if nsFile.Name != pkgName {
+				continue
+			}
+
+			pFiles = append(
+				pFiles,
+				nsFile,
+			)
+		}
+
+		memPkgSorted = std.MemPackage{
+			Name:  pkgName,
+			Path:  msg.Package.Path,
+			Files: pFiles,
+		}
+	}
+
+	// new instance of MsgAddPackage
+	msgSorted := MsgAddPackage{
+		Creator: msg.Creator,
+		Package: &memPkgSorted,
+		Deposit: msg.Deposit,
+	}
+
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
+		Msg:           msgSorted,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
 		OrigSendSpent: new(std.Coins),
@@ -281,7 +322,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
+	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -290,82 +331,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	return res, nil
 	// TODO pay for gas? TODO see context?
-}
-
-// Run executes arbitrary Gno code in the context of the caller's realm.
-func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
-	caller := msg.Caller
-	pkgAddr := caller
-	store := vm.getGnoStore(ctx)
-	send := msg.Send
-	memPkg := msg.Package
-
-	// Validate arguments.
-	callerAcc := vm.acck.GetAccount(ctx, caller)
-	if callerAcc == nil {
-		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
-	}
-	if err := msg.Package.Validate(); err != nil {
-		return "", ErrInvalidPkgPath(err.Error())
-	}
-
-	// Send send-coins to pkg from caller.
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
-	if err != nil {
-		return "", err
-	}
-
-	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-	}
-	// Parse and run the files, construct *PV.
-	buf := new(bytes.Buffer)
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    buf,
-			Store:     store,
-			Alloc:     store.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
-		})
-	defer m.Release()
-	_, pv := m.RunMemPackage(memPkg, false)
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
-
-	m2 := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:   "",
-			Output:    buf,
-			Store:     store,
-			Alloc:     store.GetAllocator(),
-			Context:   msgCtx,
-			MaxCycles: vm.maxCycles,
-		})
-	m2.SetActivePackage(pv)
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m2.String())
-			return
-		}
-		m2.Release()
-	}()
-	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call",
-		"cycles", m2.Cycles,
-	)
-	res = buf.String()
-	return res, nil
 }
 
 // QueryFuncs returns public facing function signatures.
