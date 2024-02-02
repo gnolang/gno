@@ -1,7 +1,6 @@
 package std
 
 import (
-	"fmt"
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -112,7 +111,6 @@ func GetOrigPkgAddr(m *gno.Machine) crypto.Bech32Address {
 
 func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	if n <= 0 {
-		fmt.Println("QWEQWEQWEQWE", n)
 		m.Panic(typedString(m.Debugging, "GetCallerAt requires positive arg"))
 		return ""
 	}

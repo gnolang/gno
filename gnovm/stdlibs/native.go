@@ -11,6 +11,7 @@ import (
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
 	libs_strconv "github.com/gnolang/gno/gnovm/stdlibs/strconv"
+	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 	tm2_crypto "github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -750,6 +751,24 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(m.Debugging, b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
 			r0 := libs_strconv.QuoteToASCII(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Debugging,
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_testing.X_unixNano()
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Debugging,

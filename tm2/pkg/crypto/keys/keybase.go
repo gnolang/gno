@@ -42,6 +42,9 @@ const (
 	French
 	// Italian is currently not supported.
 	Italian
+)
+
+const (
 	addressSuffix = "address"
 	infoSuffix    = "info"
 )

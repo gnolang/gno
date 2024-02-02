@@ -530,12 +530,8 @@ func (m *Machine) TestFunc(t *testing.T, par bool, tv TypedValue) {
 
 		// mirror of stdlibs/testing.Report
 		var report struct {
-			Name     string
-			Verbose  bool
-			Failed   bool
-			Skipped  bool
-			Filtered bool
-			Output   string
+			Skipped bool
+			Failed  bool
 		}
 		err := json.Unmarshal([]byte(ret), &report)
 		if err != nil {
@@ -544,16 +540,10 @@ func (m *Machine) TestFunc(t *testing.T, par bool, tv TypedValue) {
 		}
 
 		switch {
-		case report.Filtered:
-			// noop
 		case report.Skipped:
 			t.SkipNow()
 		case report.Failed:
 			t.Fail()
-		}
-
-		if report.Output != "" && (report.Verbose || report.Failed) {
-			t.Log(report.Output)
 		}
 	})
 }
@@ -715,7 +705,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
 				}
 			}
-			// run dependecy declaration
+			// run dependency declaration
 			loopfindr = append(loopfindr, dep)
 			runDeclarationFor(fn, *depdecl)
 			loopfindr = loopfindr[:len(loopfindr)-1]

@@ -131,9 +131,7 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-const (
-	reReservedPath = `gno\.land/r/g[a-z0-9]+/run`
-)
+var reReservedPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
@@ -158,7 +156,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 
-	if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
+	if reReservedPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
@@ -283,7 +281,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -363,7 +361,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		m2.Release()
 	}()
 	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call: ", m2.Cycles)
+	ctx.Logger().Info("CPUCYCLES call",
+		"cycles", m2.Cycles,
+	)
 	res = buf.String()
 	return res, nil
 }

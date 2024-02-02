@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -79,6 +80,40 @@ func (d *Debugging) Errorf(format string, args ...interface{}) {
 	if d != nil && d.enabled {
 		d.derrors = append(d.derrors, fmt.Sprintf(format, args...))
 	}
+}
+
+// PreprocessError wraps a processing error along with its associated
+// preprocessing stack for enhanced error reporting.
+type PreprocessError struct {
+	err   error
+	stack []BlockNode
+}
+
+// Unwrap returns the encapsulated error message.
+func (p *PreprocessError) Unwrap() error {
+	return p.err
+}
+
+// Stack produces a string representation of the preprocessing stack
+// trace that was associated with the error occurrence.
+func (p *PreprocessError) Stack() string {
+	var stacktrace strings.Builder
+	for i := len(p.stack) - 1; i >= 0; i-- {
+		sbn := p.stack[i]
+		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
+	}
+	return stacktrace.String()
+}
+
+// Error consolidates and returns the full error message, including
+// the actual error followed by its associated preprocessing stack.
+func (p *PreprocessError) Error() string {
+	var err strings.Builder
+	fmt.Fprintf(&err, "%s:\n", p.Unwrap())
+	fmt.Fprintln(&err, "--- preprocess stack ---")
+	fmt.Fprint(&err, p.Stack())
+	fmt.Fprintf(&err, "------------------------")
+	return err.String()
 }
 
 // ----------------------------------------

@@ -42,6 +42,7 @@ jobs:
         working-directory: tm2
         run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ${{ matrix.program }}
 
+
   test:
     strategy:
       fail-fast: false
@@ -61,6 +62,14 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
+      - name: Set environment variables for debug mode
+        if: ${{ runner.debug == 1 }}
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs-go${{ matrix.goversion }}-${{ matrix.args }}
+          mkdir -p $LOG_PATH_DIR
+
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - name: test
         working-directory: tm2
         run: |
@@ -73,6 +82,12 @@ jobs:
         with:
           name: ${{runner.os}}-coverage-tm2-${{ matrix.args}}-${{matrix.goversion}}
           path: ./tm2/coverage.out
+      - name: Upload Debug Logs
+        uses: actions/upload-artifact@v3
+        if: ${{ always() && runner.debug == 1 }}
+        with:
+          name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
+          path: ${{ env.LOG_PATH_DIR }}/**/*
 
   upload-coverage:
     needs: test
@@ -86,6 +101,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
