@@ -25,11 +25,11 @@ const (
 // Debugger describes a machine debugger state.
 type Debugger struct {
 	DebugEnabled bool
-	DebugAddr    string
-	DebugState
-	DebugIn  io.ReadCloser
-	DebugOut io.Writer
+	DebugAddr    string        // optional address [host]:port for DebugIn/DebugOut
+	DebugIn      io.ReadCloser // debugger input, defaults to Stdin
+	DebugOut     io.Writer     // debugger output, defaults to Stdout
 
+	DebugState
 	lastDebugCmd    string
 	lastDebugArg    string
 	DebugLoc        Location
@@ -94,7 +94,7 @@ loop:
 		switch m.DebugState {
 		case DebugAtInit:
 			initDebugIO(m)
-			debugUpdateLoc(m)
+			debugUpdateLocation(m)
 			fmt.Fprintln(m.DebugOut, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
 			m.DebugState = DebugAtCmd
 		case DebugAtCmd:
@@ -128,7 +128,7 @@ loop:
 			os.Exit(0)
 		}
 	}
-	debugUpdateLoc(m)
+	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
 	op := m.Ops[m.NumOps-1]
@@ -190,9 +190,9 @@ func initDebugIO(m *Machine) {
 	m.DebugOut = conn
 }
 
-// debugUpdateLoc computes the source code location for the current VM state.
+// debugUpdateLocation computes the source code location for the current VM state.
 // The result is stored in Debugger.DebugLoc.
-func debugUpdateLoc(m *Machine) {
+func debugUpdateLocation(m *Machine) {
 	loc := m.LastBlock().Source.GetLocation()
 
 	// File must have an unambiguous absolute path.
