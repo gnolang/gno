@@ -191,6 +191,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 }
 
 func precompileFile(srcPath string, opts *precompileOptions) error {
+	fmt.Println("---precompile file")
 	flags := opts.getFlags()
 	gofmt := flags.gofmtBinary
 	if gofmt == "" {
@@ -208,7 +209,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// compute attributes based on filename.
-	targetFilename, tags := gno.GetPrecompileFilenameAndTags(srcPath)
+	targetFilename, tags := gno.GetPrecompileFilenameAndTags(srcPath, false)
 
 	// preprocess.
 	precompileRes, err := gno.Precompile(string(source), tags, srcPath)

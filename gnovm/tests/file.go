@@ -178,6 +178,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// TODO: precompile
 				fmt.Println("---not realm, going to precompile and verify")
+				// TODO: conditioned with directives
 				err, output := gno.PrecompileAndRunMempkg(memPkg)
 				//pcer := &precompileExecResult{}
 				if err != nil {
