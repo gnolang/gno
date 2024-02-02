@@ -141,10 +141,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
 			env.Values[envKeyGenesis] = genesis
-			env.Values[envKeyPkgsLoader] = &pkgsLoader{
-				pkgs:    []gnomod.Pkg{},
-				visited: map[string]struct{}{},
-			}
+			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
