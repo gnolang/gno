@@ -117,7 +117,7 @@ jobs:
     steps:
       - run: mkdir -p $COVERAGE_DATA $COVERAGE_OUTPUT
       - name: Download all previous coverage data artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ${{ env.COVERAGE_DATA }}
       - uses: actions/setup-go@v4
