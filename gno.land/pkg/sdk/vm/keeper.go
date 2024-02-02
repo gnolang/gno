@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"slices"
+	"sort"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -192,7 +192,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// introduce enforcement of lexical/non-lexical
 	// sort filenames based on Go conventions
 	// slices.Sort sorts any type that supports the operators < <= >= >
-	slices.Sort(pkgNames)
+	sort.Strings(pkgNames)
 
 	var memPkgSorted std.MemPackage
 	pFiles := make([]*std.MemFile, 0, len(msg.Package.Files))
