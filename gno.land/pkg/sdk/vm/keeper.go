@@ -5,6 +5,7 @@ package vm
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -164,12 +165,62 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO
+	// enforce sorting msg.Files based on Go conventions for predictability
+	pkgNames := []string{}
+
+	// add std.MemFile.Name to slice -> sort
+	// create slice of file names
+	for _, pkgFile := range msg.Package.Files {
+		pkgNames = append(
+			pkgNames,
+			pkgFile.Name, // string
+		)
+	}
+
+	// introduce enforcement of lexical/non-lexical
+	// sort filenames based on Go conventions
+	// slices.Sort sorts any type that supports the operators < <= >= >
+	slices.Sort(pkgNames)
+
+	var memPkgSorted std.MemPackage
+	pFiles := make([]*std.MemFile, 0, len(msg.Package.Files))
+
+	// add to new []*std.MemFile to enforce order
+	for _, pkgName := range pkgNames {
+		for _, nsFile := range msg.Package.Files {
+			// bail if not the most immediate pkgName
+			if nsFile.Name != pkgName {
+				continue
+			}
+
+			pFiles = append(
+				pFiles,
+				nsFile,
+			)
+		}
+
+		memPkgSorted = std.MemPackage{
+			Name:  pkgName,
+			Path:  msg.Package.Path,
+			Files: pFiles,
+		}
+	}
+
+	// new instance of MsgAddPackage
+	msgSorted := MsgAddPackage{
+		Creator: msg.Creator,
+		Package: &memPkgSorted,
+		Deposit: msg.Deposit,
+	}
+
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
+		Msg:           msgSorted,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
 		OrigSendSpent: new(std.Coins),
