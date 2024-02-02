@@ -6,15 +6,24 @@ help:
 rundep=go run -modfile misc/devdeps/go.mod
 
 .PHONY: install
-install: install_gnokey install_gno
+install: install.gnokey install.gno
+	@echo "Installing gnokey & gno command."
+	@echo "For local realm development, gnodev is recommended: https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev"
+	@echo "You can install it by calling 'make install.gnodev'"
 
 # shortcuts to frequently used commands from sub-components.
-install_gnokey:
+install.gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
 	@echo "[+] 'gnokey' is installed. more info in ./gno.land/."
-install_gno:
+install.gno:
 	$(MAKE) --no-print-directory -C ./gnovm	install
 	@echo "[+] 'gno' is installed. more info in ./gnovm/."
+install.gnodev:
+	$(MAKE) --no-print-directory -C ./contribs install.gnodev
+	@echo "[+] 'gnodev' is installed."
+# old aliases
+install_gnokey: install.gnokey
+install_gno: install.gno
 
 .PHONY: test
 test: test.components test.docker
