@@ -176,7 +176,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-					pkgsTxs, err := pkgs.txs(creator, defaultFee, nil)
+					pkgsTxs, err := pkgs.loadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
@@ -309,7 +309,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// packages should be loaded individually.
 				if path == "all" {
 					ts.Logf("warning: loading all packages")
-					if err := pkgs.loadPackagesFromDir(examplesDir); err != nil {
+					if err := pkgs.usePackagesFromDir(examplesDir); err != nil {
 						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
 					}
 
@@ -320,7 +320,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					path = filepath.Join(examplesDir, path)
 				}
 
-				if err := pkgs.loadPackages(examplesDir, path, name); err != nil {
+				if err := pkgs.UsePackage(examplesDir, path, name); err != nil {
 					ts.Fatalf("`use` unable to load package(s) from %q: %s", args[0], err)
 				}
 
@@ -432,12 +432,19 @@ type pkgsLoader struct {
 	visited map[string]struct{}
 }
 
-func (pl *pkgsLoader) list() gnomod.PkgList {
+func newPkgsLoader() *pkgsLoader {
+	return &pkgsLoader{
+		pkgs:    make([]gnomod.Pkg, 0),
+		visited: make(map[string]struct{}),
+	}
+}
+
+func (pl *pkgsLoader) List() gnomod.PkgList {
 	return pl.pkgs
 }
 
-func (pl *pkgsLoader) txs(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
-	pkgslist, err := pl.list().Sort()
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
@@ -454,17 +461,7 @@ func (pl *pkgsLoader) txs(creator bft.Address, fee std.Fee, deposit std.Coins) (
 	return txs, nil
 }
 
-func (pl *pkgsLoader) add(pkg gnomod.Pkg) {
-	pl.visited[pkg.Name] = struct{}{}
-	pl.pkgs = append(pl.pkgs, pkg)
-}
-
-func (pl *pkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
-	_, ok = pl.visited[pkg.Name]
-	return
-}
-
-func (pl *pkgsLoader) loadPackagesFromDir(path string) error {
+func (pl *pkgsLoader) UseAllPackagesFromDir(path string) error {
 	// list all packages from target path
 	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
@@ -480,7 +477,7 @@ func (pl *pkgsLoader) loadPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *pkgsLoader) loadPackages(modroot string, path, name string) error {
+func (pl *pkgsLoader) UsePackage(modroot string, path, name string) error {
 	if path == "" {
 		return fmt.Errorf("no path specified for package")
 	}
@@ -517,12 +514,23 @@ func (pl *pkgsLoader) loadPackages(modroot string, path, name string) error {
 	}
 	pl.add(pkg)
 
+	// `usePackage` recursively on requirements
 	for _, pkgpath := range pkg.Requires {
 		pkgpath := filepath.Join(modroot, pkgpath)
-		if err := pl.loadPackages(modroot, pkgpath, ""); err != nil {
-			return fmt.Errorf("require %q: %w", pkgpath, err)
+		if err := pl.UsePackage(modroot, pkgpath, ""); err != nil {
+			return fmt.Errorf("require %q: %w", pkg.Name, err)
 		}
 	}
 
 	return nil
+}
+
+func (pl *pkgsLoader) add(pkg gnomod.Pkg) {
+	pl.visited[pkg.Name] = struct{}{}
+	pl.pkgs = append(pl.pkgs, pkg)
+}
+
+func (pl *pkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
+	_, ok = pl.visited[pkg.Name]
+	return
 }
