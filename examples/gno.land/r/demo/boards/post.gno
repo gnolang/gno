@@ -162,6 +162,15 @@ func (post *Post) GetReplyFormURL() string {
 		"&body.type=textarea"
 }
 
+func (post *Post) GetRepostFormURL() string {
+	return "/r/demo/boards?help&__func=CreateRepost" +
+		"&bid=" + post.board.id.String() +
+		"&postid=" + post.id.String() +
+		"&title.type=textarea" +
+		"&body.type=textarea" +
+		"&dstBoardID.type=textarea"
+}
+
 func (post *Post) GetDeleteFormURL() string {
 	return "/r/demo/boards?help&__func=DeletePost" +
 		"&bid=" + post.board.id.String() +
@@ -170,6 +179,17 @@ func (post *Post) GetDeleteFormURL() string {
 }
 
 func (post *Post) RenderSummary() string {
+	if post.repostBoard != 0 {
+		dstBoard := getBoard(post.repostBoard)
+		if dstBoard == nil {
+			panic("repostBoard does not exist")
+		}
+		thread := dstBoard.GetThread(PostID(post.parentID))
+		if thread == nil {
+			return "reposted post does not exist"
+		}
+		return "Repost: " + post.GetSummary() + "\n" + thread.RenderSummary()
+	}
 	str := ""
 	if post.title != "" {
 		str += "## [" + summaryOf(post.title, 80) + "](" + post.GetURL() + ")\n"
@@ -179,7 +199,8 @@ func (post *Post) RenderSummary() string {
 	str += "\\- " + displayAddressMD(post.creator) + ","
 	str += " [" + post.createdAt.Format("2006-01-02 3:04pm MST") + "](" + post.GetURL() + ")"
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]"
-	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)" + "\n"
+	str += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
+	str += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
 	return str
 }
 
@@ -196,6 +217,9 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += indent + "\\- " + displayAddressMD(post.creator) + ", "
 	str += "[" + post.createdAt.Format("2006-01-02 3:04pm (MST)") + "](" + post.GetURL() + ")"
 	str += " \\[[reply](" + post.GetReplyFormURL() + ")]"
+	if post.IsThread() {
+		str += " \\[[repost](" + post.GetRepostFormURL() + ")]"
+	}
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {

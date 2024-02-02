@@ -11,11 +11,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -59,7 +60,7 @@ type MetaMessage struct {
 // WAL is an interface for any write-ahead logger.
 type WAL interface {
 	// config methods
-	SetLogger(l log.Logger)
+	SetLogger(l *slog.Logger)
 
 	// write methods
 	Write(WALMessage) error
@@ -128,7 +129,7 @@ func (wal *baseWAL) Group() *auto.Group {
 	return wal.group
 }
 
-func (wal *baseWAL) SetLogger(l log.Logger) {
+func (wal *baseWAL) SetLogger(l *slog.Logger) {
 	wal.BaseService.Logger = l
 	wal.group.SetLogger(l)
 }
@@ -644,7 +645,7 @@ type NopWAL struct{}
 
 var _ WAL = NopWAL{}
 
-func (NopWAL) SetLogger(l log.Logger)            {}
+func (NopWAL) SetLogger(l *slog.Logger)          {}
 func (NopWAL) Write(m WALMessage) error          { return nil }
 func (NopWAL) WriteSync(m WALMessage) error      { return nil }
 func (NopWAL) WriteMetaSync(m MetaMessage) error { return nil }

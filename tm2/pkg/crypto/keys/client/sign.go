@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,27 +9,26 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type signCfg struct {
-	rootCfg *baseCfg
+type SignCfg struct {
+	RootCfg *BaseCfg
 
-	txPath        string
-	chainID       string
-	accountNumber uint64
-	sequence      uint64
-	showSignBytes bool
-
-	// internal flags, when called programmatically
-	nameOrBech32 string
-	txJSON       []byte
-	pass         string
+	TxPath        string
+	ChainID       string
+	AccountNumber uint64
+	Sequence      uint64
+	ShowSignBytes bool
+	NameOrBech32  string
+	TxJSON        []byte
+	Pass          string
 }
 
-func newSignCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &signCfg{
-		rootCfg: rootCfg,
+func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &SignCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
@@ -46,54 +44,54 @@ func newSignCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *signCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.txPath,
+		&c.TxPath,
 		"txpath",
 		"-",
 		"path to file of tx to sign",
 	)
 
 	fs.StringVar(
-		&c.chainID,
+		&c.ChainID,
 		"chainid",
 		"dev",
 		"chainid to sign for",
 	)
 
 	fs.Uint64Var(
-		&c.accountNumber,
+		&c.AccountNumber,
 		"number",
 		0,
 		"account number to sign with (required)",
 	)
 
 	fs.Uint64Var(
-		&c.sequence,
+		&c.Sequence,
 		"sequence",
 		0,
 		"sequence to sign with (required)",
 	)
 
 	fs.BoolVar(
-		&c.showSignBytes,
+		&c.ShowSignBytes,
 		"show-signbytes",
 		false,
 		"show sign bytes and quit",
 	)
 }
 
-func execSign(cfg *signCfg, args []string, io commands.IO) error {
+func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	var err error
 
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
-	cfg.nameOrBech32 = args[0]
+	cfg.NameOrBech32 = args[0]
 
 	// read tx to sign
-	txpath := cfg.txPath
+	txpath := cfg.TxPath
 	if txpath == "-" { // from stdin.
 		txjsonstr, err := io.GetString(
 			"Enter tx to sign, terminated by a newline.",
@@ -101,23 +99,23 @@ func execSign(cfg *signCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return err
 		}
-		cfg.txJSON = []byte(txjsonstr)
+		cfg.TxJSON = []byte(txjsonstr)
 	} else { // from file
-		cfg.txJSON, err = os.ReadFile(txpath)
+		cfg.TxJSON, err = os.ReadFile(txpath)
 		if err != nil {
 			return err
 		}
 	}
 
-	if cfg.rootCfg.Quiet {
-		cfg.pass, err = io.GetPassword(
+	if cfg.RootCfg.Quiet {
+		cfg.Pass, err = io.GetPassword(
 			"",
-			cfg.rootCfg.InsecurePasswordStdin,
+			cfg.RootCfg.InsecurePasswordStdin,
 		)
 	} else {
-		cfg.pass, err = io.GetPassword(
+		cfg.Pass, err = io.GetPassword(
 			"Enter password.",
-			cfg.rootCfg.InsecurePasswordStdin,
+			cfg.RootCfg.InsecurePasswordStdin,
 		)
 	}
 	if err != nil {
@@ -138,20 +136,20 @@ func execSign(cfg *signCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func SignHandler(cfg *signCfg) (*std.Tx, error) {
+func SignHandler(cfg *SignCfg) (*std.Tx, error) {
 	var err error
 	var tx std.Tx
 
-	if cfg.txJSON == nil {
+	if cfg.TxJSON == nil {
 		return nil, errors.New("invalid tx content")
 	}
 
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return nil, err
 	}
 
-	err = amino.UnmarshalJSON(cfg.txJSON, &tx)
+	err = amino.UnmarshalJSON(cfg.TxJSON, &tx)
 	if err != nil {
 		return nil, err
 	}
@@ -174,16 +172,16 @@ func SignHandler(cfg *signCfg) (*std.Tx, error) {
 	}
 
 	// derive sign doc bytes.
-	chainID := cfg.chainID
-	accountNumber := cfg.accountNumber
-	sequence := cfg.sequence
+	chainID := cfg.ChainID
+	accountNumber := cfg.AccountNumber
+	sequence := cfg.Sequence
 	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
-	if cfg.showSignBytes {
+	if cfg.ShowSignBytes {
 		fmt.Printf("sign bytes: %X\n", signbz)
 		return nil, nil
 	}
 
-	sig, pub, err := kb.Sign(cfg.nameOrBech32, cfg.pass, signbz)
+	sig, pub, err := kb.Sign(cfg.NameOrBech32, cfg.Pass, signbz)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +199,7 @@ func SignHandler(cfg *signCfg) (*std.Tx, error) {
 	}
 	if !found {
 		return nil, errors.New(
-			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.nameOrBech32),
+			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.NameOrBech32),
 		)
 	}
 

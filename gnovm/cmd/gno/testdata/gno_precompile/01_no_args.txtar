@@ -3,4 +3,4 @@
 ! gno precompile
 
 ! stdout .+ 
-stderr 'flag: help requested'
+stderr 'USAGE'

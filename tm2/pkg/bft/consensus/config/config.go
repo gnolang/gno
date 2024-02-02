@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // ConsensusConfig
 
 const (
@@ -29,14 +29,14 @@ type ConsensusConfig struct {
 	TimeoutCommit         time.Duration `toml:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-	SkipTimeoutCommit bool `toml:"skip_timeout_commit"`
+	SkipTimeoutCommit bool `toml:"skip_timeout_commit" comment:"Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)"`
 
 	// EmptyBlocks mode and possible interval between empty blocks
-	CreateEmptyBlocks         bool          `toml:"create_empty_blocks"`
+	CreateEmptyBlocks         bool          `toml:"create_empty_blocks" comment:"EmptyBlocks mode and possible interval between empty blocks"`
 	CreateEmptyBlocksInterval time.Duration `toml:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters
-	PeerGossipSleepDuration     time.Duration `toml:"peer_gossip_sleep_duration"`
+	PeerGossipSleepDuration     time.Duration `toml:"peer_gossip_sleep_duration" comment:"Reactor sleep duration parameters"`
 	PeerQueryMaj23SleepDuration time.Duration `toml:"peer_query_maj23_sleep_duration"`
 }
 
