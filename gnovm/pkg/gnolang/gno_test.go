@@ -219,7 +219,6 @@ func BenchmarkPreprocess(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
 		main = Preprocess(nil, pState(0), nil, pkg, main).(*FuncDecl)
 	}
 }
