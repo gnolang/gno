@@ -78,6 +78,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 			Caller:  c.Signer.Info().GetAddress(),
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
+			Args:    msg.Args,
 			Send:    send,
 		})
 	}
