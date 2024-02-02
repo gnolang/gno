@@ -328,6 +328,7 @@ a.footer__link-item > svg {
   fill: var(--ifm-color-primary);
 }
 
-.gno-footer__copy {
+.gno-footer__copy,
+.gno-header__copy {
   font-size: 0.8em;
 }
