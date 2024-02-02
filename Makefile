@@ -28,7 +28,9 @@ install.gnodev:
 	@echo "[+] 'gnodev' is installed."
 
 # old aliases
+.PHONY: install_gnokey
 install_gnokey: install.gnokey
+.PHONY: install_gno
 install_gno: install.gno
 
 .PHONY: test
