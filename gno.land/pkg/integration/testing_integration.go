@@ -176,7 +176,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-					pkgsTxs, err := pkgs.loadPackages(creator, defaultFee, nil)
+					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
@@ -309,7 +309,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// packages should be loaded individually.
 				if path == "all" {
 					ts.Logf("warning: loading all packages")
-					if err := pkgs.usePackagesFromDir(examplesDir); err != nil {
+					if err := pkgs.UseAllPackagesFromDir(examplesDir); err != nil {
 						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
 					}
 
@@ -478,47 +478,48 @@ func (pl *pkgsLoader) UseAllPackagesFromDir(path string) error {
 }
 
 func (pl *pkgsLoader) UsePackage(modroot string, path, name string) error {
-	if path == "" {
-		return fmt.Errorf("no path specified for package")
-	}
+	// Initialize a queue with the root package
+	queue := []gnomod.Pkg{{Dir: path, Name: name}}
 
-	pkg := gnomod.Pkg{
-		Dir:  path,
-		Name: name,
-	}
+	for len(queue) > 0 {
+		// Dequeue the first package
+		currentPkg := queue[0]
+		queue = queue[1:]
 
-	if pkg.Name == "" {
-		// try to load `gno.mod` informations
-		gnoModPath := filepath.Join(pkg.Dir, "gno.mod")
-		gm, err := gnomod.ParseGnoMod(gnoModPath)
-		if err != nil {
-			return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
+		if currentPkg.Dir == "" {
+			return fmt.Errorf("no path specified for package")
 		}
 
-		gm.Sanitize()
+		if currentPkg.Name == "" {
+			// Load `gno.mod` information
+			gnoModPath := filepath.Join(currentPkg.Dir, "gno.mod")
+			gm, err := gnomod.ParseGnoMod(gnoModPath)
+			if err != nil {
+				return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
+			}
+			gm.Sanitize()
 
-		// override pkg info with mod infos
-		pkg.Name = gm.Module.Mod.Path
-		pkg.Draft = gm.Draft
-		for _, req := range gm.Require {
-			pkg.Requires = append(pkg.Requires, req.Mod.Path)
+			// Override package info with mod infos
+			currentPkg.Name = gm.Module.Mod.Path
+			currentPkg.Draft = gm.Draft
+			for _, req := range gm.Require {
+				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
+			}
 		}
-	}
 
-	if pkg.Draft {
-		return nil // skip draft package
-	}
+		if currentPkg.Draft {
+			continue // Skip draft package
+		}
 
-	if pl.exist(pkg) {
-		return nil
-	}
-	pl.add(pkg)
+		if pl.exist(currentPkg) {
+			continue
+		}
+		pl.add(currentPkg)
 
-	// `usePackage` recursively on requirements
-	for _, pkgpath := range pkg.Requires {
-		pkgpath := filepath.Join(modroot, pkgpath)
-		if err := pl.UsePackage(modroot, pkgpath, ""); err != nil {
-			return fmt.Errorf("require %q: %w", pkg.Name, err)
+		// Add requirements to the queue
+		for _, pkgPath := range currentPkg.Requires {
+			fullPath := filepath.Join(modroot, pkgPath)
+			queue = append(queue, gnomod.Pkg{Dir: fullPath})
 		}
 	}
 
