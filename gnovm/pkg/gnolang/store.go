@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dolthub/swiss"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -68,7 +69,7 @@ type Store interface {
 type defaultStore struct {
 	alloc            *Allocator    // for accounting for cached items
 	pkgGetter        PackageGetter // non-realm packages
-	cacheObjects     map[ObjectID]Object
+	cacheObjects     *swiss.Map[ObjectID, Object]
 	cacheTypes       map[TypeID]Type
 	cacheNodes       map[Location]BlockNode
 	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
@@ -88,7 +89,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	ds := &defaultStore{
 		alloc:            alloc,
 		pkgGetter:        nil,
-		cacheObjects:     make(map[ObjectID]Object),
+		cacheObjects:     swiss.NewMap[ObjectID, Object](100),
 		cacheTypes:       make(map[TypeID]Type),
 		cacheNodes:       make(map[Location]BlockNode),
 		cacheNativeTypes: make(map[reflect.Type]Type),
@@ -122,7 +123,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
+	if oo, exists := ds.cacheObjects.Get(oid); exists {
 		pv := oo.(*PackageValue)
 		return pv
 	}
@@ -175,7 +176,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// Realm values obtained this way
 			// will get written elsewhere
 			// later.
-			ds.cacheObjects[oid] = pv
+			ds.cacheObjects.Put(oid, pv)
 			// inject natives after init.
 			if ds.pkgInjector != nil {
 				if pn.HasAttribute(ATTR_INJECTED) {
@@ -207,10 +208,10 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 // Used to set throwaway packages.
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
-	if _, exists := ds.cacheObjects[oid]; exists {
+	if exists := ds.cacheObjects.Has(oid); exists {
 		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
-	ds.cacheObjects[oid] = pv
+	ds.cacheObjects.Put(oid, pv)
 }
 
 // Some atomic operation.
@@ -254,7 +255,7 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check cache.
-	if oo, exists := ds.cacheObjects[oid]; exists {
+	if oo, exists := ds.cacheObjects.Get(oid); exists {
 		return oo
 	}
 	// check baseStore.
@@ -289,7 +290,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
-		ds.cacheObjects[oid] = oo
+		ds.cacheObjects.Put(oid, oo)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -323,7 +324,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
-		if oo2, exists := ds.cacheObjects[oid]; exists {
+		if oo2, exists := ds.cacheObjects.Get(oid); exists {
 			if oo != oo2 {
 				panic(fmt.Sprintf(
 					"duplicate object: set %s (oid: %s) but %s (oid %s) already exists",
@@ -331,7 +332,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			}
 		}
 	}
-	ds.cacheObjects[oid] = oo
+	ds.cacheObjects.Put(oid, oo)
 	// make store op log entry
 	if ds.opslog != nil {
 		var op StoreOpType
@@ -355,7 +356,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 func (ds *defaultStore) DelObject(oo Object) {
 	oid := oo.GetObjectID()
 	// delete from cache.
-	delete(ds.cacheObjects, oid)
+	ds.cacheObjects.Delete(oid)
+
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -586,8 +588,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
-	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.opslog = nil                             // new ops log.
+	ds.cacheObjects = swiss.NewMap[ObjectID, Object](100) // new cache.
+	ds.opslog = nil                                       // new ops log.
 	if len(ds.current) > 0 {
 		ds.current = make(map[string]struct{})
 	}
@@ -600,7 +602,7 @@ func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
 		alloc:            ds.alloc.Fork().Reset(),
 		pkgGetter:        ds.pkgGetter,
-		cacheObjects:     make(map[ObjectID]Object), // new cache.
+		cacheObjects:     swiss.NewMap[ObjectID, Object](100), // new cache.
 		cacheTypes:       ds.cacheTypes,
 		cacheNodes:       ds.cacheNodes,
 		cacheNativeTypes: ds.cacheNativeTypes,
@@ -711,7 +713,7 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 }
 
 func (ds *defaultStore) ClearCache() {
-	ds.cacheObjects = make(map[ObjectID]Object)
+	ds.cacheObjects = swiss.NewMap[ObjectID, Object](100)
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
