@@ -92,6 +92,7 @@ func WithSyncWanted(v bool) RunFileTestOption {
 // RunFileTest executes the filetest at the given path, using rootDir as
 // the directory where to find the "stdlibs" directory.
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
+	fmt.Println("===RunFileTest, path: ", path)
 	var f runFileTestOptions
 	for _, opt := range opts {
 		opt(&f)
@@ -114,6 +115,13 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	stdin := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
+
+	var isRunGo bool
+	for _, d := range directives {
+		if d == "Go_Error" || d == "Go_Output" {
+			isRunGo = true
+		}
+	}
 
 	// value from precompile stage exec
 	var GoOutput string
@@ -176,22 +184,23 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						},
 					},
 				}
-				// TODO: precompile
 				fmt.Println("---not realm, going to precompile and verify")
 				// TODO: conditioned with directives
-				err, output := gno.PrecompileAndRunMempkg(memPkg)
-				//pcer := &precompileExecResult{}
-				if err != nil {
-					fmt.Println("---err from precompile is: ", err.Error())
-					//pcer.err = err
-					// TODO: not panic here
-					//panic(pcer)
-					GoErr = err.Error()
-				} else {
-					fmt.Println("---output from precompile is: ", output)
-					//pcer.output = output
-					//panic(pcer)
-					GoOutput = output
+				if isRunGo {
+					err, output := gno.PrecompileAndRunMempkg(memPkg, path)
+					//pcer := &precompileExecResult{}
+					if err != nil {
+						fmt.Println("---err from precompile is: ", err.Error())
+						//pcer.err = err
+						// TODO: not panic here
+						//panic(pcer)
+						GoErr = err.Error()
+					} else {
+						fmt.Println("---output from precompile is: ", output)
+						//pcer.output = output
+						//panic(pcer)
+						GoOutput = output
+					}
 				}
 
 				fmt.Println("=======carry on gno exec========")
@@ -216,6 +225,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				fmt.Println("=======run main end========")
 			} else {
+				fmt.Println("---realm case")
 				// realm case.
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
@@ -230,12 +240,19 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						},
 					},
 				}
-				// TODO: precompile
-				fmt.Println("---going to precompile and verify")
-				err = gno.PrecompileAndCheckMempkg(memPkg)
-				if err != nil {
-					panic(err)
+				if isRunGo {
+					fmt.Println("---going to precompile and run")
+					err, output := gno.PrecompileAndRunMempkg(memPkg, path)
+					//pcer := &precompileExecResult{}
+					if err != nil {
+						fmt.Println("---err from precompile is: ", err.Error())
+						GoErr = err.Error()
+					} else {
+						fmt.Println("---output from precompile is: ", output)
+						GoOutput = output
+					}
 				}
+				fmt.Println("=======carry on gno exec========")
 
 				// run decls and init functions.
 				m.RunMemPackage(memPkg, true)
@@ -331,7 +348,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
 								"DELETE THIS LINE AND RUN TEST AGAIN ***",
 						)
-						replaceWantedInPlace(path, "Error", ctl)
+						replaceWantedInPlace(path, "Gno_Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
 					// check gno debug errors when gnoErrWanted is empty, pnc is nil
@@ -342,7 +359,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					//return nil
 				}
 			case "Go_Error":
-				fmt.Println("---Go_Error, gnoErrWanted: ", goErrWanted)
+				fmt.Println("---Go_Error, goErrWanted, GoErr:", goErrWanted, GoErr)
 				// gnoErrWanted given
 				if goErrWanted != "" {
 					fmt.Println("--gnoErrWanted: ", goErrWanted)
@@ -414,13 +431,17 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// check result
 				res := strings.TrimSpace(GoOutput)
-				fmt.Println("Go_Output, res: ", res)
+				fmt.Println("---Go_Output, res: ", res)
 				res = trimTrailingSpaces(res)
 				if res != resWanted {
 					if f.syncWanted {
-						// write output to file.
-						replaceWantedInPlace(path, "Go_Output", res)
+						if res != "" {
+							println("---sync wanted with non-empty res")
+							// write output to file.
+							replaceWantedInPlace(path, "Go_Output", res)
+						}
 					} else {
+						println("---no sync")
 						// panic so tests immediately fail (for now).
 						if resWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
@@ -448,24 +469,22 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					}
 				}
 				// check realm ops
-				if rops != "" {
-					rops2 := strings.TrimSpace(store.SprintStoreOps())
-					if rops != rops2 {
-						if f.syncWanted {
-							// write output to file.
-							replaceWantedInPlace(path, "Realm", rops2)
-						} else {
-							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-								A:        difflib.SplitLines(rops),
-								B:        difflib.SplitLines(rops2),
-								FromFile: "Expected",
-								FromDate: "",
-								ToFile:   "Actual",
-								ToDate:   "",
-								Context:  1,
-							})
-							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
-						}
+				rops2 := strings.TrimSpace(store.SprintStoreOps())
+				if rops != rops2 {
+					if f.syncWanted {
+						// write output to file.
+						replaceWantedInPlace(path, "Realm", rops2)
+					} else {
+						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+							A:        difflib.SplitLines(rops),
+							B:        difflib.SplitLines(rops2),
+							FromFile: "Expected",
+							FromDate: "",
+							ToFile:   "Actual",
+							ToDate:   "",
+							Context:  1,
+						})
+						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
 					}
 				}
 			default:

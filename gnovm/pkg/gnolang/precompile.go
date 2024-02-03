@@ -161,7 +161,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	return nil
 }
 
-func PrecompileAndRunMempkg(mempkg *std.MemPackage) (error, string) {
+func PrecompileAndRunMempkg(mempkg *std.MemPackage, path string) (error, string) {
 	goRun := "go run"
 
 	tmpDir, err := os.MkdirTemp("", mempkg.Name)
@@ -190,7 +190,7 @@ func PrecompileAndRunMempkg(mempkg *std.MemPackage) (error, string) {
 			continue
 		}
 		// check precompiled file
-		err, output = PrecompileRun(targetFileName, tmpDir, goRun)
+		err, output = PrecompileRun(targetFileName, tmpDir, goRun, path)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -205,7 +205,7 @@ func PrecompileAndRunMempkg(mempkg *std.MemPackage) (error, string) {
 }
 
 func Precompile(source string, tags string, filename string) (*precompileResult, error) {
-	fmt.Println("---Precompile")
+	fmt.Println("---Precompile, filename: ", filename)
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
@@ -260,7 +260,7 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	return nil
 }
 
-func PrecompileRun(fileName string, tmpDir string, goRunBinary string) (error, string) {
+func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path string) (error, string) {
 	fmt.Printf("---PrecompileRun, dir: %s, gorun: %s \n", tmpDir, goRunBinary)
 	// TODO: use cmd/parser instead of exec?
 
@@ -278,12 +278,6 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string) (error, s
 		}
 	}()
 
-	// Change the working directory to the target directory
-	if err = os.Chdir(tmpDir); err != nil {
-		fmt.Println("Error changing directory:", err)
-		return err, ""
-	}
-
 	if debug {
 		// Read the directory contents
 		files, err := ioutil.ReadDir(tmpDir)
@@ -293,7 +287,7 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string) (error, s
 		}
 		// Iterate over the files and print their names
 		for _, file := range files {
-			debug.Println(file.Name())
+			fmt.Println("---file: ", file.Name())
 		}
 		content, err := os.ReadFile("main.go")
 		if err != nil {
@@ -306,9 +300,8 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string) (error, s
 	}
 
 	args := strings.Split(goRunBinary, " ")
-	//args = append(args, filepath.Join(tmpDir, fileName))
+	args = append(args, filepath.Join(tmpDir, fileName))
 	//args = append(args, fileName)
-	args = append(args, fileName)
 	fmt.Println("---args: ", args)
 
 	cmd := exec.Command(args[0], args[1:]...)
@@ -360,15 +353,44 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string) (error, s
 	fmt.Println(stderrBuf.String())
 	//fmt.Println(strings.Split(stderrBuf.String(), "\n")[1])
 
-	if strings.Contains(stderrBuf.String(), "# command-line-arguments") {
-		return errors.New(strings.Split(stderrBuf.String(), "\n")[1]), ""
-	} else if stderrBuf.Len() != 0 {
-		return nil, stderrBuf.String()
+	res, isErr := identifyCommandLineArguments(stderrBuf.String(), path)
+	if isErr && res != "" {
+		fmt.Println("---return stderr")
+		return errors.New(res), ""
+	} else if !isErr && res != "" {
+		return nil, res
 	} else if stdoutBuf.Len() != 0 {
+		fmt.Println("---return stdout")
 		return nil, stdoutBuf.String()
+	} else {
+		fmt.Println("---stdoutBuf.Len()", stdoutBuf.Len())
+		fmt.Println("---stdoutBuf.String()", stdoutBuf.String())
 	}
 
 	return nil, ""
+}
+
+func identifyCommandLineArguments(input string, path string) (string, bool) {
+	// List of substrings to be trimmed
+	//substrings := []string{"command-line-arguments", "# command-line-arguments"}
+	tag := "command-line-arguments"
+	var isStdErr bool
+	input = strings.TrimSpace(input)
+	if strings.Contains(input, tag) {
+		fmt.Println("--- contain, input:", input)
+		isStdErr = true
+	}
+	// split tmp dir message
+	parts := strings.Split(input, "main.go")
+	// Check if the split resulted in at least two parts
+	if len(parts) > 1 {
+		// The second part is the string after "main.go"
+		input = path + parts[1]
+		fmt.Println("Trimmed string:", input)
+	} else {
+		fmt.Println("String does not contain 'main.go'")
+	}
+	return input, isStdErr
 }
 
 // PrecompileBuildPackage tries to run `go build` against the precompiled .go files.
