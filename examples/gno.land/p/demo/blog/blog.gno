@@ -272,6 +272,10 @@ func (p *Post) RenderTagList() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
+	if len(p.Tags) == 0 {
+		return ""
+	}
+
 	output := "Tags: "
 	for idx, tag := range p.Tags {
 		if idx > 0 {
