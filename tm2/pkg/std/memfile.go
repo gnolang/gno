@@ -13,11 +13,15 @@ type MemFile struct {
 	Body string
 }
 
+// MemPackage represents the information and files of a package which will be
+// stored in memory. It will generally be initialized by package gnolang's
+// ReadMemPackage.
+//
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string
-	Path  string
+	Name  string // package name as declared by `package`
+	Path  string // import path
 	Files []*MemFile
 }
 
@@ -34,32 +38,27 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const (
-	reDomainPart   = `gno\.land`
-	rePathPart     = `[a-z][a-z0-9_]*`
-	rePkgName      = `^[a-z][a-z0-9_]*$`
-	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
-	reRlmPath      = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
-	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
-	reFileName     = `^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`
+const rePathPart = `[a-z][a-z0-9_]*`
+
+var (
+	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
+	reFileName     = regexp.MustCompile(`^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`)
 )
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
-	ok, _ := regexp.MatchString(rePkgName, mempkg.Name)
-	if !ok {
+	if !rePkgName.MatchString(mempkg.Name) {
 		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
 	}
-	ok, _ = regexp.MatchString(rePkgOrRlmPath, mempkg.Path)
-	if !ok {
+	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
 	fnames := map[string]struct{}{}
 	for _, memfile := range mempkg.Files {
-		ok, _ := regexp.MatchString(reFileName, memfile.Name)
-		if !ok {
+		if !reFileName.MatchString(memfile.Name) {
 			return errors.New(fmt.Sprintf("invalid file name %q", memfile.Name))
 		}
 		if _, exists := fnames[memfile.Name]; exists {

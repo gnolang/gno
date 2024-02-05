@@ -29,7 +29,7 @@ func TestWSClientReconnectWithJitter(t *testing.T) {
 	errNotConnected := errors.New("not connected")
 	clientMap := make(map[int]*WSClient)
 	buf := new(bytes.Buffer)
-	logger := log.NewTMLogger(buf)
+	logger := log.NewNoopLogger()
 	for i := 0; i < n; i++ {
 		c := NewWSClient("tcp://foo", "/websocket")
 		c.Dialer = func(string, string) (net.Conn, error) {

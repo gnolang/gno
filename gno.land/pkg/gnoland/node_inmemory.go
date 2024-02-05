@@ -2,7 +2,10 @@ package gnoland
 
 import (
 	"fmt"
+	"sync"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -12,7 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -51,7 +54,9 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 }
 
 func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
-	return tmcfg.DefaultConfig().SetRootDir(rootdir)
+	// We use `TestConfig` here otherwise ChainID will be empty, and
+	// there is no other way to update it than using a config file
+	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
 // NewInMemoryNodeConfig creates a default configuration for an in-memory node.
@@ -100,7 +105,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 // NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
 // persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
 // should point to the correct gno repository to load the stdlibs.
-func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
+func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
@@ -144,4 +149,30 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		dbProvider,
 		logger,
 	)
+}
+
+// GetNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
+// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
+func GetNodeReadiness(n *node.Node) <-chan struct{} {
+	const listenerID = "first_block_listener"
+
+	var once sync.Once
+
+	nb := make(chan struct{})
+	ready := func() {
+		close(nb)
+		n.EventSwitch().RemoveListener(listenerID)
+	}
+
+	n.EventSwitch().AddListener(listenerID, func(ev events.Event) {
+		if _, ok := ev.(bft.EventNewBlock); ok {
+			once.Do(ready)
+		}
+	})
+
+	if n.BlockStore().Height() > 0 {
+		once.Do(ready)
+	}
+
+	return nb
 }

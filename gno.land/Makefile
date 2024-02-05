@@ -5,8 +5,16 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
-.PHONY: gnoland.start
-gnoland.start:; go run ./cmd/gnoland start
+gnoland.start:
+	@#TODO: remove this makefile directive in a few weeks.
+	@echo "DEPRECATED: use 'start.gnoland' instead of 'gnoland.start'"
+	go run ./cmd/gnoland start
+
+.PHONY: start.gnoland
+start.gnoland:; go run ./cmd/gnoland start
+
+.PHONY: start.gnoweb
+start.gnoweb:; go run ./cmd/gnoweb
 
 .PHONY: build
 build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync build.genesis
@@ -47,6 +55,11 @@ lint:
 GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+
+.PHONY: imports
+GOIMPORTS_FLAGS ?= -w
+imports:
+	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
 
 ########################################
 # Test suite

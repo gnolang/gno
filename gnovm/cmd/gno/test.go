@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"text/template"
@@ -313,8 +314,11 @@ func gnoTestPkg(
 		if err == nil {
 			gnoPkgPath = modfile.Module.Mod.Path
 		} else {
-			// unable to read pkgPath from gno.mod, generate a random realm path
-			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
+			if gnoPkgPath == "" {
+				// unable to read pkgPath from gno.mod, generate a random realm path
+				gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
@@ -431,6 +435,35 @@ func gnoTestPkg(
 	return errs
 }
 
+// attempts to determine the full gno pkg path by analyzing the directory.
+func pkgPathFromRootDir(pkgPath, rootDir string) string {
+	abPkgPath, err := filepath.Abs(pkgPath)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir += string(filepath.Separator)
+	if !strings.HasPrefix(abPkgPath, abRootDir) {
+		return ""
+	}
+	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
+	for _, prefix := range [...]string{
+		"examples/",
+		"gnovm/stdlibs/",
+		"gnovm/tests/stdlibs/",
+	} {
+		if strings.HasPrefix(impPath, prefix) {
+			return impPath[len(prefix):]
+		}
+	}
+	return ""
+}
+
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
@@ -439,8 +472,12 @@ func runTestFiles(
 	printRuntimeMetrics bool,
 	runFlag string,
 	io commands.IO,
-) error {
-	var errs error
+) (errs error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
+		}
+	}()
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
@@ -462,22 +499,15 @@ func runTestFiles(
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
-		if verbose {
-			io.ErrPrintfln("=== RUN   %s", test.Name)
-		}
-
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
-		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
@@ -486,30 +516,13 @@ func runTestFiles(
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
-		switch {
-		case rep.Filtered:
-			io.ErrPrintfln("--- FILT: %s", test.Name)
-			// noop
-		case rep.Skipped:
-			if verbose {
-				io.ErrPrintfln("--- SKIP: %s", test.Name)
-			}
-		case rep.Failed:
+		if rep.Failed {
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
-		default:
-			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
-			}
-		}
-
-		if rep.Output != "" && (verbose || rep.Failed) {
-			io.ErrPrintfln("output: %s", rep.Output)
 		}
 
 		if printRuntimeMetrics {
@@ -537,12 +550,8 @@ func runTestFiles(
 
 // mirror of stdlibs/testing.Report
 type report struct {
-	Name     string
-	Verbose  bool
-	Failed   bool
-	Skipped  bool
-	Filtered bool
-	Output   string
+	Failed  bool
+	Skipped bool
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`

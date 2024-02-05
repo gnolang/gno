@@ -47,6 +47,15 @@ jobs:
           wget http://ftp.us.debian.org/debian/pool/main/l/leveldb/libleveldb-dev_1.22-3_amd64.deb
           sudo dpkg -i *.deb
 
+      - name: Set environment variables for debug mode
+        if: env.ACTIONS_STEP_DEBUG == 'true'
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          mkdir -p $LOG_PATH_DIR
+
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
+          
       # test ./pkgs/db
       - name: test ./tm2/pkg/db
         run: go test -tags ${{ matrix.tags }} ./tm2/pkg/db/...

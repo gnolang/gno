@@ -182,31 +182,6 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	info, err := kb.GetByName(name)
-	if err != nil {
-		return err
-	}
-	fromAddr := info.GetAddress()
-
-	// query for initial number and sequence.
-	path := fmt.Sprintf("auth/accounts/%s", fromAddr.String())
-	data := []byte(nil)
-	opts2 := rpcclient.ABCIQueryOptions{}
-	qres, err := cli.ABCIQueryWithOptions(
-		path, data, opts2)
-	if err != nil {
-		return errors.Wrap(err, "querying")
-	}
-	if qres.Response.Error != nil {
-		fmt.Printf("Log: %s\n",
-			qres.Response.Log)
-		return qres.Response.Error
-	}
-	resdata := qres.Response.Data
-	var acc gnoland.GnoAccount
-	amino.MustUnmarshalJSON(resdata, &acc)
-	accountNumber := acc.BaseAccount.AccountNumber
-	sequence := acc.BaseAccount.Sequence
 
 	// Get password for supply account.
 	// Test by signing a dummy message;
@@ -239,7 +214,7 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 		if err != nil {
 			return err
 		}
-		err = sendAmountTo(cfg, cli, io, name, pass, testToAddr, accountNumber, sequence, send)
+		err = sendAmountTo(cfg, cli, io, name, pass, testToAddr, send)
 		return err
 	}
 
@@ -318,13 +293,12 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 			w.Write([]byte("invalid address format"))
 			return
 		}
-		err = sendAmountTo(cfg, cli, io, name, pass, toAddr, accountNumber, sequence, send)
+		err = sendAmountTo(cfg, cli, io, name, pass, toAddr, send)
 		if err != nil {
 			fmt.Println(ip, "faucet failed", err)
 			w.Write([]byte("faucet failed"))
 			return
 		} else {
-			sequence += 1
 			fmt.Println(ip, "faucet success")
 			w.Write([]byte("faucet success"))
 		}
@@ -337,7 +311,9 @@ func execServe(cfg *config, args []string, io commands.IO) error {
 		Addr:              ":5050",
 		ReadHeaderTimeout: 60 * time.Second,
 	}
-	server.ListenAndServe()
+	if err := server.ListenAndServe(); err != nil {
+		return fmt.Errorf("http server stopped. %w", err)
+	}
 
 	return nil
 }
@@ -349,8 +325,6 @@ func sendAmountTo(
 	name,
 	pass string,
 	toAddr crypto.Address,
-	accountNumber,
-	sequence uint64,
 	send std.Coins,
 ) error {
 	// Read supply account pubkey.
@@ -399,6 +373,26 @@ func sendAmountTo(
 		return err
 	}
 	// fmt.Println("will sign:", string(amino.MustMarshalJSON(tx)))
+
+	// query for the account number and sequence each time in case the node is reset
+	path := fmt.Sprintf("auth/accounts/%s", fromAddr.String())
+	data := []byte(nil)
+	opts2 := rpcclient.ABCIQueryOptions{}
+	qres, err := cli.ABCIQueryWithOptions(
+		path, data, opts2)
+	if err != nil {
+		return errors.Wrap(err, "querying")
+	}
+	if qres.Response.Error != nil {
+		fmt.Printf("Log: %s\n",
+			qres.Response.Log)
+		return qres.Response.Error
+	}
+	resdata := qres.Response.Data
+	var acc gnoland.GnoAccount
+	amino.MustUnmarshalJSON(resdata, &acc)
+	accountNumber := acc.BaseAccount.AccountNumber
+	sequence := acc.BaseAccount.Sequence
 
 	// get sign-bytes and make signature.
 	chainID := cfg.ChainID

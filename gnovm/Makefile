@@ -34,6 +34,11 @@ fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) `find stdlibs -name "*.gno"`
 
+.PHONY: imports
+GOIMPORTS_FLAGS ?= -w
+imports:
+	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+
 ########################################
 # Test suite
 .PHONY: test
@@ -63,6 +68,11 @@ _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' 
 
 ########################################
 # Code gen
+# TODO: move _dev.stringer to go:generate instructions, simplify generate
+#       to just go generate.
+.PHONY: generate
+generate: _dev.stringer _dev.generate
+
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer
 _dev.stringer:
@@ -72,6 +82,10 @@ _dev.stringer:
 	$(stringer_cmd) -type=TransField ./pkg/gnolang
 	$(stringer_cmd) -type=VPType     ./pkg/gnolang
 	$(stringer_cmd) -type=Word       ./pkg/gnolang
+
+.PHONY: _dev.generate
+_dev.generate:
+	go generate -x ./...
 
 # genproto:
 # see top-level Makefile.

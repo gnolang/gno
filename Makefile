@@ -25,6 +25,7 @@ test.components:
 	$(MAKE) --no-print-directory -C gnovm    test
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
+	$(MAKE) --no-print-directory -C misc     test
 
 .PHONY: test.docker
 test.docker:
@@ -36,11 +37,15 @@ test.docker:
 
 .PHONY: fmt
 fmt:
-	$(MAKE) --no-print-directory -C tm2      fmt
-	$(MAKE) --no-print-directory -C gnovm    fmt
-	$(MAKE) --no-print-directory -C gno.land fmt
+	$(MAKE) --no-print-directory -C tm2      fmt imports
+	$(MAKE) --no-print-directory -C gnovm    fmt imports
+	$(MAKE) --no-print-directory -C gno.land fmt imports
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
 lint:
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
+
+.PHONY: tidy
+tidy:
+	$(MAKE) --no-print-directory -C misc     tidy
