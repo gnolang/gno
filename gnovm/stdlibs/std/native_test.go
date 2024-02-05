@@ -31,7 +31,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 				addr:    user,
 				pkgPath: "",
 			},
-			expectedIsOriginCall: true,
+			expectedIsOriginCall: false,
 		},
 		{
 			name: "one frame w/o LastPackage",
@@ -45,7 +45,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 				addr:    user,
 				pkgPath: "",
 			},
-			expectedIsOriginCall: true,
+			expectedIsOriginCall: false,
 		},
 		{
 			name: "one non-realm frame",
@@ -67,6 +67,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 				Context: ctx,
 				Frames: []gno.Frame{
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
+					{LastPackage: nil},
 				},
 			},
 			expectedRealm: Realm{
@@ -89,7 +90,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 				addr:    user,
 				pkgPath: "",
 			},
-			expectedIsOriginCall: true,
+			expectedIsOriginCall: false,
 		},
 		{
 			name: "multiple frames with multiple realms",

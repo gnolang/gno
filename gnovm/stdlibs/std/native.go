@@ -16,7 +16,16 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	return PrevRealm(m).addr == m.Context.(ExecContext).OrigCaller
+	calls := pkgCallStack(m)
+	numCalls := len(calls)
+	if numCalls > 0 && calls[numCalls-1].PkgPath == "main" {
+		// if the entry point is main, then it's not a call.
+		numCalls--
+		// FIXME(tb): ensure it's not possible to have a package path `main` in
+		// other situations than MsgCall as as it is used here as a security
+		// measure.
+	}
+	return numCalls == 1
 }
 
 func CurrentRealmPath(m *gno.Machine) string {
@@ -69,13 +78,12 @@ func CurrentRealm(m *gno.Machine) Realm {
 // order. If no such realm was found, returns the tx signer (aka OrigCaller).
 func PrevRealm(m *gno.Machine) Realm {
 	var lastRealmPath string
-	for i := m.NumFrames() - 1; i > 0; i-- {
-		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+	for _, pkg := range pkgCallStack(m) {
+		if !pkg.IsRealm() {
 			// Ignore non-realm frame
 			continue
 		}
-		realmPath := fr.LastPackage.PkgPath
+		realmPath := pkg.PkgPath
 		if lastRealmPath == "" {
 			// Record the path of the first encountered realm and continue
 			lastRealmPath = realmPath
@@ -84,7 +92,7 @@ func PrevRealm(m *gno.Machine) Realm {
 		if lastRealmPath != realmPath {
 			// Second realm detected, return it.
 			return Realm{
-				addr:    fr.LastPackage.GetPkgAddr().Bech32(),
+				addr:    pkg.GetPkgAddr().Bech32(),
 				pkgPath: realmPath,
 			}
 		}
@@ -94,6 +102,25 @@ func PrevRealm(m *gno.Machine) Realm {
 		addr:    m.Context.(ExecContext).OrigCaller,
 		pkgPath: "", // empty for users
 	}
+}
+
+// pkgCallStack iterates over m.Frames and returns a unique list of package in
+// the reverse order. Ignores the `main` package path.
+func pkgCallStack(m *gno.Machine) (pkgs []*gno.PackageValue) {
+	var lastPath string
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		fr := m.Frames[i]
+		if fr.LastPackage == nil {
+			// Ignore nil or `main` package
+			continue
+		}
+		pkgPath := fr.LastPackage.PkgPath
+		if lastPath != pkgPath {
+			lastPath = pkgPath
+			pkgs = append(pkgs, fr.LastPackage)
+		}
+	}
+	return
 }
 
 func GetOrigPkgAddr(m *gno.Machine) crypto.Bech32Address {
