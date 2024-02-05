@@ -168,7 +168,7 @@ func TestClient_CallMultiple(t *testing.T) {
 		{
 			PkgPath:  "gno.land/r/demo/tamagotchi",
 			FuncName: "Feed",
-			Args:     []string{},
+			Args:     []string{""},
 			Send:     "",
 		},
 	}

@@ -118,7 +118,8 @@ body nav[class*="navbarHidden"] {
   }
 }
 
-.theme-doc-markdown {
+.theme-doc-markdown,
+.theme-doc-footer {
   max-width: var(--content-max-w, 700px);
 }
 
