@@ -176,60 +176,21 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return err
 	}
 
-	// TODO
 	// enforce sorting msg.Files based on Go conventions for predictability
-	pkgNames := []string{}
-
-	// add std.MemFile.Name to slice -> sort
-	// create slice of file names
-	for _, pkgFile := range msg.Package.Files {
-		pkgNames = append(
-			pkgNames,
-			pkgFile.Name, // string
-		)
-	}
-
-	// sort filenames based on Go conventions
-	// https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/sort/sort.go;l=39
-	sort.Strings(pkgNames)
-
-	var memPkgSorted std.MemPackage
-	pFiles := make([]*std.MemFile, 0, len(msg.Package.Files))
-
-	// add to new []*std.MemFile to enforce order
-	for _, pkgName := range pkgNames {
-		for _, nsFile := range msg.Package.Files {
-			// bail if not the most immediate pkgName
-			if nsFile.Name != pkgName {
-				continue
-			}
-
-			pFiles = append(
-				pFiles,
-				nsFile,
-			)
-		}
-
-		memPkgSorted = std.MemPackage{
-			Name:  pkgName,
-			Path:  msg.Package.Path,
-			Files: pFiles,
-		}
-	}
-
-	// new instance of MsgAddPackage
-	msgSorted := MsgAddPackage{
-		Creator: msg.Creator,
-		Package: &memPkgSorted,
-		Deposit: msg.Deposit,
-	}
+	// https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/sort/sort.go;l=33
+	sort.Slice(
+		msg.Package.Files,
+		func(i, j int) bool {
+			return msg.Package.Files[i].Name < msg.Package.Files[j].Name
+		},
+	)
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msgSorted,
+		Msg:           msg,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
 		OrigSendSpent: new(std.Coins),
