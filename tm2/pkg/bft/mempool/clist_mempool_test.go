@@ -35,13 +35,13 @@ func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
 
 func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfig) (*CListMempool, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
-	appConnMem.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "mempool"))
+	appConnMem.SetLogger(log.NewNoopLogger().With("module", "abci-client", "connection", "mempool"))
 	err := appConnMem.Start()
 	if err != nil {
 		panic(err)
 	}
 	mempool := NewCListMempool(config, appConnMem, 0, testMaxTxBytes)
-	mempool.SetLogger(log.TestingLogger())
+	mempool.SetLogger(log.NewNoopLogger())
 	return mempool, func() {
 		if config.RootDir != "" {
 			os.RemoveAll(config.RootDir)
@@ -269,7 +269,7 @@ func TestSerialReap(t *testing.T) {
 	defer cleanup()
 
 	appConnCon, _ := cc.NewABCIClient()
-	appConnCon.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "consensus"))
+	appConnCon.SetLogger(log.NewTestingLogger(t).With("module", "abci-client", "connection", "consensus"))
 	err := appConnCon.Start()
 	require.Nil(t, err)
 
@@ -509,7 +509,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	assert.EqualValues(t, 8, mempool.TxsBytes())
 
 	appConnCon, _ := cc.NewABCIClient()
-	appConnCon.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "consensus"))
+	appConnCon.SetLogger(log.NewTestingLogger(t).With("module", "abci-client", "connection", "consensus"))
 	err = appConnCon.Start()
 	require.Nil(t, err)
 	defer appConnCon.Stop()

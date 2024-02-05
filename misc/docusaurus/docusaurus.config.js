@@ -28,7 +28,7 @@ const config = {
       src: "https://sa.gno.services/latest.js",
       async: true,
       defer: true,
-    }
+    },
   ],
 
   presets: [
@@ -40,6 +40,8 @@ const config = {
           path: "../../docs",
           routeBasePath: "/",
           sidebarPath: require.resolve("./sidebars.js"),
+          showLastUpdateTime: true,
+          editUrl: ({ docPath }) => `https://github.com/gnolang/gno/edit/master/docs/${docPath}`,
         },
         blog: false,
         theme: {

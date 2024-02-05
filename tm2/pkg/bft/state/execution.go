@@ -3,6 +3,8 @@ package state
 import (
 	"fmt"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
@@ -14,10 +16,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // BlockExecutor handles block execution and state updates.
 // It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
 // then commits and updates the mempool atomically, then saves state.
@@ -37,14 +38,14 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp proxy.AppConnConsensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -143,7 +144,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(blockExec.logger, blockExec.evsw, block, abciResponses)
+	fireEvents(blockExec.evsw, block, abciResponses)
 
 	return state, nil
 }
@@ -200,13 +201,13 @@ func (blockExec *BlockExecutor) Commit(
 	return res.Data, err
 }
 
-//---------------------------------------------------------
+// ---------------------------------------------------------
 // Helper functions for executing blocks and updating state
 
 // Executes block's transactions on proxyAppConn.
 // Returns a list of transaction results and updates to the validator set
 func execBlockOnProxyApp(
-	logger log.Logger,
+	logger *slog.Logger,
 	proxyAppConn proxy.AppConnConsensus,
 	block *types.Block,
 	stateDB dbm.DB,
@@ -398,7 +399,7 @@ func updateState(
 // Fire NewBlock, NewBlockHeader.
 // Fire TxEvent for every tx.
 // NOTE: if Tendermint crashes before commit, some or all of these events may be published again.
-func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, abciResponses *ABCIResponses) {
+func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCIResponses) {
 	evsw.FireEvent(types.EventNewBlock{
 		Block:            block,
 		ResultBeginBlock: abciResponses.BeginBlock,
@@ -425,7 +426,7 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 	}
 }
 
-//----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 // Execute block without state. TODO: eliminate
 
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
@@ -433,7 +434,7 @@ func fireEvents(logger log.Logger, evsw events.EventSwitch, block *types.Block, 
 func ExecCommitBlock(
 	appConnConsensus proxy.AppConnConsensus,
 	block *types.Block,
-	logger log.Logger,
+	logger *slog.Logger,
 	stateDB dbm.DB,
 ) ([]byte, error) {
 	_, err := execBlockOnProxyApp(logger, appConnConsensus, block, stateDB)
