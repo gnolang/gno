@@ -1,4 +1,4 @@
-package stdlibs
+package std
 
 import (
 	"testing"
@@ -115,8 +115,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			realm := prevRealm(tt.machine)
-			isOrigin := isOriginCall(tt.machine)
+			realm := PrevRealm(tt.machine)
+			isOrigin := IsOriginCall(tt.machine)
 
 			assert.Equal(tt.expectedRealm, realm)
 			assert.Equal(tt.expectedIsOriginCall, isOrigin)
