@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -14,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -104,7 +105,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 // NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
 // persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
 // should point to the correct gno repository to load the stdlibs.
-func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
+func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}

@@ -9,3 +9,6 @@
 
 ":package: :mountain:  gno.land":
 - "gno.land/**/*"
+
+":book:  documentation":
+- docs/**/*"

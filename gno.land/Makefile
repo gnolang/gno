@@ -56,6 +56,11 @@ GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
+.PHONY: imports
+GOIMPORTS_FLAGS ?= -w
+imports:
+	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+
 ########################################
 # Test suite
 .PHONY: test

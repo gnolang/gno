@@ -4,13 +4,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/require"
 )
@@ -23,7 +24,7 @@ const (
 
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
 // It returns the node instance and its RPC remote address.
-func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
+func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
 	node, err := gnoland.NewInMemoryNode(logger, config)
 	require.NoError(t, err)
 
@@ -31,8 +32,8 @@ func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemor
 	require.NoError(t, err)
 
 	select {
-	case <-gnoland.GetNodeReadiness(node):
-	case <-time.After(time.Second * 6):
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 

@@ -13,10 +13,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/flow"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/maths"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/timer"
@@ -197,7 +198,7 @@ func NewMConnectionWithConfig(conn net.Conn, chDescs []*ChannelDescriptor, onRec
 	return mconn
 }
 
-func (c *MConnection) SetLogger(l log.Logger) {
+func (c *MConnection) SetLogger(l *slog.Logger) {
 	c.BaseService.SetLogger(l)
 	for _, ch := range c.channels {
 		ch.SetLogger(l)
@@ -732,7 +733,7 @@ type Channel struct {
 
 	maxPacketMsgPayloadSize int
 
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
@@ -749,7 +750,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 	}
 }
 
-func (ch *Channel) SetLogger(l log.Logger) {
+func (ch *Channel) SetLogger(l *slog.Logger) {
 	ch.Logger = l
 }
 
