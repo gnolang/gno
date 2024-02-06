@@ -177,7 +177,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	}
 
 	// enforce sorting msg.Files based on Go conventions for predictability
-	// https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/sort/sort.go;l=33
 	sort.Slice(
 		msg.Package.Files,
 		func(i, j int) bool {
