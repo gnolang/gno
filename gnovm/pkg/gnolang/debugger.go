@@ -25,9 +25,9 @@ const (
 // Debugger describes a machine debugger state.
 type Debugger struct {
 	DebugEnabled bool
-	DebugAddr    string        // optional address [host]:port for DebugIn/DebugOut
-	DebugIn      io.ReadCloser // debugger input, defaults to Stdin
-	DebugOut     io.Writer     // debugger output, defaults to Stdout
+	DebugAddr    string    // optional address [host]:port for DebugIn/DebugOut
+	DebugIn      io.Reader // debugger input, defaults to Stdin
+	DebugOut     io.Writer // debugger output, defaults to Stdout
 
 	DebugState
 	lastDebugCmd    string
@@ -172,8 +172,6 @@ func debugCmd(m *Machine) error {
 // An error during connection setting will result in program panic.
 func initDebugIO(m *Machine) {
 	if m.DebugAddr == "" {
-		m.DebugIn = os.Stdin
-		m.DebugOut = os.Stdout
 		return
 	}
 	l, err := net.Listen("tcp", m.DebugAddr)
@@ -335,7 +333,9 @@ const detachShort = `Close debugger and resume program.`
 func debugDetach(m *Machine, arg string) error {
 	m.DebugEnabled = false
 	m.DebugState = DebugAtRun
-	m.DebugIn.Close()
+	if i, ok := m.DebugIn.(io.Closer); ok {
+		i.Close()
+	}
 	return nil
 }
 
@@ -380,7 +380,7 @@ func debugHelp(m *Machine, arg string) error {
 		fmt.Fprintln(m.DebugOut, t)
 		return nil
 	}
-	t := "The followings commands are available:\n\n"
+	t := "The following commands are available:\n\n"
 	for _, name := range debugCmdNames {
 		c := debugCmds[name]
 		t += fmt.Sprintf("%-25s %s\n", c.usage, c.short)
@@ -496,6 +496,9 @@ func debugStack(m *Machine, arg string) error {
 	// List stack frames in reverse array order. Deepest level is 0.
 	for i := l; i >= 0; i-- {
 		f := m.Frames[i]
+		if f.Func == nil {
+			continue
+		}
 		loc := debugFrameLoc(m, l-i)
 		fmt.Fprintf(m.DebugOut, "%d\tin %s.%s\n\tat %s:%d\n", l-i, f.LastPackage.PkgPath, f.Func, loc.File, loc.Line)
 	}

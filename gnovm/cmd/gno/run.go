@@ -118,6 +118,8 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		Debug:     cfg.debug || cfg.debugAddr != "",
 		DebugAddr: cfg.debugAddr,
 	})
+	m.DebugIn = stdin
+	m.DebugOut = stdout
 
 	defer m.Release()
 
