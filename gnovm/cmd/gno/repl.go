@@ -161,36 +161,6 @@ func runRepl(cfg *replCfg) error {
 	return nil
 }
 
-func processLine(r *repl.Repl, line string, inEdit bool, prev string) (string, bool, string) {
-	if l := strings.TrimSpace(line); l == ";" {
-		line, inEdit = "", false
-	} else if l == editorCommand {
-		line, inEdit = "", true
-
-		fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
-	}
-
-	if prev != "" {
-		line = prev + "\n" + line
-		prev = ""
-	}
-
-	if !inEdit {
-		if err := handleInput(r, line); err != nil {
-			var goScanError scanner.ErrorList
-			if errors.As(err, &goScanError) {
-				prev = line
-			} else {
-				fmt.Fprintln(os.Stderr, err)
-			}
-		}
-	} else {
-		prev = line
-	}
-
-	return line, inEdit, prev
-}
-
 func handleEditor(line string) (string, bool) {
 	if l := strings.TrimSpace(line); l == ";" {
 		return "", false
