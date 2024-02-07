@@ -103,12 +103,12 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 }
 
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
-	// Validate required client fields.
+	// Validate required client fields
 	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
+		return nil, err
 	}
 	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
+		return nil, err
 	}
 
 	// Validate base transaction config
@@ -148,7 +148,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		})
 	}
 
-	// Cast vm.MsgCall back into std.Msg
+	// Cast vm.MsgRun back into std.Msg
 	stdMsgs := make([]std.Msg, len(vmMsgs))
 	for i, msg := range vmMsgs {
 		stdMsgs[i] = msg
