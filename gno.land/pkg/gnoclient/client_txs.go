@@ -116,8 +116,6 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		return nil, err
 	}
 
-	caller := c.Signer.Info().GetAddress()
-
 	// Parse MsgRun slice
 	vmMsgs := make([]vm.MsgRun, 0, len(msgs))
 	for _, msg := range msgs {
@@ -131,6 +129,8 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		if err != nil {
 			return nil, err
 		}
+
+		caller := c.Signer.Info().GetAddress()
 
 		// Precompile and validate Gno syntax
 		if err = gno.PrecompileAndCheckMempkg(msg.Package); err != nil {

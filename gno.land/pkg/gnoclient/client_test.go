@@ -419,11 +419,6 @@ func TestClient_Run_Errors(t *testing.T) {
 			expectedError: ErrMissingRPCClient,
 		},
 		{
-			name: "Invalid Gas Fee",
-			client: Client{
-				Signer:    &mockSigner{},
-				RPCClient: &mockRPCClient{},
-			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
 				GasFee:         "",
@@ -537,7 +532,7 @@ func TestClient_Run_Errors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			//t.Parallel()
 
 			res, err := tc.client.Run(tc.cfg, tc.msgs...)
 			assert.Nil(t, res)
