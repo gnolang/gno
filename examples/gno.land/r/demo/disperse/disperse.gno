@@ -7,12 +7,11 @@ import (
 // SendSingleCoin parses receivers and amounts and sends out a single coin
 // Currently sending slices as arguments with `maketx call` is unsupported,
 // which is why we parse strings by delimiter here
-func SendSingleCoin(addresses, sendAmounts string) {
-	std.AssertOriginCall()        // assert the call was by a user
+func SendSingleCoin(addresses string, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coin value & denom sent with call
-	caller := std.GetOrigCaller() // get tx caller
+	caller := std.GetOrigCaller() // get tx sender
 
-	if len(coinSent) != 1 {
+	if len(coinSent) != 1 && len(coins) != 1 {
 		panic(errMultipleCoinsSent)
 	}
 
@@ -20,7 +19,7 @@ func SendSingleCoin(addresses, sendAmounts string) {
 	denom := coinSent[0].Denom
 
 	// Get address of Disperse realm
-	realmAddr := std.GetOrigPkgAddr()
+	realmAddr := std.CurrentRealm().Addr()
 
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
