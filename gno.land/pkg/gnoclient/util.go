@@ -20,3 +20,11 @@ func (msg MsgCall) validateMsgCall() error {
 	}
 	return nil
 }
+
+func (msg MsgRun) validateMsgRun() error {
+	if msg.Package == nil {
+		return ErrEmptyPackage
+	}
+	return nil
+
+}
