@@ -205,11 +205,16 @@ func handleEditor(line string) (string, bool) {
 
 func updateIndentLevel(line string, indentLevel int) int {
 	openCount, closeCount := 0, 0
+	increaseIndent := false
 
-	for _, char := range line {
+	for i, char := range line {
 		switch char {
 		case '{', '(', '[':
 			openCount++
+
+			if i < len(line)-1 && line[i+1] == '\n' {
+				increaseIndent = true
+			}
 		case '}', ')', ']':
 			closeCount++
 		}
@@ -218,6 +223,10 @@ func updateIndentLevel(line string, indentLevel int) int {
 	indentLevel += openCount - closeCount
 	if indentLevel < 0 {
 		indentLevel = 0
+	}
+
+	if increaseIndent {
+		indentLevel++
 	}
 
 	if strings.HasSuffix(line, ":") {
@@ -244,7 +253,7 @@ func handleInput(r *repl.Repl, input string) error {
 	case srcCommand:
 		fmt.Fprintln(os.Stdout, r.Src())
 	case clearCommand:
-		clearScreen()
+		clearScreen(&RealCommandExecutor{}, RealOSGetter{})
 	case exitCommand:
 		os.Exit(0)
 	case helpCommand:
@@ -263,17 +272,37 @@ func handleInput(r *repl.Repl, input string) error {
 	return nil
 }
 
-func clearScreen() {
+type CommandExecutor interface {
+	Execute(cmd *exec.Cmd) error
+}
+
+type RealCommandExecutor struct{}
+
+func (e *RealCommandExecutor) Execute(cmd *exec.Cmd) error {
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
+type OsGetter interface {
+	Get() string
+}
+
+type RealOSGetter struct{}
+
+func (r RealOSGetter) Get() string {
+	return runtime.GOOS
+}
+
+func clearScreen(executor CommandExecutor, osGetter OsGetter) {
 	var cmd *exec.Cmd
 
-	if runtime.GOOS == "windows" {
+	if osGetter.Get() == "windows" {
 		cmd = exec.Command("cmd", "/c", "cls")
 	} else {
 		cmd = exec.Command("clear")
 	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	executor.Execute(cmd)
 }
 
 func printHelp() {
