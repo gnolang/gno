@@ -133,8 +133,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		}
 
 		// Precompile and validate Gno syntax
-		err = gno.PrecompileAndCheckMempkg(msg.Package)
-		if err != nil {
+		if err = gno.PrecompileAndCheckMempkg(msg.Package); err != nil {
 			return nil, err
 		}
 
