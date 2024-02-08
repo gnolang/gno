@@ -50,12 +50,19 @@ var (
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
+	if mempkg == nil {
+		return errors.New(fmt.Sprintf("package is nil"))
+	}
 	if !rePkgName.MatchString(mempkg.Name) {
 		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
+	if len(mempkg.Files) == 0 {
+		return errors.New(fmt.Sprintf("package contains no files"))
+	}
+
 	fnames := map[string]struct{}{}
 	for _, memfile := range mempkg.Files {
 		if !reFileName.MatchString(memfile.Name) {

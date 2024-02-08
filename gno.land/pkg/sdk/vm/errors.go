@@ -10,29 +10,23 @@ func (abciError) AssertABCIError() {}
 // declare all script errors.
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
-	InvalidPkgPathError      struct{ abciError }
-	InvalidPackageError      struct{ abciError }
-	InvalidPackageFilesError struct{ abciError }
-	InvalidStmtError         struct{ abciError }
-	InvalidExprError         struct{ abciError }
+	InvalidPkgPathError struct{ abciError }
+	InvalidStmtError    struct{ abciError }
+	InvalidExprError    struct{ abciError }
+	InvalidPackage      struct{ abciError }
 )
 
-func (e InvalidPkgPathError) Error() string      { return "invalid package path" }
-func (e InvalidPackageError) Error() string      { return "invalid package" }
-func (e InvalidPackageFilesError) Error() string { return "invalid package files" }
-func (e InvalidStmtError) Error() string         { return "invalid statement" }
-func (e InvalidExprError) Error() string         { return "invalid expression" }
+func (e InvalidPkgPathError) Error() string { return "invalid package path" }
+func (e InvalidPackage) Error() string      { return "package validation failed" }
+func (e InvalidStmtError) Error() string    { return "invalid statement" }
+func (e InvalidExprError) Error() string    { return "invalid expression" }
 
 func ErrInvalidPkgPath(msg string) error {
 	return errors.Wrap(InvalidPkgPathError{}, msg)
 }
 
 func ErrInvalidPackage(msg string) error {
-	return errors.Wrap(InvalidPackageError{}, msg)
-}
-
-func ErrInvalidPackageFiles(msg string) error {
-	return errors.Wrap(InvalidPackageFilesError{}, msg)
+	return errors.Wrap(InvalidPackage{}, msg)
 }
 
 func ErrInvalidStmt(msg string) error {

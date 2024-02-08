@@ -179,15 +179,14 @@ func (msg MsgRun) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.Package == nil {
-		return ErrInvalidPackage("package is nil")
-	}
-	if len(msg.Package.Files) == 0 {
-		return ErrInvalidPackageFiles("package contains no files")
-	}
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
+
+	if err := msg.Package.Validate(); err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+
 	return nil
 }
 

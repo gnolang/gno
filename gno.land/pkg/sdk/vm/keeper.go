@@ -149,9 +149,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if err := msg.Package.Validate(); err != nil {
-		return ErrInvalidPkgPath(err.Error())
-	}
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
@@ -307,9 +304,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	callerAcc := vm.acck.GetAccount(ctx, caller)
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
-	}
-	if err := msg.Package.Validate(); err != nil {
-		return "", ErrInvalidPkgPath(err.Error())
 	}
 
 	// Send send-coins to pkg from caller.
