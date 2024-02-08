@@ -56,7 +56,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	}
 
 	// Parse MsgCall slice
-	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
+	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
 		if err := msg.validateMsgCall(); err != nil {
@@ -70,19 +70,13 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, vm.MsgCall{
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
 			Caller:  c.Signer.Info().GetAddress(),
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
 			Args:    msg.Args,
 			Send:    send,
-		})
-	}
-
-	// Cast vm.MsgCall back into std.Msg
-	stdMsgs := make([]std.Msg, len(vmMsgs))
-	for i, msg := range vmMsgs {
-		stdMsgs[i] = msg
+		}))
 	}
 
 	// Parse gas fee
@@ -93,7 +87,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 
 	// Pack transaction
 	tx := std.Tx{
-		Msgs:       stdMsgs,
+		Msgs:       vmMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       cfg.Memo,
@@ -117,7 +111,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 	}
 
 	// Parse MsgRun slice
-	vmMsgs := make([]vm.MsgRun, 0, len(msgs))
+	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
 		if err := msg.validateMsgRun(); err != nil {
@@ -141,17 +135,11 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		msg.Package.Path = "gno.land/r/" + caller.String() + "/run"
 
 		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, vm.MsgRun{
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
 			Caller:  caller,
 			Package: msg.Package,
 			Send:    send,
-		})
-	}
-
-	// Cast vm.MsgRun back into std.Msg
-	stdMsgs := make([]std.Msg, len(vmMsgs))
-	for i, msg := range vmMsgs {
-		stdMsgs[i] = msg
+		}))
 	}
 
 	// Parse gas fee
@@ -162,7 +150,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 
 	// Pack transaction
 	tx := std.Tx{
-		Msgs:       stdMsgs,
+		Msgs:       vmMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       cfg.Memo,
