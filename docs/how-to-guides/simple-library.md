@@ -70,6 +70,7 @@ our tapas suggestion library logic:
 
 ```bash
 cd tapas
+gno mod init gno.land/p/demo/tapas
 touch tapas.gno
 ```
 
@@ -117,6 +118,15 @@ func GetTapaSuggestion() string {
 	// Return the random suggestion
 	return listOfTapas[randomIndex]
 }
+```
+
+And inside `gno.mod`, we will define dependencies:
+
+[embedmd]:# (../assets/how-to-guides/simple-library/gno.mod go.mod)
+```go.mod
+module gno.land/p/demo/tapas
+
+require gno.land/p/demo/rand v0.0.0-latest
 ```
 
 There are a few things happening here, so let's dissect them:
