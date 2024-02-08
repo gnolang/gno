@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -2615,15 +2616,16 @@ const (
 
 func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, nt nodeType) {
 	debug.Printf("checkOperandWithOp, dt: %v,op: %v, nt: %v \n", dt, op, nt)
+	escapedOpStr := strings.Replace(wordTokenStrings[op], "%", "%%", 1)
 	if nt == Unary || nt == IncDec {
 		switch nt {
 		case Unary:
 			if pred, ok := unaryChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt.Kind()))
 					} else {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt))
 					}
 				}
 			} else {
@@ -2633,9 +2635,9 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 			if pred, ok := IncDecStmtChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt.Kind()))
 					} else {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt))
 					}
 				}
 			} else {
@@ -2661,9 +2663,9 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 					if pred, ok := binaryChecker[op]; ok {
 						if !pred(dt) {
 							if dt != nil {
-								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+								panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt.Kind()))
 							} else {
-								panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+								panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt))
 							}
 						}
 					} else {
@@ -2676,9 +2678,9 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 				if pred, ok := binaryChecker[op]; ok {
 					if !pred(dt) {
 						if dt != nil {
-							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+							panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt.Kind()))
 						} else {
-							panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+							panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt))
 						}
 					}
 				} else {
@@ -2702,9 +2704,9 @@ func checkOperandWithOp(store Store, last BlockNode, x *Expr, dt Type, op Word, 
 			if pred, ok := AssignStmtChecker[op]; ok {
 				if !pred(dt) {
 					if dt != nil {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt.Kind()))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt.Kind()))
 					} else {
-						panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[op], dt))
+						panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, dt))
 					}
 				}
 				switch op {
