@@ -351,6 +351,7 @@ func TestClient_Call_Errors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -511,7 +512,16 @@ func TestClient_Run_Errors(t *testing.T) {
 		{
 			name: "Invalid Empty Package",
 			client: Client{
-				Signer:    &mockSigner{},
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+								return adr
+							},
+						}
+					},
+				},
 				RPCClient: &mockRPCClient{},
 			},
 			cfg: BaseTxCfg{
@@ -523,12 +533,8 @@ func TestClient_Run_Errors(t *testing.T) {
 			},
 			msgs: []MsgRun{
 				{
-					Package: &std.MemPackage{
-						Name:  "",
-						Path:  "",
-						Files: []*std.MemFile{},
-					},
-					Send: "",
+					Package: nil,
+					Send:    "",
 				},
 			},
 			expectedError: ErrEmptyPackage,
@@ -536,6 +542,7 @@ func TestClient_Run_Errors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
