@@ -58,6 +58,10 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.Deposit.IsValid() {
 		return std.ErrTxDecode("invalid deposit")
 	}
+	if err := msg.Package.Validate(); err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+
 	// XXX validate files.
 	return nil
 }
