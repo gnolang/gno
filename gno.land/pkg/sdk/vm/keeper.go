@@ -303,12 +303,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	send := msg.Send
 	memPkg := msg.Package
 
-	// Force memPkg path to the reserved run path.
-	wantPath := "gno.land/r/" + caller.String() + "/run"
-	if path := memPkg.Path; path != "" && path != wantPath {
-		return "", ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
-	}
-	memPkg.Path = wantPath
+	// coerce path to right one.
+	// the path in the message must be "" or the following path.
+	// this is already checked in MsgRun.ValidateBasic
+	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
