@@ -121,6 +121,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
+	fmt.Println("---execPrecompile")
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -132,6 +133,7 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	}
 
 	opts := newPrecompileOptions(cfg)
+	fmt.Printf("---opts.Precompiled: %v, opts.cfg: %v \n", opts.precompiled, opts.cfg)
 	errCount := 0
 	for _, filepath := range paths {
 		err = precompileFile(filepath, opts)
@@ -171,7 +173,9 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 }
 
 func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
+	fmt.Println("---precompilePkg, ")
 	if opts.isPrecompiled(pkgPath) {
+		fmt.Printf("path: %s isCompiled \n", pkgPath)
 		return nil
 	}
 	opts.markAsPrecompiled(pkgPath)
@@ -181,7 +185,10 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 		log.Fatal(err)
 	}
 
+	fmt.Println("---files: ", files)
+
 	for _, file := range files {
+		fmt.Println("---file: ", file)
 		if err = precompileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
@@ -245,8 +252,10 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 
 	// precompile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports {
+		fmt.Println("---precompile imports")
 		importPaths := getPathsFromImportSpec(precompileRes.Imports)
 		for _, path := range importPaths {
+			fmt.Println("---path: ", path)
 			precompilePkg(path, opts)
 		}
 	}

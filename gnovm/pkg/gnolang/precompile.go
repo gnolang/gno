@@ -264,6 +264,13 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path stri
 	fmt.Printf("---PrecompileRun, dir: %s, gorun: %s \n", tmpDir, goRunBinary)
 	// TODO: use cmd/parser instead of exec?
 
+	cmd := exec.Command("go", "version")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Printf("go version in host: %s \n", string(out))
+
 	originalDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println("Error getting current working directory:", err)
@@ -278,33 +285,33 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path stri
 		}
 	}()
 
-	if debug {
-		// Read the directory contents
-		files, err := ioutil.ReadDir(tmpDir)
-		if err != nil {
-			fmt.Println("Error reading directory:", err)
-			return err, ""
-		}
-		// Iterate over the files and print their names
-		for _, file := range files {
-			fmt.Println("---file: ", file.Name())
-		}
-		content, err := os.ReadFile("main.go")
-		if err != nil {
-			fmt.Println("Error reading file contents:", err)
-			return err, ""
-		}
-
-		fmt.Println("File contents:")
-		fmt.Println(string(content))
+	//if debug {
+	// Read the directory contents
+	files, err := ioutil.ReadDir(tmpDir)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return err, ""
 	}
+	// Iterate over the files and print their names
+	for _, file := range files {
+		fmt.Println("---file: ", file.Name())
+	}
+	content, err := os.ReadFile(filepath.Join(tmpDir, "main.go"))
+	if err != nil {
+		fmt.Println("Error reading file contents:", err)
+		return err, ""
+	}
+
+	fmt.Println("File contents:")
+	fmt.Println(string(content))
+	//}
 
 	args := strings.Split(goRunBinary, " ")
 	args = append(args, filepath.Join(tmpDir, fileName))
 	//args = append(args, fileName)
 	fmt.Println("---args: ", args)
 
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd = exec.Command(args[0], args[1:]...)
 
 	// Create pipes to capture stdout and stderr
 	stdout, err := cmd.StdoutPipe()
@@ -353,7 +360,7 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path stri
 	fmt.Println(stderrBuf.String())
 	//fmt.Println(strings.Split(stderrBuf.String(), "\n")[1])
 
-	res, isErr := identifyCommandLineArguments(stderrBuf.String(), path)
+	res, isErr := parseResult(stderrBuf.String(), path)
 	if isErr && res != "" {
 		fmt.Println("---return stderr")
 		return errors.New(res), ""
@@ -370,7 +377,7 @@ func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path stri
 	return nil, ""
 }
 
-func identifyCommandLineArguments(input string, path string) (string, bool) {
+func parseResult(input string, path string) (string, bool) {
 	// List of substrings to be trimmed
 	//substrings := []string{"command-line-arguments", "# command-line-arguments"}
 	tag := "command-line-arguments"
@@ -398,40 +405,112 @@ func identifyCommandLineArguments(input string, path string) (string, bool) {
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
 func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
+	fmt.Println("---PrecompileBuildPackage, fileOrPkg: ", fileOrPkg)
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
 	// TODO: automatically precompile if not yet done.
 
+	//  for test
 	files := []string{}
 
-	info, err := os.Stat(fileOrPkg)
+	//info, err := os.Stat(fileOrPkg)
+	//if err != nil {
+	//	return fmt.Errorf("invalid file or package path: %w", err)
+	//}
+	//if !info.IsDir() {
+	//	file := fileOrPkg
+	//	files = append(files, file)
+	//} else {
+	//	pkgDir := fileOrPkg
+	//	goGlob := filepath.Join(pkgDir, "*.go")
+	//	goMatches, err := filepath.Glob(goGlob)
+	//	if err != nil {
+	//		return fmt.Errorf("glob: %w", err)
+	//	}
+	//	for _, goMatch := range goMatches {
+	//		switch {
+	//		case strings.HasPrefix(goMatch, "."): // skip
+	//		case strings.HasSuffix(goMatch, "_filetest.go"): // skip
+	//		//case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
+	//		case strings.HasSuffix(goMatch, "_test.go"): // skip
+	//		case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
+	//		default:
+	//			files = append(files, goMatch)
+	//		}
+	//	}
+	//}
+
+	// Get the current working directory
+
+	// new go.mod and build logic
+	originalDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("invalid file or package path: %w", err)
+		fmt.Println("Error getting current working directory:", err)
+		return err
 	}
-	if !info.IsDir() {
-		file := fileOrPkg
-		files = append(files, file)
-	} else {
-		pkgDir := fileOrPkg
-		goGlob := filepath.Join(pkgDir, "*.go")
-		goMatches, err := filepath.Glob(goGlob)
+
+	fmt.Println("Current working directory:", originalDir)
+
+	defer func() {
+		err := os.Chdir(originalDir)
 		if err != nil {
-			return fmt.Errorf("glob: %w", err)
+			fmt.Println("Error changing back to original directory:", err)
+			panic(err)
 		}
-		for _, goMatch := range goMatches {
-			switch {
-			case strings.HasPrefix(goMatch, "."): // skip
-			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-			default:
-				files = append(files, goMatch)
-			}
+	}()
+
+	// Change the working directory to the target directory
+	if err := os.Chdir(fileOrPkg); err != nil {
+		fmt.Println("Error changing directory:", err)
+		return err
+	}
+	// check if exist
+	_, err = os.Stat("go.mod")
+	if err != nil && os.IsNotExist(err) {
+		fmt.Println("---go.mod does not exist")
+		// Initialize a Go module if go.mod doesn't exist.
+		// Run "go mod init" here.
+		// Run "go mod init" to initialize a Go module.
+		cmd := exec.Command("go", "mod", "init", "gno.land/r/demo/compile")
+		err := cmd.Run()
+		if err != nil {
+			// Handle the error.
+			//panic(err.Error())
+			return err
 		}
 	}
+	fmt.Println("---check go.mod again")
+	_, err = os.Stat("go.mod")
+	if err != nil && os.IsNotExist(err) {
+		panic("go mod not exist")
+	}
+	fmt.Println("--- got it, going to build")
+	// list file and contents for debug
+	newfiles, err := ioutil.ReadDir("./")
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return err
+	}
+	// Iterate over the files and print their names
+	for _, file := range newfiles {
+		fmt.Println("---file: ", file.Name())
+		//content, err := os.ReadFile(filepath.Join(fileOrPkg, file.Name()))
+		content, err := os.ReadFile(file.Name())
+		if err != nil {
+			fmt.Println("Error reading file contents:", err)
+			return err
+		}
+		fmt.Println("File contents:")
+		fmt.Println(string(content))
+		// overwrite to files
+		if strings.HasSuffix(file.Name(), ".go") {
+			files = append(files, file.Name())
+		}
+	}
+
+	// =======================================================
 
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
@@ -440,9 +519,12 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	if err == nil {
 		cmd.Dir = rootDir
 	}
+	fmt.Println("rootDir: ", rootDir)
 	out, err := cmd.CombinedOutput()
+	//fmt.Println("---out:", string(out))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
+		fmt.Printf("---build fail, out: %s \n", string(out))
 		return fmt.Errorf("std go compiler: %w", err)
 	}
 

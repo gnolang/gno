@@ -116,13 +116,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
+	// go exec whitelist
+	goExecWhitelist := map[string]struct{}{"files": struct{}{}, "debug": struct{}{}, "challenges": struct{}{}}
 	var isRunGo bool
 	for _, d := range directives {
 		if d == "Go_Error" || d == "Go_Output" {
-			isRunGo = true
+			if _, ok := goExecWhitelist[strings.Split(path, "/")[0]]; ok {
+				isRunGo = true
+			}
 		}
 	}
-
 	// value from precompile stage exec
 	var GoOutput string
 	var GoErr string
@@ -185,7 +188,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					},
 				}
 				fmt.Println("---not realm, going to precompile and verify")
-				// TODO: conditioned with directives
 				if isRunGo {
 					err, output := gno.PrecompileAndRunMempkg(memPkg, path)
 					//pcer := &precompileExecResult{}
@@ -307,14 +309,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		fmt.Println("---len of directives is: ", len(directives))
 		for _, directive := range directives {
 			switch directive {
-			case "Gno_Error":
+			case "Error":
 				fmt.Println("---Gno Error")
 				// gnoErrWanted given
 				if gnoErrWanted != "" {
+					fmt.Println("---Gno Error wanted: ", gnoErrWanted)
 					if pnc == nil {
 						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, gnoErrWanted))
 					}
-
 					errstr := ""
 					switch v := pnc.(type) {
 					case *gno.TypedValue:
@@ -324,13 +326,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
+					fmt.Println("---Gno errstr: ", errstr)
 					if errstr != gnoErrWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, gnoErrWanted))
 					}
 
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
-					//return nil // nothing more to do.
+					return nil // nothing more to do. Go_Error will happend first
 				} else {
 					println("---else")
 					// record errors when gnoErrWanted is empty and pnc not nil
@@ -348,7 +351,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
 								"DELETE THIS LINE AND RUN TEST AGAIN ***",
 						)
-						replaceWantedInPlace(path, "Gno_Error", ctl)
+						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
 					// check gno debug errors when gnoErrWanted is empty, pnc is nil
@@ -356,7 +359,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 					}
 					// pnc is nil, gnoErrWanted empty, no gno debug errors
-					//return nil
+					return nil
 				}
 			case "Go_Error":
 				fmt.Println("---Go_Error, goErrWanted, GoErr:", goErrWanted, GoErr)
@@ -367,10 +370,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					if errstr != goErrWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, goErrWanted))
 					}
-
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
-					//return nil // nothing more to do.
 				} else {
 					fmt.Println("--goErrWanted empty")
 					// record errors when gnoErrWanted is empty and pnc not nil
@@ -385,14 +386,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						replaceWantedInPlace(path, "Go_Error", ctl)
 					}
 				}
-			case "Gno_Output":
-				fmt.Println("---Gno_Output")
+			case "Output":
+				fmt.Println("---Output")
 				// panic if got unexpected error
 				if pnc != nil {
 					if tv, ok := pnc.(*gno.TypedValue); ok {
 						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
 					} else { // happens on 'unknown import path ...'
-						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v,", path, pnc))
 					}
 				}
 				// check result
@@ -401,7 +402,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				if res != resWanted {
 					if f.syncWanted {
 						// write output to file.
-						replaceWantedInPlace(path, "Gno_Output", res)
+						replaceWantedInPlace(path, "Output", res)
 					} else {
 						// panic so tests immediately fail (for now).
 						if resWanted == "" {
@@ -530,22 +531,22 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, gnoErr, goE
 			line := strings.SplitN(text, "\n", 2)[0]
 			sendstr := strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
 			send = std.MustParseCoins(sendstr)
-		} else if strings.HasPrefix(text, "Gno_Output:\n") {
-			res = strings.TrimPrefix(text, "Gno_Output:\n")
+		} else if strings.HasPrefix(text, "Output:\n") {
+			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
-			directives = append(directives, "Gno_Output")
+			directives = append(directives, "Output")
 		} else if strings.HasPrefix(text, "Go_Output:\n") {
 			res = strings.TrimPrefix(text, "Go_Output:\n")
 			res = strings.TrimSpace(res)
 			directives = append(directives, "Go_Output")
-		} else if strings.HasPrefix(text, "Gno_Error:\n") {
-			gnoErr = strings.TrimPrefix(text, "Gno_Error:\n")
+		} else if strings.HasPrefix(text, "Error:\n") {
+			gnoErr = strings.TrimPrefix(text, "Error:\n")
 			gnoErr = strings.TrimSpace(gnoErr)
 			// XXX temporary until we support line:column.
 			// If error starts with line:column, trim it.
 			re := regexp.MustCompile(`^[0-9]+:[0-9]+: `)
 			gnoErr = re.ReplaceAllString(gnoErr, "")
-			directives = append(directives, "Gno_Error")
+			directives = append(directives, "Error")
 		} else if strings.HasPrefix(text, "Go_Error:\n") {
 			fmt.Println("---parse, has Go_Error prefix, text: ", text)
 			goErr = strings.TrimPrefix(text, "Go_Error:\n")
