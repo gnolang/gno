@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCall_Single(t *testing.T) {
+func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -56,7 +56,7 @@ func TestCall_Single(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestCall_Multiple(t *testing.T) {
+func TestCallMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -108,7 +108,7 @@ func TestCall_Multiple(t *testing.T) {
 }
 
 // Run tests
-func TestRun_Single(t *testing.T) {
+func TestRunSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -121,6 +121,15 @@ func TestRun_Single(t *testing.T) {
 	client := Client{
 		Signer:    signer,
 		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
 	}
 
 	fileBody := `package main
@@ -137,15 +146,6 @@ func main() {
 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
 }`
 
-	// Make Tx config
-	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
-		GasWanted:      8000000,
-		AccountNumber:  0,
-		SequenceNumber: 0,
-		Memo:           "",
-	}
-
 	// Make Msg configs
 	msg := MsgRun{
 		Package: &std.MemPackage{
@@ -161,12 +161,12 @@ func main() {
 
 	res, err := client.Run(baseCfg, msg)
 	assert.NoError(t, err)
-	assert.NotNil(t, res)
+	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
 }
 
 // Run tests
-func TestRun_Multiple(t *testing.T) {
+func TestRunMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -179,6 +179,15 @@ func TestRun_Multiple(t *testing.T) {
 	client := Client{
 		Signer:    signer,
 		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
 	}
 
 	fileBody1 := `package main
@@ -204,15 +213,6 @@ import (
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
-
-	// Make Tx config
-	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
-		GasWanted:      8000000,
-		AccountNumber:  0,
-		SequenceNumber: 0,
-		Memo:           "",
-	}
 
 	// Make Msg configs
 	msg1 := MsgRun{
@@ -242,7 +242,7 @@ func main() {
 
 	res, err := client.Run(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
-	assert.NotNil(t, res)
+	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 

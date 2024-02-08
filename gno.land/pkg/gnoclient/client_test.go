@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func TestClient_Render(t *testing.T) {
+func TestRender(t *testing.T) {
 	t.Parallel()
 	testRealmPath := "gno.land/r/demo/deep/very/deep"
 	expectedRender := []byte("it works!")
@@ -55,7 +55,7 @@ func TestClient_Render(t *testing.T) {
 }
 
 // Call tests
-func TestClient_CallSingle(t *testing.T) {
+func TestCallSingle(t *testing.T) {
 	t.Parallel()
 
 	client := Client{
@@ -109,7 +109,7 @@ func TestClient_CallSingle(t *testing.T) {
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
 }
 
-func TestClient_CallMultiple(t *testing.T) {
+func TestCallMultiple(t *testing.T) {
 	t.Parallel()
 
 	client := Client{
@@ -179,7 +179,7 @@ func TestClient_CallMultiple(t *testing.T) {
 	assert.NotNil(t, res)
 }
 
-func TestClient_Call_Errors(t *testing.T) {
+func TestCallErrors(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -363,7 +363,153 @@ func TestClient_Call_Errors(t *testing.T) {
 }
 
 // Run tests
-func TestClient_Run_Errors(t *testing.T) {
+func TestRunSingle(t *testing.T) {
+	t.Parallel()
+
+	client := Client{
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return &mockKeysInfo{
+					getAddress: func() crypto.Address {
+						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+						return adr
+					},
+				}
+			},
+		},
+		RPCClient: &mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				res := &ctypes.ResultBroadcastTxCommit{
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Data: []byte("hi gnoclient!\n"),
+						},
+					},
+				}
+				return res, nil
+			},
+		},
+	}
+
+	cfg := BaseTxCfg{
+		GasWanted:      100000,
+		GasFee:         "10000ugnot",
+		AccountNumber:  1,
+		SequenceNumber: 1,
+		Memo:           "Test memo",
+	}
+
+	fileBody := `package main
+import (
+	"std"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/deep/very/deep"
+)
+func main() {
+	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
+}`
+
+	msg := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: "",
+	}
+
+	res, err := client.Run(cfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+}
+
+func TestRunMultiple(t *testing.T) {
+	t.Parallel()
+
+	client := Client{
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return &mockKeysInfo{
+					getAddress: func() crypto.Address {
+						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+						return adr
+					},
+				}
+			},
+		},
+		RPCClient: &mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				res := &ctypes.ResultBroadcastTxCommit{
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Data: []byte("hi gnoclient!\nhi gnoclient!\n"),
+						},
+					},
+				}
+				return res, nil
+			},
+		},
+	}
+
+	cfg := BaseTxCfg{
+		GasWanted:      100000,
+		GasFee:         "10000ugnot",
+		AccountNumber:  1,
+		SequenceNumber: 1,
+		Memo:           "Test memo",
+	}
+
+	fileBody := `package main
+import (
+	"std"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/deep/very/deep"
+)
+func main() {
+	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
+}`
+
+	msg1 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main1.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: "",
+	}
+
+	msg2 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main2.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: "",
+	}
+
+	res, err := client.Run(cfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+}
+
+func TestRunErrors(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
