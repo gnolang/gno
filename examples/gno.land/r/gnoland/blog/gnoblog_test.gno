@@ -24,21 +24,19 @@ No posts.
 	// create two posts, list post.
 	{
 		ModAddPost("slug1", "title1", "body1", "2022-05-02T13:17:22Z", "moul", "tag1,tag2")
-		ModAddPost("slug2", "title2", "body2", "2022-05-02T13:17:22Z", "moul", "tag1,tag3")
+		ModAddPost("slug2", "title2", "body2", "2022-05-02T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
 # Gnoland's Blog
 
 <div class='columns-3'><div>
 
-## [title1](/r/gnoland/blog:p/slug1)
-**[Learn More](/r/gnoland/blog:p/slug1)**
-
+### [title2](/r/gnoland/blog:p/slug2)
+ 02 May 2022
 </div><div>
 
-## [title2](/r/gnoland/blog:p/slug2)
-**[Learn More](/r/gnoland/blog:p/slug2)**
-
+### [title1](/r/gnoland/blog:p/slug1)
+ 02 May 2022
 </div></div>
 `
 		assertMDEquals(t, got, expected)
