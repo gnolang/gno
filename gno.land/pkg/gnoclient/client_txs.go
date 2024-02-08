@@ -142,7 +142,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, vm.MsgRun{
-			Caller:  c.Signer.Info().GetAddress(),
+			Caller:  caller,
 			Package: msg.Package,
 			Send:    send,
 		})

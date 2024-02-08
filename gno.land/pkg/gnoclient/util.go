@@ -1,10 +1,10 @@
 package gnoclient
 
 func (cfg BaseTxCfg) validateBaseTxConfig() error {
-	if cfg.GasWanted < 0 {
+	if cfg.GasWanted <= 0 {
 		return ErrInvalidGasWanted
 	}
-	if cfg.GasFee < "" {
+	if cfg.GasFee == "" {
 		return ErrInvalidGasFee
 	}
 
@@ -22,9 +22,8 @@ func (msg MsgCall) validateMsgCall() error {
 }
 
 func (msg MsgRun) validateMsgRun() error {
-	if msg.Package == nil {
+	if msg.Package == nil || len(msg.Package.Files) == 0 {
 		return ErrEmptyPackage
 	}
 	return nil
-
 }
