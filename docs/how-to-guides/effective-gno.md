@@ -611,7 +611,7 @@ For example, if you're creating a coin for cross-chain transfers, native tokens
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-TODO: native banker example.
+Read about how to use the Banker module [here](../concepts/standard-library/banker).
 
 #### GRC20 tokens
 
