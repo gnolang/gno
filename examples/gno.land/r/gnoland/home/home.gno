@@ -19,6 +19,7 @@ func Render(_ string) string {
 	// body
 	dom.Body.Append(introSection()...)
 	dom.Body.Append(ui.Jumbotron(worxDAO()))
+    dom.Body.Append(playgroundSection()...)
 	dom.Body.Append(packageStaffPicks()...)
 	dom.Body.Append(ui.HR{})
 	dom.Body.Append(
@@ -143,6 +144,15 @@ func socialLinks() ui.Element {
 	}
 }
 
+func playgroundSection() ui.Element {
+    return ui.Element{
+        ui.H3("Gno Playground, a DevX tool to write and deploy smart contracts directly on Gno.land"),
+        ui.Paragraph("Gno Playground is a simple web interface that lets you run, test, and experiment with your Gno code to improve your understanding of the Gnolang language. You can share your code, run unit tests, deploy your realms and packages, and execute functions in your code using the repo."),
+        ui.Paragraph("Get inspired by testing out the new packages and realms below in Gno Playground."),
+        ui.Link{Text: "Get started with Gno Playground", URL: "https://play.gno.land/"},
+    }
+}
+
 func packageStaffPicks() ui.Element {
 	// XXX: make it modifiable from a DAO
 	return ui.Element{
@@ -224,6 +234,7 @@ func discoverLinks() ui.Element {
 
 - [Gno dev with CLI (soon)](#)
 - [Explore the Universe](/ecosystem)
+- [Gno Playground](https://play.gno.land)
 - [Test in the browser (soon)](#)
 - [About the Gno Language](/gnolang)
 - [Docs/ Tutorials](https://github.com/gnolang)

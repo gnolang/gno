@@ -24,6 +24,13 @@ func main() {
 // TODO: GoR dashboard + WorxDAO topics
 // </div><!-- /jumbotron -->
 //
+// ### Gno Playground, a DevX tool to write and deploy smart contracts directly on Gno.land
+//
+// Gno Playground is a simple web interface that lets you run, test, and experiment with your Gno code to improve your understanding of the Gnolang language. You can share your code, run unit tests, deploy your realms and packages, and execute functions in your code using the repo.
+// Get inspired by testing out the new packages and realms below in Gno Playground.
+//
+// [Get started with Gno Playground](https://play.gno.land/)
+//
 // ### Explore New Packages and Realms
 //
 // <div class="columns-3">
@@ -128,6 +135,7 @@ func main() {
 //
 // - [Gno dev with CLI (soon)](#)
 // - [Explore the Universe](/ecosystem)
+// - [Gno Playground](https://play.gno.land)
 // - [Test in the browser (soon)](#)
 // - [About the Gno Language](/gnolang)
 // - [Docs/ Tutorials](https://github.com/gnolang)
