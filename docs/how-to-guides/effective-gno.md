@@ -605,7 +605,7 @@ own pros and cons, and the best fit depends on your needs.
 
 Native tokens are managed by the banker module, separate from GnoVM. They're
 simple, strict, and secure. You can create, transfer, and check balances with an
-RPC call, no Gnovm needed.
+RPC call, no GnoVM needed.
 
 For example, if you're creating a coin for cross-chain transfers, native tokens
 are your best bet. They're IBC-ready and their strict rules offer top-notch
