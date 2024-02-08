@@ -1451,17 +1451,7 @@ func (m *Machine) ForcePopOp() {
 }
 
 // Offset starts at 1.
-// DEPRECATED use PeekStmt1() instead.
-func (m *Machine) PeekStmt(offset int) Stmt {
-	if debug {
-		if offset != 1 {
-			panic("should not happen")
-		}
-	}
-	return m.Stmts[len(m.Stmts)-offset]
-}
-
-func (m *Machine) PeekStmt1() Stmt {
+func (m *Machine) PeekStmt() Stmt {
 	numStmts := len(m.Stmts)
 	s := m.Stmts[numStmts-1]
 	if bs, ok := s.(*bodyStmt); ok {
@@ -1779,7 +1769,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*bodyStmt)
+	ls := m.PeekStmt().(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }
 
@@ -1790,7 +1780,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
-	ls := m.PeekStmt(1).(*bodyStmt)
+	ls := m.PeekStmt().(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
 }
 
