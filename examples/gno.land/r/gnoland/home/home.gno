@@ -145,12 +145,12 @@ func socialLinks() ui.Element {
 }
 
 func playgroundSection() ui.Element {
-    return ui.Element{
-        ui.H3("Gno Playground, a DevX tool to write and deploy smart contracts directly on Gno.land"),
-        ui.Paragraph("Gno Playground is a simple web interface that lets you run, test, and experiment with your Gno code to improve your understanding of the Gnolang language. You can share your code, run unit tests, deploy your realms and packages, and execute functions in your code using the repo."),
-        ui.Paragraph("Get inspired by testing out the new packages and realms below in Gno Playground."),
-        ui.Link{Text: "Get started with Gno Playground", URL: "https://play.gno.land/"},
-    }
+	return ui.Element{
+		ui.H3("Gno Playground, a DevX tool to write and deploy smart contracts directly on Gno.land"),
+		ui.Paragraph("Gno Playground is a simple web interface that lets you run, test, and experiment with your Gno code to improve your understanding of the Gnolang language. You can share your code, run unit tests, deploy your realms and packages, and execute functions in your code using the repo."),
+		ui.Paragraph("Get inspired by testing out the new packages and realms below in Gno Playground."),
+		ui.Link{Text: "Get started with Gno Playground", URL: "https://play.gno.land/"},
+	}
 }
 
 func packageStaffPicks() ui.Element {
