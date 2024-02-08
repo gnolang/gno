@@ -3,11 +3,11 @@ package gnopages
 func init() {
 	var (
 		path  = "gnolang"
-		title = "Gnolang (Gno) Is a Complete Language for Blockchain"
+		title = "Gno Is a Complete Language for Blockchain"
 		// XXX: description = "Gnolang (Gno) is an interpretation of the popular Golang (Go) language for blockchain created by Tendermint and Cosmos founder Jae Kwon."
-		body = `# About the Gnolang, the Gno Language
+		body = `# About the Gno, the Language for Gno.land
 
-[Gnolang](https://github.com/gnolang/gno/blob/master/LICENSE.md) (Gno) is an interpretation of the widely-used Golang (Go) programming language for blockchain created by Cosmos co-founder Jae Kwon in 2022 to mark a new era in smart contracting. Gno is ~99% identical to Go, so Go programmers can start coding in Gno right away, with a minimal learning curve. For example, Gno comes with blockchain-specific standard libraries, but any code that doesn’t use blockchain-specific logic can run in Go with minimal processing. Libraries that don’t make sense in the blockchain context, such as network or operating-system access, are not available in Gno. Otherwise, Gno loads and uses many standard libraries that power Go, so most of the parsing of the source code is the same.
+[Gno](https://github.com/gnolang/gno/blob/master/LICENSE.md) is an interpretation of the widely-used Go (Golang) programming language for blockchain created by Cosmos co-founder Jae Kwon in 2022 to mark a new era in smart contracting. Gno is ~99% identical to Go, so Go programmers can start coding in Gno right away, with a minimal learning curve. For example, Gno comes with blockchain-specific standard libraries, but any code that doesn’t use blockchain-specific logic can run in Go with minimal processing. Libraries that don’t make sense in the blockchain context, such as network or operating-system access, are not available in Gno. Otherwise, Gno loads and uses many standard libraries that power Go, so most of the parsing of the source code is the same.
 
 Under the hood, the Gno code is parsed into an abstract syntax tree (AST) and the AST itself is used in the interpreter, rather than bytecode as in many virtual machines such as Java, Python, or Wasm. This makes even the GnoVM accessible to any Go programmer. The novel design of the intuitive GnoVM interpreter allows Gno to freeze and resume the program by persisting and loading the entire memory state. Gno is deterministic, auto-persisted, and auto-Merkle-ized, allowing (smart contract) programs to be succinct, as the programmer doesn’t have to serialize and deserialize objects to persist them into a database (unlike programming applications with the Cosmos SDK).
 
