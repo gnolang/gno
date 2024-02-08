@@ -35,12 +35,13 @@ type MsgCall struct {
 	Send     string   // Send amount
 }
 
+// MsgRun - syntax sugar for vm.MsgRun
 type MsgRun struct {
 	Package *std.MemPackage // Package to run
 	Send    string          // Send amount
 }
 
-// Call executes a contract call on the blockchain.
+// Call executes a one or more MsgCall calls on the blockchain.
 func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
@@ -96,6 +97,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
+// Run executes a one or more MsgRun calls on the blockchain.
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields
 	if err := c.validateSigner(); err != nil {
