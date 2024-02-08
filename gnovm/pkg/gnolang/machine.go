@@ -133,10 +133,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Context = context
 	mm.VMGasMeter = vmGasMeter
 
-	if mm.Alloc != nil {
-		mm.Alloc.vmGasMeter = &mm.VMGasMeter
-	}
-
 	if pv != nil {
 		mm.SetActivePackage(pv)
 	}
