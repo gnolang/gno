@@ -19,7 +19,7 @@ func Render(_ string) string {
 	// body
 	dom.Body.Append(introSection()...)
 	dom.Body.Append(ui.Jumbotron(worxDAO()))
-    dom.Body.Append(playgroundSection()...)
+	dom.Body.Append(playgroundSection()...)
 	dom.Body.Append(packageStaffPicks()...)
 	dom.Body.Append(ui.HR{})
 	dom.Body.Append(
