@@ -28,3 +28,10 @@ package bar
 func Render(path string) string {
  	return "hello from foo"
 }
+
+-- script/script.gno --
+package main
+import "gno.land/r/foobar/bar"
+func main() {
+	println("main: ---", bar.Render(""), "---")
+}
