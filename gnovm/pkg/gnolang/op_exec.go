@@ -131,6 +131,21 @@ func (m *Machine) doOpExec(op Op) {
 				// or uh...
 				bs.Active = next
 				s = next
+
+				// There is a `bs.Post` statement. This may mutate the value of the loop counter.
+				// Push the value now to potential closures before the post statement is executed.
+				// if block := m.LastBlock(); block.resolvedClosureValues[s.]
+				if block := m.LastBlock(); len(block.closureRefs) != 0 {
+					if assignStmt, ok := block.Source.(*ForStmt).Init.(*AssignStmt); ok {
+						for _, expr := range assignStmt.Lhs {
+							if nameExpr, ok := expr.(*NameExpr); ok {
+								// Is this okay? the ptr's TV type will still not be nil in this case?
+								ptr := block.GetPointerTo(m.Store, nameExpr.Path)
+								m.handleRedefinition(m.LastBlock(), nameExpr.Path, ptr.TV)
+							}
+						}
+					}
+				}
 				goto EXEC_SWITCH
 			}
 		} else {
@@ -173,6 +188,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					m.handleRedefinition(m.LastBlock(), knxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -188,6 +204,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					m.handleRedefinition(m.LastBlock(), vnxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -269,6 +286,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					m.handleRedefinition(m.LastBlock(), knxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -282,6 +300,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					m.handleRedefinition(m.LastBlock(), vnxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -362,6 +381,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knxp := bs.Key.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					m.handleRedefinition(m.LastBlock(), knxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
@@ -375,6 +395,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnxp := bs.Value.(*NameExpr).Path
 					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					m.handleRedefinition(m.LastBlock(), vnxp, ptr.TV)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")

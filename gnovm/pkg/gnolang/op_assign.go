@@ -10,8 +10,11 @@ func (m *Machine) doOpDefine() {
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
+
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		m.handleRedefinition(lb, nx.Path, ptr.TV)
+
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {
@@ -22,6 +25,39 @@ func (m *Machine) doOpDefine() {
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
+}
+
+// handleRedefinition handles a special case where a named symbol is redefined within
+// the same block. This can happen in a loop block or a combination of labels and gotos.
+// During redefinitions, we should check if there are closures from within this block referencing
+// this symbol. If so, publish the value to the function value before it is redefined with a new value.
+func (m *Machine) handleRedefinition(block *Block, valuePath ValuePath, tv *TypedValue) {
+	// This is only a redifinition if the type is not nil. Also don't bother with
+	// the special case of the blank identifier; the index of this identifier can only
+	// have unintended side effects on actual zero indexed identifiers.
+	if tv.T == nil || valuePath.Name == "_" {
+		return
+	}
+
+	// Do nothing if the block has no closure references.
+	var funcRefs []*funcValueWithDepth
+	if funcRefs = block.closureRefs[int(valuePath.Index)]; funcRefs == nil {
+		return
+	}
+
+	tvCopy := tv.unrefCopy(m.Alloc, m.Store)
+	for _, ref := range funcRefs {
+		newNameExpr := noAttrNameExpr{
+			Name:      valuePath.Name,
+			ValuePath: valuePath,
+		}
+
+		newNameExpr.Depth = ref.depth
+		ref.fv.finalizedNamedTypes[newNameExpr] = &tvCopy
+	}
+
+	// This particular reference has been resolved.
+	delete(block.closureRefs, int(valuePath.Index))
 }
 
 func (m *Machine) doOpAssign() {

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"sort"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -681,20 +682,79 @@ func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
-	m.Alloc.AllocateFunc()
-	m.PushValue(TypedValue{
-		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
+
+	// Assign add references to this func to the blocks
+	// that contain variables used by this func. This will
+	// enable the blocks to publish the finalized values for this
+	// func to use in the case where they are redefined as in a
+	// loop or label/goto instance.
+	externNames := x.GetExternNames()
+	nameExpressions := make([]*NameExpr, 0, len(externNames))
+	for _, n := range externNames {
+		vp := x.GetPathForName(m.Store, n)
+		if vp.Depth == 0 { // skip uverse name
+			continue
+		}
+
+		// necessary?
+		// vp.Depth -= 1 // from the perspective of funcLit block
+		nameExpressions = append(
+			nameExpressions,
+			&NameExpr{
+				Name: n,
+				Path: vp,
+			},
+		)
+	}
+
+	sort.Slice(
+		nameExpressions,
+		func(i, j int) bool {
+			return nameExpressions[i].Path.Depth < nameExpressions[j].Path.Depth
 		},
-	})
+	)
+
+	m.Alloc.AllocateFunc()
+	funcValue := &FuncValue{
+		Type:                ft,
+		IsMethod:            false,
+		Source:              x,
+		Name:                "",
+		Closure:             lb,
+		PkgPath:             m.Package.PkgPath,
+		body:                x.Body,
+		nativeBody:          nil,
+		finalizedNamedTypes: make(map[noAttrNameExpr]*TypedValue),
+	}
+
+	scopedBlock := lb
+	lastDepth := uint8(1)
+	for _, expr := range nameExpressions {
+		if expr.Path.Depth-1 != uint8(lastDepth) {
+			for i := uint8(1); i < expr.Path.Depth-1; i++ { // find target block at certain depth
+				scopedBlock = lb.GetParent(m.Store)
+			}
+
+			lastDepth = expr.Path.Depth - 1
+		}
+
+		indexFuncVals := scopedBlock.closureRefs[int(expr.Path.Index)]
+		indexFuncVals = append(
+			indexFuncVals,
+			&funcValueWithDepth{
+				fv:    funcValue,
+				depth: expr.Path.Depth,
+			},
+		)
+		scopedBlock.closureRefs[int(expr.Path.Index)] = indexFuncVals
+	}
+
+	m.PushValue(
+		TypedValue{
+			T: ft,
+			V: funcValue,
+		},
+	)
 }
 
 func (m *Machine) doOpConvert() {

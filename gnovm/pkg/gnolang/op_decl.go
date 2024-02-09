@@ -60,6 +60,7 @@ func (m *Machine) doOpValueDecl() {
 		}
 		nx := s.NameExprs[i]
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		m.handleRedefinition(lb, nx.Path, ptr.TV)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 	}
 }

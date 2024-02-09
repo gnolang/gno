@@ -537,8 +537,9 @@ type FuncValue struct {
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
-	body       []Stmt         // function body
-	nativeBody func(*Machine) // alternative to Body
+	body                []Stmt         // function body
+	nativeBody          func(*Machine) // alternative to Body
+	finalizedNamedTypes map[noAttrNameExpr]*TypedValue
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -1023,6 +1024,8 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.V = cv.Copy(alloc)
 	default:
 		cp = tv
+		cp.N = [8]byte{}
+		copy(cp.N[:], tv.N[:])
 	}
 	return
 }
@@ -2259,6 +2262,16 @@ type Block struct {
 	Parent     Value
 	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+
+	// closureRefs maps `Values` indexes to func values. This is used to publish finalized
+	// values to function that reference them when the named values are redefined.
+	closureRefs           map[int][]*funcValueWithDepth
+	resolvedClosureValues map[noAttrNameExpr]*TypedValue
+}
+
+type funcValueWithDepth struct {
+	fv    *FuncValue
+	depth uint8
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2268,9 +2281,10 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		values = make([]TypedValue, source.GetNumNames())
 	}
 	return &Block{
-		Source: source,
-		Values: values,
-		Parent: parent,
+		Source:      source,
+		Values:      values,
+		Parent:      parent,
+		closureRefs: make(map[int][]*funcValueWithDepth),
 	}
 }
 
@@ -2340,6 +2354,31 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	}
 }
 
+func (b *Block) GetResolvedClosureValuePointer(name noAttrNameExpr, offset uint8) (pv PointerValue, found bool) {
+	// var (
+	// 	parent *Block
+	// 	ok     bool
+	// )
+	// if parent, ok = b.Parent.(*Block); !ok || parent == nil {
+	// 	return
+	// }
+
+	if b.resolvedClosureValues == nil {
+		return
+	}
+
+	// name.Depth = name.Depth - offset + 2
+	tv, ok := b.resolvedClosureValues[name]
+	if !ok {
+		return
+	}
+
+	return PointerValue{
+		TV:   tv,
+		Base: b,
+	}, true
+}
+
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
@@ -2355,13 +2394,52 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 			Index: PointerIndexBlockBlank, // -1
 		}
 	}
+
+	// if pointerValue, ok := b.GetResolvedClosureValuePointer(
+	// 	noAttrNameExpr{
+	// 		Name:      path.Name,
+	// 		ValuePath: path,
+	// 	},
+	// ); ok {
+	// 	return pointerValue
+	// }
+
 	// NOTE: For most block paths, Depth starts at 1, but
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
+	var (
+		child           *Block
+		closureNameExpr noAttrNameExpr
+	)
 	for i := uint8(1); i < path.Depth; i++ {
+		if child == nil && len(b.resolvedClosureValues) != 0 {
+			// fmt.Println(
+			// 	len(b.resolvedClosureValues),
+			// 	path.Depth,
+			// 	b.resolvedClosureValues,
+			// )
+
+			newPath := path
+			newPath.Depth = newPath.Depth - i + 1
+			closureNameExpr = noAttrNameExpr{Name: path.Name, ValuePath: newPath}
+			if b.resolvedClosureValues[closureNameExpr] != nil {
+				child = b
+			}
+		}
+
 		b = b.GetParent(store)
 	}
+
+	if child != nil {
+		if pointerValue, ok := child.GetResolvedClosureValuePointer(
+			closureNameExpr,
+			path.Depth,
+		); ok {
+			return pointerValue
+		}
+	}
+
 	return b.GetPointerToInt(store, int(path.Index))
 }
 
