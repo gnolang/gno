@@ -120,8 +120,7 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
-	_, found := b.Posts.Get(slug)
-	if found {
+	if _, found := b.Posts.Get(slug); found {
 		return errors.New("slug already exists")
 	}
 
@@ -169,6 +168,18 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
 	pubDateKey := post.CreatedAt.Format(time.RFC3339)
 
+	// Prevent accidental overwrite
+	// Cannot have two posts with same title key
+	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
+		return errors.New("post with that title already exists")
+	}
+	// If two posts have the same timestamp, increment one by one second, so they differ
+	_, found := b.PostsPublished.Get(pubDateKey)
+	if found {
+		pubDateKey = post.CreatedAt.Add(time.Second * 1).Format(time.RFC3339)
+	}
+
+	// Store post under keys
 	b.PostsAlphabetical.Set(trimmedTitleKey, post)
 	b.PostsPublished.Set(pubDateKey, post)
 	b.Posts.Set(post.Slug, post)
