@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - name: Checkout code
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
 
@@ -80,7 +80,7 @@ jobs:
           make ${{ matrix.args }}
 
       - if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: misc
