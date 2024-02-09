@@ -2,9 +2,8 @@
 
 package override
 
-
 func Render(_ string) string {
-	var accessLevel = "user"
+	accessLevel := "user"
 
 	if accessLevel != "user‮ ⁦// Check if admin⁩ ⁦" {
 		return "admin"

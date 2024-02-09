@@ -3,8 +3,8 @@
 package overflow
 
 import (
-	"strconv"
 	"math/big"
+	"strconv"
 )
 
 func Render(_ string) string {
