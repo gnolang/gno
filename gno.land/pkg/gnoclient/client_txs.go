@@ -214,7 +214,7 @@ func (c *Client) Run(cfg RunCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 		return nil, errors.Wrap(err, "precompile and check")
 	}
 	memPkg.Name = "main"
-	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
+	memPkg.Path = ""
 
 	// Construct message & transaction and marshal.
 	msg := vm.MsgRun{
