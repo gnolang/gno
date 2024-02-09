@@ -5,18 +5,22 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
-	ErrEmptyPkgPath     = errors.New("empty pkg path")
-	ErrEmptyFuncName    = errors.New("empty function name")
-	ErrEmptyPackage     = errors.New("empty package to run")
-	ErrInvalidGasWanted = errors.New("invalid gas wanted")
-	ErrInvalidGasFee    = errors.New("invalid gas fee")
-	ErrMissingSigner    = errors.New("missing Signer")
-	ErrMissingRPCClient = errors.New("missing RPCClient")
+	ErrEmptyPackage      = errors.New("empty package to run")
+	ErrEmptyPkgPath      = errors.New("empty pkg path")
+	ErrEmptyFuncName     = errors.New("empty function name")
+	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
+	ErrInvalidGasFee     = errors.New("invalid gas fee")
+	ErrMissingSigner     = errors.New("missing Signer")
+	ErrMissingRPCClient  = errors.New("missing RPCClient")
+	ErrInvalidToAddress  = errors.New("invalid send to address")
+	ErrInvalidSendAmount = errors.New("invalid send amount")
 )
 
 type BaseTxCfg struct {
@@ -33,6 +37,12 @@ type MsgCall struct {
 	FuncName string   // Function name
 	Args     []string // Function arguments
 	Send     string   // Send amount
+}
+
+// MsgSend - syntax sugar for bank.MsgSend minus fields in BaseTxCfg
+type MsgSend struct {
+	ToAddress crypto.Address // Send to address
+	Send      string         // Send amount
 }
 
 // MsgRun - syntax sugar for vm.MsgRun
@@ -99,7 +109,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 
 // Run executes a one or more MsgRun calls on the blockchain.
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
-	// Validate required client fields
+	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
 		return nil, err
 	}
@@ -134,7 +144,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 		}
 
 		msg.Package.Name = "main"
-		msg.Package.Path = "gno.land/r/" + caller.String() + "/run"
+		msg.Package.Path = ""
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
@@ -153,6 +163,66 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 	// Pack transaction
 	tx := std.Tx{
 		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}
+
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
+}
+
+// Send currency to an account on the blockchain.
+func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	// Parse MsgSend slice
+	vmMsgs := make([]bank.MsgSend, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgSend fields
+		if err := msg.validateMsgSend(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unwrap syntax sugar to vm.MsgSend slice
+		vmMsgs = append(vmMsgs, bank.MsgSend{
+			FromAddress: c.Signer.Info().GetAddress(),
+			ToAddress:   msg.ToAddress,
+			Amount:      send,
+		})
+	}
+
+	// Cast vm.MsgSend back into std.Msg
+	stdMsgs := make([]std.Msg, len(vmMsgs))
+	for i, msg := range vmMsgs {
+		stdMsgs[i] = msg
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	tx := std.Tx{
+		Msgs:       stdMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       cfg.Memo,
