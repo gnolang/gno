@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"errors"
 	"std"
 	"strconv"
 	"strings"
@@ -121,7 +120,7 @@ func (b Blog) Render(path string) string {
 
 func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
 	if _, found := b.Posts.Get(slug); found {
-		return errors.New("slug already exists")
+		return ErrPostSlugExists
 	}
 
 	var parsedTime time.Time
@@ -145,6 +144,7 @@ func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string,
 		Tags:      tags,
 		CreatedAt: parsedTime,
 	}
+
 	return b.prepareAndSetPost(&post)
 }
 
@@ -153,13 +153,13 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Body = strings.TrimSpace(post.Body)
 
 	if post.Title == "" {
-		return errors.New("title is missing")
+		return ErrPostTitleMissing
 	}
 	if post.Body == "" {
-		return errors.New("body is missing")
+		return ErrPostBodyMissing
 	}
 	if post.Slug == "" {
-		return errors.New("slug is missing")
+		return ErrPostSlugMissing
 	}
 
 	post.Blog = b
@@ -168,15 +168,13 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
 	pubDateKey := post.CreatedAt.Format(time.RFC3339)
 
-	// Prevent accidental overwrite
 	// Cannot have two posts with same title key
 	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
-		return errors.New("post with that title already exists")
+		return ErrPostTitleExists
 	}
 	// If two posts have the same timestamp, increment one by one second, so they differ
-	_, found := b.PostsPublished.Get(pubDateKey)
-	if found {
-		pubDateKey = post.CreatedAt.Add(time.Second * 1).Format(time.RFC3339)
+	if _, found := b.PostsPublished.Get(pubDateKey); found {
+		return ErrPostPubDateExists
 	}
 
 	// Store post under keys
