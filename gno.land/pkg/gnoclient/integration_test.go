@@ -109,7 +109,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestClient_Send_Single_Integration(t *testing.T) {
+func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -157,7 +157,7 @@ func TestClient_Send_Single_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestClient_Send_Multiple_Integration(t *testing.T) {
+func TestSendMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)

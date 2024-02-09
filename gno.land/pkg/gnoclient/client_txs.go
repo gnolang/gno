@@ -187,7 +187,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 	}
 
 	// Parse MsgSend slice
-	vmMsgs := make([]bank.MsgSend, 0, len(msgs))
+	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgSend fields
 		if err := msg.validateMsgSend(); err != nil {
@@ -201,17 +201,11 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 		}
 
 		// Unwrap syntax sugar to vm.MsgSend slice
-		vmMsgs = append(vmMsgs, bank.MsgSend{
+		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
 			FromAddress: c.Signer.Info().GetAddress(),
 			ToAddress:   msg.ToAddress,
 			Amount:      send,
-		})
-	}
-
-	// Cast vm.MsgSend back into std.Msg
-	stdMsgs := make([]std.Msg, len(vmMsgs))
-	for i, msg := range vmMsgs {
-		stdMsgs[i] = msg
+		}))
 	}
 
 	// Parse gas fee
@@ -222,7 +216,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 
 	// Pack transaction
 	tx := std.Tx{
-		Msgs:       stdMsgs,
+		Msgs:       vmMsgs,
 		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
 		Memo:       cfg.Memo,
