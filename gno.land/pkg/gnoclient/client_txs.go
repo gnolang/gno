@@ -12,12 +12,14 @@ import (
 )
 
 var (
-	ErrEmptyPkgPath     = errors.New("empty pkg path")
-	ErrEmptyFuncName    = errors.New("empty function name")
-	ErrInvalidGasWanted = errors.New("invalid gas wanted")
-	ErrInvalidGasFee    = errors.New("invalid gas fee")
-	ErrMissingSigner    = errors.New("missing Signer")
-	ErrMissingRPCClient = errors.New("missing RPCClient")
+	ErrEmptyPkgPath      = errors.New("empty pkg path")
+	ErrEmptyFuncName     = errors.New("empty function name")
+	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
+	ErrInvalidGasFee     = errors.New("invalid gas fee")
+	ErrMissingSigner     = errors.New("missing Signer")
+	ErrMissingRPCClient  = errors.New("missing RPCClient")
+	ErrInvalidToAddress  = errors.New("invalid send to address")
+	ErrInvalidSendAmount = errors.New("invalid send amount")
 )
 
 type BaseTxCfg struct {
@@ -132,6 +134,11 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 	// Parse MsgSend slice
 	vmMsgs := make([]bank.MsgSend, 0, len(msgs))
 	for _, msg := range msgs {
+		// Validate MsgSend fields
+		if err := msg.validateMsgSend(); err != nil {
+			return nil, err
+		}
+
 		// Parse send coins
 		send, err := std.ParseCoins(msg.Send)
 		if err != nil {
