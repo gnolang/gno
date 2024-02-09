@@ -539,7 +539,7 @@ func TestClient_Send_Errors(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-	        tc := tc
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
