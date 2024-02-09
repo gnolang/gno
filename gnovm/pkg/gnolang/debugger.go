@@ -476,12 +476,61 @@ func debugPrint(m *Machine, arg string) error {
 	if arg == "" {
 		return errors.New("missing argument")
 	}
-	b := m.Blocks[len(m.Blocks)-1-m.debugFrameLevel]
-	for i, name := range b.Source.GetBlockNames() {
-		// TODO: handle index and selector expressions.
-		if string(name) == arg {
-			fmt.Fprintln(m.DebugOut, b.Values[i])
-			return nil
+	// TODO: parse expression.
+
+	// Position to the right frame.
+	ncall := 0
+	var i int
+	var fblocks []BlockNode
+	var funBlock BlockNode
+	for i = len(m.Frames) - 1; i >= 0; i-- {
+		if m.Frames[i].Func != nil {
+			funBlock = m.Frames[i].Func.Source
+		}
+		if ncall == m.debugFrameLevel {
+			break
+		}
+		if m.Frames[i].Func != nil {
+			fblocks = append(fblocks, m.Frames[i].Func.Source)
+			ncall++
+		}
+	}
+	if i < 0 {
+		return fmt.Errorf("invalid frame level: %d", m.debugFrameLevel)
+	}
+
+	// Position to the right block, i.e the first after the last fblock (if any).
+	for i = len(m.Blocks) - 1; i >= 0; i-- {
+		if len(fblocks) == 0 {
+			break
+		}
+		if m.Blocks[i].Source == fblocks[0] {
+			fblocks = fblocks[1:]
+		}
+	}
+	if i < 0 {
+		return fmt.Errorf("invalid block level: %d", m.debugFrameLevel)
+	}
+
+	// list SourceBlocks in the same frame level.
+	var sblocks []*Block
+	for ; i >= 0; i-- {
+		sblocks = append(sblocks, m.Blocks[i])
+		if m.Blocks[i].Source == funBlock {
+			break
+		}
+	}
+	if i > 0 {
+		sblocks = append(sblocks, m.Blocks[0]) // Add global block
+	}
+
+	// Search value if current frame level blocks, or main.
+	for _, b := range sblocks {
+		for i, name := range b.Source.GetBlockNames() {
+			if string(name) == arg {
+				fmt.Fprintln(m.DebugOut, b.Values[i])
+				return nil
+			}
 		}
 	}
 	return fmt.Errorf("could not find symbol value for %s", arg)
@@ -492,15 +541,35 @@ const stackUsage = `stack|bt`
 const stackShort = `Print stack trace.`
 
 func debugStack(m *Machine, arg string) error {
-	l := len(m.Frames) - 1
-	// List stack frames in reverse array order. Deepest level is 0.
-	for i := l; i >= 0; i-- {
+	i := 0
+	for {
+		ff := debugFrameFunc(m, i)
+		loc := debugFrameLoc(m, i)
+		if ff == nil {
+			break
+		}
+		var fname string
+		if ff.IsMethod {
+			fname = fmt.Sprintf("%v.(%v).%v", ff.PkgPath, ff.Type.(*FuncType).Params[0].Type, ff.Name)
+		} else {
+			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
+		}
+		fmt.Fprintf(m.DebugOut, "%d\tin %s\n\tat %s:%d\n", i, fname, loc.File, loc.Line)
+		i++
+	}
+	return nil
+}
+
+func debugFrameFunc(m *Machine, n int) *FuncValue {
+	for ncall, i := 0, len(m.Frames)-1; i >= 0; i-- {
 		f := m.Frames[i]
 		if f.Func == nil {
 			continue
 		}
-		loc := debugFrameLoc(m, l-i)
-		fmt.Fprintf(m.DebugOut, "%d\tin %s.%s\n\tat %s:%d\n", l-i, f.LastPackage.PkgPath, f.Func, loc.File, loc.Line)
+		if ncall == n {
+			return f.Func
+		}
+		ncall++
 	}
 	return nil
 }

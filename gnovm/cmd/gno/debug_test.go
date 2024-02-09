@@ -28,7 +28,7 @@ func runDebugTest(t *testing.T, tests []dtest) {
 			if err := newGnocliCmd(io).ParseAndRun(context.Background(), args); err != nil {
 				t.Fatal(err)
 			}
-			t.Log("out:", out)
+			t.Log("in:", test.in, "out:", out)
 			if !strings.Contains(out.String(), test.out) {
 				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out.String())
 			}

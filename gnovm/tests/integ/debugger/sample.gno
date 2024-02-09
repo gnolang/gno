@@ -11,8 +11,13 @@ func g(s string, n int) {
 	f(s, n)
 }
 
+var global = "test"
+
 func main() {
-	println("before f")
-	g("hello", 3)
+	num := 5
+	println("in main")
+	if num > 2 {
+		g("hello", 3)
+	}
 	println("bye")
 }
