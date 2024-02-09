@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -62,7 +63,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgs(args)
+	pkgPaths, err := precompile.GnoFilesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}

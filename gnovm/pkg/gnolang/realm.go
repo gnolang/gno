@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"reflect"
 	"strings"
 )
@@ -1513,7 +1514,7 @@ func isUnsaved(oo Object) bool {
 
 func IsRealmPath(pkgPath string) bool {
 	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, GnoRealmPkgsPrefixBefore) {
+	if strings.HasPrefix(pkgPath, precompile.GnoRealmPkgsPrefixBefore) {
 		return true
 	} else {
 		return false

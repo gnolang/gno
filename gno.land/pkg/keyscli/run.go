@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"io"
 	"os"
 
@@ -109,7 +110,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
+	err = precompile.PrecompileAndCheckMempkg(memPkg)
 	if err != nil {
 		panic(err)
 	}

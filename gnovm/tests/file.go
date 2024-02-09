@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -189,7 +190,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				fmt.Println("---not realm, going to precompile and verify")
 				if isRunGo {
-					err, output := gno.PrecompileAndRunMempkg(memPkg, path)
+					err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					//pcer := &precompileExecResult{}
 					if err != nil {
 						fmt.Println("---err from precompile is: ", err.Error())
@@ -244,7 +245,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				if isRunGo {
 					fmt.Println("---going to precompile and run")
-					err, output := gno.PrecompileAndRunMempkg(memPkg, path)
+					err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					//pcer := &precompileExecResult{}
 					if err != nil {
 						fmt.Println("---err from precompile is: ", err.Error())

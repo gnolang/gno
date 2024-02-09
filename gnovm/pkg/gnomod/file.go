@@ -12,12 +12,12 @@ package gnomod
 import (
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -184,12 +184,12 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 				continue
 			}
 			// skip if `std`, special case.
-			if path == gnolang.GnoStdPkgAfter {
+			if path == precompile.GnoStdPkgAfter {
 				continue
 			}
 
-			if strings.HasPrefix(path, gnolang.ImportPrefix) {
-				path = strings.TrimPrefix(path, gnolang.ImportPrefix+"/examples/")
+			if strings.HasPrefix(path, precompile.ImportPrefix) {
+				path = strings.TrimPrefix(path, precompile.ImportPrefix+"/examples/")
 				modFile.AddNewRequire(path, "v0.0.0-latest", true)
 			}
 		}

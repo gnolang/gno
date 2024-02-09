@@ -1,8 +1,9 @@
-package gnolang
+package precompile
 
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -10,6 +11,7 @@ import (
 	"go/token"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,6 +78,211 @@ type precompileResult struct {
 	Translated string
 }
 
+// ==================================================================
+type ImportPath string
+
+type PrecompileCfg struct {
+	Verbose     bool
+	SkipFmt     bool
+	SkipImports bool
+	Gobuild     bool
+	GoBinary    string
+	GofmtBinary string
+	Output      string
+}
+
+func NewPrecompileCfg(goBuild bool, goBinary string) *PrecompileCfg {
+	return &PrecompileCfg{Gobuild: goBuild, GoBinary: goBinary}
+}
+
+type PrecompileOptions struct {
+	Cfg *PrecompileCfg
+	// precompiled is the set of packages already
+	// precompiled from .gno to .go.
+	Precompiled map[ImportPath]struct{}
+}
+
+var DefaultPrecompileCfg = &PrecompileCfg{
+	Verbose:  false,
+	GoBinary: "go",
+}
+
+func NewPrecompileOptions(cfg *PrecompileCfg) *PrecompileOptions {
+	return &PrecompileOptions{cfg, map[ImportPath]struct{}{}}
+}
+
+func (p *PrecompileOptions) GetFlags() *PrecompileCfg {
+	return p.Cfg
+}
+
+func (p *PrecompileOptions) IsPrecompiled(pkg ImportPath) bool {
+	_, precompiled := p.Precompiled[pkg]
+	return precompiled
+}
+
+func (p *PrecompileOptions) MarkAsPrecompiled(pkg ImportPath) {
+	p.Precompiled[pkg] = struct{}{}
+}
+
+// TODO: add clean
+func (c *PrecompileCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.Verbose,
+		"verbose",
+		false,
+		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.SkipFmt,
+		"skip-fmt",
+		false,
+		"do not check syntax of generated .go files",
+	)
+
+	fs.BoolVar(
+		&c.SkipImports,
+		"skip-imports",
+		false,
+		"do not precompile imports recursively",
+	)
+
+	fs.BoolVar(
+		&c.Gobuild,
+		"gobuild",
+		false,
+		"run go build on generated go files, ignoring test files",
+	)
+
+	fs.StringVar(
+		&c.GoBinary,
+		"go-binary",
+		"go",
+		"go binary to use for building",
+	)
+
+	fs.StringVar(
+		&c.GofmtBinary,
+		"go-fmt-binary",
+		"gofmt",
+		"gofmt binary to use for syntax checking",
+	)
+
+	fs.StringVar(
+		&c.Output,
+		"output",
+		".",
+		"output directory",
+	)
+}
+
+// ==================================================================
+func PrecompilePkg(pkgPath ImportPath, opts *PrecompileOptions) error {
+	fmt.Println("---precompilePkg, ")
+	if opts.IsPrecompiled(pkgPath) {
+		fmt.Printf("path: %s isCompiled \n", pkgPath)
+		return nil
+	}
+	opts.MarkAsPrecompiled(pkgPath)
+
+	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("---files: ", files)
+
+	for _, file := range files {
+		fmt.Println("---file: ", file)
+		if err = PrecompileFile(file, opts); err != nil {
+			return fmt.Errorf("%s: %w", file, err)
+		}
+	}
+
+	return nil
+}
+
+func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
+	fmt.Println("---precompile file")
+	flags := opts.GetFlags()
+	gofmt := flags.GofmtBinary
+	if gofmt == "" {
+		gofmt = "gofmt"
+	}
+
+	if flags.Verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", srcPath)
+	}
+
+	// parse .gno.
+	source, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("read: %w", err)
+	}
+
+	// compute attributes based on filename.
+	//targetFilename, tags := gno.GetPrecompileFilenameAndTags(srcPath, false)
+	targetFilename, _ := GetPrecompileFilenameAndTags(srcPath, false)
+
+	// preprocess.
+	//precompileRes, err := gno.Precompile(string(source), tags, srcPath)
+	precompileRes, err := Precompile(string(source), "no_header", srcPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	// resolve target path
+	var targetPath string
+	if flags.Output != "." {
+		path, err := ResolvePath(flags.Output, ImportPath(filepath.Dir(srcPath)))
+		if err != nil {
+			return fmt.Errorf("resolve output path: %w", err)
+		}
+		targetPath = filepath.Join(path, targetFilename)
+	} else {
+		targetPath = filepath.Join(filepath.Dir(srcPath), targetFilename)
+	}
+
+	// write .go file.
+	err = WriteDirFile(targetPath, []byte(precompileRes.Translated))
+	if err != nil {
+		return fmt.Errorf("write .go file: %w", err)
+	}
+
+	// check .go fmt, if `SkipFmt` sets to false.
+	if !flags.SkipFmt {
+		err = PrecompileVerifyFile(targetPath, gofmt)
+		if err != nil {
+			return fmt.Errorf("check .go file: %w", err)
+		}
+	}
+
+	// precompile imported packages, if `SkipImports` sets to false
+	if !flags.SkipImports {
+		fmt.Println("---precompile imports")
+		importPaths := GetPathsFromImportSpec(precompileRes.Imports)
+		for _, path := range importPaths {
+			fmt.Println("---path: ", path)
+			PrecompilePkg(path, opts)
+		}
+	}
+
+	return nil
+}
+
+func GoBuildFileOrPkg(fileOrPkg string, cfg *PrecompileCfg) error {
+	verbose := cfg.Verbose
+	goBinary := cfg.GoBinary
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
+	}
+
+	return PrecompileBuildPackage(fileOrPkg, goBinary)
+}
+
+// ==============================================
+
 // TODO: func PrecompileFile: supports caching.
 // TODO: func PrecompilePkg: supports directories.
 
@@ -124,7 +331,9 @@ func GetPrecompileFilenameAndTags(gnoFilePath string, isPureGo bool) (targetFile
 	return
 }
 
+// TODO: build or run logic
 func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
+	fmt.Println("---gnolang, PrecompileAndCheckMemPkg")
 	gofmt := "gofmt"
 
 	tmpDir, err := os.MkdirTemp("", mempkg.Name)
@@ -155,9 +364,12 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 			continue
 		}
 	}
-	if errs != nil {
-		return fmt.Errorf("precompile package: %w", errs)
-	}
+	// precompile to xxx.gen.go files and try go build
+	//err, res := PrecompileBuildMemPkg("", tmpDir, "go", "")
+	//if errs != nil {
+	//	return fmt.Errorf("precompile package: %w", errs)
+	//}
+	//fmt.Println("res: ", res)
 	return nil
 }
 
@@ -172,7 +384,7 @@ func PrecompileAndRunMempkg(mempkg *std.MemPackage, path string) (error, string)
 
 	var errs error
 	var output string
-	for _, mfile := range mempkg.Files {
+	for _, mfile := range mempkg.Files { // for gnovm/test/files, only one file contained
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
@@ -259,6 +471,11 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	}
 	return nil
 }
+
+//func PrecompileBuildMemPkg() (error, string) {
+//	opts := newPrecompileOptions(cfg)
+//
+//}
 
 func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path string) (error, string) {
 	fmt.Printf("---PrecompileRun, dir: %s, gorun: %s \n", tmpDir, goRunBinary)
@@ -415,103 +632,74 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	//  for test
 	files := []string{}
 
-	//info, err := os.Stat(fileOrPkg)
-	//if err != nil {
-	//	return fmt.Errorf("invalid file or package path: %w", err)
-	//}
-	//if !info.IsDir() {
-	//	file := fileOrPkg
-	//	files = append(files, file)
-	//} else {
-	//	pkgDir := fileOrPkg
-	//	goGlob := filepath.Join(pkgDir, "*.go")
-	//	goMatches, err := filepath.Glob(goGlob)
-	//	if err != nil {
-	//		return fmt.Errorf("glob: %w", err)
-	//	}
-	//	for _, goMatch := range goMatches {
-	//		switch {
-	//		case strings.HasPrefix(goMatch, "."): // skip
-	//		case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-	//		//case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-	//		case strings.HasSuffix(goMatch, "_test.go"): // skip
-	//		case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-	//		default:
-	//			files = append(files, goMatch)
-	//		}
-	//	}
-	//}
+	info, err := os.Stat(fileOrPkg)
+	if err != nil {
+		return fmt.Errorf("invalid file or package path: %w", err)
+	}
+	if !info.IsDir() {
+		println("not dir")
+		file := fileOrPkg
+		files = append(files, file)
+	} else {
+		println("is dir")
+		pkgDir := fileOrPkg
+		goGlob := filepath.Join(pkgDir, "*.go")
+		goMatches, err := filepath.Glob(goGlob)
+		if err != nil {
+			return fmt.Errorf("glob: %w", err)
+		}
+		for _, goMatch := range goMatches {
+			fmt.Println("---goMatch: ", goMatch)
+			switch {
+			case strings.HasPrefix(goMatch, "."): // skip
+				println("skip 1")
+			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
+				println("skip 2")
+			//case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
+			case strings.HasSuffix(goMatch, "_test.go"): // skip
+				println("skip 3")
+			//case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
+			default:
+				println("append ")
+				files = append(files, goMatch)
+			}
+		}
+	}
 
-	// Get the current working directory
-
-	// new go.mod and build logic
+	// ================================
 	originalDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println("Error getting current working directory:", err)
 		return err
 	}
 
-	fmt.Println("Current working directory:", originalDir)
+	fmt.Println("---current dir is: ", originalDir)
 
-	defer func() {
-		err := os.Chdir(originalDir)
-		if err != nil {
-			fmt.Println("Error changing back to original directory:", err)
-			panic(err)
-		}
-	}()
-
-	// Change the working directory to the target directory
-	if err := os.Chdir(fileOrPkg); err != nil {
-		fmt.Println("Error changing directory:", err)
-		return err
-	}
-	// check if exist
-	_, err = os.Stat("go.mod")
-	if err != nil && os.IsNotExist(err) {
-		fmt.Println("---go.mod does not exist")
-		// Initialize a Go module if go.mod doesn't exist.
-		// Run "go mod init" here.
-		// Run "go mod init" to initialize a Go module.
-		cmd := exec.Command("go", "mod", "init", "gno.land/r/demo/compile")
-		err := cmd.Run()
-		if err != nil {
-			// Handle the error.
-			//panic(err.Error())
-			return err
-		}
-	}
-	fmt.Println("---check go.mod again")
-	_, err = os.Stat("go.mod")
-	if err != nil && os.IsNotExist(err) {
-		panic("go mod not exist")
-	}
-	fmt.Println("--- got it, going to build")
-	// list file and contents for debug
-	newfiles, err := ioutil.ReadDir("./")
+	//if debug {
+	// Read the directory contents
+	fileInfos, err := ioutil.ReadDir(fileOrPkg)
 	if err != nil {
 		fmt.Println("Error reading directory:", err)
 		return err
 	}
 	// Iterate over the files and print their names
-	for _, file := range newfiles {
+	for _, file := range fileInfos {
 		fmt.Println("---file: ", file.Name())
-		//content, err := os.ReadFile(filepath.Join(fileOrPkg, file.Name()))
-		content, err := os.ReadFile(file.Name())
+		content, err := os.ReadFile(filepath.Join(fileOrPkg, file.Name()))
 		if err != nil {
 			fmt.Println("Error reading file contents:", err)
 			return err
 		}
 		fmt.Println("File contents:")
 		fmt.Println(string(content))
-		// overwrite to files
-		if strings.HasSuffix(file.Name(), ".go") {
-			files = append(files, file.Name())
-		}
 	}
 
-	// =======================================================
+	// =====
 
+	fmt.Println("len of files: ", len(files))
+	for _, f := range files {
+		fmt.Println("file: ", f)
+	}
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
@@ -521,7 +709,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	}
 	fmt.Println("rootDir: ", rootDir)
 	out, err := cmd.CombinedOutput()
-	//fmt.Println("---out:", string(out))
+	fmt.Println("---out:", string(out))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
 		fmt.Printf("---build fail, out: %s \n", string(out))

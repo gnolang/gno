@@ -1,4 +1,4 @@
-package main
+package precompile
 
 import (
 	"fmt"
@@ -12,20 +12,20 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-func isGnoFile(f fs.DirEntry) bool {
+func IsGnoFile(f fs.DirEntry) bool {
 	name := f.Name()
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
-func isFileExist(path string) bool {
+func IsFileExist(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func gnoFilesFromArgs(args []string) ([]string, error) {
+func GnoFilesFromArgs(args []string) ([]string, error) {
+	fmt.Println("---GnoFilesFromArgs, args: ", args)
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
@@ -41,7 +41,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 					return fmt.Errorf("%s: walk dir: %w", arg, err)
 				}
 
-				if !isGnoFile(f) {
+				if !IsGnoFile(f) {
 					return nil // skip
 				}
 				paths = append(paths, curpath)
@@ -55,7 +55,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func gnoPackagesFromArgs(args []string) ([]string, error) {
+func GnoPackagesFromArgs(args []string) ([]string, error) {
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
@@ -76,7 +76,7 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 				if f.IsDir() {
 					return nil // skip
 				}
-				if !isGnoFile(f) {
+				if !IsGnoFile(f) {
 					return nil // skip
 				}
 
@@ -105,11 +105,11 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-// targetsFromPatterns returns a list of target paths that match the patterns.
+// TargetsFromPatterns returns a list of target paths that match the patterns.
 // Each pattern can represent a file or a directory, and if the pattern
 // includes "/...", the "..." is treated as a wildcard, matching any string.
 // Intended to be used by gno commands such as `gno test`.
-func targetsFromPatterns(patterns []string) ([]string, error) {
+func TargetsFromPatterns(patterns []string) ([]string, error) {
 	paths := []string{}
 	for _, p := range patterns {
 		var match func(string) bool
@@ -146,7 +146,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			if f.IsDir() || !isGnoFile(f) {
+			if f.IsDir() || !IsGnoFile(f) {
 				return nil
 			}
 
@@ -188,24 +188,24 @@ func matchPattern(pattern string) func(name string) bool {
 	}
 }
 
-func fmtDuration(d time.Duration) string {
+func FmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
 // makeTestGoMod creates the temporary go.mod for test
-func makeTestGoMod(path string, packageName string, goversion string) error {
+func MakeTestGoMod(path string, packageName string, goversion string) error {
 	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 // getPathsFromImportSpec derive and returns ImportPaths
 // without ImportPrefix from *ast.ImportSpec
-func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
+func GetPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportPath) {
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, gno.ImportPrefix) {
-			res := strings.TrimPrefix(path, gno.ImportPrefix)
-			importPaths = append(importPaths, importPath("."+res))
+		if strings.HasPrefix(path, ImportPrefix) {
+			res := strings.TrimPrefix(path, ImportPrefix)
+			importPaths = append(importPaths, ImportPath("."+res))
 		}
 	}
 	return
@@ -216,7 +216,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 // Output Dir: Temp/gno-precompile
 // Pkg Path: ../example/gno.land/p/pkg
 // Returns -> Temp/gno-precompile/example/gno.land/p/pkg
-func ResolvePath(output string, path importPath) (string, error) {
+func ResolvePath(output string, path ImportPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
 		return "", err
@@ -314,7 +314,7 @@ func copyFile(src, dst string) error {
 }
 
 // Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
-func prettySize(nb int64) string {
+func PrettySize(nb int64) string {
 	const unit = 1000
 	if nb < unit {
 		return fmt.Sprintf("%d", nb)

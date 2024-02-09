@@ -2,7 +2,7 @@ package gnoclient
 
 import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/precompile"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"

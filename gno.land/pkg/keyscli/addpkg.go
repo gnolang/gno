@@ -4,9 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -65,6 +65,7 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
+	fmt.Println("---execMakeAddPkg")
 	if cfg.PkgPath == "" {
 		return errors.New("pkgpath not specified")
 	}
@@ -102,10 +103,60 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
+	err = precompile.PrecompileAndCheckMempkg(memPkg)
 	if err != nil {
 		panic(err)
 	}
+
+	// ===============================================
+	// TODO: try build
+	// precompile first to .gen.go
+	precompileCfg := &precompile.PrecompileCfg{Gobuild: true, GoBinary: "go"}
+	opts := precompile.NewPrecompileOptions(precompileCfg)
+
+	paths, err := precompile.GnoFilesFromArgs([]string{cfg.PkgDir})
+	if err != nil {
+		return fmt.Errorf("list paths: %w", err)
+	}
+
+	errCount := 0
+	for _, filepath := range paths {
+		fmt.Println("---filepath: ", filepath)
+		err = precompile.PrecompileFile(filepath, opts)
+		if err != nil {
+			err = fmt.Errorf("%s: precompile: %w", filepath, err)
+			errCount++
+		}
+	}
+	if errCount > 0 {
+		return fmt.Errorf("%d precompile errors from addpkg", errCount)
+	}
+
+	// try build
+	fmt.Println("---addpkg, pkg dir: ", cfg.PkgDir)
+	paths, err = precompile.GnoPackagesFromArgs([]string{cfg.PkgDir})
+	if err != nil {
+		return fmt.Errorf("list packages: %w", err)
+	}
+
+	fmt.Println("---addpkg, pkg paths: ", paths)
+
+	errCount = 0
+	for _, pkgPath := range paths {
+		_ = pkgPath
+		err = precompile.GoBuildFileOrPkg(pkgPath, precompileCfg)
+		if err != nil {
+			err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
+			io.ErrPrintfln("%s\n", err.Error())
+			errCount++
+		}
+	}
+
+	if errCount > 0 {
+		return fmt.Errorf("%d build errors", errCount)
+	}
+
+	// =========================================================
 
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted

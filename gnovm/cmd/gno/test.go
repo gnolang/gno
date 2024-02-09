@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"log"
 	"os"
 	"path/filepath"
@@ -174,7 +175,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
+	err = precompile.MakeTestGoMod(modPath, precompile.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -184,7 +185,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	paths, err := precompile.TargetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
@@ -212,10 +213,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if verbose {
 				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
 			}
-			precompileOpts := newPrecompileOptions(&precompileCfg{
-				output: tempdirRoot,
+			precompileOpts := precompile.NewPrecompileOptions(&precompile.PrecompileCfg{
+				Output: tempdirRoot,
 			})
-			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
+			err := precompile.PrecompilePkg(precompile.ImportPath(pkg.Dir), precompileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -229,11 +230,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if verbose {
 				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
 			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
+			tempDir, err := precompile.ResolvePath(tempdirRoot, precompile.ImportPath(pkg.Dir))
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
+			err = precompile.GoBuildFileOrPkg(tempDir, precompile.DefaultPrecompileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -256,7 +257,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
+		dstr := precompile.FmtDuration(duration)
 
 		if err != nil {
 			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
@@ -317,7 +318,7 @@ func gnoTestPkg(
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
-				gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				gnoPkgPath = precompile.GnoRealmPkgsPrefixBefore + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
@@ -410,7 +411,7 @@ func gnoTestPkg(
 			testFilePath := filepath.Join(pkgPath, testFileName)
 			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
 			duration := time.Since(startedAt)
-			dstr := fmtDuration(duration)
+			dstr := precompile.FmtDuration(duration)
 
 			if err != nil {
 				errs = multierr.Append(errs, err)
@@ -508,7 +509,7 @@ func runTestFiles(
 		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
 		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
+		dstr := precompile.FmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
@@ -557,12 +558,12 @@ func runTestFiles(
 			if m.Alloc != nil {
 				maxAllocs, allocs := m.Alloc.Status()
 				allocsVal = fmt.Sprintf("%s(%.2f%%)",
-					prettySize(allocs),
+					precompile.PrettySize(allocs),
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
 			io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
-				prettySize(m.Cycles),
+				precompile.PrettySize(m.Cycles),
 				imports,
 				allocsVal,
 			)

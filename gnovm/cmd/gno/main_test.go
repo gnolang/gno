@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,7 +113,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				// copy to external dir
 				absTestDir, err := filepath.Abs(test.testDir)
 				require.Nil(t, err)
-				require.Nil(t, copyDir(absTestDir, tmpDir))
+				require.Nil(t, precompile.copyDir(absTestDir, tmpDir))
 
 				// cd to tmp directory
 				os.Chdir(tmpDir)

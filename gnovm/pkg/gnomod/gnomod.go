@@ -3,6 +3,7 @@ package gnomod
 import (
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,8 +65,8 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		// Precompile and write generated go file
 		if strings.HasSuffix(fileName, ".gno") {
 			filePath := filepath.Join(basePath, pkgPath)
-			targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath, false)
-			precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
+			targetFilename, _ := precompile.GetPrecompileFilenameAndTags(filePath, false)
+			precompileRes, err := precompile.Precompile(string(res.Data), "", fileName)
 			if err != nil {
 				return nil, fmt.Errorf("precompile: %w", err)
 			}
@@ -97,9 +98,9 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 func GnoToGoMod(f File) (*File, error) {
 	gnoModPath := GetGnoModPath()
 
-	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
-		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
-		f.AddModuleStmt(gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path)
+	if strings.HasPrefix(f.Module.Mod.Path, precompile.GnoRealmPkgsPrefixBefore) ||
+		strings.HasPrefix(f.Module.Mod.Path, precompile.GnoPackagePrefixBefore) {
+		f.AddModuleStmt(precompile.ImportPrefix + "/examples/" + f.Module.Mod.Path)
 	}
 
 	for i := range f.Require {
@@ -110,10 +111,10 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
-			strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoPackagePrefixBefore) {
+		if strings.HasPrefix(f.Require[i].Mod.Path, precompile.GnoRealmPkgsPrefixBefore) ||
+			strings.HasPrefix(f.Require[i].Mod.Path, precompile.GnoPackagePrefixBefore) {
 			// Add dependency with a modified import path
-			f.AddRequire(gnolang.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
+			f.AddRequire(precompile.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
 		}
 		f.AddReplace(f.Require[i].Mod.Path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
 		// Remove the old require since the new dependency was added above
