@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	precompile "github.com/gnolang/gno/gnovm/pkg/precompile"
 	"go/parser"
 	"go/token"
 	"os"
@@ -112,7 +111,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return err
 	}
 	modPath := filepath.Join(path, "gno.mod")
-	if !precompile.IsFileExist(modPath) {
+	if isFileExist(modPath) {
 		return errors.New("gno.mod not found")
 	}
 

@@ -127,16 +127,37 @@ func execPrecompile(cfg *precompile.PrecompileCfg, args []string, io commands.IO
 		return flag.ErrHelp
 	}
 
+	var srcPaths []string
+	var opts *precompile.PrecompileOptions
+
+	defer func() {
+		for _, srcPath := range srcPaths {
+			fmt.Println("---clean dir:", srcPath)
+			err := precompile.CleanGeneratedFiles(srcPath)
+			if err != nil {
+				panic(err)
+			}
+		}
+		for pkgPath := range opts.Precompiled {
+			fmt.Println("precompiled import pkg:", pkgPath)
+			fmt.Println("---clean dir:", pkgPath)
+			err := precompile.CleanGeneratedFiles(string(pkgPath))
+			if err != nil {
+				panic(err)
+			}
+		}
+	}()
+
 	// precompile .gno files.
-	paths, err := precompile.GnoFilesFromArgs(args)
+	srcPath, err := precompile.GnoFilesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
 
-	opts := precompile.NewPrecompileOptions(cfg)
+	opts = precompile.NewPrecompileOptions(cfg)
 	fmt.Printf("---opts.Precompiled: %v, opts.cfg: %v \n", opts.Precompiled, opts.Cfg)
 	errCount := 0
-	for _, filepath := range paths {
+	for _, filepath := range srcPath {
 		err = precompile.PrecompileFile(filepath, opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)

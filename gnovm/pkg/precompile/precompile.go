@@ -243,7 +243,7 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	// resolve target path
 	var targetPath string
 	if flags.Output != "." {
-		path, err := ResolvePath(flags.Output, ImportPath(filepath.Dir(srcPath)))
+		path, err := resolvePath(flags.Output, ImportPath(filepath.Dir(srcPath)))
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
@@ -253,7 +253,7 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	}
 
 	// write .go file.
-	err = WriteDirFile(targetPath, []byte(precompileRes.Translated))
+	err = writeDirFile(targetPath, []byte(precompileRes.Translated))
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
@@ -269,7 +269,7 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	// precompile imported packages, if `SkipImports` sets to false
 	if !flags.SkipImports {
 		fmt.Println("---precompile imports")
-		importPaths = GetPathsFromImportSpec(precompileRes.Imports)
+		importPaths = getPathsFromImportSpec(precompileRes.Imports)
 		for _, path := range importPaths {
 			fmt.Println("---path: ", path)
 			PrecompilePkg(path, opts)
@@ -480,11 +480,6 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	}
 	return nil
 }
-
-//func PrecompileBuildMemPkg() (error, string) {
-//	opts := newPrecompileOptions(cfg)
-//
-//}
 
 func PrecompileRun(fileName string, tmpDir string, goRunBinary string, path string) (error, string) {
 	fmt.Printf("---PrecompileRun, dir: %s, gorun: %s \n", tmpDir, goRunBinary)

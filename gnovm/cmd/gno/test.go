@@ -175,7 +175,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = precompile.MakeTestGoMod(modPath, precompile.ImportPrefix, "1.20")
+	err = makeTestGoMod(modPath, precompile.ImportPrefix, "1.20")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -185,7 +185,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := precompile.TargetsFromPatterns(args)
+	paths, err := targetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
@@ -230,7 +230,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if verbose {
 				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
 			}
-			tempDir, err := precompile.ResolvePath(tempdirRoot, precompile.ImportPath(pkg.Dir))
+			tempDir, err := resolvePath(tempdirRoot, precompile.ImportPath(pkg.Dir))
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
@@ -257,7 +257,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
-		dstr := precompile.FmtDuration(duration)
+		dstr := fmtDuration(duration)
 
 		if err != nil {
 			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
@@ -411,7 +411,7 @@ func gnoTestPkg(
 			testFilePath := filepath.Join(pkgPath, testFileName)
 			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
 			duration := time.Since(startedAt)
-			dstr := precompile.FmtDuration(duration)
+			dstr := fmtDuration(duration)
 
 			if err != nil {
 				errs = multierr.Append(errs, err)
@@ -509,7 +509,7 @@ func runTestFiles(
 		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
 		duration := time.Since(startedAt)
-		dstr := precompile.FmtDuration(duration)
+		dstr := fmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
@@ -558,12 +558,12 @@ func runTestFiles(
 			if m.Alloc != nil {
 				maxAllocs, allocs := m.Alloc.Status()
 				allocsVal = fmt.Sprintf("%s(%.2f%%)",
-					precompile.PrettySize(allocs),
+					prettySize(allocs),
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
 			io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
-				precompile.PrettySize(m.Cycles),
+				prettySize(m.Cycles),
 				imports,
 				allocsVal,
 			)

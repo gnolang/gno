@@ -13,10 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 type MakeAddPkgCfg struct {
@@ -68,26 +64,6 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func cleanGeneratedFiles(dir string) error {
-	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		// Ignore if not a generated file
-		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
-			return nil
-		}
-		if err := os.Remove(path); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	fmt.Println("---execMakeAddPkg")
 	if cfg.PkgPath == "" {
@@ -133,6 +109,20 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// ===============================================
+	//cmd := exec.Command("gno", "env")
+	//out, err := cmd.CombinedOutput()
+	//if err != nil {
+	//	panic(err.Error())
+	//}
+	//fmt.Printf("gno env in: %s \n", string(out))
+	//
+	//cmd = exec.Command("gno", "precompile", "-gobuild=true", cfg.PkgDir)
+	//out, err = cmd.CombinedOutput()
+	//if err != nil {
+	//	panic(err.Error())
+	//}
+	//fmt.Printf("gno precompile out: %s \n", string(out))
+
 	// precompile first to .gen.go
 	precompileCfg := &precompile.PrecompileCfg{Gobuild: true, GoBinary: "go"}
 	opts := precompile.NewPrecompileOptions(precompileCfg)
@@ -177,7 +167,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 
 	for _, srcPath := range srcPaths {
 		fmt.Println("---clean dir:", srcPath)
-		err = cleanGeneratedFiles(srcPath)
+		err = precompile.CleanGeneratedFiles(srcPath)
 		if err != nil {
 			panic(err)
 		}
