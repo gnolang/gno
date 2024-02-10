@@ -114,6 +114,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if err != nil {
 		panic(err)
 	}
+	// =============================================================
+
+	// =============================================================
 	memPkg.Name = "main"
 	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
 

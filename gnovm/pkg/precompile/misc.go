@@ -115,6 +115,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportP
 // Pkg Path: ../example/gno.land/p/pkg
 // Returns -> Temp/gno-precompile/example/gno.land/p/pkg
 func resolvePath(output string, path ImportPath) (string, error) {
+	fmt.Println("---resolvePath, output: ", output)
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
 		return "", err

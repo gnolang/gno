@@ -130,6 +130,7 @@ func execPrecompile(cfg *precompile.PrecompileCfg, args []string, io commands.IO
 	var srcPaths []string
 	var opts *precompile.PrecompileOptions
 
+	// clear generated files
 	defer func() {
 		for _, srcPath := range srcPaths {
 			fmt.Println("---clean dir:", srcPath)
@@ -149,7 +150,7 @@ func execPrecompile(cfg *precompile.PrecompileCfg, args []string, io commands.IO
 	}()
 
 	// precompile .gno files.
-	srcPath, err := precompile.GnoFilesFromArgs(args)
+	srcPaths, err := precompile.GnoFilesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
@@ -157,7 +158,7 @@ func execPrecompile(cfg *precompile.PrecompileCfg, args []string, io commands.IO
 	opts = precompile.NewPrecompileOptions(cfg)
 	fmt.Printf("---opts.Precompiled: %v, opts.cfg: %v \n", opts.Precompiled, opts.Cfg)
 	errCount := 0
-	for _, filepath := range srcPath {
+	for _, filepath := range srcPaths {
 		err = precompile.PrecompileFile(filepath, opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)
