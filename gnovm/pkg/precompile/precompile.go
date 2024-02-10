@@ -204,6 +204,15 @@ func PrecompilePkg(pkgPath ImportPath, opts *PrecompileOptions) error {
 
 func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	fmt.Println("---precompile file")
+	var importPaths []ImportPath
+
+	defer func() {
+		fmt.Println("---clean all generated files")
+		fmt.Println("---clean srcPath: ", srcPath)
+		for _, path := range importPaths {
+			fmt.Println("clean import path:", string(path))
+		}
+	}()
 	flags := opts.GetFlags()
 	gofmt := flags.GofmtBinary
 	if gofmt == "" {
@@ -260,7 +269,7 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	// precompile imported packages, if `SkipImports` sets to false
 	if !flags.SkipImports {
 		fmt.Println("---precompile imports")
-		importPaths := GetPathsFromImportSpec(precompileRes.Imports)
+		importPaths = GetPathsFromImportSpec(precompileRes.Imports)
 		for _, path := range importPaths {
 			fmt.Println("---path: ", path)
 			PrecompilePkg(path, opts)

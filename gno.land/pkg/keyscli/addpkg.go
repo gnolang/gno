@@ -13,6 +13,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type MakeAddPkgCfg struct {
@@ -64,6 +68,26 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+func cleanGeneratedFiles(dir string) error {
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		// Ignore if not a generated file
+		if !strings.HasSuffix(path, ".gno.gen.go") && !strings.HasSuffix(path, ".gno.gen_test.go") {
+			return nil
+		}
+		if err := os.Remove(path); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	fmt.Println("---execMakeAddPkg")
 	if cfg.PkgPath == "" {
@@ -109,22 +133,21 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// ===============================================
-	// TODO: try build
 	// precompile first to .gen.go
 	precompileCfg := &precompile.PrecompileCfg{Gobuild: true, GoBinary: "go"}
 	opts := precompile.NewPrecompileOptions(precompileCfg)
 
-	paths, err := precompile.GnoFilesFromArgs([]string{cfg.PkgDir})
+	srcPaths, err := precompile.GnoFilesFromArgs([]string{cfg.PkgDir})
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
 
 	errCount := 0
-	for _, filepath := range paths {
-		fmt.Println("---filepath: ", filepath)
-		err = precompile.PrecompileFile(filepath, opts)
+	for _, srcPath := range srcPaths {
+		fmt.Println("---filepath: ", srcPath)
+		err = precompile.PrecompileFile(srcPath, opts)
 		if err != nil {
-			err = fmt.Errorf("%s: precompile: %w", filepath, err)
+			err = fmt.Errorf("%s: precompile: %w", srcPath, err)
 			errCount++
 		}
 	}
@@ -134,7 +157,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 
 	// try build
 	fmt.Println("---addpkg, pkg dir: ", cfg.PkgDir)
-	paths, err = precompile.GnoPackagesFromArgs([]string{cfg.PkgDir})
+	paths, err := precompile.GnoPackagesFromArgs([]string{cfg.PkgDir})
 	if err != nil {
 		return fmt.Errorf("list packages: %w", err)
 	}
@@ -152,10 +175,25 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		}
 	}
 
+	for _, srcPath := range srcPaths {
+		fmt.Println("---clean dir:", srcPath)
+		err = cleanGeneratedFiles(srcPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+	for pkgPath := range opts.Precompiled {
+		fmt.Println("precompiled import pkg:", pkgPath)
+		fmt.Println("---clean dir:", pkgPath)
+		err = cleanGeneratedFiles(string(pkgPath))
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	if errCount > 0 {
 		return fmt.Errorf("%d build errors", errCount)
 	}
-
 	// =========================================================
 
 	// parse gas wanted & fee.

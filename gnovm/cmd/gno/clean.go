@@ -60,6 +60,7 @@ func (c *cleanCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
+	fmt.Println("---execClean")
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
