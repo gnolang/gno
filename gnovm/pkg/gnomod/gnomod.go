@@ -65,7 +65,7 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		// Precompile and write generated go file
 		if strings.HasSuffix(fileName, ".gno") {
 			filePath := filepath.Join(basePath, pkgPath)
-			targetFilename, _ := precompile.GetPrecompileFilenameAndTags(filePath, false)
+			targetFilename, _ := precompile.GetPrecompileFilenameAndTags(filePath)
 			precompileRes, err := precompile.Precompile(string(res.Data), "", fileName)
 			if err != nil {
 				return nil, fmt.Errorf("precompile: %w", err)

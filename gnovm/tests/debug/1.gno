@@ -5,7 +5,7 @@ func main() {
 }
 
 // Go_Error:
-// debug/1.gno:4:10: invalid operation: int(1) + int8(1) (mismatched types int and int8)
+// debug/1.gno:8:10: invalid operation: int(1) + int8(1) (mismatched types int and int8)
 
 // Gno_Error:
 

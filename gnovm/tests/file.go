@@ -191,17 +191,11 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				fmt.Println("---not realm, going to precompile and verify")
 				if isRunGo {
 					err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
-					//pcer := &precompileExecResult{}
 					if err != nil {
 						fmt.Println("---err from precompile is: ", err.Error())
-						//pcer.err = err
-						// TODO: not panic here
-						//panic(pcer)
 						GoErr = err.Error()
 					} else {
 						fmt.Println("---output from precompile is: ", output)
-						//pcer.output = output
-						//panic(pcer)
 						GoOutput = output
 					}
 				}
