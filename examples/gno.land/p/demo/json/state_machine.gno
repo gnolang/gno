@@ -3,9 +3,10 @@ package json
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset int, err error) {
@@ -397,14 +398,14 @@ func ObjectEach(
 	if off, err := nextToken(data[offset:]); err != nil {
 		return MalformedObject
 	} else if offset += off; data[offset] != CurlyOpenToken {
-		return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+		return errors.New(ufmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
 	} else {
 		offset += 1
 	}
 
 	// skip to the 1st token insize the object
 	if off, err := nextToken(data[offset:]); err != nil {
-		return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+		return errors.New(ufmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
 	} else if offset += off; data[offset] == CurlyCloseToken {
 		// find the end of the object. should return here
 		return nil
@@ -427,7 +428,7 @@ func ObjectEach(
 		// find the end of the key
 		var escaped bool
 		if off, ok, err := stringEnd(data[offset:]); err != nil {
-			return errors.New(fmt.Sprintf("json.ObjectEach: invalid string at offset %d", offset))
+			return errors.New(ufmt.Sprintf("json.ObjectEach: invalid string at offset %d", offset))
 		} else {
 			key, escaped = data[offset:offset+off-1], ok
 			offset += off
@@ -445,9 +446,9 @@ func ObjectEach(
 
 		// skip colon
 		if off, err := nextToken(data[offset:]); err != nil {
-			return errors.New(fmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
+			return errors.New(ufmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
 		} else if offset += off; data[offset] != ColonToken {
-			return errors.New(fmt.Sprintf("json.ObjectEach: cannot find colon at expected offset %d", offset))
+			return errors.New(ufmt.Sprintf("json.ObjectEach: cannot find colon at expected offset %d", offset))
 		} else {
 			offset += 1
 		}
@@ -463,7 +464,7 @@ func ObjectEach(
 
 		// skip the next comma to the following token
 		if off, err := nextToken(data[offset:]); err != nil {
-			return errors.New(fmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
+			return errors.New(ufmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
 		} else {
 			offset += off
 
@@ -474,14 +475,14 @@ func ObjectEach(
 				offset += 1 // skip the comma and continue
 			default:
 				return errors.New(
-					fmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset),
+					ufmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset),
 				)
 			}
 		}
 
 		// skip the next token if comma is found
 		if off, err := nextToken(data[offset:]); err != nil {
-			return errors.New(fmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
+			return errors.New(ufmt.Sprintf("json.ObjectEach: can't find next token at offset %d", offset))
 		} else {
 			offset += off // skip the next token
 		}
@@ -490,5 +491,5 @@ func ObjectEach(
 		key = nil
 	}
 
-	return errors.New(fmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset))
+	return errors.New(ufmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset))
 }

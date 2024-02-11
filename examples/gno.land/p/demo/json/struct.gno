@@ -3,7 +3,6 @@ package json
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -201,17 +200,17 @@ func marshalValue(value interface{}) ([]byte, error) {
 		quoted := strconv.Quote(v)
 		buf.WriteString(quoted)
 	case int, int8, int16, int32, int64:
-		buf.WriteString(fmt.Sprintf("%d", v))
+		buf.WriteString(ufmt.Sprintf("%d", v))
 	case uint, uint8, uint16, uint32, uint64:
-		buf.WriteString(fmt.Sprintf("%d", v))
+		buf.WriteString(ufmt.Sprintf("%d", v))
 	case float32, float64:
-		buf.WriteString(fmt.Sprintf("%g", v))
+		buf.WriteString(ufmt.Sprintf("%g", v))
 	case bool:
-		buf.WriteString(fmt.Sprintf("%t", v))
+		buf.WriteString(ufmt.Sprintf("%t", v))
 	case nil:
 		buf.WriteString("null")
 	default:
-		return nil, errors.New(fmt.Sprintf("json.Marshal: unsupported type %s", value))
+		return nil, errors.New(ufmt.Sprintf("json.Marshal: unsupported type %s", value))
 	}
 
 	return buf.Bytes(), nil
@@ -331,7 +330,7 @@ func (s *Struct) Search(name string) (*Field, error) {
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("json.Search: Field name %s not found", name))
+	return nil, errors.New(ufmt.Sprintf("json.Search: Field name %s not found", name))
 }
 
 // Remove removes a field from the struct instance.
@@ -344,7 +343,7 @@ func (s *Struct) Remove(name string) error {
 		}
 	}
 
-	return errors.New(fmt.Sprintf("json.Search: Field name %s not found", name))
+	return errors.New(ufmt.Sprintf("json.Search: Field name %s not found", name))
 }
 
 // Update updates the value of the field.
@@ -355,14 +354,14 @@ func (s *Struct) Update(name string, newVal interface{}) error {
 	// search field by name
 	f, err := s.Search(name)
 	if err != nil {
-		return errors.New(fmt.Sprintf("json.Update: Field name %s not found", name))
+		return errors.New(ufmt.Sprintf("json.Update: Field name %s not found", name))
 	}
 
 	// type assertion
 	newValType := getTypeFromValue(newVal)
 	if f.typ != newValType {
 		return errors.New(
-			fmt.Sprintf("json.Update: Field type mismatch. Expected %s, got %s",
+			ufmt.Sprintf("json.Update: Field type mismatch. Expected %s, got %s",
 				f.typ.String(),
 				newValType.String(),
 			))
