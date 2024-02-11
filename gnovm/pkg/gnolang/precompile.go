@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -203,7 +205,7 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 //
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
-func PrecompileBuildPackage(fileOrPkg, goBinary string) ([]byte, error) {
+func PrecompileBuildPackage(fileOrPkg, goBinary string) error {
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
@@ -214,7 +216,7 @@ func PrecompileBuildPackage(fileOrPkg, goBinary string) ([]byte, error) {
 
 	info, err := os.Stat(fileOrPkg)
 	if err != nil {
-		return nil, fmt.Errorf("invalid file or package path %s: %w", fileOrPkg, err)
+		return fmt.Errorf("invalid file or package path %s: %w", fileOrPkg, err)
 	}
 	if !info.IsDir() {
 		file := fileOrPkg
@@ -224,7 +226,7 @@ func PrecompileBuildPackage(fileOrPkg, goBinary string) ([]byte, error) {
 		goGlob := filepath.Join(pkgDir, "*.go")
 		goMatches, err := filepath.Glob(goGlob)
 		if err != nil {
-			return nil, fmt.Errorf("glob: %w", err)
+			return fmt.Errorf("glob %s: %w", goGlob, err)
 		}
 		for _, goMatch := range goMatches {
 			switch {
@@ -248,9 +250,46 @@ func PrecompileBuildPackage(fileOrPkg, goBinary string) ([]byte, error) {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return out, fmt.Errorf("exec: %s %s: %w", goBinary, strings.Join(args, " "), err)
+		return parseGoBuildErrors(out)
 	}
-	return out, nil
+	return nil
+}
+
+var errorRe = regexp.MustCompile(`(?m)^([^#]+?):(\d+):(\d+): (.+)$`)
+
+// TODO add tests
+func parseGoBuildErrors(out []byte) error {
+	var errList goscanner.ErrorList
+
+	matches := errorRe.FindAllStringSubmatch(string(out), -1)
+	if len(matches) == 0 {
+		return errList
+	}
+	for _, match := range matches {
+		filename := match[1]
+		line, err := strconv.Atoi(match[2])
+		if err != nil {
+			return fmt.Errorf("parse line go build error %s: %w", match, err)
+		}
+
+		column, err := strconv.Atoi(match[3])
+		if err != nil {
+			return fmt.Errorf("parse column go build error %s: %w", match, err)
+		}
+		msg := match[4]
+		// Remove .gen.go extention, we want to target the gno file
+		filename = strings.TrimSuffix(filename, ".gen.go")
+		// Shift lines & columns
+		line -= 5
+		column--
+		errList.Add(token.Position{
+			Filename: filename,
+			Line:     line,
+			Column:   column,
+		}, msg)
+	}
+
+	return errList
 }
 
 func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {

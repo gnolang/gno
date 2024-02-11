@@ -6,13 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"go/scanner"
-	"go/token"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -158,16 +154,14 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 		}
 
 		for _, pkgPath := range paths {
-			_ = pkgPath
-			out, err := goBuildFileOrPkg(pkgPath, cfg)
-			_ = out
-			// TODO parse `out` and add to scanner.ErrorList
+			err := goBuildFileOrPkg(pkgPath, cfg)
 			if err != nil {
-				if buildErrlist, err := parseGoBuildErrors(out); err != nil {
-					return fmt.Errorf("parse go build errors %s: %w", out, err)
-				} else {
-					errlist = append(errlist, buildErrlist...)
+				var fileErrlist scanner.ErrorList
+				if !errors.As(err, &fileErrlist) {
+					// Not an scanner.ErrorList: return immediately.
+					return fmt.Errorf("%s: build: %w", pkgPath, err)
 				}
+				errlist = append(errlist, fileErrlist...)
 			}
 		}
 	}
@@ -264,7 +258,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	return nil
 }
 
-func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) ([]byte, error) {
+func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
 	verbose := cfg.verbose
 	goBinary := cfg.goBinary
 
@@ -273,41 +267,4 @@ func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) ([]byte, error) {
 	}
 
 	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
-}
-
-var errorRe = regexp.MustCompile(`(?m)^([^#]+?):(\d+):(\d+): (.+)$`)
-
-// TODO add tests
-func parseGoBuildErrors(out []byte) (scanner.ErrorList, error) {
-	var errList scanner.ErrorList
-
-	matches := errorRe.FindAllStringSubmatch(string(out), -1)
-	if len(matches) == 0 {
-		return errList, nil
-	}
-	for _, match := range matches {
-		filename := match[1]
-		line, err := strconv.Atoi(match[2])
-		if err != nil {
-			return nil, fmt.Errorf("parse line go build error %s: %w", match, err)
-		}
-
-		column, err := strconv.Atoi(match[3])
-		if err != nil {
-			return nil, fmt.Errorf("parse column go build error %s: %w", match, err)
-		}
-		msg := match[4]
-		// Remove .gen.go extention, we want to target the gno file
-		filename = strings.TrimSuffix(filename, ".gen.go")
-		// Shift lines & columns
-		line -= 5
-		column--
-		errList.Add(token.Position{
-			Filename: filename,
-			Line:     line,
-			Column:   column,
-		}, msg)
-	}
-
-	return errList, nil
 }

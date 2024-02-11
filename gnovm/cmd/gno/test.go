@@ -233,10 +233,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			out, err := goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
+			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
-				io.ErrPrintln(string(out))
 				io.ErrPrintln("FAIL")
 				io.ErrPrintfln("FAIL    %s", pkg.Dir)
 				io.ErrPrintln("FAIL")
