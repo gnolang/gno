@@ -3,13 +3,17 @@ package json
 import (
 	"bytes"
 	"errors"
-	"regexp"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
 
+// extractValueTypeFromToken recoginizes the type of JSON value by peeking at the first byte of the value.
 func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset int, err error) {
+	if len(b) == 0 {
+		return Unknown, 0, errors.New("json: empty value, cannot determine type.")
+	}
+
 	switch b {
 	case 't', 'f':
 		if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
@@ -84,7 +88,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			}
 
 			if keyLevel == len(keys) {
-				return i + 1, nil
+				return i+1, nil
 			}
 		case CurlyOpenToken:
 			// in case parent key is matched then only we will increase the level otherwise can directly
@@ -94,6 +98,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 				if end == -1 {
 					return -1, err
 				}
+
 				i += end - 1
 			} else {
 				level += 1
@@ -107,6 +112,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 				if keyLen < 3 || keys[level][0] != SquareOpenToken || keys[level][keyLen-1] != SquareCloseToken {
 					return -1, InvalidArrayIndex
 				}
+
 				aIdx, err := strconv.Atoi(keys[level][1 : keyLen-1])
 				if err != nil {
 					return -1, InvalidArrayIndex
@@ -117,28 +123,33 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 					valueFound  []byte
 					valueOffset int
 				)
+
 				curI := i
+
 				ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
 					if curIdx == aIdx {
 						valueFound = value
 						valueOffset = offset
+
 						if dataType == String {
 							valueOffset = valueOffset - 2
 							valueFound = data[curI+valueOffset : curI+valueOffset+len(value)+2]
 						}
 					}
+
 					curIdx += 1
 				})
 
 				if valueFound == nil {
 					return -1, ArrayIndexNotFound
-				} else {
-					subIndex, err := findValueIndex(valueFound, keys[level+1:]...)
-					if err != nil {
-						return -1, KeyPathNotFoundError
-					}
-					return i + valueOffset + subIndex, nil
 				}
+
+				subIndex, err := findValueIndex(valueFound, keys[level+1:]...)
+				if err != nil {
+					return -1, KeyPathNotFoundError
+				}
+
+				return i + valueOffset + subIndex, nil
 			} else {
 				// Do not search for keys inside arrays
 				if arraySkip, err := blockEnd(data[i:], SquareOpenToken, SquareCloseToken); arraySkip == -1 {
@@ -190,11 +201,12 @@ func findKeyStart(data []byte, key string) (int, error) {
 			if strEnd == -1 {
 				break
 			}
+
 			i += strEnd
 			keyEnd := i - 1
 
-			valueOffset, _ := nextToken(data[i:])
-			if valueOffset == -1 {
+			valueOffset, err := nextToken(data[i:])
+			if err != nil {
 				break
 			}
 
@@ -202,6 +214,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 
 			// if string is a key, and key level match
 			k := data[keyBegin:keyEnd]
+
 			// for unescape: if there are no escape sequences, this is cheap; if there are, it is a
 			// bit more expensive, but causes no allocations unless len(key) > unescapeStackBufSize
 			if keyEscaped {
@@ -216,13 +229,8 @@ func findKeyStart(data []byte, key string) (int, error) {
 				return keyBegin - 1, nil
 			}
 
-		case SquareOpenToken:
+		case SquareOpenToken, CurlyOpenToken:
 			if end, _ := blockEnd(data[i:], data[i], SquareCloseToken); end != -1 {
-				i = i + end
-			}
-
-		case CurlyOpenToken:
-			if end, _ := blockEnd(data[i:], data[i], CurlyCloseToken); end != -1 {
 				i = i + end
 			}
 		}
@@ -266,14 +274,8 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 // adjustIndentation is a kind of hack to remove the extra tabs and spaces from the Object values.
 // TODO: storing depth information while parsing step, may allows us to avoid regex.
 func adjustIndentation(value []byte) []byte {
-	re := regexp.MustCompile(`(?m)^\t+`)
-
-	// remove the rest, leaving only one of the tabs at the beginning of each line
-	value = re.ReplaceAll(value, []byte("\t"))
-
-	// remove the last line's spaces
-	reLastLineSpaces := regexp.MustCompile(`(?m)^\s+\}`)
-	value = reLastLineSpaces.ReplaceAll(value, []byte("}"))
+	value = tabRegex.ReplaceAll(value, []byte("\t"))
+	value = lastLineSpaceRegex.ReplaceAll(value, []byte("}"))
 
 	return value
 }
@@ -291,6 +293,7 @@ func adjustIndentation(value []byte) []byte {
 // It returns the value `Prichard` with data type `String`, the offset `37`, and `nil` for the error.
 func Get(data []byte, keys ...string) (value []byte, dataType ValueType, offset int, err error) {
 	a, b, _, d, e := internalGet(data, keys...)
+
 	return a, b, d, e
 }
 
@@ -437,6 +440,7 @@ func ObjectEach(
 		// unescape the key if necessary
 		if escaped {
 			var stackbuf [unescapeStackBufSize]byte
+
 			if ku, err := unescape(key, stackbuf[:]); err != nil {
 				return errors.New("json.ObjectEach: string is not valid UTF-8")
 			} else {

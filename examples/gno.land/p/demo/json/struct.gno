@@ -282,27 +282,22 @@ func Unmarshal(data []byte, s *Struct) error {
 }
 
 func extractKeysFromJSON(data []byte) ([]string, error) {
-	// parse the JSON key names.
-	// TODO: reduce overhead. regex is easy to use but slow.
-	re := regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
-
-	// check if the JSON is valid.
-	if !re.Match(data) {
+	if !jsonKeyRegex.Match(data) {
 		return nil, errors.New("Invalid JSON format")
 	}
 
 	var keys []string
-	matches := re.FindAllSubmatch(data, -1)
+	matches := jsonKeyRegex.FindAllSubmatch(data, -1)
 	for _, match := range matches {
-		key := string(match[0])
+		// extract the key, trimming the trailing colon and any whitespace
+		key := strings.TrimSuffix(string(match[0]), ":")
+		key = strings.TrimSpace(key)
 
 		// reject empty keys
 		if key == "" {
 			return nil, errors.New("json: key cannot be an empty string")
 		}
 
-		key = strings.TrimSuffix(key, ":")
-		key = strings.TrimSpace(key)
 		keys = append(keys, key)
 	}
 

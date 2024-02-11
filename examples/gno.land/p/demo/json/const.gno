@@ -1,5 +1,7 @@
 package json
 
+import "regexp"
+
 const (
 	SupplementalPlanesOffset = 0x10000
 	HighSurrogateOffset      = 0xD800
@@ -19,4 +21,10 @@ const (
 	maxUint64   = 1<<64 - 1
 	intSize     = 32 << (^uint(0) >> 63)
 	IntSize     = intSize
+)
+
+var (
+	tabRegex           = regexp.MustCompile(`(?m)^\t+`)
+	lastLineSpaceRegex = regexp.MustCompile(`(?m)^\s+\}`)
+	jsonKeyRegex	   = regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
 )
