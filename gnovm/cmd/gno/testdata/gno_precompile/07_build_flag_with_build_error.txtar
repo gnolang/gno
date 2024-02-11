@@ -3,8 +3,8 @@
 ! gno precompile -gobuild .
 
 ! stdout .+
-stderr '^./main.gno:3:4: x declared and not used$'
-stderr '^1 build error\(s\)$'
+stderr '^./main.gno:3:5: x declared and not used$'
+stderr '^1 precompile error\(s\)$'
 
 # TODO add more than a single error per file
 
