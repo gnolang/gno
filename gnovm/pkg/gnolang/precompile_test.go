@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go/format"
 	"go/parser"
+	goscanner "go/scanner"
 	"go/token"
 	"testing"
 
@@ -89,6 +90,56 @@ func TestPrecompile(t *testing.T) {
 				}
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestParseGoBuildErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		output        string
+		expectedError error
+	}{
+		{
+			name:          "empty output",
+			output:        "",
+			expectedError: nil,
+		},
+		{
+			name:          "random output",
+			output:        "xxx",
+			expectedError: nil,
+		},
+		{
+			name: "some errors",
+			output: `xxx
+./main.gno.gen.go:6:2: nasty error
+./pkg/file.gno.gen.go:60:20: ugly error`,
+			expectedError: goscanner.ErrorList{
+				&goscanner.Error{
+					Pos: token.Position{
+						Filename: "./main.gno",
+						Line:     1,
+						Column:   1,
+					},
+					Msg: "nasty error",
+				},
+				&goscanner.Error{
+					Pos: token.Position{
+						Filename: "./pkg/file.gno",
+						Line:     55,
+						Column:   19,
+					},
+					Msg: "ugly error",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parseGoBuildErrors(tt.output)
+
+			assert.Equal(t, tt.expectedError, err)
 		})
 	}
 }

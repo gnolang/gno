@@ -168,7 +168,7 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 
 	if errlist.Len() > 0 {
 		for _, err := range errlist {
-			io.ErrPrintfln("%s", err.Error())
+			io.ErrPrintfln(err.Error())
 		}
 		return fmt.Errorf("%d precompile error(s)", errlist.Len())
 	}

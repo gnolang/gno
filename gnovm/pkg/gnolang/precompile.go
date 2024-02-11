@@ -249,22 +249,19 @@ func PrecompileBuildPackage(fileOrPkg, goBinary string) error {
 		cmd.Dir = rootDir
 	}
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return parseGoBuildErrors(out)
+	if _, ok := err.(*exec.ExitError); ok {
+		// exit error
+		return parseGoBuildErrors(string(out))
 	}
-	return nil
+	return err
 }
 
-var errorRe = regexp.MustCompile(`(?m)^([^#]+?):(\d+):(\d+): (.+)$`)
+var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 
 // TODO add tests
-func parseGoBuildErrors(out []byte) error {
+func parseGoBuildErrors(out string) error {
 	var errList goscanner.ErrorList
-
-	matches := errorRe.FindAllStringSubmatch(string(out), -1)
-	if len(matches) == 0 {
-		return errList
-	}
+	matches := errorRe.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		filename := match[1]
 		line, err := strconv.Atoi(match[2])
@@ -280,6 +277,9 @@ func parseGoBuildErrors(out []byte) error {
 		// Remove .gen.go extention, we want to target the gno file
 		filename = strings.TrimSuffix(filename, ".gen.go")
 		// Shift lines & columns
+		// NOTE(tb): the 5 lines shift below assumes there's always a //go:build
+		// directive. But the tags are optional in the precompileFile() function
+		// so that leaves some doubts...
 		line -= 5
 		column--
 		errList.Add(token.Position{
@@ -288,8 +288,7 @@ func parseGoBuildErrors(out []byte) error {
 			Column:   column,
 		}, msg)
 	}
-
-	return errList
+	return errList.Err()
 }
 
 func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
@@ -382,8 +381,5 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 			return true
 		},
 	)
-	if errs.Len() > 0 {
-		return node, errs
-	}
-	return node, nil
+	return node, errs.Err()
 }
