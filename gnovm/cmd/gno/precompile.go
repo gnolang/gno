@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"log"
 	"os"
 	"path/filepath"
@@ -132,18 +134,24 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	}
 
 	opts := newPrecompileOptions(cfg)
-	errCount := 0
+	var errlist scanner.ErrorList
 	for _, filepath := range paths {
-		err = precompileFile(filepath, opts)
+		err := precompileFile(filepath, opts)
 		if err != nil {
-			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			io.ErrPrintfln("%s", err.Error())
-			errCount++
+			var fileErrlist scanner.ErrorList
+			if !errors.As(err, &fileErrlist) {
+				// Not an scanner.ErrorList: return immediately.
+				return fmt.Errorf("%s: precompile: %w", filepath, err)
+			}
+			errlist = append(errlist, fileErrlist...)
 		}
 	}
 
-	if errCount > 0 {
-		return fmt.Errorf("%d precompile errors", errCount)
+	if errlist.Len() > 0 {
+		for _, err := range errlist {
+			io.ErrPrintfln("%s", err.Error())
+		}
+		return fmt.Errorf("%d precompile error(s)", errlist.Len())
 	}
 
 	if cfg.gobuild {
@@ -152,10 +160,12 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 			return fmt.Errorf("list packages: %w", err)
 		}
 
-		errCount = 0
+		errCount := 0
 		for _, pkgPath := range paths {
 			_ = pkgPath
-			err = goBuildFileOrPkg(pkgPath, cfg)
+			out, err := goBuildFileOrPkg(pkgPath, cfg)
+			_ = out
+			// TODO parse `out` and add to scanner.ErrorList
 			if err != nil {
 				err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
 				io.ErrPrintfln("%s\n", err.Error())
@@ -213,7 +223,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	// preprocess.
 	precompileRes, err := gno.Precompile(string(source), tags, srcPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("precompile: %w", err)
 	}
 
 	// resolve target path
@@ -253,7 +263,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	return nil
 }
 
-func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
+func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) ([]byte, error) {
 	verbose := cfg.verbose
 	goBinary := cfg.goBinary
 

@@ -3,7 +3,10 @@
 ! gno precompile -gobuild .
 
 ! stdout .+
-stderr './main.gno.gen.go:8:6: x declared and not used'
+stderr '^./main.gno:3:4: x declared and not used$'
+stderr '^1 build error\(s\)$'
+
+# TODO add more than a single error per file
 
 cmp main.gno.gen.go main.gno.gen.go.golden
 cmp sub/sub.gno.gen.go sub/sub.gno.gen.go.golden
