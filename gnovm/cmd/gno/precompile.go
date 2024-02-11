@@ -147,7 +147,7 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 		}
 	}
 
-	if cfg.gobuild {
+	if errlist.Len() == 0 && cfg.gobuild {
 		paths, err := gnoPackagesFromArgs(args)
 		if err != nil {
 			return fmt.Errorf("list packages: %w", err)
