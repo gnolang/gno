@@ -103,88 +103,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// precompile and validate syntax
-	err = precompile.PrecompileAndCheckMempkg(memPkg)
+	err = precompile.PrecompileAndCheckPkg(true, memPkg, nil)
 	if err != nil {
 		panic(err)
 	}
-
-	// ===============================================
-	//cmd := exec.Command("gno", "env")
-	//out, err := cmd.CombinedOutput()
-	//if err != nil {
-	//	panic(err.Error())
-	//}
-	//fmt.Printf("gno env in: %s \n", string(out))
-	//
-	//cmd = exec.Command("gno", "precompile", "-gobuild=true", cfg.PkgDir)
-	//out, err = cmd.CombinedOutput()
-	//if err != nil {
-	//	panic(err.Error())
-	//}
-	//fmt.Printf("gno precompile out: %s \n", string(out))
-
-	//// precompile first to .gen.go
-	//precompileCfg := &precompile.PrecompileCfg{Gobuild: true, GoBinary: "go"}
-	//opts := precompile.NewPrecompileOptions(precompileCfg)
-	//
-	//srcPaths, err := precompile.GnoFilesFromArgs([]string{cfg.PkgDir})
-	//if err != nil {
-	//	return fmt.Errorf("list paths: %w", err)
-	//}
-	//
-	//errCount := 0
-	//for _, srcPath := range srcPaths {
-	//	fmt.Println("---filepath: ", srcPath)
-	//	err = precompile.PrecompileFile(srcPath, opts)
-	//	if err != nil {
-	//		err = fmt.Errorf("%s: precompile: %w", srcPath, err)
-	//		errCount++
-	//	}
-	//}
-	//if errCount > 0 {
-	//	return fmt.Errorf("%d precompile errors from addpkg", errCount)
-	//}
-	//
-	//// try build
-	//fmt.Println("---addpkg, pkg dir: ", cfg.PkgDir)
-	//paths, err := precompile.GnoPackagesFromArgs([]string{cfg.PkgDir})
-	//if err != nil {
-	//	return fmt.Errorf("list packages: %w", err)
-	//}
-	//
-	//fmt.Println("---addpkg, pkg paths: ", paths)
-	//
-	//errCount = 0
-	//for _, pkgPath := range paths {
-	//	_ = pkgPath
-	//	err = precompile.GoBuildFileOrPkg(pkgPath, precompileCfg)
-	//	if err != nil {
-	//		err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
-	//		io.ErrPrintfln("%s\n", err.Error())
-	//		errCount++
-	//	}
-	//}
-	//
-	//for _, srcPath := range srcPaths {
-	//	fmt.Println("---clean dir:", srcPath)
-	//	err = precompile.CleanGeneratedFiles(srcPath)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-	//for pkgPath := range opts.Precompiled {
-	//	fmt.Println("precompiled import pkg:", pkgPath)
-	//	fmt.Println("---clean dir:", pkgPath)
-	//	err = precompile.CleanGeneratedFiles(string(pkgPath))
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-	//
-	//if errCount > 0 {
-	//	return fmt.Errorf("%d build errors", errCount)
-	//}
-	// =========================================================
 
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted

@@ -19,6 +19,7 @@ var (
 )
 
 func init() {
+	//println(int(1) + int8(1))
 	m = microblog.NewMicroblog(title, prefix)
 }
 

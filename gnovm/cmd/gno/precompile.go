@@ -121,76 +121,60 @@ func newPrecompileCmd(io commands.IO) *commands.Command {
 //	)
 //}
 
-func execPrecompile(cfg *precompile.PrecompileCfg, args []string, io commands.IO) error {
+// precompile an existed path, no stdin.
+// XXX, share most logic with PrecompileAndCheckPkg, can be combinded?
+func execPrecompile(cfg *precompile.PrecompileCfg, paths []string, io commands.IO) error {
 	fmt.Println("---execPrecompile")
-	if len(args) < 1 {
+	if len(paths) < 1 {
 		return flag.ErrHelp
 	}
 
-	var srcPaths []string
-	var opts *precompile.PrecompileOptions
+	err := precompile.PrecompileAndCheckPkg(false, nil, paths)
+	return err
 
-	// clear generated files
-	defer func() {
-		for _, srcPath := range srcPaths {
-			fmt.Println("---clean dir:", srcPath)
-			err := precompile.CleanGeneratedFiles(srcPath)
-			if err != nil {
-				panic(err)
-			}
-		}
-		for pkgPath := range opts.Precompiled {
-			fmt.Println("precompiled import pkg:", pkgPath)
-			fmt.Println("---clean dir:", pkgPath)
-			err := precompile.CleanGeneratedFiles(string(pkgPath))
-			if err != nil {
-				panic(err)
-			}
-		}
-	}()
+	//
+	//// precompile .gno files.
+	//srcPaths, err := precompile.GnoFilesFromArgs(args)
+	//if err != nil {
+	//	return fmt.Errorf("list paths: %w", err)
+	//}
+	//
+	//opts = precompile.NewPrecompileOptions(cfg)
+	//fmt.Printf("---opts.Precompiled: %v, opts.cfg: %v \n", opts.Precompiled, opts.Cfg)
+	//errCount := 0
+	//for _, filepath := range srcPaths {
+	//	err = precompile.PrecompileFile(filepath, opts)
+	//	if err != nil {
+	//		err = fmt.Errorf("%s: precompile: %w", filepath, err)
+	//		io.ErrPrintfln("%s", err.Error())
+	//		errCount++
+	//	}
+	//}
+	//
+	//if errCount > 0 {
+	//	return fmt.Errorf("%d precompile errors", errCount)
+	//}
+	//
+	//if cfg.Gobuild {
+	//	paths, err := precompile.GnoPackagesFromArgs(args)
+	//	if err != nil {
+	//		return fmt.Errorf("list packages: %w", err)
+	//	}
+	//
+	//	errCount = 0
+	//	for _, pkgPath := range paths {
+	//		_ = pkgPath
+	//		err = precompile.GoBuildFileOrPkg(pkgPath, cfg)
+	//		if err != nil {
+	//			err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
+	//			io.ErrPrintfln("%s\n", err.Error())
+	//			errCount++
+	//		}
+	//	}
+	//	if errCount > 0 {
+	//		return fmt.Errorf("%d build errors", errCount)
+	//	}
+	//}
 
-	// precompile .gno files.
-	srcPaths, err := precompile.GnoFilesFromArgs(args)
-	if err != nil {
-		return fmt.Errorf("list paths: %w", err)
-	}
-
-	opts = precompile.NewPrecompileOptions(cfg)
-	fmt.Printf("---opts.Precompiled: %v, opts.cfg: %v \n", opts.Precompiled, opts.Cfg)
-	errCount := 0
-	for _, filepath := range srcPaths {
-		err = precompile.PrecompileFile(filepath, opts)
-		if err != nil {
-			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			io.ErrPrintfln("%s", err.Error())
-			errCount++
-		}
-	}
-
-	if errCount > 0 {
-		return fmt.Errorf("%d precompile errors", errCount)
-	}
-
-	if cfg.Gobuild {
-		paths, err := precompile.GnoPackagesFromArgs(args)
-		if err != nil {
-			return fmt.Errorf("list packages: %w", err)
-		}
-
-		errCount = 0
-		for _, pkgPath := range paths {
-			_ = pkgPath
-			err = precompile.GoBuildFileOrPkg(pkgPath, cfg)
-			if err != nil {
-				err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
-				io.ErrPrintfln("%s\n", err.Error())
-				errCount++
-			}
-		}
-		if errCount > 0 {
-			return fmt.Errorf("%d build errors", errCount)
-		}
-	}
-
-	return nil
+	//return nil
 }

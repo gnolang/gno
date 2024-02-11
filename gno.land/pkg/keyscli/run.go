@@ -110,13 +110,11 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 	// precompile and validate syntax
-	err = precompile.PrecompileAndCheckMempkg(memPkg)
+	err = precompile.PrecompileAndCheckPkg(true, memPkg, nil)
 	if err != nil {
 		panic(err)
 	}
-	// =============================================================
 
-	// =============================================================
 	memPkg.Name = "main"
 	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
 
