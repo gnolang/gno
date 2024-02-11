@@ -88,7 +88,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			}
 
 			if keyLevel == len(keys) {
-				return i+1, nil
+				return i + 1, nil
 			}
 		case CurlyOpenToken:
 			// in case parent key is matched then only we will increase the level otherwise can directly
@@ -260,7 +260,7 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 
 	// strip quotes from string values
 	if dataType == String {
-		value = value[1 : len(value)-1]
+		value = value[1:len(value)-1]
 	}
 
 	// remove unnecessary whitespace characters to make more readable
@@ -303,36 +303,41 @@ func ArrayEach(
 	keys ...string,
 ) (offset int, err error) {
 	if len(data) == 0 {
-		return -1, MalformedObject
+		return -1, errors.New("json.ArrayEach: empty data")
 	}
 
 	if next, err := nextToken(data); err != nil {
-		return -1, MalformedObject
+		return -1, errors.New("json.ArrayEach: invalid token")
 	} else {
 		offset += next
 	}
 
 	if len(keys) > 0 {
 		if offset, err = findValueIndex(data, keys...); err != nil {
-			return -1, KeyPathNotFoundError
+			return -1, errors.New(ufmt.Sprintf("json.ArrayEach: key path not found. keys: %v", keys))
 		}
 
 		// go to closest value
 		if n0, err := nextToken(data[offset:]); err != nil {
-			return -1, MalformedObject
+			return -1, errors.New(
+				ufmt.Sprintf(
+					"json.ArrayEach: invalid token found. offset: %d. got: %s",
+					offset,
+					data[offset:offset+1],
+				))
 		} else {
 			offset += n0
 		}
 
 		if data[offset] != SquareOpenToken {
-			return -1, MalformedObject
+			return -1, errors.New("json.ArrayEach: invalid array. must start with `[`")
 		} else {
 			offset += 1
 		}
 	}
 
 	if n0, err := nextToken(data[offset:]); err != nil {
-		return -1, MalformedObject
+		return -1, errors.New("json.ArrayEach: invalid token. value not found")
 	} else {
 		offset += n0
 	}
@@ -362,7 +367,12 @@ func ArrayEach(
 
 		offset += o
 		if skipToToken, err := nextToken(data[offset:]); err != nil {
-			return offset, MalformedArray
+			return offset, errors.New(
+				ufmt.Sprintf(
+					"json.ArrayEach: invalid token at offset %d. got: %s",
+					offset,
+					data[offset:offset+1],
+				))
 		} else {
 			offset += skipToToken
 		}
@@ -372,7 +382,12 @@ func ArrayEach(
 		}
 
 		if data[offset] != CommaToken {
-			return offset, MalformedArray
+			return offset, errors.New(
+				ufmt.Sprintf(
+					"json.ArrayEach: cannot find comma at offset %d. got: %s",
+					offset,
+					data[offset:offset+1],
+				))
 		} else {
 			offset += 1
 		}
@@ -459,9 +474,9 @@ func ObjectEach(
 
 		// find nearby value, call callback
 		if value, typ, off, err := Get(data[offset:]); err != nil {
-			return err
+			return errors.New(ufmt.Sprintf("json.ObjectEach: %s", err))
 		} else if err := cb(key, value, typ, offset+off); err != nil {
-			return err
+			return errors.New(ufmt.Sprintf("json.ObjectEach: %s", err)) 
 		} else {
 			offset += off
 		}

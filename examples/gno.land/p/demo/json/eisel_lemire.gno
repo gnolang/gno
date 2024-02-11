@@ -59,8 +59,10 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 		if neg {
 			f = math.Float64frombits(0x80000000_00000000) // Negative zero.
 		}
+
 		return f, true
 	}
+
 	if exp10 < detailedPowersOfTenMinExp10 || detailedPowersOfTenMaxExp10 < exp10 {
 		return 0, false
 	}
@@ -68,7 +70,6 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
 	man <<= uint(clz)
-	const float64ExponentBias = 1023
 	retExp2 := uint64(217706*exp10>>16+64+float64ExponentBias) - uint64(clz)
 
 	// Multiplication.
@@ -81,9 +82,11 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 		if mergedLo < xLo {
 			mergedHi++
 		}
+
 		if mergedHi&0x1FF == 0x1FF && mergedLo+1 == 0 && yLo+man < man {
 			return 0, false
 		}
+
 		xHi, xLo = mergedHi, mergedLo
 	}
 
@@ -104,6 +107,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 		retMantissa >>= 1
 		retExp2 += 1
 	}
+
 	// retExp2 is a uint64. Zero or underflow means that we're in subnormal
 	// float64 space. 0x7FF or above means that we're in Inf/NaN float64 space.
 	//
@@ -112,10 +116,12 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	if retExp2-1 >= 0x7FF-1 {
 		return 0, false
 	}
+
 	retBits := retExp2<<52 | retMantissa&0x000FFFFF_FFFFFFFF
 	if neg {
 		retBits |= 0x80000000_00000000
 	}
+
 	return math.Float64frombits(retBits), true
 }
 
@@ -134,8 +140,10 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 		if neg {
 			f = math.Float32frombits(0x80000000) // Negative zero.
 		}
+
 		return f, true
 	}
+
 	if exp10 < detailedPowersOfTenMinExp10 || detailedPowersOfTenMaxExp10 < exp10 {
 		return 0, false
 	}
@@ -143,7 +151,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
 	man <<= uint(clz)
-	const float32ExponentBias = 127
+
 	retExp2 := uint64(217706*exp10>>16+64+float32ExponentBias) - uint64(clz)
 
 	// Multiplication.
@@ -156,9 +164,11 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 		if mergedLo < xLo {
 			mergedHi++
 		}
+
 		if mergedHi&0x3F_FFFFFFFF == 0x3F_FFFFFFFF && mergedLo+1 == 0 && yLo+man < man {
 			return 0, false
 		}
+
 		xHi, xLo = mergedHi, mergedLo
 	}
 
@@ -179,6 +189,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 		retMantissa >>= 1
 		retExp2 += 1
 	}
+
 	// retExp2 is a uint64. Zero or underflow means that we're in subnormal
 	// float32 space. 0xFF or above means that we're in Inf/NaN float32 space.
 	//
@@ -187,10 +198,12 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	if retExp2-1 >= 0xFF-1 {
 		return 0, false
 	}
+
 	retBits := retExp2<<23 | retMantissa&0x007FFFFF
 	if neg {
 		retBits |= 0x80000000
 	}
+
 	return math.Float32frombits(uint32(retBits)), true
 }
 

@@ -294,77 +294,6 @@ var getTests = []GetTest{
 		isFound: true,
 		data:    `1`,
 	},
-
-	// Not found key tests     ** current: throw reflect error. should be fixed
-	// {
-	// 	desc:    `empty input`,
-	// 	json:    ``,
-	// 	path:    []string{"a"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "non-existent key 1",
-	// 	json:    `{"a":"b"}`,
-	// 	path:    []string{"c"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "non-existent key 2",
-	// 	json:    `{"a":"b"}`,
-	// 	path:    []string{"b"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "non-existent key 3",
-	// 	json:    `{"aa":"b"}`,
-	// 	path:    []string{"a"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "apply scope of parent when search for nested key",
-	// 	json:    `{"a": { "b": 1}, "c": 2 }`,
-	// 	path:    []string{"a", "b", "c"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    `apply scope to key level`,
-	// 	json:    `{"a": { "b": 1}, "c": 2 }`,
-	// 	path:    []string{"b"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    `handle escaped quote in key name in JSON`,
-	// 	json:    `{"key\"key": 1}`,
-	// 	path:    []string{"key"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "handling multiple keys with different name",
-	// 	json:    `{"a":{"a":1},"b":{"a":3,"c":[1,2]}}`,
-	// 	path:    []string{"a", "c"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    "handling nested json",
-	// 	json:    `{"a":{"b":{"c":1},"d":4}}`,
-	// 	path:    []string{"a", "d"},
-	// 	isFound: true,
-	// 	data:    `4`,
-	// },
-	// {
-	// 	desc:    `missing key in different key same level`,
-	// 	json:    `{"s":"s","ic":2,"r":{"o":"invalid"}}`,
-	// 	path:    []string{"ic", "o"},
-	// 	isFound: false,
-	// },
-
-	// Error/invalid tests
-	// {
-	// 	desc:    `handle escaped quote in key name in JSON`,
-	// 	json:    `{"key\"key": 1}`,
-	// 	path:    []string{"key"},
-	// 	isFound: false,
-	// },
 	{
 		desc:    `missing closing brace, but can still find key`,
 		json:    `{"a":"b"`,
@@ -415,24 +344,6 @@ var getTests = []GetTest{
 		isFound: false,
 		isErr:   true,
 	},
-	// { // Issue #81
-	// 	desc:    `missing key in object in array`,
-	// 	json:    `{"p":{"a":[{"u":"abc","t":"th"}]}}`,
-	// 	path:    []string{"p", "a", "[0]", "x"},
-	// },
-	// { // Issue #81 counter test
-	// 	desc:    `existing key in object in array`,
-	// 	json:    `{"p":{"a":[{"u":"abc","t":"th"}]}}`,
-	// 	path:    []string{"p", "a", "[0]", "u"},
-	// 	isFound: true,
-	// 	data:    "abc",
-	// },
-	// { // This test returns not found instead of a parse error, as checking for the malformed JSON would reduce performance
-	// 	desc:    "malformed key (followed by comma followed by colon)",
-	// 	json:    `{"a",:1}`,
-	// 	path:    []string{"a"},
-	// 	isFound: false,
-	// },
 	{ // This test returns a match instead of a parse error, as checking for the malformed JSON would reduce performance (this is not ideal)
 		desc:    "malformed 'colon chain', lookup first string",
 		json:    `{"a":"b":"c"}`,
@@ -447,78 +358,6 @@ var getTests = []GetTest{
 		isFound: true,
 		data:    "c",
 	},
-	// Array index paths
-	// {
-	// 	desc:    "last key in path is index",
-	// 	json:    `{"a":[{"b":1},{"b":"2"}, 3],"c":{"c":[1,2]}}`,
-	// 	path:    []string{"a", "[1]"},
-	// 	isFound: true,
-	// 	data:    `{"b":"2"}`,
-	// },
-	// {
-	// 	desc:    "get string from array",
-	// 	json:    `{"a":[{"b":1},"foo", 3],"c":{"c":[1,2]}}`,
-	// 	path:    []string{"a", "[1]"},
-	// 	isFound: true,
-	// 	data:    "foo",
-	// },
-	// {
-	// 	desc:    "key in path is index",
-	// 	json:    `{"a":[{"b":"1"},{"b":"2"},3],"c":{"c":[1,2]}}`,
-	// 	path:    []string{"a", "[0]", "b"},
-	// 	isFound: true,
-	// 	data:    `1`,
-	// },
-	// {
-	// 	desc: "last key in path is an index to value in array (formatted json)",
-	// 	json: `{
-	// 	    "a": [
-	// 		{
-	// 		    "b": 1
-	// 		},
-	// 		{"b":"2"},
-	// 		3
-	// 	    ],
-	// 	    "c": {
-	// 		"c": [
-	// 		    1,
-	// 		    2
-	// 		]
-	// 	    }
-	// 	}`,
-	// 	path:    []string{"a", "[1]"},
-	// 	isFound: true,
-	// 	data:    `{"b":"2"}`,
-	// },
-	// {
-	// 	desc: "key in path is index (formatted json)",
-	// 	json: `{
-	// 	"a": [
-	// 		{"b": 1},
-	// 		{"b": "2"},
-	// 		3
-	// 	],
-	// 	"c": {
-	// 			"c": [1, 2]
-	// 		}
-	// 	}`,
-	// 	path:    []string{"a", "[0]", "b"},
-	// 	isFound: true,
-	// 	data:    `1`,
-	// },
-	// {
-	// 	// Issue #178: Crash in searchKeys
-	// 	desc:    `invalid json`,
-	// 	json:    `{{{"":`,
-	// 	path:    []string{"a", "b"},
-	// 	isFound: false,
-	// },
-	// {
-	// 	desc:    `opening brace instead of closing and without key`,
-	// 	json:    `{"a":1{`,
-	// 	path:    []string{"b"},
-	// 	isFound: false,
-	// },
 }
 
 func TestGet(t *testing.T) {
@@ -589,43 +428,43 @@ func TestArrayEach2(t *testing.T) {
 }
 
 func TestObjectEach(t *testing.T) {
-    tests := []struct {
-        name     string
-        input    []byte
-        expected map[string]string
-        root     string
+	tests := []struct {
+		name     string
+		input    []byte
+		expected map[string]string
+		root     string
 		isErr    bool
-    }{
+	}{
 		{
-			name: "empty object",
-			input: []byte(`{}`),
+			name:     "empty object",
+			input:    []byte(`{}`),
 			expected: map[string]string{},
-			root: "",
+			root:     "",
 		},
 		{
-			name: "single key",
-			input: []byte(`{"a": 1}`),
+			name:     "single key",
+			input:    []byte(`{"a": 1}`),
 			expected: map[string]string{"a": "1"},
-			root: "",
+			root:     "",
 		},
 		{
-            name:     "two keys",
-            input:    []byte(`{"a": {"b": 1, "c": 2}}`),
-            expected: map[string]string{"b": "1", "c": "2"},
-            root:     "a",
-        },
-		{
-			name: "two keys 2",
-			input: []byte(`{"a": {"b": 1, "c": 2}, "d": 4}`),
+			name:     "two keys",
+			input:    []byte(`{"a": {"b": 1, "c": 2}}`),
 			expected: map[string]string{"b": "1", "c": "2"},
-			root: "a",
+			root:     "a",
 		},
-        {
-            name:     "another set of keys",
-            input:    []byte(`{"x": {"y": 3, "z": 4}}`),
-            expected: map[string]string{"y": "3", "z": "4"},
-            root:     "x",
-        },
+		{
+			name:     "two keys 2",
+			input:    []byte(`{"a": {"b": 1, "c": 2}, "d": 4}`),
+			expected: map[string]string{"b": "1", "c": "2"},
+			root:     "a",
+		},
+		{
+			name:     "another set of keys",
+			input:    []byte(`{"x": {"y": 3, "z": 4}}`),
+			expected: map[string]string{"y": "3", "z": "4"},
+			root:     "x",
+		},
 		{
 			name: "multiple key-value object with many value types",
 			input: []byte(`{
@@ -646,108 +485,108 @@ func TestObjectEach(t *testing.T) {
 			},
 		},
 		{
-			name: "so many white spaces",
-			input: []byte(`{"a"               :                 1}`),
+			name:     "so many white spaces",
+			input:    []byte(`{"a"               :                 1}`),
 			expected: map[string]string{"a": "1"},
 		},
 		/* Error Cases */
 		{
-			name: "unmatched brace",
+			name:  "unmatched brace",
 			input: []byte(`{`),
 			isErr: true,
 		},
 		{
-			name: "unmatched brace 2",
+			name:  "unmatched brace 2",
 			input: []byte(`{"a": 1`),
-			root: "a",
+			root:  "a",
 			isErr: true,
 		},
 		{
-			name: "unmatched brace 3",
+			name:  "unmatched brace 3",
 			input: []byte(`}`),
 			isErr: true,
 		},
 		{
-			name: "unmatched brace 3",
+			name:  "unmatched brace 3",
 			input: []byte(`{{}}{`),
 			isErr: true,
 		},
 		{
-			name: "no object present",
+			name:  "no object present",
 			input: []byte(`\t\n\r`),
 			isErr: true,
 		},
 		{
-			name: "malformed key",
+			name:  "malformed key",
 			input: []byte(`{"foo: 1}`),
 			isErr: true,
 		},
 		{
-			name: "malformed key 2",
+			name:  "malformed key 2",
 			input: []byte(`{"foo": 1, "bar: "11"}`),
-			root: "foo",
+			root:  "foo",
 			isErr: true,
 		},
 		{
-			name: "malformed key in nested object",
+			name:  "malformed key in nested object",
 			input: []byte(`{"foo": {"bar: 1}}`),
-			root: "foo",
+			root:  "foo",
 			isErr: true,
 		},
 		{
-			name: "bad value",
+			name:  "bad value",
 			input: []byte(`{"foo": bar}`),
 			isErr: true,
 		},
 		{
-			name: "no colon",
+			name:  "no colon",
 			input: []byte(`{"foo" "bar"}`),
 			isErr: true,
 		},
 		{
-			name: "no colon 2",
+			name:  "no colon 2",
 			input: []byte(`{"foo""bar"}`),
 			isErr: true,
 		},
 		{
-			name: "no colon 3",
+			name:  "no colon 3",
 			input: []byte(`{"foo"; "bar"}`),
 			isErr: true,
 		},
 		{
-			name: "invalid colon",
+			name:  "invalid colon",
 			input: []byte(`{"foo":: "bar"}`),
 			isErr: true,
 		},
 		{
-			name: "no trailing comma",
+			name:  "no trailing comma",
 			input: []byte(`{"foo": "bar" "baz": "qux"}`),
-			root: "foo",
+			root:  "foo",
 			isErr: true,
 		},
 		{
-			name: "key with unicode escape",
+			name:  "key with unicode escape",
 			input: []byte(`{"b": 10, "c": {"a\uD83D\uDE03b":1, "aa": false}}`),
-			root: "b",
+			root:  "b",
 			isErr: true,
 		},
-    }
+	}
 
-    for _, tc := range tests {
-        t.Run(tc.name, func(t *testing.T) {
-            err := ObjectEach(tc.input, func(key, value []byte, dataType ValueType, offset int) error {
-                expectedValue, ok := tc.expected[string(key)]
-                if !ok {
-                    t.Errorf("Unexpected key: %s", string(key))
-                } else if string(value) != expectedValue {
-                    t.Errorf("Wrong value for key %s: got %s, want %s", string(key), string(value), expectedValue)
-                }
-                return nil
-            }, tc.root)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ObjectEach(tc.input, func(key, value []byte, dataType ValueType, offset int) error {
+				expectedValue, ok := tc.expected[string(key)]
+				if !ok {
+					t.Errorf("Unexpected key: %s", string(key))
+				} else if string(value) != expectedValue {
+					t.Errorf("Wrong value for key %s: got %s, want %s", string(key), string(value), expectedValue)
+				}
+				return nil
+			}, tc.root)
 
 			if (err != nil) != tc.isErr {
-                t.Errorf("ObjectEach(%s) error = %v, wantErr %v", tc.name, err, tc.isErr)
-            }
-        })
-    }
+				t.Errorf("ObjectEach(%s) error = %v, wantErr %v", tc.name, err, tc.isErr)
+			}
+		})
+	}
 }

@@ -3,16 +3,18 @@ package json
 import "regexp"
 
 const (
-	SupplementalPlanesOffset = 0x10000
-	HighSurrogateOffset      = 0xD800
-	LowSurrogateOffset       = 0xDC00
+	supplementalPlanesOffset = 0x10000
+	highSurrogateOffset      = 0xD800
+	lowSurrogateOffset       = 0xDC00
 
-	SurrogateEnd                 = 0xDFFF
-	BasicMultilingualPlaneOffset = 0xFFFF
+	surrogateEnd                 = 0xDFFF
+	basicMultilingualPlaneOffset = 0xFFFF
 
-	BadHex = -1
+	badHex = -1
 
 	unescapeStackBufSize = 64
+	float32ExponentBias = 127
+	float64ExponentBias = 1023
 )
 
 const (
@@ -26,5 +28,5 @@ const (
 var (
 	tabRegex           = regexp.MustCompile(`(?m)^\t+`)
 	lastLineSpaceRegex = regexp.MustCompile(`(?m)^\s+\}`)
-	jsonKeyRegex	   = regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
+	jsonKeyRegex       = regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
 )

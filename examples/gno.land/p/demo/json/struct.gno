@@ -28,8 +28,6 @@ type Field struct {
 type Struct struct {
 	// fields holds the fields of the struct.
 	fields []Field
-	// TODO: may use map to speed up the search.
-	// fmap   map[string]*Field
 }
 
 // NewStruct create new empty struct placeholder.

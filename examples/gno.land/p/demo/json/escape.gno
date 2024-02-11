@@ -60,7 +60,7 @@ func unescape(input, output []byte) ([]byte, error) {
 // A surrogate pairs are used in UTF-16 encoding to encode characters
 // outside the Basic Multilingual Plane (BMP).
 func isSurrogatePair(r rune) bool {
-	return HighSurrogateOffset <= r && r <= SurrogateEnd
+	return highSurrogateOffset <= r && r <= surrogateEnd
 }
 
 // combineSurrogates reconstruct the original unicode code points in the
@@ -72,7 +72,7 @@ func isSurrogatePair(r rune) bool {
 // The formula to combine the surrogates is:
 // (high - 0xD800) * 0x400 + (low - 0xDC00) + 0x10000
 func combineSurrogates(high, low rune) rune {
-	return ((high - HighSurrogateOffset) << 10) + (low - LowSurrogateOffset) + SupplementalPlanesOffset
+	return ((high - highSurrogateOffset) << 10) + (low - lowSurrogateOffset) + supplementalPlanesOffset
 }
 
 // deocdeSingleUnicodeEscape decodes a unicode escape sequence (e.g., \uXXXX) into a rune.
@@ -83,7 +83,7 @@ func decodeSingleUnicodeEscape(b []byte) (rune, bool) {
 
 	// convert hex to decimal
 	h1, h2, h3, h4 := h2i(b[2]), h2i(b[3]), h2i(b[4]), h2i(b[5])
-	if h1 == BadHex || h2 == BadHex || h3 == BadHex || h4 == BadHex {
+	if h1 == badHex || h2 == badHex || h3 == badHex || h4 == badHex {
 		return utf8.RuneError, false
 	}
 
@@ -98,7 +98,7 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 	}
 
 	// determine valid unicode escapes within the BMP
-	if r <= BasicMultilingualPlaneOffset && !isSurrogatePair(r) {
+	if r <= basicMultilingualPlaneOffset && !isSurrogatePair(r) {
 		return r, 6
 	}
 
@@ -108,7 +108,7 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 		return utf8.RuneError, -1
 	}
 
-	if r2 < LowSurrogateOffset {
+	if r2 < lowSurrogateOffset {
 		return utf8.RuneError, -1
 	}
 

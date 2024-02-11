@@ -18,9 +18,9 @@ func TestHexToInt(t *testing.T) {
 		{"Uppercase F", 'F', 15},
 		{"Lowercase a", 'a', 10},
 		{"Lowercase f", 'f', 15},
-		{"Invalid character1", 'g', BadHex},
-		{"Invalid character2", 'G', BadHex},
-		{"Invalid character3", 'z', BadHex},
+		{"Invalid character1", 'g', badHex},
+		{"Invalid character2", 'G', badHex},
+		{"Invalid character3", 'z', badHex},
 	}
 
 	for _, tt := range tests {
