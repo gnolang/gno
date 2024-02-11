@@ -276,11 +276,15 @@ func parseGoBuildErrors(out string) error {
 		msg := match[4]
 		// Remove .gen.go extention, we want to target the gno file
 		filename = strings.TrimSuffix(filename, ".gen.go")
-		// Shift lines & columns
+		// Shift the 5 lines header added in *.gen.go files (see Precompile func)
 		// NOTE(tb): the 5 lines shift below assumes there's always a //go:build
-		// directive. But the tags are optional in the precompileFile() function
-		// so that leaves some doubts...
+		// directive. But the tags are optional in the Precompile() function
+		// so that leaves some doubts... We might want something more reliable than
+		// constants to shift lines and columns.
 		line -= 5
+		// Shift column of 1 char
+		// NOTE(tb): not sure when this comes from, maybe the call to format.Node()
+		// which transforms 2 spaces into a tab ?
 		column--
 		errList.Add(token.Position{
 			Filename: filename,
