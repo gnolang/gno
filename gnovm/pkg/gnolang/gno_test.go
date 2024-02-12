@@ -3,12 +3,18 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"text/template"
 	"unsafe"
 
 	// "github.com/davecgh/go-spew/spew"
 	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 )
 
 // run empty main().
@@ -192,43 +198,84 @@ func main() {
 // Benchmarks
 
 func BenchmarkPreprocess(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		// stop timer
-		b.StopTimer()
-		pkg := &PackageNode{
-			PkgName: "main",
-			PkgPath: ".main",
-			FileSet: nil,
-		}
-		pkg.InitStaticBlock(pkg, nil)
-		main := FuncD("main", nil, nil, Ss(
-			A("mx", ":=", "1000000"),
-			For(
-				A("i", ":=", "0"),
-				X("i < mx"),
-				Inc("i"),
-			),
-		))
-		b.StartTimer()
-		// timer started
-		main = Preprocess(nil, pkg, main).(*FuncDecl)
+	pkg := &PackageNode{
+		PkgName: "main",
+		PkgPath: ".main",
+		FileSet: nil,
 	}
-}
-
-func BenchmarkLoopyMain(b *testing.B) {
-	m := NewMachine("test", nil)
+	pkg.InitStaticBlock(pkg, nil)
 	main := FuncD("main", nil, nil, Ss(
-		A("mx", ":=", "10000000"),
+		A("mx", ":=", "1000000"),
 		For(
 			A("i", ":=", "0"),
-			// X("i < 10000000"),
 			X("i < mx"),
 			Inc("i"),
 		),
 	))
-	m.RunDeclaration(main)
+	copies := make([]*FuncDecl, b.N)
 	for i := 0; i < b.N; i++ {
-		m.RunMain()
+		copies[i] = main.Copy().(*FuncDecl)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+	}
+}
+
+type bdataParams struct {
+	N     int
+	Param string
+}
+
+func BenchmarkBenchdata(b *testing.B) {
+	const bdDir = "./benchdata"
+	files, err := os.ReadDir(bdDir)
+	require.NoError(b, err)
+	for _, file := range files {
+		// Read file and parse template.
+		bcont, err := os.ReadFile(filepath.Join(bdDir, file.Name()))
+		cont := string(bcont)
+		require.NoError(b, err)
+		tpl, err := template.New("").Parse(cont)
+		require.NoError(b, err)
+
+		// Determine parameters.
+		const paramString = "// param: "
+		var params []string
+		pos := strings.Index(cont, paramString)
+		if pos >= 0 {
+			paramsRaw := strings.SplitN(cont[pos+len(paramString):], "\n", 2)[0]
+			params = strings.Fields(paramsRaw)
+		} else {
+			params = []string{""}
+		}
+
+		for _, param := range params {
+			name := file.Name()
+			if param != "" {
+				name += "_param:" + param
+			}
+			b.Run(name, func(b *testing.B) {
+				// Gen template with N and param.
+				var buf bytes.Buffer
+				require.NoError(b, tpl.Execute(&buf, bdataParams{
+					N:     b.N,
+					Param: param,
+				}))
+
+				// Set up machine.
+				m := NewMachineWithOptions(MachineOptions{
+					PkgPath: "main",
+					Output:  io.Discard,
+				})
+				n := MustParseFile("main.go", buf.String())
+				m.RunFiles(n)
+
+				b.ResetTimer()
+				m.RunMain()
+			})
+		}
 	}
 }
 

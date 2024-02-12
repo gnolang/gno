@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -162,7 +163,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 		Send:   send,
 		Package: &std.MemPackage{
 			Name:  "main",
-			Path:  "gno.land/r/" + caller.String() + "/run",
+			Path:  "", // auto set by the handler
 			Files: files,
 		},
 	}
@@ -179,9 +180,13 @@ func (msg MsgRun) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.Package.Path == "" { // XXX
-		return ErrInvalidPkgPath("missing package path")
+
+	// Force memPkg path to the reserved run path.
+	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
+	if path := msg.Package.Path; path != "" && path != wantPath {
+		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 	}
+
 	return nil
 }
 

@@ -17,26 +17,24 @@ start.gnoland:; go run ./cmd/gnoland start
 start.gnoweb:; go run ./cmd/gnoweb
 
 .PHONY: build
-build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.gnotxsync build.genesis
+build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.genesis
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
 build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
-build.gnotxsync:;  go build -o build/gnotxsync  ./cmd/gnotxsync
 build.genesis:;  go build -o build/genesis  ./cmd/genesis
 
 run.gnoland:;  go run ./cmd/gnoland start
 run.gnoweb:;  go run ./cmd/gnoweb
 
 .PHONY: install
-install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.gnotxsync install.genesis
+install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.genesis
 
 install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnofaucet:;  go install ./cmd/gnofaucet
 install.gnokey:;     go install ./cmd/gnokey
-install.gnotxsync:;  go install ./cmd/gnotxsync
 install.genesis:;  go install ./cmd/genesis
 
 .PHONY: fclean
