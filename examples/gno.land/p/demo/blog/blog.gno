@@ -63,6 +63,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
+	res.Write("# " + p.Title + "\n\n")
 	res.Write(p.Body + "\n\n")
 	res.Write("---\n\n")
 
@@ -172,7 +173,7 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
 		return ErrPostTitleExists
 	}
-	// If two posts have the same timestamp, increment one by one second, so they differ
+	// Cannot have two posts with *exact* same timestamp
 	if _, found := b.PostsPublished.Get(pubDateKey); found {
 		return ErrPostPubDateExists
 	}
@@ -317,7 +318,9 @@ func (p *Post) RenderAuthorList() string {
 
 func (p *Post) RenderPublishData() string {
 	out := "Published "
-	out += "by " + p.Publisher.String() + " "
+	if p.Publisher != "" {
+		out += "by " + p.Publisher.String() + " "
+	}
 	out += "to " + p.Blog.Title
 
 	return out

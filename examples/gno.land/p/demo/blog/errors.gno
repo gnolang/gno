@@ -9,4 +9,5 @@ var (
 	ErrPostSlugExists    = errors.New("post with specified slug already exists")
 	ErrPostPubDateExists = errors.New("post with specified publication date exists")
 	ErrPostTitleExists   = errors.New("post with specified title already exists")
+	ErrNoSuchPost        = errors.New("no such post")
 )

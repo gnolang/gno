@@ -16,5 +16,5 @@ This consensus mechanism also achieves higher security with fewer validators, op
 
 Any blockchain using Gnolang achieves succinctness, composability, expressivity, and completeness not found in any other smart contract platform.
 By observing a minimal structure, the design can endure over time and challenge the regime of information censorship we’re living in today.`
-	_ = b.NewPost("", path, title, body, "", nil, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:22Z", nil, nil)
 }

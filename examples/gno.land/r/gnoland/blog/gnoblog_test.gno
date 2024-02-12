@@ -23,8 +23,8 @@ No posts.
 	}
 	// create two posts, list post.
 	{
-		ModAddPost("slug1", "title1", "body1", "2022-05-02T13:17:22Z", "moul", "tag1,tag2")
-		ModAddPost("slug2", "title2", "body2", "2022-05-02T13:17:23Z", "moul", "tag1,tag3")
+		ModAddPost("slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
 # Gnoland's Blog
@@ -45,6 +45,7 @@ No posts.
 	// view post.
 	{
 		got := Render("p/slug2")
+
 		expected := `
 # [Gnoland's Blog](/r/gnoland/blog:) / p / title2
 
