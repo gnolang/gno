@@ -18,12 +18,15 @@
 //     communicate with the gnoland node.
 //
 // 3. `adduser`:
-//   - Creates a new user in the default keybase directory.
 //   - Must be run before `gnoland start`.
+//   - Creates a new user in the default keybase directory.
 //
 // 4. `use`:
+//   - Must be run before `gnoland start`.
 //   - Loads a specific package from the example folder or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
+//   - If the target package has a `gno.mod`, all its dependencies (and their respective
+//     dependencies) will also be loaded.
 //   - The command takes either one or two arguments. The first argument is the name of the package(s),
 //     and the second (optional) argument is the path to the package(s).
 //     Examples:
@@ -32,9 +35,8 @@
 //     -- # Load a package `./bar` from the current testscript's working directory with the name `gno.land/r/foobar/bar`:
 //     -- use gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the examples directory.
-//   - It's important to note that the load order is significant when using
-//     multiple use command; packages should be loaded in the order they are
-//     dependent upon.
+//   - It's important to note that the load order is significant when using multiple use
+//     command; packages should be loaded in the order they are dependent upon.
 //
 // Logging:
 //
