@@ -168,7 +168,7 @@ func TestClient_CallMultiple(t *testing.T) {
 		{
 			PkgPath:  "gno.land/r/demo/tamagotchi",
 			FuncName: "Feed",
-			Args:     []string{},
+			Args:     []string{""},
 			Send:     "",
 		},
 	}
@@ -354,6 +354,196 @@ func TestClient_Call_Errors(t *testing.T) {
 			t.Parallel()
 
 			res, err := tc.client.Call(tc.cfg, tc.msgs...)
+			assert.Nil(t, res)
+			assert.ErrorIs(t, err, tc.expectedError)
+		})
+	}
+}
+
+func TestClient_Send_Errors(t *testing.T) {
+	t.Parallel()
+
+	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
+	testCases := []struct {
+		name          string
+		client        Client
+		cfg           BaseTxCfg
+		msgs          []MsgSend
+		expectedError error
+	}{
+		{
+			name: "Invalid Signer",
+			client: Client{
+				Signer:    nil,
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrMissingSigner,
+		},
+		{
+			name: "Invalid RPCClient",
+			client: Client{
+				&mockSigner{},
+				nil,
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrMissingRPCClient,
+		},
+		{
+			name: "Invalid Gas Fee",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrInvalidGasFee,
+		},
+		{
+			name: "Negative Gas Wanted",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      -1,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrInvalidGasWanted,
+		},
+		{
+			name: "0 Gas Wanted",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      0,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrInvalidGasWanted,
+		},
+		{
+			name: "Invalid To Address",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: crypto.Address{},
+					Send:      "1ugnot",
+				},
+			},
+			expectedError: ErrInvalidToAddress,
+		},
+		{
+			name: "Invalid Send Coins",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgSend{
+				{
+					ToAddress: toAddress,
+					Send:      "-1ugnot",
+				},
+			},
+			expectedError: ErrInvalidSendAmount,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.client.Send(tc.cfg, tc.msgs...)
 			assert.Nil(t, res)
 			assert.ErrorIs(t, err, tc.expectedError)
 		})
