@@ -350,7 +350,7 @@ func TestGetGnoImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	imports, err := getGnoModuleImports(tmpDir)
+	imports, err := getGnoPackageImports(tmpDir)
 	require.NoError(t, err)
 
 	require.Equal(t, len(expected), len(imports))

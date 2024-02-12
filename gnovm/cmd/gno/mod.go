@@ -231,7 +231,7 @@ func execModTidy(args []string, io commands.IO) error {
 		gm.DropRequire(r.Mod.Path)
 	}
 
-	imports, err := getGnoModuleImports(wd)
+	imports, err := getGnoPackageImports(wd)
 	if err != nil {
 		return err
 	}
@@ -312,7 +312,7 @@ func execModWhy(args []string, io commands.IO) error {
 // - https://github.com/gnolang/gno/issues/852
 //
 // TODO: move this to better location.
-func getGnoModuleImports(path string) ([]string, error) {
+func getGnoPackageImports(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
