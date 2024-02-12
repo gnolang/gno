@@ -18,6 +18,11 @@ import (
 	"math/bits"
 )
 
+const (
+	float32ExponentBias = 127
+	float64ExponentBias = 1023
+)
+
 // The Eisel-Lemire algorithm accomplishes its task through the following methods:
 //
 // 1. Extracting Mantissa and Exponent

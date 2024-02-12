@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/json"
 )
 
@@ -18,11 +17,11 @@ func main() {
 
 	jsonStr, err := s.Marshal() 
 	if err != nil {
-		fmt.Println("Error marshaling:", err)
+		ufmt.Println("Error marshaling:", err)
 		return
 	}
-	println("Marshalled:")
-	println(string(jsonStr))
+	ufmt.Println("Marshalled:")
+	ufmt.Println(string(jsonStr))
 }
 
 // Output:

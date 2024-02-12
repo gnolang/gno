@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func TestSearchKeys(t *testing.T) {
@@ -586,6 +588,176 @@ func TestObjectEach(t *testing.T) {
 
 			if (err != nil) != tc.isErr {
 				t.Errorf("ObjectEach(%s) error = %v, wantErr %v", tc.name, err, tc.isErr)
+			}
+		})
+	}
+}
+
+var testJson = []byte(`{
+	"name": "Name", 
+	"order": "Order", 
+	"sum": 100, 
+	"len": 12, 
+	"isPaid": true, 
+	"nested": {"a":"test", "b":2, "nested3":{"a":"test3","b":4}, "c": "unknown"}, 
+	"nested2": {
+		"a":"test2", 
+		"b":3
+	}, 
+	"arr": [
+		{
+			"a":"zxc", 
+			"b": 1
+		}, 
+		{
+			"a":"123", 
+			"b":2
+		}
+	], 
+	"arrInt": [1,2,3,4], 
+	"intPtr": 10, 
+}`)
+
+func TestEachKey(t *testing.T) {
+	paths := [][]string{
+		{"name"},
+		{"order"},
+		{"nested", "a"},
+		{"nested", "b"},
+		{"nested2", "a"},
+		{"nested", "nested3", "b"},
+		{"arr", "[1]", "b"},
+		{"arrInt", "[3]"},
+		{"arrInt", "[5]"},
+		{"nested"},
+		{"arr", "["},
+		{"a\n", "b\n"},
+		{"nested", "b"},
+	}
+
+	keysFound := 0
+	EachKey(testJson, func(idx int, value []byte, vt ValueType, err error) {
+		keysFound++
+
+		expectedValues := []string{"Name", "Order", "test", "2", "test2", "4", "2", "4", "", `{"a":"test", "b":2, "nested3":{"a":"test3","b":4}, "c": "unknown"}`, "", "99", "2"}
+		if idx < len(expectedValues) {
+			if string(value) != expectedValues[idx] {
+				t.Errorf("Invalid key #%v. Expected: %v, Got: %v", idx, expectedValues[idx], string(value))
+			}
+		} else {
+			t.Errorf("Should find only %v keys, but got an extra key with index %v and value %v", len(expectedValues), idx, string(value))
+		}
+	}, paths...)
+
+	expectedKeysFound := 8
+	if keysFound != expectedKeysFound {
+		t.Errorf("Mismatch in number of keys found. Expected: %v, Got: %v", expectedKeysFound, keysFound)
+	}
+}
+
+func TestIsPathValid(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     []string
+		level    int
+		pathsBuf []string
+		want     bool
+	}{
+		{
+			name:     "Exact match",
+			path:     []string{"users", "id"},
+			level:    2,
+			pathsBuf: []string{"users", "id"},
+			want:     true,
+		},
+		{
+			name:     "Path shorter than level",
+			path:     []string{"users"},
+			level:    2,
+			pathsBuf: []string{"users", "id"},
+			want:     false,
+		},
+		{
+			name:     "Path length matches level but paths differ",
+			path:     []string{"users", "name"},
+			level:    2,
+			pathsBuf: []string{"users", "id"},
+			want:     false,
+		},
+		{
+			name:     "Path longer than level but matches up to level",
+			path:     []string{"users", "id", "name"},
+			level:    2,
+			pathsBuf: []string{"users", "id"},
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPathValid(tt.path, tt.level, tt.pathsBuf)
+			if got != tt.want {
+				t.Errorf("isPathValid(%s) = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSameTree(t *testing.T) {
+	tests := []struct {
+		name string
+		p1   []string
+		p2   []string
+		want bool
+	}{
+		{
+			name: "Completely identical",
+			p1:   []string{"a", "b", "c"},
+			p2:   []string{"a", "b", "c"},
+			want: true,
+		},
+		{
+			name: "Partially identical",
+			p1:   []string{"a", "b"},
+			p2:   []string{"a", "b", "c"},
+			want: true,
+		},
+		{
+			name: "Not identical",
+			p1:   []string{"a", "x"},
+			p2:   []string{"a", "b", "c"},
+			want: false,
+		},
+		{
+			name: "One path longer than the other",
+			p1:   []string{"a", "b", "c", "d"},
+			p2:   []string{"a", "b", "c"},
+			want: true,
+		},
+		{
+			name: "One path (p1) is empty",
+			p1:   []string{},
+			p2:   []string{"a", "b", "c"},
+			want: true,
+		},
+		{
+			name: "One path (p2) is empty",
+			p1:   []string{"a", "b", "c"},
+			p2:   []string{},
+			want: true,
+		},
+		{
+			name: "Both paths are empty",
+			p1:   []string{},
+			p2:   []string{},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sameTree(tt.p1, tt.p2); got != tt.want {
+				t.Errorf("sameTree(%v, %v) = %v, want %v", tt.p1, tt.p2, got, tt.want)
 			}
 		})
 	}

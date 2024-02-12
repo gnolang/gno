@@ -7,6 +7,12 @@ import (
 	"strconv"
 )
 
+const (
+	absMinInt64 = 1<<63
+	maxInt64    = absMinInt64 - 1
+	maxUint64   = 1<<64 - 1
+)
+
 func tokenEnd(data []byte) int {
 	for i, tok := range data {
 		switch tok {

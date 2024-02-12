@@ -3,9 +3,19 @@ package json
 import (
 	"bytes"
 	"errors"
+	"regexp"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+)
+
+const (
+	unescapeStackBufSize = 64
+)
+
+var (
+	tabRegex           = regexp.MustCompile(`(?m)^\t+`)
+	lastLineSpaceRegex = regexp.MustCompile(`(?m)^\s+\}`)
 )
 
 // extractValueTypeFromToken recoginizes the type of JSON value by peeking at the first byte of the value.
@@ -50,6 +60,10 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 	for i := 0; i < len(data); i++ {
 		switch data[i] {
 		case DoublyQuoteToken:
+			if level < 1 {
+				return -1, MalformedJson
+			}
+
 			i += 1
 			keyBegin := i
 
@@ -70,10 +84,6 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 			if data[i] != ColonToken {
 				i -= 1
 				continue
-			}
-
-			if level < 1 {
-				return -1, MalformedJson
 			}
 
 			key := data[keyBegin:keyEnd]
@@ -167,7 +177,9 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 }
 
 func decreaseLevel(level, keyLevel int) (int, int) {
-	if level -= 1; level == keyLevel {
+	level -= 1
+
+	if level - 1 == keyLevel {
 		keyLevel -= 1
 	}
 
@@ -176,9 +188,9 @@ func decreaseLevel(level, keyLevel int) (int, int) {
 
 // findKeyStart finds the start of a specific key in a given byte array.
 func findKeyStart(data []byte, key string) (int, error) {
-	i, _ := nextToken(data)
-	if i == -1 {
-		return i, KeyPathNotFoundError
+	i, err := nextToken(data)
+	if err != nil {
+		return -1, err
 	}
 
 	ln := len(data)
@@ -260,7 +272,7 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 
 	// strip quotes from string values
 	if dataType == String {
-		value = value[1:len(value)-1]
+		value = value[1 : len(value)-1]
 	}
 
 	// remove unnecessary whitespace characters to make more readable
@@ -349,7 +361,7 @@ func ArrayEach(
 	for true {
 		v, t, o, e := Get(data[offset:])
 
-		if e != nil {
+		if e != nil{
 			return -1, e
 		}
 
@@ -359,10 +371,6 @@ func ArrayEach(
 
 		if t != NotExist {
 			cb(v, t, offset+o-len(v), e)
-		}
-
-		if e != nil {
-			break
 		}
 
 		offset += o
@@ -377,11 +385,12 @@ func ArrayEach(
 			offset += skipToToken
 		}
 
-		if data[offset] == SquareCloseToken {
+		currToken := data[offset]
+		if currToken == SquareCloseToken {
 			break
 		}
 
-		if data[offset] != CommaToken {
+		if currToken != CommaToken {
 			return offset, errors.New(
 				ufmt.Sprintf(
 					"json.ArrayEach: cannot find comma at offset %d. got: %s",
@@ -476,7 +485,7 @@ func ObjectEach(
 		if value, typ, off, err := Get(data[offset:]); err != nil {
 			return errors.New(ufmt.Sprintf("json.ObjectEach: %s", err))
 		} else if err := cb(key, value, typ, offset+off); err != nil {
-			return errors.New(ufmt.Sprintf("json.ObjectEach: %s", err)) 
+			return errors.New(ufmt.Sprintf("json.ObjectEach: %s", err))
 		} else {
 			offset += off
 		}
@@ -511,4 +520,233 @@ func ObjectEach(
 	}
 
 	return errors.New(ufmt.Sprintf("json.ObjectEach: object is not properly terminated at offset %d", offset))
+}
+
+func EachKey(data []byte, cb func(int, []byte, ValueType, error), paths ...[]string) (int, error) {
+	var (
+		x            struct{}
+		level        int
+		pathsMatched int
+		i            int
+	)
+
+	pathFlags := initPathFlags(paths)
+	pathsBuf, maxPath := initPathBuf(paths)
+
+	ln := len(data)
+	for i < ln {
+		switch data[i] {
+		case DoublyQuoteToken:
+			i++
+			keyBegin := i
+
+			strEnd, keyEscaped, err := stringEnd(data[i:])
+			if err != nil {
+				return -1, errors.New("json.EachKey: invalid string")
+			}
+
+			i += strEnd
+			keyEnd := i - 1
+
+			valueOffset, err := nextToken(data[i:])
+			if err != nil {
+				return -1, errors.New("json.EachKey: invalid token found")
+			}
+
+			i += valueOffset
+
+			// if string is a key, and key level match
+			if data[i] == ColonToken {
+				match := -1
+				if maxPath > 0 && maxPath >= level {
+					keyUnesc, err := processKey(data[keyBegin:keyEnd], keyEscaped)
+					if err != nil {
+						return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", err))
+					}
+
+					pathsBuf[level-1] = string(keyUnesc)
+					for pi, path := range paths {
+						if !isPathValid(path, level, pathsBuf) || pathFlags[pi] {
+							continue
+						}
+
+						match = pi
+
+						pathsMatched += 1
+						pathFlags[pi] = true
+
+						val, dataTyp, _, err := Get(data[i+1:])
+						cb(pi, val, dataTyp, err)
+
+						if pathsMatched == len(paths) {
+							break
+						}
+					}
+
+					if pathsMatched == len(paths) {
+						return i, nil
+					}
+				}
+
+				if match == -1 {
+					tokenOffset, err := nextToken(data[i+1:])
+					i += tokenOffset
+
+					if data[i] == CurlyOpenToken {
+						blockSkip, err := blockEnd(data[i:], CurlyOpenToken, CurlyCloseToken)
+						if blockSkip == -1 {
+							return -1, err
+						}
+
+						i += blockSkip + 1
+					}
+				}
+
+				if i < ln {
+					switch data[i] {
+					case CurlyOpenToken, CurlyCloseToken, SquareOpenToken, DoublyQuoteToken:
+						i -= 1
+					}
+				}
+			} else {
+				i -= 1
+			}
+		case CurlyOpenToken:
+			level += 1
+		case CurlyCloseToken:
+			level -= 1
+		case SquareOpenToken:
+			var ok bool
+
+			arrIdxFlags := make(map[int]struct{})
+			pIdxFlags := initPathIdxFlags(paths)
+
+			if level < 0 {
+				err := MalformedJson
+				cb(-1, nil, Unknown, err)
+
+				return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", err))
+			}
+
+			for p, path := range paths {
+				if !isPathValid(path, level, pathsBuf) || pathFlags[p] {
+					continue
+				}
+
+				currPos := path[level]
+				if len(currPos) >= 2 {
+					arrIdx, err := strconv.Atoi(currPos[1 : len(currPos)-1])
+					if err != nil {
+						return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", err))
+					}
+
+					pIdxFlags[p] = true
+					arrIdxFlags[arrIdx] = x
+				}
+			}
+
+			if len(arrIdxFlags) > 0 {
+				level += 1
+
+				var currIdx int
+				arrOff, err := ArrayEach(data[i:], func(value []byte, dataType ValueType, offset int, err error) {
+					if _, ok := arrIdxFlags[currIdx]; ok {
+						for i, path := range paths {
+							if pIdxFlags[i] {
+								currLevelPath := path[level-1]
+								arrIdx, _ := strconv.Atoi(currLevelPath[1 : len(currLevelPath)-1])
+
+								if currIdx != arrIdx {
+									continue
+								}
+
+								off, _ := findValueIndex(value, path[level:]...)
+
+								if off != -1 {
+									val, dataTyp, _, err := Get(value[off:])
+									cb(i, val, dataTyp, err)
+								}
+
+								pathsMatched += 1
+								pathFlags[i] = true
+							}
+						}
+					}
+
+					currIdx += 1
+				})
+
+				if pathsMatched == len(paths) {
+					return i, nil
+				}
+
+				i += arrOff - 1
+			} else {
+				// do not search for keys inside arrays
+				if arraySkip, err := blockEnd(data[i:], SquareOpenToken, SquareCloseToken); arraySkip == -1 {
+					return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", err))
+				} else {
+					i += arraySkip
+				}
+			}
+
+		case SquareCloseToken:
+			level -= 1
+		}
+
+		i += 1
+	}
+
+	return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", KeyPathNotFoundError))
+}
+
+func initPathFlags(paths [][]string) []bool {
+	return make([]bool, len(paths))
+}
+
+func initPathBuf(paths [][]string) ([]string, int) {
+	var maxPath int
+
+	for _, p := range paths {
+		if len(p) > maxPath {
+			maxPath = len(p)
+		}
+	}
+
+	return make([]string, maxPath), maxPath
+}
+
+func initPathIdxFlags(paths [][]string) []bool {
+	return make([]bool, len(paths))
+}
+
+func sameTree(p1, p2 []string) bool {
+	minLen := len(p1)
+	p2Len := len(p2)
+
+	if p2Len < minLen {
+		minLen = p2Len
+	}
+
+	for pi_1, p_1 := range p1[:minLen] {
+		if p2[pi_1] != p_1 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func processKey(key []byte, keyEscaped bool) ([]byte, error) {
+	if !keyEscaped {
+		return key, nil
+	}
+
+	var stackBuf [unescapeStackBufSize]byte
+
+	return unescape(key, stackBuf[:])
+}
+
+func isPathValid(path []string, level int, pathsBuf []string) bool {
+	return len(path) == level && sameTree(path, pathsBuf[:level])
 }

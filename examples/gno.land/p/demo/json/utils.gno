@@ -43,6 +43,10 @@ func trimNegativeSign(bytes []byte) (neg bool, trimmed []byte) {
 	return false, bytes
 }
 
+func equalStr(b *[]byte, s string) bool {
+	return string(*b) == s
+}
+
 /*		Testing Helper Function		*/
 
 func isEqualMap(a, b map[string]interface{}) bool {
