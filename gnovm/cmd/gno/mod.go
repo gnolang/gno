@@ -261,12 +261,50 @@ func execModWhy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	entries, err := os.ReadDir(wd)
+
+	importToFilesMap, err := getImportToFilesMap(wd)
 	if err != nil {
 		return err
 	}
 
-	importsMap := make(map[string][]string)
+	// Format and print `gno mod why` output stanzas
+	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	io.Printf(out)
+
+	return nil
+}
+
+// formatModWhyStanzas returns a formatted output for the go mod why command.
+// It takes three parameters:
+//   - modulePath (the path of the module)
+//   - args (input arguments)
+//   - importToFilesMap (a map of import to files).
+func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[string][]string) (out string) {
+	for i, arg := range args {
+		out += fmt.Sprintf("# %s\n", arg)
+		files, ok := importToFilesMap[arg]
+		if !ok {
+			out += fmt.Sprintf("(module %s does not need package %s)\n", modulePath, arg)
+		} else {
+			for _, file := range files {
+				out += file + "\n"
+			}
+		}
+		if i < len(args)-1 { // Add a newline if it's not the last stanza
+			out += "\n"
+		}
+	}
+	return
+}
+
+// getImportToFilesMap returns a map where each key is an import path and its
+// value is a list of files importing that package with the specified import path.
+func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
+	entries, err := os.ReadDir(pkgPath)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string][]string) // import -> []file
 	for _, e := range entries {
 		filename := e.Name()
 		if ext := filepath.Ext(filename); ext != ".gno" {
@@ -275,33 +313,16 @@ func execModWhy(args []string, io commands.IO) error {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := getGnoFileImports(filepath.Join(wd, filename))
+		imports, err := getGnoFileImports(filepath.Join(pkgPath, filename))
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for _, imp := range imports {
-			importsMap[imp] = append(importsMap[imp], filename)
+			m[imp] = append(m[imp], filename)
 		}
 	}
-
-	// Print `gno mod why` output stanzas
-	for i, arg := range args {
-		io.Println("#", arg)
-		files, ok := importsMap[arg]
-		if !ok {
-			io.Println(fmt.Sprintf("(module %s does not need package %s)", gm.Module.Mod.Path, arg))
-		} else {
-			for _, file := range files {
-				io.Println(file)
-			}
-		}
-		if i < len(args)-1 { // Add a newline if it's not the last stanza
-			io.Println()
-		}
-	}
-
-	return nil
+	return m, nil
 }
 
 // getGnoPackageImports returns the list of gno imports from a given path.
