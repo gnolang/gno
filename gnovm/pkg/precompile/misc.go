@@ -15,6 +15,24 @@ func IsGnoFile(f fs.DirEntry) bool {
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
+// TODO: move to misc
+// GetPrecompileFilenameAndTags returns the filename and tags for precompiled files.
+func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
+	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
+	switch {
+	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
+		tags = "gno && filetest"
+		targetFilename = "." + nameNoExtension + ".gno.gen.go"
+	case strings.HasSuffix(gnoFilePath, "_test.gno"):
+		tags = "gno && test"
+		targetFilename = "." + nameNoExtension + ".gno.gen_test.go"
+	default:
+		tags = "gno"
+		targetFilename = nameNoExtension + ".gno.gen.go"
+	}
+	return
+}
+
 func GnoFilesFromArgs(args []string) ([]string, error) {
 	fmt.Println("---GnoFilesFromArgs, args: ", args)
 	paths := []string{}
