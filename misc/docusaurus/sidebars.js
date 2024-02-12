@@ -34,6 +34,7 @@ const sidebars = {
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
                 'how-to-guides/connect-wallet-dapp',
+                'how-to-guides/effective-gno',
             ],
         },
         {
@@ -67,9 +68,9 @@ const sidebars = {
             items: [
                 'gno-tooling/cli/gno-tooling-gno',
                 'gno-tooling/cli/gno-tooling-gnokey',
-                'gno-tooling/cli/gno-tooling-gnofaucet',
+                'gno-tooling/cli/gno-tooling-gnodev',
                 'gno-tooling/cli/gno-tooling-gnoland',
-                'gno-tooling/cli/gno-tooling-tm2txsync',
+                'gno-tooling/cli/gno-tooling-gnofaucet',
             ]
         },
         {

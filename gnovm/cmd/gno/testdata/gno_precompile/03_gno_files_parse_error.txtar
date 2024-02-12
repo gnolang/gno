@@ -1,10 +1,14 @@
-# Run gno precompile with invalid gno files
+# Run gno precompile with gno files with parse errors
 
 ! gno precompile .
 
 ! stdout .+
 stderr 'precompile: parse: main.gno:3:1: expected declaration, found invalid'
 stderr 'precompile: parse: sub/sub.gno:3:1: expected declaration, found invalid'
+
+# no *.gen.go files are created
+! exec test -f main.gno.gen.go
+! exec test -f sub/sub.gno.gen.go
 
 -- main.gno --
 package main
