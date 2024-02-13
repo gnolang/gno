@@ -1356,6 +1356,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
+
 			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
