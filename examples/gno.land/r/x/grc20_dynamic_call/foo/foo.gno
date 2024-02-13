@@ -18,6 +18,8 @@ func init() {
 	foo = grc20.NewAdminToken("Foo", "FOO", 4)
 	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
 	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
+
+	foo.Mint("g1tkmrcu9m0xjddxh0c29r3zac8m2yjwaytlvh6u", 1000*10000) // REALM_gno.land/r/x/grc20_dynamic_call/registry
 }
 
 // method proxies as public functions.
@@ -32,7 +34,7 @@ func TotalSupply() uint64 {
 func BalanceOf(owner users.AddressOrName) uint64 {
 	balance, err := foo.BalanceOf(owner.Resolve())
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	return balance
 }
@@ -40,7 +42,7 @@ func BalanceOf(owner users.AddressOrName) uint64 {
 func Allowance(owner, spender users.AddressOrName) uint64 {
 	allowance, err := foo.Allowance(owner.Resolve(), spender.Resolve())
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 	return allowance
 }
@@ -51,16 +53,15 @@ func Transfer(to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	err := foo.Transfer(caller, to.Resolve(), amount)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
 func Approve(spender users.AddressOrName, amount uint64) {
-	// caller := std.PrevRealm().Addr()
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	err := foo.Approve(caller, spender.Resolve(), amount)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
@@ -68,7 +69,7 @@ func TransferFrom(from, to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	err := foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
@@ -80,7 +81,7 @@ func Faucet() {
 	caller := std.PrevRealm().Addr()
 	err := foo.Mint(caller, 1000*10000) // 1k
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
@@ -91,7 +92,7 @@ func Mint(address users.AddressOrName, amount uint64) {
 	assertIsAdmin(caller)
 	err := foo.Mint(address.Resolve(), amount)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
@@ -100,7 +101,7 @@ func Burn(address users.AddressOrName, amount uint64) {
 	assertIsAdmin(caller)
 	err := foo.Burn(address.Resolve(), amount)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
