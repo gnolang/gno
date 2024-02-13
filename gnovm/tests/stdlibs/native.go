@@ -8,6 +8,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 	tm2_crypto "github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2_std "github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -221,6 +222,23 @@ var nativeFuncs = [...]nativeFunc{
 			testlibs_std.TestIssueCoins(
 				m,
 				p0, p1)
+		},
+	},
+	{
+		"testing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0 := testlibs_testing.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
 		},
 	},
 }

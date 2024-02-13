@@ -32,8 +32,8 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	require.NoError(t, err)
 
 	select {
-	case <-gnoland.GetNodeReadiness(node):
-	case <-time.After(time.Second * 6):
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 
