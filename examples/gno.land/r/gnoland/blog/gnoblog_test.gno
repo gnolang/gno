@@ -21,40 +21,44 @@ No posts.
 `
 		assertMDEquals(t, got, expected)
 	}
+
 	// create two posts, list post.
 	{
 		ModAddPost("slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
 		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-# Gnoland's Blog
+	# Gnoland's Blog
 
 <div class='columns-3'><div>
 
 ### [title2](/r/gnoland/blog:p/slug2)
- 02 May 2022
+ 20 May 2022
 </div><div>
 
 ### [title1](/r/gnoland/blog:p/slug1)
- 02 May 2022
+ 20 May 2022
 </div></div>
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
 	// view post.
 	{
 		got := Render("p/slug2")
-
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
+# title2
 
 body2
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-`
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+
+Written by moul on 20 May 2022
+
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -70,11 +74,10 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
 <div>
 
-## [title1](/r/gnoland/blog:p/slug1)
-**[Learn More](/r/gnoland/blog:p/slug1)**
-
+### [title1](/r/gnoland/blog:p/slug1)
+ 20 May 2022
 </div>
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -87,20 +90,22 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
+# title2
 
 body2
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Written by moul on 20 May 2022
+
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+
 comment4
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 comment2
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -109,20 +114,22 @@ comment2
 		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2++
+# title2++
 
 body2++
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)	
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Written by manfred on 10 Nov 2009
+
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+
 comment4
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 comment2
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
