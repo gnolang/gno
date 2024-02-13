@@ -3,12 +3,14 @@ package registry
 import (
 	"std"
 
+	"gno.land/p/demo/ufmt"
+
 	"gno.land/r/demo/users"
 )
 
-const APPROVED_UNREGISTER_CALLER = "g1sqt92sa06ugh8nlt98kyghw83qy84paf4csyh6"
-
-var registered = []GRC20Pair{}
+const (
+	APPROVED_UNREGISTER_CALLER = "g1sqt92sa06ugh8nlt98kyghw83qy84paf4csyh6" // like admin
+)
 
 type GRC20Interface interface {
 	Transfer() func(to users.AddressOrName, amount uint64)
@@ -16,86 +18,63 @@ type GRC20Interface interface {
 	BalanceOf() func(owner users.AddressOrName) uint64
 }
 
-type GRC20Pair struct {
-	pkgPath string
-	igrc20  GRC20Interface
-}
-
-func findGRC20(pkgPath string) (int, bool) {
-	for i, pair := range registered {
-		if pair.pkgPath == pkgPath {
-			return i, true
-		}
-	}
-
-	return -1, false
-}
-
-func appendGRC20Interface(pkgPath string, igrc20 GRC20Interface) {
-	registered = append(registered, GRC20Pair{pkgPath: pkgPath, igrc20: igrc20})
-}
-
-func removeGRC20Interface(pkgPath string) {
-	i, found := findGRC20(pkgPath)
-	if !found {
-		return
-	}
-
-	registered = append(registered[:i], registered[i+1:]...)
-}
+var (
+	registered = make(map[string]GRC20Interface)
+)
 
 func RegisterGRC20Interface(pkgPath string, igrc20 GRC20Interface) {
-	_, found := findGRC20(pkgPath)
+	_, found := registered[pkgPath]
 	if found {
-		panic("GRC20 already registered")
+		panic(ufmt.Sprintf("GRC20(pkgPath:%s) already registered", pkgPath))
 	}
 
-	appendGRC20Interface(pkgPath, igrc20)
+	registered[pkgPath] = igrc20
 }
 
 func UnregisterGRC20Interface(pkgPath string) {
 	// do not allow realm to unregister
 	std.AssertOriginCall()
-	caller := std.GetOrigCaller()
 
+	caller := std.GetOrigCaller()
 	if caller != APPROVED_UNREGISTER_CALLER {
 		panic("unauthorized")
 	}
 
-	_, found := findGRC20(pkgPath)
+	_, found := registered[pkgPath]
 	if found {
-		removeGRC20Interface(pkgPath)
+		delete(registered, pkgPath)
 	}
 }
 
-func TransferByInterfaceName(pkgPath string, to std.Address, amount uint64) bool {
-	i, found := findGRC20(pkgPath)
+func BalanceOfByInterface(pkgPath string, owner std.Address) uint64 {
+	igrc20, found := registered[pkgPath]
 	if !found {
 		return false
 	}
 
-	registered[i].igrc20.Transfer()(users.AddressOrName(to), amount)
-
-	return true
+	return igrc20.BalanceOf()(users.AddressOrName(owner))
 }
 
-func TransferFromByInterfaceName(pkgPath string, from, to std.Address, amount uint64) bool {
-	i, found := findGRC20(pkgPath)
+func TransferByInterface(pkgPath string, to std.Address, amount uint64) bool {
+	igrc20, found := registered[pkgPath]
 	if !found {
 		return false
 	}
 
-	registered[i].igrc20.TransferFrom()(users.AddressOrName(from), users.AddressOrName(to), amount)
+	// will panic if transfer fails
+	igrc20.Transfer()(users.AddressOrName(to), amount)
 
 	return true
 }
 
-func BalanceOfByInterfaceName(pkgPath string, owner std.Address) uint64 {
-	i, found := findGRC20(pkgPath)
+func TransferFromByInterface(pkgPath string, from, to std.Address, amount uint64) bool {
+	igrc20, found := registered[pkgPath]
 	if !found {
-		return 0
+		return false
 	}
 
-	balance := registered[i].igrc20.BalanceOf()(users.AddressOrName(owner))
-	return balance
+	// will panic if transferFrom fails
+	igrc20.TransferFrom()(users.AddressOrName(from), users.AddressOrName(to), amount)
+
+	return true
 }
