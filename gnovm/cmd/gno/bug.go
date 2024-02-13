@@ -3,23 +3,57 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"io"
 	"net/url"
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
+	"text/template"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
+
+const bugTmpl = `## [Subject of the issue]
+
+### Description
+
+Describe your issue in as much detail as possible here
+
+### Your environment
+
+* {{.GoVersion}} {{.Os}}/{{.Arch}}
+* version of gno
+* branch that causes this issue (with the commit hash)
+
+### Steps to reproduce
+
+* Tell us how to reproduce this issue
+* Where the issue is, if you know
+* Which commands triggered the issue, if any
+
+### Expected behaviour
+
+Tell us what should happen
+
+### Actual behaviour
+
+Tell us what happens instead
+
+### Logs
+
+Please paste any logs here that demonstrate the issue, if they exist
+
+### Proposed solution
+
+If you have an idea of how to fix this issue, please write it down here, so we can begin discussing it
+
+`
 
 func newBugCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "bug",
 			ShortUsage: "bug",
-			ShortHelp:  "start a bug report",
+			ShortHelp:  "Start a bug report",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
@@ -33,45 +67,37 @@ func execBug(args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	bugReportEnv := struct { // TODO: include gno version or commit?
+		Os, Arch, GoVersion string
+	}{
+		runtime.GOOS,
+		runtime.GOARCH,
+		runtime.Version(),
+	}
+
 	var buf strings.Builder
-	buf.WriteString(bugHeader)
-	writeEnvironment(&buf)
-	buf.WriteString(bugFooter)
-	// TODO: include gno version or commit?
+	tmpl, err := template.New("bug.tmpl").Parse(bugTmpl)
+	if err != nil {
+		return err
+	}
+	tmpl.Execute(&buf, bugReportEnv)
 
 	body := buf.String()
 	url := "https://github.com/gnolang/gno/issues/new?body=" + url.QueryEscape(body)
 
-	if len(url) > 2048 || !openBrowser(url) {
-		io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
-		io.Println()
-		io.Println(body)
-	}
+	// Try opening browser (ignore error)
+	_ = openBrowser(url)
+
+	// Print on console, regardless if the browser opened or not
+	io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
+	io.Println()
+	io.Println(body)
 
 	return nil
 }
 
-const bugHeader = `<!-- Please answer these questions before submitting your issue. Thanks! -->
-
-`
-
-const bugFooter = `### What did you do?
-
-<!--
-If possible, provide a recipe for reproducing the error.
--->
-
-### What did you expect to see?
-
-
-
-### What did you see instead?
-
-`
-
 // openBrowser opens a default web browser with the specified URL.
-// return true if it started successfully within a timeout (3 Second).
-func openBrowser(url string) bool {
+func openBrowser(url string) error {
 	var cmdArgs []string
 	switch runtime.GOOS {
 	case "windows":
@@ -83,41 +109,5 @@ func openBrowser(url string) bool {
 	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-	if cmd.Start() == nil && isExecutionSuccessfulWithinTimeout(cmd, 3*time.Second) {
-		return true
-	}
-	return false
-}
-
-// writeEnvironment writes environment information to the provided io.Writer.
-// It includes Go version details and OS details within code blocks.
-func writeEnvironment(w io.Writer) {
-	fmt.Fprintf(w, "### Environment\n\n")
-	fmt.Fprintf(w, "```\n")
-	writeGoVersion(w)
-	writeOSDetails(w)
-	fmt.Fprintf(w, "```\n\n")
-}
-
-// writeGoVersion writes Go version information to the io.Writer.
-func writeGoVersion(w io.Writer) {
-	fmt.Fprintf(w, "$ go version\n")
-	fmt.Fprintf(w, "go version %s %s/%s\n\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-}
-
-// writeOSDetails writes OS details (uses `uname`) to the io.Writer.
-func writeOSDetails(w io.Writer) {
-	// TODO: Include more details
-	var cmdArgs []string
-	switch runtime.GOOS {
-	case "darwin", "linux":
-		cmdArgs = []string{"uname", "-sr"}
-	default:
-		return
-	}
-	out, err := exec.Command(cmdArgs[0], cmdArgs[1:]...).CombinedOutput()
-	if err == nil {
-		fmt.Fprintf(w, "$ uname -sr\n")
-		fmt.Fprint(w, string(out)+"\n\n")
-	}
+	return cmd.Start()
 }
