@@ -5,14 +5,13 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
-	"net/http"
-	_ "net/http/pprof" //nolint:gosec
+	"net/http" //nolint:gosec
+	_ "net/http/pprof"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
