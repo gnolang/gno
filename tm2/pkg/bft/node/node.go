@@ -7,8 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http" //nolint:gosec
-	_ "net/http/pprof"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
