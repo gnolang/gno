@@ -115,6 +115,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.22.x
       # TODO: setup docker caching
       - run: make test.docker
       - run: docker logs int_gnoland || true
