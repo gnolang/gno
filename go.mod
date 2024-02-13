@@ -1,6 +1,6 @@
 module github.com/gnolang/gno
 
-go 1.20
+go 1.21
 
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.3

@@ -1,6 +1,6 @@
 module loop
 
-go 1.20
+go 1.21
 
 require (
 	github.com/gnolang/gno v0.0.0-20231112174927-b1a53c018ea4
