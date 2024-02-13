@@ -1,6 +1,8 @@
 package sdk
 
 import (
+	"fmt"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
@@ -35,3 +37,37 @@ func (em *EventLogger) EmitEvents(events []Event) {
 // ----------------------------------------------------------------------------
 
 type Event = abci.Event
+
+func NewEvent(eventType string, attrs ...EventAttribute) Event {
+	return AttributedEvent{
+		Type:       eventType,
+		Attributes: attrs,
+	}
+}
+
+type AttributedEvent struct {
+	Type       string
+	Attributes []EventAttribute
+}
+
+func (e AttributedEvent) AssertABCIEvent() {}
+
+func (e AttributedEvent) String() string {
+	return fmt.Sprintf("type: %s, attributes: %v", e.Type, e.Attributes)
+}
+
+type EventAttribute struct {
+	Key   string
+	Value string
+}
+
+func NewEventAttribute(key, value string) EventAttribute {
+	return EventAttribute{
+		Key:   key,
+		Value: value,
+	}
+}
+
+func (ea EventAttribute) String() string {
+	return fmt.Sprintf("%s: %s", ea.Key, ea.Value)
+}

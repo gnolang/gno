@@ -654,6 +654,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
+		events = append(events, ctx.eventLogger.Events()...)
 		// TODO append msgevent from ctx. XXX XXX
 
 		// stop execution and return on first failed message
