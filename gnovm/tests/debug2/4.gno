@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+// no support for set `GOEXPERIMENT` for now.
 func main() {
 	var prints []func()
 	for i := 1; i <= 3; i++ {

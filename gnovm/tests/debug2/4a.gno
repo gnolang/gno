@@ -6,7 +6,8 @@ import "fmt"
 func main() {
 	var prints []func()
 	for i := 1; i <= 3; i++ {
-		prints = append(prints, func() { fmt.Println(i) })
+		v := i
+		prints = append(prints, func() { fmt.Println(v) })
 	}
 	for _, print := range prints {
 		print()
@@ -14,11 +15,11 @@ func main() {
 }
 
 // Output:
-// 4
-// 4
-// 4
+// 3
+// 3
+// 3
 
 // Go_Output:
-// 4
-// 4
-// 4
+// 1
+// 2
+// 3

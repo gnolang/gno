@@ -17,6 +17,10 @@ func main() {
 	println(get(ctx, "hello"))
 }
 
+// Go_Output:
+// true
+// world
+
 // Output:
 // true
 // world

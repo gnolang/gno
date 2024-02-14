@@ -31,7 +31,7 @@ func execPrecompile(cfg *precompile.PrecompileCfg, paths []string, io commands.I
 		return flag.ErrHelp
 	}
 
-	err := precompile.PrecompileAndCheckPkg(false, nil, paths, cfg)
+	err, _ := precompile.PrecompileAndCheckPkg(false, nil, paths, cfg)
 	// TODO: io?
 	return err
 }

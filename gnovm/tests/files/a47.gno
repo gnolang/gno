@@ -23,6 +23,14 @@ func main() {
 	println(&sArr[2] != &newArr[1])
 }
 
+// Go_Output:
+// 1 2 3
+// true
+// 2 3 3
+// true
+// 2 3
+// true
+
 // Output:
 // 1 2 3
 // true

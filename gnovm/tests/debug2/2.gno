@@ -6,10 +6,10 @@ func main() {
 
 // Go_Error:
 
-// Gno_Error:
+// Error:
 
 // Go_Output:
 // 2
 
-// Gno_Output:
+// Output:
 // 2

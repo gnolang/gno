@@ -101,14 +101,15 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	var (
 		directives   []string
 		pkgPath      string
-		resWanted    string
+		gnoResWanted string
+		goResWanted  string
 		gnoErrWanted string
 		goErrWanted  string
 		rops         string
 		maxAlloc     int64
 		send         std.Coins
 	)
-	directives, pkgPath, resWanted, gnoErrWanted, goErrWanted, rops, maxAlloc, send = wantedFromComment(path)
+	directives, pkgPath, gnoResWanted, goResWanted, gnoErrWanted, goErrWanted, rops, maxAlloc, send = wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -190,12 +191,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				fmt.Println("---not realm, going to precompile and verify")
 				if isRunGo {
-					err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
+					precompileCfg := &precompile.PrecompileCfg{Gobuild: false, GoBinary: "go", Verbose: false}
+					err, output := precompile.PrecompileAndCheckPkg(true, memPkg, []string{path}, precompileCfg)
+					//err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					if err != nil {
-						fmt.Println("---err from precompile is: ", err.Error())
+						fmt.Println("---not realm, err from precompile is: ", err.Error())
 						GoErr = err.Error()
 					} else {
-						fmt.Println("---output from precompile is: ", output)
+						fmt.Println("---not realm, output from precompile is: ", output)
 						GoOutput = output
 					}
 				}
@@ -239,8 +242,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				if isRunGo {
 					fmt.Println("---going to precompile and run")
-					err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
-					//pcer := &precompileExecResult{}
+					precompileCfg := &precompile.PrecompileCfg{Gobuild: false, GoBinary: "go", Verbose: false}
+					err, output := precompile.PrecompileAndCheckPkg(true, memPkg, []string{path}, precompileCfg)
+					//err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					if err != nil {
 						fmt.Println("---err from precompile is: ", err.Error())
 						GoErr = err.Error()
@@ -394,17 +398,17 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				// check result
 				res := strings.TrimSpace(stdout.String())
 				res = trimTrailingSpaces(res)
-				if res != resWanted {
+				if res != gnoResWanted {
 					if f.syncWanted {
 						// write output to file.
 						replaceWantedInPlace(path, "Output", res)
 					} else {
 						// panic so tests immediately fail (for now).
-						if resWanted == "" {
+						if gnoResWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 						} else {
 							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-								A:        difflib.SplitLines(resWanted),
+								A:        difflib.SplitLines(gnoResWanted),
 								B:        difflib.SplitLines(res),
 								FromFile: "Expected",
 								FromDate: "",
@@ -427,9 +431,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// check result
 				res := strings.TrimSpace(GoOutput)
-				fmt.Println("---Go_Output, res: ", res)
+				fmt.Printf("---Go_Output, res: %s, goResWanted: %s \n", res, goResWanted)
 				res = trimTrailingSpaces(res)
-				if res != resWanted {
+				if res != goResWanted {
 					if f.syncWanted {
 						if res != "" {
 							println("---sync wanted with non-empty res")
@@ -439,11 +443,11 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					} else {
 						println("---no sync")
 						// panic so tests immediately fail (for now).
-						if resWanted == "" {
+						if goResWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
 						} else {
 							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-								A:        difflib.SplitLines(resWanted),
+								A:        difflib.SplitLines(goResWanted),
 								B:        difflib.SplitLines(res),
 								FromFile: "Expected",
 								FromDate: "",
@@ -500,7 +504,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, gnoErr, goErr, rops string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, gnoResWanted, goResWanted, gnoErr, goErr, rops string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -527,12 +531,12 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, gnoErr, goE
 			sendstr := strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
 			send = std.MustParseCoins(sendstr)
 		} else if strings.HasPrefix(text, "Output:\n") {
-			res = strings.TrimPrefix(text, "Output:\n")
-			res = strings.TrimSpace(res)
+			gnoResWanted = strings.TrimPrefix(text, "Output:\n")
+			gnoResWanted = strings.TrimSpace(gnoResWanted)
 			directives = append(directives, "Output")
 		} else if strings.HasPrefix(text, "Go_Output:\n") {
-			res = strings.TrimPrefix(text, "Go_Output:\n")
-			res = strings.TrimSpace(res)
+			goResWanted = strings.TrimPrefix(text, "Go_Output:\n")
+			goResWanted = strings.TrimSpace(goResWanted)
 			directives = append(directives, "Go_Output")
 		} else if strings.HasPrefix(text, "Error:\n") {
 			gnoErr = strings.TrimPrefix(text, "Error:\n")

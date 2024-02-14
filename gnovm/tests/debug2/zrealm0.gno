@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/test
-package test
+package main
 
 var root interface{}
 
@@ -16,7 +16,7 @@ func main() {
 
 // Go_Output:
 
-// Gno_Output:
+// Output:
 // nil
 // 1
 

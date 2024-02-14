@@ -18,5 +18,8 @@ func main() {
 	fmt.Println(st.String())
 }
 
+// Go_Output:
+// foo
+
 // Output:
 // foo

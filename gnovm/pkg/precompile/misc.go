@@ -114,14 +114,53 @@ func GnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
+func getParentDirectory(cwd string, generations int) (string, error) {
+	if generations <= 0 {
+		return cwd, nil
+	}
+
+	parentDir := filepath.Dir(cwd)
+	return getParentDirectory(parentDir, generations-1)
+}
+
 // getPathsFromImportSpec derive and returns ImportPaths
 // without ImportPrefix from *ast.ImportSpec
 func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportPath) {
+	// Get the current working directory
+	//cwd, err := os.Getwd()
+	//if err != nil {
+	//	fmt.Println("Error:", err)
+	//	return
+	//}
+	//
+	//// Specify the number of generations
+	//generations := 1
+	//
+	//// Get the parent directory recursively
+	//rootAbsDir, err := getParentDirectory(cwd, generations)
+	//if err != nil {
+	//	fmt.Println("Error:", err)
+	//	return
+	//}
+	//
+	//fmt.Printf("rootAbsDir (generations=%d): %s\n", generations, rootAbsDir)
+
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, ImportPrefix) {
+		fmt.Println("---getPathsFromImportSpec:", path)
+		abs, err := filepath.Abs("")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("---dir of path: ", filepath.Dir(path))
+		fmt.Println("---abs dir is: ", abs)
+
+		if strings.HasPrefix(path, testPath) {
+			res := strings.TrimPrefix(path, testPath)
+			importPaths = append(importPaths, ImportPath(abs+"/files/extern/"+res)) // build abs path in for go exec
+		} else if strings.HasPrefix(path, ImportPrefix) {
 			res := strings.TrimPrefix(path, ImportPrefix)
-			importPaths = append(importPaths, ImportPath("."+res))
+			importPaths = append(importPaths, ImportPath(gnoenv.RootDir()+res)) // build abs path in for go exec
 		}
 	}
 	return
@@ -133,18 +172,25 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportP
 // Pkg Path: ../example/gno.land/p/pkg
 // Returns -> Temp/gno-precompile/example/gno.land/p/pkg
 func resolvePath(output string, path ImportPath) (string, error) {
-	fmt.Println("---resolvePath, output: ", output)
+	fmt.Println("---resolvePath, output: , path: ", output, path)
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
 		return "", err
 	}
+	//absOutput = "/Users/maxwell/workbench/blockchain/gno/gno_forks/gno"
 	absPkgPath, err := filepath.Abs(string(path))
 	if err != nil {
 		return "", err
 	}
+
+	fmt.Println("---absOutput: ", absOutput)
+	fmt.Println("---absPkgPath: ", absPkgPath)
+	fmt.Println("---root: ", gnoenv.RootDir())
 	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
-	return filepath.Join(absOutput, pkgPath), nil
+	fmt.Println("---pkgPath: ", pkgPath)
+	//return filepath.Join(absOutput, pkgPath), nil
+	return filepath.Join(gnoenv.RootDir(), pkgPath), nil // build abs path for to exec
 }
 
 // writeDirFile write file to the path and also create
