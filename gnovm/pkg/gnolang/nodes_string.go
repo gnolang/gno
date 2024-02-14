@@ -456,6 +456,7 @@ func (rn RefNode) String() string {
 	return fmt.Sprintf("ref(%s)", rn.Location.String())
 }
 
+// XXX: do we want string representation of comments ?
 func (x CommentGroup) String() string {
 	return ""
 }

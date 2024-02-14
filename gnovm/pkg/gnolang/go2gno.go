@@ -480,6 +480,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Comments: comments,
 		}
 	case *ast.CommentGroup:
+		// Here, we need to check for nil again, even though gon was
+		// already checked against nil at the start. because the
+		// interface gon could still hold a `CommentGroup` type without a value,
+		// appearing non-nil to the runtime.
 		if gon == nil {
 			return nil
 		}
@@ -516,7 +520,7 @@ func toName(name *ast.Ident) Name {
 
 var token2word = map[token.Token]Word{
 	token.ILLEGAL:        ILLEGAL,
-	token.COMMENT:        COMMENT,
+	token.COMMENT:        COMMENT, // XXX: do we need this ?
 	token.IDENT:          NAME,
 	token.INT:            INT,
 	token.FLOAT:          FLOAT,

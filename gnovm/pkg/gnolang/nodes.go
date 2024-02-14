@@ -23,7 +23,7 @@ type Word int
 const (
 	// Special words
 	ILLEGAL Word = iota
-	COMMENT
+	COMMENT      // XXX: do we need this ?
 
 	// Names and basic type literals
 	// (these words stand for classes of literals)
