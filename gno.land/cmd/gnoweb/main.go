@@ -36,7 +36,7 @@ func runMain(args []string) error {
 	fs.StringVar(&cfg.HelpChainID, "help-chainid", cfg.HelpChainID, "help page's chainid")
 	fs.StringVar(&cfg.HelpRemote, "help-remote", cfg.HelpRemote, "help page's remote addr")
 	fs.BoolVar(&cfg.WithAnalytics, "with-analytics", cfg.WithAnalytics, "enable privacy-first analytics")
-	fs.StringVar(&bindAddress, "bind", "127.0.0.1:8888", "server listening address")
+	fs.StringVar(&bindAddress, "bind", ":8888", "server listening address")
 
 	if err := fs.Parse(args); err != nil {
 		return err

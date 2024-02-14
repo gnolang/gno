@@ -71,7 +71,7 @@ gnoland start --chainid NewChainID
 ```
 
 We can verify the chain ID has been changed, by fetching the status of the node and seeing the
-associated chain ID. By default, the node exposes the JSON-RPC API on `http://127.0.0.1:26657`:
+associated chain ID. By default, the node exposes the JSON-RPC API on `http://0.0.0.0:26657`[^1]:
 
 ```bash
 curl -H "Content-type: application/json" -d '{
@@ -140,3 +140,7 @@ Following this pattern, potential entries into the genesis balances file would l
 g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt=10000000000ugnot
 g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=10000000000ugnot
 ```
+
+[^1]: The address `0.0.0.0` means that the node can be accessed by any IPv4 address,
+  including any loopback address like `127.0.0.1`, a private network address like
+  `192.168.0.X`, or a public IP address.
