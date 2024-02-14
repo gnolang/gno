@@ -23,6 +23,7 @@ type Word int
 const (
 	// Special words
 	ILLEGAL Word = iota
+	COMMENT
 
 	// Names and basic type literals
 	// (these words stand for classes of literals)
@@ -259,6 +260,8 @@ func (x *ValueDecl) assertNode()           {}
 func (x *TypeDecl) assertNode()            {}
 func (x *FileNode) assertNode()            {}
 func (x *PackageNode) assertNode()         {}
+func (x *Comment) assertNode()             {}
+func (x *CommentGroup) assertNode()        {}
 
 var (
 	_ Node = &NameExpr{}
@@ -286,6 +289,8 @@ var (
 	_ Node = &StructTypeExpr{}
 	_ Node = &constTypeExpr{}
 	_ Node = &MaybeNativeTypeExpr{}
+	_ Node = &CommentGroup{}
+	_ Node = &Comment{}
 	_ Node = &AssignStmt{}
 	_ Node = &BlockStmt{}
 	_ Node = &BranchStmt{}
@@ -563,7 +568,9 @@ var (
 type FieldTypeExpr struct {
 	Attributes
 	Name
-	Type Expr
+	Type    Expr
+	Doc     *CommentGroup // associated documentation; or nil
+	Comment *CommentGroup // line comments; or nil
 
 	// Currently only BasicLitExpr allowed.
 	// NOTE: In Go, only struct fields can have tags.
@@ -979,6 +986,7 @@ type FuncDecl struct {
 	Recv     FieldTypeExpr // receiver (if method); or empty (if function)
 	Type     FuncTypeExpr  // function signature: parameters and results
 	Body                   // function body; or empty for external (non-Go) function
+	Doc      *CommentGroup // associated documentation; or nil
 }
 
 func (x *FuncDecl) GetDeclNames() []Name {
@@ -993,6 +1001,8 @@ type ImportDecl struct {
 	Attributes
 	NameExpr // local package name. required.
 	PkgPath  string
+	Doc      *CommentGroup // associated documentation; or nil
+	Comment  *CommentGroup // line comments; or nil
 }
 
 func (x *ImportDecl) GetDeclNames() []Name {
@@ -1006,9 +1016,11 @@ func (x *ImportDecl) GetDeclNames() []Name {
 type ValueDecl struct {
 	Attributes
 	NameExprs
-	Type   Expr  // value type; or nil
-	Values Exprs // initial value; or nil (unless const).
-	Const  bool
+	Type    Expr  // value type; or nil
+	Values  Exprs // initial value; or nil (unless const).
+	Const   bool
+	Doc     *CommentGroup // associated documentation; or nil
+	Comment *CommentGroup // line comments; or nil
 }
 
 func (x *ValueDecl) GetDeclNames() []Name {
@@ -1026,8 +1038,10 @@ func (x *ValueDecl) GetDeclNames() []Name {
 type TypeDecl struct {
 	Attributes
 	NameExpr
-	Type    Expr // Name, SelectorExpr, StarExpr, or XxxTypes
-	IsAlias bool // type alias since Go 1.9
+	Type    Expr          // Name, SelectorExpr, StarExpr, or XxxTypes
+	IsAlias bool          // type alias since Go 1.9
+	Doc     *CommentGroup // associated documentation; or nil
+	Comment *CommentGroup // line comments; or nil
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
@@ -1046,6 +1060,101 @@ func HasDeclName(d Decl, n2 Name) bool {
 		}
 	}
 	return false
+}
+
+// ----------------------------------------------------------------------------
+// Comments
+
+// A Comment node represents a single //-style or /*-style comment.
+//
+// The Text field contains the comment text without carriage returns (\r) that
+// may have been present in the source. Because a comment's end position is
+// computed using len(Text)
+type Comment struct {
+	// Slash Pos    // position of "/" starting the comment (fileset position: token.Pos)
+	Attributes
+	Text string // comment text (excluding '\n' for //-style comments)
+}
+
+// A CommentGroup represents a sequence of comments
+// with no other tokens and no empty lines between.
+type CommentGroup struct {
+	Attributes
+	List []*Comment // len(List) > 0
+}
+
+func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
+
+func stripTrailingWhitespace(s string) string {
+	i := len(s)
+	for i > 0 && isWhitespace(s[i-1]) {
+		i--
+	}
+	return s[0:i]
+}
+
+// Text returns the text of the comment.
+// Comment markers (//, /*, and */), the first space of a line comment, and
+// leading and trailing empty lines are removed.
+// Multiple empty lines are reduced to one, and trailing space on lines is trimmed.
+// Unless the result is empty, it is newline-terminated.
+func (g *CommentGroup) Text() string {
+	if g == nil {
+		return ""
+	}
+	comments := make([]string, len(g.List))
+	for i, c := range g.List {
+		comments[i] = c.Text
+	}
+
+	lines := make([]string, 0, 10) // most comments are less than 10 lines
+	for _, c := range comments {
+		// Remove comment markers.
+		// The parser has given us exactly the comment text.
+		switch c[1] {
+		case '/':
+			//-style comment (no newline at the end)
+			c = c[2:]
+			if len(c) == 0 {
+				// empty line
+				break
+			}
+			if c[0] == ' ' {
+				// strip first space - required for Example tests
+				c = c[1:]
+				break
+			}
+		case '*':
+			/*-style comment */
+			c = c[2 : len(c)-2]
+		}
+
+		// Split on newlines.
+		cl := strings.Split(c, "\n")
+
+		// Walk lines, stripping trailing white space and adding to list.
+		for _, l := range cl {
+			lines = append(lines, stripTrailingWhitespace(l))
+		}
+	}
+
+	// Remove leading blank lines; convert runs of
+	// interior blank lines to a single blank line.
+	n := 0
+	for _, line := range lines {
+		if line != "" || n > 0 && lines[n-1] != "" {
+			lines[n] = line
+			n++
+		}
+	}
+	lines = lines[0:n]
+
+	// Add final "" entry to get trailing newline from Join.
+	if n > 0 && lines[n-1] != "" {
+		lines = append(lines, "")
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // ----------------------------------------
@@ -1292,6 +1401,9 @@ type FileNode struct {
 	Name
 	PkgName Name
 	Decls
+	Comments []*CommentGroup // list of all comments in the source file
+	Doc      *CommentGroup   // associated documentation; or nil
+
 }
 
 type PackageNode struct {

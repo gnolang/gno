@@ -456,6 +456,14 @@ func (rn RefNode) String() string {
 	return fmt.Sprintf("ref(%s)", rn.Location.String())
 }
 
+func (x CommentGroup) String() string {
+	return ""
+}
+
+func (x Comment) String() string {
+	return ""
+}
+
 // ----------------------------------------
 // Node slice strings
 // NOTE: interface-generics or?

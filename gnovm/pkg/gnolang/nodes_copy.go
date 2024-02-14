@@ -375,6 +375,20 @@ func (x *PackageNode) Copy() Node {
 	}
 }
 
+func (x *CommentGroup) Copy() Node {
+	list := make([]*Comment, len(x.List))
+	for i, c := range x.List {
+		list[i] = c.Copy().(*Comment)
+	}
+	return &CommentGroup{List: list}
+}
+
+func (x *Comment) Copy() Node {
+	return &Comment{
+		Text: x.Text,
+	}
+}
+
 // ----------------------------------------
 // misc
 

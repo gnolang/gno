@@ -495,6 +495,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
+				for _, comments := range n.Comments {
+					for _, c := range comments.List {
+						fmt.Println("FILE: COMMENT CATCH", c.Text)
+					}
+				}
+
+				if n.Doc != nil {
+					for _, c := range n.Doc.List {
+						fmt.Println("DOC CATCH", c.Text)
+					}
+				}
+
 				// only for imports.
 				pushInitBlock(n, &last, &stack)
 				{
@@ -1785,6 +1797,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				if n.Comment != nil {
+					for _, c := range n.Comment.List {
+						fmt.Println("VALUE COMMENT CATCH", c.Text)
+					}
+				}
+
+				if n.Doc != nil {
+					for _, c := range n.Doc.List {
+						fmt.Println("VALUE DOC COMMENT CATCH", c.Text)
+					}
+				}
+
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
