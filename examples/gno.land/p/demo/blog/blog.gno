@@ -136,7 +136,7 @@ func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string,
 		parsedTime = time.Now()
 	}
 
-	post := Post{
+	post := &Post{
 		Publisher: publisher,
 		Authors:   authors,
 		Slug:      slug,
@@ -146,7 +146,7 @@ func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string,
 		CreatedAt: parsedTime,
 	}
 
-	return b.prepareAndSetPost(&post)
+	return b.prepareAndSetPost(post)
 }
 
 func (b *Blog) prepareAndSetPost(post *Post) error {
