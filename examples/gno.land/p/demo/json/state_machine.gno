@@ -179,7 +179,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 func decreaseLevel(level, keyLevel int) (int, int) {
 	level -= 1
 
-	if level - 1 == keyLevel {
+	if level-1 == keyLevel {
 		keyLevel -= 1
 	}
 
@@ -361,7 +361,7 @@ func ArrayEach(
 	for true {
 		v, t, o, e := Get(data[offset:])
 
-		if e != nil{
+		if e != nil {
 			return -1, e
 		}
 

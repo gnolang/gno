@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	absMinInt64 = 1<<63
+	absMinInt64 = 1 << 63
 	maxInt64    = absMinInt64 - 1
 	maxUint64   = 1<<64 - 1
 )

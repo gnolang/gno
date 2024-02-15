@@ -47,8 +47,8 @@ func unescape(input, output []byte) ([]byte, error) {
 			return nil, errors.New("JSON Error: Encountered an invalid escape sequence in a string.")
 		}
 
-		input = input[inLen:]	// the number of bytes consumed in the input
-		buf = buf[bufLen:]		// the number of bytes written to buf
+		input = input[inLen:] // the number of bytes consumed in the input
+		buf = buf[bufLen:]    // the number of bytes written to buf
 
 		// find the next backslash in the remaining input
 		nextBackslash := bytes.IndexByte(input, BackSlashToken)

@@ -38,7 +38,7 @@ func NewStruct() *Struct {
 }
 
 func (s *Struct) Fields() []Field {
-    return s.fields
+	return s.fields
 }
 
 // addField adds a field to the struct. The order of the fields is preserved.
@@ -80,14 +80,14 @@ func (s *Struct) AddObjectField(name string, inner *Struct) *Struct {
 }
 
 func (s *Struct) AddArrayField(name string, arrayStruct *Struct) *Struct {
-    f := Field{
-        name:        name,
-        typ:         Array,
-        arrayValues: arrayStruct.Fields(),
-    }
-    s.fields = append(s.fields, f)
+	f := Field{
+		name:        name,
+		typ:         Array,
+		arrayValues: arrayStruct.Fields(),
+	}
+	s.fields = append(s.fields, f)
 
-    return s
+	return s
 }
 
 /*           Encoder              */
@@ -268,7 +268,7 @@ func Unmarshal(data []byte, s *Struct) error {
 		// 		}
 		// 		// unmarshal here
 		// 	})
-	
+
 		// 	if err != nil {
 		// 		return err
 		// 	}
