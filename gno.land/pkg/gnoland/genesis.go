@@ -3,6 +3,7 @@ package gnoland
 import (
 	"errors"
 	"fmt"
+	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"strings"
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -109,6 +110,12 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
 
+		// TODO: precompile and check
+		// precompile and validate syntax
+		err, _ = precompile.PrecompileAndCheckPkg(true, memPkg, nil, nil)
+		if err != nil {
+			panic(err)
+		}
 		// Create transaction
 		tx := std.Tx{
 			Fee: fee,

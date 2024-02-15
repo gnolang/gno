@@ -34,7 +34,7 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 }
 
 func GnoFilesFromArgs(args []string) ([]string, error) {
-	fmt.Println("---GnoFilesFromArgs, args: ", args)
+	debugPrecompile.Println("---GnoFilesFromArgs, args: ", args)
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
@@ -147,13 +147,13 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportP
 
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		fmt.Println("---getPathsFromImportSpec:", path)
+		debugPrecompile.Println("---getPathsFromImportSpec:", path)
 		abs, err := filepath.Abs("")
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("---dir of path: ", filepath.Dir(path))
-		fmt.Println("---abs dir is: ", abs)
+		debugPrecompile.Println("---dir of path: ", filepath.Dir(path))
+		debugPrecompile.Println("---abs dir is: ", abs)
 
 		if strings.HasPrefix(path, testPath) {
 			res := strings.TrimPrefix(path, testPath)
@@ -172,7 +172,7 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []ImportP
 // Pkg Path: ../example/gno.land/p/pkg
 // Returns -> Temp/gno-precompile/example/gno.land/p/pkg
 func resolvePath(output string, path ImportPath) (string, error) {
-	fmt.Println("---resolvePath, output: , path: ", output, path)
+	debugPrecompile.Println("---resolvePath, output: , path: ", output, path)
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
 		return "", err
@@ -183,12 +183,12 @@ func resolvePath(output string, path ImportPath) (string, error) {
 		return "", err
 	}
 
-	fmt.Println("---absOutput: ", absOutput)
-	fmt.Println("---absPkgPath: ", absPkgPath)
-	fmt.Println("---root: ", gnoenv.RootDir())
+	debugPrecompile.Println("---absOutput: ", absOutput)
+	debugPrecompile.Println("---absPkgPath: ", absPkgPath)
+	debugPrecompile.Println("---root: ", gnoenv.RootDir())
 	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
-	fmt.Println("---pkgPath: ", pkgPath)
+	debugPrecompile.Println("---pkgPath: ", pkgPath)
 	//return filepath.Join(absOutput, pkgPath), nil
 	return filepath.Join(gnoenv.RootDir(), pkgPath), nil // build abs path for to exec
 }

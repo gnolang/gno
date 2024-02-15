@@ -103,7 +103,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// precompile and validate syntax
-	err = precompile.PrecompileAndCheckPkg(true, memPkg, nil)
+	err, _ = precompile.PrecompileAndCheckPkg(true, memPkg, nil, nil)
 	if err != nil {
 		panic(err)
 	}

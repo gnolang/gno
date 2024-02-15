@@ -15,5 +15,8 @@ func main() {
 	println(true)
 }
 
+// Go_Output:
+// true
+
 // Output:
 // true

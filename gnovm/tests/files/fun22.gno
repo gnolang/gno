@@ -7,7 +7,7 @@ func main() {
 }
 
 // Go_Error:
-// files/fun22.gno:6:2: not enough arguments in call to time.Date
+// files/fun22.gno:10:2: not enough arguments in call to time.Date
 // 	have ()
 // 	want (int, time.Month, int, int, int, int, int, *time.Location)
 

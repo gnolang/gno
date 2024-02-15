@@ -87,7 +87,7 @@ type PrecompileCfg struct {
 	Verbose     bool
 	SkipFmt     bool
 	SkipImports bool
-	Gobuild     bool
+	GoRun       bool
 	GoBinary    string
 	GofmtBinary string
 	Output      string
@@ -103,7 +103,7 @@ type PrecompileOptions struct {
 var DefaultPrecompileCfg = &PrecompileCfg{
 	Verbose:  false,
 	GoBinary: "go",
-	Gobuild:  true,
+	GoRun:    false,
 }
 
 func NewPrecompileOptions(cfg *PrecompileCfg) *PrecompileOptions {
@@ -147,7 +147,7 @@ func (c *PrecompileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.Gobuild,
+		&c.GoRun,
 		"gobuild",
 		false,
 		"run go build on generated go files, ignoring test files",
@@ -177,9 +177,9 @@ func (c *PrecompileCfg) RegisterFlags(fs *flag.FlagSet) {
 
 // ==================================================================
 func PrecompilePkg(pkgPath ImportPath, opts *PrecompileOptions) error {
-	fmt.Println("---precompilePkg, pkgPath: ", pkgPath)
+	debugPrecompile.Println("---precompilePkg, pkgPath: ", pkgPath)
 	if opts.IsPrecompiled(pkgPath) {
-		fmt.Printf("path: %s isCompiled \n", pkgPath)
+		debugPrecompile.Printf("path: %s isCompiled \n", pkgPath)
 		return nil
 	}
 	opts.MarkAsPrecompiled(pkgPath)
@@ -189,9 +189,9 @@ func PrecompilePkg(pkgPath ImportPath, opts *PrecompileOptions) error {
 		log.Fatal(err)
 	}
 
-	fmt.Println("---files: ", files)
+	debugPrecompile.Println("---files: ", files)
 	for _, file := range files {
-		fmt.Println("---file: ", file)
+		debugPrecompile.Println("---file: ", file)
 		if err = PrecompileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
@@ -202,7 +202,7 @@ func PrecompilePkg(pkgPath ImportPath, opts *PrecompileOptions) error {
 
 // precompile file and imports, xxx.gno -> xxx.gen.go
 func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
-	fmt.Println("---PrecompileFile at srcPath:", srcPath)
+	debugPrecompile.Println("---PrecompileFile at srcPath:", srcPath)
 	var importPaths []ImportPath
 
 	flags := opts.GetFlags()
@@ -223,10 +223,10 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 
 	// compute attributes based on filename.
 	targetFilename, tags := GetPrecompileFilenameAndTags(srcPath)
-	fmt.Println("tags: ", tags)
-	if !opts.GetFlags().Gobuild {
-		tags = "noop"
-	}
+	debugPrecompile.Println("tags: ", tags)
+	//if opts.GetFlags().GoRun {
+	//	tags = "noop"
+	//}
 	precompileRes, err := Precompile(string(source), tags, srcPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -244,29 +244,29 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
-		fmt.Println("---resolved path: ", path)
-		fmt.Println("---targetFileName: ", targetFilename)
+		debugPrecompile.Println("---resolved path: ", path)
+		debugPrecompile.Println("---targetFileName: ", targetFilename)
 		targetPath = filepath.Join(path, targetFilename)
 	} else {
 		dir := filepath.Dir(srcPath)
-		fmt.Println("---dir: ", dir)
-		fmt.Println("---targetFileName: ", targetFilename)
+		debugPrecompile.Println("---dir: ", dir)
+		debugPrecompile.Println("---targetFileName: ", targetFilename)
 		targetPath = filepath.Join(dir, targetFilename)
 	}
 
-	fmt.Println("---targetPath: ", targetPath)
+	debugPrecompile.Println("---targetPath: ", targetPath)
 	// write .go file.
 	err = writeDirFile(targetPath, []byte(precompileRes.Translated))
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
 
-	fmt.Println("---check result at:", filepath.Dir(srcPath))
+	debugPrecompile.Println("---check result at:", filepath.Dir(srcPath))
 
 	// Read the directory contents
 	dirEntries, err := os.ReadDir(filepath.Dir(srcPath))
 	if err != nil {
-		fmt.Println("Error:", err)
+		debugPrecompile.Println("Error:", err)
 	}
 
 	// Iterate over each directory entry
@@ -274,22 +274,22 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 		// Get information about the file
 		fileInfo, err := entry.Info()
 		if err != nil {
-			fmt.Println("Error:", err)
+			debugPrecompile.Println("Error:", err)
 			continue
 		}
 
 		// Print file information
-		fmt.Printf("---file name: %s, Size: %d bytes, IsDir: %t\n", fileInfo.Name(), fileInfo.Size(), fileInfo.IsDir())
+		debugPrecompile.Printf("---file name: %s, Size: %d bytes, IsDir: %t\n", fileInfo.Name(), fileInfo.Size(), fileInfo.IsDir())
 		//If the entry is a file, print its content
-		//if !fileInfo.IsDir() {
-		//	fileContent, err := ioutil.ReadFile(filepath.Dir(srcPath) + "/" + entry.Name())
-		//	if err != nil {
-		//		fmt.Println("Error reading file:", err)
-		//		continue
-		//	}
-		//	fmt.Println("Content:")
-		//	fmt.Println(string(fileContent))
-		//}
+		if !fileInfo.IsDir() {
+			fileContent, err := ioutil.ReadFile(filepath.Dir(srcPath) + "/" + entry.Name())
+			if err != nil {
+				debugPrecompile.Println("Error reading file:", err)
+				continue
+			}
+			debugPrecompile.Println("Content:")
+			debugPrecompile.Println(string(fileContent))
+		}
 	}
 
 	// check .go fmt, if `SkipFmt` sets to false.
@@ -303,9 +303,9 @@ func PrecompileFile(srcPath string, opts *PrecompileOptions) error {
 	// precompile imported packages, if `SkipImports` sets to false
 	if !flags.SkipImports {
 		importPaths = getPathsFromImportSpec(precompileRes.Imports)
-		fmt.Println("---importPaths: ", importPaths)
+		debugPrecompile.Println("---importPaths: ", importPaths)
 		for _, path := range importPaths {
-			fmt.Println("---precompile imported path: ", path)
+			debugPrecompile.Println("---precompile imported path: ", path)
 			PrecompilePkg(path, opts)
 		}
 	}
@@ -342,10 +342,10 @@ func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
 }
 
 // PrecompileAndCheckPkg conducts precompile and try build against precompiled files
-// used by `gno precompile`, `gnokey run`, `gnokey addpkg`, `client_txs Run`
+// it's used by `gno precompile`, `gnokey run`, `gnokey addpkg`, `client_txs Run` command
 func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, cfg *PrecompileCfg) (error, string) {
-	fmt.Println("---gnolang, PrecompileAndCheckMemPkg")
-	var targetPaths []string
+	debugPrecompile.Printf("---PrecompileAndCheckMemPkg, isMem: %v, cfg: %v \n", isMem, cfg)
+	var targetDirs []string
 	var srcPaths []string
 	var tmpDir string
 	// precompile with fmt and import files,  and try go build
@@ -358,8 +358,9 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 
 	defer func() {
 		// clean main generated files
+		// XXX, not necessary
 		for _, srcPath := range srcPaths {
-			fmt.Println("---clean dir:", srcPath)
+			debugPrecompile.Println("---clean dir:", srcPath)
 			err := CleanGeneratedFiles(srcPath)
 			if err != nil {
 				panic(err)
@@ -367,22 +368,13 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 		}
 		// clean imported
 		for pkgPath := range opts.Precompiled {
-			fmt.Println("precompiled import pkg:", pkgPath)
-			fmt.Println("---clean dir:", pkgPath)
+			debugPrecompile.Println("precompiled import pkg:", pkgPath)
+			debugPrecompile.Println("---clean dir:", pkgPath)
 			err := CleanGeneratedFiles(string(pkgPath))
 			if err != nil {
 				panic(err)
 			}
 		}
-		//_, err := os.Stat(tmpDir)
-		//if err != nil {
-		//	if os.IsNotExist(err) {
-		//		fmt.Println("Directory does not exist.")
-		//	} else {
-		//		fmt.Println("Error:", err)
-		//	}
-		//	return
-		//}
 		defer os.RemoveAll(tmpDir) //nolint: errcheck
 
 	}()
@@ -396,10 +388,9 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("---tmpDir: ", tmpDir)
-		//defer os.RemoveAll(tmpDir) //nolint: errcheck
+		debugPrecompile.Println("---tmpDir: ", tmpDir)
 
-		// write mem file to tmp dir
+		// write mem file to tmp dir, and conduct run/build
 		for _, mfile := range mempkg.Files {
 			if !strings.HasSuffix(mfile.Name, ".gno") {
 				continue // skip spurious file.
@@ -410,21 +401,22 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 				panic(err)
 			}
 		}
-		targetPaths = append(targetPaths, tmpDir)
+		targetDirs = append(targetDirs, tmpDir)
 	} else {
-		targetPaths = paths // existing files
+		targetDirs = paths // existing files
 	}
 
-	fmt.Println("---targetPaths: ", targetPaths)
+	debugPrecompile.Println("---targetDirs: ", targetDirs)
 
-	srcPaths, err := GnoFilesFromArgs(targetPaths)
+	// get file path from dir
+	srcPaths, err := GnoFilesFromArgs(targetDirs)
 	if err != nil {
 		panic(fmt.Sprintf("list paths: %w", err))
 	}
 
+	// precompile files with imports to go files, all ready for run/build
 	errCount := 0
 	for _, srcPath := range srcPaths {
-		fmt.Println("---precompile file at filepath: ", srcPath)
 		err = PrecompileFile(srcPath, opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", srcPath, err)
@@ -436,21 +428,20 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 	}
 
 	// try build
-	pkgPaths, err := GnoPackagesFromArgs(targetPaths)
+	pkgPaths, err := GnoPackagesFromArgs(targetDirs)
 	if err != nil {
 		return fmt.Errorf("list packages: %w", err), ""
 	}
 	errCount = 0
-	for _, pkgPath := range pkgPaths {
-		fmt.Println("---pkg path: ", pkgPath)
+	for _, pkgPath := range pkgPaths { // tmp dir for single file test from file_test
+		debugPrecompile.Println("---pkg path: ", pkgPath)
 		_ = pkgPath
-		if opts.GetFlags().Gobuild == false { // go run
-			fmt.Println("---run file")
-
+		if opts.GetFlags().GoRun { // run files, especially for gnovm/tests, where each test file is of main package
+			debugPrecompile.Println("---run file in pkgPath: ", pkgPath)
 			// Read the directory contents
 			dirEntries, err := os.ReadDir(pkgPath)
 			if err != nil {
-				fmt.Println("Error:", err)
+				debugPrecompile.Println("Error:", err)
 			}
 
 			// Iterate over each directory entry
@@ -458,33 +449,35 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 				// Get information about the file
 				fileInfo, err := entry.Info()
 				if err != nil {
-					fmt.Println("Error:", err)
+					debugPrecompile.Println("Error:", err)
 					continue
 				}
 
 				// Print file information
-				fmt.Printf("---file Name: %s, Size: %d bytes, IsDir: %t\n", fileInfo.Name(), fileInfo.Size(), fileInfo.IsDir())
+				debugPrecompile.Printf("---file Name: %s, Size: %d bytes, IsDir: %t\n", fileInfo.Name(), fileInfo.Size(), fileInfo.IsDir())
 				if !fileInfo.IsDir() {
 					//fileContent, err := ioutil.ReadFile(filepath.Dir(pkgPath) + "/" + entry.Name())
 					fileContent, err := ioutil.ReadFile(pkgPath + "/" + entry.Name())
 					if err != nil {
-						fmt.Println("Error reading file:", err)
+						debugPrecompile.Println("Error reading file:", err)
 						continue
 					}
-					fmt.Println("Content:")
-					fmt.Println(string(fileContent))
+					debugPrecompile.Println("Content:")
+					debugPrecompile.Println(string(fileContent))
 				}
 			}
 
 			err, output := PrecompileRun("main.gno.gen.go", pkgPath, "go run", paths[0]) // always one file per run
 			if err != nil {
 				//err = fmt.Errorf("%s: run pkg: %w", pkgPath, err)
-				errCount++
+				//errCount++
 				return err, ""
 			}
-			return nil, output
+			return nil, output // one main() per run, so return
 
 		} else {
+			// go build for most of the r/p packages, that build is all we can do to check compile errors,
+			// root cause for this is that is hard to simulink injected native funcs in Go
 			err = GoBuildFileOrPkg(pkgPath, precompileCfg)
 			if err != nil {
 				err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
@@ -500,57 +493,9 @@ func PrecompileAndCheckPkg(isMem bool, mempkg *std.MemPackage, paths []string, c
 	return nil, ""
 }
 
-// For single file that with no native injection, most about test files in gnovm/test/files, challenge, etc
-// path is uses to make log
-func PrecompileAndRunMempkg(mempkg *std.MemPackage, path string) (error, string) {
-	fmt.Println("---PrecompileAndRunMempkg, path: ", path)
-	goRun := "go run"
-
-	tmpDir, err := os.MkdirTemp("", mempkg.Name)
-	if err != nil {
-		return err, ""
-	}
-	defer os.RemoveAll(tmpDir) //nolint: errcheck
-
-	fmt.Println("---tmpDir: ", tmpDir)
-
-	var errs error
-	var output string
-	for _, mfile := range mempkg.Files { // for gnovm/test/files, only one file contained
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
-		}
-		targetFileName, tags := GetPrecompileFilenameAndTags(mfile.Name)
-		fmt.Println("---targetFileName:", targetFileName)
-		res, err := Precompile(mfile.Body, tags, mfile.Name)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		//tmpFile := filepath.Join(tmpDir, mfile.Name)
-		err = os.WriteFile(filepath.Join(tmpDir, targetFileName), []byte(res.Translated), 0o644)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		// check precompiled file
-		err, output = PrecompileRun(targetFileName, tmpDir, goRun, path)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-	}
-	if errs != nil {
-		//return fmt.Errorf("precompile package: %w", errs), ""
-		return errs, ""
-	}
-	fmt.Println("---output before return is:", output)
-	return nil, output
-}
-
 // core translate logic from gno to go
 func Precompile(source string, tags string, filename string) (*precompileResult, error) {
-	fmt.Println("---Precompile, filename: ", filename)
+	debugPrecompile.Println("---Precompile, filename: ", filename)
 	var out bytes.Buffer
 
 	fset := token.NewFileSet()
@@ -567,16 +512,16 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	if tags != "noop" {
-		header := "// Code generated by github.com/gnolang/gno. DO NOT EDIT.\n\n"
-		if tags != "" {
-			header += "//go:build " + tags + "\n\n"
-		}
-		_, err = out.WriteString(header)
-		if err != nil {
-			return nil, fmt.Errorf("write to buffer: %w", err)
-		}
+	//if tags != "noop" {
+	header := "// Code generated by github.com/gnolang/gno. DO NOT EDIT.\n\n"
+	if tags != "" {
+		header += "//go:build " + tags + "\n\n"
 	}
+	_, err = out.WriteString(header)
+	if err != nil {
+		return nil, fmt.Errorf("write to buffer: %w", err)
+	}
+	//}
 	err = format.Node(&out, fset, transformed)
 
 	res := &precompileResult{
@@ -604,29 +549,29 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 
 // run precompiled go code and handle the result
 func PrecompileRun(targetFileName string, targetPath string, goRunBinary string, path string) (error, string) {
-	fmt.Printf("---PrecompileRun, dir: %s, gorun: %s \n", targetPath, goRunBinary)
+	debugPrecompile.Printf("---PrecompileRun, dir: %s, gorun: %s \n", targetPath, goRunBinary)
 	// TODO: use cmd/parser instead of exec?
 
 	args := strings.Split(goRunBinary, " ")
-	args = append(args, targetFileName)
-	fmt.Println("---args: ", args)
+	args = append(args, "-tags=gno", targetFileName)
+	debugPrecompile.Println("---args: ", args)
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = targetPath
 	out, err := cmd.CombinedOutput()
 	if err != nil { // exit status 1
-		fmt.Println("err.Error:", err.Error())
+		debugPrecompile.Println("err.Error:", err.Error())
 	}
 
-	fmt.Println("combined out: ", string(out))
+	debugPrecompile.Println("combined out: ", string(out))
 	res, isErr := parseCmdResult(string(out), path)
 	if isErr && res != "" {
-		fmt.Println("---return stderr, res: ", res)
+		debugPrecompile.Println("---return stderr, res: ", res)
 		return errors.New(res), ""
 	} else if !isErr && res != "" {
 		return nil, res
 	} else if len(out) != 0 {
-		fmt.Println("---return stdout")
+		debugPrecompile.Println("---return stdout")
 		return nil, string(out)
 	}
 	return nil, ""
@@ -639,7 +584,7 @@ func parseCmdResult(input string, path string) (string, bool) {
 	var isStdErr bool
 	input = strings.TrimSpace(input)
 	if strings.Contains(input, tag) {
-		fmt.Println("--- contain, input:", input)
+		debugPrecompile.Println("--- contain, input:", input)
 		isStdErr = true
 	}
 
@@ -649,9 +594,9 @@ func parseCmdResult(input string, path string) (string, bool) {
 	if len(parts) > 1 {
 		// The second part is the string after "main.gno.gen.go"
 		input = path + parts[1]
-		fmt.Println("Trimmed string:", input)
+		debugPrecompile.Println("Trimmed string:", input)
 	} else {
-		fmt.Println("String does not contain 'main.go'")
+		debugPrecompile.Println("String does not contain 'main.goa'")
 	}
 	return input, isStdErr
 }
@@ -661,7 +606,7 @@ func parseCmdResult(input string, path string) (string, bool) {
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
 func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
-	fmt.Println("---PrecompileBuildPackage, fileOrPkg: ", fileOrPkg)
+	debugPrecompile.Println("---PrecompileBuildPackage, fileOrPkg: ", fileOrPkg)
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
@@ -686,7 +631,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 			return fmt.Errorf("glob: %w", err)
 		}
 		for _, goMatch := range goMatches {
-			fmt.Println("---goMatch: ", goMatch)
+			debugPrecompile.Println("---goMatch: ", goMatch)
 			switch {
 			case strings.HasPrefix(goMatch, "."): // skip
 			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
@@ -694,15 +639,14 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 			case strings.HasSuffix(goMatch, "_test.go"): // skip
 			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
 			default:
-				println("append ")
 				files = append(files, goMatch)
 			}
 		}
 	}
 
-	for _, f := range files {
-		fmt.Println("file: ", f)
-	}
+	//for _, f := range files {
+	//	fmt.Println("file: ", f)
+	//}
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
@@ -710,12 +654,12 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	if err == nil {
 		cmd.Dir = rootDir
 	}
-	fmt.Println("rootDir: ", rootDir)
+	//fmt.Println("rootDir: ", rootDir)
 	out, err := cmd.CombinedOutput()
-	fmt.Println("---out:", string(out))
+	debugPrecompile.Println("---out:", string(out))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
-		fmt.Printf("---build fail, out: %s \n", string(out))
+		debugPrecompile.Printf("---build fail, out: %s \n", string(out))
 		return fmt.Errorf("std go compiler: %w", err)
 	}
 
@@ -723,7 +667,7 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 }
 
 func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
-	fmt.Println("---precompileAst")
+	debugPrecompile.Println("---precompileAst")
 	var errs error
 
 	imports := astutil.Imports(fset, f)
@@ -772,7 +716,7 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 	for _, paragraph := range imports {
 		for _, importSpec := range paragraph {
 			importPath := strings.TrimPrefix(strings.TrimSuffix(importSpec.Path.Value, `"`), `"`)
-			fmt.Println("---precompileAst, importPath: ", importPath)
+			debugPrecompile.Println("---precompileAst, importPath: ", importPath)
 
 			// std package
 			if importPath == GnoStdPkgBefore {
@@ -799,10 +743,12 @@ func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.N
 				}
 			}
 
-			// gnovm/test/files/extern
+			// gnovm/test/files/extern, rewrite to go import for test
 			if strings.Contains(importPath, GnoTestExternBefore) {
-				fmt.Println("---match test extern")
-				importAfter := strings.TrimPrefix(importPath, GnoTestExternBefore)
+				debugPrecompile.Println("---match test extern")
+				//importAfter := strings.TrimPrefix(importPath, GnoTestExternBefore)
+				importAfter := strings.Replace(importPath, GnoTestExternBefore, GnoTestExternAfter, -1)
+				//if !astutil.RewriteImport(fset, f, importPath, importAfter) {
 				if !astutil.RewriteImport(fset, f, importPath, importAfter) {
 					errs = multierr.Append(errs, fmt.Errorf("failed to replace the %q package with %q", GnoTestExternBefore, GnoTestExternAfter))
 				}

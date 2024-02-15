@@ -36,7 +36,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := MustParseFile("main.goa", c)
 	m.RunFiles(n)
 	m.RunMain()
 }
@@ -118,7 +118,7 @@ func TestEval(t *testing.T) {
 func next(i int) int {
 	return i+1
 }`
-	n := MustParseFile("main.go", c)
+	n := MustParseFile("main.goa", c)
 	m.RunFiles(n)
 	res := m.Eval(Call("next", "1"))
 	fmt.Println(res)
@@ -132,7 +132,7 @@ func assertOutput(t *testing.T, input string, output string) {
 		PkgPath: "test",
 		Output:  buf,
 	})
-	n := MustParseFile("main.go", input)
+	n := MustParseFile("main.goa", input)
 	m.RunFiles(n)
 	m.RunMain()
 	assert.Equal(t, string(buf.Bytes()), output)

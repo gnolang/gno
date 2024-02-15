@@ -125,7 +125,7 @@ func (c *Client) Run(cfg RunCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
 
 	// precompile and validate syntax
-	err = gno.PrecompileAndCheckPkg(true, memPkg, nil)
+	err, _ = gno.PrecompileAndCheckPkg(true, memPkg, nil, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "precompile and check")
 	}
