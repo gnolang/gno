@@ -5,13 +5,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"golang.org/x/net/netutil"
 
