@@ -48,21 +48,35 @@ If you have an idea of how to fix this issue, please write it down here, so we c
 
 `
 
+type bugCfg struct {
+	skipBrowser bool
+}
+
 func newBugCmd(io commands.IO) *commands.Command {
+	cfg := &bugCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "bug",
 			ShortUsage: "bug",
 			ShortHelp:  "Start a bug report",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execBug(args, io)
+			return execBug(cfg, args, io)
 		},
 	)
 }
 
-func execBug(args []string, io commands.IO) error {
+func (c *bugCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.skipBrowser,
+		"skip-browser",
+		false,
+		"do not open the browser",
+	)
+}
+
+func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 	if len(args) != 0 {
 		return flag.ErrHelp
 	}
@@ -85,8 +99,10 @@ func execBug(args []string, io commands.IO) error {
 	body := buf.String()
 	url := "https://github.com/gnolang/gno/issues/new?body=" + url.QueryEscape(body)
 
-	// Try opening browser (ignore error)
-	_ = openBrowser(url)
+	if !cfg.skipBrowser {
+		// Try opening browser (ignore error)
+		_ = openBrowser(url)
+	}
 
 	// Print on console, regardless if the browser opened or not
 	io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
