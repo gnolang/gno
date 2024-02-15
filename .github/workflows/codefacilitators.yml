@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened]
 
+permissions:
+  pull-requests: write
+
 jobs:
   assign-code-facilitators:
     runs-on: ubuntu-latest
