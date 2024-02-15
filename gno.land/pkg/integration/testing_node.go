@@ -1,10 +1,9 @@
 package integration
 
 import (
+	"log/slog"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -32,8 +31,8 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	require.NoError(t, err)
 
 	select {
-	case <-gnoland.GetNodeReadiness(node):
-	case <-time.After(time.Second * 6):
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 

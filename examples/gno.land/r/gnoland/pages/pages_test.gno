@@ -33,7 +33,7 @@ func TestAbout(t *testing.T) {
 	got := Render("p/about")
 	expectedSubtrings := []string{
 		"# About Gno.land",
-		"Gno.land is a platform to write smart contracts in Gnolang (Gno).",
+		"Gno.land is a platform to write smart contracts in Gno.",
 	}
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {
