@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
+// NOTE: keep in sync with .github/ISSUE_TEMPLATE/BUG-REPORT.md
 const bugTmpl = `## [Subject of the issue]
 
 ### Description
