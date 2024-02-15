@@ -37,6 +37,7 @@ linters:
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
     - gofumpt # Stricter gofmt
     - unused # Checks Go code for unused constants, variables, functions and types
+    - gomodguard # Enforces an allow and block list for direct Go module dependencies
 
 linters-settings:
   gofmt:
@@ -59,6 +60,17 @@ linters-settings:
       - opinionated
       - performance
       - style
+  gomodguard:
+    blocked:
+      modules:
+        - log/slog:
+            recommendations:
+              - golang.org/x/exp
+            reason: "the minimum go version for the monorepo is 1.20"
+      versions:
+        - go.uber.org/zap/exp:
+            version: "> 0.1.0"
+            reason: "this version of zap/exp is a requirement until we upgrade to go 1.21 (https://github.com/uber-go/zap/blob/master/exp/CHANGELOG.md)"
 
 issues:
   whole-files: true

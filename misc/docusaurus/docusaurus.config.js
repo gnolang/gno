@@ -28,7 +28,7 @@ const config = {
       src: "https://sa.gno.services/latest.js",
       async: true,
       defer: true,
-    }
+    },
   ],
 
   presets: [
@@ -40,6 +40,8 @@ const config = {
           path: "../../docs",
           routeBasePath: "/",
           sidebarPath: require.resolve("./sidebars.js"),
+          showLastUpdateTime: true,
+          editUrl: ({ docPath }) => `https://github.com/gnolang/gno/edit/master/docs/${docPath}`,
         },
         blog: false,
         theme: {
@@ -62,10 +64,26 @@ const config = {
         },
         items: [
           {
+            position: "right",
+            label: "Back to Gno.Land",
+            to: "https://gno.land",
+            className: "gno-header__copy",
+          },
+          {
             type: "docSidebar",
             sidebarId: "tutorialSidebar",
             position: "left",
             label: "Docs",
+          },
+          {
+            position: "left",
+            label: "Playground",
+            to: "https://play.gno.land",
+          },
+          {
+            position: "left",
+            label: "Blog",
+            to: "https://test3.gno.land/r/gnoland/blog",
           },
           {
             href: "https://github.com/gnolang/gno",

@@ -6,7 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -30,7 +31,7 @@ type SignerListenerEndpoint struct {
 
 // NewSignerListenerEndpoint returns an instance of SignerListenerEndpoint.
 func NewSignerListenerEndpoint(
-	logger log.Logger,
+	logger *slog.Logger,
 	listener net.Listener,
 ) *SignerListenerEndpoint {
 	sc := &SignerListenerEndpoint{
