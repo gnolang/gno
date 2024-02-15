@@ -1098,12 +1098,12 @@ func stripTrailingWhitespace(s string) string {
 // leading and trailing empty lines are removed.
 // Multiple empty lines are reduced to one, and trailing space on lines is trimmed.
 // Unless the result is empty, it is newline-terminated.
-func (g *CommentGroup) Text() string {
-	if g == nil {
+func (x *CommentGroup) Text() string {
+	if x == nil {
 		return ""
 	}
-	comments := make([]string, len(g.List))
-	for i, c := range g.List {
+	comments := make([]string, len(x.List))
+	for i, c := range x.List {
 		comments[i] = c.Text
 	}
 
@@ -1403,7 +1403,6 @@ type FileNode struct {
 	Decls
 	Comments []*CommentGroup // list of all comments in the source file
 	Doc      *CommentGroup   // associated documentation; or nil
-
 }
 
 type PackageNode struct {

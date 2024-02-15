@@ -162,6 +162,8 @@ func main() {
 //                         "Generic": "",
 //                         "Methods": [
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "String",
 //                                 "Tag": "",
@@ -170,6 +172,8 @@ func main() {
 //                                     "Params": [],
 //                                     "Results": [
 //                                         {
+//                                             "Comment": null,
+//                                             "Doc": null,
 //                                             "Embedded": false,
 //                                             "Name": "",
 //                                             "Tag": "",
@@ -202,6 +206,8 @@ func main() {
 //                         "@type": "/gno.StructType",
 //                         "Fields": [
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Field",
 //                                 "Tag": "",
@@ -219,6 +225,8 @@ func main() {
 //                                 "@type": "/gno.FuncType",
 //                                 "Params": [
 //                                     {
+//                                         "Comment": null,
+//                                         "Doc": null,
 //                                         "Embedded": false,
 //                                         "Name": "t",
 //                                         "Tag": "",
@@ -256,6 +264,8 @@ func main() {
 //                                     "@type": "/gno.FuncType",
 //                                     "Params": [
 //                                         {
+//                                             "Comment": null,
+//                                             "Doc": null,
 //                                             "Embedded": false,
 //                                             "Name": "t",
 //                                             "Tag": "",
@@ -290,6 +300,8 @@ func main() {
 //                         "@type": "/gno.StructType",
 //                         "Fields": [
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Name",
 //                                 "Tag": "",
@@ -299,6 +311,8 @@ func main() {
 //                                 }
 //                             },
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Child",
 //                                 "Tag": "",
@@ -324,6 +338,8 @@ func main() {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "str",
 //                         "Tag": "",
@@ -362,6 +378,8 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "str",
 //                             "Tag": "",
@@ -380,6 +398,8 @@ func main() {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "path",
 //                         "Tag": "",
@@ -391,6 +411,8 @@ func main() {
 //                 ],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -428,6 +450,8 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "path",
 //                             "Tag": "",
@@ -439,6 +463,8 @@ func main() {
 //                     ],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -493,6 +519,8 @@ func main() {
 //                 "Params": [],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -531,6 +559,8 @@ func main() {
 //                     "Params": [],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -549,6 +579,8 @@ func main() {
 //                 "Params": [],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -587,6 +619,8 @@ func main() {
 //                     "Params": [],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -641,6 +675,8 @@ func main() {
 //                 "Params": [],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -679,6 +715,8 @@ func main() {
 //                     "Params": [],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -696,6 +734,8 @@ func main() {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "t",
 //                         "Tag": "",
@@ -737,6 +777,8 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "t",
 //                             "Tag": "",
@@ -867,6 +909,8 @@ func main() {
 //                 "Params": [],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -905,6 +949,8 @@ func main() {
 //                     "Params": [],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -923,6 +969,8 @@ func main() {
 //                 "Params": [],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -961,6 +1009,8 @@ func main() {
 //                     "Params": [],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
@@ -978,6 +1028,8 @@ func main() {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "fn",
 //                         "Tag": "",
@@ -1017,6 +1069,8 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "fn",
 //                             "Tag": "",

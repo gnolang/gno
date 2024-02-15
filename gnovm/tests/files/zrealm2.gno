@@ -122,6 +122,8 @@ func main() {
 //                         "@type": "/gno.StructType",
 //                         "Fields": [
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Key",
 //                                 "Tag": "",
@@ -131,6 +133,8 @@ func main() {
 //                                 }
 //                             },
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Left",
 //                                 "Tag": "",
@@ -140,6 +144,8 @@ func main() {
 //                                 }
 //                             },
 //                             {
+//                                 "Comment": null,
+//                                 "Doc": null,
 //                                 "Embedded": false,
 //                                 "Name": "Right",
 //                                 "Tag": "",

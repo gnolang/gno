@@ -122,6 +122,8 @@ func main() {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "pkgPath",
 //                         "Tag": "",
@@ -133,6 +135,8 @@ func main() {
 //                 ],
 //                 "Results": [
 //                     {
+//                         "Comment": null,
+//                         "Doc": null,
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
@@ -170,6 +174,8 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "pkgPath",
 //                             "Tag": "",
@@ -181,6 +187,8 @@ func main() {
 //                     ],
 //                     "Results": [
 //                         {
+//                             "Comment": null,
+//                             "Doc": null,
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
