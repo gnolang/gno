@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var jsonKeyRegex = regexp.MustCompile(`"([^"\\]|\\.)*"\s*:`)
+var jsonKeyRegex = regexp.MustCompile(`"([^"\\]|\\.)*"\\s*:`)
 
 // Field stores each field's information.
 type Field struct {

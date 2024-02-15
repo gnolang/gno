@@ -15,7 +15,7 @@ const (
 
 var (
 	tabRegex           = regexp.MustCompile(`(?m)^\t+`)
-	lastLineSpaceRegex = regexp.MustCompile(`(?m)^\s+\}`)
+	lastLineSpaceRegex = regexp.MustCompile(`(?m)^\\s+\\}`)
 )
 
 // extractValueTypeFromToken recoginizes the type of JSON value by peeking at the first byte of the value.
