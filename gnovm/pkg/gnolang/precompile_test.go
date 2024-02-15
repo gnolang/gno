@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO(tb): this test only assert precompileAST function, which is only a sub
+// part of the Precompile function. That needs improvements.
 func TestPrecompile(t *testing.T) {
 	t.Parallel()
 
@@ -119,16 +121,16 @@ func TestParseGoBuildErrors(t *testing.T) {
 				&goscanner.Error{
 					Pos: token.Position{
 						Filename: "./main.gno",
-						Line:     1,
-						Column:   1,
+						Line:     2,
+						Column:   2,
 					},
 					Msg: "nasty error",
 				},
 				&goscanner.Error{
 					Pos: token.Position{
 						Filename: "./pkg/file.gno",
-						Line:     55,
-						Column:   19,
+						Line:     56,
+						Column:   20,
 					},
 					Msg: "ugly error",
 				},

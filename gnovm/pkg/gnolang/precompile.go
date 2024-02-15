@@ -262,7 +262,7 @@ var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 // in out, which is supposed to be the output of the `go build` command.
 // Each errors are translated into their correlated gno files, by:
 // - changing the filename from *.gno.gen.go to *.gno
-// - shifting line & column according to the added header in generated go files
+// - shifting line number according to the added header in generated go files
 // (see [Precompile] for that header).
 func parseGoBuildErrors(out string) error {
 	var errList goscanner.ErrorList
@@ -279,22 +279,16 @@ func parseGoBuildErrors(out string) error {
 			return fmt.Errorf("parse column go build error %s: %w", match, err)
 		}
 		msg := match[4]
-		// Remove .gen.go extention, we want to target the gno file
-		filename = strings.TrimSuffix(filename, ".gen.go")
-		// Shift the 5 lines header added in *.gen.go files (see Precompile func)
-		// NOTE(tb): the 5 lines shift below assumes there's always a //go:build
-		// directive. But the tags are optional in the Precompile() function
-		// so that leaves some doubts... We might want something more reliable than
-		// constants to shift lines and columns.
-		line -= 5
-		// Shift column of 1 char
-		// NOTE(tb): not sure when this comes from, maybe the call to format.Node()
-		// which transforms 2 spaces into a tab ?
-		column--
 		errList.Add(token.Position{
-			Filename: filename,
-			Line:     line,
-			Column:   column,
+			// Remove .gen.go extention, we want to target the gno file
+			Filename: strings.TrimSuffix(filename, ".gen.go"),
+			// Shift the 4 lines header added in *.gen.go files.
+			// NOTE(tb): the 4 lines shift below assumes there's always a //go:build
+			// directive. But the tags are optional in the Precompile() function
+			// so that leaves some doubts... We might want something more reliable than
+			// constants to shift lines.
+			Line:   line - 4,
+			Column: column,
 		}, msg)
 	}
 	return errList.Err()
