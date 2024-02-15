@@ -1,0 +1,26 @@
+name: "Assign Code Facilitators to PRs"
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  assign-code-facilitators:
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Assign Code Facilitators to PR"
+      uses: 0xtekgrinder/codefacilitators@v1.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./github/CODEFACILITATORS
+
+    - name: Send information message
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: 'Code Facilitators have been assigned to this PR.\n\n Teir roles is to review the code and provide feedback. They will also help you with any questions you may have. \n\n If you have any questions, please feel free to ask. \n\n Thank you!'
+          })
