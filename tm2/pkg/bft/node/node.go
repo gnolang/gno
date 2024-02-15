@@ -574,6 +574,16 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// Set up the GLOBAL variables in rpc/core which refer to this node.
+	// This is done separately from startRPC(), as the values in rpc/core are used,
+	// for instance, to set up Local clients (rpc/client) which work without
+	// a network connection.
+	n.configureRPC()
+	if n.config.RPC.Unsafe {
+		rpccore.AddUnsafeRoutes()
+	}
+	rpccore.Start()
+
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
 	if n.config.RPC.ListenAddress != "" {
@@ -654,9 +664,9 @@ func (n *Node) OnStop() {
 	}
 }
 
-// ConfigureRPC sets all variables in rpccore so they will serve
+// configureRPC sets all variables in rpccore so they will serve
 // rpc calls from this node
-func (n *Node) ConfigureRPC() {
+func (n *Node) configureRPC() {
 	rpccore.SetStateDB(n.stateDB)
 	rpccore.SetBlockStore(n.blockStore)
 	rpccore.SetConsensusState(n.consensusState)
@@ -674,12 +684,6 @@ func (n *Node) ConfigureRPC() {
 }
 
 func (n *Node) startRPC() ([]net.Listener, error) {
-	n.ConfigureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
-	}
-	rpccore.Start()
-
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()

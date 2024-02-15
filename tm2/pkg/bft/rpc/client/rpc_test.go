@@ -23,7 +23,6 @@ func getHTTPClient() *client.HTTP {
 }
 
 func getLocalClient() *client.Local {
-	node.ConfigureRPC()
 	return client.NewLocal()
 }
 
