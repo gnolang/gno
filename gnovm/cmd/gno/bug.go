@@ -20,7 +20,7 @@ Describe your issue in as much detail as possible here
 
 ### Your environment
 
-* {{.GoVersion}} {{.Os}}/{{.Arch}}
+* go version {{.GoVersion}} {{.Os}}/{{.Arch}}
 * version of gno
 * branch that causes this issue (with the commit hash)
 

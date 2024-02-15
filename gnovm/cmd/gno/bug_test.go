@@ -12,6 +12,10 @@ func TestBugApp(t *testing.T) {
 			args:        []string{"bug unknown"},
 			errShouldBe: "flag: help requested",
 		},
+		{
+			args:                []string{"bug", "-skip-browser"},
+			stdoutShouldContain: "go version go1.",
+		},
 	}
 	testMainCaseRun(t, tc)
 }
