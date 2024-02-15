@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"bytes"
-	"errors"
 	"go/format"
 	"go/parser"
 	goscanner "go/scanner"
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrecompile(t *testing.T) {
@@ -19,7 +19,7 @@ func TestPrecompile(t *testing.T) {
 		name                      string
 		source                    string
 		expectedOutput            string
-		expectedPreprocessorError error
+		expectedPreprocessorError string
 	}{
 		{
 			name:           "hello",
@@ -44,7 +44,7 @@ func TestPrecompile(t *testing.T) {
 		}, {
 			name:                      "blacklisted-package",
 			source:                    "package foo\nimport \"reflect\"\nfunc foo() { _ = reflect.ValueOf}",
-			expectedPreprocessorError: errors.New(`import "reflect" is not in the whitelist`),
+			expectedPreprocessorError: `foo.go:2:8: import "reflect" is not in the whitelist`,
 		}, {
 			name:           "whitelisted-package",
 			source:         "package foo\nimport \"regexp\"\nfunc foo() { _ = regexp.MatchString}",
@@ -64,20 +64,20 @@ func TestPrecompile(t *testing.T) {
 			// parse gno
 			fset := token.NewFileSet()
 			f, err := parser.ParseFile(fset, "foo.go", c.source, parser.ParseComments)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// call preprocessor
 			transformed, err := precompileAST(fset, f, true)
-			if c.expectedPreprocessorError == nil {
-				assert.NoError(t, err)
+			if c.expectedPreprocessorError == "" {
+				require.NoError(t, err)
 			} else {
-				assert.Equal(t, err, c.expectedPreprocessorError)
+				require.EqualError(t, err, c.expectedPreprocessorError)
 			}
 
 			// generate go
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, transformed)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			got := buf.Bytes()
 
 			// check output
@@ -88,7 +88,7 @@ func TestPrecompile(t *testing.T) {
 					t.Logf("expect:\n%s", expect)
 					t.Fatal("mismatch")
 				}
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

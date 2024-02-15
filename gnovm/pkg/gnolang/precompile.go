@@ -258,7 +258,12 @@ func PrecompileBuildPackage(fileOrPkg, goBinary string) error {
 
 var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 
-// TODO add tests
+// parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
+// in out, which is supposed to be the output of the `go build` command.
+// Each errors are translated into their correlated gno files, by:
+// - changing the filename from *.gno.gen.go to *.gno
+// - shifting line & column according to the added header in generated go files
+// (see [Precompile] for that header).
 func parseGoBuildErrors(out string) error {
 	var errList goscanner.ErrorList
 	matches := errorRe.FindAllStringSubmatch(out, -1)
