@@ -11,7 +11,7 @@ For more information, see issue on github [gnolang/gno#1239](https://github.com/
 
 Start the loop with:
 
-``` sh
+```sh
 $ docker compose up -d
 
 # or using the Makefile
