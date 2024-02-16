@@ -25,6 +25,7 @@ services:
       - portal-loop
     ports:
       - "80:80"
+      - "81:81"
       - "8080:8080"
     volumes:
       - ./traefik:/etc/traefik/configs
