@@ -1,14 +1,11 @@
 package events
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
-	"text/template"
 
 	"github.com/gorilla/websocket"
-	"golang.org/x/exp/slog"
 )
 
 type Emitter interface {
@@ -79,19 +76,4 @@ func (s *Server) emit(evt *Event) {
 			delete(s.clients, conn)
 		}
 	}
-}
-
-var tmplFuncs = template.FuncMap{
-	"jsEventsArray": func(events []EventType) string {
-		var b strings.Builder
-		b.WriteString("[")
-		for i, v := range events {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(fmt.Sprintf("%q", v))
-		}
-		b.WriteString("]")
-		return b.String()
-	},
 }

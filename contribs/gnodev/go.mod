@@ -9,7 +9,6 @@ require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/gorilla/websocket v1.5.1
 	go.uber.org/zap v1.26.0
-	golang.org/x/exp v0.0.0-20240112132812-db
 	golang.org/x/term v0.16.0
 )
 

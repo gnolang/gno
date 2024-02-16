@@ -9,18 +9,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type EventType string
+type Type string
 
 const (
-	EvtReload         EventType = "EVENT_NODE_RELOAD"
-	EvtReset          EventType = "EVENT_NODE_RESET"
-	EvtPackagesUpdate EventType = "EVENT_PACKAGES_UPDATE"
-	EvtTxResult       EventType = "EVENT_TX_RESULT"
+	EvtReload         Type = "NODE_RELOAD"
+	EvtReset          Type = "NODE_RESET"
+	EvtPackagesUpdate Type = "PACKAGES_UPDATE"
+	EvtTxResult       Type = "TX_RESULT"
 )
 
 type Event struct {
-	Type EventType `json:"type"`
-	Data any       `json:"data"`
+	Type Type `json:"type"`
+	Data any  `json:"data"`
 }
 
 // Event Reload
@@ -52,20 +52,18 @@ type PackageUpdate struct {
 	Files   []string `json:"files"`
 }
 
-type PackagesUpdateEvent struct {
+type EventPackagesUpdate struct {
 	Pkgs []PackageUpdate `json:"packages"`
 }
 
-func NewPackagesUpdateEvent(pkgs []PackageUpdate) *Event {
+func NewEventPackagesUpdate(pkgs []PackageUpdate) *Event {
 	return &Event{
 		Type: EvtPackagesUpdate,
-		Data: &PackagesUpdateEvent{
+		Data: &EventPackagesUpdate{
 			Pkgs: pkgs,
 		},
 	}
 }
-
-// Event Tx is an alias to TxResult
 
 type EventTxResult struct {
 	Height   int64                  `json:"height"`
@@ -74,7 +72,7 @@ type EventTxResult struct {
 	Response abci.ResponseDeliverTx `json:"response"`
 }
 
-func NewTxEventResult(result types.TxResult) (*Event, error) {
+func NewEventTxResult(result types.TxResult) (*Event, error) {
 	evt := &EventTxResult{
 		Height:   result.Height,
 		Index:    result.Index,

@@ -3,6 +3,7 @@ package watcher
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"golang.org/x/exp/slog"
 )
 
 type PackageWatcher struct {
@@ -81,7 +81,7 @@ func (p *PackageWatcher) startWatching() {
 
 				// Send updates
 				pkgsUpdateChan <- updates
-				p.emitter.Emit(events.NewPackagesUpdateEvent(updates))
+				p.emitter.Emit(events.NewEventPackagesUpdate(updates))
 
 				// Reset the path list and debounce timer
 				pathList = []string{}

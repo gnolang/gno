@@ -3,6 +3,8 @@ package events
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,26 +14,30 @@ import (
 //go:embed static/hotreload.js
 var reloadscript string
 
-type Middleware struct {
+type middleware struct {
 	remote   string
 	muRemote sync.RWMutex
 
 	next     http.Handler
 	tmpl     *template.Template
-	onceExec *sync.Once
+	onceExec sync.Once
 	script   []byte
 }
 
-func NewMiddleware(remote string, next http.Handler) *Middleware {
+// NewMiddleware creates an HTTP handler that acts as middleware. Its primary
+// purpose is to intercept HTTP responses and inject a WebSocket client script
+// into the body of HTML pages. This injection allows for dynamic content
+// updates on the client side without requiring a page refresh.
+func NewMiddleware(remote string, next http.Handler) http.Handler {
 	tmpl := template.Must(template.New("reloadscript").
 		Funcs(tmplFuncs).
 		Parse(reloadscript))
 
-	return &Middleware{
+	return &middleware{
 		tmpl:     tmpl,
 		remote:   remote,
 		next:     next,
-		onceExec: &sync.Once{},
+		onceExec: sync.Once{},
 	}
 }
 
@@ -44,19 +50,12 @@ func (m *middlewareResponseWriter) Write(b []byte) (int, error) {
 	return m.buffer.Write(b)
 }
 
-func (m *Middleware) UpdateRemote(remote string) {
-	m.muRemote.Lock()
-	m.remote = remote
-	m.onceExec = &sync.Once{}
-	m.muRemote.Unlock()
-}
-
 type data struct {
 	Remote       string
-	ReloadEvents []EventType
+	ReloadEvents []Type
 }
 
-func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	m.muRemote.RLock()
 	defer m.muRemote.RUnlock()
 
@@ -84,7 +83,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		script.WriteString(`<script type="text/javascript">`)
 		err := m.tmpl.Execute(script, &data{
 			Remote:       m.remote,
-			ReloadEvents: []EventType{EvtReload, EvtReset, EvtTxResult},
+			ReloadEvents: []Type{EvtReload, EvtReset, EvtTxResult},
 		})
 
 		if err != nil {
@@ -102,4 +101,15 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		m.script, 1)
 
 	rw.Write(updated)
+}
+
+var tmplFuncs = template.FuncMap{
+	"json": func(obj any) string {
+		raw, err := json.Marshal(obj)
+		if err != nil {
+			panic(fmt.Errorf("marshal error: %w", err))
+		}
+
+		return string(raw)
+	},
 }

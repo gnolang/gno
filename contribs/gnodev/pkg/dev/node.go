@@ -403,7 +403,7 @@ func newNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, g
 		node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
 			switch data := evt.(type) {
 			case bft.EventTx:
-				evtTx, err := events.NewTxEventResult(data.Result)
+				evtTx, err := events.NewEventTxResult(data.Result)
 				if err != nil {
 					logger.Error("unable to create an event from tx result", "error", err)
 					return

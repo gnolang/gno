@@ -1,6 +1,6 @@
 (function() {
     // Define the events that will trigger a page reload
-    var eventsReload = {{ .ReloadEvents | jsEventsArray }};
+    var eventsReload = {{ .ReloadEvents | json }};
     
     // Establish the WebSocket connection to the event server
     var ws = new WebSocket('ws://{{- .Remote -}}');

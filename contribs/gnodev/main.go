@@ -197,7 +197,13 @@ Gno Dev Helper:
 `)
 }
 
-func runEventLoop(ctx context.Context, cfg *devCfg, rt *rawterm.RawTerm, dnode *dev.Node, watch *watcher.PackageWatcher) error {
+func runEventLoop(
+	ctx context.Context,
+	cfg *devCfg,
+	rt *rawterm.RawTerm,
+	dnode *dev.Node,
+	watch *watcher.PackageWatcher,
+) error {
 	nodeOut := rt.NamespacedWriter(NodeLogName)
 	keyOut := rt.NamespacedWriter(KeyPressLogName)
 
