@@ -1,20 +1,37 @@
 .PHONY: help
 help:
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+	@cat Makefile | grep '^[a-z][^:]*:' | grep -v 'install_' | cut -d: -f1 | sort | sed 's/^/  /'
 
 rundep=go run -modfile misc/devdeps/go.mod
 
 .PHONY: install
-install: install_gnokey install_gno
+install: install.gnokey install.gno
+	@if ! command -v gnodev > /dev/null; then \
+		echo ------------------------------; \
+		echo "For local realm development, gnodev is recommended: https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev"; \
+		echo "You can install it by calling 'make install.gnodev'"; \
+	fi
 
 # shortcuts to frequently used commands from sub-components.
-install_gnokey:
+.PHONY: install.gnokey
+install.gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
 	@echo "[+] 'gnokey' is installed. more info in ./gno.land/."
-install_gno:
+.PHONY: install.gno
+install.gno:
 	$(MAKE) --no-print-directory -C ./gnovm	install
 	@echo "[+] 'gno' is installed. more info in ./gnovm/."
+.PHONY: install.gnodev
+install.gnodev:
+	$(MAKE) --no-print-directory -C ./contribs install.gnodev
+	@echo "[+] 'gnodev' is installed."
+
+# old aliases
+.PHONY: install_gnokey
+install_gnokey: install.gnokey
+.PHONY: install_gno
+install_gno: install.gno
 
 .PHONY: test
 test: test.components test.docker

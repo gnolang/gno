@@ -52,10 +52,11 @@ const sidebars = {
                         'concepts/standard-library/gnopher-hole-stdlib',
                     ]
                 },
-                'concepts/tendermint2',
                 'concepts/gnovm',
-                'concepts/proof-of-contribution',
                 'concepts/gno-language',
+                'concepts/effective-gno',
+                'concepts/proof-of-contribution',
+                'concepts/tendermint2',
                 'concepts/gno-modules',
                 'concepts/gno-test',
                 'concepts/from-go-to-gno',
@@ -70,7 +71,6 @@ const sidebars = {
                 'gno-tooling/cli/gno-tooling-gnodev',
                 'gno-tooling/cli/gno-tooling-gnoland',
                 'gno-tooling/cli/gno-tooling-gnofaucet',
-                'gno-tooling/cli/gno-tooling-tm2txsync',
             ]
         },
         {

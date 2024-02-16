@@ -9,7 +9,7 @@ func main() {
 // Output:
 // # Welcome to Gno.land
 //
-// ### An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination.
+// ### An interpretation of the Go (Golang) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination.
 //
 //
 // If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how.
@@ -124,12 +124,12 @@ func main() {
 //
 // <div class="column">
 //
-// ### Build with Gnolang
+// ### Build with Gno
 //
 // - [Gno dev with CLI (soon)](#)
 // - [Explore the Universe](/ecosystem)
 // - [Test in the browser (soon)](#)
-// - [About the Gnolang Language](/gnolang)
+// - [About the Gno Language](/gnolang)
 // - [Docs/ Tutorials](https://github.com/gnolang)
 // - [Gno by example](https://gno-by-example.com/)
 // - [Getting started video (soon)](#)
