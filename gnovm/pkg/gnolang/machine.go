@@ -1826,43 +1826,33 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 }
 
 func (m *Machine) GetRecoveryException() (TypedValue, int, bool) {
-	var tv TypedValue
-	if len(m.Exceptions) == 0 || len(m.Frames) < 3 {
-		return tv, 0, false
+	if len(m.Exceptions) == 0 {
+		return TypedValue{}, 0, false
 	}
 
-	n := 3
-	var (
-		// funcValue     *FuncValue
-		// goFunc        *NativeValue
-		exceptionsIdx int
-	)
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
-			if n == 1 {
-				if exceptionsIdx >= len(m.Exceptions) {
-					return tv, exceptionsIdx, false
-				}
-				// for _, def := range fr.Defers {
-				// 	if (def.Func != nil && def.Func == funcValue) || (def.GoFunc != nil && def.GoFunc == goFunc) {
-				return *m.Exceptions[len(m.Exceptions)-1], exceptionsIdx, true
-				//}
-				// }
-
-				break
-			} else if n == 2 {
-				// funcValue = fr.Func
-				// goFunc = fr.GoFunc
-				exceptionsIdx = fr.MachineExceptionsIdx
-			}
-
-			n--
+	// Get the first call frame. This should be for the call to recover(). If there is a defer in progress,
+	// then that means this recover was deferred directly and there is no need to search for the
+	// calling frame.
+	callFrame := m.LastCallFrame(1)
+	if callFrame.DeferInProgress {
+		var idx int
+		if idx = callFrame.MachineExceptionsIdx; idx >= len(m.Exceptions) {
+			return TypedValue{}, callFrame.MachineExceptionsIdx, false
 		}
+		return *m.Exceptions[len(m.Exceptions)-1], idx, true
 	}
 
-	return tv, exceptionsIdx, false
+	// Not in the first frame, so check the second.
+	callFrame = m.LastCallFrame(2)
+	if callFrame.DeferInProgress {
+		var idx int
+		if idx = callFrame.MachineExceptionsIdx; idx >= len(m.Exceptions) {
+			return TypedValue{}, callFrame.MachineExceptionsIdx, false
+		}
+		return *m.Exceptions[len(m.Exceptions)-1], idx, true
+	}
+
+	return TypedValue{}, 0, false
 }
 
 // pops the last non-call (loop) frames

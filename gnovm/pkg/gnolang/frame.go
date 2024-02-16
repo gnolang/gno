@@ -28,6 +28,7 @@ type Frame struct {
 	LastRealm   *Realm        // previous realm context
 
 	MachineExceptionsIdx int
+	DeferInProgress      bool
 }
 
 func (fr Frame) String() string {
@@ -72,6 +73,7 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	if len(fr.Defers) > 0 {
 		ok = true
 		res = fr.Defers[len(fr.Defers)-1]
+		fr.DeferInProgress = true
 		fr.Defers = fr.Defers[:len(fr.Defers)-1]
 	}
 	return
