@@ -5,11 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"

@@ -7,12 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 )
 
-// TODO(tb): this test only assert precompileAST function, which is only a sub
-// part of the Precompile function. That needs improvements.
 func TestPrecompile(t *testing.T) {
 	t.Parallel()
 
@@ -266,8 +264,8 @@ func foo() { _ = regexp.MatchString }
 	for _, c := range cases {
 		c := c // scopelint
 		t.Run(c.name, func(t *testing.T) {
-			// t.Parallel()
-			// "\n" is added for better test case readability
+			t.Parallel()
+			// "\n" is added for better test case readability, now trim it
 			source := strings.TrimPrefix(c.source, "\n")
 
 			res, err := Precompile(source, c.tags, "foo.gno")
@@ -278,8 +276,8 @@ func foo() { _ = regexp.MatchString }
 			}
 			require.NoError(t, err)
 			expectedOutput := strings.TrimPrefix(c.expectedOutput, "\n")
-			assert.Equal(t, expectedOutput, res.Translated, "wrong output")
-			assert.Equal(t, c.expectedImports, res.Imports, "wrong imports")
+			assert.Equal(t, res.Translated, expectedOutput, "wrong output")
+			assert.Equal(t, res.Imports, c.expectedImports, "wrong imports")
 		})
 	}
 }
@@ -329,7 +327,7 @@ func TestParseGoBuildErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := parseGoBuildErrors(tt.output)
 
-			assert.Equal(t, tt.expectedError, err)
+			assert.Equal(t, err, tt.expectedError)
 		})
 	}
 }
