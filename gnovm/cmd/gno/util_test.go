@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/gnolang/gno/gnovm/pkg/precompile"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,7 +54,7 @@ func TestMatchPattern(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.pattern, func(t *testing.T) {
-			matchFunc := precompile.matchPattern(test.pattern)
+			matchFunc := matchPattern(test.pattern)
 			for i, name := range test.names {
 				res := matchFunc(name)
 				assert.Equal(t, test.expected[i], res, "Expected: %v, Got: %v", test.expected[i], res)
@@ -198,7 +197,7 @@ func TestTargetsFromPatterns(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			targets, err := precompile.targetsFromPatterns(tc.in)
+			targets, err := targetsFromPatterns(tc.in)
 			if tc.errorShouldContain != "" {
 				assert.ErrorContains(t, err, tc.errorShouldContain)
 				return

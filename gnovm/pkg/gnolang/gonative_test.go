@@ -87,7 +87,7 @@ func main() {
 	println("C:", f.C)
 	println("D:", f.D)
 }`
-	n := MustParseFile("main.goa", c)
+	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
 	assert.Equal(t, string(out.Bytes()), `A: 1
@@ -126,7 +126,7 @@ func main() {
 	f := foo.Foo{A:1}
 	foo.PrintFoo(f)
 }`
-	n := MustParseFile("main.goa", c)
+	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
 	assert.Equal(t, string(out.Bytes()), `A: 1

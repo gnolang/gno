@@ -18,7 +18,7 @@ func main(){
 		}
 	}
 }`
-	n, err := ParseFile("main.goa", gocode)
+	n, err := ParseFile("main.go", gocode)
 	assert.NoError(t, err, "ParseFile error")
 	assert.NotNil(t, n, "ParseFile error")
 	fmt.Printf("CODE:\n%s\n\n", gocode)

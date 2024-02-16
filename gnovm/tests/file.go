@@ -93,7 +93,6 @@ func WithSyncWanted(v bool) RunFileTestOption {
 // RunFileTest executes the filetest at the given path, using rootDir as
 // the directory where to find the "stdlibs" directory.
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
-	//fmt.Println("===RunFileTest, path: ", path)
 	var f runFileTestOptions
 	for _, opt := range opts {
 		opt(&f)
@@ -155,12 +154,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		var pncPP interface{} // precompile stage panic
 		func() {
 			defer func() {
-				//fmt.Println("---defer to handle panic")
 				if r := recover(); r != nil {
 					pnc = r
-					//fmt.Println("r:\n", r)
 					// print output.
-					//fmt.Println("OUTPUT:\n", stdout.String())
 					// print stack if unexpected error.
 					if gnoErrWanted == "" {
 						rtdb.PrintStack()
@@ -189,21 +185,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						},
 					},
 				}
-				//fmt.Println("---not realm, going to precompile and verify")
 				if isRunGo {
 					precompileCfg := &precompile.PrecompileCfg{GoRun: true, GoBinary: "go", Verbose: false}
 					err, output := precompile.PrecompileAndCheckPkg(true, memPkg, []string{path}, precompileCfg)
-					//err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					if err != nil {
-						//fmt.Println("---not realm, err from precompile is: ", err.Error())
 						GoErr = err.Error()
 					} else {
-						//fmt.Println("---not realm, output from precompile is: ", output)
 						GoOutput = output
 					}
 				}
 
-				//fmt.Println("=======carry on gno exec========")
 				// simple case.
 				pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 				pv := pn.NewPackage()
@@ -223,9 +214,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					f.logger("RUN MAIN END")
 					f.logger("========================================")
 				}
-				//fmt.Println("=======run main end========")
 			} else {
-				//fmt.Println("---realm case")
 				// realm case.
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
@@ -241,20 +230,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					},
 				}
 				if isRunGo {
-					//fmt.Println("---going to precompile and run")
 					precompileCfg := &precompile.PrecompileCfg{GoRun: true, GoBinary: "go", Verbose: false}
 					err, output := precompile.PrecompileAndCheckPkg(true, memPkg, []string{path}, precompileCfg)
-					//err, output := precompile.PrecompileAndRunMempkg(memPkg, path)
 					if err != nil {
-						//fmt.Println("---err from precompile is: ", err.Error())
 						GoErr = err.Error()
 					} else {
-						//fmt.Println("---output from precompile is: ", output)
 						GoOutput = output
 					}
 				}
-				//fmt.Println("=======carry on gno exec========")
-
 				// run decls and init functions.
 				m.RunMemPackage(memPkg, true)
 				// reconstruct machine and clear store cache.
@@ -305,14 +288,11 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			}
 		}()
 
-		//fmt.Println("---len of directives is: ", len(directives))
 		for _, directive := range directives {
 			switch directive {
 			case "Error":
-				//fmt.Println("---Gno Error")
 				// gnoErrWanted given
 				if gnoErrWanted != "" {
-					//fmt.Println("---Gno Error wanted: ", gnoErrWanted)
 					if pnc == nil {
 						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, gnoErrWanted))
 					}
@@ -325,7 +305,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
-					//fmt.Println("---Gno errstr: ", errstr)
 					if errstr != gnoErrWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, gnoErrWanted))
 					}
@@ -334,7 +313,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					gno.ClearDebugErrors()
 					return nil // nothing more to do. Go_Error will happend first
 				} else {
-					println("---else")
 					// record errors when gnoErrWanted is empty and pnc not nil
 					if pnc != nil {
 						errstr := ""
@@ -343,7 +321,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						} else {
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 						}
-						//fmt.Println("---errStr: ", errstr)
 						// check tip line, write to file
 						ctl := fmt.Sprintf(
 							errstr +
@@ -361,10 +338,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					return nil
 				}
 			case "Go_Error":
-				//fmt.Println("---Go_Error, goErrWanted, GoErr:", goErrWanted, GoErr)
 				// gnoErrWanted given
 				if goErrWanted != "" {
-					//fmt.Println("--gnoErrWanted: ", goErrWanted)
 					errstr := GoErr
 					if errstr != goErrWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, goErrWanted))
@@ -372,7 +347,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
 				} else {
-					//fmt.Println("--goErrWanted empty")
 					// record errors when gnoErrWanted is empty and pnc not nil
 					if GoErr != "" {
 						errstr := GoErr
@@ -386,7 +360,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					}
 				}
 			case "Output":
-				//fmt.Println("---Output")
 				// panic if got unexpected error
 				if pnc != nil {
 					if tv, ok := pnc.(*gno.TypedValue); ok {
@@ -431,17 +404,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				}
 				// check result
 				res := strings.TrimSpace(GoOutput)
-				//fmt.Printf("---Go_Output, res: %s, goResWanted: %s \n", res, goResWanted)
 				res = trimTrailingSpaces(res)
 				if res != goResWanted {
 					if f.syncWanted {
 						if res != "" {
-							//println("---sync wanted with non-empty res")
 							// write output to file.
 							replaceWantedInPlace(path, "Go_Output", res)
 						}
 					} else {
-						//println("---no sync")
 						// panic so tests immediately fail (for now).
 						if goResWanted == "" {
 							panic(fmt.Sprintf("fail on %s: got unexpected output: %s", path, res))
@@ -547,15 +517,11 @@ func wantedFromComment(p string) (directives []string, pkgPath, gnoResWanted, go
 			gnoErr = re.ReplaceAllString(gnoErr, "")
 			directives = append(directives, "Error")
 		} else if strings.HasPrefix(text, "Go_Error:\n") {
-			//fmt.Println("---parse, has Go_Error prefix, text: ", text)
 			goErr = strings.TrimPrefix(text, "Go_Error:\n")
-			//fmt.Println("---goErr:", goErr)
 			goErr = strings.TrimSpace(goErr)
-			//fmt.Println("---goErr after trim space:", goErr)
 			// XXX temporary until we support line:column.
 			// If error starts with line:column, trim it.
 			re := regexp.MustCompile(`^[0-9]+:[0-9]+: `)
-			//fmt.Println("---got errWanted before return:", goErr)
 			goErr = re.ReplaceAllString(goErr, "")
 			directives = append(directives, "Go_Error")
 		} else if strings.HasPrefix(text, "Realm:\n") {
@@ -586,14 +552,6 @@ func readComments(cg *ast.CommentGroup) string {
 
 // Replace comment in file with given output given directive.
 func replaceWantedInPlace(path string, directive string, output string) {
-	//fmt.Println("---replaceWantedInPlace, path: ", path)
-	// Get the current working directory
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error getting current working directory:", err)
-	}
-	println(currentDir)
-
 	bz := osm.MustReadFile(path)
 	body := string(bz)
 	lines := strings.Split(body, "\n")
