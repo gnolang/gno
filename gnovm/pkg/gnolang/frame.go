@@ -26,6 +26,8 @@ type Frame struct {
 	Defers      []Defer       // deferred calls
 	LastPackage *PackageValue // previous package context
 	LastRealm   *Realm        // previous realm context
+
+	MachineExceptionsIdx int
 }
 
 func (fr Frame) String() string {

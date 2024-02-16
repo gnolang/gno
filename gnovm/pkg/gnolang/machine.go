@@ -1662,20 +1662,21 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	fr := Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        fv,
-		GoFunc:      nil,
-		Receiver:    recv,
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
+		Source:               cx,
+		NumOps:               m.NumOps,
+		NumValues:            m.NumValues - cx.NumArgs - 1,
+		NumExprs:             len(m.Exprs),
+		NumStmts:             len(m.Stmts),
+		NumBlocks:            len(m.Blocks),
+		Func:                 fv,
+		GoFunc:               nil,
+		Receiver:             recv,
+		NumArgs:              cx.NumArgs,
+		IsVarg:               cx.Varg,
+		Defers:               nil,
+		LastPackage:          m.Package,
+		LastRealm:            m.Realm,
+		MachineExceptionsIdx: len(m.Exceptions),
 	}
 	if debug {
 		if m.Package == nil {
@@ -1699,20 +1700,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 	fr := Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        nil,
-		GoFunc:      fv,
-		Receiver:    TypedValue{},
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
+		Source:               cx,
+		NumOps:               m.NumOps,
+		NumValues:            m.NumValues - cx.NumArgs - 1,
+		NumExprs:             len(m.Exprs),
+		NumStmts:             len(m.Stmts),
+		NumBlocks:            len(m.Blocks),
+		Func:                 nil,
+		GoFunc:               fv,
+		Receiver:             TypedValue{},
+		NumArgs:              cx.NumArgs,
+		IsVarg:               cx.Varg,
+		Defers:               nil,
+		LastPackage:          m.Package,
+		LastRealm:            m.Realm,
+		MachineExceptionsIdx: len(m.Exceptions),
 	}
 	if debug {
 		m.Printf("+F %#v\n", fr)
@@ -1821,6 +1823,46 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 		}
 	}
 	panic("frame not found")
+}
+
+func (m *Machine) GetRecoveryException() (TypedValue, int, bool) {
+	var tv TypedValue
+	if len(m.Exceptions) == 0 || len(m.Frames) < 3 {
+		return tv, 0, false
+	}
+
+	n := 3
+	var (
+		// funcValue     *FuncValue
+		// goFunc        *NativeValue
+		exceptionsIdx int
+	)
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func != nil || fr.GoFunc != nil {
+			// TODO: optimize with fr.IsCall
+			if n == 1 {
+				if exceptionsIdx >= len(m.Exceptions) {
+					return tv, exceptionsIdx, false
+				}
+				// for _, def := range fr.Defers {
+				// 	if (def.Func != nil && def.Func == funcValue) || (def.GoFunc != nil && def.GoFunc == goFunc) {
+				return *m.Exceptions[len(m.Exceptions)-1], exceptionsIdx, true
+				//}
+				// }
+
+				break
+			} else if n == 2 {
+				// funcValue = fr.Func
+				// goFunc = fr.GoFunc
+				exceptionsIdx = fr.MachineExceptionsIdx
+			}
+
+			n--
+		}
+	}
+
+	return tv, exceptionsIdx, false
 }
 
 // pops the last non-call (loop) frames
