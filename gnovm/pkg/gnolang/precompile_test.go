@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jaekwon/testify/assert"
 	"github.com/jaekwon/testify/require"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPrecompile(t *testing.T) {
@@ -279,8 +279,8 @@ func foo() { _ = regexp.MatchString }
 			}
 			require.NoError(t, err)
 			expectedOutput := strings.TrimPrefix(c.expectedOutput, "\n")
-			assert.Equal(t, expectedOutput, res.Translated, "wrong output")
-			assert.Equal(t, c.expectedImports, res.Imports, "wrong imports")
+			assert.Equal(t, res.Translated, expectedOutput, "wrong output")
+			assert.Equal(t, res.Imports, c.expectedImports, "wrong imports")
 		})
 	}
 }
