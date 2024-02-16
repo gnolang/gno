@@ -1,8 +1,6 @@
 package main
 
 import (
-	"flag"
-
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -21,25 +19,8 @@ func newConfigCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newConfigInitCmd(io),
-		newConfigBaseCmd(io),
-		newConfigRPCCmd(io),
-		newConfigP2PCmd(io),
-		newConfigConsensusCmd(io),
-		newConfigEventsCmd(io),
+		newConfigEditCmd(io),
 	)
 
 	return cmd
-}
-
-type commonEditCfg struct {
-	configPath string
-}
-
-func (c *commonEditCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.configPath,
-		"config-path",
-		"./config.toml",
-		"the path to the node's config.toml",
-	)
 }
