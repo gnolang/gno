@@ -32,8 +32,6 @@ services:
     networks:
       - portal-loop
     ports:
-      # useless because of network_mode: host
-      # just here for readability
       - "80:80"
       - "443:443"
       - "8080:8080"
@@ -54,7 +52,7 @@ services:
       - --help-chainid
       - portal-loop
       - --help-remote
-      - https://rpc.portal.gno.land:443
+      - https://rpc.portal.gnoteam.com:443
     networks:
       - portal-loop
     labels:
