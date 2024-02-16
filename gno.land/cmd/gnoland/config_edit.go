@@ -176,6 +176,11 @@ func convertStringToType(value string, outputType any) (any, error) {
 	case string:
 		return value, nil
 	case []string:
+		// This is a special case.
+		// Since values are given as a single string (argument),
+		// they need to be parsed from a custom format.
+		// In this case, the format for a []string is comma separated:
+		// value1,value2,value3 ...
 		return strings.SplitN(value, ",", -1), nil
 	case time.Duration:
 		castValue, err := time.ParseDuration(value)
