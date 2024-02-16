@@ -3,6 +3,9 @@ package gnolang
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"net"
 	"os"
@@ -472,12 +475,97 @@ func min(a, b int) int {
 const printUsage = `print|p <expression>`
 const printShort = `Print a variable or expression.`
 
-func debugPrint(m *Machine, arg string) error {
+func debugPrint(m *Machine, arg string) (err error) {
 	if arg == "" {
 		return errors.New("missing argument")
 	}
-	// TODO: parse expression.
+	// Use the Go parser to get the AST representation of print argument as a Go expresssion.
+	ast, err := parser.ParseExpr(arg)
+	if err != nil {
+		return err
+	}
+	tv, err := debugEvalExpr(m, ast)
+	if err != nil {
+		return err
+	}
+	fmt.Println(m.DebugOut, tv)
+	return nil
+}
 
+// debugEvalExpr evaluates a Go expression in the context of the VM and returns
+// the corresponding value, or an error.
+// The supported expression syntax is a small subset of Go expressions:
+// basic literals, identifiers, selectors, index expressions, or a combination
+// of those are supported, but none of function calls, arithmetic, logic or
+// assign operations, type assertions of convertions.
+// This is sufficient for a debugger to perform 'print (*f).S[x][y]' for example.
+func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
+	switch n := node.(type) {
+	case *ast.BasicLit:
+		switch n.Kind {
+		case token.INT:
+			i, err := strconv.ParseInt(n.Value, 0, 0)
+			if err != nil {
+				return tv, err
+			}
+			return typedInt(int(i)), nil
+		case token.CHAR:
+			return typedRune(([]rune(n.Value))[0]), nil
+		case token.STRING:
+			return typedString(n.Value), nil
+		}
+		return tv, fmt.Errorf("invalid basic literal value: %s", n.Value)
+	case *ast.Ident:
+		if tv, ok := debugLookup(m, n.Name); ok {
+			return tv, nil
+		}
+		return tv, fmt.Errorf("could not find symbol value for %s", n.Name)
+	case *ast.ParenExpr:
+		return debugEvalExpr(m, n.X)
+	case *ast.StarExpr:
+		x, err := debugEvalExpr(m, n.X)
+		if err != nil {
+			return tv, err
+		}
+		pv, ok := x.V.(PointerValue)
+		if !ok {
+			return tv, fmt.Errorf("Not a pointer value: %v", x)
+		}
+		return pv.Deref(), nil
+	case *ast.SelectorExpr:
+		x, err := debugEvalExpr(m, n.X)
+		if err != nil {
+			return tv, err
+		}
+		// TODO: handle selector on package.
+		tr, _, _, _, _ := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name), nil)
+		if len(tr) == 0 {
+			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
+		}
+		for _, vp := range tr {
+			x = x.GetPointerTo(m.Alloc, m.Store, vp).Deref()
+		}
+		return x, nil
+	case *ast.IndexExpr:
+		x, err := debugEvalExpr(m, n.X)
+		if err != nil {
+			return tv, err
+		}
+		index, err := debugEvalExpr(m, n.Index)
+		if err != nil {
+			return tv, err
+		}
+		return x.GetPointerAtIndex(m.Alloc, m.Store, &index).Deref(), nil
+	default:
+		err = fmt.Errorf("expression not supported: %v", n)
+	}
+	return tv, err
+}
+
+// debugLookup returns the current VM value corresponding to name ident in
+// the current function call frame, or the global frame if not found.
+// Note: the commands 'up' and 'down' change the frame level to start from.
+func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 	// Position to the right frame.
 	ncall := 0
 	var i int
@@ -496,7 +584,7 @@ func debugPrint(m *Machine, arg string) error {
 		}
 	}
 	if i < 0 {
-		return fmt.Errorf("invalid frame level: %d", m.debugFrameLevel)
+		return tv, false
 	}
 
 	// Position to the right block, i.e the first after the last fblock (if any).
@@ -509,10 +597,10 @@ func debugPrint(m *Machine, arg string) error {
 		}
 	}
 	if i < 0 {
-		return fmt.Errorf("invalid block level: %d", m.debugFrameLevel)
+		return tv, false
 	}
 
-	// list SourceBlocks in the same frame level.
+	// get SourceBlocks in the same frame level.
 	var sblocks []*Block
 	for ; i >= 0; i-- {
 		sblocks = append(sblocks, m.Blocks[i])
@@ -524,16 +612,15 @@ func debugPrint(m *Machine, arg string) error {
 		sblocks = append(sblocks, m.Blocks[0]) // Add global block
 	}
 
-	// Search value if current frame level blocks, or main.
+	// Search value in current frame level blocks, or main.
 	for _, b := range sblocks {
-		for i, name := range b.Source.GetBlockNames() {
-			if string(name) == arg {
-				fmt.Fprintln(m.DebugOut, b.Values[i])
-				return nil
+		for i, s := range b.Source.GetBlockNames() {
+			if string(s) == name {
+				return b.Values[i], true
 			}
 		}
 	}
-	return fmt.Errorf("could not find symbol value for %s", arg)
+	return tv, false
 }
 
 // ---------------------------------------
