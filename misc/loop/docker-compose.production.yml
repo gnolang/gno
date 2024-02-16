@@ -98,20 +98,6 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
-  autocounterd:
-    image: ghcr.io/gnolang/gno/autocounterd
-    restart: unless-stopped
-    environment:
-      COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-      COUNTER_RPC: "http://traefik:81"
-      COUNTER_CHAIN_ID: "portal-loop"
-      COUNTER_INTERVAL: "20s"
-      COUNTER_REALM: "gno.land/r/portal/counter"
-    networks:
-      - portal-loop
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
   watchtower:
     image: containrrr/watchtower
     command: --interval 30 --http-api-metrics --label-enable
