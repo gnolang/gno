@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -16,16 +17,7 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	calls := pkgCallStack(m)
-	numCalls := len(calls)
-	if numCalls > 0 && calls[numCalls-1].PkgPath == "main" {
-		// if the entry point is main, then it's not a call.
-		numCalls--
-		// FIXME(tb): ensure it's not possible to have a package path `main` in
-		// other situations than MsgCall as as it is used here as a security
-		// measure.
-	}
-	return numCalls == 1
+	return len(m.Frames) == 2 && m.Frames[0].LastPackage.PkgPath == "main"
 }
 
 func CurrentRealmPath(m *gno.Machine) string {
@@ -108,8 +100,10 @@ func PrevRealm(m *gno.Machine) Realm {
 // the reverse order. Ignores the `main` package path.
 func pkgCallStack(m *gno.Machine) (pkgs []*gno.PackageValue) {
 	var lastPath string
+	fmt.Println("FRAMES", len(m.Frames))
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
+		fmt.Println("\tFRAME", i, fr.LastPackage)
 		if fr.LastPackage == nil {
 			// Ignore nil or `main` package
 			continue

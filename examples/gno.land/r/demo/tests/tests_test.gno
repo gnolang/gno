@@ -8,15 +8,21 @@ import (
 )
 
 func TestAssertOriginCall(t *testing.T) {
-	// No-panic case
+	// Direct call, shouldn't panic
+	std.AssertOriginCall()
+	if !std.IsOriginCall() {
+		t.Errorf("expected std.IsOriginCall=true but got false")
+	}
+
+	// Call method package, shouldn't panic
 	AssertOriginCall()
 	if !IsOriginCall() {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	// Panic case
-	expectedReason := "invalid non-origin call"
+	// Call other package method, should panic
 	defer func() {
+		expectedReason := "invalid non-origin call"
 		r := recover()
 		if r == nil || r.(string) != expectedReason {
 			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
