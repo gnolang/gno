@@ -73,7 +73,7 @@ func upcomingEvents(limit int) ui.Element {
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
+		ui.H3("An interpretation of the Go (Golang) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
 		ui.Paragraph("If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how."),
 		ui.Paragraph("Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today."),
 	}
@@ -220,12 +220,12 @@ func discoverLinks() ui.Element {
 
 <div class="column">
 
-### Build with Gnolang
+### Build with Gno
 
 - [Gno dev with CLI (soon)](#)
 - [Explore the Universe](/ecosystem)
 - [Test in the browser (soon)](#)
-- [About the Gnolang Language](/gnolang)
+- [About the Gno Language](/gnolang)
 - [Docs/ Tutorials](https://github.com/gnolang)
 - [Gno by example](https://gno-by-example.com/)
 - [Getting started video (soon)](#)
