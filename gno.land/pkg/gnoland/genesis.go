@@ -110,8 +110,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 			return nil, fmt.Errorf("invalid package: %w", err)
 		}
 
-		// TODO: precompile and check
-		// precompile and validate syntax
+		// precompile and build
 		err, _ = precompile.PrecompileAndCheckPkg(true, memPkg, nil, nil)
 		if err != nil {
 			panic(err)
