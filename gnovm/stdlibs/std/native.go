@@ -10,14 +10,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// AssertOriginCall panics is [IsOriginCall] return false.
 func AssertOriginCall(m *gno.Machine) {
 	if !IsOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
 
+// IsOriginCall return true only if the calling method is invoked via a direct
+// MsgCall. It returns false for all other cases, like if the calling method
+// is invoked by an other method (even from the same realm), or if it's called
+// directly but from a MsgRun.
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2 && m.Frames[0].LastPackage.PkgPath == "main"
+	isMsgCall := m.Frames[0].LastPackage.PkgPath == "main"
+	return len(m.Frames) == 2 && isMsgCall
 }
 
 func CurrentRealmPath(m *gno.Machine) string {

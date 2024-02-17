@@ -8,12 +8,6 @@ import (
 )
 
 func TestAssertOriginCall(t *testing.T) {
-	// Direct call, shouldn't panic
-	std.AssertOriginCall()
-	if !std.IsOriginCall() {
-		t.Errorf("expected std.IsOriginCall=true but got false")
-	}
-
 	// Call method package, shouldn't panic
 	AssertOriginCall()
 	if !IsOriginCall() {
