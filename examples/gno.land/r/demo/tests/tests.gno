@@ -20,12 +20,20 @@ func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
 }
 
-func AssertOriginCall() {
+func CallAssertOriginCall() {
 	std.AssertOriginCall()
 }
 
-func IsOriginCall() bool {
+func CallIsOriginCall() bool {
 	return std.IsOriginCall()
+}
+
+func CallSubtestsAssertOriginCall() {
+	rsubtests.AssertOriginCall()
+}
+
+func CallSubtestsIsOriginCall() bool {
+	return rsubtests.IsOriginCall()
 }
 
 //----------------------------------------
