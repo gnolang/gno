@@ -1,15 +1,16 @@
-package events
+package emitter
 
 import (
 	"log/slog"
 	"net/http"
 	"sync"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gorilla/websocket"
 )
 
 type Emitter interface {
-	Emit(evt *Event)
+	Emit(evt events.Event)
 }
 
 type Server struct {
@@ -19,7 +20,7 @@ type Server struct {
 	muClients sync.RWMutex
 }
 
-func NewEmitterServer(logger *slog.Logger) *Server {
+func NewServer(logger *slog.Logger) *Server {
 	return &Server{
 		logger:  logger,
 		clients: make(map[*websocket.Conn]struct{}),
@@ -55,21 +56,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) Emit(evt *Event) {
+func (s *Server) Emit(evt events.Event) {
 	go s.emit(evt)
 }
 
-func (s *Server) emit(evt *Event) {
+func (s *Server) emit(evt events.Event) {
 	s.muClients.RLock()
 	defer s.muClients.RUnlock()
 
-	s.logger.Info("sending event to clients", "clients", len(s.clients), "event", evt.Type, "data", evt.Data)
-	if len(s.clients) == 0 {
-		return
-	}
+	jsonEvt := struct {
+		Type events.Type `json:"type"`
+		Data any         `json:"data"`
+	}{evt.Type(), evt}
+
+	s.logger.Info("sending event to clients",
+		"clients", len(s.clients),
+		"type", evt.Type(),
+		"event", evt)
 
 	for conn := range s.clients {
-		err := conn.WriteJSON(evt)
+		err := conn.WriteJSON(jsonEvt)
 		if err != nil {
 			s.logger.Error("write json event", "error", err)
 			conn.Close()

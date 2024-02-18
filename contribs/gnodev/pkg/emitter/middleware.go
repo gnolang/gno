@@ -1,4 +1,4 @@
-package events
+package emitter
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 )
 
 //go:embed static/hotreload.js
@@ -52,7 +54,7 @@ func (m *middlewareResponseWriter) Write(b []byte) (int, error) {
 
 type data struct {
 	Remote       string
-	ReloadEvents []Type
+	ReloadEvents []events.Type
 }
 
 func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -82,8 +84,10 @@ func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		script := &bytes.Buffer{}
 		script.WriteString(`<script type="text/javascript">`)
 		err := m.tmpl.Execute(script, &data{
-			Remote:       m.remote,
-			ReloadEvents: []Type{EvtReload, EvtReset, EvtTxResult},
+			Remote: m.remote,
+			ReloadEvents: []events.Type{
+				events.EvtReload, events.EvtReset, events.EvtTxResult,
+			},
 		})
 
 		if err != nil {

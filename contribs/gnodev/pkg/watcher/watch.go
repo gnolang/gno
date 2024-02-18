@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
 
 	"github.com/fsnotify/fsnotify"
@@ -25,10 +26,10 @@ type PackageWatcher struct {
 	logger  *slog.Logger
 	watcher *fsnotify.Watcher
 	pkgsDir []string
-	emitter events.Emitter
+	emitter emitter.Emitter
 }
 
-func NewPackageWatcher(logger *slog.Logger, emitter events.Emitter) (*PackageWatcher, error) {
+func NewPackageWatcher(logger *slog.Logger, emitter emitter.Emitter) (*PackageWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("unable to watch files: %w", err)
@@ -81,7 +82,9 @@ func (p *PackageWatcher) startWatching() {
 
 				// Send updates
 				pkgsUpdateChan <- updates
-				p.emitter.Emit(events.NewEventPackagesUpdate(updates))
+				p.emitter.Emit(&events.PackagesUpdate{
+					Pkgs: updates,
+				})
 
 				// Reset the path list and debounce timer
 				pathList = []string{}

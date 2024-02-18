@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -29,7 +30,7 @@ const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be 
 type Node struct {
 	*node.Node
 
-	emitter events.Emitter
+	emitter emitter.Emitter
 	client  client.Client
 	logger  *slog.Logger
 	pkgs    PkgsMap // path -> pkg
@@ -48,7 +49,7 @@ var (
 	}
 )
 
-func NewDevNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, pkgslist []string) (*Node, error) {
+func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, pkgslist []string) (*Node, error) {
 	mpkgs, err := newPkgsMap(pkgslist)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -149,7 +150,7 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	d.Node = node
-	d.emitter.Emit(events.NewEventReset())
+	d.emitter.Emit(&events.Reset{})
 	return nil
 }
 
@@ -210,7 +211,7 @@ func (d *Node) Reload(ctx context.Context) error {
 	d.Node = node
 	d.loadedPackages = len(pkgsTxs)
 
-	d.emitter.Emit(events.NewEventReload())
+	d.emitter.Emit(&events.Reload{})
 	return nil
 }
 
@@ -367,7 +368,7 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func newNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
 	// Setup node config
@@ -403,13 +404,18 @@ func newNode(ctx context.Context, logger *slog.Logger, emitter events.Emitter, g
 		node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
 			switch data := evt.(type) {
 			case bft.EventTx:
-				evtTx, err := events.NewEventTxResult(data.Result)
-				if err != nil {
-					logger.Error("unable to create an event from tx result", "error", err)
-					return
+				resEvt := events.TxResult{
+					Height:   data.Result.Height,
+					Index:    data.Result.Index,
+					Response: data.Result.Response,
 				}
 
-				emitter.Emit(evtTx)
+				if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
+					logger.Error("unable to unwarp tx result",
+						"error", err)
+				}
+
+				emitter.Emit(resEvt)
 			}
 		})
 

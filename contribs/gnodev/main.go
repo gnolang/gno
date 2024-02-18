@@ -13,7 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -129,7 +129,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	zapLoggerEvents := NewZapLogger(rt.NamespacedWriter(EventServerLogName), zapcore.DebugLevel)
 	loggerEvents := log.ZapLoggerToSlog(zapLoggerEvents)
-	emitterServer := events.NewEmitterServer(loggerEvents)
+	emitterServer := emitter.NewServer(loggerEvents)
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
@@ -158,7 +158,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	if !cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
 		mux.Handle("/_events", emitterServer)
-		mux.Handle("/", events.NewMiddleware(evtstarget, webhandler))
+		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
 	} else {
 		mux.Handle("/", webhandler)
 	}
@@ -317,7 +317,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, emitter events.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, emitter emitter.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
 	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), emitter, pkgspath)
