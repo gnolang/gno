@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -31,6 +32,7 @@ type Debugger struct {
 	DebugAddr    string    // optional address [host]:port for DebugIn/DebugOut
 	DebugIn      io.Reader // debugger input, defaults to Stdin
 	DebugOut     io.Writer // debugger output, defaults to Stdout
+	DebugScanner *bufio.Scanner
 
 	DebugState
 	lastDebugCmd    string
@@ -150,13 +152,18 @@ loop:
 func debugCmd(m *Machine) error {
 	var cmd, arg string
 	fmt.Fprint(m.DebugOut, "dbg> ")
-	if n, err := fmt.Fscanln(m.DebugIn, &cmd, &arg); errors.Is(err, io.EOF) {
+	if !m.DebugScanner.Scan() {
 		return debugDetach(m, arg) // Clean close of debugger, the target program resumes.
-	} else if n == 0 {
+	}
+	line := m.DebugScanner.Text()
+	n, _ := fmt.Sscan(line, &cmd, &arg)
+	if n == 0 {
 		if m.lastDebugCmd == "" {
 			return nil
 		}
 		cmd, arg = m.lastDebugCmd, m.lastDebugArg
+	} else if cmd[0] == '#' {
+		return nil
 	}
 	c, ok := debugCmds[cmd]
 	if !ok {
@@ -174,21 +181,21 @@ func debugCmd(m *Machine) error {
 // not affecting the target program's.
 // An error during connection setting will result in program panic.
 func initDebugIO(m *Machine) {
-	if m.DebugAddr == "" {
-		return
+	if m.DebugAddr != "" {
+		l, err := net.Listen("tcp", m.DebugAddr)
+		if err != nil {
+			panic(err)
+		}
+		print("Waiting for debugger client to connect at ", m.DebugAddr)
+		conn, err := l.Accept()
+		if err != nil {
+			panic(err)
+		}
+		println(" connected!")
+		m.DebugIn = conn
+		m.DebugOut = conn
 	}
-	l, err := net.Listen("tcp", m.DebugAddr)
-	if err != nil {
-		panic(err)
-	}
-	print("Waiting for debugger client to connect at ", m.DebugAddr)
-	conn, err := l.Accept()
-	if err != nil {
-		panic(err)
-	}
-	println(" connected!")
-	m.DebugIn = conn
-	m.DebugOut = conn
+	m.DebugScanner = bufio.NewScanner(m.DebugIn)
 }
 
 // debugUpdateLocation computes the source code location for the current VM state.
