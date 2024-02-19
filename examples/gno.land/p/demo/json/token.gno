@@ -15,7 +15,9 @@ const (
 	WhiteSpaceToken     = ' '
 	PlusToken           = '+'
 	MinusToken          = '-'
+	AesteriskToken      = '*'
 	BangToken           = '!'
+	QuestionToken       = '?'
 	NewLineToken        = '\n'
 	TabToken            = '\t'
 	CarriageReturnToken = '\r'
@@ -24,6 +26,8 @@ const (
 	SlashToken          = '/'
 	BackSlashToken      = '\\'
 	UnderScoreToken     = '_'
+	DollarToken         = '$'
+	AtToken             = '@'
 )
 
 const (
