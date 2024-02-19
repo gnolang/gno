@@ -1,26 +1,22 @@
 package main
 
 func main() {
-	a := [6]int{1, 2, 3, 4, 5, 6}
-	println(a[1]) // 2
-	for i, v := range a {
-		println(v)
-		if i == 3 {
-			break
-		}
+	var fns []func()
+	for _, v := range []int{1, 2, 3} {
+		x := v*100 + v
+		fns = append(fns, func() { println(x) })
+	}
+	for _, fn := range fns {
+		fn()
 	}
 }
 
 // Go_Output:
-// 2
-// 1
-// 2
-// 3
-// 4
+// 101
+// 202
+// 303
 
 // Output:
-// 2
-// 1
-// 2
-// 3
-// 4
+// 303
+// 303
+// 303
