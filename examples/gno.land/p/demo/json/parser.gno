@@ -128,9 +128,9 @@ func ParseStringLiteral(data []byte) (string, error) {
 // ParseBoolLiteral parses a boolean value from the given byte slice.
 func ParseBoolLiteral(data []byte) (bool, error) {
 	switch {
-	case bytes.Equal(data, []byte("true")):
+	case bytes.Equal(data, trueLiteral):
 		return true, nil
-	case bytes.Equal(data, []byte("false")):
+	case bytes.Equal(data, falseLiteral):
 		return false, nil
 	default:
 		return false, errors.New("JSON Error: malformed boolean value found while parsing boolean value")

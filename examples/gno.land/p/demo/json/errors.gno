@@ -8,7 +8,7 @@ import (
 
 type jsonError struct {
 	code int
-	msg string
+	msg  string
 }
 
 func (e *jsonError) Error() string {
@@ -44,7 +44,10 @@ const (
 	UnknownValueType
 
 	// buffer errors (4xx)
-	EofErrorCode = 400 + iota
+	EofError = 400 + iota
+
+	// JSON path error (5xx)
+	InvalidPath = 500 + iota
 )
 
 func newJSONError(code int, msg string) error {

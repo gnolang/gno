@@ -49,43 +49,13 @@ func equalStr(b *[]byte, s string) bool {
 
 /*		Testing Helper Function		*/
 
-func isEqualMap(a, b map[string]interface{}) bool {
+func isEqualSlice(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
 
-	for key, valueA := range a {
-		valueB, ok := b[key]
-		if !ok {
-			return false
-		}
-
-		switch valueA := valueA.(type) {
-		case []interface{}:
-			if valueB, ok := valueB.([]interface{}); ok {
-				if !isEqualSlice(valueA, valueB) {
-					return false
-				}
-			} else {
-				return false
-			}
-		default:
-			if valueA != valueB {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-func isEqualSlice(a, b []interface{}) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
+	for i, v := range a {
+		if v != b[i] {
 			return false
 		}
 	}
