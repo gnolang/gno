@@ -1,6 +1,6 @@
 package json
 
-// CREDIT: https://github.com/freddierice/php_source/blob/467ed5d6edff72219afd3e644516f131118ef48e/ext/json/JSON_parser.c
+// Reference: https://github.com/freddierice/php_source/blob/467ed5d6edff72219afd3e644516f131118ef48e/ext/json/JSON_parser.c
 // Copyright (c) 2005 JSON.org
 
 type (

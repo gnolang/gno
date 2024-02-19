@@ -1,3 +1,7 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package json
 
 // This file implements the Eisel-Lemire ParseFloat algorithm, published in
@@ -22,19 +26,6 @@ const (
 	float32ExponentBias = 127
 	float64ExponentBias = 1023
 )
-
-// The Eisel-Lemire algorithm accomplishes its task through the following methods:
-//
-// 1. Extracting Mantissa and Exponent
-//		It involves separating the mantissa, or the significant part of the number,
-//		from the exponent when converting a string into a floating-point number.
-//
-// 2. Normalization and Range checking
-//		This step normalizes the mantissa and ensures the exponent falls within an acceptable range.
-//
-// 3. Conversion to a Floating-Point Number
-//		Finally, the algorithm uses the normalized mantissa and exponent to convert the data
-//		into an actual floating-point number.
 
 // eiselLemire64 parses a floating-point number from its mantissa and exponent representation.
 // This implementation is based on the Eisel-Lemire ParseFloat algorithm, which is efficient
