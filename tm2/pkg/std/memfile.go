@@ -59,7 +59,7 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
-	if len(mempkg.Files) == 0 {
+	if mempkg.IsEmpty() {
 		return errors.New(fmt.Sprintf("package contains no files"))
 	}
 
