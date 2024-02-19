@@ -1,6 +1,6 @@
 module loop
 
-go 1.20
+go 1.21
 
 require (
 	github.com/gnolang/gno v0.0.0-20231112174927-b1a53c018ea4
@@ -47,7 +47,6 @@ require (
 	go.uber.org/zap v1.26.0 // indirect
 	go.uber.org/zap/exp v0.2.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
-	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect

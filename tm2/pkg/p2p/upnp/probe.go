@@ -2,10 +2,9 @@ package upnp
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
-
-	"golang.org/x/exp/slog"
 )
 
 type UPNPCapabilities struct {
