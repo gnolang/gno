@@ -19,14 +19,14 @@ services:
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.private.address=:81"
+      - "--entrypoints.private.address=:26657"
       - "--entrypoints.traefik.address=:8080"
     networks:
       - portal-loop
     ports:
       - "80:80"
-      - "81:81"
       - "8080:8080"
+      - "26657:26657"
     volumes:
       - ./traefik:/etc/traefik/configs
 
@@ -40,13 +40,13 @@ services:
     entrypoint:
       - gnoweb
       - --bind=0.0.0.0:8888
-      - --remote=traefik:81
+      - --remote=traefik:26657
       - --faucet-url
       - "http://localhost:9000"
       - --help-chainid
       - portal-loop
       - --help-remote
-      - https://rpc.portal.gno.land:443
+      - http://127.0.0.1:26657
 
   # gnofaucet:
   #   image: gnofaucet

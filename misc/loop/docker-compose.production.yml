@@ -27,6 +27,7 @@ services:
 
       - "--entrypoints.websecure.address=:443"
       # - "--certificatesresolvers.le.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
       - "--certificatesresolvers.le.acme.email=dev@gno.land"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
     networks:
@@ -52,7 +53,7 @@ services:
       - --help-chainid
       - portal-loop
       - --help-remote
-      - https://rpc.portal.gnoteam.com:443
+      - https://rpc.gno.land:443
     networks:
       - portal-loop
     labels:
