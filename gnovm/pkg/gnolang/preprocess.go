@@ -978,11 +978,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
-
 							convertConst(store, last, arg0, ct)
 							constConverted = true
+						case SliceKind:
+							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
 						}
-
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {

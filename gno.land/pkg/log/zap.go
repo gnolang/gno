@@ -2,8 +2,7 @@ package log
 
 import (
 	"io"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
@@ -72,5 +71,5 @@ func NewZapLogger(enc zapcore.Encoder, w io.Writer, level zapcore.Level, opts ..
 
 // ZapLoggerToSlog wraps the given zap logger to an log/slog Logger
 func ZapLoggerToSlog(logger *zap.Logger) *slog.Logger {
-	return slog.New(zapslog.NewHandler(logger.Core()))
+	return slog.New(zapslog.NewHandler(logger.Core(), nil))
 }

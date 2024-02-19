@@ -3,10 +3,9 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"

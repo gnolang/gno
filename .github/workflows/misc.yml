@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
+          - "1.22.x"
         program:
           - "genstd"
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
+          - "1.22.x"
         args:
           - _test.genstd
     runs-on: ubuntu-latest

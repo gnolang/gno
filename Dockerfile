@@ -1,5 +1,5 @@
 # build
-FROM        golang:1.21 AS build
+FROM        golang:1.22 AS build
 RUN         mkdir -p /opt/gno/src /opt/build
 WORKDIR     /opt/build
 ADD         go.mod go.sum ./

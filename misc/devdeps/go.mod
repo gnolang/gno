@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/misc/devdeps
 
-go 1.20
+go 1.21
 
 require (
 	github.com/golangci/golangci-lint v1.54.2 // sync with github action
@@ -171,9 +171,8 @@ require (
 	github.com/yuin/goldmark v1.4.13 // indirect
 	gitlab.com/bosi/decorder v0.4.0 // indirect
 	go.tmz.dev/musttag v0.7.2 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230307190834-24139beb5833 // indirect
 	golang.org/x/mod v0.12.0 // indirect

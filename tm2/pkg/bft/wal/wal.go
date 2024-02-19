@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"

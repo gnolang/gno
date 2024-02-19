@@ -2,13 +2,12 @@ package sdk
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"syscall"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"

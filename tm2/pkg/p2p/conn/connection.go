@@ -5,6 +5,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
 	"reflect"
@@ -12,8 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"

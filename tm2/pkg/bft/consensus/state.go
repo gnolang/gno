@@ -4,12 +4,11 @@ import (
 	"bytes"
 	goerrors "errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"

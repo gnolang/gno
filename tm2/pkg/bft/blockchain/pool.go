@@ -3,12 +3,11 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/flow"

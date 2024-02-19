@@ -2,9 +2,8 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"

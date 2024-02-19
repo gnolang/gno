@@ -1,10 +1,9 @@
 package integration
 
 import (
+	"log/slog"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
