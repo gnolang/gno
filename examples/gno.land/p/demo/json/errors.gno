@@ -1,56 +1,52 @@
 package json
 
-import "errors"
+import (
+	"errors"
 
-const (
-	// KeyPathNotFoundError occurs when a specified key path does not exist in the JSON structure.
-	KeyPathNotFoundError error = errors.New("key path not found in the JSON structure")
-
-	// ArrayIndexNotFound occurs when the specified index is beyond the range of the array.
-	ArrayIndexNotFound = errors.New("array index not found or out of range")
-
-	// TokenNotFound occurs when a particular token (expected as part of the structure) is not found.
-	TokenNotFound = errors.New("expected token not found in the JSON input")
-
-	// KeyLevelNotMatched occurs when the key levels do not match the expected structure or depth.
-	KeyLevelNotMatched = errors.New("key level does not match the expected structure or depth")
-
-	// Overflow occurs when a number in the JSON exceeds the range that can be handled.
-	Overflow = errors.New("numeric value exceeds the range limit")
-
-	// EmptyBytes occurs when the JSON input is empty or has no content.
-	EmptyBytes = errors.New("empty bytes: the JSON input is empty or has no content")
-
-	// InvalidArrayIndex occurs when the index used for an array is not an integer or out of valid range.
-	InvalidArrayIndex = errors.New("invalid array index: index should be an integer and within the valid range")
-
-	// InvalidExponents occurs when there's an error related to the format or range of exponents in numbers.
-	InvalidExponents = errors.New("invalid format or range of exponents in a numeric value")
-
-	// NonDigitCharacters occurs when there are non-digit characters where a number is expected.
-	NonDigitCharacters = errors.New("non-digit characters found where a number is expected")
-
-	// MultipleDecimalPoints occurs when a number has more than one decimal point.
-	MultipleDecimalPoints = errors.New("multiple decimal points found in a number")
-
-	// MalformedType occurs when the type of a value does not match the expected type.
-	MalformedType = errors.New("malformed type: the type of the value does not match the expected type")
-
-	// MalformedString occurs when a string is improperly formatted, like unescaped characters or incorrect quotes.
-	MalformedString = errors.New("malformed string: improperly formatted string, check for unescaped characters or incorrect quotes")
-
-	// MalformedValue occurs when a value does not conform to the expected format or structure.
-	MalformedValue = errors.New("malformed value: the value does not conform to the expected format or structure")
-
-	// MalformedObject occurs when a JSON object is improperly formatted.
-	MalformedObject = errors.New("malformed object: the JSON object is improperly formatted or structured")
-
-	// MalformedArray occurs when a JSON array is improperly formatted.
-	MalformedArray = errors.New("malformed array: the JSON array is improperly formatted or structured")
-
-	// MalformedJson occurs when the entire JSON structure is improperly formatted or structured.
-	MalformedJson = errors.New("malformed JSON: the entire JSON structure is improperly formatted or structured")
-
-	// UnknownValueType occurs when the JSON contains a value of an unrecognized or unsupported type.
-	UnknownValueType = errors.New("unknown value type: the value type is unrecognized or unsupported")
+	"gno.land/p/demo/ufmt"
 )
+
+type jsonError struct {
+	code int
+	msg string
+}
+
+func (e *jsonError) Error() string {
+	return ufmt.Sprintf("Error %d: %s", e.code, e.msg)
+}
+
+// error code
+const (
+	// parser errors (1xx)
+	KeyPathNotFound = 100 + iota
+	ArrayIndexNotFound
+	TokenNotFound
+	KeyLevelNotMatched
+	NextValueNotFound
+
+	// syntax errors (2xx)
+	Overflow = 200 + iota
+	EmptyBytes
+	InvalidNull
+	InvalidBoolean
+	InvalidArrayIndex
+	InvalidExponents
+	NotNumber
+	MultipleDecimalPoints
+
+	// type errors (3xx)
+	InvalidType = 300 + iota
+	InvalidString
+	InvalidValue
+	InvalidObject
+	InvalidArray
+	InvalidJSONFormat
+	UnknownValueType
+
+	// buffer errors (4xx)
+	EofErrorCode = 400 + iota
+)
+
+func newJSONError(code int, msg string) error {
+	return &jsonError{code, msg}
+}

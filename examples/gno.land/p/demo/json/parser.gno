@@ -61,7 +61,7 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 		}
 	}
 
-	return -1, escaped, MalformedString
+	return -1, escaped, newJSONError(InvalidString, "Invalid string input found while parsing string value")
 }
 
 // Find end of the data structure, array or object.
@@ -119,7 +119,7 @@ func ParseStringLiteral(data []byte) (string, error) {
 
 	bf, err := unescape(data, buf[:])
 	if err != nil {
-		return "", MalformedString
+		return "", newJSONError(InvalidString, "Invalid string input found while parsing string value")
 	}
 
 	return string(bf), nil
@@ -190,18 +190,18 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	var n uint64 = 0
 	for _, c := range bytes {
 		if notDigit(c) {
-			return 0, NonDigitCharacters
+			return 0, newJSONError(NotNumber, "non-digit characters found while parsing integer value")
 		}
 
 		if n > maxUint64/10 {
-			return 0, Overflow
+			return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
 		}
 
 		n *= 10
 
 		n1 := n + uint64(c-'0')
 		if n1 < n {
-			return 0, Overflow
+			return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
 		}
 
 		n = n1
@@ -212,7 +212,7 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 			return -absMinInt64, nil
 		}
 
-		return 0, Overflow
+		return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
 	}
 
 	if neg {
@@ -244,13 +244,13 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 		}
 
 		if notDigit(c) {
-			return 0, 0, NonDigitCharacters
+			return 0, 0, newJSONError(NotNumber, "non-digit characters found while parsing integer value")
 		}
 
 		digit := uint64(c - '0')
 
 		if man > (maxUint64-digit)/10 {
-			return 0, 0, Overflow
+			return 0, 0, newJSONError(Overflow, "numeric value exceeds the range limit")
 		}
 
 		man = man*10 + digit
@@ -362,7 +362,7 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		if bytes.Equal(value, nullLiteral) {
 			return Null, offset + end, nil
 		}
-		return Unknown, offset, UnknownValueType
+		return Unknown, offset, newJSONError(InvalidNull, "Invalid null value found while parsing null value") 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		if !bytes.ContainsAny(value, ".eE") {
 			if _i, err := ParseIntLiteral(value); err != nil {
@@ -377,5 +377,6 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		return Number, offset + end, nil
 	}
 
-	return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
+	// return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
+	return Unknown, offset, newJSONError(UnknownValueType, "unknown value type found while parsing primitive value")
 }

@@ -29,16 +29,16 @@ func extractValueTypeFromToken(b byte, value []byte) (dataType ValueType, offset
 		if bytes.Equal(value, trueLiteral) || bytes.Equal(value, falseLiteral) {
 			dataType = Boolean
 		}
-		return Unknown, offset, UnknownValueType
+		return Unknown, offset, newJSONError(InvalidBoolean, "invalid boolean value. expected: true or false")
 	case 'u', 'n':
 		if bytes.Equal(value, nullLiteral) {
 			dataType = Null
 		}
-		return Unknown, offset, UnknownValueType
+		return Unknown, offset, newJSONError(InvalidNull, "invalid null value. expected: null")
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		dataType = Number
 	default:
-		return Unknown, offset, UnknownValueType
+		return Unknown, offset, newJSONError(UnknownValueType, "unsupported value type or invalid JSON type")
 	}
 }
 
@@ -61,7 +61,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 		switch data[i] {
 		case DoublyQuoteToken:
 			if level < 1 {
-				return -1, MalformedJson
+				return -1, newJSONError(InvalidJSONFormat, "invalid JSON format")
 			}
 
 			i += 1
@@ -156,7 +156,7 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 
 				subIndex, err := findValueIndex(valueFound, keys[level+1:]...)
 				if err != nil {
-					return -1, KeyPathNotFoundError
+					return -1, newJSONError(KeyPathNotFound, "key path not found in the JSON structure")
 				}
 
 				return i + valueOffset + subIndex, nil
@@ -169,11 +169,11 @@ func findValueIndex(data []byte, keys ...string) (int, error) {
 				}
 			}
 		case ColonToken:
-			return -1, MalformedJson
+			return -1, newJSONError(InvalidJSONFormat, "invalid JSON format")
 		}
 	}
 
-	return -1, KeyPathNotFoundError
+	return -1, newJSONError(KeyPathNotFound, "key path not found in the JSON structure")
 }
 
 func decreaseLevel(level, keyLevel int) (int, int) {
@@ -248,7 +248,7 @@ func findKeyStart(data []byte, key string) (int, error) {
 		}
 	}
 
-	return -1, KeyPathNotFoundError
+	return -1, newJSONError(KeyPathNotFound, "key path not found in the JSON structure")
 }
 
 func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType, offset, endOffset int, err error) {
@@ -262,7 +262,7 @@ func internalGet(data []byte, keys ...string) (value []byte, dataType ValueType,
 	// Go to closest value
 	nO, err := nextToken(data[offset:])
 	if err != nil {
-		return nil, NotExist, offset, -1, MalformedJson
+		return nil, NotExist, offset, -1, newJSONError(InvalidJSONFormat, "invalid JSON format")
 	}
 
 	offset += nO
@@ -342,14 +342,14 @@ func ArrayEach(
 		}
 
 		if data[offset] != SquareOpenToken {
-			return -1, errors.New("json.ArrayEach: invalid array. must start with `[`")
+			return -1, newJSONError(InvalidArray, "invalid array. must start with `[`")
 		} else {
 			offset += 1
 		}
 	}
 
 	if n0, err := nextToken(data[offset:]); err != nil {
-		return -1, errors.New("json.ArrayEach: invalid token. value not found")
+		return -1, newJSONError(NextValueNotFound, "next value not found")
 	} else {
 		offset += n0
 	}
@@ -415,7 +415,7 @@ func ObjectEach(
 	// descent to desired key
 	if len(keys) > 0 {
 		if off, err := findValueIndex(data, keys...); err != nil {
-			errors.New("json.ObjectEach: key path not found")
+			newJSONError(KeyPathNotFound, "key path not found in the JSON structure")
 		} else {
 			offset += off
 		}
@@ -423,7 +423,7 @@ func ObjectEach(
 
 	// validate and skip past opening token
 	if off, err := nextToken(data[offset:]); err != nil {
-		return MalformedObject
+		return newJSONError(InvalidObject, "Object is not properly formed")
 	} else if offset += off; data[offset] != CurlyOpenToken {
 		return errors.New(ufmt.Sprintf("json.ObjectEach: invalid token at offset %d", offset))
 	} else {
@@ -449,7 +449,7 @@ func ObjectEach(
 		case CurlyCloseToken:
 			return nil // end of the object
 		default:
-			return MalformedObject // invalid token found
+			return newJSONError(InvalidObject, "Object is not properly formed")
 		}
 
 		// find the end of the key
@@ -622,7 +622,7 @@ func EachKey(data []byte, cb func(int, []byte, ValueType, error), paths ...[]str
 			pIdxFlags := initPathIdxFlags(paths)
 
 			if level < 0 {
-				err := MalformedJson
+				err := newJSONError(InvalidJSONFormat, "invalid JSON format")
 				cb(-1, nil, Unknown, err)
 
 				return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", err))
@@ -697,7 +697,7 @@ func EachKey(data []byte, cb func(int, []byte, ValueType, error), paths ...[]str
 		i += 1
 	}
 
-	return -1, errors.New(ufmt.Sprintf("json.EachKey: %s", KeyPathNotFoundError))
+	return -1, newJSONError(KeyPathNotFound, "key path not found in the JSON structure")
 }
 
 func initPathFlags(paths [][]string) []bool {
