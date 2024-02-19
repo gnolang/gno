@@ -60,7 +60,7 @@ func (mempkg *MemPackage) Validate() error {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
 	if mempkg.IsEmpty() {
-		return errors.New(fmt.Sprintf("package contains no files"))
+		return errors.New(fmt.Sprintf("package %q contains no files", mempkg.Name))
 	}
 
 	fnames := map[string]struct{}{}
