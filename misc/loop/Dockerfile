@@ -4,7 +4,9 @@ COPY . /go/src/github.com/gnolang/gno/misc/loop
 
 WORKDIR /go/src/github.com/gnolang/gno/misc/loop
 
-RUN go build -o /build/portalloopd ./cmd
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/root/go/pkg/mod \
+    go build -o /build/portalloopd ./cmd
 
 # Final image for portalloopd
 FROM docker AS portalloopd

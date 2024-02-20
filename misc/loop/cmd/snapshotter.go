@@ -35,6 +35,8 @@ type snapshotter struct {
 	instanceBackupFile string
 
 	cfg config
+
+	url string
 }
 
 type config struct {

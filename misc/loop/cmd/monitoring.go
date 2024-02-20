@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"time"
 
@@ -14,14 +15,18 @@ import (
 // - Number of lines in backups.jsonl
 // - Uptime of last version
 
+type monitoringService struct {
+	portalLoop *snapshotter
+}
+
 type metrics struct {
 	backupTXS prometheus.Gauge
 }
 
-func (s *service) getBackupsFileMetrics(m *metrics) error {
+func (s *monitoringService) getBackupsFileMetrics(m *metrics) error {
 	f, err := os.Open(s.portalLoop.backupFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("monitoring: %w, file: %s", err, s.portalLoop.backupFile)
 	}
 
 	fileScanner := bufio.NewScanner(f)
@@ -41,7 +46,7 @@ func (s *service) getBackupsFileMetrics(m *metrics) error {
 	return nil
 }
 
-func (s *service) recordMetrics() {
+func (s *monitoringService) recordMetrics() {
 	m := metrics{}
 
 	m.backupTXS = promauto.NewGauge(prometheus.GaugeOpts{
