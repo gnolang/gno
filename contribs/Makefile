@@ -27,7 +27,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 .PHONY: install
 install: install.gnomd install.gnodev
 
-install.gnomd:;  $(MAKE) -C ./gnomod install
+install.gnomd:;  cd gnomd && go install .
 install.gnodev:; $(MAKE) -C ./gnodev install
 
 .PHONY: clean
