@@ -44,29 +44,34 @@ SelectStmt ->
 */
 
 func updateCapturedValue(m *Machine, lb *Block) {
-	if lb.GetBodyStmt().isLoop { // do we need this?
-		bs := lb.GetBodyStmt()
-		if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
-			var isSealed bool
-			for i, tt := range bs.LoopValuesBox.transient {
-				nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
-				ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
-				tv := ptr.Deref()
-				// update context use previously recorded value
-				// inner loops iterates twice while outer loop iterates once.
-				// it's an alignment for the values of out loop block.
-				// TODO: hard to understand, more doc or e.g.
-				expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
-				for j := 0; j < expandRatio; j++ {
-					bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
-				}
-				isSealed = true
+	debug.Println("---updateCapturedValue")
+	//if lb.GetBodyStmt().isLoop { // do we need this?
+	//lb.bodyStmt = lb.Source.GetStaticBlock().bodyStmt
+	bs := lb.GetBodyStmt()
+	//bs := lb.Source.GetStaticBlock().GetBodyStmt()
+	if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
+		var isSealed bool
+		for i, tt := range bs.LoopValuesBox.transient {
+			nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
+			ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+			tv := ptr.Deref()
+			debug.Printf("---transient value is: %v \n", tv)
+			// update context use previously recorded value
+			// inner loops iterates twice while outer loop iterates once.
+			// it's an alignment for the values of out loop block.
+			// TODO: hard to understand, more doc or e.g.
+			expandRatio := bs.LoopValuesBox.transient[i].cursor + 1 - len(bs.LoopValuesBox.transient[i].values) // 2 - 0
+			for j := 0; j < expandRatio; j++ {
+				bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
 			}
-			if isSealed {
-				bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox for closure execution.
-			}
+			isSealed = true
 		}
+		if isSealed {
+			bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox for closure execution.
+		}
+		debug.Printf("---lvBox after updateValue is: %v \n", bs.LoopValuesBox)
 	}
+	//}
 }
 
 //----------------------------------------
@@ -77,10 +82,11 @@ func updateCapturedValue(m *Machine, lb *Block) {
 // operation is that the value of the expression is pushed onto the stack.
 
 func (m *Machine) doOpExec(op Op) {
+	debug.Printf("---doOpExec, op: %v \n", op)
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
-		debug.Printf("%v\n", m)
+		//debug.Printf("%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -141,6 +147,7 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
+			// exiting loop
 			updateCapturedValue(m, lb)
 			// (queue to) go back.
 			if bs.Cond != nil {
@@ -533,7 +540,7 @@ EXEC_SWITCH:
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
-			isLoop:        true,
+			loopBody:      &LoopBody{isLoop: true},
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -549,6 +556,7 @@ EXEC_SWITCH:
 			m.PushOp(OpExec)
 		}
 	case *IfStmt:
+		debug.Printf("---IfStmt: %v \n", cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
@@ -620,7 +628,8 @@ EXEC_SWITCH:
 			Key:           cs.Key,
 			Value:         cs.Value,
 			Op:            cs.Op,
-			isLoop:        true,
+			loopBody:      &LoopBody{isLoop: true},
+			//isLoop: true,
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".
@@ -654,6 +663,7 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *BranchStmt:
+		debug.Printf("---BranchStmt, cs: %v \n", cs)
 		switch cs.Op {
 		case BREAK:
 			// Pop frames until for/range
@@ -697,18 +707,29 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
+			debug.Println("---GOTO ", cs.String())
 			for i := uint8(0); i < cs.Depth; i++ {
 				m.PopBlock()
 			}
 			last := m.LastBlock()
+			debug.Printf("lb: %v \n", last)
+			debug.Printf("lb.Source: %v \n", last.Source)
+			debug.Printf("lb.Source: %T \n", last.Source)
 			bs := last.GetBodyStmt()
+			debug.Printf("lb.Source isLoop? : %t \n", last.Source.GetStaticBlock().bodyStmt.isLoop)
+			debug.Printf("bs.isLoop: %v, addr: %p \n", bs.isLoop, &bs)
+
 			m.NumOps = bs.NumOps
 			m.NumValues = bs.NumValues
 			m.Exprs = m.Exprs[:bs.NumExprs]
 			m.Stmts = m.Stmts[:bs.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex
+			//bs.isLoop = true
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
+			updateCapturedValue(m, last)
+
 		case FALLTHROUGH:
+			debug.Println("---FALLTHROUGH")
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
 			if !ok {
 				// fallthrough is only allowed in a switch statement
@@ -803,6 +824,7 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
+		debug.Println("---BlockStmt")
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)

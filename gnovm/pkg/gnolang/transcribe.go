@@ -260,6 +260,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn.Elts[idx] = KeyValueExpr{Key: k, Value: v}
 		}
 	case *FuncLitExpr:
+		debug.Printf("---transcribe, funcLitExpr: %v \n", cnn)
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
 			return
@@ -271,6 +272,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FuncLitExpr)
 		}
+
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
@@ -279,6 +281,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
+		// identify closure patterns
+		ns := cnn.GetExternNames()
+		debug.Printf("---transcribe, externs: %v \n", ns)
+		//printStack()
 	case *FieldTypeExpr:
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
 		if isStopOrSkip(nc, c) {

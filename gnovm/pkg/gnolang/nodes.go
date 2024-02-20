@@ -870,6 +870,14 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
+// this assumes that a goto stmt to less liners forms an implicit loop
+// if an funcLitExpr embeded, do capture.
+type LoopBody struct {
+	isLoop bool
+	start  int // line of label start
+	end    int // line of goto stmt
+}
+
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
@@ -884,6 +892,7 @@ type bodyStmt struct {
 	Post          Stmt           // for ForStmt
 	LoopValuesBox *LoopValuesBox // a series of transient values of captured var generated as the iteration goes on
 	isLoop        bool
+	loopBody      *LoopBody
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
