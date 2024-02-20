@@ -1,0 +1,62 @@
+# Test recovering
+
+gno test -verbose -run 'TestRecover$' .
+
+! stdout .+
+stderr 'recovered bad panic!'
+stderr '--- PASS'
+stderr 'ok  '
+
+gno test -verbose -run 'TestRecoverSkip$' .
+
+! stdout .+
+stderr 'skipped'
+! stderr 'recovered.*testing.Recover'
+stderr '--- SKIP'
+stderr 'ok  '
+
+gno test -verbose -run 'TestBadRecoverSkip$' .
+
+! stdout .+
+# should contain warning about using testing.Recover
+stderr 'recovered.*testing.Recover'
+# the test will still be marked as skipped
+stderr '--- SKIP'
+stderr 'ok  '
+
+-- recov.gno --
+package recov
+
+-- recov_test.gno --
+package recov
+
+import "testing"
+
+func TestRecover(t *testing.T) {
+	defer func() {
+		err := testing.Recover()
+		t.Log("recovered", err)
+	}()
+
+	panic("bad panic!")
+}
+
+func TestRecoverSkip(t *testing.T) {
+	defer func() {
+		err := testing.Recover()
+		t.Log("recovered", err)
+	}()
+
+	t.Skip("skipped")
+	panic("bad panic!")
+}
+
+func TestBadRecoverSkip(t *testing.T) {
+	defer func() {
+		err := recover()
+		t.Log("recovered", err)
+	}()
+
+	t.Skip("skipped")
+	panic("bad panic!")
+}
