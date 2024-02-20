@@ -4,10 +4,9 @@
 
 ! stdout .+
 stderr '^main.gno:3:1: expected declaration, found invalid$'
+stderr '^main.gno:7:2: expected declaration, found wrong$'
 stderr '^sub/sub.gno:3:1: expected declaration, found invalid$'
-stderr '^2 precompile error\(s\)$'
-
-# TODO add more than a single error per file
+stderr '^3 precompile error\(s\)$'
 
 # no *.gen.go files are created
 ! exec test -f main.gno.gen.go
@@ -18,8 +17,10 @@ package main
 
 invalid
 
-func main() {}
-
+func main() {
+	var x = 1
+	wrong
+}
 -- sub/sub.gno --
 package sub
 

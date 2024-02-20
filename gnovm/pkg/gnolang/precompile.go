@@ -128,7 +128,6 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		}
 		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
 		if err != nil {
-			// TODO(tb): use scanner.ErrorList
 			errs = multierr.Append(errs, err)
 			continue
 		}
