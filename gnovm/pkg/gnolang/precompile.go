@@ -279,7 +279,7 @@ func parseGoBuildErrors(out string) error {
 		}
 		msg := match[4]
 		errList.Add(token.Position{
-			// Remove .gen.go extention, we want to target the gno file
+			// Remove .gen.go extension, we want to target the gno file
 			Filename: strings.TrimSuffix(filename, ".gen.go"),
 			// Shift the 4 lines header added in *.gen.go files.
 			// NOTE(tb): the 4 lines shift below assumes there's always a //go:build
