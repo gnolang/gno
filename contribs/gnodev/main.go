@@ -172,7 +172,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
 	if err != nil {
-		return fmt.Errorf("unable to setup packages watcher")
+		return fmt.Errorf("unable to setup packages watcher: %w", err)
 	}
 	defer watcher.Stop()
 
