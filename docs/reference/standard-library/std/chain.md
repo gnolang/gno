@@ -92,7 +92,7 @@ caller := std.GetOrigSend()
 ```go
 func GetOrigPkgAddr() string
 ```
-Returns the `pkgpath` of the current Realm or Package.
+Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
 
 #### Usage
 ```go

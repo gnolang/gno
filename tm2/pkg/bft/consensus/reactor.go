@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -30,7 +32,7 @@ const (
 	votesToContributeToBecomeGoodPeer  = 10000
 )
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // ConsensusReactor defines a reactor for the consensus service.
 type ConsensusReactor struct {
@@ -365,7 +367,7 @@ func (conR *ConsensusReactor) FastSync() bool {
 	return conR.fastSync
 }
 
-//--------------------------------------
+// --------------------------------------
 
 // subscribeToBroadcastEvents subscribes for new round steps and votes
 // using internal pubsub defined on state to broadcast
@@ -545,7 +547,7 @@ OUTER_LOOP:
 	}
 }
 
-func (conR *ConsensusReactor) gossipDataForCatchup(logger log.Logger, rs *cstypes.RoundState,
+func (conR *ConsensusReactor) gossipDataForCatchup(logger *slog.Logger, rs *cstypes.RoundState,
 	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.Peer,
 ) {
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
@@ -659,7 +661,7 @@ OUTER_LOOP:
 	}
 }
 
-func (conR *ConsensusReactor) gossipVotesForHeight(logger log.Logger, rs *cstypes.RoundState, prs *cstypes.PeerRoundState, ps *PeerState) bool {
+func (conR *ConsensusReactor) gossipVotesForHeight(logger *slog.Logger, rs *cstypes.RoundState, prs *cstypes.PeerRoundState, ps *PeerState) bool {
 	// If there are lastCommits to send...
 	if prs.Step == cstypes.RoundStepNewHeight {
 		if ps.PickSendVote(rs.LastCommit) {
@@ -865,7 +867,7 @@ func (conR *ConsensusReactor) StringIndented(indent string) string {
 	return s
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 var (
 	ErrPeerStateHeightRegression = errors.New("Error peer state height regression")
@@ -878,7 +880,7 @@ var (
 // Be mindful of what you Expose.
 type PeerState struct {
 	peer   p2p.Peer
-	logger log.Logger
+	logger *slog.Logger
 
 	mtx   sync.Mutex             // NOTE: Modify below using setters, never directly.
 	PRS   cstypes.PeerRoundState `json:"round_state"` // Exposed.
@@ -900,7 +902,7 @@ func (pss peerStateStats) String() string {
 func NewPeerState(peer p2p.Peer) *PeerState {
 	return &PeerState{
 		peer:   peer,
-		logger: log.NewNopLogger(),
+		logger: log.NewNoopLogger(),
 		PRS: cstypes.PeerRoundState{
 			Round:              -1,
 			ProposalPOLRound:   -1,
@@ -913,7 +915,7 @@ func NewPeerState(peer p2p.Peer) *PeerState {
 
 // SetLogger allows to set a logger on the peer state. Returns the peer state
 // itself.
-func (ps *PeerState) SetLogger(logger log.Logger) *PeerState {
+func (ps *PeerState) SetLogger(logger *slog.Logger) *PeerState {
 	ps.logger = logger
 	return ps
 }
@@ -1336,7 +1338,7 @@ func (ps *PeerState) StringIndented(indent string) string {
 		indent)
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Messages
 
 // ConsensusMessage is a message that can be sent and received on the ConsensusReactor
@@ -1352,7 +1354,7 @@ func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 	return
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // NewRoundStepMessage is sent for every step taken in the ConsensusState.
 // For every height/round/step transition
@@ -1391,7 +1393,7 @@ func (m *NewRoundStepMessage) String() string {
 		m.Height, m.Round, m.Step, m.LastCommitRound)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // NewValidBlockMessage is sent when a validator observes a valid block B in some round r,
 // i.e., there is a Proposal for block B and 2/3+ prevotes for the block B in the round r.
@@ -1435,7 +1437,7 @@ func (m *NewValidBlockMessage) String() string {
 		m.Height, m.Round, m.BlockPartsHeader, m.BlockParts, m.IsCommit)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // ProposalMessage is sent when a new block is proposed.
 type ProposalMessage struct {
@@ -1452,7 +1454,7 @@ func (m *ProposalMessage) String() string {
 	return fmt.Sprintf("[Proposal %v]", m.Proposal)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // ProposalPOLMessage is sent when a previous proposal is re-proposed.
 type ProposalPOLMessage struct {
@@ -1483,7 +1485,7 @@ func (m *ProposalPOLMessage) String() string {
 	return fmt.Sprintf("[ProposalPOL H:%v POLR:%v POL:%v]", m.Height, m.ProposalPOLRound, m.ProposalPOL)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // BlockPartMessage is sent when gossipping a piece of the proposed block.
 type BlockPartMessage struct {
@@ -1511,7 +1513,7 @@ func (m *BlockPartMessage) String() string {
 	return fmt.Sprintf("[BlockPart H:%v R:%v P:%v]", m.Height, m.Round, m.Part)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // VoteMessage is sent when voting for a proposal (or lack thereof).
 type VoteMessage struct {
@@ -1528,7 +1530,7 @@ func (m *VoteMessage) String() string {
 	return fmt.Sprintf("[Vote %v]", m.Vote)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // HasVoteMessage is sent to indicate that a particular vote has been received.
 type HasVoteMessage struct {
@@ -1560,7 +1562,7 @@ func (m *HasVoteMessage) String() string {
 	return fmt.Sprintf("[HasVote VI:%v V:{%v/%02d/%v}]", m.Index, m.Height, m.Round, m.Type)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // VoteSetMaj23Message is sent to indicate that a given BlockID has seen +2/3 votes.
 type VoteSetMaj23Message struct {
@@ -1592,7 +1594,7 @@ func (m *VoteSetMaj23Message) String() string {
 	return fmt.Sprintf("[VSM23 %v/%02d/%v %v]", m.Height, m.Round, m.Type, m.BlockID)
 }
 
-//-------------------------------------
+// -------------------------------------
 
 // VoteSetBitsMessage is sent to communicate the bit-array of votes seen for the BlockID.
 type VoteSetBitsMessage struct {
@@ -1629,4 +1631,4 @@ func (m *VoteSetBitsMessage) String() string {
 	return fmt.Sprintf("[VSB %v/%02d/%v %v %v]", m.Height, m.Round, m.Type, m.BlockID, m.Votes)
 }
 
-//-------------------------------------
+// -------------------------------------

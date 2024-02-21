@@ -39,6 +39,19 @@ gnokey add {KEY_NAME}
 
 > **Test Seed Phrase:** source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
 
+### Using a ledger device
+
+You can add a ledger device using the following command
+
+> [!NOTE]
+> Before running this command make sure your ledger device is connected, with the cosmos app installed and open in it.
+
+```bash
+gnokey add {LEDGER_KEY_NAME} --ledger
+```
+
+
+
 ## List all Known Keys
 
 List all keys stored in your keybase with the following command.

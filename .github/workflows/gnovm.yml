@@ -74,6 +74,14 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.goversion }}
+      - name: Set environment variables for debug mode
+        if: ${{ runner.debug == 1 }}
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs-go${{ matrix.goversion }}-${{ matrix.args }}
+          mkdir -p $LOG_PATH_DIR
+
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - name: test
         working-directory: gnovm
         env:
@@ -92,6 +100,12 @@ jobs:
         with:
           name: ${{runner.os}}-coverage-gnovm-${{ matrix.args}}-${{matrix.goversion}}
           path: ${{ env.COVERAGE_DIR }}
+      - name: Upload Debug Logs
+        uses: actions/upload-artifact@v3
+        if: ${{ always() && runner.debug == 1 }}
+        with:
+          name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
+          path: ${{ env.LOG_PATH_DIR }}/**/*
 
   upload-coverage:
     needs: test
@@ -129,6 +143,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: ${{ env.COVERAGE_PROFILE }}
-          token: ${{ secrets.CODECOV_TOKEN }} 
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
 
