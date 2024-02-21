@@ -1,23 +1,22 @@
 (function() {
     // Define the events that will trigger a page reload
-    var eventsReload = {{ .ReloadEvents | json }};
+    const eventsReload = {{ .ReloadEvents | json }};
     
     // Establish the WebSocket connection to the event server
-    var ws = new WebSocket('ws://{{- .Remote -}}');
+    const ws = new WebSocket('ws://{{- .Remote -}}');
     
-    // Flag to determine if the page is in the grace period after loading
-    var gracePeriod = true;
-    var graceTimeout = 1000; // ms
-
-    // Set a timer to end the grace period after `graceTimeout`
-    var debounceTimeout = setTimeout(function() {
+    // `gracePeriod` mitigates reload loops due to excessive events. This period
+    // occurs post-loading and lasts for the `graceTimeout` duration.
+    const graceTimeout = 1000; // ms
+    let gracePeriod = true;
+    let debounceTimeout = setTimeout(function() {
         gracePeriod = false;
     }, graceTimeout); 
 
     // Handle incoming WebSocket messages
     ws.onmessage = function(event) {
         try {
-            var message = JSON.parse(event.data);
+            const message = JSON.parse(event.data);
             console.log('Receiving message:', message);
 
             // Ignore events not in the reload-triggering list
