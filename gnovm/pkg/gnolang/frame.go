@@ -81,10 +81,14 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func       *FuncValue   // function value
-	GoFunc     *NativeValue // go function value
-	Args       []TypedValue // arguments
-	Source     *DeferStmt   // source
-	Parent     *Block
+	Func   *FuncValue   // function value
+	GoFunc *NativeValue // go function value
+	Args   []TypedValue // arguments
+	Source *DeferStmt   // source
+	Parent *Block
+
+	// PanicScope is set to the value of the Machine's PanicScope when the
+	// defer is created. The PanicScope of the Machine is incremented each time
+	// a panic occurrs and is decremented each time a panic is recovered.
 	PanicScope uint
 }

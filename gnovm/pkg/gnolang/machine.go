@@ -21,21 +21,25 @@ import (
 
 type Machine struct {
 	// State
-	Ops             []Op // main operations
-	NumOps          int
-	Values          []TypedValue  // buffer of values to be operated on
-	NumValues       int           // number of values
-	Exprs           []Expr        // pending expressions
-	Stmts           []Stmt        // pending statements
-	Blocks          []*Block      // block (scope) stack
-	Frames          []*Frame      // func call stack
-	Package         *PackageValue // active package
-	Realm           *Realm        // active realm
-	Alloc           *Allocator    // memory allocations
-	Exceptions      []*TypedValue // if panic'd unless recovered
-	ExceptionFrames []*Frame      // if panic'd unless recovered
-	NumResults      int           // number of results returned
-	Cycles          int64         // number of "cpu" cycles
+	Ops        []Op // main operations
+	NumOps     int
+	Values     []TypedValue  // buffer of values to be operated on
+	NumValues  int           // number of values
+	Exprs      []Expr        // pending expressions
+	Stmts      []Stmt        // pending statements
+	Blocks     []*Block      // block (scope) stack
+	Frames     []*Frame      // func call stack
+	Package    *PackageValue // active package
+	Realm      *Realm        // active realm
+	Alloc      *Allocator    // memory allocations
+	Exceptions []*TypedValue // if panic'd unless recovered
+
+	// ExceptionFrames is appended to each time a panic happens. It is used to
+	// reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	ExceptionFrames []*Frame
+	NumResults      int   // number of results returned
+	Cycles          int64 // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -46,7 +50,12 @@ type Machine struct {
 	Store   Store
 	Context interface{}
 
-	PanicScope      uint
+	// PanicScope is incremented each time a panic occurs and decremented
+	// when it is recovered.
+	PanicScope uint
+	// DeferPanicScope is set to the value of the defer's panic scope before
+	// it is executed. It is decremented after defer functions in the current
+	// scope have finished executing.
 	DeferPanicScope uint
 }
 
@@ -1430,10 +1439,6 @@ func (m *Machine) PushOp(op Op) {
 		m.Ops = newOps
 	}
 
-	// if op == OpReturnCallDefers || op == OpDefer {
-	// 	m.DeferDepth++
-	// }
-
 	m.Ops[m.NumOps] = op
 	m.NumOps++
 }
@@ -1835,6 +1840,8 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 	panic("frame not found")
 }
 
+// LastCallFrameSafe behaves the same as LastCallFrame, but rather than panicking,
+// returns nil if the frame is not found.
 func (m *Machine) LastCallFrameSafe(n int) *Frame {
 	if n == 0 {
 		panic("n must be positive")
