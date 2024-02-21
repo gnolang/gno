@@ -1,5 +1,9 @@
 package json
 
+import (
+    "errors"
+)
+
 // ParsePath takes a JSONPath string and returns a slice of strings representing the path segments.
 func ParsePath(path string) ([]string, error) {
     buf := NewBuffer([]byte(path))
@@ -41,7 +45,7 @@ func ParsePath(path string) ([]string, error) {
             }
 
             if buf.index >= buf.length {
-                return nil, newJSONError(EofError, "unexpected end of path")
+                return nil, errors.New("unexpected end of path")
             }
 
             segment := string(buf.sliceFromIndices(start+1, buf.index))

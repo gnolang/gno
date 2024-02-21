@@ -34,7 +34,7 @@ func nextToken(data []byte) (int, error) {
 		}
 	}
 
-	return -1, TokenNotFound
+	return -1, errors.New("JSON Error: no token found")
 }
 
 func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
@@ -61,7 +61,7 @@ func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
 		}
 	}
 
-	return -1, escaped, newJSONError(InvalidString, "Invalid string input found while parsing string value")
+	return -1, escaped, errors.New("Invalid string input found while parsing string value")
 }
 
 // Find end of the data structure, array or object.
@@ -107,7 +107,7 @@ func keyMatched(
 	}
 
 	if level > len(keys) {
-		return nil, KeyLevelNotMatched
+		return nil, errors.New("key level exceeds the length of the keys")
 	}
 
 	return keyUnesc, err
@@ -119,7 +119,7 @@ func ParseStringLiteral(data []byte) (string, error) {
 
 	bf, err := unescape(data, buf[:])
 	if err != nil {
-		return "", newJSONError(InvalidString, "Invalid string input found while parsing string value")
+		return "", errors.New("Invalid string input found while parsing string value")
 	}
 
 	return string(bf), nil
@@ -144,7 +144,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 // TODO: support for 32-bit floating-point format
 func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	if len(bytes) == 0 {
-		return -1, EmptyBytes
+		return -1, errors.New("JSON Error: empty byte slice found while parsing float value")
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -166,7 +166,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	if len(exponentPart) > 0 {
 		exp, err := strconv.Atoi(string(exponentPart))
 		if err != nil {
-			return -1, InvalidExponents
+			return -1, errors.New("JSON Error: invalid exponent value found while parsing float value")
 		}
 		exp10 += exp
 	}
@@ -182,7 +182,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 
 func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	if len(bytes) == 0 {
-		return 0, EmptyBytes
+		return 0, errors.New("JSON Error: empty byte slice found while parsing integer value")
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -190,18 +190,18 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 	var n uint64 = 0
 	for _, c := range bytes {
 		if notDigit(c) {
-			return 0, newJSONError(NotNumber, "non-digit characters found while parsing integer value")
+			return 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
 		}
 
 		if n > maxUint64/10 {
-			return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
+			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
 		}
 
 		n *= 10
 
 		n1 := n + uint64(c-'0')
 		if n1 < n {
-			return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
+			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
 		}
 
 		n = n1
@@ -212,7 +212,7 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 			return -absMinInt64, nil
 		}
 
-		return 0, newJSONError(Overflow, "numeric value exceeds the range limit")
+		return 0, errors.New("JSON Error: numeric value exceeds the range limit")
 	}
 
 	if neg {
@@ -237,20 +237,20 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	for _, c := range bytes {
 		if c == '.' {
 			if decimalFound {
-				return 0, 0, MultipleDecimalPoints
+				return 0, 0, errors.New("JSON Error: multiple decimal points found while parsing float value")
 			}
 			decimalFound = true
 			continue
 		}
 
 		if notDigit(c) {
-			return 0, 0, newJSONError(NotNumber, "non-digit characters found while parsing integer value")
+			return 0, 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
 		}
 
 		digit := uint64(c - '0')
 
 		if man > (maxUint64-digit)/10 {
-			return 0, 0, newJSONError(Overflow, "numeric value exceeds the range limit")
+			return 0, 0, errors.New("JSON Error: numeric value exceeds the range limit")
 		}
 
 		man = man*10 + digit
@@ -269,7 +269,7 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 // an integer representing the end offset, and an error if any.
 func getTypeFromByteSlice(data []byte, offset int) ([]byte, ValueType, int, error) {
 	if len(data) == 0 {
-		return nil, Unknown, offset, errors.New("JSON Error: JSON data not provided.")
+		return nil, Unknown, offset, errors.New("JSON Error: empty byte slice found while parsing value")
 	}
 
 	dataType, endOffset, err := ParseValue(data, offset)
@@ -350,6 +350,7 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 	if end == -1 {
 		return Unknown, offset, errors.New("JSON Error: malformed value found while parsing primitive value")
 	}
+
 	value := data[offset : offset+end]
 
 	switch data[offset] {
@@ -357,12 +358,16 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		if _b, err := ParseBoolLiteral(value); err != nil {
 			return Unknown, offset, err
 		}
+
 		return Boolean, offset + end, nil
+
 	case 'n':
 		if bytes.Equal(value, nullLiteral) {
 			return Null, offset + end, nil
 		}
-		return Unknown, offset, newJSONError(InvalidNull, "Invalid null value found while parsing null value") 
+
+		return Unknown, offset, errors.New("JSON Error: invalid null value found while parsing null value")
+
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 		if !bytes.ContainsAny(value, ".eE") {
 			if _i, err := ParseIntLiteral(value); err != nil {
@@ -377,6 +382,5 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 		return Number, offset + end, nil
 	}
 
-	// return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
-	return Unknown, offset, newJSONError(UnknownValueType, "unknown value type found while parsing primitive value")
+	return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
 }

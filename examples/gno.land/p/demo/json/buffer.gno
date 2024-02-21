@@ -1,6 +1,7 @@
 package json
 
 import (
+	"errors"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -31,7 +32,7 @@ func NewBuffer(data []byte) *buffer {
 // current returns the byte of the current index.
 func (b *buffer) current() (byte, error) {
 	if b.index >= b.length {
-		return 0, newJSONError(EofError, "EOF")
+		return 0, errors.New("EOF")
 	}
 
 	return b.data[b.index], nil
@@ -54,7 +55,7 @@ func (b *buffer) move(pos uint) error {
 	newIndex := b.index + pos
 
 	if newIndex > b.length {
-		return newJSONError(EofError, "EOF")
+		return errors.New("EOF")
 	}
 
 	b.index = newIndex
@@ -67,7 +68,7 @@ func (b *buffer) slice(pos uint) ([]byte, error) {
 	end := b.index + pos
 
 	if end > b.length {
-		return nil, newJSONError(EofError, "EOF")
+		return nil, errors.New("EOF")
 	}
 
 	return b.data[b.index:end], nil
@@ -96,7 +97,7 @@ func (b *buffer) skip(bs byte) error {
 		b.index++
 	}
 
-	return newJSONError(EofError, "EOF")
+	return errors.New("EOF")
 }
 
 // skipAny moves the index until it encounters one of the given set of bytes.
@@ -115,8 +116,7 @@ func (b *buffer) skipAny(endTokens map[byte]bool) error {
         tokens = append(tokens, string(token))
     }
 
-	return newJSONError(
-		EofError,
+	return errors.New(
 		ufmt.Sprintf(
 			"EOF reached before encountering one of the expected tokens: %s",
 			strings.Join(tokens, ", "),
@@ -138,7 +138,7 @@ func (b *buffer) skipUntil(endTokens map[byte]bool) (uint, error) {
     for b.index < b.length {
         currentByte, err := b.current()
         if err != nil {
-            return b.index, newJSONError(EofError, "Reached end of buffer without finding token")
+			return b.index, err
         }
 
         // Check if the current byte is in the set of end tokens.
@@ -149,7 +149,7 @@ func (b *buffer) skipUntil(endTokens map[byte]bool) (uint, error) {
         b.index++
     }
 
-    return b.index, newJSONError(EofError, "End of file reached before token found")
+    return b.index, errors.New("EOF")
 }
 
 
@@ -188,7 +188,7 @@ func (b *buffer) backslash() bool {
 
 	count := 0
 	for i := b.index - 1; ; i-- {
-        if i >= b.length || b.data[i] != '\\' {
+        if i >= b.length || b.data[i] != BackSlashToken {
             break
         }
 
@@ -202,7 +202,168 @@ func (b *buffer) backslash() bool {
 	return count%2 != 0
 }
 
-// reset initializes the state of the buffer.
 func (b *buffer) reset() {
 	b.last = GO
+}
+
+func (b *buffer) numeric(token bool) error {
+	if token {
+		b.last = GO
+	}
+
+	for _; b.index < b.length; b.index++ {
+		b.class = b.getClasses(DoublyQuoteToken)
+		if b.class == __ {
+			return errors.New("invalid token found while parsing path")
+		}
+
+		b.state = StateTransitionTable[b.last][b.class]
+		if b.state == __ {
+			if token {
+				break
+			}
+
+			return errors.New("invalid token found while parsing path")
+		}
+
+		if b.state < __ {
+			return nil
+		}
+
+		if b.state < MI || b.state > E3 {
+			return nil
+		}
+
+		b.last = b.state
+	}
+
+	// zero, integer, fraction, exponent
+	if b.last != ZE && b.last != IN && b.last != FR && b.last != E3 {
+		return errors.New("invalid token found while parsing path")
+	}
+
+	return nil
+}
+
+func (b *buffer) getClasses(c byte) Classes {
+	if b.data[b.index] >= 128 {
+		return C_ETC
+	}
+
+	if c == QuoteToken {
+		return QuoteAsciiClasses[b.data[b.index]]
+	}
+
+	return AsciiClasses[b.data[b.index]]
+}
+
+func (b *buffer) getState() States {
+	b.last = b.state
+
+	b.class = b.getClasses(DoublyQuoteToken)
+	if b.class == __ {
+		return __
+	}
+
+	b.state = StateTransitionTable[b.last][b.class]
+
+	return b.state
+}
+
+func (b *buffer) pathToken() error {
+	var (
+		c      byte
+		stack  []byte
+		first  = b.index
+		start  int
+		inToken bool = false
+		inNumber bool = false
+	)
+
+tokenLoop:
+	for ; b.index < b.length; b.index++ {
+		c = b.data[b.index]
+
+		switch {
+		case c == DoublyQuoteToken || c == QuoteToken:
+			inToken = true
+			if err := b.step(); err != nil {
+				return errors.New("error stepping through buffer")
+			}
+
+			err := b.skip(c)
+			if err != nil {
+				return errors.New("unmatched quote in path")
+			}
+
+			if b.index >= b.length {
+				return errors.New("unmatched quote in path")
+			}
+
+		case c == SquareOpenToken || c == RoundOpenToken:
+			inToken = true
+			stack = append(stack, c)
+
+		case c == SquareCloseToken || c == RoundCloseToken:
+			inToken = true
+			if len(stack) == 0 || (c == SquareCloseToken && stack[len(stack)-1] != SquareOpenToken) || (c == RoundCloseToken && stack[len(stack)-1] != RoundOpenToken) {
+				return errors.New("mismatched bracket or parenthesis")
+			}
+			stack = stack[:len(stack)-1]
+
+		case c == DotToken || c == DollarToken || c == AtToken || c == AesteriskToken || ('A' <= c && c <= 'z') || ('0' <= c && c <= '9'):
+			inToken = true
+			// do nothing
+
+		case c == PlusToken || c == MinusToken:
+            if inNumber || (b.index > 0 && (b.data[b.index-1] == 'e' || b.data[b.index-1] == 'E')) {
+                inToken = true
+                continue
+            } else if !inToken && (b.index+1 < b.length && isDigit(b.data[b.index+1])) {
+                inToken = true
+                inNumber = true
+                continue
+            } else if !inToken {
+                return errors.New("unexpected operator at start of token")
+            }
+
+		case c == AndToken || c == OrToken || c == CommaToken:
+			if !inToken {
+				return errors.New(
+					ufmt.Sprintf(
+						"unexpected operator at start of token: %s",
+						string(c),
+					),
+				)
+			}
+
+			// End token parsing after an operator if not within brackets.
+			if len(stack) == 0 {
+				break tokenLoop
+			}
+
+		default:
+			if len(stack) != 0 || inToken {
+				// Continue parsing within brackets or if a token has been started.
+				inToken = true
+				continue
+			}
+
+			break tokenLoop
+		}
+	}
+
+	if len(stack) != 0 {
+		return errors.New("unclosed bracket or parenthesis at end of path")
+	}
+
+	if first == b.index {
+		return errors.New("no token found")
+	}
+
+	if inNumber && !isDigit(c) && c != '.' && c != 'e' && c != 'E' {
+		inNumber = false
+	}
+
+	return nil
 }

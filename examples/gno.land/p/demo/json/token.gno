@@ -5,6 +5,8 @@ const (
 	SquareCloseToken    = ']'
 	CurlyOpenToken      = '{'
 	CurlyCloseToken     = '}'
+	RoundOpenToken      = '('
+	RoundCloseToken     = ')'
 	CommaToken          = ','
 	DotToken            = '.'
 	ColonToken          = ':'
@@ -28,6 +30,8 @@ const (
 	UnderScoreToken     = '_'
 	DollarToken         = '$'
 	AtToken             = '@'
+	AndToken			= '&'
+	OrToken				= '|'
 )
 
 const (

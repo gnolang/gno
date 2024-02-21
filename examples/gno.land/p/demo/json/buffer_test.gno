@@ -381,3 +381,142 @@ func TestSliceFromIndices(t *testing.T) {
         })
     }
 }
+
+func TestBufferToken(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		index uint
+		isErr bool
+	}{
+		{
+			name: "Simple valid path",
+			path: "@.length",
+			index: 8,
+			isErr: false,
+		},
+		{
+			name: "Path with array expr",
+			path: "@['foo'].0.bar",
+			index: 14,
+			isErr: false,
+		},
+		{
+			name: "Path with array expr and simple fomula",
+			path: "@['foo'].[(@.length - 1)].*",
+			index: 27,
+			isErr: false,
+		},
+		{
+			name: "Path with filter expr",
+			path: "@['foo'].[?(@.bar == 1 & @.baz < @.length)].*",
+			index: 45,
+			isErr: false,
+		},
+		{
+			name: "addition of foo and bar",
+			path: "@.foo+@.bar",
+			index: 11,
+			isErr: false,
+		},
+		{
+			name: "logical AND of foo and bar",
+			path: "@.foo & @.bar",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "accessing third element of foo",
+			path: "@.foo,3",
+			index: 5,
+			isErr: false,
+		},
+		{
+			name: "accessing last element of array",
+			path: "@.length-1",
+			index: 10,
+			isErr: false,
+		},
+		{
+			name: "number 1",
+			path: "1",
+			index: 1,
+			isErr: false,
+		},
+		{
+			name: "float",
+			path: "3.1e4",
+			index: 5,
+			isErr: false,
+		},
+		{
+			name: "float with minus",
+			path: "3.1e-4",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "float with plus",
+			path: "3.1e+4",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "negative number",
+			path: "-12345",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "negative float",
+			path: "-3.1e4",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "negative float with minus",
+			path: "-3.1e-4",
+			index: 7,
+			isErr: false,
+		},
+		{
+			name: "negative float with plus",
+			path: "-3.1e+4",
+			index: 7,
+			isErr: false,
+		},
+		{
+			name: "string number",
+			path: "'12345'",
+			index: 7,
+			isErr: false,
+		},
+		{
+			name: "string with backslash",
+			path: "'foo \\'bar '",
+			index: 12,
+			isErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := NewBuffer([]byte(tt.path))
+
+			err := buf.pathToken()
+			if tt.isErr {
+                if err == nil {
+                    t.Errorf("Expected an error for path %s, but got none", tt.path)
+                }
+            }
+
+			if err == nil && tt.isErr {
+				t.Errorf("Expected an error for path %s, but got none", tt.path)
+			}
+
+            if buf.index != tt.index {
+                t.Errorf("Expected final index %d, got %d (token: %s) for path %s", tt.index, buf.index, string(buf.data[buf.index]), tt.path)
+            }
+		})
+	}
+}

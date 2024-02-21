@@ -32,19 +32,18 @@ func unescape(input, output []byte) ([]byte, error) {
 	inputLen := len(input)
 	if cap(output) < inputLen {
 		output = make([]byte, inputLen)
-	} else {
-		// if the capacity is sufficient, slice the output to the length of the input.
-		output = output[:inputLen]
 	}
 
+	output = output[:inputLen]
 	copy(output, input[:firstBackslash])
+
 	input = input[firstBackslash:]
 	buf := output[firstBackslash:]
 
 	for len(input) > 0 {
 		inLen, bufLen := processEscapedUTF8(input, buf)
 		if inLen == -1 {
-			return nil, errors.New("JSON Error: Encountered an invalid escape sequence in a string.")
+			return nil, errors.New("Invalid escape sequence in a string")
 		}
 
 		input = input[inLen:] // the number of bytes consumed in the input
@@ -55,7 +54,6 @@ func unescape(input, output []byte) ([]byte, error) {
 		if nextBackslash == -1 {
 			copy(buf, input)
 			buf = buf[len(input):]
-
 			break
 		}
 

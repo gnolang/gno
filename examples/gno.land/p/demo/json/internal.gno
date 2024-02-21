@@ -6,8 +6,8 @@ package json
 // Go implementation is taken from: https://github.com/spyzhov/ajson/blob/master/internal/state.go
 
 type (
-	States  int8
-	Classes int8
+	States  int8		// possible states of the parser
+	Classes int8		// JSON string character types
 )
 
 const __ = -1
@@ -140,7 +140,8 @@ const (
 	N3               /* null     */
 )
 
-// List of action codes
+// List of action codes.
+// these constants are defining an action that should be performed under certain conditions.
 const (
 	cl States = -2 /* colon           */
 	cm States = -3 /* comma           */
