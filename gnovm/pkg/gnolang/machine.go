@@ -1865,7 +1865,6 @@ func (m *Machine) LastCallFrameSafe(n int) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		fr.Popped = true
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			m.Frames = m.Frames[:i+1]
