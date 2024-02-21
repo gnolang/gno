@@ -968,20 +968,29 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			var (
-				exception   TypedValue
-				deleteIndex int
-				ok          bool
-			)
-
-			if exception, deleteIndex, ok = m.GetRecoveryException(); !ok {
+			if len(m.Exceptions) == 0 {
 				m.PushValue(TypedValue{})
 				return
 			}
 
-			m.PushValue(exception)
-			// The remaining exceptions are removed
-			m.Exceptions = m.Exceptions[:deleteIndex]
+			numExceptions := len(m.Exceptions)
+			if m.PanicScope <= m.DeferPanicScope {
+				m.PushValue(TypedValue{})
+				return
+			}
+
+			exceptionFrame := m.ExceptionFrames[numExceptions-1]
+			if !exceptionFrame.Popped {
+				if frame := m.LastCallFrameSafe(2); frame != nil && frame != m.ExceptionFrames[numExceptions-1] {
+					m.PushValue(TypedValue{})
+					return
+				}
+			}
+
+			m.PushValue(*m.Exceptions[numExceptions-1])
+			// This exception is removed.
+			m.Exceptions = nil
+			m.ExceptionFrames = nil
 		},
 	)
 	return uverseNode

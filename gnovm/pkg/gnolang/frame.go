@@ -27,8 +27,7 @@ type Frame struct {
 	LastPackage *PackageValue // previous package context
 	LastRealm   *Realm        // previous realm context
 
-	MachineExceptionsIdx int
-	DeferInProgress      bool
+	Popped bool // true if frame has been popped
 }
 
 func (fr Frame) String() string {
@@ -73,7 +72,6 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	if len(fr.Defers) > 0 {
 		ok = true
 		res = fr.Defers[len(fr.Defers)-1]
-		fr.DeferInProgress = true
 		fr.Defers = fr.Defers[:len(fr.Defers)-1]
 	}
 	return
@@ -83,9 +81,10 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	GoFunc *NativeValue // go function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func       *FuncValue   // function value
+	GoFunc     *NativeValue // go function value
+	Args       []TypedValue // arguments
+	Source     *DeferStmt   // source
+	Parent     *Block
+	PanicScope uint
 }

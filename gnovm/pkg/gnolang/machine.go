@@ -21,20 +21,21 @@ import (
 
 type Machine struct {
 	// State
-	Ops        []Op // main operations
-	NumOps     int
-	Values     []TypedValue  // buffer of values to be operated on
-	NumValues  int           // number of values
-	Exprs      []Expr        // pending expressions
-	Stmts      []Stmt        // pending statements
-	Blocks     []*Block      // block (scope) stack
-	Frames     []Frame       // func call stack
-	Package    *PackageValue // active package
-	Realm      *Realm        // active realm
-	Alloc      *Allocator    // memory allocations
-	Exceptions []*TypedValue // if panic'd unless recovered
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles
+	Ops             []Op // main operations
+	NumOps          int
+	Values          []TypedValue  // buffer of values to be operated on
+	NumValues       int           // number of values
+	Exprs           []Expr        // pending expressions
+	Stmts           []Stmt        // pending statements
+	Blocks          []*Block      // block (scope) stack
+	Frames          []*Frame      // func call stack
+	Package         *PackageValue // active package
+	Realm           *Realm        // active realm
+	Alloc           *Allocator    // memory allocations
+	Exceptions      []*TypedValue // if panic'd unless recovered
+	ExceptionFrames []*Frame      // if panic'd unless recovered
+	NumResults      int           // number of results returned
+	Cycles          int64         // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -44,6 +45,9 @@ type Machine struct {
 	Output  io.Writer
 	Store   Store
 	Context interface{}
+
+	PanicScope      uint
+	DeferPanicScope uint
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -1425,6 +1429,11 @@ func (m *Machine) PushOp(op Op) {
 		copy(newOps, m.Ops)
 		m.Ops = newOps
 	}
+
+	// if op == OpReturnCallDefers || op == OpDefer {
+	// 	m.DeferDepth++
+	// }
+
 	m.Ops[m.NumOps] = op
 	m.NumOps++
 }
@@ -1642,7 +1651,7 @@ func (m *Machine) LastBlock() *Block {
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
 	label := s.GetLabel()
-	fr := Frame{
+	fr := &Frame{
 		Label:     label,
 		Source:    s,
 		NumOps:    m.NumOps,
@@ -1661,22 +1670,21 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	fr := Frame{
-		Source:               cx,
-		NumOps:               m.NumOps,
-		NumValues:            m.NumValues - cx.NumArgs - 1,
-		NumExprs:             len(m.Exprs),
-		NumStmts:             len(m.Stmts),
-		NumBlocks:            len(m.Blocks),
-		Func:                 fv,
-		GoFunc:               nil,
-		Receiver:             recv,
-		NumArgs:              cx.NumArgs,
-		IsVarg:               cx.Varg,
-		Defers:               nil,
-		LastPackage:          m.Package,
-		LastRealm:            m.Realm,
-		MachineExceptionsIdx: len(m.Exceptions),
+	fr := &Frame{
+		Source:      cx,
+		NumOps:      m.NumOps,
+		NumValues:   m.NumValues - cx.NumArgs - 1,
+		NumExprs:    len(m.Exprs),
+		NumStmts:    len(m.Stmts),
+		NumBlocks:   len(m.Blocks),
+		Func:        fv,
+		GoFunc:      nil,
+		Receiver:    recv,
+		NumArgs:     cx.NumArgs,
+		IsVarg:      cx.Varg,
+		Defers:      nil,
+		LastPackage: m.Package,
+		LastRealm:   m.Realm,
 	}
 	if debug {
 		if m.Package == nil {
@@ -1699,22 +1707,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := Frame{
-		Source:               cx,
-		NumOps:               m.NumOps,
-		NumValues:            m.NumValues - cx.NumArgs - 1,
-		NumExprs:             len(m.Exprs),
-		NumStmts:             len(m.Stmts),
-		NumBlocks:            len(m.Blocks),
-		Func:                 nil,
-		GoFunc:               fv,
-		Receiver:             TypedValue{},
-		NumArgs:              cx.NumArgs,
-		IsVarg:               cx.Varg,
-		Defers:               nil,
-		LastPackage:          m.Package,
-		LastRealm:            m.Realm,
-		MachineExceptionsIdx: len(m.Exceptions),
+	fr := &Frame{
+		Source:      cx,
+		NumOps:      m.NumOps,
+		NumValues:   m.NumValues - cx.NumArgs - 1,
+		NumExprs:    len(m.Exprs),
+		NumStmts:    len(m.Stmts),
+		NumBlocks:   len(m.Blocks),
+		Func:        nil,
+		GoFunc:      fv,
+		Receiver:    TypedValue{},
+		NumArgs:     cx.NumArgs,
+		IsVarg:      cx.Varg,
+		Defers:      nil,
+		LastPackage: m.Package,
+		LastRealm:   m.Realm,
 	}
 	if debug {
 		m.Printf("+F %#v\n", fr)
@@ -1726,15 +1733,17 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
+	f.Popped = true
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
-	return f
+	return *f
 }
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
+	fr.Popped = true
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues
 	m.Exprs = m.Exprs[:fr.NumExprs]
@@ -1746,6 +1755,7 @@ func (m *Machine) PopFrameAndReset() {
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
+	fr.Popped = true
 	if debug {
 		// TODO: optimize with fr.IsCall
 		if fr.Func == nil && fr.GoFunc == nil {
@@ -1801,7 +1811,7 @@ func (m *Machine) NumFrames() int {
 }
 
 func (m *Machine) LastFrame() *Frame {
-	return &m.Frames[len(m.Frames)-1]
+	return m.Frames[len(m.Frames)-1]
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
@@ -1812,7 +1822,7 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 		panic("n must be positive")
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
+		fr := m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			if n == 1 {
@@ -1825,41 +1835,30 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 	panic("frame not found")
 }
 
-func (m *Machine) GetRecoveryException() (TypedValue, int, bool) {
-	if len(m.Exceptions) == 0 {
-		return TypedValue{}, 0, false
+func (m *Machine) LastCallFrameSafe(n int) *Frame {
+	if n == 0 {
+		panic("n must be positive")
 	}
-
-	// Get the first call frame. This should be for the call to recover(). If there is a defer in progress,
-	// then that means this recover was deferred directly and there is no need to search for the
-	// calling frame.
-	callFrame := m.LastCallFrame(1)
-	if callFrame.DeferInProgress {
-		var idx int
-		if idx = callFrame.MachineExceptionsIdx; idx >= len(m.Exceptions) {
-			return TypedValue{}, callFrame.MachineExceptionsIdx, false
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := m.Frames[i]
+		if fr.Func != nil || fr.GoFunc != nil {
+			// TODO: optimize with fr.IsCall
+			if n == 1 {
+				return fr
+			} else {
+				n-- // continue
+			}
 		}
-		return *m.Exceptions[len(m.Exceptions)-1], idx, true
 	}
-
-	// Not in the first frame, so check the second.
-	callFrame = m.LastCallFrame(2)
-	if callFrame.DeferInProgress {
-		var idx int
-		if idx = callFrame.MachineExceptionsIdx; idx >= len(m.Exceptions) {
-			return TypedValue{}, callFrame.MachineExceptionsIdx, false
-		}
-		return *m.Exceptions[len(m.Exceptions)-1], idx, true
-	}
-
-	return TypedValue{}, 0, false
+	return nil
 }
 
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
+		fr := m.Frames[i]
+		fr.Popped = true
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			m.Frames = m.Frames[:i+1]
@@ -1959,6 +1958,8 @@ func (m *Machine) CheckEmpty() error {
 
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(m.Exceptions, &ex)
+	m.ExceptionFrames = append(m.ExceptionFrames, m.LastCallFrame(1))
+	m.PanicScope++
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
