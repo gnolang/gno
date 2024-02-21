@@ -180,7 +180,7 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	cfr := m.PopUntilLastCallFrame()
+	cfr := m.PopUntilLastCallFrame(true)
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
 	// e.g. with independent Machine instances per realm for example, or
@@ -212,7 +212,7 @@ func (m *Machine) doOpReturn() {
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
-	cfr := m.PopUntilLastCallFrame()
+	cfr := m.PopUntilLastCallFrame(true)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
@@ -420,7 +420,7 @@ func (m *Machine) doOpPanic2() {
 		m.PanicScope = 0
 	} else {
 		// Keep panicking
-		last := m.PopUntilLastCallFrame()
+		last := m.PopUntilLastCallFrame(true)
 		if last == nil {
 			// Build exception string just as go, separated by \n\t.
 			exs := make([]string, len(m.Exceptions))

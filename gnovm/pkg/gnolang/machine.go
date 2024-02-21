@@ -1823,26 +1823,16 @@ func (m *Machine) LastFrame() *Frame {
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
 func (m *Machine) LastCallFrame(n int) *Frame {
-	if n == 0 {
-		panic("n must be positive")
-	}
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
-			if n == 1 {
-				return fr
-			} else {
-				n-- // continue
-			}
-		}
-	}
-	panic("frame not found")
+	return m.lastCallFrame(n, false)
 }
 
 // LastCallFrameSafe behaves the same as LastCallFrame, but rather than panicking,
 // returns nil if the frame is not found.
 func (m *Machine) LastCallFrameSafe(n int) *Frame {
+	return m.lastCallFrame(n, true)
+}
+
+func (m *Machine) lastCallFrame(n int, safe bool) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
@@ -1857,12 +1847,17 @@ func (m *Machine) LastCallFrameSafe(n int) *Frame {
 			}
 		}
 	}
+
+	if !safe {
+		panic("frame not found")
+	}
+
 	return nil
 }
 
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
-func (m *Machine) PopUntilLastCallFrame() *Frame {
+func (m *Machine) PopUntilLastCallFrame(safe bool) *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
@@ -1870,7 +1865,22 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
+
+		fr.Popped = true
 	}
+
+	// The frame wasn't found. If not in safe mode, panic to avoid any potential
+	// nil pointer dereferences.
+	if !safe {
+		panic("no last call frame found")
+	}
+
+	// In safe mode we return nil and no frames are popped, so update the frames' popped flag.
+	// This is expected to happen infrequently.
+	for _, frame := range m.Frames {
+		frame.Popped = false
+	}
+
 	return nil
 }
 
@@ -1966,7 +1976,7 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(m.Exceptions, &ex)
 	m.ExceptionFrames = append(m.ExceptionFrames, m.LastCallFrame(1))
 	m.PanicScope++
-	m.PopUntilLastCallFrame()
+	m.PopUntilLastCallFrame(false)
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
