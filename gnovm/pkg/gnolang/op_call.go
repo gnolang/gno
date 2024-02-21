@@ -264,7 +264,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
-		m.DeferPanicScope--
+		m.DeferPanicScope = 0
 		m.ForcePopOp()
 		if len(m.Exceptions) > 0 {
 			// In a state of panic (not return).
@@ -417,7 +417,7 @@ func (m *Machine) doOpPanic2() {
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
 		m.PushOp(OpReturnCallDefers)
-		m.PanicScope--
+		m.PanicScope = 0
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
