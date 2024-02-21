@@ -100,7 +100,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
-	// guess root dir
+	// Guess root dir
 	gnoroot := gnoenv.RootDir()
 
 	// Check and Parse packages
@@ -176,7 +176,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	}
 	defer watcher.Stop()
 
-	// add node pkgs to watcher
+	// Add node pkgs to watcher
 	watcher.AddPackages(devNode.ListPkgs()...)
 
 	// GnoDev should be ready, run event loop
@@ -265,7 +265,7 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 
 	if cfg.noWatch {
-		// noop watcher, wait until context has been cancel
+		// Noop watcher, wait until context has been cancel
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -311,7 +311,7 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 		return nil, nil, err
 	}
 
-	// correctly format output for terminal
+	// Correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
 	return rt, restore, nil
 }
