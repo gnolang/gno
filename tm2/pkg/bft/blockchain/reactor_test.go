@@ -1,12 +1,11 @@
 package blockchain
 
 import (
+	"log/slog"
 	"os"
 	"sort"
 	"testing"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 

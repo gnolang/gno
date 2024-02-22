@@ -2076,11 +2076,12 @@ const (
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
 
+var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
+
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
 func validatePkgName(name string) {
-	if nameOK, _ := regexp.MatchString(
-		`^[a-z][a-z0-9_]+$`, name); !nameOK {
+	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
 }

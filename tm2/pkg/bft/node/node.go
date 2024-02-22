@@ -5,13 +5,12 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
-	_ "net/http/pprof" //nolint:gosec
 	"strings"
+	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
@@ -168,6 +167,7 @@ type Node struct {
 	rpcListeners      []net.Listener       // rpc servers
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
+	firstBlockSignal  <-chan struct{}
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -439,6 +439,20 @@ func NewNode(config *cfg.Config,
 	// but before it indexed the txs, or, endblocker panicked)
 	evsw := events.NewEventSwitch()
 
+	// Signal readiness when receiving the first block.
+	const readinessListenerID = "first_block_listener"
+
+	cFirstBlock := make(chan struct{})
+	var once sync.Once
+	evsw.AddListener(readinessListenerID, func(ev events.Event) {
+		if _, ok := ev.(types.EventNewBlock); ok {
+			once.Do(func() {
+				close(cFirstBlock)
+				evsw.RemoveListener(readinessListenerID)
+			})
+		}
+	})
+
 	// Transaction event storing
 	eventStoreService, txEventStore, err := createAndStartEventStoreService(config, evsw, logger)
 	if err != nil {
@@ -554,6 +568,7 @@ func NewNode(config *cfg.Config,
 		proxyApp:          proxyApp,
 		txEventStore:      txEventStore,
 		eventStoreService: eventStoreService,
+		firstBlockSignal:  cFirstBlock,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -651,6 +666,11 @@ func (n *Node) OnStop() {
 	if pvsc, ok := n.privValidator.(service.Service); ok {
 		pvsc.Stop()
 	}
+}
+
+// Ready signals that the node is ready by returning a blocking channel. This channel is closed when the node receives its first block.
+func (n *Node) Ready() <-chan struct{} {
+	return n.firstBlockSignal
 }
 
 // ConfigureRPC sets all variables in rpccore so they will serve
