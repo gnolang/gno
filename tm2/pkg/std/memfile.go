@@ -43,7 +43,7 @@ const rePathPart = `[a-z][a-z0-9_]*`
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
-	reFileName     = regexp.MustCompile(`^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`)
+	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
 // path must not contain any dots after the first domain component.
