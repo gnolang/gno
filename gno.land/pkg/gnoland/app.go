@@ -2,6 +2,7 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -25,13 +26,13 @@ type AppOptions struct {
 	// It serves as the gno equivalent of GOROOT.
 	GnoRootDir            string
 	SkipFailingGenesisTxs bool
-	Logger                log.Logger
+	Logger                *slog.Logger
 	MaxCycles             int64
 }
 
 func NewAppOptions() *AppOptions {
 	return &AppOptions{
-		Logger:     log.NewNopLogger(),
+		Logger:     log.NewNoopLogger(),
 		DB:         dbm.NewMemDB(),
 		GnoRootDir: gnoenv.RootDir(),
 	}
@@ -118,7 +119,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
@@ -153,15 +154,15 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		for i, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
-				ctx.Logger().Error("LOG", res.Log)
-				ctx.Logger().Error("#", i, string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Error("LOG", "log", res.Log)
+				ctx.Logger().Error(fmt.Sprintf("#%d", i), "value", string(amino.MustMarshalJSON(tx)))
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
 					panic(res.Log)
 				}
 			} else {
-				ctx.Logger().Info("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Info("SUCCESS:", "value", string(amino.MustMarshalJSON(tx)))
 			}
 		}
 		// Done!

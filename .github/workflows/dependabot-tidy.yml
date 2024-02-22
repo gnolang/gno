@@ -18,23 +18,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Tidy all Go mods
+        env:
+          VERIFY_MOD_SUMS: false
         run: |
-          set -e
-          # Find all go.mod files
-          gomods=$(find . -type f -name go.mod)
+          # Ensure Make is installed
+          make --version
           
-          # Tidy each go.mod file
-          for modfile in $gomods; do
-            dir=$(dirname "$modfile")
-          
-            # Run go mod tidy in the directory
-            (cd "$dir" && go mod tidy -v) || exit 1
-          done
+          # Run the tidy target
+          make tidy
 
       - name: Commit changes, if any
         uses: stefanzweifel/git-auto-commit-action@v5

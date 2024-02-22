@@ -58,22 +58,24 @@ func lastBlogposts(limit int) ui.Element {
 
 func lastContributions(limit int) ui.Element {
 	return ui.Element{
-		ui.H3("Last Contributions"),
-		ui.Text("TODO: import r/gh"),
-		ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+		ui.H3("Latest Contributions"),
+		// TODO: import r/gh
+		// ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+		ui.Text("coming soon"),
 	}
 }
 
 func upcomingEvents(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Upcoming Events"),
-		ui.Text("TODO: import r/gnoland/events"),
+		// TODO: import r/gnoland/events
+		ui.Text("coming soon"),
 	}
 }
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
+		ui.H3("An interpretation of the Go (Golang) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
 		ui.Paragraph("If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how."),
 		ui.Paragraph("Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today."),
 	}
@@ -107,7 +109,8 @@ func worxDAO() ui.Element {
 	``*/
 	return ui.Element{
 		ui.H3("Contributions (WorxDAO & GoR)"),
-		ui.Text(`TODO: GoR dashboard + WorxDAO topics`),
+		// TODO: GoR dashboard + WorxDAO topics
+		ui.Text(`coming soon`),
 	}
 }
 
@@ -220,12 +223,12 @@ func discoverLinks() ui.Element {
 
 <div class="column">
 
-### Build with Gnolang
+### Build with Gno
 
 - [Gno dev with CLI (soon)](#)
 - [Explore the Universe](/ecosystem)
 - [Test in the browser (soon)](#)
-- [About the Gnolang Language](/gnolang)
+- [About the Gno Language](/gnolang)
 - [Docs/ Tutorials](https://github.com/gnolang)
 - [Gno by example](https://gno-by-example.com/)
 - [Getting started video (soon)](#)

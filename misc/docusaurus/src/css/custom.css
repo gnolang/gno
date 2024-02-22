@@ -118,7 +118,8 @@ body nav[class*="navbarHidden"] {
   }
 }
 
-.theme-doc-markdown {
+.theme-doc-markdown,
+.theme-doc-footer {
   max-width: var(--content-max-w, 700px);
 }
 
@@ -330,4 +331,13 @@ a.footer__link-item > svg {
 
 .gno-footer__copy {
   font-size: 0.8em;
+}
+
+.gno-header__copy {
+  font-size: 1em;
+}
+@media (min-width: 997px) {
+  .gno-header__copy {
+    font-size: 0.8em;
+  }
 }

@@ -38,33 +38,28 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const (
-	reDomainPart   = `gno\.land`
-	rePathPart     = `[a-z][a-z0-9_]*`
-	rePkgName      = `^[a-z][a-z0-9_]*$`
-	rePkgPath      = reDomainPart + `/p/` + rePathPart + `(/` + rePathPart + `)*`
-	reRlmPath      = reDomainPart + `/r/` + rePathPart + `(/` + rePathPart + `)*`
-	rePkgOrRlmPath = `^(` + rePkgPath + `|` + reRlmPath + `)$`
-	reFileName     = `^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`
+const rePathPart = `[a-z][a-z0-9_]*`
+
+var (
+	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
+	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
-	ok, _ := regexp.MatchString(rePkgName, mempkg.Name)
-	if !ok {
-		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
+	if !rePkgName.MatchString(mempkg.Name) {
+		return errors.New(fmt.Sprintf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName))
 	}
-	ok, _ = regexp.MatchString(rePkgOrRlmPath, mempkg.Path)
-	if !ok {
-		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
+	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
+		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
 	}
 	fnames := map[string]struct{}{}
 	for _, memfile := range mempkg.Files {
-		ok, _ := regexp.MatchString(reFileName, memfile.Name)
-		if !ok {
-			return errors.New(fmt.Sprintf("invalid file name %q", memfile.Name))
+		if !reFileName.MatchString(memfile.Name) {
+			return errors.New(fmt.Sprintf("invalid file name %q, failed to match %q", memfile.Name, reFileName))
 		}
 		if _, exists := fnames[memfile.Name]; exists {
 			return errors.New(fmt.Sprintf("duplicate file name %q", memfile.Name))

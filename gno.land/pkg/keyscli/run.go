@@ -114,7 +114,8 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		panic(err)
 	}
 	memPkg.Name = "main"
-	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
+	// Set to empty; this will be automatically set by the VM keeper.
+	memPkg.Path = ""
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
