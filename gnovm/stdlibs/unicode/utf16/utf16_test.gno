@@ -7,6 +7,7 @@ package utf16
 import (
 	"testing"
 	"unicode"
+	"unicode/utf16"
 )
 
 // Validate the constants redefined from unicode.

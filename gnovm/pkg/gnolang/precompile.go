@@ -57,6 +57,7 @@ var stdlibWhitelist = []string{
 	"strings",
 	"text/template",
 	"time",
+	"unicode",
 	"unicode/utf8",
 	"unicode/utf16",
 

@@ -280,8 +280,8 @@ func getTypeFromByteSlice(data []byte, offset int) ([]byte, ValueType, int, erro
 	return data[offset:endOffset], dataType, endOffset, nil
 }
 
-// getTypeFromValue check the type of the given value and returns the corresponding ValueType.
-func getTypeFromValue(v interface{}) ValueType {
+// typeOf check the type of the given value and returns the corresponding ValueType.
+func typeOf(v interface{}) ValueType {
 	switch v.(type) {
 	case string:
 		return String

@@ -172,7 +172,7 @@ func TestUnescape(t *testing.T) {
 		{"SingleEscape", []byte("hello\\nworld"), []byte("hello\nworld")},
 		{"MultipleEscapes", []byte("line1\\nline2\\r\\nline3"), []byte("line1\nline2\r\nline3")},
 		{"UnicodeEscape", []byte("snowman:\\u2603"), []byte("snowman:\u2603")},
-		{"Complex", []byte("test\\n\\u2603\\r\\nend"), []byte("test\n\u2603\r\nend")},
+		{"Complex", []byte("tc\\n\\u2603\\r\\nend"), []byte("tc\n\u2603\r\nend")},
 	}
 
 	for _, tc := range testCases {
@@ -182,5 +182,36 @@ func TestUnescape(t *testing.T) {
 				t.Errorf("unescape(%q) = %q; want %q", tc.input, output, tc.expected)
 			}
 		})
+	}
+}
+
+func TestUnquoteBytes(t *testing.T) {
+	tests := []struct {
+		input []byte
+		border byte
+		expected []byte
+		ok bool
+	}{
+		{[]byte("\"hello\""), '"', []byte("hello"), true},
+        {[]byte("'hello'"), '\'', []byte("hello"), true},
+        {[]byte("\"hello"), '"', nil, false},
+        {[]byte("hello\""), '"', nil, false},
+        {[]byte("\"he\\\"llo\""), '"', []byte("he\"llo"), true},
+        {[]byte("\"he\\nllo\""), '"', []byte("he\nllo"), true},
+        {[]byte("\"\""), '"', []byte(""), true},
+        {[]byte("''"), '\'', []byte(""), true},
+        {[]byte("\"\\u0041\""), '"', []byte("A"), true},
+	}
+
+	for _, tc := range tests {
+		result, err := unquoteBytes(tc.input, tc.border)
+
+		if tc.ok != (err == nil) {
+			t.Errorf("unquoteBytes(%q) = %q; want %q", tc.input, result, tc.expected)
+		}
+
+		if !bytes.Equal(result, tc.expected) {
+			t.Errorf("unquoteBytes(%q) = %q; want %q", tc.input, result, tc.expected)
+		}
 	}
 }

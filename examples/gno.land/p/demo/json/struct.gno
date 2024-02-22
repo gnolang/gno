@@ -353,7 +353,7 @@ func (s *Struct) Update(name string, newVal interface{}) error {
 	}
 
 	// type assertion
-	newValType := getTypeFromValue(newVal)
+	newValType := typeOf(newVal)
 	if f.typ != newValType {
 		return errors.New(
 			ufmt.Sprintf("json.Update: Field type mismatch. Expected %s, got %s",
