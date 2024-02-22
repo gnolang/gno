@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/transpiler"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func isGnoFile(f fs.DirEntry) bool {

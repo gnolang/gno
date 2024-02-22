@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/transpiler"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
