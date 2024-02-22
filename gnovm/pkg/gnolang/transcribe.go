@@ -281,10 +281,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		// identify closure patterns
-		ns := cnn.GetExternNames()
-		debug.Printf("---transcribe, externs: %v \n", ns)
-		//printStack()
 	case *FieldTypeExpr:
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
 		if isStopOrSkip(nc, c) {
@@ -398,6 +394,13 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *BranchStmt:
+		//cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
+		//if isStopOrSkip(nc, c2) {
+		//	nn = cnn2
+		//	return
+		//} else {
+		//	cnn = cnn2.(*BranchStmt)
+		//}
 	case *DeclStmt:
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)

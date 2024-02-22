@@ -494,8 +494,10 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type              FuncTypeExpr // function type
+	Body                           // function body
+	RefLoopBlockNodes []BlockNode
+	RefIndices        []int
 }
 
 // The preprocessor replaces const expressions

@@ -44,18 +44,23 @@ SelectStmt ->
 */
 
 func updateCapturedValue(m *Machine, lb *Block) {
-	debug.Println("---updateCapturedValue")
-	//if lb.GetBodyStmt().isLoop { // do we need this?
-	//lb.bodyStmt = lb.Source.GetStaticBlock().bodyStmt
+	debug.Println("---op_exec, updateCapturedValue")
 	bs := lb.GetBodyStmt()
-	//bs := lb.Source.GetStaticBlock().GetBodyStmt()
+
+	debug.Printf("---op_exec, lvBox: %v \n", bs.LoopValuesBox)
+
+	//if bs.LoopValuesBox != nil {
+	//	debug.Printf("---op_exec, lvBox.isFilled: %v \n", bs.LoopValuesBox.isFilled)
+	//	debug.Printf("---op_exec, lvBox.isTainted: %v \n", bs.LoopValuesBox.isTainted)
+	//}
+
 	if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
 		var isSealed bool
 		for i, tt := range bs.LoopValuesBox.transient {
 			nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
 			ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
 			tv := ptr.Deref()
-			debug.Printf("---transient value is: %v \n", tv)
+			debug.Printf("---transient value for %s is: %v \n", tt.nx.Name, tv)
 			// update context use previously recorded value
 			// inner loops iterates twice while outer loop iterates once.
 			// it's an alignment for the values of out loop block.
@@ -67,11 +72,11 @@ func updateCapturedValue(m *Machine, lb *Block) {
 			isSealed = true
 		}
 		if isSealed {
+			debug.Printf("---seal for: %v \n", bs.LoopValuesBox)
 			bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox for closure execution.
 		}
 		debug.Printf("---lvBox after updateValue is: %v \n", bs.LoopValuesBox)
 	}
-	//}
 }
 
 //----------------------------------------
@@ -148,6 +153,7 @@ func (m *Machine) doOpExec(op Op) {
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// exiting loop
+			debug.Printf("---exiting for loop of bs: %v \n", lb.bodyStmt)
 			updateCapturedValue(m, lb)
 			// (queue to) go back.
 			if bs.Cond != nil {

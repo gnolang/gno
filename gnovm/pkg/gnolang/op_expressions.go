@@ -677,115 +677,40 @@ func (m *Machine) doOpStructLit() {
 	})
 }
 
-// TODO: migrate loopdata from sb(BlockNode) to b(*Block)
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
 	debug.Printf("---doOpFuncLit, x: %v \n", x)
 	debug.Printf("---doOpFuncLit, get label: %v, getLine: %d \n", x.GetLabel(), x.GetLine())
 
 	lb := m.LastBlock()
-	debug.Printf("---doOpFuncLit, lb.Source.sb.bs.lvBox: %v \n", lb.Source.GetStaticBlock().bodyStmt.LoopValuesBox)
 
-	var lvBox *LoopValuesBox      // container per block to store transient values for captured vars
 	var loopData []*LoopBlockData // for fv to track all transient values
+	//var refLoopBlocks []*Block
+	var lvBox *LoopValuesBox // container per block to store transient values for captured vars
+	for index, refBn := range x.RefLoopBlockNodes {
+		debug.Printf("---refBn: %v \n", refBn)
+		// find counterpart block of refBn
+		lvBox = refBn.GetStaticBlock().bodyStmt.LoopValuesBox
+		targetRealBlock := m.GetBlockAt(x.RefIndices[index] - 1)
+		debug.Printf("---targetBlock: %v \n", targetRealBlock)
+		debug.Printf("---doOpFuncLit, lvBox: %v \n", lvBox)
 
-	lvBox = lb.Source.GetStaticBlock().bodyStmt.LoopValuesBox
-	// copy to block
-	lb.bodyStmt.LoopValuesBox = lvBox
+		if lvBox != nil && lvBox.isFilled {
+			debug.Println("---copy to real block")
+			// copy to block
+			targetRealBlock.bodyStmt.LoopValuesBox = lvBox
 
-	for _, tst := range lvBox.transient {
-		tst.cursor++ // increase cursor of every nameExpr
+			for _, tst := range lvBox.transient {
+				tst.cursor++ // increase cursor of every nameExpr
+				debug.Println("---cursor: ", tst.cursor)
+			}
+
+			lvBox.isSealed = false // reset every time
+			// each fv may have n outer loopBlock, reference them all
+			loopData = append(loopData, &LoopBlockData{index: lvBox.transient[0].cursor, loopValuesBox: lvBox})
+		}
+		//refLoopBlocks = append(refLoopBlocks, targetRealBlock)
 	}
-
-	// each fv may have n outer loopBlock, reference them all
-	loopData = append(loopData, &LoopBlockData{index: lvBox.transient[0].cursor, loopValuesBox: lvBox})
-
-	//captures := make([]*NameExpr, 0)
-	//for _, n := range x.GetExternNames() {
-	//	vp := x.GetPathForName(m.Store, n)
-	//	if vp.Depth == 0 { // skip uverse name
-	//		continue
-	//	}
-	//	vp.Depth -= 1 // from the perspective of funcLit block
-	//	nx := &NameExpr{
-	//		Name: n,
-	//		Path: vp,
-	//	}
-	//	captures = append(captures, nx)
-	//}
-	//
-	//// sort it so to traverse block in order from inner to outer
-	//sortDepth := func(i, j int) bool {
-	//	return int(captures[i].Path.Depth) < int(captures[j].Path.Depth)
-	//}
-	//sort.Slice(captures, sortDepth)
-	//
-	//var (
-	//	isLoopBlock  bool
-	//	loopBlock    *Block         // e.g. a `for` block that is  outside of funcLit block
-	//	lvBox        *LoopValuesBox // container per block to store transient values for captured vars
-	//	lastGen, gen uint8
-	//	isReuse      bool
-	//	loopData     []*LoopBlockData // for fv to track all transient values
-	//)
-	//
-	//// when iterating goes on, funcValue will yield several replicas, each of which should capture a slice of
-	//// transient values for a nameExpr.
-	//// e.g. `for i:=0, i++; i<2{ x := i }`, the transient values for x should be [0 ,1], this is recorded and
-	//// used when the funcLit is executed, namely, closure.
-	//// more complex situation like:
-	//// for i:=0, i++; i<2{ x := i for j:=0, j++; j<2{y := j}},
-	//// in this case, there will be 4 replica of fv, and 3 loopBlock.
-	//// the transient state of x, y is: [0,0], [0,1], [1,0], [1,1].
-	//// the outer block will hold transient values of [0,0,1,1] for `x`, and inner block 1 will hold [0,1] for `y`,
-	//// another inner block 2 holds [0,1] for y too.
-	//for _, nx := range captures {
-	//	// start search block, in the order of small depth to big depth
-	//	loopBlock, isLoopBlock, gen = findLoopBlockWithPath(m.Store, lb, nx, x.GetLine())
-	//	debug.Printf("nx name: %v, nx path: %v, isLoopBlock: %t \n", nx.Name, nx.Path, isLoopBlock)
-	//	debug.Printf("loopBlock: %v \n", loopBlock)
-	//	if lastGen == 0 {
-	//		lastGen = gen
-	//	} else if gen != lastGen { // if enter new level of block, pack last box
-	//		lastGen = gen
-	//		if lvBox != nil && !isReuse { // has something to pack
-	//			lvBox.isFilled = true
-	//			loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
-	//		}
-	//	}
-	//	if isLoopBlock {
-	//		// every loopBlock holds a loopValuesBox that contains a slice of transient value generated as the iterations goes on.
-	//		// funcValue references this loopValuesBox for future use(when closure executing)
-	//		lvBox = loopBlock.GetBodyStmt().LoopValuesBox // get LoopValuesBox from specific block, that is shared across current level of for/range loop
-	//		if lvBox == nil {
-	//			lvBox = &LoopValuesBox{} // init
-	//		}
-	//		if !lvBox.isFilled { // for replicas of fv, the captured names are same, so fill only once for further reuse.
-	//			debug.Printf("---fill nx: %v \n", nx)
-	//			tst := &Transient{
-	//				nx:     nx,
-	//				cursor: 0, // inc every iteration, implies sequence of a fv, and index of transient values.
-	//			}
-	//			lvBox.transient = append(lvBox.transient, tst)
-	//			// record in loop block
-	//			loopBlock.GetBodyStmt().LoopValuesBox = lvBox
-	//		} else { // reuse last replica's. (in same block).
-	//			isReuse = true
-	//			// get cursor by name
-	//			debug.Printf("reuse by else loop in same block, nx.Name: %s \n", nx.Name)
-	//			debug.Printf("index of x is: %d \n", lvBox.getIndexByName(nx.Name))
-	//			lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor++ // inc by iteration
-	//			// each fv may have n outer loopBlock, reference them all
-	//			loopData = append(loopData, &LoopBlockData{index: lvBox.transient[lvBox.getIndexByName(nx.Name)].cursor, loopValuesBox: lvBox})
-	//		}
-	//	}
-	//}
-
-	//// set as a deferred operation
-	//if lvBox != nil && !lvBox.isFilled && !isReuse {
-	//	lvBox.isFilled = true // set for the last LoopValuesBox of last loopBlock
-	//	loopData = append(loopData, &LoopBlockData{index: 0, loopValuesBox: lvBox})
-	//}
 
 	if debug {
 		for i, ts := range loopData {

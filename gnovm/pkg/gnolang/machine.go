@@ -1649,6 +1649,13 @@ func (m *Machine) LastBlock() *Block {
 	return m.Blocks[len(m.Blocks)-1]
 }
 
+func (m *Machine) GetBlockAt(index int) *Block {
+	if index > len(m.Blocks)-1 {
+		panic("no block at this index, should not happen")
+	}
+	return m.Blocks[len(m.Blocks)-1-index]
+}
+
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
 	label := s.GetLabel()
