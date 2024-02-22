@@ -165,7 +165,6 @@ gnokey maketx addpkg \
     -deposit="1ugnot" \
     -gas-fee="1ugnot" \
     -gas-wanted="5000000" \
-    -pkgpath={Registered Realm path} \
     -pkgdir={Package folder path} \
     {ADDRESS} \
     > unsigned.tx
@@ -185,7 +184,6 @@ gnokey maketx addpkg \
 
 | Name      | Type   | Description                           |
 | --------- | ------ | ------------------------------------- |
-| `pkgpath` | String | The package path (required).          |
 | `pkgdir`  | String | The path to package files (required). |
 | `deposit` | String | The amount of coins to send.          |
 
@@ -199,7 +197,6 @@ This subcommand lets you call a public function.
 gnokey maketx call \
     -gas-fee="1ugnot" \
     -gas-wanted="5000000" \
-    -pkgpath="gno.land/r/demo/users" \
     -send="200000000ugnot" \
     -func="Register" \
     -args="" \

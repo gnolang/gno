@@ -34,7 +34,6 @@ We would like to deploy the realm found in `counter.gno`. To do this, open a ter
 
 ```bash
 gnokey maketx addpkg \
---pkgpath "gno.land/r/demo/counter" \
 --pkgdir "./r/counter" \
 --gas-fee 10000000ugnot \
 --gas-wanted 800000 \
@@ -45,7 +44,6 @@ MyKey
 ```
 
 Let's analyze all of the flags in detail:
-- `--pkgpath` - path where the package/realm will be placed on-chain
 - `--pkgdir` - local path where the package/realm is located
 - `--gas-wanted` - the upper limit for units of gas for the execution of the transaction - similar to Solidity's gas limit
 - `--gas-fee` - similar to Solidity's gas-price
