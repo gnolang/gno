@@ -36,9 +36,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	config := getConfig(t)
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
-	defer func() {
-		err = app.Close()
-	}()
+	defer app.Close()
 
 	logger := log.NewNoopLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
@@ -69,18 +67,14 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	if err := proxyApp.Start(); err != nil {
 		return errors.Wrap(err, "failed to start proxy app connections")
 	}
-	defer func() {
-		err = proxyApp.Stop()
-	}()
+	defer proxyApp.Stop()
 
 	evsw := events.NewEventSwitch()
 	evsw.SetLogger(logger.With("module", "events"))
 	if err := evsw.Start(); err != nil {
 		return errors.Wrap(err, "failed to start event bus")
 	}
-	defer func() {
-		err = evsw.Stop()
-	}()
+	defer evsw.Stop()
 	mempool := mock.Mempool{}
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
@@ -98,12 +92,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	// See wal.go OnStart().
 	// Since we separate the WALWriter from the WAL, we need to
 	// initialize ourself.
-	err = wal.WriteMetaSync(walm.MetaMessage{Height: 1})
-
-	if err != nil {
-		return errors.Wrap(err, "WALGenerateNBlocks: failed to write meta message")
-	}
-
+	wal.WriteMetaSync(walm.MetaMessage{Height: 1})
 	consensusState.wal = wal
 
 	if err := consensusState.Start(); err != nil {
@@ -112,13 +101,11 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 
 	select {
 	case <-numBlocksWritten:
-		return consensusState.Stop()
+		consensusState.Stop()
+		return nil
 	case <-time.After(2 * time.Minute):
-		tErr := fmt.Errorf("waited too long for tendermint to produce %d blocks (grep logs for `wal_generator`)", numBlocks)
-		if err := consensusState.Stop(); err != nil {
-			return errors.Wrap(tErr, err.Error())
-		}
-		return tErr
+		consensusState.Stop()
+		return fmt.Errorf("waited too long for tendermint to produce %d blocks (grep logs for `wal_generator`)", numBlocks)
 	}
 }
 
@@ -133,8 +120,8 @@ func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
 		return []byte{}, err
 	}
 
-	err = wr.Flush()
-	return b.Bytes(), err
+	wr.Flush()
+	return b.Bytes(), nil
 }
 
 func randPort() int {
@@ -230,7 +217,8 @@ func (w *heightStopWAL) WriteMetaSync(m walm.MetaMessage) error {
 
 	// After processing is successful, commit to underlying store.  This must
 	// come last.
-	return w.enc.WriteMeta(m)
+	w.enc.WriteMeta(m)
+	return nil
 }
 
 func (w *heightStopWAL) FlushAndSync() error { return nil }
