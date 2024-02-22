@@ -183,10 +183,6 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 			if strings.HasSuffix(path, modFile.Module.Mod.Path) {
 				continue
 			}
-			// skip if `std`, special case.
-			if path == transpiler.GnoStdPkgAfter {
-				continue
-			}
 
 			if strings.HasPrefix(path, transpiler.ImportPrefix) {
 				path = strings.TrimPrefix(path, transpiler.ImportPrefix+"/examples/")

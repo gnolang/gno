@@ -1511,14 +1511,14 @@ func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
-// realmPathPrefix is the prefix used to identify pkgpaths which are meant to
+// RealmPathPrefix is the prefix used to identify pkgpaths which are meant to
 // be realms and as such to have their state persisted. This is used by [IsRealmPath].
-const realmPathPrefix = "gno.land/r/"
+const RealmPathPrefix = "gno.land/r/"
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	return strings.HasPrefix(pkgPath, realmPathPrefix)
+	return strings.HasPrefix(pkgPath, RealmPathPrefix)
 }
 
 func prettyJSON(jstr []byte) []byte {

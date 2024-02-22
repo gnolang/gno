@@ -28,7 +28,7 @@ git clone https://github.com/gnolang/gno.git
 ## 2. Installing the `gno` development toolkit
 
 Next, we are going to build and install the `gno` development toolkit.
-`gno` provides ample functionality to the user, among which is running, precompiling, testing and building `.gno` files.
+`gno` provides ample functionality to the user, among which is running, transpiling, testing and building `.gno` files.
 
 To install the toolkit, navigate to the `gnovm` folder from the repository root, and run the `build` make directive:
 

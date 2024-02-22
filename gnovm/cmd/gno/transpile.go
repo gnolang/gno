@@ -212,7 +212,7 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	}
 
 	// compute attributes based on filename.
-	targetFilename, tags := transpiler.GetTranspileFilenameAndTags(srcPath)
+	targetFilename, tags := transpiler.TranspiledFilenameAndTags(srcPath)
 
 	// preprocess.
 	transpileRes, err := transpiler.Transpile(string(source), tags, srcPath)
@@ -240,7 +240,7 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 
 	// check .go fmt, if `SkipFmt` sets to false.
 	if !flags.skipFmt {
-		err = transpiler.TranspileVerifyFile(targetPath, gofmt)
+		err = transpiler.StaticCheck([]byte(transpileRes.Translated))
 		if err != nil {
 			return fmt.Errorf("check .go file: %w", err)
 		}

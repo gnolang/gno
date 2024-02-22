@@ -19,8 +19,8 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -318,7 +318,7 @@ func gnoTestPkg(
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
-				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
