@@ -421,14 +421,20 @@ func TestBufferToken(t *testing.T) {
 		},
 		{
 			name: "logical AND of foo and bar",
-			path: "@.foo & @.bar",
-			index: 6,
+			path: "@.foo && @.bar",
+			index: 14,
+			isErr: false,
+		},
+		{
+			name: "logical OR of foo and bar",
+			path: "@.foo || @.bar",
+			index: 14,
 			isErr: false,
 		},
 		{
 			name: "accessing third element of foo",
 			path: "@.foo,3",
-			index: 5,
+			index: 7,
 			isErr: false,
 		},
 		{
@@ -497,6 +503,60 @@ func TestBufferToken(t *testing.T) {
 			index: 12,
 			isErr: false,
 		},
+		{
+			name: "string with inner double quotes",
+			path: "'foo \"bar \"'",
+			index: 12,
+			isErr: false,
+		},
+		{
+			name: "parenthesis 1",
+			path: "(@abc)",
+			index: 6,
+			isErr: false,
+		},
+		{
+			name: "parenthesis 2",
+			path: "[()]",
+			index: 4,
+			isErr: false,
+		},
+		{
+			name: "parenthesis mismatch",
+			path: "[(])",
+			index: 2,
+			isErr: true,
+		},
+		{
+			name: "parenthesis mismatch 2",
+			path: "(",
+			index: 1,
+			isErr: true,
+		},
+		{
+			name: "parenthesis mismatch 3",
+			path: "())]",
+			index: 2,
+			isErr: true,
+		},
+		{
+			name: "bracket mismatch",
+			path: "[()",
+			index: 3,
+			isErr: true,
+		},
+		{
+			name: "bracket mismatch 2",
+			path: "()]",
+			index: 2,
+			isErr: true,
+		},
+		{
+			name: "path does not close bracket",
+			path: "@.foo[)",
+			index: 6,
+			isErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -506,16 +566,16 @@ func TestBufferToken(t *testing.T) {
 			err := buf.pathToken()
 			if tt.isErr {
                 if err == nil {
-                    t.Errorf("Expected an error for path %s, but got none", tt.path)
+                    t.Errorf("Expected an error for path `%s`, but got none", tt.path)
                 }
             }
 
 			if err == nil && tt.isErr {
-				t.Errorf("Expected an error for path %s, but got none", tt.path)
+				t.Errorf("Expected an error for path `%s`, but got none", tt.path)
 			}
 
             if buf.index != tt.index {
-                t.Errorf("Expected final index %d, got %d (token: %s) for path %s", tt.index, buf.index, string(buf.data[buf.index]), tt.path)
+                t.Errorf("Expected final index %d, got %d (token: `%s`) for path `%s`", tt.index, buf.index, string(buf.data[buf.index]), tt.path)
             }
 		})
 	}

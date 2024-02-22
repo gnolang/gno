@@ -3,10 +3,10 @@ package json
 const (
 	SquareOpenToken     = '['
 	SquareCloseToken    = ']'
-	CurlyOpenToken      = '{'
-	CurlyCloseToken     = '}'
 	RoundOpenToken      = '('
 	RoundCloseToken     = ')'
+	CurlyOpenToken      = '{'
+	CurlyCloseToken     = '}'
 	CommaToken          = ','
 	DotToken            = '.'
 	ColonToken          = ':'

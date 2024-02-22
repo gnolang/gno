@@ -4,10 +4,6 @@ func notDigit(c byte) bool {
 	return (c & 0xF0) != 0x30
 }
 
-func isDigit(c byte) bool {
-    return '0' <= c && c <= '9'
-}
-
 // lower converts a byte to lower case if it is an uppercase letter.
 //
 // In ASCII, the lowercase letters have the 6th bit set to 1, which is not set in their uppercase counterparts.
