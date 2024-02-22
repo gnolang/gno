@@ -1,11 +1,11 @@
-# Run gno precompile with -gobuild flag
+# Run gno transpile with -gobuild flag
 
-! gno precompile -gobuild .
+! gno transpile -gobuild .
 
 ! stdout .+
 stderr '^./main.gno:4:6: x declared and not used$'
 stderr '^./main.gno:5:6: y declared and not used$'
-stderr '^2 precompile error\(s\)$'
+stderr '^2 transpile error\(s\)$'
 
 cmp main.gno.gen.go main.gno.gen.go.golden
 cmp sub/sub.gno.gen.go sub/sub.gno.gen.go.golden

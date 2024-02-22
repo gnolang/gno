@@ -1,11 +1,11 @@
-# Run gno precompile with gno files with whitelist errors
+# Run gno transpile with gno files with whitelist errors
 
-! gno precompile .
+! gno transpile .
 
 ! stdout .+
 stderr '^main.gno:5:2: import "xxx" is not in the whitelist$'
 stderr '^sub/sub.gno:3:8: import "xxx" is not in the whitelist$'
-stderr '^2 precompile error\(s\)$'
+stderr '^2 transpile error\(s\)$'
 
 # no *.gen.go files are created
 ! exec test -f main.gno.gen.go

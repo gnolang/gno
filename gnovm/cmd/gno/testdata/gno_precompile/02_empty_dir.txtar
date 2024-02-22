@@ -1,6 +1,6 @@
-# Run gno precompile on an empty dir
+# Run gno transpile on an empty dir
 
-gno precompile .
+gno transpile .
 
 ! stdout .+
 ! stderr .+

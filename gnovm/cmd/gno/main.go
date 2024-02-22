@@ -28,7 +28,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newTestCmd(io),
 		newLintCmd(io),
 		newRunCmd(io),
-		newPrecompileCmd(io),
+		newTranspileCmd(io),
 		newCleanCmd(io),
 		newReplCmd(),
 		newDocCmd(io),

@@ -1,6 +1,6 @@
-# Run gno precompile with -gobuild flag
+# Run gno transpile with -gobuild flag
 
-gno precompile -gobuild .
+gno transpile -gobuild .
 
 ! stdout .+
 ! stderr .+

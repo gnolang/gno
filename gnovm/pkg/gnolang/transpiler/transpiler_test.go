@@ -1,4 +1,4 @@
-package gnolang
+package transpiler
 
 import (
 	"go/ast"
@@ -11,7 +11,7 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
-func TestPrecompile(t *testing.T) {
+func TestTranspile(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -196,7 +196,7 @@ import "reflect"
 
 func foo() { _ = reflect.ValueOf }
 `,
-			expectedError: `precompileAST: foo.gno:3:8: import "reflect" is not in the whitelist`,
+			expectedError: `transpileAST: foo.gno:3:8: import "reflect" is not in the whitelist`,
 		},
 		{
 			name: "syntax-error",
@@ -268,7 +268,7 @@ func foo() { _ = regexp.MatchString }
 			// "\n" is added for better test case readability, now trim it
 			source := strings.TrimPrefix(c.source, "\n")
 
-			res, err := Precompile(source, c.tags, "foo.gno")
+			res, err := Transpile(source, c.tags, "foo.gno")
 
 			if c.expectedError != "" {
 				require.EqualError(t, err, c.expectedError)

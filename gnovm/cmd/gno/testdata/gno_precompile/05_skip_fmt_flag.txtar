@@ -1,8 +1,8 @@
-# Run gno precompile with -skip-fmt flag
+# Run gno transpile with -skip-fmt flag
 # NOTE(tb): this flag doesn't actually prevent the code format, because
-# `gnolang.Precompile()` calls `format.Node()`.
+# `gnolang.Transpile()` calls `format.Node()`.
 
-gno precompile -skip-fmt .
+gno transpile -skip-fmt .
 
 ! stdout .+
 ! stderr .+

@@ -2,7 +2,7 @@ package gnoclient
 
 import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -208,10 +208,10 @@ func (c *Client) Run(cfg RunCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 
 	caller := c.Signer.Info().GetAddress()
 
-	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
+	// transpile and validate syntax
+	err = transpiler.TranspileAndCheckMempkg(memPkg)
 	if err != nil {
-		return nil, errors.Wrap(err, "precompile and check")
+		return nil, errors.Wrap(err, "transpile and check")
 	}
 	memPkg.Name = "main"
 	memPkg.Path = ""

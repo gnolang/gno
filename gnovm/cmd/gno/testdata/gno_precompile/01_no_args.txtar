@@ -1,6 +1,6 @@
-# Run gno precompile without args
+# Run gno transpile without args
 
-! gno precompile
+! gno transpile
 
-! stdout .+ 
+! stdout .+
 stderr 'USAGE'

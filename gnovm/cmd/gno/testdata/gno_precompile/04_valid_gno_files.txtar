@@ -1,6 +1,6 @@
-# Run gno precompile with valid gno files
+# Run gno transpile with valid gno files
 
-gno precompile .
+gno transpile .
 
 ! stdout .+
 ! stderr .+
