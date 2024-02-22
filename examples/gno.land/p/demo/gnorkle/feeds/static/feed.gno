@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"bytes"
 
-	"gno.land/p/demo/gnorkle/v1/feed"
-	"gno.land/p/demo/gnorkle/v1/gnorkle"
-	"gno.land/p/demo/gnorkle/v1/ingesters/single"
-	"gno.land/p/demo/gnorkle/v1/message"
-	"gno.land/p/demo/gnorkle/v1/storage/simple"
+	"gno.land/p/demo/gnorkle/feed"
+	"gno.land/p/demo/gnorkle/gnorkle"
+	"gno.land/p/demo/gnorkle/ingesters/single"
+	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/gnorkle/storage/simple"
 	"gno.land/p/demo/ufmt"
 )
 

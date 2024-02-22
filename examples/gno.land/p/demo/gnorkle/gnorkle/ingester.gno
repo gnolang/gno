@@ -1,6 +1,6 @@
 package gnorkle
 
-import "gno.land/p/demo/gnorkle/v1/ingester"
+import "gno.land/p/demo/gnorkle/ingester"
 
 // Ingester is the abstraction that allows a `Feed` to ingest data from agents
 // and commit it to storage using zero or more intermediate aggregation steps.

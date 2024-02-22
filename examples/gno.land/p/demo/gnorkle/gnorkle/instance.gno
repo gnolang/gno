@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/gnorkle/v1/agent"
-	"gno.land/p/demo/gnorkle/v1/feed"
-	"gno.land/p/demo/gnorkle/v1/message"
+	"gno.land/p/demo/gnorkle/agent"
+	"gno.land/p/demo/gnorkle/feed"
+	"gno.land/p/demo/gnorkle/message"
 )
 
 // Instance is a single instance of an oracle.

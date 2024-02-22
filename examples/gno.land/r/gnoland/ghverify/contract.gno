@@ -4,10 +4,10 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/gnorkle/v1/feed"
-	"gno.land/p/demo/gnorkle/v1/feeds/static"
-	"gno.land/p/demo/gnorkle/v1/gnorkle"
-	"gno.land/p/demo/gnorkle/v1/message"
+	"gno.land/p/demo/gnorkle/feed"
+	"gno.land/p/demo/gnorkle/feeds/static"
+	"gno.land/p/demo/gnorkle/gnorkle"
+	"gno.land/p/demo/gnorkle/message"
 )
 
 const (
