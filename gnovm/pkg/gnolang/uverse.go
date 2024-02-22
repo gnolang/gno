@@ -974,29 +974,28 @@ func UverseNode() *PackageNode {
 			}
 
 			// If the exception is out of scope, this recover can't help; return nil.
-			numExceptions := len(m.Exceptions)
 			if m.PanicScope <= m.DeferPanicScope {
 				m.PushValue(TypedValue{})
 				return
 			}
 
+			exception := &m.Exceptions[len(m.Exceptions)-1]
+
 			// If the frame the exception ocurred in is not popped, it's possible that
 			// the exception is still in scope and can be recovered.
-			exceptionFrame := m.ExceptionFrames[numExceptions-1]
-			if !exceptionFrame.Popped {
+			if !exception.Frame.Popped {
 				// If the frame is not the current frame, the exception is not in scope; return nil.
 				// This retrieves the second most recent call frame because the first most recent
 				// is the call to recover itself.
-				if frame := m.LastCallFrameSafe(2); frame != nil && frame != m.ExceptionFrames[numExceptions-1] {
+				if frame := m.LastCallFrameSafe(2); frame != nil && frame != exception.Frame {
 					m.PushValue(TypedValue{})
 					return
 				}
 			}
 
-			m.PushValue(*m.Exceptions[numExceptions-1])
-			// This exception is removed.
+			m.PushValue(exception.Value)
+			// Recover complete; remove exceptions.
 			m.Exceptions = nil
-			m.ExceptionFrames = nil
 		},
 	)
 	return uverseNode

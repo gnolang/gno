@@ -16,6 +16,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Exception represents an panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	Frame *Frame
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
 //----------------------------------------
 // Machine
 
@@ -32,14 +45,9 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exceptions []*TypedValue // if panic'd unless recovered
-
-	// ExceptionFrames is appended to each time a panic happens. It is used to
-	// reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	ExceptionFrames []*Frame
-	NumResults      int   // number of results returned
-	Cycles          int64 // number of "cpu" cycles
+	Exceptions []Exception
+	NumResults int   // number of results returned
+	Cycles     int64 // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -1973,8 +1981,14 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	m.Exceptions = append(m.Exceptions, &ex)
-	m.ExceptionFrames = append(m.ExceptionFrames, m.LastCallFrame(1))
+	m.Exceptions = append(
+		m.Exceptions,
+		Exception{
+			Value: ex,
+			Frame: m.LastCallFrame(1),
+		},
+	)
+
 	m.PanicScope++
 	m.PopUntilLastCallFrame(false)
 	m.PushOp(OpPanic2)
