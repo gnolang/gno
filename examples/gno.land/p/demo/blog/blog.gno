@@ -300,9 +300,9 @@ func (p *Post) RenderTagList() string {
 
 // Render authors if there are any
 func (p *Post) RenderAuthorList() string {
-	out := "Written "
+	out := "Written"
 	if len(p.Authors) != 0 {
-		out += "by "
+		out += " by "
 
 		for idx, author := range p.Authors {
 			out += author
