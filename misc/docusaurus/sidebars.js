@@ -42,10 +42,22 @@ const sidebars = {
             items: [
                 'concepts/realms',
                 'concepts/packages',
-                'concepts/tendermint2',
+                {
+                    type: 'category',
+                    label: 'Standard Libraries',
+                    items: [
+                        'concepts/standard-library/overview',
+                        'concepts/standard-library/banker',
+                        'concepts/standard-library/coin',
+                        'concepts/standard-library/gnopher-hole-stdlib',
+                    ]
+                },
                 'concepts/gnovm',
-                'concepts/proof-of-contribution',
                 'concepts/gno-language',
+                'concepts/effective-gno',
+                'concepts/proof-of-contribution',
+                'concepts/tendermint2',
+                'concepts/portal-loop',
                 'concepts/gno-modules',
                 'concepts/gno-test',
                 'concepts/from-go-to-gno',
@@ -55,11 +67,11 @@ const sidebars = {
             type: 'category',
             label: 'Gno Tooling',
             items: [
-                'concepts/gno-tooling/cli/gno-tooling-gno',
-                'concepts/gno-tooling/cli/gno-tooling-gnokey',
-                'concepts/gno-tooling/cli/gno-tooling-gnofaucet',
-                'concepts/gno-tooling/cli/gno-tooling-gnoland',
-                'concepts/gno-tooling/cli/gno-tooling-tm2txsync',
+                'gno-tooling/cli/gno-tooling-gno',
+                'gno-tooling/cli/gno-tooling-gnokey',
+                'gno-tooling/cli/gno-tooling-gnodev',
+                'gno-tooling/cli/gno-tooling-gnoland',
+                'gno-tooling/cli/gno-tooling-gnofaucet',
             ]
         },
         {
@@ -67,7 +79,25 @@ const sidebars = {
             label: 'Reference',
             items: [
                 'reference/rpc-endpoints',
-                'reference/standard-library',
+                {
+                    type: 'category',
+                    label: 'Standard Libraries',
+                    items: [
+                        'reference/standard-library/overview',
+                        {
+                            type: 'category',
+                            label: 'std',
+                            items: [
+                                'reference/standard-library/std/address',
+                                'reference/standard-library/std/banker',
+                                'reference/standard-library/std/coin',
+                                'reference/standard-library/std/coins',
+                                'reference/standard-library/std/chain',
+                                'reference/standard-library/std/testing',
+                            ]
+                        }
+                    ]
+                },
                 'reference/go-gno-compatibility',
                 {
                     type: 'category',

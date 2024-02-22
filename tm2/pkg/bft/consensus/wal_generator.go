@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -39,7 +40,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		err = app.Close()
 	}()
 
-	logger := log.TestingLogger().With("wal_generator", "wal_generator")
+	logger := log.NewNoopLogger().With("wal_generator", "wal_generator")
 	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
 
 	// -----------
@@ -81,7 +82,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		err = evsw.Stop()
 	}()
 	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
 	consensusState.SetLogger(logger)
 	consensusState.SetEventSwitch(evsw)
@@ -172,13 +173,13 @@ type heightStopWAL struct {
 	heightToStop      int64
 	signalWhenStopsTo chan<- struct{}
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 // needed for determinism
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
 
-func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
+func newHeightStopWAL(logger *slog.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
 	return &heightStopWAL{
 		enc:               enc,
 		heightToStop:      nBlocks,
@@ -187,7 +188,7 @@ func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, sig
 	}
 }
 
-func (w *heightStopWAL) SetLogger(logger log.Logger) {
+func (w *heightStopWAL) SetLogger(logger *slog.Logger) {
 	w.logger = logger
 }
 

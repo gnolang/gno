@@ -22,6 +22,15 @@ const config = {
     locales: ["en"],
   },
 
+  scripts: [
+    {
+      // 100% privacy-first analytics
+      src: "https://sa.gno.services/latest.js",
+      async: true,
+      defer: true,
+    },
+  ],
+
   presets: [
     [
       "classic",
@@ -31,6 +40,8 @@ const config = {
           path: "../../docs",
           routeBasePath: "/",
           sidebarPath: require.resolve("./sidebars.js"),
+          showLastUpdateTime: true,
+          editUrl: ({ docPath }) => `https://github.com/gnolang/gno/edit/master/docs/${docPath}`,
         },
         blog: false,
         theme: {
@@ -43,20 +54,36 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: "img/og.jpg",
       navbar: {
         hideOnScroll: true,
-        title: "Gno.land",
         logo: {
           alt: "Gno.land Logo",
-          src: "img/logo.svg",
-          srcDark: "img/logo_light.svg",
+          src: "img/gnoland.svg",
+          srcDark: "img/gnoland_light.svg",
         },
         items: [
+          {
+            position: "right",
+            label: "Back to Gno.Land",
+            to: "https://gno.land",
+            className: "gno-header__copy",
+          },
           {
             type: "docSidebar",
             sidebarId: "tutorialSidebar",
             position: "left",
             label: "Docs",
+          },
+          {
+            position: "left",
+            label: "Playground",
+            to: "https://play.gno.land",
+          },
+          {
+            position: "left",
+            label: "Blog",
+            to: "https://test3.gno.land/r/gnoland/blog",
           },
           {
             href: "https://github.com/gnolang/gno",
