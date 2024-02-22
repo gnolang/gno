@@ -18,6 +18,7 @@ func InjectNativeMappings(store gno.Store) {
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coins{}), "std", "Coins")
 	store.AddGo2GnoMapping(reflect.TypeOf(std.Coin{}), "std", "Coin")
 	store.AddGo2GnoMapping(reflect.TypeOf(libsstd.Realm{}), "std", "Realm")
+	store.AddGo2GnoMapping(reflect.TypeOf(libsstd.Event{}), "std", "Event")
 }
 
 func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
