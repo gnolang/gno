@@ -105,14 +105,20 @@ func SetOwner(owner string) {
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
 func GetHandleByAddress(address string) string {
-	value, _ := addressToHandleMap.Get(address)
-	return value.(string)
+	if value, ok := addressToHandleMap.Get(address); ok {
+		return value.(string)
+	}
+
+	return ""
 }
 
 // GetAddressByHandle returns the gno address associated with the given github handle.
 func GetAddressByHandle(handle string) string {
-	value, _ := handleToAddressMap.Get(handle)
-	return value.(string)
+	if value, ok := handleToAddressMap.Get(handle); ok {
+		return value.(string)
+	}
+
+	return ""
 }
 
 // Render returns a json object string will all verified handle -> address mappings.
