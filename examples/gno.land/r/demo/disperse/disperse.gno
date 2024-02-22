@@ -5,18 +5,23 @@ import (
 )
 
 // SendSingleCoin parses receivers and amounts and sends out a single coin
-// Currently sending slices as arguments with `maketx call` is unsupported,
-// which is why we parse strings by delimiter here
-func SendSingleCoin(addresses string, coins std.Coins) {
-	coinSent := std.GetOrigSend() // get Coin value & denom sent with call
+func SendSingleCoin(addresses []std.Address, coins std.Coins) {
+	coinSent := std.GetOrigSend() // get Coins sent with call
 	caller := std.GetOrigCaller() // get tx sender
 
-	if len(coinSent) != 1 && len(coins) != 1 {
-		panic(errMultipleCoinsSent)
+	if len(coinSent) != len(coins) {
+		panic(ErrArgLenAndSentLenMismatch)
 	}
 
-	// Extract denom from Coins
-	denom := coinSent[0].Denom
+	if len(addresses) != len(coins) {
+		panic(errNumAddrValMismatch)
+	}
+
+	for _, coin := range coins {
+		if coins.AmountOf(coin.Denom) != coinSent.AmountOf(coin.Denom) {
+			panic(ErrWrongAmount)
+		}
+	}
 
 	// Get address of Disperse realm
 	realmAddr := std.CurrentRealm().Addr()
@@ -24,44 +29,23 @@ func SendSingleCoin(addresses string, coins std.Coins) {
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 
-	parsedAddresses, err := parseAddresses(addresses)
-	if err != nil {
-		panic(err)
+	// Send coins
+	for i, _ := range addresses {
+		banker.SendCoins(realmAddr, addresses[i], std.Coins{coins[i]})
 	}
 
-	parsedAmounts, err := parseAmounts(sendAmounts)
-	if err != nil {
-		panic(err)
+	// Return possible leftover coins
+	for _, coin := range coinSent {
+		leftoverAmt := banker.GetCoins(realmAddr).AmountOf(coin.Denom)
+		if leftoverAmt > 0 {
+			send := std.Coins{{coin.Denom, leftoverAmt}}
+			banker.SendCoins(realmAddr, caller, send)
+		}
 	}
+}
 
-	// Check if arg lengths are good
-	if len(parsedAddresses) != len(parsedAmounts) {
-		panic(errNumAddrValMismatch)
-	}
+func main() {
 
-	var totalToSend int64
-	for _, val := range parsedAmounts {
-		totalToSend += val
-	}
+	toSend := std.Coins{{"ugnot", 1000}}
 
-	// Check if user sent enough coin
-	// Possibly not needed, added for error clarity
-	if coinSent.AmountOf(denom) < totalToSend {
-		panic(errNotEnoughCoin)
-	}
-
-	for i, val := range parsedAmounts {
-		send := std.Coins{{denom, val}}
-		receiver := parsedAddresses[i]
-
-		// Send coin from realm to receiver address
-		banker.SendCoins(realmAddr, receiver, send)
-	}
-
-	// Return possible leftover coin
-	leftover := banker.GetCoins(realmAddr).AmountOf(denom)
-	if leftover > 0 {
-		send := std.Coins{{denom, leftover}}
-		banker.SendCoins(realmAddr, caller, send)
-	}
 }

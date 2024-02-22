@@ -1,28 +1,21 @@
 gnoland start
 
-# Query initial balances
-# Sender
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-stdout 'height: 0\ndata: "9999870000000ugnot"'
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script.gno
 
-# Recipient 1
-gnokey query bank/balances/g1x8uj9wc3wevvn3glvfallt5e5ercfcs520wy4j
-stdout 'height: 0\ndata: ""'
+-- script.gno --
+package main
 
-# Recipient 2
-gnokey query bank/balances/g1uvdmvvj76nfgjhfe69n4lwafsu7lh2m8f3ycfp
-stdout 'height: 0\ndata: ""'
+import (
+    "gno.land/r/demo/disperse"
+    "std"
+)
 
-# Make call to Disperse
-gnokey maketx call -pkgpath gno.land/r/demo/disperse -send 700ugnot -func SendSingleCoin -args g1x8uj9wc3wevvn3glvfallt5e5ercfcs520wy4j,g1uvdmvvj76nfgjhfe69n4lwafsu7lh2m8f3ycfp -args 150,500 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-
-# Query balances again
-# Recipient 1
-gnokey query bank/balances/g1x8uj9wc3wevvn3glvfallt5e5ercfcs520wy4j
-stdout 'height: 0\ndata: "150ugnot"'
-
-# Recipient 2
-gnokey query bank/balances/g1uvdmvvj76nfgjhfe69n4lwafsu7lh2m8f3ycfp
-stdout 'height: 0\ndata: "500ugnot"'
+func main() {
 
 
+
+    toSend := std.Coins{}
+
+
+
+}
