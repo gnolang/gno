@@ -50,10 +50,11 @@ The Portal Loop deployment can be found at [gno.land](https://gno.land), while
 the exposed RPC endpoints can be found on `https://rpc.gno.land:443`. The RPC endpoint
 list can be found in the [reference section](../reference/rpc-endpoints.md).
 
+### A warning note
 
 While allowing for quick iteration on the most up-to-date software, the Portal Loop
 has some drawbacks:
-- If a breaking change happens on master, transactions that used the previous version of
+- If a breaking change happens on `master`, transactions that used the previous version of
 Gno will fail to be replayed, meaning **data will be lost**. 
 - Since transactions are archived and replayed during genesis, 
 block height & timestamp cannot be relied upon.
