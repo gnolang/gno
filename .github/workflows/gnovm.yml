@@ -91,7 +91,7 @@ jobs:
 
           # Setup testing environements variables
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir=$COVERAGE_DIR" 
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir=$COVERAGE_DIR"
 
           # Run target test
           make ${{ matrix.args }}
@@ -116,6 +116,7 @@ jobs:
       COVERAGE_PROFILE: /tmp/coverage/coverage.txt
     steps:
       - run: mkdir -p $COVERAGE_DATA $COVERAGE_OUTPUT
+      - uses: actions/checkout@v4
       - name: Download all previous coverage data artifacts
         uses: actions/download-artifact@v4
         with:
