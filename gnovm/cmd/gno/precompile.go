@@ -136,8 +136,7 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	opts := newPrecompileOptions(cfg)
 	var errlist scanner.ErrorList
 	for _, filepath := range paths {
-		err := precompileFile(filepath, opts)
-		if err != nil {
+		if err := precompileFile(filepath, opts); err != nil {
 			var fileErrlist scanner.ErrorList
 			if !errors.As(err, &fileErrlist) {
 				// Not an scanner.ErrorList: return immediately.
