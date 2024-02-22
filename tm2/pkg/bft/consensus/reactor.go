@@ -242,7 +242,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			ps.ApplyHasVoteMessage(msg)
 		case *VoteSetMaj23Message:
 			cs := conR.conS
-			cs.mtx.RLock()
+			cs.mtx.RLock() // must not starve
 			height, votes := cs.Height, cs.Votes
 			cs.mtx.RUnlock()
 			if height != msg.Height {
