@@ -3,16 +3,17 @@ package std
 import (
 	"fmt"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// This has the same interface as stdlibs/std.Banker.
-// The native implementation of Banker (wrapped by any
-// wrappers for limiting functionality as necessary)
-// becomes available in Gno that implements
-// stdlibs/std.Banker.
-type Banker interface {
+// BankerInterface is the interface through which Gno is capable of accessing
+// the blockchain's banker.
+//
+// The name is what it is to avoid a collision with Gno's Banker, when
+// transpiling.
+type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
@@ -20,98 +21,63 @@ type Banker interface {
 	RemoveCoin(addr crypto.Bech32Address, denom string, amount int64)
 }
 
-// Used in std.GetBanker(options).
-// Also available as Gno in stdlibs/std/banker.gno
-type BankerType uint8
-
-// Also available as Gno in stdlibs/std/banker.gno
 const (
 	// Can only read state.
-	BankerTypeReadonly BankerType = iota
+	btReadonly uint8 = iota
 	// Can only send from tx send.
-	BankerTypeOrigSend
+	btOrigSend
 	// Can send from all realm coins.
-	BankerTypeRealmSend
+	btRealmSend
 	// Can issue and remove realm coins.
-	BankerTypeRealmIssue
+	btRealmIssue
 )
 
-//----------------------------------------
-// ReadonlyBanker
-
-type ReadonlyBanker struct {
-	banker Banker
-}
-
-func NewReadonlyBanker(banker Banker) ReadonlyBanker {
-	return ReadonlyBanker{banker}
-}
-
-func (rb ReadonlyBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return rb.banker.GetCoins(addr)
-}
-
-func (rb ReadonlyBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
-	panic("ReadonlyBanker cannot send coins")
-}
-
-func (rb ReadonlyBanker) TotalCoin(denom string) int64 {
-	return rb.banker.TotalCoin(denom)
-}
-
-func (rb ReadonlyBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
-	panic("ReadonlyBanker cannot issue coins")
-}
-
-func (rb ReadonlyBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {
-	panic("ReadonlyBanker cannot remove coins")
-}
-
-//----------------------------------------
-// OrigSendBanker
-
-type OrigSendBanker struct {
-	banker        Banker
-	pkgAddr       crypto.Bech32Address
-	origSend      std.Coins
-	origSendSpent *std.Coins
-}
-
-func NewOrigSendBanker(banker Banker, pkgAddr crypto.Bech32Address, origSend std.Coins, origSendSpent *std.Coins) OrigSendBanker {
-	if origSendSpent == nil {
-		panic("origSendSpent cannot be nil")
+func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
+	coins := m.Context.(ExecContext).Banker.GetCoins(crypto.Bech32Address())
+	denoms = make([]string, len(coins))
+	amounts = make([]string, len(coins))
+	for i, coin := range coins {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amounts
 	}
-	return OrigSendBanker{
-		banker:        banker,
-		pkgAddr:       pkgAddr,
-		origSend:      origSend,
-		origSendSpent: origSendSpent,
+	return denoms, amounts
+}
+
+// TODO: LEAVING IT HERE FOR NOW (22/02/24 21:02)
+// - Make all the X_banker functions work as they should
+// - Remove the identifier mapping logic from genstd.
+// - Possibly move all std types to std/types. This avoids any clashes with gno precompilation.
+// - Make precompilation understand that bodyless function -> native function.
+// - Add whether the *gno.Machine parameter is present to the native function data.
+// When you get back on track for the transpiler:
+// - Make StaticCheck work
+// - Add a way to recursively precompile dependencies
+// - Work until gno transpile --gobuild can create fully buildable go code!
+
+func X_bankerSendCoins(m *gno.Machine, bt uint8, from, to string, denoms []string, amounts []int64) {
+	// bt != BankerTypeReadonly (checked in gno)
+	if bt == btOrigSend {
+		if from != osb.pkgAddr {
+			panic(fmt.Sprintf(
+				"OrigSendBanker can only send from the realm package address %q, but got %q",
+				osb.pkgAddr, from))
+		}
+		spent := (*osb.origSendSpent).Add(amt)
+		if !osb.origSend.IsAllGTE(spent) {
+			panic(fmt.Sprintf(
+				`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
+				amt, osb.origSend, *osb.origSendSpent))
+		}
+		osb.banker.SendCoins(from, to, amt)
+		*osb.origSendSpent = spent
 	}
 }
 
-func (osb OrigSendBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
-	return osb.banker.GetCoins(addr)
+func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
+	return m.Context.(ExecContext).Banker.TotalCoin(denom)
 }
-
-func (osb OrigSendBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
-	if from != osb.pkgAddr {
-		panic(fmt.Sprintf(
-			"OrigSendBanker can only send from the realm package address %q, but got %q",
-			osb.pkgAddr, from))
-	}
-	spent := (*osb.origSendSpent).Add(amt)
-	if !osb.origSend.IsAllGTE(spent) {
-		panic(fmt.Sprintf(
-			`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
-			amt, osb.origSend, *osb.origSendSpent))
-	}
-	osb.banker.SendCoins(from, to, amt)
-	*osb.origSendSpent = spent
-}
-
-func (osb OrigSendBanker) TotalCoin(denom string) int64 {
-	return osb.banker.TotalCoin(denom)
-}
+func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount string)
+func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount string)
 
 func (osb OrigSendBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {
 	panic("OrigSendBanker cannot issue coins")
