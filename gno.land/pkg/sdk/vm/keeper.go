@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -208,6 +209,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
+
 	// Get the package and function type.
 	pv := store.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
@@ -217,16 +219,55 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
-	// Parse expression.
+
+	fmt.Println("request", string(msg.JSONRequest))
+
+	// Request
+	capitalize := func(str string) string {
+		runes := []rune(str)
+		runes[0] = unicode.ToUpper(runes[0])
+		return string(runes)
+	}
+
+	// Iterate through params
+	requestParam := &gno.StructType{}
+	// define gno type
+	requestNF := len(ft.Params)
+	requestFS := make([]gno.FieldType, requestNF)
+	for i, param := range ft.Params {
+		name := gno.Name(capitalize(string(param.Name)))
+		if name == "" {
+			name = gno.Name(fmt.Sprintf("Args%d", i))
+		}
+
+		fmt.Println(name)
+		requestFS[i] = gno.FieldType{
+			Name: name,
+			Type: param.Type,
+		}
+	}
+	requestParam.PkgPath = mpn.PkgPath
+	requestParam.Fields = requestFS
+
+	requestTv, err := UnmarshalJSON(store.GetAllocator(), store, msg.JSONRequest, requestParam)
+	if err != nil {
+		return "", fmt.Errorf("unable to unmarshall json: %w", err)
+	}
+	fmt.Println("request tv", requestTv)
+
+	// Create expresion
 	argslist := ""
-	for i := range msg.Args {
+	for i := range ft.Params {
 		if i > 0 {
 			argslist += ","
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
+
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
+	fmt.Println("expr", expr)
 	xn := gno.MustParseExpr(expr)
+
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	caller := msg.Caller
@@ -235,21 +276,24 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+
 	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if len(msg.Args) != len(ft.Params) {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
-	}
-	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
-		atv := convertArgToGno(arg, argType)
+
+	// if len(msg.Args) != len(ft.Params) {
+	// 	panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
+	// }
+
+	fmt.Println("request tv type", requestTv.T.String())
+	for i, arg := range requestTv.V.(*gno.StructValue).Fields {
 		cx.Args[i] = &gno.ConstExpr{
-			TypedValue: atv,
+			TypedValue: arg,
 		}
 	}
+
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
@@ -283,15 +327,65 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		m.Release()
 	}()
+
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
+
+	// Result
+
+	// Iterate through params
+	var result gno.TypedValue
+	{
+		var sv gno.StructValue
+		var st gno.StructType
+
+		// define gno type
+		resultNF := len(rtvs)
+		resultFS := make([]gno.FieldType, resultNF)
+		resultTV := make([]gno.TypedValue, resultNF)
+		for i, rtv := range rtvs {
+			name := gno.Name(fmt.Sprintf("Args%d", i))
+			resultFS[i] = gno.FieldType{
+				Name: name,
+				Type: rtv.T,
+			}
+
+			fmt.Println(name, rtv.String())
+			resultTV[i] = rtv
+		}
+		resultFS = append(resultFS, gno.FieldType{
+			Name: gno.Name("NumCycles"),
+			Type: gno.Int64Type,
+		})
+
+		// Add cpucycle to responses
+		cycle := gno.TypedValue{T: gno.Int64Type}
+		cycle.SetInt64(m.Cycles)
+		resultTV = append(resultTV, cycle)
+
+		st.PkgPath = mpn.PkgPath
+		st.Fields = resultFS
+		sv.Fields = resultTV
+
+		result = gno.TypedValue{
+			T: &st,
+			V: &sv,
 		}
 	}
-	return res, nil
+
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
+	// for i, rtv := range rtvs {
+	// 	res = res + rtv.String()
+	// 	if i < len(rtvs)-1 {
+	// 		res += "\n"
+	// 	}
+	// }
+
+	resraw, err := MarshalJSON(&result)
+	if err != nil {
+		return "", fmt.Errorf("unable to unarmsahll result: %w", err)
+	}
+
+	return string(resraw), nil
 	// TODO pay for gas? TODO see context?
 }
 
