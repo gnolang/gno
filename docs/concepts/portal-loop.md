@@ -46,8 +46,10 @@ Below is a diagram demonstrating how the Portal Loop works:
 
 ## Using the Portal Loop
 
-The Portal Loop deployment & exposed RPC endpoints can be found on
-[gno.land](https://gno.land).
+The Portal Loop deployment can be found at [gno.land](https://gno.land), while
+the exposed RPC endpoints can be found on `https://rpc.gno.land:443`. The RPC endpoint
+list can be found in the [reference section](../reference/rpc-endpoints.md).
+
 
 While allowing for quick iteration on the most up-to-date software, the Portal Loop
 has some drawbacks:
