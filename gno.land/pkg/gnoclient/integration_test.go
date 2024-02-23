@@ -3,18 +3,19 @@ package gnoclient
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
+
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_Call_Single_Integration(t *testing.T) {
+func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -57,7 +58,7 @@ func TestClient_Call_Single_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestClient_Call_Multiple_Integration(t *testing.T) {
+func TestCallMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -108,7 +109,7 @@ func TestClient_Call_Multiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestClient_Send_Single_Integration(t *testing.T) {
+func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -156,7 +157,7 @@ func TestClient_Send_Single_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestClient_Send_Multiple_Integration(t *testing.T) {
+func TestSendMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -211,7 +212,148 @@ func TestClient_Send_Multiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// todo add more integration tests.
+// Run tests
+func TestRunSingle_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	fileBody := `package main
+import (
+	"std"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/tests"
+)
+func main() {
+	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	for i := 0; i < 10; i++ {
+		tests.IncCounter()
+	}
+	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+}`
+
+	// Make Msg configs
+	msg := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: "",
+	}
+
+	res, err := client.Run(baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+}
+
+// Run tests
+func TestRunMultiple_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	fileBody1 := `package main
+import (
+	"std"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/tests"
+)
+func main() {
+	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	for i := 0; i < 10; i++ {
+		tests.IncCounter()
+	}
+	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+}`
+
+	fileBody2 := `package main
+import (
+	"std"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/deep/very/deep"
+)
+func main() {
+	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
+}`
+
+	// Make Msg configs
+	msg1 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody1,
+				},
+			},
+		},
+		Send: "",
+	}
+	msg2 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody2,
+				},
+			},
+		},
+		Send: "",
+	}
+
+	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
+
+	res, err := client.Run(baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+}
+
+// todo add more integration tests:
+// MsgCall with Send field populated (single/multiple)
+// MsgRun with Send field populated (single/multiple)
 
 func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 	t.Helper()
