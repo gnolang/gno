@@ -1,6 +1,6 @@
 # load a package from the example packages directory.
 loadpkg gno.land/p/demo/ufmt
-loadpkg gno.land/r/importtest $WORKDIR
+loadpkg gno.land/r/importtest $WORK
 
 ## start a new node
 gnoland start

@@ -21,7 +21,7 @@
 //   - Must be run before `gnoland start`.
 //   - Creates a new user in the default keybase directory.
 //
-// 4. `use`:
+// 4. `loadpkg`:
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the example folder or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
@@ -31,11 +31,12 @@
 //     and the second (optional) argument is the path to the package(s).
 //     Examples:
 //     -- # Load a package from the example packages directory:
-//     -- use gno.land/p/demo/ufmt
+//     -- loadpkg gno.land/p/demo/ufmt
 //     -- # Load a package `./bar` from the current testscript's working directory with the name `gno.land/r/foobar/bar`:
-//     -- use gno.land/r/foobar/bar $WORK/bar
-//   - If the path is not prefixed with the working directory, it is assumed to be relative to the examples directory.
-//   - It's important to note that the load order is significant when using multiple use
+//     -- loadpkg gno.land/r/foobar/bar $WORK/bar
+//   - If the path is not prefixed with the working directory, it is assumed to be relative to the
+//     examples directory.
+//   - It's important to note that the load order is significant when using multiple `loadpkg`
 //     command; packages should be loaded in the order they are dependent upon.
 //
 // Logging:

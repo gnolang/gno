@@ -312,11 +312,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					return
 				}
 
-				if path == "." {
-					path = workDir
-				} else if strings.HasPrefix(path, "./") {
-					path = filepath.Join(workDir, path[2:])
-				} else if !strings.HasPrefix(path, workDir) {
+				if !strings.HasPrefix(path, workDir) {
 					path = filepath.Join(examplesDir, path)
 				}
 
