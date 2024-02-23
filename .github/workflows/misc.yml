@@ -5,15 +5,19 @@ name: misc
 on:
   pull_request:
     paths:
-      - "misc/genstd/**.go"
-      - "misc/Makefile"
-      - ".github/workflows/misc.yml"
-      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, misc, and gno.land concurrently.
+      # XXX: for now keep the paths for gnovm, tm2, gnoland and misc the same,
+      # so that coverage information is uploaded for all of them together.
+      # This could be removed in the future.
       - "gnovm/**"
       - "tm2/**"
       - "gno.land/**"
+      - "misc/**"
       - "examples/**"
       - ".github/workflows/**"
+      # XXX: end copied part, below is the "ideal" paths on which this workflow should run
+      - "misc/genstd/**.go"
+      - "misc/Makefile"
+      - ".github/workflows/misc.yml"
   push:
     branches: [ "master" ]
 
@@ -27,14 +31,14 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
+          - "1.22.x"
         program:
           - "genstd"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - name: Checkout code
@@ -49,7 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
+          - "1.22.x"
         args:
           - _test.genstd
     runs-on: ubuntu-latest
@@ -59,7 +63,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
 
@@ -79,11 +83,24 @@ jobs:
           export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
           make ${{ matrix.args }}
 
-      - if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v4
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.22.x' }}
         with:
+          name: ${{runner.os}}-coverage-misc-${{matrix.args}}-${{matrix.goversion}}
+          path: ./misc/coverage.out
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all previous coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/coverage
+      - name: Upload combined coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ${{ runner.temp }}/coverage
           token: ${{ secrets.CODECOV_TOKEN }}
-          name: misc
-          flags: misc,misc-${{matrix.args}},go-${{ matrix.goversion }}
-          files: ./misc/coverage.out
           fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
