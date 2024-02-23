@@ -1,7 +1,7 @@
 package client
 
 import (
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	nm "github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core"

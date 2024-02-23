@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/jaekwon/testify/require"
-	"golang.org/x/exp/slog"
 )
 
 // NewTestingLogger returns a new testing logger

@@ -173,9 +173,7 @@ func DecodeBech32(addr crypto.Bech32Address) (prefix string, bytes [20]byte, ok 
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
 	}
-	// TODO: can be simplified when we switch to go1.20 in go mod to be a simple [20]byte(bz)
-	copy(bytes[:], bz)
-	return prefix, bytes, true
+	return prefix, [20]byte(bz), true
 }
 
 func typedString(s gno.StringValue) gno.TypedValue {
