@@ -315,7 +315,7 @@ func TestParseGoBuildErrors(t *testing.T) {
 				&goscanner.Error{
 					Pos: token.Position{
 						Filename: "./main.gno",
-						Line:     2,
+						Line:     6,
 						Column:   2,
 					},
 					Msg: "nasty error",
@@ -323,7 +323,7 @@ func TestParseGoBuildErrors(t *testing.T) {
 				&goscanner.Error{
 					Pos: token.Position{
 						Filename: "./pkg/file.gno",
-						Line:     56,
+						Line:     60,
 						Column:   20,
 					},
 					Msg: "ugly error",
