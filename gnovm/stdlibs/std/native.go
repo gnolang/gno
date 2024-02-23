@@ -4,6 +4,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
@@ -33,13 +34,7 @@ func GetHeight(m *gno.Machine) int64 {
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := m.Context.(ExecContext).OrigSend
-	denoms = make([]string, len(os))
-	amounts = make([]int64, len(os))
-	for i, coin := range os {
-		denoms[i] = coin.Denom
-		amounts[i] = coin.Amount
-	}
-	return denoms, amounts
+	return ExpandCoins(os)
 }
 
 func X_origCaller(m *gno.Machine) string {
@@ -55,6 +50,8 @@ func X_callerAt(m *gno.Machine, n int) string {
 		m.Panic(typedString("GetCallerAt requires positive arg"))
 		return ""
 	}
+	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	n++
 	if n > m.NumFrames() {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
@@ -122,8 +119,26 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 	return prefix, [20]byte(bz), true
 }
 
-func typedString(s gno.StringValue) gno.TypedValue {
+func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(s)
+	tv.SetString(gno.StringValue(s))
 	return tv
+}
+
+func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(c))
+	amounts = make([]int64, len(c))
+	for i, coin := range c {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}
+
+func CompactCoins(denoms []string, amounts []int64) std.Coins {
+	coins := make(std.Coins, len(denoms))
+	for i := range coins {
+		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
+	}
+	return coins
 }

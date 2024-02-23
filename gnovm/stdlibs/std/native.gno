@@ -21,12 +21,12 @@ func GetOrigCaller() Address {
 
 func CurrentRealm() Realm {
 	addr, path := getRealm(0)
-	return Realm{addr, path}
+	return Realm{Address(addr), path}
 }
 
 func PrevRealm() Realm {
 	addr, path := getRealm(1)
-	return Realm{addr, path}
+	return Realm{Address(addr), path}
 }
 
 func GetOrigPkgAddr() Address {

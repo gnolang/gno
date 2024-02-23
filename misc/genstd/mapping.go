@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"path"
 	"strconv"
 )
@@ -24,8 +25,6 @@ type mapping struct {
 }
 
 type mappingType struct {
-	// type of ast.Expr is from the normal ast.Expr types
-	// + *linkedIdent.
 	Type ast.Expr
 
 	// IsTypedValue is set to true if the parameter or result in go is of type
@@ -35,21 +34,11 @@ type mappingType struct {
 }
 
 func (mt mappingType) GoQualifiedName() string {
-	return (&exprPrinter{
-		mode: printerModeGoQualified,
-	}).ExprString(mt.Type)
+	return types.ExprString(mt.Type)
 }
 
 func (mt mappingType) GnoType() string {
-	return (&exprPrinter{
-		mode: printerModeGnoType,
-	}).ExprString(mt.Type)
-}
-
-type linkedIdent struct {
-	ast.BadExpr // Unused, but it makes *linkedIdent implement ast.Expr
-
-	lt linkedType
+	return types.ExprString(mt.Type)
 }
 
 func linkFunctions(pkgs []*pkgData) []mapping {
@@ -208,50 +197,17 @@ func iterFields(gnol, gol []*ast.Field, callback func(gnoType, goType ast.Expr) 
 // mergeTypes does not modify the given gnoe or goe; the returned ast.Expr is
 // (recursively) newly allocated.
 func (m *mapping) mergeTypes(gnoe, goe ast.Expr) ast.Expr {
-	resolveGoNamed := func(lt *linkedType) bool {
-		switch goe := goe.(type) {
-		case *ast.SelectorExpr:
-			// selector - resolve pkg ident to path
-			lt.goPackage = resolveSelectorImport(m.goImports, goe)
-			lt.goName = goe.Sel.Name
-		case *ast.Ident:
-			// local name -- use import path of go pkg
-			lt.goPackage = m.GoImportPath
-			lt.goName = goe.Name
-		default:
-			return false
-		}
-		return true
-	}
-
 	switch gnoe := gnoe.(type) {
 	// We're working with a subset of all expressions:
 	// https://go.dev/ref/spec#Type
 
-	case *ast.SelectorExpr:
-		lt := linkedType{
-			gnoPackage: resolveSelectorImport(m.gnoImports, gnoe),
-			gnoName:    gnoe.Sel.Name,
-		}
-		if !resolveGoNamed(&lt) || !linkedTypeExists(lt) {
-			return nil
-		}
-		return &linkedIdent{lt: lt}
 	case *ast.Ident:
 		// easy case - built-in identifiers
 		goi, ok := goe.(*ast.Ident)
 		if ok && isBuiltin(gnoe.Name) && gnoe.Name == goi.Name {
 			return &ast.Ident{Name: gnoe.Name}
 		}
-
-		lt := linkedType{
-			gnoPackage: m.GnoImportPath,
-			gnoName:    gnoe.Name,
-		}
-		if !resolveGoNamed(&lt) || !linkedTypeExists(lt) {
-			return nil
-		}
-		return &linkedIdent{lt: lt}
+		panic(fmt.Sprintf("usage of non-builtin type %q in mergeTypes", gnoe.Name))
 
 	// easier cases -- check for equality of structure and underlying types
 	case *ast.StarExpr:
@@ -283,7 +239,8 @@ func (m *mapping) mergeTypes(gnoe, goe ast.Expr) ast.Expr {
 		*ast.FuncType,
 		*ast.InterfaceType,
 		*ast.MapType,
-		*ast.Ellipsis:
+		*ast.Ellipsis,
+		*ast.SelectorExpr:
 		// TODO
 		panic("not implemented")
 	default:
@@ -421,49 +378,6 @@ var builtinTypes = [...]string{
 func isBuiltin(name string) bool {
 	for _, x := range builtinTypes {
 		if x == name {
-			return true
-		}
-	}
-	return false
-}
-
-type linkedType struct {
-	gnoPackage string
-	gnoName    string
-	goPackage  string
-	goName     string
-}
-
-var linkedTypes = [...]linkedType{
-	{
-		"std", "Address",
-		"github.com/gnolang/gno/tm2/pkg/crypto", "Bech32Address",
-	},
-	{
-		"std", "Coin",
-		"github.com/gnolang/gno/tm2/pkg/std", "Coin",
-	},
-	{
-		"std", "Coins",
-		"github.com/gnolang/gno/tm2/pkg/std", "Coins",
-	},
-	{
-		"std", "Realm",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "Realm",
-	},
-	{
-		"std", "BankerType",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "BankerType",
-	},
-	{
-		"std", "Banker",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "Banker",
-	},
-}
-
-func linkedTypeExists(lt linkedType) bool {
-	for _, ltx := range linkedTypes {
-		if lt == ltx {
 			return true
 		}
 	}

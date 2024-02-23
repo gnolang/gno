@@ -1,5 +1,7 @@
 package std
 
+import "strconv"
+
 // Realm functions can call std.GetBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
 // but can be passed onto other functions to be transacted
@@ -40,6 +42,21 @@ const (
 	maxBanker
 )
 
+func (b BankerType) String() string {
+	switch b {
+	case BankerTypeReadonly:
+		return "BankerTypeReadonly"
+	case BankerTypeOrigSend:
+		return "BankerTypeOrigSend"
+	case BankerTypeRealmSend:
+		return "BankerTypeRealmSend"
+	case BankerTypeRealmIssue:
+		return "BankerTypeRealmIssue"
+	default:
+		panic("invalid BankerType: " + strconv.Itoa(int(b)))
+	}
+}
+
 //----------------------------------------
 // adapter for native banker
 
@@ -56,15 +73,15 @@ func GetBanker(bt BankerType) Banker {
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
 func bankerTotalCoin(bt uint8, denom string) int64
-func bankerIssueCoin(bt uint8, addr string, denom string, amount string)
-func bankerRemoveCoin(bt uint8, addr string, denom string, amount string)
+func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
+func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 
 type banker struct {
-	bt uint8
+	bt BankerType
 }
 
 func (b banker) GetCoins(addr Address) (dst Coins) {
-	denoms, amounts := bankerGetCoins(b.bt, string(addr))
+	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
 	dst = make(Coins, len(denoms))
 	for i := range dst {
 		dst[i] = Coin{denoms[i], amounts[i]}
@@ -76,29 +93,24 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
 	}
-	denoms := make([]string, len(amt))
-	amounts := make([]int64, len(amt))
-	for i, coin := range amt {
-		denoms[i] = coin.Denom
-		amounts[i] = coin.Amount
-	}
-	bankerSendCoins(b.bt, string(from), string(to), denoms, amounts)
+	denoms, amounts := amt.expandNative()
+	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
 }
 
 func (b banker) TotalCoin(denom string) int64 {
-	return bankerTotalCoin(b.bt, denom)
+	return bankerTotalCoin(uint8(b.bt), denom)
 }
 
 func (b banker) IssueCoin(addr Address, denom string, amount int64) {
-	if b.bt == BankerTypeReadonly {
-		panic("BankerTypeReadonly cannot issue coins")
+	if b.bt != BankerTypeRealmIssue {
+		panic(b.bt.String() + " cannot issue coins")
 	}
-	bankerIssueCoin(b.bt, string(addr), denom, amount)
+	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
 func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
-	if b.bt == BankerTypeReadonly {
-		panic("BankerTypeReadonly cannot remove coins")
+	if b.bt != BankerTypeRealmIssue {
+		panic(b.bt.String() + " cannot remove coins")
 	}
-	bankerRemoveCoin(b.bt, string(addr), denom, amount)
+	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
 }
