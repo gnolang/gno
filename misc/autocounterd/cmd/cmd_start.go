@@ -41,9 +41,8 @@ func NewStartCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "lint",
-			ShortUsage: "lint [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the linter for the specified packages",
+			Name:       "start",
+			ShortUsage: "start [flags]",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
