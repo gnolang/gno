@@ -346,8 +346,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
+				debug.Println("---for stmt")
 				pushInitBlock(n, &last, &stack)
 				n.bodyStmt.loopBody = &LoopBody{isLoop: true}
+				debug.Printf("---sb of ForStmt: %v \n", n.GetStaticBlock())
+				n.GetStaticBlock().dump()
 
 			// TRANS_BLOCK -----------------------
 			case *IfStmt:
@@ -845,6 +848,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					loopBlock    BlockNode      // e.g. a `for` block that is  outside of funcLit block
 					lvBox        *LoopValuesBox // container per block to store transient values for captured vars
 					lastGen, gen uint8
+					loopData     []*LoopBlockData // for fv to track all transient values
 				)
 
 				// when iterating goes on, funcValue will yield several replicas, each of which should capture a slice of
@@ -875,7 +879,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// prepare lvBox
 					if isLoopBlock {
 						lvBox = loopBlock.GetStaticBlock().GetBodyStmt().LoopValuesBox // get LoopValuesBox from specific block, that is shared across current level of for/range loop
-						//}
 						if lvBox == nil {
 							lvBox = &LoopValuesBox{}
 						}
@@ -885,17 +888,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						lvBox.transient = append(lvBox.transient, tst)
 
-						// got a loop block
-						//if isLoopBlock { // got target block
 						debug.Printf("---fill nx: %v \n", nx)
 						lvBox.isFilled = true
 						// record in loop block
 						loopBlock.GetStaticBlock().GetBodyStmt().LoopValuesBox = lvBox
 						// set ref loop block nodes
-						n.RefLoopBlockNodes = append(n.RefLoopBlockNodes, loopBlock)
-						n.RefIndices = append(n.RefIndices, int(nx.Path.Depth))
-						//}
-						// set for potentially implicit loop block, goto label
+						//n.RefLoopBlockNodes = append(n.RefLoopBlockNodes, loopBlock)
+						//n.RefIndices = append(n.RefIndices, int(nx.Path.Depth))
+						loopData = append(loopData, &LoopBlockData{index: lvBox.transient[0].cursor, loopValuesBox: lvBox})
+						n.LoopData = loopData // this will be copied to fv
+					}
+					if debug {
+						for i, ts := range loopData {
+							fmt.Printf("========TransientLoopData[%d] is: %s, index: %d \n", i, ts.loopValuesBox, ts.index)
+						}
 					}
 				}
 
@@ -1802,6 +1808,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					debug.Println("---going to fine funcLitExpr blockNode")
 					dumpSnare(snare)
 
+					var loopData []*LoopBlockData
 					if labelLine < n.GetLine() { // only jmp to previous line make it loop?
 						for i := len(snare) - 1; i >= 0; i-- {
 							if fx, ok := snare[i].(*FuncLitExpr); ok {
@@ -1845,11 +1852,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									// set state
 									if lvBox.isFilled {
 										last.GetStaticBlock().GetBodyStmt().LoopValuesBox = lvBox
-										fx.RefLoopBlockNodes = append(fx.RefLoopBlockNodes, last)
-										// set  index for ref blocks
-										for _, tst := range lvBox.transient {
-											fx.RefIndices = append(fx.RefIndices, int(tst.nx.Path.Depth))
-										}
+										loopData = append(loopData, &LoopBlockData{index: lvBox.transient[0].cursor, loopValuesBox: lvBox})
+										fx.LoopData = loopData
+
+										//fx.RefLoopBlockNodes = append(fx.RefLoopBlockNodes, last)
+										//// set  index for ref blocks
+										//for _, tst := range lvBox.transient {
+										//	fx.RefIndices = append(fx.RefIndices, int(tst.nx.Path.Depth))
+										//}
 									}
 								}
 							}
@@ -2174,6 +2184,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	debug.Printf("---pushInitBlock, source: %v, \n parent: %v \n", bn, *last)
 	if !bn.IsInitialized() {
 		bn.InitStaticBlock(bn, *last)
 	} else {

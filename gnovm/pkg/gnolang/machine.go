@@ -1649,6 +1649,7 @@ func (m *Machine) LastBlock() *Block {
 	return m.Blocks[len(m.Blocks)-1]
 }
 
+// todo: values.2395
 func (m *Machine) GetBlockAt(index int) *Block {
 	if index > len(m.Blocks)-1 {
 		panic("no block at this index, should not happen")

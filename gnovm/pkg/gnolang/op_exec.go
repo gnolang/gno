@@ -45,6 +45,7 @@ SelectStmt ->
 
 func updateCapturedValue(m *Machine, lb *Block) {
 	debug.Println("---op_exec, updateCapturedValue")
+	lb.GetBodyStmt().LoopValuesBox = lb.Source.GetStaticBlock().GetBodyStmt().LoopValuesBox
 	bs := lb.GetBodyStmt()
 
 	debug.Printf("---op_exec, lvBox: %v \n", bs.LoopValuesBox)
@@ -538,15 +539,18 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
+		debug.Printf("---ForStmt: %v \n", cs)
+		debug.Printf("---ForStmt.sb.bs: %v \n", cs.GetStaticBlock().bodyStmt.loopBody)
 		m.PushFrameBasic(cs)
-		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		// do the copy from preprocess block to runtime block with NewBlock
+		b := m.Alloc.NewBlock(cs, m.LastBlock()) // runtime block
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
-			loopBody:      &LoopBody{isLoop: true},
+			loopBody:      cs.GetStaticBlock().bodyStmt.loopBody, // copy from preprocess block
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -634,7 +638,7 @@ EXEC_SWITCH:
 			Key:           cs.Key,
 			Value:         cs.Value,
 			Op:            cs.Op,
-			loopBody:      &LoopBody{isLoop: true},
+			loopBody:      cs.GetStaticBlock().bodyStmt.loopBody,
 			//isLoop: true,
 		}
 		m.PushBlock(b)

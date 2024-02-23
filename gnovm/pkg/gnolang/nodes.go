@@ -498,6 +498,7 @@ type FuncLitExpr struct {
 	Body                           // function body
 	RefLoopBlockNodes []BlockNode
 	RefIndices        []int
+	LoopData          []*LoopBlockData
 }
 
 // The preprocessor replaces const expressions
@@ -1515,6 +1516,7 @@ func (sb *StaticBlock) revertToOld() {
 
 // Implements BlockNode
 func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
+	debug.Printf("---init static block, source: %v, parent: %v \n", source, parent)
 	if sb.Names != nil || sb.Block.Source != nil {
 		panic("StaticBlock already initialized")
 	}
@@ -1525,7 +1527,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 			Parent: nil,
 		}
 	} else {
-		sb.Block = Block{
+		sb.Block = Block{ // build Hierarchical structure in preprocess stage
 			Source: source,
 			Values: nil,
 			Parent: parent.GetStaticBlock().GetBlock(),
@@ -1536,6 +1538,22 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	return
+}
+
+func (sb *StaticBlock) dump() {
+	debug.Println("==============dump staticBlock==============")
+	for i, n := range sb.Names {
+		debug.Printf("name[%d] is : %v \n", i, n)
+	}
+	for i, c := range sb.Consts {
+		debug.Printf("const[%d] is : %v \n", i, c)
+	}
+
+	debug.Printf("block.Source: %v \n", sb.Block.Source)
+	debug.Printf("block.Parent: %v \n", sb.Block.Parent)
+	debug.Printf("block: %v \n", sb.Block.String())
+
+	debug.Println("==============end==============")
 }
 
 // Implements BlockNode.

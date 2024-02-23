@@ -275,6 +275,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
+	debug.Printf("---NewBlock, source: %v, parent: %v \n", source, parent)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
 }

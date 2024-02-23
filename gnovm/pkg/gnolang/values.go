@@ -583,6 +583,7 @@ func (tsb *LoopValuesBox) String() string {
 	s += "\n"
 	s += "==================LoopValuesBox===================\n"
 	s += fmt.Sprintf("isFilled: %v \n", tsb.isFilled)
+	s += fmt.Sprintf("isSealed: %v \n", tsb.isSealed)
 	for i, t := range tsb.transient {
 		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
 		for j, v := range t.values {
@@ -2318,6 +2319,7 @@ func (sb *StaticBlock) SetLoopBody(start, end int) {
 
 func (b *Block) UpdateValue(index int, tv TypedValue) {
 	debug.Printf("---UpdateValue, index: %d \n", index)
+	debug.Printf("---UpdateValue, tv: %v \n", tv)
 	debug.Printf("---UpdateValue, block: %v \n", b)
 	for i := range b.Values {
 		if i == index {

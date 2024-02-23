@@ -62,6 +62,13 @@ func (m *Machine) doOpCall() {
 
 	var loopBlock *Block             // target loop block with values to be updated
 	if fv.TransientLoopData != nil { // it captured a bundle of values
+		debug.Printf("---doOpCall, addr of x.LoopData: %p \n", fv.TransientLoopData)
+
+		if debug {
+			for i, lbd := range fv.TransientLoopData {
+				fmt.Printf("========doOpCall, TransientLoopData[%d] is: %s, index: %d \n", i, lbd.loopValuesBox, lbd.index)
+			}
+		}
 		for i, loopData := range fv.TransientLoopData { // each LoopValuesBox is for a certain level of block
 			box := loopData.loopValuesBox
 			if box.isSealed {
