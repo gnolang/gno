@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -23,7 +24,7 @@ Describe your issue in as much detail as possible here
 ### Your environment
 
 * go version {{.GoVersion}} {{.Os}}/{{.Arch}}
-* Commit that causes this issue: {{.Commit}}
+* gno commit that causes this issue: {{.Commit}}
 
 ### Steps to reproduce
 
@@ -101,12 +102,10 @@ func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 	body := buf.String()
 	url := "https://github.com/gnolang/gno/issues/new?body=" + url.QueryEscape(body)
 
-	if !cfg.skipBrowser {
-		// Try opening browser (ignore error)
-		_ = openBrowser(url)
+	if !cfg.skipBrowser && openBrowser(url) {
+		return nil
 	}
 
-	// Print on console, regardless if the browser opened or not
 	io.Println("Please file a new issue at github.com/gnolang/gno/issues/new using this template:")
 	io.Println()
 	io.Println(body)
@@ -115,7 +114,7 @@ func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 }
 
 // openBrowser opens a default web browser with the specified URL.
-func openBrowser(url string) error {
+func openBrowser(url string) bool {
 	var cmdArgs []string
 	switch runtime.GOOS {
 	case "windows":
@@ -127,7 +126,11 @@ func openBrowser(url string) error {
 	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-	return cmd.Start()
+	if cmd.Start() == nil && appearsSuccessful(cmd, 3*time.Second) {
+		return true
+	}
+
+	return false
 }
 
 // getCommitHash returns the commit hash from build info, or an
@@ -141,4 +144,22 @@ func getCommitHash() string {
 		}
 	}
 	return ""
+}
+
+// appearsSuccessful reports whether the command appears to have run successfully.
+// If the command runs longer than the timeout, it's deemed successful.
+// If the command runs within the timeout, it's deemed successful if it exited cleanly.
+// Note: Taken from Go's `internal/browser“
+func appearsSuccessful(cmd *exec.Cmd, timeout time.Duration) bool {
+	errc := make(chan error, 1)
+	go func() {
+		errc <- cmd.Wait()
+	}()
+
+	select {
+	case <-time.After(timeout):
+		return true
+	case err := <-errc:
+		return err == nil
+	}
 }
