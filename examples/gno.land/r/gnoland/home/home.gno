@@ -58,16 +58,18 @@ func lastBlogposts(limit int) ui.Element {
 
 func lastContributions(limit int) ui.Element {
 	return ui.Element{
-		ui.H3("Last Contributions"),
-		ui.Text("TODO: import r/gh"),
-		ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+		ui.H3("Latest Contributions"),
+		// TODO: import r/gh
+		// ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+		ui.Text("coming soon"),
 	}
 }
 
 func upcomingEvents(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Upcoming Events"),
-		ui.Text("TODO: import r/gnoland/events"),
+		// TODO: import r/gnoland/events
+		ui.Text("coming soon"),
 	}
 }
 
@@ -107,7 +109,8 @@ func worxDAO() ui.Element {
 	``*/
 	return ui.Element{
 		ui.H3("Contributions (WorxDAO & GoR)"),
-		ui.Text(`TODO: GoR dashboard + WorxDAO topics`),
+		// TODO: GoR dashboard + WorxDAO topics
+		ui.Text(`coming soon`),
 	}
 }
 
