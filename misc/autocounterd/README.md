@@ -6,7 +6,7 @@
 
 ## How to use
 
-Start the loop with:
+Start it with:
 
 ``` sh
 $ docker compose up -d
