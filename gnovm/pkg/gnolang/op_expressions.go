@@ -254,16 +254,23 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			var nonConcrete string
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+				} else {
+					nonConcrete = "non-concrete "
+				}
 			}
+
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s%s doesn't implement %s",
+					nonConcrete,
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
@@ -339,14 +346,18 @@ func (m *Machine) doOpTypeAssert2() {
 				*tv = untypedBool(false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
+			// If the value being asserted on is nil, it can't implement an interface.
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+				}
 			}
+
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
