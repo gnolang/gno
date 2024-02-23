@@ -39,7 +39,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	}
 
 	if os.Getenv("RPC_URL") == "" {
-		os.Setenv("RPC_URL", "http://rpc.portal.gno.local:81")
+		os.Setenv("RPC_URL", "http://rpc.portal.gno.local:26657")
 	}
 
 	if os.Getenv("PROM_ADDR") == "" {

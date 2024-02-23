@@ -80,7 +80,7 @@ services:
     environment:
       HOST_PWD: $PWD
       BACKUP_DIR: "/backups"
-      RPC_URL: "http://traefik:81"
+      RPC_URL: "http://traefik:26657"
       PROM_ADDR: "0.0.0.0:9090"
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:

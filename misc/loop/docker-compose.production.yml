@@ -18,7 +18,7 @@ services:
       - "--providers.file.watch=true"
       - "--providers.file.directory=/etc/traefik/configs"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.private.address=:81"
+      - "--entrypoints.rpc.address=:26657"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
@@ -35,7 +35,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
+      - "26657:26657"
     volumes:
       - ./traefik:/etc/traefik/configs
       - ./traefik/letsencrypt:/letsencrypt
@@ -46,8 +46,8 @@ services:
     entrypoint:
       - gnoweb
       - --bind=0.0.0.0:8888
-      - --remote=traefik:81
-      # - --faucet-url="http://faucet.portal.gno.local:81"
+      - --remote=traefik:26657
+      # - --faucet-url="http://faucet.portal.gno.local:26657"
       # - --faucet-url
       # - "http://localhost:9000"
       - --help-chainid
@@ -89,7 +89,7 @@ services:
     environment:
       HOST_PWD: $PWD
       BACKUP_DIR: "/backups"
-      RPC_URL: "http://traefik:81"
+      RPC_URL: "http://traefik:26657"
       PROM_ADDR: "0.0.0.0:9090"
       TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
     extra_hosts:
