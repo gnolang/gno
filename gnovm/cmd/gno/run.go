@@ -49,7 +49,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -144,7 +144,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 		n := f.Name()
 		if isGnoFile(f) &&
 			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasPrefix(n, "_filetest.gno") {
+			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))
 		}
 	}

@@ -154,24 +154,27 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("--- preprocess stack ---")
-				for i := len(stack) - 1; i >= 0; i-- {
-					sbn := stack[i]
-					fmt.Printf("stack %d: %s\n", i, sbn.String())
-				}
-				fmt.Println("------------------------")
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
 					loc.Line = nline
 				}
-				if rerr, ok := r.(error); ok {
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.Wrap(rerr, loc.String()))
+					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+					err = errors.New(fmt.Sprintf("%s: %v", loc.String(), r))
 				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
 			}
 		}()
 		if debug {
@@ -755,6 +758,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					resn := Preprocess(store, last, n2)
 					return resn, TRANS_CONTINUE
 				}
+
+				// Left and right hand expressions must evaluate to a boolean typed value if
+				// the operation is a logical AND or OR.
+				if (n.Op == LAND || n.Op == LOR) && (lt.Kind() != BoolKind || rt.Kind() != BoolKind) {
+					panic("operands of boolean operators must evaluate to boolean typed values")
+				}
+
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
@@ -951,6 +961,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
@@ -967,10 +978,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
+							convertConst(store, last, arg0, ct)
+							constConverted = true
+						case SliceKind:
+							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
 						}
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, nil)
+						if !constConverted {
+							convertConst(store, last, arg0, nil)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
@@ -1004,6 +1025,29 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
+							}
+						} else {
+							var tx *constTypeExpr // array type expr, lazily initialized
+							// Another special case for append: adding untyped constants.
+							// They must be converted to the array type for consistency.
+							for i, arg := range n.Args[1:] {
+								if _, ok := arg.(*ConstExpr); !ok {
+									// Consider only constant expressions.
+									continue
+								}
+								if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+									// Consider only untyped values (including nil).
+									continue
+								}
+
+								if tx == nil {
+									// Get the array type from the first argument.
+									s0 := evalStaticTypeOf(store, last, n.Args[0])
+									tx = constType(arg, s0.Elem())
+								}
+								// Convert to the array type.
+								arg1 := Call(tx, arg)
+								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
@@ -1817,8 +1861,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, vx := range n.Values {
 						if cx, ok := vx.(*ConstExpr); ok &&
 							!cx.TypedValue.IsUndefined() {
-							// if value is non-nil const expr:
-							tvs[i] = cx.TypedValue
+							if n.Const {
+								// const _ = <const_expr>: static block should contain value
+								tvs[i] = cx.TypedValue
+							} else {
+								// var _ = <const_expr>: static block should NOT contain value
+								tvs[i] = anyValue(cx.TypedValue.T)
+							}
 						} else {
 							// for var decls of non-const expr.
 							st := sts[i]
@@ -2909,7 +2958,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				dt = rt.(*DeclaredType)
 			}
-			dt.DefineMethod(&FuncValue{
+			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
 				Source:     cd,
@@ -2919,16 +2968,34 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-			})
+			}) {
+				// Revert to old function declarations in the package we're preprocessing.
+				pkg := packageOf(last)
+				pkg.StaticBlock.revertToOld()
+				panic(fmt.Sprintf("redeclaration of method %s.%s",
+					dt.Name, cd.Name))
+			}
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
 			ft := ftv.T.(*FuncType)
 			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
-			*ft = *ft2
+			if !ft.IsZero() {
+				// redefining function.
+				// make sure the type is the same.
+				if ft.TypeID() != ft2.TypeID() {
+					panic(fmt.Sprintf(
+						"Redefinition (%s) cannot change .T; was %v, new %v",
+						cd, ft, ft2))
+				}
+				// keep the orig type.
+			} else {
+				*ft = *ft2
+			}
 			// XXX replace attr w/ ft?
 			// return Preprocess(store, last, cd).(Decl), true
 		}
+		// Full type declaration/preprocessing already done in tryPredefine
 		return d, false
 	case *ValueDecl:
 		return Preprocess(store, last, cd).(Decl), true
@@ -3122,19 +3189,30 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
+			fv := &FuncValue{
+				Type:       ft,
+				IsMethod:   false,
+				Source:     d,
+				Name:       d.Name,
+				Closure:    nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				body:       d.Body,
+				nativeBody: nil,
+			}
+			// NOTE: fv.body == nil means no body (ie. not even curly braces)
+			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
+			if fv.body == nil && store != nil {
+				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
+				if fv.nativeBody == nil {
+					panic(fmt.Sprintf("function %s does not have a body but is not natively defined", d.Name))
+				}
+				fv.NativePkg = pkg.PkgPath
+				fv.NativeName = d.Name
+			}
 			pkg.Define(d.Name, TypedValue{
 				T: ft,
-				V: &FuncValue{
-					Type:       ft,
-					IsMethod:   false,
-					Source:     d,
-					Name:       d.Name,
-					Closure:    nil, // set lazily.
-					FileName:   fileNameOf(last),
-					PkgPath:    pkg.PkgPath,
-					body:       d.Body,
-					nativeBody: nil,
-				},
+				V: fv,
 			})
 			if d.Name == "init" {
 				// init functions can't be referenced.

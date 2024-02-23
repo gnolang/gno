@@ -6,8 +6,8 @@ id: browsing-gno-source-code
 
 ## Overview
 
-In this tutorial, you will learn how to browse deployed Gno [Realms](../explanation/realms.md)
-and [Packages](../explanation/packages.md). Additionally, you will understand how the `Render` method is utilized
+In this tutorial, you will learn how to browse deployed Gno [Realms](../concepts/realms.md)
+and [Packages](../concepts/packages.md). Additionally, you will understand how the `Render` method is utilized
 to achieve Realm state visibility.
 
 ## Prerequisites
@@ -48,7 +48,7 @@ We should be able to access the website locally on http://127.0.0.1:8888/.
 
 Packages in Gno.land usually have names resembling `gno.land/p/<name>`. Since packages do not contain state, we can only
 view their source code on-chain. To learn more about Packages, please check out
-the [Packages](../explanation/packages.md) explanation document.
+the [Packages](../concepts/packages.md) explanation document.
 
 Using `gnoweb`, we can browse the source code in our browser.
 For example, the `avl` package is deployed at `gno.land/p/demo/avl`.
@@ -68,7 +68,7 @@ In contrast to Packages, Realms in Gno.land usually have names resembling `gno.l
 
 Realms _do_ contain state, and in addition to being able to view their source code on-chain, users can also view their
 internal state representation in the form of the `Render()` output. To learn more about Realms, please
-check out the [Realms](../explanation/realms.md) explanation document.
+check out the [Realms](../concepts/realms.md) explanation document.
 
 Using `gnoweb`, we can browse the Realm `Render()` method output and source code in our browser.
 For example, the `boards` Realm is deployed at `gno.land/r/demo/boards`.

@@ -6,9 +6,9 @@ id: simple-library
 
 ## Overview
 
-This guide shows you how to write a simple library (Package) in Gnolang, which can be used by other Packages and Realms.
+This guide shows you how to write a simple library (Package) in Gno, which can be used by other Packages and Realms.
 Packages are _stateless_, meaning they do not hold state like regular Realms (Smart Contracts). To learn more about the
-intricacies of Packages, please see the [Packages reference](../explanation/packages.md).
+intricacies of Packages, please see the [Packages reference](../concepts/packages.md).
 
 The Package we will be writing today will be a simple library for suggesting a random tapas dish.
 We will define a set list of tapas, and define a method that randomly selects a dish from the list.
@@ -18,7 +18,7 @@ We will define a set list of tapas, and define a method that randomly selects a 
 - **Text editor**
 
 :::info Editor support
-The Gno language is based on Golang, but it does not have all the bells and whistles in major text editors like Go.
+The Gno language is based on Go, but it does not have all the bells and whistles in major text editors like Go.
 Advanced language features like IntelliSense are still in the works.
 
 Currently, we officially have language support

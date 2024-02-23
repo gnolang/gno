@@ -77,6 +77,10 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
+		switch t.Kind() {
+		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
+			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))
+		}
 		tv.T = t
 		return
 	}
