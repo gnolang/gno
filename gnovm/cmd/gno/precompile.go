@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,6 +20,7 @@ type precompileCfg struct {
 	verbose     bool
 	skipFmt     bool
 	skipImports bool
+	gobuild     bool
 	goBinary    string
 	gofmtBinary string
 	output      string
@@ -28,6 +31,11 @@ type precompileOptions struct {
 	// precompiled is the set of packages already
 	// precompiled from .gno to .go.
 	precompiled map[importPath]struct{}
+}
+
+var defaultPrecompileCfg = &precompileCfg{
+	verbose:  false,
+	goBinary: "go",
 }
 
 func newPrecompileOptions(cfg *precompileCfg) *precompileOptions {
@@ -85,6 +93,13 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 		"do not precompile imports recursively",
 	)
 
+	fs.BoolVar(
+		&c.gobuild,
+		"gobuild",
+		false,
+		"run go build on generated go files, ignoring test files",
+	)
+
 	fs.StringVar(
 		&c.goBinary,
 		"go-binary",
@@ -119,21 +134,43 @@ func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
 	}
 
 	opts := newPrecompileOptions(cfg)
-	errCount := 0
+	var errlist scanner.ErrorList
 	for _, filepath := range paths {
-		err = precompileFile(filepath, opts)
-		if err != nil {
-			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			io.ErrPrintfln("%s", err.Error())
-
-			errCount++
+		if err := precompileFile(filepath, opts); err != nil {
+			var fileErrlist scanner.ErrorList
+			if !errors.As(err, &fileErrlist) {
+				// Not an scanner.ErrorList: return immediately.
+				return fmt.Errorf("%s: precompile: %w", filepath, err)
+			}
+			errlist = append(errlist, fileErrlist...)
 		}
 	}
 
-	if errCount > 0 {
-		return fmt.Errorf("%d precompile errors", errCount)
+	if errlist.Len() == 0 && cfg.gobuild {
+		paths, err := gnoPackagesFromArgs(args)
+		if err != nil {
+			return fmt.Errorf("list packages: %w", err)
+		}
+
+		for _, pkgPath := range paths {
+			err := goBuildFileOrPkg(pkgPath, cfg)
+			if err != nil {
+				var fileErrlist scanner.ErrorList
+				if !errors.As(err, &fileErrlist) {
+					// Not an scanner.ErrorList: return immediately.
+					return fmt.Errorf("%s: build: %w", pkgPath, err)
+				}
+				errlist = append(errlist, fileErrlist...)
+			}
+		}
 	}
 
+	if errlist.Len() > 0 {
+		for _, err := range errlist {
+			io.ErrPrintfln(err.Error())
+		}
+		return fmt.Errorf("%d precompile error(s)", errlist.Len())
+	}
 	return nil
 }
 
@@ -180,7 +217,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	// preprocess.
 	precompileRes, err := gno.Precompile(string(source), tags, srcPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("precompile: %w", err)
 	}
 
 	// resolve target path
@@ -218,4 +255,15 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	return nil
+}
+
+func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
+	verbose := cfg.verbose
+	goBinary := cfg.goBinary
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
+	}
+
+	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
 }

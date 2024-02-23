@@ -33,7 +33,11 @@
 ## CLI Philosophy
 
  * No envs.
- * No short flags.
+ * No short flags, with the following exceptions:
+   * `-h` for showing help
+   * `-v` for being verbose
+   * mimicking the short flags of Go commands
+   * after software maturity
  * No /bin/ calls.
  * No process forks.
  * Struct-based command options.

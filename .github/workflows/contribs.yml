@@ -21,14 +21,15 @@ jobs:
       fail-fast: false
       matrix:
         goversion: # two latest versions
-          - "1.21.x"
+          - "1.22.x"
         program:
           - "gnomd"
+          - "gnodev"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - run: make install ${{ matrix.program }}

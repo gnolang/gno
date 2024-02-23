@@ -83,7 +83,7 @@ Legend:
   would not be useful.
 * `tbd`: whether to include the standard library or not is still up for
   discussion.
-* `todo`: the standard libary is to be added, and
+* `todo`: the standard library is to be added, and
   [contributions are welcome.](https://github.com/gnolang/gno/issues/1267)
 * `part`: the standard library is partially implemented in Gno, and contributions are
   welcome to add the missing functionality.
@@ -194,9 +194,9 @@ Legend:
 | log/slog                                    | `tbd`    |
 | log/syslog                                  | `nondet` |
 | maps                                        | `gnics`  |
-| math                                        | `part`   |
+| math                                        | `full`   |
 | math/big                                    | `tbd`    |
-| math/bits                                   | `todo`   |
+| math/bits                                   | `full`   |
 | math/cmplx                                  | `tbd`    |
 | math/rand                                   | `todo`   |
 | mime                                        | `tbd`    |

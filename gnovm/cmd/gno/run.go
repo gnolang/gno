@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -48,7 +49,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -65,7 +66,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	stdin := io.In()
@@ -143,7 +144,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 		n := f.Name()
 		if isGnoFile(f) &&
 			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasPrefix(n, "_filetest.gno") {
+			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))
 		}
 	}

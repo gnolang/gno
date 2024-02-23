@@ -1,3 +1,5 @@
+GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
+
 .PHONY: help
 help:
 	@echo "Available make commands:"
@@ -5,13 +7,16 @@ help:
 
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+# We can't use '-trimpath' yet as amino use absolute path from call stack
+# to find some directory: see #1236
+GOBUILD_FLAGS := -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 .PHONY: build
 build:
-	go build -o build/gno ./cmd/gno
+	go build $(GOBUILD_FLAGS) -o build/gno ./cmd/gno
 
 .PHONY: install
 install:
-	go install ./cmd/gno
+	go install $(GOBUILD_FLAGS) ./cmd/gno
 
 .PHONY: clean
 clean:
@@ -28,6 +33,11 @@ GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) `find stdlibs -name "*.gno"`
+
+.PHONY: imports
+GOIMPORTS_FLAGS ?= -w
+imports:
+	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
 
 ########################################
 # Test suite
@@ -58,6 +68,11 @@ _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' 
 
 ########################################
 # Code gen
+# TODO: move _dev.stringer to go:generate instructions, simplify generate
+#       to just go generate.
+.PHONY: generate
+generate: _dev.stringer _dev.generate
+
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer
 _dev.stringer:
@@ -67,6 +82,10 @@ _dev.stringer:
 	$(stringer_cmd) -type=TransField ./pkg/gnolang
 	$(stringer_cmd) -type=VPType     ./pkg/gnolang
 	$(stringer_cmd) -type=Word       ./pkg/gnolang
+
+.PHONY: _dev.generate
+_dev.generate:
+	go generate -x ./...
 
 # genproto:
 # see top-level Makefile.

@@ -2,6 +2,9 @@ package pkg
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -11,8 +14,10 @@ import (
 
 type Type struct {
 	Type             reflect.Type
-	Name             string // proto3 name (override)
-	PointerPreferred bool   // whether pointer is preferred for decoding interface.
+	Name             string            // proto3 name (override)
+	PointerPreferred bool              // whether pointer is preferred for decoding interface.
+	Comment          string            // optional doc comment for the type
+	FieldComments    map[string]string // If not nil, the optional doc comment for each field name
 }
 
 func (t *Type) FullName(pkg *Package) string {
@@ -196,6 +201,69 @@ func (pkg *Package) WithP3SchemaFile(file string) *Package {
 	return pkg
 }
 
+// Parse the Go code in filename and scan the AST looking for struct doc comments.
+// Find the Type in pkg.Types and set its Comment and FieldComments, which are
+// used by genproto.GenerateProto3MessagePartial to set the Comment in the P3Doc
+// and related P3Field objects.
+func (pkg *Package) WithComments(filename string) *Package {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		panic(err)
+	}
+
+	ast.Inspect(f, func(node ast.Node) bool {
+		genDecl, ok := node.(*ast.GenDecl)
+		if !ok {
+			return true
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			pkgType := pkg.getTypeByName(typeSpec.Name.Name)
+			if pkgType == nil {
+				continue
+			}
+			if genDecl.Doc != nil {
+				// Set the type comment.
+				pkgType.Comment = strings.TrimSpace(genDecl.Doc.Text())
+			}
+
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range structType.Fields.List {
+				if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+					// Set the field comment.
+					if pkgType.FieldComments == nil {
+						pkgType.FieldComments = make(map[string]string)
+					}
+
+					pkgType.FieldComments[field.Names[0].Name] = strings.TrimSpace(field.Doc.Text())
+				}
+			}
+		}
+		return true
+	})
+
+	return pkg
+}
+
+// Get the Type by name. If not found, return nil.
+func (pkg *Package) getTypeByName(name string) *Type {
+	for _, t := range pkg.Types {
+		if t.Name == name {
+			return t
+		}
+	}
+
+	return nil
+}
+
 // Result cannot be modified.
 func (pkg *Package) GetType(rt reflect.Type) (t Type, ok bool) {
 	if rt.Kind() == reflect.Ptr {
@@ -314,30 +382,25 @@ func GetCallersDirname() string {
 	return dirName
 }
 
+const (
+	reDomain    = `[[:alnum:]-_]+[[:alnum:]-_.]+\.[a-zA-Z]{2,4}`
+	reGoPkgPart = `[[:alpha:]-_]+`
+	reR3PkgPart = `[[:alpha:]_]+`
+)
+
 var (
-	RE_DOMAIN     = `[[:alnum:]-_]+[[:alnum:]-_.]+\.[a-zA-Z]{2,4}`
-	RE_GOPKG_PART = `[[:alpha:]-_]+`
-	RE_GOPKG      = fmt.Sprintf(`(?:%v|%v)(?:/%v)*`, RE_DOMAIN, RE_GOPKG_PART, RE_GOPKG_PART)
-	RE_P3PKG_PART = `[[:alpha:]_]+`
-	RE_P3PKG      = fmt.Sprintf(`%v(?:\.:%v)*`, RE_P3PKG_PART, RE_P3PKG_PART)
+	reGoPkg = regexp.MustCompile(fmt.Sprintf(`(?:%v|%v)(?:/%v)*`, reDomain, reGoPkgPart, reGoPkgPart))
+	reR3Pkg = regexp.MustCompile(fmt.Sprintf(`%v(?:\.:%v)*`, reR3PkgPart, reR3PkgPart))
 )
 
 func assertValidGoPkgPath(gopkgPath string) {
-	matched, err := regexp.Match(RE_GOPKG, []byte(gopkgPath))
-	if err != nil {
-		panic(err)
-	}
-	if !matched {
+	if !reGoPkg.Match([]byte(gopkgPath)) {
 		panic(fmt.Sprintf("not a valid go package path: %v", gopkgPath))
 	}
 }
 
 func assertValidP3PkgName(p3pkgName string) {
-	matched, err := regexp.Match(RE_P3PKG, []byte(p3pkgName))
-	if err != nil {
-		panic(err)
-	}
-	if !matched {
+	if !reR3Pkg.Match([]byte(p3pkgName)) {
 		panic(fmt.Sprintf("not a valid proto3 package path: %v", p3pkgName))
 	}
 }
