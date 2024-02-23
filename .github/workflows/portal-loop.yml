@@ -18,9 +18,6 @@ permissions:
 jobs:
   portal-loop:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        image: ["autocounterd", "portalloopd"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,11 +29,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata ${{ matrix.image }}
+      - name: Docker metadata portalloopd
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          images: ghcr.io/${{ github.repository }}/portalloopd
           tags: |
             type=raw,value=latest
             type=semver,pattern=v{{version}}
@@ -45,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./misc/loop
-          target: ${{ matrix.image }}
+          target: portalloopd
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
