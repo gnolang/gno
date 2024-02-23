@@ -280,14 +280,6 @@ func (m *Machine) doOpTypeAssert2() {
 	xt := xv.T
 
 	if t.Kind() == InterfaceKind { // is interface assert
-		// It's fine for the type of the value to be nil. If it is,
-		// then there is no way any interface type assertion can
-		// succeed, so we can just return false.
-		if xt == nil {
-			*tv = untypedBool(false)
-			return
-		}
-
 		if it, ok := baseOf(t).(*InterfaceType); ok {
 			// t is Gno interface.
 			// assert that x implements type.
@@ -323,16 +315,6 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 	} else { // is concrete assert
 		tid := t.TypeID()
-
-		// If the type value we are trying to assert is nil, then we can say
-		// the type assertion has failed. This prevents a panic. This is safe
-		// because we've already checked that the type we are trying to assert to
-		// is not an interface type.
-		if xt == nil {
-			*tv = untypedBool(false)
-			return
-		}
-
 		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
