@@ -21,6 +21,7 @@ package sub
 
 //go:build gno
 
+//line :1:1
 package main
 
 func main() {}
@@ -29,4 +30,5 @@ func main() {}
 
 //go:build gno
 
+//line :1:1
 package sub
