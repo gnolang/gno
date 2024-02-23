@@ -279,8 +279,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 			},
-			// `use` load a specific package from the example folder or from the working directory
-			"use": func(ts *testscript.TestScript, neg bool, args []string) {
+			// `loadpkg` load a specific package from the example folder or from the working directory
+			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
 				// special dirs
 				workDir := ts.Getenv("WORK")
 				examplesDir := filepath.Join(gnoRootDir, "examples")
@@ -295,9 +295,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				case 1:
 					path = filepath.Clean(args[0])
 				case 0:
-					ts.Fatalf("`use`: no arguments specified")
+					ts.Fatalf("`loadpkg`: no arguments specified")
 				default:
-					ts.Fatalf("`use`: too many arguments specified")
+					ts.Fatalf("`loadpkg`: too many arguments specified")
 				}
 
 				// If `all` is specified, fully load example folder.
@@ -305,19 +305,23 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// packages should be loaded individually.
 				if path == "all" {
 					ts.Logf("warning: loading all packages")
-					if err := pkgs.UseAllPackagesFromDir(examplesDir); err != nil {
+					if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
 						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
 					}
 
 					return
 				}
 
-				if !strings.HasPrefix(path, workDir) {
+				if path == "." {
+					path = workDir
+				} else if strings.HasPrefix(path, "./") {
+					path = filepath.Join(workDir, path[2:])
+				} else if !strings.HasPrefix(path, workDir) {
 					path = filepath.Join(examplesDir, path)
 				}
 
-				if err := pkgs.UsePackage(examplesDir, path, name); err != nil {
-					ts.Fatalf("`use` unable to load package(s) from %q: %s", args[0], err)
+				if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+					ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 				}
 
 				ts.Logf("%q package was added to genesis", args[0])
@@ -457,7 +461,7 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 	return txs, nil
 }
 
-func (pl *pkgsLoader) UseAllPackagesFromDir(path string) error {
+func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
 	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
@@ -473,7 +477,7 @@ func (pl *pkgsLoader) UseAllPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *pkgsLoader) UsePackage(modroot string, path, name string) error {
+func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
 	// Initialize a queue with the root package
 	queue := []gnomod.Pkg{{Dir: path, Name: name}}
 

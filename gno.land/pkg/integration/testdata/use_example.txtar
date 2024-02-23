@@ -1,5 +1,5 @@
 # load a package from the example packages directory.
-use gno.land/p/demo/ufmt
+loadpkg gno.land/p/demo/ufmt
 
 ## start a new node
 gnoland start

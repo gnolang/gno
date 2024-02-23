@@ -1,6 +1,6 @@
 # test that the example packages directory is loaded and usable.
-use gno.land/p/demo/ufmt
-use $WORK
+loadpkg gno.land/p/demo/ufmt
+loadpkg $WORK
 
 ## start a new node
 gnoland start

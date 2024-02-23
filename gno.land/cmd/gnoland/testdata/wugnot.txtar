@@ -1,4 +1,4 @@
-use gno.land/r/demo/wugnot
+loadpkg gno.land/r/demo/wugnot
 
 gnoland start
 

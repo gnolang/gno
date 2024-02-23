@@ -1,6 +1,6 @@
 # example for contract-contract interaction with ownership
 # add registry
-use gno.land/r/registry $WORK/registry
+loadpkg gno.land/r/registry $WORK/registry
 
 ## start a new node
 gnoland start
