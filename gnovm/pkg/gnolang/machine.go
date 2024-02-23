@@ -58,12 +58,12 @@ type Machine struct {
 	Store   Store
 	Context interface{}
 
-	// PanicScope is incremented each time a panic occurs and decremented
-	// when it is recovered.
+	// PanicScope is incremented each time a panic occurs and is reset to
+	// zero when recovered.
 	PanicScope uint
 	// DeferPanicScope is set to the value of the defer's panic scope before
-	// it is executed. It is decremented after defer functions in the current
-	// scope have finished executing.
+	// it is executed. It is reset to zero after the defer functions in the
+	// current scope have finished executing.
 	DeferPanicScope uint
 }
 
