@@ -83,7 +83,7 @@ func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	bugReportEnv := struct { // TODO: include gno version or commit?
+	bugReportEnv := struct {
 		Os, Arch, GoVersion, Commit string
 	}{
 		runtime.GOOS,
