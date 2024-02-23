@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"text/template"
 
@@ -22,8 +23,7 @@ Describe your issue in as much detail as possible here
 ### Your environment
 
 * go version {{.GoVersion}} {{.Os}}/{{.Arch}}
-* version of gno
-* branch that causes this issue (with the commit hash)
+* Commit that causes this issue: {{.Commit}}
 
 ### Steps to reproduce
 
@@ -83,11 +83,12 @@ func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 	}
 
 	bugReportEnv := struct { // TODO: include gno version or commit?
-		Os, Arch, GoVersion string
+		Os, Arch, GoVersion, Commit string
 	}{
 		runtime.GOOS,
 		runtime.GOARCH,
 		runtime.Version(),
+		getCommitHash(),
 	}
 
 	var buf strings.Builder
@@ -127,4 +128,17 @@ func openBrowser(url string) error {
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	return cmd.Start()
+}
+
+// getCommitHash returns the commit hash from build info, or an
+// empty string if not found.
+func getCommitHash() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				return setting.Value
+			}
+		}
+	}
+	return ""
 }
