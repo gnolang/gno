@@ -209,8 +209,32 @@ func (m *Machine) doOpTypeAssert1() {
 	xv := m.PeekValue(1)
 	xt := xv.T
 
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
+
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil {
+			// TODO: default panic type?
+			ex := fmt.Sprintf("nil doesn't implement %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				// TODO: default panic type?
+				ex := fmt.Sprintf(
+					"non-concrete %s doesn't implement %s",
+					xt.String(),
+					it.String())
+				m.Panic(typedString(ex))
+				return
+			}
+
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
@@ -273,14 +297,34 @@ func (m *Machine) doOpTypeAssert1() {
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
-	tv := m.PeekValue(1)
-	t := tv.GetType()
+	tv := m.PeekValue(1) // boolean result
+	t := tv.GetType()    // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(2)
-	xt := xv.T
+	xv := m.PeekValue(2) // value result
+	xt := xv.T           // underlying value's type
+
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil {
+			*xv = TypedValue{}
+			*tv = untypedBool(false)
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+				return
+			}
+
 			// t is Gno interface.
 			// assert that x implements type.
 			impl := false
@@ -314,11 +358,21 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			*xv = TypedValue{
+				T: t,
+				V: defaultValue(m.Alloc, t),
+			}
+			*tv = untypedBool(false)
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
-		if same {
+
+		if same && xt != nil {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
