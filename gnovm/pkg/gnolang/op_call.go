@@ -58,8 +58,8 @@ func (m *Machine) doOpCall() {
 	debug.Printf("---fv: %v \n", fv)
 
 	clo := fr.Func.GetClosure(m.Store) // this is "static"
-	// update block vars using captured vars
 
+	// update block vars using captured vars
 	var loopBlock *Block             // target loop block with values to be updated
 	if fv.TransientLoopData != nil { // it captured a bundle of values
 		debug.Printf("---doOpCall, addr of x.LoopData: %p \n", fv.TransientLoopData)

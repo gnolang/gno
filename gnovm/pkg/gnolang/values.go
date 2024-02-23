@@ -2306,17 +2306,6 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
-func (sb *StaticBlock) SetLoopBody(start, end int) {
-	debug.Printf("---SetLoopBody, sb.Addr: %p \n", sb)
-	debug.Printf("---SetLoopBody, bs: %v, bs.Addr: %p \n", sb.bodyStmt, &sb.bodyStmt)
-	debug.Printf("---SetLoopBody, start: %d, end: %d \n", start, end)
-	if sb.bodyStmt.loopBody == nil {
-		debug.Println("---loopBody is nil, set value")
-		sb.bodyStmt.loopBody = &LoopBody{isLoop: true, start: start, end: end}
-	}
-	debug.Printf("---SetLoopBody, bs: %v, bs.Addr: %p \n", sb.bodyStmt, &sb.bodyStmt)
-}
-
 func (b *Block) UpdateValue(index int, tv TypedValue) {
 	debug.Printf("---UpdateValue, index: %d \n", index)
 	debug.Printf("---UpdateValue, tv: %v \n", tv)
@@ -2424,48 +2413,6 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 		b = b.GetParent(store)
 	}
 	return b.GetPointerToInt(store, int(path.Index))
-}
-
-// find nearest block is loop and contains name of n
-func findLoopBlockWithPath(store Store, b *Block, nx *NameExpr, fLine int) (*Block, bool, uint8) {
-	debug.Printf("---findLoopBlockWithPath, b: %v \n", b)
-	debug.Printf("---findLoopBlockWithPath, b.bs: %v \n", b.bodyStmt)
-	debug.Printf("---findLoopBlockWithPath, b.Source: %v \n", b.Source)
-	debug.Printf("---findLoopBlockWithPath, b.Source.bs: %v \n", b.Source.GetStaticBlock().bodyStmt)
-	var gen uint8 = 1
-	for i := uint8(1); i < nx.Path.Depth; i++ { // find target block at certain depth
-		b = b.GetParent(store)
-		gen++
-	}
-
-	debug.Printf("---findLoopBlockWithPath, fLine: %v \n", fLine)
-	debug.Printf("---findLoopBlockWithPath, loopBody: %v \n", b.Source.GetStaticBlock().bodyStmt.loopBody)
-	//debug.Printf("---findLoopBlockWithPath, start: %v \n", b.Source.GetStaticBlock().bodyStmt.loopBody.start)
-	//debug.Printf("---findLoopBlockWithPath, end: %v \n", b.Source.GetStaticBlock().bodyStmt.loopBody.end)
-
-	var isImplicitLoop bool
-	// tmp, if static not nil, means some work done in preprocess, using static
-	// TODO: all staff in preprocess
-	if b.Source.GetStaticBlock().bodyStmt.loopBody != nil {
-		if b.Source.GetStaticBlock().bodyStmt.loopBody.isLoop {
-			debug.Println("---is potential loop")
-			if b.Source.GetStaticBlock().bodyStmt.loopBody.start < fLine && fLine < b.Source.GetStaticBlock().bodyStmt.loopBody.end {
-				debug.Println("---is implicit loop")
-				isImplicitLoop = true
-			}
-		}
-	}
-
-	if b.GetBodyStmt().loopBody.isLoop || isImplicitLoop { // is loop
-		//if b.GetBodyStmt().isLoop || isImplicitLoop { // is loop
-		names := b.GetSource(store).GetBlockNames()
-		for _, name := range names {
-			if nx.Name == name { // find n in this block
-				return b, true, gen
-			}
-		}
-	}
-	return nil, false, gen
 }
 
 // Result is used has lhs for any assignments to "_".

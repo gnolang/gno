@@ -684,10 +684,9 @@ func (m *Machine) doOpFuncLit() {
 
 	lb := m.LastBlock()
 
-	var loopData []*LoopBlockData // for fv to track all transient values
-
-	// mutate state of loop data for control
-	for _, lbd := range x.LoopData {
+	var transientLoopData []*LoopBlockData // for fv to track all transient values
+	// mutate state of for control
+	for _, lbd := range x.TransientLoopData {
 		var cursor int
 		for _, tst := range lbd.loopValuesBox.transient {
 			tst.cursor++ // increase cursor of every nameExpr
@@ -700,47 +699,13 @@ func (m *Machine) doOpFuncLit() {
 		//lbd.index = lbd.loopValuesBox.transient[0].cursor
 		debug.Printf("---lvBox: %v \n", lbd.loopValuesBox)
 		// update
-		loopData = append(loopData, &LoopBlockData{index: cursor, loopValuesBox: lvBox})
+		transientLoopData = append(transientLoopData, &LoopBlockData{index: cursor, loopValuesBox: lvBox})
 	}
 	if debug {
-		for i, lbd := range x.LoopData {
+		for i, lbd := range x.TransientLoopData {
 			fmt.Printf("========doOpFuncLit, TransientLoopData[%d] is: %s, index: %d \n", i, lbd.loopValuesBox, lbd.index)
 		}
 	}
-	debug.Printf("---doOpFuncLit, addr of x.LoopData: %p \n", x.LoopData)
-	//
-	//var loopData []*LoopBlockData // for fv to track all transient values
-	////var refLoopBlocks []*Block
-	//var lvBox *LoopValuesBox // container per block to store transient values for captured vars
-	//for index, refBn := range x.RefLoopBlockNodes {
-	//	debug.Printf("---refBn: %v \n", refBn)
-	//	// find counterpart block of refBn
-	//	lvBox = refBn.GetStaticBlock().bodyStmt.LoopValuesBox
-	//	targetRealBlock := m.GetBlockAt(x.RefIndices[index] - 1)
-	//	debug.Printf("---targetBlock: %v \n", targetRealBlock)
-	//	debug.Printf("---doOpFuncLit, lvBox: %v \n", lvBox)
-	//
-	//	if lvBox != nil && lvBox.isFilled {
-	//		debug.Println("---copy to real block")
-	//		// copy to block
-	//		targetRealBlock.bodyStmt.LoopValuesBox = lvBox
-	//
-	//		for _, tst := range lvBox.transient {
-	//			tst.cursor++ // increase cursor of every nameExpr
-	//			debug.Println("---cursor: ", tst.cursor)
-	//		}
-	//
-	//		lvBox.isSealed = false // reset per loop
-	//		// each fv may have n outer loopBlock, reference them all
-	//		loopData = append(loopData, &LoopBlockData{index: lvBox.transient[0].cursor, loopValuesBox: lvBox})
-	//	}
-	//}
-	//
-	//if debug {
-	//	for i, ts := range loopData {
-	//		fmt.Printf("========TransientLoopData[%d] is: %s, index: %d \n", i, ts.loopValuesBox, ts.index)
-	//	}
-	//}
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 
@@ -752,7 +717,7 @@ func (m *Machine) doOpFuncLit() {
 		Source:            x,
 		Name:              "",
 		Closure:           lb,
-		TransientLoopData: loopData,
+		TransientLoopData: transientLoopData,
 		PkgPath:           m.Package.PkgPath,
 		body:              x.Body,
 		nativeBody:        nil,

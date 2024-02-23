@@ -496,9 +496,23 @@ type FuncLitExpr struct {
 	StaticBlock
 	Type              FuncTypeExpr // function type
 	Body                           // function body
-	RefLoopBlockNodes []BlockNode
-	RefIndices        []int
-	LoopData          []*LoopBlockData
+	TransientLoopData []*LoopBlockData
+}
+
+func (fx *FuncLitExpr) GetCapturedNxs(store Store) (captures []*NameExpr) {
+	for _, name := range fx.GetExternNames() {
+		vp := fx.GetPathForName(store, name)
+		if vp.Depth == 0 { // skip uverse
+			continue
+		}
+		vp.Depth -= 1 // from the perspective of funcLit block
+		nx := &NameExpr{
+			Name: name,
+			Path: vp,
+		}
+		captures = append(captures, nx)
+	}
+	return
 }
 
 // The preprocessor replaces const expressions
@@ -873,9 +887,10 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
-// this assumes that a goto stmt to less liners forms an implicit loop
-// if an funcLitExpr embeded, do capture.
-type LoopBody struct {
+// this assumes that a goto stmt to label ahead
+// forms an implicit loop.
+// if an funcLitExpr embeded, do capture staff.
+type ImplicitLoopBlock struct {
 	isLoop bool
 	start  int // line of label start
 	end    int // line of goto stmt
@@ -884,28 +899,28 @@ type LoopBody struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                         // for non-loop stmts
-	BodyLen       int            // for for-continue
-	NextBodyIndex int            // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int            // number of Ops, for goto
-	NumValues     int            // number of Values, for goto
-	NumExprs      int            // number of Exprs, for goto
-	NumStmts      int            // number of Stmts, for goto
-	Cond          Expr           // for ForStmt
-	Post          Stmt           // for ForStmt
-	LoopValuesBox *LoopValuesBox // a series of transient values of captured var generated as the iteration goes on
-	isLoop        bool
-	loopBody      *LoopBody
-	Active        Stmt         // for PopStmt()
-	Key           Expr         // for RangeStmt
-	Value         Expr         // for RangeStmt
-	Op            Word         // for RangeStmt
-	ListLen       int          // for RangeStmt only
-	ListIndex     int          // for RangeStmt only
-	NextItem      *MapListItem // fpr RangeStmt w/ maps only
-	StrLen        int          // for RangeStmt w/ strings only
-	StrIndex      int          // for RangeStmt w/ strings only
-	NextRune      rune         // for RangeStmt w/ strings only
+	Body                             // for non-loop stmts
+	BodyLen           int            // for for-continue
+	NextBodyIndex     int            // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps            int            // number of Ops, for goto
+	NumValues         int            // number of Values, for goto
+	NumExprs          int            // number of Exprs, for goto
+	NumStmts          int            // number of Stmts, for goto
+	Cond              Expr           // for ForStmt
+	Post              Stmt           // for ForStmt
+	LoopValuesBox     *LoopValuesBox // a series of transient values of captured var generated as the iteration goes on
+	isLoop            bool
+	implicitLoopBlock *ImplicitLoopBlock
+	Active            Stmt         // for PopStmt()
+	Key               Expr         // for RangeStmt
+	Value             Expr         // for RangeStmt
+	Op                Word         // for RangeStmt
+	ListLen           int          // for RangeStmt only
+	ListIndex         int          // for RangeStmt only
+	NextItem          *MapListItem // fpr RangeStmt w/ maps only
+	StrLen            int          // for RangeStmt w/ strings only
+	StrIndex          int          // for RangeStmt w/ strings only
+	NextRune          rune         // for RangeStmt w/ strings only
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {

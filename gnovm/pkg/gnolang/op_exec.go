@@ -56,7 +56,7 @@ func updateCapturedValue(m *Machine, lb *Block) {
 	//}
 
 	if bs.LoopValuesBox != nil && bs.LoopValuesBox.isFilled && !bs.LoopValuesBox.isTainted {
-		var isSealed bool
+		var isSeal bool
 		for i, tt := range bs.LoopValuesBox.transient {
 			nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
 			ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
@@ -70,9 +70,9 @@ func updateCapturedValue(m *Machine, lb *Block) {
 			for j := 0; j < expandRatio; j++ {
 				bs.LoopValuesBox.transient[i].values = append(bs.LoopValuesBox.transient[i].values, tv)
 			}
-			isSealed = true
+			isSeal = true
 		}
-		if isSealed {
+		if isSeal {
 			debug.Printf("---seal for: %v \n", bs.LoopValuesBox)
 			bs.LoopValuesBox.isSealed = true // seal for this LoopValuesBox for closure execution.
 		}
@@ -540,7 +540,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		debug.Printf("---ForStmt: %v \n", cs)
-		debug.Printf("---ForStmt.sb.bs: %v \n", cs.GetStaticBlock().bodyStmt.loopBody)
+		//debug.Printf("---ForStmt.sb.bs: %v \n", cs.GetStaticBlock().bodyStmt.implicitLoopBlock)
 		m.PushFrameBasic(cs)
 		// do the copy from preprocess block to runtime block with NewBlock
 		b := m.Alloc.NewBlock(cs, m.LastBlock()) // runtime block
@@ -550,7 +550,7 @@ EXEC_SWITCH:
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
-			loopBody:      cs.GetStaticBlock().bodyStmt.loopBody, // copy from preprocess block
+			//implicitLoopBlock: cs.GetStaticBlock().bodyStmt.implicitLoopBlock, // copy from preprocess block
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -638,8 +638,7 @@ EXEC_SWITCH:
 			Key:           cs.Key,
 			Value:         cs.Value,
 			Op:            cs.Op,
-			loopBody:      cs.GetStaticBlock().bodyStmt.loopBody,
-			//isLoop: true,
+			//implicitLoopBlock: cs.GetStaticBlock().bodyStmt.implicitLoopBlock,
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".
