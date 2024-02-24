@@ -365,7 +365,7 @@ func (c Comment) RenderListItem() string {
 
 	output += "<h6>"
 	output += ufmt.Sprintf("by %s on %s", c.Author, c.CreatedAt.Format(time.RFC822))
-	output += "</h6>\n\n\n"
+	output += "</h6>\n\n"
 
 	output += "---\n\n"
 
