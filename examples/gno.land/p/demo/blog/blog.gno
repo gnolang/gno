@@ -71,12 +71,17 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(p.RenderAuthorList() + "\n\n")
 	res.Write(p.RenderPublishData() + "\n\n")
 
+	res.Write("---\n")
+	res.Write("<details><summary>Comment section</summary>\n\n")
+
 	// comments
 	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
 		comment := value.(*Comment)
 		res.Write(comment.RenderListItem())
 		return false
 	})
+
+	res.Write("</details>\n")
 }
 
 func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
@@ -354,9 +359,15 @@ type Comment struct {
 }
 
 func (c Comment) RenderListItem() string {
-	output := "" // todo see where it is used
-	// output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
-	output += c.Comment + "\n"
-	output += "\n"
+	output := "<h5>"
+	output += c.Comment + "\n\n"
+	output += "</h5>"
+
+	output += "<h6>"
+	output += ufmt.Sprintf("by %s on %s", c.Author, c.CreatedAt.Format(time.RFC822))
+	output += "</h6>\n\n\n"
+
+	output += "---\n\n"
+
 	return output
 }
