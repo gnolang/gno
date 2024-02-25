@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "/messages/proto";
+option go_package = "/messages";
 
 // MessageType defines the types of messages
 // that are related to the consensus process
@@ -25,12 +25,11 @@ message Message {
   // type is the type of consensus message
   MessageType type = 1;
 
-  // view is the current view for the message
-  // (the view in which the message was sent)
-  View view = 2;
+  // the message signature of the sender, if any
+  bytes signature = 2;
 
   // data is the underlying wrapped message
-  oneof data {
+  oneof payload {
     ProposalMessage proposalMessage = 3;
     PrevoteMessage prevoteMessage = 4;
     PrecommitMessage precommitMessage = 5;
@@ -41,6 +40,13 @@ message Message {
 // the consensus proposal for the view
 // <PROPOSAL, hP, roundP, proposal, validRoundP>
 message ProposalMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // from is the message sender (unique identifier)
+  bytes from = 2;
+
   // proposal is the actual consensus proposal
   bytes proposal = 3;
 
@@ -59,10 +65,17 @@ message ProposalMessage {
 // for which this prevote is meant for (ex. proposal hash)
 // <PREVOTE, hP, roundP, id(v)>
 message PrevoteMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // from is the message sender (unique identifier)
+  bytes from = 2;
+
   // identifier is the unique identifier for
   // the proposal associated with this
   // prevote message (ex. proposal hash)
-  bytes identifier = 1;
+  bytes identifier = 3;
 }
 
 // PrecommitMessage is the message
@@ -72,8 +85,15 @@ message PrevoteMessage {
 // for which this precommit is meant for (ex. proposal hash)
 // <PRECOMMIT, hP, roundP, id(v)>
 message PrecommitMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // from is the message sender (unique identifier)
+  bytes from = 2;
+
   // identifier is the unique identifier for
   // the proposal associated with this
   // precommit message (ex. proposal hash)
-  bytes identifier = 1;
+  bytes identifier = 3;
 }
