@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -18,7 +19,7 @@ type importPath string
 
 type transpileCfg struct {
 	verbose     bool
-	skipFmt     bool
+	rootDir     string
 	skipImports bool
 	gobuild     bool
 	goBinary    string
@@ -79,11 +80,11 @@ func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose output when running",
 	)
 
-	fs.BoolVar(
-		&c.skipFmt,
-		"skip-fmt",
-		false,
-		"do not check syntax of generated .go files",
+	fs.StringVar(
+		&c.rootDir,
+		"root-dir",
+		"",
+		"clone location of github.com/gnolang/gno (gno tries to guess it)",
 	)
 
 	fs.BoolVar(
@@ -125,6 +126,11 @@ func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
+	}
+
+	// guess cfg.RootDir
+	if cfg.rootDir == "" {
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	// transpile .gno files.
@@ -180,7 +186,17 @@ func transpilePkg(pkgPath importPath, opts *transpileOptions) error {
 	}
 	opts.markAsTranspiled(pkgPath)
 
-	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
+	// resolve dir
+	dir := filepath.Join(opts.cfg.rootDir, string(pkgPath))
+	if _, err := os.Stat(dir); err != nil {
+		return err
+	}
+
+	// XXX(morgan): Currently avoiding test files as they contain imports like "fmt".
+	// The transpiler doesn't currently support "test stdlibs", and even if it
+	// did all packages like "fmt" would have to exist as standard libraries to work.
+	// Easier to skip for now.
+	files, err := listNonTestFiles(dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -238,19 +254,14 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 		return fmt.Errorf("write .go file: %w", err)
 	}
 
-	// check .go fmt, if `SkipFmt` sets to false.
-	if !flags.skipFmt {
-		err = transpiler.StaticCheck([]byte(transpileRes.Translated))
-		if err != nil {
-			return fmt.Errorf("check .go file: %w", err)
-		}
-	}
-
 	// transpile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports {
 		importPaths := getPathsFromImportSpec(transpileRes.Imports)
+		// NOTE: importPaths are relative to root dir
 		for _, path := range importPaths {
-			transpilePkg(path, opts)
+			if err := transpilePkg(path, opts); err != nil {
+				return err
+			}
 		}
 	}
 

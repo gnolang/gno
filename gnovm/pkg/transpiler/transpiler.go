@@ -10,6 +10,8 @@ import (
 	"go/parser"
 	goscanner "go/scanner"
 	"go/token"
+	"go/types"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -35,7 +37,7 @@ const ImportPrefix = "github.com/gnolang/gno"
 // TranspileImportPath takes an import path s, and converts it into the full
 // import path relative to the Gno repository.
 func TranspileImportPath(s string) string {
-	return ImportPrefix + "/" + packageDirLocation(s)
+	return ImportPrefix + "/" + PackageDirLocation(s)
 }
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
@@ -47,8 +49,10 @@ func IsStdlib(s string) bool {
 	return !strings.HasPrefix(s, "gno.land/")
 }
 
-// packageDirLocation provides the supposed directory of the package, relative to the root dir.
-func packageDirLocation(s string) string {
+// PackageDirLocation provides the supposed directory of the package, relative to the root dir.
+//
+// TODO(morgan): move out, this should go in a "resolver" package.
+func PackageDirLocation(s string) string {
 	switch {
 	case !IsStdlib(s):
 		return "examples/" + s
@@ -62,6 +66,7 @@ func packageDirLocation(s string) string {
 type Result struct {
 	Imports    []*ast.ImportSpec
 	Translated string
+	File       *ast.File
 }
 
 // TODO: func TranspileFile: supports caching.
@@ -84,31 +89,121 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 	return
 }
 
+// MemPackageGetter implements the GetMemPackage() method. It is a subset of
+// gnolang.Store, separated for ease of testing.
+type MemPackageGetter interface {
+	GetMemPackage(path string) *std.MemPackage
+}
+
+// DefaultGetter is used by [TranspileAndCheckMempkg] when a nil getter is passed.
+// It resolves paths on-the-fly from the root directory, using gnolang.ReadMemPackage.
+// If rootDir == "", then it will be set to the value of gnoenv.RootDir.
+func DefaultGetter(rootDir string) MemPackageGetter {
+	if rootDir == "" {
+		rootDir = gnoenv.RootDir()
+	}
+	return defaultGetter{rootDir}
+}
+
+type defaultGetter struct {
+	rootDir string
+}
+
+func (dg defaultGetter) GetMemPackage(path string) *std.MemPackage {
+	dir := filepath.Join(dg.rootDir, PackageDirLocation(path))
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil
+	}
+	defer func() {
+		// TODO(morgan): use variant that doesn't panic. *rolls eyes*
+		err := recover()
+		if err != nil {
+			log.Printf("import %q: %v", path, err)
+		}
+	}()
+	return gnolang.ReadMemPackage(dir, path)
+}
+
 // TranspileAndCheckMempkg converts each of the files in mempkg to Go, and
-// performs basic static checking through the [StaticCheck] function on each
-// of these.
-func TranspileAndCheckMempkg(mempkg *std.MemPackage) error {
-	var errs error
-	for _, mfile := range mempkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
-		}
-		res, err := Transpile(mfile.Body, "gno,tmp", mfile.Name)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		err = StaticCheck([]byte(res.Translated))
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
+// performs static checking using Go's type checker.
+func TranspileAndCheckMempkg(mempkg *std.MemPackage, getter MemPackageGetter) error {
+	if getter == nil {
+		getter = DefaultGetter("")
+	}
+	imp := &transpImporter{
+		getter: getter,
+		cache:  map[string]interface{}{},
+		cfg:    &types.Config{},
 	}
 
-	if errs != nil {
-		return fmt.Errorf("transpile package: %w", errs)
+	imp.cfg.Importer = imp
+	_, err := imp.transpileParseMemPkg(mempkg)
+	if err != nil {
+		return err
 	}
+
 	return nil
+}
+
+type transpImporter struct {
+	getter MemPackageGetter
+	cache  map[string]any // *types.Package or error
+	cfg    *types.Config
+}
+
+func (g *transpImporter) Import(path string) (*types.Package, error) {
+	return g.ImportFrom(path, "", 0)
+}
+
+// ImportFrom returns the imported package for the given import
+// path when imported by a package file located in dir.
+func (g *transpImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
+	if pkg, ok := g.cache[path]; ok {
+		switch ret := pkg.(type) {
+		case *types.Package:
+			return ret, nil
+		case error:
+			return nil, ret
+		default:
+			panic(fmt.Sprintf("invalid type in transpImporter.cache %T", ret))
+		}
+	}
+	mpkg := g.getter.GetMemPackage(path)
+	if mpkg == nil {
+		g.cache[path] = (*types.Package)(nil)
+		return nil, nil
+	}
+	result, err := g.transpileParseMemPkg(mpkg)
+	if err != nil {
+		g.cache[path] = err
+		return nil, err
+	}
+	g.cache[path] = result
+	return result, nil
+}
+
+func (g *transpImporter) transpileParseMemPkg(mpkg *std.MemPackage) (*types.Package, error) {
+	fset := token.NewFileSet()
+	files := make([]*ast.File, 0, len(mpkg.Files))
+	var errs error
+	for _, file := range mpkg.Files {
+		// include go files to have native bindings checked.
+		if !strings.HasSuffix(file.Name, ".gno") && !strings.HasSuffix(file.Name, ".go") {
+			continue // skip spurious file.
+		}
+		// TODO: because this is in-memory, could avoid header.
+		res, err := transpileWithFset(fset, file.Body, "gno", file.Name)
+		if err != nil {
+			err = multierr.Append(errs, err)
+		}
+		files = append(files, res.File)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	// TODO g.cfg.Error
+	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 
 // Transpile performs transpilation on the given source code. tags can be used
@@ -116,7 +211,11 @@ func TranspileAndCheckMempkg(mempkg *std.MemPackage) error {
 // discriminate between test and normal source files.
 func Transpile(source, tags, filename string) (*Result, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
+	return transpileWithFset(fset, source, tags, filename)
+}
+
+func transpileWithFset(fset *token.FileSet, source, tags, filename string) (*Result, error) {
+	f, err := parser.ParseFile(fset, filename, source, parser.SkipObjectResolution)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
@@ -164,6 +263,7 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	res := &Result{
 		Imports:    f.Imports,
 		Translated: out.String(),
+		File:       transformed,
 	}
 	return res, nil
 }
@@ -214,18 +314,20 @@ func TranspileBuildPackage(fileOrPkg, goBinary string) error {
 			case strings.HasSuffix(goMatch, "_test.go"): // skip
 			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
 			default:
+				if !filepath.IsAbs(pkgDir) {
+					// Makes clear to go compiler that this is a relative path,
+					// rather than a path to a package/module.
+					// can't use filepath.Join as it cleans its results.
+					goMatch = "." + string(filepath.Separator) + goMatch
+				}
 				files = append(files, goMatch)
 			}
 		}
 	}
 
 	sort.Strings(files)
-	args := append([]string{"build", "-v", "-tags=gno"}, files...)
+	args := append([]string{"build", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
-	rootDir := gnoenv.RootDir()
-	if err == nil {
-		cmd.Dir = rootDir
-	}
 	out, err := cmd.CombinedOutput()
 	if _, ok := err.(*exec.ExitError); ok {
 		// exit error
@@ -234,7 +336,10 @@ func TranspileBuildPackage(fileOrPkg, goBinary string) error {
 	return err
 }
 
-var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
+var (
+	errorRe   = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
+	commentRe = regexp.MustCompile(`(?m)^#.*$`)
+)
 
 // parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
 // in out, which is supposed to be the output of the `go build` command.
@@ -269,6 +374,14 @@ func parseGoBuildErrors(out string) error {
 			Column: column,
 		}, msg)
 	}
+
+	replaced := errorRe.ReplaceAllLiteralString(out, "")
+	replaced = commentRe.ReplaceAllString(replaced, "")
+	replaced = strings.TrimSpace(replaced)
+	if replaced != "" {
+		errList.Add(token.Position{}, "Additional go build errors:\n"+replaced)
+	}
+
 	return errList.Err()
 }
 
@@ -284,7 +397,7 @@ type transpileCtx struct {
 	stdlibImports map[string]string // symbol -> import path
 }
 
-func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (ast.Node, error) {
+func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.File, error) {
 	var errs goscanner.ErrorList
 
 	imports := astutil.Imports(fset, f)
@@ -300,7 +413,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (ast.No
 			}
 
 			if ctx.rootDir != "" {
-				dirPath := filepath.Join(ctx.rootDir, packageDirLocation(importPath))
+				dirPath := filepath.Join(ctx.rootDir, PackageDirLocation(importPath))
 				if _, err := os.Stat(dirPath); err != nil {
 					if !os.IsNotExist(err) {
 						return nil, err
@@ -353,7 +466,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (ast.No
 			return true
 		},
 	)
-	return node, errs.Err()
+	return node.(*ast.File), errs.Err()
 }
 
 func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) bool {
