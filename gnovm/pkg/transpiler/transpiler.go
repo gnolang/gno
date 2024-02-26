@@ -268,17 +268,6 @@ func transpileWithFset(fset *token.FileSet, source, tags, filename string) (*Res
 	return res, nil
 }
 
-// StaticCheck runs checks similar to gofmt on the given file. This will perform
-// a basic round of static analysis, without checking the imports.
-func StaticCheck(source []byte) error {
-	// TODO(morgan): we ignore the output of format.Source because we're only
-	// interested in errors that may occur in the static analysis of format.Source.
-	// If all we care is errors, could we use something else that avoids the "formatting"
-	// part and only does a non-typed Go static check on the source?
-	_, err := format.Source(source)
-	return err
-}
-
 // TranspileBuildPackage tries to run `go build` against the transpiled .go files.
 //
 // This method is the most efficient to detect errors but requires that
