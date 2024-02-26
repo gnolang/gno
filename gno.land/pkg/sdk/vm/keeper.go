@@ -469,7 +469,6 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 		}
 		fsigs = append(fsigs, fsig)
 	}
-	ctx.Logger().Info("gas.vm.qfuncs.total,", pkgPath, ",", ctx.GasMeter().GasConsumed())
 	return fsigs, nil
 }
 
