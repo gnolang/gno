@@ -12,11 +12,12 @@ import (
 )
 
 type nativeFunc struct {
-	gnoPkg  string
-	gnoFunc gno.Name
-	params  []gno.FieldTypeExpr
-	results []gno.FieldTypeExpr
-	f       func(m *gno.Machine)
+	gnoPkg     string
+	gnoFunc    gno.Name
+	params     []gno.FieldTypeExpr
+	results    []gno.FieldTypeExpr
+	hasMachine bool
+	f          func(m *gno.Machine)
 }
 
 var nativeFuncs = [...]nativeFunc{
@@ -25,6 +26,7 @@ var nativeFuncs = [...]nativeFunc{
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			testlibs_std.AssertOriginCall(
 				m,
@@ -38,6 +40,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := testlibs_std.IsOriginCall(
 				m,
@@ -57,6 +60,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := testlibs_std.TestCurrentRealm(
 				m,
@@ -76,6 +80,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -95,6 +100,7 @@ var nativeFuncs = [...]nativeFunc{
 		"ClearStoreCache",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			testlibs_std.ClearStoreCache(
 				m,
@@ -110,6 +116,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -137,6 +144,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -158,6 +166,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -182,6 +191,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p3"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -214,6 +224,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p2"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -241,6 +252,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
+		false,
 		func(m *gno.Machine) {
 			r0 := testlibs_testing.X_unixNano()
 

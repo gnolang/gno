@@ -80,7 +80,6 @@ package time
 
 import (
 	"errors"
-	// XXX _ "unsafe" // for go:linkname
 )
 
 // A Time represents an instant in time with nanosecond precision.
@@ -1072,8 +1071,6 @@ func daysSinceEpoch(year int) uint64 {
 func now() (sec int64, nsec int32, mono int64) // injected
 
 // runtimeNano returns the current value of the runtime clock in nanoseconds.
-//
-//go:linkname runtimeNano runtime.nanotime
 func runtimeNano() int64 {
 	_, _, mono := now()
 	return mono
