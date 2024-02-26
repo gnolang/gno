@@ -18,7 +18,7 @@ import (
 // XXX: We should probably use txtar to test this package
 
 // TestNewEmptyDevNode tests the NewDevNode method with no package
-func TestNewEmptyNode(t *testing.T) {
+func TestNewNode_NoPackages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -34,11 +34,12 @@ func TestNewEmptyNode(t *testing.T) {
 }
 
 // TestNodeWithPackage tests the NewDevNode with a single package.
-func TestNodeWithPackage(t *testing.T) {
+func TestNewNode_WithPackage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	const (
+		// foobar package
 		testGnoMod = "module gno.land/r/dev/foobar\n"
 		testFile   = `package foobar
 func Render(_ string) string { return "foo" }
@@ -182,7 +183,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, res.CheckTx.Error)
 	require.NoError(t, res.DeliverTx.Error)
 
-	// Check for correct update
+	// Check for correct render update
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
@@ -237,7 +238,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) string {
 	workdir := t.TempDir()
 
 	if len(nameFile)%2 != 0 {
-		require.FailNow(t, "generate testing packages require pair arguements")
+		require.FailNow(t, "Generate testing packages require pair arguments.")
 	}
 
 	for i := 0; i < len(nameFile); i += 2 {
