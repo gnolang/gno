@@ -103,7 +103,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile and validate syntax
-	err = transpiler.TranspileAndCheckMempkg(memPkg)
+	err = transpiler.TranspileAndCheckMempkg(memPkg, nil)
 	if err != nil {
 		panic(err)
 	}

@@ -209,7 +209,7 @@ func (c *Client) Run(cfg RunCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
 
 	// transpile and validate syntax
-	err = transpiler.TranspileAndCheckMempkg(memPkg)
+	err = transpiler.TranspileAndCheckMempkg(memPkg, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "transpile and check")
 	}

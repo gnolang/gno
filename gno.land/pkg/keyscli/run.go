@@ -110,7 +110,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 	// transpile and validate syntax
-	err = transpiler.TranspileAndCheckMempkg(memPkg)
+	err = transpiler.TranspileAndCheckMempkg(memPkg, nil)
 	if err != nil {
 		panic(err)
 	}
