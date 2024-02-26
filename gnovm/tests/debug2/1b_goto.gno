@@ -2,10 +2,15 @@ package main
 
 func main() {
 	var y, counter int
-	var f []func()
+
+	println(&y)
+
+	var f []func() *int
+
 	defer func() {
 		for _, ff := range f {
-			ff()
+			println(ff())
+			println(*ff())
 		}
 	}()
 
@@ -14,13 +19,18 @@ LABEL_1:
 	if counter == 2 {
 		return
 	}
-	x := y
-	f = append(f, func() { println(x) })
+	f = append(f, func() *int {
+		//x := &y
+		return &y
+	})
 	y++
 	counter++
 	goto LABEL_1 // this is the edge condition, break? continue?
 }
 
 // Output:
-// 0
+// &0x14000283f80.(*int)
+// &0x14000283f80.(*int)
 // 1
+// &0x14000283f80.(*int)
+// 2

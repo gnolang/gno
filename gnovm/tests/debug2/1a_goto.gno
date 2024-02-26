@@ -1,6 +1,5 @@
 package main
 
-// invalid goto
 func main() {
 	var y, counter int
 	var f []func()
@@ -12,23 +11,15 @@ func main() {
 
 	// this is actually a implicit for loop
 LABEL_1:
-	if counter == 5 {
-		goto LABEL_2
+	if counter == 2 {
+		return
 	}
-	x := y
-	f = append(f, func() { println(x) })
+	f = append(f, func() { println(y) })
 	y++
 	counter++
 	goto LABEL_1 // this is the edge condition, break? continue?
-
-LABEL_2:
-	println("end")
 }
 
 // Output:
-// end
-// 0
 // 1
 // 2
-// 3
-// 4

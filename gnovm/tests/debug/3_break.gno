@@ -11,6 +11,9 @@ func main() {
 		}
 		fns = append(fns, f)
 		x += 1
+		if i == 2 {
+			break
+		}
 	}
 	for _, fn := range fns {
 		println(fn())
@@ -21,5 +24,3 @@ func main() {
 // 1
 // 2
 // 3
-// 4
-// 5

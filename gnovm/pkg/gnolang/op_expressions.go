@@ -702,7 +702,7 @@ func (m *Machine) doOpFuncLit() {
 		transientLoopData = append(transientLoopData, &LoopBlockData{index: cursor, loopValuesBox: lvBox})
 	}
 	if debug {
-		for i, lbd := range x.TransientLoopData {
+		for i, lbd := range transientLoopData {
 			fmt.Printf("========doOpFuncLit, TransientLoopData[%d] is: %s, index: %d \n", i, lbd.loopValuesBox, lbd.index)
 		}
 	}

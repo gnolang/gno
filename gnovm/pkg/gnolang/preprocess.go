@@ -129,8 +129,8 @@ func getBlockNodeAt(stack []BlockNode, n int) BlockNode {
 // the target block node will ref to proper nxs wrapped in a container
 // XXX, Note that in preprocess handling, the ref is stored on bn.StaticBlock.Block.BodyStmt
 // can bn.StaticBlock.Block be reused in runtime rather than a new one?
-func findLoopStaticBlockAndPath(stack []BlockNode, nx *NameExpr) (BlockNode, bool, uint8) {
-	debug.Printf("---findLoopStaticBlockAndPath, nx: %v \n", nx)
+func findLoopBlockNodeAndPath(stack []BlockNode, nx *NameExpr) (BlockNode, bool, uint8) {
+	debug.Printf("---findLoopBlockNodeAndPath, nx: %v \n", nx)
 	dumpStack(stack)
 	var gen uint8 = 1 // depth of blockNode
 	var bn BlockNode
@@ -145,12 +145,12 @@ func findLoopStaticBlockAndPath(stack []BlockNode, nx *NameExpr) (BlockNode, boo
 
 	debug.Printf("---got target bn: %v \n", bn)
 	debug.Printf("---got target bn type: %T \n", bn)
-	debug.Printf("---got target implicitLoopBlock: %v \n", bn.GetStaticBlock().bodyStmt.implicitLoopBlock)
+	debug.Printf("---got target loopBlockAttr: %v \n", bn.GetStaticBlock().bodyStmt.loopBlockAttr)
 
 	// tmp, if static not nil, means some work done in preprocess, using static
-	if bn.GetStaticBlock().bodyStmt.implicitLoopBlock != nil {
+	if bn.GetStaticBlock().bodyStmt.loopBlockAttr != nil {
 		// find name
-		if bn.GetStaticBlock().bodyStmt.implicitLoopBlock.isLoop {
+		if bn.GetStaticBlock().bodyStmt.loopBlockAttr.isLoop {
 			names := bn.GetBlockNames()
 			for _, name := range names {
 				if nx.Name == name { // find n in this block
@@ -350,7 +350,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *ForStmt:
 				debug.Println("---for stmt")
 				pushInitBlock(n, &last, &stack)
-				n.bodyStmt.implicitLoopBlock = &ImplicitLoopBlock{isLoop: true}
+				n.bodyStmt.loopBlockAttr = &LoopBlockAttr{isLoop: true}
 				debug.Printf("---sb of ForStmt: %v \n", n.GetStaticBlock())
 				n.GetStaticBlock().dump()
 
@@ -430,7 +430,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
-				n.bodyStmt.implicitLoopBlock = &ImplicitLoopBlock{isLoop: true}
+				n.bodyStmt.loopBlockAttr = &LoopBlockAttr{isLoop: true}
 
 			// TRANS_BLOCK -----------------------
 			case *FuncLitExpr:
@@ -858,7 +858,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				for _, nx := range captures {
 					debug.Printf("---loop captures, nx name: %v, nx path: %v \n", nx.Name, nx.Path)
 					// start search block, in the order of small depth to big depth
-					loopBlockNode, isLoopBlock, gen = findLoopStaticBlockAndPath(stack, nx)
+					loopBlockNode, isLoopBlock, gen = findLoopBlockNodeAndPath(stack, nx)
 					debug.Printf("isLoopBlock: %v \n", isLoopBlock)
 					debug.Printf("loopBlockNode: %v \n", loopBlockNode)
 					debug.Printf("depth: %v \n", gen)

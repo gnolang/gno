@@ -44,7 +44,7 @@ SelectStmt ->
 */
 
 func updateCapturedValue(m *Machine, lb *Block) {
-	debug.Println("---op_exec, updateCapturedValue")
+	debug.Printf("---op_exec, updateCapturedValue, lb: %v \n", lb)
 	lb.GetBodyStmt().LoopValuesBox = lb.Source.GetStaticBlock().GetBodyStmt().LoopValuesBox
 	bs := lb.GetBodyStmt()
 
@@ -59,7 +59,7 @@ func updateCapturedValue(m *Machine, lb *Block) {
 		var isSeal bool
 		for i, tt := range bs.LoopValuesBox.transient {
 			nvp := lb.Source.GetPathForName(m.Store, tt.nx.Name)
-			ptr := m.LastBlock().GetPointerTo(m.Store, nvp)
+			ptr := lb.GetPointerTo(m.Store, nvp)
 			tv := ptr.Deref()
 			debug.Printf("---transient value for %s is: %v \n", tt.nx.Name, tv)
 			// update context use previously recorded value
@@ -540,7 +540,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		debug.Printf("---ForStmt: %v \n", cs)
-		//debug.Printf("---ForStmt.sb.bs: %v \n", cs.GetStaticBlock().bodyStmt.implicitLoopBlock)
+		//debug.Printf("---ForStmt.sb.bs: %v \n", cs.GetStaticBlock().bodyStmt.loopBlockAttr)
 		m.PushFrameBasic(cs)
 		// do the copy from preprocess block to runtime block with NewBlock
 		b := m.Alloc.NewBlock(cs, m.LastBlock()) // runtime block
@@ -550,7 +550,7 @@ EXEC_SWITCH:
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
-			//implicitLoopBlock: cs.GetStaticBlock().bodyStmt.implicitLoopBlock, // copy from preprocess block
+			loopBlockAttr: cs.GetStaticBlock().bodyStmt.loopBlockAttr, // copy from preprocess block
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -638,7 +638,7 @@ EXEC_SWITCH:
 			Key:           cs.Key,
 			Value:         cs.Value,
 			Op:            cs.Op,
-			//implicitLoopBlock: cs.GetStaticBlock().bodyStmt.implicitLoopBlock,
+			loopBlockAttr: cs.GetStaticBlock().bodyStmt.loopBlockAttr,
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".
@@ -675,6 +675,8 @@ EXEC_SWITCH:
 		debug.Printf("---BranchStmt, cs: %v \n", cs)
 		switch cs.Op {
 		case BREAK:
+			last := m.LastBlock()
+			updateCapturedValue(m, last.GetNearestEnclosingLoopBlock(m.Store))
 			// Pop frames until for/range
 			// statement (which matches
 			// label, if labeled), and reset.
@@ -692,6 +694,7 @@ EXEC_SWITCH:
 					m.PopFrame()
 				}
 			}
+
 		case CONTINUE:
 			// TODO document
 			for {
@@ -717,6 +720,9 @@ EXEC_SWITCH:
 			}
 		case GOTO:
 			debug.Println("---GOTO ", cs.String())
+			lb := m.LastBlock()
+			updateCapturedValue(m, lb.GetNearestEnclosingLoopBlock(m.Store))
+
 			for i := uint8(0); i < cs.Depth; i++ {
 				m.PopBlock()
 			}
@@ -735,7 +741,7 @@ EXEC_SWITCH:
 			bs.NextBodyIndex = cs.BodyIndex
 			//bs.isLoop = true
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
-			updateCapturedValue(m, last)
+			//updateCapturedValue(m, last)
 
 		case FALLTHROUGH:
 			debug.Println("---FALLTHROUGH")

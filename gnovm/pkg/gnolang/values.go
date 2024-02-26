@@ -2390,6 +2390,21 @@ func (b *Block) GetBlockWithDepth(store Store, path ValuePath) *Block {
 	return b
 }
 
+func (b *Block) GetNearestEnclosingLoopBlock(store Store) *Block {
+	debug.Printf("---GetNearestEnclosingLoopBlock, b: %v \n", b)
+	b = b.GetParent(store)
+	debug.Printf("--- b: %v \n", b)
+	debug.Printf("--- b.bodyStmt: %v \n", b.bodyStmt)
+	debug.Printf("--- b.bodyStmt: %v \n", b.bodyStmt)
+	for b != nil {
+		if b.bodyStmt.loopBlockAttr.isLoop {
+			return b
+		}
+		b = b.GetParent(store)
+	}
+	return nil
+}
+
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
