@@ -17,5 +17,5 @@ Are you a builder, tinkerer, or researcher? If you’re looking to create awesom
 </div><!-- end stack-->
 `
 
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:27Z", nil, nil)
 }
