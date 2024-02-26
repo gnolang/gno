@@ -46,7 +46,7 @@ type Machine struct {
 	Output     io.Writer
 	Store      Store
 	Context    interface{}
-	VMGasMeter store.GasMeter
+	GasMeter store.GasMeter
 }
 
 // machine.Release() must be called on objects
@@ -75,7 +75,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
-	VMGasMeter    store.GasMeter
+	GasMeter    store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -95,7 +95,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
-	vmGasMeter := opts.VMGasMeter
+	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
 	if output == nil {
@@ -131,7 +131,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
-	mm.VMGasMeter = vmGasMeter
+	mm.GasMeter = vmGasMeter
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -894,9 +894,9 @@ const GasFactorCpu int64 = 1
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
-	if m.VMGasMeter != nil {
+	if m.GasMeter != nil {
 		gasCpu := overflow.Mul64p(cycles, GasFactorCpu)
-		m.VMGasMeter.ConsumeGas(gasCpu, "CpuCycles")
+		m.GasMeter.ConsumeGas(gasCpu, "CpuCycles")
 	}
 
 	m.Cycles += cycles

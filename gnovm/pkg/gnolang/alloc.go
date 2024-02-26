@@ -14,7 +14,6 @@ type Allocator struct {
 // for gonative, which doesn't consider the allocator.
 var nilAllocator = (*Allocator)(nil)
 
-const GasFactorAlloc = 1
 const (
 	// go elemental
 	_allocBase    = 24 // defensive... XXX

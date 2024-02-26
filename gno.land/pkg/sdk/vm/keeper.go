@@ -43,7 +43,7 @@ type VMKeeper struct {
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	gnoStore gno.Store
+	store gno.Store
 
 	maxCycles int64 // max allowed cylces on VM executions
 }
@@ -70,15 +70,15 @@ func NewVMKeeper(
 }
 
 func (vm *VMKeeper) Initialize(ms store.MultiStore) {
-	if vm.gnoStore != nil {
+	if vm.store != nil {
 		panic("should not happen")
 	}
 	alloc := gno.NewAllocator(maxAllocTx)
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+	vm.store = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vm.initBuiltinPackagesAndTypes(vm.store)
+	if vm.store.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
@@ -86,7 +86,7 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   vm.store,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -96,32 +96,32 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 }
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
-	// construct main gnoStore if nil.
-	if vm.gnoStore == nil {
+	// construct main store if nil.
+	if vm.store == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
-		// swap sdk store of existing gnoStore.
+		// swap sdk store of existing store.
 		// this is needed due to e.g. gas wrappers.
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		vm.store.SwapStores(baseSDKStore, iavlSDKStore)
 		// clear object cache for every transaction.
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
-		vm.gnoStore.ClearObjectCache()
-		return vm.gnoStore
+		vm.store.ClearObjectCache()
+		return vm.store
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.gnoStore.Fork()
+		simStore := vm.store.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
-		simStore := vm.gnoStore.Fork()
+		simStore := vm.store.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
@@ -197,12 +197,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			Alloc:      gnostore.GetAllocator(),
 			Context:    msgCtx,
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+			  m2.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
@@ -285,13 +286,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Context:    msgCtx,
 			Alloc:      gnostore.GetAllocator(),
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+			  m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
@@ -358,13 +360,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Alloc:      gnostore.GetAllocator(),
 			Context:    msgCtx,
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	// XXX MsgRun does not have pkgPath. How do we find it on chain?
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
@@ -386,13 +389,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Alloc:      gnostore.GetAllocator(),
 			Context:    msgCtx,
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	m2.SetActivePackage(pv)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+				m2.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
@@ -508,12 +512,13 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Context:    msgCtx,
 			Alloc:      alloc,
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
@@ -575,12 +580,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			Context:    msgCtx,
 			Alloc:      alloc,
 			MaxCycles:  vm.maxCycles,
-			VMGasMeter: ctx.GasMeter(),
+			GasMeter: ctx.GasMeter(),
 		})
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
+			  m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
