@@ -1,4 +1,4 @@
-# test that the example packages directory is loaded and usable.
+# test that the packages from examples directory are importable and usable.
 loadpkg gno.land/p/demo/ufmt
 loadpkg $WORK
 
