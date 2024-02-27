@@ -1,10 +1,9 @@
-package math
+package math_test
 
 import (
 	"math"
 	"testing"
 )
-import "fmt"
 
 // sample all possibilities of 8 bit numbers
 // by checking against 64 bit numbers
@@ -100,17 +99,4 @@ func TestQuotient(t *testing.T) {
 	if _, _, ok = Quotient(1, 0); ok {
 		t.Error("unexpected lack of failure")
 	}
-}
-
-//func TestAdditionInt(t *testing.T) {
-//	fmt.Printf("\nminint8 = %v\n", math.MinInt8)
-//	fmt.Printf("maxint8 = %v\n\n", math.MaxInt8)
-//	fmt.Printf("maxint32 = %v\n", math.MaxInt32)
-//	fmt.Printf("minint32 = %v\n\n", math.MinInt32)
-//	fmt.Printf("maxint64 = %v\n", math.MaxInt64)
-//	fmt.Printf("minint64 = %v\n\n", math.MinInt64)
-//}
-
-func Test64(t *testing.T) {
-	fmt.Println("64bit:", _is64Bit())
 }

@@ -23,10 +23,8 @@ package math
 
 //go:generate ./overflow_template.sh
 
-import "math"
-
 func _is64Bit() bool {
-	maxU32 := uint(math.MaxUint32)
+	maxU32 := uint(MaxUint32)
 	return ((maxU32 << 1) >> 1) == maxU32
 }
 
