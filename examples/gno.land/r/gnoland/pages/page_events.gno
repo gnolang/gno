@@ -147,5 +147,5 @@ If you’re interested in building web3 with us, catch up with Gno.land in perso
 </div><!-- end column-->
 </div><!-- end columns-3-->`
 	)
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:24Z", nil, nil)
 }
