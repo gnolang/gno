@@ -1,6 +1,6 @@
 package std
 
-// AssertOriginCall panics is [IsOriginCall] return false.
+// AssertOriginCall panics if [IsOriginCall] returns false.
 func AssertOriginCall() // injected
 
 // IsOriginCall return true only if the calling method is invoked via a direct
