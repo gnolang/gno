@@ -1,4 +1,4 @@
-package math_test
+package overflow
 
 import (
 	"math"
@@ -76,7 +76,7 @@ func TestAlgorithms(t *testing.T) {
 				r64 := a64 / b64
 
 				// now the verification
-				result, _, ok := Quotient8(a8, b8)
+				result, _, ok := Quo8(a8, b8)
 				if ok && int64(result) != r64 {
 					t.Errorf("failed to fail on %v / %v = %v instead of %v\n",
 						a8, b8, result, r64)
@@ -92,11 +92,11 @@ func TestAlgorithms(t *testing.T) {
 }
 
 func TestQuotient(t *testing.T) {
-	q, r, ok := Quotient(100, 3)
+	q, r, ok := Quo(100, 3)
 	if r != 1 || q != 33 || !ok {
 		t.Errorf("expected 100/3 => 33, r=1")
 	}
-	if _, _, ok = Quotient(1, 0); ok {
+	if _, _, ok = Quo(1, 0); ok {
 		t.Error("unexpected lack of failure")
 	}
 }
