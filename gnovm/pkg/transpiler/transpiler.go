@@ -90,7 +90,10 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 // discriminate between test and normal source files.
 func Transpile(source, tags, filename string) (*Result, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, source, parser.SkipObjectResolution)
+	f, err := parser.ParseFile(fset, filename, source,
+		// SkipObjectResolution -- unused here.
+		// ParseComments -- so that they show up when re-building the AST.
+		parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
@@ -112,8 +115,7 @@ func Transpile(source, tags, filename string) (*Result, error) {
 		// this is a standard library. Mark it in the options so the native
 		// bindings resolve correctly.
 		path := strings.TrimPrefix(filename, stdlibPrefix)
-		path = filepath.Dir(path)
-		path = strings.Replace(path, string(filepath.Separator), "/", -1)
+		path = filepath.ToSlash(filepath.Dir(path))
 		path = strings.TrimLeft(path, "/")
 
 		ctx.stdlibPath = path
