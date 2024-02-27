@@ -19,7 +19,7 @@ Add, Sub, Mul, Div are for int.  Add64, Add32, etc. are specifically sized.
 If anybody wishes an unsigned version, submit a pull request for code
 and new tests.
 */
-package overflow
+package math
 
 //go:generate ./overflow_template.sh
 

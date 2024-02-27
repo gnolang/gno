@@ -1,4 +1,4 @@
-package overflow
+package math
 
 // This is generated code, created by overflow_template.sh executed
 // by "go generate"

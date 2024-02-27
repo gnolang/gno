@@ -1,4 +1,4 @@
-package overflow
+package math
 
 import (
 	"math"
