@@ -981,7 +981,7 @@ func UverseNode() *PackageNode {
 
 			exception := &m.Exceptions[len(m.Exceptions)-1]
 
-			// If the frame the exception ocurred in is not popped, it's possible that
+			// If the frame the exception occurred in is not popped, it's possible that
 			// the exception is still in scope and can be recovered.
 			if !exception.Frame.Popped {
 				// If the frame is not the current frame, the exception is not in scope; return nil.
