@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -162,7 +161,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	}
 
 	// Validate Gno syntax and type check.
-	if err := gnolang.TypeCheckMemPackage(memPkg, store); err != nil {
+	if err := gno.TypeCheckMemPackage(memPkg, store); err != nil {
 		return err
 	}
 
@@ -324,7 +323,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err = gnolang.TypeCheckMemPackage(memPkg, store); err != nil {
+	if err = gno.TypeCheckMemPackage(memPkg, store); err != nil {
 		return "", err
 	}
 
