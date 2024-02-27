@@ -3,9 +3,9 @@ package std
 // AssertOriginCall panics if [IsOriginCall] returns false.
 func AssertOriginCall() // injected
 
-// IsOriginCall return true only if the calling method is invoked via a direct
+// IsOriginCall returns true only if the calling method is invoked via a direct
 // MsgCall. It returns false for all other cases, like if the calling method
-// is invoked by an other method (even from the same realm or package).
+// is invoked by another method (even from the same realm or package).
 // It also returns false every time when the transaction is broadcasted via
 // MsgRun.
 func IsOriginCall() bool // injected
