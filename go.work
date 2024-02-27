@@ -1,24 +1,10 @@
 go 1.21.0
 
-toolchain go1.22.0
-
 use (
 	.
-	./contribs/gnodev
-	./contribs/gnokeykc
-	./contribs/gnomd
+	./contribs
 	./gno.land
 	./gnovm
-	./misc/devdeps
-	./misc/docker-integration
-	./misc/genproto
-	./misc/genstd
-	./misc/goscan
-	./misc/logos
-	./misc/loop
+	./misc
 	./tm2
 )
-
-// replace github.com/gnolang/gno/tm2 => ./tm2
-// replace github.com/gnolang/gno/gno.land => ./gno.land
-// replace github.com/gnolang/gno/gnovm => ./gnovm

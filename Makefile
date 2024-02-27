@@ -88,4 +88,6 @@ lint:
 
 .PHONY: tidy
 tidy:
-	go work sync && find . -name 'go.mod' -execdir bash -c 'echo "In directory: $$PWD" && go mod tidy -v' \;
+	go work use -r . # catch every go mod into workspace
+	go work sync # sync dependcies between mod
+	find . -name 'go.mod' -execdir /bin/bash -c 'echo "go mod tidy $$PWD" && go mod tidy -v' \;
