@@ -216,7 +216,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			transpileOpts := newTranspileOptions(&transpileCfg{
 				output: tempdirRoot,
 			})
-			err := transpilePkg(importPath(pkg.Dir), transpileOpts)
+			err := transpilePkg(pkg.Dir, transpileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -230,7 +230,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if verbose {
 				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
 			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
+			tempDir, err := ResolvePath(tempdirRoot, pkg.Dir)
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}

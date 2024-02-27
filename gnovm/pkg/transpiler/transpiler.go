@@ -298,9 +298,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			}
 
 			transp := TranspileImportPath(importPath)
-			if !astutil.RewriteImport(fset, f, importPath, transp) {
-				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", importPath, transp))
-			}
+			importSpec.Path.Value = strconv.Quote(transp)
 		}
 	}
 
