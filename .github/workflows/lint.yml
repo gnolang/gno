@@ -28,7 +28,7 @@ jobs:
           CGO_ENABLED: 0
         with:
           # sync with misc/devdeps/go.mod
-          version: v1.54
+          version: v1.56.2
           args:
             --config=./.github/golangci.yml
   fmt:

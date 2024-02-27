@@ -15,14 +15,13 @@ import (
 	_ "golang.org/x/tools/cmd/goimports"
 
 	// required for formatting, linting, pls.
-	_ "golang.org/x/tools/gopls"
 	_ "mvdan.cc/gofumpt"
 
 	// protoc, genproto
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 
 	// gen docs
-	_ "golang.org/x/tools/cmd/godoc"
+	_ "golang.org/x/pkgsite/cmd/pkgsite"
 
 	// linter
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"

@@ -88,4 +88,4 @@ lint:
 
 .PHONY: tidy
 tidy:
-	$(MAKE) --no-print-directory -C misc     tidy
+	go work sync && find . -name 'go.mod' -execdir bash -c 'echo "In directory: $$PWD" && go mod tidy -v' \;
