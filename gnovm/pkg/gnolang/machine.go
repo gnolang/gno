@@ -1865,7 +1865,7 @@ func (m *Machine) lastCallFrame(n int, safe bool) *Frame {
 
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
-func (m *Machine) PopUntilLastCallFrame(safe bool) *Frame {
+func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
@@ -1877,13 +1877,7 @@ func (m *Machine) PopUntilLastCallFrame(safe bool) *Frame {
 		fr.Popped = true
 	}
 
-	// The frame wasn't found. If not in safe mode, panic to avoid any potential
-	// nil pointer dereferences.
-	if !safe {
-		panic("no last call frame found")
-	}
-
-	// In safe mode we return nil and no frames are popped, so update the frames' popped flag.
+	// No frames are popped, so revert all the frames' popped flag.
 	// This is expected to happen infrequently.
 	for _, frame := range m.Frames {
 		frame.Popped = false
@@ -1990,7 +1984,7 @@ func (m *Machine) Panic(ex TypedValue) {
 	)
 
 	m.PanicScope++
-	m.PopUntilLastCallFrame(false)
+	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
