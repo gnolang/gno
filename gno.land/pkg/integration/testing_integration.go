@@ -125,7 +125,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			}
 
 			// Track new user balances added via the `adduser`
-			// command and packages added with the `use` commnand.
+			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
 			genesis := &gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
@@ -279,7 +279,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 			},
-			// `loadpkg` load a specific package from the example folder or from the working directory
+			// `loadpkg` load a specific package from the 'examples' or working directory
 			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
 				// special dirs
 				workDir := ts.Getenv("WORK")
@@ -300,7 +300,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("`loadpkg`: too many arguments specified")
 				}
 
-				// If `all` is specified, fully load example folder.
+				// If `all` is specified, fully load 'examples' directory.
 				// NOTE: In 99% of cases, this is not needed, and
 				// packages should be loaded individually.
 				if path == "all" {
