@@ -21,36 +21,6 @@ func isFileExist(path string) bool {
 	return err == nil
 }
 
-func gnoFilesFromArgs(args []string) ([]string, error) {
-	paths := []string{}
-	for _, arg := range args {
-		info, err := os.Stat(arg)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-		if !info.IsDir() {
-			curpath := arg
-			paths = append(paths, curpath)
-		} else {
-			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("%s: walk dir: %w", arg, err)
-				}
-
-				if !isGnoFile(f) {
-					return nil // skip
-				}
-				paths = append(paths, curpath)
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return paths, nil
-}
-
 func gnoPackagesFromArgs(args []string) ([]string, error) {
 	paths := []string{}
 	for _, arg := range args {
