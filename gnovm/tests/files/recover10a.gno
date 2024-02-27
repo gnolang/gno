@@ -1,10 +1,12 @@
 package main
 
 func main() {
-	defer recover()
+	defer func() {
+		println(recover())
+	}()
 
 	panic("ahhhhh")
 }
 
-// Error:
+// Output:
 // ahhhhh
