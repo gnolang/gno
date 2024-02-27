@@ -9,15 +9,15 @@ type (
 	// subscriptions is the subscription store,
 	// maps subscription id -> notification channel.
 	// Usage of this type is NOT thread safe
-	subscriptions[T msgType] map[string]chan MsgCallback[T]
+	subscriptions[T msgType] map[string]chan func() []*T
 )
 
 // add adds a new subscription to the subscription map.
 // Returns the subscription ID, and update channel
-func (s *subscriptions[T]) add() (string, chan MsgCallback[T]) {
+func (s *subscriptions[T]) add() (string, chan func() []*T) {
 	var (
 		id = xid.New().String()
-		ch = make(chan MsgCallback[T], 1)
+		ch = make(chan func() []*T, 1)
 	)
 
 	(*s)[id] = ch
@@ -37,7 +37,7 @@ func (s *subscriptions[T]) remove(id string) {
 }
 
 // notify notifies all subscription listeners
-func (s *subscriptions[T]) notify(callback MsgCallback[T]) {
+func (s *subscriptions[T]) notify(callback func() []*T) {
 	// Notify the listeners
 	for _, ch := range *s {
 		notifySubscription(ch, callback)
@@ -47,7 +47,7 @@ func (s *subscriptions[T]) notify(callback MsgCallback[T]) {
 // notifySubscription alerts the notification channel
 // about a callback. This function is pure syntactic sugar
 func notifySubscription[T msgType](
-	ch chan MsgCallback[T],
+	ch chan func() []*T,
 	callback MsgCallback[T],
 ) {
 	select {

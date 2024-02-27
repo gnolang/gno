@@ -3,12 +3,14 @@ package messages
 import (
 	"fmt"
 	"sync"
+
+	"github.com/gnolang/go-tendermint/messages/types"
 )
 
 // msgType is the combined message type interface,
 // for easy reference and type safety
 type msgType interface {
-	ProposalMessage | PrevoteMessage | PrecommitMessage
+	types.ProposalMessage | types.PrevoteMessage | types.PrecommitMessage
 }
 
 type (
@@ -41,7 +43,7 @@ func NewCollector[T msgType]() *Collector[T] {
 // Subscribe creates a new collector subscription.
 // Returns the channel for receiving messages,
 // as well as the unsubscribe method
-func (c *Collector[T]) Subscribe() (<-chan MsgCallback[T], func()) {
+func (c *Collector[T]) Subscribe() (<-chan func() []*T, func()) {
 	c.subscriptionsMux.Lock()
 	defer c.subscriptionsMux.Unlock()
 
@@ -86,7 +88,7 @@ func (c *collection[T]) getMessages() []*T {
 }
 
 // AddMessage adds a new message to the collector
-func (c *Collector[T]) AddMessage(view *View, from []byte, message *T) {
+func (c *Collector[T]) AddMessage(view *types.View, from []byte, message *T) {
 	c.collectionMux.Lock()
 
 	// Add the message
@@ -112,6 +114,6 @@ func (c *collection[T]) addMessage(key string, message *T) {
 // getCollectionKey constructs a key based on the
 // message sender and view information.
 // This key guarantees uniqueness in the message store
-func getCollectionKey(from []byte, view *View) string {
+func getCollectionKey(from []byte, view *types.View) string {
 	return fmt.Sprintf("%s_%d_%d", from, view.Height, view.Round)
 }

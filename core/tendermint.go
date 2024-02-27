@@ -1,207 +1,316 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"fmt"
-	"time"
+	"sync"
+
+	"github.com/gnolang/go-tendermint/messages/types"
 )
-
-type State int
-
-const (
-	Propose State = iota
-	Prevote
-	Precommit
-)
-
-type Proposer interface {
-	Get(height uint64, block []byte, round int64) []byte
-	Me() []byte
-}
-
-type Broadcast interface {
-	Broadcast(state State, height uint64, round int64, block []byte)
-}
-
-type BlockValidator interface {
-	IsValid(height uint64, block []byte) bool
-	IsMajority(votes int) bool
-}
 
 // TODO define the finalized proposal
 
-// `NewTendermint` and `Init` must be called,
-// in that order. before any messages can be processed
 type Tendermint struct {
-	state        State
-	round        int64
-	lockedBlock  []byte
-	lockedRound  int64
-	validBlock   []byte
-	validRound   int64
-	init         bool
-	cfg          *Config
-	validMsgsCnt [Precommit + 1]int
-	done         bool
+	verifier  Verifier
+	node      Node
+	broadcast Broadcast
+	signer    Signer
+
+	// wg is the barrier for keeping all
+	// parallel consensus processes synced
+	wg sync.WaitGroup
+
+	// state is the current Tendermint consensus state
+	state *state
+
+	// store is the message store
+	store *store
+
+	// roundExpired is the channel for signalizing
+	// round change events (to the next round, from the current one)
+	roundExpired chan struct{}
+
+	// timeouts hold state timeout information (constant)
+	timeouts map[step]timeout
 }
 
-type Config struct {
-	ctx     context.Context
-	height  uint64
-	p       Proposer
-	b       Broadcast
-	timeout time.Duration
-	block   []byte
-	bv      BlockValidator
-}
+// RunSequence runs the Tendermint consensus sequence for a given height,
+// returning only when a proposal has been finalized (consensus reached), or
+// the context has been cancelled
+func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
+	// Initialize the state before starting the sequence
+	t.state = newState(&types.View{
+		Height: h,
+		Round:  0,
+	})
 
-func NewTendermint(cfg *Config) *Tendermint {
-	t := &Tendermint{
-		state:        Propose,
-		round:        0,
-		lockedBlock:  nil,
-		lockedRound:  -1,
-		validBlock:   nil,
-		validRound:   -1,
-		cfg:          cfg,
-		validMsgsCnt: [Precommit + 1]int{0, 0, 0},
-	}
-
-	return t
-}
-
-type Msg struct {
-	state  State
-	height uint64
-	round  int64
-	block  []byte
-	from   []byte
-}
-
-func (t *Tendermint) Init() error {
-	if !t.cfg.bv.IsValid(t.cfg.height, t.cfg.block) {
-		return errors.New(fmt.Sprintf("invalid height: %v block: %v\n", t.cfg.height, t.cfg.block))
-	}
-
-	t.init = true
-	proposer := t.cfg.p.Get(t.cfg.height, t.cfg.block, t.round)
-
-	if bytes.Equal(t.cfg.p.Me(), proposer) {
-		t.cfg.b.Broadcast(Propose, t.cfg.height, t.round, t.cfg.block)
-	} else {
-		time.Sleep(t.cfg.timeout)
-		t.cfg.b.Broadcast(Prevote, t.cfg.height, t.round, t.cfg.block)
-		t.state = Prevote
-	}
-	return nil
-}
-
-// ProcessMsg accepts a *Msg and potentially advances the state
-// of the consensus. It returns an error if there was such and a boolean
-// value indicating whether consensus has been reached or not.
-func (t *Tendermint) ProcessMsg(m *Msg) (error, bool) {
-	if !t.cfg.bv.IsValid(m.height, m.block) {
-		return errors.New(fmt.Sprintf("invalid height: %v block: %v\n", m.height, m.block)), false
-	}
-	if !t.init {
-		return errors.New("not initialized"), false
-	}
-
-	if m.height != t.cfg.height {
-		return errors.New(fmt.Sprintf("expected height: %v got: %v\n", t.cfg.height, m.height)), false
-	}
-
-	proposer := t.cfg.p.Get(t.cfg.height, t.cfg.block, t.round)
-
-	switch m.state {
-	case Propose:
-		if !bytes.Equal(m.from, proposer) {
-			return errors.New(fmt.Sprintf("expected proposer: %v got: %v\n", proposer, m.from)), false
+	for {
+		// Set up the round context
+		ctxRound, cancelRound := context.WithCancel(ctx)
+		teardown := func() {
+			cancelRound()
+			t.wg.Wait()
 		}
 
-		switch {
-		//22:
-		case t.state == Propose && t.validRound == -1:
-			if t.lockedRound == -1 || bytes.Equal(t.lockedBlock, m.block) {
-				t.cfg.b.Broadcast(Prevote, m.height, m.round, m.block)
-			} else {
-				t.cfg.b.Broadcast(Prevote, m.height, m.round, nil)
-			}
-		//28:
-		case t.state == Propose && t.cfg.bv.IsMajority(t.validMsgsCnt[Prevote]):
-			if t.validRound >= 0 || t.validRound < t.round {
-				if t.lockedRound == -1 || bytes.Equal(t.lockedBlock, m.block) {
-					t.cfg.b.Broadcast(Prevote, m.height, m.round, m.block)
-				} else {
-					t.cfg.b.Broadcast(Prevote, m.height, m.round, nil)
-				}
-			}
-		//36:
-		case t.state >= Prevote && t.cfg.bv.IsMajority(t.validMsgsCnt[Prevote]):
-			if t.state == Prevote {
-				t.lockedBlock = m.block
-				t.lockedRound = m.round
-				t.cfg.b.Broadcast(Precommit, m.height, m.round, m.block)
-				t.state = Precommit
-			}
-			t.validBlock = m.block
-			t.validRound = t.round
+		select {
+		case proposal := <-t.finalizeProposal(ctxRound):
+			teardown()
 
-		//49:
-		case t.state >= Prevote && t.cfg.bv.IsMajority(t.validMsgsCnt[Precommit]):
-			decision := true //while decision[t.height] == nil
+			return proposal
+		case _ = <-t.watchForRoundJumps(ctxRound):
+			teardown()
 
-			if decision {
-				//decision[t.height] == m.block
-				t.cfg.height += 1
-				t.round = 0
-				err := t.Init()
+		// TODO start NEW round (that was received)
+		case <-t.roundExpired:
+			teardown()
 
-				if err != nil {
-					return err, false
-				}
+			// TODO start NEXT round (view.Round + 1)
+		case <-ctx.Done():
+			teardown()
+
+			// TODO log
+			return nil
+		}
+	}
+}
+
+// watchForRoundJumps monitors for F+1 (any) messages from a future round, and
+// triggers the round switch context (channel) accordingly
+func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
+	// TODO make thread safe
+	var (
+		_  = t.state.view
+		ch = make(chan uint64, 1)
+	)
+
+	t.wg.Add(1)
+
+	go func() {
+		proposeCh, unsubscribeProposeFn := t.store.SubscribeToPropose()
+		prevoteCh, unsubscribePrevoteFn := t.store.SubscribeToPrevote()
+		precommitCh, unsubscribePrecommitFn := t.store.SubscribeToPrecommit()
+
+		defer func() {
+			unsubscribeProposeFn()
+			unsubscribePrevoteFn()
+			unsubscribePrecommitFn()
+		}()
+
+		signalRoundJump := func(round uint64) {
+			select {
+			case <-ctx.Done():
+			case ch <- round:
 			}
 		}
 
-		t.state = Prevote
-		t.validMsgsCnt[Propose] += 1
-	case Prevote:
-		if t.state == Prevote && t.cfg.bv.IsMajority(t.validMsgsCnt[Prevote]) {
-			//44:
-			if m.block == nil {
-				t.cfg.b.Broadcast(Precommit, t.cfg.height, t.round, nil)
-			} else {
-				//34:
-				time.Sleep(t.cfg.timeout)
-				if t.round == m.round && t.state == Prevote {
-					t.cfg.b.Broadcast(Precommit, t.cfg.height, t.round, t.cfg.block)
-				}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case getProposeFn := <-proposeCh:
+				// TODO count messages
+				_ = getProposeFn()
+			case getPrevoteFn := <-prevoteCh:
+				// TODO count messages
+				_ = getPrevoteFn()
+			case getPrecommitFn := <-precommitCh:
+				// TODO count messages
+				_ = getPrecommitFn()
 			}
-			t.state = Precommit
+
+			// TODO check if the condition (F+1) is met
+			// and signal the round jump
+			if false {
+				signalRoundJump(0)
+			}
 		}
+	}()
 
-		t.validMsgsCnt[Prevote] += 1
-	//47:
-	case Precommit:
-		if m.round == t.round && t.cfg.bv.IsMajority(t.validMsgsCnt[Precommit]) {
-			var err error
+	return ch
+}
 
-			time.Sleep(t.cfg.timeout)
-			if t.round == m.round && t.state == Prevote {
-				t.round += 1
-				err = t.Init()
-			}
+// finalizeProposal starts the proposal finalization sequence
+func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
+	ch := make(chan []byte, 1)
 
-			if err != nil {
-				return err, false
-			}
-			t.done = true
+	t.wg.Add(1)
+
+	go func() {
+		defer func() {
+			close(ch)
+			t.wg.Done()
+		}()
+
+		// Start the consensus round
+		t.startRound(ctx)
+
+		// Run the consensus state machine, and save the finalized proposal (if any)
+		if finalizedProposal := t.runStates(ctx); finalizedProposal != nil {
+			ch <- finalizedProposal
 		}
+	}()
 
-		t.validMsgsCnt[Precommit] += 1
+	return ch
+}
+
+// startRound starts the consensus round.
+// It is a required middle step (proposal evaluation) before
+// the state machine is in full swing and
+// the runs the same flow for everyone (proposer / non-proposers)
+func (t *Tendermint) startRound(ctx context.Context) {
+	// TODO make thread safe
+	// Check if the current process is the proposer for this view
+	if !t.verifier.IsProposer(t.node.ID(), t.state.view.Height, t.state.view.Round) {
+		// The current process is NOT the proposer, only schedule a timeout
+		t.scheduleTimeoutPropose(ctx)
+
+		return
 	}
 
-	return nil, t.done
+	// The proposal value can either be:
+	// - an old (valid / locked) proposal from a previous round
+	// - a completely new proposal (built from scratch)
+	proposal := t.state.validValue
+
+	// Check if a new proposal needs to be built
+	if proposal == nil {
+		// No previous valid value present,
+		// build a new proposal
+		proposal = t.node.BuildProposal(t.state.view.Height)
+	}
+
+	// Build the propose message
+	var (
+		proposeMessage = t.buildProposalMessage(proposal)
+		id             = t.node.Hash(proposal)
+	)
+
+	// Broadcast the proposal to other consensus nodes
+	t.broadcastProposal(proposeMessage)
+
+	// TODO make thread safe
+	// Save the accepted proposal in the state.
+	// NOTE: This is different from validValue / lockedValue,
+	// since they require a 2F+1 quorum of specific messages
+	// in order to be set, whereas this is simply a reference
+	// value for different states (prevote, precommit)
+	t.state.acceptedProposal = proposeMessage
+	t.state.acceptedProposalID = id
+
+	// Build and broadcast the prevote message
+	t.broadcastPrevote(t.buildPrevoteMessage(id))
+
+	// Since the current process is the proposer,
+	// it can directly move to the prevote state
+	// TODO make threads safe
+	t.state.step = prevote
+}
+
+// runStates runs the consensus states, depending on the current step
+func (t *Tendermint) runStates(ctx context.Context) []byte {
+	for {
+		// TODO make thread safe
+		switch t.state.step {
+		case propose:
+			t.runPropose(ctx)
+		case prevote:
+			t.runPrevote(ctx)
+		case precommit:
+			return t.runPrecommit(ctx)
+		}
+	}
+}
+
+// runPropose runs the propose state in which the process
+// waits for a valid PROPOSE message
+func (t *Tendermint) runPropose(ctx context.Context) {
+	// TODO make thread safe
+	var (
+		_ = t.state.view
+	)
+
+	ch, unsubscribeFn := t.store.SubscribeToPropose()
+	defer unsubscribeFn()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case getMessagesFn := <-ch:
+			// TODO filter and verify messages
+			_ = getMessagesFn()
+
+			// TODO move to prevote if the proposal is valid
+		}
+	}
+}
+
+// runPrevote runs the prevote state in which the process
+// waits for a valid PREVOTE messages
+func (t *Tendermint) runPrevote(ctx context.Context) {
+	// TODO make thread safe
+	var (
+		_ = t.state.view
+	)
+
+	ch, unsubscribeFn := t.store.SubscribeToPrevote()
+	defer unsubscribeFn()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case getMessagesFn := <-ch:
+			// TODO filter and verify messages
+			_ = getMessagesFn()
+
+			// TODO move to precommit if the proposal is valid
+		}
+	}
+}
+
+// runPrecommit runs the precommit state in which the process
+// waits for a valid PRECOMMIT messages
+func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
+	// TODO make thread safe
+	var (
+		_ = t.state.view
+	)
+
+	ch, unsubscribeFn := t.store.SubscribeToPrecommit()
+	defer unsubscribeFn()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case getMessagesFn := <-ch:
+			// TODO filter and verify messages
+			_ = getMessagesFn()
+
+			// TODO move to precommit if the proposal is valid
+		}
+	}
+}
+
+// AddMessage verifies and adds a new message to the consensus engine
+func (t *Tendermint) AddMessage(message *types.Message) {
+	// Make sure the message is present
+	if message == nil {
+		return
+	}
+
+	// Make sure the message payload is present
+	if message.Payload == nil {
+		return
+	}
+
+	// TODO verify the message sender
+
+	// TODO verify the message signature
+
+	// TODO verify the message height
+
+	// TODO verify the message round
+
+	// TODO verify the message content (fields set)
 }

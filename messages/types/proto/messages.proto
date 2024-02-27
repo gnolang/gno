@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "/messages";
+option go_package = "/messages/types";
 
 // MessageType defines the types of messages
 // that are related to the consensus process
