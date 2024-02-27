@@ -35,22 +35,6 @@ func NewCoin(denom string, amount int64) Coin {
 	}
 }
 
-func (coin Coin) MarshalAmino() (string, error) {
-	return coin.String(), nil
-}
-
-func (coin *Coin) UnmarshalAmino(coinstr string) (err error) {
-	if coinstr == "" {
-		return nil
-	}
-	coin2, err := ParseCoin(coinstr)
-	if err != nil {
-		return err
-	}
-	*coin = coin2
-	return nil
-}
-
 // String provides a human-readable representation of a coin
 func (coin Coin) String() string {
 	if coin.IsZero() {

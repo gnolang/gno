@@ -1,7 +1,7 @@
 package std
 
 import (
-	"overflow"
+	"github.com/gnolang/overflow"
 	"regexp"
 	"sort"
 	"strconv"
@@ -178,19 +178,6 @@ func NewCoins(coins ...Coin) Coins {
 	}
 
 	return newCoins
-}
-
-func (coins Coins) MarshalAmino() (string, error) {
-	return coins.String(), nil
-}
-
-func (coins *Coins) UnmarshalAmino(coinsstr string) (err error) {
-	coins2, err := ParseCoins(coinsstr)
-	if err != nil {
-		return err
-	}
-	*coins = coins2
-	return nil
 }
 
 func (coins Coins) String() string {
