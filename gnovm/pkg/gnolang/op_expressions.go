@@ -204,10 +204,11 @@ func (m *Machine) doOpRef() {
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
-	t := m.PopValue().GetType()
+	t := m.PopValue().GetType() // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(1)
-	xt := xv.T
+	xv := m.PeekValue(1) // value result / value to assert
+	xt := xv.T           // underlying value's type
 
 	// xt may be nil, but we need to wait to return because the value of xt that is set
 	// will depend on whether we are trying to assert to an interface or concrete type.
@@ -237,7 +238,7 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			impl = it.IsImplementedBy(xt)
 			if !impl {
 				// TODO: default panic type?
@@ -254,15 +255,14 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			var nonConcrete string
+			nonConcrete := "non-concrete "
 			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
 				// If the underlying native type is reflect.Interface kind, then this has no
 				// concrete value and should fail.
 				if nxt.Type.Kind() != reflect.Interface {
 					impl = nxt.Type.Implements(nt.Type)
-				} else {
-					nonConcrete = "non-concrete "
+					nonConcrete = ""
 				}
 			}
 
@@ -282,6 +282,12 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			ex := fmt.Sprintf("nil is not of type %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
@@ -308,7 +314,7 @@ func (m *Machine) doOpTypeAssert2() {
 	t := tv.GetType()    // type being asserted
 
 	// peek x for re-use
-	xv := m.PeekValue(2) // value result
+	xv := m.PeekValue(2) // value result / value to assert
 	xt := xv.T           // underlying value's type
 
 	// xt may be nil, but we need to wait to return because the value of xt that is set
@@ -334,7 +340,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
