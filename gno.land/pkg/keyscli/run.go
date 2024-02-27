@@ -9,7 +9,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -108,11 +107,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
-	}
-	// transpile and validate syntax
-	err = transpiler.TranspileAndCheckMempkg(memPkg, nil)
-	if err != nil {
-		panic(err)
 	}
 	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.

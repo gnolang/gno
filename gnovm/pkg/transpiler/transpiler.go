@@ -10,8 +10,6 @@ import (
 	"go/parser"
 	goscanner "go/scanner"
 	"go/token"
-	"go/types"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -21,13 +19,11 @@ import (
 	"strconv"
 	"strings"
 
-	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // ImportPrefix is the import path to the root of the gno repository, which should
@@ -89,132 +85,11 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 	return
 }
 
-// MemPackageGetter implements the GetMemPackage() method. It is a subset of
-// gnolang.Store, separated for ease of testing.
-type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
-}
-
-// DefaultGetter is used by [TranspileAndCheckMempkg] when a nil getter is passed.
-// It resolves paths on-the-fly from the root directory, using gnolang.ReadMemPackage.
-// If rootDir == "", then it will be set to the value of gnoenv.RootDir.
-func DefaultGetter(rootDir string) MemPackageGetter {
-	if rootDir == "" {
-		rootDir = gnoenv.RootDir()
-	}
-	return defaultGetter{rootDir}
-}
-
-type defaultGetter struct {
-	rootDir string
-}
-
-func (dg defaultGetter) GetMemPackage(path string) *std.MemPackage {
-	dir := filepath.Join(dg.rootDir, PackageDirLocation(path))
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
-	}
-	defer func() {
-		// TODO(morgan): use variant that doesn't panic. *rolls eyes*
-		err := recover()
-		if err != nil {
-			log.Printf("import %q: %v", path, err)
-		}
-	}()
-	return gnolang.ReadMemPackage(dir, path)
-}
-
-// TranspileAndCheckMempkg converts each of the files in mempkg to Go, and
-// performs static checking using Go's type checker.
-func TranspileAndCheckMempkg(mempkg *std.MemPackage, getter MemPackageGetter) error {
-	if getter == nil {
-		getter = DefaultGetter("")
-	}
-	imp := &transpImporter{
-		getter: getter,
-		cache:  map[string]interface{}{},
-		cfg:    &types.Config{},
-	}
-
-	imp.cfg.Importer = imp
-	_, err := imp.transpileParseMemPkg(mempkg)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type transpImporter struct {
-	getter MemPackageGetter
-	cache  map[string]any // *types.Package or error
-	cfg    *types.Config
-}
-
-func (g *transpImporter) Import(path string) (*types.Package, error) {
-	return g.ImportFrom(path, "", 0)
-}
-
-// ImportFrom returns the imported package for the given import
-// path when imported by a package file located in dir.
-func (g *transpImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
-	if pkg, ok := g.cache[path]; ok {
-		switch ret := pkg.(type) {
-		case *types.Package:
-			return ret, nil
-		case error:
-			return nil, ret
-		default:
-			panic(fmt.Sprintf("invalid type in transpImporter.cache %T", ret))
-		}
-	}
-	mpkg := g.getter.GetMemPackage(path)
-	if mpkg == nil {
-		g.cache[path] = (*types.Package)(nil)
-		return nil, nil
-	}
-	result, err := g.transpileParseMemPkg(mpkg)
-	if err != nil {
-		g.cache[path] = err
-		return nil, err
-	}
-	g.cache[path] = result
-	return result, nil
-}
-
-func (g *transpImporter) transpileParseMemPkg(mpkg *std.MemPackage) (*types.Package, error) {
-	fset := token.NewFileSet()
-	files := make([]*ast.File, 0, len(mpkg.Files))
-	var errs error
-	for _, file := range mpkg.Files {
-		// include go files to have native bindings checked.
-		if !strings.HasSuffix(file.Name, ".gno") && !strings.HasSuffix(file.Name, ".go") {
-			continue // skip spurious file.
-		}
-		// TODO: because this is in-memory, could avoid header.
-		res, err := transpileWithFset(fset, file.Body, "gno", file.Name)
-		if err != nil {
-			err = multierr.Append(errs, err)
-		}
-		files = append(files, res.File)
-	}
-	if errs != nil {
-		return nil, errs
-	}
-
-	// TODO g.cfg.Error
-	return g.cfg.Check(mpkg.Path, fset, files, nil)
-}
-
 // Transpile performs transpilation on the given source code. tags can be used
 // to specify build tags; and filename helps generate useful error messages and
 // discriminate between test and normal source files.
 func Transpile(source, tags, filename string) (*Result, error) {
 	fset := token.NewFileSet()
-	return transpileWithFset(fset, source, tags, filename)
-}
-
-func transpileWithFset(fset *token.FileSet, source, tags, filename string) (*Result, error) {
 	f, err := parser.ParseFile(fset, filename, source, parser.SkipObjectResolution)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
