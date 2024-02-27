@@ -3,16 +3,20 @@ name: tm2
 on:
   pull_request:
     paths:
+      # XXX: for now keep the paths for gnovm, tm2, gnoland and misc the same,
+      # so that coverage information is uploaded for all of them together.
+      # This could be removed in the future.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "misc/**"
+      - "examples/**"
+      - ".github/workflows/**"
+      # XXX: end copied part, below is the "ideal" paths on which this workflow should run
       - "go.sum"
       - "tm2/Makefile"
       - "tm2/**.go"
       - ".github/workflows/tm2.yml"
-      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
-      - "gnovm/**"
-      - "tm2/**"
-      - "gno.land/**"
-      - "examples/**"
-      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -93,6 +97,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Download all previous coverage artifacts
         uses: actions/download-artifact@v4
         with:
