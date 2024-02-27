@@ -85,7 +85,7 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 		ctx := m.Context.(stdlibs.ExecContext)
 		return ctx.OrigCaller
 	}
-	return m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
+	return m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
 }
 
 func TestSetOrigCaller(m *gno.Machine, addr crypto.Bech32Address) {

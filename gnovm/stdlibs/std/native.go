@@ -126,7 +126,7 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 		ctx := m.Context.(ExecContext)
 		return ctx.OrigCaller
 	}
-	return m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
+	return m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
 }
 
 func GetBanker(m *gno.Machine, bankerType BankerType) gno.TypedValue {

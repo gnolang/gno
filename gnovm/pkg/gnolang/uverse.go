@@ -987,7 +987,7 @@ func UverseNode() *PackageNode {
 				// If the frame is not the current frame, the exception is not in scope; return nil.
 				// This retrieves the second most recent call frame because the first most recent
 				// is the call to recover itself.
-				if frame := m.LastCallFrameSafe(2); frame == nil || (frame != nil && frame != exception.Frame) {
+				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
 					m.PushValue(TypedValue{})
 					return
 				}

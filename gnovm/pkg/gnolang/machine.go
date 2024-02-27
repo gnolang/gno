@@ -1827,20 +1827,21 @@ func (m *Machine) LastFrame() *Frame {
 	return m.Frames[len(m.Frames)-1]
 }
 
-// TODO: this function and PopUntilLastCallFrame() is used in conjunction
-// spanning two disjoint operations upon return. Optimize.
-// If n is 1, returns the immediately last call frame.
+// MustLastCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
+func (m *Machine) MustLastCallFrame(n int) *Frame {
+	return m.lastCallFrame(n, true)
+}
+
+// LastCallFrame behaves the same as MustLastCallFrame, but rather than panicking,
+// returns nil if the frame is not found.
 func (m *Machine) LastCallFrame(n int) *Frame {
 	return m.lastCallFrame(n, false)
 }
 
-// LastCallFrameSafe behaves the same as LastCallFrame, but rather than panicking,
-// returns nil if the frame is not found.
-func (m *Machine) LastCallFrameSafe(n int) *Frame {
-	return m.lastCallFrame(n, true)
-}
-
-func (m *Machine) lastCallFrame(n int, safe bool) *Frame {
+// TODO: this function and PopUntilLastCallFrame() is used in conjunction
+// spanning two disjoint operations upon return. Optimize.
+// If n is 1, returns the immediately last call frame.
+func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
@@ -1856,7 +1857,7 @@ func (m *Machine) lastCallFrame(n int, safe bool) *Frame {
 		}
 	}
 
-	if !safe {
+	if mustBeFound {
 		panic("frame not found")
 	}
 
@@ -1979,7 +1980,7 @@ func (m *Machine) Panic(ex TypedValue) {
 		m.Exceptions,
 		Exception{
 			Value: ex,
-			Frame: m.LastCallFrame(1),
+			Frame: m.MustLastCallFrame(1),
 		},
 	)
 
