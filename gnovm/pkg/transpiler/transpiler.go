@@ -19,11 +19,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
-
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // ImportPrefix is the import path to the root of the gno repository, which should

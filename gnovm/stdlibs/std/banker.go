@@ -65,6 +65,7 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 					`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
 					amt, ctx.OrigSend, *ctx.OrigSendSpent),
 			))
+			return
 		}
 		ctx.Banker.SendCoins(from, to, amt)
 		*ctx.OrigSendSpent = spent
