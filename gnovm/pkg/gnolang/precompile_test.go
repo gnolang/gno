@@ -309,12 +309,12 @@ func TestParseGoBuildErrors(t *testing.T) {
 		{
 			name: "some errors",
 			output: `xxx
-./main.gno.gen.go:6:2: nasty error
-./pkg/file.gno.gen.go:60:20: ugly error`,
+main.gno:6:2: nasty error
+pkg/file.gno:60:20: ugly error`,
 			expectedError: goscanner.ErrorList{
 				&goscanner.Error{
 					Pos: token.Position{
-						Filename: "./main.gno",
+						Filename: "main.gno",
 						Line:     6,
 						Column:   2,
 					},
@@ -322,7 +322,7 @@ func TestParseGoBuildErrors(t *testing.T) {
 				},
 				&goscanner.Error{
 					Pos: token.Position{
-						Filename: "./pkg/file.gno",
+						Filename: "pkg/file.gno",
 						Line:     60,
 						Column:   20,
 					},
