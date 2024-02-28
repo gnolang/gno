@@ -28,16 +28,17 @@ func (n step) String() string {
 // TODO make thread safe
 type state struct {
 	view *types.View
-	step step
 
 	acceptedProposal   *types.ProposalMessage
 	acceptedProposalID []byte
 
 	lockedValue []byte
-	lockedRound int64
+	validValue  []byte
 
-	validValue []byte
-	validRound int64
+	lockedRound int64
+	validRound  int64
+
+	step step
 }
 
 // newState creates a fresh state using the given view

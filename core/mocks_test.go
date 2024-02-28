@@ -50,10 +50,14 @@ func (m *mockNode) BuildProposal(height uint64) []byte {
 	return nil
 }
 
-type signDelegate func([]byte) []byte
+type (
+	signDelegate             func([]byte) []byte
+	isValidSignatureDelegate func([]byte, []byte) bool
+)
 
 type mockSigner struct {
-	signFn signDelegate
+	signFn             signDelegate
+	isValidSignatureFn isValidSignatureDelegate
 }
 
 func (m *mockSigner) Sign(data []byte) []byte {
@@ -62,4 +66,38 @@ func (m *mockSigner) Sign(data []byte) []byte {
 	}
 
 	return nil
+}
+
+func (m *mockSigner) IsValidSignature(data, signature []byte) bool {
+	if m.isValidSignatureFn != nil {
+		return m.isValidSignatureFn(data, signature)
+	}
+
+	return false
+}
+
+type (
+	isProposerDelegate func([]byte, uint64, uint64) bool
+	isValidator        func([]byte) bool
+)
+
+type mockVerifier struct {
+	isProposerFn  isProposerDelegate
+	isValidatorFn isValidator
+}
+
+func (m *mockVerifier) IsProposer(id []byte, height, round uint64) bool {
+	if m.isProposerFn != nil {
+		return m.isProposerFn(id, height, round)
+	}
+
+	return false
+}
+
+func (m *mockVerifier) IsValidator(from []byte) bool {
+	if m.isValidatorFn != nil {
+		return m.isValidatorFn(from)
+	}
+
+	return false
 }

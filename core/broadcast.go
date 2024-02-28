@@ -46,6 +46,8 @@ func (t *Tendermint) buildPrevoteMessage(id []byte) *types.PrevoteMessage {
 }
 
 // buildPrecommitMessage builds a precommit message using the given precommit identifier
+//
+//nolint:unused // Temporarily unused
 func (t *Tendermint) buildPrecommitMessage(id []byte) *types.PrecommitMessage {
 	// TODO make thread safe
 	var (
@@ -94,6 +96,8 @@ func (t *Tendermint) broadcastPrevote(prevote *types.PrevoteMessage) {
 }
 
 // broadcastPrecommit signs and broadcasts the given precommit message
+//
+//nolint:unused // Temporarily unused
 func (t *Tendermint) broadcastPrecommit(precommit *types.PrecommitMessage) {
 	message := &types.Message{
 		Type:      types.MessageType_PRECOMMIT,

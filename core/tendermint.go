@@ -15,10 +15,6 @@ type Tendermint struct {
 	broadcast Broadcast
 	signer    Signer
 
-	// wg is the barrier for keeping all
-	// parallel consensus processes synced
-	wg sync.WaitGroup
-
 	// state is the current Tendermint consensus state
 	state *state
 
@@ -31,6 +27,10 @@ type Tendermint struct {
 
 	// timeouts hold state timeout information (constant)
 	timeouts map[step]timeout
+
+	// wg is the barrier for keeping all
+	// parallel consensus processes synced
+	wg sync.WaitGroup
 }
 
 // RunSequence runs the Tendermint consensus sequence for a given height,
@@ -56,7 +56,7 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 			teardown()
 
 			return proposal
-		case _ = <-t.watchForRoundJumps(ctxRound):
+		case _ = <-t.watchForRoundJumps(ctxRound): //nolint:gosimple // Temporarily unassigned
 			teardown()
 
 		// TODO start NEW round (that was received)
@@ -224,9 +224,7 @@ func (t *Tendermint) runStates(ctx context.Context) []byte {
 // waits for a valid PROPOSE message
 func (t *Tendermint) runPropose(ctx context.Context) {
 	// TODO make thread safe
-	var (
-		_ = t.state.view
-	)
+	_ = t.state.view
 
 	ch, unsubscribeFn := t.store.SubscribeToPropose()
 	defer unsubscribeFn()
@@ -237,9 +235,8 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 			return
 		case getMessagesFn := <-ch:
 			// TODO filter and verify messages
-			_ = getMessagesFn()
-
 			// TODO move to prevote if the proposal is valid
+			_ = getMessagesFn()
 		}
 	}
 }
@@ -248,9 +245,7 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 // waits for a valid PREVOTE messages
 func (t *Tendermint) runPrevote(ctx context.Context) {
 	// TODO make thread safe
-	var (
-		_ = t.state.view
-	)
+	_ = t.state.view
 
 	ch, unsubscribeFn := t.store.SubscribeToPrevote()
 	defer unsubscribeFn()
@@ -261,9 +256,8 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 			return
 		case getMessagesFn := <-ch:
 			// TODO filter and verify messages
-			_ = getMessagesFn()
-
 			// TODO move to precommit if the proposal is valid
+			_ = getMessagesFn()
 		}
 	}
 }
@@ -272,9 +266,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 // waits for a valid PRECOMMIT messages
 func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 	// TODO make thread safe
-	var (
-		_ = t.state.view
-	)
+	_ = t.state.view
 
 	ch, unsubscribeFn := t.store.SubscribeToPrecommit()
 	defer unsubscribeFn()
@@ -285,32 +277,8 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 			return nil
 		case getMessagesFn := <-ch:
 			// TODO filter and verify messages
-			_ = getMessagesFn()
-
 			// TODO move to precommit if the proposal is valid
+			_ = getMessagesFn()
 		}
 	}
-}
-
-// AddMessage verifies and adds a new message to the consensus engine
-func (t *Tendermint) AddMessage(message *types.Message) {
-	// Make sure the message is present
-	if message == nil {
-		return
-	}
-
-	// Make sure the message payload is present
-	if message.Payload == nil {
-		return
-	}
-
-	// TODO verify the message sender
-
-	// TODO verify the message signature
-
-	// TODO verify the message height
-
-	// TODO verify the message round
-
-	// TODO verify the message content (fields set)
 }

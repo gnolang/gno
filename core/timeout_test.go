@@ -17,7 +17,7 @@ func TestTimeout_CalculateTimeout(t *testing.T) {
 		initial = 10 * time.Second
 		delta   = 200 * time.Millisecond
 
-		timeout = timeout{
+		tm = timeout{
 			initial: initial,
 			delta:   delta,
 		}
@@ -27,7 +27,7 @@ func TestTimeout_CalculateTimeout(t *testing.T) {
 		assert.Equal(
 			t,
 			initial+time.Duration(round)*delta,
-			timeout.calculateTimeout(round),
+			tm.calculateTimeout(round),
 		)
 	}
 }

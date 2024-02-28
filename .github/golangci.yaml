@@ -7,8 +7,6 @@ run:
   modules-download-mode: readonly
   allow-parallel-runners: false
   go: ""
-  skip-dirs: # Temporary
-    - core
 
 output:
   uniq-by-line: false
