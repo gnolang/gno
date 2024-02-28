@@ -1,4 +1,4 @@
-package gnolang
+package transpiler
 
 import (
 	"bytes"
@@ -81,13 +81,13 @@ var importPrefixWhitelist = []string{
 
 const ImportPrefix = "github.com/gnolang/gno"
 
-type precompileResult struct {
+type transpileResult struct {
 	Imports    []*ast.ImportSpec
 	Translated string
 }
 
-// TODO: func PrecompileFile: supports caching.
-// TODO: func PrecompilePkg: supports directories.
+// TODO: func TranspileFile: supports caching.
+// TODO: func TranspilePkg: supports directories.
 
 func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
 	abs, err := filepath.Abs(fileOrPkg)
@@ -105,8 +105,8 @@ func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
 	return rootDir, nil
 }
 
-// GetPrecompileFilenameAndTags returns the filename and tags for precompiled files.
-func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
+// GetTranspileFilenameAndTags returns the filename and tags for transpiled files.
+func GetTranspileFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
 	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
 	switch {
 	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
@@ -122,7 +122,7 @@ func GetPrecompileFilenameAndTags(gnoFilePath string) (targetFilename, tags stri
 	return
 }
 
-func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
+func TranspileAndCheckMempkg(mempkg *std.MemPackage) error {
 	gofmt := "gofmt"
 
 	tmpDir, err := os.MkdirTemp("", mempkg.Name)
@@ -136,7 +136,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip spurious file.
 		}
-		res, err := Precompile(mfile.Body, "gno,tmp", mfile.Name)
+		res, err := Transpile(mfile.Body, "gno,tmp", mfile.Name)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -147,7 +147,7 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		err = PrecompileVerifyFile(tmpFile, gofmt)
+		err = TranspileVerifyFile(tmpFile, gofmt)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -155,12 +155,12 @@ func PrecompileAndCheckMempkg(mempkg *std.MemPackage) error {
 	}
 
 	if errs != nil {
-		return fmt.Errorf("precompile package: %w", errs)
+		return fmt.Errorf("transpile package: %w", errs)
 	}
 	return nil
 }
 
-func Precompile(source string, tags string, filename string) (*precompileResult, error) {
+func Transpile(source string, tags string, filename string) (*transpileResult, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
 	if err != nil {
@@ -170,9 +170,9 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
 	shouldCheckWhitelist := !isTestFile
 
-	transformed, err := precompileAST(fset, f, shouldCheckWhitelist)
+	transformed, err := transpileAST(fset, f, shouldCheckWhitelist)
 	if err != nil {
-		return nil, fmt.Errorf("precompileAST: %w", err)
+		return nil, fmt.Errorf("transpileAST: %w", err)
 	}
 
 	var out bytes.Buffer
@@ -192,17 +192,17 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 		return nil, fmt.Errorf("format.Node: %w", err)
 	}
 
-	res := &precompileResult{
+	res := &transpileResult{
 		Imports:    f.Imports,
 		Translated: out.String(),
 	}
 	return res, nil
 }
 
-// PrecompileVerifyFile tries to run `go fmt` against a precompiled .go file.
+// TranspileVerifyFile tries to run `go fmt` against a transpiled .go file.
 //
 // This is fast and won't look the imports.
-func PrecompileVerifyFile(path string, gofmtBinary string) error {
+func TranspileVerifyFile(path string, gofmtBinary string) error {
 	// TODO: use cmd/parser instead of exec?
 
 	args := strings.Split(gofmtBinary, " ")
@@ -216,16 +216,16 @@ func PrecompileVerifyFile(path string, gofmtBinary string) error {
 	return nil
 }
 
-// PrecompileBuildPackage tries to run `go build` against the precompiled .go files.
+// TranspileBuildPackage tries to run `go build` against the transpiled .go files.
 //
 // This method is the most efficient to detect errors but requires that
 // all the import are valid and available.
-func PrecompileBuildPackage(fileOrPkg, goBinary string) error {
+func TranspileBuildPackage(fileOrPkg, goBinary string) error {
 	// TODO: use cmd/compile instead of exec?
 	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
-	// TODO: automatically precompile if not yet done.
+	// TODO: automatically transpile if not yet done.
 
 	files := []string{}
 
@@ -302,7 +302,7 @@ func parseGoBuildErrors(out string) error {
 	return errList.Err()
 }
 
-func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
+func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
 	var errs goscanner.ErrorList
 
 	imports := astutil.Imports(fset, f)
