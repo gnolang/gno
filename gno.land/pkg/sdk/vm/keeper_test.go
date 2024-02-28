@@ -31,8 +31,6 @@ func TestVMKeeperAddPackage(t *testing.T) {
 			Name: "test.gno",
 			Body: `package test
 
-import "std"
-
 func Echo() string {
 	return "hello world"
 }`,
@@ -412,8 +410,6 @@ func TestNumberOfArgsError(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-
-import "std"
 
 func Echo(msg string) string {
 	return "echo:"+msg
