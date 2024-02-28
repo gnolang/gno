@@ -477,7 +477,7 @@ FLAGS
 			name: "no short and no long help",
 			command: &Command{
 				name:       "TestHelpUsage",
-				shortUsage: "testHelpUsage [flags] <args>",
+				shortUsage: "TestHelpUsage [flags] <args>",
 			},
 			expectedOutput: strings.TrimSpace(`
 USAGE
