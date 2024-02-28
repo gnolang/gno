@@ -25,8 +25,8 @@ func newConfigEditCmd(io commands.IO) *commands.Command {
 			Name:       "edit",
 			ShortUsage: "config edit <key> <value>",
 			ShortHelp:  "Edits the Gno node configuration",
-			LongHelp: "Edits the Gno node configuration locally by setting " +
-				"the given value to the appropriate key",
+			LongHelp: "Edits the Gno node configuration at the given path " +
+				"by setting the option specified at <key> to the given <value>",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
