@@ -23,7 +23,7 @@ type BankerInterface interface {
 
 const (
 	// Can only read state.
-	btReadonly uint8 = iota
+	btReadonly uint8 = iota //nolint
 	// Can only send from tx send.
 	btOrigSend
 	// Can send from all realm coins.

@@ -89,19 +89,6 @@ func (ds *defaultStore) SetStrictGo2GnoMapping(strict bool) {
 }
 
 // Implements Store.
-func (ds *defaultStore) AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string) {
-	rtPkgPath := rt.PkgPath()
-	if rtPkgPath == "" {
-		panic(fmt.Sprintf("type has no associated package path: %v", rt))
-	}
-	rtName := rt.Name()
-	if rtName == "" {
-		panic(fmt.Sprintf("type has no name: %v", rt))
-	}
-	ds.go2gnoMap[rtPkgPath+"."+rtName] = pkgPath + "." + name
-}
-
-// Implements Store.
 // See go2GnoValue2(). Like go2GnoType() but also converts any
 // top-level complex types (or pointers to them).  The result gets
 // memoized in *NativeType.GnoType() for type inference in the

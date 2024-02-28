@@ -40,7 +40,6 @@ type Store interface {
 	SetBlockNode(BlockNode)
 	// UNSTABLE
 	SetStrictGo2GnoMapping(bool)
-	AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
