@@ -80,14 +80,13 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 	}
 
 	for {
-		res, err := client.Call(gnoclient.CallCfg{
+		_, err := client.Call(gnoclient.CallCfg{
 			PkgPath:   cfg.realmPath,
 			FuncName:  "Incr",
 			GasFee:    "10000000ugnot",
 			GasWanted: 800000,
 			Args:      nil,
 		})
-		_ = res
 
 		if err != nil {
 			fmt.Printf("[ERROR] Failed to call Incr on %s, %+v\n", cfg.realmPath, err.Error())
