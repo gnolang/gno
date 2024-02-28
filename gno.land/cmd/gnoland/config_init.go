@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -12,13 +11,9 @@ import (
 
 var errInvalidConfigOutputPath = errors.New("invalid config output path provided")
 
-type configInitCfg struct {
-	outputPath string
-}
-
 // newConfigInitCmd creates the config init command
 func newConfigInitCmd(io commands.IO) *commands.Command {
-	cfg := &configInitCfg{}
+	cfg := &configCfg{}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -37,18 +32,9 @@ func newConfigInitCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-func (c *configInitCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.outputPath,
-		"output-path",
-		"./config.toml",
-		"the output path for the config.toml",
-	)
-}
-
-func execConfigInit(cfg *configInitCfg, io commands.IO) error {
+func execConfigInit(cfg *configCfg, io commands.IO) error {
 	// Check the config output path
-	if cfg.outputPath == "" {
+	if cfg.configPath == "" {
 		return errInvalidConfigOutputPath
 	}
 
@@ -56,11 +42,11 @@ func execConfigInit(cfg *configInitCfg, io commands.IO) error {
 	c := config.DefaultConfig()
 
 	// Save the config to the path
-	if err := config.WriteConfigFile(cfg.outputPath, c); err != nil {
+	if err := config.WriteConfigFile(cfg.configPath, c); err != nil {
 		return fmt.Errorf("unable to initialize config, %w", err)
 	}
 
-	io.Printfln("Default configuration initialized at %s", cfg.outputPath)
+	io.Printfln("Default configuration initialized at %s", cfg.configPath)
 
 	return nil
 }

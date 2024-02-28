@@ -22,7 +22,7 @@ func TestConfig_Init(t *testing.T) {
 		args := []string{
 			"config",
 			"init",
-			"--output-path",
+			"--config-path",
 			"",
 		}
 
@@ -43,7 +43,7 @@ func TestConfig_Init(t *testing.T) {
 		args := []string{
 			"config",
 			"init",
-			"--output-path",
+			"--config-path",
 			path,
 		}
 

@@ -1,8 +1,14 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
+
+type configCfg struct {
+	configPath string
+}
 
 // newConfigCmd creates the config root command
 func newConfigCmd(io commands.IO) *commands.Command {
@@ -23,4 +29,13 @@ func newConfigCmd(io commands.IO) *commands.Command {
 	)
 
 	return cmd
+}
+
+func (c *configCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.configPath,
+		"config-path",
+		"./config.toml",
+		"the path for the config.toml",
+	)
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -17,13 +16,9 @@ import (
 
 var errInvalidConfigEditArgs = errors.New("invalid number of config edit arguments provided")
 
-type configEditCfg struct {
-	configPath string
-}
-
 // newConfigEditCmd creates the config edit command
 func newConfigEditCmd(io commands.IO) *commands.Command {
-	cfg := &configEditCfg{}
+	cfg := &configCfg{}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -42,16 +37,7 @@ func newConfigEditCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-func (c *configEditCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.configPath,
-		"config-path",
-		"./config.toml",
-		"the path to the node's config.toml",
-	)
-}
-
-func execConfigEdit(cfg *configEditCfg, io commands.IO, args []string) error {
+func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
 	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
 	if err != nil {
