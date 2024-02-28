@@ -4,7 +4,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-// newConfigCmd creates the new config root command
+// newConfigCmd creates the config root command
 func newConfigCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{

@@ -21,7 +21,7 @@ type configEditCfg struct {
 	configPath string
 }
 
-// newConfigEditCmd creates the new config edit command
+// newConfigEditCmd creates the config edit command
 func newConfigEditCmd(io commands.IO) *commands.Command {
 	cfg := &configEditCfg{}
 

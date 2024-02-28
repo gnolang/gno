@@ -16,7 +16,7 @@ type configInitCfg struct {
 	outputPath string
 }
 
-// newConfigInitCmd creates the new config init command
+// newConfigInitCmd creates the config init command
 func newConfigInitCmd(io commands.IO) *commands.Command {
 	cfg := &configInitCfg{}
 
