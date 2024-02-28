@@ -104,7 +104,7 @@ func updateFieldAtPath(currentValue reflect.Value, path string, value string) er
 	// it's a part of the current struct
 	field := currentValue.FieldByName(pathParts[0])
 	if !field.IsValid() {
-		return fmt.Errorf("invalid field, %s", pathParts[0])
+		return generateInvalidFieldError(pathParts[0], currentValue)
 	}
 
 	// Dereference the field if needed
@@ -137,6 +137,26 @@ func updateFieldAtPath(currentValue reflect.Value, path string, value string) er
 	field.Set(reflect.ValueOf(v))
 
 	return nil
+}
+
+// generateInvalidFieldError generates an invalid field error
+func generateInvalidFieldError(field string, value reflect.Value) error {
+	var (
+		valueType = value.Type()
+		numFields = value.NumField()
+	)
+
+	fields := make([]string, numFields)
+
+	for i := 0; i < numFields; i++ {
+		fields[i] = valueType.Field(i).Name
+	}
+
+	return fmt.Errorf(
+		"field \"%s\", is not a valid configuration key, available keys: %s",
+		field,
+		fields,
+	)
 }
 
 // convertStringToType attempts to convert the given
