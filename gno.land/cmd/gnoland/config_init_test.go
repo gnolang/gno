@@ -56,5 +56,6 @@ func TestConfig_Init(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NoError(t, cfg.ValidateBasic())
+		assert.Equal(t, cfg, config.DefaultConfig())
 	})
 }
