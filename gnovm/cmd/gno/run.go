@@ -28,7 +28,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <file> [<file>...]",
-			ShortHelp:  "Runs the specified gno files",
+			ShortHelp:  "runs the specified gno files",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

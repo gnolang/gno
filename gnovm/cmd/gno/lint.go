@@ -32,7 +32,7 @@ func newLintCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "lint",
 			ShortUsage: "lint [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the linter for the specified packages",
+			ShortHelp:  "runs the linter for the specified packages",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

@@ -62,7 +62,7 @@ func newTranspileCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "transpile",
 			ShortUsage: "transpile [flags] <package> [<package>...]",
-			ShortHelp:  "Transpiles .gno files to .go",
+			ShortHelp:  "transpiles .gno files to .go",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
