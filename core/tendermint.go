@@ -55,6 +55,15 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 		case proposal := <-t.finalizeProposal(ctxRound):
 			teardown()
 
+			// Check if the proposal has been finalized
+			if proposal == nil {
+				// 65: Function OnTimeoutPrecommit(height, round) :
+				// 66: 	if height = hP ∧ round = roundP then
+				// 67: 		StartRound(roundP + 1)
+				// TODO start NEXT round (view.Round + 1)
+				continue
+			}
+
 			return proposal
 		case _ = <-t.watchForRoundJumps(ctxRound): //nolint:gosimple // Temporarily unassigned
 			teardown()
@@ -161,20 +170,37 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	// Check if the current process is the proposer for this view
 	if !t.verifier.IsProposer(t.node.ID(), t.state.view.Height, t.state.view.Round) {
 		// The current process is NOT the proposer, only schedule a timeout
-		t.scheduleTimeoutPropose(ctx)
+		//
+		// 21: 	schedule OnTimeoutPropose(hP , roundP) to be executed after timeoutPropose(roundP)
+		var (
+			callback = func() {
+				t.onTimeoutPropose(t.state.view.Round)
+			}
+			timeoutPropose = t.timeouts[propose].calculateTimeout(t.state.view.Round)
+		)
+
+		t.scheduleTimeout(ctx, timeoutPropose, callback)
 
 		return
 	}
 
+	// 14: if proposer(hp, roundP) = p then
+	//
 	// The proposal value can either be:
 	// - an old (valid / locked) proposal from a previous round
 	// - a completely new proposal (built from scratch)
+	//
+	// 15: 	if validValueP != nil then
+	// 16: 		proposal ← validValueP
 	proposal := t.state.validValue
 
 	// Check if a new proposal needs to be built
 	if proposal == nil {
 		// No previous valid value present,
-		// build a new proposal
+		// build a new proposal.
+		//
+		// 17: 	else
+		// 18: 		proposal ← getValue()
 		proposal = t.node.BuildProposal(t.state.view.Height)
 	}
 
@@ -185,6 +211,8 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	)
 
 	// Broadcast the proposal to other consensus nodes
+	//
+	// 19: 		broadcast <PROPOSAL, hp, roundP, proposal, validRoundP>
 	t.broadcastProposal(proposeMessage)
 
 	// TODO make thread safe
@@ -197,11 +225,15 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	t.state.acceptedProposalID = id
 
 	// Build and broadcast the prevote message
+	//
+	// 24/30: broadcast <PREVOTE, hP, roundP, id(v)>
 	t.broadcastPrevote(t.buildPrevoteMessage(id))
 
 	// Since the current process is the proposer,
 	// it can directly move to the prevote state
 	// TODO make threads safe
+	//
+	// 27/33: stepP ← prevote
 	t.state.step = prevote
 }
 
@@ -221,7 +253,26 @@ func (t *Tendermint) runStates(ctx context.Context) []byte {
 }
 
 // runPropose runs the propose state in which the process
-// waits for a valid PROPOSE message
+// waits for a valid PROPOSE message.
+// This state handles the following situations:
+//
+// - The proposer for view (hP, roundP) has proposed a value with a proposal round -1 (first ever proposal for height)
+// 22: upon <PROPOSAL, hP, roundP, v, −1> from proposer(hP, roundP) while stepP = propose do
+// 23: 	if valid(v) ∧ (lockedRoundP = −1 ∨ lockedValueP = v) then
+// 24: 		broadcast <PREVOTE, hP, roundP, id(v)>
+// 25: 	else
+// 26: 		broadcast <PREVOTE, hP, roundP, nil>
+// 27: 	stepP ← prevote
+//
+// - The proposer for view (hP, roundP) has proposed a value that was accepted in some previous round
+// 28: upon <PROPOSAL, hP, roundP, v, vr> from proposer(hP, roundP) AND 2f + 1 <PREVOTE, hP, vr, id(v)> while stepP = propose ∧ (vr >= 0 ∧ vr < roundP) do
+// 29: if valid(v) ∧ (lockedRoundP ≤ vr ∨ lockedValueP = v) then
+// 30: 	broadcast <PREVOTE, hp, roundP, id(v)>
+// 31: else
+// 32: 	broadcast <PREVOTE, hp, roundP, nil>
+// 33: stepP ← prevote
+//
+// NOTE: the proposer for view (height, round) will send ONLY 1 proposal, be it a new one or an old agreed value
 func (t *Tendermint) runPropose(ctx context.Context) {
 	// TODO make thread safe
 	_ = t.state.view
@@ -242,7 +293,22 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 }
 
 // runPrevote runs the prevote state in which the process
-// waits for a valid PREVOTE messages
+// waits for a valid PREVOTE messages.
+// This state handles the following situations:
+//
+// - A validator has received 2F+1 PREVOTE messages with a valid ID for the previously accepted proposal
+// 36: upon ... AND 2f + 1 <PREVOTE, hP, roundP, id(v)> while valid(v) ∧ stepP ≥ prevote for the first time do
+// 37: if stepP = prevote then
+// 38: 	lockedValueP ← v
+// 39: 	lockedRoundP ← roundP
+// 40: 	broadcast <PRECOMMIT, hP, roundP, id(v))>
+// 41: 	stepP ← precommit
+// 42: validValueP ← v
+// 43: validRoundP ← roundP
+//
+// - A validator has received 2F+1 PREVOTE messages with a NIL ID
+// 34: upon 2f + 1 <PREVOTE, hp, roundP, ∗> while stepP = prevote for the first time do
+// 35: schedule OnTimeoutPrevote(hP , roundP) to be executed after timeoutPrevote(roundP)
 func (t *Tendermint) runPrevote(ctx context.Context) {
 	// TODO make thread safe
 	_ = t.state.view
@@ -263,7 +329,27 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 }
 
 // runPrecommit runs the precommit state in which the process
-// waits for a valid PRECOMMIT messages
+// waits for a valid PRECOMMIT messages.
+// This state handles the following situations:
+//
+// - A validator has received 2F+1 PRECOMMIT messages with a valid ID for the previously accepted proposal
+// 49: upon <PROPOSAL, hP, r, v, ∗> from proposer(hP, r) AND 2f + 1 <PRECOMMIT, hP, r, id(v)> while decisionP[hP] = nil do
+// 50: if valid(v) then
+// 51: 	decisionP[hp] = v
+// 52: 	hP ← hP + 1
+// 53: 	reset lockedRoundP, lockedValueP, validRoundP and validValueP to initial values and empty message log
+// 54: 	StartRound(0)
+//
+// - A validator has received 2F+1 PRECOMMIT messages with any value (valid ID or NIL)
+// 47: upon 2f + 1 <PRECOMMIT, hP, roundP, ∗> for the first time do
+// 48: schedule OnTimeoutPrecommit(hP , roundP) to be executed after timeoutPrecommit(roundP)
+//
+// TODO @zivkovicmilos: @petar-dambovaliev, I think we can just return nil from this method
+// in case OnTimeoutPrecommit triggers and we still don't have 2F+1 valid PRECOMMIT messages.
+// This makes it easy to handle it in the top-level run loop that parses the finalized proposal:
+// 65: Function OnTimeoutPrecommit(height, round) :
+// 66: 	if height = hP ∧ round = roundP then
+// 67: 		StartRound(roundP + 1)
 func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 	// TODO make thread safe
 	_ = t.state.view

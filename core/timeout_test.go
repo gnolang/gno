@@ -81,7 +81,14 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
-	tm.scheduleTimeoutPropose(ctx)
+	var (
+		callback = func() {
+			tm.onTimeoutPropose(tm.state.view.Round)
+		}
+		timeoutPropose = tm.timeouts[propose].calculateTimeout(tm.state.view.Round)
+	)
+
+	tm.scheduleTimeout(ctx, timeoutPropose, callback)
 
 	// Wait for the timer to trigger
 	tm.wg.Wait()

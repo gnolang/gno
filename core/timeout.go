@@ -19,16 +19,12 @@ func (t timeout) calculateTimeout(round uint64) time.Duration {
 	return t.initial + time.Duration(round)*t.delta
 }
 
-// scheduleTimeoutPropose schedules a future timeout propose trigger
-func (t *Tendermint) scheduleTimeoutPropose(ctx context.Context) {
-	// TODO Make thread safe
-	// Fetch the current view, before the trigger is set
-	var (
-		round = t.state.view.Round
-
-		timeoutPropose = t.timeouts[t.state.step].calculateTimeout(round)
-	)
-
+// scheduleTimeout schedules a state timeout to be executed
+func (t *Tendermint) scheduleTimeout(
+	ctx context.Context,
+	timeout time.Duration,
+	callback func(),
+) {
 	t.wg.Add(1)
 
 	go func() {
@@ -36,14 +32,19 @@ func (t *Tendermint) scheduleTimeoutPropose(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
-		case <-time.After(timeoutPropose):
-			t.onTimeoutPropose(round)
+		case <-time.After(timeout):
+			callback()
 		}
 	}()
 }
 
 // onTimeoutPropose executes the <PREVOTE, nil> step
 // as a result of the propose step timer going off
+//
+// 57: Function OnTimeoutPropose(height, round) :
+// 58: 	if height = hp ∧ round = roundP ∧ stepP = propose then
+// 59: 		broadcast <PREVOTE, hP, roundP, nil>
+// 60: 		stepP ← prevote
 func (t *Tendermint) onTimeoutPropose(round uint64) {
 	// TODO make thread safe
 	var (
