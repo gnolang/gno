@@ -3,8 +3,8 @@
 ! gno transpile -gobuild .
 
 ! stdout .+
-stderr '^./main.gno:4:6: x declared and not used$'
-stderr '^./main.gno:5:6: y declared and not used$'
+stderr '^main.gno:4:6: x declared and not used$'
+stderr '^main.gno:5:6: y declared and not used$'
 stderr '^2 transpile error\(s\)$'
 
 cmp main.gno.gen.go main.gno.gen.go.golden
@@ -24,6 +24,7 @@ package sub
 
 //go:build gno
 
+//line main.gno:1:1
 package main
 
 func main() {
@@ -35,4 +36,5 @@ func main() {
 
 //go:build gno
 
+//line sub.gno:1:1
 package sub
