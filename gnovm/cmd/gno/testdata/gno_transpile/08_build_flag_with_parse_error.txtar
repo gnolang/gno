@@ -1,6 +1,6 @@
-# Run gno precompile with -gobuild flag on file with parse error
+# Run gno transpile with -gobuild flag on file with parse error
 
-! gno precompile -gobuild .
+! gno transpile -gobuild .
 
 ! stdout .+
 stderr '^main.gno:3:1: expected declaration, found invalid$'

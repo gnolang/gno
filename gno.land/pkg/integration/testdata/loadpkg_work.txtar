@@ -1,3 +1,4 @@
+# load a package from $WORK directory.
 loadpkg gno.land/r/foobar/bar $WORK/bar
 
 ## start a new node
