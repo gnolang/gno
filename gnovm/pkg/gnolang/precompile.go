@@ -181,10 +181,10 @@ func Precompile(source string, tags string, filename string) (*precompileResult,
 	if tags != "" {
 		fmt.Fprintf(&out, "//go:build %s\n\n", tags)
 	}
-	// Add a //line directive so the go compiler outputs file's position that
-	// corresponds to the initial gno file's position.
+	// Add a //line directive so the go compiler outputs the original gno
+	// filename and the file's position that corresponds to it.
 	// See https://pkg.go.dev/cmd/compile#hdr-Compiler_Directives
-	out.WriteString("//line :1:1\n")
+	fmt.Fprintf(&out, "//line %s:1:1\n", filepath.Base(filename))
 
 	// Write file content and format it.
 	err = format.Node(&out, fset, transformed)
@@ -275,8 +275,6 @@ var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 
 // parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
 // in out, which is supposed to be the output of the `go build` command.
-// Each errors are translated into their correlated gno files by changing their
-// filenames from `*.gno.gen.go` to `*.gno`.
 //
 // TODO(tb): update when `go build -json` is released to replace regexp usage.
 // See https://github.com/golang/go/issues/62067
@@ -296,8 +294,7 @@ func parseGoBuildErrors(out string) error {
 		}
 		msg := match[4]
 		errList.Add(token.Position{
-			// Remove .gen.go extension, we want to target the gno file
-			Filename: strings.TrimSuffix(filename, ".gen.go"),
+			Filename: filename,
 			Line:     line,
 			Column:   column,
 		}, msg)
