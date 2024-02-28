@@ -57,10 +57,13 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 		value = args[1]
 	)
 
+	// Get the value path, with sections separated out by a period
+	path := strings.Split(key, ".")
+
 	// Update the config field
 	if err := updateFieldAtPath(
 		configValue,
-		key,
+		path,
 		value,
 	); err != nil {
 		return fmt.Errorf("unable to update config field, %w", err)
@@ -82,15 +85,12 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 }
 
 // updateFieldAtPath updates the field at the given path, with the given value
-func updateFieldAtPath(currentValue reflect.Value, path string, value string) error {
-	// Get the value path, with sections separated out by a period
-	pathParts := strings.Split(path, ".")
-
+func updateFieldAtPath(currentValue reflect.Value, path []string, value string) error {
 	// Look at the current section, and figure out if
 	// it's a part of the current struct
-	field := currentValue.FieldByName(pathParts[0])
+	field := currentValue.FieldByName(path[0])
 	if !field.IsValid() {
-		return generateInvalidFieldError(pathParts[0], currentValue)
+		return generateInvalidFieldError(path[0], currentValue)
 	}
 
 	// Dereference the field if needed
@@ -100,12 +100,9 @@ func updateFieldAtPath(currentValue reflect.Value, path string, value string) er
 
 	// Check if this is not the end of the path
 	// ex: x.y.field
-	if len(pathParts) > 1 {
-		// Get the remaining path
-		remainingPath := strings.Join(pathParts[1:], ".")
-
+	if len(path) > 1 {
 		// Recursively try to traverse the path and update the given field
-		return updateFieldAtPath(field, remainingPath, value)
+		return updateFieldAtPath(field, path[1:], value)
 	}
 
 	// We've reached the actual field, check if it can be updated
