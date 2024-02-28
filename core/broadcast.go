@@ -14,15 +14,20 @@ func (t *Tendermint) buildProposalMessage(proposal []byte) *types.ProposalMessag
 	)
 
 	// Build the proposal message (assumes the node will sign it)
-	return &types.ProposalMessage{
+	message := &types.ProposalMessage{
 		View: &types.View{
 			Height: height,
 			Round:  round,
 		},
-		From:          t.node.ID(),
+		Sender:        t.node.ID(),
 		Proposal:      proposal,
 		ProposalRound: validRound,
 	}
+
+	// Sign the message
+	message.Signature = t.signer.Sign(message.GetSignaturePayload())
+
+	return message
 }
 
 // buildPrevoteMessage builds a prevote message using the given proposal identifier
@@ -35,14 +40,19 @@ func (t *Tendermint) buildPrevoteMessage(id []byte) *types.PrevoteMessage {
 		processID = t.node.ID()
 	)
 
-	return &types.PrevoteMessage{
+	message := &types.PrevoteMessage{
 		View: &types.View{
 			Height: height,
 			Round:  round,
 		},
-		From:       processID,
+		Sender:     processID,
 		Identifier: id,
 	}
+
+	// Sign the message
+	message.Signature = t.signer.Sign(message.GetSignaturePayload())
+
+	return message
 }
 
 // buildPrecommitMessage builds a precommit message using the given precommit identifier
@@ -57,56 +67,17 @@ func (t *Tendermint) buildPrecommitMessage(id []byte) *types.PrecommitMessage {
 		processID = t.node.ID()
 	)
 
-	return &types.PrecommitMessage{
+	message := &types.PrecommitMessage{
 		View: &types.View{
 			Height: height,
 			Round:  round,
 		},
-		From:       processID,
+		Sender:     processID,
 		Identifier: id,
 	}
-}
 
-// broadcastProposal signs and broadcasts the given proposal message
-func (t *Tendermint) broadcastProposal(proposal *types.ProposalMessage) {
-	message := &types.Message{
-		Type:      types.MessageType_PROPOSAL,
-		Signature: t.signer.Sign(proposal.Marshal()),
-		Payload: &types.Message_ProposalMessage{
-			ProposalMessage: proposal,
-		},
-	}
+	// Sign the message
+	message.Signature = t.signer.Sign(message.GetSignaturePayload())
 
-	// Broadcast the proposal message
-	t.broadcast.Broadcast(message)
-}
-
-// broadcastPrevote signs and broadcasts the given prevote message
-func (t *Tendermint) broadcastPrevote(prevote *types.PrevoteMessage) {
-	message := &types.Message{
-		Type:      types.MessageType_PREVOTE,
-		Signature: t.signer.Sign(prevote.Marshal()),
-		Payload: &types.Message_PrevoteMessage{
-			PrevoteMessage: prevote,
-		},
-	}
-
-	// Broadcast the prevote message
-	t.broadcast.Broadcast(message)
-}
-
-// broadcastPrecommit signs and broadcasts the given precommit message
-//
-//nolint:unused // Temporarily unused
-func (t *Tendermint) broadcastPrecommit(precommit *types.PrecommitMessage) {
-	message := &types.Message{
-		Type:      types.MessageType_PRECOMMIT,
-		Signature: t.signer.Sign(precommit.Marshal()),
-		Payload: &types.Message_PrecommitMessage{
-			PrecommitMessage: precommit,
-		},
-	}
-
-	// Broadcast the precommit message
-	t.broadcast.Broadcast(message)
+	return message
 }

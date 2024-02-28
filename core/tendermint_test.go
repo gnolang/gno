@@ -12,68 +12,14 @@ import (
 func TestTendermint_AddMessage_Invalid(t *testing.T) {
 	t.Parallel()
 
-	t.Run("empty message", func(t *testing.T) {
-		t.Parallel()
-
-		tm := &Tendermint{
-			store: newStore(),
-		}
-
-		assert.ErrorIs(
-			t,
-			tm.AddMessage(nil),
-			ErrMessageNotSet,
-		)
-	})
-
-	t.Run("empty payload", func(t *testing.T) {
-		t.Parallel()
-
-		message := &types.Message{
-			Payload: nil,
-		}
-
-		tm := &Tendermint{
-			store: newStore(),
-		}
-
-		assert.ErrorIs(
-			t,
-			tm.AddMessage(message),
-			ErrMessagePayloadNotSet,
-		)
-	})
-
-	t.Run("invalid signature payload", func(t *testing.T) {
-		t.Parallel()
-
-		// message that has a type / payload mismatch
-		message := &types.Message{
-			Type:    types.MessageType_PROPOSAL,
-			Payload: &types.Message_PrevoteMessage{},
-		}
-
-		tm := &Tendermint{
-			store: newStore(),
-		}
-
-		assert.ErrorIs(
-			t,
-			tm.AddMessage(message),
-			types.ErrInvalidMessagePayload,
-		)
-	})
-
 	t.Run("invalid signature", func(t *testing.T) {
 		t.Parallel()
 
 		var (
 			signature = []byte("invalid signature")
-			message   = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{},
-				},
+			message   = &types.PrevoteMessage{
+				View:      &types.View{},
+				Sender:    []byte{},
 				Signature: signature,
 			}
 
@@ -84,16 +30,22 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 					return false
 				},
 			}
+			verifier = &mockVerifier{
+				isValidatorFn: func(_ []byte) bool {
+					return true
+				},
+			}
 		)
 
 		tm := &Tendermint{
-			store:  newStore(),
-			signer: signer,
+			store:    newStore(),
+			signer:   signer,
+			verifier: verifier,
 		}
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
+			tm.AddPrevoteMessage(message),
 			ErrInvalidMessageSignature,
 		)
 	})
@@ -105,14 +57,9 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						View: &types.View{},
-						From: sender,
-					},
-				},
+			message = &types.PrevoteMessage{
+				View:      &types.View{},
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -140,7 +87,7 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
+			tm.AddPrevoteMessage(message),
 			ErrMessageFromNonValidator,
 		)
 	})
@@ -156,17 +103,12 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						View: &types.View{
-							Height: currentView.Height - 1, // earlier height
-							Round:  currentView.Round,
-						},
-						From: sender,
-					},
+			message = &types.PrevoteMessage{
+				View: &types.View{
+					Height: currentView.Height - 1, // earlier height
+					Round:  currentView.Round,
 				},
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -195,7 +137,7 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
+			tm.AddPrevoteMessage(message),
 			ErrEarlierHeightMessage,
 		)
 	})
@@ -211,17 +153,12 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						View: &types.View{
-							Height: currentView.Height,
-							Round:  currentView.Round - 1, // earlier round
-						},
-						From: sender,
-					},
+			message = &types.PrevoteMessage{
+				View: &types.View{
+					Height: currentView.Height,
+					Round:  currentView.Round - 1, // earlier round
 				},
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -250,7 +187,7 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
+			tm.AddPrevoteMessage(message),
 			ErrEarlierRoundMessage,
 		)
 	})
@@ -266,14 +203,9 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PROPOSAL,
-				Payload: &types.Message_ProposalMessage{
-					ProposalMessage: &types.ProposalMessage{
-						View: nil, // invalid view
-						From: sender,
-					},
-				},
+			message = &types.ProposalMessage{
+				View:      nil, // invalid view
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -302,8 +234,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
-			types.ErrInvalidMessagePayload,
+			tm.AddProposalMessage(message),
+			types.ErrInvalidMessageView,
 		)
 	})
 
@@ -318,14 +250,9 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						View: nil, // invalid view
-						From: sender,
-					},
-				},
+			message = &types.PrevoteMessage{
+				View:      nil, // invalid view
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -354,8 +281,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
-			types.ErrInvalidMessagePayload,
+			tm.AddPrevoteMessage(message),
+			types.ErrInvalidMessageView,
 		)
 	})
 
@@ -370,14 +297,9 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			signature = []byte("valid signature")
 			sender    = []byte("sender")
 
-			message = &types.Message{
-				Type: types.MessageType_PRECOMMIT,
-				Payload: &types.Message_PrecommitMessage{
-					PrecommitMessage: &types.PrecommitMessage{
-						View: nil, // invalid view
-						From: sender,
-					},
-				},
+			message = &types.PrecommitMessage{
+				View:      nil, // invalid view
+				Sender:    sender,
 				Signature: signature,
 			}
 
@@ -406,8 +328,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 
 		assert.ErrorIs(
 			t,
-			tm.AddMessage(message),
-			types.ErrInvalidMessagePayload,
+			tm.AddPrecommitMessage(message),
+			types.ErrInvalidMessageView,
 		)
 	})
 }
@@ -428,17 +350,12 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			sender    = []byte("sender")
 			proposal  = []byte("proposal")
 
-			message = &types.Message{
-				Type: types.MessageType_PROPOSAL,
-				Payload: &types.Message_ProposalMessage{
-					ProposalMessage: &types.ProposalMessage{
-						View:          currentView,
-						From:          sender,
-						Proposal:      proposal,
-						ProposalRound: -1,
-					},
-				},
-				Signature: signature,
+			message = &types.ProposalMessage{
+				View:          currentView,
+				Sender:        sender,
+				Proposal:      proposal,
+				ProposalRound: -1,
+				Signature:     signature,
 			}
 
 			signer = &mockSigner{
@@ -468,7 +385,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 		defer unsubFn()
 
 		// Make sure the message is added
-		require.NoError(t, tm.AddMessage(message))
+		require.NoError(t, tm.AddProposalMessage(message))
 
 		// Make sure the message is present in the store
 		var messages []*types.ProposalMessage
@@ -484,23 +401,23 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 
 		assert.Equal(
 			t,
-			message.GetProposalMessage().GetProposal(),
+			message.GetProposal(),
 			storeMessage.GetProposal(),
 		)
 		assert.Equal(
 			t,
-			message.GetProposalMessage().GetProposalRound(),
+			message.GetProposalRound(),
 			storeMessage.GetProposalRound(),
 		)
 		assert.Equal(
 			t,
-			message.GetProposalMessage().GetView(),
+			message.GetView(),
 			storeMessage.GetView(),
 		)
 		assert.Equal(
 			t,
-			message.GetProposalMessage().GetFrom(),
-			storeMessage.GetFrom(),
+			message.GetSender(),
+			storeMessage.GetSender(),
 		)
 	})
 
@@ -517,16 +434,11 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			sender    = []byte("sender")
 			id        = []byte("prevote ID")
 
-			message = &types.Message{
-				Type: types.MessageType_PREVOTE,
-				Payload: &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						View:       currentView,
-						From:       sender,
-						Identifier: id,
-					},
-				},
-				Signature: signature,
+			message = &types.PrevoteMessage{
+				View:       currentView,
+				Sender:     sender,
+				Identifier: id,
+				Signature:  signature,
 			}
 
 			signer = &mockSigner{
@@ -556,7 +468,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 		defer unsubFn()
 
 		// Make sure the message is added
-		require.NoError(t, tm.AddMessage(message))
+		require.NoError(t, tm.AddPrevoteMessage(message))
 
 		// Make sure the message is present in the store
 		var messages []*types.PrevoteMessage
@@ -572,18 +484,18 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 
 		assert.Equal(
 			t,
-			message.GetPrevoteMessage().GetIdentifier(),
+			message.GetIdentifier(),
 			storeMessage.GetIdentifier(),
 		)
 		assert.Equal(
 			t,
-			message.GetPrevoteMessage().GetView(),
+			message.GetView(),
 			storeMessage.GetView(),
 		)
 		assert.Equal(
 			t,
-			message.GetPrevoteMessage().GetFrom(),
-			storeMessage.GetFrom(),
+			message.GetSender(),
+			storeMessage.GetSender(),
 		)
 	})
 
@@ -600,16 +512,11 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			sender    = []byte("sender")
 			id        = []byte("precommit ID")
 
-			message = &types.Message{
-				Type: types.MessageType_PRECOMMIT,
-				Payload: &types.Message_PrecommitMessage{
-					PrecommitMessage: &types.PrecommitMessage{
-						View:       currentView,
-						From:       sender,
-						Identifier: id,
-					},
-				},
-				Signature: signature,
+			message = &types.PrecommitMessage{
+				View:       currentView,
+				Sender:     sender,
+				Identifier: id,
+				Signature:  signature,
 			}
 
 			signer = &mockSigner{
@@ -639,7 +546,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 		defer unsubFn()
 
 		// Make sure the message is added
-		require.NoError(t, tm.AddMessage(message))
+		require.NoError(t, tm.AddPrecommitMessage(message))
 
 		// Make sure the message is present in the store
 		var messages []*types.PrecommitMessage
@@ -655,18 +562,18 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 
 		assert.Equal(
 			t,
-			message.GetPrecommitMessage().GetIdentifier(),
+			message.GetIdentifier(),
 			storeMessage.GetIdentifier(),
 		)
 		assert.Equal(
 			t,
-			message.GetPrecommitMessage().GetView(),
+			message.GetView(),
 			storeMessage.GetView(),
 		)
 		assert.Equal(
 			t,
-			message.GetPrecommitMessage().GetFrom(),
-			storeMessage.GetFrom(),
+			message.GetSender(),
+			storeMessage.GetSender(),
 		)
 	})
 }

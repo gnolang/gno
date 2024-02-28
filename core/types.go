@@ -23,5 +23,7 @@ type Node interface {
 }
 
 type Broadcast interface {
-	Broadcast(message *types.Message)
+	BroadcastProposal(message *types.ProposalMessage)
+	BroadcastPrevote(message *types.PrevoteMessage)
+	BroadcastPrecommit(message *types.PrecommitMessage)
 }

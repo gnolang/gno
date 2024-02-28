@@ -2,15 +2,33 @@ package core
 
 import "github.com/gnolang/go-tendermint/messages/types"
 
-type broadcastDelegate func(*types.Message)
+type (
+	broadcastProposalDelegate  func(*types.ProposalMessage)
+	broadcastPrevoteDelegate   func(*types.PrevoteMessage)
+	broadcastPrecommitDelegate func(*types.PrecommitMessage)
+)
 
 type mockBroadcast struct {
-	broadcastFn broadcastDelegate
+	broadcastProposalFn  broadcastProposalDelegate
+	broadcastPrevoteFn   broadcastPrevoteDelegate
+	broadcastPrecommitFn broadcastPrecommitDelegate
 }
 
-func (m *mockBroadcast) Broadcast(message *types.Message) {
-	if m.broadcastFn != nil {
-		m.broadcastFn(message)
+func (m *mockBroadcast) BroadcastProposal(message *types.ProposalMessage) {
+	if m.broadcastProposalFn != nil {
+		m.broadcastProposalFn(message)
+	}
+}
+
+func (m *mockBroadcast) BroadcastPrevote(message *types.PrevoteMessage) {
+	if m.broadcastPrevoteFn != nil {
+		m.broadcastPrevoteFn(message)
+	}
+}
+
+func (m *mockBroadcast) BroadcastPrecommit(message *types.PrecommitMessage) {
+	if m.broadcastPrecommitFn != nil {
+		m.broadcastPrecommitFn(message)
 	}
 }
 

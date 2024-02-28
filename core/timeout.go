@@ -65,5 +65,5 @@ func (t *Tendermint) onTimeoutPropose(round uint64) {
 	}
 
 	// Build and broadcast the prevote message, with an ID of NIL
-	t.broadcastPrevote(t.buildPrevoteMessage(nil))
+	t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(nil))
 }

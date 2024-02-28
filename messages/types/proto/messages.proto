@@ -20,22 +20,6 @@ message View {
   uint64 round = 2;
 }
 
-// Message is the consensus message wrapper
-message Message {
-  // type is the type of consensus message
-  MessageType type = 1;
-
-  // the message signature of the sender, if any
-  bytes signature = 2;
-
-  // data is the underlying wrapped message
-  oneof payload {
-    ProposalMessage proposalMessage = 3;
-    PrevoteMessage prevoteMessage = 4;
-    PrecommitMessage precommitMessage = 5;
-  }
-}
-
 // ProposalMessage is the message containing
 // the consensus proposal for the view
 // <PROPOSAL, hP, roundP, proposal, validRoundP>
@@ -44,17 +28,20 @@ message ProposalMessage {
   // (the view in which the message was sent)
   View view = 1;
 
-  // from is the message sender (unique identifier)
-  bytes from = 2;
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
 
   // proposal is the actual consensus proposal
-  bytes proposal = 3;
+  bytes proposal = 4;
 
   // proposalRound is the round associated with the
   // proposal in the PROPOSE message.
   // NOTE: this round value DOES NOT have
   // to match the message view (proposal from an earlier round)
-  int64 proposalRound = 4;
+  int64 proposalRound = 5;
 }
 
 // PrevoteMessage is the message
@@ -69,13 +56,16 @@ message PrevoteMessage {
   // (the view in which the message was sent)
   View view = 1;
 
-  // from is the message sender (unique identifier)
-  bytes from = 2;
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
 
   // identifier is the unique identifier for
   // the proposal associated with this
   // prevote message (ex. proposal hash)
-  bytes identifier = 3;
+  bytes identifier = 4;
 }
 
 // PrecommitMessage is the message
@@ -89,11 +79,14 @@ message PrecommitMessage {
   // (the view in which the message was sent)
   View view = 1;
 
-  // from is the message sender (unique identifier)
-  bytes from = 2;
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
 
   // identifier is the unique identifier for
   // the proposal associated with this
   // precommit message (ex. proposal hash)
-  bytes identifier = 3;
+  bytes identifier = 4;
 }

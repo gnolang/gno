@@ -12,50 +12,70 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// generateMessages generates dummy messages
+// generateProposalMessages generates dummy proposal messages
 // for the given view and type
-func generateMessages(
+func generateProposalMessages(
 	t *testing.T,
 	count int,
 	view *types.View,
-	messageTypes ...types.MessageType,
-) []*types.Message {
+) []*types.ProposalMessage {
 	t.Helper()
 
-	messages := make([]*types.Message, 0, count)
+	messages := make([]*types.ProposalMessage, 0, count)
 
 	for index := 0; index < count; index++ {
-		for _, messageType := range messageTypes {
-			message := &types.Message{
-				Type: messageType,
-			}
-
-			switch messageType {
-			case types.MessageType_PROPOSAL:
-				message.Payload = &types.Message_ProposalMessage{
-					ProposalMessage: &types.ProposalMessage{
-						From: []byte(strconv.Itoa(index)),
-						View: view,
-					},
-				}
-			case types.MessageType_PREVOTE:
-				message.Payload = &types.Message_PrevoteMessage{
-					PrevoteMessage: &types.PrevoteMessage{
-						From: []byte(strconv.Itoa(index)),
-						View: view,
-					},
-				}
-			case types.MessageType_PRECOMMIT:
-				message.Payload = &types.Message_PrecommitMessage{
-					PrecommitMessage: &types.PrecommitMessage{
-						From: []byte(strconv.Itoa(index)),
-						View: view,
-					},
-				}
-			}
-
-			messages = append(messages, message)
+		message := &types.ProposalMessage{
+			Sender: []byte(strconv.Itoa(index)),
+			View:   view,
 		}
+
+		messages = append(messages, message)
+	}
+
+	return messages
+}
+
+// generatePrevoteMessages generates dummy prevote messages
+// for the given view and type
+func generatePrevoteMessages(
+	t *testing.T,
+	count int,
+	view *types.View,
+) []*types.PrevoteMessage {
+	t.Helper()
+
+	messages := make([]*types.PrevoteMessage, 0, count)
+
+	for index := 0; index < count; index++ {
+		message := &types.PrevoteMessage{
+			Sender: []byte(strconv.Itoa(index)),
+			View:   view,
+		}
+
+		messages = append(messages, message)
+	}
+
+	return messages
+}
+
+// generatePrevoteMessages generates dummy prevote messages
+// for the given view and type
+func generatePrecommitMessages(
+	t *testing.T,
+	count int,
+	view *types.View,
+) []*types.PrecommitMessage {
+	t.Helper()
+
+	messages := make([]*types.PrecommitMessage, 0, count)
+
+	for index := 0; index < count; index++ {
+		message := &types.PrecommitMessage{
+			Sender: []byte(strconv.Itoa(index)),
+			View:   view,
+		}
+
+		messages = append(messages, message)
 	}
 
 	return messages
@@ -91,35 +111,31 @@ func TestCollector_AddMessage(t *testing.T) {
 		// Create the collector
 		c := NewCollector[types.ProposalMessage]()
 
-		generatedMessages := generateMessages(
+		generatedMessages := generateProposalMessages(
 			t,
 			count,
 			initialView,
-			types.MessageType_PROPOSAL,
 		)
 
 		expectedMessages := make([]*types.ProposalMessage, 0, count)
 
-		for _, message := range generatedMessages {
-			proposal, ok := message.Payload.(*types.Message_ProposalMessage)
-			require.True(t, ok)
+		for _, proposal := range generatedMessages {
+			c.AddMessage(proposal.View, proposal.Sender, proposal)
 
-			c.AddMessage(proposal.ProposalMessage.View, proposal.ProposalMessage.From, proposal.ProposalMessage)
-
-			expectedMessages = append(expectedMessages, proposal.ProposalMessage)
+			expectedMessages = append(expectedMessages, proposal)
 		}
 
 		// Sort the messages for the test
 		sort.SliceStable(expectedMessages, func(i, j int) bool {
-			return string(expectedMessages[i].From) < string(expectedMessages[j].From)
+			return string(expectedMessages[i].Sender) < string(expectedMessages[j].Sender)
 		})
 
-		// Get the messages from the store
+		// Get the messages Sender the store
 		messages := c.GetMessages()
 
 		// Sort the messages for the test
 		sort.SliceStable(messages, func(i, j int) bool {
-			return string(messages[i].From) < string(messages[j].From)
+			return string(messages[i].Sender) < string(messages[j].Sender)
 		})
 
 		// Make sure the messages match
@@ -140,27 +156,23 @@ func TestCollector_AddMessage(t *testing.T) {
 		// Create the collector
 		c := NewCollector[types.PrevoteMessage]()
 
-		generatedMessages := generateMessages(
+		generatedMessages := generatePrevoteMessages(
 			t,
 			count,
 			initialView,
-			types.MessageType_PREVOTE,
 		)
 
 		expectedMessages := make([]*types.PrevoteMessage, 0, count)
 
-		for _, message := range generatedMessages {
-			prevote, ok := message.Payload.(*types.Message_PrevoteMessage)
-			require.True(t, ok)
+		for _, prevote := range generatedMessages {
+			c.AddMessage(prevote.View, prevote.Sender, prevote)
 
-			c.AddMessage(prevote.PrevoteMessage.View, prevote.PrevoteMessage.From, prevote.PrevoteMessage)
-
-			expectedMessages = append(expectedMessages, prevote.PrevoteMessage)
+			expectedMessages = append(expectedMessages, prevote)
 		}
 
 		// Sort the messages for the test
 		sort.SliceStable(expectedMessages, func(i, j int) bool {
-			return string(expectedMessages[i].From) < string(expectedMessages[j].From)
+			return string(expectedMessages[i].Sender) < string(expectedMessages[j].Sender)
 		})
 
 		// Get the messages from the store
@@ -168,7 +180,7 @@ func TestCollector_AddMessage(t *testing.T) {
 
 		// Sort the messages for the test
 		sort.SliceStable(messages, func(i, j int) bool {
-			return string(messages[i].From) < string(messages[j].From)
+			return string(messages[i].Sender) < string(messages[j].Sender)
 		})
 
 		// Make sure the messages match
@@ -189,35 +201,31 @@ func TestCollector_AddMessage(t *testing.T) {
 		// Create the collector
 		c := NewCollector[types.PrecommitMessage]()
 
-		generatedMessages := generateMessages(
+		generatedMessages := generatePrecommitMessages(
 			t,
 			count,
 			initialView,
-			types.MessageType_PRECOMMIT,
 		)
 
 		expectedMessages := make([]*types.PrecommitMessage, 0, count)
 
-		for _, message := range generatedMessages {
-			precommit, ok := message.Payload.(*types.Message_PrecommitMessage)
-			require.True(t, ok)
+		for _, precommit := range generatedMessages {
+			c.AddMessage(precommit.View, precommit.Sender, precommit)
 
-			c.AddMessage(precommit.PrecommitMessage.View, precommit.PrecommitMessage.From, precommit.PrecommitMessage)
-
-			expectedMessages = append(expectedMessages, precommit.PrecommitMessage)
+			expectedMessages = append(expectedMessages, precommit)
 		}
 
 		// Sort the messages for the test
 		sort.SliceStable(expectedMessages, func(i, j int) bool {
-			return string(expectedMessages[i].From) < string(expectedMessages[j].From)
+			return string(expectedMessages[i].Sender) < string(expectedMessages[j].Sender)
 		})
 
-		// Get the messages from the store
+		// Get the messages Sender the store
 		messages := c.GetMessages()
 
 		// Sort the messages for the test
 		sort.SliceStable(messages, func(i, j int) bool {
-			return string(messages[i].From) < string(messages[j].From)
+			return string(messages[i].Sender) < string(messages[j].Sender)
 		})
 
 		// Make sure the messages match
@@ -231,7 +239,6 @@ func TestCollector_AddDuplicateMessages(t *testing.T) {
 	var (
 		count        = 5
 		commonSender = []byte("sender 1")
-		commonType   = types.MessageType_PREVOTE
 		view         = &types.View{
 			Height: 1,
 			Round:  1,
@@ -241,21 +248,17 @@ func TestCollector_AddDuplicateMessages(t *testing.T) {
 	// Create the collector
 	c := NewCollector[types.PrevoteMessage]()
 
-	generatedMessages := generateMessages(
+	generatedMessages := generatePrevoteMessages(
 		t,
 		count,
 		view,
-		commonType,
 	)
 
-	for _, message := range generatedMessages {
-		prevote, ok := message.Payload.(*types.Message_PrevoteMessage)
-		require.True(t, ok)
-
+	for _, prevote := range generatedMessages {
 		// Make sure each message is from the same sender
-		prevote.PrevoteMessage.From = commonSender
+		prevote.Sender = commonSender
 
-		c.AddMessage(prevote.PrevoteMessage.View, prevote.PrevoteMessage.From, prevote.PrevoteMessage)
+		c.AddMessage(prevote.View, prevote.Sender, prevote)
 	}
 
 	// Check that only 1 message has been added
@@ -279,22 +282,18 @@ func TestCollector_Subscribe(t *testing.T) {
 		// Create the collector
 		c := NewCollector[types.PrevoteMessage]()
 
-		generatedMessages := generateMessages(
+		generatedMessages := generatePrevoteMessages(
 			t,
 			count,
 			view,
-			types.MessageType_PREVOTE,
 		)
 
 		expectedMessages := make([]*types.PrevoteMessage, 0, count)
 
-		for _, message := range generatedMessages {
-			prevote, ok := message.Payload.(*types.Message_PrevoteMessage)
-			require.True(t, ok)
+		for _, prevote := range generatedMessages {
+			c.AddMessage(prevote.View, prevote.Sender, prevote)
 
-			c.AddMessage(prevote.PrevoteMessage.View, prevote.PrevoteMessage.From, prevote.PrevoteMessage)
-
-			expectedMessages = append(expectedMessages, prevote.PrevoteMessage)
+			expectedMessages = append(expectedMessages, prevote)
 		}
 
 		// Create a subscription
@@ -311,12 +310,12 @@ func TestCollector_Subscribe(t *testing.T) {
 
 		// Sort the messages for the test
 		sort.SliceStable(expectedMessages, func(i, j int) bool {
-			return string(expectedMessages[i].From) < string(expectedMessages[j].From)
+			return string(expectedMessages[i].Sender) < string(expectedMessages[j].Sender)
 		})
 
 		// Sort the messages for the test
 		sort.SliceStable(messages, func(i, j int) bool {
-			return string(messages[i].From) < string(messages[j].From)
+			return string(messages[i].Sender) < string(messages[j].Sender)
 		})
 
 		// Make sure the messages match
@@ -337,11 +336,10 @@ func TestCollector_Subscribe(t *testing.T) {
 		// Create the collector
 		c := NewCollector[types.PrevoteMessage]()
 
-		generatedMessages := generateMessages(
+		generatedMessages := generatePrevoteMessages(
 			t,
 			count,
 			view,
-			types.MessageType_PREVOTE,
 		)
 
 		expectedMessages := make([]*types.PrevoteMessage, 0, count)
@@ -350,13 +348,10 @@ func TestCollector_Subscribe(t *testing.T) {
 		notifyCh, unsubscribeFn := c.Subscribe()
 		defer unsubscribeFn()
 
-		for _, message := range generatedMessages {
-			prevote, ok := message.Payload.(*types.Message_PrevoteMessage)
-			require.True(t, ok)
+		for _, prevote := range generatedMessages {
+			c.AddMessage(prevote.View, prevote.Sender, prevote)
 
-			c.AddMessage(prevote.PrevoteMessage.View, prevote.PrevoteMessage.From, prevote.PrevoteMessage)
-
-			expectedMessages = append(expectedMessages, prevote.PrevoteMessage)
+			expectedMessages = append(expectedMessages, prevote)
 		}
 
 		var (
@@ -381,12 +376,12 @@ func TestCollector_Subscribe(t *testing.T) {
 
 		// Sort the messages for the test
 		sort.SliceStable(expectedMessages, func(i, j int) bool {
-			return string(expectedMessages[i].From) < string(expectedMessages[j].From)
+			return string(expectedMessages[i].Sender) < string(expectedMessages[j].Sender)
 		})
 
 		// Sort the messages for the test
 		sort.SliceStable(messages, func(i, j int) bool {
-			return string(messages[i].From) < string(messages[j].From)
+			return string(messages[i].Sender) < string(messages[j].Sender)
 		})
 
 		// Make sure the messages match

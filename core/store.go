@@ -21,43 +21,19 @@ func newStore() *store {
 	}
 }
 
-// AddMessage adds a new message to the store
-func (s *store) AddMessage(message *types.Message) {
-	switch message.Type {
-	case types.MessageType_PROPOSAL:
-		// Parse the propose message
-		wrappedMessage, ok := message.Payload.(*types.Message_ProposalMessage)
-		if !ok {
-			return
-		}
+// AddProposalMessage adds a proposal message to the store
+func (s *store) AddProposalMessage(proposal *types.ProposalMessage) {
+	s.proposeMessages.AddMessage(proposal.View, proposal.Sender, proposal)
+}
 
-		// Get the proposal
-		proposal := wrappedMessage.ProposalMessage
+// AddPrevoteMessage adds a prevote message to the store
+func (s *store) AddPrevoteMessage(prevote *types.PrevoteMessage) {
+	s.prevoteMessages.AddMessage(prevote.View, prevote.Sender, prevote)
+}
 
-		s.proposeMessages.AddMessage(proposal.View, proposal.From, proposal)
-	case types.MessageType_PREVOTE:
-		// Parse the prevote message
-		wrappedMessage, ok := message.Payload.(*types.Message_PrevoteMessage)
-		if !ok {
-			return
-		}
-
-		// Get the prevote
-		prevote := wrappedMessage.PrevoteMessage
-
-		s.prevoteMessages.AddMessage(prevote.View, prevote.From, prevote)
-	case types.MessageType_PRECOMMIT:
-		// Parse the precommit message
-		wrappedMessage, ok := message.Payload.(*types.Message_PrecommitMessage)
-		if !ok {
-			return
-		}
-
-		// Get the precommit
-		precommit := wrappedMessage.PrecommitMessage
-
-		s.precommitMessages.AddMessage(precommit.View, precommit.From, precommit)
-	}
+// AddPrecommitMessage adds a precommit message to the store
+func (s *store) AddPrecommitMessage(precommit *types.PrecommitMessage) {
+	s.precommitMessages.AddMessage(precommit.View, precommit.Sender, precommit)
 }
 
 // SubscribeToPropose subscribes to incoming PROPOSE messages

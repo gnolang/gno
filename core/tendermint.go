@@ -213,7 +213,7 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	// Broadcast the proposal to other consensus nodes
 	//
 	// 19: 		broadcast <PROPOSAL, hp, roundP, proposal, validRoundP>
-	t.broadcastProposal(proposeMessage)
+	t.broadcast.BroadcastProposal(proposeMessage)
 
 	// TODO make thread safe
 	// Save the accepted proposal in the state.
@@ -227,7 +227,7 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	// Build and broadcast the prevote message
 	//
 	// 24/30: broadcast <PREVOTE, hP, roundP, id(v)>
-	t.broadcastPrevote(t.buildPrevoteMessage(id))
+	t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(id))
 
 	// Since the current process is the proposer,
 	// it can directly move to the prevote state
@@ -265,7 +265,8 @@ func (t *Tendermint) runStates(ctx context.Context) []byte {
 // 27: 	stepP ← prevote
 //
 // - The proposer for view (hP, roundP) has proposed a value that was accepted in some previous round
-// 28: upon <PROPOSAL, hP, roundP, v, vr> from proposer(hP, roundP) AND 2f + 1 <PREVOTE, hP, vr, id(v)> while stepP = propose ∧ (vr >= 0 ∧ vr < roundP) do
+// 28: upon <PROPOSAL, hP, roundP, v, vr> from proposer(hP, roundP) AND 2f + 1 <PREVOTE, hP, vr, id(v)>
+// while stepP = propose ∧ (vr >= 0 ∧ vr < roundP) do
 // 29: if valid(v) ∧ (lockedRoundP ≤ vr ∨ lockedValueP = v) then
 // 30: 	broadcast <PREVOTE, hp, roundP, id(v)>
 // 31: else
@@ -333,7 +334,8 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 // This state handles the following situations:
 //
 // - A validator has received 2F+1 PRECOMMIT messages with a valid ID for the previously accepted proposal
-// 49: upon <PROPOSAL, hP, r, v, ∗> from proposer(hP, r) AND 2f + 1 <PRECOMMIT, hP, r, id(v)> while decisionP[hP] = nil do
+// 49: upon <PROPOSAL, hP, r, v, ∗> from proposer(hP, r) AND 2f + 1 <PRECOMMIT, hP, r, id(v)>
+// while decisionP[hP] = nil do
 // 50: if valid(v) then
 // 51: 	decisionP[hp] = v
 // 52: 	hP ← hP + 1

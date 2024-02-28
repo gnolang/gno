@@ -8,93 +8,83 @@ import (
 )
 
 var (
-	ErrMessageNotSet           = errors.New("message not set")
-	ErrMessagePayloadNotSet    = errors.New("message payload not set")
 	ErrInvalidMessageSignature = errors.New("invalid message signature")
 	ErrMessageFromNonValidator = errors.New("message is from a non-validator")
 	ErrEarlierHeightMessage    = errors.New("message is for an earlier height")
 	ErrEarlierRoundMessage     = errors.New("message is for an earlier round")
 )
 
-// AddMessage verifies and adds a new message to the consensus engine
-func (t *Tendermint) AddMessage(message *types.Message) error {
+// AddProposalMessage verifies and adds a new proposal message to the consensus engine
+func (t *Tendermint) AddProposalMessage(message *types.ProposalMessage) error {
 	// Verify the incoming message
 	if err := t.verifyMessage(message); err != nil {
-		return fmt.Errorf("unable to verify message, %w", err)
+		return fmt.Errorf("unable to verify proposal message, %w", err)
 	}
 
 	// Add the message to the store
-	t.store.AddMessage(message)
+	t.store.AddProposalMessage(message)
 
 	return nil
 }
 
-// verifyMessage verifies the incoming consensus message (base verification)
-func (t *Tendermint) verifyMessage(message *types.Message) error {
-	// Make sure the message is present
-	if message == nil {
-		return ErrMessageNotSet
+// AddPrevoteMessage verifies and adds a new prevote message to the consensus engine
+func (t *Tendermint) AddPrevoteMessage(message *types.PrevoteMessage) error {
+	// Verify the incoming message
+	if err := t.verifyMessage(message); err != nil {
+		return fmt.Errorf("unable to verify proposal message, %w", err)
 	}
 
-	// Make sure the message payload is present
-	if message.Payload == nil {
-		return ErrMessagePayloadNotSet
+	// Add the message to the store
+	t.store.AddPrevoteMessage(message)
+
+	return nil
+}
+
+// AddPrecommitMessage verifies and adds a new precommit message to the consensus engine
+func (t *Tendermint) AddPrecommitMessage(message *types.PrecommitMessage) error {
+	// Verify the incoming message
+	if err := t.verifyMessage(message); err != nil {
+		return fmt.Errorf("unable to verify proposal message, %w", err)
 	}
 
-	// Get the signature payload
-	signPayload, err := message.GetSignaturePayload()
-	if err != nil {
-		return fmt.Errorf("unable to get message signature payload, %w", err)
-	}
+	// Add the message to the store
+	t.store.AddPrecommitMessage(message)
 
-	// Make sure the signature is valid
-	if !t.signer.IsValidSignature(signPayload, message.Signature) {
-		return ErrInvalidMessageSignature
-	}
+	return nil
+}
 
-	// Extract individual message data
-	var (
-		sender []byte
-		view   *types.View
-	)
+type message interface {
+	GetView() *types.View
+	GetSender() []byte
+	GetSignature() []byte
+	GetSignaturePayload() []byte
+	Verify() error
+}
 
-	switch message.Type {
-	case types.MessageType_PROPOSAL:
-		// Get the proposal message
-		payload := message.GetProposalMessage()
-		if payload == nil || !payload.IsValid() {
-			return types.ErrInvalidMessagePayload
-		}
-
-		sender = payload.GetFrom()
-		view = payload.GetView()
-	case types.MessageType_PREVOTE:
-		// Get the prevote message
-		payload := message.GetPrevoteMessage()
-		if payload == nil || !payload.IsValid() {
-			return types.ErrInvalidMessagePayload
-		}
-
-		sender = payload.GetFrom()
-		view = payload.GetView()
-	case types.MessageType_PRECOMMIT:
-		// Get the precommit message
-		payload := message.GetPrecommitMessage()
-		if payload == nil || !payload.IsValid() {
-			return types.ErrInvalidMessagePayload
-		}
-
-		sender = payload.GetFrom()
-		view = payload.GetView()
+// verifyMessage is the common base message verification
+func (t *Tendermint) verifyMessage(message message) error {
+	// Check if the message is valid
+	if err := message.Verify(); err != nil {
+		return fmt.Errorf("unable to verify message, %w", err)
 	}
 
 	// Make sure the message sender is a validator
-	if !t.verifier.IsValidator(sender) {
+	if !t.verifier.IsValidator(message.GetSender()) {
 		return ErrMessageFromNonValidator
+	}
+
+	// Get the signature payload
+	signPayload := message.GetSignaturePayload()
+
+	// Make sure the signature is valid
+	if !t.signer.IsValidSignature(signPayload, message.GetSignature()) {
+		return ErrInvalidMessageSignature
 	}
 
 	// Make sure the message view is valid
 	var (
+		view = message.GetView()
+
 		currentHeight = t.state.view.GetHeight() // TODO make thread safe
 		currentRound  = t.state.view.GetRound()  // TODO make thread safe
 	)

@@ -36,7 +36,7 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 	t.Parallel()
 
 	var (
-		capturedMessage *types.Message
+		capturedMessage *types.PrevoteMessage
 		id              = []byte("node ID")
 		signature       = []byte("signature")
 		view            = &types.View{
@@ -45,7 +45,7 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 		}
 
 		mockBroadcast = &mockBroadcast{
-			broadcastFn: func(message *types.Message) {
+			broadcastPrevoteFn: func(message *types.PrevoteMessage) {
 				capturedMessage = message
 			},
 		}
@@ -85,6 +85,7 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 		callback = func() {
 			tm.onTimeoutPropose(tm.state.view.Round)
 		}
+
 		timeoutPropose = tm.timeouts[propose].calculateTimeout(tm.state.view.Round)
 	)
 
@@ -96,15 +97,10 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 	// Validate the prevote message was sent with a NIL value
 	require.NotNil(t, capturedMessage)
 
-	require.Equal(t, capturedMessage.Type, types.MessageType_PREVOTE)
-
-	message, ok := capturedMessage.Payload.(*types.Message_PrevoteMessage)
-	require.True(t, ok)
-
 	assert.Equal(t, signature, capturedMessage.Signature)
 
-	assert.Nil(t, message.PrevoteMessage.Identifier)
-	assert.Equal(t, id, message.PrevoteMessage.From)
-	assert.Equal(t, view.GetHeight(), message.PrevoteMessage.View.GetHeight())
-	assert.Equal(t, view.GetRound(), message.PrevoteMessage.View.GetRound())
+	assert.Nil(t, capturedMessage.GetIdentifier())
+	assert.Equal(t, id, capturedMessage.GetSender())
+	assert.Equal(t, view.GetHeight(), capturedMessage.GetView().GetHeight())
+	assert.Equal(t, view.GetRound(), capturedMessage.GetView().GetRound())
 }
