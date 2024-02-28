@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -158,6 +159,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 
 	if reRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	}
+
+	// Validate Gno syntax and type check.
+	if err := gnolang.TypeCheckMemPackage(memPkg, store); err != nil {
+		return err
 	}
 
 	// Pay deposit from creator.
@@ -315,6 +321,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
+	}
+
+	// Validate Gno syntax and type check.
+	if err = gnolang.TypeCheckMemPackage(memPkg, store); err != nil {
+		return "", err
 	}
 
 	// Send send-coins to pkg from caller.
@@ -565,6 +576,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
+		if memPkg == nil {
+			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
 				res += "\n"

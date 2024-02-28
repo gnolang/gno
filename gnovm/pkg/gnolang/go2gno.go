@@ -35,12 +35,16 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/multierr"
 )
 
 func MustReadFile(path string) *FileNode {
@@ -102,7 +106,10 @@ func MustParseExpr(expr string) Expr {
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
+	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
+	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors
+	f, err := parser.ParseFile(fs, filename, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -467,6 +474,99 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			spew.Sdump(gon),
 		))
 	}
+}
+
+//----------------------------------------
+// type checking (using go/types)
+
+// MemPackageGetter implements the GetMemPackage() method. It is a subset of
+// [Store], separated for ease of testing.
+type MemPackageGetter interface {
+	GetMemPackage(path string) *std.MemPackage
+}
+
+// TypeCheckMemPackage performs type validation and checking on the given
+// mempkg. To retrieve dependencies, it uses getter.
+//
+// The syntax checking is performed entirely using Go's go/types package.
+func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+	imp := &gnoImporter{
+		getter: getter,
+		cache:  map[string]any{},
+		cfg:    &types.Config{},
+	}
+	imp.cfg.Importer = imp
+
+	_, err := imp.parseCheckMemPackage(mempkg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type gnoImporter struct {
+	getter MemPackageGetter
+	cache  map[string]any // *types.Package or error
+	cfg    *types.Config
+}
+
+func (g *gnoImporter) Import(path string) (*types.Package, error) {
+	return g.ImportFrom(path, "", 0)
+}
+
+// ImportFrom returns the imported package for the given import
+// path when imported by a package file located in dir.
+func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
+	if pkg, ok := g.cache[path]; ok {
+		switch ret := pkg.(type) {
+		case *types.Package:
+			return ret, nil
+		case error:
+			return nil, ret
+		default:
+			panic(fmt.Sprintf("invalid type in gnoImporter.cache %T", ret))
+		}
+	}
+	mpkg := g.getter.GetMemPackage(path)
+	if mpkg == nil {
+		g.cache[path] = (*types.Package)(nil)
+		return nil, nil
+	}
+	result, err := g.parseCheckMemPackage(mpkg)
+	if err != nil {
+		g.cache[path] = err
+		return nil, err
+	}
+	g.cache[path] = result
+	return result, nil
+}
+
+func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+	fset := token.NewFileSet()
+	files := make([]*ast.File, 0, len(mpkg.Files))
+	var errs error
+	for _, file := range mpkg.Files {
+		if !strings.HasSuffix(file.Name, ".gno") ||
+			endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
+			continue // skip spurious file.
+		}
+
+		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
+		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
+		if err != nil {
+			err = multierr.Append(errs, err)
+			continue
+		}
+
+		files = append(files, f)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	// TODO g.cfg.Error
+	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 
 //----------------------------------------
