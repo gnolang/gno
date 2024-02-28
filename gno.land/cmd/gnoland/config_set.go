@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var errInvalidConfigEditArgs = errors.New("invalid number of config edit arguments provided")
+var errInvalidConfigSetArgs = errors.New("invalid number of config set arguments provided")
 
 // newConfigSetCmd creates the config set command
 func newConfigSetCmd(io commands.IO) *commands.Command {
@@ -46,24 +46,18 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 
 	// Make sure the edit arguments are valid
 	if len(args) != 2 {
-		return errInvalidConfigEditArgs
+		return errInvalidConfigSetArgs
 	}
-
-	// Get the config value using reflect
-	configValue := reflect.ValueOf(loadedCfg).Elem()
 
 	var (
 		key   = args[0]
 		value = args[1]
 	)
 
-	// Get the value path, with sections separated out by a period
-	path := strings.Split(key, ".")
-
 	// Update the config field
-	if err := updateFieldAtPath(
-		configValue,
-		path,
+	if err := updateConfigField(
+		loadedCfg,
+		key,
 		value,
 	); err != nil {
 		return fmt.Errorf("unable to update config field, %w", err)
@@ -85,24 +79,16 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 }
 
 // updateFieldAtPath updates the field at the given path, with the given value
-func updateFieldAtPath(currentValue reflect.Value, path []string, value string) error {
-	// Look at the current section, and figure out if
-	// it's a part of the current struct
-	field := currentValue.FieldByName(path[0])
-	if !field.IsValid() {
-		return generateInvalidFieldError(path[0], currentValue)
-	}
+func updateConfigField(config *config.Config, key, value string) error {
+	// Get the config value using reflect
+	configValue := reflect.ValueOf(config).Elem()
 
-	// Dereference the field if needed
-	if field.Kind() == reflect.Ptr {
-		field = field.Elem()
-	}
+	// Get the value path, with sections separated out by a period
+	path := strings.Split(key, ".")
 
-	// Check if this is not the end of the path
-	// ex: x.y.field
-	if len(path) > 1 {
-		// Recursively try to traverse the path and update the given field
-		return updateFieldAtPath(field, path[1:], value)
+	field, err := getFieldAtPath(configValue, path)
+	if err != nil {
+		return err
 	}
 
 	// We've reached the actual field, check if it can be updated

@@ -1,45 +1,45 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// initializeTestConfig initializes a default configuration
-// at a temporary path
-func initializeTestConfig(t *testing.T) string {
-	t.Helper()
+func TestConfig_Get_Invalid(t *testing.T) {
+	t.Parallel()
 
-	path := filepath.Join(t.TempDir(), "config.toml")
-	cfg := config.DefaultConfig()
+	// Create the command
+	cmd := newRootCmd(commands.NewTestIO())
+	args := []string{
+		"config",
+		"get",
+		"--config-path",
+		"",
+	}
 
-	require.NoError(t, config.WriteConfigFile(path, cfg))
-
-	return path
+	// Run the command
+	cmdErr := cmd.ParseAndRun(context.Background(), args)
+	assert.ErrorContains(t, cmdErr, "unable to load config")
 }
 
-// testSetCase outlines the single test case for config set
-type testSetCase struct {
+// testSetCase outlines the single test case for config get
+type testGetCase struct {
 	name     string
-	flags    []string
+	field    string
 	verifyFn func(*config.Config, string)
 }
 
-// verifySetTestTableCommon is the common test table
+// verifyGetTestTableCommon is the common test table
 // verification for config set test cases
-func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
+func verifyGetTestTableCommon(t *testing.T, testTable []testGetCase) {
 	t.Helper()
 
 	for _, testCase := range testTable {
@@ -52,326 +52,217 @@ func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
 			path := initializeTestConfig(t)
 			args := []string{
 				"config",
-				"set",
+				"get",
 				"--config-path",
 				path,
 			}
 
+			// Create the command IO
+			mockOut := bytes.NewBufferString("")
+
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+
 			// Create the command
-			cmd := newRootCmd(commands.NewTestIO())
-			args = append(args, testCase.flags...)
+			cmd := newRootCmd(io)
+			args = append(args, testCase.field)
 
 			// Run the command
 			cmdErr := cmd.ParseAndRun(context.Background(), args)
 			require.NoError(t, cmdErr)
 
-			// Make sure the config was updated
+			// Make sure the config was fetched
 			loadedCfg, err := config.LoadConfigFile(path)
 			require.NoError(t, err)
 
-			testCase.verifyFn(loadedCfg, testCase.flags[len(testCase.flags)-1])
+			testCase.verifyFn(loadedCfg, mockOut.String())
 		})
 	}
 }
 
-func TestConfig_Set_Invalid(t *testing.T) {
+func TestConfig_Get_Base(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid config path", func(t *testing.T) {
-		t.Parallel()
+	testTable := []testGetCase{
+		{
+			"root dir fetched",
+			"RootDir",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.RootDir, value)
+			},
+		},
+		{
+			"proxy app fetched",
+			"ProxyApp",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.ProxyApp, value)
+			},
+		},
+		{
+			"moniker fetched",
+			"Moniker",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.Moniker, value)
+			},
+		},
+		{
+			"fast sync mode fetched",
+			"FastSyncMode",
+			func(loadedCfg *config.Config, value string) {
+				boolVal, err := strconv.ParseBool(value)
+				require.NoError(t, err)
 
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"config",
-			"set",
-			"--config-path",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to load config")
-	})
-
-	t.Run("invalid config change", func(t *testing.T) {
-		t.Parallel()
-
-		// Setup the test config
-		path := initializeTestConfig(t)
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"config",
-			"set",
-			"--config-path",
-			path,
+				assert.Equal(t, loadedCfg.FastSyncMode, boolVal)
+			},
+		},
+		{
+			"db backend fetched",
 			"DBBackend",
-			"random db backend",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to validate config")
-	})
-}
-
-func TestConfig_Set_Base(t *testing.T) {
-	t.Parallel()
-
-	testTable := []testSetCase{
-		{
-			"root dir updated",
-			[]string{
-				"RootDir",
-				"example root dir",
-			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.RootDir)
+				assert.Equal(t, loadedCfg.DBBackend, value)
 			},
 		},
 		{
-			"proxy app updated",
-			[]string{
-				"ProxyApp",
-				"example proxy app",
-			},
+			"db path fetched",
+			"DBPath",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.ProxyApp)
+				assert.Equal(t, loadedCfg.DBPath, value)
 			},
 		},
 		{
-			"moniker updated",
-			[]string{
-				"Moniker",
-				"example moniker",
-			},
+			"genesis path fetched",
+			"Genesis",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.Moniker)
+				assert.Equal(t, loadedCfg.Genesis, value)
 			},
 		},
 		{
-			"fast sync mode updated",
-			[]string{
-				"FastSyncMode",
-				"false",
+			"validator key fetched",
+			"PrivValidatorKey",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.PrivValidatorKey, value)
 			},
+		},
+		{
+			"validator state file fetched",
+			"PrivValidatorState",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.PrivValidatorState, value)
+			},
+		},
+		{
+			"validator listen addr fetched",
+			"PrivValidatorListenAddr",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.PrivValidatorListenAddr, value)
+			},
+		},
+		{
+			"node key path fetched",
+			"NodeKey",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.NodeKey, value)
+			},
+		},
+		{
+			"abci fetched",
+			"ABCI",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.ABCI, value)
+			},
+		},
+		{
+			"profiling listen address fetched",
+			"ProfListenAddress",
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, loadedCfg.ProfListenAddress, value)
+			},
+		},
+		{
+			"filter peers flag fetched",
+			"FilterPeers",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
 
-				assert.Equal(t, boolVal, loadedCfg.FastSyncMode)
-			},
-		},
-		{
-			"db backend updated",
-			[]string{
-				"DBBackend",
-				db.GoLevelDBBackend.String(),
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.DBBackend)
-			},
-		},
-		{
-			"db path updated",
-			[]string{
-				"DBPath",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.DBPath)
-			},
-		},
-		{
-			"genesis path updated",
-			[]string{
-				"Genesis",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.Genesis)
-			},
-		},
-		{
-			"validator key updated",
-			[]string{
-				"PrivValidatorKey",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorKey)
-			},
-		},
-		{
-			"validator state file updated",
-			[]string{
-				"PrivValidatorState",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorState)
-			},
-		},
-		{
-			"validator listen addr updated",
-			[]string{
-				"PrivValidatorListenAddr",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorListenAddr)
-			},
-		},
-		{
-			"node key path updated",
-			[]string{
-				"NodeKey",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.NodeKey)
-			},
-		},
-		{
-			"abci updated",
-			[]string{
-				"ABCI",
-				config.LocalABCI,
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.ABCI)
-			},
-		},
-		{
-			"profiling listen address updated",
-			[]string{
-				"ProfListenAddress",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.ProfListenAddress)
-			},
-		},
-		{
-			"filter peers flag updated",
-			[]string{
-				"FilterPeers",
-				"true",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.FilterPeers)
+				assert.Equal(t, loadedCfg.FilterPeers, boolVal)
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
 
-func TestConfig_Set_Consensus(t *testing.T) {
+func TestConfig_Get_Consensus(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testSetCase{
+	testTable := []testGetCase{
 		{
 			"root dir updated",
-			[]string{
-				"Consensus.RootDir",
-				"example root dir",
-			},
+			"Consensus.RootDir",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.RootDir)
 			},
 		},
 		{
 			"WAL path updated",
-			[]string{
-				"Consensus.WalPath",
-				"example WAL path",
-			},
+			"Consensus.WalPath",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.WalPath)
 			},
 		},
 		{
 			"propose timeout updated",
-			[]string{
-				"Consensus.TimeoutPropose",
-				"1s",
-			},
+			"Consensus.TimeoutPropose",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutPropose.String())
 			},
 		},
 		{
 			"propose timeout delta updated",
-			[]string{
-				"Consensus.TimeoutProposeDelta",
-				"1s",
-			},
+			"Consensus.TimeoutProposeDelta",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutProposeDelta.String())
 			},
 		},
 		{
 			"prevote timeout updated",
-			[]string{
-				"Consensus.TimeoutPrevote",
-				"1s",
-			},
+			"Consensus.TimeoutPrevote",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutPrevote.String())
 			},
 		},
 		{
 			"prevote timeout delta updated",
-			[]string{
-				"Consensus.TimeoutPrevoteDelta",
-				"1s",
-			},
+			"Consensus.TimeoutPrevoteDelta",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutPrevoteDelta.String())
 			},
 		},
 		{
 			"precommit timeout updated",
-			[]string{
-				"Consensus.TimeoutPrecommit",
-				"1s",
-			},
+			"Consensus.TimeoutPrecommit",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutPrecommit.String())
 			},
 		},
 		{
 			"precommit timeout delta updated",
-			[]string{
-				"Consensus.TimeoutPrecommitDelta",
-				"1s",
-			},
+			"Consensus.TimeoutPrecommitDelta",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutPrecommitDelta.String())
 			},
 		},
 		{
 			"commit timeout updated",
-			[]string{
-				"Consensus.TimeoutCommit",
-				"1s",
-			},
+			"Consensus.TimeoutCommit",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.TimeoutCommit.String())
 			},
 		},
 		{
 			"skip commit timeout toggle updated",
-			[]string{
-				"Consensus.SkipTimeoutCommit",
-				"true",
-			},
+			"Consensus.SkipTimeoutCommit",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -381,10 +272,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		},
 		{
 			"create empty blocks toggle updated",
-			[]string{
-				"Consensus.CreateEmptyBlocks",
-				"false",
-			},
+			"Consensus.CreateEmptyBlocks",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -393,134 +281,95 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		},
 		{
 			"create empty blocks interval updated",
-			[]string{
-				"Consensus.CreateEmptyBlocksInterval",
-				"1s",
-			},
+			"Consensus.CreateEmptyBlocksInterval",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.CreateEmptyBlocksInterval.String())
 			},
 		},
 		{
 			"peer gossip sleep duration updated",
-			[]string{
-				"Consensus.PeerGossipSleepDuration",
-				"1s",
-			},
+			"Consensus.PeerGossipSleepDuration",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.PeerGossipSleepDuration.String())
 			},
 		},
 		{
 			"peer query majority sleep duration updated",
-			[]string{
-				"Consensus.PeerQueryMaj23SleepDuration",
-				"1s",
-			},
+			"Consensus.PeerQueryMaj23SleepDuration",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.PeerQueryMaj23SleepDuration.String())
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
 
-func TestConfig_Set_Events(t *testing.T) {
+func TestConfig_Get_Events(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testSetCase{
+	testTable := []testGetCase{
 		{
 			"event store type updated",
-			[]string{
-				"TxEventStore.EventStoreType",
-				file.EventStoreType,
-			},
+			"TxEventStore.EventStoreType",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.TxEventStore.EventStoreType)
 			},
 		},
 		{
 			"event store params updated",
-			[]string{
-				"TxEventStore.Params",
-				"key1=value1,key2=value2",
-			},
+			"TxEventStore.Params",
 			func(loadedCfg *config.Config, value string) {
-				val, ok := loadedCfg.TxEventStore.Params["key1"]
-				assert.True(t, ok)
-				assert.Equal(t, "value1", val)
-
-				val, ok = loadedCfg.TxEventStore.Params["key2"]
-				assert.True(t, ok)
-				assert.Equal(t, "value2", val)
+				assert.Equal(t, value, fmt.Sprintf("%v", loadedCfg.TxEventStore.Params))
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
 
-func TestConfig_Set_P2P(t *testing.T) {
+func TestConfig_Get_P2P(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testSetCase{
+	testTable := []testGetCase{
 		{
 			"root dir updated",
-			[]string{
-				"P2P.RootDir",
-				"example root dir",
-			},
+			"P2P.RootDir",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.RootDir)
 			},
 		},
 		{
 			"listen address updated",
-			[]string{
-				"P2P.ListenAddress",
-				"0.0.0.0:0",
-			},
+			"P2P.ListenAddress",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.ListenAddress)
 			},
 		},
 		{
 			"external address updated",
-			[]string{
-				"P2P.ExternalAddress",
-				"0.0.0.0:0",
-			},
+			"P2P.ExternalAddress",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.ExternalAddress)
 			},
 		},
 		{
 			"seeds updated",
-			[]string{
-				"P2P.Seeds",
-				"0.0.0.0:0",
-			},
+			"P2P.Seeds",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.Seeds)
 			},
 		},
 		{
 			"persistent peers updated",
-			[]string{
-				"P2P.PersistentPeers",
-				"nodeID@0.0.0.0:0",
-			},
+			"P2P.PersistentPeers",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.PersistentPeers)
 			},
 		},
 		{
 			"upnp toggle updated",
-			[]string{
-				"P2P.UPNP",
-				"false",
-			},
+			"P2P.UPNP",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -530,70 +379,49 @@ func TestConfig_Set_P2P(t *testing.T) {
 		},
 		{
 			"max inbound peers updated",
-			[]string{
-				"P2P.MaxNumInboundPeers",
-				"10",
-			},
+			"P2P.MaxNumInboundPeers",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.P2P.MaxNumInboundPeers))
 			},
 		},
 		{
 			"max outbound peers updated",
-			[]string{
-				"P2P.MaxNumOutboundPeers",
-				"10",
-			},
+			"P2P.MaxNumOutboundPeers",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.P2P.MaxNumOutboundPeers))
 			},
 		},
 		{
 			"flush throttle timeout updated",
-			[]string{
-				"P2P.FlushThrottleTimeout",
-				"1s",
-			},
+			"P2P.FlushThrottleTimeout",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.FlushThrottleTimeout.String())
 			},
 		},
 		{
 			"max package payload size updated",
-			[]string{
-				"P2P.MaxPacketMsgPayloadSize",
-				"10",
-			},
+			"P2P.MaxPacketMsgPayloadSize",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.P2P.MaxPacketMsgPayloadSize))
 			},
 		},
 		{
 			"send rate updated",
-			[]string{
-				"P2P.SendRate",
-				"10",
-			},
+			"P2P.SendRate",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.P2P.SendRate))
 			},
 		},
 		{
 			"receive rate updated",
-			[]string{
-				"P2P.RecvRate",
-				"10",
-			},
+			"P2P.RecvRate",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.P2P.RecvRate))
 			},
 		},
 		{
 			"pex reactor toggle updated",
-			[]string{
-				"P2P.PexReactor",
-				"false",
-			},
+			"P2P.PexReactor",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -603,10 +431,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		},
 		{
 			"seed mode updated",
-			[]string{
-				"P2P.SeedMode",
-				"false",
-			},
+			"P2P.SeedMode",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -616,20 +441,14 @@ func TestConfig_Set_P2P(t *testing.T) {
 		},
 		{
 			"private peer IDs updated",
-			[]string{
-				"P2P.PrivatePeerIDs",
-				"0.0.0.0:0",
-			},
+			"P2P.PrivatePeerIDs",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.PrivatePeerIDs)
 			},
 		},
 		{
 			"allow duplicate IPs updated",
-			[]string{
-				"P2P.AllowDuplicateIP",
-				"false",
-			},
+			"P2P.AllowDuplicateIP",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -639,109 +458,79 @@ func TestConfig_Set_P2P(t *testing.T) {
 		},
 		{
 			"handshake timeout updated",
-			[]string{
-				"P2P.HandshakeTimeout",
-				"1s",
-			},
+			"P2P.HandshakeTimeout",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.HandshakeTimeout.String())
 			},
 		},
 		{
 			"dial timeout updated",
-			[]string{
-				"P2P.DialTimeout",
-				"1s",
-			},
+			"P2P.DialTimeout",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.P2P.DialTimeout.String())
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
 
-func TestConfig_Set_RPC(t *testing.T) {
+func TestConfig_Get_RPC(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testSetCase{
+	testTable := []testGetCase{
 		{
 			"root dir updated",
-			[]string{
-				"RPC.RootDir",
-				"example root dir",
-			},
+			"RPC.RootDir",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.RootDir)
 			},
 		},
 		{
 			"listen address updated",
-			[]string{
-				"RPC.ListenAddress",
-				"0.0.0.0:0",
-			},
+			"RPC.ListenAddress",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.ListenAddress)
 			},
 		},
 		{
 			"CORS Allowed Origins updated",
-			[]string{
-				"RPC.CORSAllowedOrigins",
-				"0.0.0.0:0",
-			},
+			"RPC.CORSAllowedOrigins",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedOrigins)
+				assert.Equal(t, value, fmt.Sprintf("%v", loadedCfg.RPC.CORSAllowedOrigins))
 			},
 		},
 		{
 			"CORS Allowed Methods updated",
-			[]string{
-				"RPC.CORSAllowedMethods",
-				"POST,GET",
-			},
+			"RPC.CORSAllowedMethods",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedMethods)
+				assert.Equal(t, value, fmt.Sprintf("%v", loadedCfg.RPC.CORSAllowedMethods))
 			},
 		},
 		{
 			"CORS Allowed Headers updated",
-			[]string{
-				"RPC.CORSAllowedHeaders",
-				"*",
-			},
+			"RPC.CORSAllowedHeaders",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedHeaders)
+				assert.Equal(t, value, fmt.Sprintf("%v", loadedCfg.RPC.CORSAllowedHeaders))
 			},
 		},
 		{
 			"GRPC listen address updated",
-			[]string{
-				"RPC.GRPCListenAddress",
-				"0.0.0.0:0",
-			},
+			"RPC.GRPCListenAddress",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.GRPCListenAddress)
 			},
 		},
 		{
 			"GRPC max open connections updated",
-			[]string{
-				"RPC.GRPCMaxOpenConnections",
-				"10",
-			},
+			"RPC.GRPCMaxOpenConnections",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.GRPCMaxOpenConnections))
 			},
 		},
 		{
 			"unsafe value updated",
-			[]string{
-				"RPC.Unsafe",
-				"true",
-			},
+			"RPC.Unsafe",
 			func(loadedCfg *config.Config, value string) {
 				boolVal, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -751,89 +540,65 @@ func TestConfig_Set_RPC(t *testing.T) {
 		},
 		{
 			"RPC max open connections updated",
-			[]string{
-				"RPC.MaxOpenConnections",
-				"10",
-			},
+			"RPC.MaxOpenConnections",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxOpenConnections))
 			},
 		},
 		{
 			"tx commit broadcast timeout updated",
-			[]string{
-				"RPC.TimeoutBroadcastTxCommit",
-				(time.Second * 10).String(),
-			},
+			"RPC.TimeoutBroadcastTxCommit",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.TimeoutBroadcastTxCommit.String())
 			},
 		},
 		{
 			"max body bytes updated",
-			[]string{
-				"RPC.MaxBodyBytes",
-				"10",
-			},
+			"RPC.MaxBodyBytes",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxBodyBytes))
 			},
 		},
 		{
 			"max header bytes updated",
-			[]string{
-				"RPC.MaxHeaderBytes",
-				"10",
-			},
+			"RPC.MaxHeaderBytes",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxHeaderBytes))
 			},
 		},
 		{
 			"TLS cert file updated",
-			[]string{
-				"RPC.TLSCertFile",
-				"example path",
-			},
+			"RPC.TLSCertFile",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.TLSCertFile)
 			},
 		},
 		{
 			"TLS key file updated",
-			[]string{
-				"RPC.TLSKeyFile",
-				"example path",
-			},
+			"RPC.TLSKeyFile",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.RPC.TLSKeyFile)
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
 
-func TestConfig_Set_Mempool(t *testing.T) {
+func TestConfig_Get_Mempool(t *testing.T) {
 	t.Parallel()
 
-	testTable := []testSetCase{
+	testTable := []testGetCase{
 		{
 			"root dir updated",
-			[]string{
-				"Mempool.RootDir",
-				"example root dir",
-			},
+			"Mempool.RootDir",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Mempool.RootDir)
 			},
 		},
 		{
 			"recheck flag updated",
-			[]string{
-				"Mempool.Recheck",
-				"false",
-			},
+			"Mempool.Recheck",
 			func(loadedCfg *config.Config, value string) {
 				boolVar, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -843,10 +608,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		},
 		{
 			"broadcast flag updated",
-			[]string{
-				"Mempool.Broadcast",
-				"false",
-			},
+			"Mempool.Broadcast",
 			func(loadedCfg *config.Config, value string) {
 				boolVar, err := strconv.ParseBool(value)
 				require.NoError(t, err)
@@ -856,45 +618,33 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		},
 		{
 			"WAL path updated",
-			[]string{
-				"Mempool.WalPath",
-				"example path",
-			},
+			"Mempool.WalPath",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Mempool.WalPath)
 			},
 		},
 		{
 			"size updated",
-			[]string{
-				"Mempool.Size",
-				"100",
-			},
+			"Mempool.Size",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.Size))
 			},
 		},
 		{
 			"max pending txs bytes updated",
-			[]string{
-				"Mempool.MaxPendingTxsBytes",
-				"100",
-			},
+			"Mempool.MaxPendingTxsBytes",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.MaxPendingTxsBytes))
 			},
 		},
 		{
 			"cache size updated",
-			[]string{
-				"Mempool.CacheSize",
-				"100",
-			},
+			"Mempool.CacheSize",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.CacheSize))
 			},
 		},
 	}
 
-	verifySetTestTableCommon(t, testTable)
+	verifyGetTestTableCommon(t, testTable)
 }
