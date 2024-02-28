@@ -34,7 +34,6 @@ const sidebars = {
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
                 'how-to-guides/connect-wallet-dapp',
-                'how-to-guides/effective-gno',
             ],
         },
         {
@@ -53,10 +52,12 @@ const sidebars = {
                         'concepts/standard-library/gnopher-hole-stdlib',
                     ]
                 },
-                'concepts/tendermint2',
                 'concepts/gnovm',
-                'concepts/proof-of-contribution',
                 'concepts/gno-language',
+                'concepts/effective-gno',
+                'concepts/proof-of-contribution',
+                'concepts/tendermint2',
+                'concepts/portal-loop',
                 'concepts/gno-modules',
                 'concepts/gno-test',
                 'concepts/from-go-to-gno',
