@@ -66,9 +66,9 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		Txs:      pkgsTxs,
 	}
 
-	node, err := newNode(ctx, logger, emitter, genesis)
+	node, err := initializeNode(ctx, logger, emitter, genesis)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create the node: %w", err)
+		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
 	client := client.NewLocal(node)
 
@@ -144,9 +144,9 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	node, err := newNode(ctx, d.logger, d.emitter, genesis)
+	node, err := initializeNode(ctx, d.logger, d.emitter, genesis)
 	if err != nil {
-		return fmt.Errorf("unable to reset the node: %w", err)
+		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
 	d.Node = node
@@ -200,9 +200,9 @@ func (d *Node) Reload(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	node, err := newNode(ctx, d.logger, d.emitter, genesis)
+	node, err := initializeNode(ctx, d.logger, d.emitter, genesis)
 	if err != nil {
-		return fmt.Errorf("unable to reset the node: %w", err)
+		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
 	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
@@ -368,7 +368,7 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 	return txs, nil
 }
 
-func newNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
+func initializeNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, genesis gnoland.GnoGenesisState) (*node.Node, error) {
 	rootdir := gnoenv.RootDir()
 
 	// Setup node config
@@ -377,60 +377,27 @@ func newNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, 
 	nodeConfig.TMConfig.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	nodeConfig.Genesis.AppState = genesis
 
-	// Generate a new node
-	var err error
+	var recoverErr error
 
-	// recoverError handles panics and converts them to errors.
-	recoverError := func() {
+	// recoverFromError handles panics and converts them to errors.
+	recoverFromError := func() {
 		if r := recover(); r != nil {
-			panicErr, ok := r.(error)
+			var ok bool
+			recoverErr, ok = r.(error)
 			if !ok {
 				panic(r) // Re-panic if not an error.
 			}
-
-			err = panicErr
 		}
-	}
-
-	createNode := func() *node.Node {
-		defer recoverError()
-
-		node, nodeErr := gnoland.NewInMemoryNode(logger, nodeConfig)
-		if nodeErr != nil {
-			err = fmt.Errorf("unable to create node: %w", nodeErr)
-			return nil
-		}
-
-		node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
-			switch data := evt.(type) {
-			case bft.EventTx:
-				resEvt := events.TxResult{
-					Height:   data.Result.Height,
-					Index:    data.Result.Index,
-					Response: data.Result.Response,
-				}
-
-				if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
-					logger.Error("unable to unwarp tx result",
-						"error", err)
-				}
-
-				emitter.Emit(resEvt)
-			}
-		})
-
-		if startErr := node.Start(); startErr != nil {
-			err = fmt.Errorf("unable to start the node: %w", startErr)
-			return nil
-		}
-
-		return node
 	}
 
 	// Execute node creation and handle any errors.
-	node := createNode()
-	if err != nil {
-		return nil, err
+	defer recoverFromError()
+	node, nodeErr := buildNode(logger, emitter, nodeConfig)
+	if recoverErr != nil { // First check for recover error in case of panic
+		return nil, fmt.Errorf("recovered from a node panic: %w", recoverErr)
+	}
+	if nodeErr != nil { // Then for any node error
+		return nil, fmt.Errorf("unable to build the node: %w", nodeErr)
 	}
 
 	// Wait for the node to be ready
@@ -440,4 +407,35 @@ func newNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
+	node, err := gnoland.NewInMemoryNode(logger, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create a new node: %w", err)
+	}
+
+	node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
+		switch data := evt.(type) {
+		case bft.EventTx:
+			resEvt := events.TxResult{
+				Height:   data.Result.Height,
+				Index:    data.Result.Index,
+				Response: data.Result.Response,
+			}
+
+			if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
+				logger.Error("unable to unwarp tx result",
+					"error", err)
+			}
+
+			emitter.Emit(resEvt)
+		}
+	})
+
+	if startErr := node.Start(); startErr != nil {
+		return nil, fmt.Errorf("unable to start the node: %w", startErr)
+	}
+
+	return node, nil
 }
