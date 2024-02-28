@@ -16,14 +16,14 @@ import (
 
 var errInvalidConfigEditArgs = errors.New("invalid number of config edit arguments provided")
 
-// newConfigEditCmd creates the config edit command
-func newConfigEditCmd(io commands.IO) *commands.Command {
+// newConfigSetCmd creates the config set command
+func newConfigSetCmd(io commands.IO) *commands.Command {
 	cfg := &configCfg{}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "edit",
-			ShortUsage: "config edit <key> <value>",
+			Name:       "set",
+			ShortUsage: "config set <key> <value>",
 			ShortHelp:  "Edits the Gno node configuration",
 			LongHelp: "Edits the Gno node configuration at the given path " +
 				"by setting the option specified at <key> to the given <value>",

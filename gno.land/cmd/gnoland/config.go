@@ -25,7 +25,7 @@ func newConfigCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newConfigInitCmd(io),
-		newConfigEditCmd(io),
+		newConfigSetCmd(io),
 	)
 
 	return cmd

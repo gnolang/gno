@@ -52,7 +52,7 @@ func verifyEditTestTableCommon(t *testing.T, testTable []testEditCase) {
 			path := initializeTestConfig(t)
 			args := []string{
 				"config",
-				"edit",
+				"set",
 				"--config-path",
 				path,
 			}
@@ -84,7 +84,7 @@ func TestConfig_Edit_Invalid(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"config",
-			"edit",
+			"set",
 			"--config-path",
 			"",
 		}
@@ -104,7 +104,7 @@ func TestConfig_Edit_Invalid(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"config",
-			"edit",
+			"set",
 			"--config-path",
 			path,
 			"DBBackend",
