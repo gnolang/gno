@@ -239,7 +239,6 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/tests"
 )
@@ -297,7 +296,6 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/tests"
 )
@@ -311,7 +309,6 @@ func main() {
 
 	fileBody2 := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/deep/very/deep"
 )
