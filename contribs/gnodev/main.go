@@ -55,7 +55,7 @@ func main() {
 			ShortUsage: "gnodev [flags] [path ...]",
 			ShortHelp:  "Runs an in-memory node and gno.land web server for development purposes.",
 			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
-primarily for realm package development. It automatically loads the example folder and any
+primarily for realm package development. It automatically loads the 'examples' directory and any
 additional specified paths.`,
 		},
 		cfg,
@@ -78,7 +78,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.minimal,
 		"minimal",
 		defaultDevOptions.verbose,
-		"do not load example folder packages",
+		"do not load packages from examples directory",
 	)
 
 	fs.BoolVar(

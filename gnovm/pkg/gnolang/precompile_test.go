@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"go/ast"
+	goscanner "go/scanner"
+	"go/token"
 	"strings"
 	"testing"
 
@@ -194,7 +196,7 @@ import "reflect"
 
 func foo() { _ = reflect.ValueOf }
 `,
-			expectedError: `import "reflect" is not in the whitelist`,
+			expectedError: `precompileAST: foo.gno:3:8: import "reflect" is not in the whitelist`,
 		},
 		{
 			name: "syntax-error",
@@ -272,15 +274,60 @@ func foo() { _ = regexp.MatchString }
 				require.EqualError(t, err, c.expectedError)
 				return
 			}
-
-			if c.expectedError != "" {
-				require.EqualError(t, err, c.expectedError)
-				return
-			}
 			require.NoError(t, err)
 			expectedOutput := strings.TrimPrefix(c.expectedOutput, "\n")
 			assert.Equal(t, res.Translated, expectedOutput, "wrong output")
 			assert.Equal(t, res.Imports, c.expectedImports, "wrong imports")
+		})
+	}
+}
+
+func TestParseGoBuildErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		output        string
+		expectedError error
+	}{
+		{
+			name:          "empty output",
+			output:        "",
+			expectedError: nil,
+		},
+		{
+			name:          "random output",
+			output:        "xxx",
+			expectedError: nil,
+		},
+		{
+			name: "some errors",
+			output: `xxx
+./main.gno.gen.go:6:2: nasty error
+./pkg/file.gno.gen.go:60:20: ugly error`,
+			expectedError: goscanner.ErrorList{
+				&goscanner.Error{
+					Pos: token.Position{
+						Filename: "./main.gno",
+						Line:     2,
+						Column:   2,
+					},
+					Msg: "nasty error",
+				},
+				&goscanner.Error{
+					Pos: token.Position{
+						Filename: "./pkg/file.gno",
+						Line:     56,
+						Column:   20,
+					},
+					Msg: "ugly error",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parseGoBuildErrors(tt.output)
+
+			assert.Equal(t, err, tt.expectedError)
 		})
 	}
 }

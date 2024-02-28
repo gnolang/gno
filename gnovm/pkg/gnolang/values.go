@@ -2533,7 +2533,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
-				et := baseOf(tv.T).(*ArrayType).Elt
+				et := baseOf(tv.T).(*PointerType).Elt
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
