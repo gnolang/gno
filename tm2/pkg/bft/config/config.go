@@ -12,6 +12,7 @@ import (
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -28,12 +29,6 @@ var (
 	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
 	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
 	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
-)
-
-const (
-	LevelDBName  = "goleveldb"
-	ClevelDBName = "cleveldb"
-	BoltDBName   = "boltdb"
 )
 
 const (
@@ -365,9 +360,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != LevelDBName &&
-		cfg.DBBackend != ClevelDBName &&
-		cfg.DBBackend != BoltDBName {
+	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
+		cfg.DBBackend != db.CLevelDBBackend.String() &&
+		cfg.DBBackend != db.BoltDBBackend.String() {
 		return errInvalidDBBackend
 	}
 

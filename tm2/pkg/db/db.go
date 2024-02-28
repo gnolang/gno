@@ -7,6 +7,10 @@ import (
 
 type BackendType string
 
+func (b BackendType) String() string {
+	return string(b)
+}
+
 // These are valid backend types.
 const (
 	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most

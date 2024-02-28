@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -167,7 +168,7 @@ func TestConfig_Edit_Base(t *testing.T) {
 			"db backend updated",
 			[]string{
 				"DBBackend",
-				config.LevelDBName,
+				db.GoLevelDBBackend.String(),
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.DBBackend)
