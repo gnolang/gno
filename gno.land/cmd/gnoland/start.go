@@ -134,14 +134,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)
