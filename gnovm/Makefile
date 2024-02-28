@@ -55,12 +55,12 @@ _test.pkg:
 	go test ./pkg/... $(GOTEST_FLAGS)
 
 .PHONY: _test.gnolang
-_test.gnolang: _test.gnolang.native _test.gnolang.stdlibs _test.gnolang.realm _test.gnolang.pkg0 _test.gnolang.pkg1 _test.gnolang.pkg2 _test.gnolang.other
+_test.gnolang: _test.gnolang.native _test.gnolang.stdlibs _test.gnolang.realm _test.gnolang.pkg _test.gnolang.pkg.bytes _test.gnolang.pkg.regexp _test.gnolang.other
 _test.gnolang.other:;        go test tests/*.go -run "(TestFileStr|TestSelectors)" $(GOTEST_FLAGS)
 _test.gnolang.realm:;        go test tests/*.go -run "TestFiles/^zrealm" $(GOTEST_FLAGS)
-_test.gnolang.pkg0:;         go test tests/*.go -run "TestPackages/(bufio|crypto|encoding|errors|hash|internal|io|math|net|path|sort|std|stdshim|strconv|strings|testing|time|unicode)" $(GOTEST_FLAGS)
-_test.gnolang.pkg1:;         go test tests/*.go -run "TestPackages/regexp" $(GOTEST_FLAGS)
-_test.gnolang.pkg2:;         go test tests/*.go -run "TestPackages/bytes" $(GOTEST_FLAGS)
+_test.gnolang.pkg:;          go test tests/*.go -run '^TestPackages$$' $(GOTEST_FLAGS)
+_test.gnolang.pkg.bytes:;    go test tests/*.go -run '^TestPackagesLong$$/^bytes' $(GOTEST_FLAGS)
+_test.gnolang.pkg.regexp:;   go test tests/*.go -run '^TestPackagesLong$$/^regexp' $(GOTEST_FLAGS) -test.pkg regexp/syntax
 _test.gnolang.native:;       go test tests/*.go -test.short -run "TestFilesNative/" $(GOTEST_FLAGS)
 _test.gnolang.stdlibs:;      go test tests/*.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 _test.gnolang.native.sync:;  go test tests/*.go -test.short -run "TestFilesNative/" --update-golden-tests $(GOTEST_FLAGS)
