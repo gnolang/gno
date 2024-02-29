@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
