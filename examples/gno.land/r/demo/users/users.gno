@@ -265,13 +265,13 @@ func Render(path string) string {
 			// TODO: display basic information about account.
 			return "unknown address " + path
 		}
-		return user.String()
+		return user.Render()
 	} else {
 		user := GetUserByName(path)
 		if user == nil {
 			return "unknown username " + path
 		}
-		return user.String()
+		return user.Render()
 	}
 }
 

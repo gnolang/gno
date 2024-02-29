@@ -17,7 +17,7 @@ type User struct {
 	Inviter std.Address
 }
 
-func (u *User) String() string {
+func (u *User) Render() string {
 	str := "## user " + u.Name + "\n" +
 		"\n" +
 		" * address = " + string(u.Address) + "\n" +
