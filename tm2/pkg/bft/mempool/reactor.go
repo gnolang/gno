@@ -2,12 +2,11 @@ package mempool
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"reflect"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"

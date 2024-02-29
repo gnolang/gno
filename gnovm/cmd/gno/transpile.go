@@ -2,19 +2,21 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"log"
 	"os"
 	"path/filepath"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type importPath string
 
-type precompileCfg struct {
+type transpileCfg struct {
 	verbose     bool
 	skipFmt     bool
 	skipImports bool
@@ -24,52 +26,52 @@ type precompileCfg struct {
 	output      string
 }
 
-type precompileOptions struct {
-	cfg *precompileCfg
-	// precompiled is the set of packages already
-	// precompiled from .gno to .go.
-	precompiled map[importPath]struct{}
+type transpileOptions struct {
+	cfg *transpileCfg
+	// transpiled is the set of packages already
+	// transpiled from .gno to .go.
+	transpiled map[importPath]struct{}
 }
 
-var defaultPrecompileCfg = &precompileCfg{
+var defaultTranspileCfg = &transpileCfg{
 	verbose:  false,
 	goBinary: "go",
 }
 
-func newPrecompileOptions(cfg *precompileCfg) *precompileOptions {
-	return &precompileOptions{cfg, map[importPath]struct{}{}}
+func newTranspileOptions(cfg *transpileCfg) *transpileOptions {
+	return &transpileOptions{cfg, map[importPath]struct{}{}}
 }
 
-func (p *precompileOptions) getFlags() *precompileCfg {
+func (p *transpileOptions) getFlags() *transpileCfg {
 	return p.cfg
 }
 
-func (p *precompileOptions) isPrecompiled(pkg importPath) bool {
-	_, precompiled := p.precompiled[pkg]
-	return precompiled
+func (p *transpileOptions) isTranspiled(pkg importPath) bool {
+	_, transpiled := p.transpiled[pkg]
+	return transpiled
 }
 
-func (p *precompileOptions) markAsPrecompiled(pkg importPath) {
-	p.precompiled[pkg] = struct{}{}
+func (p *transpileOptions) markAsTranspiled(pkg importPath) {
+	p.transpiled[pkg] = struct{}{}
 }
 
-func newPrecompileCmd(io commands.IO) *commands.Command {
-	cfg := &precompileCfg{}
+func newTranspileCmd(io commands.IO) *commands.Command {
+	cfg := &transpileCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "precompile",
-			ShortUsage: "precompile [flags] <package> [<package>...]",
-			ShortHelp:  "Precompiles .gno files to .go",
+			Name:       "transpile",
+			ShortUsage: "transpile [flags] <package> [<package>...]",
+			ShortHelp:  "Transpiles .gno files to .go",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execPrecompile(cfg, args, io)
+			return execTranspile(cfg, args, io)
 		},
 	)
 }
 
-func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
 		"verbose",
@@ -88,7 +90,7 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.skipImports,
 		"skip-imports",
 		false,
-		"do not precompile imports recursively",
+		"do not transpile imports recursively",
 	)
 
 	fs.BoolVar(
@@ -120,61 +122,63 @@ func (c *precompileCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execPrecompile(cfg *precompileCfg, args []string, io commands.IO) error {
+func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 
-	// precompile .gno files.
+	// transpile .gno files.
 	paths, err := gnoFilesFromArgs(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
 
-	opts := newPrecompileOptions(cfg)
-	errCount := 0
+	opts := newTranspileOptions(cfg)
+	var errlist scanner.ErrorList
 	for _, filepath := range paths {
-		err = precompileFile(filepath, opts)
-		if err != nil {
-			err = fmt.Errorf("%s: precompile: %w", filepath, err)
-			io.ErrPrintfln("%s", err.Error())
-			errCount++
+		if err := transpileFile(filepath, opts); err != nil {
+			var fileErrlist scanner.ErrorList
+			if !errors.As(err, &fileErrlist) {
+				// Not an scanner.ErrorList: return immediately.
+				return fmt.Errorf("%s: transpile: %w", filepath, err)
+			}
+			errlist = append(errlist, fileErrlist...)
 		}
 	}
 
-	if errCount > 0 {
-		return fmt.Errorf("%d precompile errors", errCount)
-	}
-
-	if cfg.gobuild {
+	if errlist.Len() == 0 && cfg.gobuild {
 		paths, err := gnoPackagesFromArgs(args)
 		if err != nil {
 			return fmt.Errorf("list packages: %w", err)
 		}
 
-		errCount = 0
 		for _, pkgPath := range paths {
-			_ = pkgPath
-			err = goBuildFileOrPkg(pkgPath, cfg)
+			err := goBuildFileOrPkg(pkgPath, cfg)
 			if err != nil {
-				err = fmt.Errorf("%s: build pkg: %w", pkgPath, err)
-				io.ErrPrintfln("%s\n", err.Error())
-				errCount++
+				var fileErrlist scanner.ErrorList
+				if !errors.As(err, &fileErrlist) {
+					// Not an scanner.ErrorList: return immediately.
+					return fmt.Errorf("%s: build: %w", pkgPath, err)
+				}
+				errlist = append(errlist, fileErrlist...)
 			}
-		}
-		if errCount > 0 {
-			return fmt.Errorf("%d build errors", errCount)
 		}
 	}
 
+	if errlist.Len() > 0 {
+		for _, err := range errlist {
+			io.ErrPrintfln(err.Error())
+		}
+		return fmt.Errorf("%d transpile error(s)", errlist.Len())
+	}
 	return nil
 }
 
-func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
-	if opts.isPrecompiled(pkgPath) {
+func transpilePkg(pkgPath importPath, opts *transpileOptions) error {
+	if opts.isTranspiled(pkgPath) {
 		return nil
 	}
-	opts.markAsPrecompiled(pkgPath)
+	opts.markAsTranspiled(pkgPath)
 
 	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
 	if err != nil {
@@ -182,7 +186,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 	}
 
 	for _, file := range files {
-		if err = precompileFile(file, opts); err != nil {
+		if err = transpileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
@@ -190,7 +194,7 @@ func precompilePkg(pkgPath importPath, opts *precompileOptions) error {
 	return nil
 }
 
-func precompileFile(srcPath string, opts *precompileOptions) error {
+func transpileFile(srcPath string, opts *transpileOptions) error {
 	flags := opts.getFlags()
 	gofmt := flags.gofmtBinary
 	if gofmt == "" {
@@ -208,12 +212,12 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// compute attributes based on filename.
-	targetFilename, tags := gno.GetPrecompileFilenameAndTags(srcPath)
+	targetFilename, tags := transpiler.GetTranspileFilenameAndTags(srcPath)
 
 	// preprocess.
-	precompileRes, err := gno.Precompile(string(source), tags, srcPath)
+	transpileRes, err := transpiler.Transpile(string(source), tags, srcPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("transpile: %w", err)
 	}
 
 	// resolve target path
@@ -229,31 +233,31 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 	}
 
 	// write .go file.
-	err = WriteDirFile(targetPath, []byte(precompileRes.Translated))
+	err = WriteDirFile(targetPath, []byte(transpileRes.Translated))
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
 
 	// check .go fmt, if `SkipFmt` sets to false.
 	if !flags.skipFmt {
-		err = gno.PrecompileVerifyFile(targetPath, gofmt)
+		err = transpiler.TranspileVerifyFile(targetPath, gofmt)
 		if err != nil {
 			return fmt.Errorf("check .go file: %w", err)
 		}
 	}
 
-	// precompile imported packages, if `SkipImports` sets to false
+	// transpile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports {
-		importPaths := getPathsFromImportSpec(precompileRes.Imports)
+		importPaths := getPathsFromImportSpec(transpileRes.Imports)
 		for _, path := range importPaths {
-			precompilePkg(path, opts)
+			transpilePkg(path, opts)
 		}
 	}
 
 	return nil
 }
 
-func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
+func goBuildFileOrPkg(fileOrPkg string, cfg *transpileCfg) error {
 	verbose := cfg.verbose
 	goBinary := cfg.goBinary
 
@@ -261,5 +265,5 @@ func goBuildFileOrPkg(fileOrPkg string, cfg *precompileCfg) error {
 		fmt.Fprintf(os.Stderr, "%s\n", fileOrPkg)
 	}
 
-	return gno.PrecompileBuildPackage(fileOrPkg, goBinary)
+	return transpiler.TranspileBuildPackage(fileOrPkg, goBinary)
 }
