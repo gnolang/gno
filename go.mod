@@ -6,7 +6,7 @@ require (
 	github.com/gnolang/gno v0.0.0-20231112174927-b1a53c018ea4
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/stretchr/testify v1.8.4
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 )
 
 require (
