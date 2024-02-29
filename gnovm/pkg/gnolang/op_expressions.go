@@ -389,7 +389,7 @@ func (m *Machine) doOpTypeAssert2() {
 		// assert that x is of type.
 		same := tid == xtid
 
-		if same && xt != nil {
+		if same {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
