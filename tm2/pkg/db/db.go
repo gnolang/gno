@@ -2,9 +2,9 @@ package db
 
 import (
 	"fmt"
+	"slices"
 
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 type BackendType string
