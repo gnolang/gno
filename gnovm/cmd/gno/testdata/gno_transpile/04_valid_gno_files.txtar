@@ -1,6 +1,6 @@
-# Run gno precompile with valid gno files
+# Run gno transpile with valid gno files
 
-gno precompile .
+gno transpile .
 
 ! stdout .+
 ! stderr .+
@@ -21,6 +21,7 @@ package sub
 
 //go:build gno
 
+//line main.gno:1:1
 package main
 
 func main() {}
@@ -29,4 +30,5 @@ func main() {}
 
 //go:build gno
 
+//line sub.gno:1:1
 package sub

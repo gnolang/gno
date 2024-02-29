@@ -1,4 +1,4 @@
-# load a package from the example packages directory.
+# load a package from the 'examples' and $WORK directory.
 loadpkg gno.land/p/demo/ufmt
 loadpkg gno.land/r/importtest $WORK
 

@@ -9,9 +9,9 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/integration"
 )
 
-func Test_ScriptsPrecompile(t *testing.T) {
+func Test_ScriptsTranspile(t *testing.T) {
 	p := testscript.Params{
-		Dir: "testdata/gno_precompile",
+		Dir: "testdata/gno_transpile",
 	}
 
 	if coverdir, ok := integration.ResolveCoverageDir(); ok {
