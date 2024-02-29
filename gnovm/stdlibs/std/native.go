@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -9,14 +10,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// AssertOriginCall panics is [IsOriginCall] return false.
 func AssertOriginCall(m *gno.Machine) {
 	if !IsOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
 
+// IsOriginCall return true only if the calling method is invoked via a direct
+// MsgCall. It returns false for all other cases, like if the calling method
+// is invoked by an other method (even from the same realm), or if it's called
+// directly but from a MsgRun.
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2
+	isMsgCall := m.Frames[0].LastPackage.PkgPath == "main"
+	return len(m.Frames) == 2 && isMsgCall
 }
 
 func CurrentRealmPath(m *gno.Machine) string {
@@ -65,44 +72,55 @@ func CurrentRealm(m *gno.Machine) Realm {
 	}
 }
 
+// PrevRealm loops on frames and returns the second realm found in the calling
+// order. If no such realm was found, returns the tx signer (aka OrigCaller).
 func PrevRealm(m *gno.Machine) Realm {
-	var (
-		ctx = m.Context.(ExecContext)
-		// Default lastCaller is OrigCaller, the signer of the tx
-		lastCaller  = ctx.OrigCaller
-		lastPkgPath = ""
-	)
-
-	for i := m.NumFrames() - 1; i > 0; i-- {
-		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+	var lastRealmPath string
+	for _, pkg := range pkgCallStack(m) {
+		if !pkg.IsRealm() {
 			// Ignore non-realm frame
 			continue
 		}
-		pkgPath := fr.LastPackage.PkgPath
-		// The first realm we encounter will be the one calling
-		// this function; to get the calling realm determine the first frame
-		// where fr.LastPackage changes.
-		if lastPkgPath == "" {
-			lastPkgPath = pkgPath
-		} else if lastPkgPath == pkgPath {
+		realmPath := pkg.PkgPath
+		if lastRealmPath == "" {
+			// Record the path of the first encountered realm and continue
+			lastRealmPath = realmPath
 			continue
-		} else {
-			lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-			lastPkgPath = pkgPath
-			break
+		}
+		if lastRealmPath != realmPath {
+			// Second realm detected, return it.
+			return Realm{
+				addr:    pkg.GetPkgAddr().Bech32(),
+				pkgPath: realmPath,
+			}
 		}
 	}
-
-	// Empty the pkgPath if we return a user
-	if ctx.OrigCaller == lastCaller {
-		lastPkgPath = ""
-	}
-
+	// No second realm found, return the tx signer.
 	return Realm{
-		addr:    lastCaller,
-		pkgPath: lastPkgPath,
+		addr:    m.Context.(ExecContext).OrigCaller,
+		pkgPath: "", // empty for users
 	}
+}
+
+// pkgCallStack iterates over m.Frames and returns a unique list of package in
+// the reverse order. Ignores the `main` package path.
+func pkgCallStack(m *gno.Machine) (pkgs []*gno.PackageValue) {
+	var lastPath string
+	fmt.Println("FRAMES", len(m.Frames))
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		fr := m.Frames[i]
+		fmt.Println("\tFRAME", i, fr.LastPackage)
+		if fr.LastPackage == nil {
+			// Ignore nil or `main` package
+			continue
+		}
+		pkgPath := fr.LastPackage.PkgPath
+		if lastPath != pkgPath {
+			lastPath = pkgPath
+			pkgs = append(pkgs, fr.LastPackage)
+		}
+	}
+	return
 }
 
 func GetOrigPkgAddr(m *gno.Machine) crypto.Bech32Address {

@@ -8,28 +8,24 @@ import (
 )
 
 func TestAssertOriginCall(t *testing.T) {
-	// No-panic case
+	// Call method package, shouldn't panic
 	AssertOriginCall()
 	if !IsOriginCall() {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	// Panic case
-	expectedReason := "invalid non-origin call"
+	// Call other package method, should panic
 	defer func() {
+		expectedReason := "invalid non-origin call"
 		r := recover()
 		if r == nil || r.(string) != expectedReason {
 			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
 		}
 	}()
-	func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal).
-		if IsOriginCall() {
-			t.Errorf("expected IsOriginCall=false but got true")
-		}
-		AssertOriginCall()
-	}()
+	if RSubtestsIsOriginCall() {
+		t.Errorf("expected RSubtestsIsOriginCall=false but got true")
+	}
+	RSubtestsAssertOriginCall()
 }
 
 func TestPrevRealm(t *testing.T) {

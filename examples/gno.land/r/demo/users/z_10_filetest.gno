@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/users_test
-package users_test
+package main
 
 import (
 	"std"

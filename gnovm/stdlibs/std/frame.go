@@ -1,6 +1,8 @@
 package std
 
-import "github.com/gnolang/gno/tm2/pkg/crypto"
+import (
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+)
 
 type Realm struct {
 	addr    crypto.Bech32Address
