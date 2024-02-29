@@ -33,6 +33,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newReplCmd(),
 		newDocCmd(io),
 		newEnvCmd(io),
+		newBugCmd(io),
 		// fmt -- gofmt
 		// graph
 		// vendor -- download deps from the chain in vendor/
@@ -41,8 +42,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		// publish/release
 		// generate
 		// "vm" -- starts an in-memory chain that can be interacted with?
-		// bug -- start a bug report
-		// version -- show gno, golang versions
+		// version -- show cmd/gno, golang versions
 	)
 
 	return cmd
