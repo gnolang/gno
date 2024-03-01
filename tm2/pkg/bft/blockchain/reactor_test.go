@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
@@ -48,7 +49,7 @@ func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.G
 
 type BlockchainReactorPair struct {
 	reactor *BlockchainReactor
-	app     proxy.AppConns
+	app     appconn.AppConns
 }
 
 func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
@@ -58,7 +59,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	if err != nil {
 		panic(errors.Wrap(err, "error start app"))

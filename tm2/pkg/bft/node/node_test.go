@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -257,7 +258,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	config := cfg.ResetTestRoot("node_create_proposal")
 	defer os.RemoveAll(config.RootDir)
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()

@@ -23,7 +23,7 @@ func getHTTPClient() *client.HTTP {
 }
 
 func getLocalClient() *client.Local {
-	return client.NewLocal(node)
+	return client.NewLocal()
 }
 
 // GetClients returns a slice of clients for table-driven tests
