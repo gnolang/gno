@@ -62,7 +62,7 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
 	}
-	// enforce sorting msg.Files based on Go conventions for predictability
+	// enforce sorting files based on Go conventions for predictability
 	sort.Slice(
 		mempkg.Files,
 		func(i, j int) bool {
