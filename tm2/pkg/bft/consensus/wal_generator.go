@@ -3,10 +3,9 @@ package consensus
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"testing"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
