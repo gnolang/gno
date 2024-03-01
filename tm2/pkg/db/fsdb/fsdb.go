@@ -1,4 +1,4 @@
-package db
+package fsdb
 
 import (
 	"fmt"
@@ -9,6 +9,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -18,13 +20,13 @@ const (
 )
 
 func init() {
-	registerDBCreator(FSDBBackend, func(name, dir string) (DB, error) {
+	db.InternalRegisterDBCreator(db.FSDBBackend, func(name, dir string) (db.DB, error) {
 		dbPath := filepath.Join(dir, name+".db")
 		return NewFSDB(dbPath), nil
 	}, false)
 }
 
-var _ DB = (*FSDB)(nil)
+var _ db.DB = (*FSDB)(nil)
 
 // It's slow.
 type FSDB struct {
@@ -64,7 +66,12 @@ func (db *FSDB) Has(key []byte) bool {
 	key = escapeKey(key)
 
 	path := db.nameToPath(key)
-	return FileExists(path)
+	return fileExists(path)
+}
+
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
 }
 
 func (db *FSDB) Set(key []byte, value []byte) {
@@ -84,7 +91,7 @@ func (db *FSDB) SetSync(key []byte, value []byte) {
 // NOTE: Implements atomicSetDeleter.
 func (db *FSDB) SetNoLock(key []byte, value []byte) {
 	key = escapeKey(key)
-	value = nonNilBytes(value)
+	value = internal.NonNilBytes(value)
 	path := db.nameToPath(key)
 	err := write(path, value)
 	if err != nil {
@@ -136,7 +143,7 @@ func (db *FSDB) Stats() map[string]string {
 	panic("FSDB.Stats not yet implemented")
 }
 
-func (db *FSDB) NewBatch() Batch {
+func (db *FSDB) NewBatch() db.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -149,11 +156,11 @@ func (db *FSDB) Mutex() *sync.Mutex {
 	return &(db.mtx)
 }
 
-func (db *FSDB) Iterator(start, end []byte) Iterator {
+func (db *FSDB) Iterator(start, end []byte) db.Iterator {
 	return db.MakeIterator(start, end, false)
 }
 
-func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) Iterator {
+func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) db.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -168,10 +175,10 @@ func (db *FSDB) MakeIterator(start, end []byte, isReversed bool) Iterator {
 	} else {
 		sort.Strings(keys)
 	}
-	return newMemDBIterator(db, keys, start, end)
+	return internal.NewMemIterator(db, keys, start, end)
 }
 
-func (db *FSDB) ReverseIterator(start, end []byte) Iterator {
+func (db *FSDB) ReverseIterator(start, end []byte) db.Iterator {
 	return db.MakeIterator(start, end, true)
 }
 
@@ -245,7 +252,7 @@ func list(dirPath string, start, end []byte) ([]string, error) {
 			return nil, fmt.Errorf("failed to unescape %s while listing", name)
 		}
 		key := unescapeKey([]byte(n))
-		if IsKeyInDomain(key, start, end) {
+		if db.IsKeyInDomain(key, start, end) {
 			keys = append(keys, string(key))
 		}
 	}

@@ -1,20 +1,22 @@
-package db
+package memdb
 
 import (
 	"fmt"
 	"sort"
 	"sync"
 
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func init() {
-	registerDBCreator(MemDBBackend, func(name, dir string) (DB, error) {
+	dbm.InternalRegisterDBCreator(dbm.MemDBBackend, func(name, dir string) (dbm.DB, error) {
 		return NewMemDB(), nil
 	}, false)
 }
 
-var _ DB = (*MemDB)(nil)
+var _ dbm.DB = (*MemDB)(nil)
 
 type MemDB struct {
 	mtx sync.Mutex
@@ -28,7 +30,7 @@ func NewMemDB() *MemDB {
 	return database
 }
 
-// Implements atomicSetDeleter.
+// Implements internal.AtomicSetDeleter.
 func (db *MemDB) Mutex() *sync.Mutex {
 	return &(db.mtx)
 }
@@ -37,7 +39,7 @@ func (db *MemDB) Mutex() *sync.Mutex {
 func (db *MemDB) Get(key []byte) []byte {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 
 	value := db.db[string(key)]
 	return value
@@ -47,7 +49,7 @@ func (db *MemDB) Get(key []byte) []byte {
 func (db *MemDB) Has(key []byte) bool {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 
 	_, ok := db.db[string(key)]
 	return ok
@@ -69,15 +71,15 @@ func (db *MemDB) SetSync(key []byte, value []byte) {
 	db.SetNoLock(key, value)
 }
 
-// Implements atomicSetDeleter.
+// Implements internal.AtomicSetDeleter.
 func (db *MemDB) SetNoLock(key []byte, value []byte) {
 	db.SetNoLockSync(key, value)
 }
 
-// Implements atomicSetDeleter.
+// Implements internal.AtomicSetDeleter.
 func (db *MemDB) SetNoLockSync(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 
 	db.db[string(key)] = value
 }
@@ -98,14 +100,14 @@ func (db *MemDB) DeleteSync(key []byte) {
 	db.DeleteNoLock(key)
 }
 
-// Implements atomicSetDeleter.
+// Implements internal.AtomicSetDeleter.
 func (db *MemDB) DeleteNoLock(key []byte) {
 	db.DeleteNoLockSync(key)
 }
 
-// Implements atomicSetDeleter.
+// Implements internal.AtomicSetDeleter.
 func (db *MemDB) DeleteNoLockSync(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 
 	delete(db.db, string(key))
 }
@@ -152,96 +154,32 @@ func (db *MemDB) Stats() map[string]string {
 }
 
 // Implements DB.
-func (db *MemDB) NewBatch() Batch {
+func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &memBatch{db, nil}
+	return &internal.MemBatch{db, nil}
 }
 
 // ----------------------------------------
 // Iterator
 
 // Implements DB.
-func (db *MemDB) Iterator(start, end []byte) Iterator {
+func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, false)
-	return newMemDBIterator(db, keys, start, end)
+	return internal.NewMemIterator(db, keys, start, end)
 }
 
 // Implements DB.
-func (db *MemDB) ReverseIterator(start, end []byte) Iterator {
+func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, true)
-	return newMemDBIterator(db, keys, start, end)
-}
-
-// We need a copy of all of the keys.
-// Not the best, but probably not a bottleneck depending.
-type memDBIterator struct {
-	db    DB
-	cur   int
-	keys  []string
-	start []byte
-	end   []byte
-}
-
-var _ Iterator = (*memDBIterator)(nil)
-
-// Keys is expected to be in reverse order for reverse iterators.
-func newMemDBIterator(db DB, keys []string, start, end []byte) *memDBIterator {
-	return &memDBIterator{
-		db:    db,
-		cur:   0,
-		keys:  keys,
-		start: start,
-		end:   end,
-	}
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Domain() ([]byte, []byte) {
-	return itr.start, itr.end
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Valid() bool {
-	return 0 <= itr.cur && itr.cur < len(itr.keys)
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Next() {
-	itr.assertIsValid()
-	itr.cur++
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Key() []byte {
-	itr.assertIsValid()
-	return []byte(itr.keys[itr.cur])
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Value() []byte {
-	itr.assertIsValid()
-	key := []byte(itr.keys[itr.cur])
-	return itr.db.Get(key)
-}
-
-// Implements Iterator.
-func (itr *memDBIterator) Close() {
-	itr.keys = nil
-	itr.db = nil
-}
-
-func (itr *memDBIterator) assertIsValid() {
-	if !itr.Valid() {
-		panic("memDBIterator is invalid")
-	}
+	return internal.NewMemIterator(db, keys, start, end)
 }
 
 // ----------------------------------------
@@ -250,7 +188,7 @@ func (itr *memDBIterator) assertIsValid() {
 func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 	keys := []string{}
 	for key := range db.db {
-		inDomain := IsKeyInDomain([]byte(key), start, end)
+		inDomain := dbm.IsKeyInDomain([]byte(key), start, end)
 		if inDomain {
 			keys = append(keys, key)
 		}

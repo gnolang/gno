@@ -70,13 +70,12 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
-	client := client.NewLocal(node)
 
 	return &Node{
 		Node: node,
 
 		emitter:        emitter,
-		client:         client,
+		client:         client.NewLocal(),
 		pkgs:           mpkgs,
 		logger:         logger,
 		loadedPackages: len(pkgsTxs),

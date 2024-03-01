@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/cleveldb"
 )
 
 func BenchmarkImmutableAvlTreeCLevelDB(b *testing.B) {
