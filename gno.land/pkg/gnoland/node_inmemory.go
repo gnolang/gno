@@ -2,10 +2,9 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"

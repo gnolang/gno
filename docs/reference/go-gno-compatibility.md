@@ -287,7 +287,7 @@ Legend:
 
 | go command        | gno command      | comment                                                               |
 |-------------------|------------------|-----------------------------------------------------------------------|
-| go bug            |                  | see https://github.com/gnolang/gno/issues/733                         |
+| go bug            | gno bug          | same behavior                                                         |
 | go build          | gno build        | same intention, limited compatibility                                 |
 | go clean          | gno clean        | same intention, limited compatibility                                 |
 | go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
@@ -303,7 +303,8 @@ Legend:
 | + go mod init     | gno mod init     | same behavior                                                         |
 | + go mod download | gno mod download | same behavior                                                         |
 | + go mod tidy     | gno mod tidy     | same behavior                                                         |
-|                   | gno precompile   |                                                                       |
+| + go mod why      | gno mod why      | same intention                                                        |
+|                   | gno transpile    |                                                                       |
 | go work           |                  |                                                                       |
 |                   | gno repl         |                                                                       |
 | go run            | gno run          |                                                                       |

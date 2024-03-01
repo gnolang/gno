@@ -9,13 +9,13 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-.PHONY: precompile
-precompile:
-	go run ../gnovm/cmd/gno precompile --verbose .
+.PHONY: transpile
+transpile:
+	go run ../gnovm/cmd/gno transpile --verbose .
 
 .PHONY: build
-build: precompile
-	go run ../gnovm/cmd/gno build --verbose .
+build:
+	go run ../gnovm/cmd/gno transpile --verbose --gobuild .
 
 .PHONY: test
 test:

@@ -5,11 +5,10 @@ import (
 	"container/list"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"

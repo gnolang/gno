@@ -16,7 +16,7 @@ var bucket = []byte("tm")
 
 func init() {
 	db.InternalRegisterDBCreator(db.BoltDBBackend, func(name, dir string) (db.DB, error) {
-		return NewBoltDB(name, dir)
+		return New(name, dir)
 	}, false)
 }
 
@@ -32,16 +32,20 @@ type BoltDB struct {
 	db *bbolt.DB
 }
 
-// NewBoltDB returns a BoltDB with default options.
-func NewBoltDB(name, dir string) (db.DB, error) {
-	return NewBoltDBWithOpts(name, dir, bbolt.DefaultOptions)
+// New returns a BoltDB with default options.
+func New(name, dir string) (db.DB, error) {
+	return NewWithOptions(name, dir, bbolt.DefaultOptions)
 }
 
-// NewBoltDBWithOpts allows you to supply *bbolt.Options. ReadOnly: true is not
-// supported because NewBoltDBWithOpts creates a global bucket.
-func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (db.DB, error) {
+// NewWithOptions allows you to supply *bbolt.Options. ReadOnly: true is not
+// supported because NewWithOptions creates a global bucket.
+func NewWithOptions(name string, dir string, opts *bbolt.Options) (db.DB, error) {
 	if opts.ReadOnly {
 		return nil, errors.New("ReadOnly: true is not supported")
+	}
+
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("error creating dir: %w", err)
 	}
 
 	dbPath := filepath.Join(dir, name+".db")
