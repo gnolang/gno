@@ -27,8 +27,8 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
+          - "1.22.x"
     steps:
       - uses: actions/checkout@v4
 
