@@ -19,9 +19,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/gotuna/gotuna v0.6.0
 	github.com/jaekwon/testify v1.6.1
-	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/linxGnu/grocksdb v1.6.20
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
@@ -29,7 +27,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0
 	github.com/rs/cors v1.10.1
 	github.com/stretchr/testify v1.8.4
-	go.etcd.io/bbolt v1.3.8
 	go.uber.org/multierr v1.10.0
 	go.uber.org/zap v1.26.0
 	go.uber.org/zap/exp v0.2.0

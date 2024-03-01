@@ -24,7 +24,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v4
         env:
-          # Don't attempt to compile/resolve C packages (grocksdb, cleveldb).
+          # Don't attempt to compile/resolve C packages.
           CGO_ENABLED: 0
         with:
           # sync with misc/devdeps/go.mod
