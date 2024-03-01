@@ -765,6 +765,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				n.AssertCompatible(store, last)
+
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
@@ -780,25 +782,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if cmp < 0 {
 								debug.Println("cmp < 0, ->")
 								// convert n.Left to right type.
-								checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+								n.AssertCompatible(store, last)
 								checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 							} else if cmp == 0 {
 								debug.Println("cmp == 0")
 								// to typed-nil. refer to 0f46
 								if lcx.T == nil { // TODO: make nil check happen in cmpSpecificity
-									checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+									//checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+									//n.AssertCompatible(store, last)
 									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 								} else if rcx.T == nil {
-									checkOperandWithOp(store, last, &n.Right, lcx.T, n.Op, Binary)
+									//checkOperandWithOp(store, last, &n.Right, lcx.T, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
 								} else { // default case, e.g. int(1) == int8(1), will also conduct type check
-									checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
+									//n.AssertCompatible(store, last)
+									//checkOperandWithOp(store, last, &n.Left, rcx.T, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 								}
 							} else {
 								debug.Println("cmp > 0, <-")
 								// convert n.Right to left type.
-								checkOperandWithOp(store, last, &n.Right, lcx.T, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Right, lcx.T, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
 							}
 							// check special case: zero divisor
@@ -821,7 +826,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// get concrete native base type.
 							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							// convert n.Left to pt type,
-							checkOperandWithOp(store, last, &n.Left, pt, n.Op, Binary)
+							//checkOperandWithOp(store, last, &n.Left, pt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, pt, false, false)
 							// if check pass, convert n.Right to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
@@ -841,23 +846,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							if !isShift {
 								// convert n.Left to right type.
-								checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false, false)
 							}
 						}
 					} else if lcx.T == nil { // LHS is nil
 						if !isShift {
 							// convert n.Left to typed-nil type.
-							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+							//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						}
 					} else { // left is typed const, right not const
 						if !isShift {
 							if isUntyped(rt) { // refer to 0_d.gno
-								checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lt, false, false)
 							} else {
-								checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Left, rt, false, false)
 							}
 						}
@@ -872,7 +877,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
-								checkOperandWithOp(store, last, &n.Right, pt, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Right, pt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, pt, false, false)
 								// and convert result back.
 								tx := constType(n, lnt)
@@ -889,20 +894,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// gno, never with reflect.
 							} else {
 								// convert n.Right to left type.
-								checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+								//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 								checkOrConvertType(store, last, &n.Right, lt, false, false)
 							}
 						}
 					} else if rcx.T == nil { // RHS is nil
 						// refer to 0f20_filetest
-						checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+						//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 						checkOrConvertType(store, last, &n.Right, lt, false, false)
 					} else if !isShift { // left not const(typed), right is typed const, both typed
 						if isUntyped(lt) { // refer to 0_d.gno
-							checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+							//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						} else {
-							checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+							//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 							checkOrConvertType(store, last, &n.Right, lt, false, false)
 						}
 					}
@@ -963,12 +968,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 											n.Left, n.Op, n.Right))
 									}
 								} else { // left untyped, right typed
-									checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+									//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Left, rt, false, false)
 								}
 							} else if riu { // left typed, right untyped
 								if !isShift {
-									checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+									//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 									checkOrConvertType(store, last, &n.Right, lt, false, false)
 								}
 							} else { // both typed, refer to 0a1f
@@ -976,13 +981,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									cmp := cmpSpecificity(lt, rt)
 									debug.Println("cmp: ", cmp)
 									if cmp == -1 {
-										checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+										//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 										checkOrConvertType(store, last, &n.Left, rt, false, false)
 									} else if cmp == 1 {
-										checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
+										//checkOperandWithOp(store, last, &n.Right, lt, n.Op, Binary)
 										checkOrConvertType(store, last, &n.Right, lt, false, false)
 									} else {
-										checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
+										//checkOperandWithOp(store, last, &n.Left, rt, n.Op, Binary)
 										checkOrConvertType(store, last, &n.Left, rt, false, false)
 									}
 								}
@@ -2445,6 +2450,8 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 // coerce implies a mandatory convert, it happens with explicit conversion, uint64(int(1)), or RHS of a
 // shift expr, or key of slice/array.
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool, coerce bool) {
+	// check compatibility with operand and op
+
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	}

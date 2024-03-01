@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0b2_filetest.gno:14: cannot use untyped Bigint/Bigdec as StringKind
+// main/files/types/0b2_filetest.gno:14: cannot use untyped Bigint as StringKind

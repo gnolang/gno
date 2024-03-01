@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/5a0_REM_filetest.gno:5: invalid operation: mismatched types int8 and int
+// main/files/types/5a0_REM_filetest.gno:5: invalid operation: mismatched types int and int8

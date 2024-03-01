@@ -2135,6 +2135,8 @@ func assertAssignable(lt, rt Type) {
 // assertComparable is used in preprocess.
 // assert value with dt is comparable
 // special case when both typed, check if type identical
+// TODO: move this to type_checker? as a method?
+// TODO: check mismatch on this, not postpone to checkOrConvertType
 func assertComparable(xt, dt Type) {
 	if debug {
 		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
@@ -2375,7 +2377,19 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					"cannot use untyped string as %s",
 					dt.Kind()))
 			}
-		case UntypedBigintType, UntypedBigdecType:
+
+		case UntypedBigdecType: // can bigdec assign to bigint?
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped Bigdec as %s",
+					dt.Kind()))
+			}
+		case UntypedBigintType:
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
@@ -2383,7 +2397,7 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 				return // ok
 			default:
 				panic(fmt.Sprintf(
-					"cannot use untyped Bigint/Bigdec as %s",
+					"cannot use untyped Bigint as %s",
 					dt.Kind()))
 			}
 		case UntypedRuneType:
