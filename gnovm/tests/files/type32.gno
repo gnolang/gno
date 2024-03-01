@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/type32.gno:9#1: invalid operation: mismatched types main.S and string
+// main/files/type32.gno:9#1: invalid operation: mismatched types string and main.S

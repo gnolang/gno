@@ -217,7 +217,6 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode) {
 
 	debug.Printf("---AssertCompatible, bx.Left: %T \n", bx.Left)
 	debug.Printf("---AssertCompatible, bx.Right: %T \n", bx.Right)
-
 	// get left type and right type
 	var lt, rt Type
 	if lx, ok := (bx.Left).(*ConstExpr); ok {
@@ -230,6 +229,15 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode) {
 		rt = rx.T
 	} else if bx.Left != nil {
 		rt = evalStaticTypeOf(store, last, bx.Right)
+	}
+
+	// we can't check compatible with native types
+	// so leave it to checkOrConvertStage
+	if _, ok := lt.(*NativeType); ok {
+		return
+	}
+	if _, ok := rt.(*NativeType); ok {
+		return
 	}
 
 	debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, bx.Op)
@@ -281,6 +289,7 @@ func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string)
 			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
 		} else {
 			debug.Println("---2")
+			debug.Println("---cmp: ", cmp)
 			// left not compatible, right is compatible
 			// cmp means the expected convert direction
 			// if cmp < 0, means potential conversion
@@ -289,7 +298,7 @@ func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string)
 			// left side that is not compatible, so stop
 			// the check here, assertion fail.
 			if cmp < 0 {
-				checkAssignable(lt, rt, false)
+				checkAssignable(lt, rt, true)
 				debug.Println("---assignable")
 				// TODO: set attr
 			} else {
@@ -304,7 +313,7 @@ func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string)
 		// xxx, the fact of one of them is compatible while the other is not
 		// when they share same specificity implies not assignable?
 		if cmp > 0 { // right to left
-			checkAssignable(rt, lt, false)
+			checkAssignable(rt, lt, true)
 		} else {
 			if rt != nil { // return error on left side that is checked first
 				destKind = rt.Kind()
