@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -175,14 +174,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err != nil {
 		return err
 	}
-
-	// enforce sorting msg.Files based on Go conventions for predictability
-	sort.Slice(
-		msg.Package.Files,
-		func(i, j int) bool {
-			return msg.Package.Files[i].Name < msg.Package.Files[j].Name
-		},
-	)
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
