@@ -111,6 +111,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.verbose,
+		"v",
+		false,
+		"alias for -verbose",
+	)
+
+	fs.BoolVar(
 		&c.transpile,
 		"transpile",
 		false,
