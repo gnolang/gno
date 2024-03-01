@@ -1,4 +1,3 @@
-
 .PHONY: help
 help:
 	@echo "Available make commands:"
@@ -39,7 +38,7 @@ lint:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.pkg.amino _test.pkg.bft _test.pkg.others _test.flappy
+test: _test.pkg.amino _test.pkg.bft _test.pkg.db _test.pkg.others _test.flappy
 
 _test.flappy:
 	# flappy tests should work "sometimes" (at least once).
@@ -48,6 +47,11 @@ _test.flappy:
 		./pkg/bft/consensus ./pkg/bft/blockchain ./pkg/bft/mempool ./pkg/p2p ./pkg/bft/privval
 
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-_test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -v pkg/amino/ | grep -v pkg/bft/`
+_test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -Ev 'pkg/(amino|bft|db|iavl/benchmarks)(/|$$)'`
 _test.pkg.amino:;   go test $(GOTEST_FLAGS) ./pkg/amino/...
-_test.pkg.bft:;	    go test $(GOTEST_FLAGS) ./pkg/bft/...
+_test.pkg.bft:;     go test $(GOTEST_FLAGS) ./pkg/bft/...
+
+CGO_ENABLED ?= 0
+_test.pkg.db:
+	@[ -z "$$CGO_ENABLED" ] && echo 'Disabling cgo for database tests. Use CGO_ENABLED=1 to enable it if you have the correct libs' || true
+	CGO_ENABLED=$(CGO_ENABLED) go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/...

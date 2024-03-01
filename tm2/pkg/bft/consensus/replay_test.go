@@ -30,6 +30,7 @@ import (
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -171,7 +172,7 @@ LOOP:
 
 		// create consensus state from a clean slate
 		logger := log.NewTestingLogger(t)
-		blockDB := dbm.NewMemDB()
+		blockDB := memdb.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
 		privValidator := loadPrivValidator(consensusReplayConfig)
@@ -644,7 +645,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	if sim != nil {
 		testConfig := ResetConfig(fmt.Sprintf("%s_%v_m", t.Name(), mode))
 		defer os.RemoveAll(testConfig.RootDir)
-		stateDB = dbm.NewMemDB()
+		stateDB = memdb.NewMemDB()
 		defer stateDB.Close()
 		genesisState = sim.GenesisState
 		config = sim.Config
@@ -690,7 +691,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 		// run nBlocks against a new client to build up the app state.
 		// use a throwaway tendermint state
 		proxyApp := proxy.NewAppConns(clientCreator2)
-		stateDB1 := dbm.NewMemDB()
+		stateDB1 := memdb.NewMemDB()
 		sm.SaveState(stateDB1, genesisState)
 		buildAppStateFromChain(proxyApp, stateDB1, genesisState, chain, nBlocks, mode)
 	}
@@ -1058,7 +1059,7 @@ func readPieceFromWAL(msg *walm.TimedWALMessage) interface{} {
 
 // fresh state and mock store
 func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion string) (dbm.DB, sm.State, *mockBlockStore) {
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	state, _ := sm.MakeGenesisStateFromFile(config.GenesisFile())
 	state.AppVersion = appVersion
 	store := newMockBlockStore(config, state.ConsensusParams)
@@ -1076,7 +1077,7 @@ type mockBlockStore struct {
 	commits []*types.Commit
 }
 
-// TODO: NewBlockStore(db.NewMemDB) ...
+// TODO: NewBlockStore(memdb.NewMemDB) ...
 func newMockBlockStore(config *cfg.Config, params abci.ConsensusParams) *mockBlockStore {
 	return &mockBlockStore{config, params, nil, nil}
 }

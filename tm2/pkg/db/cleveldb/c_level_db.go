@@ -1,23 +1,25 @@
-//go:build cleveldb
+//go:build cgo
 
-package db
+package cleveldb
 
 import (
 	"bytes"
 	"fmt"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/jmhodges/levigo"
 )
 
 func init() {
-	dbCreator := func(name string, dir string) (DB, error) {
+	dbCreator := func(name string, dir string) (db.DB, error) {
 		return NewCLevelDB(name, dir)
 	}
-	registerDBCreator(CLevelDBBackend, dbCreator, false)
+	db.InternalRegisterDBCreator(db.CLevelDBBackend, dbCreator, false)
 }
 
-var _ DB = (*CLevelDB)(nil)
+var _ db.DB = (*CLevelDB)(nil)
 
 type CLevelDB struct {
 	db     *levigo.DB
@@ -51,7 +53,7 @@ func NewCLevelDB(name string, dir string) (*CLevelDB, error) {
 
 // Implements DB.
 func (db *CLevelDB) Get(key []byte) []byte {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	res, err := db.db.Get(db.ro, key)
 	if err != nil {
 		panic(err)
@@ -66,8 +68,8 @@ func (db *CLevelDB) Has(key []byte) bool {
 
 // Implements DB.
 func (db *CLevelDB) Set(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(db.wo, key, value)
 	if err != nil {
 		panic(err)
@@ -76,8 +78,8 @@ func (db *CLevelDB) Set(key []byte, value []byte) {
 
 // Implements DB.
 func (db *CLevelDB) SetSync(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(db.woSync, key, value)
 	if err != nil {
 		panic(err)
@@ -86,7 +88,7 @@ func (db *CLevelDB) SetSync(key []byte, value []byte) {
 
 // Implements DB.
 func (db *CLevelDB) Delete(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(db.wo, key)
 	if err != nil {
 		panic(err)
@@ -95,7 +97,7 @@ func (db *CLevelDB) Delete(key []byte) {
 
 // Implements DB.
 func (db *CLevelDB) DeleteSync(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(db.woSync, key)
 	if err != nil {
 		panic(err)
@@ -150,7 +152,7 @@ func (db *CLevelDB) Stats() map[string]string {
 // Batch
 
 // Implements DB.
-func (db *CLevelDB) NewBatch() Batch {
+func (db *CLevelDB) NewBatch() db.Batch {
 	batch := levigo.NewWriteBatch()
 	return &cLevelDBBatch{db, batch}
 }
@@ -196,17 +198,17 @@ func (mBatch *cLevelDBBatch) Close() {
 // NOTE This is almost identical to db/go_level_db.Iterator
 // Before creating a third version, refactor.
 
-func (db *CLevelDB) Iterator(start, end []byte) Iterator {
+func (db *CLevelDB) Iterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(db.ro)
 	return newCLevelDBIterator(itr, start, end, false)
 }
 
-func (db *CLevelDB) ReverseIterator(start, end []byte) Iterator {
+func (db *CLevelDB) ReverseIterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(db.ro)
 	return newCLevelDBIterator(itr, start, end, true)
 }
 
-var _ Iterator = (*cLevelDBIterator)(nil)
+var _ db.Iterator = (*cLevelDBIterator)(nil)
 
 type cLevelDBIterator struct {
 	source     *levigo.Iterator

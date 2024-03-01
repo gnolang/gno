@@ -1,10 +1,13 @@
-package db
+package goleveldb
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/gnolang/goleveldb/leveldb/opt"
+	"github.com/jaekwon/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,7 +15,7 @@ func TestGoLevelDBNewGoLevelDB(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	name := fmt.Sprintf("test_%x", randStr(12))
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 
 	// Test we can't open the db twice for writing
 	wr1, err := NewGoLevelDB(name, dir)
@@ -30,13 +33,24 @@ func TestGoLevelDBNewGoLevelDB(t *testing.T) {
 	defer ro2.Close()
 }
 
+func TestGoLevelDBBackend(t *testing.T) {
+	t.Parallel()
+
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := db.NewDB(name, db.GoLevelDBBackend, t.TempDir())
+	require.NoError(t, err)
+
+	_, ok := db.(*GoLevelDB)
+	assert.True(t, ok)
+}
+
 func BenchmarkGoLevelDBRandomReadsWrites(b *testing.B) {
-	name := fmt.Sprintf("test_%x", randStr(12))
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	db, err := NewGoLevelDB(name, b.TempDir())
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer db.Close()
 
-	benchmarkRandomReadsWrites(b, db)
+	internal.BenchmarkRandomReadsWrites(b, db)
 }
