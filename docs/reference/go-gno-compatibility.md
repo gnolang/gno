@@ -34,6 +34,11 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
+Note that gno does not support shadowing of native types. 
+While the following native typecasting assignment would work in go, this is not supported in gno.
+
+`rune := rune('a')`
+
 ## Native types
 
 | type                                          | usage                  | persistency                                                |
