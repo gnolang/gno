@@ -5,16 +5,15 @@ import (
 	"container/list"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -34,7 +33,7 @@ type CListMempool struct {
 	config *cfg.MempoolConfig
 
 	mtx          sync.Mutex
-	proxyAppConn proxy.AppConnMempool
+	proxyAppConn appconn.Mempool
 	txs          *clist.CList // concurrent linked-list of good txs
 	preCheck     PreCheckFunc
 	height       int64 // the last block Update()'d to
@@ -76,7 +75,7 @@ type CListMempoolOption func(*CListMempool)
 // NewCListMempool returns a new mempool with the given configuration and connection to an application.
 func NewCListMempool(
 	config *cfg.MempoolConfig,
-	proxyAppConn proxy.AppConnMempool,
+	proxyAppConn appconn.Mempool,
 	height int64,
 	maxTxBytes int64,
 	options ...CListMempoolOption,

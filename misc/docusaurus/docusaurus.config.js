@@ -64,10 +64,26 @@ const config = {
         },
         items: [
           {
+            position: "right",
+            label: "Back to Gno.Land",
+            to: "https://gno.land",
+            className: "gno-header__copy",
+          },
+          {
             type: "docSidebar",
             sidebarId: "tutorialSidebar",
             position: "left",
             label: "Docs",
+          },
+          {
+            position: "left",
+            label: "Playground",
+            to: "https://play.gno.land",
+          },
+          {
+            position: "left",
+            label: "Blog",
+            to: "https://test3.gno.land/r/gnoland/blog",
           },
           {
             href: "https://github.com/gnolang/gno",

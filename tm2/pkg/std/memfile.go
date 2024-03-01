@@ -44,7 +44,7 @@ const rePathPart = `[a-z][a-z0-9_]*`
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
-	reFileName     = regexp.MustCompile(`^[a-zA-Z0-9_]*\.[a-z0-9_\.]*$`)
+	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
 // path must not contain any dots after the first domain component.
@@ -57,10 +57,10 @@ func (mempkg *MemPackage) Validate() error {
 	}
 
 	if !rePkgName.MatchString(mempkg.Name) {
-		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
+		return errors.New(fmt.Sprintf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName))
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
+		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
 	}
 	// enforce sorting msg.Files based on Go conventions for predictability
 	sort.Slice(

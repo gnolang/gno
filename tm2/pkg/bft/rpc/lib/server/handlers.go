@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -14,8 +15,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gorilla/websocket"
 
@@ -293,7 +292,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) func(http.ResponseWr
 	}
 }
 
-// Covert an http query to a list of properly typed values.
+// Convert an http query to a list of properly typed values.
 // To be properly decoded the arg must be a concrete type from tendermint (if its an interface).
 func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error) {
 	// skip types.Context

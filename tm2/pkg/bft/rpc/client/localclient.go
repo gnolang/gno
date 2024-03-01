@@ -1,9 +1,8 @@
 package client
 
 import (
-	"golang.org/x/exp/slog"
+	"log/slog"
 
-	nm "github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -11,33 +10,33 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
-/*
-Local is a Client implementation that directly executes the rpc
-functions on a given node, without going through HTTP or GRPC.
-
-This implementation is useful for:
-
-* Running tests against a node in-process without the overhead
-of going through an http server
-* Communication between an ABCI app and Tendermint core when they
-are compiled in process.
-
-For real clients, you probably want to use client.HTTP.  For more
-powerful control during testing, you probably want the "client/mock" package.
-*/
+// Local is a Client implementation that directly executes the rpc
+// functions on a given node, without going through any network connection.
+//
+// As this connects directly to a Node instance, a Local client only works
+// after the Node has been started. Note that the way this works is (alas)
+// through the use of singletons in rpc/core. As a consequence, you may only
+// have one active node at a time, and Local can only connect to that specific
+// node. Keep this in mind for parallel tests, or attempting to simulate a
+// network.
+//
+// This implementation is useful for:
+//
+//   - Running tests against a node in-process without the overhead
+//     of going through an http server
+//   - Communication between an ABCI app and Tendermint core when they
+//     are compiled in process.
+//
+// For real clients, you probably want to use the [HTTP] client.  For more
+// powerful control during testing, you probably want the "client/mock" package.
 type Local struct {
 	Logger *slog.Logger
 	ctx    *rpctypes.Context
 }
 
-// NewLocal configures a client that calls the Node directly.
-//
-// Note that given how rpc/core works with package singletons, that
-// you can only have one node per process.  So make sure test cases
-// don't run in parallel, or try to simulate an entire network in
-// one process...
-func NewLocal(node *nm.Node) *Local {
-	node.ConfigureRPC()
+// NewLocal configures a client that calls the Node directly through rpc/core,
+// without requiring a network connection. See [Local].
+func NewLocal() *Local {
 	return &Local{
 		Logger: log.NewNoopLogger(),
 		ctx:    &rpctypes.Context{},

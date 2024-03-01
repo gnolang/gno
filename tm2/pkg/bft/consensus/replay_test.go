@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,14 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
@@ -31,6 +31,7 @@ import (
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -172,7 +173,7 @@ LOOP:
 
 		// create consensus state from a clean slate
 		logger := log.NewTestingLogger(t)
-		blockDB := dbm.NewMemDB()
+		blockDB := memdb.NewMemDB()
 		stateDB := blockDB
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
 		privValidator := loadPrivValidator(consensusReplayConfig)
@@ -645,7 +646,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	if sim != nil {
 		testConfig := ResetConfig(fmt.Sprintf("%s_%v_m", t.Name(), mode))
 		defer os.RemoveAll(testConfig.RootDir)
-		stateDB = dbm.NewMemDB()
+		stateDB = memdb.NewMemDB()
 		defer stateDB.Close()
 		genesisState = sim.GenesisState
 		config = sim.Config
@@ -690,8 +691,8 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	if nBlocks > 0 {
 		// run nBlocks against a new client to build up the app state.
 		// use a throwaway tendermint state
-		proxyApp := proxy.NewAppConns(clientCreator2)
-		stateDB1 := dbm.NewMemDB()
+		proxyApp := appconn.NewAppConns(clientCreator2)
+		stateDB1 := memdb.NewMemDB()
 		sm.SaveState(stateDB1, genesisState)
 		buildAppStateFromChain(proxyApp, stateDB1, genesisState, chain, nBlocks, mode)
 	}
@@ -701,7 +702,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	handshaker.SetEventSwitch(evsw)
-	proxyApp := proxy.NewAppConns(clientCreator2)
+	proxyApp := appconn.NewAppConns(clientCreator2)
 	if err := proxyApp.Start(); err != nil {
 		t.Fatalf("Error starting proxy app connections: %v", err)
 	}
@@ -733,7 +734,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	}
 }
 
-func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp proxy.AppConns) sm.State {
+func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp appconn.AppConns) sm.State {
 	testPartSize := types.BlockPartSizeBytes
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 
@@ -745,7 +746,7 @@ func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp proxy.Ap
 	return newState
 }
 
-func buildAppStateFromChain(proxyApp proxy.AppConns, stateDB dbm.DB,
+func buildAppStateFromChain(proxyApp appconn.AppConns, stateDB dbm.DB,
 	state sm.State, chain []*types.Block, nBlocks int, mode uint,
 ) {
 	// start a new app without handshake, play nBlocks blocks
@@ -788,7 +789,7 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), fmt.Sprintf("replay_test_%d_%d_t", nBlocks, mode)))
 	defer app.Close()
 	clientCreator := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := appconn.NewAppConns(clientCreator)
 	if err := proxyApp.Start(); err != nil {
 		panic(err)
 	}
@@ -850,7 +851,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	{
 		app := &badApp{numBlocks: 3, allHashesAreWrong: true}
 		clientCreator := proxy.NewLocalClientCreator(app)
-		proxyApp := proxy.NewAppConns(clientCreator)
+		proxyApp := appconn.NewAppConns(clientCreator)
 		err := proxyApp.Start()
 		require.NoError(t, err)
 		defer proxyApp.Stop()
@@ -868,7 +869,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	{
 		app := &badApp{numBlocks: 3, onlyLastHashIsWrong: true}
 		clientCreator := proxy.NewLocalClientCreator(app)
-		proxyApp := proxy.NewAppConns(clientCreator)
+		proxyApp := appconn.NewAppConns(clientCreator)
 		err := proxyApp.Start()
 		require.NoError(t, err)
 		defer proxyApp.Stop()
@@ -1059,7 +1060,7 @@ func readPieceFromWAL(msg *walm.TimedWALMessage) interface{} {
 
 // fresh state and mock store
 func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion string) (dbm.DB, sm.State, *mockBlockStore) {
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	state, _ := sm.MakeGenesisStateFromFile(config.GenesisFile())
 	state.AppVersion = appVersion
 	store := newMockBlockStore(config, state.ConsensusParams)
@@ -1077,7 +1078,7 @@ type mockBlockStore struct {
 	commits []*types.Commit
 }
 
-// TODO: NewBlockStore(db.NewMemDB) ...
+// TODO: NewBlockStore(memdb.NewMemDB) ...
 func newMockBlockStore(config *cfg.Config, params abci.ConsensusParams) *mockBlockStore {
 	return &mockBlockStore{config, params, nil, nil}
 }
@@ -1124,7 +1125,7 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	// now start the app using the handshake - it should sync
 	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := appconn.NewAppConns(clientCreator)
 	if err := proxyApp.Start(); err != nil {
 		t.Fatalf("Error starting proxy app connections: %v", err)
 	}

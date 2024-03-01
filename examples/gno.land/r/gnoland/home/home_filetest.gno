@@ -21,7 +21,7 @@ func main() {
 //
 // ### Contributions (WorxDAO & GoR)
 //
-// TODO: GoR dashboard + WorxDAO topics
+// coming soon
 // </div><!-- /jumbotron -->
 //
 // ### Explore New Packages and Realms
@@ -94,14 +94,13 @@ func main() {
 //
 // ### Upcoming Events
 //
-// TODO: import r/gnoland/events
+// coming soon
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Last Contributions
+// ### Latest Contributions
 //
-// TODO: import r/gh
-// [#1134](https://github.com/gnolang/gno/pull/1134)
+// coming soon
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
 //
