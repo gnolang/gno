@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -50,22 +51,33 @@ var (
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
+	// add assertion that MemPkg contains at least 1 file
+	if len(mempkg.Files) <= 0 {
+		return errors.New(fmt.Sprintf("no files found within package %q", mempkg.Name))
+	}
+
 	if !rePkgName.MatchString(mempkg.Name) {
 		return errors.New(fmt.Sprintf("invalid package name %q", mempkg.Name))
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return errors.New(fmt.Sprintf("invalid package/realm path %q", mempkg.Path))
 	}
-	fnames := map[string]struct{}{}
-	for _, memfile := range mempkg.Files {
-		if !reFileName.MatchString(memfile.Name) {
-			return errors.New(fmt.Sprintf("invalid file name %q", memfile.Name))
+	// enforce sorting msg.Files based on Go conventions for predictability
+	sort.Slice(
+		mempkg.Files,
+		func(i, j int) bool {
+			return mempkg.Files[i].Name < mempkg.Files[j].Name
+		},
+	)
+
+	prev := mempkg.Files[0].Name
+	for _, file := range mempkg.Files[1:] {
+		if prev == file.Name {
+			return errors.New(fmt.Sprintf("duplicate file name %q", file.Name))
 		}
-		if _, exists := fnames[memfile.Name]; exists {
-			return errors.New(fmt.Sprintf("duplicate file name %q", memfile.Name))
-		}
-		fnames[memfile.Name] = struct{}{}
+		prev = file.Name
 	}
+
 	return nil
 }
 
