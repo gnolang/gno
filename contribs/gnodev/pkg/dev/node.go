@@ -214,55 +214,6 @@ func (d *Node) Reload(ctx context.Context) error {
 	return nil
 }
 
-func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
-	var err error
-
-	// recoverError handles panics and converts them to errors.
-	recoverError := func() {
-		if r := recover(); r != nil {
-			panicErr, ok := r.(error)
-			if !ok {
-				panic(r) // Re-panic if not an error.
-			}
-
-			err = panicErr
-		}
-	}
-
-	createNode := func() {
-		defer recoverError()
-
-		node, nodeErr := newNode(d.logger, genesis)
-		if nodeErr != nil {
-			err = fmt.Errorf("unable to create node: %w", nodeErr)
-			return
-		}
-
-		if startErr := node.Start(); startErr != nil {
-			err = fmt.Errorf("unable to start the node: %w", startErr)
-			return
-		}
-
-		d.Node = node
-		d.client = client.NewLocal()
-	}
-
-	// Execute node creation and handle any errors.
-	createNode()
-	if err != nil {
-		return err
-	}
-
-	// Wait for the node to be ready
-	select {
-	case <-d.GetNodeReadiness(): // Ok
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	return err
-}
-
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
