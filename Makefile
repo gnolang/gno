@@ -4,7 +4,7 @@ help:
 	@cat Makefile | grep '^[a-z][^:]*:' | grep -v 'install_' | cut -d: -f1 | sort | sed 's/^/  /'
 
 # command to run dependency utilities, like goimports.
-rundep=go run -modfile ../misc/devdeps/go.mod
+rundep=go run -modfile misc/devdeps/go.mod
 
 ########################################
 # Environment variables
