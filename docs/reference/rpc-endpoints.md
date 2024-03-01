@@ -14,7 +14,6 @@ Note: The below endpoints may produce errors on dialing if the ports are not pro
 | ----------- | ------------------------------ | ------------- |
 | Portal Loop | https://rpc.gno.land:443       | `portal-loop` |
 | Testnet 3   | https://rpc.test3.gno.land:443 | `test3`       |
-| Staging     | http://staging.gno.land:36657  | `test3`       |
 | Local       | http://127.0.0.1:26657         | `dev`         |
 
 ## Common Parameters
