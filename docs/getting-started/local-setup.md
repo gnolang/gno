@@ -15,12 +15,13 @@ and validate that they are correctly configured to run on your machine.
 - **Git**
 - **`make` (for running Makefiles)**
 - **Go 19+**
-- **Check we have in `.bashrc` or `.zshrc` :**
+- **Check that you have in `.bashrc` or `.zshrc` the file at the end :**
 
      `export GOPATH="$HOME/go"` 
 
-     `PATH="$GOPATH/bin:$PATH"`    
-   
+     `PATH="$GOPATH/bin:$PATH"`  
+
+    **and if you don't have the commands, add this.**
 
 ## 1. Cloning the repository
 
