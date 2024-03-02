@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"unicode"
-	"unicode/utf8"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 const (
@@ -167,12 +167,12 @@ func unquoteBytes(s []byte, border byte) ([]byte, error) {
 		return s, nil
 	}
 
-	b := make([]byte, len(s) + utf8.UTFMax * 2)
+	b := make([]byte, len(s)+utf8.UTFMax*2)
 	w := copy(b, s[:r])
 
 	for r < len(s) {
-		if w >= len(b) - (utf8.UTFMax * 2) {
-			nb := make([]byte, (utf8.UTFMax + len(b)) * 2)
+		if w >= len(b)-(utf8.UTFMax*2) {
+			nb := make([]byte, (utf8.UTFMax+len(b))*2)
 			copy(nb, b)
 			b = nb
 		}

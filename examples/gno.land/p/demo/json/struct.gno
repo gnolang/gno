@@ -334,7 +334,8 @@ func (s *Struct) Remove(name string) error {
 		if field.name == name {
 			// arranges the slice to remove the field.
 			s.fields = append(s.fields[:i], s.fields[i+1:]...)
-			break
+
+			return nil
 		}
 	}
 

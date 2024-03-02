@@ -30,8 +30,8 @@ const (
 	UnderScoreToken     = '_'
 	DollarToken         = '$'
 	AtToken             = '@'
-	AndToken			= '&'
-	OrToken				= '|'
+	AndToken            = '&'
+	OrToken             = '|'
 )
 
 const (

@@ -187,20 +187,20 @@ func TestUnescape(t *testing.T) {
 
 func TestUnquoteBytes(t *testing.T) {
 	tests := []struct {
-		input []byte
-		border byte
+		input    []byte
+		border   byte
 		expected []byte
-		ok bool
+		ok       bool
 	}{
 		{[]byte("\"hello\""), '"', []byte("hello"), true},
-        {[]byte("'hello'"), '\'', []byte("hello"), true},
-        {[]byte("\"hello"), '"', nil, false},
-        {[]byte("hello\""), '"', nil, false},
-        {[]byte("\"he\\\"llo\""), '"', []byte("he\"llo"), true},
-        {[]byte("\"he\\nllo\""), '"', []byte("he\nllo"), true},
-        {[]byte("\"\""), '"', []byte(""), true},
-        {[]byte("''"), '\'', []byte(""), true},
-        {[]byte("\"\\u0041\""), '"', []byte("A"), true},
+		{[]byte("'hello'"), '\'', []byte("hello"), true},
+		{[]byte("\"hello"), '"', nil, false},
+		{[]byte("hello\""), '"', nil, false},
+		{[]byte("\"he\\\"llo\""), '"', []byte("he\"llo"), true},
+		{[]byte("\"he\\nllo\""), '"', []byte("he\nllo"), true},
+		{[]byte("\"\""), '"', []byte(""), true},
+		{[]byte("''"), '\'', []byte(""), true},
+		{[]byte("\"\\u0041\""), '"', []byte("A"), true},
 	}
 
 	for _, tc := range tests {

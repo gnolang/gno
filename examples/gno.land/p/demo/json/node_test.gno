@@ -6,40 +6,40 @@ import (
 )
 
 func TestNodeValue(t *testing.T) {
-    tests := []struct {
-        name  string
-        value interface{}
+	tests := []struct {
+		name       string
+		value      interface{}
 		expectType ValueType
-    }{
-        {"string", "test value", String},
-        {"integer", 123, Number},
-        {"float", 1.23, Float},
-        {"boolean", true, Boolean},
+	}{
+		{"string", "test value", String},
+		{"integer", 123, Number},
+		{"float", 1.23, Float},
+		{"boolean", true, Boolean},
 		{"null", nil, Null},
 		{"array", []interface{}{1, 2, 3}, Array},
 		{"object", map[string]interface{}{"key": "value"}, Object},
-    }
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            nv := &NodeValue{}
-            nv.Store(tt.value)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nv := &NodeValue{}
+			nv.Store(tt.value)
 
-            if nv.value != tt.value {
-                t.Errorf("Store: %s want %v got %v", tt.name, tt.value, nv.value)
-            }
+			if nv.value != tt.value {
+				t.Errorf("Store: %s want %v got %v", tt.name, tt.value, nv.value)
+			}
 
-            typ := typeOf(tt.value)
+			typ := typeOf(tt.value)
 			if typ != tt.expectType {
 				t.Errorf("Store: %s want type %v got %v", tt.name, tt.expectType.String(), typ.String())
 			}
 
-            loadedValue := nv.Load()
-            if loadedValue != tt.value {
-                t.Errorf("Load: %s want %v got %v", tt.name, tt.value, loadedValue)
-            }
-        })
-    }
+			loadedValue := nv.Load()
+			if loadedValue != tt.value {
+				t.Errorf("Load: %s want %v got %v", tt.name, tt.value, loadedValue)
+			}
+		})
+	}
 }
 
 func TestNodeCreation(t *testing.T) {
@@ -131,8 +131,8 @@ func TestNodeSource(t *testing.T) {
 		expected []byte
 	}{
 		{
-			name: "nil node",
-			node: nil,
+			name:     "nil node",
+			node:     nil,
 			expected: nil,
 		},
 		{

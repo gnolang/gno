@@ -35,10 +35,9 @@ type Node struct {
 	data     []byte
 	value    *NodeValue
 	index    int
-	borders  [2]int  // start, end
+	borders  [2]int // start, end
 	modified bool
 }
-
 
 func (n *Node) Key() string {
 	if n == nil || n.key == "" {
@@ -79,15 +78,15 @@ func (n *Node) Keys() []string {
 
 func NullNode(key string) *Node {
 	return &Node{
-		key:   key,
-		value: &NodeValue{value: nil, typ: Null},
+		key:      key,
+		value:    &NodeValue{value: nil, typ: Null},
 		modified: true,
 	}
 }
 
 func NumberNode(key string, value float64) *Node {
 	return &Node{
-		key:   key,
+		key: key,
 		value: &NodeValue{
 			value: value,
 			typ:   Number,
@@ -100,8 +99,8 @@ func StringNode(key string, value string) *Node {
 	val := newNodeValue(value)
 
 	return &Node{
-		key:   key,
-		value: val,
+		key:      key,
+		value:    val,
 		modified: true,
 	}
 }
@@ -110,8 +109,8 @@ func BoolNode(key string, value bool) *Node {
 	val := newNodeValue(value)
 
 	return &Node{
-		key:   key,
-		value: val,
+		key:      key,
+		value:    val,
 		modified: true,
 	}
 }
@@ -119,8 +118,8 @@ func BoolNode(key string, value bool) *Node {
 func ArrayNode(key string, value []*Node) *Node {
 	val := newNodeValue(value)
 	curr := &Node{
-		key:   key,
-		value: val,
+		key:      key,
+		value:    val,
 		modified: true,
 	}
 

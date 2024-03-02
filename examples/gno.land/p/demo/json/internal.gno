@@ -6,8 +6,8 @@ package json
 // Go implementation is taken from: https://github.com/spyzhov/ajson/blob/master/internal/state.go
 
 type (
-	States  int8		// possible states of the parser
-	Classes int8		// JSON string character types
+	States  int8 // possible states of the parser
+	Classes int8 // JSON string character types
 )
 
 const __ = -1
