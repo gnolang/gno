@@ -4,7 +4,7 @@ id: go-gno-compatibility
 
 # Go - Gno compatibility
 
-## Native keywords
+## Reserved keywords
 
 | keyword     | support                |
 |-------------|------------------------|
@@ -34,12 +34,14 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
-Note that gno does not support shadowing of native types. 
-While the following native typecasting assignment would work in go, this is not supported in gno.
+Note that gno does not support shadowing of builtin types. 
+While the following builtin typecasting assignment would work in go, this is not supported in gno.
 
-`rune := rune('a')`
+```go
+rune := rune('a')
+```
 
-## Native types
+## Builtin types
 
 | type                                          | usage                  | persistency                                                |
 |-----------------------------------------------|------------------------|------------------------------------------------------------|
@@ -62,7 +64,7 @@ While the following native typecasting assignment would work in go, this is not 
 
 **\*:** depends on `T`/`T1`/`T2`
 
-Additional native types:
+Additional builtin types:
 
 | type     | comment                                                                                    |
 |----------|--------------------------------------------------------------------------------------------|
