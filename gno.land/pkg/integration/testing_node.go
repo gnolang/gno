@@ -147,6 +147,7 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	const defaultListner = "tcp://127.0.0.1:0"
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
+	tmconfig.Consensus.WALDisabled = true
 	tmconfig.Consensus.CreateEmptyBlocks = true
 	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
 	tmconfig.RPC.ListenAddress = defaultListner

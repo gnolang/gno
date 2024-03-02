@@ -20,6 +20,8 @@ type ConsensusConfig struct {
 	WalPath string `toml:"wal_file"`
 	walFile string // overrides WalPath if set
 
+	WALDisabled bool `toml:"wal_disabled" comment:"Disable the write-ahead log"`
+
 	TimeoutPropose        time.Duration `toml:"timeout_propose"`
 	TimeoutProposeDelta   time.Duration `toml:"timeout_propose_delta"`
 	TimeoutPrevote        time.Duration `toml:"timeout_prevote"`
