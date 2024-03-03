@@ -265,6 +265,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		),
 		cacheMpg,
 		func(t *testing.T, err error) {
+			t.Helper()
 			require.NoError(t, err)
 			assert.Equal(t, map[string]int{"std": 1, "bye": 1}, cacheMpg.counts)
 		},

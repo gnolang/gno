@@ -527,9 +527,9 @@ func (g *gnoImporter) Import(path string) (*types.Package, error) {
 	return g.ImportFrom(path, "", 0)
 }
 
-type errImportNotFound string
+type importNotFoundError string
 
-func (e errImportNotFound) Error() string { return "import not found: " + string(e) }
+func (e importNotFoundError) Error() string { return "import not found: " + string(e) }
 
 // ImportFrom returns the imported package for the given import
 // path when imported by a package file located in dir.
@@ -539,7 +539,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	}
 	mpkg := g.getter.GetMemPackage(path)
 	if mpkg == nil {
-		err := errImportNotFound(path)
+		err := importNotFoundError(path)
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}

@@ -178,7 +178,7 @@ func (ds *defaultStore) getPackage(pkgPath string, impStore importerStore) *Pack
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if impStore.defaultStore == nil {
-			// pre-allocate 16 strings to likely avoid further slice allocations.
+			// pre-allocate 16 entries to likely avoid further slice allocations.
 			impStore = importerStore{defaultStore: ds, importChain: make([]string, 0, 16)}
 		}
 		impStore.importChain = append(impStore.importChain, pkgPath)
