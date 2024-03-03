@@ -1,4 +1,5 @@
-package proxy
+// Package appconn manages the connection of Tendermint to the application layer.
+package appconn
 
 import (
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
@@ -8,7 +9,7 @@ import (
 //----------------------------------------------------------------------------------------
 // Enforce which abci msgs can be sent on a connection at the type level
 
-type AppConnConsensus interface {
+type Consensus interface {
 	SetResponseCallback(abcicli.Callback)
 	Error() error
 
@@ -20,7 +21,7 @@ type AppConnConsensus interface {
 	CommitSync() (abci.ResponseCommit, error)
 }
 
-type AppConnMempool interface {
+type Mempool interface {
 	SetResponseCallback(abcicli.Callback)
 	Error() error
 
@@ -30,7 +31,7 @@ type AppConnMempool interface {
 	FlushSync() error
 }
 
-type AppConnQuery interface {
+type Query interface {
 	Error() error
 
 	EchoSync(string) (abci.ResponseEcho, error)
@@ -41,104 +42,104 @@ type AppConnQuery interface {
 }
 
 //-----------------------------------------------------------------------------------------
-// Implements AppConnConsensus (subset of abcicli.Client)
+// Implements Consensus (subset of abcicli.Client)
 
-type appConnConsensus struct {
+type consensus struct {
 	appConn abcicli.Client
 }
 
-func NewAppConnConsensus(appConn abcicli.Client) *appConnConsensus {
-	return &appConnConsensus{
+func NewConsensus(appConn abcicli.Client) *consensus {
+	return &consensus{
 		appConn: appConn,
 	}
 }
 
-func (app *appConnConsensus) SetResponseCallback(cb abcicli.Callback) {
+func (app *consensus) SetResponseCallback(cb abcicli.Callback) {
 	app.appConn.SetResponseCallback(cb)
 }
 
-func (app *appConnConsensus) Error() error {
+func (app *consensus) Error() error {
 	return app.appConn.Error()
 }
 
-func (app *appConnConsensus) InitChainSync(req abci.RequestInitChain) (abci.ResponseInitChain, error) {
+func (app *consensus) InitChainSync(req abci.RequestInitChain) (abci.ResponseInitChain, error) {
 	return app.appConn.InitChainSync(req)
 }
 
-func (app *appConnConsensus) BeginBlockSync(req abci.RequestBeginBlock) (abci.ResponseBeginBlock, error) {
+func (app *consensus) BeginBlockSync(req abci.RequestBeginBlock) (abci.ResponseBeginBlock, error) {
 	return app.appConn.BeginBlockSync(req)
 }
 
-func (app *appConnConsensus) DeliverTxAsync(req abci.RequestDeliverTx) *abcicli.ReqRes {
+func (app *consensus) DeliverTxAsync(req abci.RequestDeliverTx) *abcicli.ReqRes {
 	return app.appConn.DeliverTxAsync(req)
 }
 
-func (app *appConnConsensus) EndBlockSync(req abci.RequestEndBlock) (abci.ResponseEndBlock, error) {
+func (app *consensus) EndBlockSync(req abci.RequestEndBlock) (abci.ResponseEndBlock, error) {
 	return app.appConn.EndBlockSync(req)
 }
 
-func (app *appConnConsensus) CommitSync() (abci.ResponseCommit, error) {
+func (app *consensus) CommitSync() (abci.ResponseCommit, error) {
 	return app.appConn.CommitSync()
 }
 
 //------------------------------------------------
-// Implements AppConnMempool (subset of abcicli.Client)
+// Implements Mempool (subset of abcicli.Client)
 
-type appConnMempool struct {
+type mempool struct {
 	appConn abcicli.Client
 }
 
-func NewAppConnMempool(appConn abcicli.Client) *appConnMempool {
-	return &appConnMempool{
+func NewMempool(appConn abcicli.Client) *mempool {
+	return &mempool{
 		appConn: appConn,
 	}
 }
 
-func (app *appConnMempool) SetResponseCallback(cb abcicli.Callback) {
+func (app *mempool) SetResponseCallback(cb abcicli.Callback) {
 	app.appConn.SetResponseCallback(cb)
 }
 
-func (app *appConnMempool) Error() error {
+func (app *mempool) Error() error {
 	return app.appConn.Error()
 }
 
-func (app *appConnMempool) FlushAsync() *abcicli.ReqRes {
+func (app *mempool) FlushAsync() *abcicli.ReqRes {
 	return app.appConn.FlushAsync()
 }
 
-func (app *appConnMempool) FlushSync() error {
+func (app *mempool) FlushSync() error {
 	return app.appConn.FlushSync()
 }
 
-func (app *appConnMempool) CheckTxAsync(req abci.RequestCheckTx) *abcicli.ReqRes {
+func (app *mempool) CheckTxAsync(req abci.RequestCheckTx) *abcicli.ReqRes {
 	return app.appConn.CheckTxAsync(req)
 }
 
 //------------------------------------------------
-// Implements AppConnQuery (subset of abcicli.Client)
+// Implements Query (subset of abcicli.Client)
 
-type appConnQuery struct {
+type query struct {
 	appConn abcicli.Client
 }
 
-func NewAppConnQuery(appConn abcicli.Client) *appConnQuery {
-	return &appConnQuery{
+func NewQuery(appConn abcicli.Client) *query {
+	return &query{
 		appConn: appConn,
 	}
 }
 
-func (app *appConnQuery) Error() error {
+func (app *query) Error() error {
 	return app.appConn.Error()
 }
 
-func (app *appConnQuery) EchoSync(msg string) (abci.ResponseEcho, error) {
+func (app *query) EchoSync(msg string) (abci.ResponseEcho, error) {
 	return app.appConn.EchoSync(msg)
 }
 
-func (app *appConnQuery) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
+func (app *query) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
 	return app.appConn.InfoSync(req)
 }
 
-func (app *appConnQuery) QuerySync(reqQuery abci.RequestQuery) (abci.ResponseQuery, error) {
+func (app *query) QuerySync(reqQuery abci.RequestQuery) (abci.ResponseQuery, error) {
 	return app.appConn.QuerySync(reqQuery)
 }

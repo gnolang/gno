@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	tiavl "github.com/gnolang/gno/tm2/pkg/iavl"
 
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -90,7 +90,7 @@ func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
 func TestIAVLStorePrefix(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	tree := tiavl.NewMutableTree(db, cacheSize)
 	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
 		PruningOptions: types.PruningOptions{
@@ -106,7 +106,7 @@ func TestPrefixStoreNoNilSet(t *testing.T) {
 	t.Parallel()
 
 	meter := types.NewGasMeter(100000000)
-	mem := dbadapter.Store{dbm.NewMemDB()}
+	mem := dbadapter.Store{memdb.NewMemDB()}
 	gasStore := gas.New(mem, meter, types.DefaultGasConfig())
 	require.Panics(t, func() { gasStore.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
@@ -114,7 +114,7 @@ func TestPrefixStoreNoNilSet(t *testing.T) {
 func TestPrefixStoreIterate(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	baseStore := dbadapter.Store{db}
 	prefix := []byte("test")
 	prefixStore := New(baseStore, prefix)
@@ -164,7 +164,7 @@ func TestCloneAppend(t *testing.T) {
 func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	baseStore := dbadapter.Store{db}
 
 	// overflow in cpIncr
@@ -196,7 +196,7 @@ func TestPrefixStoreIteratorEdgeCase(t *testing.T) {
 func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	baseStore := dbadapter.Store{db}
 
 	// overflow in cpIncr
@@ -224,7 +224,7 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 
 	iter.Close()
 
-	db = dbm.NewMemDB()
+	db = memdb.NewMemDB()
 	baseStore = dbadapter.Store{db}
 
 	// underflow in cpDecr
@@ -255,7 +255,7 @@ func TestPrefixStoreReverseIteratorEdgeCase(t *testing.T) {
 // Tests below are ported from https://github.com/tendermint/classic/blob/master/libs/db/prefix_db_test.go
 
 func mockStoreWithStuff() types.Store {
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := dbadapter.Store{db}
 	// Under "key" prefix
 	store.Set(bz("key"), bz("value"))

@@ -41,7 +41,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -392,7 +392,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		return nil, nil
 	}
 	// NOTE: store is also used in closure above.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(nil, baseStore, iavlStore)

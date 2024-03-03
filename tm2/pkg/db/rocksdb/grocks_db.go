@@ -1,6 +1,6 @@
-//go:build grocksdb
+//go:build cgo
 
-package db
+package rocksdb
 
 import (
 	"bytes"
@@ -8,17 +8,19 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/linxGnu/grocksdb"
 )
 
 func init() {
-	dbCreator := func(name string, dir string) (DB, error) {
+	dbCreator := func(name string, dir string) (db.DB, error) {
 		return NewRocksDB(name, dir)
 	}
-	registerDBCreator(RocksDBBackend, dbCreator, false)
+	db.InternalRegisterDBCreator(db.RocksDBBackend, dbCreator, false)
 }
 
-var _ DB = (*RocksDB)(nil)
+var _ db.DB = (*RocksDB)(nil)
 
 type RocksDB struct {
 	db     *grocksdb.DB
@@ -65,7 +67,7 @@ func NewRocksDBWithOptions(name string, dir string, opts *grocksdb.Options) (*Ro
 
 // Implements DB.
 func (db *RocksDB) Get(key []byte) []byte {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	res, err := db.db.Get(db.ro, key)
 	if err != nil {
 		panic(err)
@@ -80,8 +82,8 @@ func (db *RocksDB) Has(key []byte) bool {
 
 // Implements DB.
 func (db *RocksDB) Set(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(db.wo, key, value)
 	if err != nil {
 		panic(err)
@@ -90,8 +92,8 @@ func (db *RocksDB) Set(key []byte, value []byte) {
 
 // Implements DB.
 func (db *RocksDB) SetSync(key []byte, value []byte) {
-	key = nonNilBytes(key)
-	value = nonNilBytes(value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
 	err := db.db.Put(db.woSync, key, value)
 	if err != nil {
 		panic(err)
@@ -100,7 +102,7 @@ func (db *RocksDB) SetSync(key []byte, value []byte) {
 
 // Implements DB.
 func (db *RocksDB) Delete(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(db.wo, key)
 	if err != nil {
 		panic(err)
@@ -109,7 +111,7 @@ func (db *RocksDB) Delete(key []byte) {
 
 // Implements DB.
 func (db *RocksDB) DeleteSync(key []byte) {
-	key = nonNilBytes(key)
+	key = internal.NonNilBytes(key)
 	err := db.db.Delete(db.woSync, key)
 	if err != nil {
 		panic(err)
@@ -153,7 +155,7 @@ func (db *RocksDB) Stats() map[string]string {
 // Batch
 
 // Implements DB.
-func (db *RocksDB) NewBatch() Batch {
+func (db *RocksDB) NewBatch() db.Batch {
 	batch := grocksdb.NewWriteBatch()
 	return &rocksDBBatch{db, batch}
 }
@@ -199,17 +201,17 @@ func (mBatch *rocksDBBatch) Close() {
 // NOTE This is almost identical to db/go_level_db.Iterator
 // Before creating a third version, refactor.
 
-func (db *RocksDB) Iterator(start, end []byte) Iterator {
+func (db *RocksDB) Iterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(db.ro)
 	return newRocksDBIterator(itr, start, end, false)
 }
 
-func (db *RocksDB) ReverseIterator(start, end []byte) Iterator {
+func (db *RocksDB) ReverseIterator(start, end []byte) db.Iterator {
 	itr := db.db.NewIterator(db.ro)
 	return newRocksDBIterator(itr, start, end, true)
 }
 
-var _ Iterator = (*rocksDBIterator)(nil)
+var _ db.Iterator = (*rocksDBIterator)(nil)
 
 type rocksDBIterator struct {
 	source     *grocksdb.Iterator
