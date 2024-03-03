@@ -490,19 +490,25 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+	var errs error
 	imp := &gnoImporter{
 		getter: getter,
 		cache:  map[string]gnoImporterResult{},
-		cfg:    &types.Config{},
+		cfg: &types.Config{
+			Error: func(err error) {
+				errs = multierr.Append(errs, err)
+			},
+		},
 	}
 	imp.cfg.Importer = imp
 
 	_, err := imp.parseCheckMemPackage(mempkg)
-	if err != nil {
-		return err
+	// prefer to return errs instead of err:
+	// err will generally contain only the first error encountered.
+	if errs != nil {
+		return errs
 	}
-
-	return nil
+	return err
 }
 
 type gnoImporterResult struct {
@@ -549,7 +555,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
 		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
 		if err != nil {
-			err = multierr.Append(errs, err)
+			errs = multierr.Append(errs, err)
 			continue
 		}
 
@@ -559,7 +565,6 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		return nil, errs
 	}
 
-	// TODO g.cfg.Error
 	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 
