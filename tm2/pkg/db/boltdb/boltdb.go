@@ -1,6 +1,4 @@
-//go:build boltdb
-
-package db
+package boltdb
 
 import (
 	"bytes"
@@ -9,14 +7,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"go.etcd.io/bbolt"
 )
 
 var bucket = []byte("tm")
 
 func init() {
-	registerDBCreator(BoltDBBackend, func(name, dir string) (DB, error) {
-		return NewBoltDB(name, dir)
+	db.InternalRegisterDBCreator(db.BoltDBBackend, func(name, dir string) (db.DB, error) {
+		return New(name, dir)
 	}, false)
 }
 
@@ -32,16 +32,20 @@ type BoltDB struct {
 	db *bbolt.DB
 }
 
-// NewBoltDB returns a BoltDB with default options.
-func NewBoltDB(name, dir string) (DB, error) {
-	return NewBoltDBWithOpts(name, dir, bbolt.DefaultOptions)
+// New returns a BoltDB with default options.
+func New(name, dir string) (db.DB, error) {
+	return NewWithOptions(name, dir, bbolt.DefaultOptions)
 }
 
-// NewBoltDBWithOpts allows you to supply *bbolt.Options. ReadOnly: true is not
-// supported because NewBoltDBWithOpts creates a global bucket.
-func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (DB, error) {
+// NewWithOptions allows you to supply *bbolt.Options. ReadOnly: true is not
+// supported because NewWithOptions creates a global bucket.
+func NewWithOptions(name string, dir string, opts *bbolt.Options) (db.DB, error) {
 	if opts.ReadOnly {
 		return nil, errors.New("ReadOnly: true is not supported")
+	}
+
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("error creating dir: %w", err)
 	}
 
 	dbPath := filepath.Join(dir, name+".db")
@@ -63,7 +67,7 @@ func NewBoltDBWithOpts(name string, dir string, opts *bbolt.Options) (DB, error)
 }
 
 func (bdb *BoltDB) Get(key []byte) (value []byte) {
-	key = nonEmptyKey(nonNilBytes(key))
+	key = nonEmptyKey(internal.NonNilBytes(key))
 	err := bdb.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		if v := b.Get(key); v != nil {
@@ -82,8 +86,8 @@ func (bdb *BoltDB) Has(key []byte) bool {
 }
 
 func (bdb *BoltDB) Set(key, value []byte) {
-	key = nonEmptyKey(nonNilBytes(key))
-	value = nonNilBytes(value)
+	key = nonEmptyKey(internal.NonNilBytes(key))
+	value = internal.NonNilBytes(value)
 	err := bdb.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		return b.Put(key, value)
@@ -98,7 +102,7 @@ func (bdb *BoltDB) SetSync(key, value []byte) {
 }
 
 func (bdb *BoltDB) Delete(key []byte) {
-	key = nonEmptyKey(nonNilBytes(key))
+	key = nonEmptyKey(internal.NonNilBytes(key))
 	err := bdb.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(bucket).Delete(key)
 	})
@@ -152,11 +156,11 @@ func (bdb *BoltDB) Stats() map[string]string {
 // DB upon Write call.
 type boltDBBatch struct {
 	db  *BoltDB
-	ops []operation
+	ops []internal.Operation
 }
 
 // NewBatch returns a new batch.
-func (bdb *BoltDB) NewBatch() Batch {
+func (bdb *BoltDB) NewBatch() db.Batch {
 	return &boltDBBatch{
 		ops: nil,
 		db:  bdb,
@@ -166,13 +170,13 @@ func (bdb *BoltDB) NewBatch() Batch {
 // It is safe to modify the contents of the argument after Set returns but not
 // before.
 func (bdb *boltDBBatch) Set(key, value []byte) {
-	bdb.ops = append(bdb.ops, operation{opTypeSet, key, value})
+	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeSet, key, value})
 }
 
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
 func (bdb *boltDBBatch) Delete(key []byte) {
-	bdb.ops = append(bdb.ops, operation{opTypeDelete, key, nil})
+	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeDelete, key, nil})
 }
 
 // NOTE: the operation is synchronous (see BoltDB for reasons)
@@ -180,13 +184,13 @@ func (bdb *boltDBBatch) Write() {
 	err := bdb.db.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		for _, op := range bdb.ops {
-			key := nonEmptyKey(nonNilBytes(op.key))
-			switch op.opType {
-			case opTypeSet:
-				if putErr := b.Put(key, op.value); putErr != nil {
+			key := nonEmptyKey(internal.NonNilBytes(op.Key))
+			switch op.OpType {
+			case internal.OpTypeSet:
+				if putErr := b.Put(key, op.Value); putErr != nil {
 					return putErr
 				}
-			case opTypeDelete:
+			case internal.OpTypeDelete:
 				if delErr := b.Delete(key); delErr != nil {
 					return delErr
 				}
@@ -207,7 +211,7 @@ func (bdb *boltDBBatch) Close() {}
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.
-func (bdb *BoltDB) Iterator(start, end []byte) Iterator {
+func (bdb *BoltDB) Iterator(start, end []byte) db.Iterator {
 	tx, err := bdb.db.Begin(false)
 	if err != nil {
 		panic(err)
@@ -217,7 +221,7 @@ func (bdb *BoltDB) Iterator(start, end []byte) Iterator {
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.
-func (bdb *BoltDB) ReverseIterator(start, end []byte) Iterator {
+func (bdb *BoltDB) ReverseIterator(start, end []byte) db.Iterator {
 	tx, err := bdb.db.Begin(false)
 	if err != nil {
 		panic(err)
