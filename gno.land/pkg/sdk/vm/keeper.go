@@ -162,7 +162,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 
 	// Validate Gno syntax and type check.
 	if err := gno.TypeCheckMemPackage(memPkg, store); err != nil {
-		return err
+		return ErrTypeCheck(err)
 	}
 
 	// Pay deposit from creator.
@@ -324,7 +324,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Validate Gno syntax and type check.
 	if err = gno.TypeCheckMemPackage(memPkg, store); err != nil {
-		return "", err
+		return "", ErrTypeCheck(err)
 	}
 
 	// Send send-coins to pkg from caller.
