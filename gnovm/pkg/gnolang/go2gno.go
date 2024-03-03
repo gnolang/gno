@@ -492,7 +492,7 @@ type MemPackageGetter interface {
 func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
 	imp := &gnoImporter{
 		getter: getter,
-		cache:  map[string]any{},
+		cache:  map[string]gnoImporterResult{},
 		cfg:    &types.Config{},
 	}
 	imp.cfg.Importer = imp
@@ -505,9 +505,14 @@ func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error 
 	return nil
 }
 
+type gnoImporterResult struct {
+	pkg *types.Package
+	err error
+}
+
 type gnoImporter struct {
 	getter MemPackageGetter
-	cache  map[string]any // *types.Package or error
+	cache  map[string]gnoImporterResult
 	cfg    *types.Config
 }
 
@@ -519,27 +524,16 @@ func (g *gnoImporter) Import(path string) (*types.Package, error) {
 // path when imported by a package file located in dir.
 func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
 	if pkg, ok := g.cache[path]; ok {
-		switch ret := pkg.(type) {
-		case *types.Package:
-			return ret, nil
-		case error:
-			return nil, ret
-		default:
-			panic(fmt.Sprintf("invalid type in gnoImporter.cache %T", ret))
-		}
+		return pkg.pkg, pkg.err
 	}
 	mpkg := g.getter.GetMemPackage(path)
 	if mpkg == nil {
-		g.cache[path] = (*types.Package)(nil)
+		g.cache[path] = gnoImporterResult{}
 		return nil, nil
 	}
 	result, err := g.parseCheckMemPackage(mpkg)
-	if err != nil {
-		g.cache[path] = err
-		return nil, err
-	}
-	g.cache[path] = result
-	return result, nil
+	g.cache[path] = gnoImporterResult{pkg: result, err: err}
+	return result, err
 }
 
 func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
