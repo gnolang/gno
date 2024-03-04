@@ -1,20 +1,22 @@
-package db
+package db_test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/db"
 )
 
 // Empty iterator for empty db.
 func TestPrefixIteratorNoMatchNil(t *testing.T) {
 	t.Parallel()
 
-	for backend := range backends {
+	for _, backend := range db.BackendList() {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
-			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
+			tmpdb := newTempDB(t, backend)
+			itr := db.IteratePrefix(tmpdb, []byte("2"))
 
 			checkInvalid(t, itr)
 		})
@@ -25,8 +27,8 @@ func TestPrefixIteratorNoMatchNil(t *testing.T) {
 func TestPrefixIteratorNoMatch1(t *testing.T) {
 	t.Parallel()
 
-	for backend := range backends {
-		if backend == BoltDBBackend {
+	for _, backend := range db.BackendList() {
+		if backend == db.BoltDBBackend {
 			t.Log("bolt does not support concurrent writes while iterating")
 			continue
 		}
@@ -34,9 +36,9 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
-			db := newTempDB(t, backend)
-			itr := IteratePrefix(db, []byte("2"))
-			db.SetSync(bz("1"), bz("value_1"))
+			tmpdb := newTempDB(t, backend)
+			itr := db.IteratePrefix(tmpdb, []byte("2"))
+			tmpdb.SetSync(bz("1"), bz("value_1"))
 
 			checkInvalid(t, itr)
 		})
@@ -47,13 +49,13 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 func TestPrefixIteratorNoMatch2(t *testing.T) {
 	t.Parallel()
 
-	for backend := range backends {
+	for _, backend := range db.BackendList() {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
-			db := newTempDB(t, backend)
-			db.SetSync(bz("3"), bz("value_3"))
-			itr := IteratePrefix(db, []byte("4"))
+			tmpdb := newTempDB(t, backend)
+			tmpdb.SetSync(bz("3"), bz("value_3"))
+			itr := db.IteratePrefix(tmpdb, []byte("4"))
 
 			checkInvalid(t, itr)
 		})
@@ -64,13 +66,13 @@ func TestPrefixIteratorNoMatch2(t *testing.T) {
 func TestPrefixIteratorMatch1(t *testing.T) {
 	t.Parallel()
 
-	for backend := range backends {
+	for _, backend := range db.BackendList() {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
-			db := newTempDB(t, backend)
-			db.SetSync(bz("2"), bz("value_2"))
-			itr := IteratePrefix(db, bz("2"))
+			tmpdb := newTempDB(t, backend)
+			tmpdb.SetSync(bz("2"), bz("value_2"))
+			itr := db.IteratePrefix(tmpdb, bz("2"))
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("2"), bz("value_2"))
@@ -86,22 +88,22 @@ func TestPrefixIteratorMatch1(t *testing.T) {
 func TestPrefixIteratorMatches1N(t *testing.T) {
 	t.Parallel()
 
-	for backend := range backends {
+	for _, backend := range db.BackendList() {
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
-			db := newTempDB(t, backend)
+			tmpdb := newTempDB(t, backend)
 
 			// prefixed
-			db.SetSync(bz("a/1"), bz("value_1"))
-			db.SetSync(bz("a/3"), bz("value_3"))
+			tmpdb.SetSync(bz("a/1"), bz("value_1"))
+			tmpdb.SetSync(bz("a/3"), bz("value_3"))
 
 			// not
-			db.SetSync(bz("b/3"), bz("value_3"))
-			db.SetSync(bz("a-3"), bz("value_3"))
-			db.SetSync(bz("a.3"), bz("value_3"))
-			db.SetSync(bz("abcdefg"), bz("value_3"))
-			itr := IteratePrefix(db, bz("a/"))
+			tmpdb.SetSync(bz("b/3"), bz("value_3"))
+			tmpdb.SetSync(bz("a-3"), bz("value_3"))
+			tmpdb.SetSync(bz("a.3"), bz("value_3"))
+			tmpdb.SetSync(bz("abcdefg"), bz("value_3"))
+			itr := db.IteratePrefix(tmpdb, bz("a/"))
 
 			checkValid(t, itr, true)
 			checkItem(t, itr, bz("a/1"), bz("value_1"))

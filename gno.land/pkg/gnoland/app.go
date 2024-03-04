@@ -18,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+
+	// Only goleveldb is supported for now.
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 type AppOptions struct {
@@ -33,7 +37,7 @@ type AppOptions struct {
 func NewAppOptions() *AppOptions {
 	return &AppOptions{
 		Logger:     log.NewNoopLogger(),
-		DB:         dbm.NewMemDB(),
+		DB:         memdb.NewMemDB(),
 		GnoRootDir: gnoenv.RootDir(),
 	}
 }

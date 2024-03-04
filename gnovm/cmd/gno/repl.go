@@ -30,7 +30,7 @@ func newReplCmd() *commands.Command {
 		commands.Metadata{
 			Name:       "repl",
 			ShortUsage: "repl [flags]",
-			ShortHelp:  "Starts a GnoVM REPL",
+			ShortHelp:  "starts a GnoVM REPL",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

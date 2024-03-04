@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -21,6 +22,7 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -256,7 +258,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	config := cfg.ResetTestRoot("node_create_proposal")
 	defer os.RemoveAll(config.RootDir)
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
@@ -357,7 +359,7 @@ func state(nVals int, height int64) (sm.State, dbm.DB) {
 	})
 
 	// save validators to db for 2 heights
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	sm.SaveState(stateDB, s)
 
 	for i := 1; i < int(height); i++ {
