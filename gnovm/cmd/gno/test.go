@@ -105,16 +105,9 @@ instruction with the actual content of the test instead of failing.
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when running",
-	)
-
-	fs.BoolVar(
-		&c.verbose,
 		"v",
 		false,
-		"alias for -verbose",
+		"verbose output when running",
 	)
 
 	fs.BoolVar(

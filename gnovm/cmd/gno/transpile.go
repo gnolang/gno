@@ -74,7 +74,7 @@ func newTranspileCmd(io commands.IO) *commands.Command {
 func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)

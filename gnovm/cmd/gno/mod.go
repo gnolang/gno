@@ -134,7 +134,7 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)
