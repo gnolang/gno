@@ -34,7 +34,7 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
-Note that gno does not support shadowing of builtin types. 
+Note that Gno does not support shadowing of built-in types. 
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go
