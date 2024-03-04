@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -83,7 +85,7 @@ func Render(_ string) string { return "bar" }
 	foopkg := generateTestingPackage(t, "gno.mod", fooGnoMod, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should works
-	node := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test render
@@ -103,6 +105,7 @@ func Render(_ string) string { return "bar" }
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
 
 	// After a reload, render should succeed
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
@@ -127,7 +130,7 @@ func Render(_ string) string { return "bar" }
 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should works
-	node := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test that render is correct
@@ -142,10 +145,15 @@ func Render(_ string) string { return "bar" }
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
 
+	// Check reload event
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+
 	// After a reload, render should succeed
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
+
+	assert.Nil(t, emitter.NextEvent())
 }
 
 func TestNodeReset(t *testing.T) {
@@ -163,7 +171,7 @@ func Render(_ string) string { return str }
 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
 
 	// Call NewDevNode with no package should works
-	node := newTestingDevNode(t, foopkg)
+	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
@@ -182,6 +190,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, err)
 	require.NoError(t, res.CheckTx.Error)
 	require.NoError(t, res.DeliverTx.Error)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult)
 
 	// Check for correct render update
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -191,12 +200,14 @@ func Render(_ string) string { return str }
 	// Reset state
 	err = node.Reset(context.Background())
 	require.NoError(t, err)
+	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
 
 	// Test rendering should return initial `str` value
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
+	assert.Nil(t, emitter.NextEvent())
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
@@ -252,21 +263,23 @@ func generateTestingPackage(t *testing.T, nameFile ...string) string {
 	return workdir
 }
 
-func newTestingDevNode(t *testing.T, pkgslist ...string) *Node {
+func newTestingDevNode(t *testing.T, pkgslist ...string) (*Node, *emitter.ServerMock) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger := log.NewTestingLogger(t)
 
+	emitter := &emitter.ServerMock{}
+
 	// Call NewDevNode with no package should works
-	node, err := NewDevNode(ctx, logger, pkgslist)
+	node, err := NewDevNode(ctx, logger, emitter, pkgslist)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), len(pkgslist))
 
 	t.Cleanup(func() { node.Close() })
 
-	return node
+	return node, emitter
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {
