@@ -35,7 +35,7 @@ id: go-gno-compatibility
 Generics are currently not implemented.
 
 Note that gno does not support shadowing of builtin types. 
-While the following builtin typecasting assignment would work in go, this is not supported in gno.
+While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go
 rune := rune('a')
