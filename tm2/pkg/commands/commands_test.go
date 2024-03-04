@@ -462,7 +462,7 @@ FLAGS
 USAGE
   TestHelpUsage [flags] <args>
 
-Some short help.
+some short help.
 
 FLAGS
   -b=false  bool
