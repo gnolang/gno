@@ -26,7 +26,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "mod",
 			ShortUsage: "mod <command>",
-			ShortHelp:  "Manage gno.mod",
+			ShortHelp:  "manage gno.mod",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
@@ -49,7 +49,7 @@ func newModDownloadCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "download",
 			ShortUsage: "download [flags]",
-			ShortHelp:  "Download modules to local cache",
+			ShortHelp:  "download modules to local cache",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -63,7 +63,7 @@ func newModInitCmd() *commands.Command {
 		commands.Metadata{
 			Name:       "init",
 			ShortUsage: "init [module-path]",
-			ShortHelp:  "Initialize gno.mod file in current directory",
+			ShortHelp:  "initialize gno.mod file in current directory",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
@@ -77,7 +77,7 @@ func newModTidy(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "tidy",
 			ShortUsage: "tidy",
-			ShortHelp:  "Add missing and remove unused modules",
+			ShortHelp:  "add missing and remove unused modules",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {

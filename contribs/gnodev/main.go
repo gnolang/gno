@@ -53,7 +53,7 @@ func main() {
 		commands.Metadata{
 			Name:       "gnodev",
 			ShortUsage: "gnodev [flags] [path ...]",
-			ShortHelp:  "Runs an in-memory node and gno.land web server for development purposes.",
+			ShortHelp:  "runs an in-memory node and gno.land web server for development purposes.",
 			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
 primarily for realm package development. It automatically loads the 'examples' directory and any
 additional specified paths.`,

@@ -33,7 +33,7 @@ func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Comma
 		commands.Metadata{
 			Name:       "addpkg",
 			ShortUsage: "addpkg [flags] <key-name>",
-			ShortHelp:  "Uploads a new package",
+			ShortHelp:  "uploads a new package",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
