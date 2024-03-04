@@ -10,8 +10,8 @@ type verificationTask struct {
 	githubHandle string
 }
 
-// MarshalToJSON marshals the task contents to JSON.
-func (t *verificationTask) MarshalToJSON() ([]byte, error) {
+// MarshalJSON marshals the task contents to JSON.
+func (t *verificationTask) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 

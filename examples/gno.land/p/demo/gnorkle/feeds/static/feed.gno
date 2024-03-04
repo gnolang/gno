@@ -117,7 +117,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 			w.WriteString(",")
 		}
 
-		taskJSON, err := task.MarshalToJSON()
+		taskJSON, err := task.MarshalJSON()
 		if err != nil {
 			return nil, err
 		}
