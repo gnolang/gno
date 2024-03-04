@@ -28,6 +28,7 @@ var (
 		GTR:      isOrdered,
 		GEQ:      isOrdered,
 	}
+	// TODO: star, addressable
 	unaryChecker = map[Word]func(t Type) bool{
 		ADD: isNumeric,
 		SUB: isNumeric,
@@ -207,48 +208,52 @@ func isNumericOrString(t Type) bool {
 type Checker struct {
 }
 
+var AC *AssignabilityCache
+
 // check both sides since no aware of which side is dest type
 // TODO: add check assignable, 1.0 % uint64(1) is valid as is assignable
 // that lt not compatible but rt is compatible would be good
 // things like this would fail: 	println(1.0 % 1)
 
-func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode) {
+// AssertCompatible works as a pre-check prior to checkOrConvertType()
+// It checks expressions to ensure the compatibility between operands and operators.
+// e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
+// Overall,it efficiently filters out incompatible expressions, stopping before the next
+// checkOrConvertType() operation to optimize performance.
+
+// dt is a special case for binary expr that the dest type for the
+// lhs determined by outer context
+func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	debug.Printf("---AssertCompatible, bx: %v \n", bx)
 
 	debug.Printf("---AssertCompatible, bx.Left: %T \n", bx.Left)
 	debug.Printf("---AssertCompatible, bx.Right: %T \n", bx.Right)
 	// get left type and right type
-	var lt, rt Type
-	if lx, ok := (bx.Left).(*ConstExpr); ok {
-		lt = lx.T
-	} else if bx.Left != nil {
-		lt = evalStaticTypeOf(store, last, bx.Left)
-	}
-
-	if rx, ok := (bx.Right).(*ConstExpr); ok {
-		rt = rx.T
-	} else if bx.Left != nil {
-		rt = evalStaticTypeOf(store, last, bx.Right)
-	}
+	lt := evalStaticTypeOf(store, last, bx.Left)
+	rt := evalStaticTypeOf(store, last, bx.Right)
 
 	// we can't check compatible with native types
-	// so leave it to checkOrConvertStage
+	// at current stage, so leave it to checkOrConvertType
+	// to secondary call this assert logic again
 	if _, ok := lt.(*NativeType); ok {
+		debug.Println("---left native, return")
 		return
 	}
 	if _, ok := rt.(*NativeType); ok {
+		debug.Println("---right native, return")
 		return
 	}
 
 	debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, bx.Op)
 	escapedOpStr := strings.Replace(wordTokenStrings[bx.Op], "%", "%%", 1)
+
 	if isComparison(bx.Op) {
 		switch bx.Op {
 		case EQL, NEQ:
 			assertComparable(lt, rt)
 		case LSS, LEQ, GTR, GEQ:
 			if pred, ok := binaryChecker[bx.Op]; ok {
-				assertCompatible2(lt, rt, pred, escapedOpStr)
+				bx.assertCompatible2(lt, rt, pred, escapedOpStr, dt)
 			} else {
 				panic("should not happen")
 			}
@@ -257,7 +262,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode) {
 		}
 	} else {
 		if pred, ok := binaryChecker[bx.Op]; ok {
-			assertCompatible2(lt, rt, pred, escapedOpStr)
+			bx.assertCompatible2(lt, rt, pred, escapedOpStr, dt)
 		} else {
 			panic("should not happen")
 		}
@@ -278,8 +283,29 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
-func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string) {
+// TODO: turn into method of bx
+func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string, dt Type) {
+	debug.Println("---assertCompatible2, op: ", bx.Op)
+	debug.Printf("---assertCompatible2, lt: %v, rt: %v \n", lt, rt)
+	debug.Printf("---assertCompatible2, dt: %v \n", dt)
+	AC = NewAssignabilityCache()
 	var destKind interface{}
+
+	// shl/shr
+	if bx.Op == SHL || bx.Op == SHR {
+		if dt == nil {
+			dt = lt
+		}
+		if dt != nil {
+			destKind = dt.Kind()
+		}
+		if !pred(dt) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+		}
+		return
+	}
+
+	// other cases
 	cmp := cmpSpecificity(lt, rt)
 	if !pred(lt) { // lt not compatible with op
 		if !pred(rt) { // rt not compatible with op
@@ -301,6 +327,7 @@ func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string)
 				checkAssignable(lt, rt, true)
 				debug.Println("---assignable")
 				// TODO: set attr
+				AC.cache[ExprTypePair{X: bx.Left, T: rt}] = true
 			} else {
 				if lt != nil { // return error on left side that is checked first
 					destKind = lt.Kind()
@@ -323,5 +350,146 @@ func assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string)
 	} else {
 		// both good
 		debug.Println("---both good")
+	}
+}
+
+func (ux *UnaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
+	debug.Printf("---AssertCompatible, ux: %v \n", ux)
+	debug.Printf("---AssertCompatible, ux.X: %T \n", ux.X)
+
+	var destKind interface{}
+
+	// get left type and right type
+	t := evalStaticTypeOf(store, last, ux.X)
+	// we can't check compatible with native types
+	// at current stage, so leave it to checkOrConvertType
+	// to secondary call this assert logic again
+	if _, ok := t.(*NativeType); ok {
+		debug.Println("---left native, return")
+		return
+	}
+
+	// check compatible
+	if pred, ok := unaryChecker[ux.Op]; ok {
+		if dt == nil {
+			dt = t
+		}
+		if !pred(dt) {
+			if dt != nil {
+				destKind = dt.Kind()
+			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[ux.Op], destKind))
+		}
+	} else {
+		panic("should not happen")
+	}
+}
+
+func (idst *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
+	debug.Printf("---AssertCompatible, st: %v \n", idst)
+	debug.Printf("---AssertCompatible, st.X: %T \n", idst.X)
+	debug.Printf("---AssertCompatible, st.Op: %T \n", idst.Op)
+
+	var destKind interface{}
+
+	// get left type and right type
+	t := evalStaticTypeOf(store, last, idst.X)
+
+	// we can't check compatible with native types
+	// at current stage, so leave it to checkOrConvertType
+	// to secondary call this assert logic again
+	if _, ok := t.(*NativeType); ok {
+		debug.Println("---left native, return")
+		return
+	}
+
+	// check compatible
+	if pred, ok := IncDecStmtChecker[idst.Op]; ok {
+		if !pred(t) {
+			if t != nil {
+				destKind = t.Kind()
+			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[idst.Op], destKind))
+		}
+	} else {
+		panic("should not happen")
+	}
+}
+
+func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
+	debug.Printf("---AssertCompatible, as: %v \n", as)
+	debug.Printf("---AssertCompatible, as len lhs: %T \n", len(as.Lhs))
+	//debug.Printf("---AssertCompatible, as.X: %T \n", len(as.Lhs))
+	debug.Printf("---AssertCompatible, as.Op: %v \n", as.Op)
+
+	escapedOpStr := strings.Replace(wordTokenStrings[as.Op], "%", "%%", 1)
+
+	var destKind interface{}
+
+	// XXX, assume lhs length is same with of rhs
+	// TODO: check call case?
+	for i, x := range as.Lhs {
+		lt := evalStaticTypeOf(store, last, x)
+		rt := evalStaticTypeOf(store, last, as.Rhs[i])
+
+		// we can't check compatible with native types
+		// at current stage, so leave it to checkOrConvertType
+		// to secondary call this assert logic again
+		if _, ok := lt.(*NativeType); ok {
+			debug.Println("---left native, return")
+			return
+		}
+
+		if _, ok := rt.(*NativeType); ok {
+			debug.Println("---right native, return")
+			return
+		}
+
+		debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, as.Op)
+
+		// check compatible
+		if pred, ok := AssignStmtChecker[as.Op]; ok {
+			if !pred(lt) {
+				if lt != nil {
+					destKind = lt.Kind()
+				}
+				panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+			}
+			switch as.Op {
+			case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+				// if both typed
+				if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
+					debug.Println("---both typed")
+					if lt != nil && rt != nil {
+						// TODO: filter byte that has no typeID?
+						if lt.TypeID() != rt.TypeID() {
+							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+						}
+					}
+				}
+			default:
+				// do nothing
+			}
+		} else {
+			panic("should not happen")
+		}
+	}
+}
+
+func isQuoOrRem(op Word) bool {
+	switch op {
+	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:
+		return true
+	default:
+		return false
+	}
+}
+
+func isComparison(op Word) bool {
+	switch op {
+	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+		return true
+	default:
+		return false
 	}
 }

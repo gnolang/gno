@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // NOTE: TypeID() implementations are currently
@@ -2199,6 +2200,24 @@ func assertMaybeNil(msg string, t Type) {
 	}
 }
 
+// ExprTypePair represents a unique combination of an expression and a type.
+type ExprTypePair struct {
+	X Expr
+	T Type
+}
+
+// AssignabilityCache caches the results of assignability checks.
+type AssignabilityCache struct {
+	mu    sync.RWMutex
+	cache map[ExprTypePair]bool
+}
+
+func NewAssignabilityCache() *AssignabilityCache {
+	return &AssignabilityCache{
+		cache: make(map[ExprTypePair]bool),
+	}
+}
+
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
@@ -2211,6 +2230,7 @@ func assertMaybeNil(msg string, t Type) {
 // case 4. general cases for primitives and composite.
 // XXX. the name of checkAssignable should be considered.
 // we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
+// TODO: move these to type_check.go
 func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	if debug {
 		debug.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
