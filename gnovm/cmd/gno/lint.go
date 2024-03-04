@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
+	"go/types"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,9 +14,10 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/multierr"
 )
 
 type lintCfg struct {
@@ -75,36 +78,75 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
-			fmt.Fprintf(io.Err(), "Linting %q...\n", pkgPath)
+			fmt.Fprintf(io.Err(), "%s\n", pkgPath)
+		}
+
+		info, err := os.Stat(pkgPath)
+		if err == nil && !info.IsDir() {
+			pkgPath = filepath.Dir(pkgPath)
 		}
 
 		// Check if 'gno.mod' exists
-		gnoModPath := filepath.Join(pkgPath, "gno.mod")
-		if !osm.FileExists(gnoModPath) {
+		gmFile, err := gnomod.ParseAt(pkgPath)
+		if err != nil {
 			addIssue(lintIssue{
-				Code:       lintNoGnoMod,
+				Code:       lintGnoMod,
 				Confidence: 1,
 				Location:   pkgPath,
-				Msg:        "missing 'gno.mod' file",
+				Msg:        err.Error(),
 			})
 		}
 
 		// Handle runtime errors
 		catchRuntimeError(pkgPath, addIssue, func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
+
 			testStore := tests.TestStore(
 				rootDir, "",
 				stdin, stdout, stderr,
 				tests.ImportModeStdlibsOnly,
 			)
 
-			targetPath := pkgPath
-			info, err := os.Stat(pkgPath)
-			if err == nil && !info.IsDir() {
-				targetPath = filepath.Dir(pkgPath)
+			memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
+
+			if gmFile == nil || !gmFile.Draft {
+				tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+				if tcErr != nil {
+					errs := multierr.Errors(tcErr)
+					for _, err := range errs {
+						switch err := err.(type) {
+						case types.Error:
+							addIssue(lintIssue{
+								Code:       lintTypeCheckError,
+								Msg:        err.Msg,
+								Confidence: 1,
+								Location:   err.Fset.Position(err.Pos).String(),
+							})
+						case scanner.ErrorList:
+							for _, scErr := range err {
+								addIssue(lintIssue{
+									Code:       lintParserError,
+									Msg:        scErr.Msg,
+									Confidence: 1,
+									Location:   scErr.Pos.String(),
+								})
+							}
+						case scanner.Error:
+							addIssue(lintIssue{
+								Code:       lintParserError,
+								Msg:        err.Msg,
+								Confidence: 1,
+								Location:   err.Pos.String(),
+							})
+						default:
+							fmt.Fprintf(os.Stderr, "unexpected error type: %T\n", err)
+						}
+					}
+				}
+			} else if verbose {
+				fmt.Fprintf(stderr, "%s: module is draft, skipping type check\n", pkgPath)
 			}
 
-			memPkg := gno.ReadMemPackage(targetPath, targetPath)
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
 
 			// Check package
@@ -210,9 +252,11 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 type lintCode int
 
 const (
-	lintUnknown  lintCode = 0
-	lintNoGnoMod lintCode = iota
+	lintUnknown lintCode = 0
+	lintGnoMod  lintCode = iota
 	lintGnoError
+	lintParserError
+	lintTypeCheckError
 
 	// TODO: add new linter codes here.
 )
