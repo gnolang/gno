@@ -64,7 +64,7 @@ func lastContributions(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Latest Contributions"),
 		// TODO: import r/gh to
-		ui.Link{Text: "View latest contributions", URL: "https://github.com/gnolang/gno/pulls?q=is%3Apr+is%3Aclosed"},
+		ui.Link{Text: "View latest contributions", URL: "https://github.com/gnolang/gno/pulls"},
 	}
 }
 
