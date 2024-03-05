@@ -220,7 +220,7 @@ func discoverLinks() ui.Element {
 - [Events](/events)
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
-- Subscribe (soon)
+- [Explore the Ecosystem](/ecosystem)
 
 </div><!-- end column-->
 
@@ -229,12 +229,10 @@ func discoverLinks() ui.Element {
 ### Build with Gno
 
 - [Write Gno in the browser](https://play.gno.land)
-- [Explore the Ecosystem](/ecosystem)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
 - [Gno by Example](https://gno-by-example.com/)
-- Gno dev with CLI (soon)
-
+- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
 
 </div><!-- end column-->
 <div class="column">
@@ -242,9 +240,11 @@ func discoverLinks() ui.Element {
 ### Explore the universe
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
+- [Gnoscan](https://gnoscan.io)
+- [Portal Loop](https://docs.gno.land/concepts/portal-loop) 
+- Testnet 4 (upcoming)
 - [Testnet 3](https://test3.gno.land/) (deprecated)
 - [Testnet 2](https://test2.gno.land/) (deprecated)
-- [Gnoscan](https://gnoscan.io)
 - Testnet Faucet Hub (soon)
 
 </div><!-- end column-->
