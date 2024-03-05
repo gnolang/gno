@@ -1,6 +1,7 @@
 name: portal-loop
 
 on:
+  workflow_dispatch: {}
   push:
     paths:
       - misc/loop
