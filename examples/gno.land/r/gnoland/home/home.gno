@@ -75,9 +75,9 @@ func upcomingEvents(limit int) ui.Element {
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("An interpretation of the Go (Golang) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
-		ui.Paragraph("If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how."),
-		ui.Paragraph("Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today."),
+		ui.H3("We’re building Gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
+		ui.Paragraph("With transparent and timeless code, Gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
+		ui.Paragraph("Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
 	}
 }
 
