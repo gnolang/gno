@@ -213,11 +213,11 @@ func discoverLinks() ui.Element {
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
-- Subscribe (soon)
-- Tokenomics (soon)
 - [Blog](/blog)
 - [Events](/events)
+- Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
+- Subscribe (soon)
 
 </div><!-- end column-->
 
