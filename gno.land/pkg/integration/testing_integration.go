@@ -220,6 +220,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
 				sid := ts.Getenv("SID")                         // grab session id
 
+				var err error
+				for i, arg := range args {
+					if len(arg) < 2 || !strings.HasPrefix(arg, `"`) || !strings.HasSuffix(arg, `"`) {
+						continue
+					}
+
+					if args[i], err = strconv.Unquote(arg); err != nil {
+						ts.Fatalf("unable to unquote %s: %w ", arg, err)
+					}
+				}
+
 				// Setup IO command
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
@@ -250,7 +261,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// user provided.
 				args = append(defaultArgs, args...)
 
-				err := cmd.ParseAndRun(context.Background(), args)
+				err = cmd.ParseAndRun(context.Background(), args)
 
 				tsValidateError(ts, "gnokey", neg, err)
 			},
