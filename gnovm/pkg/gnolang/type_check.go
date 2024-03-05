@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -190,10 +191,456 @@ func isNumericOrString(t Type) bool {
 
 // ===========================================================
 
-type Checker struct {
+// main type-assertion functions.
+// TODO: document what class of problems its for.
+// One of them can be nil, and this lets uninitialized primitives
+// and others serve as empty values.  See doOpAdd()
+// usage: if debug { assertSameTypes() }
+func assertSameTypes(lt, rt Type) {
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil types are identical.
+	} else {
+		// panic("panic assertSameTypes")
+		debug.Errorf(
+			"incompatible operands in binary expression: %s and %s",
+			lt.String(),
+			rt.String(),
+		)
+	}
 }
 
-var AssignableCheckCache *AssignabilityCache
+func isSameType(lt, rt Type) bool {
+	return lt == nil && rt == nil || // both are nil/undefined
+		(lt != nil && rt != nil) && // both are defined
+			(lt.TypeID() == rt.TypeID()) // and identical.
+}
+
+// runtime assert
+func assertAssignable(lt, rt Type) {
+	if debug {
+		debug.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+	}
+	if isSameType(lt, rt) {
+		// both are nil/undefined or same type.
+	} else if lt == nil || rt == nil { // has support (interface{}) typed-nil, yet support for (native interface{}) typed-nil
+		// LHS is undefined
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else {
+		debug.Errorf(
+			"incompatible operands in binary expression: %s and %s",
+			lt.String(),
+			rt.String(),
+		)
+	}
+}
+
+// assertComparable is used in preprocess.
+// assert value with dt is comparable
+// special case when both typed, check if type identical
+// TODO: move this to type_checker? as a method?
+// TODO: check mismatch on this, not postpone to checkOrConvertType
+func assertComparable(xt, dt Type) {
+	if debug {
+		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
+	}
+	switch cdt := baseOf(dt).(type) {
+	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage?
+	case *ArrayType: // NOTE: no recursive allowed
+		switch baseOf(cdt.Elem()).(type) {
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
+			switch cxt := baseOf(xt).(type) {
+			case *ArrayType:
+				if cxt.Len != cdt.Len { // check length
+					panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
+				}
+			default:
+				panic(fmt.Sprintf("%v and %v cannot be compared \n", cxt, cdt))
+			}
+		default:
+			panic(fmt.Sprintf("%v and %v cannot be compared \n", xt, cdt))
+		}
+	case *StructType:
+		for _, f := range cdt.Fields {
+			switch baseOf(f.Type).(type) {
+			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
+			default:
+				panic(fmt.Sprintf("%v and %v cannot be compared \n", xt, cdt))
+			}
+		}
+	case *PointerType: // &a == &b
+	case *InterfaceType: // var a, b interface{}
+	case *SliceType, *FuncType, *MapType:
+		if xt != nil {
+			panic(fmt.Sprintf("%v can only be compared to nil \n", dt))
+		}
+	case *NativeType:
+		if !cdt.Type.Comparable() {
+			panic(fmt.Sprintf("%v is not comparable \n", dt))
+		}
+	case nil: // refer to 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
+		assertMaybeNil("invalid operation, nil can not be compared to", xt)
+	default:
+		panic(fmt.Sprintf("%v is not comparable \n", dt))
+	}
+}
+
+func assertMaybeNil(msg string, t Type) {
+	if t == nil {
+		panic(fmt.Sprintf("%s %s \n", msg, "nil"))
+	}
+	switch cxt := baseOf(t).(type) {
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+	case *NativeType:
+		switch nk := cxt.Type.Kind(); nk {
+		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
+		default:
+			panic(fmt.Sprintf("%s %s \n", msg, nk))
+		}
+	default:
+		panic(fmt.Sprintf("%s %s \n", msg, t))
+	}
+}
+
+// AssignabilityCache caches the results of assignability checks.
+type AssignabilityCache struct {
+	storage map[string]map[string]bool
+}
+
+func NewAssignabilityCache() *AssignabilityCache {
+	return &AssignabilityCache{
+		storage: make(map[string]map[string]bool),
+	}
+}
+
+func (ac *AssignabilityCache) Add(key Expr, value Type) {
+	if ac.storage[key.String()] == nil {
+		ac.storage[key.String()] = make(map[string]bool)
+	}
+	ac.storage[key.String()][value.String()] = true
+}
+
+func (ac *AssignabilityCache) Exists(key Expr, value Type) bool {
+	if valSet, ok := ac.storage[key.String()]; ok {
+		// Check if the value exists in the set
+		return valSet[value.String()]
+	}
+	return false
+}
+
+// Assert that xt can be assigned as dt (dest type).
+// If autoNative is true, a broad range of xt can match against
+// a target native dt type, if and only if dt is a native type.
+
+// check if xt can be assigned to dt. conversionNeeded indicates further conversion needed especially from unnamed -> named
+// case 0. nil check
+// case 1. untyped const to typed const with same kind
+// case 2. unnamed to named
+// case 3. dt is interface, xt satisfied dt
+// case 4. general cases for primitives and composite.
+// XXX. the name of checkAssignable should be considered.
+// we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
+func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+	if debug {
+		debug.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
+	}
+	// case0
+	if xt == nil { // refer to 0f18_filetest
+		assertMaybeNil("invalid operation, nil can not be compared to", dt)
+		return
+	}
+	if dt == nil { // refer to assign8.gno
+		return
+	}
+	// case3
+	if dt.Kind() == InterfaceKind {
+		if idt, ok := baseOf(dt).(*InterfaceType); ok {
+			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
+				// if dt is an empty Gno interface, any x ok.
+				return // ok
+			} else if idt.IsImplementedBy(xt) {
+				// if dt implements idt, ok.
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"%s does not implement %s",
+					xt.String(),
+					dt.String()))
+			}
+		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
+			nidt := ndt.Type
+			if nidt.NumMethod() == 0 {
+				// if dt is an empty Go native interface, ditto.
+				return // ok
+			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
+				// if xt has native base, do the naive native.
+				if nxt.Type.AssignableTo(nidt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						nxt.String(),
+						nidt.String()))
+				}
+			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
+				nxt, ok := pxt.Elt.(*NativeType)
+				if !ok {
+					panic(fmt.Sprintf(
+						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
+						pxt.String(),
+						nidt.String()))
+				}
+				// if xt has native base, do the naive native.
+				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
+					return // ok
+				} else {
+					panic(fmt.Sprintf(
+						"cannot use %s as %s",
+						pxt.String(),
+						nidt.String()))
+				}
+			} else {
+				panic(fmt.Sprintf(
+					"unexpected type pair: cannot use %s as %s",
+					xt.String(),
+					dt.String()))
+			}
+		} else {
+			panic("should not happen")
+		}
+	}
+
+	// case2
+	// Special case if xt or dt is *PointerType to *NativeType,
+	// convert to *NativeType of pointer kind.
+	if pxt, ok := xt.(*PointerType); ok {
+		// *gonative{x} is gonative{*x}
+		//nolint:misspell
+		if enxt, ok := pxt.Elt.(*NativeType); ok {
+			xt = &NativeType{
+				Type: reflect.PtrTo(enxt.Type),
+			}
+		}
+	}
+	if pdt, ok := dt.(*PointerType); ok {
+		// *gonative{x} is gonative{*x}
+		if endt, ok := pdt.Elt.(*NativeType); ok {
+			dt = &NativeType{
+				Type: reflect.PtrTo(endt.Type),
+			}
+		}
+	}
+
+	// Special case of xt or dt is *DeclaredType,
+	// allow implicit conversion unless both are declared.
+	// TODO simplify with .IsNamedType().
+	if dxt, ok := xt.(*DeclaredType); ok {
+		if ddt, ok := dt.(*DeclaredType); ok {
+			// types must match exactly.
+			if !dxt.sealed && !ddt.sealed &&
+				dxt.PkgPath == ddt.PkgPath &&
+				dxt.Name == ddt.Name { // not yet sealed
+				return // ok
+			} else if dxt.TypeID() == ddt.TypeID() {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					dxt.String(),
+					ddt.String()))
+			}
+		} else {
+			// special case if implicitly named primitive type.
+			// TODO simplify with .IsNamedType().
+			if _, ok := dt.(PrimitiveType); ok {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					dxt.String(),
+					dt.String()))
+			} else {
+				// carry on with baseOf(dxt)
+				xt = dxt.Base           // set as base to do the rest check
+				conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
+			}
+		}
+	} else if ddt, ok := dt.(*DeclaredType); ok {
+		// special case if implicitly named primitive type.
+		// TODO simplify with .IsNamedType().
+		if _, ok := xt.(PrimitiveType); ok { // e.g. 1 == Int(1)
+			if debug {
+				debug.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
+			}
+			// this is special when dt is the declared type of x
+			if !isUntyped(xt) {
+				panic(fmt.Sprintf(
+					"cannot use %s as %s without explicit conversion",
+					xt.String(),
+					ddt.String()))
+			} else { // xt untyped, carry on with check below
+				dt = ddt.Base
+			}
+		} else {
+			dt = ddt.Base
+			conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
+		}
+	}
+
+	// General cases.
+	switch cdt := dt.(type) {
+	case PrimitiveType: // case 1
+		// if xt is untyped, ensure dt is compatible.
+		switch xt {
+		case UntypedBoolType:
+			if dt.Kind() == BoolKind {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped bool as %s",
+					dt.Kind()))
+			}
+		case UntypedStringType:
+			if dt.Kind() == StringKind {
+				return // ok
+			} else {
+				panic(fmt.Sprintf(
+					"cannot use untyped string as %s",
+					dt.Kind()))
+			}
+
+		case UntypedBigdecType: // can bigdec assign to bigint?
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped Bigdec as %s",
+					dt.Kind()))
+			}
+		case UntypedBigintType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped Bigint as %s",
+					dt.Kind()))
+			}
+		case UntypedRuneType:
+			switch dt.Kind() {
+			case IntKind, Int8Kind, Int16Kind, Int32Kind,
+				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
+				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				return // ok
+			default:
+				panic(fmt.Sprintf(
+					"cannot use untyped rune as %s",
+					dt.Kind()))
+			}
+
+		default:
+			if isUntyped(xt) {
+				panic("unexpected untyped type")
+			}
+			if xt.TypeID() == cdt.TypeID() {
+				return // ok
+			}
+		}
+	case *PointerType: // case 4 from here on
+		if pt, ok := xt.(*PointerType); ok {
+			cdt := checkAssignable(pt.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
+		}
+	case *ArrayType:
+		if at, ok := xt.(*ArrayType); ok {
+			cdt := checkAssignable(at.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
+		}
+	case *SliceType:
+		if st, ok := xt.(*SliceType); ok {
+			cdt := checkAssignable(st.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
+		}
+	case *MapType:
+		if mt, ok := xt.(*MapType); ok {
+			cn1 := checkAssignable(mt.Key, cdt.Key, false)
+			cn2 := checkAssignable(mt.Value, cdt.Value, false)
+			return cn1 || cn2 || conversionNeeded
+		}
+	case *FuncType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *InterfaceType:
+		panic("should not happen")
+	case *DeclaredType:
+		// do nothing, untyped to declared type
+		return
+		// panic("should not happen")
+	case *StructType, *PackageType, *ChanType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *TypeType:
+		if xt.TypeID() == cdt.TypeID() {
+			return // ok
+		}
+	case *NativeType:
+		if !autoNative {
+			if debug {
+				debug.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
+			}
+			if xt.TypeID() == cdt.TypeID() {
+				return // ok
+			}
+		} else {
+			// autoNative, so check whether matches.
+			// xt: any type but a *DeclaredType; could be native.
+			// cdt: actual concrete native target type.
+			// ie, if cdt can match against xt.
+			if gno2GoTypeMatches(xt, cdt.Type) {
+				return // ok
+			}
+		}
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %s",
+			dt.String()))
+	}
+	panic(fmt.Sprintf(
+		"cannot use %s as %s",
+		xt.String(),
+		dt.String()))
+}
+
+// ===========================================================
+
+// TODO: expand this
+//type Checker struct {
+//}
 
 // check both sides since no aware of which side is dest type
 // that lt not compatible but rt is compatible would be good
@@ -309,7 +756,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 				checkAssignable(lt, rt, true)
 				debug.Println("---assignable")
 				// cache, XXX, is this needed?
-				AssignableCheckCache.cache[ExprTypePair{X: bx.Left, T: rt}] = true
+				AssignableCheckCache.Add(bx.Left, rt)
 			} else {
 				if lt != nil { // return error on left side that is checked first
 					destKind = lt.Kind()
@@ -323,6 +770,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 		// when they share same specificity implies not assignable?
 		if cmp > 0 { // right to left
 			checkAssignable(rt, lt, true)
+			AssignableCheckCache.Add(bx.Right, lt)
 		} else {
 			if rt != nil { // return error on left side that is checked first
 				destKind = rt.Kind()
@@ -458,6 +906,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
+// misc
 func isQuoOrRem(op Word) bool {
 	switch op {
 	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:

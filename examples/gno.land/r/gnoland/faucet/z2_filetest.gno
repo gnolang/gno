@@ -16,12 +16,10 @@ func main() {
 	)
 	std.TestSetOrigCaller(adminaddr)
 	err := faucet.AdminAddController(controlleraddr1)
-	//if err != nil {
 	if err != "" {
 		panic(err)
 	}
 	err = faucet.AdminAddController(controlleraddr2)
-	//if err != nil {
 	if err != "" {
 		panic(err)
 	}

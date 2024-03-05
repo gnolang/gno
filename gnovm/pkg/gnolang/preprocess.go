@@ -98,6 +98,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // are only called during the preprocessing stage.
 // It is a counter because Preprocess() is recursive.
 var preprocessing int
+var AssignableCheckCache *AssignabilityCache
 
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
@@ -122,7 +123,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		preprocessing += 1
 		defer func() {
 			preprocessing -= 1
-			AssignableCheckCache = nil // xxx, clean, why ns not cleaned?
+			AssignableCheckCache = nil
 		}()
 	}
 
@@ -2439,13 +2440,12 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// the reason why we need this is that the checkOperandWithOp() can not filter out all mismatch case,
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=).
 				// we still need a safeguard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
-				// TODO: if cx.GetAttribute(Attr_Assignable) == true
-				if AssignableCheckCache != nil {
-					if AssignableCheckCache.cache[ExprTypePair{X: *x, T: t}] == true {
-						debug.Printf("---assignable already set for: %v => %v \n", cx, t)
-					}
+				// this is for binaryExpr that assignable has already been checked and cached
+				if AssignableCheckCache != nil && AssignableCheckCache.Exists(*x, t) {
+					debug.Printf("---assignable already set for: %v => %v \n", cx, t)
+				} else {
+					checkAssignable(cx.T, t, autoNative) // refer to 22a17a
 				}
-				checkAssignable(cx.T, t, autoNative) // refer to 22a17a
 			}
 		}
 		convertConst(store, last, cx, t)
