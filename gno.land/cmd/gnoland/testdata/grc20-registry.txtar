@@ -1,10 +1,9 @@
 # example for contract-contract interaction with ownership
+# add registry
+loadpkg gno.land/r/registry $WORK/registry
 
 ## start a new node
 gnoland start
-
-# add registry
-gnokey maketx addpkg -pkgdir $WORK/registry -pkgpath gno.land/r/registry -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
 # we call Transfer with foo20, before it's registered
 gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1

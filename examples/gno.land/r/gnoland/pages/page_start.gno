@@ -17,5 +17,5 @@ func init() {
 - [Install Gno Key](/r/demo/boards:testboard/5)
 - TODO: add more links
 `
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:28Z", nil, nil)
 }

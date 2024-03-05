@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 

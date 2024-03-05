@@ -145,7 +145,7 @@ Simply point it to the location containing our testing source code, and the test
 For example, we can run the following command from the `counter-app/r/counter` directory:
 
 ```bash
-gno test -verbose -root-dir /Users/zmilos/Work/gno .
+gno test -verbose .
 ```
 
 Let's look into the different parts of this command:

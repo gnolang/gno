@@ -1,10 +1,9 @@
 package integration
 
 import (
+	"log/slog"
 	"path/filepath"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -133,7 +132,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
 func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
-	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display
 	// XXX: Do we care loading this TXs for testing ?

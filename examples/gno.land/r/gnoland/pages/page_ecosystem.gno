@@ -31,5 +31,5 @@ Gnoswap is currently under development and led by the Onbloc team. Gnoswap will 
 
 Through the Gno.land Developer Portal, new developers can explore the exciting world of Gnolang (Gno), a novel programming language that powers the Gno.land blockchain. If you want to interact with Gno.land, start writing a realm, build a dApp, or even port a Solidity contract to a Gnolang realm, you’ll find the resources to [get started here](https://docs.onbloc.xyz/).`
 	)
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil)
 }

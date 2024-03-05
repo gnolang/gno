@@ -25,7 +25,7 @@ func NewDeleteCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "delete",
 			ShortUsage: "delete [flags] <key-name>",
-			ShortHelp:  "Deletes a key from the keybase",
+			ShortHelp:  "deletes a key from the keybase",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

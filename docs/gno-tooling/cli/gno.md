@@ -19,7 +19,7 @@ gno {SUB_COMMAND}
 | Name         | Description                                |
 | ------------ | ------------------------------------------ |
 | `test`       | Tests a gno package.                       |
-| `precompile` | Precompiles a `.gno` file to a `.go` file. |
+| `transpile`  | Transpiles a `.gno` file to a `.go` file. |
 | `repl`       | Starts a GnoVM REPL.                       |
 
 ### `test`
@@ -32,9 +32,9 @@ gno {SUB_COMMAND}
 | `root-dir`   | String        | Clones location of github.com/gnolang/gno (gno tries to guess it). |
 | `run`        | String        | Test name filtering pattern.                                       |
 | `timeout`    | time.Duration | The maximum execution time in ns.                                  |
-| `precompile` | Boolean       | Precompiles a `.gno` file to a `.go` file before testing.          |
+| `transpile`  | Boolean       | Transpiles a `.gno` file to a `.go` file before testing.          |
 
-### `precompile`
+### `transpile`
 
 #### **Options**
 
