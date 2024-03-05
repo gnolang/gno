@@ -18,9 +18,11 @@ func Render(_ string) string {
 
 	// body
 	dom.Body.Append(introSection()...)
-	dom.Body.Append(ui.Jumbotron(worxDAO()))
-	dom.Body.Append(packageStaffPicks()...)
 	dom.Body.Append(ui.HR{})
+
+	dom.Body.Append(discoverLinks()...)
+	dom.Body.Append(ui.Jumbotron(worxDAO()))
+
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
@@ -28,8 +30,10 @@ func Render(_ string) string {
 			lastContributions(4),
 		}},
 	)
-	dom.Body.Append(ui.Jumbotron(discoverLinks()))
+	dom.Body.Append(ui.HR{})
 
+	dom.Body.Append(packageStaffPicks()...)
+	dom.Body.Append(ui.HR{})
 	// footer
 	dom.Footer.Append(
 		ui.Columns{2, []ui.Element{
@@ -60,7 +64,7 @@ func lastContributions(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Latest Contributions"),
 		// TODO: import r/gh to
-		ui.Link{Text: "View latest PRs", URL: "https://github.com/gnolang/gno/pulls?q=is%3Apr+is%3Aclosed"},
+		ui.Link{Text: "View latest contributions", URL: "https://github.com/gnolang/gno/pulls?q=is%3Apr+is%3Aclosed"},
 	}
 }
 
