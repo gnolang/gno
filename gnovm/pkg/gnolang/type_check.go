@@ -265,7 +265,19 @@ func assertComparable(xt, dt Type) {
 		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
 	}
 	switch cdt := baseOf(dt).(type) {
-	case PrimitiveType: // TODO: more strict when both typed primitive, rather than delayed to checkOrConvert->checkConvertable stage?
+	case PrimitiveType:
+		// both typed primitive types
+		if _, ok := baseOf(xt).(PrimitiveType); ok {
+			if !isUntyped(xt) && !isUntyped(dt) { // in this stage, lt or rt maybe untyped, not converted yet
+				debug.Println("---both typed")
+				if xt != nil && dt != nil {
+					// TODO: filter byte that has no typeID?
+					if xt.TypeID() != dt.TypeID() {
+						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", xt, dt))
+					}
+				}
+			}
+		}
 	case *ArrayType: // NOTE: no recursive allowed
 		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
@@ -779,7 +791,23 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 		}
 	} else {
 		// both good
-		debug.Println("---both good")
+		if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
+			// check when both typed
+			if lt != nil && rt != nil { // XXX, this should already be excluded by previous pred check.
+				// TODO: filter byte that has no typeID?
+				if lt.TypeID() != rt.TypeID() {
+					panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+				}
+			}
+		}
+		// check even when both side compatible with op
+		// it's ok since assertCompatible2 only for lss, add, etc
+		// that only with isOrdered
+		if cmp <= 0 {
+			checkAssignable(lt, rt, true)
+		} else {
+			checkAssignable(rt, lt, true)
+		}
 	}
 }
 

@@ -793,11 +793,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								} else if rcx.T == nil {
 									checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
 								} else { // default case, e.g. int(1) == int8(1), will also conduct type check
-									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
+									//checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
+									// do nothing, all compatibility is checked
 								}
 							} else {
 								debug.Println("cmp > 0, <-")
 								// convert n.Right to left type.
+								// XXX, consider this with 0a0_EQL_filetest.gno
 								checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
 							}
 							// check special case: zero divisor
