@@ -242,7 +242,7 @@ func discoverLinks() ui.Element {
 - [Install Gno Key instructions](/r/demo/boards:testboard/5)
 - [Testnets 3](https://test3.gno.land/)
 - [Testnets 2](https://test2.gno.land/)
-- [Explorer links(soon)](#)
+- [Gnoscan](https://gnoscan.io)
 - [Testnet Tokens (faucet)](https://test3.gno.land/faucet)
 
 </div><!-- end column-->
