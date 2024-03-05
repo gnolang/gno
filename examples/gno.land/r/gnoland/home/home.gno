@@ -157,7 +157,7 @@ func packageStaffPicks() ui.Element {
 			3,
 			[]ui.Element{
 				{
-					ui.H4("r/gnoland"),
+					ui.H4("[r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)"),
 					ui.BulletList{
 						ui.Link{URL: "r/gnoland/blog"},
 						ui.Link{URL: "r/gnoland/dao"},
@@ -165,14 +165,14 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/gnoland/home"},
 						ui.Link{URL: "r/gnoland/pages"},
 					},
-					ui.H4("r/system"),
+					ui.H4("[r/system](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/system)"),
 					ui.BulletList{
 						ui.Link{URL: "r/system/names"},
 						ui.Link{URL: "r/system/rewards"},
 						ui.Link{URL: "r/system/validators"},
 					},
 				}, {
-					ui.H4("r/demo"),
+					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
 					ui.BulletList{
 						ui.Link{URL: "r/demo/boards"},
 						ui.Link{URL: "r/demo/users"},
@@ -187,7 +187,7 @@ func packageStaffPicks() ui.Element {
 						ui.Text("..."),
 					},
 				}, {
-					ui.H4("p/demo"),
+					ui.H4("[p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)"),
 					ui.BulletList{
 						ui.Link{URL: "p/demo/avl"},
 						ui.Link{URL: "p/demo/blog"},
