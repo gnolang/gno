@@ -243,8 +243,8 @@ func discoverLinks() ui.Element {
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop) 
 - Testnet 4 (upcoming)
-- [Testnet 3](https://test3.gno.land/) (deprecated)
-- [Testnet 2](https://test2.gno.land/) (deprecated)
+- [Testnet 3](https://test3.gno.land/) (archive)
+- [Testnet 2](https://test2.gno.land/) (archive)
 - Testnet Faucet Hub (soon)
 
 </div><!-- end column-->
