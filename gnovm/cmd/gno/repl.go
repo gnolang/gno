@@ -38,7 +38,6 @@ func newReplCmd() *commands.Command {
 }
 
 func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
-
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
