@@ -228,12 +228,13 @@ func discoverLinks() ui.Element {
 
 ### Build with Gno
 
-- Gno dev with CLI (soon)
-- [Explore the Ecosystem](/ecosystem)
 - [Write Gno in the browser](https://play.gno.land)
+- [Explore the Ecosystem](/ecosystem)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
 - [Gno by Example](https://gno-by-example.com/)
+- Gno dev with CLI (soon)
+
 
 </div><!-- end column-->
 <div class="column">
@@ -241,9 +242,8 @@ func discoverLinks() ui.Element {
 ### Explore the universe
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
-- [Install Gno Key instructions](/r/demo/boards:testboard/5)
-- [Testnets 3](https://test3.gno.land/)
-- [Testnets 2](https://test2.gno.land/)
+- [Testnet 3](https://test3.gno.land/) (deprecated)
+- [Testnet 2](https://test2.gno.land/) (deprecated)
 - [Gnoscan](https://gnoscan.io)
 - Testnet Faucet Hub (soon)
 
