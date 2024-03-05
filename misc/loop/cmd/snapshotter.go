@@ -145,7 +145,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		},
 		Env: []string{
 			"MONIKER=the-portal-loop",
-			fmt.Sprintf("GENESIS_BACKUP_FILE=/backups/backup.jsonl"),
+			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 		},
 		Cmd: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
