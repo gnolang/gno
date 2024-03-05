@@ -3,20 +3,19 @@ package gnopages
 func init() {
 	path := "testnets"
 	title := "Gno.land Testnet List"
-	// XXX: description := """
 	body := `
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- **[staging.gno.land](https://staging.gno.land) (wiped every commit to monorepo master)**
+- [Portal Loop](https://docs.gno.land/concepts/portal-loop) - a rolling testnet 
+- [staging.gno.land](https://staging.gno.land) - wiped every commit to monorepo master
 - test4.gno.land (upcoming)
 - _[test3.gno.land](https://test3.gno.land) (latest)_
 - _[test2.gno.land](https://test2.gno.land) (archive)_
 - _[test1.gno.land](https://test1.gno.land) (archive)_
 
-For a list of RPC endpoints, see the [reference](https://docs.gno.land/reference/rpc-endpoints).
+For a list of RPC endpoints, see the [reference documentation](https://docs.gno.land/reference/rpc-endpoints).
 
-## Local devnet
+## Local development
 
-See CONTRIBUTING.md on GitHub.
+See the "Getting started" section in the [official documentation](https://docs.gno.land/getting-started/local-setup).
 `
 	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:29Z", nil, nil)
 }
