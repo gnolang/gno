@@ -28,7 +28,7 @@ gno {SUB_COMMAND}
 
 | Name         | Type          | Description                                                        |
 | ------------ | ------------- | ------------------------------------------------------------------ |
-| `verbose`    | Boolean       | Displays extended information.                                     |
+| `v`          | Boolean       | Displays verbose output.                                     |
 | `root-dir`   | String        | Clones location of github.com/gnolang/gno (gno tries to guess it). |
 | `run`        | String        | Test name filtering pattern.                                       |
 | `timeout`    | time.Duration | The maximum execution time in ns.                                  |
@@ -40,7 +40,7 @@ gno {SUB_COMMAND}
 
 | Name        | Type    | Description                                                     |
 | ----------- | ------- | --------------------------------------------------------------- |
-| `verbose`   | Boolean | Displays extended information.                                  |
+| `v`         | Boolean | Displays verbose output.                                  |
 | `skip-fmt`  | Boolean | Skips the syntax checking of generated `.go` files.             |
 | `gobuild`   | Boolean | Run `go build` on generated `.go` files, ignoring test files.   |
 | `go-binary` | String  | The go binary to use for building (default: `go`).              |
