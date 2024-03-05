@@ -1,7 +1,7 @@
 #!/bin/sh
 
-SRC=genesis_txs.txt.old
-TARGET=genesis_txs.txt
+SRC=genesis_txs.jsonl.old
+TARGET=genesis_txs.jsonl
 
 > $TARGET
 

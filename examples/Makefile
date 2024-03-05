@@ -9,17 +9,17 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-.PHONY: precompile
-precompile:
-	go run ../gnovm/cmd/gno precompile --verbose .
+.PHONY: transpile
+transpile:
+	go run ../gnovm/cmd/gno transpile -v .
 
 .PHONY: build
-build: precompile
-	go run ../gnovm/cmd/gno build --verbose .
+build:
+	go run ../gnovm/cmd/gno transpile -v --gobuild .
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test --verbose ./...
+	go run ../gnovm/cmd/gno test -v ./...
 
 .PHONY: lint
 lint:
@@ -27,7 +27,7 @@ lint:
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test --verbose --update-golden-tests ./...
+	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...
 
 .PHONY: clean
 clean:
