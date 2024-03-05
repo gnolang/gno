@@ -230,12 +230,14 @@ func ParseIntLiteral(bytes []byte) (v int64, err error) {
 // - All characters in the byte slice are digits or a single decimal point.
 // - The resulting mantissa does not overflow a uint64.
 func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
-	var man uint64
-	var exp10 int
-	decimalFound := false
+	var (
+		man          uint64
+		exp10        int
+		decimalFound bool
+	)
 
 	for _, c := range bytes {
-		if c == '.' {
+		if c == DotToken {
 			if decimalFound {
 				return 0, 0, errors.New("JSON Error: multiple decimal points found while parsing float value")
 			}
@@ -326,8 +328,10 @@ func parseString(data []byte, offset int) (ValueType, int, error) {
 
 // parseContainer parses a JSON array or object and returns its type and the end position.
 func parseContainer(data []byte, offset int) (ValueType, int, error) {
-	var containerType ValueType
-	var closing byte
+	var (
+		containerType ValueType
+		closing       byte
+	)
 
 	if data[offset] == SquareOpenToken {
 		containerType = Array
@@ -383,4 +387,9 @@ func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
 	}
 
 	return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
+}
+
+// TODO: may integrate this code with parsePrimitive in parser.go
+func isNumeric(c byte) bool {
+	return bytes.Contains([]byte("0123456789+-.eE"), []byte{c})
 }

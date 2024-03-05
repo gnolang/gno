@@ -1,6 +1,7 @@
 package json
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -576,6 +577,50 @@ func TestBufferToken(t *testing.T) {
 
 			if buf.index != tt.index {
 				t.Errorf("Expected final index %d, got %d (token: `%s`) for path `%s`", tt.index, buf.index, string(buf.data[buf.index]), tt.path)
+			}
+		})
+	}
+}
+
+func TestBufferFirst(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		expected byte
+	}{
+		{
+			name:     "Valid first byte",
+			data:     []byte("test"),
+			expected: 't',
+		},
+		{
+			name:     "Empty buffer",
+			data:     []byte(""),
+			expected: 0,
+		},
+		{
+			name:     "Whitespace buffer",
+			data:     []byte("   "),
+			expected: 0,
+		},
+		{
+			name: "whitespace in middle",
+			data: []byte("hello world"),
+			expected: 'h',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewBuffer(tt.data)
+
+			got, err := b.first()
+			if err != nil && tt.expected != 0 {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if got != tt.expected {
+				t.Errorf("Expected first byte to be %q, got %q", tt.expected, got)
 			}
 		})
 	}

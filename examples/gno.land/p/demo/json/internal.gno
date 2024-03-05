@@ -147,10 +147,10 @@ const (
 	cm States = -3 /* comma           */
 	qt States = -4 /* quote           */
 	bo States = -5 /* bracket open    */
-	co States = -6 /* curly br. open  */
+	co States = -6 /* curly bracket open  */
 	bc States = -7 /* bracket close   */
-	cc States = -8 /* curly br. close */
-	ec States = -9 /* curly br. empty */
+	cc States = -8 /* curly bracket close */
+	ec States = -9 /* curly bracket empty */
 )
 
 // StateTransitionTable is the state transition table takes the current state and the current symbol, and returns either

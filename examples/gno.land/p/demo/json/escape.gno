@@ -128,8 +128,8 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 	return combineSurrogates(r, r2), 12
 }
 
-func unquote(bs []byte, border byte) (string, error) {
-	res, err := unquoteBytes(bs, border)
+func unquote(bs []byte, unquoteToken byte) (string, error) {
+	res, err := unquoteBytes(bs, unquoteToken)
 	if err != nil {
 		return "", err
 	}

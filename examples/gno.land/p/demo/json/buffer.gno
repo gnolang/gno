@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"io"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -30,10 +31,23 @@ func NewBuffer(data []byte) *buffer {
 	}
 }
 
+// first retrieves the first non-whitespace (or other escaped) character in the buffer.
+func (b *buffer) first() (byte, error) {
+	for _; b.index < b.length; b.index++ {
+		c := b.data[b.index]
+
+		if !(c == WhiteSpaceToken || c == CarriageReturnToken || c == NewLineToken || c == TabToken) {
+			return c, nil
+		}
+	}
+
+	return 0, io.EOF
+}
+
 // current returns the byte of the current index.
 func (b *buffer) current() (byte, error) {
 	if b.index >= b.length {
-		return 0, errors.New("EOF")
+		return 0, io.EOF
 	}
 
 	return b.data[b.index], nil
@@ -56,7 +70,7 @@ func (b *buffer) move(pos uint) error {
 	newIndex := b.index + pos
 
 	if newIndex > b.length {
-		return errors.New("EOF")
+		return io.EOF
 	}
 
 	b.index = newIndex
@@ -69,7 +83,7 @@ func (b *buffer) slice(pos uint) ([]byte, error) {
 	end := b.index + pos
 
 	if end > b.length {
-		return nil, errors.New("EOF")
+		return nil, io.EOF
 	}
 
 	return b.data[b.index:end], nil
@@ -98,7 +112,7 @@ func (b *buffer) skip(bs byte) error {
 		b.index++
 	}
 
-	return errors.New("EOF")
+	return io.EOF
 }
 
 // skipAny moves the index until it encounters one of the given set of bytes.
@@ -150,7 +164,7 @@ func (b *buffer) skipUntil(endTokens map[byte]bool) (uint, error) {
 		b.index++
 	}
 
-	return b.index, errors.New("EOF")
+	return b.index, io.EOF
 }
 
 // significantTokens is a map where the keys are the significant characters in a JSON path.
@@ -344,4 +358,57 @@ func (b *buffer) getState() States {
 	b.state = StateTransitionTable[b.last][b.class]
 
 	return b.state
+}
+
+func (b *buffer) string(search byte, token bool) error {
+	if token {
+		b.last = GO
+	}
+
+	for _; b.index < b.length; b.index++ {
+		b.class = b.getClasses(search)
+
+		if b.class == __ {
+			return errors.New("invalid token found while parsing path")
+		}
+
+		b.state = StateTransitionTable[b.last][b.class]
+		if b.state == __ {
+			return errors.New("invalid token found while parsing path")
+		}
+
+		if b.state < __ {
+			break
+		}
+
+		b.last = b.state
+	}
+
+	return nil
+}
+
+func (b *buffer) word(bs []byte) error {
+	var c byte
+
+	max := len(bs)
+	index := 0
+
+	for _; b.index < b.length; b.index++ {
+		c = b.data[b.index]
+
+		if c != bs[index] {
+			return errors.New("invalid token found while parsing path")
+		}
+
+		index++
+		if index >= max {
+			break
+		}
+	}
+
+	if index != max {
+		return errors.New("invalid token found while parsing path")
+	}
+
+	return nil
 }
