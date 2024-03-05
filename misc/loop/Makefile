@@ -16,5 +16,7 @@ docker.pull: # Pull new images to update versions
 portalloopd.bash: # Get a bash command inside of the portalloopd container
 	docker compose exec portalloopd bash
 
+switch: portalloopd.switch
+
 portalloopd.switch: # Force switch the portal loop with latest image
 	docker compose exec portalloopd switch
