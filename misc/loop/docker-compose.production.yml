@@ -51,6 +51,7 @@ services:
       # - --faucet-url
       # - "http://localhost:9000"
       - --help-chainid
+      - --with-analytics
       - portal-loop
       - --help-remote
       - https://rpc.gno.land:443
