@@ -11,7 +11,8 @@ GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
-cat ${GENESIS_BACKUP_FILE} >> /opt/gno/src/gno.land/genesis/genesis_txs.txt
+echo "" >> /opt/gno/src/gno.land/genesis/genesis_txs.jsonl
+cat ${GENESIS_BACKUP_FILE} >> /opt/gno/src/gno.land/genesis/genesis_txs.jsonl
 
 gnoland start \
     --chainid="${CHAIN_ID}" \
