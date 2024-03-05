@@ -11,15 +11,15 @@ help:
 
 .PHONY: transpile
 transpile:
-	go run ../gnovm/cmd/gno transpile --verbose .
+	go run ../gnovm/cmd/gno transpile -v .
 
 .PHONY: build
 build:
-	go run ../gnovm/cmd/gno transpile --verbose --gobuild .
+	go run ../gnovm/cmd/gno transpile -v --gobuild .
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test --verbose ./...
+	go run ../gnovm/cmd/gno test -v ./...
 
 .PHONY: lint
 lint:
@@ -27,7 +27,7 @@ lint:
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test --verbose --update-golden-tests ./...
+	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...
 
 .PHONY: clean
 clean:
