@@ -169,7 +169,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, emitterServer, rt, pkgpaths)
+	devNode, err := setupDevNode(ctx, cfg, emitterServer, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,13 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, emitter emitter.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
+func setupDevNode(
+	ctx context.Context,
+	cfg *devCfg,
+	remitter emitter.Emitter,
+	rt *rawterm.RawTerm,
+	pkgspath []string,
+) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
 
@@ -371,7 +377,7 @@ func setupDevNode(ctx context.Context, emitter emitter.Emitter, rt *rawterm.RawT
 	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
 
-	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), emitter, pkgspath)
+	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), remitter, config)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
