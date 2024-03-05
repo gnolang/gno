@@ -485,7 +485,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		debug.Printf("---starExpr, xt: %v \n", xt)
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
