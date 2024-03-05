@@ -68,8 +68,8 @@ func lastContributions(limit int) ui.Element {
 func upcomingEvents(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Upcoming Events"),
-		// TODO: import r/gnoland/events
-		ui.Text("coming soon"),
+		// TODO: replace with r/gnoland/events
+		ui.Text("[View upcoming events](/events)"),
 	}
 }
 
@@ -127,7 +127,7 @@ func quoteOfTheBlock() ui.Element {
 	qotb := quotes[idx]
 
 	return ui.Element{
-		ui.H3(ufmt.Sprintf("Quote of the ~Day~Block#%d", height)),
+		ui.H3(ufmt.Sprintf("Quote of the ~Day~ Block#%d", height)),
 		ui.Quote(qotb),
 	}
 }
@@ -213,8 +213,8 @@ func discoverLinks() ui.Element {
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
-- [Subscribe](#subscribe)
-- [Tokenomics (soon)](#)
+- Subscribe (soon)
+- Tokenomics (soon)
 - [Blog](/blog)
 - [Events](/events)
 - [Partners, Fund, Grants](/partners)
@@ -225,13 +225,12 @@ func discoverLinks() ui.Element {
 
 ### Build with Gno
 
-- [Gno dev with CLI (soon)](#)
-- [Explore the Gno.land Ecosystem](/ecosystem)
+- Gno dev with CLI (soon)
+- [Explore the Ecosystem](/ecosystem)
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
 - [Gno by Example](https://gno-by-example.com/)
-- [Getting started video (soon)](#)
 
 </div><!-- end column-->
 <div class="column">
@@ -243,7 +242,7 @@ func discoverLinks() ui.Element {
 - [Testnets 3](https://test3.gno.land/)
 - [Testnets 2](https://test2.gno.land/)
 - [Gnoscan](https://gnoscan.io)
-- [Testnet Tokens (faucet)](https://test3.gno.land/faucet)
+- Testnet Faucet Hub (soon)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),
