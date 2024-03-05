@@ -122,7 +122,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		preprocessing += 1
 		defer func() {
 			preprocessing -= 1
-			AC = nil // xxx, clean, why ns not cleaned?
+			AssignableCheckCache = nil // xxx, clean, why ns not cleaned?
 		}()
 	}
 
@@ -2429,8 +2429,6 @@ func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative b
 // coerce implies a mandatory convert, it happens with explicit conversion, uint64(int(1)), or RHS of a
 // shift expr, or key of slice/array.
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool, coerce bool) {
-	// check compatibility with operand and op
-
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	}
@@ -2442,11 +2440,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=).
 				// we still need a safeguard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
 				// TODO: if cx.GetAttribute(Attr_Assignable) == true
-				//if cx.GetAttribute(ATTR_ASSIGNABLE) == true {
-				//	debug.Printf("---assignable already set for: % \n", cx)
-				//}
-				if AC != nil {
-					if AC.cache[ExprTypePair{X: *x, T: t}] == true {
+				if AssignableCheckCache != nil {
+					if AssignableCheckCache.cache[ExprTypePair{X: *x, T: t}] == true {
 						debug.Printf("---assignable already set for: %v => %v \n", cx, t)
 					}
 				}

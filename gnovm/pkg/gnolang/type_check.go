@@ -127,11 +127,9 @@ func (pt PrimitiveType) predicate() category {
 }
 
 func isOrdered(t Type) bool {
-	debug.Printf("---isOrdered, t is %v \n", t)
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		if t.predicate() != IsInvalid && t.predicate()&IsOrdered != 0 || t.predicate()&IsRune != 0 {
-			debug.Println("is Ordered!")
 			return true
 		}
 		return false
@@ -153,7 +151,6 @@ func isBoolean(t Type) bool {
 }
 
 // rune can be numeric and string
-// TODO: consider, do we need complex?
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
@@ -165,18 +162,6 @@ func isNumeric(t Type) bool {
 		return false
 	}
 }
-
-//func isIntOrFloat(t Type) bool {
-//	switch t := baseOf(t).(type) {
-//	case PrimitiveType:
-//		if t.predicate() != IsInvalid && t.predicate()&IsIntOrFloat != 0 || t.predicate()&IsRune != 0 {
-//			return true
-//		}
-//		return false
-//	default:
-//		return false
-//	}
-//}
 
 // signed or unsigned int
 func isIntNum(t Type) bool {
@@ -208,12 +193,11 @@ func isNumericOrString(t Type) bool {
 type Checker struct {
 }
 
-var AC *AssignabilityCache
+var AssignableCheckCache *AssignabilityCache
 
 // check both sides since no aware of which side is dest type
-// TODO: add check assignable, 1.0 % uint64(1) is valid as is assignable
 // that lt not compatible but rt is compatible would be good
-// things like this would fail: 	println(1.0 % 1)
+// things like this would fail: 1.0 % 1, bigInt has a bigger specificity than bidDec.
 
 // AssertCompatible works as a pre-check prior to checkOrConvertType()
 // It checks expressions to ensure the compatibility between operands and operators.
@@ -283,12 +267,11 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	}
 }
 
-// TODO: turn into method of bx
 func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string, dt Type) {
 	debug.Println("---assertCompatible2, op: ", bx.Op)
 	debug.Printf("---assertCompatible2, lt: %v, rt: %v \n", lt, rt)
 	debug.Printf("---assertCompatible2, dt: %v \n", dt)
-	AC = NewAssignabilityCache()
+	AssignableCheckCache = NewAssignabilityCache()
 	var destKind interface{}
 
 	// shl/shr
@@ -314,7 +297,6 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 			}
 			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
 		} else {
-			debug.Println("---2")
 			debug.Println("---cmp: ", cmp)
 			// left not compatible, right is compatible
 			// cmp means the expected convert direction
@@ -326,8 +308,8 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 			if cmp < 0 {
 				checkAssignable(lt, rt, true)
 				debug.Println("---assignable")
-				// TODO: set attr
-				AC.cache[ExprTypePair{X: bx.Left, T: rt}] = true
+				// cache, XXX, is this needed?
+				AssignableCheckCache.cache[ExprTypePair{X: bx.Left, T: rt}] = true
 			} else {
 				if lt != nil { // return error on left side that is checked first
 					destKind = lt.Kind()
