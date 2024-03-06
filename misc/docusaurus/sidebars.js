@@ -7,6 +7,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Getting Started',
+            link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
                 'getting-started/local-setup',
                 'getting-started/working-with-key-pairs',
