@@ -69,6 +69,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Gno Tooling',
+            link: {type: 'doc', id: 'gno-tooling/gno-tooling'},
             items: [
                 'gno-tooling/cli/gno-tooling-gno',
                 'gno-tooling/cli/gno-tooling-gnokey',
@@ -80,6 +81,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Reference',
+            link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
                 {
