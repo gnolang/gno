@@ -64,7 +64,7 @@ func main() {
 //<div class="columns-3">
 //<div class="column">
 //
-//### Last Blogposts
+//### Latest Blogposts
 //
 //
 //</div><!-- /column-->

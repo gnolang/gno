@@ -54,7 +54,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Last Blogposts"),
+		ui.H3("Latest Blogposts"),
 		ui.Text(posts),
 	}
 }
