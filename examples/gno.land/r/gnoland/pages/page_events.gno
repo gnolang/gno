@@ -5,36 +5,52 @@ func init() {
 		path  = "events"
 		title = "Gno.land Core Team Attends Industry Events & Meetups"
 		// XXX: description = "If you’re interested in learning more about Gno.land, you can join us at major blockchain industry events throughout the year either in person or virtually."
-		body = `# Events
-
-If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
+		body = `
+If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events.
+We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
 
 ---
 
 ## Upcoming Events
 
 <div class="columns-3">
+
 <div class="column">
 
-### EthCC
+### GopherCon EU
+- Come Meet Us at our Booth
+- Berlin, June 17 - 20, 2024
+
+[Learn More](https://gophercon.eu/)
+</div><!-- end column-->
+
+<div class="column">
+
+### Nebular Summit
+- Come see our talk
+- Brussels, July 12 - 13, 2024
+
+[Learn More](https://nebular.builders/)
+</div><!-- end column-->
+
+</div><!-- end columns-3-->
+
+---
+
+## Past Events
+
+<div class="columns-3">
+<div class="column">
+
+### GopherCon US
 
 - **Come Meet Us at our Booth**
-- Paris, July 17 - 20, 2023
-- Manfred Touron
+- San Diego, September 26 - 29, 2023
 
-[Learn more](https://www.ethcc.io/)
-
-</div><!-- end column-->
-<div class="column">
-
-### Nebular Summit Gno.land for Developers
-
-- Paris, July 24 - 25, 2023
-- Manfred Touron
-
-[Learn more](https://www.nebular.builders/)
+[Learn more](https://www.gophercon.com/)
 
 </div><!-- end column-->
+
 <div class="column">
 
 ### GopherCon EU
@@ -48,21 +64,26 @@ If you’re interested in building web3 with us, catch up with Gno.land in perso
 
 <div class="column">
 
-### GopherCon US
+### Nebular Summit Gno.land for Developers
 
-- **Come Meet Us at our Booth**
-- San Diego, September 26 - 29, 2023
+- Paris, July 24 - 25, 2023
+- Manfred Touron
 
-[Learn more](https://www.gophercon.com/)
+[Learn more](https://www.nebular.builders/)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->
 
----
+<div class="column">
 
-## Past Events
+### EthCC
 
-<div class="columns-3">
+- **Come Meet Us at our Booth**
+- Paris, July 17 - 20, 2023
+- Manfred Touron
+
+[Learn more](https://www.ethcc.io/)
+
+</div><!-- end column-->
 
 <div class="column">
 
