@@ -123,6 +123,7 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 		}
 
 		w.Write(taskJSON)
+		first = false
 	}
 
 	w.Write([]byte("]}"))
