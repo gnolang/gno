@@ -59,27 +59,26 @@ func runSuite(t *testing.T, tempdir string) {
 	require.True(t, acc.Coins.IsAllGTE(minCoins),
 		"test1 account coins expected at least %s, got %s", minCoins, acc.Coins)
 
-	// add gno.land/r/demo/tests package as tests_copy
+	// add gno.land/p/helloworld/hello v1.0.0
 	dockerExec(t,
 		`echo 'pass' | gnokey maketx addpkg -insecure-password-stdin \
 			-gas-fee 1000000ugnot -gas-wanted 2000000 \
 			-broadcast -chainid dev \
-			-pkgdir /opt/gno/src/examples/gno.land/r/demo/tests/ \
-			-pkgpath gno.land/r/demo/tests_copy \
+			-pkgdir /opt/gno/src/gnovm/tests/integ/hello-world \
 			-deposit 100000000ugnot \
 			test1`,
 	)
-	// assert gno.land/r/demo/tests_copy has been added
+	// assert gno.land/p/helloworld/hello has been added
 	var qfuncs vm.FunctionSignatures
-	dockerExec_gnokeyQuery(t, `-data "gno.land/r/demo/tests_copy" vm/qfuncs`, &qfuncs)
-	require.True(t, len(qfuncs) > 0, "gno.land/r/demo/tests_copy not added")
+	dockerExec_gnokeyQuery(t, `-data "gno.land/r/helloworld/hello@v1.0.0" vm/qfuncs`, &qfuncs)
+	require.True(t, len(qfuncs) > 0, "gno.land/r/helloworld/hello@v1.0.0 not added")
 
 	// broadcast a package TX
 	dockerExec(t,
 		`echo 'pass' | gnokey maketx call -insecure-password-stdin \
 			-gas-fee 1000000ugnot -gas-wanted 2000000 \
 			-broadcast -chainid dev \
-			-pkgpath "gno.land/r/demo/tests_copy" -func "InitTestNodes" \
+			-pkgpath "gno.land/r/helloworld/hello@v1.0.0" -func "SayHello" \
 			test1`,
 	)
 }
