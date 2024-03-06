@@ -66,8 +66,7 @@ func main() {
 //
 //### Latest Blogposts
 //
-// No posts.
-//
+//No posts.
 //</div><!-- /column-->
 //<div class="column">
 //
