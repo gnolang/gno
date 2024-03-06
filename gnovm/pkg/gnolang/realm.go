@@ -116,7 +116,7 @@ func (rlm *Realm) String() string {
 	} else {
 		return fmt.Sprintf(
 			"Realm{Path:%q,Time:%d}#%X",
-			rlm.Path, rlm.Time, rlm.ID.Bytes())
+			rlm.Path+"@"+rlm.Version, rlm.Time, rlm.ID.Bytes())
 	}
 }
 
