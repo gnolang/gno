@@ -15,8 +15,11 @@ A single oracle instance may be composed of many feeds, each of which has a uniq
 
 Here is an example of what differences may exist amongst feed implementations:
 - Static: a static feed is one that only needs to produce a value once. It ingests values and then publishes the result. Once a single value is published, the state of the feed becomes immutable.
+	- Example: a realm wants to integrate football match results for its users. It may embed a static oracle that allows it to publish the match results to the chain. A static feed is a good choice for this because the match results will never change.
 - Continuous: a continuous feed can accept and ingest data, continously adding and changing its own internal state based on the data received. It can then publish values on demand based on its current state.
-- Periodic: a periodic feed may give all whitelisted agents the opportunity to send data for ingestion within a bounded period of time. After this window closes, the results can be committed and a value is pubished. The process then begins again for the next period.
+	- Example: a realm wants to provide a verifiable random function. It embeds an oracle that defines tasks and whitelists a select group of trusted agents to provide data that gets combined to produce a random value. A continuous feed is a good choice for this because data may be accepted continously and there is no single static result.
+- Periodic:  periodic feed may give all whitelisted agents the opportunity to send data for ingestion within a bounded period of time. After this window closes, the results can be committed and a value is pubished. The process then begins again for the next period.
+	- Example: a realm wants to provide weather information to its users. It may choose a group of trusted agents to publish weather data for each half hour interval. This periodic feed can finalize the weather data for each postal code at the end of each interval using the aggregation function defined by the owner of the oracle.
 
 The only feed currently implemented is the `feeds/static.Feed` type.
 
