@@ -18,7 +18,7 @@ new ones from scratch, making web3 vastly more accessible.
 
 Secured by Proof of Contribution (PoC), a DAO-managed Proof-of-Authority consensus mechanism, Gno.land prioritizes 
 fairness and merit, rewarding the people most active on the platform. PoC restructures the financial incentives that 
-often corrupt blockchain projects and rewards contributors for their work based on their expertise, commitment, and 
+often corrupt blockchain projects, opting instead to reward contributors for their work based on expertise, commitment, and 
 alignment. 
 
 One of our inspirations for Gno.land is the gospels, which built a system of moral code that lasted thousands of years.
