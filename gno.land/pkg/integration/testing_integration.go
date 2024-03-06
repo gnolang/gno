@@ -220,6 +220,14 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
 				sid := ts.Getenv("SID")                         // grab session id
 
+				// Unquote args enclosed in `"` to correctly handle `\n` or similar escapes.
+				args, err := unquote(args)
+				if err != nil {
+					tsValidateError(ts, "gnokey", neg, err)
+				}
+
+				fmt.Printf("args: %+v\n", strings.Join(args, "|"))
+
 				// Setup IO command
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
@@ -250,8 +258,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// user provided.
 				args = append(defaultArgs, args...)
 
-				err := cmd.ParseAndRun(context.Background(), args)
-
+				err = cmd.ParseAndRun(context.Background(), args)
 				tsValidateError(ts, "gnokey", neg, err)
 			},
 			// adduser commands must be executed before starting the node; it errors out otherwise.
@@ -324,6 +331,69 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			},
 		},
 	}
+}
+
+// `unquote` processes a string slice as one block string. handling quoted
+// phrases and escape sequences.
+func unquote(args []string) ([]string, error) {
+	const quote = '"'
+
+	var parts []string
+	var part strings.Builder
+
+	// Indicates whether we are inside quoted text
+	inQuote := false
+	for _, arg := range args {
+		escaped := false
+		for _, c := range arg {
+			// If this character should be escaped, unquote it
+			if escaped {
+				uc, err := strconv.Unquote(`"\` + string(c) + `"`)
+				if err != nil {
+					return nil, fmt.Errorf("unhandled escape sequence `\\%c`: %w", c, err)
+				}
+
+				part.WriteString(uc)
+				escaped = false
+				continue
+			}
+
+			// If we are inside a quoted string and encounter an escape character,
+			// flag the next character as `escaped`
+			if inQuote && c == '\\' {
+				escaped = true
+				continue
+			}
+
+			// Detect quote and toggle inQuote state
+			if c == quote {
+				inQuote = !inQuote
+				continue
+			}
+
+			// Handle regular character
+			part.WriteRune(c)
+		}
+
+		// If we're inside a quote, add a single space
+		if inQuote {
+			part.WriteRune(' ')
+			continue
+		}
+
+		// Finalize part, add to parts, and reset for next part
+		if part.Len() > 0 {
+			parts = append(parts, part.String())
+			part.Reset()
+		}
+	}
+
+	// Check if a quote is left open
+	if inQuote {
+		return nil, fmt.Errorf("unfinished quote")
+	}
+
+	return parts, nil
 }
 
 func getNodeSID(ts *testscript.TestScript) string {
