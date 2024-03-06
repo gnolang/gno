@@ -150,12 +150,23 @@ func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci
 func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 3 {
-		panic("expected three lines in query input data")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
 	}
-	pkgPath := reqParts[0]
-	pkgVersion := reqParts[1]
-	path := reqParts[2]
+
+	pkgPathWithVersion := reqParts[0]
+	path := reqParts[1]
+
+	pkgPathParts := strings.Split(pkgPathWithVersion, "@")
+	if len(pkgPathParts) != 2 {
+		panic("expected: package/path@v1.2.3")
+	}
+
+	// TODO(hariom): validate version?
+
+	pkgPath := pkgPathParts[0]
+	pkgVersion := pkgPathParts[1]
+
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, pkgVersion, expr)
 	if err != nil {
@@ -170,11 +181,22 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	if len(reqParts) != 1 {
+		panic("expected one line in query input data")
 	}
-	pkgPath := reqParts[0]
-	pkgVersion := reqParts[1]
+
+	pkgPathWithVersion := reqParts[0]
+
+	pkgPathParts := strings.Split(pkgPathWithVersion, "@")
+	if len(pkgPathParts) != 2 {
+		panic("expected: package/path@v1.2.3")
+	}
+
+	// TODO(hariom): validate version?
+
+	pkgPath := pkgPathParts[0]
+	pkgVersion := pkgPathParts[1]
+
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath, pkgVersion)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
@@ -188,12 +210,23 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
 	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 3 {
-		panic("expected three lines in query input data")
+	if len(reqParts) != 2 {
+		panic("expected two lines in query input data")
 	}
-	pkgPath := reqParts[0]
-	pkgVersion := reqParts[1]
-	expr := reqParts[2]
+
+	pkgPathWithVersion := reqParts[0]
+	expr := reqParts[1]
+
+	pkgPathParts := strings.Split(pkgPathWithVersion, "@")
+	if len(pkgPathParts) != 2 {
+		panic("expected: package/path@v1.2.3")
+	}
+
+	// TODO(hariom): validate version?
+
+	pkgPath := pkgPathParts[0]
+	pkgVersion := pkgPathParts[1]
+
 	result, err := vh.vm.QueryEval(ctx, pkgPath, pkgVersion, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
