@@ -26,6 +26,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'How-to Guides',
+            link: {type: 'doc', id: 'how-to-guides/how-to-guides'},
             items: [
                 'how-to-guides/simple-contract',
                 'how-to-guides/simple-library',
@@ -40,6 +41,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Concepts',
+            link: {type: 'doc', id: 'concepts/concepts'},
             items: [
                 'concepts/realms',
                 'concepts/packages',
