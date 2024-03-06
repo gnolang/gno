@@ -18,10 +18,8 @@ func Render(_ string) string {
 
 	// body
 	dom.Body.Append(introSection()...)
-	dom.Body.Append(ui.HR{})
 
-	dom.Body.Append(discoverLinks()...)
-	dom.Body.Append(ui.Jumbotron(worxDAO()))
+	dom.Body.Append(ui.Jumbotron(discoverLinks()))
 
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
@@ -31,8 +29,9 @@ func Render(_ string) string {
 		}},
 	)
 	dom.Body.Append(ui.HR{})
-
 	dom.Body.Append(packageStaffPicks()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(worxDAO()...)
 	dom.Body.Append(ui.HR{})
 	// footer
 	dom.Footer.Append(
