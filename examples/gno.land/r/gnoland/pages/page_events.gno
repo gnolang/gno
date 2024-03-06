@@ -22,6 +22,15 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 [Learn More](https://gophercon.eu/)
 
 </div><!-- end column-->
+<div class="column">
+
+### GopherCon US
+- Come see our talk, and participate in the Challenge series
+- Chicago, July 7 - 10, 2024
+[Learn More](https://www.gophercon.com/)
+
+</div><!-- end column-->
+
 </div><!-- end columns-3-->
 
 ---
