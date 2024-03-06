@@ -26,6 +26,16 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 
 <div class="column">
 
+### GopherCon US
+- Come Meet Us at our Booth
+- Chicago, July 7 - 10, 2024
+
+[Learn More](https://www.gophercon.com/)
+
+</div><!-- end column-->
+
+<div class="column">
+
 ### Nebular Summit
 - Come see our talk
 - Brussels, July 12 - 13, 2024
