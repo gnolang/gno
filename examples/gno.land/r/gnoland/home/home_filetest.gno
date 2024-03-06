@@ -7,172 +7,173 @@ func main() {
 }
 
 // Output:
-// # Welcome to Gno.land
+//# Welcome to Gno.land
 //
-// ### An interpretation of the Go (Golang) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination.
-//
-//
-// If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how.
+//### We’re building Gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
 //
 //
-// Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today.
-//
-// <div class="jumbotron">
-//
-// ### Contributions (WorxDAO & GoR)
-//
-// coming soon
-// </div><!-- /jumbotron -->
-//
-// ### Explore New Packages and Realms
-//
-// <div class="columns-3">
-// <div class="column">
-//
-// #### r/gnoland
-//
-// - [r/gnoland/blog](r/gnoland/blog)
-// - [r/gnoland/dao](r/gnoland/dao)
-// - [r/gnoland/faucet](r/gnoland/faucet)
-// - [r/gnoland/home](r/gnoland/home)
-// - [r/gnoland/pages](r/gnoland/pages)
-//
-// #### r/system
-//
-// - [r/system/names](r/system/names)
-// - [r/system/rewards](r/system/rewards)
-// - [r/system/validators](r/system/validators)
-//
-// </div><!-- /column-->
-// <div class="column">
-//
-// #### r/demo
-//
-// - [r/demo/boards](r/demo/boards)
-// - [r/demo/users](r/demo/users)
-// - [r/demo/banktest](r/demo/banktest)
-// - [r/demo/foo20](r/demo/foo20)
-// - [r/demo/foo721](r/demo/foo721)
-// - [r/demo/microblog](r/demo/microblog)
-// - [r/demo/nft](r/demo/nft)
-// - [r/demo/types](r/demo/types)
-// - [r/demo/art](r/demo/art)
-// - [r/demo/groups](r/demo/groups)
-// - ...
-//
-// </div><!-- /column-->
-// <div class="column">
-//
-// #### p/demo
-//
-// - [p/demo/avl](p/demo/avl)
-// - [p/demo/blog](p/demo/blog)
-// - [p/demo/ui](p/demo/ui)
-// - [p/demo/ufmt](p/demo/ufmt)
-// - [p/demo/merkle](p/demo/merkle)
-// - [p/demo/bf](p/demo/bf)
-// - [p/demo/flow](p/demo/flow)
-// - [p/demo/gnode](p/demo/gnode)
-// - [p/demo/grc/grc20](p/demo/grc/grc20)
-// - [p/demo/grc/grc721](p/demo/grc/grc721)
-// - ...
-//
-// </div><!-- /column-->
-// </div><!-- /columns-3 -->
+//With transparent and timeless code, Gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
 //
 //
-// ---
+//Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
 //
-// <div class="columns-3">
-// <div class="column">
+//<div class="jumbotron">
 //
-// ### Last Blogposts
+//<div class="columns-3">
+//<div class="column">
 //
+//### Learn about Gno.land
 //
-// </div><!-- /column-->
-// <div class="column">
+//- [About](/about)
+//- [GitHub](https://github.com/gnolang)
+//- [Blog](/blog)
+//- [Events](/events)
+//- Tokenomics (soon)
+//- [Partners, Fund, Grants](/partners)
+//- [Explore the Ecosystem](/ecosystem)
 //
-// ### Upcoming Events
+//</div><!-- end column-->
 //
-// coming soon
-// </div><!-- /column-->
-// <div class="column">
+//<div class="column">
 //
-// ### Latest Contributions
+//### Build with Gno
 //
-// coming soon
-// </div><!-- /column-->
-// </div><!-- /columns-3 -->
+//- [Write Gno in the browser](https://play.gno.land)
+//- [Read about the Gno Language](/gnolang)
+//- [Visit the official documentation](https://docs.gno.land)
+//- [Gno by Example](https://gno-by-example.com/)
+//- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
 //
-// <div class="jumbotron">
+//</div><!-- end column-->
+//<div class="column">
 //
-// <div class="columns-3">
-// <div class="column">
+//### Explore the universe
 //
-// ### Learn about Gno.land
+//- [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
+//- [Gnoscan](https://gnoscan.io)
+//- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
+//- Testnet 4 (upcoming)
+//- [Testnet 3](https://test3.gno.land/) (archive)
+//- [Testnet 2](https://test2.gno.land/) (archive)
+//- Testnet Faucet Hub (soon)
 //
-// - [About](/about)
-// - [GitHub](https://github.com/gnolang)
-// - [Subscribe](#subscribe)
-// - [Tokenomics (soon)](#)
-// - [Blog](/blog)
-// - [Events](/events)
-// - [Partners, Fund, Grants](/partners)
+//</div><!-- end column-->
+//</div><!-- end columns-3-->
+//</div><!-- /jumbotron -->
 //
-// </div><!-- end column-->
+//<div class="columns-3">
+//<div class="column">
 //
-// <div class="column">
-//
-// ### Build with Gno
-//
-// - [Gno dev with CLI (soon)](#)
-// - [Explore the Universe](/ecosystem)
-// - [Test in the browser (soon)](#)
-// - [About the Gno Language](/gnolang)
-// - [Docs/ Tutorials](https://github.com/gnolang)
-// - [Gno by example](https://gno-by-example.com/)
-// - [Getting started video (soon)](#)
-//
-// </div><!-- end column-->
-// <div class="column">
-//
-// ### Explore the universe
-//
-// - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
-// - [Install Gno Key instructions](/r/demo/boards:testboard/5)
-// - [Testnets 3](https://test3.gno.land/)
-// - [Testnets 2](https://test2.gno.land/)
-// - [Explorer links(soon)](#)
-// - [Testnet Tokens (faucet)](https://test3.gno.land/faucet)
-//
-// </div><!-- end column-->
-// </div><!-- end columns-3-->
-// </div><!-- /jumbotron -->
+//### Last Blogposts
 //
 //
-// <div class="columns-2">
-// <div class="column">
+//</div><!-- /column-->
+//<div class="column">
 //
-// ### Socials
+//### Upcoming Events
 //
-// - Check out our [community projects](https://github.com/gnolang/awesome-gno)
-// - ![Discord](static/img/ico-discord.svg) [Discord](https://discord.gg/S8nKUqwkPn)
-// - ![Twitter](static/img/ico-twitter.svg) [Twitter](https://twitter.com/_gnoland)
-// - ![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)
-// - ![Telegram](static/img/ico-telegram.svg) [Telegram](https://t.me/gnoland)
+//[View upcoming events](/events)
+//</div><!-- /column-->
+//<div class="column">
 //
-// </div><!-- /column-->
-// <div class="column">
+//### Latest Contributions
 //
-// ### Quote of the ~Day~Block#123
-//
-// > Now, you Gno.
-//
-// </div><!-- /column-->
-// </div><!-- /columns-2 -->
+//[View latest contributions](https://github.com/gnolang/gno/pulls)
+//</div><!-- /column-->
+//</div><!-- /columns-3 -->
 //
 //
-// ---
+//---
 //
-// **This is a testnet.**
-// Package names are not guaranteed to be available for production.
+//### Explore New Packages and Realms
+//
+//<div class="columns-3">
+//<div class="column">
+//
+//#### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
+//
+//- [r/gnoland/blog](r/gnoland/blog)
+//- [r/gnoland/dao](r/gnoland/dao)
+//- [r/gnoland/faucet](r/gnoland/faucet)
+//- [r/gnoland/home](r/gnoland/home)
+//- [r/gnoland/pages](r/gnoland/pages)
+//
+//#### [r/system](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/system)
+//
+//- [r/system/names](r/system/names)
+//- [r/system/rewards](r/system/rewards)
+//- [r/system/validators](r/system/validators)
+//
+//</div><!-- /column-->
+//<div class="column">
+//
+//#### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
+//
+//- [r/demo/boards](r/demo/boards)
+//- [r/demo/users](r/demo/users)
+//- [r/demo/banktest](r/demo/banktest)
+//- [r/demo/foo20](r/demo/foo20)
+//- [r/demo/foo721](r/demo/foo721)
+//- [r/demo/microblog](r/demo/microblog)
+//- [r/demo/nft](r/demo/nft)
+//- [r/demo/types](r/demo/types)
+//- [r/demo/art](r/demo/art)
+//- [r/demo/groups](r/demo/groups)
+//- ...
+//
+//</div><!-- /column-->
+//<div class="column">
+//
+//#### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
+//
+//- [p/demo/avl](p/demo/avl)
+//- [p/demo/blog](p/demo/blog)
+//- [p/demo/ui](p/demo/ui)
+//- [p/demo/ufmt](p/demo/ufmt)
+//- [p/demo/merkle](p/demo/merkle)
+//- [p/demo/bf](p/demo/bf)
+//- [p/demo/flow](p/demo/flow)
+//- [p/demo/gnode](p/demo/gnode)
+//- [p/demo/grc/grc20](p/demo/grc/grc20)
+//- [p/demo/grc/grc721](p/demo/grc/grc721)
+//- ...
+//
+//</div><!-- /column-->
+//</div><!-- /columns-3 -->
+//
+//
+//---
+//
+//### Contributions (WorxDAO & GoR)
+//
+//coming soon
+//
+//---
+//
+//
+//<div class="columns-2">
+//<div class="column">
+//
+//### Socials
+//
+//- Check out our [community projects](https://github.com/gnolang/awesome-gno)
+//- ![Discord](static/img/ico-discord.svg) [Discord](https://discord.gg/S8nKUqwkPn)
+//- ![Twitter](static/img/ico-twitter.svg) [Twitter](https://twitter.com/_gnoland)
+//- ![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)
+//- ![Telegram](static/img/ico-telegram.svg) [Telegram](https://t.me/gnoland)
+//
+//</div><!-- /column-->
+//<div class="column">
+//
+//### Quote of the ~Day~ Block#123
+//
+//> Now, you Gno.
+//
+//</div><!-- /column-->
+//</div><!-- /columns-2 -->
+//
+//
+//---
+//
+//**This is a testnet.**
+//Package names are not guaranteed to be available for production.
