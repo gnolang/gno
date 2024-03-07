@@ -28,7 +28,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				errMsg = r.(string)
+				errMsg = r.(error).Error()
 			}
 		}()
 		RequestVerification("deelawn")
@@ -59,7 +59,7 @@ func TestVerificationLifecycle(t *testing.T) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				errMsg = r.(string)
+				errMsg = r.(error).Error()
 			}
 		}()
 		GnorkleEntrypoint("ingest," + string(userAddress) + ",OK")
