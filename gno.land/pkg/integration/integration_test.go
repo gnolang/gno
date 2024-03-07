@@ -22,13 +22,13 @@ func TestUnquote(t *testing.T) {
 		Expected   []string
 		ShouldFail bool
 	}{
-		{"", []string{}, false},
+		{"", []string{""}, false},
 		{"g", []string{"g"}, false},
 		{"Hello Gno", []string{"Hello", "Gno"}, false},
 		{`"Hello" "Gno"`, []string{"Hello", "Gno"}, false},
 		{`"Hel lo" "Gno"`, []string{"Hel lo", "Gno"}, false},
 		{`"H e l l o\n" \nGno`, []string{"H e l l o\n", "\\nGno"}, false},
-		{`"Hel\n"\nlo    " ""G"n"o"`, []string{"Hel\n\\nlo", " Gno"}, false},
+		{`"Hel\n"\nlo "  ""G"n"o"`, []string{"Hel\n\\nlo", "  Gno"}, false},
 		{`"He said, \"Hello\"" "Gno"`, []string{`He said, "Hello"`, "Gno"}, false},
 		{`"\n \t" \n\t`, []string{"\n \t", "\\n\\t"}, false},
 		{`"Hel\\n"\t\\nlo " ""\\nGno"`, []string{"Hel\\n\\t\\\\nlo", " \\nGno"}, false},
@@ -44,7 +44,6 @@ func TestUnquote(t *testing.T) {
 
 			// split by whitespace to simulate command-line arguments
 			args := strings.Split(tc.Input, " ")
-
 			unquotedArgs, err := unquote(args)
 			if tc.ShouldFail {
 				require.Error(t, err)
