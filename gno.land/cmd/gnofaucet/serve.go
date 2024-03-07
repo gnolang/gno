@@ -180,10 +180,8 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	logger := log.NewZapJSONLogger(io.Out(), zapcore.DebugLevel)
 
 	// Start throttled faucet.
-	st := NewSubnetThrottler()
-	if err = st.Start(); err != nil {
-		return fmt.Errorf("unable to start throttler service, %w", err)
-	}
+	st := newSubnetThrottler(time.Minute)
+	st.start(ctx)
 
 	// Prepare the middlewares
 	middlewares := []faucet.Middleware{

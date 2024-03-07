@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net"
+	"sync"
 	"time"
+)
 
-	"github.com/gnolang/gno/tm2/pkg/service"
+const (
+	maxRequestsPerIP = 5
 )
 
 var (
@@ -13,61 +17,77 @@ var (
 	errInvalidNumberOfRequests = errors.New("invalid number of requests")
 )
 
-type SubnetThrottler struct {
-	service.BaseService
-	ticker   *time.Ticker
-	subnets3 [2 << (8 * 3)]uint8
-	// subnets2 [2 << (8 * 2)]uint8
-	// subnets1 [2 << (8 * 1)]uint8
+type subnetThrottler struct {
+	throttleDuration time.Duration
+	subnets          sync.Map // unique IP identifier -> request count (<=5)
 }
 
-func NewSubnetThrottler() *SubnetThrottler {
-	st := &SubnetThrottler{}
-	// st.ticker = time.NewTicker(time.Second)
-	st.ticker = time.NewTicker(time.Minute)
-	st.BaseService = *service.NewBaseService(nil, "SubnetThrottler", st)
-	return st
+// newSubnetThrottler creates a new subnet throttler
+func newSubnetThrottler(duration time.Duration) *subnetThrottler {
+	return &subnetThrottler{
+		throttleDuration: duration,
+	}
 }
 
-func (st *SubnetThrottler) OnStart() error {
-	st.BaseService.OnStart()
-	go st.routineTimer()
-	return nil
+// start starts the throttle routine
+func (st *subnetThrottler) start(ctx context.Context) {
+	go st.runThrottler(ctx)
 }
 
-func (st *SubnetThrottler) routineTimer() {
+// runThrottler runs the main subnet throttle loop
+func (st *subnetThrottler) runThrottler(ctx context.Context) {
+	ticker := time.NewTicker(st.throttleDuration)
+
 	for {
 		select {
-		case <-st.Quit():
+		case <-ctx.Done():
 			return
-		case <-st.ticker.C:
-			// run something every time interval.
-			for i := range st.subnets3 {
-				st.subnets3[i] /= 2
-			}
+		case <-ticker.C:
+			// Reset the individual subnet counters
+			st.subnets.Range(func(key, value any) bool {
+				newVal, _ := value.(uint8)
+
+				newVal /= 2
+				if newVal == 0 {
+					// Drop the key from the subnet map
+					st.subnets.Delete(key)
+				} else {
+					// Save the new subnet value
+					st.subnets.Store(key, newVal)
+				}
+
+				return true
+			})
 		}
 	}
 }
 
-func (st *SubnetThrottler) VerifyRequest(ip net.IP) error {
+// registerNewRequest verifies the given request IP
+func (st *subnetThrottler) registerNewRequest(requestIP net.IP) error {
+	// Check if the IP is valid
+	ip := requestIP.To4()
 	if ip == nil {
 		return errInvalidIP
 	}
 
-	ip = ip.To4()
-	if len(ip) != 4 {
-		return errInvalidIP
+	// Get the unique IP identifier
+	key := int64(ip[0])<<16 + int64(ip[1])<<8 + int64(ip[2])
+
+	// Increment the request count for the IP
+	count, loaded := st.subnets.LoadOrStore(key, 1)
+	if !loaded {
+		// Request is the first one from this IP key
+		return nil
 	}
 
-	bucket3 := int(ip[0])*256*256 +
-		int(ip[1])*256 +
-		int(ip[2])
-
-	if st.subnets3[bucket3] > 5 {
+	// Check if the IP exceeded the request count
+	requestCount := count.(int8)
+	if requestCount > maxRequestsPerIP {
 		return errInvalidNumberOfRequests
 	}
 
-	st.subnets3[bucket3] += 1
+	// Update the request count
+	st.subnets.Store(key, requestCount+1)
 
 	return nil
 }

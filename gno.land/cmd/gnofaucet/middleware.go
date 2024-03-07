@@ -10,7 +10,7 @@ import (
 )
 
 // getIPMiddleware returns the IP verification middleware, using the given subnet throttler
-func getIPMiddleware(behindProxy bool, st *SubnetThrottler) func(next http.Handler) http.Handler {
+func getIPMiddleware(behindProxy bool, st *subnetThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,7 @@ func getIPMiddleware(behindProxy bool, st *SubnetThrottler) func(next http.Handl
 				}
 
 				// Verify the request using the IP
-				if err := st.VerifyRequest(net.ParseIP(host)); err != nil {
+				if err := st.registerNewRequest(net.ParseIP(host)); err != nil {
 					http.Error(
 						w,
 						fmt.Sprintf("unable to verify IP request, %s", err.Error()),
