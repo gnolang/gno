@@ -38,9 +38,13 @@ func TestUnquote(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		// split by whitespace to simulate command-line arguments
-		args := strings.Split(tc.Input, " ")
-		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+		tc := tc
+		t.Run(tc.Input, func(t *testing.T) {
+			t.Parallel()
+
+			// split by whitespace to simulate command-line arguments
+			args := strings.Split(tc.Input, " ")
+
 			unquotedArgs, err := unquote(args)
 			if tc.ShouldFail {
 				require.Error(t, err)
