@@ -15,7 +15,7 @@ var (
 		SUB:      isNumeric,
 		MUL:      isNumeric,
 		QUO:      isNumeric,
-		REM:      isIntNum, // in compile stage good for bigdec, that can be converted to int, `checkAssignable`
+		REM:      isIntNum, // in compile stage good for bigdec, that can be converted to int, `checkAssignableTo`
 		SHL:      isIntNum, // NOTE: 1.0 << 1 is legal in Go. consistent with op_binary for now.
 		SHR:      isIntNum,
 		BAND:     isIntNum, // bit ops
@@ -229,24 +229,37 @@ func isSameType(lt, rt Type) bool {
 }
 
 // runtime assert
+// TODO: consider this!!!
 func assertAssignable(lt, rt Type) {
 	if debug {
-		debug.Printf("check assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+		debug.Printf("assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	}
 	if isSameType(lt, rt) {
+		println("1")
 		// both are nil/undefined or same type.
 	} else if lt == nil || rt == nil { // has support (interface{}) typed-nil, yet support for (native interface{}) typed-nil
+		println("2")
 		// LHS is undefined
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
+		println("3")
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
+		println("4")
+	} else if lt.Kind() == InterfaceKind &&
+		IsImplementedBy(lt, rt) {
+		// rt implements lt (and lt is nil interface).
+	} else if rt.Kind() == InterfaceKind &&
+		IsImplementedBy(rt, lt) {
+		println("---assertEqulityTypes, match")
+		// lt implements rt (and rt is nil interface).
 	} else {
+		//panic("---5")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -268,6 +281,19 @@ func assertComparable(xt, dt Type) {
 	case PrimitiveType:
 		// both typed primitive types
 		if _, ok := baseOf(xt).(PrimitiveType); ok {
+			//var isMixed bool
+			//if _, ok := xt.(*NativeType); ok {
+			//	if _, ok := dt.(*NativeType); ok {
+			//		isMixed = false
+			//	} else {
+			//		isMixed = true
+			//	}
+			//} else {
+			//	if _, ok := dt.(*NativeType); ok {
+			//		isMixed = true
+			//	}
+			//}
+			//if !isMixed { // both not native or both native we can check typeID ==
 			if !isUntyped(xt) && !isUntyped(dt) { // in this stage, lt or rt maybe untyped, not converted yet
 				debug.Println("---both typed")
 				if xt != nil && dt != nil {
@@ -277,6 +303,7 @@ func assertComparable(xt, dt Type) {
 					}
 				}
 			}
+			//}
 		}
 	case *ArrayType: // NOTE: no recursive allowed
 		switch baseOf(cdt.Elem()).(type) {
@@ -370,15 +397,18 @@ func (ac *AssignabilityCache) Exists(key Expr, value Type) bool {
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general cases for primitives and composite.
-// XXX. the name of checkAssignable should be considered.
+// XXX. the name of checkAssignableTo should be considered.
 // we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
-func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+// TODO: make it (t Type) CheckAssignableTo
+// TODO: make cmp specificity here
+func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	if debug {
-		debug.Printf("checkAssignable, xt: %v dt: %v \n", xt, dt)
+		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
 	if xt == nil { // refer to 0f18_filetest
-		assertMaybeNil("invalid operation, nil can not be compared to", dt)
+		// XXX, this seems duplicated with assertComparable
+		//assertMaybeNil("invalid operation, nil can not be compared to", dt)
 		return
 	}
 	if dt == nil { // refer to assign8.gno
@@ -583,23 +613,23 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := checkAssignable(pt.Elt, cdt.Elt, false)
+			cdt := checkAssignableTo(pt.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := checkAssignable(at.Elt, cdt.Elt, false)
+			cdt := checkAssignableTo(at.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := checkAssignable(st.Elt, cdt.Elt, false)
+			cdt := checkAssignableTo(st.Elt, cdt.Elt, false)
 			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := checkAssignable(mt.Key, cdt.Key, false)
-			cn2 := checkAssignable(mt.Value, cdt.Value, false)
+			cn1 := checkAssignableTo(mt.Key, cdt.Key, false)
+			cn2 := checkAssignableTo(mt.Value, cdt.Value, false)
 			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
@@ -668,9 +698,9 @@ func checkAssignable(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 // lhs determined by outer context
 func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	debug.Printf("---AssertCompatible, bx: %v \n", bx)
-
 	debug.Printf("---AssertCompatible, bx.Left: %T \n", bx.Left)
 	debug.Printf("---AssertCompatible, bx.Right: %T \n", bx.Right)
+
 	// get left type and right type
 	lt := evalStaticTypeOf(store, last, bx.Left)
 	rt := evalStaticTypeOf(store, last, bx.Right)
@@ -678,13 +708,35 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	// we can't check compatible with native types
 	// at current stage, so leave it to checkOrConvertType
 	// to secondary call this assert logic again
-	if _, ok := lt.(*NativeType); ok {
-		debug.Println("---left native, return")
-		return
+
+	//var isMixed bool
+	//if _, ok := lt.(*NativeType); ok {
+	//	if _, ok := rt.(*NativeType); ok {
+	//		isMixed = false
+	//	} else {
+	//		isMixed = true
+	//	}
+	//} else {
+	//	if _, ok := rt.(*NativeType); ok {
+	//		isMixed = true
+	//	}
+	//}
+
+	if lnt, ok := lt.(*NativeType); ok {
+		println("---lt native")
+		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
+		if ok {
+			debug.Println("---lt native primitive, return")
+			return
+		}
 	}
-	if _, ok := rt.(*NativeType); ok {
-		debug.Println("---right native, return")
-		return
+	if rnt, ok := rt.(*NativeType); ok {
+		println("---rt native, gnoType", rnt.gnoType)
+		_, ok := go2GnoBaseType(rnt.Type).(PrimitiveType) // TODO: check kind instead
+		if ok {
+			debug.Println("---right native primitive, return")
+			return
+		}
 	}
 
 	debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, bx.Op)
@@ -704,6 +756,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 			panic("invalid comparison operator")
 		}
 	} else {
+		// TODO: if not assign, check implicit compatible
 		if pred, ok := binaryChecker[bx.Op]; ok {
 			bx.assertCompatible2(lt, rt, pred, escapedOpStr, dt)
 		} else {
@@ -713,10 +766,20 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 		switch bx.Op {
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
 			// if both typed
+			//if !isMixed { // both native or both not native that we can check
 			if !isUntyped(lt) && !isUntyped(rt) {
 				if lt != nil && rt != nil { // NOTE: is this necessary?
 					if lt.TypeID() != rt.TypeID() {
 						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+					}
+				}
+			}
+			//}
+			// special case of zero divisor
+			if isQuoOrRem(bx.Op) {
+				if rcx, ok := bx.Right.(*ConstExpr); ok {
+					if rcx.TypedValue.isZero() {
+						panic("invalid operation: division by zero")
 					}
 				}
 			}
@@ -765,7 +828,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 			// left side that is not compatible, so stop
 			// the check here, assertion fail.
 			if cmp < 0 {
-				checkAssignable(lt, rt, true)
+				checkAssignableTo(lt, rt, true)
 				debug.Println("---assignable")
 				// cache, XXX, is this needed?
 				AssignableCheckCache.Add(bx.Left, rt)
@@ -781,7 +844,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 		// xxx, the fact of one of them is compatible while the other is not
 		// when they share same specificity implies not assignable?
 		if cmp > 0 { // right to left
-			checkAssignable(rt, lt, true)
+			checkAssignableTo(rt, lt, true)
 			AssignableCheckCache.Add(bx.Right, lt)
 		} else {
 			if rt != nil { // return error on left side that is checked first
@@ -791,6 +854,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 		}
 	} else {
 		// both good
+		// TODO: both untyped or both typed
 		if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
 			// check when both typed
 			if lt != nil && rt != nil { // XXX, this should already be excluded by previous pred check.
@@ -804,9 +868,9 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 		// it's ok since assertCompatible2 only for lss, add, etc
 		// that only with isOrdered
 		if cmp <= 0 {
-			checkAssignable(lt, rt, true)
+			checkAssignableTo(lt, rt, true)
 		} else {
-			checkAssignable(rt, lt, true)
+			checkAssignableTo(rt, lt, true)
 		}
 	}
 }

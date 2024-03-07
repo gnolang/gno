@@ -952,6 +952,7 @@ func (tv *TypedValue) IsUndefined() bool {
 func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
 		if tv.V == nil {
+			debug.Println("---isNilInterface")
 			return true
 		}
 		if debug {

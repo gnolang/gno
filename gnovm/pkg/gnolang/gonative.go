@@ -901,7 +901,7 @@ func gno2GoType(t Type) reflect.Type {
 
 // If gno2GoTypeMatches(t, rt) is true, a t value can
 // be converted to an rt native value using gno2GoValue(v, rv).
-// This is called when autoNative is true in checkAssignable().
+// This is called when autoNative is true in checkAssignableTo().
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
 func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
