@@ -2,14 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
-	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gnolang/faucet"
@@ -33,7 +29,15 @@ const (
 // url & struct for verify captcha
 const siteVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
 
+const (
+	ipv6Loopback = "::1"
+	ipv6ZeroAddr = "0:0:0:0:0:0:0:1"
+	ipv4Loopback = "127.0.0.1"
+)
+
 var remoteRegex = regexp.MustCompile(`^https?://[a-z\d.-]+(:\d+)?(?:/[a-z\d]+)*$`)
+
+var errInvalidCaptcha = errors.New("unable to verify captcha")
 
 type SiteVerifyResponse struct {
 	Success     bool      `json:"success"`
@@ -181,80 +185,10 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		return fmt.Errorf("unable to start throttler service, %w", err)
 	}
 
-	// Prepare the middleware
-	middleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				host := ""
-				if !cfg.isBehindProxy {
-					addr := r.RemoteAddr
-					host_, _, err := net.SplitHostPort(addr)
-					if err != nil {
-						return
-					}
-					host = host_
-				} else if xff, found := r.Header["X-Forwarded-For"]; found && len(xff) > 0 {
-					host = xff[0]
-				}
-
-				// if can't identify the IP, everyone is in the same pool.
-				// if host using ipv6 loopback addr, make it ipv4
-				if host == "" || host == "::1" || host == "0:0:0:0:0:0:0:1" {
-					host = "127.0.0.1"
-				}
-
-				ip := net.ParseIP(host)
-
-				if ip == nil {
-					io.Println("No IP found")
-
-					http.Error(w, "No IP found", http.StatusUnauthorized)
-
-					return
-				}
-
-				allowed, reason := st.Request(ip)
-				if !allowed {
-					msg := fmt.Sprintf("abuse protection system (%s)", reason)
-
-					io.Println(msg)
-					http.Error(w, msg, http.StatusUnauthorized)
-
-					return
-				}
-
-				if err = r.ParseForm(); err != nil {
-					http.Error(w, "Invalid form", http.StatusBadRequest)
-
-					return
-				}
-
-				// only when command line argument 'captcha-secret' has entered > captcha are enabled.
-				// verify captcha
-				if cfg.captchaSecret != "" {
-					passedMsg := r.Form["g-recaptcha-response"]
-
-					if passedMsg == nil {
-						http.Error(w, "Invalid captcha request", http.StatusInternalServerError)
-
-						return
-					}
-
-					capMsg := strings.TrimSpace(passedMsg[0])
-
-					if err = checkRecaptcha(cfg.captchaSecret, capMsg); err != nil {
-						io.Printf("%s recaptcha failed; %v\n", ip, err)
-
-						http.Error(w, "Invalid captcha", http.StatusUnauthorized)
-
-						return
-					}
-				}
-
-				// Continue with serving the faucet request
-				next.ServeHTTP(w, r)
-			},
-		)
+	// Prepare the middlewares
+	middlewares := []faucet.Middleware{
+		getIPMiddleware(cfg.isBehindProxy, st),
+		getCaptchaMiddleware(cfg.captchaSecret),
 	}
 
 	// Create a new faucet with
@@ -264,45 +198,11 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		cli,
 		faucet.WithLogger(log.ZapLoggerToSlog(logger)),
 		faucet.WithConfig(cfg.generateFaucetConfig()),
-		faucet.WithMiddlewares([]faucet.Middleware{middleware}),
+		faucet.WithMiddlewares(middlewares),
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create faucet, %w", err)
 	}
 
 	return f.Serve(ctx)
-}
-
-// checkRecaptcha checks the recaptcha secret
-func checkRecaptcha(secret, response string) error {
-	req, err := http.NewRequest(
-		http.MethodPost,
-		siteVerifyURL,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-
-	q := req.URL.Query()
-	q.Add("secret", secret)
-	q.Add("response", response)
-	req.URL.RawQuery = q.Encode()
-
-	resp, err := http.DefaultClient.Do(req) // 200 OK
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	var body SiteVerifyResponse
-	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return errors.New("fail, decode response")
-	}
-
-	if !body.Success {
-		return errors.New("unsuccessful recaptcha verify request")
-	}
-
-	return nil
 }

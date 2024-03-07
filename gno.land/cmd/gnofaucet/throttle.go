@@ -1,10 +1,16 @@
 package main
 
 import (
+	"errors"
 	"net"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
+)
+
+var (
+	errInvalidIP               = errors.New("invalid IP")
+	errInvalidNumberOfRequests = errors.New("invalid number of requests")
 )
 
 type SubnetThrottler struct {
@@ -43,18 +49,25 @@ func (st *SubnetThrottler) routineTimer() {
 	}
 }
 
-func (st *SubnetThrottler) Request(ip net.IP) (allowed bool, reason string) {
+func (st *SubnetThrottler) VerifyRequest(ip net.IP) error {
+	if ip == nil {
+		return errInvalidIP
+	}
+
 	ip = ip.To4()
 	if len(ip) != 4 {
-		return false, "invalid ip format"
+		return errInvalidIP
 	}
+
 	bucket3 := int(ip[0])*256*256 +
 		int(ip[1])*256 +
 		int(ip[2])
-	v := st.subnets3[bucket3]
-	if v > 5 {
-		return false, ">5"
+
+	if st.subnets3[bucket3] > 5 {
+		return errInvalidNumberOfRequests
 	}
+
 	st.subnets3[bucket3] += 1
-	return true, ""
+
+	return nil
 }
