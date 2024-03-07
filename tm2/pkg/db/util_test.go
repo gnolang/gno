@@ -28,11 +28,6 @@ func TestPrefixIteratorNoMatch1(t *testing.T) {
 	t.Parallel()
 
 	for _, backend := range db.BackendList() {
-		if backend == db.BoltDBBackend {
-			t.Log("bolt does not support concurrent writes while iterating")
-			continue
-		}
-
 		t.Run(fmt.Sprintf("Prefix w/ backend %s", backend), func(t *testing.T) {
 			t.Parallel()
 
