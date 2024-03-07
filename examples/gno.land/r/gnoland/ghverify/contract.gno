@@ -74,11 +74,9 @@ func RequestVerification(githubHandle string) {
 		static.NewSingleValueFeed(
 			gnoAddress,
 			"string",
-			[]feed.Task{
-				&verificationTask{
-					gnoAddress:   gnoAddress,
-					githubHandle: githubHandle,
-				},
+			&verificationTask{
+				gnoAddress:   gnoAddress,
+				githubHandle: githubHandle,
 			},
 		),
 	)
