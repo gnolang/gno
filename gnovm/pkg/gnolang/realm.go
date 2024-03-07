@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -1511,13 +1512,13 @@ func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
+var ReGnoRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
+
 func IsRealmPath(pkgPath string) bool {
 	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, GnoRealmPkgsPrefixBefore) {
-		return true
-	} else {
-		return false
-	}
+	return strings.HasPrefix(pkgPath, GnoRealmPkgsPrefixBefore) &&
+		// MsgRun pkgPath aren't realms
+		!ReGnoRunPath.MatchString(pkgPath)
 }
 
 func prettyJSON(jstr []byte) []byte {
