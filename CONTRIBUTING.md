@@ -145,8 +145,9 @@ function! s:on_lsp_buffer_enabled() abort
     autocmd BufWritePre <buffer> LspDocumentFormatSync
     " Some optionnal mappings
     nmap <buffer> <leader>i <Plug>(lsp-hover) 
+    nmap <buffer> gd <plug>(lsp-definition)     
+    nmap <buffer> <leader>rf <plug>(lsp-references)
     " Following mappings are not supported yet by gnols
-    " nmap <buffer> gd <plug>(lsp-definition)     
     " nmap <buffer> <leader>rr <plug>(lsp-rename)
 endfunction
 augroup lsp_install
