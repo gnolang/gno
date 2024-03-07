@@ -338,11 +338,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 func unquote(args []string) ([]string, error) {
 	const quote = '"'
 
-	var parts []string
-	var part strings.Builder
-
-	// Indicates whether we are inside quoted text
+	parts := []string{}
 	inQuote := false
+
+	var part strings.Builder
 	for _, arg := range args {
 		escaped := false
 		for _, c := range arg {
@@ -390,7 +389,7 @@ func unquote(args []string) ([]string, error) {
 
 	// Check if a quote is left open
 	if inQuote {
-		return nil, fmt.Errorf("unfinished quote")
+		return nil, errors.New("unfinished quote")
 	}
 
 	return parts, nil
