@@ -36,4 +36,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/0_a_3b.gno:31: operator << not defined on: InterfaceKind
+// main/files/types2/0_a_3b.gno:31: <untyped> bigint does not implement main.R

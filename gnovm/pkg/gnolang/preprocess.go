@@ -920,6 +920,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									rpt := go2GnoBaseType(rnt.Type).(PrimitiveType)
 									// check assignable, if pass, convert right to gno first
 									// TODO: cmp?
+									// XXX, can we just check on native type?
 									checkAssignableTo(lpt, rpt, false) // both primitive types
 									rn = Expr(Call(rpt.String(), n.Right))
 									// checkOrCovertType should happen in future when both sides to be gno'd
@@ -1726,9 +1727,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else {
 						// TODO: should also check assign with checkAssignableTo, like var e error, e = 1
-						if n.Op != ASSIGN { // filter out =
-							n.AssertCompatible(store, last)
-						}
+						n.AssertCompatible(store, last)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
 								panic("should not happen")

@@ -709,21 +709,8 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	// at current stage, so leave it to checkOrConvertType
 	// to secondary call this assert logic again
 
-	//var isMixed bool
-	//if _, ok := lt.(*NativeType); ok {
-	//	if _, ok := rt.(*NativeType); ok {
-	//		isMixed = false
-	//	} else {
-	//		isMixed = true
-	//	}
-	//} else {
-	//	if _, ok := rt.(*NativeType); ok {
-	//		isMixed = true
-	//	}
-	//}
-
 	if lnt, ok := lt.(*NativeType); ok {
-		println("---lt native")
+		debug.Println("---lt native")
 		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
 		if ok {
 			debug.Println("---lt native primitive, return")
@@ -731,7 +718,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 		}
 	}
 	if rnt, ok := rt.(*NativeType); ok {
-		println("---rt native, gnoType", rnt.gnoType)
+		debug.Println("---rt native, gnoType", rnt.gnoType)
 		_, ok := go2GnoBaseType(rnt.Type).(PrimitiveType) // TODO: check kind instead
 		if ok {
 			debug.Println("---right native primitive, return")
@@ -748,7 +735,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 			assertComparable(lt, rt)
 		case LSS, LEQ, GTR, GEQ:
 			if pred, ok := binaryChecker[bx.Op]; ok {
-				bx.assertCompatible2(lt, rt, pred, escapedOpStr, dt)
+				bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
 			} else {
 				panic("should not happen")
 			}
@@ -758,7 +745,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	} else {
 		// TODO: if not assign, check implicit compatible
 		if pred, ok := binaryChecker[bx.Op]; ok {
-			bx.assertCompatible2(lt, rt, pred, escapedOpStr, dt)
+			bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
 		} else {
 			panic("should not happen")
 		}
@@ -789,10 +776,10 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	}
 }
 
-func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, escapedOpStr string, dt Type) {
-	debug.Println("---assertCompatible2, op: ", bx.Op)
-	debug.Printf("---assertCompatible2, lt: %v, rt: %v \n", lt, rt)
-	debug.Printf("---assertCompatible2, dt: %v \n", dt)
+func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, escapedOpStr string, dt Type) {
+	debug.Println("---checkCompatibility, op: ", bx.Op)
+	debug.Printf("---checkCompatibility, lt: %v, rt: %v \n", lt, rt)
+	debug.Printf("---checkCompatibility, dt: %v \n", dt)
 	AssignableCheckCache = NewAssignabilityCache()
 	var destKind interface{}
 
@@ -865,7 +852,7 @@ func (bx *BinaryExpr) assertCompatible2(lt, rt Type, pred func(t Type) bool, esc
 			}
 		}
 		// check even when both side compatible with op
-		// it's ok since assertCompatible2 only for lss, add, etc
+		// it's ok since checkCompatibility only for lss, add, etc
 		// that only with isOrdered
 		if cmp <= 0 {
 			checkAssignableTo(lt, rt, true)
@@ -957,43 +944,56 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		// we can't check compatible with native types
 		// at current stage, so leave it to checkOrConvertType
 		// to secondary call this assert logic again
-		if _, ok := lt.(*NativeType); ok {
-			debug.Println("---left native, return")
-			return
+		if lnt, ok := lt.(*NativeType); ok {
+			if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
+				debug.Println("---left native, return")
+				return
+			}
 		}
 
-		if _, ok := rt.(*NativeType); ok {
-			debug.Println("---right native, return")
-			return
+		if rnt, ok := rt.(*NativeType); ok {
+			if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
+				debug.Println("---right native, return")
+				return
+			}
 		}
 
 		debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, as.Op)
 
 		// check compatible
-		if pred, ok := AssignStmtChecker[as.Op]; ok {
-			if !pred(lt) {
-				if lt != nil {
-					destKind = lt.Kind()
+		if as.Op != ASSIGN {
+			if pred, ok := AssignStmtChecker[as.Op]; ok {
+				if !pred(lt) {
+					if lt != nil {
+						destKind = lt.Kind()
+					}
+					panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
 				}
-				panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
-			}
-			switch as.Op {
-			case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
-				// if both typed
-				if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
-					debug.Println("---both typed")
-					if lt != nil && rt != nil {
-						// TODO: filter byte that has no typeID?
-						if lt.TypeID() != rt.TypeID() {
-							panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+				switch as.Op {
+				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
+					// if both typed
+					if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
+						debug.Println("---both typed")
+						if lt != nil && rt != nil {
+							// TODO: filter byte that has no typeID?
+							if lt.TypeID() != rt.TypeID() {
+								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+							}
 						}
 					}
+				default:
+					// do nothing
 				}
-			default:
-				// do nothing
+			} else {
+				panic("should not happen")
 			}
 		} else {
-			panic("should not happen")
+			// check assignable, if done check operand with op
+			// XXX, always right -> left? see preprocess line1746
+			// special case if rhs is(or contained) untyped shift,
+			// type of RHS is determined by LHS, no simply check
+			// assignable for this case.
+			checkAssignableTo(rt, lt, false)
 		}
 	}
 }
