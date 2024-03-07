@@ -3,16 +3,16 @@ package kvstore
 import (
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 

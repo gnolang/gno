@@ -2,10 +2,9 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -15,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -116,7 +116,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GnoRootDir:            cfg.TMConfig.RootDir,
 		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
 		MaxCycles:             cfg.GenesisMaxVMCycles,
-		DB:                    db.NewMemDB(),
+		DB:                    memdb.NewMemDB(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -135,7 +135,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
 
-	dbProvider := func(*node.DBContext) (db.DB, error) { return db.NewMemDB(), nil }
+	dbProvider := func(*node.DBContext) (db.DB, error) { return memdb.NewMemDB(), nil }
 
 	// generate p2p node identity
 	// XXX: do we need to configur

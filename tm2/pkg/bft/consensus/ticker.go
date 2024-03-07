@@ -1,9 +1,8 @@
 package consensus
 
 import (
+	"log/slog"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
