@@ -10,36 +10,51 @@ type Whitelist interface {
 }
 
 // ClearWhitelist clears the whitelist of the instance or feed depending on the feed ID.
-func (i *Instance) ClearWhitelist(feedID string) {
+func (i *Instance) ClearWhitelist(feedID string) error {
 	if feedID == "" {
 		i.whitelist.ClearAddresses()
-		return
+		return nil
 	}
 
-	feedWithWhitelist := i.getFeedWithWhitelist(feedID)
+	feedWithWhitelist, err := i.getFeedWithWhitelist(feedID)
+	if err != nil {
+		return err
+	}
+
 	feedWithWhitelist.ClearAddresses()
+	return nil
 }
 
 // AddToWhitelist adds the given addresses to the whitelist of the instance or feed depending on the feed ID.
-func (i *Instance) AddToWhitelist(feedID string, addresses []string) {
+func (i *Instance) AddToWhitelist(feedID string, addresses []string) error {
 	if feedID == "" {
 		i.whitelist.AddAddresses(addresses)
-		return
+		return nil
 	}
 
-	feedWithWhitelist := i.getFeedWithWhitelist(feedID)
+	feedWithWhitelist, err := i.getFeedWithWhitelist(feedID)
+	if err != nil {
+		return err
+	}
+
 	feedWithWhitelist.AddAddresses(addresses)
+	return nil
 }
 
 // RemoveFromWhitelist removes the given address from the whitelist of the instance or feed depending on the feed ID.
-func (i *Instance) RemoveFromWhitelist(feedID string, address string) {
+func (i *Instance) RemoveFromWhitelist(feedID string, address string) error {
 	if feedID == "" {
 		i.whitelist.RemoveAddress(address)
-		return
+		return nil
 	}
 
-	feedWithWhitelist := i.getFeedWithWhitelist(feedID)
+	feedWithWhitelist, err := i.getFeedWithWhitelist(feedID)
+	if err != nil {
+		return err
+	}
+
 	feedWithWhitelist.RemoveAddress(address)
+	return nil
 }
 
 // addressWhiteListed returns true if:

@@ -11,7 +11,7 @@ type Feed interface {
 	ID() string
 	Type() feed.Type
 	Value() (value feed.Value, dataType string, consumable bool)
-	Ingest(funcType message.FuncType, rawMessage, providerAddress string)
+	Ingest(funcType message.FuncType, rawMessage, providerAddress string) error
 	MarshalJSON() ([]byte, error)
 	Tasks() []feed.Task
 	IsActive() bool

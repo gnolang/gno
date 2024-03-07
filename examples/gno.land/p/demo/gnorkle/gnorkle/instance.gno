@@ -1,6 +1,7 @@
 package gnorkle
 
 import (
+	"errors"
 	"std"
 	"strings"
 
@@ -23,27 +24,37 @@ func NewInstance() *Instance {
 	}
 }
 
-func assertValidID(id string) {
+func assertValidID(id string) error {
 	if len(id) == 0 {
-		panic("feed ids cannot be empty")
+		return errors.New("feed ids cannot be empty")
 	}
 
 	if strings.Contains(id, ",") {
-		panic("feed ids cannot contain commas")
+		return errors.New("feed ids cannot contain commas")
 	}
+
+	return nil
 }
 
-func (i *Instance) assertFeedDoesNotExist(id string) {
+func (i *Instance) assertFeedDoesNotExist(id string) error {
 	if i.feeds.Has(id) {
-		panic("feed already exists")
+		return errors.New("feed already exists")
 	}
+
+	return nil
 }
 
 // AddFeeds adds feeds to the instance with empty whitelists.
-func (i *Instance) AddFeeds(feeds ...Feed) {
+func (i *Instance) AddFeeds(feeds ...Feed) error {
 	for _, feed := range feeds {
-		assertValidID(feed.ID())
-		i.assertFeedDoesNotExist(feed.ID())
+		if err := assertValidID(feed.ID()); err != nil {
+			return err
+		}
+
+		if err := i.assertFeedDoesNotExist(feed.ID()); err != nil {
+			return err
+		}
+
 		i.feeds.Set(
 			feed.ID(),
 			FeedWithWhitelist{
@@ -52,13 +63,20 @@ func (i *Instance) AddFeeds(feeds ...Feed) {
 			},
 		)
 	}
+
+	return nil
 }
 
 // AddFeedsWithWhitelists adds feeds to the instance with the given whitelists.
-func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
+func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) error {
 	for _, feed := range feeds {
-		i.assertFeedDoesNotExist(feed.ID())
-		assertValidID(feed.ID())
+		if err := i.assertFeedDoesNotExist(feed.ID()); err != nil {
+			return err
+		}
+		if err := assertValidID(feed.ID()); err != nil {
+			return err
+		}
+
 		i.feeds.Set(
 			feed.ID(),
 			FeedWithWhitelist{
@@ -67,6 +85,8 @@ func (i *Instance) AddFeedsWithWhitelists(feeds ...FeedWithWhitelist) {
 			},
 		)
 	}
+
+	return nil
 }
 
 // RemoveFeed removes a feed from the instance.
@@ -77,7 +97,7 @@ func (i *Instance) RemoveFeed(id string) {
 // PostMessageHandler is a type that allows for post-processing of feed state after a feed
 // ingests a message from an agent.
 type PostMessageHandler interface {
-	Handle(i *Instance, funcType message.FuncType, feed Feed)
+	Handle(i *Instance, funcType message.FuncType, feed Feed) error
 }
 
 // HandleMessage handles a message from an agent and routes to either the logic that returns
@@ -85,7 +105,7 @@ type PostMessageHandler interface {
 //
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
-func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) string {
+func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
 	caller := string(std.GetOrigCaller())
 
 	funcType, msg := message.ParseFunc(msg)
@@ -96,92 +116,109 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) str
 
 	default:
 		id, msg := message.ParseID(msg)
-		assertValidID(id)
-
-		feedWithWhitelist := i.getFeedWithWhitelist(id)
-		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
-			panic("caller not whitelisted")
+		if err := assertValidID(id); err != nil {
+			return "", err
 		}
 
-		feedWithWhitelist.Ingest(funcType, msg, caller)
+		feedWithWhitelist, err := i.getFeedWithWhitelist(id)
+		if err != nil {
+			return "", err
+		}
+
+		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, caller, nil) {
+			return "", errors.New("caller not whitelisted")
+		}
+
+		if err := feedWithWhitelist.Ingest(funcType, msg, caller); err != nil {
+			return "", err
+		}
 
 		if postHandler != nil {
 			postHandler.Handle(i, funcType, feedWithWhitelist)
 		}
 	}
 
-	return ""
+	return "", nil
 }
 
-func (i *Instance) getFeed(id string) Feed {
+func (i *Instance) getFeed(id string) (Feed, error) {
 	untypedFeed, ok := i.feeds.Get(id)
 	if !ok {
-		panic("invalid ingest id: " + id)
+		return nil, errors.New("invalid ingest id: " + id)
 	}
 
 	feed, ok := untypedFeed.(Feed)
 	if !ok {
-		panic("invalid feed type")
+		return nil, errors.New("invalid feed type")
 	}
 
-	return feed
+	return feed, nil
 }
 
-func (i *Instance) getFeedWithWhitelist(id string) FeedWithWhitelist {
+func (i *Instance) getFeedWithWhitelist(id string) (FeedWithWhitelist, error) {
 	untypedFeedWithWhitelist, ok := i.feeds.Get(id)
 	if !ok {
-		panic("invalid ingest id: " + id)
+		return nil, errors.New("invalid ingest id: " + id)
 	}
 
 	feedWithWhitelist, ok := untypedFeedWithWhitelist.(FeedWithWhitelist)
 	if !ok {
-		panic("invalid feed with whitelist type")
+		return nil, errors.New("invalid feed with whitelist type")
 	}
 
-	return feedWithWhitelist
+	return feedWithWhitelist, nil
 }
 
 // GetFeedValue returns the most recently published value of a feed along with a string
 // representation of the value's type and boolean indicating whether the value is
 // okay for consumption.
-func (i *Instance) GetFeedValue(id string) (value feed.Value, valueType string, consumable bool) {
-	return i.getFeed(id).Value()
+func (i *Instance) GetFeedValue(id string) (feed.Value, string, bool, error) {
+	foundFeed, err := i.getFeed(id)
+	if err != nil {
+		return feed.Value{}, "", false, err
+	}
+
+	value, valueType, consumable := foundFeed.Value()
+	return value, valueType, consumable, nil
 }
 
 // GetFeedDefinitions returns a JSON string representing the feed definitions for which the given
 // agent address is whitelisted to provide values for ingestion.
-func (i *Instance) GetFeedDefinitions(forAddress string) string {
+func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 	instanceHasAddressWhitelisted := !i.whitelist.HasDefinition() || i.whitelist.HasAddress(forAddress)
 
 	buf := new(strings.Builder)
 	buf.WriteString("[")
 	first := true
+	var err error
 
+	// The boolean value returned by this callback function indicates whether to stop iterating.
 	i.feeds.Iterate("", "", func(_ string, value interface{}) bool {
 		feedWithWhitelist, ok := value.(FeedWithWhitelist)
 		if !ok {
-			panic("invalid feed type")
+			err = errors.New("invalid feed type")
+			return true
 		}
 
 		// Don't give agents the ability to try to publish to inactive feeds.
 		if !feedWithWhitelist.IsActive() {
-			return true
+			return false
 		}
 
 		// Skip feeds the address is not whitelisted for.
 		if !addressIsWhitelisted(&i.whitelist, feedWithWhitelist, forAddress, &instanceHasAddressWhitelisted) {
-			return true
+			return false
 		}
 
-		taskBytes, err := feedWithWhitelist.Feed.MarshalJSON()
-		if err != nil {
-			panic(err)
+		var taskBytes []byte
+		if taskBytes, err = feedWithWhitelist.Feed.MarshalJSON(); err != nil {
+			return true
 		}
 
 		// Guard against any tasks that shouldn't be returned; maybe they are not active because they have
 		// already been completed.
 		if len(taskBytes) == 0 {
-			return true
+			return false
 		}
 
 		if !first {
@@ -192,6 +229,11 @@ func (i *Instance) GetFeedDefinitions(forAddress string) string {
 		buf.Write(taskBytes)
 		return true
 	})
+
+	if err != nil {
+		return "", err
+	}
+
 	buf.WriteString("]")
-	return buf.String()
+	return buf.String(), nil
 }

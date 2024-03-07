@@ -3,6 +3,7 @@ package static
 import (
 	"bufio"
 	"bytes"
+	"errors"
 
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/gnorkle"
@@ -67,9 +68,9 @@ func (f *Feed) Type() feed.Type {
 
 // Ingest ingests a message into the feed. It either adds the value to the ingester's
 // pending values or commits the value to the storage.
-func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) {
+func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) error {
 	if f.isLocked {
-		panic("feed locked")
+		return errors.New("feed locked")
 	}
 
 	switch funcType {
@@ -86,8 +87,10 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) {
 		f.isLocked = true
 
 	default:
-		panic("invalid message function " + string(funcType))
+		return errors.New("invalid message function " + string(funcType))
 	}
+
+	return nil
 }
 
 // Value returns the feed's latest value, it's data type, and whether or not it can

@@ -1,6 +1,7 @@
 package ghverify
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -33,14 +34,14 @@ type postGnorkleMessageHandler struct{}
 
 // Handle does post processing after a message is ingested by the oracle feed. It extracts the value to realm
 // storage and removes the feed from the oracle.
-func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.FuncType, feed gnorkle.Feed) {
+func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.FuncType, feed gnorkle.Feed) error {
 	if funcType != message.FuncTypeIngest {
-		return
+		return nil
 	}
 
 	result, _, consumable := feed.Value()
 	if !consumable {
-		return
+		return nil
 	}
 
 	// The value is consumable, meaning the ingestion occurred, so we can remove the feed from the oracle
@@ -49,28 +50,29 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 
 	// Couldn't verify; nothing to do.
 	if result.String != verifiedResult {
-		return
+		return nil
 	}
 
 	feedTasks := feed.Tasks()
 	if len(feedTasks) != 1 {
-		panic("expected feed to have exactly one task")
+		return errors.New("expected feed to have exactly one task")
 	}
 
 	task, ok := feedTasks[0].(*verificationTask)
 	if !ok {
-		panic("expected ghverify task")
+		return errors.New("expected ghverify task")
 	}
 
 	handleToAddressMap.Set(task.githubHandle, task.gnoAddress)
 	addressToHandleMap.Set(task.gnoAddress, task.githubHandle)
+	return nil
 }
 
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(githubHandle string) {
 	gnoAddress := string(std.GetOrigCaller())
-	oracle.AddFeeds(
+	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			gnoAddress,
 			"string",
@@ -79,12 +81,19 @@ func RequestVerification(githubHandle string) {
 				githubHandle: githubHandle,
 			},
 		),
-	)
+	); err != nil {
+		panic(err)
+	}
 }
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
 func GnorkleEntrypoint(message string) string {
-	return oracle.HandleMessage(message, postHandler)
+	result, err := oracle.HandleMessage(message, postHandler)
+	if err != nil {
+		panic(err)
+	}
+
+	return result
 }
 
 // SetOwner transfers ownership of the contract to the given address.
