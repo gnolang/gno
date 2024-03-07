@@ -226,8 +226,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					tsValidateError(ts, "gnokey", neg, err)
 				}
 
-				fmt.Printf("args: %+v\n", strings.Join(args, "|"))
-
 				// Setup IO command
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))
