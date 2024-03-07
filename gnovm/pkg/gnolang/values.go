@@ -816,8 +816,15 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
+// A user realm, forged by the MsgRun transaction, isn't considered as a realm.
+// XXX The user realm format is:
+// PkgPath="gno.land/r/user_address" PkgName="main"
+// A less confusing format could emerge in the future, with the form of
+// PkgPath="gno.land/u/user_address"
 func (pv *PackageValue) IsRealm() bool {
-	return IsRealmPath(pv.PkgPath)
+	return IsRealmPath(pv.PkgPath) &&
+		pv.PkgName != "main" // Discard user realms forged by MsgRun
 }
 
 func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
