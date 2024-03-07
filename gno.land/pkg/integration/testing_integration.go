@@ -381,7 +381,6 @@ func unquote(args []string) ([]string, error) {
 		// Finalize part, add to parts, and reset for next part
 		parts = append(parts, part.String())
 		part.Reset()
-
 	}
 
 	// Check if a quote is left open
