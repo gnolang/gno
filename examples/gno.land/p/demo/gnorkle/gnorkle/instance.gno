@@ -158,12 +158,12 @@ func (i *Instance) getFeed(id string) (Feed, error) {
 func (i *Instance) getFeedWithWhitelist(id string) (FeedWithWhitelist, error) {
 	untypedFeedWithWhitelist, ok := i.feeds.Get(id)
 	if !ok {
-		return nil, errors.New("invalid ingest id: " + id)
+		return FeedWithWhitelist{}, errors.New("invalid ingest id: " + id)
 	}
 
 	feedWithWhitelist, ok := untypedFeedWithWhitelist.(FeedWithWhitelist)
 	if !ok {
-		return nil, errors.New("invalid feed with whitelist type")
+		return FeedWithWhitelist{}, errors.New("invalid feed with whitelist type")
 	}
 
 	return feedWithWhitelist, nil
