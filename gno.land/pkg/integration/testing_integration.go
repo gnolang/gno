@@ -331,20 +331,24 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	}
 }
 
-// `unquote` processes a string slice as one block string. handling quoted
-// phrases and escape sequences.
+// `unquote` takes a slice of strings, resulting from splitting a string block by spaces, and
+// processes them. The function handles quoted phrases and escape characters within these strings.
 func unquote(args []string) ([]string, error) {
 	const quote = '"'
 
 	parts := []string{}
-	inQuote := false
+	var inQuote bool
 
 	var part strings.Builder
 	for _, arg := range args {
-		escaped := false
+		var escaped bool
 		for _, c := range arg {
-			// If this character should be escaped, unquote it
 			if escaped {
+				// If the character is meant to be escaped, it is processed with Unquote.
+				// We use `Unquote` here for two main reasons:
+				// 1. It will validate that the escape sequence is correct
+				// 2. It converts the escaped string to its corresponding raw character.
+				//    For example, "\\t" becomes '\t'.
 				uc, err := strconv.Unquote(`"\` + string(c) + `"`)
 				if err != nil {
 					return nil, fmt.Errorf("unhandled escape sequence `\\%c`: %w", c, err)
@@ -372,7 +376,8 @@ func unquote(args []string) ([]string, error) {
 			part.WriteRune(c)
 		}
 
-		// If we're inside a quote, add a single space
+		// If we're inside a quote, add a single space.
+		// It reflects one or multiple spaces between args in the original string.
 		if inQuote {
 			part.WriteRune(' ')
 			continue
