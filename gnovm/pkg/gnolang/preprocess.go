@@ -817,25 +817,29 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							debug.Printf("---rt: %v \n", rt)
 							debug.Printf("---rnt: %v \n", rnt)
 							// get concrete native base type.
-							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
-							// convert n.Left to pt type,
-							checkOrConvertType(store, last, &n.Left, pt, false, false)
-							// if check pass, convert n.Right to (gno) pt type,
-							rn := Expr(Call(pt.String(), n.Right))
-							debug.Printf("---rn : %v \n", rn)
-							// and convert result back.
-							tx := constType(n, rnt)
-							debug.Printf("---tx : %v \n", tx)
-							// reset/create n2 to preprocess right child.
-							n2 := &BinaryExpr{
-								Left:  n.Left,
-								Op:    n.Op,
-								Right: rn,
+							pt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							if ok {
+								// convert n.Left to pt type,
+								checkOrConvertType(store, last, &n.Left, pt, false, false)
+								// if check pass, convert n.Right to (gno) pt type,
+								rn := Expr(Call(pt.String(), n.Right))
+								debug.Printf("---rn : %v \n", rn)
+								// and convert result back.
+								tx := constType(n, rnt)
+								debug.Printf("---tx : %v \n", tx)
+								// reset/create n2 to preprocess right child.
+								n2 := &BinaryExpr{
+									Left:  n.Left,
+									Op:    n.Op,
+									Right: rn,
+								}
+								resn := Node(Call(tx, n2)) // this make current node to gonative{xxx}
+								resn = Preprocess(store, last, resn)
+								debug.Printf("---resn : %v \n", resn)
+								return resn, TRANS_CONTINUE
+							} else {
+								return n, TRANS_CONTINUE
 							}
-							resn := Node(Call(tx, n2)) // this make current node to gonative{xxx}
-							resn = Preprocess(store, last, resn)
-							debug.Printf("---resn : %v \n", resn)
-							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
 						} else {

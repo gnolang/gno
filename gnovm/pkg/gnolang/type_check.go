@@ -223,6 +223,7 @@ func assertSameTypes(lt, rt Type) {
 }
 
 func isSameType(lt, rt Type) bool {
+	debug.Printf("---isSameType, lt: %v, rt: %v \n", lt, rt)
 	return lt == nil && rt == nil || // both are nil/undefined
 		(lt != nil && rt != nil) && // both are defined
 			(lt.TypeID() == rt.TypeID()) // and identical.
@@ -252,7 +253,7 @@ func assertAssignable(lt, rt Type) {
 		// and remove this case?
 		println("4")
 	} else if lt.Kind() == InterfaceKind &&
-		IsImplementedBy(lt, rt) {
+		IsImplementedBy(lt, rt) { // TODO: consider this
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
 		IsImplementedBy(rt, lt) {
@@ -733,6 +734,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 		switch bx.Op {
 		case EQL, NEQ:
 			assertComparable(lt, rt)
+			checkAssignableTo(lt, rt, true)
 		case LSS, LEQ, GTR, GEQ:
 			if pred, ok := binaryChecker[bx.Op]; ok {
 				bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
@@ -798,6 +800,10 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 	}
 
 	// other cases
+	// TODO: XXX, this logic based on an assumption that one side is not defined on op
+	// while the other side is ok, and this side is assignable to the other side, pass
+	// is this general??? or the only case?
+	// consider 1.2 % int64(1), and 1.0 % int64
 	cmp := cmpSpecificity(lt, rt)
 	if !pred(lt) { // lt not compatible with op
 		if !pred(rt) { // rt not compatible with op
@@ -859,6 +865,7 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 		} else {
 			checkAssignableTo(rt, lt, true)
 		}
+		// TODO: cache
 	}
 }
 

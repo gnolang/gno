@@ -77,6 +77,7 @@ func (m *Machine) doOpEql() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 
+	debug.Printf("---doOpEql: lv: %v, rv: %v \n", lv, rv)
 	var res bool
 	if debug {
 		assertAssignable(lv.T, rv.T)
@@ -336,7 +337,7 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
-	debug.Printf("---isEql, lv: %v, rt: %v \n", lv, rv)
+	debug.Printf("---isEql, lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
