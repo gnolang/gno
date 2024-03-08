@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -60,13 +62,6 @@ func getCaptchaMiddleware(secret string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				// Make sure the request form is valid
-				if err := r.ParseForm(); err != nil {
-					http.Error(w, "invalid form", http.StatusBadRequest)
-
-					return
-				}
-
 				// Check if the captcha is enabled
 				if secret == "" {
 					// Continue with serving the faucet request
@@ -75,16 +70,38 @@ func getCaptchaMiddleware(secret string) func(next http.Handler) http.Handler {
 					return
 				}
 
-				// Verify the captcha response
-				passedMsg := r.Form["g-recaptcha-response"]
-				if passedMsg == nil {
-					http.Error(w, "invalid captcha request", http.StatusInternalServerError)
+				// Parse the request to extract the captcha secret
+				var request struct {
+					Captcha string `json:"captcha"`
+				}
+
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					http.Error(w, "unable to read request body", http.StatusInternalServerError)
 
 					return
 				}
 
-				// Check the captcha response against the secret
-				if err := checkRecaptcha(secret, strings.TrimSpace(passedMsg[0])); err != nil {
+				// Close the original body
+				if err := r.Body.Close(); err != nil {
+					http.Error(w, "unable to close request body", http.StatusInternalServerError)
+
+					return
+				}
+
+				// Create a new ReadCloser from the read bytes
+				// so that future middleware will be able to read
+				r.Body = io.NopCloser(bytes.NewReader(body))
+
+				// Decode the original request
+				if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&request); err != nil {
+					http.Error(w, "invalid captcha request", http.StatusBadRequest)
+
+					return
+				}
+
+				// Verify the captcha response
+				if err := checkRecaptcha(secret, strings.TrimSpace(request.Captcha)); err != nil {
 					http.Error(w, "invalid captcha", http.StatusUnauthorized)
 
 					return

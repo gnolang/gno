@@ -42,6 +42,7 @@
               // Extract the form data
               const formData = new FormData(event.target);
               const address = formData.get('to');
+              const secret = formData.get('g-recaptcha-response');
 
               // Send POST request with JSON body
               try {
@@ -51,7 +52,8 @@
                     "Content-Type": "application/json"
                   },
                   body: JSON.stringify({
-                    to: address
+                    to: address,
+                    captcha: secret
                   })
                 })
 
@@ -69,6 +71,9 @@
               } catch(e) {
                 displayResponse(defaultResponseErrorText)
               }
+
+              // Reset the captcha
+              grecaptcha.reset();
             })
           };
         </script>
