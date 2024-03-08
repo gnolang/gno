@@ -9,24 +9,59 @@
     <div id="root">
       <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
       <div id="home" class="container">
-        This is the Gno.land (test) faucet. {{ if .Data.captchaSite }}
+        This is the Gno.land (test) {{ if .Data.Config.CaptchaSite }}
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         {{ end }}
         <script type="text/javascript">
-           {{ if .Data.captchaSite }}
+           {{ if .Data.Config.CaptchaSite }}
           function recaptchaCallback() {
               document.getElementById("submitBtn").disabled = false;
           };
           {{ end }}
         </script>
 
-        <form method="POST" action="{{ .Data.Faucet.faucetURL }}">
-          <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br />
-          <div><input type="text" id="toaddr" name="toaddr" required /></div>
-          {{ if .Data.captchaSite }}
-          <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.captchaSite }}"></div>
+        <script type="text/javascript">
+          window.onload = () => {
+            document.getElementById("faucet").addEventListener("submit", async (event) => {
+              event.preventDefault(); // Prevent the form from submitting normally
+
+              // Fetch the form data
+              const formData = new FormData(event.target);
+              const address = formData.get('to');
+
+              const request = {
+                  to: address
+              }
+
+              // Send POST request with JSON body
+              try {
+                const response = fetch("{{ .Data.Config.FaucetURL }}", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(request)
+                })
+
+                if (!response.ok) {
+                  throw new Error("network response was not ok");
+                }
+
+                console.log(response.text())
+              } catch(e) {
+                console.error("Error:", e);
+              }
+            })
+          };
+        </script>
+
+        <form action="" id="faucet">
+          <label for="to">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br />
+          <div><input type="text" id="to" name="to" required /></div>
+          {{ if .Data.Config.CaptchaSite }}
+          <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.Config.CaptchaSite }}"></div>
           {{ end }}
-          <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.captchaSite }}disabled{{ end }} /></div>
+          <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.Config.CaptchaSite }}disabled{{ end }} /></div>
         </form>
       </div>
       {{ template "footer" }}

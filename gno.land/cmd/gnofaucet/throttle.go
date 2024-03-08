@@ -74,7 +74,7 @@ func (st *subnetThrottler) registerNewRequest(requestIP net.IP) error {
 	key := int64(ip[0])<<16 + int64(ip[1])<<8 + int64(ip[2])
 
 	// Increment the request count for the IP
-	count, loaded := st.subnets.LoadOrStore(key, 1)
+	count, loaded := st.subnets.LoadOrStore(key, int8(1))
 	if !loaded {
 		// Request is the first one from this IP key
 		return nil

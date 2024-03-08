@@ -68,9 +68,11 @@ func getCaptchaMiddleware(secret string) func(next http.Handler) http.Handler {
 				}
 
 				// Check if the captcha is enabled
-				if secret != "" {
+				if secret == "" {
 					// Continue with serving the faucet request
 					next.ServeHTTP(w, r)
+
+					return
 				}
 
 				// Verify the captcha response

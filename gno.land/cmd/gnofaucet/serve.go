@@ -23,7 +23,7 @@ const (
 	defaultGasFee        = "1000000ugnot"
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
-	defaultListenAddress = "http://127.0.0.1:5050"
+	defaultListenAddress = "127.0.0.1:5050"
 )
 
 // url & struct for verify captcha
@@ -177,7 +177,12 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	cli := tm2Client.NewClient(cfg.remote)
 
 	// Set up the logger
-	logger := log.NewZapJSONLogger(io.Out(), zapcore.DebugLevel)
+	logger := log.ZapLoggerToSlog(
+		log.NewZapJSONLogger(
+			io.Out(),
+			zapcore.DebugLevel,
+		),
+	)
 
 	// Start throttled faucet.
 	st := newSubnetThrottler(time.Minute)
@@ -194,7 +199,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	f, err := faucet.NewFaucet(
 		static.New(gasFee, gasWanted),
 		cli,
-		faucet.WithLogger(log.ZapLoggerToSlog(logger)),
+		faucet.WithLogger(logger),
 		faucet.WithConfig(cfg.generateFaucetConfig()),
 		faucet.WithMiddlewares(middlewares),
 	)
