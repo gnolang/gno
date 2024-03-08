@@ -18,7 +18,7 @@ const (
 type ConsensusConfig struct {
 	RootDir     string `toml:"home"`
 	WALPath     string `toml:"wal_file"`
-	WALDisabled bool
+	WALDisabled bool   `toml:"-"`
 	walFile     string // overrides WalPath if set
 
 	TimeoutPropose        time.Duration `toml:"timeout_propose"`
