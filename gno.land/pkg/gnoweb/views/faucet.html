@@ -21,35 +21,53 @@
         </script>
 
         <script type="text/javascript">
+          const defaultResponseWaitingText = "waiting on faucet response"
+          const defaultResponseErrorText = "unable to execute faucet request"
+
           window.onload = () => {
+            const responseWrapper = document.getElementById("responseWrapper")
+            const responseText = document.getElementById("faucetResponse")
+
+            const displayResponse = (text) => {
+              responseWrapper.style.display = 'block'
+              responseText.textContent = text
+            }
+
             document.getElementById("faucet").addEventListener("submit", async (event) => {
               event.preventDefault(); // Prevent the form from submitting normally
 
-              // Fetch the form data
+              // Set the default waiting text
+              displayResponse(defaultResponseWaitingText)
+
+              // Extract the form data
               const formData = new FormData(event.target);
               const address = formData.get('to');
 
-              const request = {
-                  to: address
-              }
-
               // Send POST request with JSON body
               try {
-                const response = fetch("{{ .Data.Config.FaucetURL }}", {
+                const response = await fetch("{{ .Data.Config.FaucetURL }}", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json"
                   },
-                  body: JSON.stringify(request)
+                  body: JSON.stringify({
+                    to: address
+                  })
                 })
 
+                // Check the faucet response
                 if (!response.ok) {
-                  throw new Error("network response was not ok");
+                  displayResponse(defaultResponseErrorText)
+
+                  return
                 }
 
-                console.log(response.text())
+                // Parse the faucet response
+                const faucetResponse = await response.json()
+
+                displayResponse(faucetResponse.result)
               } catch(e) {
-                console.error("Error:", e);
+                displayResponse(defaultResponseErrorText)
               }
             })
           };
@@ -63,6 +81,8 @@
           {{ end }}
           <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.Config.CaptchaSite }}disabled{{ end }} /></div>
         </form>
+        <br />
+        <div style="display:none;" id="responseWrapper">Faucet Response: <span id="faucetResponse"></span></div>
       </div>
       {{ template "footer" }}
     </div>
