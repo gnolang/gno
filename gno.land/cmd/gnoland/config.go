@@ -87,7 +87,7 @@ func newInvalidFieldError(field string, value reflect.Value) error {
 	}
 
 	return fmt.Errorf(
-		"field \"%s\", is not a valid configuration key, available keys: %s",
+		"field %q, is not a valid configuration key, available keys: %s",
 		field,
 		fields,
 	)
