@@ -84,3 +84,11 @@ func DecodeBech32(addr Address) (prefix string, bytes [20]byte, ok bool) {
 func DerivePkgAddr(pkgPath string) (addr Address) {
 	panic(shimWarn)
 }
+
+func TestIssueCoins(Address, Coins) {
+	panic(shimWarn)
+}
+
+func TestSetOrigSend(Coins, Coins) {
+	panic(shimWarn)
+}
