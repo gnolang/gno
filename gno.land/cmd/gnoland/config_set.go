@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -92,102 +92,41 @@ func updateConfigField(config *config.Config, key, value string) error {
 		return err
 	}
 
-	// Convert the value to the field's type
-	v, err := convertStringToType(value, field.Interface())
-	if err != nil {
+	// Attempt to update the field value
+	if err = saveStringToValue(value, *field); err != nil {
 		return fmt.Errorf("unable to convert value to field type, %w", err)
 	}
-
-	// Update the field value
-	field.Set(reflect.ValueOf(v))
 
 	return nil
 }
 
-// convertStringToType attempts to convert the given
-// string value to an output type.
+// saveStringToValue attempts to convert the given
+// string value to the destination type and save it to the destination value.
 // Because we opted to using reflect instead of a flag-based approach,
 // arguments (always strings) need to be converted to the field's
 // respective type, if possible
-func convertStringToType(value string, outputType any) (any, error) {
-	parseInt := func(size int) (any, error) {
-		castValue, err := strconv.ParseInt(value, 10, size)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert to int%d, %w", size, err)
-		}
-
-		return castValue, nil
-	}
-
-	parseUint := func(size int) (any, error) {
-		castValue, err := strconv.ParseInt(value, 10, size)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert to uint%d, %w", size, err)
-		}
-
-		return castValue, nil
-	}
-
-	parseFloat := func(size int) (any, error) {
-		castValue, err := strconv.ParseFloat(value, size)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert to float%d, %w", size, err)
-		}
-
-		return castValue, nil
-	}
-
-	switch outputType.(type) {
+func saveStringToValue(value string, dstValue reflect.Value) error {
+	switch dstValue.Interface().(type) {
 	case string:
-		return value, nil
+		dstValue.Set(reflect.ValueOf(value))
 	case []string:
 		// This is a special case.
 		// Since values are given as a single string (argument),
 		// they need to be parsed from a custom format.
 		// In this case, the format for a []string is comma separated:
 		// value1,value2,value3 ...
-		return strings.SplitN(value, ",", -1), nil
+		val := strings.SplitN(value, ",", -1)
+
+		dstValue.Set(reflect.ValueOf(val))
 	case time.Duration:
-		castValue, err := time.ParseDuration(value)
+		val, err := time.ParseDuration(value)
 		if err != nil {
-			return nil, fmt.Errorf("unable to convert to Duration, %w", err)
+			return fmt.Errorf("unable to parse time.Duration, %w", err)
 		}
 
-		return castValue, nil
-	case int:
-		castValue, err := strconv.Atoi(value)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert to int, %w", err)
-		}
-
-		return castValue, nil
-	case int8:
-		return parseInt(8)
-	case int16:
-		return parseInt(16)
-	case int32:
-		return parseInt(32)
-	case int64:
-		return parseInt(64)
-	case bool:
-		castValue, err := strconv.ParseBool(value)
-		if err != nil {
-			return nil, fmt.Errorf("unable to convert to bool, %w", err)
-		}
-
-		return castValue, nil
-	case uint, uint64:
-		return parseUint(64)
-	case uint8:
-		return parseUint(8)
-	case uint16:
-		return parseUint(16)
-	case uint32:
-		return parseUint(32)
-	case float32:
-		return parseFloat(32)
-	case float64:
-		return parseFloat(64)
+		dstValue.Set(reflect.ValueOf(val))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+		return json.Unmarshal([]byte(value), dstValue.Addr().Interface())
 	case types.EventStoreParams:
 		// This is a special case.
 		// Map values are tricky to parse, especially
@@ -195,10 +134,14 @@ func convertStringToType(value string, outputType any) (any, error) {
 		// method is used to parse out the key value pairs
 		// that are given in a custom format,
 		// for the event store params
-		return parseEventStoreParams(value), nil
+		val := parseEventStoreParams(value)
+
+		dstValue.Set(reflect.ValueOf(val))
 	default:
-		return nil, fmt.Errorf("unsupported type, %s", outputType)
+		return fmt.Errorf("unsupported type, %s", dstValue.Type().Name())
 	}
+
+	return nil
 }
 
 // parseEventStoreParams parses the event store params into a param map.
