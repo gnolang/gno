@@ -115,10 +115,15 @@ func generateInvalidFieldError(field string, value reflect.Value) error {
 		numFields = value.NumField()
 	)
 
-	fields := make([]string, numFields)
+	fields := make([]string, 0, numFields)
 
 	for i := 0; i < numFields; i++ {
-		fields[i] = valueType.Field(i).Name
+		valueField := valueType.Field(i)
+		if !valueField.IsExported() {
+			continue
+		}
+
+		fields = append(fields, valueField.Name)
 	}
 
 	return fmt.Errorf(
