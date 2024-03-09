@@ -145,12 +145,12 @@ Simply point it to the location containing our testing source code, and the test
 For example, we can run the following command from the `counter-app/r/counter` directory:
 
 ```bash
-gno test -verbose -root-dir /Users/zmilos/Work/gno .
+gno test -v .
 ```
 
 Let's look into the different parts of this command:
 
-- `-verbose` enables the verbose output.
+- `-v` enables the verbose output.
 - `-root-dir` specifies the root directory to our cloned `gno` GitHub repository
 - `.` specifies the location containing our test files. Since we are already located in that directory, we specify
   a `.`.
