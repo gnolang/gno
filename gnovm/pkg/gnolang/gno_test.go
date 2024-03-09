@@ -29,6 +29,23 @@ func TestRunEmptyMain(t *testing.T) {
 	m.RunMain()
 }
 
+func TestRunGenericMain(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+
+type List[T any] struct {
+    arr []T
+}
+func main() {
+	
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	t.Parallel()

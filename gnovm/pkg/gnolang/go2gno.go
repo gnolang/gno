@@ -134,18 +134,19 @@ func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 }
 
 // If gon is a *ast.File, the name must be filled later.
-func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
-	if gon == nil {
+func Go2Gno(fs *token.FileSet, gonode ast.Node) (n Node) {
+	if gonode == nil {
 		return nil
 	}
 	if fs != nil {
 		defer func() {
 			if n != nil {
-				setLoc(fs, gon.Pos(), n)
+				setLoc(fs, gonode.Pos(), n)
 			}
 		}()
 	}
-	switch gon := gon.(type) {
+
+	switch gon := gonode.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
 	case *ast.Ident:
@@ -630,10 +631,21 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
+			params := make([]GenParam, len(s.TypeParams.List))
+
+			for i, field := range s.TypeParams.List {
+				nx := Go2Gno(fs, field.Names[0]).(*NameExpr)
+				params[i] = GenParam{
+					name: *nx,
+					t:    toExpr(fs, field.Type),
+				}
+			}
+
 			ds = append(ds, &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
+				Params:   params,
 			})
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
