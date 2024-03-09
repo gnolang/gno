@@ -206,9 +206,9 @@ func TestConfig_Get_Consensus(t *testing.T) {
 		},
 		{
 			"WAL path updated",
-			"Consensus.WalPath",
+			"Consensus.WALPath",
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.Consensus.WalPath)
+				assert.Equal(t, value, loadedCfg.Consensus.WALPath)
 			},
 		},
 		{
