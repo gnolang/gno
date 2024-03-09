@@ -47,7 +47,7 @@ func getFieldAtPath(currentValue reflect.Value, path []string) (*reflect.Value, 
 	// Look at the current section, and figure out if
 	// it's a part of the current struct
 	field := currentValue.FieldByName(path[0])
-	if !field.IsValid() {
+	if !field.IsValid() || !field.CanSet() {
 		return nil, generateInvalidFieldError(path[0], currentValue)
 	}
 
