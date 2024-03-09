@@ -58,7 +58,7 @@ func verifyGetTestTableCommon(t *testing.T, testTable []testGetCase) {
 			}
 
 			// Create the command IO
-			mockOut := bytes.NewBufferString("")
+			mockOut := new(bytes.Buffer)
 
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
