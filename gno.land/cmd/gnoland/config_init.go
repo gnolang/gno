@@ -19,7 +19,7 @@ func newConfigInitCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "init",
 			ShortUsage: "config init [flags]",
-			ShortHelp:  "Initializes the Gno node configuration",
+			ShortHelp:  "initializes the Gno node configuration",
 			LongHelp: "Initializes the Gno node configuration locally with default values, which includes" +
 				" the base and module configurations",
 		},

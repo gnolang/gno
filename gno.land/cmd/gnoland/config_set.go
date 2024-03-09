@@ -24,7 +24,7 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "set",
 			ShortUsage: "config set <key> <value>",
-			ShortHelp:  "Edits the Gno node configuration",
+			ShortHelp:  "edits the Gno node configuration",
 			LongHelp: "Edits the Gno node configuration at the given path " +
 				"by setting the option specified at <key> to the given <value>",
 		},

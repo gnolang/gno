@@ -17,7 +17,7 @@ func newConfigCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "config",
 			ShortUsage: "config <subcommand> [flags]",
-			ShortHelp:  "Gno config manipulation suite",
+			ShortHelp:  "gno config manipulation suite",
 			LongHelp:   "Gno config manipulation suite, for editing base and module configurations",
 		},
 		commands.NewEmptyConfig(),
