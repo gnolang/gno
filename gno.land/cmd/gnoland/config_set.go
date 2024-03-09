@@ -86,14 +86,10 @@ func updateConfigField(config *config.Config, key, value string) error {
 	// Get the value path, with sections separated out by a period
 	path := strings.Split(key, ".")
 
+	// Get the editable field
 	field, err := getFieldAtPath(configValue, path)
 	if err != nil {
 		return err
-	}
-
-	// We've reached the actual field, check if it can be updated
-	if !field.CanSet() {
-		return fmt.Errorf("unable to set value")
 	}
 
 	// Convert the value to the field's type
