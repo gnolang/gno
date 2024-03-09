@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -48,7 +49,7 @@ func getFieldAtPath(currentValue reflect.Value, path []string) (*reflect.Value, 
 	// it's a part of the current struct
 	field := currentValue.FieldByName(path[0])
 	if !field.IsValid() || !field.CanSet() {
-		return nil, generateInvalidFieldError(path[0], currentValue)
+		return nil, newInvalidFieldError(path[0], currentValue)
 	}
 
 	// Dereference the field if needed
@@ -64,4 +65,30 @@ func getFieldAtPath(currentValue reflect.Value, path []string) (*reflect.Value, 
 	}
 
 	return &field, nil
+}
+
+// newInvalidFieldError creates an error for non-existent struct fields
+// being passed as arguments to [getFieldAtPath]
+func newInvalidFieldError(field string, value reflect.Value) error {
+	var (
+		valueType = value.Type()
+		numFields = value.NumField()
+	)
+
+	fields := make([]string, 0, numFields)
+
+	for i := 0; i < numFields; i++ {
+		valueField := valueType.Field(i)
+		if !valueField.IsExported() {
+			continue
+		}
+
+		fields = append(fields, valueField.Name)
+	}
+
+	return fmt.Errorf(
+		"field \"%s\", is not a valid configuration key, available keys: %s",
+		field,
+		fields,
+	)
 }

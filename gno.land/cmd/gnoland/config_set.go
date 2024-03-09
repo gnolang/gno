@@ -108,31 +108,6 @@ func updateConfigField(config *config.Config, key, value string) error {
 	return nil
 }
 
-// generateInvalidFieldError generates an invalid field error
-func generateInvalidFieldError(field string, value reflect.Value) error {
-	var (
-		valueType = value.Type()
-		numFields = value.NumField()
-	)
-
-	fields := make([]string, 0, numFields)
-
-	for i := 0; i < numFields; i++ {
-		valueField := valueType.Field(i)
-		if !valueField.IsExported() {
-			continue
-		}
-
-		fields = append(fields, valueField.Name)
-	}
-
-	return fmt.Errorf(
-		"field \"%s\", is not a valid configuration key, available keys: %s",
-		field,
-		fields,
-	)
-}
-
 // convertStringToType attempts to convert the given
 // string value to an output type.
 // Because we opted to using reflect instead of a flag-based approach,
