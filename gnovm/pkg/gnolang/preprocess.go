@@ -498,7 +498,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					errs := sa.Analyse(n)
 
 					if len(errs) > 0 {
-						fmt.Printf("%+v\n", errs)
+git 						panic(fmt.Sprintf("%+v\n", errs))
 					}
 				}
 			// TRANS_BLOCK -----------------------

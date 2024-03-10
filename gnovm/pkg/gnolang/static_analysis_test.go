@@ -2,126 +2,20 @@ package gnolang
 
 import "testing"
 
-func TestTerminatingStatements(t *testing.T) {
-	t.Parallel()
-	m := NewMachine("test", nil)
-	c := `package test
-func main() {
-	z := y()
-	a := s()
-	values := []int{0, 1, 2, 3, 4}
-	processValues(values)
-	validLabel()
-	switchLabel()
-	b := compare(5,3)
-	c := isEqual(3,3)
-	fruitStall()
-	whichDay()
-	
-	
-	invalidCompareBool(2,3)
-	invalidIfStatement(6)
-	invalidIfLogic(0)
-	example2(4,3)
-	invalidExample1(1)
-	println(c)
-	println(b)
-	println(a)
-	println(z)
-}
+func TestStaticAnalysisShouldPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
 
-func y() int {
-	x := 9
-	return 9
-}
-
-func invalidExample1(x int) {
-    if x > 0 {
-        println("Positive") 
-    } else {
-        println("Non-positive") 
-    }
-}
-
-func add(a, b int) int {
-    return a + b
-}
-
-func example2(x, y int) {
-    if x > y {
-        result := add(x, y)
-        println("The sum is:", result)
-    } else {
-        result := add(y, x)
-        println("The sum is:", result)
-    }
-    println("Execution continues...")
-}
-
-func isEqual(a, b int) bool {
-	if a == b {
-		return true
-	}
-	return false
-}
-
-
-func s() int {
-	x := 9
-	switch x {
-	case 1:
-		println(1)
-	case 9:
-		return x
-	default:
-		break
-	}
-
-	return x
-}
-
-func compare(a, b int) int {
-	if a > b {
-		return a
-	} else {
-		return b
-	}
-}
-
-
-
-func whichDay() {
-	dayOfWeek := 3
-
-	switch dayOfWeek {
-
-	case 1:
-		println("Sunday")
-
-	case 2:
-		println("Monday")
-
-	case 3:
-		println("Tuesday")
-
-	case 4:
-		println("Wednesday")
-
-	case 5:
-		println("Thursday")
-
-	case 6:
-		println("Friday")
-
-	case 7:
-		println("Saturday")
-
-	default:
-		println("Invalid day")
-	}
-}
-
-func fruitStall() {
+	cases := []string{
+		`
+	package test 
+		func main() {
+			invalidSwitch()
+		}
+	func invalidSwitch() int {
 	mockVar := map[string]int{
 		"apple":      10,
 		"banana":     20,
@@ -134,64 +28,149 @@ func fruitStall() {
 		switch k {
 		case "apple":
 			if v < 50 {
-				println(v)
+				return(v)
 			} else {
-				println(50)
+				return(50)
 			}
 		case "banana":
 			if v > 10 {
-				println(v)
+				return(v)
 			} else {
-				println(10)
+				return(10)
 			}
 		case "orange":
 			if v > 30 {
-				println(v)
 			} else {
-				println(30)
+				return(30)
 			}
 		case "mango":
 			if v == 5 {
-				println(v)
+				return(v)
 			} else {
-				println(5)
+				return(5)
 			}
 		case "watermelon":
 			if v == 15 {
-				println(v)
+				return(v)
 			} else {
-				println(15)
+				return(15)
 			}
 		default:
-			println("Did not found any")
+			return 0
 		}
 	}
 }
-
-func processValues(values []int) {
-OuterLoop:
-	for i := range values {
-		switch values[i] {
-		case 0:
-			println("Zero")
-		case 1:
-			println("One")
-		case 2:
-			println("Two")
-		case 3:
-			println("Three")
-			break OuterLoop 
-		default:
-			println("Other")
+`,
+		`package test
+		func main() { 
+	
 		}
+
+	func invalidLabel() int{
+		Outer:
+			for {
+				for {
+					break Outer
+				}
+			}
+	}
+`,
+		`package test
+		func main() { 
+			oddOrEven(3)
+		}
+
+	func oddOrEven(x int) bool {
+		for i := 0; i < x; i++ {
+			if(x % 2 == 0){
+			
+			} else {
+				return false 
+			}
+		}
+	}
+	`,
+		`package test
+		func main() { 
+			sumArr([]int{1,1,1})
+		}
+
+	func sumArr(x []int) int {
+		sum := 0
+		for _, s := range x {
+			sum = sum + s
+		}
+	}
+`,
+		`package test
+		func main() { 
+			invalidSwitch(3)
+		}
+
+	func invalidSwitch(x int) int {
+		switch x {
+			case 1:
+				return 1
+			case 2:
+				return 2
+		}
+	}
+`,
+		`package test
+		func main() {
+			invalidCompareBool(4,5)
+		}
+		
+		func invalidCompareBool(a, b int) bool {
+			if a > b {
+				return true
+			} else {
+			}
+		}
+		`,
+		`package test
+		func main() {
+			invalidIfStatement(6)
+		}
+
+func invalidIfStatement(x int) int {
+    if x > 5 {
+        
+    } else {
+        return x
+    }
+}
+
+`,
+	}
+
+	for _, s := range cases {
+		m := NewMachine("test", nil)
+
+		n := MustParseFile("main.go", s)
+		m.RunFiles(n)
+		m.RunMain()
 	}
 }
 
+func TestStaticAnalysisShouldPass(t *testing.T) {
+	cases := []string{
+		`package test
+func main() {
+	first := a()
+	println(first)
+}
 
+func a() int {
+	x := 9
+	return 9
+}
+`, `package test
+	func main() {
+	validLabel()	
+}
 
-
-
-func validLabel(){
+func validLabel() int{
 println("validLabel")
 OuterLoop:
     for i := 0; i < 10; i++ {
@@ -200,47 +179,150 @@ OuterLoop:
             break OuterLoop
         }
     }
+	return 0
+}
+`, `package test
+func main() {
+	fruitStall()
+	
 }
 
-func switchLabel(){
+func fruitStall() int {
+	mockVar := map[string]int{
+		"apple":      10,
+		"banana":     20,
+		"orange":     30,
+		"mango":      5,
+		"watermelon": 15,
+	}
+
+	for k, v := range mockVar {
+		switch k {
+		case "apple":
+			if v < 50 {
+				return(v)
+			} else {
+				return(50)
+			}
+		case "banana":
+			if v > 10 {
+				return(v)
+			} else {
+				return(10)
+			}
+		case "orange":
+			if v > 30 {
+				return(v)
+			} else {
+				return(30)
+			}
+		case "mango":
+			if v == 5 {
+				return(v)
+			} else {
+				return(5)
+			}
+		case "watermelon":
+			if v == 15 {
+				return(v)
+			} else {
+				return(15)
+			}
+		default:
+			return 0
+		}
+	}
+	return 0
+}
+`, `
+	package test
+	func main() {
+		whichDay()
+	}
+func whichDay() string{
+	dayOfWeek := 3
+
+	switch dayOfWeek {
+
+	case 1:
+		return "Sunday"
+
+	case 2:
+		return "Monday"
+
+	case 3:
+		return "Tuesday"
+
+	case 4:
+		return "Wednesday"
+
+	case 5:
+		return "Thursday"
+
+	case 6:
+		return "Friday"
+
+	case 7:
+		return "Saturday"
+
+	default:
+		return "Invalid day"
+	}
+	return "Not a day"
+}
+
+`, `package test
+	func main() {
+	switchLabel()
+}
+
+func switchLabel() int{
 SwitchStatement:
     switch 1 {
     case 1:
-        println(1)
+        return 1
         for i := 0; i < 10; i++ {
             break SwitchStatement
         }
-        println(2)
+        return 2
     }
-    println(3)
+    return 3
 }
-
-func invalidCompareBool(a, b int) bool {
-	if a > b {
-		return true
-	} else {
+`, `
+	package test 
+	func main() {
+		add(1,1)	
 	}
-}
+func add(a, b int) int {
+    return a + b
+}`,
+		`package test
+		func main() { 
+			z := y()
+		}
 
-func invalidIfStatement(x int) {
-    if x > 5 {
-        
-    } else {
-        println("x is less than or equal to 5")
-    }
-}
+	func y() int{
+		x := 9
+		return 9
+	}
+`, `package test
+		func main() { 
+			isEqual(2,2)
+		}	
+		func isEqual(a, b int) bool {
+		if a == b {
+		return true
+	}
+		return false
+	}
+`,
+	}
 
-func invalidIfLogic(x int) bool {
-  if x > 0 {
-    return true  
-  } else {
-  }
-}
+	for _, s := range cases {
+		m := NewMachine("test", nil)
 
-`
-
-	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
-	m.RunMain()
-
+		n := MustParseFile("main.go", s)
+		m.RunFiles(n)
+		m.RunMain()
+	}
 }
