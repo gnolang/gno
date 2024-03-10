@@ -13,8 +13,8 @@ type store struct {
 }
 
 // newStore creates a new message store
-func newStore() *store {
-	return &store{
+func newStore() store {
+	return store{
 		proposeMessages:   messages.NewCollector[types.ProposalMessage](),
 		prevoteMessages:   messages.NewCollector[types.PrevoteMessage](),
 		precommitMessages: messages.NewCollector[types.PrecommitMessage](),

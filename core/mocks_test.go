@@ -104,6 +104,11 @@ type mockVerifier struct {
 	isValidatorFn isValidator
 }
 
+func (m *mockVerifier) Quorum(msgs []Message) bool {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (m *mockVerifier) IsProposer(id []byte, height, round uint64) bool {
 	if m.isProposerFn != nil {
 		return m.isProposerFn(id, height, round)

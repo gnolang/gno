@@ -85,8 +85,8 @@ func (t *Tendermint) verifyMessage(message message) error {
 	var (
 		view = message.GetView()
 
-		currentHeight = t.state.view.GetHeight() // TODO make thread safe
-		currentRound  = t.state.view.GetRound()  // TODO make thread safe
+		currentHeight = t.state.LoadHeight()
+		currentRound  = t.state.LoadRound()
 	)
 
 	// Make sure the height is valid.

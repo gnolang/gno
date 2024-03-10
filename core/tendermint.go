@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
+	"log/slog"
 	"sync"
+
+	"github.com/gnolang/go-tendermint/messages"
 
 	"github.com/gnolang/go-tendermint/messages/types"
 )
@@ -16,10 +19,10 @@ type Tendermint struct {
 	signer    Signer
 
 	// state is the current Tendermint consensus state
-	state *state
+	state state
 
 	// store is the message store
-	store *store
+	store store
 
 	// roundExpired is the channel for signalizing
 	// round change events (to the next round, from the current one)
@@ -31,12 +34,16 @@ type Tendermint struct {
 	// wg is the barrier for keeping all
 	// parallel consensus processes synced
 	wg sync.WaitGroup
+
+	log slog.Logger
 }
 
 // RunSequence runs the Tendermint consensus sequence for a given height,
 // returning only when a proposal has been finalized (consensus reached), or
 // the context has been cancelled
 func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
+	t.log.Debug("RunSequence", slog.Any("height", h), slog.Any("node", t.node.ID()))
+
 	// Initialize the state before starting the sequence
 	t.state = newState(&types.View{
 		Height: h,
@@ -57,26 +64,29 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 
 			// Check if the proposal has been finalized
 			if proposal == nil {
+				t.log.Info("RunSequence received empty proposal", slog.Any("height", h), slog.Any("round", t.state.LoadRound()))
 				// 65: Function OnTimeoutPrecommit(height, round) :
 				// 66: 	if height = hP ∧ round = roundP then
 				// 67: 		StartRound(roundP + 1)
-				// TODO start NEXT round (view.Round + 1)
+				t.state.IncRound()
 				continue
 			}
 
+			t.log.Info("RunSequence: received\n", slog.Any("height", h), slog.Any("proposal", proposal))
+
 			return proposal
-		case _ = <-t.watchForRoundJumps(ctxRound): //nolint:gosimple // Temporarily unassigned
+		case recvRound := <-t.watchForRoundJumps(ctxRound): //nolint:gosimple // Temporarily unassigned
+			t.log.Info("RunSequence", slog.Any("height", h), slog.Any("from_round", t.state.LoadRound()), slog.Any("to_round", recvRound))
 			teardown()
-
-		// TODO start NEW round (that was received)
+			t.state.SetRound(recvRound)
 		case <-t.roundExpired:
+			t.log.Info("RunSequence round expired: %v\n", slog.Any("height", h), slog.Any("round", t.state.LoadRound()))
 			teardown()
-
-			// TODO start NEXT round (view.Round + 1)
+			t.state.IncRound()
 		case <-ctx.Done():
 			teardown()
 
-			// TODO log
+			t.log.Info("RunSequence done", slog.Any("height", h))
 			return nil
 		}
 	}
@@ -112,23 +122,43 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 		}
 
 		for {
+			var majority bool
+
 			select {
 			case <-ctx.Done():
 				return
 			case getProposeFn := <-proposeCh:
-				// TODO count messages
-				_ = getProposeFn()
+				prpMsgs := getProposeFn()
+				msgs := make([]Message, 0)
+
+				messages.ConvertToInterface(prpMsgs, func(m *types.ProposalMessage) {
+					msgs = append(msgs, m)
+				})
+
+				majority = t.verifier.Quorum(msgs)
 			case getPrevoteFn := <-prevoteCh:
-				// TODO count messages
-				_ = getPrevoteFn()
+				prvMsgs := getPrevoteFn()
+				msgs := make([]Message, 0)
+
+				messages.ConvertToInterface(prvMsgs, func(m *types.PrevoteMessage) {
+					msgs = append(msgs, m)
+				})
+
+				majority = t.verifier.Quorum(msgs)
 			case getPrecommitFn := <-precommitCh:
-				// TODO count messages
-				_ = getPrecommitFn()
+				prcMsgs := getPrecommitFn()
+				msgs := make([]Message, 0)
+
+				messages.ConvertToInterface(prcMsgs, func(m *types.PrecommitMessage) {
+					msgs = append(msgs, m)
+				})
+
+				majority = t.verifier.Quorum(msgs)
 			}
 
-			// TODO check if the condition (F+1) is met
+			// check if the condition (F+1) is met
 			// and signal the round jump
-			if false {
+			if majority {
 				signalRoundJump(0)
 			}
 		}
@@ -166,18 +196,22 @@ func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
 // the state machine is in full swing and
 // the runs the same flow for everyone (proposer / non-proposers)
 func (t *Tendermint) startRound(ctx context.Context) {
-	// TODO make thread safe
+	height := t.state.LoadHeight()
+	round := t.state.LoadRound()
+
 	// Check if the current process is the proposer for this view
-	if !t.verifier.IsProposer(t.node.ID(), t.state.view.Height, t.state.view.Round) {
+	if !t.verifier.IsProposer(t.node.ID(), height, round) {
 		// The current process is NOT the proposer, only schedule a timeout
 		//
 		// 21: 	schedule OnTimeoutPropose(hP , roundP) to be executed after timeoutPropose(roundP)
 		var (
 			callback = func() {
-				t.onTimeoutPropose(t.state.view.Round)
+				t.onTimeoutPropose(round)
 			}
-			timeoutPropose = t.timeouts[propose].calculateTimeout(t.state.view.Round)
+			timeoutPropose = t.timeouts[propose].calculateTimeout(round)
 		)
+
+		t.log.Info("startRound scheduling a timeout", slog.Any("height", height), slog.Any("round", round), slog.Any("timeout", timeoutPropose.Milliseconds()))
 
 		t.scheduleTimeout(ctx, timeoutPropose, callback)
 
@@ -196,12 +230,13 @@ func (t *Tendermint) startRound(ctx context.Context) {
 
 	// Check if a new proposal needs to be built
 	if proposal == nil {
+		t.log.Info("RunSequence: Last valid proposal is nil. Building a proposal.", slog.Any("height", height), slog.Any("round", round))
 		// No previous valid value present,
 		// build a new proposal.
 		//
 		// 17: 	else
 		// 18: 		proposal ← getValue()
-		proposal = t.node.BuildProposal(t.state.view.Height)
+		proposal = t.node.BuildProposal(height)
 	}
 
 	// Build the propose message
@@ -215,7 +250,6 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	// 19: 		broadcast <PROPOSAL, hp, roundP, proposal, validRoundP>
 	t.broadcast.BroadcastProposal(proposeMessage)
 
-	// TODO make thread safe
 	// Save the accepted proposal in the state.
 	// NOTE: This is different from validValue / lockedValue,
 	// since they require a 2F+1 quorum of specific messages
@@ -231,17 +265,16 @@ func (t *Tendermint) startRound(ctx context.Context) {
 
 	// Since the current process is the proposer,
 	// it can directly move to the prevote state
-	// TODO make threads safe
-	//
 	// 27/33: stepP ← prevote
-	t.state.step = prevote
+	t.state.step.Set(prevote)
 }
 
 // runStates runs the consensus states, depending on the current step
 func (t *Tendermint) runStates(ctx context.Context) []byte {
 	for {
-		// TODO make thread safe
-		switch t.state.step {
+		currentStep := t.state.step.Load()
+
+		switch currentStep {
 		case propose:
 			t.runPropose(ctx)
 		case prevote:

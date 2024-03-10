@@ -6,11 +6,10 @@ import (
 
 // buildProposalMessage builds a proposal message using the given proposal
 func (t *Tendermint) buildProposalMessage(proposal []byte) *types.ProposalMessage {
-	// TODO make thread safe
 	var (
-		height     = t.state.view.Height
-		round      = t.state.view.Round
-		validRound = t.state.validRound
+		height     = t.state.LoadHeight()
+		round      = t.state.LoadRound()
+		validRound = t.state.LoadValidRound()
 	)
 
 	// Build the proposal message (assumes the node will sign it)
@@ -32,10 +31,9 @@ func (t *Tendermint) buildProposalMessage(proposal []byte) *types.ProposalMessag
 
 // buildPrevoteMessage builds a prevote message using the given proposal identifier
 func (t *Tendermint) buildPrevoteMessage(id []byte) *types.PrevoteMessage {
-	// TODO make thread safe
 	var (
-		height = t.state.view.Height
-		round  = t.state.view.Round
+		height = t.state.LoadHeight()
+		round  = t.state.LoadRound()
 
 		processID = t.node.ID()
 	)
@@ -59,10 +57,9 @@ func (t *Tendermint) buildPrevoteMessage(id []byte) *types.PrevoteMessage {
 //
 //nolint:unused // Temporarily unused
 func (t *Tendermint) buildPrecommitMessage(id []byte) *types.PrecommitMessage {
-	// TODO make thread safe
 	var (
-		height = t.state.view.Height
-		round  = t.state.view.Round
+		height = t.state.LoadHeight()
+		round  = t.state.LoadRound()
 
 		processID = t.node.ID()
 	)

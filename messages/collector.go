@@ -13,6 +13,14 @@ type msgType interface {
 	types.ProposalMessage | types.PrevoteMessage | types.PrecommitMessage
 }
 
+// this is because Go doesn't support covariance on slices
+// []*T -> []I does not work
+func ConvertToInterface[T msgType](msgs []*T, convertFunc func(m *T)) {
+	for _, msg := range msgs {
+		convertFunc(msg)
+	}
+}
+
 type (
 	// collection are the actual received messages.
 	// Maps a unique identifier -> their message (of a specific type) to avoid duplicates.

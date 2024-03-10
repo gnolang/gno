@@ -46,7 +46,6 @@ func (t *Tendermint) scheduleTimeout(
 // 59: 		broadcast <PREVOTE, hP, roundP, nil>
 // 60: 		stepP ← prevote
 func (t *Tendermint) onTimeoutPropose(round uint64) {
-	// TODO make thread safe
 	var (
 		// TODO Evaluate if the round information is even required.
 		// We cancel the top-level timeout context upon every round change,
@@ -54,8 +53,8 @@ func (t *Tendermint) onTimeoutPropose(round uint64) {
 		// Essentially, I believe the only param we do need to check is
 		// the current state in the SM, since this method can be executed async when
 		// the SM is in a different state
-		currentRound = t.state.view.Round
-		currentStep  = t.state.step
+		currentRound = t.state.LoadRound()
+		currentStep  = t.state.step.Load()
 	)
 
 	// Make sure the timeout context is still valid
