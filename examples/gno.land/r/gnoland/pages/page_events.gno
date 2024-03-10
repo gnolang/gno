@@ -37,7 +37,7 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 <div class="column">
 
 ### Nebular Summit
-- Come see our talk
+- Join our workshop
 - Brussels, July 12 - 13, 2024
 
 [Learn More](https://nebular.builders/)
