@@ -64,9 +64,9 @@ func main() {
 //<div class="columns-3">
 //<div class="column">
 //
-//### Last Blogposts
+//### Latest Blogposts
 //
-//
+//No posts.
 //</div><!-- /column-->
 //<div class="column">
 //
@@ -81,6 +81,19 @@ func main() {
 //[View latest contributions](https://github.com/gnolang/gno/pulls)
 //</div><!-- /column-->
 //</div><!-- /columns-3 -->
+//
+//
+//---
+//
+//### [Gno Playground](https://play.gno.land)
+//
+//
+//Gno Playground is a web application designed for building, running, testing, and interacting
+//with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
+//execute tests, deploy your realms and packages to Gno.land, and explore a multitude of other features.
+//
+//
+//Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land).
 //
 //
 //---

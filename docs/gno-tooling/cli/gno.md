@@ -53,5 +53,4 @@ gno {SUB_COMMAND}
 
 | Name       | Type    | Description                                                        |
 | ---------- | ------- | ------------------------------------------------------------------ |
-| `verbose`  | Boolean | Displays extended information.                                     |
 | `root-dir` | String  | Clones location of github.com/gnolang/gno (gno tries to guess it). |

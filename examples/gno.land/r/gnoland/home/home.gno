@@ -28,6 +28,9 @@ func Render(_ string) string {
 			lastContributions(4),
 		}},
 	)
+
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(playgroundSection()...)
 	dom.Body.Append(ui.HR{})
 	dom.Body.Append(packageStaffPicks()...)
 	dom.Body.Append(ui.HR{})
@@ -54,7 +57,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Last Blogposts"),
+		ui.H3("Latest Blogposts"),
 		ui.Text(posts),
 	}
 }
@@ -145,6 +148,16 @@ func socialLinks() ui.Element {
 			ui.Text("![Youtube](static/img/ico-youtube.svg) [Youtube](https://www.youtube.com/@_gnoland)"),
 			ui.Text("![Telegram](static/img/ico-telegram.svg) [Telegram](https://t.me/gnoland)"),
 		},
+	}
+}
+
+func playgroundSection() ui.Element {
+	return ui.Element{
+		ui.H3("[Gno Playground](https://play.gno.land)"),
+		ui.Paragraph(`Gno Playground is a web application designed for building, running, testing, and interacting
+with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
+execute tests, deploy your realms and packages to Gno.land, and explore a multitude of other features.`),
+		ui.Paragraph("Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land)."),
 	}
 }
 
