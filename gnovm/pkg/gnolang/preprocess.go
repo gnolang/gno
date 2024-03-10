@@ -493,6 +493,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				if len(ft.Results) > 0 && lastpn.PkgPath != uversePkgPath {
+					sa := NewStaticAnalysis()
+					errs := sa.Analyse(n)
+
+					if len(errs) > 0 {
+						fmt.Printf("%+v\n", errs)
+					}
+				}
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
 				// only for imports.
