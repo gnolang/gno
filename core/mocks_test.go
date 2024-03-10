@@ -95,18 +95,23 @@ func (m *mockSigner) IsValidSignature(data, signature []byte) bool {
 }
 
 type (
-	isProposerDelegate func([]byte, uint64, uint64) bool
-	isValidator        func([]byte) bool
+	isProposerDelegate  func([]byte, uint64, uint64) bool
+	isValidatorDelegate func([]byte) bool
+	quorumDelegate      func([]Message) bool
 )
 
 type mockVerifier struct {
 	isProposerFn  isProposerDelegate
-	isValidatorFn isValidator
+	isValidatorFn isValidatorDelegate
+	quorumFn      quorumDelegate
 }
 
 func (m *mockVerifier) Quorum(msgs []Message) bool {
-	// TODO implement me
-	panic("implement me")
+	if m.quorumFn != nil {
+		return m.quorumFn(msgs)
+	}
+
+	return false
 }
 
 func (m *mockVerifier) IsProposer(id []byte, height, round uint64) bool {

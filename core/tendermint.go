@@ -10,19 +10,17 @@ import (
 	"github.com/gnolang/go-tendermint/messages/types"
 )
 
-// TODO define the finalized proposal
-
 type Tendermint struct {
+	// store is the message store
+	store store
+
 	verifier  Verifier
 	node      Node
 	broadcast Broadcast
 	signer    Signer
 
-	// state is the current Tendermint consensus state
-	state state
-
-	// store is the message store
-	store store
+	// logger is the consensus engine logger
+	logger *slog.Logger
 
 	// roundExpired is the channel for signalizing
 	// round change events (to the next round, from the current one)
@@ -31,18 +29,23 @@ type Tendermint struct {
 	// timeouts hold state timeout information (constant)
 	timeouts map[step]timeout
 
+	// state is the current Tendermint consensus state
+	state state
+
 	// wg is the barrier for keeping all
 	// parallel consensus processes synced
 	wg sync.WaitGroup
-
-	log slog.Logger
 }
 
 // RunSequence runs the Tendermint consensus sequence for a given height,
 // returning only when a proposal has been finalized (consensus reached), or
 // the context has been cancelled
 func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
-	t.log.Debug("RunSequence", slog.Any("height", h), slog.Any("node", t.node.ID()))
+	t.logger.Debug(
+		"RunSequence",
+		slog.Uint64("height", h),
+		slog.String("node", string(t.node.ID())),
+	)
 
 	// Initialize the state before starting the sequence
 	t.state = newState(&types.View{
@@ -64,29 +67,54 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 
 			// Check if the proposal has been finalized
 			if proposal == nil {
-				t.log.Info("RunSequence received empty proposal", slog.Any("height", h), slog.Any("round", t.state.LoadRound()))
+				t.logger.Info(
+
+					"RunSequence received empty proposal",
+					slog.Uint64("height", h),
+					slog.Uint64("round", t.state.LoadRound()),
+				)
 				// 65: Function OnTimeoutPrecommit(height, round) :
 				// 66: 	if height = hP ∧ round = roundP then
 				// 67: 		StartRound(roundP + 1)
 				t.state.IncRound()
+
 				continue
 			}
 
-			t.log.Info("RunSequence: received\n", slog.Any("height", h), slog.Any("proposal", proposal))
+			t.logger.Info(
+				"RunSequence: proposal finalized",
+				slog.Uint64("height", h),
+			)
 
 			return proposal
-		case recvRound := <-t.watchForRoundJumps(ctxRound): //nolint:gosimple // Temporarily unassigned
-			t.log.Info("RunSequence", slog.Any("height", h), slog.Any("from_round", t.state.LoadRound()), slog.Any("to_round", recvRound))
+		case recvRound := <-t.watchForRoundJumps(ctxRound):
+			t.logger.Info(
+				"RunSequence: round jump",
+				slog.Uint64("height", h),
+				slog.Uint64("from", t.state.LoadRound()),
+				slog.Uint64("to", recvRound),
+			)
+
 			teardown()
 			t.state.SetRound(recvRound)
 		case <-t.roundExpired:
-			t.log.Info("RunSequence round expired: %v\n", slog.Any("height", h), slog.Any("round", t.state.LoadRound()))
+			t.logger.Info(
+				"RunSequence: round expired",
+				slog.Uint64("height", h),
+				slog.Uint64("round", t.state.LoadRound()),
+			)
+
 			teardown()
 			t.state.IncRound()
 		case <-ctx.Done():
 			teardown()
 
-			t.log.Info("RunSequence done", slog.Any("height", h))
+			t.logger.Info(
+				"RunSequence: context done",
+				slog.Uint64("height", h),
+				slog.Uint64("round", t.state.LoadRound()),
+			)
+
 			return nil
 		}
 	}
@@ -211,7 +239,12 @@ func (t *Tendermint) startRound(ctx context.Context) {
 			timeoutPropose = t.timeouts[propose].calculateTimeout(round)
 		)
 
-		t.log.Info("startRound scheduling a timeout", slog.Any("height", height), slog.Any("round", round), slog.Any("timeout", timeoutPropose.Milliseconds()))
+		t.logger.Debug(
+			"scheduling timeoutPropose",
+			slog.Uint64("height", height),
+			slog.Uint64("round", round),
+			slog.Duration("timeout", timeoutPropose),
+		)
 
 		t.scheduleTimeout(ctx, timeoutPropose, callback)
 
@@ -230,7 +263,11 @@ func (t *Tendermint) startRound(ctx context.Context) {
 
 	// Check if a new proposal needs to be built
 	if proposal == nil {
-		t.log.Info("RunSequence: Last valid proposal is nil. Building a proposal.", slog.Any("height", height), slog.Any("round", round))
+		t.logger.Info(
+			"building a proposal",
+			slog.Uint64("height", height),
+			slog.Uint64("round", round),
+		)
 		// No previous valid value present,
 		// build a new proposal.
 		//
