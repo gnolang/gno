@@ -27,11 +27,11 @@ func Init(setCtx context.Context, config options.Config) error {
 
 	ctx = setCtx
 
-	// Use oltp metric exporter
+	// Use oltp metric exporter.
 	exporter, err := otlpmetricgrpc.New(
 		ctx,
 		otlpmetricgrpc.WithEndpoint(config.ExporterEndpoint),
-		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithInsecure(), // TODO: enable security
 	)
 	if err != nil {
 		return err

@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	defaultMeterName          = "gno.land"
-	defaultServiceName        = "gno.land"
-	defaultPort        uint64 = 4591
+	defaultMeterName   = "gno.land"
+	defaultServiceName = "gno.land"
 )
 
 var config options.Config
@@ -23,10 +22,9 @@ func MetricsEnabled() bool {
 	return config.MetricsEnabled
 }
 
-// Init can indicate both, either, or none of metrics and tracing depending on the options provided.
+// Init will initialize metrics with the options provided. This function may also intialize tracing when
+// this is something that we want to support.
 func Init(ctx context.Context, options ...Option) error {
-
-	config.Port = defaultPort
 	config.MeterName = defaultMeterName
 	config.ServiceName = defaultServiceName
 	for _, opt := range options {

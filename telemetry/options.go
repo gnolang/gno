@@ -10,14 +10,6 @@ func WithOptionMetricsEnabled() Option {
 	}
 }
 
-func WithOptionPort(port uint64) Option {
-	return func(c *options.Config) {
-		if c.Port != 0 {
-			c.Port = port
-		}
-	}
-}
-
 func WithOptionMeterName(meterName string) Option {
 	return func(c *options.Config) {
 		if c.MeterName != "" {

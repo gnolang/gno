@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -388,15 +387,6 @@ func initTelemetry(ctx context.Context) error {
 
 	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
 		options = append(options, telemetry.WithOptionMetricsEnabled())
-	}
-
-	if portString := os.Getenv("TELEM_PORT"); portString != "" {
-		port, err := strconv.ParseUint(portString, 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid port: %w", err)
-		}
-
-		options = append(options, telemetry.WithOptionPort(port))
 	}
 
 	if os.Getenv("TELEM_USE_FAKE_METRICS") == "true" {
