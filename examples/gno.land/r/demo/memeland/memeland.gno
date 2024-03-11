@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var m = &memeland.Memeland{
+var m = memeland.NewMemeland(){
 	Posts: avl.NewTree(),
 }
 
