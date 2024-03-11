@@ -47,9 +47,11 @@ type devCfg struct {
 	noWatch   bool
 	noReplay  bool
 	maxGas    int64
+	chainId   string
 }
 
 var defaultDevOptions = &devCfg{
+	chainId:             "dev",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:36657",
@@ -108,6 +110,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose",
 		defaultDevOptions.verbose,
 		"verbose output when deving",
+	)
+
+	fs.StringVar(
+		&c.chainId,
+		"chain-id",
+		defaultDevOptions.chainId,
+		"set node ChainID",
 	)
 
 	fs.BoolVar(
@@ -177,7 +186,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
 	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
-	rt.Taskf(NodeLogName, "Chain ID: %s\n", devNode.Config().ChainID())
+	rt.Taskf(NodeLogName, "Chain ID: %s\n", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()
@@ -372,6 +381,7 @@ func setupDevNode(
 	config.NoReplay = cfg.noReplay
 	config.SkipFailingGenesisTxs = true
 	config.MaxGasPerBlock = cfg.maxGas
+	config.ChainID = cfg.chainId
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
@@ -384,8 +394,8 @@ func setupDevNode(
 func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
-	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = cfg.chainId
 
 	zapLogger := NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)

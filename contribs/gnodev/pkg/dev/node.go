@@ -22,14 +22,13 @@ import (
 	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
-const gnoDevChainID = "tendermint_test" // XXX: this is hardcoded and cannot be change bellow
-
 type NodeConfig struct {
 	PackagesPathList      []string
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
 	NoReplay              bool
 	MaxGasPerBlock        int64
+	ChainID               string
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
@@ -37,6 +36,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 
 	return &NodeConfig{
+		ChainID:               tmc.ChainID(),
 		PackagesPathList:      []string{},
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
@@ -324,7 +324,7 @@ func (n *Node) stopIfRunning() error {
 
 func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, genesis)
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.SkipFailingGenesisTxs = n.config.SkipFailingGenesisTxs
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
@@ -392,10 +392,10 @@ func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemo
 	return node, nil
 }
 
-func newNodeConfig(tmc *tmcfg.Config, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(pv.GetPubKey(), tmc.ChainID())
+	genesis := gnoland.NewDefaultGenesisConfig(pv.GetPubKey(), chainid)
 	genesis.AppState = appstate
 
 	// Add self as validator
