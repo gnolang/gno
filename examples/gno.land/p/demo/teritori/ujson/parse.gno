@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 // https://stackoverflow.com/a/4150626

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 type JSONAble interface {
