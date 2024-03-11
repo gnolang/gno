@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// interface conversion: gnolang.Type is *gnolang.NativeType, not gnolang.PrimitiveType
+// main/files/types/0b4_native_filetest.gno:9: unexpected type pair: cannot use <untyped> bigint as gonative{error}

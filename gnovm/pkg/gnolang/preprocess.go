@@ -743,11 +743,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
 				debug.Println("---BinaryExpr")
-				n.AssertCompatible(store, last, nil)
 
 				// TODO: improve readability
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
+
+				n.AssertCompatible(lt, rt, nil)
+
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
 				// special case of shift
@@ -1313,8 +1315,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
-				n.AssertCompatible(store, last, nil)
 				xt := evalStaticTypeOf(store, last, n.X)
+
+				n.AssertCompatible(xt, nil)
+
 				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
 					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
@@ -1782,7 +1786,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 			case *IncDecStmt:
-				n.AssertCompatible(store, last)
+				xt := evalStaticTypeOf(store, last, n.X)
+				n.AssertCompatible(xt)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
@@ -2418,43 +2423,6 @@ func isConstType(x Expr) bool {
 	return ok
 }
 
-func cmpSpecificity(t1, t2 Type) int {
-	debug.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
-	if it1, ok := baseOf(t1).(*InterfaceType); ok {
-		if it1.IsEmptyInterface() {
-			return 1 // left empty interface
-		} else {
-			if it2, ok := baseOf(t2).(*InterfaceType); ok {
-				if it2.IsEmptyInterface() { // right empty interface
-					return -1
-				} else {
-					return 0 // both non-empty interface
-				}
-			} else {
-				return 1 // right not interface
-			}
-		}
-	} else if _, ok := t2.(*InterfaceType); ok {
-		return -1 // left not interface, right is interface
-	}
-
-	t1s, t2s := 0, 0
-	if t1p, ok := t1.(PrimitiveType); ok {
-		t1s = t1p.Specificity()
-	}
-	if t2p, ok := t2.(PrimitiveType); ok {
-		t2s = t2p.Specificity()
-	}
-	if t1s < t2s {
-		// NOTE: higher specificity has lower value, so backwards.
-		return 1
-	} else if t1s == t2s {
-		return 0
-	} else {
-		return -1
-	}
-}
-
 // for special case to bypass check for typed -> typed conversion, e.g. array index conversion
 func convertConstType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	if cx, ok := (*x).(*ConstExpr); ok {
@@ -2488,7 +2456,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				} else {
 					// still need for non-binary, like arg
 					checkAssignableTo(cx.T, t, autoNative) // refer to 22a17a
-					debug.Println("---check pass!")
+					debug.Println("---check pass in checkOrConvertType!")
 				}
 			}
 		}
@@ -2514,8 +2482,11 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			// coerce mostly when explicitly conversion, type call, while arg is binary expr
 			// not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
 			// TODO: do we need this any more? since already checked before?
-			// NO, it's from callExpr and should checked recursively
-			bx.AssertCompatible(store, last, t)
+			// NO, it's from callExpr and should checked recursively? huh?
+
+			lt := evalStaticTypeOf(store, last, bx.Left)
+			rt := evalStaticTypeOf(store, last, bx.Right)
+			bx.AssertCompatible(lt, rt, t)
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 		} else { // not coerce, xt is typed, no need to convert but check. refer to 10a17b1.
@@ -2535,7 +2506,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			}
 		}
 		if coerce || !coerce && isUntyped(xt) {
-			ux.AssertCompatible(store, last, t)
+			uxt := evalStaticTypeOf(store, last, ux.X)
+			ux.AssertCompatible(uxt, t)
 			// "push" expected type into shift binary's left operand.
 			checkOrConvertType(store, last, &ux.X, t, autoNative, coerce)
 		} else {

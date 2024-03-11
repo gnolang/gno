@@ -1084,6 +1084,31 @@ type FuncType struct {
 	bound  *FuncType
 }
 
+func (ft *FuncType) NumIn() int {
+	if len(ft.Params) >= 1 {
+		return len(ft.Params) - 1 // TODO: assert to be method
+	}
+	return 0
+}
+
+func (ft *FuncType) In(i int) Type {
+	if len(ft.Params) >= 1 {
+		return ft.Params[len(ft.Params)-1-i]
+	}
+	return nil
+}
+
+func (ft *FuncType) Out(i int) Type {
+	if len(ft.Params) >= 1 {
+		return ft.Params[len(ft.Results)-1-i]
+	}
+	return nil
+}
+
+func (ft *FuncType) NumOut() int {
+	return len(ft.Results)
+}
+
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
 	if debug {
@@ -2172,10 +2197,12 @@ func fillEmbeddedName(ft *FieldType) {
 
 // TODO: empty interface? refer to checkAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
+	debug.Printf("---IsImplementedBy, it: %v, ot: %v \n", it, ot)
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
 		return cbt.IsImplementedBy(ot)
 	case *NativeType:
+		debug.Println("---native type")
 		return gno2GoTypeMatches(ot, cbt.Type)
 	default:
 		panic("should not happen")

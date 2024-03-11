@@ -256,11 +256,23 @@ func assertAssignable(lt, rt Type) {
 		IsImplementedBy(lt, rt) { // TODO: consider this
 		// rt implements lt (and lt is nil interface).
 	} else if rt.Kind() == InterfaceKind &&
-		IsImplementedBy(rt, lt) {
-		println("---assertEqulityTypes, match")
+		IsImplementedBy(rt, lt) { // TODO: consider this
+		println("5")
 		// lt implements rt (and rt is nil interface).
+	} else if nrt, ok := rt.(*NativeType); ok { // see 0f2, for native types
+		if gno2GoTypeMatches(lt, nrt.Type) {
+			println("6.1")
+		} else {
+			println("6.2")
+		}
+	} else if nlt, ok := lt.(*NativeType); ok {
+		if gno2GoTypeMatches(rt, nlt.Type) {
+			println("7.1")
+		} else {
+			println("7.2")
+		}
 	} else {
-		//panic("---5")
+		panic("---8")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -417,6 +429,10 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	}
 	// case3
 	if dt.Kind() == InterfaceKind {
+		debug.Println("---dt: ", dt)
+		debug.Println("---baseOf dt: ", baseOf(dt))
+		debug.Println("---dt.Kind: ", dt.Kind())
+		debug.Printf("---xt: %v, baseOf(xt): %v \n", xt, baseOf(xt))
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
@@ -431,6 +447,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					dt.String()))
 			}
 		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
+			debug.Printf("---ndt: %v \n", ndt)
 			nidt := ndt.Type
 			if nidt.NumMethod() == 0 {
 				// if dt is an empty Go native interface, ditto.
@@ -462,6 +479,10 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 						pxt.String(),
 						nidt.String()))
 				}
+			} else if xdt, ok := xt.(*DeclaredType); ok {
+				gno2GoTypeMatches(baseOf(xdt), ndt.Type)
+				debug.Println("---matches!")
+				return
 			} else {
 				panic(fmt.Sprintf(
 					"unexpected type pair: cannot use %s as %s",
@@ -664,6 +685,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			// xt: any type but a *DeclaredType; could be native.
 			// cdt: actual concrete native target type.
 			// ie, if cdt can match against xt.
+			debug.Println("---going to check gno2go matches")
 			if gno2GoTypeMatches(xt, cdt.Type) {
 				return // ok
 			}
@@ -697,21 +719,23 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 
 // dt is a special case for binary expr that the dest type for the
 // lhs determined by outer context
-func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
+func (bx *BinaryExpr) AssertCompatible(lt, rt, dt Type) {
 	debug.Printf("---AssertCompatible, bx: %v \n", bx)
 	debug.Printf("---AssertCompatible, bx.Left: %T \n", bx.Left)
 	debug.Printf("---AssertCompatible, bx.Right: %T \n", bx.Right)
 
 	// get left type and right type
-	lt := evalStaticTypeOf(store, last, bx.Left)
-	rt := evalStaticTypeOf(store, last, bx.Right)
+	//lt := evalStaticTypeOf(store, last, bx.Left)
+	//rt := evalStaticTypeOf(store, last, bx.Right)
 
 	// we can't check compatible with native types
 	// at current stage, so leave it to checkOrConvertType
 	// to secondary call this assert logic again
 
+	//var leftNative, rightNative bool
 	if lnt, ok := lt.(*NativeType); ok {
 		debug.Println("---lt native")
+		//leftNative = true
 		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
 		if ok {
 			debug.Println("---lt native primitive, return")
@@ -719,6 +743,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 		}
 	}
 	if rnt, ok := rt.(*NativeType); ok {
+		//rightNative = true
 		debug.Println("---rt native, gnoType", rnt.gnoType)
 		_, ok := go2GnoBaseType(rnt.Type).(PrimitiveType) // TODO: check kind instead
 		if ok {
@@ -734,7 +759,17 @@ func (bx *BinaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 		switch bx.Op {
 		case EQL, NEQ:
 			assertComparable(lt, rt)
-			checkAssignableTo(lt, rt, true)
+			// XXX, should not check compatible for equality compare?
+			// the native type here are both non-primitive
+			// not able to check assignable, e.g. MyError == err, that if left satisfied right native interface.
+			//if !leftNative && !rightNative {
+			cmp := cmpSpecificity(lt, rt)
+			if cmp <= 0 {
+				checkAssignableTo(lt, rt, true)
+			} else {
+				checkAssignableTo(rt, lt, true)
+			}
+			//}
 		case LSS, LEQ, GTR, GEQ:
 			if pred, ok := binaryChecker[bx.Op]; ok {
 				bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
@@ -869,18 +904,18 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 	}
 }
 
-func (ux *UnaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
+func (ux *UnaryExpr) AssertCompatible(uxt, dt Type) {
 	debug.Printf("---AssertCompatible, ux: %v \n", ux)
 	debug.Printf("---AssertCompatible, ux.X: %T \n", ux.X)
 
 	var destKind interface{}
 
 	// get left type and right type
-	t := evalStaticTypeOf(store, last, ux.X)
+	//t := evalStaticTypeOf(store, last, ux.X)
 	// we can't check compatible with native types
 	// at current stage, so leave it to checkOrConvertType
 	// to secondary call this assert logic again
-	if _, ok := t.(*NativeType); ok {
+	if _, ok := uxt.(*NativeType); ok {
 		debug.Println("---left native, return")
 		return
 	}
@@ -888,7 +923,7 @@ func (ux *UnaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	// check compatible
 	if pred, ok := unaryChecker[ux.Op]; ok {
 		if dt == nil {
-			dt = t
+			dt = uxt
 		}
 		if !pred(dt) {
 			if dt != nil {
@@ -901,7 +936,7 @@ func (ux *UnaryExpr) AssertCompatible(store Store, last BlockNode, dt Type) {
 	}
 }
 
-func (idst *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
+func (idst *IncDecStmt) AssertCompatible(t Type) {
 	debug.Printf("---AssertCompatible, st: %v \n", idst)
 	debug.Printf("---AssertCompatible, st.X: %T \n", idst.X)
 	debug.Printf("---AssertCompatible, st.Op: %T \n", idst.Op)
@@ -909,7 +944,7 @@ func (idst *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
 	var destKind interface{}
 
 	// get left type and right type
-	t := evalStaticTypeOf(store, last, idst.X)
+	//t := evalStaticTypeOf(store, last, idst.X)
 
 	// we can't check compatible with native types
 	// at current stage, so leave it to checkOrConvertType
@@ -1021,5 +1056,65 @@ func isComparison(op Word) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func cmpSpecificity(t1, t2 Type) int {
+	debug.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
+
+	if nt1, ok := t1.(*NativeType); ok {
+		if nt1.Type.Kind() == reflect.Interface { // is interface
+			if nt1.Type.NumMethod() == 0 { // empty interface
+				return 1
+			} else if t2 != nil && t2.Kind() != InterfaceKind {
+				return 1
+			}
+		} else {
+			t1 = go2GnoType(nt1.Type) // if not interface, convert to gno type
+		}
+	} else if nt2, ok := t2.(*NativeType); ok {
+		if nt2.Type.Kind() == reflect.Interface { // is interface
+			if nt2.Type.NumMethod() == 0 {
+				return -1
+			} else if t1 != nil && t1.Kind() != InterfaceKind {
+				return -1
+			}
+		} else {
+			t2 = go2GnoType(nt2.Type)
+		}
+	}
+
+	if it1, ok := baseOf(t1).(*InterfaceType); ok {
+		if it1.IsEmptyInterface() {
+			return 1 // left empty interface
+		} else {
+			if it2, ok := baseOf(t2).(*InterfaceType); ok {
+				if it2.IsEmptyInterface() { // right empty interface
+					return -1
+				} else {
+					return 0 // both non-empty interface
+				}
+			} else {
+				return 1 // right not interface
+			}
+		}
+	} else if _, ok := t2.(*InterfaceType); ok {
+		return -1 // left not interface, right is interface
+	}
+
+	t1s, t2s := 0, 0
+	if t1p, ok := t1.(PrimitiveType); ok {
+		t1s = t1p.Specificity()
+	}
+	if t2p, ok := t2.(PrimitiveType); ok {
+		t2s = t2p.Specificity()
+	}
+	if t1s < t2s {
+		// NOTE: higher specificity has lower value, so backwards.
+		return 1
+	} else if t1s == t2s {
+		return 0
+	} else {
+		return -1
 	}
 }

@@ -78,6 +78,9 @@ func (m *Machine) doOpEql() {
 	lv := m.PeekValue(1) // also the result
 
 	debug.Printf("---doOpEql: lv: %v, rv: %v \n", lv, rv)
+	debug.Printf("---doOpEql: lv.T: %v, rv.T: %v \n", lv.T, rv.T)
+	debug.Printf("---doOpEql: lv.V: %v, rv.V: %v \n", lv.V, rv.V)
+	debug.Printf("---doOpEql: lv.N: %v, rv.N: %v \n", lv.N, rv.N)
 	var res bool
 	if debug {
 		assertAssignable(lv.T, rv.T)
@@ -350,6 +353,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if !isSameType(lv.T, rv.T) {
 		return false
 	}
+	debug.Println("---assert to be same types")
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {

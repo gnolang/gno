@@ -899,15 +899,91 @@ func gno2GoType(t Type) reflect.Type {
 	}
 }
 
+func signaturesMatch(nativeMethod reflect.Type, gnoMethod *FuncType) bool {
+	debug.Printf("---signatureMatch, nativeMethodType: %v \n", nativeMethod)
+	debug.Printf("---signatureMatch, gnoMethodType: %v \n", gnoMethod)
+	debug.Printf("---signatureMatch, nativeNumIn: %v \n", nativeMethod.NumIn())
+	debug.Printf("---signatureMatch, gnoNumIn: %v \n", gnoMethod.NumIn())
+	debug.Printf("---signatureMatch, nativeMethodNumOut: %v \n", nativeMethod.NumOut())
+	debug.Printf("---signatureMatch, gnoMethodNumOut: %v \n", gnoMethod.NumOut())
+	// Adjusting for the receiver in the gnoMethod's signature
+	// An interface method implicitly expects a receiver, so we start comparing from the second parameter of the gnoMethod.
+	if nativeMethod.NumIn() != gnoMethod.NumIn() || nativeMethod.NumOut() != gnoMethod.NumOut() {
+		return false
+	}
+
+	// Compare input parameters types, adjusting for the receiver
+	for i := 1; i < gnoMethod.NumIn(); i++ {
+		debug.Printf("nativeMethod In [%d] is: %v \n", i, nativeMethod.In(i))
+		debug.Printf("gnoMethod In [%d] is: %v \n", i, gnoMethod.In(i))
+		if !gno2GoTypeMatches(gnoMethod.In(i), nativeMethod.In(i)) {
+			//if nativeMethod.In(i-1) != gnoMethod.In(i) {
+			return false
+		}
+	}
+
+	// Compare output values types
+	for i := 0; i < nativeMethod.NumOut(); i++ {
+		debug.Printf("nativeMethod Out [%d] is: %v \n", i, nativeMethod.Out(i))
+		debug.Printf("gnoMethod Out [%d] is : %v \n", i, gnoMethod.Out(i))
+
+		if fdt, ok := gnoMethod.Out(i).(FieldType); ok {
+			debug.Printf("---t is field type: %v \n", fdt)
+			debug.Println("fdt.Type: ", fdt.Type)
+			debug.Println("base of fdt.Type: ", baseOf(fdt.Type))
+			// TODO: more test on param/result non-primitive cases
+			return gno2GoTypeMatches(baseOf(fdt.Type), nativeMethod.Out(i))
+		} else {
+			return false
+		}
+	}
+
+	return true
+}
+
 // If gno2GoTypeMatches(t, rt) is true, a t value can
 // be converted to an rt native value using gno2GoValue(v, rv).
 // This is called when autoNative is true in checkAssignableTo().
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
 func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
+	debug.Printf("---gno2GoTypeMatches, t: %v, rt: %v, type of t: %v \n", t, rt, reflect.TypeOf(t))
 	if rt == nil {
 		panic("should not happen")
 	}
+	// TODO:
+	// consider the pattern, only declaredType <=> interface ?
+	// params/results check
+	if dt, ok := t.(*DeclaredType); ok {
+		debug.Println("dt.Name: ", dt.Name)
+		debug.Println("len of rt.Methods :", rt.NumMethod())
+		if rt.Kind() == reflect.Interface && rt.NumMethod() != 0 {
+			for i := 0; i < rt.NumMethod(); i++ {
+				method := rt.Method(i)
+				m := dt.Methods[i]
+				if fv, ok := m.V.(*FuncValue); ok {
+					if string(fv.Name) == method.Name {
+						if ft, ok := m.T.(*FuncType); ok {
+							// Check if the method signatures match
+							if !signaturesMatch(method.Type, ft) {
+								fmt.Printf("Method %s has a different signature in Dog and Animal\n", method.Name)
+								return false
+							}
+						} else {
+							return false
+						}
+					} else {
+						return false
+					}
+				} else {
+					return false
+				}
+			}
+			debug.Println("---satisfy native interface")
+			return true
+		}
+	}
+
 	// special case if t == Float32Type or Float64Type
 	if t == Float32Type {
 		return rt.Kind() == reflect.Float32
@@ -920,6 +996,9 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		case BoolType, UntypedBoolType:
 			return rt.Kind() == reflect.Bool
 		case StringType, UntypedStringType:
+			debug.Println("---string type")
+			debug.Println("---rt.Kind: ", rt.Kind())
+			debug.Println(rt.Kind() == reflect.String)
 			return rt.Kind() == reflect.String
 		case IntType:
 			return rt.Kind() == reflect.Int
@@ -1405,6 +1484,7 @@ func (m *Machine) doOpStructLitGoNative() {
 // NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
 func (m *Machine) doOpCallGoNative() {
+	debug.Println("---doOpCallGoNative")
 	fr := m.LastFrame()
 	fv := fr.GoFunc
 	ft := fv.Value.Type()
