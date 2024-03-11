@@ -34,6 +34,7 @@ func GetPostsByTimestamp(startTimestamp, endTimestamp string, page, pageSize int
 }
 
 func Render(path string) string {
+	// Default render is get Posts since year 2000 to now
 	postsJson := m.GetPostsByTimestamp("952733931", strconv.Itoa(int(time.Now().Unix())), 1, 100)
 	if postsJson == "[]" {
 		return "no memes yet :c"
