@@ -492,11 +492,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
-
-				if len(ft.Results) > 0 && lastpn.PkgPath != uversePkgPath {
+				// functions that don't return a value do not need termination analysis
+				// functions that are externally defined or builtin implemented in the vm can't be analysed
+				if len(ft.Results) > 0 && lastpn.PkgPath != uversePkgPath && n.Body != nil {
 					sa := NewStaticAnalysis()
 					errs := sa.Analyse(n)
-
 					if len(errs) > 0 {
 						panic(fmt.Sprintf("%+v\n", errs))
 					}

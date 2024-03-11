@@ -10,8 +10,8 @@ func TestStaticAnalysisShouldPanic(t *testing.T) {
 	}()
 
 	cases := []string{
-		`
-	package test 
+
+		`package test 
 		func main() {
 			invalidSwitch()
 		}
@@ -156,166 +156,166 @@ func invalidIfStatement(x int) int {
 func TestStaticAnalysisShouldPass(t *testing.T) {
 	cases := []string{
 		`package test
-func main() {
-	first := a()
-	println(first)
-}
-
-func a() int {
-	x := 9
-	return 9
-}
-`, `package test
-	func main() {
-	validLabel()	
-}
-
-func validLabel() int{
-println("validLabel")
-OuterLoop:
-    for i := 0; i < 10; i++ {
-        for j := 0; j < 10; j++ {
-            println("i =", i, "j =", j)
-            break OuterLoop
-        }
-    }
-	return 0
-}
-`, `package test
-func main() {
-	fruitStall()
-	
-}
-
-func fruitStall() int {
-	mockVar := map[string]int{
-		"apple":      10,
-		"banana":     20,
-		"orange":     30,
-		"mango":      5,
-		"watermelon": 15,
-	}
-
-	for k, v := range mockVar {
-		switch k {
-		case "apple":
-			if v < 50 {
-				return(v)
-			} else {
-				return(50)
-			}
-		case "banana":
-			if v > 10 {
-				return(v)
-			} else {
-				return(10)
-			}
-		case "orange":
-			if v > 30 {
-				return(v)
-			} else {
-				return(30)
-			}
-		case "mango":
-			if v == 5 {
-				return(v)
-			} else {
-				return(5)
-			}
-		case "watermelon":
-			if v == 15 {
-				return(v)
-			} else {
-				return(15)
-			}
-		default:
+			func main() {
+				first := a()
+			println(first)
+		}
+		
+		func a() int {
+			x := 9
+			return 9
+		}
+		`, `package test
+			func main() {
+			validLabel()
+		}
+		
+		func validLabel() int{
+		println("validLabel")
+		OuterLoop:
+		  for i := 0; i < 10; i++ {
+		      for j := 0; j < 10; j++ {
+		          println("i =", i, "j =", j)
+		          break OuterLoop
+		      }
+		  }
 			return 0
 		}
-	}
-	return 0
-}
-`, `
-	package test
-	func main() {
-		whichDay()
-	}
-func whichDay() string{
-	dayOfWeek := 3
-
-	switch dayOfWeek {
-
-	case 1:
-		return "Sunday"
-
-	case 2:
-		return "Monday"
-
-	case 3:
-		return "Tuesday"
-
-	case 4:
-		return "Wednesday"
-
-	case 5:
-		return "Thursday"
-
-	case 6:
-		return "Friday"
-
-	case 7:
-		return "Saturday"
-
-	default:
-		return "Invalid day"
-	}
-	return "Not a day"
-}
-
-`, `package test
-	func main() {
-	switchLabel()
-}
-
-func switchLabel() int{
-SwitchStatement:
-    switch 1 {
-    case 1:
-        return 1
-        for i := 0; i < 10; i++ {
-            break SwitchStatement
-        }
-        return 2
-    }
-    return 3
-}
-`, `
-	package test 
-	func main() {
-		add(1,1)	
-	}
-func add(a, b int) int {
-    return a + b
-}`,
-		`package test
-		func main() { 
-			z := y()
+		`, `package test
+		func main() {
+			fruitStall()
+		
 		}
-
-	func y() int{
-		x := 9
-		return 9
-	}
-`, `package test
-		func main() { 
-			isEqual(2,2)
-		}	
-		func isEqual(a, b int) bool {
-		if a == b {
-		return true
-	}
-		return false
-	}
-`,
+		
+		func fruitStall() int {
+			mockVar := map[string]int{
+				"apple":      10,
+				"banana":     20,
+				"orange":     30,
+				"mango":      5,
+				"watermelon": 15,
+			}
+		
+			for k, v := range mockVar {
+				switch k {
+				case "apple":
+					if v < 50 {
+						return(v)
+					} else {
+						return(50)
+					}
+				case "banana":
+					if v > 10 {
+						return(v)
+					} else {
+						return(10)
+					}
+				case "orange":
+					if v > 30 {
+						return(v)
+					} else {
+						return(30)
+					}
+				case "mango":
+					if v == 5 {
+						return(v)
+					} else {
+						return(5)
+					}
+				case "watermelon":
+					if v == 15 {
+						return(v)
+					} else {
+						return(15)
+					}
+				default:
+					return 0
+				}
+			}
+			return 0
+		}
+		`, `
+			package test
+			func main() {
+				whichDay()
+			}
+		func whichDay() string{
+			dayOfWeek := 3
+		
+			switch dayOfWeek {
+		
+			case 1:
+				return "Sunday"
+		
+			case 2:
+				return "Monday"
+		
+			case 3:
+				return "Tuesday"
+		
+			case 4:
+				return "Wednesday"
+		
+			case 5:
+				return "Thursday"
+		
+			case 6:
+				return "Friday"
+		
+			case 7:
+				return "Saturday"
+		
+			default:
+				return "Invalid day"
+			}
+			return "Not a day"
+		}
+		
+		`, `package test
+			func main() {
+			switchLabel()
+		}
+		
+		func switchLabel() int{
+		SwitchStatement:
+		  switch 1 {
+		  case 1:
+		      return 1
+		      for i := 0; i < 10; i++ {
+		          break SwitchStatement
+		      }
+		      return 2
+		  }
+		  return 3
+		}
+		`, `
+			package test
+			func main() {
+				add(1,1)
+			}
+		func add(a, b int) int {
+		  return a + b
+		}`,
+		`package test
+				func main() {
+					z := y()
+				}
+		
+			func y() int{
+				x := 9
+				return 9
+			}
+		`, `package test
+				func main() {
+					isEqual(2,2)
+				}
+				func isEqual(a, b int) bool {
+				if a == b {
+				return true
+			}
+				return false
+			}
+		`,
 	}
 
 	for _, s := range cases {
