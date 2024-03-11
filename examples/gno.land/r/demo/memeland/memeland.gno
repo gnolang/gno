@@ -1,15 +1,12 @@
 package memeland
 
 import (
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/memeland"
 	"strconv"
 	"time"
 )
 
-var m = memeland.NewMemeland(){
-	Posts: avl.NewTree(),
-}
+var m = memeland.NewMemeland()
 
 func PostMeme(data, timestamp string) string {
 	if m == nil {
