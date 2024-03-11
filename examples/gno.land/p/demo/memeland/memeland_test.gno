@@ -109,3 +109,39 @@ func TestGetPostsByTimestamp(t *testing.T) {
 		})
 	}
 }
+
+func TestUpvote(t *testing.T) {
+	m := NewMemeland()
+
+	// Add a post to Memeland
+	now := time.Now().Unix()
+	postID := m.PostMeme("Test meme data", strconv.FormatInt(now, 10))
+
+	// Initial upvote count should be 0
+	post, exists := m.Posts.Get(postID)
+	if !exists {
+		t.Fatalf("Post with ID %s was not found after creation", postID)
+	}
+
+	initialPost, _ := post.(*Post)
+	if initialPost.Upvotes != 0 {
+		t.Errorf("Expected initial upvotes to be 0, got %d", initialPost.Upvotes)
+	}
+
+	// Upvote the post
+	upvoteResult := m.Upvote(postID)
+	if upvoteResult != "upvote successful" {
+		t.Errorf("Expected upvote to be successful, got: %s", upvoteResult)
+	}
+
+	// Retrieve the post again and check the upvote count
+	postAfterUpvote, exists := m.Posts.Get(postID)
+	if !exists {
+		t.Fatalf("Post with ID %s was not found after upvote", postID)
+	}
+
+	updatedPost, _ := postAfterUpvote.(*Post)
+	if updatedPost.Upvotes != 1 {
+		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", updatedPost.Upvotes)
+	}
+}

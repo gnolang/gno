@@ -57,6 +57,23 @@ func (m *Memeland) PostMeme(data, timestamp string) string {
 	return id
 }
 
+func (m *Memeland) Upvote(id string) string {
+	post, exists := m.Posts.Get(id)
+	if !exists {
+		return "post with specified ID does not exist"
+	}
+
+	p, ok := post.(*Post)
+	if !ok {
+		return "error casting post"
+	}
+
+	p.Upvotes += 1
+	m.Posts.Set(id, p)
+
+	return "upvote successful"
+}
+
 // GetPost - Retrieves a post
 func (m *Memeland) GetPost(id string) (*Post, bool) {
 	value, exists := m.Posts.Get(id)
@@ -70,7 +87,7 @@ func (m *Memeland) GetPosts() []*Post {
 	var posts []*Post
 
 	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post) // Type assertion, assuming value is always *Post
+		post := value.(*Post)
 		posts = append(posts, post)
 
 		return false
