@@ -11,11 +11,12 @@ import (
 
 // Post - as previously defined
 type Post struct {
-	ID        string
-	Data      string
-	Author    std.Address
-	Timestamp time.Time
-	Upvotes   int
+	ID            string
+	Data          string
+	Author        std.Address
+	Timestamp     time.Time
+	Upvotes       int
+	UpvoteTracker *avl.Tree // address > bool hasVoted
 }
 
 type Memeland struct {
@@ -45,11 +46,12 @@ func (m *Memeland) PostMeme(data, timestamp string) string {
 	}
 
 	newPost := &Post{
-		ID:        id,
-		Data:      data,
-		Author:    std.GetOrigCaller(),
-		Timestamp: time.Unix(int64(t), 0),
-		Upvotes:   0,
+		ID:            id,
+		Data:          data,
+		Author:        std.GetOrigCaller(),
+		Timestamp:     time.Unix(int64(t), 0),
+		Upvotes:       0,
+		UpvoteTracker: avl.NewTree(),
 	}
 
 	m.Posts.Set(id, newPost)
@@ -68,8 +70,15 @@ func (m *Memeland) Upvote(id string) string {
 		return "error casting post"
 	}
 
+	caller := std.GetOrigCaller().String()
+
+	if _, exists := p.UpvoteTracker.Get(caller); exists {
+		return "user has already upvoted this post"
+	}
+
 	p.Upvotes += 1
 	m.Posts.Set(id, p)
+	p.UpvoteTracker.Set(caller, true)
 
 	return "upvote successful"
 }
@@ -96,7 +105,7 @@ func (m *Memeland) GetPosts() []*Post {
 	return posts
 }
 
-// GetPostsByTimestamp returns a slice of posts within the given timestamp range, supporting pagination.
+// GetPostsByTimestamp returns a JSON string of posts within the given timestamp range, supporting pagination.
 func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp string, page, pageSize int) string {
 	var filteredPosts []*Post
 
