@@ -24,3 +24,5 @@ func Indent(markdown string) string {
 
 // thanks copilot this is perfect xD
 // I just renamed it, AddIndentationLevelToMarkdownTitles was too long
+
+// blockchain + ai, invest quick!!!!
