@@ -1,33 +1,42 @@
 package memeland
 
 import (
-	_ "gno.land/p/demo/memeland"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/memeland"
+	"strconv"
+	"time"
 )
 
-var memeland *Memeland
-
-func init() {
-	// todo add admin?
-	memeland = NewMemeland()
+var m = &memeland.Memeland{
+	Posts: avl.NewTree(),
 }
 
 func PostMeme(data, timestamp string) string {
-	if memeland == nil {
+	if m == nil {
 		return "memeland does not exist"
 	}
-	return memeland.PostMeme(data, timestamp)
+	return m.PostMeme(data, timestamp)
 }
+
 func Upvote(id string) string {
-	if memeland == nil {
+	if m == nil {
 		return "memeland does not exist"
 	}
-	return memeland.Upvote(id)
+	return m.Upvote(id)
 }
 
 func GetPostsByTimestamp(startTimestamp, endTimestamp string, page, pageSize int) string {
-	if memeland == nil {
+	if m == nil {
 		return "memeland does not exist"
 	}
 
-	return memeland.GetPostsByTimestamp(startTimestamp, endTimestamp, page, pageSize)
+	return m.GetPostsByTimestamp(startTimestamp, endTimestamp, page, pageSize)
+}
+
+func Render(path string) string {
+	postsJson := m.GetPostsByTimestamp("952733931", strconv.Itoa(int(time.Now().Unix())), 1, 100)
+	if postsJson == "[]" {
+		return "no memes yet :c"
+	}
+	return postsJson
 }

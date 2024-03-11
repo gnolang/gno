@@ -23,11 +23,11 @@ type Memeland struct {
 	MemeCounter seqid.ID
 }
 
-func NewMemeland() *Memeland {
-	return &Memeland{
-		Posts: avl.NewTree(),
-	}
-}
+//func NewMemeland() *Memeland {
+//	return &Memeland{
+//		Posts: avl.NewTree(),
+//	}
+//}
 
 // PostMeme - Adds a new post
 func (m *Memeland) PostMeme(data, timestamp string) string {
@@ -38,17 +38,14 @@ func (m *Memeland) PostMeme(data, timestamp string) string {
 	// Generate ID
 	id := strconv.Itoa(int(m.MemeCounter.Next()))
 
-	// Parse unix timestamp
-	t, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return "could not parse timestamp"
-	}
+	// Parse unix timestamp into int
+	t, _ := strconv.Atoi(timestamp)
 
 	newPost := &Post{
 		ID:        id,
 		Data:      data,
 		Author:    std.GetOrigCaller(),
-		Timestamp: time.Unix(t, 0),
+		Timestamp: time.Unix(int64(t), 0),
 		Upvotes:   0,
 	}
 
@@ -113,17 +110,18 @@ func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp string, page
 	count := 0
 
 	// Convert timestamps to time.Time
-	startTime, err := strconv.ParseInt(startTimestamp, 10, 64)
+	startTime, err := strconv.Atoi(startTimestamp)
+
 	if err != nil {
 		return "could not parse start timestamp"
 	}
-	endTime, err := strconv.ParseInt(endTimestamp, 10, 64)
+	endTime, err := strconv.Atoi(endTimestamp)
 	if err != nil {
 		return "could not parse end timestamp"
 	}
 
-	start := time.Unix(startTime, 0)
-	end := time.Unix(endTime, 0)
+	start := time.Unix(int64(startTime), 0)
+	end := time.Unix(int64(endTime), 0)
 
 	// Use AVL tree traversal to filter posts by timestamp range
 	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
@@ -158,6 +156,22 @@ func PostsToJSONString(posts []*Post) string {
 		sb.WriteString(`"Upvotes":` + strconv.Itoa(post.Upvotes))
 		sb.WriteString("}")
 	}
+
+	sb.WriteString("]")
+	return sb.String()
+}
+
+func PostToJSONString(post *Post) string {
+	var sb strings.Builder
+
+	sb.WriteString("[")
+	sb.WriteString("{")
+	sb.WriteString(`"ID":"` + post.ID + `",`)
+	sb.WriteString(`"Data":"` + escapeString(post.Data) + `",`)
+	sb.WriteString(`"Author":"` + escapeString(post.Author.String()) + `",`)
+	sb.WriteString(`"Timestamp":"` + post.Timestamp.Format(time.RFC3339) + `",`)
+	sb.WriteString(`"Upvotes":` + strconv.Itoa(post.Upvotes))
+	sb.WriteString("}")
 
 	sb.WriteString("]")
 	return sb.String()
