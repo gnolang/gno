@@ -149,11 +149,11 @@ func PostsToJSONString(posts []*Post) string {
 			sb.WriteString(",")
 		}
 		sb.WriteString("{")
-		sb.WriteString(`"ID":"` + post.ID + `",`)
-		sb.WriteString(`"Data":"` + escapeString(post.Data) + `",`)
-		sb.WriteString(`"Author":"` + escapeString(post.Author.String()) + `",`)
-		sb.WriteString(`"Timestamp":"` + post.Timestamp.Format(time.RFC3339) + `",`)
-		sb.WriteString(`"Upvotes":` + strconv.Itoa(post.Upvotes))
+		sb.WriteString(`"id":"` + post.ID + `",`)
+		sb.WriteString(`"data":"` + escapeString(post.Data) + `",`)
+		sb.WriteString(`"author":"` + escapeString(post.Author.String()) + `",`)
+		sb.WriteString(`"timestamp":"` + post.Timestamp.Format(time.RFC3339) + `",`)
+		sb.WriteString(`"upvotes":` + strconv.Itoa(post.Upvotes))
 		sb.WriteString("}")
 	}
 
