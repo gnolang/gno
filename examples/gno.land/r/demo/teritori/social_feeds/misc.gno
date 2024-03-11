@@ -37,7 +37,7 @@ func usernameOf(addr std.Address) string {
 	if user == nil {
 		return ""
 	} else {
-		return user.Name()
+		return user.Name
 	}
 }
 
