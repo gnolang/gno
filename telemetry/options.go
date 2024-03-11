@@ -10,12 +10,6 @@ func WithOptionMetricsEnabled() Option {
 	}
 }
 
-func WithOptionTracesEnabled() Option {
-	return func(c *options.Config) {
-		c.TracesEnabled = true
-	}
-}
-
 func WithOptionPort(port uint64) Option {
 	return func(c *options.Config) {
 		if c.Port != 0 {
@@ -51,11 +45,5 @@ func WithOptionServiceName(serviceName string) Option {
 		if c.ServiceName != "" {
 			c.ServiceName = serviceName
 		}
-	}
-}
-
-func WithOptionTraceFilter(traceType int64) Option {
-	return func(c *options.Config) {
-		c.TraceType = traceType
 	}
 }
