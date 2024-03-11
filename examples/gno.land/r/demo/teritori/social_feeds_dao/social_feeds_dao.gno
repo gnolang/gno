@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/teritori/dao_proposal_single"
 	"gno.land/p/demo/teritori/dao_utils"
 	"gno.land/p/demo/teritori/dao_voting_group"
-	"gno.land/r/demo/teritori/dao_registry"
+	// "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
 	social_feeds "gno.land/r/demo/teritori/social_feeds"
 )
@@ -61,7 +61,7 @@ func init() {
 	}
 
 	daoCore = dao_core.NewDAOCore(votingModuleFactory, proposalModulesFactories, messagesHandlersFactories)
-	dao_registry.Register("Social Feed Moderation", "DAO responsible for Teritori social feed moderation", "ipfs://bafkreieqcwmjcb64r42ygs6a4dswz63djzgayjn3rhzjber3e42cknawlm")
+	// dao_registry.Register("Social Feed Moderation", "DAO responsible for Teritori social feed moderation", "ipfs://bafkreieqcwmjcb64r42ygs6a4dswz63djzgayjn3rhzjber3e42cknawlm")
 }
 
 func Render(path string) string {
