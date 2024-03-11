@@ -23,11 +23,11 @@ type Memeland struct {
 	MemeCounter seqid.ID
 }
 
-//func NewMemeland() *Memeland {
-//	return &Memeland{
-//		Posts: avl.NewTree(),
-//	}
-//}
+func NewMemeland() *Memeland {
+	return &Memeland{
+		Posts: avl.NewTree(),
+	}
+}
 
 // PostMeme - Adds a new post
 func (m *Memeland) PostMeme(data, timestamp string) string {
