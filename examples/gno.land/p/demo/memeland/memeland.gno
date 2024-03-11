@@ -37,7 +37,7 @@ func (m *Memeland) PostMeme(data, timestamp string) string {
 	}
 
 	// Generate ID
-	id := strconv.Itoa(int(m.MemeCounter.Next()))
+	id := m.MemeCounter.Next().String()
 
 	// Parse unix timestamp into int
 	t, err := strconv.Atoi(timestamp)
