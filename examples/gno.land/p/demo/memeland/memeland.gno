@@ -39,7 +39,10 @@ func (m *Memeland) PostMeme(data, timestamp string) string {
 	id := strconv.Itoa(int(m.MemeCounter.Next()))
 
 	// Parse unix timestamp into int
-	t, _ := strconv.Atoi(timestamp)
+	t, err := strconv.Atoi(timestamp)
+	if err != nil {
+		return "cannot parse timestamp"
+	}
 
 	newPost := &Post{
 		ID:        id,
