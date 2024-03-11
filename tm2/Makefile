@@ -3,8 +3,27 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
+# command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
 
+########################################
+# Environment variables
+# You can overwrite any of the following by passing a different value on the
+# command line, ie. `CGO_ENABLED=1 make test`.
+
+# disable cgo by default. cgo requires some additional dependencies in some
+# cases, and is not strictly required by any tm2 code.
+CGO_ENABLED ?= 0
+export CGO_ENABLED
+# flags for `make fmt`. -w will write the result to the destination files.
+GOFMT_FLAGS ?= -w
+# flags for `make imports`.
+GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
+# test suite flags.
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+
+########################################
+# Dev tools
 .PHONY: build
 _build.tools: _build.aminoscan _build.goscan _build.logjack _build.iaviewer
 
@@ -13,21 +32,15 @@ _build.goscan:;     go build -o build/goscan     ./pkg/amino/cmd/goscan
 _build.logjack:;    go build -o build/logjack    ./pkg/autofile/cmd
 _build.iaviewer:;   go build -o build/iaviewer   ./pkg/iavl/cmd/iaviewer
 
-.PHONY: install
-install:
-#	go install ./cmd/...
-
 .PHONY: clean
 clean:
 	rm -rf ./build/
 
 .PHONY: fmt
-GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 .PHONY: imports
-GOIMPORTS_FLAGS ?= -w
 imports:
 	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
 
@@ -46,12 +59,9 @@ _test.flappy:
 	TEST_STABILITY=flappy $(rundep) moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
 		./pkg/bft/consensus ./pkg/bft/blockchain ./pkg/bft/mempool ./pkg/p2p ./pkg/bft/privval
 
-GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 _test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -Ev 'pkg/(amino|bft|db|iavl/benchmarks)(/|$$)'`
 _test.pkg.amino:;   go test $(GOTEST_FLAGS) ./pkg/amino/...
 _test.pkg.bft:;     go test $(GOTEST_FLAGS) ./pkg/bft/...
 
-CGO_ENABLED ?= 0
 _test.pkg.db:
-	@[ -z "$$CGO_ENABLED" ] && echo 'Disabling cgo for database tests. Use CGO_ENABLED=1 to enable it if you have the correct libs' || true
 	CGO_ENABLED=$(CGO_ENABLED) go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/...

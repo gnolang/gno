@@ -2,9 +2,9 @@ package gnopages
 
 func init() {
 	path := "gor"
-	title := "Game of Realms Content For The Best Contributors"
+	title := "Game of Realms - Content For The Best Contributors"
 	// XXX: description := "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool."
-	body := `# Game of Realms
+	body := `
 
 <div class="jumbotron">
 
