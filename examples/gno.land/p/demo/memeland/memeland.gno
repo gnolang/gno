@@ -96,8 +96,8 @@ func (m *Memeland) GetPosts() []*Post {
 	return posts
 }
 
-// GetPostsByTimestamp returns a JSON string of posts within the given timestamp range, supporting pagination.
-func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp int64, page, pageSize int) string {
+// GetPostsInRange returns a JSON string of posts within the given timestamp range, supporting pagination.
+func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int) string {
 	var filteredPosts []*Post
 
 	if page < 0 {
