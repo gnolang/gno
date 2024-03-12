@@ -14,24 +14,40 @@ show you how to:
 
 ## Deployment via the Playground
 
+Deployment via the Playground is recommended for smaller realms and packages.
+For larger projects, it is recommended to write, test, and deploy your code from
+a local environment.
+For this, check out [**Deployment from a local environment**](#deployment-from-a-local-environment).
+
+### Prerequisites
+
+- **Internet connection**
+- **A keypair in a Gno.land wallet, such as [Adena](https://adena.app)**
+
+## Using Gno Playground
+
+You can write, test, and deploy packages and realms using Gno Playground.
+To start using the Playground, you can check out XYZ.
 
 
 
-## Deployment by using `gnokey`
 
+
+
+## Deployment from a local environment
 
 :::info
 Regardless of whether you're deploying a realm or a package, you will be using `gnokey`'s `maketx addpkg` - the usage of `maketx addpkg` in both cases is identical. 
 :::
 
-## Prerequisites
+### Prerequisites
 
 - **Have `gnokey` installed**
 - **Have access to a `gnoland` node (local or remote)**
 - **Have generated a keypair with `gnokey` & funded it with `gnot`**
 - **Have a Realm or Package ready to deploy**
 
-## Deploying
+### Deploying
 
 To illustrate deployment, we will use a realm. Consider the following folder structure:
 
