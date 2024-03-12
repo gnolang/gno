@@ -32,7 +32,7 @@ func NewMemeland() *Memeland {
 // PostMeme - Adds a new post
 func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	if data == "" || timestamp <= 0 {
-		return "timestamp or data cannot be empty"
+		panic("timestamp or data cannot be empty")
 	}
 
 	// Generate ID
@@ -54,18 +54,18 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 func (m *Memeland) Upvote(id string) string {
 	post, exists := m.Posts.Get(id)
 	if !exists {
-		return "post with specified ID does not exist"
+		panic("post with specified ID does not exist")
 	}
 
 	p, ok := post.(*Post)
 	if !ok {
-		return "error casting post"
+		panic("error casting post")
 	}
 
 	caller := std.GetOrigCaller().String()
 
 	if _, exists := p.UpvoteTracker.Get(caller); exists {
-		return "user has already upvoted this post"
+		panic("user has already upvoted this post")
 	}
 
 	m.Posts.Set(id, p)
@@ -101,11 +101,11 @@ func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp int64, page,
 	var filteredPosts []*Post
 
 	if page < 0 {
-		return "page count cannot be less than 1"
+		panic("page count cannot be less than 1")
 	}
 
 	if pageSize < 0 {
-		return "page size cannot be less than 1"
+		panic("page size cannot be less than 1")
 	}
 
 	startIndex := (page - 1) * pageSize
