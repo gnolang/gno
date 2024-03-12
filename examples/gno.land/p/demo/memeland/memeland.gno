@@ -168,7 +168,6 @@ func PostToJSONString(post *Post) string {
 }
 
 // escapeString escapes quotes in a string for JSON compatibility.
-// This is a very basic implementation. Consider using a more comprehensive approach for production code.
 func escapeString(s string) string {
 	return strings.ReplaceAll(s, `"`, `\"`)
 }
