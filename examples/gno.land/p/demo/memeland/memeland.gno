@@ -33,7 +33,7 @@ func NewMemeland() *Memeland {
 // PostMeme - Adds a new post
 func (m *Memeland) PostMeme(data, timestamp string) string {
 	if data == "" || timestamp == "" {
-		return "timestamp and data cannot be empty"
+		return "timestamp or data cannot be empty"
 	}
 
 	// Generate ID
