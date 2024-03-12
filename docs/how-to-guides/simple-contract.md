@@ -20,7 +20,6 @@ Our _Counter_ Realm will have the following functionality:
 ## Prerequisites
 
 - **Internet connection**
-- **An account in a Gno.land wallet, such as [Adena](https://adena.app)**
 
 ## 1. Using Gno Playground
 

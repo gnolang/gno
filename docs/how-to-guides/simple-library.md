@@ -16,7 +16,6 @@ We will define a set list of tapas, and define a method that randomly selects a 
 ## Prerequisites
 
 - **Internet connection**
-- **An account in a Gno.land wallet, such as [Adena](https://adena.app)**
 
 ## 1. Using Gno Playground
 
