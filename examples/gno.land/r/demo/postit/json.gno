@@ -108,6 +108,11 @@ func postToJSONString(post Post) string {
 	b.WriteString(post.Body)
 	b.WriteString(`"`)
 
+	// Write Body field
+	b.WriteString(`,"Attachment":"`)
+	b.WriteString(post.Attachment)
+	b.WriteString(`"`)
+
 	// Write Timestamp field
 	b.WriteString(`,"CreatedAt":"`)
 	b.WriteString(post.CreatedAt.Format(time.RFC3339))
