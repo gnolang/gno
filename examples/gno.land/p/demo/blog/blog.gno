@@ -21,9 +21,13 @@ type Blog struct {
 }
 
 func (b Blog) RenderLastPostsWidget(limit int) string {
+	if b.PostsPublished.Size() == 0 {
+		return "No posts."
+	}
+
 	output := ""
 	i := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
 		p := value.(*Post)
 		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
 		i++

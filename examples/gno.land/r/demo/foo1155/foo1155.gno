@@ -6,6 +6,8 @@ import (
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -27,8 +29,8 @@ func mintGRC1155Token(owner std.Address) {
 
 // Getters
 
-func BalanceOf(user users.AddressOrName, tid grc1155.TokenID) uint64 {
-	balance, err := foo.BalanceOf(user.Resolve(), tid)
+func BalanceOf(user pusers.AddressOrName, tid grc1155.TokenID) uint64 {
+	balance, err := foo.BalanceOf(users.Resolve(user), tid)
 	if err != nil {
 		panic(err)
 	}
@@ -36,11 +38,11 @@ func BalanceOf(user users.AddressOrName, tid grc1155.TokenID) uint64 {
 	return balance
 }
 
-func BalanceOfBatch(users []users.AddressOrName, batch []grc1155.TokenID) []uint64 {
+func BalanceOfBatch(ul []pusers.AddressOrName, batch []grc1155.TokenID) []uint64 {
 	var usersResolved []std.Address
 
-	for i := 0; i < len(users); i++ {
-		usersResolved[i] = users[i].Resolve()
+	for i := 0; i < len(ul); i++ {
+		usersResolved[i] = users.Resolve(ul[i])
 	}
 	balanceBatch, err := foo.BalanceOfBatch(usersResolved, batch)
 	if err != nil {
@@ -50,28 +52,28 @@ func BalanceOfBatch(users []users.AddressOrName, batch []grc1155.TokenID) []uint
 	return balanceBatch
 }
 
-func IsApprovedForAll(owner, user users.AddressOrName) bool {
-	return foo.IsApprovedForAll(owner.Resolve(), user.Resolve())
+func IsApprovedForAll(owner, user pusers.AddressOrName) bool {
+	return foo.IsApprovedForAll(users.Resolve(owner), users.Resolve(user))
 }
 
 // Setters
 
-func SetApprovalForAll(user users.AddressOrName, approved bool) {
-	err := foo.SetApprovalForAll(user.Resolve(), approved)
+func SetApprovalForAll(user pusers.AddressOrName, approved bool) {
+	err := foo.SetApprovalForAll(users.Resolve(user), approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to users.AddressOrName, tid grc1155.TokenID, amount uint64) {
-	err := foo.SafeTransferFrom(from.Resolve(), to.Resolve(), tid, amount)
+func TransferFrom(from, to pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
+	err := foo.SafeTransferFrom(users.Resolve(from), users.Resolve(to), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BatchTransferFrom(from, to users.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
-	err := foo.SafeBatchTransferFrom(from.Resolve(), to.Resolve(), batch, amounts)
+func BatchTransferFrom(from, to pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+	err := foo.SafeBatchTransferFrom(users.Resolve(from), users.Resolve(to), batch, amounts)
 	if err != nil {
 		panic(err)
 	}
@@ -79,37 +81,37 @@ func BatchTransferFrom(from, to users.AddressOrName, batch []grc1155.TokenID, am
 
 // Admin
 
-func Mint(to users.AddressOrName, tid grc1155.TokenID, amount uint64) {
+func Mint(to pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
 	caller := std.GetOrigCaller()
 	assertIsAdmin(caller)
-	err := foo.SafeMint(to.Resolve(), tid, amount)
+	err := foo.SafeMint(users.Resolve(to), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func MintBatch(to users.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+func MintBatch(to pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
 	caller := std.GetOrigCaller()
 	assertIsAdmin(caller)
-	err := foo.SafeBatchMint(to.Resolve(), batch, amounts)
+	err := foo.SafeBatchMint(users.Resolve(to), batch, amounts)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Burn(from users.AddressOrName, tid grc1155.TokenID, amount uint64) {
+func Burn(from pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
 	caller := std.GetOrigCaller()
 	assertIsAdmin(caller)
-	err := foo.Burn(from.Resolve(), tid, amount)
+	err := foo.Burn(users.Resolve(from), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BurnBatch(from users.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+func BurnBatch(from pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
 	caller := std.GetOrigCaller()
 	assertIsAdmin(caller)
-	err := foo.BatchBurn(from.Resolve(), batch, amounts)
+	err := foo.BatchBurn(users.Resolve(from), batch, amounts)
 	if err != nil {
 		panic(err)
 	}

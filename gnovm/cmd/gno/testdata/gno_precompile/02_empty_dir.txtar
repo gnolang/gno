@@ -1,6 +1,0 @@
-# Run gno precompile on an empty dir
-
-gno precompile .
-
-! stdout .+
-! stderr .+
