@@ -963,6 +963,7 @@ func (x *FuncDecl) assertDecl()   {}
 func (x *ImportDecl) assertDecl() {}
 func (x *ValueDecl) assertDecl()  {}
 func (x *TypeDecl) assertDecl()   {}
+func (x *GenDecl) assertDecl()    {}
 
 var (
 	_ Decl = &FuncDecl{}
@@ -1029,8 +1030,26 @@ type GenParam struct {
 }
 
 type GenDecl struct {
+	Attributes
 	parent Decl
 	param  GenParam
+}
+
+func (x *GenDecl) Copy() Node {
+	return &GenDecl{
+		Attributes: x.Attributes,
+		parent:     x.parent.Copy().(Decl),
+		param: GenParam{
+			name: x.param.name,
+			t:    x.param.t.Copy().(Expr),
+		},
+	}
+}
+
+func (x *GenDecl) assertNode() {}
+
+func (x *GenDecl) String() string {
+	return fmt.Sprintf("parent: %+v param: %+v\n", x.parent, x.param)
 }
 
 func (x *GenDecl) GetDeclNames() []Name {
