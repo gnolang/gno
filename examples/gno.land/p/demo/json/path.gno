@@ -4,9 +4,11 @@ import (
 	"errors"
 )
 
+// TODO: not fully implemented yet.
+
 // ParsePath takes a JSONPath string and returns a slice of strings representing the path segments.
 func ParsePath(path string) ([]string, error) {
-	buf := NewBuffer([]byte(path))
+	buf := newBuffer([]byte(path))
 	result := make([]string, 0)
 
 	for {
@@ -16,14 +18,14 @@ func ParsePath(path string) ([]string, error) {
 		}
 
 		switch {
-		case b == DollarToken || b == AtToken:
+		case b == dollarSign || b == atSign:
 			result = append(result, string(b))
 			buf.step()
 
-		case b == DotToken:
+		case b == dot:
 			buf.step()
 
-			if next, _ := buf.current(); next == DotToken {
+			if next, _ := buf.current(); next == dot {
 				buf.step()
 				result = append(result, "..")
 
@@ -32,12 +34,12 @@ func ParsePath(path string) ([]string, error) {
 				extractNextSegment(buf, &result)
 			}
 
-		case b == SquareOpenToken:
+		case b == bracketOpen:
 			start := buf.index
 			buf.step()
 
 			for {
-				if buf.index >= buf.length || buf.data[buf.index] == SquareCloseToken {
+				if buf.index >= buf.length || buf.data[buf.index] == bracketClose {
 					break
 				}
 

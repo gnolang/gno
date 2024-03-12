@@ -1,7 +1,7 @@
 package json
 
 import (
-	"bytes"
+	"strconv"
 	"testing"
 )
 
@@ -77,6 +77,8 @@ func TestParseFloatLiteral(t *testing.T) {
 		{"-123", -123},
 		{"123.456", 123.456},
 		{"-123.456", -123.456},
+		{"12345678.1234567890", 12345678.1234567890},
+		{"-12345678.09123456789", -12345678.09123456789},
 		{"0.123", 0.123},
 		{"-0.123", -0.123},
 		{"", -1},
@@ -134,6 +136,25 @@ func TestParseFloatWithScientificNotation(t *testing.T) {
 	}
 }
 
+func TestParseFloat_May_Interoperability_Problem(t *testing.T) {
+	tests := []struct {
+		input     string
+		shouldErr bool
+	}{
+		{"3.141592653589793238462643383279", true},
+		{"1E400", false}, // TODO: should error
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			_, err := ParseFloatLiteral([]byte(tt.input))
+			if tt.shouldErr && err == nil {
+				t.Errorf("ParseFloatLiteral(%s): expected error, but not error", tt.input)
+			}
+		})
+	}
+}
+
 func TestParseIntLiteral(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -169,36 +190,123 @@ func TestParseIntLiteral(t *testing.T) {
 	}
 }
 
-func TestGetType(t *testing.T) {
-	tests := []struct {
-		data     []byte
-		offset   int
-		expected []byte
-		vt       ValueType
-		err      error
-	}{
-		{[]byte(`{"name": "John", "age": 30}`), 0, []byte(`{"name": "John", "age": 30}`), Object, nil},
-		{[]byte(`"Hello, World!"`), 0, []byte(`"Hello, World!"`), String, nil},
-		{[]byte(`12345`), 0, []byte(`12345`), Number, nil},
-		{[]byte(`true`), 0, []byte(`true`), Boolean, nil},
-		{[]byte(`null`), 0, []byte(`null`), Null, nil},
-		{[]byte(`[1, 2, 3]`), 0, []byte(`[1, 2, 3]`), Array, nil},
-		{[]byte(`{}`), 0, []byte(`{}`), Object, nil},
-	}
+// TODO: remove comment after benchmark added.
+// func benchmarkParseStringLiteral(b *testing.B, input []byte) {
+// 	for i := 0; i < b.N; i++ {
+// 		_, err := ParseStringLiteral(input)
+// 		if err != nil {
+// 			b.Fatal(err)
+// 		}
+// 	}
+// }
 
-	for i, tt := range tests {
-		gotData, gotVT, _, gotErr := getTypeFromByteSlice(tt.data, tt.offset)
+// func BenchmarkParseStringLiteral_Simple(b *testing.B) {
+// 	benchmarkParseStringLiteral(b, []byte(`"Hello, World!"`))
+// }
 
-		if !bytes.Equal(gotData, tt.expected) {
-			t.Errorf("%d. expected data=%s, but got data=%s", i, tt.expected, gotData)
-		}
+// func BenchmarkParseStringLiteral_Long(b *testing.B) {
+// 	benchmarkParseStringLiteral(b, []byte(`"Lorem ipsum dolor sit amet, consectetur adipiscing elit."`))
+// }
 
-		if gotVT != tt.vt {
-			t.Errorf("%d. expected value type=%s, but got value type=%s", i, tt.vt, gotVT)
-		}
+// func BenchmarkParseStringLiteral_Escaped(b *testing.B) {
+// 	benchmarkParseStringLiteral(b, []byte(`"Hello, \"World!\""`))
+// }
 
-		if gotErr != tt.err {
-			t.Errorf("%d. expected error=%v, but got error=%v", i, tt.err, gotErr)
-		}
-	}
-}
+// func BenchmarkParseStringLiteral_Unicode(b *testing.B) {
+// 	benchmarkParseStringLiteral(b, []byte(`"안녕, 世界!"`))
+// }
+
+// func benchmarkParseFloatLiteral(b *testing.B, input []byte) {
+// 	for i := 0; i < b.N; i++ {
+// 		ParseFloatLiteral(input)
+// 	}
+// }
+
+// func benchmarkStrconvParseFloat(b *testing.B, input string) {
+// 	for i := 0; i < b.N; i++ {
+// 		_, err := strconv.ParseFloat(input, 64)
+// 		if err != nil {
+// 			b.Fatal(err)
+// 		}
+// 	}
+// }
+
+// func BenchmarkParseFloatLiteral_Simple(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("123.456"))
+// }
+
+// func BenchmarkStrconvParseFloat_Simple(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "123.456")
+// }
+
+// func BenchmarkParseFloatLiteral_Long(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("123456.78901"))
+// }
+
+// func BenchmarkStrconvParseFloat_Long(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "123456.78901")
+// }
+
+// func BenchmarkParseFloatLiteral_Negative(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("-123.456"))
+// }
+
+// func BenchmarkStrconvParseFloat_Negative(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "-123.456")
+// }
+
+// func BenchmarkParseFloatLiteral_Negative_Long(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("-123456.78901"))
+// }
+
+// func BenchmarkStrconvParseFloat_Negative_Long(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "-123456.78901")
+// }
+
+// func BenchmarkParseFloatLiteral_Decimal(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("123456"))
+// }
+
+// func BenchmarkStrconvParseFloat_Decimal(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "123456")
+// }
+
+// func BenchmarkParseFloatLiteral_Float_No_Decimal(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("123."))
+// }
+
+// func BenchmarkStrconvParseFloat_Float_No_Decimal(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "123.")
+// }
+
+// func BenchmarkParseFloatLiteral_Complex(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("-123456.798012345"))
+// }
+
+// func BenchmarkStrconvParseFloat_Complex(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "-123456.798012345")
+// }
+
+// func BenchmarkParseFloatLiteral_Science_Notation(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("1e6"))
+// }
+
+// func BenchmarkStrconvParseFloat_Science_Notation(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "1e6")
+// }
+
+// func BenchmarkParseFloatLiteral_Science_Notation_Long(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("1.23e10"))
+// }
+
+// func BenchmarkStrconvParseFloat_Science_Notation_Long(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "1.23e10")
+// }
+
+// func BenchmarkParseFloatLiteral_Science_Notation_Negative(b *testing.B) {
+// 	benchmarkParseFloatLiteral(b, []byte("-1.23e10"))
+// }
+
+// func BenchmarkStrconvParseFloat_Science_Notation_Negative(b *testing.B) {
+// 	benchmarkStrconvParseFloat(b, "-1.23e10")
+// }

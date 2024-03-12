@@ -1,49 +1,43 @@
 package json
 
 const (
-	SquareOpenToken     = '['
-	SquareCloseToken    = ']'
-	RoundOpenToken      = '('
-	RoundCloseToken     = ')'
-	CurlyOpenToken      = '{'
-	CurlyCloseToken     = '}'
-	CommaToken          = ','
-	DotToken            = '.'
-	ColonToken          = ':'
-	BackTickToken       = '`'
-	QuoteToken          = '\''
-	DoublyQuoteToken    = '"'
-	EmptyStringToken    = ""
-	WhiteSpaceToken     = ' '
-	PlusToken           = '+'
-	MinusToken          = '-'
-	AesteriskToken      = '*'
-	BangToken           = '!'
-	QuestionToken       = '?'
-	NewLineToken        = '\n'
-	TabToken            = '\t'
-	CarriageReturnToken = '\r'
-	FormFeedToken       = '\f'
-	BackSpaceToken      = '\b'
-	SlashToken          = '/'
-	BackSlashToken      = '\\'
-	UnderScoreToken     = '_'
-	DollarToken         = '$'
-	AtToken             = '@'
-	AndToken            = '&'
-	OrToken             = '|'
+	bracketOpen    = '['
+	bracketClose   = ']'
+	parenOpen      = '('
+	parenClose     = ')'
+	curlyOpen      = '{'
+	curlyClose     = '}'
+	comma          = ','
+	dot            = '.'
+	colon          = ':'
+	backTick       = '`'
+	singleQuote    = '\''
+	doubleQuote    = '"'
+	emptyString    = ""
+	whiteSpace     = ' '
+	plus           = '+'
+	minus          = '-'
+	aesterisk      = '*'
+	bang           = '!'
+	question       = '?'
+	newLine        = '\n'
+	tab            = '\t'
+	carriageReturn = '\r'
+	formFeed       = '\f'
+	backSpace      = '\b'
+	slash          = '/'
+	backSlash      = '\\'
+	underScore     = '_'
+	dollarSign     = '$'
+	atSign         = '@'
+	andSign        = '&'
+	orSign         = '|'
 )
 
-const (
+var (
 	trueLiteral  = []byte("true")
 	falseLiteral = []byte("false")
 	nullLiteral  = []byte("null")
-)
-
-const (
-	StructLiteral    = "struct"
-	InterfaceLiteral = "interface{}"
-	MapLiteral       = "map"
 )
 
 type ValueType int
@@ -76,9 +70,7 @@ func (v ValueType) String() string {
 		return "boolean"
 	case Null:
 		return "null"
-	case Unknown:
-		return "unknown"
 	default:
-		return string(v)
+		return "unknown"
 	}
 }

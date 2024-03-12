@@ -2,44 +2,45 @@ package json
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
-type testCase struct {
+type testNode struct {
 	name  string
 	input []byte
 	_type ValueType
 	value []byte
 }
 
-func simpleValid(test *testCase, t *testing.T) {
-	root, err := unmarshal2(test.input)
+func simpleValid(test *testNode, t *testing.T) {
+	root, err := Unmarshal(test.input)
 	if err != nil {
-		t.Errorf("Error on Unmarshal(%s): %s", test.name, err.Error())
+		t.Errorf("Error on Unmarshal(%s): %s", test.input, err.Error())
 	} else if root == nil {
 		t.Errorf("Error on Unmarshal(%s): root is nil", test.name)
-	} else if root.value.typ != test._type {
+	} else if root.nodeType != test._type {
 		t.Errorf("Error on Unmarshal(%s): wrong type", test.name)
-	} else if !bytes.Equal(root.Source(), test.value) {
-		t.Errorf("Error on Unmarshal(%s): %s != %s", test.name, root.Source(), test.value)
+	} else if !bytes.Equal(root.source(), test.value) {
+		t.Errorf("Error on Unmarshal(%s): %s != %s", test.name, root.source(), test.value)
 	}
 }
 
-func simpleInvalid(test *testCase, t *testing.T) {
-	root, err := unmarshal2(test.input)
+func simpleInvalid(test *testNode, t *testing.T) {
+	root, err := Unmarshal(test.input)
 	if err == nil {
-		t.Errorf("Error on Unmarshal(%s): error expected, got '%s'", test.name, root.Source())
+		t.Errorf("Error on Unmarshal(%s): error expected, got '%s'", test.name, root.source())
 	} else if root != nil {
 		t.Errorf("Error on Unmarshal(%s): root is not nil", test.name)
 	}
 }
 
-func simpleCorrupted(name string) *testCase {
-	return &testCase{name: name, input: []byte(name)}
+func simpleCorrupted(name string) *testNode {
+	return &testNode{name: name, input: []byte(name)}
 }
 
 func TestUnmarshal_StringSimpleSuccess(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "blank", input: []byte("\"\""), _type: String, value: []byte("\"\"")},
 		{name: "char", input: []byte("\"c\""), _type: String, value: []byte("\"c\"")},
 		{name: "word", input: []byte("\"cat\""), _type: String, value: []byte("\"cat\"")},
@@ -55,7 +56,7 @@ func TestUnmarshal_StringSimpleSuccess(t *testing.T) {
 }
 
 func TestUnmarshal_NumericSimpleSuccess(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "1", input: []byte("1"), _type: Number, value: []byte("1")},
 		{name: "-1", input: []byte("-1"), _type: Number, value: []byte("-1")},
 
@@ -90,15 +91,22 @@ func TestUnmarshal_NumericSimpleSuccess(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			simpleValid(test, t)
+			root, err := Unmarshal(test.input)
+			if err != nil {
+				t.Errorf("Error on Unmarshal(%s): %s", test.name, err.Error())
+			} else if root == nil {
+				t.Errorf("Error on Unmarshal(%s): root is nil", test.name)
+			} else if root.nodeType != test._type {
+				t.Errorf("Error on Unmarshal(%s): wrong type", test.name)
+			} else if !bytes.Equal(root.source(), test.value) {
+				t.Errorf("Error on Unmarshal(%s): %s != %s", test.name, root.source(), test.value)
+			}
 		})
 	}
 }
 
 func TestUnmarshal_StringSimpleCorrupted(t *testing.T) {
-	tests := []*testCase{
-		// {name: "one quote", input: []byte("\"")},
-		// {name: "one quote char", input: []byte("\"c")},
+	tests := []*testNode{
 		{name: "white NL", input: []byte("\"foo\nbar\"")},
 		{name: "white R", input: []byte("\"foo\rbar\"")},
 		{name: "white Tab", input: []byte("\"foo\tbar\"")},
@@ -114,7 +122,7 @@ func TestUnmarshal_StringSimpleCorrupted(t *testing.T) {
 }
 
 func TestUnmarshal_ObjectSimpleSuccess(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "{}", input: []byte("{}"), _type: Object, value: []byte("{}")},
 		{name: `{ \r\n }`, input: []byte("{ \r\n }"), _type: Object, value: []byte("{ \r\n }")},
 		{name: `{"key":1}`, input: []byte(`{"key":1}`), _type: Object, value: []byte(`{"key":1}`)},
@@ -134,9 +142,17 @@ func TestUnmarshal_ObjectSimpleSuccess(t *testing.T) {
 }
 
 func TestUnmarshal_ObjectSimpleCorrupted(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
+		simpleCorrupted("{{{\"key\": \"foo\"{{{{"),
+		simpleCorrupted("}"),
+		simpleCorrupted("{ }}}}}}}"),
+		simpleCorrupted(" }"),
 		simpleCorrupted("{,}"),
 		simpleCorrupted("{:}"),
+		simpleCorrupted("{100000}"),
+		simpleCorrupted("{1:1}"),
+		simpleCorrupted("{'1:2,3:4'}"),
+		simpleCorrupted(`{"d"}`),
 		simpleCorrupted(`{"foo"}`),
 		simpleCorrupted(`{"foo":}`),
 		simpleCorrupted(`{:"foo"}`),
@@ -162,8 +178,10 @@ func TestUnmarshal_ObjectSimpleCorrupted(t *testing.T) {
 }
 
 func TestUnmarshal_NullSimpleCorrupted(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "nul", input: []byte("nul")},
+		{name: "nil", input: []byte("nil")},
+		{name: "nill", input: []byte("nill")},
 		{name: "NILL", input: []byte("NILL")},
 		{name: "Null", input: []byte("Null")},
 		{name: "NULL", input: []byte("NULL")},
@@ -180,7 +198,7 @@ func TestUnmarshal_NullSimpleCorrupted(t *testing.T) {
 }
 
 func TestUnmarshal_BoolSimpleSuccess(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "lower true", input: []byte("true"), _type: Boolean, value: []byte("true")},
 		{name: "lower false", input: []byte("false"), _type: Boolean, value: []byte("false")},
 		{name: "spaces true", input: []byte("  true\r\n "), _type: Boolean, value: []byte("true")},
@@ -195,7 +213,7 @@ func TestUnmarshal_BoolSimpleSuccess(t *testing.T) {
 }
 
 func TestUnmarshal_BoolSimpleCorrupted(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		simpleCorrupted("tru"),
 		simpleCorrupted("fals"),
 		simpleCorrupted("tre"),
@@ -215,7 +233,7 @@ func TestUnmarshal_BoolSimpleCorrupted(t *testing.T) {
 }
 
 func TestUnmarshal_ArraySimpleSuccess(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		{name: "[]", input: []byte("[]"), _type: Array, value: []byte("[]")},
 		{name: "[1]", input: []byte("[1]"), _type: Array, value: []byte("[1]")},
 		{name: "[1,2,3]", input: []byte("[1,2,3]"), _type: Array, value: []byte("[1,2,3]")},
@@ -226,6 +244,7 @@ func TestUnmarshal_ArraySimpleSuccess(t *testing.T) {
 		{name: "[true,null,1,\"foo\",[]]", input: []byte("[true,null,1,\"foo\",[]]"), _type: Array, value: []byte("[true,null,1,\"foo\",[]]")},
 		{name: "spaces", input: []byte("\n\r [\n1\n ]\r\n"), _type: Array, value: []byte("[\n1\n ]")},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			simpleValid(test, t)
@@ -234,7 +253,7 @@ func TestUnmarshal_ArraySimpleSuccess(t *testing.T) {
 }
 
 func TestUnmarshal_ArraySimpleCorrupted(t *testing.T) {
-	tests := []*testCase{
+	tests := []*testNode{
 		simpleCorrupted("[,]"),
 		simpleCorrupted("[]\\"),
 		simpleCorrupted("[1,]"),
@@ -243,8 +262,8 @@ func TestUnmarshal_ArraySimpleCorrupted(t *testing.T) {
 		simpleCorrupted("1[]"),
 		simpleCorrupted("[]1"),
 		simpleCorrupted("[[]1]"),
-		// simpleCorrupted("‌[],[]"), // invisible char
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			simpleInvalid(test, t)
@@ -252,15 +271,7 @@ func TestUnmarshal_ArraySimpleCorrupted(t *testing.T) {
 	}
 }
 
-// Examples from https://json.org/example.html
-func TestUnmarshal(t *testing.T) {
-	tests := []struct {
-		name  string
-		value string
-	}{
-		{
-			name: "glossary",
-			value: `{
+var glossary = `{
     "glossary": {
         "title": "example glossary",
 		"GlossDiv": {
@@ -281,25 +292,21 @@ func TestUnmarshal(t *testing.T) {
             }
         }
     }
-}`,
-		},
-		{
-			name: "menu",
-			value: `{"menu": {
-  "id": "file",
-  "value": "File",
-  "popup": {
-    "menuitem": [
-      {"value": "New", "onclick": "CreateNewDoc()"},
-      {"value": "Open", "onclick": "OpenDoc()"},
-      {"value": "Close", "onclick": "CloseDoc()"}
-    ]
-  }
-}}`,
-		},
-		{
-			name: "widget",
-			value: `{"widget": {
+}`
+
+var file = `{"menu": {
+	"id": "file",
+	"value": "File",
+	"popup": {
+	  "menuitem": [
+		{"value": "New", "onclick": "CreateNewDoc()"},
+		{"value": "Open", "onclick": "OpenDoc()"},
+		{"value": "Close", "onclick": "CloseDoc()"}
+	  ]
+	}
+}}`
+
+var widget = `{"widget": {
     "debug": "on",
     "window": {
         "title": "Sample Konfabulator Widget",
@@ -324,102 +331,98 @@ func TestUnmarshal(t *testing.T) {
         "alignment": "center",
         "onMouseUp": "sun1.opacity = (sun1.opacity / 100) * 90;"
     }
-}}    `,
-		},
-		{
-			name: "web-app",
-			value: `{"web-app": {
-  "servlet": [   
-    {
-      "servlet-name": "cofaxCDS",
-      "servlet-class": "org.cofax.cds.CDSServlet",
-      "init-param": {
-        "configGlossary:installationAt": "Philadelphia, PA",
-        "configGlossary:adminEmail": "ksm@pobox.com",
-        "configGlossary:poweredBy": "Cofax",
-        "configGlossary:poweredByIcon": "/images/cofax.gif",
-        "configGlossary:staticPath": "/content/static",
-        "templateProcessorClass": "org.cofax.WysiwygTemplate",
-        "templateLoaderClass": "org.cofax.FilesTemplateLoader",
-        "templatePath": "templates",
-        "templateOverridePath": "",
-        "defaultListTemplate": "listTemplate.htm",
-        "defaultFileTemplate": "articleTemplate.htm",
-        "useJSP": false,
-        "jspListTemplate": "listTemplate.jsp",
-        "jspFileTemplate": "articleTemplate.jsp",
-        "cachePackageTagsTrack": 200,
-        "cachePackageTagsStore": 200,
-        "cachePackageTagsRefresh": 60,
-        "cacheTemplatesTrack": 100,
-        "cacheTemplatesStore": 50,
-        "cacheTemplatesRefresh": 15,
-        "cachePagesTrack": 200,
-        "cachePagesStore": 100,
-        "cachePagesRefresh": 10,
-        "cachePagesDirtyRead": 10,
-        "searchEngineListTemplate": "forSearchEnginesList.htm",
-        "searchEngineFileTemplate": "forSearchEngines.htm",
-        "searchEngineRobotsDb": "WEB-INF/robots.db",
-        "useDataStore": true,
-        "dataStoreClass": "org.cofax.SqlDataStore",
-        "redirectionClass": "org.cofax.SqlRedirection",
-        "dataStoreName": "cofax",
-        "dataStoreDriver": "com.microsoft.jdbc.sqlserver.SQLServerDriver",
-        "dataStoreUrl": "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon",
-        "dataStoreUser": "sa",
-        "dataStorePassword": "dataStoreTestQuery",
-        "dataStoreTestQuery": "SET NOCOUNT ON;select test='test';",
-        "dataStoreLogFile": "/usr/local/tomcat/logs/datastore.log",
-        "dataStoreInitConns": 10,
-        "dataStoreMaxConns": 100,
-        "dataStoreConnUsageLimit": 100,
-        "dataStoreLogLevel": "debug",
-        "maxUrlLength": 500}},
-    {
-      "servlet-name": "cofaxEmail",
-      "servlet-class": "org.cofax.cds.EmailServlet",
-      "init-param": {
-      "mailHost": "mail1",
-      "mailHostOverride": "mail2"}},
-    {
-      "servlet-name": "cofaxAdmin",
-      "servlet-class": "org.cofax.cds.AdminServlet"},
- 
-    {
-      "servlet-name": "fileServlet",
-      "servlet-class": "org.cofax.cds.FileServlet"},
-    {
-      "servlet-name": "cofaxTools",
-      "servlet-class": "org.cofax.cms.CofaxToolsServlet",
-      "init-param": {
-        "templatePath": "toolstemplates/",
-        "log": 1,
-        "logLocation": "/usr/local/tomcat/logs/CofaxTools.log",
-        "logMaxSize": "",
-        "dataLog": 1,
-        "dataLogLocation": "/usr/local/tomcat/logs/dataLog.log",
-        "dataLogMaxSize": "",
-        "removePageCache": "/content/admin/remove?cache=pages&id=",
-        "removeTemplateCache": "/content/admin/remove?cache=templates&id=",
-        "fileTransferFolder": "/usr/local/tomcat/webapps/content/fileTransferFolder",
-        "lookInContext": 1,
-        "adminGroupID": 4,
-        "betaServer": true}}],
-  "servlet-mapping": {
-    "cofaxCDS": "/",
-    "cofaxEmail": "/cofaxutil/aemail/*",
-    "cofaxAdmin": "/admin/*",
-    "fileServlet": "/static/*",
-    "cofaxTools": "/tools/*"},
- 
-  "taglib": {
-    "taglib-uri": "cofax.tld",
-    "taglib-location": "/WEB-INF/tlds/cofax.tld"}}}`,
-		},
-		{
-			name: "SVG Viewer",
-			value: `{"menu": {
+}}    `
+
+var webApp = `{"web-app": {
+	"servlet": [   
+	  {
+		"servlet-name": "cofaxCDS",
+		"servlet-class": "org.cofax.cds.CDSServlet",
+		"init-param": {
+		  "configGlossary:installationAt": "Philadelphia, PA",
+		  "configGlossary:adminEmail": "ksm@pobox.com",
+		  "configGlossary:poweredBy": "Cofax",
+		  "configGlossary:poweredByIcon": "/images/cofax.gif",
+		  "configGlossary:staticPath": "/content/static",
+		  "templateProcessorClass": "org.cofax.WysiwygTemplate",
+		  "templateLoaderClass": "org.cofax.FilesTemplateLoader",
+		  "templatePath": "templates",
+		  "templateOverridePath": "",
+		  "defaultListTemplate": "listTemplate.htm",
+		  "defaultFileTemplate": "articleTemplate.htm",
+		  "useJSP": false,
+		  "jspListTemplate": "listTemplate.jsp",
+		  "jspFileTemplate": "articleTemplate.jsp",
+		  "cachePackageTagsTrack": 200,
+		  "cachePackageTagsStore": 200,
+		  "cachePackageTagsRefresh": 60,
+		  "cacheTemplatesTrack": 100,
+		  "cacheTemplatesStore": 50,
+		  "cacheTemplatesRefresh": 15,
+		  "cachePagesTrack": 200,
+		  "cachePagesStore": 100,
+		  "cachePagesRefresh": 10,
+		  "cachePagesDirtyRead": 10,
+		  "searchEngineListTemplate": "forSearchEnginesList.htm",
+		  "searchEngineFileTemplate": "forSearchEngines.htm",
+		  "searchEngineRobotsDb": "WEB-INF/robots.db",
+		  "useDataStore": true,
+		  "dataStoreClass": "org.cofax.SqlDataStore",
+		  "redirectionClass": "org.cofax.SqlRedirection",
+		  "dataStoreName": "cofax",
+		  "dataStoreDriver": "com.microsoft.jdbc.sqlserver.SQLServerDriver",
+		  "dataStoreUrl": "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon",
+		  "dataStoreUser": "sa",
+		  "dataStorePassword": "dataStoreTestQuery",
+		  "dataStoreTestQuery": "SET NOCOUNT ON;select test='test';",
+		  "dataStoreLogFile": "/usr/local/tomcat/logs/datastore.log",
+		  "dataStoreInitConns": 10,
+		  "dataStoreMaxConns": 100,
+		  "dataStoreConnUsageLimit": 100,
+		  "dataStoreLogLevel": "debug",
+		  "maxUrlLength": 500}},
+	  {
+		"servlet-name": "cofaxEmail",
+		"servlet-class": "org.cofax.cds.EmailServlet",
+		"init-param": {
+		"mailHost": "mail1",
+		"mailHostOverride": "mail2"}},
+	  {
+		"servlet-name": "cofaxAdmin",
+		"servlet-class": "org.cofax.cds.AdminServlet"},
+   
+	  {
+		"servlet-name": "fileServlet",
+		"servlet-class": "org.cofax.cds.FileServlet"},
+	  {
+		"servlet-name": "cofaxTools",
+		"servlet-class": "org.cofax.cms.CofaxToolsServlet",
+		"init-param": {
+		  "templatePath": "toolstemplates/",
+		  "log": 1,
+		  "logLocation": "/usr/local/tomcat/logs/CofaxTools.log",
+		  "logMaxSize": "",
+		  "dataLog": 1,
+		  "dataLogLocation": "/usr/local/tomcat/logs/dataLog.log",
+		  "dataLogMaxSize": "",
+		  "removePageCache": "/content/admin/remove?cache=pages&id=",
+		  "removeTemplateCache": "/content/admin/remove?cache=templates&id=",
+		  "fileTransferFolder": "/usr/local/tomcat/webapps/content/fileTransferFolder",
+		  "lookInContext": 1,
+		  "adminGroupID": 4,
+		  "betaServer": true}}],
+	"servlet-mapping": {
+	  "cofaxCDS": "/",
+	  "cofaxEmail": "/cofaxutil/aemail/*",
+	  "cofaxAdmin": "/admin/*",
+	  "fileServlet": "/static/*",
+	  "cofaxTools": "/tools/*"},
+   
+	"taglib": {
+	  "taglib-uri": "cofax.tld",
+	  "taglib-location": "/WEB-INF/tlds/cofax.tld"}}}`
+
+var svgViewer = `{"menu": {
     "header": "SVG Viewer",
     "items": [
         {"id": "Open"},
@@ -445,21 +448,9 @@ func TestUnmarshal(t *testing.T) {
         {"id": "Help"},
         {"id": "About", "label": "About Adobe CVG Viewer..."}
     ]
-}}`,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			_, err := unmarshal2([]byte(test.value))
-			if err != nil {
-				t.Errorf("Error on Unmarshal: %s", err.Error())
-			}
-		})
-	}
-}
+}}`
 
-var (
-	jsonExample = []byte(`{ "store": {
+var bookStore = `{ "store": {
     "book": [ 
       { "category": "reference",
         "author": "Nigel Rees",
@@ -489,23 +480,88 @@ var (
       "price": 19.95
     }
   }
-}`)
-)
+}`
+
+// Examples from https://json.org/example.html
+func TestUnmarshal(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{
+			name:  "glossary",
+			value: glossary,
+		},
+		{
+			name:  "menu",
+			value: file,
+		},
+		{
+			name:  "widget",
+			value: widget,
+		},
+		{
+			name:  "web-app",
+			value: webApp,
+		},
+		{
+			name:  "SVG Viewer",
+			value: svgViewer,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Unmarshal([]byte(test.value))
+			if err != nil {
+				t.Errorf("Error on Unmarshal: %s", err.Error())
+			}
+		})
+	}
+}
 
 func TestUnmarshalSafe(t *testing.T) {
-	safe, err := UnmarshalSafe(jsonExample)
+	json := []byte(bookStore)
+	safe, err := UnmarshalSafe(json)
 	if err != nil {
 		t.Errorf("Error on Unmarshal: %s", err.Error())
 	} else if safe == nil {
 		t.Errorf("Error on Unmarshal: safe is nil")
 	} else {
-		root, err := unmarshal2(jsonExample)
+		root, err := Unmarshal(json)
 		if err != nil {
 			t.Errorf("Error on Unmarshal: %s", err.Error())
 		} else if root == nil {
 			t.Errorf("Error on Unmarshal: root is nil")
-		} else if !bytes.Equal(root.Source(), safe.Source()) {
+		} else if !bytes.Equal(root.source(), safe.source()) {
 			t.Errorf("Error on UnmarshalSafe: values not same")
 		}
 	}
 }
+
+// BenchmarkGoStdUnmarshal-8   	   61698	     19350 ns/op	     288 B/op	       6 allocs/op
+// BenchmarkUnmarshal-8        	   45620	     26165 ns/op	   21889 B/op	     367 allocs/op
+//
+// type bench struct {
+// 	Name  string `json:"name"`
+// 	Value int    `json:"value"`
+// }
+
+// func BenchmarkGoStdUnmarshal(b *testing.B) {
+// 	data := []byte(webApp)
+// 	for i := 0; i < b.N; i++ {
+// 		err := json.Unmarshal(data, &bench{})
+// 		if err != nil {
+// 			b.Fatal(err)
+// 		}
+// 	}
+// }
+
+// func BenchmarkUnmarshal(b *testing.B) {
+// 	data := []byte(webApp)
+// 	for i := 0; i < b.N; i++ {
+// 		_, err := Unmarshal(data)
+// 		if err != nil {
+// 			b.Fatal(err)
+// 		}
+// 	}
+// }

@@ -1,7 +1,6 @@
 package json
 
 import (
-	"errors"
 	"testing"
 )
 
@@ -115,7 +114,7 @@ func TestBufferSlice(t *testing.T) {
 	tests := []struct {
 		name    string
 		buffer  *buffer
-		pos     uint
+		pos     int
 		want    []byte
 		wantErr bool
 	}{
@@ -181,9 +180,9 @@ func TestBufferMove(t *testing.T) {
 	tests := []struct {
 		name    string
 		buffer  *buffer
-		pos     uint
+		pos     int
 		wantErr bool
-		wantIdx uint
+		wantIdx int
 	}{
 		{
 			name:    "Valid move",
@@ -280,7 +279,7 @@ func TestSkipToNextSignificantToken(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
-		expected uint
+		expected int
 	}{
 		{"No significant chars", []byte("abc"), 3},
 		{"One significant char at start", []byte(".abc"), 0},
@@ -293,7 +292,7 @@ func TestSkipToNextSignificantToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := NewBuffer(tt.input)
+			b := newBuffer(tt.input)
 			b.skipToNextSignificantToken()
 			if b.index != tt.expected {
 				t.Errorf("after skipToNextSignificantToken(), got index = %v, want %v", b.index, tt.expected)
@@ -302,17 +301,15 @@ func TestSkipToNextSignificantToken(t *testing.T) {
 	}
 }
 
-const testString = "abcdefg"
-
 func mockBuffer(s string) *buffer {
-	return NewBuffer([]byte(s))
+	return newBuffer([]byte(s))
 }
 
 func TestSkipAndReturnIndex(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected uint
+		expected int
 	}{
 		{"StartOfString", "", 0},
 		{"MiddleOfString", "abcdef", 1},
@@ -338,7 +335,7 @@ func TestSkipUntil(t *testing.T) {
 		name     string
 		input    string
 		tokens   map[byte]bool
-		expected uint
+		expected int
 	}{
 		{"SkipToToken", "abcdefg", map[byte]bool{'c': true}, 2},
 		{"SkipToEnd", "abcdefg", map[byte]bool{'h': true}, 7},
@@ -349,7 +346,7 @@ func TestSkipUntil(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := mockBuffer(tt.input)
 			got, err := buf.skipUntil(tt.tokens)
-			if err != nil && got != uint(len(tt.input)) { // Expect error only if reached end without finding token
+			if err != nil && got != len(tt.input) { // Expect error only if reached end without finding token
 				t.Errorf("skipUntil() error = %v", err)
 			}
 			if got != tt.expected {
@@ -363,8 +360,8 @@ func TestSliceFromIndices(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		start    uint
-		end      uint
+		start    int
+		end      int
 		expected string
 	}{
 		{"FullString", "abcdefg", 0, 7, "abcdefg"},
@@ -387,7 +384,7 @@ func TestBufferToken(t *testing.T) {
 	tests := []struct {
 		name  string
 		path  string
-		index uint
+		index int
 		isErr bool
 	}{
 		{
@@ -562,7 +559,7 @@ func TestBufferToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := NewBuffer([]byte(tt.path))
+			buf := newBuffer([]byte(tt.path))
 
 			err := buf.pathToken()
 			if tt.isErr {
@@ -604,15 +601,15 @@ func TestBufferFirst(t *testing.T) {
 			expected: 0,
 		},
 		{
-			name: "whitespace in middle",
-			data: []byte("hello world"),
+			name:     "whitespace in middle",
+			data:     []byte("hello world"),
 			expected: 'h',
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := NewBuffer(tt.data)
+			b := newBuffer(tt.data)
 
 			got, err := b.first()
 			if err != nil && tt.expected != 0 {

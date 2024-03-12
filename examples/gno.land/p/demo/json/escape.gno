@@ -3,29 +3,47 @@ package json
 import (
 	"bytes"
 	"errors"
-	"unicode"
-	"unicode/utf16"
 	"unicode/utf8"
 )
 
 const (
-	supplementalPlanesOffset = 0x10000
-	highSurrogateOffset      = 0xD800
-	lowSurrogateOffset       = 0xDC00
-
+	supplementalPlanesOffset     = 0x10000
+	highSurrogateOffset          = 0xD800
+	lowSurrogateOffset           = 0xDC00
 	surrogateEnd                 = 0xDFFF
 	basicMultilingualPlaneOffset = 0xFFFF
-
-	badHex = -1
+	badHex                       = -1
 )
 
-// unescape takes an input byte slice, processes it to unescape certain characters,
+var hexLookupTable = [256]int{
+	'0': 0x0, '1': 0x1, '2': 0x2, '3': 0x3, '4': 0x4,
+	'5': 0x5, '6': 0x6, '7': 0x7, '8': 0x8, '9': 0x9,
+	'A': 0xA, 'B': 0xB, 'C': 0xC, 'D': 0xD, 'E': 0xE, 'F': 0xF,
+	'a': 0xA, 'b': 0xB, 'c': 0xC, 'd': 0xD, 'e': 0xE, 'f': 0xF,
+	// Fill unspecified index-value pairs with key and value of -1
+	'G': -1, 'H': -1, 'I': -1, 'J': -1,
+	'K': -1, 'L': -1, 'M': -1, 'N': -1,
+	'O': -1, 'P': -1, 'Q': -1, 'R': -1,
+	'S': -1, 'T': -1, 'U': -1, 'V': -1,
+	'W': -1, 'X': -1, 'Y': -1, 'Z': -1,
+	'g': -1, 'h': -1, 'i': -1, 'j': -1,
+	'k': -1, 'l': -1, 'm': -1, 'n': -1,
+	'o': -1, 'p': -1, 'q': -1, 'r': -1,
+	's': -1, 't': -1, 'u': -1, 'v': -1,
+	'w': -1, 'x': -1, 'y': -1, 'z': -1,
+}
+
+func h2i(c byte) int {
+	return hexLookupTable[c]
+}
+
+// Unescape takes an input byte slice, processes it to Unescape certain characters,
 // and writes the result into an output byte slice.
 //
-// it returns the processed slice and any error encountered during the unescape operation.
-func unescape(input, output []byte) ([]byte, error) {
+// it returns the processed slice and any error encountered during the Unescape operation.
+func Unescape(input, output []byte) ([]byte, error) {
 	// find the index of the first backslash in the input slice.
-	firstBackslash := bytes.IndexByte(input, BackSlashToken)
+	firstBackslash := bytes.IndexByte(input, backSlash)
 	if firstBackslash == -1 {
 		return input, nil
 	}
@@ -43,16 +61,16 @@ func unescape(input, output []byte) ([]byte, error) {
 	buf := output[firstBackslash:]
 
 	for len(input) > 0 {
-		inLen, bufLen := processEscapedUTF8(input, buf)
-		if inLen == -1 {
-			return nil, errors.New("Invalid escape sequence in a string")
+		inLen, bufLen, err := processEscapedUTF8(input, buf)
+		if err != nil {
+			return nil, err
 		}
 
 		input = input[inLen:] // the number of bytes consumed in the input
 		buf = buf[bufLen:]    // the number of bytes written to buf
 
 		// find the next backslash in the remaining input
-		nextBackslash := bytes.IndexByte(input, BackSlashToken)
+		nextBackslash := bytes.IndexByte(input, backSlash)
 		if nextBackslash == -1 {
 			copy(buf, input)
 			buf = buf[len(input):]
@@ -128,18 +146,27 @@ func decodeUnicodeEscape(b []byte) (rune, int) {
 	return combineSurrogates(r, r2), 12
 }
 
-func unquote(bs []byte, unquoteToken byte) (string, error) {
-	res, err := unquoteBytes(bs, unquoteToken)
-	if err != nil {
-		return "", err
-	}
-
-	return string(res), nil
+var escapeByteSet = [256]byte{
+	'"':  doubleQuote,
+	'\\': backSlash,
+	'/':  slash,
+	'b':  backSpace,
+	'f':  formFeed,
+	'n':  newLine,
+	'r':  carriageReturn,
+	't':  tab,
 }
 
-func unquoteBytes(s []byte, border byte) ([]byte, error) {
+// Unquote takes a byte slice and unquotes it by removing the surrounding quotes and unescaping the contents.
+func Unquote(s []byte, border byte) (t string, ok bool) {
+	s, ok = unquoteBytes(s, border)
+	t = string(s)
+	return
+}
+
+func unquoteBytes(s []byte, border byte) ([]byte, bool) {
 	if len(s) < 2 || s[0] != border || s[len(s)-1] != border {
-		return nil, errors.New("Invalid JSON string")
+		return nil, false
 	}
 
 	s = s[1 : len(s)-1]
@@ -148,74 +175,61 @@ func unquoteBytes(s []byte, border byte) ([]byte, error) {
 	for r < len(s) {
 		c := s[r]
 
-		if c == BackSlashToken || c == border || c < 0x20 {
+		if c == backSlash || c == border || c < 0x20 {
 			break
-		} else if c >= utf8.RuneSelf {
-			rr, size := utf8.DecodeRune(s[r:])
-			if rr == utf8.RuneError && size == 1 {
-				break
-			}
+		}
 
-			r += size
+		if c < utf8.RuneSelf {
+			r++
 			continue
 		}
 
-		r++
+		rr, size := utf8.DecodeRune(s[r:])
+		if rr == utf8.RuneError && size == 1 {
+			break
+		}
+
+		r += size
 	}
 
 	if r == len(s) {
-		return s, nil
+		return s, true
 	}
 
-	b := make([]byte, len(s)+utf8.UTFMax*2)
-	w := copy(b, s[:r])
+	utfDoubleMax := utf8.UTFMax * 2
+	b := make([]byte, len(s)+utfDoubleMax)
+	w := copy(b, s[0:r])
 
 	for r < len(s) {
-		if w >= len(b)-(utf8.UTFMax*2) {
-			nb := make([]byte, (utf8.UTFMax+len(b))*2)
+		if w >= len(b)-utf8.UTFMax {
+			nb := make([]byte, utfDoubleMax+(2*len(b)))
 			copy(nb, b)
 			b = nb
 		}
 
 		c := s[r]
-		if c == BackSlashToken {
+		if c == backSlash {
 			r++
 			if r >= len(s) {
-				return nil, errors.New("Invalid JSON string")
+				return nil, false
 			}
 
 			if s[r] == 'u' {
 				rr, res := decodeUnicodeEscape(s[r-1:])
 				if res < 0 {
-					return nil, errors.New("Invalid JSON string")
+					return nil, false
 				}
 
 				w += utf8.EncodeRune(b[w:], rr)
 				r += 5
 			} else {
-				var decode byte
+				decode := escapeByteSet[s[r]]
+				if decode == 0 {
+					return nil, false
+				}
 
-				switch s[r] {
-				case 'b':
-					decode = BackSpaceToken
-
-				case 'f':
-					decode = FormFeedToken
-
-				case 'n':
-					decode = NewLineToken
-
-				case 'r':
-					decode = CarriageReturnToken
-
-				case 't':
-					decode = TabToken
-
-				case border, BackSlashToken, SlashToken, QuoteToken:
+				if decode == doubleQuote || decode == backSlash || decode == slash {
 					decode = s[r]
-
-				default:
-					return nil, errors.New("Invalid JSON string")
 				}
 
 				b[w] = decode
@@ -223,7 +237,7 @@ func unquoteBytes(s []byte, border byte) ([]byte, error) {
 				w++
 			}
 		} else if c == border || c < 0x20 {
-			return nil, errors.New("Invalid JSON string")
+			return nil, false
 		} else if c < utf8.RuneSelf {
 			b[w] = c
 			r++
@@ -232,7 +246,7 @@ func unquoteBytes(s []byte, border byte) ([]byte, error) {
 			rr, size := utf8.DecodeRune(s[r:])
 
 			if rr == utf8.RuneError && size == 1 {
-				return nil, errors.New("Invalid JSON string")
+				return nil, false
 			}
 
 			r += size
@@ -240,18 +254,7 @@ func unquoteBytes(s []byte, border byte) ([]byte, error) {
 		}
 	}
 
-	return b[:w], nil
-}
-
-var escapeByteSet = [256]byte{
-	'"':  DoublyQuoteToken,
-	'\\': BackSlashToken,
-	'/':  SlashToken,
-	'b':  BackSpaceToken,
-	'f':  FormFeedToken,
-	'n':  NewLineToken,
-	'r':  CarriageReturnToken,
-	't':  TabToken,
+	return b[:w], true
 }
 
 // processEscapedUTF8 processes the escape sequence in the given byte slice and
@@ -266,9 +269,9 @@ var escapeByteSet = [256]byte{
 //
 // If the escape sequence is invalid, or if 'in' does not completely enclose the escape sequence,
 // function returns (-1, -1) to indicate an error.
-func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
-	if len(in) < 2 || in[0] != BackSlashToken {
-		return -1, -1
+func processEscapedUTF8(in, out []byte) (inLen int, outLen int, err error) {
+	if len(in) < 2 || in[0] != backSlash {
+		return -1, -1, errors.New("invalid escape sequence")
 	}
 
 	escapeSeqLen := 2
@@ -276,15 +279,15 @@ func processEscapedUTF8(in, out []byte) (inLen int, outLen int) {
 	if escapeChar == 'u' {
 		if r, size := decodeUnicodeEscape(in); size != -1 {
 			outLen = utf8.EncodeRune(out, r)
-			return size, outLen
+			return size, outLen, nil
 		}
 	} else {
 		val := escapeByteSet[escapeChar]
 		if val != 0 {
 			out[0] = val
-			return escapeSeqLen, 1
+			return escapeSeqLen, 1, nil
 		}
 	}
 
-	return -1, -1
+	return -1, -1, errors.New("invalid escape sequence")
 }

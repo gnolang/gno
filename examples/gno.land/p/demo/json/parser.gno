@@ -3,7 +3,6 @@ package json
 import (
 	"bytes"
 	"errors"
-	"math"
 	"strconv"
 )
 
@@ -13,113 +12,15 @@ const (
 	maxUint64   = 1<<64 - 1
 )
 
-func tokenEnd(data []byte) int {
-	for i, tok := range data {
-		switch tok {
-		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken, CommaToken, CurlyCloseToken, SquareCloseToken:
-			return i
-		}
-	}
-
-	return len(data)
-}
-
-func nextToken(data []byte) (int, error) {
-	for i, c := range data {
-		switch c {
-		case WhiteSpaceToken, NewLineToken, CarriageReturnToken, TabToken:
-			continue
-		default:
-			return i, nil
-		}
-	}
-
-	return -1, errors.New("JSON Error: no token found")
-}
-
-func stringEnd(data []byte) (lastCharIdx int, escaped bool, err error) {
-	escaped = false
-	for lastCharIdx, c := range data {
-		switch c {
-		case DoublyQuoteToken:
-			if !escaped {
-				return lastCharIdx + 1, false, nil
-			}
-
-			prevCharIdx := lastCharIdx - 1
-			for prevCharIdx >= 0 && data[prevCharIdx] == BackSlashToken {
-				prevCharIdx--
-			}
-
-			if (lastCharIdx-prevCharIdx)%2 == 0 {
-				return lastCharIdx + 1, true, nil
-			}
-
-			return lastCharIdx + 1, false, nil
-		case BackSlashToken:
-			escaped = true
-		}
-	}
-
-	return -1, escaped, errors.New("Invalid string input found while parsing string value")
-}
-
-// Find end of the data structure, array or object.
-// For array openSym and closeSym will be '[' and ']', for object '{' and '}'
-func blockEnd(data []byte, openSym byte, closeSym byte) (int, error) {
-	level := 0
-
-	for i := 0; i < len(data); i++ {
-		switch data[i] {
-		case DoublyQuoteToken:
-			if se, _, err := stringEnd(data[i+1:]); err != nil {
-				return -1, err
-			} else {
-				i += se
-			}
-		case openSym:
-			level += 1
-		case closeSym:
-			level -= 1
-			if level == 0 {
-				return i + 1, nil
-			}
-		}
-	}
-
-	return -1, errors.New("JSON Error: malformed data structure found while parsing container value")
-}
-
-func keyMatched(
-	key []byte,
-	keyEscaped bool,
-	stackbuf [unescapeStackBufSize]byte,
-	keys []string, level int,
-) (keyUnesc []byte, err error) {
-	if !keyEscaped {
-		keyUnesc = key
-	}
-
-	if ku, err := unescape(key, stackbuf[:]); err != nil {
-		return nil, err
-	} else {
-		keyUnesc = ku
-	}
-
-	if level > len(keys) {
-		return nil, errors.New("key level exceeds the length of the keys")
-	}
-
-	return keyUnesc, err
-}
+const unescapeStackBufSize = 64
 
 // PaseStringLiteral parses a string from the given byte slice.
 func ParseStringLiteral(data []byte) (string, error) {
 	var buf [unescapeStackBufSize]byte
 
-	bf, err := unescape(data, buf[:])
+	bf, err := Unescape(data, buf[:])
 	if err != nil {
-		return "", errors.New("Invalid string input found while parsing string value")
+		return "", errors.New("invalid string input found while parsing string value")
 	}
 
 	return string(bf), nil
@@ -141,7 +42,6 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 //
 // It utilizes double-precision (64-bit) floating-point format as defined
 // by the IEEE 754 standard, providing a decimal precision of approximately 15 digits.
-// TODO: support for 32-bit floating-point format
 func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	if len(bytes) == 0 {
 		return -1, errors.New("JSON Error: empty byte slice found while parsing float value")
@@ -237,7 +137,7 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	)
 
 	for _, c := range bytes {
-		if c == DotToken {
+		if c == dot {
 			if decimalFound {
 				return 0, 0, errors.New("JSON Error: multiple decimal points found while parsing float value")
 			}
@@ -265,131 +165,19 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	return man, exp10, nil
 }
 
-// getTypeFromByteSlice is a function that takes a byte slice and an offset as input parameters.
-//
-// It returns a byte slice representing the data type, a ValueType indicating the type of data,
-// an integer representing the end offset, and an error if any.
-func getTypeFromByteSlice(data []byte, offset int) ([]byte, ValueType, int, error) {
-	if len(data) == 0 {
-		return nil, Unknown, offset, errors.New("JSON Error: empty byte slice found while parsing value")
+func trimNegativeSign(bytes []byte) (neg bool, trimmed []byte) {
+	if bytes[0] == minus {
+		return true, bytes[1:]
 	}
 
-	dataType, endOffset, err := ParseValue(data, offset)
-	if err != nil {
-		return nil, dataType, offset, err
-	}
-
-	return data[offset:endOffset], dataType, endOffset, nil
+	return false, bytes
 }
 
-// typeOf check the type of the given value and returns the corresponding ValueType.
-func typeOf(v interface{}) ValueType {
-	switch v.(type) {
-	case string:
-		return String
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		return Number
-	case float32, float64:
-		return Float
-	case bool:
-		return Boolean
-	case nil:
-		return Null
-	case map[string]interface{}:
-		return Object
-	case []interface{}:
-		return Array
-	default:
-		return Unknown
-	}
+func notDigit(c byte) bool {
+	return (c & 0xF0) != 0x30
 }
 
-// ParseValue parses a JSON value from the given data starting at the specified offset.
-// It returns the parsed value, the new offset after parsing, and an error if any.
-func ParseValue(data []byte, offset int) (ValueType, int, error) {
-	switch data[offset] {
-	case DoublyQuoteToken:
-		return parseString(data, offset)
-	case SquareOpenToken, CurlyOpenToken:
-		return parseContainer(data, offset)
-	}
-
-	return parsePrimitive(data, offset)
-}
-
-// parseString parses a JSON string and returns its type and the end position.
-func parseString(data []byte, offset int) (ValueType, int, error) {
-	if idx, _, err := stringEnd(data[offset+1:]); err == nil {
-		return String, offset + idx + 1, nil
-	}
-
-	return String, offset, errors.New("JSON Error: Invalid string input found while parsing string value")
-}
-
-// parseContainer parses a JSON array or object and returns its type and the end position.
-func parseContainer(data []byte, offset int) (ValueType, int, error) {
-	var (
-		containerType ValueType
-		closing       byte
-	)
-
-	if data[offset] == SquareOpenToken {
-		containerType = Array
-		closing = SquareCloseToken
-	} else {
-		containerType = Object
-		closing = CurlyCloseToken
-	}
-
-	endOffset, err := blockEnd(data[offset:], data[offset], closing)
-	if endOffset == -1 {
-		return containerType, offset, err
-	}
-
-	return containerType, offset + endOffset, nil
-}
-
-func parsePrimitive(data []byte, offset int) (ValueType, int, error) {
-	end := tokenEnd(data[offset:])
-	if end == -1 {
-		return Unknown, offset, errors.New("JSON Error: malformed value found while parsing primitive value")
-	}
-
-	value := data[offset : offset+end]
-
-	switch data[offset] {
-	case 't', 'f':
-		if _b, err := ParseBoolLiteral(value); err != nil {
-			return Unknown, offset, err
-		}
-
-		return Boolean, offset + end, nil
-
-	case 'n':
-		if bytes.Equal(value, nullLiteral) {
-			return Null, offset + end, nil
-		}
-
-		return Unknown, offset, errors.New("JSON Error: invalid null value found while parsing null value")
-
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-		if !bytes.ContainsAny(value, ".eE") {
-			if _i, err := ParseIntLiteral(value); err != nil {
-				return Number, offset + end, err
-			}
-		}
-
-		if _f, err := ParseFloatLiteral(value); err != nil {
-			return Number, offset + end, err
-		}
-
-		return Number, offset + end, nil
-	}
-
-	return Unknown, offset, errors.New("JSON Error: unknown value type found while parsing primitive value")
-}
-
-// TODO: may integrate this code with parsePrimitive in parser.go
-func isNumeric(c byte) bool {
-	return bytes.Contains([]byte("0123456789+-.eE"), []byte{c})
+// lower converts a byte to lower case if it is an uppercase letter.
+func lower(c byte) byte {
+	return c | 0x20
 }
