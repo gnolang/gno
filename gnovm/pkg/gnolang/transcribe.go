@@ -160,7 +160,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *CallExpr:
 		ff := transcribe(t, nns, TRANS_CALL_FUNC, 0, cnn.Func, &c).(Expr)
+		/*
+			this check is okay because you cannot assign panic
+			therefore, we don't need to follow type information
+			you can't do the following
 
+			a := panic
+			a()
+		*/
 		if ce, is := ff.(*ConstExpr); is {
 			fv := ce.GetFunc()
 
