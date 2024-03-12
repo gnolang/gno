@@ -106,7 +106,7 @@ func (m *Memeland) GetPosts() []*Post {
 }
 
 // GetPostsByTimestamp returns a JSON string of posts within the given timestamp range, supporting pagination.
-func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp string, page, pageSize int) string {
+func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp int64, page, pageSize int) string {
 	var filteredPosts []*Post
 
 	if page < 0 {
@@ -121,19 +121,8 @@ func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp string, page
 	endIndex := startIndex + pageSize
 	count := 0
 
-	// Convert timestamps to time.Time
-	startTime, err := strconv.Atoi(startTimestamp)
-
-	if err != nil {
-		return "could not parse start timestamp"
-	}
-	endTime, err := strconv.Atoi(endTimestamp)
-	if err != nil {
-		return "could not parse end timestamp"
-	}
-
-	start := time.Unix(int64(startTime), 0)
-	end := time.Unix(int64(endTime), 0)
+	start := time.Unix(startTimestamp, 0)
+	end := time.Unix(endTimestamp, 0)
 
 	// Use AVL tree traversal to filter posts by timestamp range
 	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
