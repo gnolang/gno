@@ -25,7 +25,6 @@ func TestGetPosts(t *testing.T) {
 	// Add posts at specific timestamps
 	m.PostMeme("Hour ago meme data", oneHourAgo.Unix())
 	m.PostMeme("Two hours ago meme data", twoHoursAgo.Unix())
-
 }
 
 func TestGetPostsByTimestamp(t *testing.T) {
@@ -50,7 +49,7 @@ func TestGetPostsByTimestamp(t *testing.T) {
 		page           int
 		pageSize       int
 		expectedCount  int
-		expectedData   string // A substring we expect to find in the JSON output
+		expectedData   []string // A substring we expect to find in the JSON output
 	}{
 		{
 			name:           "Single Post in Range",
@@ -59,16 +58,16 @@ func TestGetPostsByTimestamp(t *testing.T) {
 			page:           1,
 			pageSize:       10,
 			expectedCount:  1,
-			expectedData:   "Hour ago meme data",
+			expectedData:   []string{"Hour ago meme data"},
 		},
 		{
 			name:           "All Posts",
-			startTimestamp: twoHoursAgo.Add(-1 * time.Minute).Unix(), // Slightly before twoHoursAgo
+			startTimestamp: threeHoursAgo.Add(-1 * time.Minute).Unix(), // Slightly before threeHoursAgo
 			endTimestamp:   now.Unix(),
 			page:           1,
 			pageSize:       10,
-			expectedCount:  2,
-			expectedData:   "Two hours ago meme data",
+			expectedCount:  3,
+			expectedData:   []string{"Hour ago meme data", "Two hours ago meme data", "Three hours ago meme data"},
 		},
 		{
 			name:           "Pagination Test",
@@ -77,16 +76,16 @@ func TestGetPostsByTimestamp(t *testing.T) {
 			page:           1,
 			pageSize:       1, // Only request one post per page
 			expectedCount:  1,
-			expectedData:   "Hour ago meme data", // Assuming this post is returned first
+			expectedData:   []string{"Hour ago meme data"},
 		},
 		{
 			name:           "Pagination Test: Second Post",
-			startTimestamp: threeHoursAgo.Unix(),      // Starting from the oldest post
-			endTimestamp:   now.Unix(),                // Up to the current time
-			page:           2,                         // Requesting the second page
-			pageSize:       1,                         // With one post per page
-			expectedCount:  1,                         // Expect to receive exactly one post on the second page
-			expectedData:   "Two hours ago meme data", // We expect the second post to be on the second page
+			startTimestamp: threeHoursAgo.Unix(),                // Starting from the oldest post
+			endTimestamp:   now.Unix(),                          // Up to the current time
+			page:           2,                                   // Requesting the second page
+			pageSize:       1,                                   // With one post per page
+			expectedCount:  1,                                   // Expect to receive exactly one post on the second page
+			expectedData:   []string{"Two hours ago meme data"}, // We expect the second post to be on the second page
 		},
 	}
 
@@ -103,6 +102,14 @@ func TestGetPostsByTimestamp(t *testing.T) {
 			if postCount != tc.expectedCount {
 				t.Errorf("Expected %d posts in the JSON string, but found %d", tc.expectedCount, postCount)
 			}
+
+			for _, expData := range tc.expectedData {
+				if !strings.Contains(jsonStr, expData) {
+					t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
+				}
+			}
+
+			println(jsonStr)
 		})
 	}
 }

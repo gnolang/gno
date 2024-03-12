@@ -115,15 +115,20 @@ func (m *Memeland) GetPostsByTimestamp(startTimestamp, endTimestamp int64, page,
 	start := time.Unix(startTimestamp, 0)
 	end := time.Unix(endTimestamp, 0)
 
-	// Use AVL tree traversal to filter posts by timestamp range
 	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post) // Type assertion, assuming value is always *Post
-		if post.Timestamp.After(start) && post.Timestamp.Before(end) {
-			if count >= startIndex && count < endIndex {
-				filteredPosts = append(filteredPosts, post)
-			}
-			count++
+		post := value.(*Post)
+
+		// If post is not between given timestamps
+		if !post.Timestamp.After(start) || !post.Timestamp.Before(end) {
+			return true
 		}
+
+		// Only process posts within the specified count range.
+		if count >= startIndex && count < endIndex {
+			filteredPosts = append(filteredPosts, post)
+		}
+		count++
+
 		return false
 	})
 
@@ -137,11 +142,11 @@ func PostsToJSONString(posts []*Post) string {
 	sb.WriteString("[")
 
 	for i, post := range posts {
-		sb.WriteString(PostToJSONString(post))
-
 		if i > 0 {
 			sb.WriteString(",")
 		}
+
+		sb.WriteString(PostToJSONString(post))
 	}
 
 	sb.WriteString("]")
@@ -151,7 +156,6 @@ func PostsToJSONString(posts []*Post) string {
 func PostToJSONString(post *Post) string {
 	var sb strings.Builder
 
-	sb.WriteString("[")
 	sb.WriteString("{")
 	sb.WriteString(`"id":"` + post.ID + `",`)
 	sb.WriteString(`"data":"` + escapeString(post.Data) + `",`)
@@ -160,7 +164,6 @@ func PostToJSONString(post *Post) string {
 	sb.WriteString(`"upvotes":` + strconv.Itoa(post.UpvoteTracker.Size()))
 	sb.WriteString("}")
 
-	sb.WriteString("]")
 	return sb.String()
 }
 
