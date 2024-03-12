@@ -321,6 +321,16 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
+		if cx, ok := gon.X.(*ast.CallExpr); ok {
+			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
+				if len(cx.Args) != 1 {
+					panic("expected panic statement to have single exception value")
+				}
+				return &PanicStmt{
+					Exception: toExpr(fs, cx.Args[0]),
+				}
+			}
+		}
 		return &ExprStmt{
 			X: toExpr(fs, gon.X),
 		}
