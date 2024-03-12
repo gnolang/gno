@@ -113,7 +113,7 @@ func TestUpvote(t *testing.T) {
 
 	// Add a post to Memeland
 	now := time.Now().Unix()
-	postID := m.PostMeme("Test meme data", strconv.FormatInt(now, 10))
+	postID := m.PostMeme("Test meme data", now)
 
 	// Initial upvote count should be 0
 	post, exists := m.Posts.Get(postID)

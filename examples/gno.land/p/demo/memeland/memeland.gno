@@ -31,25 +31,19 @@ func NewMemeland() *Memeland {
 }
 
 // PostMeme - Adds a new post
-func (m *Memeland) PostMeme(data, timestamp string) string {
-	if data == "" || timestamp == "" {
+func (m *Memeland) PostMeme(data string, timestamp int64) string {
+	if data == "" || timestamp <= 0 {
 		return "timestamp or data cannot be empty"
 	}
 
 	// Generate ID
 	id := m.MemeCounter.Next().String()
 
-	// Parse unix timestamp into int
-	t, err := strconv.Atoi(timestamp)
-	if err != nil {
-		return "cannot parse timestamp"
-	}
-
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
 		Author:        std.GetOrigCaller(),
-		Timestamp:     time.Unix(int64(t), 0),
+		Timestamp:     time.Unix(timestamp, 0),
 		Upvotes:       0,
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -146,16 +140,11 @@ func PostsToJSONString(posts []*Post) string {
 	sb.WriteString("[")
 
 	for i, post := range posts {
+		sb.WriteString(PostToJSONString(post))
+
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString("{")
-		sb.WriteString(`"id":"` + post.ID + `",`)
-		sb.WriteString(`"data":"` + escapeString(post.Data) + `",`)
-		sb.WriteString(`"author":"` + escapeString(post.Author.String()) + `",`)
-		sb.WriteString(`"timestamp":"` + post.Timestamp.Format(time.RFC3339) + `",`)
-		sb.WriteString(`"upvotes":` + strconv.Itoa(post.Upvotes))
-		sb.WriteString("}")
 	}
 
 	sb.WriteString("]")
@@ -170,7 +159,7 @@ func PostToJSONString(post *Post) string {
 	sb.WriteString(`"id":"` + post.ID + `",`)
 	sb.WriteString(`"data":"` + escapeString(post.Data) + `",`)
 	sb.WriteString(`"author":"` + escapeString(post.Author.String()) + `",`)
-	sb.WriteString(`"timestamp":"` + post.Timestamp.Format(time.RFC3339) + `",`)
+	sb.WriteString(`"timestamp":"` + strconv.Itoa(int(post.Timestamp.Unix())) + `",`)
 	sb.WriteString(`"upvotes":` + strconv.Itoa(post.Upvotes))
 	sb.WriteString("}")
 
