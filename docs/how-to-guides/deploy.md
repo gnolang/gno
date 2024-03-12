@@ -6,7 +6,19 @@ id: deploy
 
 ## Overview
 
-This guide shows you how to deploy any realm or package to the Gno chain. Deployment is be done by utilizing `gnokey`'s `maketx addpkg` API.
+This guide shows you how to deploy any realm or package to the Gno chain. It will
+show you how to:
+- Deploy Gno code in your browser via the Playground, 
+- Deploy Gno code from your local machine using `gnokey`'s `maketx addpkg` API.
+
+
+## Deployment via the Playground
+
+
+
+
+## Deployment by using `gnokey`
+
 
 :::info
 Regardless of whether you're deploying a realm or a package, you will be using `gnokey`'s `maketx addpkg` - the usage of `maketx addpkg` in both cases is identical. 
