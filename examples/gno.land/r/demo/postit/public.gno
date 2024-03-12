@@ -40,13 +40,13 @@ func UpdateBio(bio string) string {
 	return user.Bio
 }
 
-func SetAvatarUrl(url string) string {
+func SetAvatar(base64 string) string {
 	// TODO: add checks
 	// TODO: later should be replaced with grc721
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
-	user.AvatarUrl = url
-	return user.AvatarUrl
+	user.Avatar = base64
+	return user.Avatar
 }
 
 // Post
