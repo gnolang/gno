@@ -12,7 +12,7 @@ func WithOptionMetricsEnabled() Option {
 
 func WithOptionMeterName(meterName string) Option {
 	return func(c *options.Config) {
-		if c.MeterName != "" {
+		if meterName != "" {
 			c.MeterName = meterName
 		}
 	}
@@ -20,7 +20,7 @@ func WithOptionMeterName(meterName string) Option {
 
 func WithOptionExporterEndpoint(exporterEndpoint string) Option {
 	return func(c *options.Config) {
-		if c.ExporterEndpoint != "" {
+		if exporterEndpoint != "" {
 			c.ExporterEndpoint = exporterEndpoint
 		}
 	}
@@ -34,7 +34,7 @@ func WithOptionFakeMetrics() Option {
 
 func WithOptionServiceName(serviceName string) Option {
 	return func(c *options.Config) {
-		if c.ServiceName != "" {
+		if serviceName != "" {
 			c.ServiceName = serviceName
 		}
 	}
