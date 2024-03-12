@@ -22,7 +22,7 @@ Our _Counter_ Realm will have the following functionality:
 - **Internet connection**
 - **An account in a Gno.land wallet, such as [Adena](https://adena.app)**
 
-## 1. Gno Playground
+## 1. Using Gno Playground
 
 When using the Gno Playground, writing, testing, deploying, and sharing Gno code
 is simple. This makes it perfect for getting started with Gno.
