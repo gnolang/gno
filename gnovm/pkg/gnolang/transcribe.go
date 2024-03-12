@@ -159,7 +159,19 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *CallExpr:
-		cnn.Func = transcribe(t, nns, TRANS_CALL_FUNC, 0, cnn.Func, &c).(Expr)
+		ff := transcribe(t, nns, TRANS_CALL_FUNC, 0, cnn.Func, &c).(Expr)
+
+		if ce, is := ff.(*ConstExpr); is {
+			fv := ce.GetFunc()
+
+			if fv != nil && fv.PkgPath == uversePkgPath && fv.Name == "panic" {
+				if len(cnn.Args) != 1 {
+					panic("expected panic statement to have single exception value")
+				}
+				return transcribe(t, nns, TRANS_CALL_FUNC, 0, &PanicStmt{Exception: cnn.Args[0]}, &c)
+			}
+		}
+
 		if isStopOrSkip(nc, c) {
 			return
 		}
@@ -408,7 +420,13 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *EmptyStmt:
 	case *ExprStmt:
-		cnn.X = transcribe(t, nns, TRANS_EXPR_X, 0, cnn.X, &c).(Expr)
+		tt := transcribe(t, nns, TRANS_EXPR_X, 0, cnn.X, &c)
+
+		if ps, is := tt.(*PanicStmt); is {
+			return ps
+		}
+
+		cnn.X = tt.(Expr)
 		if isStopOrSkip(nc, c) {
 			return
 		}
