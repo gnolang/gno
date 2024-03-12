@@ -55,7 +55,7 @@ We can get started by adding a new file in the Playground, called `package_test.
 ![Test](../assets/how-to-guides/testing-gno/package_test.png)
 
 
-What should be tested in this _Counter_ Realm example?
+What should be tested in this **Counter** Realm example?
 Mainly, we want to verify that:
 
 - Increment increments the value.
