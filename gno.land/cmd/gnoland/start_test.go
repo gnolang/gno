@@ -30,8 +30,8 @@ func TestStartInitialize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			mockOut := bytes.NewBufferString("")
-			mockErr := bytes.NewBufferString("")
+			mockOut := new(bytes.Buffer)
+			mockErr := new(bytes.Buffer)
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
