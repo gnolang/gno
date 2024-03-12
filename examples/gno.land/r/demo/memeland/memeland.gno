@@ -7,7 +7,7 @@ import (
 
 var m = memeland.NewMemeland()
 
-func PostMeme(data, timestamp string) string {
+func PostMeme(data string, timestamp int64) string {
 	if m == nil {
 		return "memeland does not exist"
 	}
