@@ -6,9 +6,10 @@ import (
 )
 
 type Post struct {
-	Id       uint64
-	Username string
-	Body     string
+	Id         uint64
+	Username   string
+	Body       string
+	Attachment string // base64
 
 	Comments []Comment
 

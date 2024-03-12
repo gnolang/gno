@@ -13,7 +13,7 @@ type User struct {
 	Posts     []uint64
 	Followers []string
 	Following []string
-	Avatar    string // use grc721 instead?
+	Avatar    string // base64; use grc721 instead?
 
 	CreatedAt time.Time
 }

@@ -51,13 +51,14 @@ func SetAvatar(base64 string) string {
 
 // Post
 
-func CreatePost(body string) string {
+func CreatePost(body, attachment string) string {
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
 	post := &Post{
-		Id:       postCount,
-		Username: user.Username,
-		Body:     body,
+		Id:         postCount,
+		Username:   user.Username,
+		Body:       body,
+		Attachment: attachment,
 
 		CreatedAt: time.Now(),
 	}
