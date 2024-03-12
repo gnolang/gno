@@ -1356,7 +1356,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 			Source: x,
 		},
 		PkgName:    x.PkgName,
-		ModFile:    x.ModFile,
+		ModFile:    x.ModFile.Copy(),
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),

@@ -129,6 +129,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				}
 			}
 
+			// TODO(hariom): gno lint is failing because of this?
 			tm.RunFiles(testfiles.Files...)
 		})
 

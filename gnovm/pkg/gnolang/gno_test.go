@@ -21,7 +21,7 @@ import (
 func TestRunEmptyMain(t *testing.T) {
 	t.Parallel()
 
-	m := NewMachine("test", nil)
+	m := NewMachine("test", "", nil)
 	// []Stmt{} != nil, as nil means that in the source code not even the
 	// brackets are present and is reserved for external (ie. native) functions.
 	main := FuncD("main", nil, nil, []Stmt{})
@@ -33,7 +33,7 @@ func TestRunEmptyMain(t *testing.T) {
 func TestRunLoopyMain(t *testing.T) {
 	t.Parallel()
 
-	m := NewMachine("test", nil)
+	m := NewMachine("test", "", nil)
 	c := `package test
 func main() {
 	for i:=0; i<1000; i++ {
@@ -48,7 +48,7 @@ func main() {
 }
 
 func TestDoOpEvalBaseConversion(t *testing.T) {
-	m := NewMachine("test", nil)
+	m := NewMachine("test", "", nil)
 
 	type testCase struct {
 		input     string
@@ -119,7 +119,7 @@ func TestDoOpEvalBaseConversion(t *testing.T) {
 func TestEval(t *testing.T) {
 	t.Parallel()
 
-	m := NewMachine("test", nil)
+	m := NewMachine("test", "", nil)
 	c := `package test
 func next(i int) int {
 	return i+1

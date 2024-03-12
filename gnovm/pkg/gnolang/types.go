@@ -2530,7 +2530,7 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				gx := MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evaluate type from generic expression.
-				m := NewMachine("", nil)
+				m := NewMachine("", "", nil)
 				tv := m.EvalStatic(bs, gx)
 				m.Release()
 				if isElem {

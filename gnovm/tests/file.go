@@ -180,6 +180,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					Name: string(pkgName),
 					ModFile: &std.MemMod{
 						ImportPath: pkgPath,
+						Version:    pkgVersion,
 					},
 					Files: []*std.MemFile{
 						{

@@ -2028,7 +2028,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		store = store.Fork()
 		store.SetCachePackage(pv)
 	}
-	m := NewMachine(pn.ModFile.Path, store)
+	m := NewMachine(pn.ModFile.Path, pn.ModFile.Version, store)
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
@@ -2102,7 +2102,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 			store = store.Fork()
 			store.SetCachePackage(pv)
 		}
-		m := NewMachine(pn.ModFile.Path, store)
+		m := NewMachine(pn.ModFile.Path, pn.ModFile.Version, store)
 		t = m.EvalStaticTypeOf(last, x)
 		m.Release()
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
@@ -2198,7 +2198,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
-	cv := NewMachine(".dontcare", store)
+	cv := NewMachine(".dontcare", "", store)
 	tv := cv.EvalStatic(last, x)
 	cv.Release()
 	cx := &ConstExpr{
@@ -3044,11 +3044,15 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					break
 				}
 			}
-			if version == "" {
-				panic(fmt.Sprintf(
-					"cannot get version for package %s",
-					d.PkgPath))
-			}
+			// TODO(hariom): uncomment?
+			// It may cause problems in few cases
+			// - If package doen't contain gno.mod
+			// - Testing _filetest. Currently imports are covered by gno.mod
+			// if version == "" {
+			// 	panic(fmt.Sprintf(
+			// 		"cannot get version for package %s",
+			// 		d.PkgPath))
+			// }
 		}
 
 		// TODO(hariom): create helper

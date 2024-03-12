@@ -34,8 +34,8 @@ func TestAssertOriginCall(t *testing.T) {
 
 func TestPrevRealm(t *testing.T) {
 	var (
-		user1Addr  = std.DerivePkgAddr("user1.gno")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
+		user1Addr  = std.DerivePkgAddr("user1.gno", "")
+		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests", "v0.0.1")
 	)
 	// When a single realm in the frames, PrevRealm returns the user
 	if addr := GetPrevRealm().Addr(); addr != user1Addr {

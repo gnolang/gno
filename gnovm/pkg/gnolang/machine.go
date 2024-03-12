@@ -56,11 +56,12 @@ type Machine struct {
 //
 // Like for [NewMachineWithOptions], Machines initialized through this
 // constructor must be finalized with [Machine.Release].
-func NewMachine(pkgPath string, store Store) *Machine {
+func NewMachine(pkgPath, pkgVersion string, store Store) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
-			PkgPath: pkgPath,
-			Store:   store,
+			PkgPath:    pkgPath,
+			PkgVersion: pkgVersion,
+			Store:      store,
 		})
 }
 
@@ -251,9 +252,11 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
+	// panic("stop: " + memPkg.ModFile.ImportPath + " " + memPkg.ModFile.Version)
 	if m.Package != nil &&
-		m.Package.ModFile.Path == memPkg.ModFile.ImportPath &&
-		m.Package.ModFile.Version == memPkg.ModFile.Version {
+		m.Package.ModFile.Path == memPkg.ModFile.ImportPath {
+		// m.Package.ModFile.Version == memPkg.ModFile.Version {
+		fmt.Println()
 		pv = m.Package
 		loc := PackageNodeLocation(memPkg.ModFile.ImportPath, memPkg.ModFile.Version)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
