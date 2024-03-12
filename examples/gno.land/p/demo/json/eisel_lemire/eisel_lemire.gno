@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package json
+package eisel_lemire
 
 // This file implements the Eisel-Lemire ParseFloat algorithm, published in
 // 2020 and discussed extensively at
@@ -46,7 +46,7 @@ const (
 // the leading zeros. This is followed by the main algorithm logic that
 // converts the normalized mantissa and exponent into a 64-bit floating-point number.
 // The function returns this number along with a boolean indicating the success of the operation.
-func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
+func EiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// The terse comments in this function body refer to sections of the
 	// https://nigeltao.github.io/blog/2020/eisel-lemire.html blog post.
 

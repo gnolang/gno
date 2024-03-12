@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+
+	el "gno.land/p/demo/json/eisel_lemire"
 )
 
 const (
@@ -72,7 +74,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	}
 
 	// for fast float64 conversion
-	f, success := eiselLemire64(man, exp10, neg)
+	f, success := el.EiselLemire64(man, exp10, neg)
 	if !success {
 		return 0, nil
 	}

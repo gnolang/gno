@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 
+	"gno.land/p/demo/json/ryu"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -38,8 +39,9 @@ func Marshal(node *Node) ([]byte, error) {
 				num := ufmt.Sprintf("%d", int64(nVal))
 				buf.WriteString(num)
 			} else {
-				// TODO: fix float formatter
-				num := ufmt.Sprintf("%f", nVal)
+				// use ryu algorithm to convert float to string
+				// num := ufmt.Sprintf("%f", nVal)
+				num := ryu.FormatFloat64(nVal)
 				buf.WriteString(num)
 			}
 
