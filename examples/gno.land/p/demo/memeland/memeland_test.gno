@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +8,7 @@ import (
 
 func TestPostMeme(t *testing.T) {
 	m := NewMemeland()
-	id := m.PostMeme("Test meme data", strconv.FormatInt(time.Now().Unix(), 10))
+	id := m.PostMeme("Test meme data", time.Now().Unix())
 	if id == "" {
 		t.Error("Expected valid ID, got empty string")
 	}
@@ -24,8 +23,8 @@ func TestGetPosts(t *testing.T) {
 	twoHoursAgo := now.Add(-2 * time.Hour)
 
 	// Add posts at specific timestamps
-	m.PostMeme("Hour ago meme data", strconv.FormatInt(oneHourAgo.Unix(), 10))
-	m.PostMeme("Two hours ago meme data", strconv.FormatInt(twoHoursAgo.Unix(), 10))
+	m.PostMeme("Hour ago meme data", oneHourAgo.Unix())
+	m.PostMeme("Two hours ago meme data", twoHoursAgo.Unix())
 
 }
 
@@ -39,15 +38,15 @@ func TestGetPostsByTimestamp(t *testing.T) {
 	threeHoursAgo := now.Add(-3 * time.Hour)
 
 	// Add posts at specific timestamps
-	m.PostMeme("Hour ago meme data", strconv.FormatInt(oneHourAgo.Unix(), 10))
-	m.PostMeme("Two hours ago meme data", strconv.FormatInt(twoHoursAgo.Unix(), 10))
-	m.PostMeme("Three hours ago meme data", strconv.FormatInt(threeHoursAgo.Unix(), 10))
+	m.PostMeme("Hour ago meme data", oneHourAgo.Unix())
+	m.PostMeme("Two hours ago meme data", twoHoursAgo.Unix())
+	m.PostMeme("Three hours ago meme data", threeHoursAgo.Unix())
 
 	// Define test cases for different time ranges and pagination scenarios
 	testCases := []struct {
 		name           string
-		startTimestamp string
-		endTimestamp   string
+		startTimestamp int64
+		endTimestamp   int64
 		page           int
 		pageSize       int
 		expectedCount  int
@@ -55,8 +54,8 @@ func TestGetPostsByTimestamp(t *testing.T) {
 	}{
 		{
 			name:           "Single Post in Range",
-			startTimestamp: strconv.FormatInt(twoHoursAgo.Add(30*time.Minute).Unix(), 10), // Between twoHoursAgo and oneHourAgo
-			endTimestamp:   strconv.FormatInt(now.Unix(), 10),
+			startTimestamp: twoHoursAgo.Add(30 * time.Minute).Unix(), // Between twoHoursAgo and oneHourAgo
+			endTimestamp:   now.Unix(),
 			page:           1,
 			pageSize:       10,
 			expectedCount:  1,
@@ -64,8 +63,8 @@ func TestGetPostsByTimestamp(t *testing.T) {
 		},
 		{
 			name:           "All Posts",
-			startTimestamp: strconv.FormatInt(twoHoursAgo.Add(-1*time.Minute).Unix(), 10), // Slightly before twoHoursAgo
-			endTimestamp:   strconv.FormatInt(now.Unix(), 10),
+			startTimestamp: twoHoursAgo.Add(-1 * time.Minute).Unix(), // Slightly before twoHoursAgo
+			endTimestamp:   now.Unix(),
 			page:           1,
 			pageSize:       10,
 			expectedCount:  2,
@@ -73,8 +72,8 @@ func TestGetPostsByTimestamp(t *testing.T) {
 		},
 		{
 			name:           "Pagination Test",
-			startTimestamp: strconv.FormatInt(twoHoursAgo.Add(-1*time.Minute).Unix(), 10),
-			endTimestamp:   strconv.FormatInt(now.Unix(), 10),
+			startTimestamp: twoHoursAgo.Add(-1 * time.Minute).Unix(),
+			endTimestamp:   now.Unix(),
 			page:           1,
 			pageSize:       1, // Only request one post per page
 			expectedCount:  1,
@@ -82,12 +81,12 @@ func TestGetPostsByTimestamp(t *testing.T) {
 		},
 		{
 			name:           "Pagination Test: Second Post",
-			startTimestamp: strconv.FormatInt(threeHoursAgo.Unix(), 10), // Starting from the oldest post
-			endTimestamp:   strconv.FormatInt(now.Unix(), 10),           // Up to the current time
-			page:           2,                                           // Requesting the second page
-			pageSize:       1,                                           // With one post per page
-			expectedCount:  1,                                           // Expect to receive exactly one post on the second page
-			expectedData:   "Two hours ago meme data",                   // We expect the second post to be on the second page
+			startTimestamp: threeHoursAgo.Unix(),      // Starting from the oldest post
+			endTimestamp:   now.Unix(),                // Up to the current time
+			page:           2,                         // Requesting the second page
+			pageSize:       1,                         // With one post per page
+			expectedCount:  1,                         // Expect to receive exactly one post on the second page
+			expectedData:   "Two hours ago meme data", // We expect the second post to be on the second page
 		},
 	}
 
