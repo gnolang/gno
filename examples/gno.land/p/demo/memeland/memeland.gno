@@ -15,8 +15,7 @@ type Post struct {
 	Data          string
 	Author        std.Address
 	Timestamp     time.Time
-	Upvotes       int
-	UpvoteTracker *avl.Tree // address > bool hasVoted
+	UpvoteTracker *avl.Tree // address > struct{}{}
 }
 
 type Memeland struct {
@@ -44,7 +43,6 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 		Data:          data,
 		Author:        std.GetOrigCaller(),
 		Timestamp:     time.Unix(timestamp, 0),
-		Upvotes:       0,
 		UpvoteTracker: avl.NewTree(),
 	}
 
@@ -70,9 +68,8 @@ func (m *Memeland) Upvote(id string) string {
 		return "user has already upvoted this post"
 	}
 
-	p.Upvotes += 1
 	m.Posts.Set(id, p)
-	p.UpvoteTracker.Set(caller, true)
+	p.UpvoteTracker.Set(caller, struct{}{})
 
 	return "upvote successful"
 }
@@ -160,7 +157,7 @@ func PostToJSONString(post *Post) string {
 	sb.WriteString(`"data":"` + escapeString(post.Data) + `",`)
 	sb.WriteString(`"author":"` + escapeString(post.Author.String()) + `",`)
 	sb.WriteString(`"timestamp":"` + strconv.Itoa(int(post.Timestamp.Unix())) + `",`)
-	sb.WriteString(`"upvotes":` + strconv.Itoa(post.Upvotes))
+	sb.WriteString(`"upvotes":` + strconv.Itoa(post.UpvoteTracker.Size()))
 	sb.WriteString("}")
 
 	sb.WriteString("]")

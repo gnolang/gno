@@ -121,8 +121,8 @@ func TestUpvote(t *testing.T) {
 	}
 
 	initialPost, _ := post.(*Post)
-	if initialPost.Upvotes != 0 {
-		t.Errorf("Expected initial upvotes to be 0, got %d", initialPost.Upvotes)
+	if initialPost.UpvoteTracker.Size() != 0 {
+		t.Errorf("Expected initial upvotes to be 0, got %d", initialPost.UpvoteTracker.Size())
 	}
 
 	// Upvote the post
@@ -138,7 +138,7 @@ func TestUpvote(t *testing.T) {
 	}
 
 	updatedPost, _ := postAfterUpvote.(*Post)
-	if updatedPost.Upvotes != 1 {
-		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", updatedPost.Upvotes)
+	if updatedPost.UpvoteTracker.Size() != 1 {
+		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", updatedPost.UpvoteTracker.Size())
 	}
 }
