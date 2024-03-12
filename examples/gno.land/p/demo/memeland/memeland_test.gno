@@ -108,8 +108,6 @@ func TestGetPostsByTimestamp(t *testing.T) {
 					t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
 				}
 			}
-
-			println(jsonStr)
 		})
 	}
 }
