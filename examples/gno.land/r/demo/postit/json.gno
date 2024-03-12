@@ -34,9 +34,9 @@ func userToJSONString(user User) string {
 	b.WriteString(user.Bio)
 	b.WriteString(`"`)
 
-	// Write AvatarUrl field
-	b.WriteString(`,"AvatarUrl":"`)
-	b.WriteString(user.AvatarUrl)
+	// Write Avatar field
+	b.WriteString(`,"Avatar":"`)
+	b.WriteString(user.Avatar)
 	b.WriteString(`"`)
 
 	// Write TotalPost field
@@ -123,8 +123,8 @@ func postToJSONString(post Post) string {
 	b.WriteString(user.Name)
 	b.WriteString(`","Bio":"`)
 	b.WriteString(user.Bio)
-	b.WriteString(`","AvatarUrl":"`)
-	b.WriteString(user.AvatarUrl)
+	b.WriteString(`","Avatar":"`)
+	b.WriteString(user.Avatar)
 	b.WriteString(`","CreatedAt":"`)
 	b.WriteString(user.CreatedAt.Format(time.RFC3339))
 	b.WriteString(`"}`)
