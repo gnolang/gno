@@ -27,7 +27,6 @@ Vising the [Playground](https://play.gno.land) will greet you with a template fi
 
 ![Default](../assets/how-to-guides/simple-library/playground_welcome.png)
 
-
 ## 2. Start writing code
 
 Inside `package.gno`, we will define our library logic:
@@ -81,6 +80,8 @@ There are a few things happening here, so let's dissect them:
 - We defined the logic of our library into a package called `tapas`.
 - The package imports another gno package, which is deployed at `gno.land/p/demo/rand`
 - We use the imported package inside of `GetTapaSuggestion` to generate a random index value for a tapa
+
+You can view the code on [this Playground link](https://play.gno.land/p/5SQQ-r2_Vos).
 
 ## Conclusion
 

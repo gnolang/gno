@@ -67,9 +67,7 @@ There are a few things happening here, so let's dissect them:
 - Calling the `Render` method would return the `count` value as a formatted string. Learn more about the `Render`
   method and how it's used [here](../concepts/realms.md).
 
-Alternatively, visit [this Playground link](https://play.gno.land/p/ONBa9eUEPKJ)
-to view the code.
-
+You can view the code on [this Playground link](https://play.gno.land/p/ONBa9eUEPKJ).
 
 :::info A note on constructors
 Gno Realms support a concept taken from other programming languages - _constructors_.
