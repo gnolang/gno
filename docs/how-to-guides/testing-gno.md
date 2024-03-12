@@ -58,9 +58,9 @@ We can get started by adding a new file in the Playground, called `package_test.
 What should be tested in this **Counter** Realm example?
 Mainly, we want to verify that:
 
-- Increment increments the value.
-- Decrement decrements the value.
-- Render returns a valid formatted value.
+- `Increment()` increments the value.
+- `Decrement()` decrements the value.
+- `Render()` returns a valid formatted value.
 
 Let's write the required unit tests in `package_test.gno`:
 
