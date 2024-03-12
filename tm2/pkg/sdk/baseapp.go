@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -70,6 +71,8 @@ type BaseApp struct {
 
 	// application's version string
 	appVersion string
+
+	txCurrentTimeOffset time.Duration
 }
 
 var _ abci.Application = (*BaseApp)(nil)
@@ -551,6 +554,10 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	if req.LastCommitInfo != nil {
 		app.voteInfos = req.LastCommitInfo.Votes
 	}
+
+	// New block, new time offset.
+	app.txCurrentTimeOffset = 0
+
 	return
 }
 
@@ -586,6 +593,11 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
+
+		// This is an arbitrary value that is increased after each transaction so that each transaction in the same block
+		// retrieve a unique time when calling `time.Now()`.
+		app.txCurrentTimeOffset += 100
+
 		return
 	}
 }
@@ -715,7 +727,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
 			ctx.GasMeter(),
 			gasleft,
-		))
+		)).WithTimeOffset(app.txCurrentTimeOffset)
 	}
 
 	// only run the tx if there is block gas remaining

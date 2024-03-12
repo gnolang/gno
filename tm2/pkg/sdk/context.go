@@ -33,6 +33,7 @@ type Context struct {
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
+	timeOffset    time.Duration
 }
 
 // Proposed rename, not done to avoid API breakage
@@ -43,7 +44,7 @@ func (c Context) Context() context.Context      { return c.ctx }
 func (c Context) Mode() RunTxMode               { return c.mode }
 func (c Context) MultiStore() store.MultiStore  { return c.ms }
 func (c Context) BlockHeight() int64            { return c.header.GetHeight() }
-func (c Context) BlockTime() time.Time          { return c.header.GetTime() }
+func (c Context) BlockTime() time.Time          { return c.header.GetTime().Add(c.timeOffset) }
 func (c Context) ChainID() string               { return c.chainID }
 func (c Context) TxBytes() []byte               { return c.txBytes }
 func (c Context) Logger() *slog.Logger          { return c.logger }
@@ -144,6 +145,11 @@ func (c Context) WithConsensusParams(params *abci.ConsensusParams) Context {
 
 func (c Context) WithEventLogger(em *EventLogger) Context {
 	c.eventLogger = em
+	return c
+}
+
+func (c Context) WithTimeOffset(offset time.Duration) Context {
+	c.timeOffset = offset
 	return c
 }
 
