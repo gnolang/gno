@@ -1,7 +1,7 @@
 package ufmt
 
 import (
-	"fmt"
+	"bytes"
 	"testing"
 )
 
@@ -35,11 +35,60 @@ func TestSprintf(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		name := fmt.Sprintf(tc.format, tc.values...)
+		name := Sprintf(tc.format, tc.values...)
 		t.Run(name, func(t *testing.T) {
 			got := Sprintf(tc.format, tc.values...)
 			if got != tc.expectedOutput {
 				t.Errorf("got %q, want %q.", got, tc.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestErrorf(t *testing.T) {
+	tests := []struct {
+		name     string
+		format   string
+		args     []interface{}
+		expected string
+	}{
+		{
+			name:     "simple string",
+			format:   "error: %s",
+			args:     []interface{}{"something went wrong"},
+			expected: "error: something went wrong",
+		},
+		{
+			name:     "integer value",
+			format:   "value: %d",
+			args:     []interface{}{42},
+			expected: "value: 42",
+		},
+		{
+			name:     "boolean value",
+			format:   "success: %t",
+			args:     []interface{}{true},
+			expected: "success: true",
+		},
+		{
+			name:     "multiple values",
+			format:   "error %d: %s (success=%t)",
+			args:     []interface{}{123, "failure occurred", false},
+			expected: "error 123: failure occurred (success=false)",
+		},
+		{
+			name:     "literal percent",
+			format:   "literal %%",
+			args:     []interface{}{},
+			expected: "literal %",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Errorf(tt.format, tt.args...)
+			if err.Error() != tt.expected {
+				t.Errorf("Errorf(%q, %v) = %q, expected %q", tt.format, tt.args, err.Error(), tt.expected)
 			}
 		})
 	}
