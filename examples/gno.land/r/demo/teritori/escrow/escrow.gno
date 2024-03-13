@@ -6,7 +6,7 @@ import (
 
 	fmt "gno.land/p/demo/ufmt"
 	"gno.land/r/demo/foo20"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 type Config struct {
