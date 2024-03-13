@@ -3,6 +3,7 @@ package postit
 import (
 	"std"
 	"strconv"
+	"strings"
 )
 
 // User
@@ -91,6 +92,36 @@ func ListUserPostsByOffset(username string, offset, limit int) string {
 		}
 		pl = append(pl, *post.(*Post))
 	}
+	return postsToJSONString(pl)
+}
+
+func ListKeywordPostsByOffset(keyword string, offset, limit int) string {
+	var pl []Post
+	count := 0
+	limit = offset + limit
+	for i := len(feed) - 1; i >= 0; i-- {
+		p, ok := posts.Get(strconv.FormatUint(feed[i], 10))
+		if !ok {
+			continue
+		}
+
+		post := *p.(*Post)
+
+		// check if post contains the keyword
+		if ok := strings.Contains(post.Body, keyword); !ok {
+			continue
+		}
+
+		count++
+		if count <= offset {
+			continue
+		}
+		if count > limit {
+			break
+		}
+		pl = append(pl, post)
+	}
+
 	return postsToJSONString(pl)
 }
 
