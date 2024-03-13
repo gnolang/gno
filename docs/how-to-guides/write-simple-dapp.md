@@ -293,6 +293,8 @@ func Render(path string) string {
 
 View this code in the Playground [here](https://play.gno.land/p/4FzhuB6dyVM).
 
+To see how to deploy this app, visit the [Deployment guide](./deploy.md). 
+
 ## Conclusion
 
 That's it 🎉
