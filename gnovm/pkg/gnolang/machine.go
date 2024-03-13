@@ -1513,6 +1513,16 @@ func (m *Machine) ForcePopStmt() (s Stmt) {
 	return
 }
 
+func (m *Machine) ForceSwapStmt(target Stmt) {
+	lastStmt := len(m.Stmts) - 1
+	if debug {
+		s := m.Stmts[lastStmt]
+		m.Printf("-s %v\n", s)
+		m.Printf("+s %v\n", target)
+	}
+	m.Stmts[lastStmt] = target
+}
+
 // Offset starts at 1.
 func (m *Machine) PeekExpr(offset int) Expr {
 	return m.Exprs[len(m.Exprs)-offset]

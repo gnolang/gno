@@ -114,6 +114,28 @@ func (m *Machine) doOpExec(op Op) {
 			s = next
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
+			// Create new block. This allows any closures generated within to
+			// reference the correct block, without having values changed.
+			cur := m.PopBlock()
+			newBlock := m.Alloc.NewBlock(cur.Source, m.LastBlock())
+			newBlock.bodyStmt = *bs
+			bs = &newBlock.bodyStmt
+			m.PushBlock(newBlock)
+			m.ForceSwapStmt(bs)
+			sb := cur.Source.(*ForStmt)
+			if as, ok := sb.Init.(*AssignStmt); ok && as.Op == DEFINE {
+				// There is an init statement and it defines values.
+				// Copy over the values to the new block.
+				for i := 0; i < len(as.Lhs); i++ {
+					// Get name and value of i'th term.
+					nx := as.Lhs[i].(*NameExpr)
+					// Finally, define (or assign if loop block).
+					curPtr := cur.GetPointerTo(m.Store, nx.Path)
+					ptr := newBlock.GetPointerTo(m.Store, nx.Path)
+					ptr.Assign2(m.Alloc, m.Store, m.Realm, *curPtr.TV, true)
+				}
+			}
+
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
