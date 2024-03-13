@@ -113,8 +113,8 @@ func (n *Node) MustKey(key string) *Node {
 	return val
 }
 
-// UniqueKeys traverses the current JSON nodes and collects all the unique keys.
-func (n *Node) UniqueKeys() []string {
+// UniqueKeyLists traverses the current JSON nodes and collects all the unique keys.
+func (n *Node) UniqueKeyLists() []string {
 	var collectKeys func(*Node) []string
 	collectKeys = func(node *Node) []string {
 		if node == nil || !node.IsObject() {
@@ -249,7 +249,7 @@ func (n *Node) Delete() error {
 	return n.prev.remove(n)
 }
 
-// Size returns the number of sub-nodes of the current Array node.
+// Size returns the size (length) of the current array node.
 //
 // Usage:
 //
@@ -329,6 +329,10 @@ func (n *Node) GetIndex(idx int) (*Node, error) {
 		return nil, errors.New("node is not array")
 	}
 
+	if idx > n.Size() {
+		return nil, errors.New("input index exceeds the array size")
+	}
+
 	if idx < 0 {
 		idx += len(n.next)
 	}
@@ -348,7 +352,7 @@ func (n *Node) DeleteIndex(idx int) error {
 		return err
 	}
 
-	return node.remove(node)
+	return n.remove(node)
 }
 
 // NullNode creates a new null type node.
@@ -507,6 +511,9 @@ func (n *Node) IsNumber() bool {
 	return n.nodeType == Number
 }
 
+// ready checks the current node is ready or not.
+//
+// the meaning of ready is the current node is parsed and has a valid value.
 func (n *Node) ready() bool {
 	return n.borders[1] != 0
 }
@@ -606,83 +613,6 @@ func (n *Node) GetNumeric() (float64, error) {
 	return v, nil
 }
 
-// GetInts traverses the current JSON nodes and collects all integer values.
-//
-// The Number type stores both int and float types together as float64,
-// but the GetInts function only retrieves values of the int type
-// because it fetches values only if there is no fractional part when compared with float64 values.
-//
-// Usage:
-//
-//	root := Must(Unmarshal([]byte(`{"key": 10.5, "key2": 10, "key3": "foo"}`)))
-//	ints := root.GetInts()
-//	if len(ints) != 1 {
-//		t.Errorf("GetInts returns wrong result: %v", ints)
-//	}
-func (n *Node) GetInts() []int {
-	var collectInts func(*Node) []int
-	collectInts = func(node *Node) []int {
-		if node == nil {
-			return nil
-		}
-
-		result := []int{}
-		if node.IsNumber() {
-			numVal, err := node.GetNumeric()
-			if err == nil && numVal == float64(int(numVal)) { // doesn't have a decimal part
-				result = append(result, int(numVal))
-			}
-		}
-
-		for _, childNode := range node.next {
-			childInts := collectInts(childNode)
-			result = append(result, childInts...)
-		}
-
-		return result
-	}
-
-	return collectInts(n)
-}
-
-// GetFloats traverses the current JSON nodes and collects all float values.
-//
-// The Number type combines int and float types into float64 for storage,
-// but the GetFloats function only accurately retrieves float types because it checks whether the numbers have a fractional part.
-//
-// Usage:
-//
-//	root := Must(Unmarshal([]byte(`{"key": 10.5, "key2": 10, "key3": "foo"}`)))
-//	floats := root.GetFloats()
-//	if len(floats) != 1 {
-//		t.Errorf("GetFloats returns wrong result: %v", floats)
-//	}
-func (n *Node) GetFloats() []float64 {
-	var collectFloats func(*Node) []float64
-	collectFloats = func(node *Node) []float64 {
-		if node == nil {
-			return nil
-		}
-
-		result := []float64{}
-		if node.IsNumber() {
-			numVal, err := node.GetNumeric()
-			if err == nil && numVal != float64(int(numVal)) { // check if it's a float
-				result = append(result, numVal)
-			}
-		}
-
-		for _, childNode := range node.next {
-			childFloats := collectFloats(childNode)
-			result = append(result, childFloats...)
-		}
-
-		return result
-	}
-
-	return collectFloats(n)
-}
-
 // MustNumeric returns the numeric (int/float) value if current node is number type.
 //
 // It panics if the current node is not number type.
@@ -732,41 +662,6 @@ func (n *Node) GetString() (string, error) {
 	return v, nil
 }
 
-// GetStrings traverses the current JSON nodes and collects all string values.
-//
-// Usage:
-//
-//	root := Must(Unmarshal([]byte(`{"key": "value", "key2": 10, "key3": "foo"}`))
-//	strs := root.GetStrings()
-//	if len(strs) != 2 {
-//		t.Errorf("GetStrings returns wrong result: %v", strs)
-//	}
-func (n *Node) GetStrings() []string {
-	var collectStrings func(*Node) []string
-	collectStrings = func(node *Node) []string {
-		if node == nil {
-			return nil
-		}
-
-		result := []string{}
-		if node.IsString() {
-			strVal, err := node.GetString()
-			if err == nil {
-				result = append(result, strVal)
-			}
-		}
-
-		for _, childNode := range node.next {
-			childStrings := collectStrings(childNode)
-			result = append(result, childStrings...)
-		}
-
-		return result
-	}
-
-	return collectStrings(n)
-}
-
 // MustString returns the string value if current node is string type.
 //
 // It panics if the current node is not string type.
@@ -777,40 +672,6 @@ func (n *Node) MustString() string {
 	}
 
 	return v
-}
-
-// GetBools traverses the current JSON nodes and collects all boolean values.
-//
-// Usage:
-//
-//	root := Must(Unmarshal([]byte(`{"key": true, "key2": 10, "key3": "foo"}`)))
-//	bools := root.GetBools()
-//	if len(bools) != 1 {
-//		t.Errorf("GetBools returns wrong result: %v", bools)
-//	}
-func (n *Node) GetBools() []bool {
-	var collectBools func(*Node) []bool
-	collectBools = func(node *Node) []bool {
-		if node == nil {
-			return nil
-		}
-
-		result := []bool{}
-		if node.IsBool() {
-			if boolVal, err := node.GetBool(); err == nil {
-				result = append(result, boolVal)
-			}
-		}
-
-		for _, childNode := range node.next {
-			childBools := collectBools(childNode)
-			result = append(result, childBools...)
-		}
-
-		return result
-	}
-
-	return collectBools(n)
 }
 
 // GetBool returns the boolean value if current node is boolean type.
@@ -1099,63 +960,6 @@ func (n *Node) mark() {
 	}
 }
 
-// clear clears the current node's value
-func (n *Node) clear() {
-	n.data = nil
-	n.borders[1] = 0
-
-	for key := range n.next {
-		n.next[key].prev = nil
-	}
-
-	n.next = nil
-}
-
-// validate checks the current node value is matching the given type.
-func (n *Node) validate(t ValueType, v interface{}) error {
-	if n == nil {
-		return errors.New("node is nil")
-	}
-
-	switch t {
-	case Null:
-		if v != nil {
-			return errors.New("invalid null value")
-		}
-
-	// TODO: support uint256, int256 type later.
-	case Number:
-		switch v.(type) {
-		case float64, int, uint:
-			return nil
-		default:
-			return errors.New("invalid number value")
-		}
-
-	case String:
-		if _, ok := v.(string); !ok {
-			return errors.New("invalid string value")
-		}
-
-	case Boolean:
-		if _, ok := v.(bool); !ok {
-			return errors.New("invalid boolean value")
-		}
-
-	case Array:
-		if _, ok := v.([]*Node); !ok {
-			return errors.New("invalid array value")
-		}
-
-	case Object:
-		if _, ok := v.(map[string]*Node); !ok {
-			return errors.New("invalid object value")
-		}
-	}
-
-	return nil
-}
-
 // isContainer checks the current node type is array or object.
 func (n *Node) isContainer() bool {
 	return n.IsArray() || n.IsObject()
@@ -1245,45 +1049,25 @@ func (n *Node) isParentNode(nd *Node) bool {
 	return false
 }
 
-func (n *Node) setRef(prev *Node, key *string, idx *int) {
-	n.prev = prev
-
-	if key == nil {
-		n.key = nil
-	} else {
-		tmp := *key
-		n.key = &tmp
+// cptrs returns the pointer of the given string value.
+func cptrs(cpy *string) *string {
+	if cpy == nil {
+		return nil
 	}
 
-	n.index = idx
+	val := *cpy
+
+	return &val
 }
 
-// Clone creates a new node instance with the same value of the current node.
-func (n *Node) Clone() *Node {
-	node := n.clone()
-	node.setRef(nil, nil, nil)
-
-	return node
-}
-
-func (n *Node) clone() *Node {
-	node := &Node{
-		prev:     n.prev,
-		next:     make(map[string]*Node, len(n.next)),
-		key:      n.key,
-		data:     n.data,
-		value:    n.value,
-		nodeType: n.nodeType,
-		index:    n.index,
-		borders:  n.borders,
-		modified: n.modified,
+// cptri returns the pointer of the given integer value.
+func cptri(i *int) *int {
+	if i == nil {
+		return nil
 	}
 
-	for k, v := range n.next {
-		node.next[k] = v
-	}
-
-	return node
+	val := *i
+	return &val
 }
 
 // Must panics if the given node is not fulfilled the expectation.

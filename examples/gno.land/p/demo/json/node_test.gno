@@ -262,26 +262,18 @@ func TestNode_AppendArray(t *testing.T) {
 		t.Errorf("Marshal returns wrong value: %s", string(value))
 	}
 
-	// TODO: Number is not handled properly.
-	// number does not make problem if they positioned in the array or object.
 	if err := root.AppendArray(
-		// NumberNode("", 1),
-		// StringNode("", "foo"),
+		NumberNode("", 1),
+		StringNode("", "foo"),
 		Must(Unmarshal([]byte(`[0,1,null,true,"example"]`))),
 		Must(Unmarshal([]byte(`{"foo": true, "bar": null, "baz": 123}`))),
 	); err != nil {
 		t.Errorf("AppendArray returns error: %v", err)
 	}
 
-	// if value, err := Marshal(root); err != nil {
-	// 	t.Errorf("Marshal returns error: %v", err)
-	// } else if string(value) != `[{"foo":"bar"},null,1,"foo",[0,1,null,true,"example"],{"foo": true, "bar": null, "baz": 123}]` {
-	// 	t.Errorf("Marshal returns wrong value: %s", string(value))
-	// }
-
 	if value, err := Marshal(root); err != nil {
 		t.Errorf("Marshal returns error: %v", err)
-	} else if string(value) != `[{"foo":"bar"},null,[0,1,null,true,"example"],{"foo": true, "bar": null, "baz": 123}]` {
+	} else if string(value) != `[{"foo":"bar"},null,1,"foo",[0,1,null,true,"example"],{"foo": true, "bar": null, "baz": 123}]` {
 		t.Errorf("Marshal returns wrong value: %s", string(value))
 	}
 }
@@ -315,70 +307,6 @@ func TestNode_GetBool_Fail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, err := tt.node.GetBool(); err == nil {
 				t.Errorf("%s should be an error", tt.name)
-			}
-		})
-	}
-}
-
-// countBooleans test function that counts the number of true and false values in a slice of booleans.
-// because map doesn't maintain order, we can't use it to test the order of the values.
-func countBooleans(bools []bool) (trueCount, falseCount int) {
-	for _, b := range bools {
-		if b {
-			trueCount++
-		} else {
-			falseCount++
-		}
-	}
-	return
-}
-
-// TODO: resolve stack overflow
-func TestNode_GetAllBools(t *testing.T) {
-	tests := []struct {
-		name           string
-		json           string
-		expectedTrues  int
-		expectedFalses int
-	}{
-		// {
-		// 	name:           "no booleans",
-		// 	json:           `{"foo": "bar", "number": 123}`,
-		// 	expectedTrues:  0,
-		// 	expectedFalses: 0,
-		// },
-		// {
-		// 	name:           "single boolean true",
-		// 	json:           `{"isTrue": true}`,
-		// 	expectedTrues:  1,
-		// 	expectedFalses: 0,
-		// },
-		// {
-		// 	name:           "single boolean false",
-		// 	json:           `{"isFalse": false}`,
-		// 	expectedTrues:  0,
-		// 	expectedFalses: 1,
-		// },
-		// {
-		// 	name:           "multiple booleans",
-		// 	json:           `{"first": true, "info": {"second": false, "third": true}, "array": [false, true, false]}`,
-		// 	expectedTrues:  3,
-		// 	expectedFalses: 3,
-		// },
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
-			if err != nil {
-				t.Errorf("Failed to unmarshal JSON: %v", err)
-				return
-			}
-
-			bools := root.GetBools()
-			trueCount, falseCount := countBooleans(bools)
-			if trueCount != tc.expectedTrues || falseCount != tc.expectedFalses {
-				t.Errorf("%s: expected %d true and %d false booleans, got %d true and %d false", tc.name, tc.expectedTrues, tc.expectedFalses, trueCount, falseCount)
 			}
 		})
 	}
@@ -535,108 +463,6 @@ func TestNode_GetNumeric_Fail(t *testing.T) {
 	}
 }
 
-// TODO: resolve stack overflow
-func TestNode_GetAllIntsFromNode(t *testing.T) {
-	tests := []struct {
-		name     string
-		json     string
-		expected []int
-	}{
-		// {
-		// 	name:     "no numbers",
-		// 	json:     `{"foo": "bar", "baz": "qux"}`,
-		// 	expected: []int{},
-		// },
-		// {
-		// 	name:     "mixed numbers",
-		// 	json:     `{"int": 42, "float": 3.14, "nested": {"int2": 24, "array": [1, 2.34, 3]}}`,
-		// 	expected: []int{42, 24, 1, 3},
-		// },
-		// {
-		// 	name:     "all floats",
-		// 	json:     `{"float1": 0.1, "float2": 4.5}`,
-		// 	expected: []int{},
-		// },
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
-			if err != nil {
-				t.Fatalf("Unmarshal failed: %v", err)
-			}
-
-			got := root.GetInts()
-			for _, exp := range tc.expected {
-				if !containsInts(got, exp) {
-					t.Errorf("Expected integer %d is missing", exp)
-				}
-			}
-		})
-	}
-}
-
-// containsInts checks if a slice of integers contains a specific value.
-func containsInts(slice []int, val int) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
-}
-
-// TODO: resolve stack overflow
-func TestNode_GetAllFloatsFromNode(t *testing.T) {
-	tests := []struct {
-		name     string
-		json     string
-		expected []float64
-	}{
-		// {
-		// 	name:     "no numbers",
-		// 	json:     `{"foo": "bar", "baz": "qux"}`,
-		// 	expected: []float64{},
-		// },
-		// {
-		// 	name:     "mixed numbers",
-		// 	json:     `{"int": 42, "float": 3.14, "nested": {"float2": 2.34, "array": [1, 2.34, 3]}}`,
-		// 	expected: []float64{3.14, 2.34, 2.34},
-		// },
-		// {
-		// 	name:     "all ints",
-		// 	json:     `{"int1": 1, "int2": 2}`,
-		// 	expected: []float64{},
-		// },
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
-			if err != nil {
-				t.Fatalf("Unmarshal failed: %v", err)
-			}
-
-			got := root.GetFloats()
-			for _, exp := range tc.expected {
-				if !containsFloats(got, exp) {
-					t.Errorf("Expected float %f is missing", exp)
-				}
-			}
-		})
-	}
-}
-
-// containsFloats checks if a slice of floats contains a specific value.
-func containsFloats(slice []float64, val float64) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
-}
-
 func TestNode_GetString(t *testing.T) {
 	root, err := Unmarshal([]byte(`"123foobar 3456"`))
 	if err != nil {
@@ -664,53 +490,6 @@ func TestNode_GetString_Fail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, err := tt.node.GetString(); err == nil {
 				t.Errorf("%s should be an error", tt.name)
-			}
-		})
-	}
-}
-
-// TODO: resolve stack overflow
-func TestNode_GetAllStringsFromNode(t *testing.T) {
-	tests := []struct {
-		name     string
-		json     string
-		expected []string
-	}{
-		// {
-		// 	name:     "no strings",
-		// 	json:     `{"int": 42, "float": 3.14}`,
-		// 	expected: []string{},
-		// },
-		// {
-		// 	name:     "multiple strings",
-		// 	json:     `{"str": "hello", "nested": {"str2": "world"}, "array": ["foo", "bar"]}`,
-		// 	expected: []string{"hello", "world", "foo", "bar"},
-		// },
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
-			if err != nil {
-				t.Fatalf("Unmarshal failed: %v", err)
-			}
-
-			got := root.GetStrings()
-			if len(got) != len(tc.expected) {
-				t.Errorf("Expected %d strings, got %d", len(tc.expected), len(got))
-				return
-			}
-			for _, exp := range tc.expected {
-				found := false
-				for _, str := range got {
-					if str == exp {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected string '%s' not found", exp)
-				}
 			}
 		})
 	}
@@ -992,12 +771,14 @@ func TestNode_Index_Fail(t *testing.T) {
 }
 
 func TestNode_GetIndex(t *testing.T) {
-	root, err := Unmarshal([]byte(`[1, 2, 3, 4, 5, 6]`))
-	if err != nil {
-		t.Errorf("error occurred while unmarshal")
+	root := Must(Unmarshal([]byte(`[1, 2, 3, 4, 5, 6]`)))
+	expected := []int{1, 2, 3, 4, 5, 6}
+
+	if len(expected) != root.Size() {
+		t.Errorf("length is not matched. expected: %d, got: %d", len(expected), root.Size())
 	}
 
-	expected := []int{1, 2, 3, 4, 5, 6}
+	// TODO: if length exceeds, stack overflow occurs. need to fix
 	for i, v := range expected {
 		val, err := root.GetIndex(i)
 		if err != nil {
@@ -1007,6 +788,53 @@ func TestNode_GetIndex(t *testing.T) {
 		if val.MustNumeric() != float64(v) {
 			t.Errorf("value is not matched. expected: %d, got: %v", v, val.MustNumeric())
 		}
+	}
+}
+
+func TestNode_GetIndex_InputIndex_Exceed_Original_Node_Index(t *testing.T) {
+	root, err := Unmarshal([]byte(`[1, 2, 3, 4, 5, 6]`))
+	if err != nil {
+		t.Errorf("error occurred while unmarshal")
+	}
+
+	_, err = root.GetIndex(10)
+	if err == nil {
+		t.Errorf("GetIndex should return error")
+	}
+}
+
+func TestNode_DeleteIndex(t *testing.T) {
+	tests := []struct {
+		name string
+		expected string
+		index int
+		ok   bool
+	}{
+		{`null`, ``, 0, false},
+		{`1`, ``, 0, false},
+		{`{}`, ``, 0, false},
+		{`{"foo":"bar"}`, ``, 0, false},
+		{`true`, ``, 0, false},
+		{`[]`, ``, 0, false},
+		{`[]`, ``, -1, false},
+		{`[1]`, `[]`, 0, true},
+		{`[{}]`, `[]`, 0, true},
+		{`[{}, [], 42]`, `[{}, []]`, -1, true},
+		{`[{}, [], 42]`, `[[], 42]`, 0, true},
+		{`[{}, [], 42]`, `[{}, 42]`, 1, true},
+		{`[{}, [], 42]`, `[{}, []]`, 2, true},
+		{`[{}, [], 42]`, ``, 10, false},
+		{`[{}, [], 42]`, ``, -10, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := Must(Unmarshal([]byte(tt.name)))
+			err := root.DeleteIndex(tt.index)
+			if err != nil && tt.ok {
+				t.Errorf("DeleteIndex returns error: %v", err)
+			}
+		})
 	}
 }
 
@@ -1055,7 +883,7 @@ func TestNode_GetKey_Fail(t *testing.T) {
 	}
 }
 
-func TestNode_EachKey(t *testing.T) {
+func TestNode_GetUniqueKeyList(t *testing.T) {
 	tests := []struct {
 		name     string
 		json     string
@@ -1111,7 +939,7 @@ func TestNode_EachKey(t *testing.T) {
 				t.Errorf("error occurred while unmarshal")
 			}
 
-			value := root.UniqueKeys()
+			value := root.UniqueKeyLists()
 			if len(value) != len(tt.expected) {
 				t.Errorf("%s length must be %v. got: %v. retrieved keys: %s", tt.name, len(tt.expected), len(value), value)
 			}

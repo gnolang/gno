@@ -1,3 +1,5 @@
+// ref: https://github.com/spyzhov/ajson/blob/master/decode.go
+
 package json
 
 import (
@@ -10,10 +12,6 @@ import (
 // This limits the max nesting depth to prevent stack overflow.
 // This is permitted by https://tools.ietf.org/html/rfc7159#section-9
 const maxNestingDepth = 10000
-
-// State machine transition logic and grammar references
-// [1] https://github.com/spyzhov/ajson/blob/master/decode.go
-// [2] https://cs.opensource.google/go/go/+/refs/tags/go1.22.1:src/encoding/json/scanner.go
 
 // Unmarshal parses the JSON-encoded data and returns a Node.
 // The data must be a valid JSON-encoded value.
@@ -281,16 +279,6 @@ func checkNestingDepth(nesting int) (int, error) {
 	}
 
 	return nesting + 1, nil
-}
-
-func cptrs(cpy *string) *string {
-	if cpy == nil {
-		return nil
-	}
-
-	val := *cpy
-
-	return &val
 }
 
 func UnmarshalSafe(data []byte) (*Node, error) {
