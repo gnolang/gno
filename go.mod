@@ -11,7 +11,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.6.0
-	github.com/gnolang/faucet v0.1.2
+	github.com/gnolang/faucet v0.1.3
 	github.com/gnolang/goleveldb v0.0.9
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.3
