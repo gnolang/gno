@@ -1,7 +1,7 @@
 package ufmt
 
 import (
-	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -35,7 +35,7 @@ func TestSprintf(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		name := Sprintf(tc.format, tc.values...)
+		name := fmt.Sprintf(tc.format, tc.values...)
 		t.Run(name, func(t *testing.T) {
 			got := Sprintf(tc.format, tc.values...)
 			if got != tc.expectedOutput {

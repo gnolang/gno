@@ -3,11 +3,7 @@
 // (hence the name µfmt - micro fmt).
 package ufmt
 
-import (
-	"bytes"
-	"io"
-	"strconv"
-)
+import "strconv"
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
 // equivalent available in many languages, including C/C++.
