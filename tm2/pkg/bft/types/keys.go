@@ -1,6 +1,5 @@
 package types
 
 // UNSTABLE
-var (
-	PeerStateKey = "ConsensusReactor.peerState"
-)
+// PeerStateKey allows to get the *consensus.PeerState from a [github.com/gnolang/gno/tm2/pkg/p2p.Peer].
+const PeerStateKey = "ConsensusReactor.peerState"

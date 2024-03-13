@@ -25,8 +25,8 @@ func newVerifyCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "verify",
 			ShortUsage: "verify [flags]",
+			ShortHelp:  "verifies a genesis.json",
 			LongHelp:   "Verifies a node's genesis.json",
-			ShortHelp:  "Verifies a genesis.json",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {

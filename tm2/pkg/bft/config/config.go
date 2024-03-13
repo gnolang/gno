@@ -12,6 +12,7 @@ import (
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -31,14 +32,8 @@ var (
 )
 
 const (
-	levelDBName  = "goleveldb"
-	clevelDBName = "cleveldb"
-	boltDBName   = "boltdb"
-)
-
-const (
-	localABCI  = "local"
-	socketABCI = "socket"
+	LocalABCI  = "local"
+	SocketABCI = "socket"
 )
 
 // Regular expression for TCP or UNIX socket address
@@ -296,11 +291,11 @@ func DefaultBaseConfig() BaseConfig {
 		NodeKey:            defaultNodeKeyPath,
 		Moniker:            defaultMoniker,
 		ProxyApp:           "tcp://127.0.0.1:26658",
-		ABCI:               "socket",
+		ABCI:               SocketABCI,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
 		FilterPeers:        false,
-		DBBackend:          "goleveldb",
+		DBBackend:          db.GoLevelDBBackend.String(),
 		DBPath:             "data",
 	}
 }
@@ -365,9 +360,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != levelDBName &&
-		cfg.DBBackend != clevelDBName &&
-		cfg.DBBackend != boltDBName {
+	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
+		cfg.DBBackend != db.CLevelDBBackend.String() &&
+		cfg.DBBackend != db.BoltDBBackend.String() {
 		return errInvalidDBBackend
 	}
 
@@ -403,8 +398,8 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the correct ABCI mechanism is set
-	if cfg.ABCI != localABCI &&
-		cfg.ABCI != socketABCI {
+	if cfg.ABCI != LocalABCI &&
+		cfg.ABCI != SocketABCI {
 		return errInvalidABCIMechanism
 	}
 
