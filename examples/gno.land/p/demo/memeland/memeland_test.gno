@@ -27,7 +27,7 @@ func TestGetPosts(t *testing.T) {
 	m.PostMeme("Two hours ago meme data", twoHoursAgo.Unix())
 }
 
-func TestGetPostsByTimestamp(t *testing.T) {
+func TestGetPostsInRange(t *testing.T) {
 	m := NewMemeland()
 
 	// Create posts at specific times for testing
@@ -91,7 +91,7 @@ func TestGetPostsByTimestamp(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			jsonStr := m.GetPostsByTimestamp(tc.startTimestamp, tc.endTimestamp, tc.page, tc.pageSize)
+			jsonStr := m.GetPostsInRange(tc.startTimestamp, tc.endTimestamp, tc.page, tc.pageSize)
 
 			if jsonStr == "" {
 				t.Error("Expected non-empty JSON string, got empty string")

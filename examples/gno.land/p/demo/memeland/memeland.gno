@@ -41,7 +41,7 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        std.GetOrigCaller(),
+		Author:        std.PrevRealm().Addr(),
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -62,7 +62,7 @@ func (m *Memeland) Upvote(id string) string {
 		panic("error casting post")
 	}
 
-	caller := std.GetOrigCaller().String()
+	caller := std.PrevRealm().Addr().String()
 
 	if _, exists := p.UpvoteTracker.Get(caller); exists {
 		panic("user has already upvoted this post")
