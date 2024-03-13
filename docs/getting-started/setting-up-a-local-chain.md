@@ -40,7 +40,7 @@ Let's break down the most important default settings:
 - `config` - the custom node configuration file
   for more details on utilizing this file
 - `genesis-balances-file` - the initial premine balances file, which contains initial native currency allocations for
-  the chain. By default, the genesis balances file is located in `gno.land/genesis/genesis_txs.txt`, this is also the
+  the chain. By default, the genesis balances file is located in `gno.land/genesis/genesis_balances.txt`, this is also the
   reason why we need to navigate to the `gno.land` sub-folder to run the command with default settings
 - `root-dir` - the working directory for the node configuration and node data (state DB)
 

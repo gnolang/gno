@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,27 +13,31 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 const (
-	NodeLogName      = "Node"
-	WebLogName       = "GnoWeb"
-	KeyPressLogName  = "KeyPress"
-	HotReloadLogName = "HotReload"
+	NodeLogName        = "Node"
+	WebLogName         = "GnoWeb"
+	KeyPressLogName    = "KeyPress"
+	EventServerLogName = "Events"
 )
 
 type devCfg struct {
 	webListenerAddr string
 	minimal         bool
 	verbose         bool
+	hotreload       bool
 	noWatch         bool
 }
 
@@ -50,9 +53,9 @@ func main() {
 		commands.Metadata{
 			Name:       "gnodev",
 			ShortUsage: "gnodev [flags] [path ...]",
-			ShortHelp:  "Runs an in-memory node and gno.land web server for development purposes.",
+			ShortHelp:  "runs an in-memory node and gno.land web server for development purposes.",
 			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
-primarily for realm package development. It automatically loads the example folder and any
+primarily for realm package development. It automatically loads the 'examples' directory and any
 additional specified paths.`,
 		},
 		cfg,
@@ -75,7 +78,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.minimal,
 		"minimal",
 		defaultDevOptions.verbose,
-		"do not load example folder packages",
+		"do not load packages from examples directory",
 	)
 
 	fs.BoolVar(
@@ -97,7 +100,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
-	// guess root dir
+	// Guess root dir
 	gnoroot := gnoenv.RootDir()
 
 	// Check and Parse packages
@@ -124,9 +127,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
+	zapLoggerEvents := NewZapLogger(rt.NamespacedWriter(EventServerLogName), zapcore.DebugLevel)
+	loggerEvents := log.ZapLoggerToSlog(zapLoggerEvents)
+	emitterServer := emitter.NewServer(loggerEvents)
+
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths)
+	devNode, err := setupDevNode(ctx, emitterServer, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -136,51 +143,66 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
 	rt.Taskf(NodeLogName, "Chain ID: %s\n", devNode.Config().ChainID())
 
-	// Setup packages watcher
-	pathChangeCh := make(chan []string, 1)
-	go func() {
-		defer close(pathChangeCh)
-
-		cancel(runPkgsWatcher(ctx, cfg, devNode.ListPkgs(), pathChangeCh))
-	}()
-
-	// Setup GnoWeb listener
-	l, err := net.Listen("tcp", cfg.webListenerAddr)
-	if err != nil {
-		return fmt.Errorf("unable to listen to %q: %w", cfg.webListenerAddr, err)
+	// Create server
+	mux := http.NewServeMux()
+	server := http.Server{
+		Handler: mux,
+		Addr:    cfg.webListenerAddr,
 	}
-	defer l.Close()
+	defer server.Close()
 
-	// Run GnoWeb server
+	// Setup gnoweb
+	webhandler := setupGnoWebServer(cfg, devNode, rt)
+
+	// Setup HotReload if needed
+	if !cfg.noWatch {
+		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
+		mux.Handle("/_events", emitterServer)
+		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+	} else {
+		mux.Handle("/", webhandler)
+	}
+
 	go func() {
-		cancel(serveGnoWebServer(l, devNode, rt))
+		err := server.ListenAndServe()
+		cancel(err)
 	}()
 
-	rt.Taskf(WebLogName, "Listener: http://%s\n", l.Addr())
+	rt.Taskf(WebLogName, "Listener: http://%s\n", server.Addr)
+
+	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
+	if err != nil {
+		return fmt.Errorf("unable to setup packages watcher: %w", err)
+	}
+	defer watcher.Stop()
+
+	// Add node pkgs to watcher
+	watcher.AddPackages(devNode.ListPkgs()...)
 
 	// GnoDev should be ready, run event loop
 	rt.Taskf("[Ready]", "for commands and help, press `h`")
 
 	// Run the main event loop
-	return runEventLoop(ctx, cfg, rt, devNode, pathChangeCh)
+	return runEventLoop(ctx, cfg, rt, devNode, watcher)
 }
 
 // XXX: Automatize this the same way command does
 func printHelper(rt *rawterm.RawTerm) {
 	rt.Taskf("Helper", `
 Gno Dev Helper:
-  h, H        Help - display this message
-  r, R        Reload - Reload all packages to take change into account.
+  H           Help - display this message
+  R           Reload - Reload all packages to take change into account.
   Ctrl+R      Reset - Reset application state.
   Ctrl+C      Exit - Exit the application
 `)
 }
 
-func runEventLoop(ctx context.Context,
+func runEventLoop(
+	ctx context.Context,
 	cfg *devCfg,
 	rt *rawterm.RawTerm,
 	dnode *dev.Node,
-	pathsCh <-chan []string,
+	watch *watcher.PackageWatcher,
 ) error {
 	nodeOut := rt.NamespacedWriter(NodeLogName)
 	keyOut := rt.NamespacedWriter(KeyPressLogName)
@@ -192,26 +214,21 @@ func runEventLoop(ctx context.Context,
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case paths, ok := <-pathsCh:
+		case pkgs, ok := <-watch.PackagesUpdate:
 			if !ok {
 				return nil
 			}
 
-			if cfg.verbose {
-				for _, path := range paths {
-					rt.Taskf(HotReloadLogName, "path %q has been modified", path)
-				}
-			}
-
 			fmt.Fprintln(nodeOut, "Loading package updates...")
-			if err = dnode.UpdatePackages(paths...); err != nil {
-				checkForError(rt, err)
-				continue
+			if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
+				return fmt.Errorf("unable to update packages: %w", err)
 			}
 
 			fmt.Fprintln(nodeOut, "Reloading...")
 			err = dnode.Reload(ctx)
+
 			checkForError(rt, err)
+
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return nil
@@ -248,7 +265,7 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 
 	if cfg.noWatch {
-		// noop watcher, wait until context has been cancel
+		// Noop watcher, wait until context has been cancel
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -294,42 +311,28 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 		return nil, nil, err
 	}
 
-	// correctly format output for terminal
+	// Correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
-
 	return rt, restore, nil
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, emitter emitter.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
-
-	zapLogger := log.NewZapConsoleLogger(nodeOut, zapcore.ErrorLevel)
-
-	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), pkgspath)
+	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
+	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), emitter, pkgspath)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) error {
-	var server http.Server
-
+func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
 	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 
-	zapLogger := log.NewZapConsoleLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
-
+	zapLogger := NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)
-
-	server.ReadHeaderTimeout = 60 * time.Second
-	server.Handler = app.Router
-
-	if err := server.Serve(l); err != nil {
-		return fmt.Errorf("unable to serve GnoWeb: %w", err)
-	}
-
-	return nil
+	return app.Router
 }
 
 func parseArgsPackages(args []string) (paths []string, err error) {
@@ -374,4 +377,17 @@ func checkForError(w io.Writer, err error) {
 	}
 
 	fmt.Fprintln(w, "[DONE]")
+}
+
+// NewZapLogger creates a zap logger with a console encoder for development use.
+func NewZapLogger(w io.Writer, level zapcore.Level) *zap.Logger {
+	// Build encoder config
+	consoleConfig := zap.NewDevelopmentEncoderConfig()
+	consoleConfig.TimeKey = ""
+	consoleConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleConfig.EncodeName = zapcore.FullNameEncoder
+
+	// Build encoder
+	enc := zapcore.NewConsoleEncoder(consoleConfig)
+	return log.NewZapLogger(enc, w, level)
 }

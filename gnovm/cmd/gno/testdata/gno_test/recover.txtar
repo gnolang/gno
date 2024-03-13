@@ -1,13 +1,13 @@
 # Test recovering
 
-gno test -verbose -run 'TestRecover$' .
+gno test -v -run 'TestRecover$' .
 
 ! stdout .+
 stderr 'recovered bad panic!'
 stderr '--- PASS'
 stderr 'ok  '
 
-gno test -verbose -run 'TestRecoverSkip$' .
+gno test -v -run 'TestRecoverSkip$' .
 
 ! stdout .+
 stderr 'skipped'
@@ -15,7 +15,7 @@ stderr 'skipped'
 stderr '--- SKIP'
 stderr 'ok  '
 
-gno test -verbose -run 'TestBadRecoverSkip$' .
+gno test -v -run 'TestBadRecoverSkip$' .
 
 ! stdout .+
 # should contain warning about using testing.Recover
