@@ -215,6 +215,14 @@ With that we have written the core functionality of the realm, and all that is l
 the [Render function](http://localhost:3000/explanation/realms).
 Its purpose is to help us display the state of the realm in Markdown, by formatting the state into a string buffer:
 
+Add this library:
+```go
+import (
+	...
+	"bytes"
+)
+```
+
 [embedmd]:# (../assets/how-to-guides/write-simple-dapp/poll-3.gno go)
 ```go
 func Render(path string) string {
