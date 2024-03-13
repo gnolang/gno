@@ -2115,6 +2115,7 @@ func isDataByte(t Type) bool {
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
 func defaultTypeOf(t Type) Type {
+	debug.Printf("---defaultTypeOf, t: %v \n", t)
 	switch t {
 	case UntypedBoolType:
 		return BoolType

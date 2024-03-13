@@ -748,14 +748,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 
-				n.AssertCompatible(lt, rt, nil)
-
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
 				// special case of shift
 				if isShift {
 					// check LHS type compatibility
-					//checkOperandWithOp(store, last, &n.Left, lt, n.Op, Binary)
+					// check compatible
+					n.checkShiftExpr(lt, false)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType { // TODO: XXX, is it good for native?
 						// convert n.Right to (gno) uint type,
@@ -769,6 +768,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						resn := Preprocess(store, last, n2)
 						return resn, TRANS_CONTINUE
 					}
+				} else {
+					n.AssertCompatible(lt, rt)
 				}
 
 				// General case.
@@ -807,6 +808,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Then, evaluate the expression.
 						// also for shift
+
+						if isShift {
+							if n.GetAttribute(ATTR_DELAY) == true { // only in this case not to eval const, namely, delayed
+								return n, TRANS_CONTINUE
+							}
+							//bxt := evalStaticTypeOf(store, last, n)
+							//if isUntyped(bxt) { // delay determine type and value(const)
+							//}
+						}
+						//debug.Println("---before eval const")
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) { // left untyped const -> right not const
@@ -1044,6 +1055,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					at := evalStaticTypeOf(store, last, n.Args[0])
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
+						debug.Println("---constExpr: ", arg0)
 						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check. refer to 0f47a
@@ -1085,14 +1097,35 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(at) { // only when untyped, this is checked in checkOrConvertType too, but guard here
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ: // refer to 10a0012. TODO: convert to typed too
+								checkAssignableTo(at, ct, true)
 								break // quick forward
 							default:
 								checkOrConvertType(store, last, &n.Args[0], ct, false, true)
+								////// TODO: evalConst for already typed shift expr
+								//debug.Printf("len of n.Args: %v \n", len(n.Args))
+								//debug.Printf("before eval const n.Args[0]: %v \n", n.Args[0])
+								//_, lic := arg0.Left.(*ConstExpr)
+								//_, ric := arg0.Right.(*ConstExpr)
+								//if lic && ric {
+								//	n.Args[0] = evalConst(store, last, n.Args[0])
+								//}
+								//debug.Printf("after eval const n.Args[0]: %v \n", n.Args[0])
 							}
 						}
 					case *UnaryExpr:
+						debug.Println("---unary expr: ", arg0)
 						if isUntyped(at) {
 							checkOrConvertType(store, last, &n.Args[0], ct, false, true)
+							//_, xic := arg0.X.(*ConstExpr)
+							//debug.Printf("len of n.Args: %v \n", len(n.Args))
+							//debug.Println("---delay process unaryExpr")
+							//if xic {
+							//	debug.Printf("before eval const n.Args[0]: %v \n", n.Args[0])
+							//	//n.Args[0] = evalConst(store, last, n.Args[0])
+							//	//debug.Printf("after eval const n.Args[0]: %v \n", n.Args[0])
+							//}
+						} else {
+							debug.Printf("---unary, at is typed: %v \n", at)
 						}
 					default:
 						// do nothing
@@ -1317,7 +1350,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *UnaryExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 
-				n.AssertCompatible(xt, nil)
+				n.AssertCompatible(store, last, xt, nil, nil)
 
 				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
@@ -2295,6 +2328,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
+	debug.Printf("---evalConst, x: %v \n", x)
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	cv := NewMachine(".dontcare", store)
@@ -2442,6 +2476,12 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			debug.Printf("---recover in checkOrConvertType, r: %v \n", r)
+			panic(r)
+		}
+	}()
 	if cx, ok := (*x).(*ConstExpr); ok {
 		if !coerce {
 			// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
@@ -2468,27 +2508,61 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// if conduct explicit conversion on typed shift, set coerce to be true, this always happens in callExpr.
 		xt := evalStaticTypeOf(store, last, *x)
 		if debug {
-			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", *x, bx.Op, t)
+			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
+
+		//lt := evalStaticTypeOf(store, last, bx.Left)
+		//rt := evalStaticTypeOf(store, last, bx.Right)
+		// going to check if shift expr is compatible with type from outer context
+		var originType Type
 		if _, ok := t.(*InterfaceType); ok || t == nil {
 			if isUntyped(xt) {
+				originType = xt
 				t = defaultTypeOf(xt)
+				//t = defaultTypeOf(lt)
+			} else if xt == nil {
+				originType = nil
 			} else {
-				return // is x is typed and dest t is nil or interface type(even for type cast), do nothing.
+				//return // is x is typed and dest t is nil or interface type(even for type cast), do nothing.
+				bx.checkShiftExpr(xt, true)
+				// return?
 			}
+		} else {
+			originType = t
 		}
+
+		debug.Printf("---origin type for untyped shift is: %v \n", originType)
+		debug.Printf("---dest type for untyped shift is: %v \n", t)
+		debug.Println("xt == nil? ", xt == nil)
 		// deal with binary expr(bx.Left), determine its type
-		if coerce || !coerce && isUntyped(xt) {
+		if coerce || !coerce && isUntyped(xt) || xt == nil { // XXX, simplify?
 			// coerce mostly when explicitly conversion, type call, while arg is binary expr
 			// not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
 			// TODO: do we need this any more? since already checked before?
 			// NO, it's from callExpr and should checked recursively? huh?
 
-			lt := evalStaticTypeOf(store, last, bx.Left)
-			rt := evalStaticTypeOf(store, last, bx.Right)
-			bx.AssertCompatible(lt, rt, t)
-			// "push" expected type into shift binary's left operand.
-			checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
+			// XXX, no need for this, already check assignable in checkOrConvertType
+			// check against dest type from outer context
+			//bx.AssertCompatible(t, t)
+			bx.checkShiftExpr(originType, true)
+			debug.Println("---going to eval delayed const shift expr")
+			// eval const for delayed shift expr
+			if _, ok := (*x).(*ConstExpr); !ok {
+				debug.Println("---not const")
+				_, lic := bx.Left.(*ConstExpr)
+				_, ric := bx.Right.(*ConstExpr)
+				if lic && ric {
+					*x = evalConst(store, last, *x)
+				}
+			}
+			debug.Printf("---after eval, *x: %v \n", *x)
+
+			if _, ok := (*x).(*ConstExpr); ok {
+				//checkOrConvertType(store, last, x, t, autoNative, coerce)
+			} else {
+				// "push" expected type into shift binary's left operand.
+				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
+			}
 		} else { // not coerce, xt is typed, no need to convert but check. refer to 10a17b1.
 			checkAssignableTo(xt, t, false) // refer to 0_a_2.gno, 0_a_3.gno
 		}
@@ -2507,9 +2581,22 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		}
 		if coerce || !coerce && isUntyped(xt) {
 			uxt := evalStaticTypeOf(store, last, ux.X)
-			ux.AssertCompatible(uxt, t)
-			// "push" expected type into shift binary's left operand.
+			ux.AssertCompatible(store, last, uxt, xt, t)
+			// recursively check leaf node
 			checkOrConvertType(store, last, &ux.X, t, autoNative, coerce)
+			debug.Printf("---after checkOrConvertType for unaryExpr, ux: %v \n", ux)
+
+			// check ux against t
+			if _, ok := (ux.X).(*ConstExpr); ok {
+				// re-eval ux
+				nux := evalConst(store, last, *x)
+				debug.Println("---nux: ", nux)
+				nxt := evalStaticTypeOf(store, last, ux)
+				debug.Println("---nxt: ", nxt)
+				checkAssignableTo(nxt, t, false) // this is not all right, should check convertible
+				debug.Println("---t: ", t)
+				convertConst(store, last, nux, t) // or just check convertible?
+			}
 		} else {
 			checkAssignableTo(xt, t, false)
 		}

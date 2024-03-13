@@ -9,5 +9,6 @@ func main() {
 	fmt.Printf("%T \n", y)
 }
 
-// Error:
-// main/files/types2/10a27c.gno:7: operator << not defined on: BigdecKind
+// Output:
+// 18446744073709549568
+// uint64

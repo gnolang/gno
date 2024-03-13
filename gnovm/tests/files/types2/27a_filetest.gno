@@ -6,5 +6,5 @@ func main() {
 	println(y)
 }
 
-// Error:
-// main/files/types2/27a_filetest.gno:5: operator << not defined on: BigdecKind
+// Output:
+// 2048

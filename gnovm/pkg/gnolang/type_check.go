@@ -58,79 +58,40 @@ var (
 type category int
 
 const (
-	IsInvalid category = 0
 	IsBoolean category = 1 << iota
 	IsInteger
-	IsUnsigned
 	IsFloat
 	IsString
 	IsBigInt
 	IsBigDec
-	IsRune
 
-	IsNumeric = IsInteger | IsUnsigned | IsFloat | IsBigInt | IsBigDec
+	IsNumeric = IsInteger | IsFloat | IsBigInt | IsBigDec
 	IsOrdered = IsNumeric | IsString
-	//IsIntOrFloat = IsInteger | IsUnsigned | IsFloat | IsBigInt | IsBigDec
 )
 
-// category makes it more convenient than compare with types
-func (pt PrimitiveType) predicate() category {
-	switch pt {
-	case InvalidType:
-		return IsInvalid
-	case UntypedBoolType:
+func (pt PrimitiveType) category() category {
+	switch pt.Kind() {
+	case BoolKind:
 		return IsBoolean
-	case BoolType:
-		return IsBoolean
-	case UntypedStringType:
+	case StringKind:
 		return IsString
-	case StringType:
-		return IsString
-	case IntType:
-		return IsInteger
-	case Int8Type:
-		return IsInteger
-	case Int16Type:
-		return IsInteger
-	case UntypedRuneType: // TODO: this is treat as DataByteType, GUESS, refer to op_inc_dec
-		return IsRune
-	case Int32Type:
-		return IsInteger
-	case Int64Type:
-		return IsInteger
-	case UintType:
-		return IsUnsigned
-	case Uint8Type:
-		return IsUnsigned
-	case DataByteType:
-		return IsUnsigned // TODO: consider this
-	case Uint16Type:
-		return IsUnsigned
-	case Uint32Type:
-		return IsUnsigned
-	case Uint64Type:
-		return IsUnsigned
-	case Float32Type:
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return IsInteger // UntypedRuneType is int32kind, DataByteType is uint8 kind
+	case Float32Kind, Float64Kind:
 		return IsFloat
-	case Float64Type:
-		return IsFloat
-	case UntypedBigintType:
+	case BigintKind:
 		return IsBigInt
-	case BigintType:
-		return IsBigInt
-	case UntypedBigdecType:
-		return IsBigDec
-	case BigdecType:
+	case BigdecKind:
 		return IsBigDec
 	default:
-		panic(fmt.Sprintf("unexpected primitive type %d", pt))
+		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
 }
 
 func isOrdered(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.predicate() != IsInvalid && t.predicate()&IsOrdered != 0 || t.predicate()&IsRune != 0 {
+		if t.category()&IsOrdered != 0 {
 			return true
 		}
 		return false
@@ -142,7 +103,7 @@ func isOrdered(t Type) bool {
 func isBoolean(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.predicate() != IsInvalid && t.predicate()&IsBoolean != 0 {
+		if t.category()&IsBoolean != 0 {
 			return true
 		}
 		return false
@@ -155,7 +116,7 @@ func isBoolean(t Type) bool {
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.predicate() != IsInvalid && t.predicate()&IsNumeric != 0 || t.predicate()&IsRune != 0 {
+		if t.category()&IsNumeric != 0 {
 			return true
 		}
 		return false
@@ -164,11 +125,11 @@ func isNumeric(t Type) bool {
 	}
 }
 
-// signed or unsigned int
+// TODO: also compatible with 1.0, 2.0...
 func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.predicate() != IsInvalid && t.predicate()&IsInteger != 0 || t.predicate()&IsUnsigned != 0 || t.predicate()&IsBigInt != 0 || t.predicate()&IsRune != 0 {
+		if t.category()&IsInteger != 0 || t.category()&IsBigInt != 0 {
 			return true
 		}
 		return false
@@ -180,7 +141,7 @@ func isIntNum(t Type) bool {
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.predicate() != IsInvalid && t.predicate()&IsNumeric != 0 || t.predicate()&IsString != 0 || t.predicate()&IsRune != 0 {
+		if t.category()&IsNumeric != 0 || t.category()&IsString != 0 {
 			return true
 		}
 		return false
@@ -284,8 +245,6 @@ func assertAssignable(lt, rt Type) {
 // assertComparable is used in preprocess.
 // assert value with dt is comparable
 // special case when both typed, check if type identical
-// TODO: move this to type_checker? as a method?
-// TODO: check mismatch on this, not postpone to checkOrConvertType
 func assertComparable(xt, dt Type) {
 	if debug {
 		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
@@ -294,29 +253,13 @@ func assertComparable(xt, dt Type) {
 	case PrimitiveType:
 		// both typed primitive types
 		if _, ok := baseOf(xt).(PrimitiveType); ok {
-			//var isMixed bool
-			//if _, ok := xt.(*NativeType); ok {
-			//	if _, ok := dt.(*NativeType); ok {
-			//		isMixed = false
-			//	} else {
-			//		isMixed = true
-			//	}
-			//} else {
-			//	if _, ok := dt.(*NativeType); ok {
-			//		isMixed = true
-			//	}
-			//}
-			//if !isMixed { // both not native or both native we can check typeID ==
 			if !isUntyped(xt) && !isUntyped(dt) { // in this stage, lt or rt maybe untyped, not converted yet
-				debug.Println("---both typed")
 				if xt != nil && dt != nil {
-					// TODO: filter byte that has no typeID?
 					if xt.TypeID() != dt.TypeID() {
 						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", xt, dt))
 					}
 				}
 			}
-			//}
 		}
 	case *ArrayType: // NOTE: no recursive allowed
 		switch baseOf(cdt.Elem()).(type) {
@@ -718,61 +661,43 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 // checkOrConvertType() operation to optimize performance.
 
 // dt is a special case for binary expr that the dest type for the
-// lhs determined by outer context
-func (bx *BinaryExpr) AssertCompatible(lt, rt, dt Type) {
-	debug.Printf("---AssertCompatible, bx: %v \n", bx)
-	debug.Printf("---AssertCompatible, bx.Left: %T \n", bx.Left)
-	debug.Printf("---AssertCompatible, bx.Right: %T \n", bx.Right)
-
-	// get left type and right type
-	//lt := evalStaticTypeOf(store, last, bx.Left)
-	//rt := evalStaticTypeOf(store, last, bx.Right)
+// shift expr is determined by outer context
+func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
+	debug.Printf("---AssertCompatible, bx: %v, lt: %v, rt: %v \n", bx, lt, rt)
 
 	// we can't check compatible with native types
 	// at current stage, so leave it to checkOrConvertType
-	// to secondary call this assert logic again
-
-	//var leftNative, rightNative bool
+	// to convert gonative to gno, and AssertCompatible
+	// would be called again for that check
 	if lnt, ok := lt.(*NativeType); ok {
-		debug.Println("---lt native")
-		//leftNative = true
 		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
 		if ok {
-			debug.Println("---lt native primitive, return")
 			return
 		}
 	}
 	if rnt, ok := rt.(*NativeType); ok {
-		//rightNative = true
-		debug.Println("---rt native, gnoType", rnt.gnoType)
 		_, ok := go2GnoBaseType(rnt.Type).(PrimitiveType) // TODO: check kind instead
 		if ok {
-			debug.Println("---right native primitive, return")
 			return
 		}
 	}
 
-	debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, bx.Op)
 	escapedOpStr := strings.Replace(wordTokenStrings[bx.Op], "%", "%%", 1)
 
 	if isComparison(bx.Op) {
 		switch bx.Op {
 		case EQL, NEQ:
-			assertComparable(lt, rt)
-			// XXX, should not check compatible for equality compare?
-			// the native type here are both non-primitive
-			// not able to check assignable, e.g. MyError == err, that if left satisfied right native interface.
-			//if !leftNative && !rightNative {
 			cmp := cmpSpecificity(lt, rt)
 			if cmp <= 0 {
+				assertComparable(lt, rt)
 				checkAssignableTo(lt, rt, true)
 			} else {
+				assertComparable(rt, lt)
 				checkAssignableTo(rt, lt, true)
 			}
-			//}
 		case LSS, LEQ, GTR, GEQ:
 			if pred, ok := binaryChecker[bx.Op]; ok {
-				bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
+				bx.checkCompatibility(lt, rt, pred, escapedOpStr)
 			} else {
 				panic("should not happen")
 			}
@@ -780,25 +705,27 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt, dt Type) {
 			panic("invalid comparison operator")
 		}
 	} else {
-		// TODO: if not assign, check implicit compatible
 		if pred, ok := binaryChecker[bx.Op]; ok {
-			bx.checkCompatibility(lt, rt, pred, escapedOpStr, dt)
+			bx.checkCompatibility(lt, rt, pred, escapedOpStr)
 		} else {
 			panic("should not happen")
 		}
 
 		switch bx.Op {
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
-			// if both typed
-			//if !isMixed { // both native or both not native that we can check
-			if !isUntyped(lt) && !isUntyped(rt) {
-				if lt != nil && rt != nil { // NOTE: is this necessary?
-					if lt.TypeID() != rt.TypeID() {
-						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
-					}
-				}
-			}
+			//if !isUntyped(lt) && !isUntyped(rt) { // both typed
+			//	if lt != nil && rt != nil {
+			//		if lt.TypeID() != rt.TypeID() {
+			//			panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+			//		}
+			//	}
 			//}
+			//if isUntyped(lt) && isUntyped(rt) { // both untyped
+			//	if lt.TypeID() != rt.TypeID() {
+			//		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+			//	}
+			//}
+
 			// special case of zero divisor
 			if isQuoOrRem(bx.Op) {
 				if rcx, ok := bx.Right.(*ConstExpr); ok {
@@ -813,24 +740,53 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt, dt Type) {
 	}
 }
 
-func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, escapedOpStr string, dt Type) {
-	debug.Println("---checkCompatibility, op: ", bx.Op)
-	debug.Printf("---checkCompatibility, lt: %v, rt: %v \n", lt, rt)
-	debug.Printf("---checkCompatibility, dt: %v \n", dt)
+// for a shift expression, dt would be either the type of lhs
+// or the type of the outer context that would be used as the
+// type of the shift expr when it's untyped
+func (bx *BinaryExpr) checkShiftExpr(dt Type, isFinal bool) {
+	debug.Printf("---checkShiftExpr: dt: %v, isFinal: %t \n", dt, isFinal)
+	var destKind interface{}
+	if dt != nil {
+		destKind = dt.Kind()
+	}
+	if pred, ok := binaryChecker[bx.Op]; ok {
+		if !pred(dt) {
+			if !isFinal {
+				// just tag it for delayed determine
+				bx.SetAttribute(ATTR_DELAY, true)
+			} else {
+				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
+			}
+		}
+	} else {
+		panic("should not happen")
+	}
+}
+
+func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, escapedOpStr string) {
+	debug.Printf("---checkCompatibility, op: %v, lt: %v, rt: %v\n", bx.Op, lt, rt)
+	// cache it and can be used by later stage in checkOrConvertType
 	AssignableCheckCache = NewAssignabilityCache()
+
 	var destKind interface{}
 
-	// shl/shr
+	// for shl/shr, it's type might be delayed determined by its context
+	// if it's originally untyped
 	if bx.Op == SHL || bx.Op == SHR {
-		if dt == nil {
-			dt = lt
+		// check compatible within shift expr
+		if lt != nil {
+			destKind = lt.Kind()
 		}
-		if dt != nil {
-			destKind = dt.Kind()
-		}
-		if !pred(dt) {
+		if !pred(lt) {
 			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
 		}
+		//// check against type from outer context
+		//if isUntyped(bxt) { // source shl/shr expr is untyped
+		//	if dt != nil {
+		//		// check assignableTo dt
+		//		checkAssignableTo(bxt, dt, true)
+		//	}
+		//}
 		return
 	}
 
@@ -853,7 +809,7 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 			// if cmp < 0, means potential conversion
 			// from left to right, so check assignable
 			// if cmp > 0, means potential conversion to
-			// left side that is not compatible, so stop
+			// left side which is not compatible, so stop
 			// the check here, assertion fail.
 			if cmp < 0 {
 				checkAssignableTo(lt, rt, true)
@@ -892,6 +848,13 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 				}
 			}
 		}
+
+		//if isUntyped(lt) && isUntyped(rt) { // both untyped
+		//	if lt.TypeID() != rt.TypeID() {
+		//		panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
+		//	}
+		//}
+
 		// check even when both side compatible with op
 		// it's ok since checkCompatibility only for lss, add, etc
 		// that only with isOrdered
@@ -904,8 +867,8 @@ func (bx *BinaryExpr) checkCompatibility(lt, rt Type, pred func(t Type) bool, es
 	}
 }
 
-func (ux *UnaryExpr) AssertCompatible(uxt, dt Type) {
-	debug.Printf("---AssertCompatible, ux: %v \n", ux)
+func (ux *UnaryExpr) AssertCompatible(store Store, last BlockNode, uxt, xt, dt Type) {
+	debug.Printf("---AssertCompatible, ux: %v, uxt: %v,xt: %v, dt: %v \n", ux, uxt, xt, dt)
 	debug.Printf("---AssertCompatible, ux.X: %T \n", ux.X)
 
 	var destKind interface{}
@@ -916,7 +879,6 @@ func (ux *UnaryExpr) AssertCompatible(uxt, dt Type) {
 	// at current stage, so leave it to checkOrConvertType
 	// to secondary call this assert logic again
 	if _, ok := uxt.(*NativeType); ok {
-		debug.Println("---left native, return")
 		return
 	}
 
@@ -931,6 +893,24 @@ func (ux *UnaryExpr) AssertCompatible(uxt, dt Type) {
 			}
 			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[ux.Op], destKind))
 		}
+
+		// check outer type against ux
+		// e.g. uint64(-4)
+		//if dt != nil {
+		//	destKind = dt.Kind()
+		//	if !pred(dt) {
+		//		panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[ux.Op], destKind))
+		//	}
+		//
+		//	//if _, ok := ux.X.(*BinaryExpr); ok {
+		//	//	ux.X = evalConst(store, last, ux.X)
+		//	//}
+		//	//
+		//	//xt := evalStaticTypeOf(store, last, ux)
+		//	//debug.Printf("---new xt: %v \n", xt)
+		//	//// check assignableTo dt
+		//	checkAssignableTo(xt, dt, true)
+		//}
 	} else {
 		panic("should not happen")
 	}
