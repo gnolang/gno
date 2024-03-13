@@ -18,8 +18,8 @@ gnokey maketx addpkg  \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgdir="./r/escrow" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgdir="./r/projects_manager" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   gopher
 
 # Set config
@@ -29,7 +29,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="UpdateConfig" \
   -args="g1c5y8jpe585uezcvlmgdjmk5jt2glfw88wxa3xq" \
   gopher
@@ -41,7 +41,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="CreateContract" \
   -args="g1c5y8jpe585uezcvlmgdjmk5jt2glfw88wxa3xq" \
   -args="foo20" \
@@ -56,7 +56,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="CancelContract" \
   -args="0" \
   gopher
@@ -68,7 +68,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="AcceptContract" \
   -args="0" \
   gopher
@@ -80,7 +80,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="PauseContract" \
   -args="0" \
   gopher
@@ -92,7 +92,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="CompleteContract" \
   -args="0" \
   gopher
@@ -104,7 +104,7 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="CompleteContractByDAO" \
   -args="0" \
   -args="50" \
@@ -117,22 +117,22 @@ gnokey maketx call \
   -broadcast="true" \
   -remote="test3.gno.land:36657" \
   -chainid="test3" \
-  -pkgpath="gno.land/r/demo/escrow_03" \
+  -pkgpath="gno.land/r/demo/projects_manager_03" \
   -func="GiveFeedback" \
   -args="0" \
   -args="Amazing work" \
   gopher
 
 # Query Contracts
-gnokey query "vm/qeval" -data="gno.land/r/demo/escrow_03
+gnokey query "vm/qeval" -data="gno.land/r/demo/projects_manager_03
 RenderContracts(0, 10)" -remote="test3.gno.land:36657"
 
 # Query contract
-gnokey query "vm/qeval" -data="gno.land/r/demo/escrow_03
+gnokey query "vm/qeval" -data="gno.land/r/demo/projects_manager_03
 RenderContract(0)" -remote="test3.gno.land:36657"
 
 # Query config
-gnokey query "vm/qeval" -data="gno.land/r/demo/escrow_03
+gnokey query "vm/qeval" -data="gno.land/r/demo/projects_manager_03
 RenderConfig()" -remote="test3.gno.land:36657"
 
 

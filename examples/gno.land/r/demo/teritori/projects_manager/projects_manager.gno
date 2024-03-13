@@ -1,4 +1,4 @@
-package escrow
+package projects_manager
 
 import (
 	"std"

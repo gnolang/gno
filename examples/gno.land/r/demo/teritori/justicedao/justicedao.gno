@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	fmt "gno.land/p/demo/ufmt"
-	"gno.land/r/demo/teritori/escrow"
+	"gno.land/r/demo/teritori/projects_manager"
 	"gno.land/r/demo/teritori/vrf"
 )
 
@@ -98,7 +98,7 @@ type JusticeProposal struct {
 	summary      string         // proposal summary
 	vrfId        uint64         // the vrf request id being used to determine governers
 	governers    []string       // the governers of the proposal
-	contractId   uint64         // the escrow contract id to resolve
+	contractId   uint64         // the projects_manager contract id to resolve
 	sellerAmount uint64         // the seller amount determined by Justice DAO
 	solution     string         // proposed result of justice DAO proposal
 	submitTime   uint64         // solution submission time
@@ -681,7 +681,7 @@ func TallyAndExecuteJusticeSolution(proposalId uint64) {
 	// If more than 2/3 votes Yes, let it pass
 	if numYesVotes > 0 && numYesVotes*3 >= uint64(len(proposal.governers))*2 {
 		justiceProposals[proposalId].status = PASSED
-		escrow.CompleteContractByDAO(proposal.contractId, proposal.sellerAmount)
+		projects_manager.CompleteContractByDAO(proposal.contractId, proposal.sellerAmount)
 	} else {
 		justiceProposals[proposalId].status = REJECTED
 	}

@@ -56,7 +56,7 @@ Provides the list of existing DAOs
 
 It also provides the DAOs infos (name, description, pfp) until we use the [dedicated profile realm](https://github.com/gnolang/gno/pull/181)
 
-See the [live demo](https://app.teritori.com/orgs?network=gno-teritori) 
+See the [live demo](https://app.teritori.com/orgs?network=gno-portal) 
 
 ### gno.land/r/demo/teritori/dao_realm
 
@@ -88,15 +88,17 @@ Social feed contract that strives to have feature-parity with Teritori's cosmwas
 
 It supports content flagging and moderation by DAOs
 
-See the [live demo](https://app.teritori.com/feed?network=gno-teritori)
+See the [live demo](https://app.teritori.com/feed?network=gno-portal)
 
 ### gno.land/r/demo/teritori/social_feeds_dao
 
 Example of a DAO that can moderate social feeds
 
-### gno.land/r/demo/teritori/escrow
+### gno.land/r/demo/teritori/projects_manager
 
-Escrow contract, will be used in grants manager and freelance marketplace
+Kanban with integrated payments and conflict resolution
+
+See the [live demo](https://app.teritori.com/projects?network=gno-portal)
 
 ### gno.land/r/demo/teritori/gnodaos
 
