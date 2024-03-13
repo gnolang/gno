@@ -6,7 +6,8 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
+	rusers "gno.land/r/demo/users"
 )
 
 var (
@@ -31,7 +32,7 @@ func TotalSupply() uint64 {
 }
 
 func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := tori.BalanceOf(owner.Resolve())
+	balance, err := tori.BalanceOf(rusers.Resolve(owner))
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +40,7 @@ func BalanceOf(owner users.AddressOrName) uint64 {
 }
 
 func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := tori.Allowance(owner.Resolve(), spender.Resolve())
+	allowance, err := tori.Allowance(rusers.Resolve(owner), rusers.Resolve(spender))
 	if err != nil {
 		panic(err)
 	}
@@ -50,17 +51,17 @@ func Allowance(owner, spender users.AddressOrName) uint64 {
 
 func Transfer(to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	tori.Transfer(caller, to.Resolve(), amount)
+	tori.Transfer(caller, rusers.Resolve(to), amount)
 }
 
 func Approve(spender users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	tori.Approve(caller, spender.Resolve(), amount)
+	tori.Approve(caller, rusers.Resolve(spender), amount)
 }
 
 func TransferFrom(from, to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	tori.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
+	tori.TransferFrom(caller, rusers.Resolve(from), rusers.Resolve(to), amount)
 }
 
 // faucet.
@@ -77,13 +78,13 @@ func Faucet() {
 func Mint(address users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	tori.Mint(address.Resolve(), amount)
+	tori.Mint(rusers.Resolve(address), amount)
 }
 
 func Burn(address users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	tori.Burn(address.Resolve(), amount)
+	tori.Burn(rusers.Resolve(address), amount)
 }
 
 // render.
@@ -98,7 +99,7 @@ func Render(path string) string {
 		return tori.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := users.AddressOrName(parts[1])
-		balance, _ := tori.BalanceOf(owner.Resolve())
+		balance, _ := tori.BalanceOf(rusers.Resolve(owner))
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

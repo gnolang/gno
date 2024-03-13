@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/ujson"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 type ExecutableMessageMintTori struct {
