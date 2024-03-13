@@ -210,6 +210,8 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
 			}
 		}
 		return false, false
+	case *PanicStmt:
+		return true, true
 	case *SwitchStmt:
 		//there is a default case, and
 		var hasDefault bool
