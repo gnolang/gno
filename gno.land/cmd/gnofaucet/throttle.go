@@ -3,91 +3,90 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
+	"net/netip"
 	"sync"
 	"time"
 )
 
 const (
-	maxRequestsPerIP = 5
+	maxRequestsPerIP = uint64(5)
 )
 
-var (
-	errInvalidIP               = errors.New("invalid IP")
-	errInvalidNumberOfRequests = errors.New("invalid number of requests")
-)
+var errInvalidNumberOfRequests = errors.New("invalid number of requests")
 
-type subnetThrottler struct {
-	throttleDuration time.Duration
-	subnets          sync.Map // unique IP identifier -> request count (<=5)
+type requestMap map[netip.Addr]uint64
+
+// iterate ranges over the request map
+func (r requestMap) iterate(cb func(key netip.Addr, value uint64)) {
+	for ip, requests := range r {
+		cb(ip, requests)
+	}
 }
 
-// newSubnetThrottler creates a new subnet throttler
-func newSubnetThrottler(duration time.Duration) *subnetThrottler {
-	return &subnetThrottler{
-		throttleDuration: duration,
+type ipThrottler struct {
+	throttleTimeout time.Duration
+	requestMap      requestMap
+
+	sync.Mutex
+}
+
+// newIPThrottler creates a new ip throttler
+func newIPThrottler(duration time.Duration) *ipThrottler {
+	return &ipThrottler{
+		throttleTimeout: duration,
+		requestMap:      make(requestMap),
 	}
 }
 
 // start starts the throttle routine
-func (st *subnetThrottler) start(ctx context.Context) {
+func (st *ipThrottler) start(ctx context.Context) {
 	go st.runThrottler(ctx)
 }
 
-// runThrottler runs the main subnet throttle loop
-func (st *subnetThrottler) runThrottler(ctx context.Context) {
-	ticker := time.NewTicker(st.throttleDuration)
+// runThrottler runs the main ip throttle loop
+func (st *ipThrottler) runThrottler(ctx context.Context) {
+	ticker := time.NewTicker(st.throttleTimeout)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// Reset the individual subnet counters
-			st.subnets.Range(func(key, value any) bool {
-				newVal, _ := value.(uint8)
+			st.Lock()
 
-				newVal /= 2
+			// Reset the individual subnet counters
+			st.requestMap.iterate(func(ip netip.Addr, requests uint64) {
+				newVal := requests / 2
+
 				if newVal == 0 {
-					// Drop the key from the subnet map
-					st.subnets.Delete(key)
-				} else {
-					// Save the new subnet value
-					st.subnets.Store(key, newVal)
+					delete(st.requestMap, ip)
+
+					return
 				}
 
-				return true
+				st.requestMap[ip] = newVal
 			})
+
+			st.Unlock()
 		}
 	}
 }
 
-// registerNewRequest verifies the given request IP
-func (st *subnetThrottler) registerNewRequest(requestIP net.IP) error {
-	// Check if the IP is valid
-	ip := requestIP.To4()
-	if ip == nil {
-		return errInvalidIP
-	}
+// registerNewRequest registers a new IP request with the throttler
+func (st *ipThrottler) registerNewRequest(ip netip.Addr) error {
+	st.Lock()
+	defer st.Unlock()
 
-	// Get the unique IP identifier
-	key := int64(ip[0])<<16 + int64(ip[1])<<8 + int64(ip[2])
-
-	// Increment the request count for the IP
-	count, loaded := st.subnets.LoadOrStore(key, int8(1))
-	if !loaded {
-		// Request is the first one from this IP key
-		return nil
-	}
+	// Get the request count for the address, if any
+	requests := st.requestMap[ip]
 
 	// Check if the IP exceeded the request count
-	requestCount := count.(int8)
-	if requestCount > maxRequestsPerIP {
+	if requests >= maxRequestsPerIP {
 		return errInvalidNumberOfRequests
 	}
 
 	// Update the request count
-	st.subnets.Store(key, requestCount+1)
+	st.requestMap[ip] = requests + 1
 
 	return nil
 }

@@ -7,12 +7,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 )
 
 // getIPMiddleware returns the IP verification middleware, using the given subnet throttler
-func getIPMiddleware(behindProxy bool, st *subnetThrottler) func(next http.Handler) http.Handler {
+func getIPMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +40,20 @@ func getIPMiddleware(behindProxy bool, st *subnetThrottler) func(next http.Handl
 					host = ipv4Loopback
 				}
 
-				// Verify the request using the IP
-				if err := st.registerNewRequest(net.ParseIP(host)); err != nil {
+				// Make sure the host IP is valid
+				hostAddr, err := netip.ParseAddr(host)
+				if err != nil {
+					http.Error(
+						w,
+						fmt.Sprintf("invalid request IP, %s", err.Error()),
+						http.StatusUnauthorized,
+					)
+
+					return
+				}
+
+				// Register the request with the throttler
+				if err := st.registerNewRequest(hostAddr); err != nil {
 					http.Error(
 						w,
 						fmt.Sprintf("unable to verify IP request, %s", err.Error()),
