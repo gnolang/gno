@@ -129,7 +129,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.noReplay,
 		"no-replay",
-		defaultDevOptions.noWatch,
+		defaultDevOptions.noReplay,
 		"do not replay previous transactions on reload",
 	)
 
