@@ -3,12 +3,14 @@ id: creating-grc20
 ---
 
 # How to create a GRC20 Token
-
 ## Overview
 
-This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../concepts/realms.md), in [Gno (Gno)](../concepts/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
-Our _GRC20_ Realm will have the following functionality:
+This guide shows you how to write a simple **GRC20** Smart Contract, or rather
+a [Realm](../concepts/realms.md), in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
+[deployment](deploy.md) guide.
+
+Our **GRC20** Realm will have the following functionality:
 
 - Minting a configurable amount of token.
 - Keeping track of total token supply.
@@ -16,33 +18,120 @@ Our _GRC20_ Realm will have the following functionality:
 
 ## Prerequisites
 
-We will proceed using the typical directory structure for a Realm found within the [simple-contract guide](simple-contract.md). It is also worthwhile to consult the [GRC20 interface](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc20/igrc20.gno) which we will be importing and utilizing within this guide.
+- **Internet connection**
 
 ## 1. Importing token package
-For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token factory realm.
+For this realm, we'll want to import the `grc20` package as this will include
+the main functionality of our token factory realm.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go
 package mytoken
 
 import (
-	"std"
-
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
+	"std"
 )
 
 var (
 	mytoken *grc20.AdminToken
-	admin   std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // set admin account
+	admin   std.Address
 )
 
-// init is a constructor function that runs only once (at time of deployment)
+// init is called once at time of deployment
 func init() {
-	// provision the token's name, symbol and number of decimals
-	mytoken = grc20.NewAdminToken("Mytoken", "MTKN", 4)
+	// set admin as deployer
+	admin = std.PrevRealm().Addr()
 
-	// set the total supply
-	mytoken.Mint(admin, 1000000*10000) // @administrator (supply = 1 million)
+	// provision the token's name, symbol and number of decimals
+	mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
+
+	// mint 1 million tokens to admin
+	mytoken.Mint(admin, 1000000*10000)
+}
+
+func TotalSupply() uint64 {
+	return mytoken.TotalSupply()
+}
+
+func BalanceOf(account std.Address) uint64 {
+	balance, err := mytoken.BalanceOf(account)
+	if err != nil {
+		panic(err)
+	}
+
+	return balance
+}
+
+func Allowance(owner, spender std.Address) uint64 {
+	allowance, err := mytoken.Allowance(owner, spender)
+	if err != nil {
+		panic(err)
+	}
+
+	return allowance
+}
+
+func Transfer(recipient std.Address, amount uint64) {
+	caller := std.PrevRealm().Addr()
+	if err := mytoken.Transfer(caller, recipient, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(spender std.Address, amount uint64) {
+	caller := std.PrevRealm().Addr()
+	if err := mytoken.Approve(caller, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func TransferFrom(from, to std.Address, amount uint64) {
+	caller := std.PrevRealm().Addr()
+	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Mint(address std.Address, amount uint64) {
+	caller := std.PrevRealm().Addr()
+	assertIsAdmin(caller)
+
+	if err := mytoken.Mint(address, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Burn(address std.Address, amount uint64) {
+	caller := std.PrevRealm().Addr()
+	assertIsAdmin(caller)
+
+	if err := mytoken.Burn(address, amount); err != nil {
+		panic(err)
+	}
+}
+
+func assertIsAdmin(address std.Address) {
+	if address != admin {
+		panic("restricted access")
+	}
+}
+
+func Render(path string) string {
+	parts := strings.Split(path, "/")
+	c := len(parts)
+
+	switch {
+	case path == "":
+		return mytoken.RenderHome()
+	case c == 2 && parts[0] == "balance":
+		owner := std.Address(parts[1])
+		balance, _ := mytoken.BalanceOf(owner)
+		return ufmt.Sprintf("%d\n", balance)
+	default:
+		return "404\n"
+	}
 }
 ```
 
@@ -58,65 +147,96 @@ The following section will be about introducing Public functions to expose funct
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
+package leon_token
+
+import (
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
+	"std"
+	"strings"
+)
+
+var (
+	mytoken *grc20.AdminToken
+	admin   std.Address
+)
+
+// init is called once at time of deployment
+func init() {
+	// set admin as deployer
+	admin = std.PrevRealm().Addr()
+
+	// provision the token's name, symbol and number of decimals
+	mytoken = grc20.NewAdminToken("Leon Token", "LEON", 4)
+
+	// mint 1 million tokens to admin
+	mytoken.Mint(admin, 1000000*10000)
+}
+
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
 
-func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := mytoken.BalanceOf(owner.Resolve())
+func BalanceOf(account std.Address) uint64 {
+	balance, err := mytoken.BalanceOf(account)
 	if err != nil {
 		panic(err)
 	}
+
 	return balance
 }
 
-func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := mytoken.Allowance(owner.Resolve(), spender.Resolve())
+func Allowance(owner, spender std.Address) uint64 {
+	allowance, err := mytoken.Allowance(owner, spender)
 	if err != nil {
 		panic(err)
 	}
+
 	return allowance
 }
 
-func Transfer(to users.AddressOrName, amount uint64) {
+func Transfer(recipient std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.Transfer(caller, to.Resolve(), amount)
-	if err != nil {
+	if err := mytoken.Transfer(caller, recipient, amount); err != nil {
 		panic(err)
 	}
 }
 
-func Approve(spender users.AddressOrName, amount uint64) {
+func Approve(spender std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.Approve(caller, spender.Resolve(), amount)
-	if err != nil {
+	if err := mytoken.Approve(caller, spender, amount); err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to users.AddressOrName, amount uint64) {
+func TransferFrom(from, to std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
-	if err != nil {
+	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
 		panic(err)
 	}
 }
 
-func Mint(address users.AddressOrName, amount uint64) {
+func Mint(address std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := mytoken.Mint(address.Resolve(), amount)
-	if err != nil {
+
+	if err := mytoken.Mint(address, amount); err != nil {
 		panic(err)
 	}
 }
 
-func Burn(address users.AddressOrName, amount uint64) {
+func Burn(address std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := mytoken.Burn(address.Resolve(), amount)
-	if err != nil {
+
+	if err := mytoken.Burn(address, amount); err != nil {
 		panic(err)
+	}
+}
+
+func assertIsAdmin(address std.Address) {
+	if address != admin {
+		panic("restricted access")
 	}
 }
 
@@ -128,17 +248,11 @@ func Render(path string) string {
 	case path == "":
 		return mytoken.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := users.AddressOrName(parts[1])
-		balance, _ := mytoken.BalanceOf(owner.Resolve())
+		owner := std.Address(parts[1])
+		balance, _ := mytoken.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
-	}
-}
-
-func assertIsAdmin(address std.Address) {
-	if address != admin {
-		panic("restricted access")
 	}
 }
 ```
