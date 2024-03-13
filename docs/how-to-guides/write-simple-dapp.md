@@ -12,7 +12,7 @@ YAY or NAY for any poll that has not exceeded the voting deadline.
 
 ## Prerequisites
 
-- **Text editor**
+- **Internet connection**
 
 ## Defining dApp functionality
 
@@ -77,12 +77,12 @@ func NewPoll(title, description string, deadline int64) *Poll {
 
 // Vote Votes for a user
 func (p *Poll) Vote(voter std.Address, vote bool) {
-	p.Voters().Set(string(voter), vote)
+	p.Voters().Set(voter.String(), vote)
 }
 
 // HasVoted vote: yes - true, no - false
 func (p *Poll) HasVoted(address std.Address) (bool, bool) {
-	vote, exists := p.Voters().Get(string(address))
+	vote, exists := p.Voters().Get(address.String())
 	if exists {
 		return true, vote.(bool)
 	}
@@ -107,12 +107,12 @@ A few remarks:
 
 - We are using the `std` library for accessing blockchain-related functionality and types, such as `std.Address`.
 - Since the `map` data type is not deterministic in Go, we need to use the AVL tree structure, defined
-  under `p/demo/avl`.
+  under `gno.land/p/demo/avl`.
   It behaves similarly to a map; it maps a key of type `string` onto a value of any type - `interface{}`.
 - We are importing the `p/demo/avl` package directly from on-chain storage, which can be accessed through the
   path `gno.land/`.
   As of October 2023, you can find already-deployed packages & libraries which provide additional Gno functionality in
-  the [monorepo](https://github.com/gnolang/gno), under the `examples/gno.land` folder.
+  the [Gno monorepo](https://github.com/gnolang/gno), under the `examples/` folder.
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
@@ -138,52 +138,48 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/poll"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
 // state variables
 var (
 	polls         *avl.Tree // id -> Poll
-	pollIDCounter int
+	pollIDCounter seqid.ID
 )
 
 func init() {
 	polls = avl.NewTree()
-	pollIDCounter = 0
 }
 
 // NewPoll - Creates a new Poll instance
 func NewPoll(title, description string, deadline int64) string {
 	// get block height
 	if deadline <= std.GetHeight() {
-		return "Error: Deadline has to be in the future."
+		panic("deadline has to be in the future")
 	}
 
-	// convert int ID to string used in AVL tree
-	id := ufmt.Sprintf("%d", pollIDCounter)
+	// Generate int
+	id := pollIDCounter.Next().String()
 	p := poll.NewPoll(title, description, deadline)
 
 	// add new poll in avl tree
 	polls.Set(id, p)
-
-	// increment ID counter
-	pollIDCounter = pollIDCounter + 1
 
 	return ufmt.Sprintf("Successfully created poll #%s!", id)
 }
 
 // Vote - vote for a specific Poll
 // yes - true, no - false
-func Vote(pollID int, vote bool) string {
+func Vote(id string, vote bool) string {
 	// get txSender
 	txSender := std.GetOrigCaller()
 
-	id := ufmt.Sprintf("%d", pollID)
 	// get specific Poll from AVL tree
 	pollRaw, exists := polls.Get(id)
 
 	if !exists {
-		return "Error: Poll with specified doesn't exist."
+		panic("poll with specified doesn't exist")
 	}
 
 	// cast Poll into proper format
@@ -191,11 +187,11 @@ func Vote(pollID int, vote bool) string {
 
 	voted, _ := poll.HasVoted(txSender)
 	if voted {
-		return "Error: You've already voted!"
+		panic("you've already voted!")
 	}
 
 	if poll.Deadline() <= std.GetHeight() {
-		return "Error: Voting for this poll is closed."
+		panic("voting for this poll is closed")
 	}
 
 	// record vote
