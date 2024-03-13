@@ -101,7 +101,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
-		defaultDevOptions.verbose,
+		defaultDevOptions.minimal,
 		"do not load packages from examples directory",
 	)
 
