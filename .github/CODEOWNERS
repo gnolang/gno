@@ -3,10 +3,11 @@
 # Primary repo maintainers.
 *                             @gnolang/tech-staff
 
-# Tendermint2 (Gno version).
-/tm2/*                        @gnolang/tech-staff
-/tm2/pkg                      @jaekwon @piux2 @moul @zivkovicmilos
-/tm2/pkg/crypto               @jaekwon @moul @gnolang/security
+# Tendermint2.
+/tm2/                         @jaekwon @moul @piux2 @zivkovicmilos
+/tm2/pkg/crypto/              @jaekwon @moul @gnolang/security
+/tm2/pkg/crypto/keys/client/  @jaekwon @gnolang/security
+/tm2/pkg/db/                  @ajnavarro
 # TODO: add per package exceptions
 # ...
 
@@ -28,35 +29,44 @@
 /examples/gno.land/r/manfred/ @moul
 
 # Gno.land.
-/gno.land/                    @moul
-/gno.land/pkg/integration     @gfanton
+/gno.land/                    @moul @zivkovicmilos
+/gno.land/cmd/genesis/        @zivkovicmilos
+/gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
+/gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
+/gno.land/cmd/gnoweb/         @gfanton @thehowl
+/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn
+/gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
+/gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
+/gno.land/pkg/log/            @zivkovicmilos @gfanton
+/gno.land/pkg/sdk/vm/         @gfanton @thehowl
+/gno.land/pkg/integration/    @gfanton
+/gno.land/genesis/            @moul
 #...
 
 # GnoVM/Gnolang.
-/gnovm/                       @gnolang/tech-staff
-/gnovm/stdlibs                @jaekwon @thehowl
-/gnovm/tests                  @jaekwon @piux2 @thehowl @moul
-/gnovm/cmd/gno                @jaekwon @thehowl @harry-hov @moul
-/gnovm/pkg/gnolang            @jaekwon @piux2 @thehowl @moul
-/gnovm/pkg/doc                @thehowl
-/gnovm/pkg/gnomod             @harry-hov
-/gnovm/pkg/integration        @gfanton
-#/gnovm/pkg/gnoenv
-#/gnovm/pkg/repl
+/gnovm/                       @jaekwon @moul @piux2 @thehowl
+/gnovm/stdlibs/               @thehowl
+/gnovm/tests/                 @deelawn @thehowl
+/gnovm/cmd/gno/               @moul @thehowl @harry-hov
+/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
+/gnovm/pkg/doc/               @thehowl
+/gnovm/pkg/repl/              @mvertes @ajnavarro
+/gnovm/pkg/gnomod/            @harry-hov
+/gnovm/pkg/gnoenv/            @gfanton
+/gnovm/pkg/transpiler/        @thehowl
+/gnovm/pkg/integration/       @gfanton
 
 # Contribs
 /contribs/                    @gnolang/tech-staff
-/contribs/gnodev              @gfanton
-/contribs/gnokeykc            @moul
-/contribs/gnomd               @moul
-#...
+/contribs/gnodev/             @gfanton
+/contribs/gnokeykc/           @moul
+/contribs/gnomd/              @moul
 
 # Misc
 /misc/                        @gnolang/tech-staff
-/misc/loop                    @moul @gnolang/devops
-/misc/deployments             @moul @gnolang/devops
-/misc/genstd                  @thehowl
-#...
+/misc/loop/                   @moul @gnolang/devops
+/misc/deployments/            @moul @gnolang/devops
+/misc/genstd/                 @thehowl
 
 # Special files.
 /PLAN.md                      @jaekwon @moul
