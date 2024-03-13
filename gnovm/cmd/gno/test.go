@@ -47,7 +47,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the tests for the specified packages",
+			ShortHelp:  "runs the tests for the specified packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -105,7 +105,7 @@ instruction with the actual content of the test instead of failing.
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)
