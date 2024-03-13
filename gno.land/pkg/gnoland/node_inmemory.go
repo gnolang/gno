@@ -27,6 +27,21 @@ type InMemoryNodeConfig struct {
 	GenesisMaxVMCycles    int64
 }
 
+func (c *InMemoryNodeConfig) AddGenesisBalances(balances ...Balance) error {
+	var (
+		genesisState GnoGenesisState
+		ok           bool
+	)
+
+	if genesisState, ok = c.Genesis.AppState.(GnoGenesisState); !ok {
+		return fmt.Errorf("unexpected genesis app state type of %t", c.Genesis.AppState)
+	}
+
+	genesisState.Balances = append(genesisState.Balances, balances...)
+	c.Genesis.AppState = genesisState
+	return nil
+}
+
 // NewMockedPrivValidator generate a new key
 func NewMockedPrivValidator() bft.PrivValidator {
 	return bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)

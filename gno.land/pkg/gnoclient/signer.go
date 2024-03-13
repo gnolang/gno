@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -18,10 +19,11 @@ type Signer interface {
 
 // SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
-	Keybase  keys.Keybase // Stores keys in memory or on disk
-	Account  string       // Account name or bech32 format
-	Password string       // Password for encryption
-	ChainID  string       // Chain ID for transaction signing
+	Keybase  keys.Keybase   // Stores keys in memory or on disk
+	Account  string         // Account name
+	Address  crypto.Address // Account address
+	Password string         // Password for encryption
+	ChainID  string         // Chain ID for transaction signing
 }
 
 func (s SignerFromKeybase) Validate() error {
@@ -52,7 +54,7 @@ func (s SignerFromKeybase) Validate() error {
 }
 
 func (s SignerFromKeybase) Info() keys.Info {
-	info, err := s.Keybase.GetByNameOrAddress(s.Account)
+	info, err := s.Keybase.GetByNameOrAddress(s.Address.Bech32().String())
 	if err != nil {
 		panic("should not happen")
 	}

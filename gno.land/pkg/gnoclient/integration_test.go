@@ -1,19 +1,24 @@
 package gnoclient
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testChainID string = "tendermint_test"
 
 func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
@@ -22,7 +27,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	// Setup Client
@@ -65,7 +70,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	// Setup Client
@@ -109,6 +114,77 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
+func TestDylan_Integration(t *testing.T) {
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	keybase := keys.NewInMemory()
+	signerOne := newInMemorySigner(t, testChainID, keybase, 0)
+	signerTwo := newInMemorySigner(t, testChainID, keybase, 1)
+	config.AddGenesisBalances(
+		gnoland.Balance{
+			Address: signerTwo.Address,
+			Amount: std.Coins{
+				std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000000000,
+				},
+			},
+		},
+	)
+
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	clientOne := Client{
+		Signer:    signerOne,
+		RPCClient: rpcClient,
+	}
+	clientTwo := Client{
+		Signer:    signerTwo,
+		RPCClient: rpcClient,
+	}
+
+	type callRes struct {
+		result *core_types.ResultBroadcastTxCommit
+		err    error
+	}
+
+	resCh := make(chan callRes, 2)
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+
+	sendTx := func(client Client, accountNumber uint64) {
+		baseCfg := BaseTxCfg{
+			GasFee:         "10000ugnot",
+			GasWanted:      8000000,
+			AccountNumber:  accountNumber,
+			SequenceNumber: 0,
+			Memo:           "",
+		}
+
+		// Make Msg configs
+		msg := MsgCall{
+			PkgPath:  "gno.land/r/demo/deep/very/deep",
+			FuncName: "Render",
+			Args:     []string{""},
+			Send:     "",
+		}
+
+		res, err := client.Call(baseCfg, msg)
+		resCh <- callRes{result: res, err: err}
+		wg.Done()
+	}
+
+	go sendTx(clientOne, 0)
+	go sendTx(clientTwo, 1)
+	wg.Wait()
+	close(resCh)
+
+	for res := range resCh {
+		t.Log(res.result, res.err)
+	}
+}
+
 func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -116,7 +192,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	// Setup Client
@@ -164,7 +240,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	// Setup Client
@@ -220,7 +296,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	client := Client{
@@ -278,7 +354,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	defer node.Stop()
 
 	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
+	signer := defaultInMemorySigner(t, "tendermint_test")
 	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
 
 	client := Client{
@@ -355,20 +431,28 @@ func main() {
 // MsgCall with Send field populated (single/multiple)
 // MsgRun with Send field populated (single/multiple)
 
-func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
+func defaultInMemorySigner(t *testing.T, chainID string) *SignerFromKeybase {
+	t.Helper()
+
+	keybase := keys.NewInMemory()
+	return newInMemorySigner(t, chainID, keybase, 0)
+}
+
+func newInMemorySigner(t *testing.T, chainID string, keybase keys.Keybase, accountNumber uint32) *SignerFromKeybase {
 	t.Helper()
 
 	mnemonic := integration.DefaultAccount_Seed
 	name := integration.DefaultAccount_Name
-
-	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
-	require.NoError(t, err)
+	info, err := keybase.CreateAccount(name, mnemonic, "", "", accountNumber, uint32(0))
+	if err != nil {
+		t.Fatalf("unexpected error getting new signer: %v", err)
+	}
 
 	return &SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
+		Keybase:  keybase, // Stores keys in memory or on disk
 		Account:  name,    // Account name or bech32 format
+		Address:  info.GetAddress(),
 		Password: "",      // Password for encryption
-		ChainID:  chainid, // Chain ID for transaction signing
+		ChainID:  chainID, // Chain ID for transaction signing
 	}
 }
