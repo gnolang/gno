@@ -96,3 +96,35 @@ func Sprintf(format string, args ...interface{}) string {
 	}
 	return buf
 }
+
+// errMsg implements the error interface.
+type errMsg struct {
+	msg string
+}
+
+// Error defines the requirements of the error interface.
+// It functions similarly to Go's errors.New()
+func (e *errMsg) Error() string {
+	return e.msg
+}
+
+// Errorf is a function that mirrors the functionality of fmt.Errorf.
+//
+// It takes a format string and arguments to create a formatted string,
+// then sets this string as the 'msg' field of an errMsg struct and returns a pointer to this struct.
+//
+// This function operates in a similar manner to Go's fmt.Errorf,
+// providing a way to create formatted error messages.
+//
+// The currently formatted verbs are the following:
+//
+//	%s: places a string value directly.
+//	    If the value implements the interface interface{ String() string },
+//	    the String() method is called to retrieve the value.
+//	%d: formats an integer value using package "strconv".
+//	    Currently supports only uint, uint64, int, int64.
+//	%t: formats a boolean value to "true" or "false".
+//	%%: outputs a literal %. Does not consume an argument.
+func Errorf(format string, args ...interface{}) error {
+	return &errMsg{Sprintf(format, args...)}
+}
