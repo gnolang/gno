@@ -18,7 +18,7 @@ var (
 )
 
 /** 
-* generates the composite NFT for the player, with a canvas havong cWidth and cHeight, and tokenIds
+* generates the composite NFT for the player, with a canvas having cWidth and cHeight, and tokenIds
 * in an array "[1,7,3,8]""
 */
 func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) (string, string) {
@@ -26,6 +26,53 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	nftError := ""
 	bTokenIDs, perr := ParseString(bTokenIDsArray)
 
+	// add checks for cWidth, cHeight (enforce canvas size based on number of existing basicNFTs)
+	// 50 / 2 x 2 - 100 / 3 x 3 - 400 / 4 x 4 - 600 / 5 x 5 - 800 / 6 x 6 - 1000 / 7 x 7 - 1200 / 8 x 8 
+	// custom error messages
+
+	totalAvailableBasicNFTs := GetTotalAvailableBasicNFTs()
+	
+	intWidth, werr := strconv.Atoi(cWidth)
+	if werr != nil {
+		return "", "not a valid integer representation for canvas width"
+	}
+
+	intHeight, herr := strconv.Atoi(cWidth)
+	if herr != nil {
+		return "", "not a valid integer representation for canvas height"
+	}
+
+	if totalAvailableBasicNFTs <= 50 {
+		if intHeight != 2 && intWidth != 2 {
+			return "", "invalid canvas widht and height for under 50 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 50 && totalAvailableBasicNFTs <= 100 {
+		if intHeight != 3 && intWidth != 3 {
+			return "", "invalid canvas widht and height for under 100 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 100 && totalAvailableBasicNFTs <= 400 {
+		if intHeight != 4 && intWidth != 4 {
+			return "", "invalid canvas widht and height for under 400 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 400 && totalAvailableBasicNFTs <= 600 {
+		if intHeight != 5 && intWidth != 5 {
+			return "", "invalid canvas widht and height for under 600 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 600 && totalAvailableBasicNFTs <= 800 {
+		if intHeight != 6 && intWidth != 6 {
+			return "", "invalid canvas widht and height for under 800 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 800 && totalAvailableBasicNFTs <= 1000 {
+		if intHeight != 7 && intWidth != 7 {
+			return "", "invalid canvas widht and height for under 800 available basic NFTs"
+		}
+	} else if totalAvailableBasicNFTs > 1000 {
+		if intHeight != 8 && intWidth != 8 {
+			return "", "invalid canvas widht and height for over 1000 available basic NFTs"
+		}
+	}
+
+	
 	count := flipCompositeNFT.TokenCount()
 	compositeNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(compositeNFTtokenIDCounter, 10)

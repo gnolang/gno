@@ -252,6 +252,10 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 	return string(userNFTs)
 }
 
+func GetTotalAvailableBasicNFTs() int {
+	return lockedNFTs.Size()
+}
+
 func GetAllUnlockedNFTs() int {
 	tokenCount := flipBasicNFT.TokenCount()
 	lockedNFTs := lockedNFTs.Size()
