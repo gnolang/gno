@@ -52,7 +52,7 @@ type serveCfg struct {
 	listenAddress string
 	chainID       string
 	mnemonic      string
-	sendAmount    string
+	maxSendAmount string
 	numAccounts   uint64
 
 	remote string
@@ -114,10 +114,10 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.sendAmount,
-		"send",
+		&c.maxSendAmount,
+		"max-send-amount",
 		"1000000ugnot",
-		"the static send amount (native currency)",
+		"the static max send amount (native currency)",
 	)
 
 	fs.StringVar(
@@ -144,7 +144,7 @@ func (c *serveCfg) generateFaucetConfig() *config.Config {
 	cfg.ListenAddress = c.listenAddress
 	cfg.ChainID = c.chainID
 	cfg.Mnemonic = c.mnemonic
-	cfg.SendAmount = c.sendAmount
+	cfg.MaxSendAmount = c.maxSendAmount
 	cfg.NumAccounts = c.numAccounts
 
 	return cfg
@@ -163,7 +163,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	}
 
 	// Parse the send amount
-	_, err = std.ParseCoins(cfg.sendAmount)
+	_, err = std.ParseCoins(cfg.maxSendAmount)
 	if err != nil {
 		return fmt.Errorf("invalid send amount, %w", err)
 	}
