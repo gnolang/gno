@@ -9,6 +9,8 @@ import (
 	"github.com/peterbourgon/ff/v3/fftoml"
 )
 
+const flagConfigFlag = "flag-config-path"
+
 func main() {
 	cmd := newRootCmd(commands.NewDefaultIO())
 
@@ -21,7 +23,7 @@ func newRootCmd(io commands.IO) *commands.Command {
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			ShortHelp:  "starts the gnoland blockchain node",
 			Options: []ff.Option{
-				ff.WithConfigFileFlag("config"),
+				ff.WithConfigFileFlag(flagConfigFlag),
 				ff.WithConfigFileParser(fftoml.Parser),
 			},
 		},
@@ -31,6 +33,7 @@ func newRootCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newStartCmd(io),
+		newConfigCmd(io),
 	)
 
 	return cmd
