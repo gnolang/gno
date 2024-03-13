@@ -103,6 +103,8 @@ func (p Poll) VoteCount() (int, int) {
 }
 ```
 
+View this code in the Playground [here](https://play.gno.land/p/H-fLjDfLjd9).
+
 A few remarks:
 
 - We are using the `std` library for accessing blockchain-related functionality and types, such as `std.Address`.
@@ -288,6 +290,8 @@ func Render(path string) string {
 	return b.String()
 }
 ```
+
+View this code in the Playground [here](https://play.gno.land/p/4FzhuB6dyVM).
 
 ## Conclusion
 
