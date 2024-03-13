@@ -47,7 +47,6 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/teritori/modboards"]
 // u[6d199dd1e49fa6f6555549f00e31be781730334c:106]={
 //     "Fields": [
@@ -984,12 +983,6 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/demo/teritori/modboards"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
