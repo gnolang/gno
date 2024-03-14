@@ -1203,6 +1203,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			if ftv.IsUndefined() {
 				continue
 			}
+
+			// Skip unexported field
+			if rt.Field(i).PkgPath != "" {
+				continue
+			}
+
 			gno2GoValue(ftv, rv.Field(i))
 		}
 	case *MapType:
