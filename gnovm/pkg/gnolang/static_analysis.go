@@ -62,13 +62,13 @@ func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
 		hasRet: false,
 		f:      f,
 	})
-	Allterm, isLastRet := s.staticAnalysisFuncBlockStmt(f.Body)
+	term := s.staticAnalysisBlockStmt(f.Body)
 
 	//todo use later maybe?
 	_ = s.popFuncContext().(*FuncDeclContext)
 
 	errs := make([]error, 0)
-	if !isLastRet && !Allterm {
+	if !term {
 		errs = append(errs, errors.New(fmt.Sprintf("function %+v: does not terminate", f.Name)))
 	}
 
@@ -77,48 +77,11 @@ func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
 	return errs
 }
 
-func (s *StaticAnalysis) staticAnalysisFuncBlockStmt(stmts []Stmt) (bool, bool) {
-	termResults := make([]bool, len(stmts))
-
-	for i, stmt := range stmts {
-		terminates, relevant := s.staticAnalysisStmt(stmt)
-		if !relevant {
-			continue
-		}
-
-		termResults[i] = terminates
-	}
-
-	var isLastTerm bool
-
-	if len(termResults) > 0 {
-		isLastTerm = termResults[len(termResults)-1]
-	}
-
-	allTerminate := len(termResults) > 0
-
-	for _, r := range termResults {
-		if !r {
-			allTerminate = false
-			break
-		}
-	}
-
-	return allTerminate, isLastTerm
-}
-
 func (s *StaticAnalysis) staticAnalysisBlockStmt(stmts []Stmt) bool {
-	for _, stmt := range stmts {
-		terminates, relevant := s.staticAnalysisStmt(stmt)
-		if !relevant {
-			continue
-		}
-
-		if !terminates {
-			return false
-		}
+	if len(stmts) > 0 {
+		return s.staticAnalysisStmt(stmts[len(stmts)-1])
 	}
-	return len(stmts) > 0
+	return false
 }
 
 func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
@@ -136,10 +99,10 @@ func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
 			hasRet: false,
 			f:      n,
 		})
-		Allterm, isLastRet := s.staticAnalysisFuncBlockStmt(n.Body)
+		term := s.staticAnalysisBlockStmt(n.Body)
 		ctx := s.popFuncContext().(*FuncLitContext)
 
-		if !isLastRet && !Allterm {
+		if !term {
 			s.lambdaErrs = append(s.lambdaErrs, errors.New(fmt.Sprintf("lambda at %v does not terminate\n", ctx.f.Loc)))
 		}
 		return false, false
@@ -151,7 +114,7 @@ func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
 
 // staticAnalysisStmt returns a boolean value,
 // indicating weather a statement is terminating or not
-func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
+func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 	switch n := stmt.(type) {
 	case *BranchStmt:
 		switch n.Op {
@@ -163,7 +126,7 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
 		case DEFAULT:
 			//
 		case FALLTHROUGH:
-			return true, true
+			return true
 		}
 	case *IfStmt:
 		terminates := s.staticAnalysisBlockStmt(n.Then.Body)
@@ -173,7 +136,7 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
 			elseTerminates = s.staticAnalysisBlockStmt(n.Else.Body)
 		}
 
-		return terminates && elseTerminates, true
+		return terminates && elseTerminates
 	case *ForStmt:
 		s.pushContext(&ForContext{forstmt: n})
 		_ = s.staticAnalysisBlockStmt(n.Body)
@@ -193,25 +156,23 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
 		terminates := hasNoBreaks && hasNoCond && !hasRange
 
 		if !terminates {
-			return false, true
+			return false
 		}
 
-		return true, true
+		return true
 	//for statement
 	case *ReturnStmt:
 		//n.Results
-		return true, true
+		return true
 	case *AssignStmt:
 		for _, rh := range n.Rhs {
 			term, is := s.staticAnalysisExpr(rh)
 
 			if is && !term {
-				return true, true
+				return true
 			}
 		}
-		return false, false
-	case *PanicStmt:
-		return true, true
+		return false
 	case *SwitchStmt:
 		//there is a default case, and
 		var hasDefault bool
@@ -243,14 +204,14 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) (bool, bool) {
 		terminates := hasNoBreaks && hasDefault && casesTerm
 
 		if !terminates {
-			return false, true
+			return false
 		}
 
-		return true, true
-	case *ExprStmt:
-		//
+		return true
+	case *PanicStmt:
+		return true
 	}
-	return false, true
+	return false
 }
 
 type FuncContext interface {
