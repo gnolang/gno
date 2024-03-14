@@ -98,7 +98,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // are only called during the preprocessing stage.
 // It is a counter because Preprocess() is recursive.
 var preprocessing int
-var AssignableCheckCache *AssignabilityCache
 
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
@@ -123,7 +122,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		preprocessing += 1
 		defer func() {
 			preprocessing -= 1
-			AssignableCheckCache = nil
 		}()
 	}
 
@@ -769,7 +767,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return resn, TRANS_CONTINUE
 					}
 				} else {
-					n.AssertCompatible(lt, rt)
+					n.AssertCompatible(store, lt, rt)
 				}
 
 				// General case.
@@ -1350,7 +1348,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *UnaryExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 
-				n.AssertCompatible(store, last, xt, nil, nil)
+				n.AssertCompatible(xt, nil)
 
 				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
@@ -1767,7 +1765,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							panic("should not happen")
 						}
 					} else {
-						// TODO: should also check assign with checkAssignableTo, like var e error, e = 1
 						n.AssertCompatible(store, last)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
@@ -2476,9 +2473,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	}
+	// pop up to preprocess to handle
 	defer func() {
 		if r := recover(); r != nil {
-			debug.Printf("---recover in checkOrConvertType, r: %v \n", r)
 			panic(r)
 		}
 	}()
@@ -2491,7 +2488,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=).
 				// we still need a safeguard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
 				// this is for binaryExpr that assignable has already been checked and cached
-				if AssignableCheckCache != nil && AssignableCheckCache.Exists(*x, t) {
+				if store.AssertAssignableExists(*x, t) {
 					debug.Printf("---assignable already set for: %v => %v \n", cx, t)
 				} else {
 					// still need for non-binary, like arg
@@ -2514,6 +2511,9 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		//lt := evalStaticTypeOf(store, last, bx.Left)
 		//rt := evalStaticTypeOf(store, last, bx.Right)
 		// going to check if shift expr is compatible with type from outer context
+
+		// used to check compatible rather than check on a converted type(default type)
+		// e.g. 1.0 % 2, should show err msg of  bigDecKind not the float32Kind
 		var originType Type
 		if _, ok := t.(*InterfaceType); ok || t == nil {
 			if isUntyped(xt) {
@@ -2580,8 +2580,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			}
 		}
 		if coerce || !coerce && isUntyped(xt) {
-			uxt := evalStaticTypeOf(store, last, ux.X)
-			ux.AssertCompatible(store, last, uxt, xt, t)
+			ux.AssertCompatible(xt, t)
 			// recursively check leaf node
 			checkOrConvertType(store, last, &ux.X, t, autoNative, coerce)
 			debug.Printf("---after checkOrConvertType for unaryExpr, ux: %v \n", ux)
