@@ -125,6 +125,34 @@ func ListKeywordPostsByOffset(keyword string, offset, limit int) string {
 	return postsToJSONString(pl)
 }
 
+func ListPostLikedBy(id uint64, offset, limit int) string {
+	post := getPostRef(id)
+
+	var ul []User
+	count := 0
+	limit = offset + limit
+	for i := len(post.LikedBy) - 1; i >= 0; i-- {
+		count++
+		if count <= offset {
+			continue
+		}
+		if count > limit {
+			break
+		}
+
+		u, ok := users.Get(post.LikedBy[i])
+		if !ok {
+			continue
+		}
+
+		user := *u.(*User)
+
+		ul = append(ul, user)
+	}
+
+	return usersToJsonString(ul)
+}
+
 // Trending
 
 func GetTrending() string {

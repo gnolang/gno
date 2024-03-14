@@ -8,6 +8,28 @@ import (
 
 // User
 
+func usersToJsonString(users []User) string {
+	var b bytes.Buffer
+
+	// Write the starting bracket for the array
+	b.WriteString(`[`)
+
+	// Iterate over each user and append its JSON representation
+	for i, user := range users {
+		b.WriteString(userToJSONString(user))
+
+		// Add a comma if it's not the last element
+		if i < len(users)-1 {
+			b.WriteString(`,`)
+		}
+	}
+
+	// Write the closing bracket for the array
+	b.WriteString(`]`)
+
+	return b.String()
+}
+
 func userToJSONString(user User) string {
 	var b bytes.Buffer
 
@@ -119,7 +141,7 @@ func postToJSONString(post Post) string {
 		if i > 0 {
 			b.WriteString(`,`)
 		}
-		b.WritesString(`"`)
+		b.WriteString(`"`)
 		b.WriteString(un)
 		b.WriteString(`"`)
 	}
