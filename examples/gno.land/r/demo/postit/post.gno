@@ -1,6 +1,7 @@
 package postit
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -11,9 +12,18 @@ type Post struct {
 	Body       string
 	Attachment string // base64
 
+	LikedBy  []string
 	Comments []Comment
 
 	CreatedAt time.Time
+}
+
+func getPostRef(id uint64) *Post {
+	res, ok := posts.Get(strconv.FormatUint(id, 10))
+	if !ok {
+		panic("post not found")
+	}
+	return res.(*Post)
 }
 
 func setPostCount(count uint64) {
