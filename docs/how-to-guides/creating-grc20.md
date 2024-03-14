@@ -29,7 +29,7 @@ package mytoken
 
 import (
 	"gno.land/p/demo/grc/grc20"
-    "gno.land/p/demo/ufmt"
+	"gno.land/p/demo/ufmt"
 	"std"
 )
 

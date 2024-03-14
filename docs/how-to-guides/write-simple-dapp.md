@@ -136,6 +136,7 @@ The realm will contain the following functionality:
 package poll
 
 import (
+    "bytes"
 	"std"
 
 	"gno.land/p/demo/avl"
