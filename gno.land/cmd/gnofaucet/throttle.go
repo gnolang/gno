@@ -6,46 +6,59 @@ import (
 	"net/netip"
 	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 const (
-	maxRequestsPerIP = uint64(5)
+	maxRequestsPerMinute = 5
+
+	defaultCleanTimeout      = time.Minute * 3
+	defaultRateLimitInterval = time.Minute / maxRequestsPerMinute
 )
 
 var errInvalidNumberOfRequests = errors.New("invalid number of requests")
 
-type requestMap map[netip.Addr]uint64
+type client struct {
+	limiter *rate.Limiter
+	seen    time.Time
+}
 
-// iterate ranges over the request map
-func (r requestMap) iterate(cb func(key netip.Addr, value uint64)) {
+type requestMap map[netip.Addr]*client
+
+// iterate ranges over the request map (NOT thread safe)
+func (r requestMap) iterate(cb func(key netip.Addr, value *client)) {
 	for ip, requests := range r {
 		cb(ip, requests)
 	}
 }
 
 type ipThrottler struct {
-	throttleTimeout time.Duration
-	requestMap      requestMap
+	cleanupInterval   time.Duration
+	rateLimitInterval time.Duration
+
+	requestMap requestMap
 
 	sync.Mutex
 }
 
 // newIPThrottler creates a new ip throttler
-func newIPThrottler(duration time.Duration) *ipThrottler {
+func newIPThrottler(rateLimitInterval, cleanupInterval time.Duration) *ipThrottler {
 	return &ipThrottler{
-		throttleTimeout: duration,
-		requestMap:      make(requestMap),
+		cleanupInterval:   cleanupInterval,
+		rateLimitInterval: rateLimitInterval,
+		requestMap:        make(requestMap),
 	}
 }
 
-// start starts the throttle routine
+// start starts the throttle cleanup service
 func (st *ipThrottler) start(ctx context.Context) {
-	go st.runThrottler(ctx)
+	go st.runCleanup(ctx)
 }
 
-// runThrottler runs the main ip throttle loop
-func (st *ipThrottler) runThrottler(ctx context.Context) {
-	ticker := time.NewTicker(st.throttleTimeout)
+// runCleanup runs the main ip throttle cleanup loop
+func (st *ipThrottler) runCleanup(ctx context.Context) {
+	ticker := time.NewTicker(st.cleanupInterval)
 
 	for {
 		select {
@@ -54,17 +67,14 @@ func (st *ipThrottler) runThrottler(ctx context.Context) {
 		case <-ticker.C:
 			st.Lock()
 
-			// Reset the individual subnet counters
-			st.requestMap.iterate(func(ip netip.Addr, requests uint64) {
-				newVal := requests / 2
-
-				if newVal == 0 {
-					delete(st.requestMap, ip)
-
+			// Clean up stale requests
+			st.requestMap.iterate(func(ip netip.Addr, client *client) {
+				// Check if the request was last seen a while ago
+				if time.Since(client.seen) < st.cleanupInterval {
 					return
 				}
 
-				st.requestMap[ip] = newVal
+				delete(st.requestMap, ip)
 			})
 
 			st.Unlock()
@@ -77,16 +87,24 @@ func (st *ipThrottler) registerNewRequest(ip netip.Addr) error {
 	st.Lock()
 	defer st.Unlock()
 
-	// Get the request count for the address, if any
-	requests := st.requestMap[ip]
+	// Get the client associated with the address, if any
+	c := st.requestMap[ip]
+	if c == nil {
+		c = &client{
+			limiter: rate.NewLimiter(rate.Every(st.rateLimitInterval), 5),
+			seen:    time.Now(),
+		}
+
+		st.requestMap[ip] = c
+	}
 
 	// Check if the IP exceeded the request count
-	if requests >= maxRequestsPerIP {
+	if !c.limiter.Allow() {
 		return errInvalidNumberOfRequests
 	}
 
-	// Update the request count
-	st.requestMap[ip] = requests + 1
+	// Update the last seen time
+	c.seen = time.Now()
 
 	return nil
 }

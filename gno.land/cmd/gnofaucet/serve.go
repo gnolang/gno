@@ -185,7 +185,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	)
 
 	// Start throttled faucet.
-	st := newIPThrottler(time.Minute)
+	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 	st.start(ctx)
 
 	// Prepare the middlewares

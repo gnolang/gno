@@ -44,6 +44,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require golang.org/x/time v0.5.0
+
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/gdamore/encoding v1.0.0 // indirect

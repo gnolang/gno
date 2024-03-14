@@ -21,10 +21,10 @@ func TestIPThrottler_RegisterNewRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the IP throttler
-		th := newIPThrottler(time.Second)
+		th := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 
 		// Register < max requests
-		for i := uint64(0); i < maxRequestsPerIP; i++ {
+		for i := uint64(0); i < maxRequestsPerMinute; i++ {
 			assert.NoError(t, th.registerNewRequest(addr))
 		}
 	})
@@ -36,10 +36,10 @@ func TestIPThrottler_RegisterNewRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the IP throttler
-		th := newIPThrottler(time.Second)
+		th := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 
 		// Register max requests
-		for i := uint64(0); i < maxRequestsPerIP; i++ {
+		for i := uint64(0); i < maxRequestsPerMinute; i++ {
 			assert.NoError(t, th.registerNewRequest(addr))
 		}
 
@@ -48,21 +48,21 @@ func TestIPThrottler_RegisterNewRequest(t *testing.T) {
 	})
 }
 
-func TestIPThrottler_RequestsHalved(t *testing.T) {
+func TestIPThrottler_RequestsThrottled(t *testing.T) {
 	t.Parallel()
 
 	var (
-		throttleDuration = time.Millisecond * 100
+		cleanupInterval = time.Millisecond * 100
 
-		requestInterval = 5 * throttleDuration // requests triggered after ~5 wipes
-		numRequests     = maxRequestsPerIP * 2 // number of request loops
+		requestInterval = 3 * cleanupInterval      // requests triggered after ~5 cleans
+		numRequests     = maxRequestsPerMinute * 2 // number of request loops
 	)
 
 	addr, err := netip.ParseAddr("127.0.0.1")
 	require.NoError(t, err)
 
 	// Create the IP throttler
-	th := newIPThrottler(throttleDuration)
+	th := newIPThrottler(defaultRateLimitInterval, cleanupInterval)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
@@ -78,7 +78,7 @@ func TestIPThrottler_RequestsHalved(t *testing.T) {
 		defer wg.Done()
 
 		var (
-			requestsSent = uint64(0)
+			requestsSent = 0
 			ticker       = time.NewTicker(requestInterval)
 		)
 
@@ -88,11 +88,11 @@ func TestIPThrottler_RequestsHalved(t *testing.T) {
 				return
 			case <-ticker.C:
 				// Fill out the request count for the address
-				for i := uint64(0); i < maxRequestsPerIP; i++ {
+				for i := uint64(0); i < maxRequestsPerMinute; i++ {
 					require.NoError(t, th.registerNewRequest(addr))
 				}
 
-				requestsSent += maxRequestsPerIP
+				requestsSent += maxRequestsPerMinute
 
 				if requestsSent == numRequests {
 					// Loops done
