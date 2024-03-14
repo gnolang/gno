@@ -9,18 +9,24 @@ const sidebars = {
             label: 'Getting Started',
             link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
-                'getting-started/local-setup',
-                'getting-started/working-with-key-pairs',
                 {
-                    type: 'category',
-                    label: 'Setting up Funds',
+                    type: "category",
+                    label: 'Using Gno Playground',
                     items: [
-                        'getting-started/setting-up-funds/premining-balances',
-                        'getting-started/setting-up-funds/running-a-faucet',
+                        'getting-started/playground/start',
                     ]
                 },
-                'getting-started/setting-up-a-local-chain',
-                'getting-started/browsing-gno-source-code',
+                {
+                 type: "category",
+                 label: 'Local Setup',
+                    items: [
+                        'getting-started/local-setup/local-setup',
+                        'getting-started/local-setup/working-with-key-pairs',
+                        'getting-started/local-setup/premining-balances',
+                        'getting-started/local-setup/setting-up-a-local-chain',
+                        'getting-started/local-setup/browsing-gno-source-code',
+                    ]
+                },
             ],
         },
         {
