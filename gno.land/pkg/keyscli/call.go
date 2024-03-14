@@ -68,13 +68,6 @@ func (c *MakeCallCfg) RegisterFlags(fs *flag.FlagSet) {
 		"args",
 		"arguments to contract",
 	)
-
-	fs.StringVar(
-		&c.Request,
-		"request",
-		"",
-		"arguments to contract",
-	)
 }
 
 func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
@@ -125,12 +118,11 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
-		Caller:      caller,
-		Send:        send,
-		PkgPath:     cfg.PkgPath,
-		Func:        fnc,
-		Args:        cfg.Args,
-		JSONRequest: []byte(cfg.Request),
+		Caller:  caller,
+		Send:    send,
+		PkgPath: cfg.PkgPath,
+		Func:    fnc,
+		Args:    cfg.Args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

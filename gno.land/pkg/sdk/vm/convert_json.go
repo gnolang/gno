@@ -1,8 +1,6 @@
 package vm
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -39,7 +37,6 @@ func UnmarshalNativeValueJSON(b []byte, t gno.Type) (*gno.TypedValue, error) {
 }
 
 func MarshalJSON(tv *gno.TypedValue) ([]byte, error) {
-	fmt.Println("ret tv:", tv)
 	rv := gnolang.Gno2GoValue(tv, reflect.Value{})
-	return json.Marshal(rv.Interface())
+	return amino.Marshal(rv.Interface())
 }
