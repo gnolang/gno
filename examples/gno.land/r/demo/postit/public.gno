@@ -84,4 +84,17 @@ func CreatePost(body, attachment string) string {
 	return strId
 }
 
-// Test (To be removed)
+func LikePost(id uint64) {
+	caller := std.PrevRealm().Addr()
+	user := getUserRefByAddress(caller)
+
+	post := getPostRef(id)
+
+	for _, un := range post.LikedBy {
+		if un == user.Username {
+			panic("already liked")
+		}
+	}
+
+	post.LikedBy = append(post.LikedBy, user.Username)
+}
