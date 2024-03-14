@@ -87,11 +87,15 @@ func CreatePost(body, attachment string) string {
 	return strId
 }
 
-func LikePost(id uint64) {
+func LikePost(id string) {
 	caller := std.PrevRealm().Addr()
 	user := getUserRefByAddress(caller)
 
-	post := getPostRef(id)
+	res, ok := posts.Get(id)
+	if !ok {
+		panic("post not found")
+	}
+	post := res.(*Post)
 
 	for _, un := range post.LikedBy {
 		if un == user.Username {
