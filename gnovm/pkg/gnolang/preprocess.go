@@ -167,7 +167,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.New(fmt.Sprintf("%s: %v", loc.String(), r))
+					err = fmt.Errorf("%s: %v", loc.String(), r)
 				}
 
 				// Re-throw the error after wrapping it with the preprocessing stack information.
@@ -2900,7 +2900,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 				panic(errors.Wrap(rerr, loc.String()))
 			} else {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+				panic(fmt.Errorf("%s: %v", loc.String(), r))
 			}
 		}
 	}()
