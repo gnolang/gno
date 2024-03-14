@@ -108,10 +108,22 @@ func postToJSONString(post Post) string {
 	b.WriteString(post.Body)
 	b.WriteString(`"`)
 
-	// Write Body field
+	// Write Attachment field
 	b.WriteString(`,"Attachment":"`)
 	b.WriteString(post.Attachment)
 	b.WriteString(`"`)
+
+	// Write LikedBy field
+	b.WriteString(`,"LikedBy":[`)
+	for i, un := range post.LikedBy {
+		if i > 0 {
+			b.WriteString(`,`)
+		}
+		b.WritesString(`"`)
+		b.WriteString(un)
+		b.WriteString(`"`)
+	}
+	b.WriteString(`]`)
 
 	// Write Timestamp field
 	b.WriteString(`,"CreatedAt":"`)
