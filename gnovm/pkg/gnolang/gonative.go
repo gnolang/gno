@@ -975,6 +975,7 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		}
 		return gno2GoTypeMatches(ct.Elt, rt.Elem())
 	case *StructType:
+		//debug.Println("---struct type")
 		// TODO maybe consider automatically skipping private native fields?
 		for i, field := range ct.Fields {
 			rft := rt.Field(i).Type

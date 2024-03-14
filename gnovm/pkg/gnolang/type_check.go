@@ -212,27 +212,8 @@ func assertAssignable(lt, rt Type) {
 		// TODO: make another function
 		// and remove this case?
 		println("4")
-	} else if lt.Kind() == InterfaceKind &&
-		IsImplementedBy(lt, rt) { // TODO: consider this
-		// rt implements lt (and lt is nil interface).
-	} else if rt.Kind() == InterfaceKind &&
-		IsImplementedBy(rt, lt) { // TODO: consider this
-		println("5")
-		// lt implements rt (and rt is nil interface).
-	} else if nrt, ok := rt.(*NativeType); ok { // see 0f2, for native types
-		if gno2GoTypeMatches(lt, nrt.Type) {
-			println("6.1")
-		} else {
-			println("6.2")
-		}
-	} else if nlt, ok := lt.(*NativeType); ok {
-		if gno2GoTypeMatches(rt, nlt.Type) {
-			println("7.1")
-		} else {
-			println("7.2")
-		}
 	} else {
-		panic("---8")
+		//panic("---8")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -390,9 +371,11 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 						nidt.String()))
 				}
 			} else if xdt, ok := xt.(*DeclaredType); ok {
-				gno2GoTypeMatches(baseOf(xdt), ndt.Type)
-				debug.Println("---matches!")
-				return
+				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
+					return
+				} // not check against native interface
+				//debug.Println("---matches!")
+				//return
 			} else {
 				panic(fmt.Sprintf(
 					"unexpected type pair: cannot use %s as %s",
@@ -939,28 +922,6 @@ func isComparison(op Word) bool {
 
 func cmpSpecificity(t1, t2 Type) int {
 	debug.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
-
-	if nt1, ok := t1.(*NativeType); ok {
-		if nt1.Type.Kind() == reflect.Interface { // is interface
-			if nt1.Type.NumMethod() == 0 { // empty interface
-				return 1
-			} else if t2 != nil && t2.Kind() != InterfaceKind {
-				return 1
-			}
-		} else {
-			t1 = go2GnoType(nt1.Type) // if not interface, convert to gno type
-		}
-	} else if nt2, ok := t2.(*NativeType); ok {
-		if nt2.Type.Kind() == reflect.Interface { // is interface
-			if nt2.Type.NumMethod() == 0 {
-				return -1
-			} else if t1 != nil && t1.Kind() != InterfaceKind {
-				return -1
-			}
-		} else {
-			t2 = go2GnoType(nt2.Type)
-		}
-	}
 
 	if it1, ok := baseOf(t1).(*InterfaceType); ok {
 		if it1.IsEmptyInterface() {
