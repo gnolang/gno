@@ -685,7 +685,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 		}
 
 		switch bx.Op {
-		case ADD, SUB, MUL, QUO, REM, BAND, BOR, BAND_NOT, XOR, LAND, LOR:
+		case QUO, REM:
 			// special case of zero divisor
 			if isQuoOrRem(bx.Op) {
 				if rcx, ok := bx.Right.(*ConstExpr); ok {
