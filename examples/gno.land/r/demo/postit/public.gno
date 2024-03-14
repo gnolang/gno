@@ -60,6 +60,9 @@ func CreatePost(body, attachment string) string {
 		Body:       body,
 		Attachment: attachment,
 
+		LikedBy:  make([]string, 0),
+		Comments: make([]Comment, 0),
+
 		CreatedAt: time.Now(),
 	}
 	strId := strconv.FormatUint(post.Id, 10)
