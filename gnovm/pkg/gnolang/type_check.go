@@ -608,7 +608,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 // isFinal indicates whether it's first check or final check(this happens in checkOrConvertType)
 
 // XXX, is this logic only for this special case?
-func (bx *BinaryExpr) checkShiftExpr(dt Type, isFinal bool) {
+func (bx *BinaryExpr) checkShiftExpr(store Store, last BlockNode, dt Type, isFinal bool) {
 	debug.Printf("---checkShiftExpr: dt: %v, isFinal: %t \n", dt, isFinal)
 	var destKind interface{}
 	if dt != nil {
@@ -617,11 +617,17 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type, isFinal bool) {
 	if checker, ok := binaryChecker[bx.Op]; ok {
 		if !checker(dt) {
 			if !isFinal {
-				// just tag it for delayed determination
-				bx.SetAttribute(ATTR_DELAY, true)
-			} else {
-				panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
+				// see 10a01, 10a02.
+				if dt != nil && dt.Kind() == BigdecKind {
+					if lcx, ok := bx.Left.(*ConstExpr); ok {
+						if _, ok := bx.Right.(*ConstExpr); ok {
+							convertConst(store, last, lcx, BigintType)
+							return
+						}
+					}
+				}
 			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
 		}
 	} else {
 		panic("should not happen")

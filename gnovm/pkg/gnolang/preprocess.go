@@ -752,7 +752,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if isShift {
 					// check LHS type compatibility
 					// check compatible
-					n.checkShiftExpr(lt, false)
+					n.checkShiftExpr(store, last, lt, false)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType { // TODO: XXX, is it good for native?
 						// convert n.Right to (gno) uint type,
@@ -805,11 +805,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// Then, evaluate the expression.
-						if isShift {
-							if n.GetAttribute(ATTR_DELAY) == true { // only in this case not to eval const, namely, delayed
-								return n, TRANS_CONTINUE
-							}
-						}
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) { // left untyped const -> right not const
@@ -1080,29 +1075,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								break // quick forward
 							default:
 								checkOrConvertType(store, last, &n.Args[0], ct, false, true)
-								////// TODO: evalConst for already typed shift expr
-								//debug.Printf("len of n.Args: %v \n", len(n.Args))
-								//debug.Printf("before eval const n.Args[0]: %v \n", n.Args[0])
-								//_, lic := arg0.Left.(*ConstExpr)
-								//_, ric := arg0.Right.(*ConstExpr)
-								//if lic && ric {
-								//	n.Args[0] = evalConst(store, last, n.Args[0])
-								//}
-								//debug.Printf("after eval const n.Args[0]: %v \n", n.Args[0])
 							}
 						}
 					case *UnaryExpr:
 						debug.Println("---unary expr: ", arg0)
 						if isUntyped(at) {
 							checkOrConvertType(store, last, &n.Args[0], ct, false, true)
-							//_, xic := arg0.X.(*ConstExpr)
-							//debug.Printf("len of n.Args: %v \n", len(n.Args))
-							//debug.Println("---delay process unaryExpr")
-							//if xic {
-							//	debug.Printf("before eval const n.Args[0]: %v \n", n.Args[0])
-							//	//n.Args[0] = evalConst(store, last, n.Args[0])
-							//	//debug.Printf("after eval const n.Args[0]: %v \n", n.Args[0])
-							//}
 						} else {
 							debug.Printf("---unary, at is typed: %v \n", at)
 						}
@@ -2483,10 +2461,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
 
-		//lt := evalStaticTypeOf(store, last, bx.Left)
-		//rt := evalStaticTypeOf(store, last, bx.Right)
-		// going to check if shift expr is compatible with type from outer context
-
 		// used to check compatible rather than check on a converted type(default type)
 		// e.g. 1.0 % 2, should show err msg of  bigDecKind not the float32Kind
 		var originType Type
@@ -2499,7 +2473,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				originType = nil
 			} else {
 				//return // is x is typed and dest t is nil or interface type(even for type cast), do nothing.
-				bx.checkShiftExpr(xt, true)
+				bx.checkShiftExpr(store, last, xt, true)
 				// return?
 			}
 		} else {
@@ -2508,32 +2482,27 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 
 		debug.Printf("---origin type for untyped shift is: %v \n", originType)
 		debug.Printf("---dest type for untyped shift is: %v \n", t)
-		debug.Println("xt == nil? ", xt == nil)
 		// deal with binary expr(bx.Left), determine its type
 		if coerce || !coerce && isUntyped(xt) || xt == nil { // XXX, simplify?
 			// coerce mostly when explicitly conversion, type call, while arg is binary expr
 			// not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
-			// TODO: do we need this any more? since already checked before?
-			// NO, it's from callExpr and should checked recursively? huh?
 
-			// XXX, no need for this, already check assignable in checkOrConvertType
 			// check against dest type from outer context
-			//bx.AssertCompatible(t, t)
-			bx.checkShiftExpr(originType, true)
+			bx.checkShiftExpr(store, last, originType, true)
 			debug.Println("---going to eval delayed const shift expr")
 			// eval const for delayed shift expr
-			if _, ok := (*x).(*ConstExpr); !ok {
-				debug.Println("---not const")
-				_, lic := bx.Left.(*ConstExpr)
-				_, ric := bx.Right.(*ConstExpr)
-				if lic && ric {
-					*x = evalConst(store, last, *x)
-				}
+			debug.Println("---not const")
+			_, lic := bx.Left.(*ConstExpr)
+			_, ric := bx.Right.(*ConstExpr)
+			if lic && ric {
+				*x = evalConst(store, last, *x)
 			}
 			debug.Printf("---after eval, *x: %v \n", *x)
 
 			if _, ok := (*x).(*ConstExpr); ok {
-				//checkOrConvertType(store, last, x, t, autoNative, coerce)
+				// do nothing, in case like, uint64(-(1 << 2), leave it untyped bigint so that the outcome
+				// of -(1 << 2) after evalConst will be -4. if evalConst -(uint64(4)) will yield the
+				// complementary notation of uint64(-4).
 			} else {
 				// "push" expected type into shift binary's left operand.
 				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
@@ -2596,9 +2565,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 					BAND_NOT, LAND, LOR:
 					// push t into bx.Left and bx.Right, recursively
-					//checkOperandWithOp(store, last, &bx.Left, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
-					//checkOperandWithOp(store, last, &bx.Right, t, bx.Op, Binary)
 					checkOrConvertType(store, last, &bx.Right, t, autoNative, coerce)
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
@@ -2630,11 +2597,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 }
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
-	debug.Println("---convertConst")
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.IsUndefined() && cx.T == nil { // if cx is nil, not undefined interface
 			if _, ok := t.(*NativeType); !ok { // bypass native nil interface, not support native interface(nil) now
-				debug.Println("---going to convert undefined interface")
 				ConvertTo(nilAllocator, store, &cx.TypedValue, t)
 				setConstAttrs(cx)
 				return

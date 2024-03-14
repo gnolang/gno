@@ -6,5 +6,6 @@ func main() {
 	println(1.0 >> 1)
 }
 
-// Error:
-// main/files/types/10a5_filetest.gno:5: operator << not defined on: BigdecKind
+// Output:
+// 2
+// 0

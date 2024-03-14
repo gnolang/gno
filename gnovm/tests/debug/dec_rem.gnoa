@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	println(1.2 % int(1))
-}
-
-// Error:
-// main/debug/dec_rem.gno:4: cannot convert untyped bigdec to integer -- 1.2 not an exact integer

@@ -2021,7 +2021,6 @@ const (
 	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
 	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
-	ATTR_DELAY        GnoAttribute = "ATTR_DELAY"
 )
 
 // TODO: consider length restrictions.
