@@ -17,21 +17,21 @@ func getIPMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				var host string
+				// Determine the remote address
+				host, _, err := net.SplitHostPort(r.RemoteAddr)
+				if err != nil {
+					http.Error(
+						w,
+						fmt.Sprintf("invalid request IP and port, %s", err.Error()),
+						http.StatusUnauthorized,
+					)
+
+					return
+				}
 
 				// Check if the request is behind a proxy
-				if behindProxy {
-					if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-						host = xff
-					}
-				} else {
-					// Determine the remote address
-					address, _, err := net.SplitHostPort(r.RemoteAddr)
-					if err != nil {
-						return
-					}
-
-					host = address
+				if xff := r.Header.Get("X-Forwarded-For"); xff != "" && behindProxy {
+					host = xff
 				}
 
 				// If the host is empty or IPv6 loopback, set it to IPv4 loopback
