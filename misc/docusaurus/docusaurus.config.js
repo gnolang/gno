@@ -64,10 +64,9 @@ const config = {
         },
         items: [
           {
-            position: "right",
-            label: "Back to Gno.Land",
+            position: "left",
+            label: "Home",
             to: "https://gno.land",
-            className: "gno-header__copy",
           },
           {
             type: "docSidebar",
