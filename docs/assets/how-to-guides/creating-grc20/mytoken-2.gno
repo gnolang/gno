@@ -1,29 +1,3 @@
-package leon_token
-
-import (
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ufmt"
-	"std"
-	"strings"
-)
-
-var (
-	mytoken *grc20.AdminToken
-	admin   std.Address
-)
-
-// init is called once at time of deployment
-func init() {
-	// set admin as deployer
-	admin = std.PrevRealm().Addr()
-
-	// provision the token's name, symbol and number of decimals
-	mytoken = grc20.NewAdminToken("Leon Token", "LEON", 4)
-
-	// mint 1 million tokens to admin
-	mytoken.Mint(admin, 1000000*10000)
-}
-
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
