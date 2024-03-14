@@ -1,60 +1,110 @@
 package main
 
 import (
-	"net"
+	"context"
+	"errors"
+	"net/netip"
+	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/service"
+	"golang.org/x/time/rate"
 )
 
-type SubnetThrottler struct {
-	service.BaseService
-	ticker   *time.Ticker
-	subnets3 [2 << (8 * 3)]uint8
-	// subnets2 [2 << (8 * 2)]uint8
-	// subnets1 [2 << (8 * 1)]uint8
+const (
+	maxRequestsPerMinute = 5
+
+	defaultCleanTimeout      = time.Minute * 3
+	defaultRateLimitInterval = time.Minute / maxRequestsPerMinute
+)
+
+var errInvalidNumberOfRequests = errors.New("invalid number of requests")
+
+type client struct {
+	limiter *rate.Limiter
+	seen    time.Time
 }
 
-func NewSubnetThrottler() *SubnetThrottler {
-	st := &SubnetThrottler{}
-	// st.ticker = time.NewTicker(time.Second)
-	st.ticker = time.NewTicker(time.Minute)
-	st.BaseService = *service.NewBaseService(nil, "SubnetThrottler", st)
-	return st
+type requestMap map[netip.Addr]*client
+
+// iterate ranges over the request map (NOT thread safe)
+func (r requestMap) iterate(cb func(key netip.Addr, value *client)) {
+	for ip, requests := range r {
+		cb(ip, requests)
+	}
 }
 
-func (st *SubnetThrottler) OnStart() error {
-	st.BaseService.OnStart()
-	go st.routineTimer()
-	return nil
+type ipThrottler struct {
+	cleanupInterval   time.Duration
+	rateLimitInterval time.Duration
+
+	requestMap requestMap
+
+	sync.Mutex
 }
 
-func (st *SubnetThrottler) routineTimer() {
+// newIPThrottler creates a new ip throttler
+func newIPThrottler(rateLimitInterval, cleanupInterval time.Duration) *ipThrottler {
+	return &ipThrottler{
+		cleanupInterval:   cleanupInterval,
+		rateLimitInterval: rateLimitInterval,
+		requestMap:        make(requestMap),
+	}
+}
+
+// start starts the throttle cleanup service
+func (st *ipThrottler) start(ctx context.Context) {
+	go st.runCleanup(ctx)
+}
+
+// runCleanup runs the main ip throttle cleanup loop
+func (st *ipThrottler) runCleanup(ctx context.Context) {
+	ticker := time.NewTicker(st.cleanupInterval)
+
 	for {
 		select {
-		case <-st.Quit():
+		case <-ctx.Done():
 			return
-		case <-st.ticker.C:
-			// run something every time interval.
-			for i := range st.subnets3 {
-				st.subnets3[i] /= 2
-			}
+		case <-ticker.C:
+			st.Lock()
+
+			// Clean up stale requests
+			st.requestMap.iterate(func(ip netip.Addr, client *client) {
+				// Check if the request was last seen a while ago
+				if time.Since(client.seen) < st.cleanupInterval {
+					return
+				}
+
+				delete(st.requestMap, ip)
+			})
+
+			st.Unlock()
 		}
 	}
 }
 
-func (st *SubnetThrottler) Request(ip net.IP) (allowed bool, reason string) {
-	ip = ip.To4()
-	if len(ip) != 4 {
-		return false, "invalid ip format"
+// registerNewRequest registers a new IP request with the throttler
+func (st *ipThrottler) registerNewRequest(ip netip.Addr) error {
+	st.Lock()
+	defer st.Unlock()
+
+	// Get the client associated with the address, if any
+	c := st.requestMap[ip]
+	if c == nil {
+		c = &client{
+			limiter: rate.NewLimiter(rate.Every(st.rateLimitInterval), 5),
+			seen:    time.Now(),
+		}
+
+		st.requestMap[ip] = c
 	}
-	bucket3 := int(ip[0])*256*256 +
-		int(ip[1])*256 +
-		int(ip[2])
-	v := st.subnets3[bucket3]
-	if v > 5 {
-		return false, ">5"
+
+	// Check if the IP exceeded the request count
+	if !c.limiter.Allow() {
+		return errInvalidNumberOfRequests
 	}
-	st.subnets3[bucket3] += 1
-	return true, ""
+
+	// Update the last seen time
+	c.seen = time.Now()
+
+	return nil
 }
