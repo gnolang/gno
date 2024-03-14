@@ -78,7 +78,7 @@ The next step is to install several other tools that are required for the Gno de
 - `gnoland` - the Gno [blockchain node](setting-up-a-local-chain.md)
 - `gnokey` - the Gno [private key manager](working-with-key-pairs.md)
 - `gnoweb` - the Gno [source code viewer](browsing-gno-source-code.md)
-- `gnofaucet` - the Gno [native currency faucet](setting-up-funds/running-a-faucet.md)
+- `gnofaucet` - the Gno [native currency faucet](../../gno-tooling/cli/faucet/faucet.md)
 
 To build these tools, from the root directory navigate to the `gno.land` sub-folder, and run the `build` make
 directive:
