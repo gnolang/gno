@@ -81,7 +81,14 @@ const sidebars = {
                 'gno-tooling/cli/gno-tooling-gnokey',
                 'gno-tooling/cli/gno-tooling-gnodev',
                 'gno-tooling/cli/gno-tooling-gnoland',
-                'gno-tooling/cli/gno-tooling-gnofaucet',
+                {
+                    type: 'category',
+                    label: 'gnofaucet',
+                    link: {type: 'doc', id: 'gno-tooling/cli/faucet/gno-tooling-gnofaucet'},
+                    items: [
+                        'gno-tooling/cli/faucet/running-a-faucet',
+                    ]
+                },
             ]
         },
         {
