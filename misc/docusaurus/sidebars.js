@@ -7,6 +7,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Getting Started',
+            link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
                 'getting-started/local-setup',
                 'getting-started/working-with-key-pairs',
@@ -25,6 +26,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'How-to Guides',
+            link: {type: 'doc', id: 'how-to-guides/how-to-guides'},
             items: [
                 'how-to-guides/simple-contract',
                 'how-to-guides/simple-library',
@@ -39,6 +41,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Concepts',
+            link: {type: 'doc', id: 'concepts/concepts'},
             items: [
                 'concepts/realms',
                 'concepts/packages',
@@ -57,6 +60,7 @@ const sidebars = {
                 'concepts/effective-gno',
                 'concepts/proof-of-contribution',
                 'concepts/tendermint2',
+                'concepts/portal-loop',
                 'concepts/gno-modules',
                 'concepts/gno-test',
                 'concepts/from-go-to-gno',
@@ -65,6 +69,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Gno Tooling',
+            link: {type: 'doc', id: 'gno-tooling/gno-tooling'},
             items: [
                 'gno-tooling/cli/gno-tooling-gno',
                 'gno-tooling/cli/gno-tooling-gnokey',
@@ -76,6 +81,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Reference',
+            link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
                 {

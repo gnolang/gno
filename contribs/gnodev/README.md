@@ -21,8 +21,8 @@ the following combinations:
 - **Ctrl+R**: Reset the current node state.
 - **Ctrl+C**: Exit `gnodev`.
 
-### Example Folder Loading
-The **example** package folder is loaded automatically. If working within this folder, you don't have to specify any additional paths to `gnodev`. Use `--minimal` to prevent this.
+### Loading 'examples'
+The **examples** directory is loaded automatically. If working within this folder, you don't have to specify any additional paths to `gnodev`. Use `--minimal` to prevent this.
 
 ### Installation
 Run `make install` to install `gnodev`.
