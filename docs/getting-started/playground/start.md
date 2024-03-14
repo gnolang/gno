@@ -6,20 +6,16 @@ id: start
 
 ## Overview
 
-The Gno Playground is a robust web platform that enables developers to 
-interactively work with the Gno language. It streamlines coding, testing,
-and deploying with its diverse set of tools and features.
-
-Essentially, the Playground supports direct browser-based Gno code execution, 
-promoting quick feedback and continuous improvement. It's crucial for mastering 
-and enhancing Gno skills. Additionally, users can share code, run tests, and 
-deploy projects to Gno.land, enhancing collaboration and productivity.
+The Gno Playground is a web editor and sandbox that enables developers to 
+interactively work with the Gno language. It makes coding, testing,
+and deploying simple with its diverse set of tools and features. Users can
+share code, run tests, and deploy projects to Gno.land networks, enhancing 
+making it the perfect tool to get started with Gno development.
 
 ## Prerequisites
 
 - **Internet connection**
-- 
-
+- **A keypair in a Gno.land wallet, such as [Adena](https://adena.app)**
 
 
 
