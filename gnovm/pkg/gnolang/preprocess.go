@@ -2404,12 +2404,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v, coerce: %v \n", *x, t, coerce)
 	}
-	// pop up to preprocess to handle
-	defer func() {
-		if r := recover(); r != nil {
-			panic(r)
-		}
-	}()
 	if cx, ok := (*x).(*ConstExpr); ok {
 		if !coerce {
 			// XXX, no check from gno-> native. it's reasonable for gno is a superset of go type, e.g. bigint
