@@ -64,7 +64,7 @@ func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
 	})
 	term := s.staticAnalysisBlockStmt(f.Body)
 
-	//todo use later maybe?
+	// todo use later maybe?
 	_ = s.popFuncContext().(*FuncDeclContext)
 
 	errs := make([]error, 0)
@@ -143,12 +143,12 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 
 		ctx := s.popContext().(*ForContext)
 
-		//there are no "break" statements referring to the "for" statement, and
+		// there are no "break" statements referring to the "for" statement, and
 		hasNoBreaks := len(ctx.breakstmts) == 0
-		//the loop condition is absent, and
+		// the loop condition is absent, and
 		hasNoCond := n.Cond == nil
 
-		//the "for" statement does not use a range clause.
+		// the "for" statement does not use a range clause.
 		// this one is always false because in our nodes
 		// the range loop is a different data structure
 		hasRange := false
@@ -160,9 +160,9 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		}
 
 		return true
-	//for statement
+	// for statement
 	case *ReturnStmt:
-		//n.Results
+		// n.Results
 		return true
 	case *AssignStmt:
 		for _, rh := range n.Rhs {
@@ -174,7 +174,7 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		}
 		return false
 	case *SwitchStmt:
-		//there is a default case, and
+		// there is a default case, and
 		var hasDefault bool
 		for _, clause := range n.Clauses {
 			// nil case means default
@@ -186,10 +186,10 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 
 		s.pushContext(&SwitchContext{switchStmt: n})
 
-		//the statement lists in each case,
-		//including the default
-		//end in a terminating statement,
-		//or a possibly labeled "fallthrough" statement.
+		// the statement lists in each case,
+		// including the default
+		// end in a terminating statement,
+		// or a possibly labeled "fallthrough" statement.
 		casesTerm := true
 
 		for _, clause := range n.Clauses {
@@ -198,7 +198,7 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		}
 
 		ctx := s.popContext().(*SwitchContext)
-		//there are no "break" statements referring to the "switch" statement
+		// there are no "break" statements referring to the "switch" statement
 		hasNoBreaks := len(ctx.breakstmts) == 0
 
 		terminates := hasNoBreaks && hasDefault && casesTerm
