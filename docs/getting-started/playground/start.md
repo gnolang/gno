@@ -21,8 +21,16 @@ To fully utilize Playground features, you will need to install a Gno.land web
 browser wallet, such as [Adena](https://www.adena.app/), and create a keypair. This will allow you to
 interact with the Playground.
 
-Next, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a
+## Writing Gno Code
+
+To get started, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a
 simple `package.gno` file:
+
+
+
+
+
+
 
 
 
