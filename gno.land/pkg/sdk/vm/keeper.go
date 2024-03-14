@@ -223,7 +223,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		return "", fmt.Errorf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args))
 	}
 
-	request := make([]*gno.TypedValue, len(ft.Params))
+	request := make([]gno.TypedValue, len(ft.Params))
 	for i, arg := range msg.Args {
 		pt := ft.Params[i].Type
 		arg = strings.TrimSpace(arg)
@@ -239,8 +239,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			continue
 		}
 
-		tv := convertArgToGno(arg, pt)
-		request[i] = &tv
+		request[i] = convertArgToGno(arg, pt)
 
 	}
 
@@ -274,7 +273,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 	for i, arg := range request {
 		cx.Args[i] = &gno.ConstExpr{
-			TypedValue: *arg,
+			TypedValue: arg,
 		}
 	}
 
