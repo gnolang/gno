@@ -805,17 +805,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// Then, evaluate the expression.
-						// also for shift
-
 						if isShift {
 							if n.GetAttribute(ATTR_DELAY) == true { // only in this case not to eval const, namely, delayed
 								return n, TRANS_CONTINUE
 							}
-							//bxt := evalStaticTypeOf(store, last, n)
-							//if isUntyped(bxt) { // delay determine type and value(const)
-							//}
 						}
-						//debug.Println("---before eval const")
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) { // left untyped const -> right not const
@@ -828,29 +822,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							debug.Printf("---rt: %v \n", rt)
 							debug.Printf("---rnt: %v \n", rnt)
 							// get concrete native base type.
-							pt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
-							if ok {
-								// convert n.Left to pt type,
-								checkOrConvertType(store, last, &n.Left, pt, false, false)
-								// if check pass, convert n.Right to (gno) pt type,
-								rn := Expr(Call(pt.String(), n.Right))
-								debug.Printf("---rn : %v \n", rn)
-								// and convert result back.
-								tx := constType(n, rnt)
-								debug.Printf("---tx : %v \n", tx)
-								// reset/create n2 to preprocess right child.
-								n2 := &BinaryExpr{
-									Left:  n.Left,
-									Op:    n.Op,
-									Right: rn,
-								}
-								resn := Node(Call(tx, n2)) // this make current node to gonative{xxx}
-								resn = Preprocess(store, last, resn)
-								debug.Printf("---resn : %v \n", resn)
-								return resn, TRANS_CONTINUE
-							} else {
-								return n, TRANS_CONTINUE
+							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							// convert n.Left to pt type,
+							checkOrConvertType(store, last, &n.Left, pt, false, false)
+							// if check pass, convert n.Right to (gno) pt type,
+							rn := Expr(Call(pt.String(), n.Right))
+							debug.Printf("---rn : %v \n", rn)
+							// and convert result back.
+							tx := constType(n, rnt)
+							debug.Printf("---tx : %v \n", tx)
+							// reset/create n2 to preprocess right child.
+							n2 := &BinaryExpr{
+								Left:  n.Left,
+								Op:    n.Op,
+								Right: rn,
 							}
+							resn := Node(Call(tx, n2)) // this make current node to gonative{xxx}
+							resn = Preprocess(store, last, resn)
+							debug.Printf("---resn : %v \n", resn)
+							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
 						} else {
@@ -917,6 +907,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else { // ---both not const---
 					if !isShift {
+						debug.Printf("---both not const, lt: %v, rt: %v \n", lt, rt)
 						if lnt, ok := lt.(*NativeType); ok {
 							debug.Println("---both not const, left is native")
 							// If left and right are native type,
@@ -924,79 +915,69 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// convert result back to native.
 							//
 							// get concrete native base type.
-							lpt, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
-							if ok {
+							lpt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+							// convert n.Left to (gno) pt type,
+							ln := Expr(Call(lpt.String(), n.Left))
 
-								// convert n.Left to (gno) pt type,
-								ln := Expr(Call(lpt.String(), n.Left))
-
-								rn := n.Right
-								if rnt, ok := rt.(*NativeType); ok { // e.g. native: time.Second * time.Second
-									rpt := go2GnoBaseType(rnt.Type).(PrimitiveType)
-									// check assignable, if pass, convert right to gno first
-									// TODO: cmp?
-									// XXX, can we just check on native type?
-									checkAssignableTo(lpt, rpt, false) // both primitive types
-									rn = Expr(Call(rpt.String(), n.Right))
-									// checkOrCovertType should happen in future when both sides to be gno'd
-								} else { // rt not native
-									// convert n.Right to pt or uint type,
-									// XXX, should check from primitiveType from gonative against potentially non-primitive type
-									checkOrConvertType(store, last, &n.Right, lpt, false, false)
-								}
-
-								// and convert result back.
-								tx := constType(n, lnt)
-								// reset/create n2 to preprocess
-								// children.
-								n2 := &BinaryExpr{
-									Left:  ln,
-									Op:    n.Op,
-									Right: rn,
-								}
-								resn := Node(Call(tx, n2))
-								resn = Preprocess(store, last, resn)
-								return resn, TRANS_CONTINUE
-							} else {
-								return n, TRANS_CONTINUE
+							rn := n.Right
+							if rnt, ok := rt.(*NativeType); ok { // e.g. native: time.Second * time.Second
+								rpt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+								// check assignable, if pass, convert right to gno first
+								// TODO: cmp?
+								// XXX, can we just check on native type?
+								checkAssignableTo(lpt, rpt, false) // both primitive types
+								rn = Expr(Call(rpt.String(), n.Right))
+								// checkOrCovertType should happen in future when both sides to be gno'd
+							} else { // rt not native
+								// convert n.Right to pt or uint type,
+								// XXX, should check from primitiveType from gonative against potentially non-primitive type
+								checkOrConvertType(store, last, &n.Right, lpt, false, false)
 							}
+
+							// and convert result back.
+							tx := constType(n, lnt)
+							// reset/create n2 to preprocess
+							// children.
+							n2 := &BinaryExpr{
+								Left:  ln,
+								Op:    n.Op,
+								Right: rn,
+							}
+							resn := Node(Call(tx, n2))
+							resn = Preprocess(store, last, resn)
+							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always
 							// computed in gno, never with
 							// reflect.
 						} else if rnt, ok := rt.(*NativeType); ok { // e.g. a * time.Second
 							debug.Println("---both not const, left not native, right native")
-
 							// If left and right are native type,
 							// convert left and right to gno, then
 							// convert result back to native.
 							//
 							// get concrete native base type.
-							pt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
-							if ok {
-								// convert n.Left to (gno) pt type,
-								rn := Expr(Call(pt.String(), n.Right))
-								// convert n.Right to pt or uint type,
-								ln := n.Left
-								if isShift {
-									panic("should not happen")
-								} else {
-									checkOrConvertType(store, last, &n.Left, pt, false, false)
-								}
-								// and convert result back.
-								tx := constType(n, rnt)
-								// reset/create n2 to preprocess
-								// children.
-								n2 := &BinaryExpr{
-									Left:  ln,
-									Op:    n.Op,
-									Right: rn,
-								}
-								resn := Node(Call(tx, n2))
-								resn = Preprocess(store, last, resn)
-								return resn, TRANS_CONTINUE
+							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							// convert n.Left to (gno) pt type,
+							rn := Expr(Call(pt.String(), n.Right))
+							// convert n.Right to pt or uint type,
+							ln := n.Left
+							if isShift {
+								panic("should not happen")
 							} else {
-								return n, TRANS_CONTINUE
+								checkOrConvertType(store, last, &n.Left, pt, false, false)
 							}
+							// and convert result back.
+							tx := constType(n, rnt)
+							// reset/create n2 to preprocess
+							// children.
+							n2 := &BinaryExpr{
+								Left:  ln,
+								Op:    n.Op,
+								Right: rn,
+							}
+							resn := Node(Call(tx, n2))
+							resn = Preprocess(store, last, resn)
+							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always
 							// computed in gno, never with
 							// reflect.
