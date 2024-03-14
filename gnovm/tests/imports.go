@@ -184,12 +184,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
 						ctx := m.Context.(stdlibs.ExecContext)
-						ctx.Timestamp += sec
-						ctx.TimestampNano += nano
-						if ctx.TimestampNano >= int64(time.Second) {
-							ctx.Timestamp += 1
-							ctx.TimestampNano -= int64(time.Second)
-						}
+						ctx.Timestamp = ctx.Timestamp.Add(time.Second * time.Duration(sec)).Add(time.Duration(nano))
 						m.Context = ctx
 					},
 				)

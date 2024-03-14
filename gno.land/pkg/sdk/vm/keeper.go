@@ -178,7 +178,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
+		Timestamp:     ctx.BlockTime(),
 		Msg:           msg,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
@@ -256,7 +256,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
+		Timestamp:     ctx.BlockTime(),
 		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
@@ -327,7 +327,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
+		Timestamp:     ctx.BlockTime(),
 		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
@@ -459,7 +459,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		Timestamp: ctx.BlockTime(),
 		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      send,
@@ -519,7 +519,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		Timestamp: ctx.BlockTime(),
 		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,

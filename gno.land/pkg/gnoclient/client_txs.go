@@ -228,7 +228,6 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result.
 func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
-
 	if sequenceNumber == 0 || accountNumber == 0 {
 		account, _, err := c.QueryAccount(caller)
 		if err != nil {

@@ -1,6 +1,8 @@
 package gnoclient
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -114,11 +116,13 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestDylan_Integration(t *testing.T) {
+func TestMultiTxTimestamp_Integration(t *testing.T) {
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	keybase := keys.NewInMemory()
-	signerOne := newInMemorySigner(t, testChainID, keybase, 0)
-	signerTwo := newInMemorySigner(t, testChainID, keybase, 1)
+	signerOne := defaultInMemorySigner(t, testChainID)
+
+	newAccountMnemonic := "when school roof tomato organ middle bring smile rebuild faith chase fragile increase paddle cool pink model become nation abuse advice sword mimic reduce"
+	signerTwo := newInMemorySigner(t, testChainID, keybase, newAccountMnemonic, "test2")
 	config.AddGenesisBalances(
 		gnoland.Balance{
 			Address: signerTwo.Address,
@@ -153,21 +157,16 @@ func TestDylan_Integration(t *testing.T) {
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 
-	sendTx := func(client Client, accountNumber uint64) {
+	sendTx := func(client Client) {
 		baseCfg := BaseTxCfg{
-			GasFee:         "10000ugnot",
-			GasWanted:      8000000,
-			AccountNumber:  accountNumber,
-			SequenceNumber: 0,
-			Memo:           "",
+			GasFee:    "10000ugnot",
+			GasWanted: 8000000,
 		}
 
 		// Make Msg configs
 		msg := MsgCall{
 			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "Render",
-			Args:     []string{""},
-			Send:     "",
+			FuncName: "CurrentTimeUnixNano",
 		}
 
 		res, err := client.Call(baseCfg, msg)
@@ -175,13 +174,46 @@ func TestDylan_Integration(t *testing.T) {
 		wg.Done()
 	}
 
-	go sendTx(clientOne, 0)
-	go sendTx(clientTwo, 1)
+	go sendTx(clientOne)
+	go sendTx(clientTwo)
 	wg.Wait()
 	close(resCh)
 
+	var results []*core_types.ResultBroadcastTxCommit
 	for res := range resCh {
-		t.Log(res.result, res.err)
+		if res.err != nil {
+			t.Errorf("unexpected error %v", res.err)
+		}
+		results = append(results, res.result)
+	}
+
+	if len(results) != 2 {
+		t.Errorf("expected 2 results, got %d", len(results))
+	}
+
+	if results[0].Height != results[1].Height {
+		t.Errorf("expected same height, got %d and %d", results[0].Height, results[1].Height)
+	}
+
+	extractInt := func(data []byte) int64 {
+		parts := strings.Split(string(data), " ")
+		numStr := parts[0][1:]
+		num, err := strconv.ParseInt(numStr, 10, 64)
+		if err != nil {
+			t.Errorf("unable to parse number from strin %s", string(data))
+		}
+
+		return num
+	}
+
+	time1, time2 := extractInt(results[0].DeliverTx.Data), extractInt(results[1].DeliverTx.Data)
+	diff := time1 - time2
+	if diff < 0 {
+		diff *= -1
+	}
+
+	if diff != 100 {
+		t.Errorf("expected time difference to be 100, got %d", diff)
 	}
 }
 
@@ -435,15 +467,13 @@ func defaultInMemorySigner(t *testing.T, chainID string) *SignerFromKeybase {
 	t.Helper()
 
 	keybase := keys.NewInMemory()
-	return newInMemorySigner(t, chainID, keybase, 0)
+	return newInMemorySigner(t, chainID, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 }
 
-func newInMemorySigner(t *testing.T, chainID string, keybase keys.Keybase, accountNumber uint32) *SignerFromKeybase {
+func newInMemorySigner(t *testing.T, chainID string, keybase keys.Keybase, mnemonic, name string) *SignerFromKeybase {
 	t.Helper()
 
-	mnemonic := integration.DefaultAccount_Seed
-	name := integration.DefaultAccount_Name
-	info, err := keybase.CreateAccount(name, mnemonic, "", "", accountNumber, uint32(0))
+	info, err := keybase.CreateAccount(name, mnemonic, "", "", 0, 0)
 	if err != nil {
 		t.Fatalf("unexpected error getting new signer: %v", err)
 	}
