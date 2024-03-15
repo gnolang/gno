@@ -3,6 +3,7 @@ package memeland
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
+	"sort"
 	"std"
 	"strconv"
 	"strings"
@@ -19,13 +20,15 @@ type Post struct {
 }
 
 type Memeland struct {
-	Posts       *avl.Tree
+	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
+type UpvoteSorter []*Post
+
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Posts: avl.NewTree(),
+		Posts: make([]*Post, 0),
 	}
 }
 
@@ -46,14 +49,14 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 		UpvoteTracker: avl.NewTree(),
 	}
 
-	m.Posts.Set(id, newPost)
+	m.Posts = append(m.Posts, newPost)
 
 	return id
 }
 
 func (m *Memeland) Upvote(id string) string {
-	post, exists := m.Posts.Get(id)
-	if !exists {
+	post := m.getPost(id)
+	if post == nil {
 		panic("post with specified ID does not exist")
 	}
 
@@ -68,72 +71,57 @@ func (m *Memeland) Upvote(id string) string {
 		panic("user has already upvoted this post")
 	}
 
-	m.Posts.Set(id, p)
 	p.UpvoteTracker.Set(caller, struct{}{})
 
 	return "upvote successful"
 }
 
-// GetPost - Retrieves a post
-func (m *Memeland) GetPost(id string) (*Post, bool) {
-	value, exists := m.Posts.Get(id)
-	if exists {
-		return value.(*Post), true
-	}
-	return nil, false
-}
-
-func (m *Memeland) GetPosts() []*Post {
-	var posts []*Post
-
-	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post)
-		posts = append(posts, post)
-
-		return false
-	})
-
-	return posts
-}
-
 // GetPostsInRange returns a JSON string of posts within the given timestamp range, supporting pagination.
-func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int) string {
-	var filteredPosts []*Post
-
-	if page < 0 {
+func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {
+	if page < 1 {
 		panic("page count cannot be less than 1")
 	}
 
-	if pageSize < 0 {
+	if pageSize < 1 {
 		panic("page size cannot be less than 1")
 	}
 
-	startIndex := (page - 1) * pageSize
-	endIndex := startIndex + pageSize
-	count := 0
+	var filteredPosts []*Post
 
 	start := time.Unix(startTimestamp, 0)
 	end := time.Unix(endTimestamp, 0)
 
-	m.Posts.Iterate("", "", func(key string, value interface{}) bool {
-		post := value.(*Post)
-
-		// If post is not between given timestamps
-		if !post.Timestamp.After(start) || !post.Timestamp.Before(end) {
-			return true
+	// Filtering posts
+	for _, p := range m.Posts {
+		if !p.Timestamp.Before(start) && !p.Timestamp.After(end) {
+			filteredPosts = append(filteredPosts, p)
 		}
+	}
 
-		// Only process posts within the specified count range.
-		if count >= startIndex && count < endIndex {
-			filteredPosts = append(filteredPosts, post)
-		}
-		count++
+	switch sortBy {
+	// Sort by upvote descending
+	case "UPVOTES":
+		sort.Sort(UpvoteSorter(filteredPosts))
+	default:
+		break
+	}
 
-		return false
-	})
+	// Pagination
+	startIndex := (page - 1) * pageSize
+	endIndex := startIndex + pageSize
 
-	// Return JSON representation of filtered posts
-	return PostsToJSONString(filteredPosts)
+	if startIndex >= len(filteredPosts) {
+		panic("page size too large")
+	}
+
+	if endIndex > len(filteredPosts) {
+		endIndex = len(filteredPosts)
+	}
+
+	paginatedPosts := filteredPosts[startIndex:endIndex]
+
+	// Return JSON representation of paginated and sorted posts
+	return PostsToJSONString(paginatedPosts)
 }
 
 // PostsToJSONString converts a slice of Post structs into a JSON string representation.
@@ -170,4 +158,20 @@ func PostToJSONString(post *Post) string {
 // escapeString escapes quotes in a string for JSON compatibility.
 func escapeString(s string) string {
 	return strings.ReplaceAll(s, `"`, `\"`)
+}
+
+func (m *Memeland) getPost(id string) *Post {
+	for _, p := range m.Posts {
+		if p.ID == id {
+			return p
+		}
+	}
+
+	return nil
+}
+
+func (a UpvoteSorter) Len() int      { return len(a) }
+func (a UpvoteSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a UpvoteSorter) Less(i, j int) bool {
+	return a[i].UpvoteTracker.Size() > a[j].UpvoteTracker.Size()
 }
