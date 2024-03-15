@@ -8,24 +8,14 @@ import (
 var m = memeland.NewMemeland()
 
 func PostMeme(data string, timestamp int64) string {
-	if m == nil {
-		return "memeland does not exist"
-	}
 	return m.PostMeme(data, timestamp)
 }
 
 func Upvote(id string) string {
-	if m == nil {
-		return "memeland does not exist"
-	}
 	return m.Upvote(id)
 }
 
 func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {
-	if m == nil {
-		return "memeland does not exist"
-	}
-
 	return m.GetPostsInRange(startTimestamp, endTimestamp, page, pageSize, sortBy)
 }
 
