@@ -42,26 +42,29 @@ services:
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
       - --faucet-url
-      - "http://localhost:9000"
+      - "http://localhost:5050"
       - --help-chainid
       - portal-loop
       - --help-remote
       - http://127.0.0.1:26657
 
-  # gnofaucet:
-  #   image: gnofaucet
-  #   command:
-  #     -
-  #   environment:
-  #     - VIRTUAL_HOST=faucet.test3.gno.land
-  #     - VIRTUAL_PORT=5050
-  #     - LETSENCRYPT_HOST=faucet.test3.gno.land
-  #     # from .env
-  #     - RECAPTCHA_SECRET_KEY
-  #     - FAUCET_WORDS
-  #     - GNOKEY_PASS
-  #   ports:
-  #     - 5050
+  gnofaucet:
+    image: ghcr.io/gnolang/gno/gnofaucet-slim
+    networks:
+      - portal-loop
+    ports:
+      - 5050:5050
+    command:
+      - "serve"
+      - "--listen-address=0.0.0.0:5050"
+      - "--chain-id=portal-loop"
+      # - "--is-behind-proxy=true"
+      - "--mnemonic=${MNEMONIC}"
+      # - "--num-accounts=1"
+      - "--remote=http://traefik:26657"
+    environment:
+      # from .env
+      - RECAPTCHA_SECRET_KEY
 
   portalloopd:
     build:
