@@ -50,7 +50,6 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	}
 
 	m.Posts = append(m.Posts, newPost)
-
 	return id
 }
 
@@ -60,18 +59,13 @@ func (m *Memeland) Upvote(id string) string {
 		panic("post with specified ID does not exist")
 	}
 
-	p, ok := post.(*Post)
-	if !ok {
-		panic("error casting post")
-	}
-
 	caller := std.PrevRealm().Addr().String()
 
-	if _, exists := p.UpvoteTracker.Get(caller); exists {
+	if _, exists := post.UpvoteTracker.Get(caller); exists {
 		panic("user has already upvoted this post")
 	}
 
-	p.UpvoteTracker.Set(caller, struct{}{})
+	post.UpvoteTracker.Set(caller, struct{}{})
 
 	return "upvote successful"
 }
@@ -103,25 +97,26 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	case "UPVOTES":
 		sort.Sort(UpvoteSorter(filteredPosts))
 	default:
-		break
+		// Sort by timestamp, beginning with newest
+		filteredPosts = reversePosts(filteredPosts)
 	}
 
 	// Pagination
 	startIndex := (page - 1) * pageSize
 	endIndex := startIndex + pageSize
 
+	// If page does not contain any posts
 	if startIndex >= len(filteredPosts) {
-		panic("page size too large")
+		return "[]"
 	}
 
+	// If page contains fewer posts than the page size
 	if endIndex > len(filteredPosts) {
 		endIndex = len(filteredPosts)
 	}
 
-	paginatedPosts := filteredPosts[startIndex:endIndex]
-
 	// Return JSON representation of paginated and sorted posts
-	return PostsToJSONString(paginatedPosts)
+	return PostsToJSONString(filteredPosts[startIndex:endIndex])
 }
 
 // PostsToJSONString converts a slice of Post structs into a JSON string representation.
@@ -136,8 +131,8 @@ func PostsToJSONString(posts []*Post) string {
 
 		sb.WriteString(PostToJSONString(post))
 	}
-
 	sb.WriteString("]")
+
 	return sb.String()
 }
 
@@ -168,6 +163,13 @@ func (m *Memeland) getPost(id string) *Post {
 	}
 
 	return nil
+}
+
+func reversePosts(posts []*Post) []*Post {
+	for i, j := 0, len(posts)-1; i < j; i, j = i+1, j-1 {
+		posts[i], posts[j] = posts[j], posts[i]
+	}
+	return posts
 }
 
 func (a UpvoteSorter) Len() int      { return len(a) }

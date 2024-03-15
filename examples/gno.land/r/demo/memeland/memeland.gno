@@ -22,9 +22,9 @@ func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sor
 func Render(path string) string {
 	numOfMemes := int(m.MemeCounter)
 	if numOfMemes == 0 {
-		return "[]"
+		return "No memes posted yet! :/"
 	}
 
 	// Default render is get Posts since year 2000 to now
-	return m.GetPostsInRange(952733931, time.Now().Unix(), 1, numOfMemes, "DATE_CREATED")
+	return m.GetPostsInRange(0, time.Now().Unix(), 1, numOfMemes, "DATE_CREATED")
 }

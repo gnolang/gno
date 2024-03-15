@@ -42,11 +42,12 @@ func TestGetPostsInRangePagination(t *testing.T) {
 		pageSize           int
 		expectedNumOfPosts int
 	}{
-		{page: 1, pageSize: 1, expectedNumOfPosts: 1},                   // one per page
-		{page: 2, pageSize: 1, expectedNumOfPosts: 1},                   // one on second page
-		{page: 1, pageSize: numOfPosts, expectedNumOfPosts: numOfPosts}, // all posts on single page
-		//{page: 10, pageSize: 10, expectedNumOfPosts: 0}, // todo fix
-		{page: 5, pageSize: numOfPosts / 5, expectedNumOfPosts: 2}, // evenly distribute posts per page
+		{page: 1, pageSize: 1, expectedNumOfPosts: 1},                       // one per page
+		{page: 2, pageSize: 1, expectedNumOfPosts: 1},                       // one on second page
+		{page: 1, pageSize: numOfPosts, expectedNumOfPosts: numOfPosts},     // all posts on single page
+		{page: 12, pageSize: 1, expectedNumOfPosts: 0},                      // empty page
+		{page: 1, pageSize: numOfPosts + 1, expectedNumOfPosts: numOfPosts}, // page with fewer posts than its size
+		{page: 5, pageSize: numOfPosts / 5, expectedNumOfPosts: 2},          // evenly distribute posts per page
 	}
 
 	for _, tc := range testCases {
@@ -66,7 +67,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 	m := NewMemeland()
 	now := time.Now()
 
-	numOfPosts := 10
+	numOfPosts := 5
 	var memeData []string
 	for i := 1; i <= numOfPosts; i++ {
 		// Prep meme data
@@ -107,7 +108,6 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 	}
 
 	// todo add test to check order
-
 }
 
 func TestGetPostsInRangeByUpvote(t *testing.T) {
