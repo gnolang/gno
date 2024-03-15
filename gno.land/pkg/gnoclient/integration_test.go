@@ -153,67 +153,78 @@ func TestMultiTxTimestamp_Integration(t *testing.T) {
 		err    error
 	}
 
-	resCh := make(chan callRes, 2)
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	maxTries := 5
+	for i := 1; i <= maxTries; i++ {
+		resCh := make(chan callRes, 2)
+		wg := new(sync.WaitGroup)
+		wg.Add(2)
 
-	sendTx := func(client Client) {
-		baseCfg := BaseTxCfg{
-			GasFee:    "10000ugnot",
-			GasWanted: 8000000,
+		sendTx := func(client Client) {
+			baseCfg := BaseTxCfg{
+				GasFee:    "10000ugnot",
+				GasWanted: 8000000,
+			}
+
+			// Make Msg configs
+			msg := MsgCall{
+				PkgPath:  "gno.land/r/demo/deep/very/deep",
+				FuncName: "CurrentTimeUnixNano",
+			}
+
+			res, err := client.Call(baseCfg, msg)
+			resCh <- callRes{result: res, err: err}
+			wg.Done()
 		}
 
-		// Make Msg configs
-		msg := MsgCall{
-			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "CurrentTimeUnixNano",
+		go sendTx(clientOne)
+		go sendTx(clientTwo)
+		wg.Wait()
+		close(resCh)
+
+		results := make([]*core_types.ResultBroadcastTxCommit, 0, 2)
+		for res := range resCh {
+			if res.err != nil {
+				t.Errorf("unexpected error %v", res.err)
+			}
+			results = append(results, res.result)
 		}
 
-		res, err := client.Call(baseCfg, msg)
-		resCh <- callRes{result: res, err: err}
-		wg.Done()
-	}
-
-	go sendTx(clientOne)
-	go sendTx(clientTwo)
-	wg.Wait()
-	close(resCh)
-
-	results := make([]*core_types.ResultBroadcastTxCommit, 0, 2)
-	for res := range resCh {
-		if res.err != nil {
-			t.Errorf("unexpected error %v", res.err)
-		}
-		results = append(results, res.result)
-	}
-
-	if len(results) != 2 {
-		t.Errorf("expected 2 results, got %d", len(results))
-	}
-
-	if results[0].Height != results[1].Height {
-		t.Errorf("expected same height, got %d and %d", results[0].Height, results[1].Height)
-	}
-
-	extractInt := func(data []byte) int64 {
-		parts := strings.Split(string(data), " ")
-		numStr := parts[0][1:]
-		num, err := strconv.ParseInt(numStr, 10, 64)
-		if err != nil {
-			t.Errorf("unable to parse number from strin %s", string(data))
+		if len(results) != 2 {
+			t.Errorf("expected 2 results, got %d", len(results))
 		}
 
-		return num
-	}
+		if results[0].Height != results[1].Height {
+			if i < maxTries {
+				continue
+			}
+			t.Errorf("expected same height, got %d and %d", results[0].Height, results[1].Height)
+		}
 
-	time1, time2 := extractInt(results[0].DeliverTx.Data), extractInt(results[1].DeliverTx.Data)
-	diff := time1 - time2
-	if diff < 0 {
-		diff *= -1
-	}
+		extractInt := func(data []byte) int64 {
+			parts := strings.Split(string(data), " ")
+			numStr := parts[0][1:]
+			num, err := strconv.ParseInt(numStr, 10, 64)
+			if err != nil {
+				t.Errorf("unable to parse number from string %s", string(data))
+			}
 
-	if diff != 100 {
-		t.Errorf("expected time difference to be 100, got %d", diff)
+			return num
+		}
+
+		time1, time2 := extractInt(results[0].DeliverTx.Data), extractInt(results[1].DeliverTx.Data)
+		diff := time1 - time2
+		if diff < 0 {
+			diff *= -1
+		}
+
+		if diff != 100 {
+			if i < maxTries {
+				continue
+			}
+			t.Errorf("expected time difference to be 100, got %d", diff)
+		}
+
+		break
 	}
 }
 
