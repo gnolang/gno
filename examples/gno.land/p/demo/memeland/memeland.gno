@@ -72,6 +72,10 @@ func (m *Memeland) Upvote(id string) string {
 
 // GetPostsInRange returns a JSON string of posts within the given timestamp range, supporting pagination.
 func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {
+	if len(m.Posts) == 0 {
+		return "[]"
+	}
+
 	if page < 1 {
 		panic("page count cannot be less than 1")
 	}

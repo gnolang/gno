@@ -199,6 +199,20 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	}
 }
 
+func TestNoPosts(t *testing.T) {
+	m := NewMemeland()
+
+	// Add a post to Memeland
+	now := time.Now().Unix()
+
+	jsonStr := m.GetPostsInRange(0, now, 1, 1, "DATE_CREATED")
+
+	if jsonStr != "[]" {
+		t.Errorf("Expected 0 posts to return [], got %s", jsonStr)
+	}
+
+}
+
 func TestUpvote(t *testing.T) {
 	m := NewMemeland()
 
