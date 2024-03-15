@@ -12,7 +12,6 @@ import (
 	rtdb "runtime/debug"
 	"strconv"
 	"strings"
-	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -44,7 +43,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
 		Height:        123,
-		Timestamp:     time.Unix(1234567890, 0),
+		Timestamp:     1234567890,
 		Msg:           nil,
 		OrigCaller:    caller.Bech32(),
 		OrigPkgAddr:   pkgAddr.Bech32(),

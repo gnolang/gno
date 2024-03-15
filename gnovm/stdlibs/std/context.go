@@ -1,8 +1,6 @@
 package std
 
 import (
-	"time"
-
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -11,7 +9,8 @@ import (
 type ExecContext struct {
 	ChainID       string
 	Height        int64
-	Timestamp     time.Time
+	Timestamp     int64
+	TimestampNano int64
 	Msg           sdk.Msg
 	OrigCaller    crypto.Bech32Address
 	OrigPkgAddr   crypto.Bech32Address
