@@ -179,7 +179,7 @@ func TestMultiTxTimestamp_Integration(t *testing.T) {
 	wg.Wait()
 	close(resCh)
 
-	var results []*core_types.ResultBroadcastTxCommit
+	results := make([]*core_types.ResultBroadcastTxCommit, 0, 2)
 	for res := range resCh {
 		if res.err != nil {
 			t.Errorf("unexpected error %v", res.err)

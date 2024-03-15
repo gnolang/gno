@@ -27,18 +27,18 @@ type InMemoryNodeConfig struct {
 	GenesisMaxVMCycles    int64
 }
 
-func (c *InMemoryNodeConfig) AddGenesisBalances(balances ...Balance) error {
+func (cfg *InMemoryNodeConfig) AddGenesisBalances(balances ...Balance) error {
 	var (
 		genesisState GnoGenesisState
 		ok           bool
 	)
 
-	if genesisState, ok = c.Genesis.AppState.(GnoGenesisState); !ok {
-		return fmt.Errorf("unexpected genesis app state type of %t", c.Genesis.AppState)
+	if genesisState, ok = cfg.Genesis.AppState.(GnoGenesisState); !ok {
+		return fmt.Errorf("unexpected genesis app state type of %t", cfg.Genesis.AppState)
 	}
 
 	genesisState.Balances = append(genesisState.Balances, balances...)
-	c.Genesis.AppState = genesisState
+	cfg.Genesis.AppState = genesisState
 	return nil
 }
 
