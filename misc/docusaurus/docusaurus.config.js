@@ -82,7 +82,7 @@ const config = {
           {
             position: "left",
             label: "Blog",
-            to: "https://test3.gno.land/r/gnoland/blog",
+            to: "https://gno.land/r/gnoland/blog",
           },
           {
             href: "https://github.com/gnolang/gno",
