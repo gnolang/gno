@@ -5,22 +5,20 @@ import (
 	"std"
 	"strings"
 	"testing"
-
-	"gno.land/p/demo/rand"
 )
 
 func TestInstance(t *testing.T) {
-	instance := rand.New()
+	instance := New()
 	if instance == nil {
 		t.Errorf("instance should not be nil")
 	}
 }
 
 func TestIntn(t *testing.T) {
-	baseRand := rand.New()
+	baseRand := New()
 	baseResult := computeIntn(t, baseRand)
 
-	sameHeightRand := rand.New()
+	sameHeightRand := New()
 	sameHeightResult := computeIntn(t, sameHeightRand)
 
 	if baseResult != sameHeightResult {
@@ -28,7 +26,7 @@ func TestIntn(t *testing.T) {
 	}
 
 	std.TestSkipHeights(1)
-	differentHeightRand := rand.New()
+	differentHeightRand := New()
 	differentHeightResult := computeIntn(t, differentHeightRand)
 
 	if baseResult == differentHeightResult {
@@ -36,7 +34,7 @@ func TestIntn(t *testing.T) {
 	}
 }
 
-func computeIntn(t *testing.T, r *rand.Instance) string {
+func computeIntn(t *testing.T, r *Instance) string {
 	t.Helper()
 
 	arr := []string{}

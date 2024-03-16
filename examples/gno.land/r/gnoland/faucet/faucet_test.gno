@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/r/gnoland/faucet"
 )
 
 func TestPackage(t *testing.T) {
@@ -37,57 +36,57 @@ func TestPackage(t *testing.T) {
 
 	assertBalance(t, test1addr, 0)
 	std.TestSetOrigCaller(test1addr)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	assertErr(t, Transfer(test1addr, 1000000))
 
-	assertErr(t, faucet.AdminAddController(controlleraddr1))
+	assertErr(t, AdminAddController(controlleraddr1))
 	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	assertErr(t, Transfer(test1addr, 1000000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
 	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
+	assertNoErr(t, AdminAddController(controlleraddr1))
 	assertBalance(t, faucetaddr, 1000000000)
 
 	// now, send some tokens as controller.
 	std.TestSetOrigCaller(controlleraddr1)
-	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
+	assertNoErr(t, Transfer(test1addr, 1000000))
 	assertBalance(t, test1addr, 1000000)
-	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
+	assertNoErr(t, Transfer(test1addr, 1000000))
 	assertBalance(t, test1addr, 2000000)
 	assertBalance(t, faucetaddr, 998000000)
 
 	// remove controller
 	// as an admin, remove controller
 	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminRemoveController(controlleraddr1))
+	assertNoErr(t, AdminRemoveController(controlleraddr1))
 	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	assertErr(t, Transfer(test1addr, 1000000))
 
 	// duplicate controller
 	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
-	assertErr(t, faucet.AdminAddController(controlleraddr1))
+	assertNoErr(t, AdminAddController(controlleraddr1))
+	assertErr(t, AdminAddController(controlleraddr1))
 	// add more than more than allowed controllers
-	assertNoErr(t, faucet.AdminAddController(controlleraddr2))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr3))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr4))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr5))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr6))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr7))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr8))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr9))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr10))
-	assertErr(t, faucet.AdminAddController(controlleraddr11))
+	assertNoErr(t, AdminAddController(controlleraddr2))
+	assertNoErr(t, AdminAddController(controlleraddr3))
+	assertNoErr(t, AdminAddController(controlleraddr4))
+	assertNoErr(t, AdminAddController(controlleraddr5))
+	assertNoErr(t, AdminAddController(controlleraddr6))
+	assertNoErr(t, AdminAddController(controlleraddr7))
+	assertNoErr(t, AdminAddController(controlleraddr8))
+	assertNoErr(t, AdminAddController(controlleraddr9))
+	assertNoErr(t, AdminAddController(controlleraddr10))
+	assertErr(t, AdminAddController(controlleraddr11))
 
 	// send more than per transfer limit
 	std.TestSetOrigCaller(adminaddr)
-	faucet.AdminSetTransferLimit(300000000)
+	AdminSetTransferLimit(300000000)
 	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 301000000))
+	assertErr(t, Transfer(test1addr, 301000000))
 
 	// block transefer from the address not on the controllers list.
 	std.TestSetOrigCaller(controlleraddr11)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	assertErr(t, Transfer(test1addr, 1000000))
 }
 
 func assertErr(t *testing.T, err string) {
