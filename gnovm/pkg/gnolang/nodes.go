@@ -1460,6 +1460,7 @@ type BlockNode interface {
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetExternPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name) *TypedValue
@@ -1640,6 +1641,21 @@ func (sb *StaticBlock) GetExternPathForName(store Store, n Name) ValuePath {
 	path := parent.GetPathForName(store, n)
 	path.Depth += 1
 	return path
+}
+
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got something else")
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	var bn BlockNode = sb.GetSource(store)
+	for i := 1; i < path.Depth; i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
 }
 
 // Returns whether a name defined here in in ancestry is a const.

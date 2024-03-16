@@ -749,7 +749,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Step 1: check if this func lit is in a loop,
 				// not embedded within another func lit.
-				if !isNodeInLoop(store, n) {
+				loopDepth, inLoop := isNodeInLoop(store, n)
+				if !inLoop {
 					return n, TRANS_CONTINUE
 				}
 
@@ -762,8 +763,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if path.Type != VPBlock {
 						continue // not a for-loop block path
 					}
-					if !isNodeInLoop(store, n) {
-						continue // not a for-loop declared name
+					if path.Depth <= loopDepth+1 {
+						// it is within the loop, carry on...
+					} else {
+						// it is outside the closest loop ancestor,
+						// check to see if it is declared in outer loop.
+						container := n.GetBlockNodeForPath(store, path)
+						if _, ok := isNodeInLoop(container); !ok {
+							continue // not declared in any loop.
+						}
 					}
 					typ := n.GetStaticTypeOfAt(store, path)
 					// Append loop extern name and related.
@@ -3625,20 +3633,23 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-// return true if node is in a loop,
+// return the depth offset of loop and true if node is in a loop,
 // but not embedded within another func lit intermediary.
-func isNodeInLoop(store Store, n Node) bool {
+func isNodeInLoop(store Store, n Node) (int, bool) {
+	depthOffset := 0
 	for n != nil {
+		depthOffset += 1
 		n = n.GetParentNode(store)
 		switch cn := n.(type) {
 		case *FuncLitExpr:
-			return false
+			return 0, false
 		case *ForStmt:
-			return true
+			return depthOffset, true
 		default:
 			continue
 		}
 	}
+	return 0, false
 }
 
 func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
