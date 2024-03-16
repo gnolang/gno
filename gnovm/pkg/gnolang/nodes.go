@@ -1636,7 +1636,7 @@ func (sb *StaticBlock) GetExternPathForName(store Store, n Name) ValuePath {
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_")
 	}
-	parent := n.GetParentNode(store)
+	parent := sb.GetParentNode(store)
 	path := parent.GetPathForName(store, n)
 	path.Depth += 1
 	return path
