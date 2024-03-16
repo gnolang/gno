@@ -747,10 +747,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// is shadowed and not relevant whether or not
 				// the closure is immediately called.
 
-				// Step 1: check if this func lit is directly in
-				// a loop, not embedded within another func lit.
-				// XXX pass store
-				if !isFuncLitDirectlyInLoop(n) {
+				// Step 1: check if this func lit is in a loop,
+				// not embedded within another func lit.
+				if !isFuncLitInLoop(store, n) {
 					return n, TRANS_CONTINUE
 				}
 
@@ -790,7 +789,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// not be affected.
 				// The outer closure call’s passed arguments
 				// will be modified by the final preprocess
-				// call on the call expression (variable).
+				// call on the call expression (variable depth).
 				adjustLoopExternPaths(n, loopExterns, loopExternPaths)
 				// Inject a closure-call and preprocess it.
 				fldargs := []interface{}{}
@@ -803,6 +802,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				params := Flds(fldargs...)
 				closure := Fn(params, nil, n)
 				call := Call(closure, loopExterns...)
+				// this preprocess will also set the path for the
+				// outer closure's params and the call's
+				// argument value paths.
 				call = Preprocess(store, last, call).(*CallExpr)
 				return call, TRANS_CONTINUE
 
@@ -3628,14 +3630,15 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-// XXX pass store
-func isFuncLitDirectlyInLoop(n Node) bool {
+// return true if node is in a loop,
+// but not embedded within another func lit intermediary.
+func isFuncLitInLoop(store Store, n Node) bool {
 	if _, ok := n.(*FuncLitExpr); !ok {
 		panic("expected func lit, got something else")
 	}
 	for n != nil {
-		pn := n.GetParentNode(nil)
-		switch cpn := pn.(type) {
+		n = n.GetParentNode(store)
+		switch cn := n.(type) {
 		case *FuncLitExpr:
 			return false
 		case *ForStmt:
