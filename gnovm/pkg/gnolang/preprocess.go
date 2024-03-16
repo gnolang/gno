@@ -753,11 +753,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				}
 
-				// Step 2: check if there are any names
-				// declared in any containing for-loop (but
-				// break when encountering another func lit, as
-				// the later recursion for that func lit will
-				// handle it there)
+				// Step 2: gather all extern names declared in for-loops.
 				leNames := []Name{}
 				leTypes := []Type{}
 				lePaths := []ValuePath{}
@@ -766,6 +762,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if path.Type != VPBlock {
 						continue // not a for-loop block path
 					}
+					// XXX this is wrong, need to check all ancestors
+					// rather than the block node for path.
 					container := getBlockNodeForPath(n, path)
 					if _, ok := container.(*ForStmt); !ok {
 						continue // not a for-loop declared name
@@ -3632,10 +3630,8 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 
 // return true if node is in a loop,
 // but not embedded within another func lit intermediary.
-func isFuncLitInLoop(store Store, n Node) bool {
-	if _, ok := n.(*FuncLitExpr); !ok {
-		panic("expected func lit, got something else")
-	}
+func isFuncLitInLoop(store Store, fn *FuncLitExpr) bool {
+	var n BlockNode = fn
 	for n != nil {
 		n = n.GetParentNode(store)
 		switch cn := n.(type) {
