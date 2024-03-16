@@ -356,9 +356,18 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case getMessagesFn := <-ch:
-			// TODO filter and verify messages
-			// TODO move to prevote if the proposal is valid
-			_ = getMessagesFn()
+			prpMsgs := getMessagesFn()
+			msgs := make([]Message, 0)
+
+			messages.ConvertToInterface(prpMsgs, func(m *types.ProposalMessage) {
+				msgs = append(msgs, m)
+			})
+
+			majority := t.verifier.Quorum(msgs)
+
+			if majority {
+				t.state.step.Set(prevote)
+			}
 		}
 	}
 }
@@ -392,9 +401,18 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case getMessagesFn := <-ch:
-			// TODO filter and verify messages
-			// TODO move to precommit if the proposal is valid
-			_ = getMessagesFn()
+			prvMsgs := getMessagesFn()
+			msgs := make([]Message, 0)
+
+			messages.ConvertToInterface(prvMsgs, func(m *types.PrevoteMessage) {
+				msgs = append(msgs, m)
+			})
+
+			majority := t.verifier.Quorum(msgs)
+
+			if majority {
+				t.state.step.Set(precommit)
+			}
 		}
 	}
 }
@@ -434,9 +452,18 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 		case <-ctx.Done():
 			return nil
 		case getMessagesFn := <-ch:
-			// TODO filter and verify messages
-			// TODO move to precommit if the proposal is valid
-			_ = getMessagesFn()
+			prcMsgs := getMessagesFn()
+			msgs := make([]Message, 0)
+
+			messages.ConvertToInterface(prcMsgs, func(m *types.PrecommitMessage) {
+				msgs = append(msgs, m)
+			})
+
+			majority := t.verifier.Quorum(msgs)
+
+			if majority {
+				return nil
+			}
 		}
 	}
 }
