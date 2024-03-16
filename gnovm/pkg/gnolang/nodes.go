@@ -1460,7 +1460,7 @@ type BlockNode interface {
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetExternPathForName(Store, Name) ValuePath
-	GetBlockNodeForPath(ValuePath) BlockNode
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name) *TypedValue
@@ -1651,7 +1651,7 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 
 	// NOTE: path.Depth == 1 means it's in bn.
 	var bn BlockNode = sb.GetSource(store)
-	for i := 1; i < path.Depth; i++ {
+	for i := 1; i < int(path.Depth); i++ {
 		bn = bn.GetParentNode(store)
 	}
 

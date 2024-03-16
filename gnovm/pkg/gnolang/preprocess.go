@@ -749,7 +749,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Step 1: check if this func lit is in a loop,
 				// not embedded within another func lit.
-				loopDepth, inLoop := isNodeInLoop(store, n)
+				loopDepth, inLoop := isBlockNodeInLoop(store, n)
 				if !inLoop {
 					return n, TRANS_CONTINUE
 				}
@@ -758,18 +758,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				leNames := []Name{}
 				leTypes := []Type{}
 				lePaths := []ValuePath{}
-				for name := range n.GetExternNames() {
+				for _, name := range n.GetExternNames() {
 					path := n.GetExternPathForName(store, name)
 					if path.Type != VPBlock {
 						continue // not a for-loop block path
 					}
-					if path.Depth <= loopDepth+1 {
+					if int(path.Depth) <= loopDepth+1 {
 						// it is within the loop, carry on...
 					} else {
 						// it is outside the closest loop ancestor,
 						// check to see if it is declared in outer loop.
 						container := n.GetBlockNodeForPath(store, path)
-						if _, ok := isNodeInLoop(container); !ok {
+						if _, ok := isBlockNodeInLoop(store, container); !ok {
 							continue // not declared in any loop.
 						}
 					}
@@ -793,18 +793,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// The outer closure call’s passed arguments
 				// will be modified by the final preprocess
 				// call on the call expression (variable depth).
-				adjustLoopExternPaths(n, loopExterns, loopExternPaths)
+				adjustLoopExternPaths(n, leNames, lePaths)
 				// Inject a closure-call and preprocess it.
-				fldargs := []interface{}{}
-				for i := 0; i < len(loopExterns); i++ {
-					fldargs = append(fldargs,
-						loopExterns[i],
-						constType(nil, loopExternTypes[i]),
+				paramFields := []interface{}{}
+				for i := 0; i < len(leNames); i++ {
+					paramFields = append(paramFields,
+						leNames[i],
+						constType(nil, leTypes[i]),
 					)
 				}
-				params := Flds(fldargs...)
-				closure := Fn(params, nil, n)
-				call := Call(closure, loopExterns...)
+				params := Flds(paramFields...)
+				fnType := evalStaticTypeOf(store, last, n)
+				results := Flds("", constType(nil, fnType))
+				returnFn := Return(n)
+				closure := Fn(params, results, []Stmt{returnFn})
+				leNameExprs := []interface{}{}
+				for _, leName := range leNames {
+					leNameExprs = append(leNameExprs, Nx(leName))
+				}
+				call := Call(closure, leNameExprs...)
 				// this preprocess will also set the path for the
 				// outer closure's params and the call's
 				// argument value paths.
@@ -3633,14 +3640,14 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-// return the depth offset of loop and true if node is in a loop,
+// return the depth offset of loop and true if block node is in a loop,
 // but not embedded within another func lit intermediary.
-func isNodeInLoop(store Store, n Node) (int, bool) {
+func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 	depthOffset := 0
-	for n != nil {
+	for bn != nil {
 		depthOffset += 1
-		n = n.GetParentNode(store)
-		switch cn := n.(type) {
+		bn = bn.GetParentNode(store)
+		switch bn.(type) {
 		case *FuncLitExpr:
 			return 0, false
 		case *ForStmt:
@@ -3652,8 +3659,8 @@ func isNodeInLoop(store Store, n Node) (int, bool) {
 	return 0, false
 }
 
-func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
-	var depthOffset = 0
+func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
+	var depthOffset uint8 = 0
 	isLeName := func(name Name) (ValuePath, bool) {
 		for i, leName := range leNames {
 			if name == leName {
@@ -3663,7 +3670,7 @@ func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 		return ValuePath{}, false
 	}
 
-	nn := Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// expect only preprocessed nodes.
 		if n.GetAttribute(ATTR_PREPROCESSED) != true {
 			panic("expected only preprocessed nodes for adjustLoopExrternPaths")
@@ -3672,8 +3679,8 @@ func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 		switch stage {
 		case TRANS_ENTER:
 			switch cn := n.(type) {
-			case NameExpr:
-				if cn.Path.Type != VPBlockType {
+			case *NameExpr:
+				if cn.Path.Type != VPBlock {
 					panic("unexpected value path type for name")
 				}
 				lePath, isLeName := isLeName(cn.Name)
@@ -3716,7 +3723,7 @@ func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 					//     }(i)
 					//   }
 					// }
-					cn.Path.Depth = 1 + offset + 1
+					cn.Path.Depth = 1 + depthOffset + 1
 				} else {
 					// If the depth is shallow,
 					// it is not affected.
@@ -3754,7 +3761,7 @@ func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 				return cn, TRANS_SKIP
 			}
 		default:
-			return cn, TRANS_CONTINUE
+			return n, TRANS_CONTINUE
 		}
 	})
 }
