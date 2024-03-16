@@ -749,7 +749,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Step 1: check if this func lit is in a loop,
 				// not embedded within another func lit.
-				if !isFuncLitInLoop(store, n) {
+				if !isNodeInLoop(store, n) {
 					return n, TRANS_CONTINUE
 				}
 
@@ -762,10 +762,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if path.Type != VPBlock {
 						continue // not a for-loop block path
 					}
-					// XXX this is wrong, need to check all ancestors
-					// rather than the block node for path.
-					container := getBlockNodeForPath(n, path)
-					if _, ok := container.(*ForStmt); !ok {
+					if !isNodeInLoop(store, n) {
 						continue // not a for-loop declared name
 					}
 					typ := n.GetStaticTypeOfAt(store, path)
@@ -3630,8 +3627,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 
 // return true if node is in a loop,
 // but not embedded within another func lit intermediary.
-func isFuncLitInLoop(store Store, fn *FuncLitExpr) bool {
-	var n BlockNode = fn
+func isNodeInLoop(store Store, n Node) bool {
 	for n != nil {
 		n = n.GetParentNode(store)
 		switch cn := n.(type) {
@@ -3645,24 +3641,7 @@ func isFuncLitInLoop(store Store, fn *FuncLitExpr) bool {
 	}
 }
 
-// bn: block node within which path was gotten.
-// XXX pass store
-// XXX consider as a method for BlockNode.
-func getBlockNodeForPath(bn BlockNode, path ValuePath) BlockNode {
-	if path.Type != VPBlock {
-		panic("expected block type value path but got something else")
-	}
-
-	// NOTE: path.Depth == 1 means it's in bn.
-	for i := 1; i < path.Depth; i++ {
-		bn = bn.GetParentNode(nil)
-	}
-
-	return bn
-}
-
 func adjustLoopExterns(bn BlockNode, leNames []Name, lePaths []ValuePath) {
-
 	var depthOffset = 0
 	isLeName := func(name Name) (ValuePath, bool) {
 		for i, leName := range leNames {
