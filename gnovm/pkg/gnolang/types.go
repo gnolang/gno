@@ -333,6 +333,8 @@ type FieldType struct {
 	Type     Type
 	Embedded bool
 	Tag      Tag
+	Comment  *CommentGroup // line comments; or nil
+	Doc      *CommentGroup // associated documentation; or nil
 }
 
 func (ft FieldType) Kind() Kind {

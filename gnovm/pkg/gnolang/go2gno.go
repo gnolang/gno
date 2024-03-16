@@ -226,17 +226,23 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body: toBody(fs, gon.Body),
 		}
 	case *ast.Field:
+		doc, _ := Go2Gno(fs, gon.Doc).(*CommentGroup)
+		comment, _ := Go2Gno(fs, gon.Comment).(*CommentGroup)
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				Name:    "",
+				Type:    toExpr(fs, gon.Type),
+				Tag:     toExpr(fs, gon.Tag),
+				Doc:     doc,
+				Comment: comment,
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
-				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				Name:    toName(gon.Names[0]),
+				Type:    toExpr(fs, gon.Type),
+				Tag:     toExpr(fs, gon.Tag),
+				Doc:     doc,
+				Comment: comment,
 			}
 		} else {
 			panic(fmt.Sprintf(
@@ -437,12 +443,15 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if gon.Body != nil {
 			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
 		}
+
+		doc, _ := Go2Gno(fs, gon.Doc).(*CommentGroup)
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
 			NameExpr: NameExpr{Name: name},
 			Type:     *type_,
 			Body:     body,
+			Doc:      doc,
 		}
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
@@ -456,10 +465,39 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				decls = append(decls, toDecl(fs, d))
 			}
 		}
+
+		doc, _ := Go2Gno(fs, gon.Doc).(*CommentGroup)
+		comments := make([]*CommentGroup, len(gon.Comments))
+		for i, cg := range gon.Comments {
+			comments[i] = Go2Gno(fs, cg).(*CommentGroup)
+		}
+
 		return &FileNode{
-			Name:    "", // filled later.
-			PkgName: pkgName,
-			Decls:   decls,
+			Name:     "", // filled later.
+			PkgName:  pkgName,
+			Decls:    decls,
+			Doc:      doc,
+			Comments: comments,
+		}
+	case *ast.CommentGroup:
+		// Here, we need to check for nil again, even though gon was
+		// already checked against nil at the start. because the
+		// interface gon could still hold a `CommentGroup` type without a value,
+		// appearing non-nil to the runtime.
+		if gon == nil {
+			return nil
+		}
+
+		var doc CommentGroup
+		for _, c := range gon.List {
+			doc.List = append(doc.List, &Comment{
+				Text: c.Text,
+			})
+		}
+		return &doc
+	case *ast.Comment:
+		return &Comment{
+			Text: gon.Text,
 		}
 	default:
 		panic(fmt.Sprintf("unknown Go type %v: %s\n",
@@ -482,6 +520,7 @@ func toName(name *ast.Ident) Name {
 
 var token2word = map[token.Token]Word{
 	token.ILLEGAL:        ILLEGAL,
+	token.COMMENT:        COMMENT, // XXX: do we need this ?
 	token.IDENT:          NAME,
 	token.INT:            INT,
 	token.FLOAT:          FLOAT,
@@ -630,10 +669,14 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
+			doc, _ := Go2Gno(fs, s.Doc).(*CommentGroup)
+			comment, _ := Go2Gno(fs, s.Comment).(*CommentGroup)
 			ds = append(ds, &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
+				Doc:      doc,
+				Comment:  comment,
 			})
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
@@ -655,11 +698,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					values = toExprs(fs, s.Values)
 					lastValues = values
 				}
+
+				doc, _ := Go2Gno(fs, s.Doc).(*CommentGroup)
+				comment, _ := Go2Gno(fs, s.Comment).(*CommentGroup)
 				cd := &ValueDecl{
 					NameExprs: names,
 					Type:      tipe,
 					Values:    values,
 					Const:     true,
+					Doc:       doc,
+					Comment:   comment,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
 				ds = append(ds, cd)
@@ -674,11 +722,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				if s.Values != nil {
 					values = toExprs(fs, s.Values)
 				}
+
+				doc, _ := Go2Gno(fs, s.Doc).(*CommentGroup)
+				comment, _ := Go2Gno(fs, s.Comment).(*CommentGroup)
 				vd := &ValueDecl{
+					Doc:       doc,
 					NameExprs: names,
 					Type:      tipe,
 					Values:    values,
 					Const:     false,
+					Comment:   comment,
 				}
 				ds = append(ds, vd)
 			}
@@ -687,9 +740,14 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			if err != nil {
 				panic("unexpected import spec path type")
 			}
+
+			doc, _ := Go2Gno(fs, s.Doc).(*CommentGroup)
+			comment, _ := Go2Gno(fs, s.Comment).(*CommentGroup)
 			ds = append(ds, &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
+				Doc:      doc,
+				Comment:  comment,
 			})
 		default:
 			panic(fmt.Sprintf(
