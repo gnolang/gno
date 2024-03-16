@@ -617,6 +617,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// elide composite lit element (nested) composite types.
 					elideCompositeElements(clx, clt)
 				}
+				switch n.(type) {
+				// TRANS_LEAVE (deferred)---------
+				// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+				// POP BLOCK YOURSELF.
+				case BlockNode:
+					// Pop block.
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
 			}()
 
 			// The main TRANS_LEAVE switch.
@@ -783,6 +793,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// nothing to transform
 					return n, TRANS_CONTINUE
 				}
+				panic("!!! ITS HAPPENING (insert ron paul jazz hands) !!!")
 				// Finally, do the transform.
 				// The inner closure loop externs will be
 				// modified to have a path depth of 2 (or more)
@@ -2032,17 +2043,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 			}
 			// end type switch statement
+			// END TRANS_LEAVE -----------------------
 
-			// TRANS_LEAVE -----------------------
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-				return n, TRANS_CONTINUE
-			} else {
-				return n, TRANS_CONTINUE
-			}
+			// Convenience return in case not already returned.
+			return n, TRANS_CONTINUE
 		}
 
 		panic(fmt.Sprintf(
