@@ -15,31 +15,17 @@ const (
 	precommit
 )
 
-func (n step) String() string {
-	switch n {
-	case propose:
-		return "propose"
-	case prevote:
-		return "prevote"
-	case precommit:
-		return "precommit"
-	}
-
-	return ""
+// set updates the current step value [THREAD SAFE]
+func (s *step) set(n step) {
+	atomic.SwapUint32((*uint32)(s), uint32(n))
 }
 
-func (n *step) Set(newStep step) {
-	atomic.SwapUint32((*uint32)(n), uint32(newStep))
-}
-
-func (n *step) Load() step {
-	s := atomic.LoadUint32((*uint32)(n))
-
-	return step(s)
+// get fetches the current step value [THREAD SAFE]
+func (s *step) get() step {
+	return step(atomic.LoadUint32((*uint32)(s)))
 }
 
 // state holds information about the current consensus state
-// TODO make thread safe
 type state struct {
 	view *types.View
 
@@ -47,40 +33,12 @@ type state struct {
 	acceptedProposalID []byte
 
 	lockedValue []byte
-
-	// no concurrent writes/reads
-	// no need sync primitive
-	// used in startRound()
-	validValue []byte
+	validValue  []byte
 
 	lockedRound int64
 	validRound  int64
 
 	step step
-}
-
-func (s *state) LoadHeight() uint64 {
-	return atomic.LoadUint64(&s.view.Height)
-}
-
-func (s *state) LoadRound() uint64 {
-	return atomic.LoadUint64(&s.view.Round)
-}
-
-func (s *state) LoadValidRound() int64 {
-	return atomic.LoadInt64(&s.validRound)
-}
-
-func (s *state) LoadLockedRound() int64 {
-	return atomic.LoadInt64(&s.lockedRound)
-}
-
-func (s *state) IncRound() {
-	atomic.AddUint64(&s.view.Round, 1)
-}
-
-func (s *state) SetRound(r uint64) {
-	atomic.SwapUint64(&s.view.Round, r)
 }
 
 // newState creates a fresh state using the given view
@@ -95,4 +53,24 @@ func newState(view *types.View) state {
 		validValue:         nil,
 		validRound:         -1,
 	}
+}
+
+// getHeight fetches the current view height [THREAD SAFE]
+func (s *state) getHeight() uint64 {
+	return atomic.LoadUint64(&s.view.Height)
+}
+
+// getRound fetches the current view round [THREAD SAFE]
+func (s *state) getRound() uint64 {
+	return atomic.LoadUint64(&s.view.Round)
+}
+
+// increaseRound increases the current view round by 1 [THREAD SAFE]
+func (s *state) increaseRound() {
+	atomic.AddUint64(&s.view.Round, 1)
+}
+
+// setRound sets the current view round to the given value [THREAD SAFE]
+func (s *state) setRound(r uint64) {
+	atomic.SwapUint64(&s.view.Round, r)
 }

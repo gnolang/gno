@@ -17,9 +17,9 @@ func TestTimeout_CalculateTimeout(t *testing.T) {
 		initial = 10 * time.Second
 		delta   = 200 * time.Millisecond
 
-		tm = timeout{
-			initial: initial,
-			delta:   delta,
+		tm = Timeout{
+			Initial: initial,
+			Delta:   delta,
 		}
 	)
 
@@ -27,7 +27,7 @@ func TestTimeout_CalculateTimeout(t *testing.T) {
 		assert.Equal(
 			t,
 			initial+time.Duration(round)*delta,
-			tm.calculateTimeout(round),
+			tm.CalculateTimeout(round),
 		)
 	}
 }
@@ -65,16 +65,16 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 
 	tm := &Tendermint{
 		state:     newState(view),
-		timeouts:  make(map[step]timeout),
+		timeouts:  make(map[step]Timeout),
 		broadcast: mockBroadcast,
 		node:      mockNode,
 		signer:    mockSigner,
 	}
 
-	// Set the timeout data for the propose step
-	tm.timeouts[propose] = timeout{
-		initial: 50 * time.Millisecond,
-		delta:   50 * time.Millisecond,
+	// set the timeout data for the propose step
+	tm.timeouts[propose] = Timeout{
+		Initial: 50 * time.Millisecond,
+		Delta:   50 * time.Millisecond,
 	}
 
 	// Schedule the timeout
@@ -86,7 +86,7 @@ func TestTimeout_ScheduleTimeoutPropose(t *testing.T) {
 			tm.onTimeoutPropose(tm.state.view.Round)
 		}
 
-		timeoutPropose = tm.timeouts[propose].calculateTimeout(tm.state.view.Round)
+		timeoutPropose = tm.timeouts[propose].CalculateTimeout(tm.state.view.Round)
 	)
 
 	tm.scheduleTimeout(ctx, timeoutPropose, callback)

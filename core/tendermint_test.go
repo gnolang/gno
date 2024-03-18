@@ -381,7 +381,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			verifier: verifier,
 		}
 
-		sub, unsubFn := tm.store.SubscribeToPropose()
+		sub, unsubFn := tm.store.subscribeToPropose()
 		defer unsubFn()
 
 		// Make sure the message is added
@@ -464,7 +464,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			verifier: verifier,
 		}
 
-		sub, unsubFn := tm.store.SubscribeToPrevote()
+		sub, unsubFn := tm.store.subscribeToPrevote()
 		defer unsubFn()
 
 		// Make sure the message is added
@@ -542,7 +542,7 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			verifier: verifier,
 		}
 
-		sub, unsubFn := tm.store.SubscribeToPrecommit()
+		sub, unsubFn := tm.store.subscribeToPrecommit()
 		defer unsubFn()
 
 		// Make sure the message is added

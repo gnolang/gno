@@ -95,23 +95,35 @@ func (m *mockSigner) IsValidSignature(data, signature []byte) bool {
 }
 
 type (
-	isProposerDelegate  func([]byte, uint64, uint64) bool
-	isValidatorDelegate func([]byte) bool
-	quorumDelegate      func([]Message) bool
+	isProposerDelegate          func([]byte, uint64, uint64) bool
+	isValidatorDelegate         func([]byte) bool
+	isValidProposalDelegate     func([]byte, uint64) bool
+	getTotalVotingPowerDelegate func(uint64) uint64
+	getSumVotingPowerDelegate   func([]Message) uint64
 )
 
 type mockVerifier struct {
-	isProposerFn  isProposerDelegate
-	isValidatorFn isValidatorDelegate
-	quorumFn      quorumDelegate
+	isProposerFn          isProposerDelegate
+	isValidatorFn         isValidatorDelegate
+	isValidProposalFn     isValidProposalDelegate
+	getTotalVotingPowerFn getTotalVotingPowerDelegate
+	getSumVotingPowerFn   getSumVotingPowerDelegate
 }
 
-func (m *mockVerifier) Quorum(msgs []Message) bool {
-	if m.quorumFn != nil {
-		return m.quorumFn(msgs)
+func (m *mockVerifier) GetTotalVotingPower(height uint64) uint64 {
+	if m.getTotalVotingPowerFn != nil {
+		return m.getTotalVotingPowerFn(height)
 	}
 
-	return false
+	return 0
+}
+
+func (m *mockVerifier) GetSumVotingPower(msgs []Message) uint64 {
+	if m.getSumVotingPowerFn != nil {
+		return m.getSumVotingPowerFn(msgs)
+	}
+
+	return 0
 }
 
 func (m *mockVerifier) IsProposer(id []byte, height, round uint64) bool {
@@ -125,6 +137,14 @@ func (m *mockVerifier) IsProposer(id []byte, height, round uint64) bool {
 func (m *mockVerifier) IsValidator(from []byte) bool {
 	if m.isValidatorFn != nil {
 		return m.isValidatorFn(from)
+	}
+
+	return false
+}
+
+func (m *mockVerifier) IsValidProposal(proposal []byte, height uint64) bool {
+	if m.isValidProposalFn != nil {
+		return m.isValidProposalFn(proposal, height)
 	}
 
 	return false

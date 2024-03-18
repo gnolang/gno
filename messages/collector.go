@@ -2,6 +2,8 @@ package messages
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gnolang/go-tendermint/messages/types"
@@ -95,6 +97,37 @@ func (c *collection[T]) getMessages() []*T {
 	return messages
 }
 
+// DropMessages drops all messages from the collection if their view
+// is less than the given view (earlier)
+func (c *Collector[T]) DropMessages(view *types.View) {
+	c.collectionMux.RLock()
+	defer c.collectionMux.RUnlock()
+
+	// Filter out messages from the collection
+	shouldStay := func(key string) bool {
+		// Construct the view from the message
+		messageView := getViewFromKey(key)
+
+		// Only messages who are >= the current view stay
+		return messageView.Height < view.Height ||
+			messageView.Round < view.Round
+	}
+
+	// Filter out the messages
+	c.collection.dropMessages(shouldStay)
+}
+
+// dropMessages drops messages from the collection using the given filter
+func (c *collection[T]) dropMessages(shouldStay func(string) bool) {
+	for key := range *c {
+		if shouldStay(key) {
+			continue
+		}
+
+		delete(*c, key)
+	}
+}
+
 // AddMessage adds a new message to the collector
 func (c *Collector[T]) AddMessage(view *types.View, from []byte, message *T) {
 	c.collectionMux.Lock()
@@ -124,4 +157,20 @@ func (c *collection[T]) addMessage(key string, message *T) {
 // This key guarantees uniqueness in the message store
 func getCollectionKey(from []byte, view *types.View) string {
 	return fmt.Sprintf("%s_%d_%d", from, view.Height, view.Round)
+}
+
+// getViewFromKey constructs the view information,
+// based on the collection key
+func getViewFromKey(key string) *types.View {
+	// Split the key
+	keyParts := strings.Split(key, "_")
+
+	// Parse the view values
+	height, _ := strconv.ParseUint(keyParts[1], 10, 64) //nolint:errcheck // Key is valid
+	round, _ := strconv.ParseUint(keyParts[2], 10, 64)  //nolint:errcheck // Key is valid
+
+	return &types.View{
+		Height: height,
+		Round:  round,
+	}
 }

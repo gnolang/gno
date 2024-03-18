@@ -22,7 +22,7 @@ func (t *Tendermint) AddProposalMessage(message *types.ProposalMessage) error {
 	}
 
 	// Add the message to the store
-	t.store.AddProposalMessage(message)
+	t.store.addProposalMessage(message)
 
 	return nil
 }
@@ -35,7 +35,7 @@ func (t *Tendermint) AddPrevoteMessage(message *types.PrevoteMessage) error {
 	}
 
 	// Add the message to the store
-	t.store.AddPrevoteMessage(message)
+	t.store.addPrevoteMessage(message)
 
 	return nil
 }
@@ -48,21 +48,13 @@ func (t *Tendermint) AddPrecommitMessage(message *types.PrecommitMessage) error 
 	}
 
 	// Add the message to the store
-	t.store.AddPrecommitMessage(message)
+	t.store.addPrecommitMessage(message)
 
 	return nil
 }
 
-type message interface {
-	GetView() *types.View
-	GetSender() []byte
-	GetSignature() []byte
-	GetSignaturePayload() []byte
-	Verify() error
-}
-
 // verifyMessage is the common base message verification
-func (t *Tendermint) verifyMessage(message message) error {
+func (t *Tendermint) verifyMessage(message Message) error {
 	// Check if the message is valid
 	if err := message.Verify(); err != nil {
 		return fmt.Errorf("unable to verify message, %w", err)
@@ -85,8 +77,8 @@ func (t *Tendermint) verifyMessage(message message) error {
 	var (
 		view = message.GetView()
 
-		currentHeight = t.state.LoadHeight()
-		currentRound  = t.state.LoadRound()
+		currentHeight = t.state.getHeight()
+		currentRound  = t.state.getRound()
 	)
 
 	// Make sure the height is valid.

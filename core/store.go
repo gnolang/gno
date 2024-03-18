@@ -21,32 +21,45 @@ func newStore() store {
 	}
 }
 
-// AddProposalMessage adds a proposal message to the store
-func (s *store) AddProposalMessage(proposal *types.ProposalMessage) {
+// addProposalMessage adds a proposal message to the store
+func (s *store) addProposalMessage(proposal *types.ProposalMessage) {
 	s.proposeMessages.AddMessage(proposal.View, proposal.Sender, proposal)
 }
 
-// AddPrevoteMessage adds a prevote message to the store
-func (s *store) AddPrevoteMessage(prevote *types.PrevoteMessage) {
+// addPrevoteMessage adds a prevote message to the store
+func (s *store) addPrevoteMessage(prevote *types.PrevoteMessage) {
 	s.prevoteMessages.AddMessage(prevote.View, prevote.Sender, prevote)
 }
 
-// AddPrecommitMessage adds a precommit message to the store
-func (s *store) AddPrecommitMessage(precommit *types.PrecommitMessage) {
+// addPrecommitMessage adds a precommit message to the store
+func (s *store) addPrecommitMessage(precommit *types.PrecommitMessage) {
 	s.precommitMessages.AddMessage(precommit.View, precommit.Sender, precommit)
 }
 
-// SubscribeToPropose subscribes to incoming PROPOSE messages
-func (s *store) SubscribeToPropose() (<-chan func() []*types.ProposalMessage, func()) {
+// subscribeToPropose subscribes to incoming PROPOSE messages
+func (s *store) subscribeToPropose() (<-chan func() []*types.ProposalMessage, func()) {
 	return s.proposeMessages.Subscribe()
 }
 
-// SubscribeToPrevote subscribes to incoming PREVOTE messages
-func (s *store) SubscribeToPrevote() (<-chan func() []*types.PrevoteMessage, func()) {
+// subscribeToPrevote subscribes to incoming PREVOTE messages
+func (s *store) subscribeToPrevote() (<-chan func() []*types.PrevoteMessage, func()) {
 	return s.prevoteMessages.Subscribe()
 }
 
-// SubscribeToPrecommit subscribes to incoming PRECOMMIT messages
-func (s *store) SubscribeToPrecommit() (<-chan func() []*types.PrecommitMessage, func()) {
+// subscribeToPrecommit subscribes to incoming PRECOMMIT messages
+func (s *store) subscribeToPrecommit() (<-chan func() []*types.PrecommitMessage, func()) {
 	return s.precommitMessages.Subscribe()
+}
+
+// dropMessages drops all messages from the store that are
+// less than the given view (earlier)
+func (s *store) dropMessages(view *types.View) {
+	// Clean up the propose messages
+	s.proposeMessages.DropMessages(view)
+
+	// Clean up the prevote messages
+	s.prevoteMessages.DropMessages(view)
+
+	// Clean up the precommit messages
+	s.precommitMessages.DropMessages(view)
 }

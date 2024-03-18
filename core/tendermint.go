@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"sync"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/gnolang/go-tendermint/messages/types"
 )
 
+// Tendermint is the single consensus engine instance
 type Tendermint struct {
 	// store is the message store
 	store store
@@ -22,12 +25,8 @@ type Tendermint struct {
 	// logger is the consensus engine logger
 	logger *slog.Logger
 
-	// roundExpired is the channel for signalizing
-	// round change events (to the next round, from the current one)
-	roundExpired chan struct{}
-
 	// timeouts hold state timeout information (constant)
-	timeouts map[step]timeout
+	timeouts map[step]Timeout
 
 	// state is the current Tendermint consensus state
 	state state
@@ -35,6 +34,32 @@ type Tendermint struct {
 	// wg is the barrier for keeping all
 	// parallel consensus processes synced
 	wg sync.WaitGroup
+}
+
+// NewTendermint creates a new instance of the Tendermint consensus engine
+func NewTendermint(
+	verifier Verifier,
+	node Node,
+	broadcast Broadcast,
+	signer Signer,
+	opts ...Option,
+) *Tendermint {
+	t := &Tendermint{
+		store:     newStore(),
+		verifier:  verifier,
+		node:      node,
+		broadcast: broadcast,
+		signer:    signer,
+		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		timeouts:  getDefaultTimeoutMap(),
+	}
+
+	// Apply any options
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
 // RunSequence runs the Tendermint consensus sequence for a given height,
@@ -48,13 +73,17 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 	)
 
 	// Initialize the state before starting the sequence
-	t.state = newState(&types.View{
+	view := &types.View{
 		Height: h,
 		Round:  0,
-	})
+	}
+	t.state = newState(view)
+
+	// Drop all old messages
+	t.store.dropMessages(view)
 
 	for {
-		// Set up the round context
+		// set up the round context
 		ctxRound, cancelRound := context.WithCancel(ctx)
 		teardown := func() {
 			cancelRound()
@@ -66,53 +95,43 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 			teardown()
 
 			// Check if the proposal has been finalized
-			if proposal == nil {
+			if proposal != nil {
 				t.logger.Info(
-
-					"RunSequence received empty proposal",
+					"RunSequence: proposal finalized",
 					slog.Uint64("height", h),
-					slog.Uint64("round", t.state.LoadRound()),
 				)
-				// 65: Function OnTimeoutPrecommit(height, round) :
-				// 66: 	if height = hP ∧ round = roundP then
-				// 67: 		StartRound(roundP + 1)
-				t.state.IncRound()
 
-				continue
+				return proposal
 			}
 
 			t.logger.Info(
-				"RunSequence: proposal finalized",
+				"RunSequence round expired",
 				slog.Uint64("height", h),
+				slog.Uint64("round", t.state.getRound()),
 			)
 
-			return proposal
+			// 65: Function OnTimeoutPrecommit(height, round) :
+			// 66: 	if height = hP ∧ round = roundP then
+			// 67: 		StartRound(roundP + 1)
+			t.state.increaseRound()
 		case recvRound := <-t.watchForRoundJumps(ctxRound):
+			teardown()
+
 			t.logger.Info(
 				"RunSequence: round jump",
 				slog.Uint64("height", h),
-				slog.Uint64("from", t.state.LoadRound()),
+				slog.Uint64("from", t.state.getRound()),
 				slog.Uint64("to", recvRound),
 			)
 
-			teardown()
-			t.state.SetRound(recvRound)
-		case <-t.roundExpired:
-			t.logger.Info(
-				"RunSequence: round expired",
-				slog.Uint64("height", h),
-				slog.Uint64("round", t.state.LoadRound()),
-			)
-
-			teardown()
-			t.state.IncRound()
+			t.state.setRound(recvRound)
 		case <-ctx.Done():
 			teardown()
 
 			t.logger.Info(
 				"RunSequence: context done",
 				slog.Uint64("height", h),
-				slog.Uint64("round", t.state.LoadRound()),
+				slog.Uint64("round", t.state.getRound()),
 			)
 
 			return nil
@@ -123,18 +142,29 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 // watchForRoundJumps monitors for F+1 (any) messages from a future round, and
 // triggers the round switch context (channel) accordingly
 func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
-	// TODO make thread safe
 	var (
-		_  = t.state.view
+		height = t.state.getHeight()
+		round  = t.state.getRound()
+
 		ch = make(chan uint64, 1)
 	)
+
+	// Signals the round jump to the given channel
+	signalRoundJump := func(round uint64) {
+		select {
+		case <-ctx.Done():
+		case ch <- round:
+		}
+	}
 
 	t.wg.Add(1)
 
 	go func() {
-		proposeCh, unsubscribeProposeFn := t.store.SubscribeToPropose()
-		prevoteCh, unsubscribePrevoteFn := t.store.SubscribeToPrevote()
-		precommitCh, unsubscribePrecommitFn := t.store.SubscribeToPrecommit()
+		var (
+			proposeCh, unsubscribeProposeFn     = t.store.subscribeToPropose()
+			prevoteCh, unsubscribePrevoteFn     = t.store.subscribeToPrevote()
+			precommitCh, unsubscribePrecommitFn = t.store.subscribeToPrecommit()
+		)
 
 		defer func() {
 			unsubscribeProposeFn()
@@ -142,52 +172,106 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 			unsubscribePrecommitFn()
 		}()
 
-		signalRoundJump := func(round uint64) {
-			select {
-			case <-ctx.Done():
-			case ch <- round:
+		var (
+			isValidProposeFn = func(m *types.ProposalMessage) bool {
+				view := m.GetView()
+
+				return view.GetRound() > round && view.GetHeight() == height
 			}
+			isValidPrevoteFn = func(m *types.PrevoteMessage) bool {
+				view := m.GetView()
+
+				return view.GetRound() > round && view.GetHeight() == height
+			}
+			isValidPrecommitFn = func(m *types.PrecommitMessage) bool {
+				view := m.GetView()
+
+				return view.GetRound() > round && view.GetHeight() == height
+			}
+		)
+
+		var (
+			proposeCache   = newMessageCache[*types.ProposalMessage](isValidProposeFn)
+			prevoteCache   = newMessageCache[*types.PrevoteMessage](isValidPrevoteFn)
+			precommitCache = newMessageCache[*types.PrecommitMessage](isValidPrecommitFn)
+		)
+
+		generateRoundMap := func(messages ...[]Message) map[uint64][]Message {
+			combined := make([]Message, 0)
+			for _, message := range messages {
+				combined = append(combined, message...)
+			}
+
+			// Group messages by round
+			roundMap := make(map[uint64][]Message)
+
+			for _, message := range combined {
+				round := message.GetView().GetRound()
+				roundMap[round] = append(roundMap[round], message)
+			}
+
+			return roundMap
 		}
 
 		for {
-			var majority bool
-
 			select {
 			case <-ctx.Done():
 				return
 			case getProposeFn := <-proposeCh:
-				prpMsgs := getProposeFn()
-				msgs := make([]Message, 0)
-
-				messages.ConvertToInterface(prpMsgs, func(m *types.ProposalMessage) {
-					msgs = append(msgs, m)
-				})
-
-				majority = t.verifier.Quorum(msgs)
+				proposeCache.addMessages(getProposeFn())
 			case getPrevoteFn := <-prevoteCh:
-				prvMsgs := getPrevoteFn()
-				msgs := make([]Message, 0)
-
-				messages.ConvertToInterface(prvMsgs, func(m *types.PrevoteMessage) {
-					msgs = append(msgs, m)
-				})
-
-				majority = t.verifier.Quorum(msgs)
+				prevoteCache.addMessages(getPrevoteFn())
 			case getPrecommitFn := <-precommitCh:
-				prcMsgs := getPrecommitFn()
-				msgs := make([]Message, 0)
-
-				messages.ConvertToInterface(prcMsgs, func(m *types.PrecommitMessage) {
-					msgs = append(msgs, m)
-				})
-
-				majority = t.verifier.Quorum(msgs)
+				precommitCache.addMessages(getPrecommitFn())
 			}
 
-			// check if the condition (F+1) is met
-			// and signal the round jump
-			if majority {
-				signalRoundJump(0)
+			var (
+				proposeMessages   = proposeCache.getMessages()
+				prevoteMessages   = prevoteCache.getMessages()
+				precommitMessages = precommitCache.getMessages()
+			)
+
+			var (
+				convertedPropose   = make([]Message, 0, len(proposeMessages))
+				convertedPrevote   = make([]Message, 0, len(prevoteMessages))
+				convertedPrecommit = make([]Message, 0, len(precommitMessages))
+			)
+
+			messages.ConvertToInterface(proposeMessages, func(m *types.ProposalMessage) {
+				convertedPropose = append(convertedPropose, m)
+			})
+
+			messages.ConvertToInterface(prevoteMessages, func(m *types.PrevoteMessage) {
+				convertedPrevote = append(convertedPrevote, m)
+			})
+
+			messages.ConvertToInterface(precommitMessages, func(m *types.PrecommitMessage) {
+				convertedPrecommit = append(convertedPrecommit, m)
+			})
+
+			// Generate the round map
+			roundMap := generateRoundMap(
+				convertedPropose,
+				convertedPrevote,
+				convertedPrecommit,
+			)
+
+			// Find the highest round that satisfies an F+1 voting power majority.
+			// This max round will always need to be > 0
+			maxRound := uint64(0)
+
+			for round, roundMessages := range roundMap {
+				if !t.hasFaultyMajority(roundMessages) {
+					continue
+				}
+
+				if round > maxRound {
+					maxRound = round
+				}
+			}
+
+			if maxRound > 0 {
+				signalRoundJump(maxRound)
 			}
 		}
 	}()
@@ -224,8 +308,8 @@ func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
 // the state machine is in full swing and
 // the runs the same flow for everyone (proposer / non-proposers)
 func (t *Tendermint) startRound(ctx context.Context) {
-	height := t.state.LoadHeight()
-	round := t.state.LoadRound()
+	height := t.state.getHeight()
+	round := t.state.getRound()
 
 	// Check if the current process is the proposer for this view
 	if !t.verifier.IsProposer(t.node.ID(), height, round) {
@@ -236,7 +320,7 @@ func (t *Tendermint) startRound(ctx context.Context) {
 			callback = func() {
 				t.onTimeoutPropose(round)
 			}
-			timeoutPropose = t.timeouts[propose].calculateTimeout(round)
+			timeoutPropose = t.timeouts[propose].CalculateTimeout(round)
 		)
 
 		t.logger.Debug(
@@ -268,8 +352,9 @@ func (t *Tendermint) startRound(ctx context.Context) {
 			slog.Uint64("height", height),
 			slog.Uint64("round", round),
 		)
+
 		// No previous valid value present,
-		// build a new proposal.
+		// build a new proposal
 		//
 		// 17: 	else
 		// 18: 		proposal ← getValue()
@@ -303,13 +388,13 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	// Since the current process is the proposer,
 	// it can directly move to the prevote state
 	// 27/33: stepP ← prevote
-	t.state.step.Set(prevote)
+	t.state.step.set(prevote)
 }
 
 // runStates runs the consensus states, depending on the current step
 func (t *Tendermint) runStates(ctx context.Context) []byte {
 	for {
-		currentStep := t.state.step.Load()
+		currentStep := t.state.step.get()
 
 		switch currentStep {
 		case propose:
@@ -345,29 +430,116 @@ func (t *Tendermint) runStates(ctx context.Context) []byte {
 //
 // NOTE: the proposer for view (height, round) will send ONLY 1 proposal, be it a new one or an old agreed value
 func (t *Tendermint) runPropose(ctx context.Context) {
-	// TODO make thread safe
-	_ = t.state.view
+	var (
+		height = t.state.getHeight()
+		round  = t.state.getRound()
 
-	ch, unsubscribeFn := t.store.SubscribeToPropose()
+		lockedRound = t.state.lockedRound
+		lockedValue = t.state.lockedValue
+	)
+
+	// Subscribe to all propose messages
+	// (=current height; unique; >= current round)
+	ch, unsubscribeFn := t.store.subscribeToPropose()
 	defer unsubscribeFn()
+
+	// Set up the verification callback.
+	// The idea is to get the single proposal from the proposer for the view (height, round),
+	// and verify if it is valid.
+	// If it turns out the proposal is not valid (the first one received),
+	// then the protocol needs to move to the prevote state, after
+	// broadcasting a PREVOTE message with a NIL ID
+	isFromProposerFn := func(proposal *types.ProposalMessage) bool {
+		// Make sure the proposal view matches the process view
+		if round != proposal.GetView().GetRound() {
+			return false
+		}
+
+		// Check if the proposal came from the proposer
+		// for the current view
+		return t.verifier.IsProposer(proposal.GetSender(), height, round)
+	}
+
+	// Validates the proposal by examining the proposal params
+	isValidProposal := func(proposal []byte, proposalRound int64) bool {
+		// Basic proposal message verification
+		if proposalRound < 0 {
+			// Make sure there is no locked round (-1), OR
+			// that the locked value matches the proposal value
+			if lockedRound != -1 && !bytes.Equal(lockedValue, proposal) {
+				return false
+			}
+		} else {
+			// Make sure the proposal round is an earlier round
+			// than the current process round (old proposal)
+			if proposalRound >= int64(round) {
+				return false
+			}
+
+			// Make sure the locked round value is <= the proposal round, OR
+			// that the locked value matches the proposal value
+			if lockedRound > proposalRound && !bytes.Equal(lockedValue, proposal) {
+				return false
+			}
+		}
+
+		// Make sure the proposal itself is valid
+		return t.verifier.IsValidProposal(proposal, height)
+	}
+
+	// Create the message cache (local to this context only)
+	cache := newMessageCache[*types.ProposalMessage](isFromProposerFn)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case getMessagesFn := <-ch:
-			prpMsgs := getMessagesFn()
-			msgs := make([]Message, 0)
+			// Add the messages to the cache
+			cache.addMessages(getMessagesFn())
 
-			messages.ConvertToInterface(prpMsgs, func(m *types.ProposalMessage) {
-				msgs = append(msgs, m)
-			})
+			// Check if at least 1 proposal message is valid,
+			// after validation and filtering
+			proposalMessages := cache.getMessages()
 
-			majority := t.verifier.Quorum(msgs)
-
-			if majority {
-				t.state.step.Set(prevote)
+			if len(proposalMessages) == 0 {
+				// No valid proposal message yet
+				continue
 			}
+
+			proposalMessage := proposalMessages[0]
+
+			// Validate the proposal received
+			if !isValidProposal(proposalMessage.Proposal, proposalMessage.ProposalRound) {
+				// Broadcast a PREVOTE message with a NIL ID
+				// 26: broadcast ⟨PREVOTE, hP, roundP, nil⟩
+				// 32: broadcast ⟨PREVOTE, hP, roundP, nil⟩
+				t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(nil))
+
+				// Move to the prevote state
+				// 27: stepP ← prevote
+				// 33: stepP ← prevote
+				t.state.step.set(prevote)
+
+				return
+			}
+
+			// Generate the proposal ID
+			id := t.node.Hash(proposalMessage.Proposal)
+
+			// Accept the proposal, since it is valid
+			t.state.acceptedProposal = proposalMessage
+			t.state.acceptedProposalID = id
+
+			// Broadcast the PREVOTE message with a valid ID
+			// 24: broadcast ⟨PREVOTE, hP, roundP, id(v)⟩
+			// 30: broadcast ⟨PREVOTE, hP, roundP, id(v)⟩
+			t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(id))
+
+			// Move to the prevote state
+			// 27: stepP ← prevote
+			// 33: stepP ← prevote
+			t.state.step.set(prevote)
 		}
 	}
 }
@@ -387,31 +559,138 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 // 43: validRoundP ← roundP
 //
 // - A validator has received 2F+1 PREVOTE messages with a NIL ID
+// 44: upon 2f + 1 ⟨PREVOTE, hp, roundP, nil⟩ while stepP = prevote do
+// 45: broadcast ⟨PRECOMMIT, hp, roundP, nil⟩
+// 46: stepP ← precommit
+
+// - A validator has received 2F+1 PREVOTE messages with any kind of ID (valid / NIL)
 // 34: upon 2f + 1 <PREVOTE, hp, roundP, ∗> while stepP = prevote for the first time do
 // 35: schedule OnTimeoutPrevote(hP , roundP) to be executed after timeoutPrevote(roundP)
 func (t *Tendermint) runPrevote(ctx context.Context) {
-	// TODO make thread safe
-	_ = t.state.view
+	var (
+		round              = t.state.getRound()
+		acceptedProposalID = t.state.acceptedProposalID
+	)
 
-	ch, unsubscribeFn := t.store.SubscribeToPrevote()
+	// Subscribe to all prevote messages
+	// (=current height; unique; >= current round)
+	ch, unsubscribeFn := t.store.subscribeToPrevote()
 	defer unsubscribeFn()
+
+	var (
+		isValidFn = func(prevote *types.PrevoteMessage) bool {
+			// Make sure the prevote view matches the process view
+			return round == prevote.GetView().GetRound()
+		}
+		nilMiddleware = func(prevote *types.PrevoteMessage) bool {
+			// Make sure the ID is NIL
+			return prevote.Identifier == nil
+		}
+		matchingIDMiddleware = func(prevote *types.PrevoteMessage) bool {
+			// Make sure the ID matches the accepted proposal ID
+			return bytes.Equal(acceptedProposalID, prevote.Identifier)
+		}
+	)
+
+	var (
+		summedPrevotes = newMessageCache[*types.PrevoteMessage](isValidFn)
+		nilCache       = newMessageCache[*types.PrevoteMessage](nilMiddleware)
+		nonNilCache    = newMessageCache[*types.PrevoteMessage](matchingIDMiddleware)
+
+		timeoutScheduled = false
+	)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case getMessagesFn := <-ch:
-			prvMsgs := getMessagesFn()
-			msgs := make([]Message, 0)
+			// Combine the prevote messages (NIL and non-NIL)
+			summedPrevotes.addMessages(getMessagesFn())
+			prevotes := summedPrevotes.getMessages()
 
-			messages.ConvertToInterface(prvMsgs, func(m *types.PrevoteMessage) {
-				msgs = append(msgs, m)
-			})
+			convertedMessages := make([]Message, 0, len(prevotes))
+			messages.ConvertToInterface(
+				prevotes,
+				func(m *types.PrevoteMessage) {
+					convertedMessages = append(convertedMessages, m)
+				},
+			)
 
-			majority := t.verifier.Quorum(msgs)
+			// Check if there is a super majority for the sum prevotes, to schedule a timeout
+			if !timeoutScheduled && t.hasSuperMajority(convertedMessages) {
+				// 35: schedule OnTimeoutPrevote(hp, roundP) to be executed after timeoutPrevote(roundP)
+				var (
+					callback = func() {
+						t.onTimeoutPrevote(round)
+					}
+					timeoutPrevote = t.timeouts[prevote].CalculateTimeout(round)
+				)
 
-			if majority {
-				t.state.step.Set(precommit)
+				t.logger.Debug(
+					"scheduling timeoutPrevote",
+					slog.Uint64("round", round),
+					slog.Duration("timeout", timeoutPrevote),
+				)
+
+				t.scheduleTimeout(ctx, timeoutPrevote, callback)
+
+				timeoutScheduled = true
+			}
+
+			// Filter the NIL prevote messages
+			nilCache.addMessages(prevotes)
+			nilPrevotes := nilCache.getMessages()
+
+			convertedMessages = make([]Message, 0, len(nilPrevotes))
+			messages.ConvertToInterface(
+				nilPrevotes,
+				func(m *types.PrevoteMessage) {
+					convertedMessages = append(convertedMessages, m)
+				},
+			)
+
+			// Check if there are 2F+1 NIL prevote messages
+			if t.hasSuperMajority(convertedMessages) {
+				// 45: broadcast ⟨PRECOMMIT, hp, roundP, nil⟩
+				// 46: stepP ← precommit
+				t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(nil))
+				t.state.step.set(precommit)
+
+				return
+			}
+
+			// Filter the non-NIL prevote messages
+			nonNilCache.addMessages(prevotes)
+			nonNilPrevotes := nonNilCache.getMessages()
+
+			convertedMessages = make([]Message, 0, len(nonNilPrevotes))
+			messages.ConvertToInterface(
+				nonNilPrevotes,
+				func(m *types.PrevoteMessage) {
+					convertedMessages = append(convertedMessages, m)
+				},
+			)
+
+			// Check if there are 2F+1 non-NIL prevote messages
+			if t.hasSuperMajority(convertedMessages) {
+				// 38: 	lockedValueP ← v
+				// 39: 	lockedRoundP ← roundP
+				t.state.lockedRound = int64(round)
+				t.state.lockedValue = t.state.acceptedProposal.GetProposal()
+
+				// 40: 	broadcast <PRECOMMIT, hP, roundP, id(v))>
+				t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(acceptedProposalID))
+
+				// 41: 	stepP ← precommit
+				t.state.step.set(precommit)
+
+				// 42: validValueP ← v
+				// 43: validRoundP ← roundP
+				t.state.validValue = t.state.acceptedProposal.GetProposal()
+				t.state.validRound = int64(round)
+
+				return
 			}
 		}
 	}
@@ -433,36 +712,95 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 // - A validator has received 2F+1 PRECOMMIT messages with any value (valid ID or NIL)
 // 47: upon 2f + 1 <PRECOMMIT, hP, roundP, ∗> for the first time do
 // 48: schedule OnTimeoutPrecommit(hP , roundP) to be executed after timeoutPrecommit(roundP)
-//
-// TODO @zivkovicmilos: @petar-dambovaliev, I think we can just return nil from this method
-// in case OnTimeoutPrecommit triggers and we still don't have 2F+1 valid PRECOMMIT messages.
-// This makes it easy to handle it in the top-level run loop that parses the finalized proposal:
-// 65: Function OnTimeoutPrecommit(height, round) :
-// 66: 	if height = hP ∧ round = roundP then
-// 67: 		StartRound(roundP + 1)
 func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
-	// TODO make thread safe
-	_ = t.state.view
+	var (
+		round              = t.state.getRound()
+		acceptedProposalID = t.state.acceptedProposalID
 
-	ch, unsubscribeFn := t.store.SubscribeToPrecommit()
+		expiredCh = make(chan struct{})
+	)
+
+	// Subscribe to all precommit messages
+	// (=current height; unique; >= current round)
+	ch, unsubscribeFn := t.store.subscribeToPrecommit()
 	defer unsubscribeFn()
+
+	var (
+		isValidFn = func(precommit *types.PrecommitMessage) bool {
+			// Make sure the precommit view matches the process view
+			return round == precommit.GetView().GetRound()
+		}
+		matchingIDMiddleware = func(precommit *types.PrecommitMessage) bool {
+			// Make sure the ID matches the accepted proposal ID
+			return bytes.Equal(acceptedProposalID, precommit.Identifier)
+		}
+	)
+
+	var (
+		summedPrecommits = newMessageCache[*types.PrecommitMessage](isValidFn)
+		nonNilCache      = newMessageCache[*types.PrecommitMessage](matchingIDMiddleware)
+
+		timeoutScheduled = false
+	)
 
 	for {
 		select {
 		case <-ctx.Done():
+			// Context cancelled, no proposal is finalized
+			return nil
+		case <-expiredCh:
+			// Timeout triggered, no proposal is finalized
 			return nil
 		case getMessagesFn := <-ch:
-			prcMsgs := getMessagesFn()
-			msgs := make([]Message, 0)
+			// Combine the precommit messages (NIL and non-NIL)
+			summedPrecommits.addMessages(getMessagesFn())
+			precommits := summedPrecommits.getMessages()
 
-			messages.ConvertToInterface(prcMsgs, func(m *types.PrecommitMessage) {
-				msgs = append(msgs, m)
-			})
+			convertedMessages := make([]Message, 0, len(precommits))
+			messages.ConvertToInterface(
+				precommits,
+				func(m *types.PrecommitMessage) {
+					convertedMessages = append(convertedMessages, m)
+				},
+			)
 
-			majority := t.verifier.Quorum(msgs)
+			// Check if there is a super majority for the sum precommits, to schedule a timeout
+			if !timeoutScheduled && t.hasSuperMajority(convertedMessages) {
+				// 48: schedule OnTimeoutPrecommit(hP, roundP) to be executed after timeoutPrecommit(roundP)
+				var (
+					callback = func() {
+						t.onTimeoutPrecommit(round, expiredCh)
+					}
 
-			if majority {
-				return nil
+					timeoutPrecommit = t.timeouts[precommit].CalculateTimeout(round)
+				)
+
+				t.logger.Debug(
+					"scheduling timeoutPrecommit",
+					slog.Uint64("round", round),
+					slog.Duration("timeout", timeoutPrecommit),
+				)
+
+				t.scheduleTimeout(ctx, timeoutPrecommit, callback)
+
+				timeoutScheduled = true
+			}
+
+			// Filter the non-NIL precommit messages
+			nonNilCache.addMessages(precommits)
+			nonNilPrecommits := nonNilCache.getMessages()
+
+			convertedMessages = make([]Message, 0, len(nonNilPrecommits))
+			messages.ConvertToInterface(
+				nonNilPrecommits,
+				func(m *types.PrecommitMessage) {
+					convertedMessages = append(convertedMessages, m)
+				},
+			)
+
+			// Check if there are 2F+1 non-NIL precommit messages
+			if t.hasSuperMajority(convertedMessages) {
+				return t.state.acceptedProposal.GetProposal()
 			}
 		}
 	}
