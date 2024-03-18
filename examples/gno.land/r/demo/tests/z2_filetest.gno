@@ -9,20 +9,18 @@ import (
 	"gno.land/r/demo/tests"
 )
 
+// When a single realm in the frames, PrevRealm returns the user
+// When 2 or more realms in the frames, PrevRealm returns the second to last
 func main() {
 	var (
 		eoa        = testutils.TestAddress("someone")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	std.TestSetOrigCaller(eoa)
-	// When a single realm in the frames, PrevRealm returns the user
-	if addr := tests.GetPrevRealm().Addr(); addr != eoa {
-		fmt.Printf("want tests.GetPrevRealm().Addr==%s, got %s\n", eoa, addr)
-	}
-	// When 2 or more realms in the frames, PrevRealm returns the second to last
-	if addr := tests.GetRSubtestsPrevRealm().Addr(); addr != rTestsAddr {
-		fmt.Printf("want GetRSubtestsPrevRealm().Addr==%s, got %s\n", rTestsAddr, addr)
-	}
+	println("tests.GetPrevRealm().Addr(): ", tests.GetPrevRealm().Addr())
+	println("tests.GetRSubtestsPrevRealm().Addr(): ", tests.GetRSubtestsPrevRealm().Addr())
 }
 
 // Output:
+// tests.GetPrevRealm().Addr():  g1wdhk6et0dej47h6lta047h6lta047h6lrnerlk
+// tests.GetRSubtestsPrevRealm().Addr():  g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
