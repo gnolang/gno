@@ -1205,7 +1205,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			}
 
 			// Skip unexported field
-			if rt.Field(i).PkgPath != "" {
+			if !rt.Field(i).IsExported() {
 				continue
 			}
 

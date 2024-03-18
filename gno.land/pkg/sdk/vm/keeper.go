@@ -227,13 +227,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	for i, arg := range msg.Args {
 		pt := ft.Params[i].Type
 		arg = strings.TrimSpace(arg)
-		if len(arg) > 2 &&
+
+		// XXX: move this to `convertArgToGno` method ?
+		if len(arg) >= 2 &&
 			((arg[0] == '{' && arg[len(arg)-1] == '}') ||
 				(arg[0] == '[' && arg[len(arg)-1] == ']')) {
 			// Handle JSON argument
 			request[i], err = UnmarshalJSON(store.GetAllocator(), store, []byte(arg), pt)
 			if err != nil {
-				return "", fmt.Errorf("unable to unmarshal arg#%d: %w", err)
+				return "", fmt.Errorf("unable to unmarshal arg#%d: %w", i, err)
 			}
 
 			continue
@@ -321,7 +323,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		var sv gno.StructValue
 		var st gno.StructType
 
-		// Generate result Typed Valye
+		// Generate result Typed Value
 		result := gno.TypedValue{
 			V: &gno.ArrayValue{
 				List: rtvs,
