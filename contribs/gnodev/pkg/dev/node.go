@@ -17,18 +17,18 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	// backup "github.com/gnolang/tx-archive/backup/client"
 	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 type NodeConfig struct {
-	PackagesPathList      []string
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
-	NoReplay              bool
-	MaxGasPerBlock        int64
-	ChainID               string
+	PackagesPathList []string
+	TMConfig         *tmcfg.Config
+	NoReplay         bool
+	MaxGasPerBlock   int64
+	ChainID          string
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
@@ -36,11 +36,10 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 
 	return &NodeConfig{
-		ChainID:               tmc.ChainID(),
-		PackagesPathList:      []string{},
-		TMConfig:              tmc,
-		SkipFailingGenesisTxs: true,
-		MaxGasPerBlock:        10_000_000_000,
+		ChainID:          tmc.ChainID(),
+		PackagesPathList: []string{},
+		TMConfig:         tmc,
+		MaxGasPerBlock:   10_000_000_000,
 	}
 }
 
@@ -230,6 +229,36 @@ func (d *Node) Reload(ctx context.Context) error {
 	return nil
 }
 
+func (d *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+	if res.IsErr() {
+		// XXX: for now, this is only way to catch the error
+		before, after, found := strings.Cut(res.Log, "\n")
+		if !found {
+			d.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
+			return
+		}
+
+		var attrs []slog.Attr
+
+		// Add error
+		attrs = append(attrs, slog.Any("err", res.Error))
+
+		// Fetch first line as error message
+		msg := strings.TrimFunc(before, func(r rune) bool {
+			return unicode.IsSpace(r) || r == ':'
+		})
+		attrs = append(attrs, slog.String("err", msg))
+
+		// If debug is enable, also append stack
+		if d.logger.Enabled(context.Background(), slog.LevelDebug) {
+			attrs = append(attrs, slog.String("stack", after))
+
+		}
+
+		d.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
+	}
+}
+
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
@@ -325,7 +354,7 @@ func (n *Node) stopIfRunning() error {
 func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
-	nodeConfig.SkipFailingGenesisTxs = n.config.SkipFailingGenesisTxs
+	nodeConfig.GenesisTxHandler = n.genesisTxHandler
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
 	var recoverErr error
