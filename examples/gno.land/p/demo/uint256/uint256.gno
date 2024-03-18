@@ -63,6 +63,16 @@ func (z *Uint) SetUint64(x uint64) *Uint {
 	return z
 }
 
+// LtUint64 returns true if z is smaller than n
+func (z *Uint) LtUint64(n uint64) bool {
+	return z.arr[0] < n && (z.arr[1]|z.arr[2]|z.arr[3]) == 0
+}
+
+// GtUint64 returns true if z is larger than n
+func (z *Uint) GtUint64(n uint64) bool {
+	return z.arr[0] > n || (z.arr[1]|z.arr[2]|z.arr[3]) != 0
+}
+
 // IsUint64 reports whether z can be represented as a uint64.
 func (z *Uint) IsUint64() bool {
 	return (z.arr[1] | z.arr[2] | z.arr[3]) == 0
@@ -73,15 +83,28 @@ func (z *Uint) IsZero() bool {
 	return (z.arr[0] | z.arr[1] | z.arr[2] | z.arr[3]) == 0
 }
 
+// Sign returns:
+//
+//	-1 if z <  0
+//	 0 if z == 0
+//	+1 if z >  0
+//
+// Where z is interpreted as a two's complement signed number
+func (z *Uint) Sign() int {
+	if z.IsZero() {
+		return 0
+	}
+	if z.arr[3] < 0x8000000000000000 {
+		return 1
+	}
+	return -1
+}
+
+
 // Clear sets z to 0
 func (z *Uint) Clear() *Uint {
 	z.arr[3], z.arr[2], z.arr[1], z.arr[0] = 0, 0, 0, 0
 	return z
-}
-
-// Neg returns -x mod 2**256.
-func (z *Uint) Neg(x *Uint) *Uint {
-	return z.Sub(new(Uint), x)
 }
 
 // SetAllOne sets all the bits of z to 1
@@ -90,10 +113,31 @@ func (z *Uint) SetAllOne() *Uint {
 	return z
 }
 
+// Neg returns -x mod 2**256.
+func (z *Uint) Neg(x *Uint) *Uint {
+	return z.Sub(new(Uint), x)
+}
+
 // Not sets z = ^x and returns z.
 func (z *Uint) Not(x *Uint) *Uint {
 	z.arr[3], z.arr[2], z.arr[1], z.arr[0] = ^x.arr[3], ^x.arr[2], ^x.arr[1], ^x.arr[0]
 	return z
+}
+
+// Sgt interprets z and x as signed integers, and returns
+// true if z > x
+func (z *Uint) Sgt(x *Uint) bool {
+	zSign := z.Sign()
+	xSign := x.Sign()
+
+	switch {
+	case zSign >= 0 && xSign < 0:
+		return true
+	case zSign < 0 && xSign >= 0:
+		return false
+	default:
+		return z.Gt(x)
+	}
 }
 
 // Lt returns true if z < x
@@ -766,6 +810,25 @@ func (z *Uint) Xor(x, y *Uint) *Uint {
 	return z
 }
 
+// Byte sets z to the value of the byte at position n,
+// with 'z' considered as a big-endian 32-byte integer
+// if 'n' > 32, f is set to 0
+// Example: f = '5', n=31 => 5
+func (z *Uint) Byte(n *Uint) *Uint {
+	// in z, z.arr[0] is the least significant
+	if number, overflow := n.Uint64WithOverflow(); !overflow {
+		if number < 32 {
+			number := z.arr[4-1-number/8]
+			offset := (n.arr[0] & 0x7) << 3 // 8*(n.d % 8)
+			z.arr[0] = (number & (0xff00000000000000 >> offset)) >> (56 - offset)
+			z.arr[3], z.arr[2], z.arr[1] = 0, 0, 0
+			return z
+		}
+	}
+
+	return z.Clear()
+}
+
 // MarshalJSON implements json.Marshaler.
 // MarshalJSON marshals using the 'decimal string' representation. This is _not_ compatible
 // with big.Uint: big.Uint marshals into JSON 'native' numeric format.
@@ -1232,6 +1295,18 @@ func (z *Uint) Mod(x, y *Uint) *Uint {
 	return z
 }
 
+// DivMod sets z to the quotient x div y and m to the modulus x mod y and returns the pair (z, m) for y != 0.
+// If y == 0, both z and m are set to 0 (OBS: differs from the big.Int)
+func (z *Uint) DivMod(x, y, m *Uint) (*Uint, *Uint) {
+	if y.IsZero() {
+		return z.Clear(), m.Clear()
+	}
+	var quot Uint
+	*m = udivrem(quot.arr[:], x.arr[:], y)
+	*z = quot
+	return z, m
+}
+
 // Clone creates a new Int identical to z
 func (z *Uint) Clone() *Uint {
 	var x Uint
@@ -1260,5 +1335,81 @@ func (z *Uint) AndNot(x, y *Uint) *Uint {
 	z.arr[1] = x.arr[1] &^ y.arr[1]
 	z.arr[2] = x.arr[2] &^ y.arr[2]
 	z.arr[3] = x.arr[3] &^ y.arr[3]
+	return z
+}
+
+
+// SetBytes interprets buf as the bytes of a big-endian unsigned
+// integer, sets z to that value, and returns z.
+// If buf is larger than 32 bytes, the last 32 bytes is used.
+func (z *Uint) SetBytes(buf []byte) *Uint {
+	switch l := len(buf); l {
+	case 0:
+		z.Clear()
+	case 1:
+		z.SetBytes1(buf)
+	case 2:
+		z.SetBytes2(buf)
+	case 3:
+		z.SetBytes3(buf)
+	case 4:
+		z.SetBytes4(buf)
+	case 5:
+		z.SetBytes5(buf)
+	case 6:
+		z.SetBytes6(buf)
+	case 7:
+		z.SetBytes7(buf)
+	case 8:
+		z.SetBytes8(buf)
+	case 9:
+		z.SetBytes9(buf)
+	case 10:
+		z.SetBytes10(buf)
+	case 11:
+		z.SetBytes11(buf)
+	case 12:
+		z.SetBytes12(buf)
+	case 13:
+		z.SetBytes13(buf)
+	case 14:
+		z.SetBytes14(buf)
+	case 15:
+		z.SetBytes15(buf)
+	case 16:
+		z.SetBytes16(buf)
+	case 17:
+		z.SetBytes17(buf)
+	case 18:
+		z.SetBytes18(buf)
+	case 19:
+		z.SetBytes19(buf)
+	case 20:
+		z.SetBytes20(buf)
+	case 21:
+		z.SetBytes21(buf)
+	case 22:
+		z.SetBytes22(buf)
+	case 23:
+		z.SetBytes23(buf)
+	case 24:
+		z.SetBytes24(buf)
+	case 25:
+		z.SetBytes25(buf)
+	case 26:
+		z.SetBytes26(buf)
+	case 27:
+		z.SetBytes27(buf)
+	case 28:
+		z.SetBytes28(buf)
+	case 29:
+		z.SetBytes29(buf)
+	case 30:
+		z.SetBytes30(buf)
+	case 31:
+		z.SetBytes31(buf)
+	default:
+		z.SetBytes32(buf[l-32:])
+	}
 	return z
 }
