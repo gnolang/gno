@@ -1,7 +1,6 @@
 package priint
 
 import (
-	"fmt"
 	"std"
 )
 
