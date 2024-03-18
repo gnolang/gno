@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	clogger "github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -172,21 +174,32 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
-	zapLoggerEvents := NewZapLogger(rt.NamespacedWriter(EventServerLogName), zapcore.DebugLevel)
-	loggerEvents := log.ZapLoggerToSlog(zapLoggerEvents)
+	loglevel := slog.LevelInfo
+	if cfg.verbose {
+		loglevel = slog.LevelDebug
+	}
+
+	logger := clogger.NewLogger(rt, loglevel, true)
+	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, cfg, emitterServer, rt, pkgpaths)
+	devNode, err := setupDevNode(ctx, logger, cfg, emitterServer, pkgpaths)
 	if err != nil {
 		return err
 	}
 	defer devNode.Close()
 
-	rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
-	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
-	rt.Taskf(NodeLogName, "Chain ID: %s\n", cfg.chainId)
+	logger.WithGroup(NodeLogName).
+		Info("node started",
+			"lisn", devNode.GetRemoteAddress(),
+			"addr", gnodev.DefaultCreator.String(),
+			"chainID", cfg.chainId,
+		)
+	// rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
+	// rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
+	// rt.Taskf(NodeLogName, "Chain ID: %s\n", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()
@@ -197,7 +210,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	defer server.Close()
 
 	// Setup gnoweb
-	webhandler := setupGnoWebServer(cfg, devNode, rt)
+	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
 
 	// Setup HotReload if needed
 	if !cfg.noWatch {
@@ -213,7 +226,9 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(err)
 	}()
 
-	rt.Taskf(WebLogName, "Listener: http://%s\n", server.Addr)
+	logger.WithGroup(WebLogName).
+		Info("gnoweb started",
+			"lisn", fmt.Sprintf("http://%s", server.Addr))
 
 	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
 	if err != nil {
@@ -224,16 +239,15 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// Add node pkgs to watcher
 	watcher.AddPackages(devNode.ListPkgs()...)
 
-	// GnoDev should be ready, run event loop
-	rt.Taskf("[Ready]", "for commands and help, press `h`")
+	logger.WithGroup("[READY]").Info("for commands and help, press `h`")
 
 	// Run the main event loop
-	return runEventLoop(ctx, cfg, rt, devNode, watcher)
+	return runEventLoop(ctx, logger, rt, devNode, watcher)
 }
 
 // XXX: Automatize this the same way command does
-func printHelper(rt *rawterm.RawTerm) {
-	rt.Taskf("Helper", `
+func printHelper(logger *slog.Logger) {
+	logger.Info(`
 Gno Dev Helper:
   H           Help - display this message
   R           Reload - Reload all packages to take change into account.
@@ -244,15 +258,13 @@ Gno Dev Helper:
 
 func runEventLoop(
 	ctx context.Context,
-	cfg *devCfg,
+	logger *slog.Logger,
 	rt *rawterm.RawTerm,
 	dnode *dev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
-	nodeOut := rt.NamespacedWriter(NodeLogName)
-	keyOut := rt.NamespacedWriter(KeyPressLogName)
 
-	keyPressCh := listenForKeyPress(keyOut, rt)
+	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
 
@@ -264,41 +276,51 @@ func runEventLoop(
 				return nil
 			}
 
-			fmt.Fprintln(nodeOut, "Loading package updates...")
+			// fmt.Fprintln(nodeOut, "Loading package updates...")
 			if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
 				return fmt.Errorf("unable to update packages: %w", err)
 			}
 
-			fmt.Fprintln(nodeOut, "Reloading...")
-			err = dnode.Reload(ctx)
-
-			checkForError(rt, err)
+			logger.WithGroup(NodeLogName).Info("reloading...")
+			if err = dnode.Reload(ctx); err != nil {
+				logger.WithGroup(NodeLogName).
+					Error("unable to reload node", "err", err)
+			}
 
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return nil
 			}
 
-			if cfg.verbose {
-				fmt.Fprintf(keyOut, "<%s>\n", key.String())
-			}
+			logger.WithGroup(KeyPressLogName).Debug(
+				fmt.Sprintf("<%s>", key.String()),
+			)
 
 			switch key.Upper() {
 			case rawterm.KeyH:
-				printHelper(rt)
+				printHelper(logger)
 			case rawterm.KeyR:
-				fmt.Fprintln(nodeOut, "Reloading all packages...")
-				checkForError(nodeOut, dnode.ReloadAll(ctx))
+				logger.WithGroup(NodeLogName).Info("reloading...")
+				if err = dnode.ReloadAll(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to reload node", "err", err)
+
+				}
+
 			case rawterm.KeyCtrlR:
-				fmt.Fprintln(nodeOut, "Reseting state...")
-				checkForError(nodeOut, dnode.Reset(ctx))
+				logger.WithGroup(NodeLogName).Info("reseting node state...")
+				if err = dnode.Reset(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to reset node state", "err", err)
+				}
+
 			case rawterm.KeyCtrlC:
 				return nil
 			default:
 			}
 
-			// Listen for the next keypress
-			keyPressCh = listenForKeyPress(keyOut, rt)
+			// Reset listen for the next keypress
+			keyPressCh = listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 		}
 	}
 }
@@ -364,13 +386,12 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(
 	ctx context.Context,
+	logger *slog.Logger,
 	cfg *devCfg,
 	remitter emitter.Emitter,
-	rt *rawterm.RawTerm,
 	pkgspath []string,
 ) (*gnodev.Node, error) {
-	nodeOut := rt.NamespacedWriter("Node")
-	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
+	nodeLogger := logger.WithGroup(NodeLogName)
 
 	gnoroot := gnoenv.RootDir()
 
@@ -379,7 +400,6 @@ func setupDevNode(
 	config.PackagesPathList = pkgspath
 	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
 	config.NoReplay = cfg.noReplay
-	config.SkipFailingGenesisTxs = true
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
 
@@ -387,18 +407,17 @@ func setupDevNode(
 	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
 
-	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), remitter, config)
+	return gnodev.NewDevNode(ctx, nodeLogger, remitter, config)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) http.Handler {
+func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
 	webConfig.HelpChainID = cfg.chainId
 
-	zapLogger := NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
-	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)
+	app := gnoweb.MakeApp(logger, webConfig)
 	return app.Router
 }
 
@@ -421,13 +440,13 @@ func parseArgsPackages(args []string) (paths []string, err error) {
 	return paths, nil
 }
 
-func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
+func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
 	cc := make(chan rawterm.KeyPress, 1)
 	go func() {
 		defer close(cc)
 		key, err := rt.ReadKeyPress()
 		if err != nil {
-			fmt.Fprintf(w, "unable to read keypress: %s\n", err.Error())
+			logger.Error("unable to read keypress", "err", err)
 			return
 		}
 
@@ -435,15 +454,6 @@ func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress
 	}()
 
 	return cc
-}
-
-func checkForError(w io.Writer, err error) {
-	if err != nil {
-		fmt.Fprintf(w, "[ERROR] - %s\n", err.Error())
-		return
-	}
-
-	fmt.Fprintln(w, "[DONE]")
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {

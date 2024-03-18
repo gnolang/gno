@@ -3,7 +3,10 @@ package dev
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -79,6 +82,8 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
 
+	logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
+
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: DefaultBalance,
@@ -124,6 +129,7 @@ func (d *Node) GetRemoteAddress() string {
 // UpdatePackages updates the currently known packages. It will be taken into
 // consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
+	var n int
 	for _, path := range paths {
 		// List all packages from target path
 		pkgslist, err := gnomod.ListPkgs(path)
@@ -134,9 +140,13 @@ func (d *Node) UpdatePackages(paths ...string) error {
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
 			d.pkgs[pkg.Dir] = pkg
+			d.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
 		}
+
+		n += len(pkgslist)
 	}
 
+	d.logger.Info(fmt.Sprintf("updated %d pacakges", n))
 	return nil
 }
 
@@ -364,7 +374,7 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 		if r := recover(); r != nil {
 			var ok bool
 			if recoverErr, ok = r.(error); !ok {
-				panic(r) // Re-panic if not an error.
+				panic(r) // Re-panic if not an error
 			}
 		}
 	}
@@ -391,7 +401,8 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 }
 
 func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	node, err := gnoland.NewInMemoryNode(logger, cfg)
+	nooplogger := slog.NewJSONHandler(io.Discard, nil)
+	node, err := gnoland.NewInMemoryNode(slog.New(nooplogger), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new node: %w", err)
 	}
@@ -400,8 +411,9 @@ func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemo
 		switch data := evt.(type) {
 		case bft.EventTx:
 			resEvt := events.TxResult{
-				Height:   data.Result.Height,
-				Index:    data.Result.Index,
+				Height: data.Result.Height,
+				Index:  data.Result.Index,
+				// XXX: Update this to split error for stack
 				Response: data.Result.Response,
 			}
 
