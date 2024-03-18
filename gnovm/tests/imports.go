@@ -400,8 +400,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 	store.SetNativeStore(teststdlibs.NativeStore)
 	store.SetPackageInjector(testPackageInjector)
 	store.SetStrictGo2GnoMapping(false)
-	// native mappings
-	stdlibs.InjectNativeMappings(store)
 	return
 }
 
