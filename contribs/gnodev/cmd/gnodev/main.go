@@ -344,7 +344,7 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 
 	const timeout = time.Millisecond * 500
-
+-
 	var debounceTimer <-chan time.Time
 	pathList := []string{}
 
