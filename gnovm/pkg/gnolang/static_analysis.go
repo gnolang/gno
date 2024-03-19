@@ -20,6 +20,26 @@ func NewStaticAnalysis() *StaticAnalysis {
 	return &StaticAnalysis{contexts: make([]Context, 0), funcContexts: make([]FuncContext, 0), errs: make([]error, 0)}
 }
 
+func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
+	s.pushFuncContext(&FuncDeclContext{
+		hasRet: false,
+		f:      f,
+	})
+	term := s.staticAnalysisBlockStmt(f.Body)
+
+	// todo use later maybe?
+	_ = s.popFuncContext().(*FuncDeclContext)
+
+	errs := make([]error, 0)
+	if !term {
+		errs = append(errs, errors.New(fmt.Sprintf("function %q does not terminate", f.Name)))
+	}
+
+	errs = append(errs, s.errs...)
+
+	return errs
+}
+
 func (s *StaticAnalysis) pushContext(ctx Context) {
 	s.contexts = append(s.contexts, ctx)
 }
@@ -55,26 +75,6 @@ func (s *StaticAnalysis) findCtxByLabel(label string) Context {
 	}
 
 	return nil
-}
-
-func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
-	s.pushFuncContext(&FuncDeclContext{
-		hasRet: false,
-		f:      f,
-	})
-	term := s.staticAnalysisBlockStmt(f.Body)
-
-	// todo use later maybe?
-	_ = s.popFuncContext().(*FuncDeclContext)
-
-	errs := make([]error, 0)
-	if !term {
-		errs = append(errs, errors.New(fmt.Sprintf("function %q does not terminate", f.Name)))
-	}
-
-	errs = append(errs, s.errs...)
-
-	return errs
 }
 
 func (s *StaticAnalysis) staticAnalysisBlockStmt(stmts []Stmt) bool {
