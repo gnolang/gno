@@ -6,7 +6,11 @@ import (
 	"gno.land/demo/p/memeland"
 )
 
-var m = memeland.NewMemeland()
+var m memeland.Memeland
+
+func init() {
+	m = memeland.NewMemeland()
+}
 
 func PostMeme(data string, timestamp int64) string {
 	return m.PostMeme(data, timestamp)
