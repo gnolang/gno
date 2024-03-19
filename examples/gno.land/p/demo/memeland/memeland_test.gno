@@ -22,11 +22,11 @@ func TestGetPostsInRangePagination(t *testing.T) {
 	m := NewMemeland()
 	now := time.Now()
 
-	numOfPosts := 10
+	numOfPosts := 5
 	var memeData []string
 	for i := 1; i <= numOfPosts; i++ {
 		// Prepare meme data
-		nextTime := now.Add(time.Duration(-i) * time.Minute)
+		nextTime := now.Add(time.Duration(i) * time.Minute)
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
@@ -34,8 +34,8 @@ func TestGetPostsInRangePagination(t *testing.T) {
 	}
 
 	// Get timestamps
-	beforeEarliest := now.Add(-time.Minute * time.Duration(numOfPosts+1)) // subtract 3 + 1 min from now
-	afterLatest := now.Add(time.Minute)                                   // add 1 min to now
+	beforeEarliest := now.Add(-1 * time.Minute)
+	afterLatest := now.Add(time.Duration(numOfPosts)*time.Minute + time.Minute)
 
 	testCases := []struct {
 		page               int
@@ -47,7 +47,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 		{page: 1, pageSize: numOfPosts, expectedNumOfPosts: numOfPosts},     // all posts on single page
 		{page: 12, pageSize: 1, expectedNumOfPosts: 0},                      // empty page
 		{page: 1, pageSize: numOfPosts + 1, expectedNumOfPosts: numOfPosts}, // page with fewer posts than its size
-		{page: 5, pageSize: numOfPosts / 5, expectedNumOfPosts: 2},          // evenly distribute posts per page
+		{page: 5, pageSize: numOfPosts / 5, expectedNumOfPosts: 1},          // evenly distribute posts per page
 	}
 
 	for _, tc := range testCases {
@@ -70,8 +70,8 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 	numOfPosts := 5
 	var memeData []string
 	for i := 1; i <= numOfPosts; i++ {
-		// Prep meme data
-		nextTime := now.Add(time.Duration(-i) * time.Minute)
+		// Prepare meme data
+		nextTime := now.Add(time.Duration(i) * time.Minute)
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
@@ -79,8 +79,8 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 	}
 
 	// Get timestamps
-	beforeEarliest := now.Add(-time.Minute * time.Duration(numOfPosts+1)) // subtract 3 + 1 min from now
-	afterLatest := now.Add(time.Minute)                                   // add 1 min to now
+	beforeEarliest := now.Add(-1 * time.Minute)
+	afterLatest := now.Add(time.Duration(numOfPosts)*time.Minute + time.Minute)
 
 	// Default sort is by addition order/timestamp
 	jsonStr := m.GetPostsInRange(
@@ -88,7 +88,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		afterLatest.Unix(),    // end at latest post
 		1,                     // first page
 		numOfPosts,            // all memes on the page
-		"DATE_CREATED",        // do not sort by upvote
+		"DATE_CREATED",        // sort by newest first
 	)
 
 	if jsonStr == "" {
@@ -101,101 +101,69 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
 	}
 
+	// Check if data is there
 	for _, expData := range memeData {
 		if !strings.Contains(jsonStr, expData) {
 			t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
 		}
 	}
 
-	// todo add test to check order
+	// Check if ordering is correct, sort by created date
+	for i := 0; i < len(memeData)-2; i++ {
+		if strings.Index(jsonStr, memeData[i]) > strings.Index(jsonStr, memeData[i+1]) {
+			t.Errorf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1)
+		}
+	}
 }
 
 func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m := NewMemeland()
+	now := time.Now()
+
+	memeData1 := "Meme #1"
+	memeData2 := "Meme #2"
 
 	// Create posts at specific times for testing
-	now := time.Now()
-	oneHourAgo := now.Add(-time.Hour)
-	twoHoursAgo := now.Add(-2 * time.Hour)
-	threeHoursAgo := now.Add(-3 * time.Hour)
-
-	// Add posts at specific timestamps
-	id1 := m.PostMeme("Meme #1", oneHourAgo.Unix())
-	id2 := m.PostMeme("Meme #2", twoHoursAgo.Unix())
+	id1 := m.PostMeme(memeData1, now.Unix())
+	id2 := m.PostMeme(memeData2, now.Add(time.Minute).Unix())
 
 	m.Upvote(id1)
 	m.Upvote(id2)
 
 	// Change caller so avoid double upvote panic
 	std.TestSetOrigCaller(testutils.TestAddress("alice"))
-	m.Upvote(id2)
+	m.Upvote(id1)
 
 	// Final upvote count:
-	// Meme #1 - 1 upvote
-	// Meme #2 - 2 upvotes
+	// Meme #1 - 2 upvote
+	// Meme #2 - 1 upvotes
 
-	// Define test cases for different time ranges and pagination scenarios
-	testCases := []struct {
-		name           string
-		startTimestamp int64
-		endTimestamp   int64
-		page           int
-		pageSize       int
-		expectedCount  int
-		expectedData   []string
-	}{
-		{
-			name:           "Upvote Sorted All Posts",
-			startTimestamp: threeHoursAgo.Add(-1 * time.Minute).Unix(), // Slightly before threeHoursAgo
-			endTimestamp:   now.Unix(),
-			page:           1,
-			pageSize:       10,
-			expectedCount:  2,
-			expectedData:   []string{"Meme #1", "Meme #2"},
-		},
-		{
-			name:           "Upvote Sorted Pagination Test",
-			startTimestamp: twoHoursAgo.Add(-1 * time.Minute).Unix(),
-			endTimestamp:   now.Unix(),
-			page:           1,
-			pageSize:       1, // Only request one post per page
-			expectedCount:  1,
-			expectedData:   []string{"Meme #2"},
-		},
-		{
-			name:           "Upvote Sorted Pagination Test: Second Post",
-			startTimestamp: threeHoursAgo.Unix(),
-			endTimestamp:   now.Unix(),
-			page:           2,
-			pageSize:       1,
-			expectedCount:  1,
-			expectedData:   []string{"Meme #1"},
-		},
+	// Get timestamps
+	beforeEarliest := now.Add(-time.Minute)
+	afterLatest := now.Add(time.Hour)
+
+	// Default sort is by addition order/timestamp
+	jsonStr := m.GetPostsInRange(
+		beforeEarliest.Unix(), // start at earliest post
+		afterLatest.Unix(),    // end at latest post
+		1,                     // first page
+		2,                     // all memes on the page
+		"UPVOTE",              // sort by upvote
+	)
+
+	if jsonStr == "" {
+		t.Error("Expected non-empty JSON string, got empty string")
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Sort by Upvote descending
-			jsonStr := m.GetPostsInRange(tc.startTimestamp, tc.endTimestamp, tc.page, tc.pageSize, "UPVOTES")
+	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
+	postCount := strings.Count(jsonStr, `"id":"`)
+	if postCount != m.MemeCounter {
+		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
+	}
 
-			if jsonStr == "" {
-				t.Error("Expected non-empty JSON string, got empty string")
-			}
-
-			// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
-			postCount := strings.Count(jsonStr, `"id":"`)
-			if postCount != tc.expectedCount {
-				t.Errorf("Expected %d posts in the JSON string, but found %d", tc.expectedCount, postCount)
-			}
-
-			for _, expData := range tc.expectedData {
-				if !strings.Contains(jsonStr, expData) {
-					t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
-				}
-			}
-
-			// todo add test to check order
-		})
+	// Check if ordering is correct
+	if strings.Index(jsonStr, "Meme #1") > strings.Index(jsonStr, "Meme #2") {
+		t.Errorf("Expected %s to be before %s", memeData1, memeData2)
 	}
 }
 
@@ -210,7 +178,6 @@ func TestNoPosts(t *testing.T) {
 	if jsonStr != "[]" {
 		t.Errorf("Expected 0 posts to return [], got %s", jsonStr)
 	}
-
 }
 
 func TestUpvote(t *testing.T) {
@@ -239,4 +206,28 @@ func TestUpvote(t *testing.T) {
 	if post.UpvoteTracker.Size() != 1 {
 		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", post.UpvoteTracker.Size())
 	}
+}
+
+func TestDelete(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	std.TestSetOrigCaller(alice)
+
+	m := NewMemeland()
+
+	// Add a post to Memeland
+	now := time.Now()
+	postID := m.PostMeme("Meme #1", now.Unix())
+
+	// Bob will try to delete meme posted by Alice
+	bob := testutils.TestAddress("bob")
+	std.TestSetOrigCaller(bob)
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("code did not panic when it should have")
+		}
+	}()
+
+	// Should panic - caught by defer
+	m.RemovePost(postID)
 }

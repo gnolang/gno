@@ -1,16 +1,17 @@
 package memeland
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"sort"
 	"std"
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/seqid"
 )
 
-// Post - as previously defined
 type Post struct {
 	ID            string
 	Data          string
@@ -20,15 +21,15 @@ type Post struct {
 }
 
 type Memeland struct {
+	*ownable.Ownable
 	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
-type UpvoteSorter []*Post
-
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Posts: make([]*Post, 0),
+		Ownable: ownable.New(),
+		Posts:   make([]*Post, 0),
 	}
 }
 
@@ -70,7 +71,7 @@ func (m *Memeland) Upvote(id string) string {
 	return "upvote successful"
 }
 
-// GetPostsInRange returns a JSON string of posts within the given timestamp range, supporting pagination.
+// GetPostsInRange returns a JSON string of posts within the given timestamp range, supporting pagination
 func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {
 	if len(m.Posts) == 0 {
 		return "[]"
@@ -80,8 +81,14 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 		panic("page count cannot be less than 1")
 	}
 
+	// No empty pages
 	if pageSize < 1 {
 		panic("page size cannot be less than 1")
+	}
+
+	// No pages larger than 10
+	if pageSize > 10 {
+		panic("page size cannot be larger than 10")
 	}
 
 	var filteredPosts []*Post
@@ -99,10 +106,22 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	switch sortBy {
 	// Sort by upvote descending
 	case "UPVOTES":
-		sort.Sort(UpvoteSorter(filteredPosts))
+		dateSorter := PostSorter{
+			Posts: filteredPosts,
+			LessF: func(i, j int) bool {
+				return filteredPosts[i].UpvoteTracker.Size() > filteredPosts[j].UpvoteTracker.Size()
+			},
+		}
+		sort.Sort(dateSorter)
 	default:
 		// Sort by timestamp, beginning with newest
-		filteredPosts = reversePosts(filteredPosts)
+		dateSorter := PostSorter{
+			Posts: filteredPosts,
+			LessF: func(i, j int) bool {
+				return filteredPosts[i].Timestamp.Before(filteredPosts[j].Timestamp)
+			},
+		}
+		sort.Sort(dateSorter)
 	}
 
 	// Pagination
@@ -123,7 +142,24 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	return PostsToJSONString(filteredPosts[startIndex:endIndex])
 }
 
-// PostsToJSONString converts a slice of Post structs into a JSON string representation.
+// RemovePost allows the owner to remove a post with a specific ID
+func (m *Memeland) RemovePost(id string) string {
+	if err := m.CallerIsOwner(); err != nil {
+		panic(err)
+	}
+
+	posts := m.Posts
+	for i, post := range posts {
+		if post.ID == id {
+			posts = append(posts[:i], posts[i+1:]...)
+			return id
+		}
+	}
+
+	panic("post with specified id does not exist")
+}
+
+// PostsToJSONString converts a slice of Post structs into a JSON string
 func PostsToJSONString(posts []*Post) string {
 	var sb strings.Builder
 	sb.WriteString("[")
@@ -140,6 +176,7 @@ func PostsToJSONString(posts []*Post) string {
 	return sb.String()
 }
 
+// PostToJSONString returns a Post formatted as a JSON string
 func PostToJSONString(post *Post) string {
 	var sb strings.Builder
 
@@ -169,15 +206,20 @@ func (m *Memeland) getPost(id string) *Post {
 	return nil
 }
 
-func reversePosts(posts []*Post) []*Post {
-	for i, j := 0, len(posts)-1; i < j; i, j = i+1, j-1 {
-		posts[i], posts[j] = posts[j], posts[i]
-	}
-	return posts
+// PostSorter is a flexible sorter for the *Post slice
+type PostSorter struct {
+	Posts []*Post
+	LessF func(i, j int) bool
 }
 
-func (a UpvoteSorter) Len() int      { return len(a) }
-func (a UpvoteSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a UpvoteSorter) Less(i, j int) bool {
-	return a[i].UpvoteTracker.Size() > a[j].UpvoteTracker.Size()
+func (p PostSorter) Len() int {
+	return len(p.Posts)
+}
+
+func (p PostSorter) Swap(i, j int) {
+	p.Posts[i], p.Posts[j] = p.Posts[j], p.Posts[i]
+}
+
+func (p PostSorter) Less(i, j int) bool {
+	return p.LessF(i, j)
 }

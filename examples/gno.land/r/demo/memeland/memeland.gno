@@ -1,8 +1,9 @@
 package memeland
 
 import (
-	memeland "gno.land/p/demo/staging/memeland/v1"
 	"time"
+
+	"gno.land/demo/p/memeland"
 )
 
 var m = memeland.NewMemeland()
