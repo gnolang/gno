@@ -212,19 +212,47 @@ func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	std.TestSetOrigCaller(alice)
 
+	// Alice is admin
+	m := NewMemeland()
+
+	// Set caller to Bob
+	bob := testutils.TestAddress("bob")
+	std.TestSetOrigCaller(bob)
+
+	// Bob adds post to Memeland
+	now := time.Now()
+	postID := m.PostMeme("Meme #1", now.Unix())
+
+	// Alice removes Bob's post
+	std.TestSetOrigCaller(alice)
+
+	id := m.RemovePost(postID)
+	if id != postID {
+		t.Errorf("post IDs not matching")
+	}
+
+	if len(m.Posts) != 0 {
+		t.Errorf("there should be 0 posts after removing")
+	}
+}
+
+func TestDeleteByNonAdmin(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	std.TestSetOrigCaller(alice)
+
 	m := NewMemeland()
 
 	// Add a post to Memeland
 	now := time.Now()
 	postID := m.PostMeme("Meme #1", now.Unix())
 
-	// Bob will try to delete meme posted by Alice
+	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
 	std.TestSetOrigCaller(bob)
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("code did not panic when it should have")
+			t.Errorf("code did not panic when in should have")
 		}
 	}()
 
