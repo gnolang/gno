@@ -75,7 +75,8 @@ will open a terminal that will show you the output of the test.
 
 ### REPL
 
-
+This option, although experimental, will let you experiment with the GnoVM
+in the REPL mode. 
 
 
 
