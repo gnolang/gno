@@ -10,6 +10,7 @@ var m memeland.Memeland
 
 func init() {
 	m = memeland.NewMemeland()
+	m.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // admin address
 }
 
 func PostMeme(data string, timestamp int64) string {
