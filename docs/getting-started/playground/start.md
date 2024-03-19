@@ -50,21 +50,28 @@ Deploy allows users to quickly deploy their Gno code to the chain. After connect
 a Gno.land wallet, users will be able to choose which package path to deploy to,
 as well as which network.
 
-// todo add portal loop image instead
-
 ![gnoweb screen](../../assets/getting-started/playground/default_deploy.png)
 
-After inputting your desired [package path, 
+After inputting your desired package path, you can select the network you would 
+like to deploy to, such as [Portal Loop](../../concepts/portal-loop.md) or local,
+and click deploy.
+
+:::info
+Even if you don't have testnet tokens, the Playground will automatically provide
+you with enough to cover the gas cost at the time of deployment.
+:::
 
 ### Format
-Format will simply format your code, using `gofmt`.
+Format will format your code, using `gofmt`.
 
 ### Run
 Run will allow you to run an expression on your Gno code.
 
-
-
 ### Test
+
+Test will look for `_test.gno` files in your playground and run the
+[gno test -v](../../concepts/gno-test.md) command on them. Testing your code 
+will open a terminal that will show you the output of the test. 
 
 ### REPL
 
