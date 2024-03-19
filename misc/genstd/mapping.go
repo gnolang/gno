@@ -1,9 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
+	"go/types"
 	"path"
 	"strconv"
 )
@@ -24,8 +24,6 @@ type mapping struct {
 }
 
 type mappingType struct {
-	// type of ast.Expr is from the normal ast.Expr types
-	// + *linkedIdent.
 	Type ast.Expr
 
 	// IsTypedValue is set to true if the parameter or result in go is of type
@@ -35,21 +33,11 @@ type mappingType struct {
 }
 
 func (mt mappingType) GoQualifiedName() string {
-	return (&exprPrinter{
-		mode: printerModeGoQualified,
-	}).ExprString(mt.Type)
+	return types.ExprString(mt.Type)
 }
 
 func (mt mappingType) GnoType() string {
-	return (&exprPrinter{
-		mode: printerModeGnoType,
-	}).ExprString(mt.Type)
-}
-
-type linkedIdent struct {
-	ast.BadExpr // Unused, but it makes *linkedIdent implement ast.Expr
-
-	lt linkedType
+	return types.ExprString(mt.Type)
 }
 
 func linkFunctions(pkgs []*pkgData) []mapping {
@@ -121,8 +109,7 @@ func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field)
 		if m.isTypedValue(goe) {
 			*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
 		} else {
-			merged := m.mergeTypes(gnoe, goe)
-			*dst = append(*dst, mappingType{Type: merged})
+			*dst = append(*dst, mappingType{Type: gnoe})
 		}
 		return nil
 	})
@@ -194,96 +181,63 @@ func iterFields(gnol, gol []*ast.Field, callback func(gnoType, goType ast.Expr) 
 	return nil
 }
 
-// mergeTypes merges gnoe and goe into a single ast.Expr.
-//
-// gnoe and goe are expected to have the same underlying structure, but they
-// may differ in their type identifiers (possibly qualified, ie pkg.T).
-// if they differ, mergeTypes returns nil.
-//
-// When two type identifiers are found, they are checked against the list of
-// linkedTypes to determine if they refer to a linkedType. If they are not,
-// mergeTypes returns nil. If they are, the *ast.Ident/*ast.SelectorExpr is
-// replaced with a *linkedIdent.
-//
-// mergeTypes does not modify the given gnoe or goe; the returned ast.Expr is
-// (recursively) newly allocated.
-func (m *mapping) mergeTypes(gnoe, goe ast.Expr) ast.Expr {
-	resolveGoNamed := func(lt *linkedType) bool {
-		switch goe := goe.(type) {
-		case *ast.SelectorExpr:
-			// selector - resolve pkg ident to path
-			lt.goPackage = resolveSelectorImport(m.goImports, goe)
-			lt.goName = goe.Sel.Name
-		case *ast.Ident:
-			// local name -- use import path of go pkg
-			lt.goPackage = m.GoImportPath
-			lt.goName = goe.Name
-		default:
-			return false
-		}
-		return true
-	}
+type typeMismatchError struct {
+	gnoe, goe ast.Expr
+}
+
+func (te *typeMismatchError) Error() string {
+	return fmt.Sprintf("typesEqual: gno type %q does not match go type %q",
+		types.ExprString(te.gnoe), types.ExprString(te.goe))
+}
+
+// typesEqual ensures that the given gnoe and goe, expected to represent
+// expressions to identify types, are equal.
+func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
+	// If a type assertion fails, like in the below
+	// goe, ok := ..., then goe will be set to a zero value, and might
+	// lead to nil pointer dereferences. Setting up the mismatch error
+	// here avoids that.
+	mismatch := typeMismatchError{gnoe, goe}
 
 	switch gnoe := gnoe.(type) {
 	// We're working with a subset of all expressions:
 	// https://go.dev/ref/spec#Type
 
-	case *ast.SelectorExpr:
-		lt := linkedType{
-			gnoPackage: resolveSelectorImport(m.gnoImports, gnoe),
-			gnoName:    gnoe.Sel.Name,
-		}
-		if !resolveGoNamed(&lt) || !linkedTypeExists(lt) {
-			return nil
-		}
-		return &linkedIdent{lt: lt}
 	case *ast.Ident:
-		// easy case - built-in identifiers
 		goi, ok := goe.(*ast.Ident)
-		if ok && isBuiltin(gnoe.Name) && gnoe.Name == goi.Name {
-			return &ast.Ident{Name: gnoe.Name}
-		}
-
-		lt := linkedType{
-			gnoPackage: m.GnoImportPath,
-			gnoName:    gnoe.Name,
-		}
-		if !resolveGoNamed(&lt) || !linkedTypeExists(lt) {
+		switch {
+		case !ok || gnoe.Name != goi.Name:
+			return &mismatch
+		case !isBuiltin(gnoe.Name):
+			return fmt.Errorf("typesEqual: usage of non-builtin type %q", gnoe.Name)
+		default:
 			return nil
 		}
-		return &linkedIdent{lt: lt}
-
-	// easier cases -- check for equality of structure and underlying types
 	case *ast.StarExpr:
 		goe, ok := goe.(*ast.StarExpr)
 		if !ok {
-			return nil
+			return &mismatch
 		}
-		x := m.mergeTypes(gnoe.X, goe.X)
-		if x == nil {
-			return nil
+		if err := m.typesEqual(gnoe.X, goe.X); err != nil {
+			return err
 		}
-		return &ast.StarExpr{X: x}
+		return nil
 	case *ast.ArrayType:
 		goe, ok := goe.(*ast.ArrayType)
 		if !ok || !basicLitsEqual(gnoe.Len, goe.Len) {
-			return nil
+			return &mismatch
 		}
-		elt := m.mergeTypes(gnoe.Elt, goe.Elt)
-		if elt == nil {
-			return nil
+		if err := m.typesEqual(gnoe.Elt, goe.Elt); err != nil {
+			return err
 		}
-		var l ast.Expr
-		if gnoe.Len != nil {
-			l = &ast.BasicLit{Value: gnoe.Len.(*ast.BasicLit).Value}
-		}
-		return &ast.ArrayType{Len: l, Elt: elt}
+		return nil
 
 	case *ast.StructType,
 		*ast.FuncType,
 		*ast.InterfaceType,
 		*ast.MapType,
-		*ast.Ellipsis:
+		*ast.Ellipsis,
+		*ast.SelectorExpr:
 		// TODO
 		panic("not implemented")
 	default:
@@ -347,11 +301,13 @@ func basicLitsEqual(x1, x2 ast.Expr) bool {
 	return l1.Value == l2.Value
 }
 
-// Signatures match when they accept the same elementary types, or a linked
-// type mapping (see [linkedTypes]).
+// Signatures match when they accept the same, unnamed types.
 //
-// Additionally, if the first parameter to the Go function is
-// *[gnolang.Machine], it is ignored when matching to the Gno function.
+// If the first parameter to the Go function is *[gnolang.Machine], it is
+// ignored when matching to the Gno function.
+//
+// If a Go parameter is [gnolang.TypedValue], it always matches any
+// corresponding parameter in Gno.
 func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 	if gnof.Type.TypeParams != nil || gof.Type.TypeParams != nil {
 		panic("type parameters not supported")
@@ -372,8 +328,6 @@ func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 		m.fieldListsMatch(gnof.Type.Results, gof.Type.Results)
 }
 
-var errNoMatch = errors.New("no match")
-
 func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
 	if gnofl == nil || gofl == nil {
 		return gnofl == nil && gofl == nil
@@ -386,10 +340,7 @@ func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
 		if m.isTypedValue(goe) {
 			return nil
 		}
-		if m.mergeTypes(gnoe, goe) == nil {
-			return errNoMatch
-		}
-		return nil
+		return m.typesEqual(gnoe, goe)
 	})
 	return err == nil
 }
@@ -421,49 +372,6 @@ var builtinTypes = [...]string{
 func isBuiltin(name string) bool {
 	for _, x := range builtinTypes {
 		if x == name {
-			return true
-		}
-	}
-	return false
-}
-
-type linkedType struct {
-	gnoPackage string
-	gnoName    string
-	goPackage  string
-	goName     string
-}
-
-var linkedTypes = [...]linkedType{
-	{
-		"std", "Address",
-		"github.com/gnolang/gno/tm2/pkg/crypto", "Bech32Address",
-	},
-	{
-		"std", "Coin",
-		"github.com/gnolang/gno/tm2/pkg/std", "Coin",
-	},
-	{
-		"std", "Coins",
-		"github.com/gnolang/gno/tm2/pkg/std", "Coins",
-	},
-	{
-		"std", "Realm",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "Realm",
-	},
-	{
-		"std", "BankerType",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "BankerType",
-	},
-	{
-		"std", "Banker",
-		"github.com/gnolang/gno/gnovm/stdlibs/std", "Banker",
-	},
-}
-
-func linkedTypeExists(lt linkedType) bool {
-	for _, ltx := range linkedTypes {
-		if lt == ltx {
 			return true
 		}
 	}
