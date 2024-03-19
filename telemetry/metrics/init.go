@@ -39,7 +39,11 @@ func Init(setCtx context.Context, config options.Config) error {
 
 	provider := sdkMetric.NewMeterProvider(sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter)))
 	otel.SetMeterProvider(provider)
-	meter := provider.Meter(config.MeterName)
+	meter := provider.Meter(
+		config.MeterName,
+		metric.WithInstrumentationVersion("0.1.0"),
+		metric.WithSchemaURL(config.ServiceName),
+	)
 
 	broadcastTxTimer, err := meter.Int64Histogram(
 		"broadcast_tx_hist",
