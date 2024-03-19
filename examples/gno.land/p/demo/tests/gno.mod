@@ -1,6 +1,6 @@
-module gno.land/p/demo/tests v0.0.1
+module gno.land/p/demo/tests v0.1.0
 
 require (
-	gno.land/p/demo/tests/subtests v0.0.1
-	gno.land/r/demo/tests v0.0.1
+	gno.land/p/demo/tests/subtests v0.1.0
+	gno.land/r/demo/tests v0.1.0
 )

@@ -1,1 +1,1 @@
-module gno.land/p/demo/grc/exts v0.0.1
+module gno.land/p/demo/grc/exts v0.1.0

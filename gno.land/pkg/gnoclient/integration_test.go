@@ -43,7 +43,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Make Msg config
 	msg := MsgCall{
 		PkgPath:    "gno.land/r/demo/deep/very/deep",
-		PkgVersion: "v0.0.1",
+		PkgVersion: "v0.1.0",
 		FuncName:   "Render",
 		Args:       []string{"test argument"},
 		Send:       "",
@@ -87,7 +87,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Make Msg configs
 	msg1 := MsgCall{
 		PkgPath:    "gno.land/r/demo/deep/very/deep",
-		PkgVersion: "v0.0.1",
+		PkgVersion: "v0.1.0",
 		FuncName:   "Render",
 		Args:       []string{""},
 		Send:       "",
@@ -96,7 +96,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Same call, different argument
 	msg2 := MsgCall{
 		PkgPath:    "gno.land/r/demo/deep/very/deep",
-		PkgVersion: "v0.0.1",
+		PkgVersion: "v0.1.0",
 		FuncName:   "Render",
 		Args:       []string{"test argument"},
 		Send:       "",
@@ -261,8 +261,8 @@ func main() {
 				ImportPath: "",
 				Version:    "",
 				Requires: []*std.Requirements{
-					{"gno.land/p/demo/ufmt", "v0.0.1"},
-					{"gno.land/r/demo/tests", "v0.0.1"},
+					{"gno.land/p/demo/ufmt", "v0.1.0"},
+					{"gno.land/r/demo/tests", "v0.1.0"},
 				},
 			},
 			Files: []*std.MemFile{
@@ -337,8 +337,8 @@ func main() {
 				ImportPath: "",
 				Version:    "",
 				Requires: []*std.Requirements{
-					{"gno.land/p/demo/ufmt", "v0.0.1"},
-					{"gno.land/r/demo/tests", "v0.0.1"},
+					{"gno.land/p/demo/ufmt", "v0.1.0"},
+					{"gno.land/r/demo/tests", "v0.1.0"},
 				},
 			},
 			Files: []*std.MemFile{
@@ -356,8 +356,8 @@ func main() {
 				ImportPath: "",
 				Version:    "",
 				Requires: []*std.Requirements{
-					{"gno.land/p/demo/ufmt", "v0.0.1"},
-					{"gno.land/r/demo/deep/very/deep", "v0.0.1"},
+					{"gno.land/p/demo/ufmt", "v0.1.0"},
+					{"gno.land/r/demo/deep/very/deep", "v0.1.0"},
 				},
 			},
 			Files: []*std.MemFile{

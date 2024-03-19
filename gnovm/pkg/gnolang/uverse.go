@@ -66,7 +66,7 @@ var (
 )
 
 const uversePkgPath = ".uverse"
-const uversePkgVersion = "v0.0.1"
+const uversePkgVersion = "v0.1.0"
 
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {

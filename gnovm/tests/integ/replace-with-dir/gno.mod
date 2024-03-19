@@ -1,7 +1,7 @@
 module gno.land/tests/replaceavl
 
 require (
-        "gno.land/p/demo/notexists" v0.0.1
+        "gno.land/p/demo/notexists" v0.1.0
 )
 
 replace (

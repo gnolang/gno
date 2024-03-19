@@ -1,5 +1,5 @@
 module dirs.mod/prefix
 
 require (
-	dirs.mod/dep v0.0.1
+	dirs.mod/dep v0.1.0
 )

@@ -1,1 +1,1 @@
-module gno.land/p/demo/stack v0.0.1
+module gno.land/p/demo/stack v0.1.0

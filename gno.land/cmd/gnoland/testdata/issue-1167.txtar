@@ -35,7 +35,7 @@ stdout '1,1,1;2,2,2;3,3,3;" string'
 module gno.land/r/demo/xx v0.0.0
 
 require (
-	gno.land/p/demo/avl v0.0.1
+	gno.land/p/demo/avl v0.1.0
 )
 
 -- realm.gno --

@@ -13,7 +13,7 @@ stdout OK!
 -- gno.mod --
 module gno.land/r/importtest v0.0.0
 
-require gno.land/p/demo/ufmt v0.0.1
+require gno.land/p/demo/ufmt v0.1.0
 
 -- import.gno --
 package importtest

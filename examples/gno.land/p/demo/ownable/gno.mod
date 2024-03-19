@@ -1,1 +1,1 @@
-module gno.land/p/demo/ownable v0.0.1
+module gno.land/p/demo/ownable v0.1.0

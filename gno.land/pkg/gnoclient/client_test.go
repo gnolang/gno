@@ -97,7 +97,7 @@ func TestCallSingle(t *testing.T) {
 	msg := []MsgCall{
 		{
 			PkgPath:    "gno.land/r/demo/deep/very/deep",
-			PkgVersion: "v0.0.1",
+			PkgVersion: "v0.1.0",
 			FuncName:   "Render",
 			Args:       []string{""},
 			Send:       "100ugnot",
@@ -157,21 +157,21 @@ func TestCallMultiple(t *testing.T) {
 	msg := []MsgCall{
 		{
 			PkgPath:    "gno.land/r/demo/deep/very/deep",
-			PkgVersion: "v0.0.1",
+			PkgVersion: "v0.1.0",
 			FuncName:   "Render",
 			Args:       []string{""},
 			Send:       "100ugnot",
 		},
 		{
 			PkgPath:    "gno.land/r/demo/wugnot",
-			PkgVersion: "v0.0.1",
+			PkgVersion: "v0.1.0",
 			FuncName:   "Deposit",
 			Args:       []string{""},
 			Send:       "1000ugnot",
 		},
 		{
 			PkgPath:    "gno.land/r/demo/tamagotchi",
-			PkgVersion: "v0.0.1",
+			PkgVersion: "v0.1.0",
 			FuncName:   "Feed",
 			Args:       []string{""},
 			Send:       "",
