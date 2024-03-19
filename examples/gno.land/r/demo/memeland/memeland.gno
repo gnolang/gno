@@ -6,7 +6,7 @@ import (
 	"gno.land/demo/p/memeland"
 )
 
-var m memeland.Memeland
+var m = memeland.NewMemeland()
 
 func init() {
 	m = memeland.NewMemeland()
