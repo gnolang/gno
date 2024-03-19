@@ -175,6 +175,25 @@ func (z *Uint) Byte(n *Uint) *Uint {
 	return z.Clear()
 }
 
+// BitLen returns the number of bits required to represent z
+func (z *Uint) BitLen() int {
+	switch {
+	case z.arr[3] != 0:
+		return 192 + bits.Len64(z.arr[3])
+	case z.arr[2] != 0:
+		return 128 + bits.Len64(z.arr[2])
+	case z.arr[1] != 0:
+		return 64 + bits.Len64(z.arr[1])
+	default:
+		return bits.Len64(z.arr[0])
+	}
+}
+
+// ByteLen returns the number of bytes required to represent z
+func (z *Uint) ByteLen() int {
+	return (z.BitLen() + 7) / 8
+}
+
 // Clear sets z to 0
 func (z *Uint) Clear() *Uint {
 	z.arr[3], z.arr[2], z.arr[1], z.arr[0] = 0, 0, 0, 0

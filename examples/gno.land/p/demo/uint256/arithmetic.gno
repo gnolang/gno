@@ -185,6 +185,72 @@ func (z *Uint) DivMod(x, y, m *Uint) (*Uint, *Uint) {
 	return z, m
 }
 
+// Exp sets z = base**exponent mod 2**256, and returns z.
+func (z *Uint) Exp(base, exponent *Uint) *Uint {
+	res := Uint{arr: [4]uint64{1, 0, 0, 0}}
+	multiplier := *base
+	expBitLen := exponent.BitLen()
+
+	curBit := 0
+	word := exponent.arr[0]
+	for ; curBit < expBitLen && curBit < 64; curBit++ {
+		if word&1 == 1 {
+			res.Mul(&res, &multiplier)
+		}
+		multiplier.squared()
+		word >>= 1
+	}
+
+	word = exponent.arr[1]
+	for ; curBit < expBitLen && curBit < 128; curBit++ {
+		if word&1 == 1 {
+			res.Mul(&res, &multiplier)
+		}
+		multiplier.squared()
+		word >>= 1
+	}
+
+	word = exponent.arr[2]
+	for ; curBit < expBitLen && curBit < 192; curBit++ {
+		if word&1 == 1 {
+			res.Mul(&res, &multiplier)
+		}
+		multiplier.squared()
+		word >>= 1
+	}
+
+	word = exponent.arr[3]
+	for ; curBit < expBitLen && curBit < 256; curBit++ {
+		if word&1 == 1 {
+			res.Mul(&res, &multiplier)
+		}
+		multiplier.squared()
+		word >>= 1
+	}
+	return z.Set(&res)
+}
+
+func (z *Uint) squared() {
+	var (
+		res                    Uint
+		carry0, carry1, carry2 uint64
+		res1, res2             uint64
+	)
+
+	carry0, res.arr[0] = bits.Mul64(z.arr[0], z.arr[0])
+	carry0, res1 = umulHop(carry0, z.arr[0], z.arr[1])
+	carry0, res2 = umulHop(carry0, z.arr[0], z.arr[2])
+
+	carry1, res.arr[1] = umulHop(res1, z.arr[0], z.arr[1])
+	carry1, res2 = umulStep(res2, z.arr[1], z.arr[1], carry1)
+
+	carry2, res.arr[2] = umulHop(res2, z.arr[0], z.arr[2])
+
+	res.arr[3] = 2*(z.arr[0]*z.arr[3]+z.arr[1]*z.arr[2]) + carry0 + carry1 + carry2
+
+	z.Set(&res)
+}
+
 // udivrem divides u by d and produces both quotient and remainder.
 // The quotient is stored in provided quot - len(u)-len(d)+1 words.
 // It loosely follows the Knuth's division algorithm (sometimes referenced as "schoolbook" division) using 64-bit words.

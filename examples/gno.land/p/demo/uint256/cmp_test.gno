@@ -38,29 +38,6 @@ func TestCmp(t *testing.T) {
 	}
 }
 
-func TestLtUint64(t *testing.T) {
-	tests := []struct {
-		x    string
-		y    uint64
-		want bool
-	}{
-		{"0", 1, true},
-		{"1", 0, false},
-		{"10", 10, false},
-		{"ffffffffffffffff", 0, false},
-		{"10000000000000000", 0, false},
-	}
-
-	for _, tc := range tests {
-		x := new(Uint).SetBytes(hex2Bytes(tc.x))
-		got := x.LtUint64(tc.y)
-
-		if got != tc.want {
-			t.Errorf("LtUint64(%s, %d) = %v, want %v", tc.x, tc.y, got, tc.want)
-		}
-	}
-}
-
 func TestIsZero(t *testing.T) {
 	tests := []struct {
 		x    string
@@ -81,6 +58,29 @@ func TestIsZero(t *testing.T) {
 		got := x.IsZero()
 		if got != tc.want {
 			t.Errorf("IsZero(%s) = %v, want %v", tc.x, got, tc.want)
+		}
+	}
+}
+
+func TestLtUint64(t *testing.T) {
+	tests := []struct {
+		x    string
+		y    uint64
+		want bool
+	}{
+		{"0", 1, true},
+		{"1", 0, false},
+		{"10", 10, false},
+		{"ffffffffffffffff", 0, false},
+		{"10000000000000000", 0, false},
+	}
+
+	for _, tc := range tests {
+		x := new(Uint).SetBytes(hex2Bytes(tc.x))
+		got := x.LtUint64(tc.y)
+
+		if got != tc.want {
+			t.Errorf("LtUint64(%s, %d) = %v, want %v", tc.x, tc.y, got, tc.want)
 		}
 	}
 }
