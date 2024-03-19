@@ -17,6 +17,47 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
+func TestBuiltinIdentifiersShadowing(t *testing.T) {
+	tests := map[string]string{
+		`panic struct`: `package test
+		func main() {}
+		type panic struct {}`,
+		`panic func`: `package test
+		func main() {}
+		func panic(s string) {}`,
+		`panic var`: `package test
+		func main() {
+			panic := 123
+		}
+		`,
+		`rune var`: `package test
+		func main() {
+			rune := rune('a')
+		}
+		`,
+		`rune var char`: `package test
+		func main() {
+			rune := 'a'
+		}
+		`,
+	}
+
+	for n, s := range tests {
+		t.Run(n, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("shadowing test: `%s` should have failed but didn't\n", n)
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			nn := MustParseFile("main.go", s)
+			m.RunFiles(nn)
+			m.RunMain()
+		})
+	}
+}
+
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	t.Parallel()
