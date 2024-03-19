@@ -540,13 +540,16 @@ EXEC_SWITCH:
 		// Push eval operations if needed.
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
+		debug.Println("---return stmt")
 		m.PopStmt()
 		fr := m.LastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
+		debug.Println("ft: ", ft)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)
 		// If has defers, return from the block stack.
 		if hasDefers {
+			debug.Println("---has defers")
 			// NOTE: unnamed results are given hidden names
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
@@ -559,6 +562,7 @@ EXEC_SWITCH:
 				m.PushOp(OpReturnToBlock)
 			}
 		} else {
+			debug.Println("---no defer, cs.Results: ", cs.Results)
 			if cs.Results == nil {
 				m.PushOp(OpReturnFromBlock)
 			} else {
@@ -568,6 +572,7 @@ EXEC_SWITCH:
 		// Evaluate results in order, if any.
 		for i := len(cs.Results) - 1; 0 <= i; i-- {
 			res := cs.Results[i]
+			debug.Println("res: ", res)
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}

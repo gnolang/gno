@@ -679,21 +679,31 @@ func (m *Machine) doOpStructLit() {
 
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
+	debug.Printf("---doOpFuncLit, x: %v \n", x)
+
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+	debug.Println("---ft: ", ft)
+
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
+	V := &FuncValue{
+		Type:       ft,
+		IsMethod:   false,
+		Source:     x,
+		Name:       "",
+		Closure:    lb,
+		PkgPath:    m.Package.PkgPath,
+		body:       x.Body,
+		nativeBody: nil,
+	}
+
+	debug.Println("---V: ", V)
+	debug.Println(V == nil)
+
 	m.PushValue(TypedValue{
 		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
-		},
+		V: V,
 	})
 }
 

@@ -46,18 +46,27 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug.Println("---doOpCall")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	debug.Printf("---fv: %v \n", fv)
 	ft := fr.Func.GetType(m.Store)
+	debug.Printf("---ft: %v \n", ft)
+	debug.Printf("---fv.Source: %v \n", fv.Source)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-	m.PushBlock(b)
+
+	debug.Printf("---clo: %v \n", clo)
+
+	debug.Println("---b: ", b)
+
+	m.PushBlock(b) // this push a new block for the outer closure
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
@@ -79,8 +88,11 @@ func (m *Machine) doOpCall() {
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
 				ptr := b.GetPointerToInt(nil, numParams+i)
+				debug.Println("---ptr: ", ptr)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
+				debug.Println("---dtv: ", dtv)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
+				debug.Println("---ptr after assign: ", ptr)
 			}
 		}
 		// Exec body.
@@ -89,6 +101,7 @@ func (m *Machine) doOpCall() {
 			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
+		debug.Printf("---b.bodyStmt: %v \n", b.bodyStmt)
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {
@@ -142,6 +155,7 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
+	debug.Println("---pvs: ", pvs)
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
 		if debug {
@@ -165,6 +179,7 @@ func (m *Machine) doOpCall() {
 		// Make a copy so that a reference to the argument isn't used
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
+		debug.Println("---do pv copy: ", pv)
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
 }

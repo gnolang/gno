@@ -1438,6 +1438,7 @@ type RefNode struct {
 }
 
 func (rn RefNode) GetLocation() Location {
+	debug.Println("---rn GetLocation")
 	return rn.Location
 }
 
@@ -1458,8 +1459,8 @@ type BlockNode interface {
 	GetExternNames() []Name
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
-	GetPathForName(Store, Name) ValuePath
-	GetExternPathForName(Store, Name) ValuePath
+	GetPathForName(Store, Name) (ValuePath, BlockNode)
+	GetExternPathForName(Store, Name, func(n Name) bool) (ValuePath, uint16, BlockNode)
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
@@ -1590,14 +1591,17 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
-func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
+func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode) {
+	debug.Println("---getPathForName, n: ", n)
+	debug.Println("---getPathForName, sb: ", sb)
 	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+		return NewValuePathBlock(0, 0, "_"), nil
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		return NewValuePathBlock(uint8(gen), idx, n)
+		debug.Println("---idx")
+		return NewValuePathBlock(uint8(gen), idx, n), sb.Source
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
@@ -1611,7 +1615,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	bp := sb.GetParentNode(store)
 	for bp != nil {
 		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n)
+			return NewValuePathBlock(uint8(gen), idx, n), bp
 		} else {
 			if !isFile(bp) {
 				bp.GetStaticBlock().addExternName(n)
@@ -1625,7 +1629,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Finally, check uverse.
 	if idx, ok := UverseNode().GetLocalIndex(n); ok {
-		return NewValuePathUverse(idx, n)
+		return NewValuePathUverse(idx, n), nil // TODO: uverse block, not used actually, but make it right
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
@@ -1633,14 +1637,35 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 
 // Like GetPathForName, but always returns the path of the extern name.
 // This is relevant for when a name is declared later in the block.
-func (sb *StaticBlock) GetExternPathForName(store Store, n Name) ValuePath {
+func (sb *StaticBlock) GetExternPathForName(store Store, n Name, isExtern func(nn Name) bool) (ValuePath, uint16, BlockNode) {
 	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+		return NewValuePathBlock(0, 0, "_"), 0, nil
 	}
 	parent := sb.GetParentNode(store)
-	path := parent.GetPathForName(store, n)
-	path.Depth += 1
-	return path
+	path, bn := parent.GetPathForName(store, n)
+	debug.Printf("---got ExternPathForName, n: %v, path: %v, bn: %v \n", n, path, bn)
+	// adjust index here, exclude non-extern to get an absolute index
+
+	var offset uint16 = 0
+	if path.Depth != 0 { // not uverse
+
+		names := bn.GetBlockNames()
+		debug.Println("---names: ", names)
+
+		index := path.Index
+		debug.Println("---index: ", index)
+
+		for i := uint16(0); i < index; i++ {
+			if !isExtern(names[i]) {
+				offset++
+			}
+		}
+	}
+
+	debug.Println("---offset: ", offset)
+	path.Depth += 1 // 1 count for the funcLitBlock
+
+	return path, offset, bn
 }
 
 // Get the containing block node for node with path relative to this containing block.
@@ -1733,6 +1758,7 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
+	debug.Println("---GetLocalIndex: ", n)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {

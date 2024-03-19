@@ -595,6 +595,7 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
+	debug.Println("---GetSource")
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
 		fv.Source = source
@@ -2308,6 +2309,7 @@ func (b *Block) StringIndented(indent string) string {
 }
 
 func (b *Block) GetSource(store Store) BlockNode {
+	//debug.Println("---block GetSource, b: ", b)
 	if rn, ok := b.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
 		b.Source = source
@@ -2317,6 +2319,7 @@ func (b *Block) GetSource(store Store) BlockNode {
 }
 
 func (b *Block) GetParent(store Store) *Block {
+	//debug.Println("---get parent")
 	switch pb := b.Parent.(type) {
 	case nil:
 		return nil
@@ -2332,6 +2335,8 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	debug.Printf("---GetPointerToInt, b: %v \n", b)
+	debug.Printf("---GetPointerToInt, index: %v \n", index)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2341,6 +2346,9 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	debug.Printf("---GetPointerTo, b: %v \n", b)
+	debug.Printf("---GetPointerTo, path: %v \n", path)
+	debug.Println("-----------------------------------")
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {
@@ -2513,6 +2521,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	debug.Printf("---fillValueTV, tv: %v \n", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

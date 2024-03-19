@@ -15,7 +15,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		SetNodeLocations(pn.PkgPath, string(fn.Name), fn, -1)
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -135,7 +135,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn)
+		SetNodeLocations(pkgPath, fileName, fn, -1)
 	}
 
 	// create stack of BlockNodes.
@@ -633,6 +633,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				debug.Println("---trans_leave, nameExpr")
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -749,6 +750,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *FuncLitExpr:
+				debug.Println("---funcLitExpr, n: ", n)
+				debug.Printf("static block of n is: %v \n", n.Source.GetStaticBlock())
+				debug.Println("---names of staticBlock is: ", n.Source.GetStaticBlock().GetBlockNames())
 				// We need to closure-call if any variables
 				// used were declared in a for-loop, and this
 				// is the outer-most function within the loop.
@@ -759,41 +763,82 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Step 1: check if this func lit is in a loop,
 				// not embedded within another func lit.
-				loopDepth, inLoop := isBlockNodeInLoop(store, n)
+
+				// this should work as a quick detect if funcLitExpr
+				// is in a loop block, if not, return
+				_, inLoop := isBlockNodeInLoop(store, n)
 				if !inLoop {
+					debug.Println("---trans_continue")
 					return n, TRANS_CONTINUE
 				}
+				//debug.Println("---loopDepth: ", loopDepth)
 
 				// Step 2: gather all extern names declared in for-loops.
 				leNames := []Name{}
 				leTypes := []Type{}
 				lePaths := []ValuePath{}
-				for _, name := range n.GetExternNames() {
-					path := n.GetExternPathForName(store, name)
-					if path.Type != VPBlock {
-						continue // not a for-loop block path
-					}
-					if int(path.Depth) <= loopDepth+1 {
-						// it is within the loop, carry on...
-					} else {
-						// it is outside the closest loop ancestor,
-						// check to see if it is declared in outer loop.
-						container := n.GetBlockNodeForPath(store, path)
-						if _, ok := isBlockNodeInLoop(store, container); !ok {
-							continue // not declared in any loop.
+				loopDepth := []uint8{} // distance between the funcLitExpr and outer loop, minimum is 1. depth = VP.Depth-1
+				indexOffsets := []uint16{}
+
+				isExternName := func(nn Name) bool {
+					for _, name := range n.GetExternNames() {
+						if nn == name {
+							return true
 						}
 					}
+					return false
+				}
+
+				for _, name := range n.GetExternNames() {
+					path, indexOffset, bn := n.GetExternPathForName(store, name, isExternName)
+					debug.Printf("---extern nx: %v,  path: %v \n", name, path)
+					debug.Printf("bn: %v \n", bn)
+					if path.Type != VPBlock {
+						continue // not a loop block path
+					}
+
+					if !isBlockNodeLoop(store, bn) {
+						debug.Println()
+						continue
+					}
+					//if int(path.Depth) <= loopDepth+1 {
+					//	// it is within the loop, carry on...
+					//} else {
+					//	// it is outside the closest loop ancestor,
+					//	// check to see if it is declared in outer loop.
+					//	container := n.GetBlockNodeForPath(store, path)
+					//	debug.Println("---container: ", container)
+					//	if _, ok := isBlockNodeInLoop(store, container); !ok {
+					//		continue // not declared in any loop.
+					//	}
+					//}
 					typ := n.GetStaticTypeOfAt(store, path)
+
 					// Append loop extern name and related.
 					leNames = append(leNames, name)
 					lePaths = append(lePaths, path)
 					leTypes = append(leTypes, typ)
+					loopDepth = append(loopDepth, path.Depth-1)
+					indexOffsets = append(indexOffsets, indexOffset)
 				}
 				if len(leNames) == 0 {
 					// nothing to transform
 					return n, TRANS_CONTINUE
 				}
-				panic("!!! ITS HAPPENING (insert ron paul jazz hands) !!!")
+
+				if debug {
+					debug.Println("---dump names---")
+					for i, name := range leNames {
+						debug.Println("name: ", name)
+						debug.Println("type: ", leTypes[i])
+						debug.Println("path: ", lePaths[i])
+						debug.Println("loopDepth: ", loopDepth[i])
+					}
+					debug.Println("---end---")
+				}
+
+				//panic("!!! ITS HAPPENING (insert ron paul jazz hands) !!!")
+
 				// Finally, do the transform.
 				// The inner closure loop externs will be
 				// modified to have a path depth of 2 (or more)
@@ -804,29 +849,75 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// The outer closure call’s passed arguments
 				// will be modified by the final preprocess
 				// call on the call expression (variable depth).
-				adjustLoopExternPaths(n, leNames, lePaths)
+
+				adjustLoopExternPaths(&last, n, leNames, lePaths, indexOffsets, loopDepth)
+
+				debug.Printf("---funcLitExpr, n after adjust: %v \n", n)
+
 				// Inject a closure-call and preprocess it.
+				// the injected closure bump the nx in inner funcLit into the
+				// loop block where the value transient happens
 				paramFields := []interface{}{}
-				for i := 0; i < len(leNames); i++ {
+				//for i := 0; i < len(leNames); i++ {
+				// make the index of nx the same order with their origin
+				// see closure_12b.gno
+				for i := len(leNames) - 1; i >= 0; i-- {
 					paramFields = append(paramFields,
 						leNames[i],
 						constType(nil, leTypes[i]),
 					)
 				}
 				params := Flds(paramFields...)
+				debug.Println("params: ", params)
 				fnType := evalStaticTypeOf(store, last, n)
 				results := Flds("", constType(nil, fnType))
 				returnFn := Return(n)
+
+				// the injected closure?
 				closure := Fn(params, results, []Stmt{returnFn})
 				leNameExprs := []interface{}{}
-				for _, leName := range leNames {
-					leNameExprs = append(leNameExprs, Nx(leName))
+				//for _, leName := range leNames {
+				for i := len(leNames) - 1; i >= 0; i-- {
+					leNameExprs = append(leNameExprs, Nx(leNames[i]))
 				}
+				debug.Println("---closure: ", closure)
+				// do the call
 				call := Call(closure, leNameExprs...)
+				debug.Printf("---call before preprocess: %v, line: %d \n", call, call.GetLine())
 				// this preprocess will also set the path for the
 				// outer closure's params and the call's
 				// argument value paths.
+				//last = closure
 				call = Preprocess(store, last, call).(*CallExpr)
+
+				debug.Printf("---call after preprocess, before adjust depth: %v, line: %d \n", call, call.GetLine())
+				// dec depth for arg, since last bn is inner closure
+				for i, argx := range call.Args {
+					debug.Printf("argx[%d]: %v \n", i, argx)
+					if nx, ok := call.Args[i].(*NameExpr); ok {
+						//nx.Path.Depth = nx.Path.Depth - 1 - 1
+
+						// make the arg refer to the outer for loop block, so
+						// the depth is the distance between them, when there
+						// is no middle block, loopDepth is 1.
+						// e.g. for{func(){...}}
+
+						nx.Path.Depth = loopDepth[i] // the depth nx in outer injected closure should always be 1, relative to the outer loop block
+						//nx.Path.Index = nx.Path.Index - indexOffsets[i]
+						call.Args[i] = nx
+					}
+				}
+
+				debug.Printf("---call after preprocess after adjust depth: %v, line: %d \n", call, call.GetLine())
+
+				debug.Println("---preprocess on injected closure done---")
+				pkgPath := ctx.(*PackageNode).PkgPath
+				fileName := n.GetLocation().File
+				line := n.GetLocation().Line
+				SetNodeLocations(pkgPath, fileName, call, line)
+
+				//debug.Printf("---call after set location: %v, line: %d \n", call, BlockNode(call))
+
 				return call, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
@@ -1036,12 +1127,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				debug.Printf("---callExpr, n: %v \n", n)
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
 					ft = cft
+					debug.Println("---funcType, ft: ", ft)
 				case *NativeType:
 					ft = store.Go2GnoType(cft.Type).(*FuncType)
 				case *TypeType:
@@ -1095,11 +1188,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						ift, reflect.TypeOf(ift)))
 				}
 
+				debug.Println("---routines for call")
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
 				// In general, a string is not assignable to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
+					debug.Println("---func is ConstExpr")
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						if n.Varg && len(n.Args) == 2 {
@@ -1151,6 +1246,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				debug.Println("---continue with general case")
 				// Continue with general case.
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
@@ -1258,6 +1354,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
+					debug.Println("---handling with args")
 					for i := range n.Args {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
@@ -1537,7 +1634,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
 					}
-					n.Path = pn.GetPathForName(store, n.Sel)
+					n.Path, _ = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
@@ -1970,7 +2067,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
+							nx.Path, _ = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				} else {
@@ -1980,7 +2077,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
+							nx.Path, _ = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				}
@@ -3131,7 +3228,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			T: gPackageType,
 			V: pv,
 		})
-		d.Path = last.GetPathForName(store, d.Name)
+		d.Path, _ = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
@@ -3150,7 +3247,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			} else {
 				last2 := skipFile(last)
 				last2.Predefine(d.Const, nx.Name)
-				nx.Path = last.GetPathForName(store, nx.Name)
+				nx.Path, _ = last.GetPathForName(store, nx.Name)
 			}
 		}
 	case *TypeDecl:
@@ -3216,7 +3313,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				}
 				// check package node for name.
 				pn := pv.GetPackageNode(store)
-				tx.Path = pn.GetPathForName(store, tx.Sel)
+				tx.Path, _ = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T
 			default:
@@ -3233,7 +3330,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// fill in later.
 			last2.Define(d.Name, asValue(t))
-			d.Path = last.GetPathForName(store, d.Name)
+			d.Path, _ = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
 		un = findUndefined(store, last, d.Type)
@@ -3296,7 +3393,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if d.Name == "init" {
 				// init functions can't be referenced.
 			} else {
-				d.Path = last.GetPathForName(store, d.Name)
+				d.Path, _ = last.GetPathForName(store, d.Name)
 			}
 		}
 	default:
@@ -3324,6 +3421,8 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
+	debug.Println("---fillNameExprPath")
+	debug.Println("---fillNameExprPath, last: ", last)
 	if nx.Name == "_" {
 		// Blank name has no path; caller error.
 		panic("should not happen")
@@ -3359,7 +3458,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
 					continue
 				} else {
-					path = last.GetPathForName(nil, nx.Name)
+					path, _ = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
 						panic("expected block value path type")
 					}
@@ -3373,7 +3472,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
-	nx.Path = last.GetPathForName(nil, nx.Name)
+	nx.Path, _ = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {
@@ -3646,6 +3745,8 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 
 // return the depth offset of loop and true if block node is in a loop,
 // but not embedded within another func lit intermediary.
+// TODO: add support range
+// TODO: make it work with implicit loop(goto label) here?
 func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 	depthOffset := 0
 	for bn != nil {
@@ -3656,6 +3757,8 @@ func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 			return 0, false
 		case *ForStmt:
 			return depthOffset, true
+		case *RangeStmt:
+			return depthOffset, true
 		default:
 			continue
 		}
@@ -3663,11 +3766,36 @@ func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 	return 0, false
 }
 
-func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
+func isBlockNodeLoop(store Store, bn BlockNode) bool {
+	if bn != nil {
+		switch bn.(type) {
+		case *ForStmt:
+			return true
+		case *RangeStmt:
+			return true
+		default:
+		}
+	}
+	return false
+}
+
+// ValuePath of nameExpr of the inner closure is calculated and adjust here,
+// the depth of x should be the (origin depth - (the loopDepth - 1)), (the loopDepth - 1)
+// is a relative offset of the outer closure with the outer outer for loop.
+// this make the vp of x refer to the block of the outer closure, the other hand the
+// vp of arg of the outer closure will have a depth of `loopDepth` that make it
+// refer to the outer for loop. so the origin closure and outer for loop
+// is connected by the outer closure.
+// see debug/1a, 1b ,c2
+func adjustLoopExternPaths(last *BlockNode, bn BlockNode, leNames []Name, lePaths []ValuePath, indexOffsets []uint16, loopDepth []uint8) {
+	debug.Printf("---adjustLoopExternPaths, bn: %v, leNames: %v, lePaths: %v, indexOffsets: %v, loopDepth: %v \n", bn, leNames, lePaths, indexOffsets, loopDepth)
 	var depthOffset uint8 = 0
+	var cursor int
+	var indexCount uint16
 	isLeName := func(name Name) (ValuePath, bool) {
 		for i, leName := range leNames {
 			if name == leName {
+				cursor = i
 				return lePaths[i], true
 			}
 		}
@@ -3677,29 +3805,36 @@ func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// expect only preprocessed nodes.
 		if n.GetAttribute(ATTR_PREPROCESSED) != true {
-			panic("expected only preprocessed nodes for adjustLoopExrternPaths")
+			panic("expected only preprocessed nodes for adjustLoopExternPaths")
 		}
 
 		switch stage {
 		case TRANS_ENTER:
+			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
 			switch cn := n.(type) {
 			case *NameExpr:
+				debug.Println("---trans_enter, nx: ", cn)
 				if cn.Path.Type != VPBlock {
 					panic("unexpected value path type for name")
 				}
 				lePath, isLeName := isLeName(cn.Name)
+				debug.Printf("---pre, adjustPath for: %v , lePath: %v \n", cn, lePath)
 				if isLeName {
+					debug.Println("---isLeName: ", cn.Name)
+					debug.Println("---cn.Path.Depth: ", cn.Path.Depth)
+					debug.Println("---lePath.Depth: ", lePath.Depth)
+					debug.Println("---depthOffset: ", depthOffset)
 					// sanity check
-					if cn.Path.Depth >
-						lePath.Depth+depthOffset {
-						panic("should not happen")
-					}
-					// If the depth is shallow,
-					// it does not apply, was redeclared.
-					if cn.Path.Depth <
-						lePath.Depth+depthOffset {
-						return cn, TRANS_CONTINUE
-					}
+					//if cn.Path.Depth >
+					//	lePath.Depth+depthOffset {
+					//	panic("should not happen")
+					//}
+					//// If the depth is shallow,
+					//// it does not apply, was redeclared.
+					//if cn.Path.Depth <
+					//	lePath.Depth+depthOffset {
+					//	return cn, TRANS_CONTINUE
+					//}
 					// e.g.
 					// for {
 					//   i := 0
@@ -3727,7 +3862,13 @@ func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 					//     }(i)
 					//   }
 					// }
-					cn.Path.Depth = 1 + depthOffset + 1
+					//cn.Path.Depth = 1 + depthOffset + 1 - 1
+					cn.Path.Depth = cn.Path.Depth - (loopDepth[cursor] - 1)
+					cn.Path.Index = cn.Path.Index - indexOffsets[cursor] + indexCount
+					//cn.Path.Index = indexCount
+					indexCount++
+					debug.Println("---depth: ", cn.Path.Depth)
+					debug.Println("---index: ", cn.Path.Index)
 				} else {
 					// If the depth is shallow,
 					// it is not affected.
@@ -3740,6 +3881,7 @@ func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 						cn.Path.Depth += 1
 					}
 				}
+				debug.Printf("---post, adjustPath for: %v , lePath: %v \n", cn, lePath)
 				return cn, TRANS_CONTINUE
 			/*
 				case *FuncLitExpr:
@@ -3751,18 +3893,42 @@ func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 					continue // "continue" to track offset.
 			*/
 			case BlockNode:
+				debug.Println("---trans_enter ,blockNode, n: ", n)
 				depthOffset += 1 // keep track of depth
+				*last = cn
 				return cn, TRANS_CONTINUE
+			//case *ExprStmt:
+			//	debug.Println("---expr stmt")
+			//	return cn, TRANS_CONTINUE
+			//case *ReturnStmt:
+			//	debug.Println("---return stmt")
+			//	return cn, TRANS_CONTINUE
+			//case *CallExpr:
+			//	debug.Println("---call expr")
+			//	return cn, TRANS_CONTINUE
 			default:
-				return cn, TRANS_SKIP
+				//debug.Println("---trans_enter, default, skip")
+				debug.Println("---trans_enter, default, continue")
+				//return cn, TRANS_SKIP
+				return cn, TRANS_CONTINUE
 			}
 		case TRANS_LEAVE:
+			debug.Println("---trans_leave, n: ", n)
 			switch cn := n.(type) {
+			case *NameExpr:
+				if indexCount > 0 {
+					indexCount--
+				}
+				debug.Println("---trans_leave, nameExpr")
+				return cn, TRANS_CONTINUE
 			case BlockNode:
+				debug.Println("---trans_leave, block node, n: ", n)
 				depthOffset -= 1 // keep track of depth
 				return cn, TRANS_CONTINUE
 			default:
-				return cn, TRANS_SKIP
+				debug.Println("---trans_leave, default, continue")
+				//return cn, TRANS_SKIP
+				return cn, TRANS_CONTINUE
 			}
 		default:
 			return n, TRANS_CONTINUE
@@ -3776,7 +3942,9 @@ func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
 // Iterate over all block nodes recursively and sets location information
 // based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func SetNodeLocations(pkgPath string, fileName string, n Node) {
+func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
+	debug.Printf("---SetNodeLocations: %v \n", n)
+
 	if n.GetAttribute(ATTR_LOCATIONED) == true {
 		return // locations already set (typically n is a filenode).
 	}
@@ -3798,12 +3966,17 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 				lastLine = line
 				nextNonce = 0
 			}
+			if theLine != -1 {
+				line = theLine
+			}
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
 				Line:    line,
 				Nonce:   nextNonce,
 			}
+			debug.Printf("---loc line: %d, nonce: %d \n", line, loc.Nonce)
+			debug.Printf("---loc: %v \n", loc)
 			bn.SetLocation(loc)
 		}
 		return n, TRANS_CONTINUE
@@ -3816,6 +3989,7 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
 func SaveBlockNodes(store Store, fn *FileNode) {
+	debug.Println("---SaveBlockNodes")
 	// First, get the package and file names.
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
@@ -3830,20 +4004,22 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
-			// Location must exist already.
-			loc := bn.GetLocation()
-			if loc.IsZero() {
-				panic("unexpected zero block node location")
-			}
-			if loc.PkgPath != pkgPath {
-				panic("unexpected pkg path in node location")
-			}
-			if loc.File != fileName {
-				panic("unexpected file name in node location")
-			}
-			if loc.Line != bn.GetLine() {
-				panic("wrong line in block node location")
-			}
+			debug.Printf("---bn is %v \n", bn)
+			//// Location must exist already.
+			//loc := bn.GetLocation()
+			//debug.Printf("---loc of bn is %v \n", loc)
+			//if loc.IsZero() {
+			//	panic("unexpected zero block node location")
+			//}
+			//if loc.PkgPath != pkgPath {
+			//	panic("unexpected pkg path in node location")
+			//}
+			//if loc.File != fileName {
+			//	panic("unexpected file name in node location")
+			//}
+			//if loc.Line != bn.GetLine() {
+			//	panic("wrong line in block node location")
+			//}
 			// save blocknode.
 			store.SetBlockNode(bn)
 		}
