@@ -26,7 +26,7 @@ interact with the Playground.
 To get started, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a
 simple `package.gno` file:
 
-![gnoweb screen](../../assets/getting-started/playground/default_playground.png)
+![default_playground](../../assets/getting-started/playground/default_playground.png)
 
 The Playground has the following features:
 - `Share` - Get a permanent, shareable link to the code currently found in the playground
@@ -50,7 +50,7 @@ Deploy allows users to quickly deploy their Gno code to the chain. After connect
 a Gno.land wallet, users will be able to choose which package path to deploy to,
 as well as which network.
 
-![gnoweb screen](../../assets/getting-started/playground/default_deploy.png)
+![default_deploy](../../assets/getting-started/playground/default_deploy.png)
 
 After inputting your desired package path, you can select the network you would 
 like to deploy to, such as [Portal Loop](../../concepts/portal-loop.md) or local,
@@ -65,18 +65,41 @@ you with enough to cover the gas cost at the time of deployment.
 Format will format your code, using `gofmt`.
 
 ### Run
-Run will allow you to run an expression on your Gno code.
+Run will allow you to run an expression on your Gno code. Take the following code
+for an example:
+
+![run_example](../../assets/getting-started/playground/run.png)
+
+Running `println(Render("Gnopher"))` will display the following output:
+
+```bash
+Hello Gnopher!
+```
+
+View the code [here](https://play.gno.land/p/nBq2W8drjMy).
 
 ### Test
 
 Test will look for `_test.gno` files in your playground and run the
-[gno test -v](../../concepts/gno-test.md) command on them. Testing your code 
-will open a terminal that will show you the output of the test. 
+`gno test -v` command on them. Testing your code will open a terminal that will 
+show you the output of the test. Read more about how Gno tests work
+[here](../../concepts/gno-test.md).
 
-### REPL
+### REPL (experimental)
 
 This option, although experimental, will let you experiment with the GnoVM
-in the REPL mode. 
+in REPL mode. 
+
+## Learning about Gno.land & writing Gno code
+
+Gno.land is a complex technical system, and as such many concepts need to be 
+explained to newcomers. For reading more about Gno.land, 
+check out the [Concepts](../../concepts/concepts.md) section.
+
+To get started writing Gno code, check out the
+[How-to](../../how-to-guides/how-to-guides.md) section, the `examples/` folder on
+the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
+[awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.
 
 
 
