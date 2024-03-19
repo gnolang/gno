@@ -13,11 +13,11 @@ type StaticAnalysis struct {
 
 	// here we accumulate errors
 	// from lambdas defined in the function declaration
-	lambdaErrs []error
+	errs []error
 }
 
 func NewStaticAnalysis() *StaticAnalysis {
-	return &StaticAnalysis{contexts: make([]Context, 0), funcContexts: make([]FuncContext, 0), lambdaErrs: make([]error, 0)}
+	return &StaticAnalysis{contexts: make([]Context, 0), funcContexts: make([]FuncContext, 0), errs: make([]error, 0)}
 }
 
 func (s *StaticAnalysis) pushContext(ctx Context) {
@@ -69,19 +69,19 @@ func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
 
 	errs := make([]error, 0)
 	if !term {
-		errs = append(errs, errors.New(fmt.Sprintf("function %+v: does not terminate", f.Name)))
+		errs = append(errs, errors.New(fmt.Sprintf("function %q does not terminate", f.Name)))
 	}
 
-	errs = append(errs, s.lambdaErrs...)
+	errs = append(errs, s.errs...)
 
 	return errs
 }
 
 func (s *StaticAnalysis) staticAnalysisBlockStmt(stmts []Stmt) bool {
-	if len(stmts) > 0 {
-		return s.staticAnalysisStmt(stmts[len(stmts)-1])
+	if len(stmts) == 0 {
+		return false
 	}
-	return false
+	return s.staticAnalysisStmt(stmts[len(stmts)-1])
 }
 
 func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
@@ -103,7 +103,7 @@ func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
 		ctx := s.popFuncContext().(*FuncLitContext)
 
 		if !term {
-			s.lambdaErrs = append(s.lambdaErrs, errors.New(fmt.Sprintf("lambda at %v does not terminate\n", ctx.f.Loc)))
+			s.errs = append(s.errs, errors.New(fmt.Sprintf("lambda at %v does not terminate\n", ctx.f.Loc)))
 		}
 		return false, false
 	case *NameExpr:

@@ -157,7 +157,6 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		`package test
 			func main() {
 				first := a()
-			println(first)
 		}
 		
 		func a() int {
@@ -170,11 +169,9 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		}
 		
 		func validLabel() int{
-		println("validLabel")
 		OuterLoop:
 		for i := 0; i < 10; i++ {
 		    for j := 0; j < 10; j++ {
-		        println("i =", i, "j =", j)
 		        break OuterLoop
 		    }
 		}
