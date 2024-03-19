@@ -39,6 +39,7 @@ func NewColumnLogger(w io.Writer, level slog.Level, color bool) *slog.Logger {
 		colorProfile: colorProfile,
 	}
 
+	charmLogger.SetOutput(newColumeWriter(lipgloss.NewStyle(), "", w))
 	charmLogger.SetStyles(DefaultStyles())
 	charmLogger.SetColorProfile(colorProfile)
 	charmLogger.SetReportCaller(false)
@@ -73,7 +74,7 @@ func (cl *columnLogger) WithGroup(name string) slog.Handler {
 
 	nlog := cl.Logger.With() // clone logger
 	baseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(stringToColor(name))))
-	nlog.SetOutput(NewColumeWriter(baseStyle, name, cl.writer))
+	nlog.SetOutput(newColumeWriter(baseStyle, name, cl.writer))
 	nlog.SetColorProfile(cl.colorProfile)
 	return &columnLogger{
 		Logger: nlog,
@@ -91,7 +92,7 @@ type columnWriter struct {
 	writer io.Writer
 }
 
-func NewColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) *columnWriter {
+func newColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) *columnWriter {
 	style := baseStyle.
 		Border(lipgloss.ThickBorder(), false, true, false, false).
 		BorderForeground(baseStyle.GetForeground()).

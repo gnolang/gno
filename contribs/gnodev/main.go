@@ -179,7 +179,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		loglevel = slog.LevelDebug
 	}
 
-	logger := clogger.NewLogger(rt, loglevel, true)
+	logger := clogger.NewColumnLogger(rt, loglevel, true)
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
 
@@ -344,7 +344,7 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 
 	const timeout = time.Millisecond * 500
--
+
 	var debounceTimer <-chan time.Time
 	pathList := []string{}
 
