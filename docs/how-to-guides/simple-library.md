@@ -34,9 +34,7 @@ Inside `package.gno`, we will define our library logic:
 ```go
 package tapas
 
-import (
-	"gno.land/p/demo/rand"
-)
+import "std"
 
 // List of tapas suggestions
 var listOfTapas = []string{
@@ -61,16 +59,15 @@ var listOfTapas = []string{
 }
 
 // GetTapaSuggestion randomly selects and returns a tapa suggestion
-func GetTapaSuggestion() string {
-	// Create a new instance of the random number generator.
-	// Notice that this is from an imported Gno library
-	generator := rand.New()
+func GetTapaSuggestion(userInput string) string {
 
-	// Generate a random index
-	randomIndex := generator.Intn(len(listOfTapas))
+	// Create a random number depending on the block height.
+	// We get the block height using std.GetHeight(), which is from an imported Gno library, "std"
+	// Note: this value is not fully random and is easily guessable
+	randomNumber := int(std.GetHeight()) % len(listOfTapas)
 
 	// Return the random suggestion
-	return listOfTapas[randomIndex]
+	return listOfTapas[randomNumber]
 }
 ```
 
@@ -80,7 +77,7 @@ There are a few things happening here, so let's dissect them:
 - The package imports another gno package, which is deployed at `gno.land/p/demo/rand`
 - We use the imported package inside of `GetTapaSuggestion` to generate a random index value for a tapa
 
-You can view the code on [this Playground link](https://play.gno.land/p/5SQQ-r2_Vos).
+You can view the code on [this Playground link](https://play.gno.land/p/3uwBqP66ekC).
 
 ## Conclusion
 
