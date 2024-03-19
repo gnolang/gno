@@ -172,12 +172,12 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		func validLabel() int{
 		println("validLabel")
 		OuterLoop:
-		 for i := 0; i < 10; i++ {
-		     for j := 0; j < 10; j++ {
-		         println("i =", i, "j =", j)
-		         break OuterLoop
-		     }
-		 }
+		for i := 0; i < 10; i++ {
+		    for j := 0; j < 10; j++ {
+		        println("i =", i, "j =", j)
+		        break OuterLoop
+		    }
+		}
 			return 0
 		}
 		`, `package test
@@ -277,15 +277,15 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		
 		func switchLabel() int{
 		SwitchStatement:
-		 switch 1 {
-		 case 1:
-		     return 1
-		     for i := 0; i < 10; i++ {
-		         break SwitchStatement
-		     }
-		     return 2
-		 }
-		 return 3
+		switch 1 {
+		case 1:
+		    return 1
+		    for i := 0; i < 10; i++ {
+		        break SwitchStatement
+		    }
+		    return 2
+		}
+		return 3
 		}
 		`, `
 			package test
@@ -293,7 +293,7 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 				add(1,1)
 			}
 		func add(a, b int) int {
-		 return a + b
+		return a + b
 		}`,
 		`package test
 				func main() {
@@ -314,6 +314,33 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			}
 				return false
 			}
+		`,
+		`
+		package test
+				func main() {
+					f(2)	
+				}
+		func f(a int) int {
+			switch a {
+			case 1:
+				return 1
+			default:
+				return 0
+			}
+		} 
+		`,
+		`
+		package test
+				func main() {
+					f(0)	
+				}
+		func f(a int) int {
+			if a > 0 {
+				return 1
+			} else {
+				return 0
+			}
+		}
 		`,
 	}
 
