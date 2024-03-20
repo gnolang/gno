@@ -30,6 +30,15 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			`mempackage "gno.land/r/demo/hey" has unsorted files`,
 		},
+		{
+			"Duplicate",
+			&MemPackage{
+				Name:  "hey",
+				Path:  "gno.land/r/demo/hey",
+				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
+			},
+			`duplicate file name "a.gno"`,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
