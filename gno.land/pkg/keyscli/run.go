@@ -31,7 +31,7 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <key-name or address> <file or - or dir>",
-			ShortHelp:  "Runs Gno code by invoking main() in a package",
+			ShortHelp:  "runs Gno code by invoking main() in a package",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

@@ -32,7 +32,7 @@ func newLintCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "lint",
 			ShortUsage: "lint [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the linter for the specified packages",
+			ShortHelp:  "runs the linter for the specified packages",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -44,7 +44,7 @@ func newLintCmd(io commands.IO) *commands.Command {
 func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
-	fs.BoolVar(&c.verbose, "verbose", false, "verbose output when lintning")
+	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }

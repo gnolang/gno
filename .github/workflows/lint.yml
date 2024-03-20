@@ -23,6 +23,9 @@ jobs:
 
       - name: Lint
         uses: golangci/golangci-lint-action@v4
+        env:
+          # Don't attempt to compile/resolve C packages (grocksdb, cleveldb).
+          CGO_ENABLED: 0
         with:
           # sync with misc/devdeps/go.mod
           version: v1.54
@@ -79,6 +82,6 @@ jobs:
         run: |
           # Ensure Make is installed
           make --version
-          
+
           # Run the tidy target
           make tidy
