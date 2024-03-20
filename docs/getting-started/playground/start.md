@@ -29,7 +29,7 @@ simple `package.gno` file:
 ![default_playground](../../assets/getting-started/playground/default_playground.png)
 
 The Playground has the following features:
-- `Share` - Get a permanent, shareable link to the code currently found in the playground
+- `Share` - Generate a unique, short, and shareable identifier for your Gno code.
 - `Deploy` - Connect your wallet and deploy your code to a Gno.land network
 - `Format` - Format your Gno code
 - `Run` - Run a specific expression on your code
