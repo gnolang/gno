@@ -118,7 +118,7 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 		dateSorter := PostSorter{
 			Posts: filteredPosts,
 			LessF: func(i, j int) bool {
-				return filteredPosts[i].Timestamp.Before(filteredPosts[j].Timestamp)
+				return filteredPosts[i].Timestamp.After(filteredPosts[j].Timestamp)
 			},
 		}
 		sort.Sort(dateSorter)
