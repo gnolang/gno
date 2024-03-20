@@ -101,8 +101,3 @@ To get started writing Gno code, check out the
 [How-to](../../how-to-guides/how-to-guides.md) section, the `examples/` folder on
 the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
 [awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.
-
-
-
-
-
