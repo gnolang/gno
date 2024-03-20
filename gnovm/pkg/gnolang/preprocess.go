@@ -859,7 +859,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// loop block where the value transient happens
 				paramFields := []interface{}{}
 				//for i := 0; i < len(leNames); i++ {
-				// make the index of nx the same order with their origin
+				// make the index of nx in the same order with their origin declaration
 				// see closure_12b.gno
 				for i := len(leNames) - 1; i >= 0; i-- {
 					paramFields = append(paramFields,
@@ -3916,7 +3916,7 @@ func adjustLoopExternPaths(last *BlockNode, bn BlockNode, leNames []Name, lePath
 			debug.Println("---trans_leave, n: ", n)
 			switch cn := n.(type) {
 			case *NameExpr:
-				if indexCount > 0 {
+				if indexCount > 0 { // TODO: check isLeName instead of this
 					indexCount--
 				}
 				debug.Println("---trans_leave, nameExpr")
