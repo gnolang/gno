@@ -39,8 +39,10 @@ Let's dive into each of the Playground features.
 
 ### Share
 
-This feature allows users to get a permanent shortlink to the code found in the
-playground at the time of clicking. This way, Gno code can be shared easily. 
+The **Share** feature provides users with a permanent shortlink to the current
+Gno code in the playground, making it a simple and easy way to do code-sharing.
+Links created via the **Share** feature initially set to expire after 5 years,
+ensuring the shared code remains accessible over an extended period.
 
 ### Deploy
 
