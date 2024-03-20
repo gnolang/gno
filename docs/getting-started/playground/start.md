@@ -33,7 +33,7 @@ The Playground has the following features:
 - `Deploy` - Connect your wallet and deploy your code to a Gno.land network
 - `Format` - Automatically adjust your Gno code's structure and style for optimal readability and consistency.
 - `Run` - Run a specific expression on your code
-- `Test` - Run tests on your code
+- `Test` - Execute predefined tests to verify your code's integrity and ensure it meets expected outcomes.
 - `REPL` - Experiment and troubleshoot in real-time using the GnoVM with interactive REPL features.
 interactive REPL features (experimental)
 
