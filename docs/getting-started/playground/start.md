@@ -15,11 +15,9 @@ making it the perfect tool to get started with Gno development.
 ## Prerequisites
 
 - **Internet connection**
-- **A keypair in a Gno.land wallet, such as [Adena](https://adena.app)**
-
-To fully utilize Playground features, you will need to install a Gno.land web
-browser wallet, such as [Adena](https://www.adena.app/), and create a keypair. This will allow you to
-fully utilize the Playground.
+- **A Gno.land compatible wallet**
+  - Currently, [Adena](https://www.adena.app/) is the go-to wallet for
+Gno.land, with more wallets being introduced in the future.
 
 ## Playground Features
 
