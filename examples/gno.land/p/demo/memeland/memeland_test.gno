@@ -110,7 +110,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 
 	// Check if ordering is correct, sort by created date
 	for i := 0; i < len(memeData)-2; i++ {
-		if strings.Index(jsonStr, memeData[i]) > strings.Index(jsonStr, memeData[i+1]) {
+		if strings.Index(jsonStr, memeData[i]) < strings.Index(jsonStr, memeData[i+1]) {
 			t.Errorf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1)
 		}
 	}
@@ -148,7 +148,7 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 		afterLatest.Unix(),    // end at latest post
 		1,                     // first page
 		2,                     // all memes on the page
-		"UPVOTE",              // sort by upvote
+		"UPVOTES",             // sort by upvote
 	)
 
 	if jsonStr == "" {
