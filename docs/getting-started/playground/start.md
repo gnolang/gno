@@ -62,7 +62,9 @@ you with enough to cover the gas cost at the time of deployment.
 :::
 
 ### Format
-Format will format your code, using `gofmt`.
+The 'Format' feature utilizes the Monaco editor and
+[`gofmt`](https://pkg.go.dev/cmd/gofmt) to automatically refine and standardize 
+your Gno code's syntax.
 
 ### Run
 Run will allow you to run an expression on your Gno code. Take the following code
