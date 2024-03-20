@@ -71,12 +71,12 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("mempackage %q contains unsorted filenames", mempkg.Path)
 	}
 
-	prev := mempkg.Files[0].Name
-	for _, file := range mempkg.Files[1:] {
+	var prev string
+	for i, file := range mempkg.Files {
 		if !reFileName.MatchString(file.Name) {
 			return fmt.Errorf("invalid file name %q, failed to match %q", file.Name, reFileName)
 		}
-		if prev == file.Name {
+		if i > 0 && prev == file.Name {
 			return fmt.Errorf("duplicate file name %q", file.Name)
 		}
 		prev = file.Name
