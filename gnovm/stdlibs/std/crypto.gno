@@ -8,7 +8,7 @@ func (a Address) String() string {
 
 // IsValid checks if the address is valid bech32 encoded string
 func (a Address) IsValid() bool {
-	_, _, ok := decodeBech32(a.String())
+	_, _, ok := DecodeBech32(a)
 	return ok
 }
 
