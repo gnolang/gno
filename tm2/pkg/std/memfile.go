@@ -68,7 +68,7 @@ func (mempkg *MemPackage) Validate() error {
 		},
 	)
 	if !sorted {
-		return fmt.Errorf("mempackage %q contains unsorted filenames", mempkg.Path)
+		return fmt.Errorf("mempackage %q has unsorted files", mempkg.Path)
 	}
 
 	var prev string
