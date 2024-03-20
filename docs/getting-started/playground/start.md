@@ -47,7 +47,7 @@ playground at the time of clicking. This way, Gno code can be shared easily.
 ### Deploy
 
 Allows users to seamlessly deploy their Gno code to the chain. After connecting 
-a Gno.land wallet, users will be able to choose which package path to deploy to,
+a Gno.land wallet, users can select their desired package path and network for deployment.
 as well as which network.
 
 ![default_deploy](../../assets/getting-started/playground/default_deploy.png)
