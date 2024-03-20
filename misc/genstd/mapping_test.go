@@ -173,9 +173,9 @@ func Test_linkFunctions_noMatchSig(t *testing.T) {
 	linkFunctions(pkgs)
 }
 
-// mergeTypes - separate tests.
+// typesEqual - separate tests.
 
-var mergeTypesMapping = &mapping{
+var typesEqualMapping = &mapping{
 	GnoImportPath: "std",
 	GnoFunc:       "Fn",
 	GoImportPath:  "github.com/gnolang/gno/gnovm/stdlibs/std",
@@ -191,7 +191,6 @@ var mergeTypesMapping = &mapping{
 	},
 	gnoImports: []*ast.ImportSpec{
 		{
-			// cheating a bit -- but we currently only have linked types in `std`.
 			Path: &ast.BasicLit{Value: `"std"`},
 		},
 		{
@@ -200,75 +199,60 @@ var mergeTypesMapping = &mapping{
 	},
 }
 
-func Test_mergeTypes(t *testing.T) {
+func Test_typesEqual(t *testing.T) {
 	tt := []struct {
-		gnoe, goe string
-		result    ast.Expr
+		gnoe, goe   string
+		errContains string
 	}{
-		{"int", "int", &ast.Ident{Name: "int"}},
-		{"*[11][]rune", "*[11][]rune", &ast.StarExpr{
-			X: &ast.ArrayType{Len: &ast.BasicLit{Value: "11"}, Elt: &ast.ArrayType{
-				Elt: &ast.Ident{Name: "rune"},
-			}},
-		}},
+		{"int", "int", ""},
+		{"*[11][]rune", "*[11][ ]rune", ""},
 
-		{"Address", "crypto.Bech32Address", &linkedIdent{lt: linkedType{
-			gnoPackage: "std",
-			gnoName:    "Address",
-			goPackage:  "github.com/gnolang/gno/tm2/pkg/crypto",
-			goName:     "Bech32Address",
-		}}},
-		{"std.Realm", "Realm", &linkedIdent{lt: linkedType{
-			gnoPackage: "std",
-			gnoName:    "Realm",
-			goPackage:  "github.com/gnolang/gno/gnovm/stdlibs/std",
-			goName:     "Realm",
-		}}},
+		{"madeup", "madeup", "non-builtin type"},
+
+		{"int", "string", "does not match"},
+		{"*int", "int", "does not match"},
+		{"string", "*string", "does not match"},
+		{"*string", "*int", "does not match"},
+
+		{"[]int", "[1]int", "does not match"},
+		{"[1]int", "[]int", "does not match"},
+		{"[2]int", "[2]string", "does not match"},
+		// valid, but unsupported (only BasicLits)
+		{"[(11)]int", "[(11)]string", "does not match"},
+
+		// even though mathematically equal, for simplicity we don't implement
+		// "true" basic lit equivalence
+		{"[8]int", "[0x8]int", "does not match"},
 	}
 
-	for _, tv := range tt {
-		t.Run(tv.gnoe, func(t *testing.T) {
+	for idx, tv := range tt {
+		t.Run(fmt.Sprintf("%02d_%s", idx, tv.gnoe), func(t *testing.T) {
 			gnoe, err := parser.ParseExpr(tv.gnoe)
 			require.NoError(t, err)
 			goe, err := parser.ParseExpr(tv.goe)
 			require.NoError(t, err)
 
-			result := mergeTypesMapping.mergeTypes(gnoe, goe)
-			assert.Equal(t, result, tv.result)
+			err = typesEqualMapping.typesEqual(gnoe, goe)
+			if tv.errContains == "" {
+				assert.NoError(t, err)
+			} else {
+				_ = assert.Error(t, err) &&
+					assert.Contains(t, err.Error(), tv.errContains)
+			}
 		})
 	}
 }
 
-func Test_mergeTypes_invalid(t *testing.T) {
+func Test_typesEqual_panic(t *testing.T) {
 	tt := []struct {
 		gnoe, goe string
 		panic     string
 	}{
-		{"int", "string", ""},
-
-		{"*int", "int", ""},
-		{"string", "*string", ""},
-		{"*string", "*int", ""},
-
-		{"[]int", "[1]int", ""},
-		{"[1]int", "[]int", ""},
-		{"[2]int", "[2]string", ""},
-		// valid, but unsupported (only BasicLits)
-		{"[(11)]int", "[(11)]string", ""},
-
-		{"Address", "string", ""},
-		{"math.X", "X", ""},
-
 		{"map[string]string", "map[string]string", "not implemented"},
 		{"func(s string)", "func(s string)", "not implemented"},
 		{"interface{}", "interface{}", "not implemented"},
 		{"struct{}", "struct{}", "not implemented"},
-
 		{"1 + 2", "1 + 2", "invalid expression"},
-
-		// even though semantically equal, for simplicity we don't implement
-		// "true" basic lit equivalence
-		{"[8]int", "[0x8]int", ""},
 	}
 
 	for _, tv := range tt {
@@ -287,7 +271,7 @@ func Test_mergeTypes_invalid(t *testing.T) {
 				}
 			}()
 
-			result := mergeTypesMapping.mergeTypes(gnoe, goe)
+			result := typesEqualMapping.typesEqual(gnoe, goe)
 			assert.Nil(t, result)
 		})
 	}
