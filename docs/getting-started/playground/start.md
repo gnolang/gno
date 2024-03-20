@@ -31,7 +31,7 @@ simple `package.gno` file:
 The Playground has the following features:
 - `Share` - Generate a unique, short, and shareable identifier for your Gno code.
 - `Deploy` - Connect your wallet and deploy your code to a Gno.land network
-- `Format` - Format your Gno code
+- `Format` - Automatically adjust your Gno code's structure and style for optimal readability and consistency.
 - `Run` - Run a specific expression on your code
 - `Test` - Run tests on your code
 - `REPL` - Experiment and troubleshoot in real-time using the GnoVM with
