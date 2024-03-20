@@ -34,7 +34,7 @@ The Playground has the following features:
 - `Format` - Automatically adjust your Gno code's structure and style for optimal readability and consistency.
 - `Run` - Run a specific expression on your code
 - `Test` - Run tests on your code
-- `REPL` - Experiment and troubleshoot in real-time using the GnoVM with
+- `REPL` - Experiment and troubleshoot in real-time using the GnoVM with interactive REPL features.
 interactive REPL features (experimental)
 
 Let's dive into each of the Playground features.
