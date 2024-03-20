@@ -80,10 +80,13 @@ func fieldByTOMLName(value reflect.Value, name string) (dst reflect.Value) {
 }
 
 // eachTOMLField iterates over each field in value (assumed to be a struct).
-// For every field within the struct, cb is called with the value of the field
-// and the associated value in TOML (through the struct field, or just the name).
-// If cb returns true, the function returns immediately.
-func eachTOMLField(value reflect.Value, cb func(val reflect.Value, tomlName string) bool) bool {
+// For every field within the struct, iterationCallback is called with the value
+// of the field and the associated name in the TOML representation
+// (through the `toml:"..."` struct field, or just the field's name as fallback).
+// If iterationCallback returns true, the function returns immediately with
+// true. If it always returns false, or no fields were processed, eachTOMLField
+// will return false.
+func eachTOMLField(value reflect.Value, iterationCallback func(val reflect.Value, tomlName string) bool) bool {
 	// For reference:
 	// https://github.com/pelletier/go-toml/blob/7dad87762adb203e30b96a46026d1428ef2491a2/unmarshaler.go#L1251-L1270
 
@@ -114,7 +117,7 @@ func eachTOMLField(value reflect.Value, cb func(val reflect.Value, tomlName stri
 				// precedence over the embedded; but the TOML parser seems to
 				// ignore this, too, and this "unmarshaler" isn't fit for general
 				// purpose.
-				if eachTOMLField(value.Field(i), cb) {
+				if eachTOMLField(value.Field(i), iterationCallback) {
 					return true
 				}
 				continue
@@ -126,7 +129,7 @@ func eachTOMLField(value reflect.Value, cb func(val reflect.Value, tomlName stri
 		if tomlName == "" {
 			tomlName = fld.Name
 		}
-		if cb(value.Field(i), tomlName) {
+		if iterationCallback(value.Field(i), tomlName) {
 			return true
 		}
 	}
