@@ -19,7 +19,7 @@ making it the perfect tool to get started with Gno development.
 
 To fully utilize Playground features, you will need to install a Gno.land web
 browser wallet, such as [Adena](https://www.adena.app/), and create a keypair. This will allow you to
-interact with the Playground.
+fully utilize the Playground.
 
 ## Playground Features
 
