@@ -61,7 +61,7 @@ var listOfTapas = []string{
 // GetTapaSuggestion randomly selects and returns a tapa suggestion
 func GetTapaSuggestion(userInput string) string {
 
-	// Create a random number depending on the block height.
+	// Create a pseudorandom number depending on the block height.
 	// We get the block height using std.GetHeight(), which is from an imported Gno library, "std"
 	// Note: this value is not fully random and is easily guessable
 	randomNumber := int(std.GetHeight()) % len(listOfTapas)
