@@ -621,10 +621,10 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-					st.PkgPath != m.Package.PkgPath {
+					st.PkgPath != m.Package.ModFile.Path {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(), m.Package.PkgPath))
+						st.PkgPath, st.String(), m.Package.ModFile.Path))
 				} else {
 					// this is fine.
 				}
@@ -690,7 +690,8 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
-			PkgPath:    m.Package.PkgPath,
+			PkgPath:    m.Package.ModFile.Path,
+			PkgVersion: m.Package.ModFile.Version,
 			body:       x.Body,
 			nativeBody: nil,
 		},

@@ -116,13 +116,17 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			mode == ImportModeNativePreferred {
 			switch pkgPath {
 			case "os":
-				pkg := gno.NewPackageNode("os", pkgPath, nil)
+				pkg := gno.NewPackageNode("os", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil) // TODO(hariom): needs version? (look at other occurances in the file too)
 				pkg.DefineGoNativeValue("Stdin", stdin)
 				pkg.DefineGoNativeValue("Stdout", stdout)
 				pkg.DefineGoNativeValue("Stderr", stderr)
 				return pkg, pkg.NewPackage()
 			case "fmt":
-				pkg := gno.NewPackageNode("fmt", pkgPath, nil)
+				pkg := gno.NewPackageNode("fmt", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Stringer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 				pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
@@ -149,28 +153,38 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
 				return pkg, pkg.NewPackage()
 			case "encoding/base64":
-				pkg := gno.NewPackageNode("base64", pkgPath, nil)
+				pkg := gno.NewPackageNode("base64", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("RawStdEncoding", base64.RawStdEncoding)
 				pkg.DefineGoNativeValue("StdEncoding", base64.StdEncoding)
 				pkg.DefineGoNativeValue("NewDecoder", base64.NewDecoder)
 				return pkg, pkg.NewPackage()
 			case "encoding/binary":
-				pkg := gno.NewPackageNode("binary", pkgPath, nil)
+				pkg := gno.NewPackageNode("binary", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("LittleEndian", binary.LittleEndian)
 				pkg.DefineGoNativeValue("BigEndian", binary.BigEndian)
 				pkg.DefineGoNativeValue("Write", binary.BigEndian) // warn: use reflection
 				return pkg, pkg.NewPackage()
 			case "encoding/json":
-				pkg := gno.NewPackageNode("json", pkgPath, nil)
+				pkg := gno.NewPackageNode("json", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 				pkg.DefineGoNativeValue("Marshal", json.Marshal)
 				return pkg, pkg.NewPackage()
 			case "encoding/xml":
-				pkg := gno.NewPackageNode("xml", pkgPath, nil)
+				pkg := gno.NewPackageNode("xml", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Unmarshal", xml.Unmarshal)
 				return pkg, pkg.NewPackage()
 			case "internal/os_test":
-				pkg := gno.NewPackageNode("os_test", pkgPath, nil)
+				pkg := gno.NewPackageNode("os_test", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineNative("Sleep",
 					gno.Flds( // params
 						"d", gno.AnyT(), // NOTE: should be time.Duration
@@ -195,21 +209,29 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				)
 				return pkg, pkg.NewPackage()
 			case "net":
-				pkg := gno.NewPackageNode("net", pkgPath, nil)
+				pkg := gno.NewPackageNode("net", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 				pkg.DefineGoNativeValue("IPv4", net.IPv4)
 				return pkg, pkg.NewPackage()
 			case "net/url":
-				pkg := gno.NewPackageNode("url", pkgPath, nil)
+				pkg := gno.NewPackageNode("url", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
 				return pkg, pkg.NewPackage()
 			case "bufio":
-				pkg := gno.NewPackageNode("bufio", pkgPath, nil)
+				pkg := gno.NewPackageNode("bufio", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("NewScanner", bufio.NewScanner)
 				pkg.DefineGoNativeType(reflect.TypeOf(bufio.SplitFunc(nil)))
 				return pkg, pkg.NewPackage()
 			case "bytes":
-				pkg := gno.NewPackageNode("bytes", pkgPath, nil)
+				pkg := gno.NewPackageNode("bytes", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Equal", bytes.Equal)
 				pkg.DefineGoNativeValue("Compare", bytes.Compare)
 				pkg.DefineGoNativeValue("NewReader", bytes.NewReader)
@@ -218,7 +240,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(bytes.Buffer{}))
 				return pkg, pkg.NewPackage()
 			case "time":
-				pkg := gno.NewPackageNode("time", pkgPath, nil)
+				pkg := gno.NewPackageNode("time", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Millisecond", time.Millisecond)
 				pkg.DefineGoNativeValue("Second", time.Second)
 				pkg.DefineGoNativeValue("Minute", time.Minute)
@@ -233,7 +257,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
 				return pkg, pkg.NewPackage()
 			case "strings":
-				pkg := gno.NewPackageNode("strings", pkgPath, nil)
+				pkg := gno.NewPackageNode("strings", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Split", strings.Split)
 				pkg.DefineGoNativeValue("SplitN", strings.SplitN)
 				pkg.DefineGoNativeValue("Contains", strings.Contains)
@@ -246,7 +272,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(strings.Builder{}))
 				return pkg, pkg.NewPackage()
 			case "math":
-				pkg := gno.NewPackageNode("math", pkgPath, nil)
+				pkg := gno.NewPackageNode("math", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Abs", math.Abs)
 				pkg.DefineGoNativeValue("Cos", math.Cos)
 				pkg.DefineGoNativeValue("Pi", math.Pi)
@@ -257,7 +285,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
-				pkg := gno.NewPackageNode("rand", pkgPath, nil)
+				pkg := gno.NewPackageNode("rand", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Intn", rand.Intn)
 				pkg.DefineGoNativeValue("Uint32", rand.Uint32)
 				pkg.DefineGoNativeValue("Seed", rand.Seed)
@@ -266,69 +296,97 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
 				return pkg, pkg.NewPackage()
 			case "crypto/rand":
-				pkg := gno.NewPackageNode("rand", pkgPath, nil)
+				pkg := gno.NewPackageNode("rand", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Prime", crand.Prime)
 				// for determinism:
 				// pkg.DefineGoNativeValue("Reader", crand.Reader)
 				pkg.DefineGoNativeValue("Reader", &dummyReader{})
 				return pkg, pkg.NewPackage()
 			case "crypto/md5":
-				pkg := gno.NewPackageNode("md5", pkgPath, nil)
+				pkg := gno.NewPackageNode("md5", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("New", md5.New)
 				return pkg, pkg.NewPackage()
 			case "crypto/sha1":
-				pkg := gno.NewPackageNode("sha1", pkgPath, nil)
+				pkg := gno.NewPackageNode("sha1", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("New", sha1.New)
 				return pkg, pkg.NewPackage()
 			case "image":
-				pkg := gno.NewPackageNode("image", pkgPath, nil)
+				pkg := gno.NewPackageNode("image", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(image.Point{}))
 				return pkg, pkg.NewPackage()
 			case "image/color":
-				pkg := gno.NewPackageNode("color", pkgPath, nil)
+				pkg := gno.NewPackageNode("color", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(color.NRGBA64{}))
 				return pkg, pkg.NewPackage()
 			case "compress/flate":
-				pkg := gno.NewPackageNode("flate", pkgPath, nil)
+				pkg := gno.NewPackageNode("flate", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("BestSpeed", flate.BestSpeed)
 				return pkg, pkg.NewPackage()
 			case "compress/gzip":
-				pkg := gno.NewPackageNode("gzip", pkgPath, nil)
+				pkg := gno.NewPackageNode("gzip", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(gzip.Writer{}))
 				pkg.DefineGoNativeValue("BestCompression", gzip.BestCompression)
 				pkg.DefineGoNativeValue("BestSpeed", gzip.BestSpeed)
 				return pkg, pkg.NewPackage()
 			case "context":
-				pkg := gno.NewPackageNode("context", pkgPath, nil)
+				pkg := gno.NewPackageNode("context", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf((*context.Context)(nil)).Elem())
 				pkg.DefineGoNativeValue("WithValue", context.WithValue)
 				pkg.DefineGoNativeValue("Background", context.Background)
 				return pkg, pkg.NewPackage()
 			case "sync":
-				pkg := gno.NewPackageNode("sync", pkgPath, nil)
+				pkg := gno.NewPackageNode("sync", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.Mutex{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.RWMutex{}))
 				pkg.DefineGoNativeType(reflect.TypeOf(sync.Pool{}))
 				return pkg, pkg.NewPackage()
 			case "sync/atomic":
-				pkg := gno.NewPackageNode("atomic", pkgPath, nil)
+				pkg := gno.NewPackageNode("atomic", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(atomic.Value{}))
 				return pkg, pkg.NewPackage()
 			case "math/big":
-				pkg := gno.NewPackageNode("big", pkgPath, nil)
+				pkg := gno.NewPackageNode("big", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
 				return pkg, pkg.NewPackage()
 			case "sort":
-				pkg := gno.NewPackageNode("sort", pkgPath, nil)
+				pkg := gno.NewPackageNode("sort", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Strings", sort.Strings)
 				// pkg.DefineGoNativeValue("Sort", sort.Sort)
 				return pkg, pkg.NewPackage()
 			case "flag":
-				pkg := gno.NewPackageNode("flag", pkgPath, nil)
+				pkg := gno.NewPackageNode("flag", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
 				return pkg, pkg.NewPackage()
 			case "io":
-				pkg := gno.NewPackageNode("io", pkgPath, nil)
+				pkg := gno.NewPackageNode("io", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("EOF", io.EOF)
 				pkg.DefineGoNativeValue("NopCloser", io.NopCloser)
 				pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
@@ -338,26 +396,36 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
 				return pkg, pkg.NewPackage()
 			case "log":
-				pkg := gno.NewPackageNode("log", pkgPath, nil)
+				pkg := gno.NewPackageNode("log", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("Fatal", log.Fatal)
 				return pkg, pkg.NewPackage()
 			case "text/template":
-				pkg := gno.NewPackageNode("template", pkgPath, nil)
+				pkg := gno.NewPackageNode("template", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(template.FuncMap{}))
 				return pkg, pkg.NewPackage()
 			case "unicode/utf8":
-				pkg := gno.NewPackageNode("utf8", pkgPath, nil)
+				pkg := gno.NewPackageNode("utf8", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("DecodeRuneInString", utf8.DecodeRuneInString)
 				tv := gno.TypedValue{T: gno.UntypedRuneType} // TODO dry
 				tv.SetInt32(utf8.RuneSelf)                   // ..
 				pkg.Define("RuneSelf", tv)                   // ..
 				return pkg, pkg.NewPackage()
 			case "errors":
-				pkg := gno.NewPackageNode("errors", pkgPath, nil)
+				pkg := gno.NewPackageNode("errors", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("New", errors.New)
 				return pkg, pkg.NewPackage()
 			case "hash/fnv":
-				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
+				pkg := gno.NewPackageNode("fnv", &gno.ModFileNode{
+					Path: pkgPath,
+				}, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
 				return pkg, pkg.NewPackage()
 			default:
@@ -447,7 +515,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gn
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	// Test specific injections:
-	switch pn.PkgPath {
+	switch pn.ModFile.Path {
 	case "strconv":
 		// NOTE: Itoa and Atoi are already injected
 		// from stdlibs.InjectNatives.

@@ -13,12 +13,20 @@ stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 
+-- bar/gno.mod --
+module gno.land/r/foobar/bar v0.0.0
+
 -- bar/bar.gno --
 package bar
 
 func Render(path string) string {
  	return "hello from foo"
 }
+
+-- script/gno.mod --
+module gno.land/r/script v0.0.0
+
+require gno.land/r/foobar/bar v0.0.0
 
 -- script/script.gno --
 package main

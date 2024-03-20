@@ -17,6 +17,9 @@ func (msg MsgCall) validateMsgCall() error {
 	if msg.PkgPath == "" {
 		return ErrEmptyPkgPath
 	}
+	if msg.PkgVersion == "" {
+		return ErrEmptyPkgVersion
+	}
 	if msg.FuncName == "" {
 		return ErrEmptyFuncName
 	}

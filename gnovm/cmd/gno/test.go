@@ -378,7 +378,7 @@ func gnoTestPkg(
 
 			memPkg.Files = memFiles
 			memPkg.Name = testPkgName
-			memPkg.Path = memPkg.Path + "_test"
+			memPkg.ModFile.ImportPath = memPkg.ModFile.ImportPath + "_test"
 			m.RunMemPackage(memPkg, true)
 
 			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)

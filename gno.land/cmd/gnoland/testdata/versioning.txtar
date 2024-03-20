@@ -1,0 +1,81 @@
+# test package versioning
+
+## start a new node
+gnoland start
+
+## add `hello`(v1) package located in $WORK/helloworld/v1
+gnokey maketx addpkg -pkgdir $WORK/helloworld/v1 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## add `hello`(v2) package located in $WORK/helloworld/v2
+gnokey maketx addpkg -pkgdir $WORK/helloworld/v2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## add `foo` realm; imports pkg `hello` v1
+gnokey maketx addpkg -pkgdir $WORK/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## add `bar` realm; imports pkg `hello` v2
+gnokey maketx addpkg -pkgdir $WORK/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## execute Render from `foo` realm
+gnokey maketx call -pkgpath gno.land/r/temp/foo@v0.0.1 -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+
+## compare render
+stdout '("hello from v1" string)'
+stdout 'OK!'
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+
+## execute Render from `bar` realm
+gnokey maketx call -pkgpath gno.land/r/temp/bar@v0.0.1 -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+
+## compare render
+stdout '("hello from v2" string)'
+stdout 'OK!'
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+
+-- helloworld/v1/hello.gno --
+package hello
+
+func SayHello() string {
+ 	return "hello from v1"
+}
+
+-- helloworld/v1/gno.mod --
+module gno.land/p/helloworld/hello v1.0.0
+
+-- helloworld/v2/hello.gno --
+package hello
+
+func SayHello() string {
+ 	return "hello from v2"
+}
+
+-- helloworld/v2/gno.mod --
+module gno.land/p/helloworld/hello v2.0.0
+
+-- foo/foo.gno --
+package foo
+
+import "gno.land/p/helloworld/hello"
+
+func Render(path string) string {
+ 	return hello.SayHello()
+}
+
+-- foo/gno.mod --
+module gno.land/r/temp/foo v0.0.1
+
+require gno.land/p/helloworld/hello v1.0.0
+
+-- bar/bar.gno --
+package bar
+
+import "gno.land/p/helloworld/hello"
+
+func Render(path string) string {
+ 	return hello.SayHello()
+}
+
+-- bar/gno.mod --
+module gno.land/r/temp/bar v0.0.1
+
+require gno.land/p/helloworld/hello v2.0.0

@@ -85,7 +85,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		// LastPackage is a realm. Get caller and pkgPath, and compare against
 		// current* values.
 		caller := fr.LastPackage.GetPkgAddr().Bech32()
-		pkgPath := fr.LastPackage.PkgPath
+		pkgPath := fr.LastPackage.ModFile.Path
 		if caller != currentCaller {
 			if changes == height {
 				return string(caller), pkgPath
@@ -99,8 +99,8 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	return string(ctx.OrigCaller), ""
 }
 
-func X_derivePkgAddr(pkgPath string) string {
-	return string(gno.DerivePkgAddr(pkgPath).Bech32())
+func X_derivePkgAddr(pkgPath, pkgVersion string) string {
+	return string(gno.DerivePkgAddr(pkgPath, pkgVersion).Bech32())
 }
 
 func X_encodeBech32(prefix string, bytes [20]byte) string {

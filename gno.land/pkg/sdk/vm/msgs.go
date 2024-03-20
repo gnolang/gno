@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/mod/semver"
 )
 
 //----------------------------------------
@@ -24,7 +25,7 @@ type MsgAddPackage struct {
 var _ std.Msg = MsgAddPackage{}
 
 // NewMsgAddPackage - upload a package with files.
-func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFile) MsgAddPackage {
+func NewMsgAddPackage(creator crypto.Address, modfile *std.MemMod, files []*std.MemFile) MsgAddPackage {
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
@@ -35,9 +36,9 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFi
 	return MsgAddPackage{
 		Creator: creator,
 		Package: &std.MemPackage{
-			Name:  pkgName,
-			Path:  pkgPath,
-			Files: files,
+			Name:    pkgName,
+			ModFile: modfile,
+			Files:   files,
 		},
 	}
 }
@@ -53,8 +54,12 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
 	}
-	if msg.Package.Path == "" { // XXX
+	if msg.Package.ModFile.ImportPath == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
+	}
+	if !semver.IsValid(msg.Package.ModFile.Version) {
+		// TODO(hariom): Only allow MAJOR.MINOR.PATCH, don't allow metadata?
+		return ErrInvalidPkgVersion("")
 	}
 	if !msg.Deposit.IsValid() {
 		return std.ErrTxDecode("invalid deposit")
@@ -83,22 +88,24 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 
 // MsgCall - executes a Gno statement.
 type MsgCall struct {
-	Caller  crypto.Address `json:"caller" yaml:"caller"`
-	Send    std.Coins      `json:"send" yaml:"send"`
-	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Func    string         `json:"func" yaml:"func"`
-	Args    []string       `json:"args" yaml:"args"`
+	Caller     crypto.Address `json:"caller" yaml:"caller"`
+	Send       std.Coins      `json:"send" yaml:"send"`
+	PkgPath    string         `json:"pkg_path" yaml:"pkg_path"`
+	PkgVersion string         `json:"pkg_version" yaml:"pkg_version"`
+	Func       string         `json:"func" yaml:"func"`
+	Args       []string       `json:"args" yaml:"args"`
 }
 
 var _ std.Msg = MsgCall{}
 
-func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
+func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, pkgVersion, fnc string, args []string) MsgCall {
 	return MsgCall{
-		Caller:  caller,
-		Send:    send,
-		PkgPath: pkgPath,
-		Func:    fnc,
-		Args:    args,
+		Caller:     caller,
+		Send:       send,
+		PkgPath:    pkgPath,
+		PkgVersion: pkgVersion,
+		Func:       fnc,
+		Args:       args,
 	}
 }
 
@@ -115,6 +122,10 @@ func (msg MsgCall) ValidateBasic() error {
 	}
 	if msg.PkgPath == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
+	}
+	if !semver.IsValid(msg.PkgVersion) {
+		// TODO(hariom): Only allow MAJOR.MINOR.PATCH, don't allow metadata?
+		return ErrInvalidPkgVersion("")
 	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
@@ -149,7 +160,7 @@ type MsgRun struct {
 
 var _ std.Msg = MsgRun{}
 
-func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+func NewMsgRun(caller crypto.Address, send std.Coins, modfile *std.MemMod, files []*std.MemFile) MsgRun {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
 			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
@@ -162,8 +173,11 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 		Caller: caller,
 		Send:   send,
 		Package: &std.MemPackage{
-			Name:  "main",
-			Path:  "", // auto set by the handler
+			Name: "main",
+			ModFile: &std.MemMod{ // TODO(hariom): use arg `modfile`
+				ImportPath: "", // auto set by the handler
+				Version:    "",
+			},
 			Files: files,
 		},
 	}
@@ -183,7 +197,7 @@ func (msg MsgRun) ValidateBasic() error {
 
 	// Force memPkg path to the reserved run path.
 	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && path != wantPath {
+	if path := msg.Package.ModFile.ImportPath; path != "" && path != wantPath {
 		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 	}
 

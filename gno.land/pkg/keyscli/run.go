@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -98,16 +99,25 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			if err != nil {
 				return fmt.Errorf("could not read %q: %w", sourcePath, err)
 			}
-			memPkg.Files = []*std.MemFile{
-				{
-					Name: info.Name(),
-					Body: string(b),
+
+			gm := gno.ParseMemMod(filepath.Dir(sourcePath))
+			// TODO(hariom): Remove
+			// if err != nil {
+			// 	return fmt.Errorf("error parse gno.mod at: %q", sourcePath)
+			// }
+			memPkg = &std.MemPackage{
+				ModFile: gm,
+				Files: []*std.MemFile{
+					{
+						Name: info.Name(),
+						Body: string(b),
+					},
 				},
 			}
 		}
 	}
 	if memPkg.IsEmpty() {
-		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
+		panic(fmt.Sprintf("found an empty package %q", memPkg.ModFile.ImportPath))
 	}
 	// transpile and validate syntax
 	err = transpiler.TranspileAndCheckMempkg(memPkg)
@@ -116,7 +126,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.
-	memPkg.Path = ""
+	memPkg.ModFile.ImportPath = ""
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{

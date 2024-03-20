@@ -163,7 +163,7 @@ func isUverseName(n Name) bool {
 // other
 
 // For keeping record of package & realm coins.
-func DerivePkgAddr(pkgPath string) crypto.Address {
+func DerivePkgAddr(pkgPath, pkgVersion string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
-	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath + "@" + pkgVersion))
 }

@@ -4,6 +4,15 @@ loadpkg gno.land/r/foobar/bar $WORK/bar
 gnoland start
 
 ## execute Render
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script
+
+## compare render
+stdout 'main: --- hello from foo ---'
+stdout 'OK!'
+stdout 'GAS WANTED: 200000'
+stdout 'GAS USED: '
+
+## execute Render
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
 
 ## compare render
@@ -12,6 +21,9 @@ stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 
+-- bar/gno.mod --
+module gno.land/r/foobar/bar v0.0.0
+
 -- bar/bar.gno --
 package bar
 
@@ -19,9 +31,16 @@ func Render(path string) string {
  	return "hello from foo"
 }
 
+-- script/gno.mod --
+module gno.land/r/demo/script v0.0.0
+
+require gno.land/r/foobar/bar v0.0.0
+
 -- script/script.gno --
 package main
+
 import "gno.land/r/foobar/bar"
+
 func main() {
 	println("main: ---", bar.Render(""), "---")
 }

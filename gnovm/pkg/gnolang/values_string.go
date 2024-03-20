@@ -235,7 +235,7 @@ func (v TypeValue) String() string {
 }
 
 func (pv *PackageValue) String() string {
-	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
+	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.ModFile.Path)
 }
 
 func (nv *NativeValue) String() string {

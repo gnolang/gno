@@ -169,8 +169,8 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			Syntax:     line,
 			Deprecated: deprecated,
 		}
-		if len(args) != 1 {
-			errorf("usage: module module/path")
+		if len(args) != 2 {
+			errorf("usage: %s module/path v1.2.3", verb)
 			return
 		}
 		s, err := parseString(&args[0])
@@ -178,7 +178,12 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			errorf("invalid quoted string: %v", err)
 			return
 		}
-		f.Module.Mod = module.Version{Path: s}
+		v, err := parseVersion(verb, s, &args[1])
+		if err != nil {
+			wrapError(err)
+			return
+		}
+		f.Module.Mod = module.Version{Path: s, Version: v}
 
 	case "require":
 		if len(args) != 2 {

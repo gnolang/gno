@@ -955,7 +955,7 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 
 			// Validate fnum and typ.
 			if fnum <= lastFieldNum {
-				err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
+				err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%s",
 					fnum, lastFieldNum, bz)
 				return
 			}
