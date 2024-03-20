@@ -59,12 +59,10 @@ services:
       - "--listen-address=0.0.0.0:5050"
       - "--chain-id=portal-loop"
       # - "--is-behind-proxy=true"
-      - "--mnemonic=${MNEMONIC}"
+      - "--mnemonic=${FAUCET_MNEMONIC}"
       # - "--num-accounts=1"
       - "--remote=http://traefik:26657"
-    environment:
-      # from .env
-      - RECAPTCHA_SECRET_KEY
+      - "--captcha-secret=${CAPTCHA_SECRET_KEY}"
 
   portalloopd:
     build:

@@ -78,9 +78,6 @@ services:
       - "--num-accounts=1"
       - "--remote=http://traefik:26657"
       - "--captcha-secret=${CAPTCHA_SECRET_KEY}"
-    # environment:
-    # from .env
-    # - RECAPTCHA_SECRET_KEY
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
