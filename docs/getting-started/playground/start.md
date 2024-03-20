@@ -46,8 +46,9 @@ ensuring the shared code remains accessible over an extended period.
 
 ### Deploy
 
-Allows users to seamlessly deploy their Gno code to the chain. After connecting 
-a Gno.land wallet, users can select their desired package path and network for deployment.
+The **Deploy** feature allows users to seamlessly deploy their Gno code to the 
+chain. After connecting a Gno.land wallet, users can select their desired 
+package path and network for deployment.
 
 ![default_deploy](../../assets/getting-started/playground/default_deploy.png)
 
@@ -56,20 +57,20 @@ like to deploy to, such as [Portal Loop](../../concepts/portal-loop.md) or local
 and click deploy.
 
 :::info
-Even if you don't have testnet tokens, the Playground will automatically provide
-you with enough to cover the gas cost at the time of deployment.
+The Playground will automatically provide enough test tokens to cover the gas 
+cost at the time of deployment, removing the need for using a faucet.
 :::
 
 ### Format
-The 'Format' feature utilizes the Monaco editor and
+The **Format** feature utilizes the Monaco editor and
 [`gofmt`](https://pkg.go.dev/cmd/gofmt) to automatically refine and standardize 
 your Gno code's syntax.
 
 ### Run
-Run will allow you to run an expression on your Gno code. Take the following code
+The **Run** feature will allow you to run an expression on your Gno code. Take the following code
 for an example:
 
-![run_example](../../assets/getting-started/playground/run.png)
+[![run_example](../../assets/getting-started/playground/run.png)](https://play.gno.land/p/nBq2W8drjMy)
 
 Running `println(Render("Gnopher"))` will display the following output:
 
@@ -81,14 +82,14 @@ View the code [here](https://play.gno.land/p/nBq2W8drjMy).
 
 ### Test
 
-Test will look for `_test.gno` files in your playground and run the
-`gno test -v` command on them. Testing your code will open a terminal that will 
-show you the output of the test. Read more about how Gno tests work
+The **Test** feature will look for `_test.gno` files in your playground and run 
+the`gno test -v` command on them. Testing your code will open a terminal that
+will show you the output of the test. Read more about how Gno tests work
 [here](../../concepts/gno-test.md).
 
 ### REPL (experimental)
 
-This option, although experimental, will let you experiment with the GnoVM
+The **REPL** Feature, although experimental, will let you experiment with the GnoVM
 in REPL mode. 
 
 ## Learning about Gno.land & writing Gno code
