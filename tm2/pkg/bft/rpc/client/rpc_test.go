@@ -14,7 +14,6 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	rpctest "github.com/gnolang/gno/tm2/pkg/bft/rpc/test"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 func getHTTPClient() *client.HTTP {
@@ -519,7 +518,7 @@ func testBatchedJSONRPCCalls(t *testing.T, c *client.HTTP) {
 	bresult2, ok := bresults[1].(*ctypes.ResultBroadcastTxCommit)
 	require.True(t, ok)
 	require.Equal(t, *bresult2, *r2)
-	apph := maths.MaxInt64(bresult1.Height, bresult2.Height) + 1
+	apph := max(bresult1.Height, bresult2.Height) + 1
 
 	client.WaitForHeight(c, apph, nil)
 
