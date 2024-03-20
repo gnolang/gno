@@ -255,7 +255,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
-	fmt.Printf("expr%v\r\n", expr)
 	xn := gno.MustParseExpr(expr)
 
 	// Send send-coins to pkg from caller.
