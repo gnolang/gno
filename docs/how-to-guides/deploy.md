@@ -65,9 +65,6 @@ a wallet pop-up asking you to sign the deployment transaction.
 If all went well, you will have successfully deployed your the Counter package.
 Congratulations 🎉
 
-You can check the status of your transaction by visiting the link displayed in the 
-popup, such as [this one](https://gnoscan.io/transactions/details?txhash=q1YO2wV2n9nYfiT7mWqFd/FAUMvjAvDqYYxR5OpbRwQ=). 
-
 ## Deployment from a local environment
 
 ### Prerequisites
