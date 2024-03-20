@@ -1,8 +1,9 @@
-package mytoken
-
 import (
-	"gno.land/p/demo/grc/grc20"
 	"std"
+	"strings"
+
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -12,12 +13,12 @@ var (
 
 // init is called once at time of deployment
 func init() {
-	// set admin as deployer
+	// Set deployer of Realm to admin
 	admin = std.PrevRealm().Addr()
 
-	// provision the token's name, symbol and number of decimals
+	// Set token name, symbol and number of decimals
 	mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
 
-	// mint 1 million tokens to admin
+	// Mint 1 million tokens to admin
 	mytoken.Mint(admin, 1000000*10000)
 }

@@ -2,6 +2,10 @@ func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
 
+func Decimals() uint {
+	return mytoken.GetDecimals()
+}
+
 func BalanceOf(account std.Address) uint64 {
 	balance, err := mytoken.BalanceOf(account)
 	if err != nil {
