@@ -25,12 +25,12 @@ the main functionality of our token factory realm.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go
-package mytoken
-
 import (
+	"std"
+	"strings"
+
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	"std"
 )
 
 var (
@@ -40,31 +40,40 @@ var (
 
 // init is called once at time of deployment
 func init() {
-	// set admin as deployer
-	admin = std.PrevRealm().Addr()
+    // Set deployer of Realm to admin 
+    admin = std.PrevRealm().Addr()
 
-	// provision the token's name, symbol and number of decimals
-	mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
+    // Set token name, symbol and number of decimals
+    mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
 
-	// mint 1 million tokens to admin
-	mytoken.Mint(admin, 1000000*10000)
+    // Mint 1 million tokens to admin
+    mytoken.Mint(admin, 1000000*10000)
 }
+
 ```
 
 In this code preview, we have:
-- Defined a new local variable `mytoken` and assigned that the type of pointer to `grc20.AdminToken`.
-- Defined and set the value of local variable `admin` to point to a specific gno.land address of type `std.Address`.
-- Set the value of `mytoken` (type `*AdminToken`) to equal the result of creating a new token and configuring its name, symbol + decimal representation.
-- Minted 1 million `Mytoken` and set the administrator as the owner of these tokens.
+- Defined a new local variable `mytoken` and assigned that the type of
+pointer to `grc20.AdminToken`,
+- Defined and set the value of local variable `admin` to point to a specific
+address of type `std.Address`,
+- Initialize `mytoken` as a new GRC20 token, and set its name, symbol, and 
+decimal values,
+- Minted 1 million units of `My Token` and to the admin's address.
 
 ## 2. Adding token functionality
 
-The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/grc/grc20).
+In order to call exported functions from the `grc20` package, we also need to 
+expose them in the Realm. 
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
+}
+
+func Decimals() uint {
+	return mytoken.GetDecimals()
 }
 
 func BalanceOf(account std.Address) uint64 {
@@ -150,15 +159,24 @@ func Render(path string) string {
 Detailing what is happening in the above code:
 - Calling the `TotalSupply` method would return the total number of tokens minted.
 - Calling the `BalanceOf` method would return the total balance of an account.
-- Calling the `Allowance` method would set an account as an allowed spender to serve on behalf of the owner.
-- Calling the `transfer` method would transfer a configurable amount of token from the calling account to another account, either owned or unowned.
-- Calling the `Approve` method would approve a calling account to spend a configurable amount of token on behalf of the token owner.
-- Calling the `TransferFrom` method would transfer a configurable amount of token from an account that granted approval to another account, either owned or unowned.
-- Calling the `Mint` method would create a configurable number of tokens by the administrator.
-- Calling the `Burn` method would destroy a configurable number of tokens by the administrator.
-- Calling the `Render` method would return a user's `balance` as a formatted string. Learn more about the `Render`
+- Calling the `Allowance` method would set an account as an allowed spender to
+serve on behalf of the owner.
+- Calling the `transfer` method would transfer a configurable amount of token 
+from the calling account to another account, either owned or unowned.
+- Calling the `Approve` method would approve a calling account to spend a
+configurable amount of token on behalf of the token owner.
+- Calling the `TransferFrom` method would transfer a configurable amount of 
+token from an account that granted approval to another account, either owned or unowned.
+- Calling the `Mint` method would create a configurable number of tokens by 
+the administrator.
+- Calling the `Burn` method would destroy a configurable number of tokens by
+the administrator.
+- Calling the `Render` method would return a user's `balance` as a formatted
+string. Learn more about the `Render`
   method and how it's used [here](../concepts/realms.md).
-- Finally, we provide a local function to assert that the calling account is in fact the owner, otherwise panic. This is a very important function that serves to prevent abuse by non-administrators.
+- Finally, we provide a local function to assert that the calling account is in
+fact the owner, otherwise panic. This is a very important function that serves
+to prevent abuse by non-administrators.
 
 ## Conclusion
 
