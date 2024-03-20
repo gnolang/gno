@@ -47,14 +47,6 @@ var (
 	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
-func (mempkg *MemPackage) SortFiles() {
-	sort.Slice(mempkg.Files, mempkg.sortFunc)
-}
-
-func (mempkg *MemPackage) sortFunc(i, j int) bool {
-	return mempkg.Files[i].Name < mempkg.Files[j].Name
-}
-
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
@@ -73,7 +65,9 @@ func (mempkg *MemPackage) Validate() error {
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
 		mempkg.Files,
-		mempkg.sortFunc,
+		func(i, j int) bool {
+			return mempkg.Files[i].Name < mempkg.Files[j].Name
+		},
 	)
 	if !sorted {
 		return fmt.Errorf("mempackage %q contains unsorted filenames", mempkg.Path)
@@ -81,6 +75,9 @@ func (mempkg *MemPackage) Validate() error {
 
 	prev := mempkg.Files[0].Name
 	for _, file := range mempkg.Files[1:] {
+		if !reFileName.MatchString(file.Name) {
+			return fmt.Errorf("invalid file name %q, failed to match %q", memfile.Name, reFileName)
+		}
 		if prev == file.Name {
 			return errors.New(fmt.Sprintf("duplicate file name %q", file.Name))
 		}
