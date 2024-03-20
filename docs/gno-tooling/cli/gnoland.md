@@ -25,7 +25,7 @@ gnoland
 | `chainid`                  | String  | The id of the chain (default: `dev`).                                                   |
 | `genesis-balances-file`    | String  | The initial GNOT distribution file (default: `./gnoland/genesis/genesis_balances.txt`). |
 | `genesis-remote`           | String  | Replacement '%%REMOTE%%' in genesis (default: `"localhost:26657"`).                     |
-| `genesis-txs-file`         | String  | Initial txs to be executed (default: `"./gnoland/genesis/genesis_txs.txt"`).            |
+| `genesis-txs-file`         | String  | Initial txs to be executed (default: `"./gnoland/genesis/genesis_txs.jsonl"`).          |
 | `root-dir`                 | String  | directory for config and data (default: `testdir`).                                     |
 | `skip-failing-genesis-txs` | Boolean | Skips transactions that fail from the `genesis-txs-file`                                |
 | `skip-start`               | Boolean | Quits after initialization without starting the node.                                   |
