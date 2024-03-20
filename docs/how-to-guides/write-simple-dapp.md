@@ -103,18 +103,19 @@ func (p Poll) VoteCount() (int, int) {
 }
 ```
 
-View this code in the Playground [here](https://play.gno.land/p/H-fLjDfLjd9).
+View this code in the Playground [here](https://play.gno.land/p/dwARIIq0meB).
 
 A few remarks:
 
-- We are using the `std` library for accessing blockchain-related functionality and types, such as `std.Address`.
-- Since the `map` data type is not deterministic in Go, we need to use the AVL tree structure, defined
-  under `gno.land/p/demo/avl`.
-  It behaves similarly to a map; it maps a key of type `string` onto a value of any type - `interface{}`.
-- We are importing the `p/demo/avl` package directly from on-chain storage, which can be accessed through the
-  path `gno.land/`.
-  As of October 2023, you can find already-deployed packages & libraries which provide additional Gno functionality in
-  the [Gno monorepo](https://github.com/gnolang/gno), under the `examples/` folder.
+- We are using the `std` library for accessing blockchain-related functionality
+and types, such as `std.Address`.
+- Since the `map` data type is not deterministic in Go, we need to use the AVL 
+tree structure, defined
+under `gno.land/p/demo/avl`. It behaves similarly to a map; it maps a key of 
+type `string` onto a value of any type - `interface{}`.
+- We are importing the `gno.land/p/demo/avl` package directly from on-chain storage.
+You can find predeployed packages & libraries which provide additional Gno
+functionality in the [Gno monorepo](https://github.com/gnolang/gno), under the `examples/` folder.
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
@@ -210,6 +211,11 @@ func Vote(id string, vote bool) string {
 }
 ```
 
+:::info
+Depending on where you deployed your `Poll` package, you will have to change its 
+import path in the realm code. 
+:::
+
 With that we have written the core functionality of the realm, and all that is left is
 the [Render function](http://localhost:3000/explanation/realms).
 Its purpose is to help us display the state of the realm in Markdown, by formatting the state into a string buffer:
@@ -292,7 +298,7 @@ func Render(path string) string {
 }
 ```
 
-View this code in the Playground [here](https://play.gno.land/p/4FzhuB6dyVM).
+View this code in the Playground [here](https://play.gno.land/p/5jgHw29sGq4).
 
 To see how to deploy this app, visit the [Deployment guide](./deploy.md). 
 

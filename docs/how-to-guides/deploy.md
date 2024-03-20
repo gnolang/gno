@@ -77,7 +77,7 @@ Congratulations 🎉
 ### Deploying
 
 To illustrate deployment, we will use a realm. Consider the following folder
-structure:
+structure on a local file system:
 
 ```
 counter-app/
