@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type MemFile struct {
@@ -53,14 +51,14 @@ var (
 func (mempkg *MemPackage) Validate() error {
 	// add assertion that MemPkg contains at least 1 file
 	if len(mempkg.Files) <= 0 {
-		return errors.New(fmt.Sprintf("no files found within package %q", mempkg.Name))
+		return fmt.Errorf("no files found within package %q", mempkg.Name)
 	}
 
 	if !rePkgName.MatchString(mempkg.Name) {
-		return errors.New(fmt.Sprintf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName))
+		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
@@ -76,10 +74,10 @@ func (mempkg *MemPackage) Validate() error {
 	prev := mempkg.Files[0].Name
 	for _, file := range mempkg.Files[1:] {
 		if !reFileName.MatchString(file.Name) {
-			return fmt.Errorf("invalid file name %q, failed to match %q", memfile.Name, reFileName)
+			return fmt.Errorf("invalid file name %q, failed to match %q", file.Name, reFileName)
 		}
 		if prev == file.Name {
-			return errors.New(fmt.Sprintf("duplicate file name %q", file.Name))
+			return fmt.Errorf("duplicate file name %q", file.Name)
 		}
 		prev = file.Name
 	}
