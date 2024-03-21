@@ -2,12 +2,11 @@ package main
 
 func main() {
 	var fns []func() int
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 5; i++ {
 		x := i
-		for j := 0; j < 2; j++ {
-			y := j
+		{ // another block
 			f := func() int {
-				return x + y
+				return x
 			}
 			fns = append(fns, f)
 		}
@@ -17,14 +16,9 @@ func main() {
 	}
 }
 
-// Go Output:
-// 0
-// 1
-// 1
-// 2
-
 // Output:
 // 0
 // 1
-// 1
 // 2
+// 3
+// 4

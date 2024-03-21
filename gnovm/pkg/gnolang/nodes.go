@@ -776,6 +776,7 @@ type ForStmt struct {
 	Cond Expr // condition; or nil
 	Post Stmt // post iteration (simple) statement; or nil
 	Body
+	WrappedBody Body
 }
 
 type GoStmt struct {
@@ -870,28 +871,34 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
+type CapturedLoopVar struct {
+	name   Name
+	offset uint8 // injected i := i should adjust based on this, e.g. (1,0),(1,1)
+}
+
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                       // for non-loop stmts
-	BodyLen       int          // for for-continue
-	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
-	NumExprs      int          // number of Exprs, for goto
-	NumStmts      int          // number of Stmts, for goto
-	Cond          Expr         // for ForStmt
-	Post          Stmt         // for ForStmt
-	Active        Stmt         // for PopStmt()
-	Key           Expr         // for RangeStmt
-	Value         Expr         // for RangeStmt
-	Op            Word         // for RangeStmt
-	ListLen       int          // for RangeStmt only
-	ListIndex     int          // for RangeStmt only
-	NextItem      *MapListItem // fpr RangeStmt w/ maps only
-	StrLen        int          // for RangeStmt w/ strings only
-	StrIndex      int          // for RangeStmt w/ strings only
-	NextRune      rune         // for RangeStmt w/ strings only
+	Body                             // for non-loop stmts
+	BodyLen         int              // for for-continue
+	NextBodyIndex   int              // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps          int              // number of Ops, for goto
+	NumValues       int              // number of Values, for goto
+	NumExprs        int              // number of Exprs, for goto
+	NumStmts        int              // number of Stmts, for goto
+	capturedLoopVar *CapturedLoopVar // for ForStmt
+	Cond            Expr             // for ForStmt
+	Post            Stmt             // for ForStmt
+	Active          Stmt             // for PopStmt()
+	Key             Expr             // for RangeStmt
+	Value           Expr             // for RangeStmt
+	Op              Word             // for RangeStmt
+	ListLen         int              // for RangeStmt only
+	ListIndex       int              // for RangeStmt only
+	NextItem        *MapListItem     // fpr RangeStmt w/ maps only
+	StrLen          int              // for RangeStmt w/ strings only
+	StrIndex        int              // for RangeStmt w/ strings only
+	NextRune        rune             // for RangeStmt w/ strings only
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {
@@ -1501,6 +1508,19 @@ func (sb *StaticBlock) revertToOld() {
 		sb.Block.Values[ov.idx].V = ov.value
 	}
 	sb.oldValues = nil
+}
+
+func (sb *StaticBlock) reset() {
+	sb.Block = Block{
+		Source: nil,
+		Values: nil,
+		Parent: nil,
+	}
+	sb.NumNames = 0
+	sb.Names = nil
+	sb.Consts = nil
+	sb.Externs = nil
+	return
 }
 
 // Implements BlockNode

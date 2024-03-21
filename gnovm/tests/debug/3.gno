@@ -2,13 +2,14 @@ package main
 
 func main() {
 	var fns []func() int
-	s := []int{1, 2, 3}
-	for i, _ := range s {
+
+	for i := 0; i < 5; i++ {
 		x := i
 		f := func() int {
 			return x
 		}
 		fns = append(fns, f)
+		x += 1
 	}
 	for _, fn := range fns {
 		println(fn())
@@ -16,6 +17,8 @@ func main() {
 }
 
 // Output:
+// 1
 // 2
-// 2
-// 2
+// 3
+// 4
+// 5

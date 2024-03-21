@@ -2,8 +2,9 @@ package main
 
 func main() {
 	var fns []func() int
+	var x int
 	for i := 0; i < 2; i++ {
-		x := i
+		x = i
 		for j := 0; j < 2; j++ {
 			y := j
 			f := func() int {
@@ -18,13 +19,13 @@ func main() {
 }
 
 // Go Output:
-// 0
 // 1
+// 2
 // 1
 // 2
 
 // Output:
-// 0
 // 1
+// 2
 // 1
 // 2

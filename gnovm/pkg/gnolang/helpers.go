@@ -612,6 +612,12 @@ func Return(results ...Expr) *ReturnStmt {
 	}
 }
 
+func BlockS(body Body) *BlockStmt {
+	return &BlockStmt{
+		Body: body,
+	}
+}
+
 func Continue(label interface{}) *BranchStmt {
 	return &BranchStmt{
 		Op:    CONTINUE,
