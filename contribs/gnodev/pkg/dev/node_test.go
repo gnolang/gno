@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -27,7 +28,8 @@ func TestNewNode_NoPackages(t *testing.T) {
 	logger := log.NewTestingLogger(t)
 
 	// Call NewDevNode with no package should works
-	node, err := NewDevNode(ctx, logger, []string{})
+	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
@@ -50,17 +52,18 @@ func Render(_ string) string { return "foo" }
 
 	// Generate package
 	pkgpath := generateTestingPackage(t, "gno.mod", testGnoMod, "foobar.gno", testFile)
-
 	logger := log.NewTestingLogger(t)
 
 	// Call NewDevNode with no package should works
-	node, err := NewDevNode(ctx, logger, []string{pkgpath})
+	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg.PackagesPathList = []string{pkgpath}
+	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, render, "foo")
 
 	require.NoError(t, node.Close())
@@ -273,7 +276,9 @@ func newTestingDevNode(t *testing.T, pkgslist ...string) (*Node, *emitter.Server
 	emitter := &emitter.ServerMock{}
 
 	// Call NewDevNode with no package should works
-	node, err := NewDevNode(ctx, logger, emitter, pkgslist)
+	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg.PackagesPathList = pkgslist
+	node, err := NewDevNode(ctx, logger, emitter, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), len(pkgslist))
 
