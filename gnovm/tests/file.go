@@ -57,6 +57,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		Store:         store,
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
+		IsTest:        true,
 	})
 	return m
 }

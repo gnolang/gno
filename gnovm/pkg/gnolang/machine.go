@@ -75,6 +75,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+	IsTest        bool
 }
 
 // the machine constructor gets spammed
@@ -99,7 +100,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
-	if maxCycles == 0 {
+	if !opts.IsTest && maxCycles == 0 {
 		// Never allow an infinite number of cycles.
 		maxCycles = 10_000_000
 	}
