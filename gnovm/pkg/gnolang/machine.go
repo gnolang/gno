@@ -658,6 +658,13 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
+			// This is likely due to an infinite loop or recursion.
+			// Don't tryp to print out the machine state as it may
+			// take a very long time or never finish.
+			if v, ok := r.(cpuCyclePanic); ok {
+				panic(v.String())
+			}
+
 			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
 				r, m.String())
 			panic(r)
@@ -953,10 +960,16 @@ const (
 //----------------------------------------
 // "CPU" steps.
 
+type cpuCyclePanic struct{}
+
+func (p cpuCyclePanic) String() string {
+	return "CPU cycle overrun"
+}
+
 func (m *Machine) incrCPU(cycles int64) {
 	m.Cycles += cycles
 	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic("CPU cycle overrun")
+		panic(cpuCyclePanic{})
 	}
 }
 
