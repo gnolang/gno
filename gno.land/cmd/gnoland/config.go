@@ -68,7 +68,8 @@ func getFieldAtPath(currentValue reflect.Value, path []string) (*reflect.Value, 
 	return &field, nil
 }
 
-func fieldByTOMLName(value reflect.Value, name string) (dst reflect.Value) {
+func fieldByTOMLName(value reflect.Value, name string) reflect.Value {
+	var dst reflect.Value
 	eachTOMLField(value, func(val reflect.Value, tomlName string) bool {
 		if tomlName == name {
 			dst = val
@@ -76,7 +77,7 @@ func fieldByTOMLName(value reflect.Value, name string) (dst reflect.Value) {
 		}
 		return false
 	})
-	return
+	return dst
 }
 
 // eachTOMLField iterates over each field in value (assumed to be a struct).
