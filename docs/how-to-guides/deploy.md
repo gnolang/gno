@@ -15,7 +15,8 @@ including how to:
 
 Deployment via the Playground is recommended for smaller realms and packages.
 For larger projects, it is recommended to write, test, and deploy your code from
-a local environment.
+a more appropriate environment, such as a local or online IDE.
+
 For this, check out the [**Deployment from a local environment**](#deployment-from-a-local-environment) section.
 
 ### Prerequisites
