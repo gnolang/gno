@@ -6,34 +6,33 @@ id: deploy
 
 ## Overview
 
-This guide shows you how to deploy any realm or package to the Gno chain. It will
-show you how to:
-- Deploy Gno code in your browser via the Playground, 
-- Deploy Gno code from your local machine using `gnokey`'s `maketx addpkg` API.
-
+This guide shows you how to deploy any realm or package to the Gno chain,
+including how to:
+- deploy Gno code in your browser via the Playground, 
+- deploy Gno code from your local machine using `gnokey`'s `maketx addpkg` API.
 
 ## Deployment via the Playground
 
 Deployment via the Playground is recommended for smaller realms and packages.
 For larger projects, it is recommended to write, test, and deploy your code from
 a local environment.
-For this, check out [**Deployment from a local environment**](#deployment-from-a-local-environment).
+For this, check out the [**Deployment from a local environment**](#deployment-from-a-local-environment) section.
 
 ### Prerequisites
 
 - **Internet connection**
-- **A keypair in a Gno.land wallet, such as [Adena](https://adena.app)**
+- **A Gno.land-compatible wallet, such as [Adena](https://adena.app)**
 
 ### Using Gno Playground
 
 You can write, test, and deploy packages and realms using Gno Playground.
 To start using the Playground, you can check out XYZ.
 
-For this example, we will be using the **Counter** realm. You can find the code
-on [this Playground link](https://play.gno.land/p/iUWTha99D1J).
+For this example, we'll use the **Counter** realm. Access the sample code
+via [this Playground link](https://play.gno.land/p/iUWTha99D1J).
 
-Once you have confirmed that the code is without bugs, you can click on "**Deploy**".
-If your wallet is not connected, you will receive a prompt to connect it:
+Review the code and when you're ready, click on "**Deploy**".
+Ensure your wallet is connected to proceed. If it isn't, a prompt will appear for connection:
 
 ![DeployConnect](../assets/how-to-guides/deploy/deploy_connect.png)
 
@@ -43,13 +42,13 @@ new toolbox:
 ![DeployDefault](../assets/how-to-guides/deploy/deploy_default.png)
 
 Here, you can choose the deployment path of your realm or package, as well as the network
-to deploy to. You can also deploy to a local node from the Playground
+to deploy to. The Playground also allows for deployment to a local node
 if you are running one.
 
 :::info
 Here are a few things to keep in mind when deploying packages and realms:
-- The **name** field in the path should match your package name, in this case `counter`
-- Packages are usually deployed under `p/`, while realms are deployed under `r/`
+- The `name` field in the path should match your package name, in this case `counter`.
+- Packages are deployed under `p/`, while realms are deployed under `r/`.
 
 An example path for the Counter realm could be the following: 
 ```go
@@ -57,8 +56,8 @@ gno.land/r/<your_username>/counter
 ```
 :::
 
-After choosing a path and network, you can click **Deploy**. This will prompt
-a wallet pop-up asking you to sign the deployment transaction.
+After choosing a path and network, click on **Deploy**. A pop-up window
+from your connected wallet will prompt you to sign and approve the deployment transaction.
 
 ![DeployDefault](../assets/how-to-guides/deploy/deploy_success.png)
 
