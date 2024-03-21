@@ -49,9 +49,11 @@ func nrand() float64 {
 	return y
 }
 
-// func generate() {
-// 	_srand(time.Now().UnixNano())
-// 	for i := 0; i < 100; i++ {
-// 		println(nrand())
-// 	}
-// }
+func GenerateRandomBool(bias float64) bool {
+	if bias < 0 || bias > 1 {
+		panic("bias should be in the range [0, 1]")
+	}
+
+	res := nrand()
+	return res > bias
+}

@@ -100,7 +100,3 @@ func TestCrossover(t *testing.T) {
 		t.Errorf("Crossover did not modify children correctly, got %s and %s", child1.Fuzzer.String(), child2.Fuzzer.String())
 	}
 }
-
-func TestGenerate(t *testing.T) {
-	generate()
-}
