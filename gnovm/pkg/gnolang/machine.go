@@ -99,6 +99,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
+	if maxCycles == 0 {
+		// Never allow an infinite number of cycles.
+		maxCycles = 10_000_000
+	}
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
