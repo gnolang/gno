@@ -25,9 +25,6 @@ For this, check out the [**Deployment from a local environment**](#deployment-fr
 
 ### Using Gno Playground
 
-You can write, test, and deploy packages and realms using Gno Playground.
-To start using the Playground, you can check out XYZ.
-
 For this example, we'll use the **Counter** realm. Access the sample code
 via [this Playground link](https://play.gno.land/p/iUWTha99D1J).
 
