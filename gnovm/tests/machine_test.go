@@ -47,6 +47,7 @@ func TestMachineTestMemPackage(t *testing.T) {
 							Output:  os.Stdout,
 							Store:   store,
 							Context: nil,
+							IsTest:  true,
 						})
 						memPkg := gno.ReadMemPackage(tt.path, "test")
 
