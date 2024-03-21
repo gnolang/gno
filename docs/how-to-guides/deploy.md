@@ -47,7 +47,7 @@ to deploy to. You can also deploy to a local node from the Playground
 if you are running one.
 
 :::info
-A few things to consider when deploying packages and realms:
+Here are a few things to keep in mind when deploying packages and realms:
 - The **name** field in the path should match your package name, in this case `counter`
 - Packages are usually deployed under `p/`, while realms are deployed under `r/`
 
