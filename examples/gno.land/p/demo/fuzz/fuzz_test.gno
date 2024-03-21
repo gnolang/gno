@@ -3,11 +3,19 @@ package fuzz
 import (
 	"crypto/chacha20/chacha"
 	"crypto/chacha20/rand"
+	"encoding/binary"
 	"testing"
+	"time"
 )
 
-func TestMutate(t *testing.T) {
+func generateSeed() []byte {
 	seed := make([]byte, chacha.KeySize)
+	binary.LittleEndian.PutUint64(seed, uint64(time.Now().UnixNano()))
+	return seed
+}
+
+func TestMutate(t *testing.T) {
+	seed := generateSeed()
 	rng := rand.NewFromSeed(seed)
 
 	originalValue := "Hello"
@@ -29,7 +37,7 @@ func TestMutate(t *testing.T) {
 }
 
 func TestSelection(t *testing.T) {
-	seed := make([]byte, 32)
+	seed := generateSeed()
 	rng := rand.NewFromSeed(seed)
 
 	tests := []struct {
@@ -69,16 +77,16 @@ func TestSelection(t *testing.T) {
 }
 
 func helperNewStringFuzzer(value string) *StringFuzzer {
-	seed := make([]byte, 32)
+	seed := generateSeed()
 	rng := rand.NewFromSeed(seed)
 	return &StringFuzzer{Value: value, rng: rng}
 }
 
 func TestCrossover(t *testing.T) {
-	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("ABCDEFG"), Fitness: 0}
-	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("WXYZGSW"), Fitness: 0}
+	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("Loremipsumdolorsitamet,consectetur"), Fitness: 0}
+	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("adipiscingelit,seddoeiusmodtemporincididuntutlabore"), Fitness: 0}
 
-	seed := make([]byte, 32)
+	seed := generateSeed()
 	rng := rand.NewFromSeed(seed)
 
 	var child1, child2 *Individual
@@ -88,7 +96,11 @@ func TestCrossover(t *testing.T) {
 		// println("ch2: ", child2.Fuzzer.String())
 	}
 
-	if child1.Fuzzer.String() == "ABCDEFG" || child2.Fuzzer.String() == "WXYZGSW" {
+	if child1.Fuzzer.String() == "hello," || child2.Fuzzer.String() == "world" {
 		t.Errorf("Crossover did not modify children correctly, got %s and %s", child1.Fuzzer.String(), child2.Fuzzer.String())
 	}
+}
+
+func TestGenerate(t *testing.T) {
+	generate()
 }
