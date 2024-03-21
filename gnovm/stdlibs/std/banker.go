@@ -44,12 +44,18 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 	amt := CompactCoins(denoms, amounts)
 	from, to := crypto.Bech32Address(fromS), crypto.Bech32Address(toS)
 
+	pkgAddr := ctx.OrigPkgAddr
+	if m.Realm != nil {
+		pkgPath := m.Realm.Path
+		pkgAddr = gno.DerivePkgAddr(pkgPath).Bech32()
+	}
+
 	if bt == btOrigSend || bt == btRealmSend {
-		if from != ctx.OrigPkgAddr {
+		if from != pkgAddr {
 			m.Panic(typedString(
 				fmt.Sprintf(
 					"can only send from the realm package address %q, but got %q",
-					ctx.OrigPkgAddr, from),
+					pkgAddr, from),
 			))
 			return
 		}
