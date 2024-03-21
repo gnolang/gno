@@ -4,13 +4,13 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/users"
+	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/users"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	admin := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	manfred := users.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
-	unknown := std.Address("g1u0000000000000000000000000000000000000")
+	admin := pusers.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	manfred := pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
 
 	type test struct {
 		name    string
@@ -25,7 +25,6 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
-			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf(users.AddressOrName(unknown)) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {
@@ -34,18 +33,17 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		}
 	}
 
-	// unknown uses the faucet.
-	std.TestSetOrigCaller(unknown)
+	// admin uses the faucet.
+	std.TestSetOrigCaller(users.Resolve(admin))
 	Faucet()
 
 	// check balances #2.
 	{
 		tests := []test{
 			{"TotalSupply", 10110000000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
+			{"BalanceOf(admin)", 10010000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
-			{"BalanceOf(unknown)", 10000000, func() uint64 { return BalanceOf(users.AddressOrName(unknown)) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {
@@ -68,8 +66,8 @@ func TestErrConditions(t *testing.T) {
 	std.TestSetOrigCaller(admin)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(users.AddressOrName(admin), 1) }},
-			{"Approve(empty, 1))", "invalid address", func() { Approve(users.AddressOrName(empty), 1) }},
+			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(pusers.AddressOrName(admin), 1) }},
+			{"Approve(empty, 1))", "invalid address", func() { Approve(pusers.AddressOrName(empty), 1) }},
 		}
 		for _, tc := range tests {
 			shouldPanicWithMsg(t, tc.fn, tc.msg)
