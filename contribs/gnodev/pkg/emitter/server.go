@@ -17,7 +17,7 @@ type Server struct {
 	logger    *slog.Logger
 	upgrader  websocket.Upgrader
 	clients   map[*websocket.Conn]struct{}
-	muClients sync.RWMutex
+	muClients sync.Mutex
 }
 
 func NewServer(logger *slog.Logger) *Server {
@@ -66,8 +66,8 @@ type eventJSON struct {
 }
 
 func (s *Server) emit(evt events.Event) {
-	s.muClients.RLock()
-	defer s.muClients.RUnlock()
+	s.muClients.Lock()
+	defer s.muClients.Unlock()
 
 	jsonEvt := eventJSON{evt.Type(), evt}
 
