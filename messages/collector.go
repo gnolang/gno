@@ -109,8 +109,8 @@ func (c *Collector[T]) DropMessages(view *types.View) {
 		messageView := getViewFromKey(key)
 
 		// Only messages who are >= the current view stay
-		return messageView.Height < view.Height ||
-			messageView.Round < view.Round
+		return messageView.Height >= view.Height &&
+			messageView.Round >= view.Round
 	}
 
 	// Filter out the messages

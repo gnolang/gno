@@ -5,11 +5,10 @@ import (
 )
 
 // buildProposalMessage builds a proposal message using the given proposal
-func (t *Tendermint) buildProposalMessage(proposal []byte) *types.ProposalMessage {
+func (t *Tendermint) buildProposalMessage(proposal []byte, proposalRound int64) *types.ProposalMessage {
 	var (
-		height     = t.state.getHeight()
-		round      = t.state.getRound()
-		validRound = t.state.validRound
+		height = t.state.getHeight()
+		round  = t.state.getRound()
 	)
 
 	// Build the proposal message (assumes the node will sign it)
@@ -20,7 +19,7 @@ func (t *Tendermint) buildProposalMessage(proposal []byte) *types.ProposalMessag
 		},
 		Sender:        t.node.ID(),
 		Proposal:      proposal,
-		ProposalRound: validRound,
+		ProposalRound: proposalRound,
 	}
 
 	// Sign the message

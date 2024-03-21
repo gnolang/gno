@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 
 	"google.golang.org/protobuf/proto"
@@ -12,6 +13,14 @@ var (
 	ErrInvalidMessageProposal      = errors.New("invalid message proposal")
 	ErrInvalidMessageProposalRound = errors.New("invalid message proposal round")
 )
+
+func (v *View) Equals(view *View) bool {
+	if v.GetHeight() != view.GetHeight() {
+		return false
+	}
+
+	return v.GetRound() == view.GetRound()
+}
 
 // GetSignaturePayload returns the sign payload for the proposal message
 func (m *ProposalMessage) GetSignaturePayload() []byte {
@@ -66,6 +75,26 @@ func (m *ProposalMessage) Verify() error {
 	return nil
 }
 
+func (m *ProposalMessage) Equals(message *ProposalMessage) bool {
+	if !m.GetView().Equals(message.GetView()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSender(), message.GetSender()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSignature(), message.GetSignature()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetProposal(), message.GetProposal()) {
+		return false
+	}
+
+	return m.GetProposalRound() == message.GetProposalRound()
+}
+
 // GetSignaturePayload returns the sign payload for the proposal message
 func (m *PrevoteMessage) GetSignaturePayload() []byte {
 	//nolint:errcheck // No need to verify the error
@@ -104,6 +133,22 @@ func (m *PrevoteMessage) Verify() error {
 	}
 
 	return nil
+}
+
+func (m *PrevoteMessage) Equals(message *PrevoteMessage) bool {
+	if !m.GetView().Equals(message.GetView()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSender(), message.GetSender()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSignature(), message.GetSignature()) {
+		return false
+	}
+
+	return bytes.Equal(m.GetIdentifier(), message.GetIdentifier())
 }
 
 // GetSignaturePayload returns the sign payload for the proposal message

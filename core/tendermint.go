@@ -160,6 +160,8 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 	t.wg.Add(1)
 
 	go func() {
+		defer t.wg.Done()
+
 		var (
 			proposeCh, unsubscribeProposeFn     = t.store.subscribeToPropose()
 			prevoteCh, unsubscribePrevoteFn     = t.store.subscribeToPrevote()
@@ -206,8 +208,8 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 			roundMap := make(map[uint64][]Message)
 
 			for _, message := range combined {
-				round := message.GetView().GetRound()
-				roundMap[round] = append(roundMap[round], message)
+				messageRound := message.GetView().GetRound()
+				roundMap[messageRound] = append(roundMap[messageRound], message)
 			}
 
 			return roundMap
@@ -216,6 +218,8 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 		for {
 			select {
 			case <-ctx.Done():
+				close(ch)
+
 				return
 			case getProposeFn := <-proposeCh:
 				proposeCache.addMessages(getProposeFn())
@@ -260,18 +264,22 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 			// This max round will always need to be > 0
 			maxRound := uint64(0)
 
-			for round, roundMessages := range roundMap {
+			for messageRound, roundMessages := range roundMap {
 				if !t.hasFaultyMajority(roundMessages) {
 					continue
 				}
 
-				if round > maxRound {
-					maxRound = round
+				if messageRound > maxRound {
+					maxRound = messageRound
 				}
 			}
 
-			if maxRound > 0 {
+			// Make sure the max round that has a faulty majority
+			// is actually greater than the process round
+			if maxRound > round {
 				signalRoundJump(maxRound)
+
+				return
 			}
 		}
 	}()
@@ -291,9 +299,6 @@ func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
 			t.wg.Done()
 		}()
 
-		// Start the consensus round
-		t.startRound(ctx)
-
 		// Run the consensus state machine, and save the finalized proposal (if any)
 		if finalizedProposal := t.runStates(ctx); finalizedProposal != nil {
 			ch <- finalizedProposal
@@ -307,34 +312,7 @@ func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
 // It is a required middle step (proposal evaluation) before
 // the state machine is in full swing and
 // the runs the same flow for everyone (proposer / non-proposers)
-func (t *Tendermint) startRound(ctx context.Context) {
-	height := t.state.getHeight()
-	round := t.state.getRound()
-
-	// Check if the current process is the proposer for this view
-	if !t.verifier.IsProposer(t.node.ID(), height, round) {
-		// The current process is NOT the proposer, only schedule a timeout
-		//
-		// 21: 	schedule OnTimeoutPropose(hP , roundP) to be executed after timeoutPropose(roundP)
-		var (
-			callback = func() {
-				t.onTimeoutPropose(round)
-			}
-			timeoutPropose = t.timeouts[propose].CalculateTimeout(round)
-		)
-
-		t.logger.Debug(
-			"scheduling timeoutPropose",
-			slog.Uint64("height", height),
-			slog.Uint64("round", round),
-			slog.Duration("timeout", timeoutPropose),
-		)
-
-		t.scheduleTimeout(ctx, timeoutPropose, callback)
-
-		return
-	}
-
+func (t *Tendermint) startRound(height, round uint64) {
 	// 14: if proposer(hp, roundP) = p then
 	//
 	// The proposal value can either be:
@@ -343,7 +321,10 @@ func (t *Tendermint) startRound(ctx context.Context) {
 	//
 	// 15: 	if validValueP != nil then
 	// 16: 		proposal ← validValueP
-	proposal := t.state.validValue
+	var (
+		proposal      = t.state.validValue
+		proposalRound = t.state.validRound
+	)
 
 	// Check if a new proposal needs to be built
 	if proposal == nil {
@@ -363,14 +344,14 @@ func (t *Tendermint) startRound(ctx context.Context) {
 
 	// Build the propose message
 	var (
-		proposeMessage = t.buildProposalMessage(proposal)
+		proposeMessage = t.buildProposalMessage(proposal, proposalRound)
 		id             = t.node.Hash(proposal)
 	)
 
 	// Broadcast the proposal to other consensus nodes
 	//
 	// 19: 		broadcast <PROPOSAL, hp, roundP, proposal, validRoundP>
-	t.broadcast.BroadcastProposal(proposeMessage)
+	t.broadcast.BroadcastPropose(proposeMessage)
 
 	// Save the accepted proposal in the state.
 	// NOTE: This is different from validValue / lockedValue,
@@ -396,13 +377,18 @@ func (t *Tendermint) runStates(ctx context.Context) []byte {
 	for {
 		currentStep := t.state.step.get()
 
-		switch currentStep {
-		case propose:
-			t.runPropose(ctx)
-		case prevote:
-			t.runPrevote(ctx)
-		case precommit:
-			return t.runPrecommit(ctx)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			switch currentStep {
+			case propose:
+				t.runPropose(ctx)
+			case prevote:
+				t.runPrevote(ctx)
+			case precommit:
+				return t.runPrecommit(ctx)
+			}
 		}
 	}
 }
@@ -437,6 +423,35 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 		lockedRound = t.state.lockedRound
 		lockedValue = t.state.lockedValue
 	)
+
+	// Check if the current process is the proposer for this view
+	if t.verifier.IsProposer(t.node.ID(), height, round) {
+		// Start the round by constructing and broadcasting a proposal
+		t.startRound(height, round)
+
+		return
+	}
+
+	// The current process is NOT the proposer, schedule a timeout
+	//
+	// 21: 	schedule OnTimeoutPropose(hP , roundP) to be executed after timeoutPropose(roundP)
+	var (
+		expiredCh                 = make(chan struct{}, 1)
+		timerCtx, cancelTimeoutFn = context.WithCancel(ctx)
+		timeoutPropose            = t.timeouts[propose].CalculateTimeout(round)
+	)
+
+	// Defer the timeout timer cancellation
+	defer cancelTimeoutFn()
+
+	t.logger.Debug(
+		"scheduling timeoutPropose",
+		slog.Uint64("height", height),
+		slog.Uint64("round", round),
+		slog.Duration("timeout", timeoutPropose),
+	)
+
+	t.scheduleTimeout(timerCtx, timeoutPropose, expiredCh)
 
 	// Subscribe to all propose messages
 	// (=current height; unique; >= current round)
@@ -494,6 +509,16 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-expiredCh:
+			// Broadcast a PREVOTE message with a NIL ID
+			// 59: broadcast ⟨PREVOTE, hP, roundP, nil⟩
+			t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(nil))
+
+			// Move to the prevote state
+			// 60: stepP ← prevote
+			t.state.step.set(prevote)
+
+			return
 		case getMessagesFn := <-ch:
 			// Add the messages to the cache
 			cache.addMessages(getMessagesFn())
@@ -540,6 +565,8 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 			// 27: stepP ← prevote
 			// 33: stepP ← prevote
 			t.state.step.set(prevote)
+
+			return
 		}
 	}
 }
@@ -570,7 +597,14 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 	var (
 		round              = t.state.getRound()
 		acceptedProposalID = t.state.acceptedProposalID
+
+		expiredCh                   = make(chan struct{}, 1)
+		timeoutCtx, cancelTimeoutFn = context.WithCancel(ctx)
+		timeoutPrevote              = t.timeouts[prevote].CalculateTimeout(round)
 	)
+
+	// Defer the timeout timer cancellation
+	defer cancelTimeoutFn()
 
 	// Subscribe to all prevote messages
 	// (=current height; unique; >= current round)
@@ -604,6 +638,13 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-expiredCh:
+			// Build and broadcast the prevote message, with an ID of NIL
+			t.broadcast.BroadcastPrecommit(t.buildPrecommitMessage(nil))
+
+			t.state.step.set(precommit)
+
+			return
 		case getMessagesFn := <-ch:
 			// Combine the prevote messages (NIL and non-NIL)
 			summedPrevotes.addMessages(getMessagesFn())
@@ -620,20 +661,13 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 			// Check if there is a super majority for the sum prevotes, to schedule a timeout
 			if !timeoutScheduled && t.hasSuperMajority(convertedMessages) {
 				// 35: schedule OnTimeoutPrevote(hp, roundP) to be executed after timeoutPrevote(roundP)
-				var (
-					callback = func() {
-						t.onTimeoutPrevote(round)
-					}
-					timeoutPrevote = t.timeouts[prevote].CalculateTimeout(round)
-				)
-
 				t.logger.Debug(
 					"scheduling timeoutPrevote",
 					slog.Uint64("round", round),
 					slog.Duration("timeout", timeoutPrevote),
 				)
 
-				t.scheduleTimeout(ctx, timeoutPrevote, callback)
+				t.scheduleTimeout(timeoutCtx, timeoutPrevote, expiredCh)
 
 				timeoutScheduled = true
 			}
@@ -654,7 +688,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 			if t.hasSuperMajority(convertedMessages) {
 				// 45: broadcast ⟨PRECOMMIT, hp, roundP, nil⟩
 				// 46: stepP ← precommit
-				t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(nil))
+				t.broadcast.BroadcastPrecommit(t.buildPrecommitMessage(nil))
 				t.state.step.set(precommit)
 
 				return
@@ -680,7 +714,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 				t.state.lockedValue = t.state.acceptedProposal.GetProposal()
 
 				// 40: 	broadcast <PRECOMMIT, hP, roundP, id(v))>
-				t.broadcast.BroadcastPrevote(t.buildPrevoteMessage(acceptedProposalID))
+				t.broadcast.BroadcastPrecommit(t.buildPrecommitMessage(acceptedProposalID))
 
 				// 41: 	stepP ← precommit
 				t.state.step.set(precommit)
@@ -717,8 +751,13 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 		round              = t.state.getRound()
 		acceptedProposalID = t.state.acceptedProposalID
 
-		expiredCh = make(chan struct{})
+		expiredCh                   = make(chan struct{}, 1)
+		timeoutCtx, cancelTimeoutFn = context.WithCancel(ctx)
+		timeoutPrecommit            = t.timeouts[precommit].CalculateTimeout(round)
 	)
+
+	// Defer the timeout timer cancellation
+	defer cancelTimeoutFn()
 
 	// Subscribe to all precommit messages
 	// (=current height; unique; >= current round)
@@ -767,21 +806,13 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 			// Check if there is a super majority for the sum precommits, to schedule a timeout
 			if !timeoutScheduled && t.hasSuperMajority(convertedMessages) {
 				// 48: schedule OnTimeoutPrecommit(hP, roundP) to be executed after timeoutPrecommit(roundP)
-				var (
-					callback = func() {
-						t.onTimeoutPrecommit(round, expiredCh)
-					}
-
-					timeoutPrecommit = t.timeouts[precommit].CalculateTimeout(round)
-				)
-
 				t.logger.Debug(
 					"scheduling timeoutPrecommit",
 					slog.Uint64("round", round),
 					slog.Duration("timeout", timeoutPrecommit),
 				)
 
-				t.scheduleTimeout(ctx, timeoutPrecommit, callback)
+				t.scheduleTimeout(timeoutCtx, timeoutPrecommit, expiredCh)
 
 				timeoutScheduled = true
 			}

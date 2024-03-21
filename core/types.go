@@ -52,8 +52,8 @@ type Node interface {
 // Broadcast is an abstraction over the networking / message sharing interface
 // that enables message passing between validators
 type Broadcast interface {
-	// BroadcastProposal broadcasts a PROPOSAL message
-	BroadcastProposal(message *types.ProposalMessage)
+	// BroadcastPropose broadcasts a PROPOSAL message
+	BroadcastPropose(message *types.ProposalMessage)
 
 	// BroadcastPrevote broadcasts a PREVOTE message
 	BroadcastPrevote(message *types.PrevoteMessage)

@@ -388,3 +388,53 @@ func TestCollector_Subscribe(t *testing.T) {
 		assert.Equal(t, expectedMessages, messages)
 	})
 }
+
+func TestCollector_DropMessages(t *testing.T) {
+	t.Parallel()
+
+	var (
+		count = 5
+		view  = &types.View{
+			Height: 10,
+			Round:  5,
+		}
+		earlierView = &types.View{
+			Height: view.Height,
+			Round:  view.Round - 1,
+		}
+	)
+
+	// Create the collector
+	c := NewCollector[types.PrevoteMessage]()
+
+	// Generate latest round messages
+	latestRoundMessages := generatePrevoteMessages(
+		t,
+		count,
+		view,
+	)
+
+	// Generate earlier round messages
+	earlierRoundMessages := generatePrevoteMessages(
+		t,
+		count,
+		earlierView,
+	)
+
+	for _, message := range latestRoundMessages {
+		c.AddMessage(message.GetView(), message.GetSender(), message)
+	}
+
+	for _, message := range earlierRoundMessages {
+		c.AddMessage(message.GetView(), message.GetSender(), message)
+	}
+
+	// Drop the older messages
+	c.DropMessages(view)
+
+	// Make sure the messages were dropped
+	fetchedMessages := c.GetMessages()
+
+	require.Len(t, fetchedMessages, len(latestRoundMessages))
+	assert.ElementsMatch(t, fetchedMessages, latestRoundMessages)
+}

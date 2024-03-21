@@ -9,10 +9,8 @@ type msgType interface {
 	*types.ProposalMessage | *types.PrevoteMessage | *types.PrecommitMessage
 }
 
-// TODO @petar-dambovaliev, how we can make this less ugly?
 type cacheMessage interface {
 	msgType
-
 	Message
 }
 

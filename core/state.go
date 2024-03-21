@@ -29,7 +29,7 @@ func (s *step) get() step {
 type state struct {
 	view *types.View
 
-	acceptedProposal   *types.ProposalMessage
+	acceptedProposal   *types.ProposalMessage // TODO make this a []byte
 	acceptedProposalID []byte
 
 	lockedValue []byte

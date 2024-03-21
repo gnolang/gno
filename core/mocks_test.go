@@ -3,20 +3,20 @@ package core
 import "github.com/gnolang/go-tendermint/messages/types"
 
 type (
-	broadcastProposalDelegate  func(*types.ProposalMessage)
+	broadcastProposeDelegate   func(*types.ProposalMessage)
 	broadcastPrevoteDelegate   func(*types.PrevoteMessage)
 	broadcastPrecommitDelegate func(*types.PrecommitMessage)
 )
 
 type mockBroadcast struct {
-	broadcastProposalFn  broadcastProposalDelegate
+	broadcastProposeFn   broadcastProposeDelegate
 	broadcastPrevoteFn   broadcastPrevoteDelegate
 	broadcastPrecommitFn broadcastPrecommitDelegate
 }
 
-func (m *mockBroadcast) BroadcastProposal(message *types.ProposalMessage) {
-	if m.broadcastProposalFn != nil {
-		m.broadcastProposalFn(message)
+func (m *mockBroadcast) BroadcastPropose(message *types.ProposalMessage) {
+	if m.broadcastProposeFn != nil {
+		m.broadcastProposeFn(message)
 	}
 }
 
@@ -148,4 +148,60 @@ func (m *mockVerifier) IsValidProposal(proposal []byte, height uint64) bool {
 	}
 
 	return false
+}
+
+type (
+	getViewDelegate             func() *types.View
+	getSenderDelegate           func() []byte
+	getSignatureDelegate        func() []byte
+	getSignaturePayloadDelegate func() []byte
+	verifyDelegate              func() error
+)
+
+type mockMessage struct {
+	getViewFn             getViewDelegate
+	getSenderFn           getSenderDelegate
+	getSignatureFn        getSignatureDelegate
+	getSignaturePayloadFn getSignaturePayloadDelegate
+	verifyFn              verifyDelegate
+}
+
+func (m *mockMessage) GetView() *types.View {
+	if m.getViewFn != nil {
+		return m.getViewFn()
+	}
+
+	return nil
+}
+
+func (m *mockMessage) GetSender() []byte {
+	if m.getSenderFn != nil {
+		return m.getSenderFn()
+	}
+
+	return nil
+}
+
+func (m *mockMessage) GetSignature() []byte {
+	if m.getSignatureFn != nil {
+		return m.getSignatureFn()
+	}
+
+	return nil
+}
+
+func (m *mockMessage) GetSignaturePayload() []byte {
+	if m.getSignaturePayloadFn != nil {
+		return m.getSignaturePayloadFn()
+	}
+
+	return nil
+}
+
+func (m *mockMessage) Verify() error {
+	if m.verifyFn != nil {
+		return m.verifyFn()
+	}
+
+	return nil
 }
