@@ -1,5 +1,7 @@
 package std
 
+import "strconv"
+
 // Realm functions can call std.GetBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
 // but can be passed onto other functions to be transacted
@@ -22,10 +24,11 @@ type Banker interface {
 	RemoveCoin(addr Address, denom string, amount int64)
 }
 
-// Also available natively in stdlibs/context.go
+// BankerType represents the "permission level" requested for a banker,
+// retrievable through [GetBanker].
 type BankerType uint8
 
-// Also available natively in stdlibs/context.go
+// Available types of banker.
 const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
@@ -35,36 +38,79 @@ const (
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.
 	BankerTypeRealmIssue
+
+	maxBanker
 )
+
+func (b BankerType) String() string {
+	switch b {
+	case BankerTypeReadonly:
+		return "BankerTypeReadonly"
+	case BankerTypeOrigSend:
+		return "BankerTypeOrigSend"
+	case BankerTypeRealmSend:
+		return "BankerTypeRealmSend"
+	case BankerTypeRealmIssue:
+		return "BankerTypeRealmIssue"
+	default:
+		panic("invalid BankerType: " + strconv.Itoa(int(b)))
+	}
+}
 
 //----------------------------------------
 // adapter for native banker
 
-type bankAdapter struct {
-	nativeBanker Banker
+// GetBanker returns a new Banker, with its capabilities matching the given
+// [BankerType].
+func GetBanker(bt BankerType) Banker {
+	if bt >= maxBanker {
+		panic("invalid banker type")
+	}
+	return banker{bt}
 }
 
-func (ba bankAdapter) GetCoins(addr Address) (dst Coins) {
-	// convert native -> gno
-	coins := ba.nativeBanker.GetCoins(addr)
-	for _, coin := range coins {
-		dst = append(dst, (Coin)(coin))
+// These are native bindings to the banker's functions.
+func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
+func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
+func bankerTotalCoin(bt uint8, denom string) int64
+func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
+func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
+
+type banker struct {
+	bt BankerType
+}
+
+func (b banker) GetCoins(addr Address) (dst Coins) {
+	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
+	dst = make(Coins, len(denoms))
+	for i := range dst {
+		dst[i] = Coin{denoms[i], amounts[i]}
 	}
 	return dst
 }
 
-func (ba bankAdapter) SendCoins(from, to Address, amt Coins) {
-	ba.nativeBanker.SendCoins(from, to, amt)
+func (b banker) SendCoins(from, to Address, amt Coins) {
+	if b.bt == BankerTypeReadonly {
+		panic("BankerTypeReadonly cannot send coins")
+	}
+	denoms, amounts := amt.expandNative()
+	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
 }
 
-func (ba bankAdapter) TotalCoin(denom string) int64 {
-	return ba.nativeBanker.TotalCoin(denom)
+func (b banker) TotalCoin(denom string) int64 {
+	return bankerTotalCoin(uint8(b.bt), denom)
 }
 
-func (ba bankAdapter) IssueCoin(addr Address, denom string, amount int64) {
-	ba.nativeBanker.IssueCoin(addr, denom, amount)
+func (b banker) IssueCoin(addr Address, denom string, amount int64) {
+	if b.bt != BankerTypeRealmIssue {
+		panic(b.bt.String() + " cannot issue coins")
+	}
+	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
-func (ba bankAdapter) RemoveCoin(addr Address, denom string, amount int64) {
-	ba.nativeBanker.RemoveCoin(addr, denom, amount)
+func (b banker) RemoveCoin(addr Address, denom string, amount int64) {
+	if b.bt != BankerTypeRealmIssue {
+		panic(b.bt.String() + " cannot remove coins")
+	}
+	bankerRemoveCoin(uint8(b.bt), string(addr), denom, amount)
 }

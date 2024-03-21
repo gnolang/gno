@@ -18,7 +18,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -461,7 +460,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	var totalGas int64
 	// TODO: we will get a performance boost if we have a good estimate of avg
 	// size per tx, and set the initial capacity based off of that.
-	// txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max/mem.avgTxSize))
+	// txs := make([]types.Tx, 0, min(mem.txs.Len(), max/mem.avgTxSize))
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
@@ -497,7 +496,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max))
+	txs := make([]types.Tx, 0, min(mem.txs.Len(), max))
 	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
