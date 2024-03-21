@@ -64,9 +64,21 @@ func Sprintf(format string, args ...interface{}) string {
 			switch v := arg.(type) {
 			case int:
 				buf += strconv.Itoa(v)
+			case int8:
+				buf += strconv.Itoa(int(v))
+			case int16:
+				buf += strconv.Itoa(int(v))
+			case int32:
+				buf += strconv.Itoa(int(v))
 			case int64:
 				buf += strconv.Itoa(int(v))
 			case uint:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint8:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint16:
+				buf += strconv.FormatUint(uint64(v), 10)
+			case uint32:
 				buf += strconv.FormatUint(uint64(v), 10)
 			case uint64:
 				buf += strconv.FormatUint(v, 10)
@@ -95,4 +107,36 @@ func Sprintf(format string, args ...interface{}) string {
 		panic("too many arguments to ufmt.Sprintf")
 	}
 	return buf
+}
+
+// errMsg implements the error interface.
+type errMsg struct {
+	msg string
+}
+
+// Error defines the requirements of the error interface.
+// It functions similarly to Go's errors.New()
+func (e *errMsg) Error() string {
+	return e.msg
+}
+
+// Errorf is a function that mirrors the functionality of fmt.Errorf.
+//
+// It takes a format string and arguments to create a formatted string,
+// then sets this string as the 'msg' field of an errMsg struct and returns a pointer to this struct.
+//
+// This function operates in a similar manner to Go's fmt.Errorf,
+// providing a way to create formatted error messages.
+//
+// The currently formatted verbs are the following:
+//
+//	%s: places a string value directly.
+//	    If the value implements the interface interface{ String() string },
+//	    the String() method is called to retrieve the value.
+//	%d: formats an integer value using package "strconv".
+//	    Currently supports only uint, uint64, int, int64.
+//	%t: formats a boolean value to "true" or "false".
+//	%%: outputs a literal %. Does not consume an argument.
+func Errorf(format string, args ...interface{}) error {
+	return &errMsg{Sprintf(format, args...)}
 }
