@@ -14,8 +14,8 @@ import (
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // XXX: We should probably use txtar to test this package
