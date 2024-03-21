@@ -13,14 +13,20 @@ type (
 	InvalidPkgPathError struct{ abciError }
 	InvalidStmtError    struct{ abciError }
 	InvalidExprError    struct{ abciError }
+	InvalidPackageError struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string { return "invalid package path" }
+func (e InvalidPackageError) Error() string { return "package validation failed" }
 func (e InvalidStmtError) Error() string    { return "invalid statement" }
 func (e InvalidExprError) Error() string    { return "invalid expression" }
 
 func ErrInvalidPkgPath(msg string) error {
 	return errors.Wrap(InvalidPkgPathError{}, msg)
+}
+
+func ErrInvalidPackage(msg string) error {
+	return errors.Wrap(InvalidPackageError{}, msg)
 }
 
 func ErrInvalidStmt(msg string) error {

@@ -59,6 +59,10 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.Deposit.IsValid() {
 		return std.ErrTxDecode("invalid deposit")
 	}
+	if err := msg.Package.Validate(); err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+
 	// XXX validate files.
 	return nil
 }
@@ -185,6 +189,10 @@ func (msg MsgRun) ValidateBasic() error {
 	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
 	if path := msg.Package.Path; path != "" && path != wantPath {
 		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+	}
+
+	if err := msg.Package.Validate(); err != nil {
+		return ErrInvalidPackage(err.Error())
 	}
 
 	return nil
