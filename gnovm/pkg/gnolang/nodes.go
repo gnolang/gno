@@ -871,34 +871,33 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
-type CapturedLoopVar struct {
-	name   Name
-	offset uint8 // injected i := i should adjust based on this, e.g. (1,0),(1,1)
+type Closure struct {
+	loopVars []Name
 }
 
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                             // for non-loop stmts
-	BodyLen         int              // for for-continue
-	NextBodyIndex   int              // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps          int              // number of Ops, for goto
-	NumValues       int              // number of Values, for goto
-	NumExprs        int              // number of Exprs, for goto
-	NumStmts        int              // number of Stmts, for goto
-	capturedLoopVar *CapturedLoopVar // for ForStmt
-	Cond            Expr             // for ForStmt
-	Post            Stmt             // for ForStmt
-	Active          Stmt             // for PopStmt()
-	Key             Expr             // for RangeStmt
-	Value           Expr             // for RangeStmt
-	Op              Word             // for RangeStmt
-	ListLen         int              // for RangeStmt only
-	ListIndex       int              // for RangeStmt only
-	NextItem        *MapListItem     // fpr RangeStmt w/ maps only
-	StrLen          int              // for RangeStmt w/ strings only
-	StrIndex        int              // for RangeStmt w/ strings only
-	NextRune        rune             // for RangeStmt w/ strings only
+	Body                       // for non-loop stmts
+	BodyLen       int          // for for-continue
+	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps        int          // number of Ops, for goto
+	NumValues     int          // number of Values, for goto
+	NumExprs      int          // number of Exprs, for goto
+	NumStmts      int          // number of Stmts, for goto
+	closure       *Closure     // for ForStmt
+	Cond          Expr         // for ForStmt
+	Post          Stmt         // for ForStmt
+	Active        Stmt         // for PopStmt()
+	Key           Expr         // for RangeStmt
+	Value         Expr         // for RangeStmt
+	Op            Word         // for RangeStmt
+	ListLen       int          // for RangeStmt only
+	ListIndex     int          // for RangeStmt only
+	NextItem      *MapListItem // fpr RangeStmt w/ maps only
+	StrLen        int          // for RangeStmt w/ strings only
+	StrIndex      int          // for RangeStmt w/ strings only
+	NextRune      rune         // for RangeStmt w/ strings only
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {

@@ -777,32 +777,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				debug.Printf("static block of n is: %v \n", n.Source.GetStaticBlock())
 				debug.Println("---names of staticBlock is: ", n.Source.GetStaticBlock().GetBlockNames())
 
-				// We need to closure-call if any variables
-				// used were declared in a for-loop, and this
-				// is the outer-most function within the loop.
-				// NOTE: if the variable is defined as a
-				// function parameter of the closure, then it
-				// is shadowed and not relevant whether or not
-				// the closure is immediately called.
-
-				// Step 1: check if this func lit is in a loop,
-				// not embedded within another func lit.
-
-				// this should work as a quick detect if funcLitExpr
-				// is in a loop block, if not, return
+				// quick check basic condition for closure
 				_, inLoop := isBlockNodeInLoop(store, n)
 				if !inLoop {
 					debug.Println("---trans_continue")
 					return n, TRANS_CONTINUE
 				}
-				//debug.Println("---loopDepth: ", loopDepth)
 
 				// Step 2: gather all extern names declared in for-loops.
 				leNames := []Name{}
-				leTypes := []Type{}
-				lePaths := []ValuePath{}
-				loopDepth := []uint8{} // distance between the funcLitExpr and outer loop, minimum is 1. depth = VP.Depth-1
-				indexOffsets := []uint16{}
+				loopVars := []Name{}
 
 				isExternName := func(nn Name) bool {
 					for _, name := range n.GetExternNames() {
@@ -813,9 +797,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					return false
 				}
 
+				var targetBlockNode BlockNode
 				for _, name := range n.GetExternNames() {
 					// TODO: note here should get outer most for loop
-					path, indexOffset, bn := n.GetExternPathForName(store, name, isExternName)
+					// sort externs first, and find from outer to inner
+					path, _, bn := n.GetExternPathForName(store, name, isExternName)
 					debug.Printf("---extern nx: %v,  path: %v \n", name, path)
 					debug.Printf("bn: %v \n", bn)
 
@@ -823,10 +809,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						continue // not a loop block path
 					}
 
-					if !isBlockNodeLoop(store, bn) {
-						debug.Println()
+					if !isLoopNode(store, bn) {
 						continue
 					}
+					targetBlockNode = bn
+					// name is loop extern
+					// closure exist
+					leNames = append(leNames, name) // all extern Nxs
+
+					// check loop var and check if it's captured
 					if fs, ok := bn.(*ForStmt); ok {
 						debug.Println("---bn is for stmt, fs: ", fs)
 						debug.Println("---bn is for stmt, fs.Body: ", fs.Body)
@@ -845,43 +836,55 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									// should attach this to for stmt,
 									// when for stmt trans_leave, inject
 									// i := i, with depth adjusted
-									clv := &CapturedLoopVar{
-										name:   nx.Name,
-										offset: path.Depth - 1,
-									}
-									fs.GetStaticBlock().GetBodyStmt().capturedLoopVar = clv
+									//clv := &CapturedLoopVar{
+									//	name:   nx.Name,
+									//	offset: path.Depth - 1,
+									//}
+									//fs.GetStaticBlock().GetBodyStmt().capturedLoopVar = clv
+									loopVars = append(loopVars, nx.Name)
 								}
 							}
 						}
 					}
 
-					typ := n.GetStaticTypeOfAt(store, path)
-
-					// Append loop extern name and related.
-					leNames = append(leNames, name)
-					lePaths = append(lePaths, path)
-					leTypes = append(leTypes, typ)
-					loopDepth = append(loopDepth, path.Depth-1)
-					indexOffsets = append(indexOffsets, indexOffset)
 				}
 				if len(leNames) == 0 {
 					// nothing to transform
 					return n, TRANS_CONTINUE
+				} // has a closure
+
+				clo := &Closure{}
+				// check if loopVar is captured
+			Loop:
+				for _, ln := range leNames {
+					for _, lv := range loopVars {
+						if ln == lv {
+							clo.loopVars = loopVars
+							break Loop
+						}
+					}
 				}
 
 				if debug {
 					debug.Println("---dump names---")
-					for i, name := range leNames {
+					for _, name := range leNames {
 						debug.Println("name: ", name)
-						debug.Println("type: ", leTypes[i])
-						debug.Println("path: ", lePaths[i])
-						debug.Println("loopDepth: ", loopDepth[i])
+					}
+					debug.Println("---end---")
+
+					debug.Println("---dump loopVars---")
+					for _, lv := range loopVars {
+						debug.Println("loopVar: ", lv)
 					}
 					debug.Println("---end---")
 				}
 
+				if targetBlockNode != nil { // outer loop block node
+					debug.Println("---target bn: ", targetBlockNode)
+					targetBlockNode.GetStaticBlock().bodyStmt.closure = clo
+				}
+
 				return n, TRANS_CONTINUE
-				//panic("!!! ITS HAPPENING (insert ron paul jazz hands) !!!")
 
 				// Finally, do the transform.
 				// The inner closure loop externs will be
@@ -1913,53 +1916,37 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *ForStmt:
 				debug.Printf("---trans_leave, for stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 
-				//clv := n.GetStaticBlock().GetBodyStmt().capturedLoopVar
-				//if clv != nil {
-				//	debug.Println("---n.WrappedBody: ", n.WrappedBody[0])
-				//	nn := Preprocess(store, last, n.WrappedBody[0]).(*BlockStmt)
-				//	debug.Println("---nn: ", nn)
-				//	n.Body = []Stmt{nn}
-				//	debug.Println("---n final: ", n)
-				//}
-
-				clv := n.GetStaticBlock().GetBodyStmt().capturedLoopVar
-				if clv != nil {
-
-					debug.Println("---trans_leave, clv: ", clv)
-
-					//nn.SetAttribute(ATTR_PREPROCESSED, true)
-					// step1. adjust vp for nxs in Body
-					// bump 1, with 1 blockStmt wrapped outside
-					//adjustLoopExternPaths(nn, clv.name, clv.offset)
-					//debug.Println("---after adjust is: ", nn)
-
-					// step2. inject i := 1 for loop extern
-					lhs := Nx("i")
-					//lhs.Path = NewValuePath(VPBlock, clv.offset, 0, clv.name)
-					rhs := Nx("i")
-					//rhs.Path = NewValuePath(VPBlock, clv.offset+1, 0, clv.name)
-					as := A(lhs, ":=", rhs)
-
-					debug.Printf("as: %v \n", as)
-					//for _, stmt := range n.Body {
-					//	debug.Println("stmt: ", stmt)
-					//}
+				clo := n.GetStaticBlock().GetBodyStmt().closure
+				if clo != nil {
+					debug.Println("---trans_leave, clo: ", clo)
 
 					stmts := []Stmt{}
-					stmts = append([]Stmt{as}, n.Body...)
+					if clo.loopVars != nil {
+						for _, lv := range clo.loopVars {
+							// step2. inject i := 1 for loop extern
+							lhs := Nx(lv)
+							rhs := Nx(lv)
+							as := A(lhs, ":=", rhs)
+
+							debug.Printf("as: %v \n", as)
+
+							stmts = append([]Stmt{as}, n.Body...)
+						}
+					} else {
+						stmts = n.Body
+					}
 
 					// wrap body with {}
 					nn := BlockS(stmts)
 
-					// TODO: clear vp
-					ResetPaths(nn)
+					// reset staticBlock initialized in for{...}
+					resetStaticBlock(nn)
 					debug.Println("---nn after reset is: ", nn)
 
 					nn = Preprocess(store, n, nn).(*BlockStmt)
 					debug.Println("---nn after preprocess: ", nn)
 
-					//adjustLoopExternPaths(nn, clv.name)
-
+					// replace with wrapped blockStmt
 					n.Body = []Stmt{nn}
 					debug.Println("---n final: ", n)
 				}
@@ -3865,7 +3852,7 @@ func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 	return 0, false
 }
 
-func isBlockNodeLoop(store Store, bn BlockNode) bool {
+func isLoopNode(store Store, bn BlockNode) bool {
 	if bn != nil {
 		switch bn.(type) {
 		case *ForStmt:
@@ -3953,23 +3940,15 @@ func adjustLoopExternPaths(bn BlockNode, loopVar Name) {
 	})
 }
 
-func ResetPaths(bn BlockNode) {
+func resetStaticBlock(bn BlockNode) {
 	debug.Println("---reset VP: ", bn)
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		// expect only preprocessed nodes.
-		//if n.GetAttribute(ATTR_PREPROCESSED) != true {
-		//	panic("expected only preprocessed nodes for adjustLoopExternPaths")
-		//}
-
 		switch stage {
 		case TRANS_ENTER:
 			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
 			switch cn := n.(type) {
 			case *NameExpr:
 				debug.Println("---trans_enter, nx: ", cn)
-				//if cn.Path.Type != VPBlock {
-				//	panic("unexpected value path type for name")
-				//}
 				cn.Path = NewValuePath(VPBlock, 0, 0, cn.Name)
 				cn.SetAttribute(ATTR_PREPROCESSED, false)
 				return cn, TRANS_CONTINUE
@@ -3982,20 +3961,6 @@ func ResetPaths(bn BlockNode) {
 				cn.SetAttribute(ATTR_PREPROCESSED, false)
 				return cn, TRANS_CONTINUE
 			}
-		//case TRANS_LEAVE:
-		//	debug.Println("---trans_leave, n: ", n)
-		//	switch cn := n.(type) {
-		//	case *NameExpr:
-		//		debug.Println("---trans_leave, nameExpr")
-		//		//if cn.Path.Depth == 1 {
-		//		//	localNxs = localNxs[:len(localNxs)-1]
-		//		//}
-		//		debug.Println("---localNx after pop: ", localNxs)
-		//		return cn, TRANS_CONTINUE
-		//	default:
-		//		debug.Println("---trans_leave, default, continue")
-		//		return cn, TRANS_CONTINUE
-		//	}
 		default:
 			return n, TRANS_CONTINUE
 		}
