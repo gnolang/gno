@@ -21,20 +21,15 @@ func init() {
 }
 
 func NewTodolist(title string) (int, string) {
-	// Get user who sent the transaction
-	// txSender := std.GetOrigCaller()
-
+	// Create new Todolist
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state
-	_ := todolistTree.Set(strconv.Itoa(tlid), tl)
+	todolistTree.Set(strconv.Itoa(tlid), tl)
 	tlid++
 	return tlid - 1, "created successfully"
 }
 
 func AddTask(todolistID int, title string) string {
-	// Get user who sent the transaction
-	// txSender := std.GetOrigCaller()
-
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
@@ -54,9 +49,6 @@ func AddTask(todolistID int, title string) string {
 }
 
 func ToggleTaskStatus(todolistID int, taskID int) string {
-	// Get user who sent the transaction
-	// txSender := std.GetOrigCaller()
-
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
