@@ -56,8 +56,8 @@ func ToggleTaskStatus(todolistID int, taskID int) string {
 	}
 
 	// Get the task from the todolist
-	task, ok := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
-	if !ok {
+	task, found := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
+	if !found {
 		return "Task not found"
 	}
 
@@ -78,7 +78,7 @@ func RemoveTask(todolistID int, taskID int) string {
 	}
 
 	// Get the task from the todolist
-	_, ok := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
+	_, ok = tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
 	if !ok {
 		return "Task not found"
 	}
