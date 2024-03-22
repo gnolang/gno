@@ -816,42 +816,52 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// name is loop extern
 					// closure exist
 					leNames = append(leNames, name) // all extern Nxs
-
-					// check loop var and check if it's captured
-					if fs, ok := bn.(*ForStmt); ok {
-						debug.Println("---bn is for stmt, fs: ", fs)
-						debug.Println("---bn is for stmt, fs.Body: ", fs.Body)
-						if as, ok := fs.Init.(*AssignStmt); ok {
-							debug.Println("---init stmt is assignStmt: as: ", as)
-							if as.Op == DEFINE {
-								debug.Println("---is Define")
-								debug.Println("lhs: ", as.Lhs)
-								if len(as.Lhs) != 1 {
-									panic("incorrect len of lhs in for init stmt")
-								}
-								debug.Println("lhs[0]: ", as.Lhs[0])
-								debug.Println("type lhs[0]: ", reflect.TypeOf(as.Lhs[0]))
-								if nx, ok := as.Lhs[0].(*NameExpr); ok {
-									debug.Println("---nx: ", nx)
-									// should attach this to for stmt,
-									// when for stmt trans_leave, inject
-									// i := i, with depth adjusted
-									//clv := &CapturedLoopVar{
-									//	name:   nx.Name,
-									//	offset: path.Depth - 1,
-									//}
-									//fs.GetStaticBlock().GetBodyStmt().capturedLoopVar = clv
-									loopVars = append(loopVars, nx.Name)
-								}
-							}
-						}
-					}
-
+					break
 				}
+				// end loop
+
 				if len(leNames) == 0 {
 					// nothing to transform
 					return n, TRANS_CONTINUE
 				} // has a closure
+
+				// check loop var and check if it's captured
+				if fs, ok := targetBlockNode.(*ForStmt); ok {
+					debug.Println("---bn is for stmt, fs: ", fs)
+					debug.Println("---bn is for stmt, fs.Body: ", fs.Body)
+					if as, ok := fs.Init.(*AssignStmt); ok {
+						debug.Println("---init stmt is assignStmt: as: ", as)
+						if as.Op == DEFINE {
+							debug.Println("---is Define")
+							debug.Println("lhs: ", as.Lhs)
+							if len(as.Lhs) != 1 {
+								panic("incorrect len of lhs in for init stmt")
+							}
+							debug.Println("lhs[0]: ", as.Lhs[0])
+							debug.Println("type lhs[0]: ", reflect.TypeOf(as.Lhs[0]))
+							if nx, ok := as.Lhs[0].(*NameExpr); ok { // should only one lhs
+								debug.Println("---nx: ", nx)
+								loopVars = append(loopVars, nx.Name)
+							}
+						}
+					}
+				}
+				// check range case
+				if rs, ok := targetBlockNode.(*RangeStmt); ok {
+					debug.Println("---bn is range stmt")
+					debug.Printf("---key: %v, value: %v \n", rs.Key, rs.Value)
+					if nx, ok := rs.Key.(*NameExpr); ok {
+						if nx.Name != "_" {
+							loopVars = append(loopVars, nx.Name)
+						}
+					}
+					if nx, ok := rs.Value.(*NameExpr); ok {
+						if nx.Name != "_" {
+							loopVars = append(loopVars, nx.Name)
+						}
+					}
+					debug.Println("---loopVars for rangeStmt is: ", loopVars)
+				}
 
 				clo := &Closure{}
 				// check if loopVar is captured
@@ -1964,6 +1974,41 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *RangeStmt:
 				debug.Printf("---trans_leave, range stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				// NOTE: k,v already defined @ TRANS_BLOCK.
+				clo := n.GetStaticBlock().GetBodyStmt().closure
+				if clo != nil {
+					debug.Println("---trans_leave, clo: ", clo)
+
+					body := []Stmt{}
+					injectStmt := []Stmt{}
+					if clo.loopVars != nil {
+						for _, lv := range clo.loopVars {
+							// step2. inject i := 1 for loop extern
+							lhs := Nx(lv)
+							rhs := Nx(lv)
+							as := A(lhs, ":=", rhs)
+
+							debug.Printf("as: %v \n", as)
+							injectStmt = append(injectStmt, as)
+						}
+						body = append(injectStmt, n.Body...)
+					} else {
+						body = n.Body
+					}
+
+					// wrap body with {}
+					nn := BlockS(body)
+
+					// reset staticBlock initialized in for{...}
+					resetStaticBlock(nn)
+					debug.Println("---nn after reset is: ", nn)
+
+					nn = Preprocess(store, n, nn).(*BlockStmt)
+					debug.Println("---nn after preprocess: ", nn)
+
+					// replace with wrapped blockStmt
+					n.Body = []Stmt{nn}
+					debug.Println("---n final: ", n)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
