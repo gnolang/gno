@@ -47,7 +47,7 @@ var (
 func validatePkgOrRlmPath(path string) error {
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
-		return errors.New("path must be in the format gno.land/{p|r}/path/...")
+		return errors.New("path must be in the format [gno.land/{p|r}/path/...]")
 	}
 	if parts[0] != "gno.land" {
 		return errors.New("invalid domain, must be gno.land")

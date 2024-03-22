@@ -53,8 +53,6 @@ func TestMemPackage_Validate(t *testing.T) {
 }
 
 func TestRePkgOrRlmPath(t *testing.T) {
-	t.Parallel()
-
 	for _, tc := range []struct {
 		desc, in    string
 		errContains string
@@ -87,7 +85,7 @@ func TestRePkgOrRlmPath(t *testing.T) {
 		{
 			desc:        "No Path 1",
 			in:          "gno.land/p",
-			errContains: "path must be in the format gno.land/{p|r}/path/...",
+			errContains: "path must be in the format [gno.land/{p|r}/path/...]",
 		},
 		{
 			desc:        "No Path 2",
