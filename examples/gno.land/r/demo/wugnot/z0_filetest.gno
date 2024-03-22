@@ -7,6 +7,8 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
