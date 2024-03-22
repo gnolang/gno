@@ -1,4 +1,4 @@
-# Test for https://github.com/gnolang/gno/pull/xxxx
+# Test for https://github.com/gnolang/gno/pull/1799
 loadpkg gno.land/r/demo/foo20
 
 gnoland start
