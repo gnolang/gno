@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"testing"
 	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func generateSeed() []byte {
@@ -19,7 +21,7 @@ func TestMutate(t *testing.T) {
 	rng := rand.NewFromSeed(seed)
 
 	originalValue := "Hello"
-	fuzzer := StringFuzzer{Value: originalValue, rng: rng}
+	fuzzer := StringFuzzer{Value: originalValue}
 
 	newFuzzer := fuzzer.Mutate().(*StringFuzzer)
 
@@ -30,16 +32,9 @@ func TestMutate(t *testing.T) {
 	if len(newFuzzer.Value) != len(originalValue) {
 		t.Errorf("Mutated string has different length: got %s (len=%v), want %s (len=%v)", newFuzzer.Value, len(newFuzzer.Value), originalValue, len(originalValue))
 	}
-
-	if newFuzzer.rng != fuzzer.rng {
-		t.Errorf("RNG instance in StringFuzzer has changed after mutation")
-	}
 }
 
 func TestSelection(t *testing.T) {
-	seed := generateSeed()
-	rng := rand.NewFromSeed(seed)
-
 	tests := []struct {
 		name       string
 		population []*Individual
@@ -68,7 +63,7 @@ func TestSelection(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			selected := Selection(tc.population, rng)
+			selected := Selection(tc.population)
 			if len(selected) != len(tc.population) {
 				t.Errorf("Expected selected length to be %d, got %d", len(tc.population), len(selected))
 			}
@@ -77,26 +72,74 @@ func TestSelection(t *testing.T) {
 }
 
 func helperNewStringFuzzer(value string) *StringFuzzer {
-	seed := generateSeed()
-	rng := rand.NewFromSeed(seed)
-	return &StringFuzzer{Value: value, rng: rng}
+	return &StringFuzzer{Value: value}
 }
 
 func TestCrossover(t *testing.T) {
-	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("Loremipsumdolorsitamet,consectetur"), Fitness: 0}
-	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("adipiscingelit,seddoeiusmodtemporincididuntutlabore"), Fitness: 0}
+	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("foobar"), Fitness: 0}
+	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("bazbiz"), Fitness: 0}
 
 	seed := generateSeed()
 	rng := rand.NewFromSeed(seed)
 
 	var child1, child2 *Individual
 	for i := 0; i < 100; i++ {
-		child1, child2 = Crossover(parent1, parent2, rng)
-		// println("ch1: ", child1.Fuzzer.String())
-		// println("ch2: ", child2.Fuzzer.String())
+		child1, child2 = Crossover(parent1, parent2)
 	}
 
-	if child1.Fuzzer.String() == "hello," || child2.Fuzzer.String() == "world" {
+	if child1.Fuzzer.String() == "foobar" || child2.Fuzzer.String() == "bazbiz" {
 		t.Errorf("Crossover did not modify children correctly, got %s and %s", child1.Fuzzer.String(), child2.Fuzzer.String())
+	}
+}
+
+func Test_main(t *testing.T) {
+	population := []*Individual{
+		{Fuzzer: &StringFuzzer{Value: "hello"}},
+		{Fuzzer: &StringFuzzer{Value: "fuzz"}},
+		{Fuzzer: &StringFuzzer{Value: "worldwide"}},
+		{Fuzzer: &StringFuzzer{Value: "barfoo"}},
+	}
+
+	for _, ind := range population {
+		ind.calculateFitness()
+	}
+
+	for generation := 0; generation < 10; generation++ {
+		population = Selection(population)
+
+		newPopulation := make([]*Individual, 0, len(population))
+		for i := 0; i < len(population); i += 2 {
+			if i+1 < len(population) {
+				child1, child2 := Crossover(population[i], population[i+1])
+				newPopulation = append(newPopulation, child1, child2)
+			} else {
+				newPopulation = append(newPopulation, population[i])
+			}
+		}
+		// Apply mutation operator
+		for _, ind := range newPopulation {
+			if GenerateRandomBool(0.1) { // 10% mutation rate
+				ind.Mutate()
+			}
+		}
+
+		// Calculate fitness for the new population
+		for _, ind := range newPopulation {
+			ind.calculateFitness()
+		}
+
+		// Print the best individual from the current generation
+		bestFitness := 0
+		bestIndividual := ""
+		for _, ind := range newPopulation {
+			if ind.Fitness > bestFitness {
+				bestFitness = ind.Fitness
+				bestIndividual = ind.Fuzzer.String()
+			}
+		}
+
+		// Update the population for the next generation
+		population = newPopulation
+		println("Generation", generation, ":", bestIndividual, "Fitness:", bestFitness)
 	}
 }

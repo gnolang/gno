@@ -8,12 +8,12 @@ import (
 // Internal state for the random number generator.
 var x uint64 = 42
 
-// _rand generates a uniformly distributed random number.
+// UniformRand generates a uniformly distributed random number.
 // It uses the linear congrential generator method to produce the random number.
 // and the result is in the range from 0 to m-1. here, m is 32768.
 // To produce random number in [0, m-1], repeat this method as many times as needed.
 // [1] https://en.wikipedia.org/wiki/Linear_congruential_generator
-func _rand() uint64 {
+func UniformRand() uint64 {
 	var a uint64 = 950213
 	var c uint64 = 12345
 	var m uint64 = 32768
@@ -43,17 +43,33 @@ func nrand() float64 {
 	var y float64 = 0
 
 	for i = 0; i < K; i++ {
-		y += float64(_rand()) / float64(m)
+		y += float64(UniformRand()) / float64(m)
 	}
 	y = (y - float64(K)/2) / math.Sqrt(float64(K)/12)
 	return y
 }
 
+// randRange generates a random integer between min and max (inclusive).
+// This function leverages the UniformRand function to generate a random number in a specified range.
+// Note: max should be greater than min.
+func randRange(min, max int) uint64 {
+	_min := uint64(min)
+	_max := uint64(max)
+	if _min >= _max {
+		return _min
+	}
+
+	rangeSize := _max - _min + 1
+	// adjust UniformRand to fit into our range.
+	return _min + (UniformRand() % rangeSize)
+}
+
 func GenerateRandomBool(bias float64) bool {
+	// Modify to use fuzz's random function for generating boolean with bias
 	if bias < 0 || bias > 1 {
 		panic("bias should be in the range [0, 1]")
 	}
-
-	res := nrand()
+	// Convert fuzz's normalized range random float [-1, 1] to [0, 1]
+	res := (nrand() + 1) / 2
 	return res > bias
 }
