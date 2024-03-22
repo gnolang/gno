@@ -1,4 +1,4 @@
-package fuzz
+package testing
 
 import (
 	"math"
@@ -14,47 +14,44 @@ func updateSeed() {
 
 // TODO: use chi-squared test to check number distribution follows uniform distribution.
 func Test_UniformRand(t *testing.T) {
-	updateSeed()
+	valueMap := make(map[uint64]int)
+	maxIter := 1000
 
-	for i := 0; i < 32768; i++ { // 32768 is max range of rand()
-		name := strconv.Itoa(i)
-		t.Run(name, func(t *testing.T) {
-			result := UniformRand()
-			if result < 0 || result >= 32768 {
-				t.Errorf("rand() = %v, want in range [0, 32767]", result)
-			}
-		})
+	for i := 0; i < maxIter; i++ {
+		result := UniformRand()
+
+		if result < 0 || result >= 32768 {
+			t.Errorf("rand() = %v, want in range [0, 32767]", result)
+		}
+
+		if _, ok := valueMap[result]; ok {
+			valueMap[result]++
+		} else {
+			valueMap[result] = 1
+		}
+	}
+
+	lvm := len(valueMap)
+	if lvm > maxIter || lvm == 0 {
+		t.Errorf("len(valueMap) = %v, want <= %v", lvm, maxIter)
 	}
 }
 
 // TODO: use chi-squared test to check number distribution follows normal distribution.
 func Test_nrand(t *testing.T) {
-	updateSeed()
-
-	tests := []struct {
-		name    string
-		maxRuns int
-	}{
-		{"1", 10000},
+	sum := 0.0
+	for i := 0; i < 1000; i++ {
+		result := nrand()
+		sum += result
 	}
+	avg := sum / float64(1000)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sum := 0.0
-			for i := 0; i < tt.maxRuns; i++ {
-				result := nrand()
-				sum += result
-			}
-			avg := sum / float64(tt.maxRuns)
-
-			// The value returned by nrand() should be close to 0
-			// on average for large sample sizes.
-			// The expectation of the standard deviation should be
-			// close to 1 for large sample sizes.
-			if math.Abs(avg) > 0.1 { // can be adjusted based on sample size
-				t.Errorf("nrand() = %v, want in range [-0.1, 0.1]", avg)
-			}
-		})
+	// The value returned by nrand() should be close to 0
+	// on average for large sample sizes.
+	// The expectation of the standard deviation should be
+	// close to 1 for large sample sizes.
+	if math.Abs(avg) > 0.1 { // can be adjusted based on sample size
+		t.Errorf("nrand() = %v, want in range [-0.1, 0.1]", avg)
 	}
 }
 

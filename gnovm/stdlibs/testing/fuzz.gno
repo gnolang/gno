@@ -1,16 +1,20 @@
-package fuzz
+package testing
 
 import (
 	"math"
+	"strings"
+	"time"
 )
 
 type Fuzzer interface {
+	InsertDeleteMutate(p float64) Fuzzer
 	Mutate() Fuzzer
 	String() string
 }
 
 type StringFuzzer struct {
 	Value string
+	f     *F
 }
 
 // Mutate changes a StringFuzzer's value by replacing a random character
@@ -21,16 +25,35 @@ func (sf *StringFuzzer) Mutate() Fuzzer {
 		return sf
 	}
 	index := randRange(0, len(runes)-1)
-	runes[index] = rune(randomASCIIChar())
+	runes[index] = randomASCIIChar()
 	return &StringFuzzer{Value: string(runes)}
+}
+
+func (sf *StringFuzzer) InsertDeleteMutate(p float64) Fuzzer {
+	return &StringFuzzer{Value: InsertDelete(sf.Value, p)}
+}
+
+func (sf *StringFuzzer) Fuzz() string {
+	if GenerateRandomBool(0.2) {
+		return InsertDelete(sf.Value, 0.1)
+	} else {
+		rs := []rune(sf.Value)
+		if len(rs) > 0 {
+			index := randRange(0, len(rs)-1)
+			rs[index] = randomASCIIChar()
+		}
+
+		return string(rs)
+	}
 }
 
 func (sf *StringFuzzer) String() string {
 	return sf.Value
 }
 
-func randomASCIIChar() int {
-	return int(randRange(32, 126))
+func randomASCIIChar() rune {
+	r := int(randRange(32, 126))
+	return rune(r)
 }
 
 // Individual represents a single individual in the population.
@@ -79,13 +102,59 @@ func Crossover(parent1, parent2 *Individual) (*Individual, *Individual) {
 	p1Runes := []rune(parent1.Fuzzer.String())
 	p2Runes := []rune(parent2.Fuzzer.String())
 
-	crossoverPoint := int(randRange(0, len(p1Runes)-1))
-	child1 := append(append([]rune{}, p1Runes[:crossoverPoint]...), p2Runes[crossoverPoint:]...)
-	child2 := append(append([]rune{}, p2Runes[:crossoverPoint]...), p1Runes[crossoverPoint:]...)
+	p1Len := len(p1Runes)
+	p2Len := len(p2Runes)
+
+	point := 0
+	if p1Len >= p2Len {
+		point = int(randRange(0, p2Len-1))
+	} else {
+		point = int(randRange(0, p1Len-1))
+	}
+	child1 := append(append([]rune{}, p1Runes[:point]...), p2Runes[point:]...)
+	child2 := append(append([]rune{}, p2Runes[:point]...), p1Runes[point:]...)
 
 	return &Individual{Fuzzer: &StringFuzzer{Value: string(child1)}}, &Individual{Fuzzer: &StringFuzzer{Value: string(child2)}}
 }
 
 func (ind *Individual) Mutate() {
 	ind.Fuzzer = ind.Fuzzer.Mutate()
+}
+
+// InsertDelete randomly inserts or deletes a character from a string.
+func InsertDelete(s string, p float64) string {
+	rr := []rune(s)
+	l := len(rr)
+
+	// Insert
+	if GenerateRandomBool(p) {
+		pos := randRange(0, l-1)
+		char := randomASCIIChar()
+		rr = append(rr, 0)
+		copy(rr[pos+1:], rr[pos:])
+		rr[pos] = char
+	} else {
+		// delete
+		if l > 0 {
+			pos := randRange(0, l-1)
+			rr = append(rr[:pos], rr[pos+1:]...)
+		}
+	}
+
+	return string(rr)
+}
+
+type F struct {
+	corpus []string
+}
+
+func (f *F) Add(values ...interface{}) []Fuzzer {
+	fuzzers := make([]Fuzzer, len(values))
+
+	for i, v := range values {
+		f.corpus = append(f.corpus, v.(string))
+		fuzzers[i] = &StringFuzzer{Value: v.(string)}
+	}
+
+	return fuzzers
 }

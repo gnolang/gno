@@ -1,8 +1,6 @@
-package fuzz
+package testing
 
 import (
-	"crypto/chacha20/chacha"
-	"crypto/chacha20/rand"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -10,16 +8,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func generateSeed() []byte {
-	seed := make([]byte, chacha.KeySize)
-	binary.LittleEndian.PutUint64(seed, uint64(time.Now().UnixNano()))
-	return seed
-}
-
 func TestMutate(t *testing.T) {
-	seed := generateSeed()
-	rng := rand.NewFromSeed(seed)
-
 	originalValue := "Hello"
 	fuzzer := StringFuzzer{Value: originalValue}
 
@@ -79,9 +68,6 @@ func TestCrossover(t *testing.T) {
 	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("foobar"), Fitness: 0}
 	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("bazbiz"), Fitness: 0}
 
-	seed := generateSeed()
-	rng := rand.NewFromSeed(seed)
-
 	var child1, child2 *Individual
 	for i := 0; i < 100; i++ {
 		child1, child2 = Crossover(parent1, parent2)
@@ -92,6 +78,7 @@ func TestCrossover(t *testing.T) {
 	}
 }
 
+// NOT TESTING PURPOSE (just main function)
 func Test_main(t *testing.T) {
 	population := []*Individual{
 		{Fuzzer: &StringFuzzer{Value: "hello"}},
@@ -104,7 +91,7 @@ func Test_main(t *testing.T) {
 		ind.calculateFitness()
 	}
 
-	for generation := 0; generation < 10; generation++ {
+	for generation := 0; generation < 250; generation++ {
 		population = Selection(population)
 
 		newPopulation := make([]*Individual, 0, len(population))
@@ -123,14 +110,23 @@ func Test_main(t *testing.T) {
 			}
 		}
 
+		for _, ind := range newPopulation {
+            if GenerateRandomBool(0.1) {
+                ind.Fuzzer = ind.Fuzzer.InsertDeleteMutate(0.3)
+            }
+        }
+
 		// Calculate fitness for the new population
 		for _, ind := range newPopulation {
 			ind.calculateFitness()
 		}
 
 		// Print the best individual from the current generation
-		bestFitness := 0
-		bestIndividual := ""
+		var (
+			bestFitness    int
+			bestIndividual string
+		)
+
 		for _, ind := range newPopulation {
 			if ind.Fitness > bestFitness {
 				bestFitness = ind.Fitness
