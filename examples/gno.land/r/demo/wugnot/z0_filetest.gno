@@ -37,7 +37,7 @@ func main() {
 
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
-		wugnotBal := wugnot.BalanceOf(addr)
+		wugnotBal := wugnot.BalanceOf(pusers.AddressOrName(addr))
 		std.TestSetOrigCaller(addr)
 		abanker := std.GetBanker(std.BankerTypeOrigSend)
 		acoins := abanker.GetCoins(addr).AmountOf("ugnot")
