@@ -11,6 +11,7 @@ import (
 func TestReadOnlyPublicMethods(t *testing.T) {
 	admin := pusers.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	manfred := pusers.AddressOrName("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	unknown := pusers.AddressOrName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // valid but never used.
 
 	type test struct {
 		name    string
@@ -25,6 +26,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
+			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf(unknown) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {
@@ -33,17 +35,18 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		}
 	}
 
-	// admin uses the faucet.
-	std.TestSetOrigCaller(users.Resolve(admin))
+	// unknown uses the faucet.
+	std.TestSetOrigCaller(users.Resolve(unknown))
 	Faucet()
 
 	// check balances #2.
 	{
 		tests := []test{
 			{"TotalSupply", 10110000000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10010000000, func() uint64 { return BalanceOf(admin) }},
+			{"BalanceOf(admin)", 10000000000, func() uint64 { return BalanceOf(admin) }},
 			{"BalanceOf(manfred)", 100000000, func() uint64 { return BalanceOf(manfred) }},
 			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance(admin, manfred) }},
+			{"BalanceOf(unknown)", 10000000, func() uint64 { return BalanceOf(unknown) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {
