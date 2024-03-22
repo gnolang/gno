@@ -2,7 +2,6 @@ package todolist
 
 import (
 	"bytes"
-	"std"
 	"strconv"
 
 	"gno.land/p/demo/avl"
@@ -13,7 +12,7 @@ import (
 // State variables
 var (
 	todolistTree *avl.Tree
-	tlid int
+	tlid         int
 )
 
 // Constructor
@@ -23,18 +22,18 @@ func init() {
 
 func NewTodolist(title string) (int, string) {
 	// Get user who sent the transaction
-	txSender := std.GetOrigCaller()
+	// txSender := std.GetOrigCaller()
 
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state
-	success := todolistTree.Set(strconv.Itoa(tlid), tl)
+	_ := todolistTree.Set(strconv.Itoa(tlid), tl)
 	tlid++
-	return tlid-1, "created successfully"
+	return tlid - 1, "created successfully"
 }
 
 func AddTask(todolistID int, title string) string {
 	// Get user who sent the transaction
-	txSender := std.GetOrigCaller()
+	// txSender := std.GetOrigCaller()
 
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
@@ -87,7 +86,7 @@ func RemoveTask(todolistID int, taskID int) string {
 	}
 
 	// Get the task from the todolist
-	task, ok := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
+	_, ok := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
 	if !ok {
 		return "Task not found"
 	}
