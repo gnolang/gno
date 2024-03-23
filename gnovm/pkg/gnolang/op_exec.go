@@ -956,9 +956,6 @@ func (m *Machine) doOpSwitchClauseCase() {
 	cliv := m.PeekValue(3) // clause index (reuse)
 
 	// eval whether cv == tv.
-	if debug {
-		assertEqualityTypes(cv.T, tv.T)
-	}
 	match := isEql(m.Store, cv, tv)
 	if match {
 		// matched clause
