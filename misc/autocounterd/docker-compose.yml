@@ -1,0 +1,13 @@
+version: "3"
+services:
+  autocounterd:
+    image: ghcr.io/gnolang/gno/autocounterd
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      COUNTER_MNEMONIC: "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+      COUNTER_RPC: "http://127.0.0.1:26657"
+      COUNTER_CHAIN_ID: "dev"
+      COUNTER_INTERVAL: "5s"
+      COUNTER_REALM: "gno.land/r/portal/counter"
