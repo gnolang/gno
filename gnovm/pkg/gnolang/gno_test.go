@@ -17,6 +17,93 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
+func TestBuiltinIdentifiersShadowing(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{}
+
+	uverseNames := []string{
+		"iota",
+		"append",
+		"cap",
+		"close",
+		"complex",
+		"copy",
+		"delete",
+		"len",
+		"make",
+		"new",
+		"panic",
+		"print",
+		"println",
+		"recover",
+		"nil",
+		"bigint",
+		"bool",
+		"byte",
+		"float32",
+		"float64",
+		"int",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+		"rune",
+		"string",
+		"uint",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+		"typeval",
+		"error",
+		"true",
+		"false",
+	}
+
+	for _, name := range uverseNames {
+		tests[("struct builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			type %v struct {}
+
+			func main() {}
+		`, name)
+
+		tests[("var builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				%v := 1
+			}
+		`, name)
+
+		tests[("var declr builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				var %v int
+			}
+		`, name)
+	}
+
+	for n, s := range tests {
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("shadowing test: `%s` should have failed but didn't\n", n)
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			nn := MustParseFile("main.go", s)
+			m.RunFiles(nn)
+			m.RunMain()
+		})
+	}
+}
+
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
 	t.Parallel()
