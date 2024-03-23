@@ -97,7 +97,7 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 If you're new here, don't worry—content is regularly produced to breakdown
 Gno.land to explain its features. Dive into the essentials of Gno.land by 
-exploring the Concepts section.
+exploring the [Concepts](../../concepts/concepts.md) section.
 
 To get started writing Gno code, check out the
 [How-to](../../how-to-guides/how-to-guides.md) section, the `examples/` folder on
