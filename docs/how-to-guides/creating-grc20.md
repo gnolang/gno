@@ -2,10 +2,10 @@
 id: creating-grc20
 ---
 
-# How to create a GRC20 Token
+# How to Create a GRC20 Token
 ## Overview
 
-This guide shows you how to write a simple **GRC20** Smart Contract, or rather
+This guide shows you how to write a simple **GRC20**
 a [Realm](../concepts/realms.md), in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
 [deployment](deploy.md) guide.
 
@@ -16,7 +16,7 @@ Our **GRC20** Realm will have the following functionality:
 - Fetching the balance of an account.
 
 ## 1. Importing token package
-For this realm, we'll want to import the `grc20` package as this will include
+For this realm, we import the `grc20` package, as this includes
 the main functionality of our token factory realm.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
@@ -48,14 +48,14 @@ func init() {
 
 ```
 
-In this code preview, we have:
-- Defined a new local variable `mytoken` and assigned that the type of
-pointer to `grc20.AdminToken`,
-- Defined and set the value of local variable `admin` to point to a specific
+In this code preview, we will:
+- Defines a new token variable (local), `mytoken`, and assigns it to a
+pointer, `grc20.AdminToken`,
+- Defines and sets the value of an administrator variable (local), `admin`, to point to a specific
 address of type `std.Address`,
-- Initialize `mytoken` as a new GRC20 token, and set its name, symbol, and 
+- Initializes `mytoken` as a new GRC20 token, and set its name, symbol, and 
 decimal values,
-- Minted 1 million units of `My Token` and to the admin's address.
+- Mint 1 million units of `My Token` and assign them to the admin's address.
 
 ## 2. Adding token functionality
 
@@ -157,22 +157,22 @@ Detailing what is happening in the above code:
 - Calling the `BalanceOf` method would return the total balance of an account.
 - Calling the `Allowance` method would set an account as an allowed spender to
 serve on behalf of the owner.
-- Calling the `transfer` method would transfer a configurable amount of token 
+- Calling the `transfer` method transfers a configurable amount of token
 from the calling account to another account, either owned or unowned.
-- Calling the `Approve` method would approve a calling account to spend a
-configurable amount of token on behalf of the token owner.
-- Calling the `TransferFrom` method would transfer a configurable amount of 
+- Calling the `Approve` method approves a calling account to spend a
+configurable amount of token(s) on behalf of the token owner.
+- Calling the `TransferFrom` method transfers a configurable amount of 
 token from an account that granted approval to another account, either owned or unowned.
-- Calling the `Mint` method would create a configurable number of tokens by 
+- Calling the `Mint` method creates a configurable number of tokens by 
 the administrator.
-- Calling the `Burn` method would destroy a configurable number of tokens by
+- Calling the `Burn` method destroys a configurable number of tokens by
 the administrator.
-- Calling the `Render` method would return a user's `balance` as a formatted
+- Calling the `Render` method returns a user's `balance` as a formatted
 string. Learn more about the `Render`
   method and how it's used [here](../concepts/realms.md).
-- Finally, we provide a local function to assert that the calling account is in
-fact the owner, otherwise panic. This is a very important function that serves
-to prevent abuse by non-administrators.
+- Lastly, we provide a local function designed to verify that the calling account is
+indeed the owner; it triggers a panic if this is not the case. This critical function acts
+as a safeguard to prevent unauthorized actions by non-administrators.
 
 ## Conclusion
 

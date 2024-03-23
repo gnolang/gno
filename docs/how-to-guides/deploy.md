@@ -25,7 +25,7 @@ For this, check out the [**Deployment from a local environment**](#deployment-fr
 
 ### Using Gno Playground
 
-To demonstrate deployment via the Playground, we'll use the **Counter** realm.
+To demonstrate deployment using the Playground, we'll use the **Counter** realm.
 You can access the sample code via
 [this Playground link](https://play.gno.land/p/iUWTha99D1J).
 
