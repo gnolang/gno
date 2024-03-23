@@ -51,7 +51,7 @@ SelectStmt ->
 // operation is that the value of the expression is pushed onto the stack.
 
 func (m *Machine) doOpExec(op Op) {
-	s := m.PeekStmt(1) // TODO: PeekStmt1()?
+	s := m.PeekStmt()
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
@@ -906,7 +906,7 @@ func (m *Machine) doOpTypeSwitch() {
 }
 
 func (m *Machine) doOpSwitchClause() {
-	ss := m.PeekStmt1().(*SwitchStmt)
+	ss := m.PeekStmt().(*SwitchStmt)
 	// tv := m.PeekValue(1) // switch tag value
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
@@ -983,7 +983,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 		m.PushStmt(b.GetBodyStmt())
 	} else {
 		// try next case or clause.
-		ss := m.PeekStmt1().(*SwitchStmt) // peek switch stmt
+		ss := m.PeekStmt().(*SwitchStmt) // peek switch stmt
 		clidx := cliv.GetInt()
 		cl := ss.Clauses[clidx]
 		caidx := caiv.GetInt()
