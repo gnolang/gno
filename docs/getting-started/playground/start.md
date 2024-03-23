@@ -6,7 +6,7 @@ id: start
 
 ## Overview
 
-The Gno Playground is a web editor and sandbox that enables developers to 
+The Gno Playground is an innovative web-based editor and sandbox that enables developers to 
 interactively work with the Gno language. It makes coding, testing,
 and deploying simple with its diverse set of tools and features. Users can
 share code, run tests, and deploy projects to Gno.land networks, 
