@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strconv"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -68,7 +71,57 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	hasError := false
-	addIssue := func(issue lintIssue) {
+	addIssue := func(issue lintIssue, checkComments bool) {
+		if (checkComments) {
+			fset := token.NewFileSet()
+	
+			splittedString := strings.Split(issue.Location, ":")
+			if len(splittedString) < 2 {
+				return
+			}
+
+			location := splittedString[0]
+			line, err := strconv.Atoi(splittedString[1])
+			if err != nil {
+				return
+			}
+			content, err := osm.ReadFile(location)
+			if err != nil {
+				return
+			}
+
+			astf, err := parser.ParseFile(fset, "", content, parser.ParseComments)
+			if err != nil {
+				return
+			}
+
+			for _, commentGroup := range astf.Comments {
+				currentPos := fset.Position(commentGroup.Pos()).Line
+				words := strings.FieldsFunc(commentGroup.Text(), func(r rune) bool {
+					return r == ' ' || r == ':' || r == ','
+				})
+				if len(words) == 0 {
+					continue
+				}
+
+				if !(strings.Contains(words[0], "nolint") && currentPos == line) {
+					continue
+				}
+
+				if len(words) > 1 {
+					for _, word := range words {
+						if word == issue.Code.rule {
+							// Found!
+							return
+						}
+					}
+				} else {
+					return
+				}
+			}
+		}
+
+
 		hasError = true
 		fmt.Fprint(io.Err(), issue.String()+"\n")
 	}
@@ -86,7 +139,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				Confidence: 1,
 				Location:   pkgPath,
 				Msg:        "missing 'gno.mod' file",
-			})
+			}, false)
 		}
 
 		// Handle runtime errors
@@ -164,7 +217,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action func()) {
+func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue, checkComments bool), action func()) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -201,18 +254,21 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 			issue.Msg = err.Error()
 		}
 
-		addIssue(issue)
+		addIssue(issue, false)
 	}()
 
 	action()
 }
 
-type lintCode int
+type lintCode struct {
+	code int
+	rule string
+}
 
-const (
-	lintUnknown  lintCode = 0
-	lintNoGnoMod lintCode = iota
-	lintGnoError
+var (
+    lintUnknown  = lintCode{0, "unknown"}
+    lintNoGnoMod = lintCode{1, "NoGnoMod"}
+    lintGnoError = lintCode{2, "GnoError"}
 
 	// TODO: add new linter codes here.
 )
