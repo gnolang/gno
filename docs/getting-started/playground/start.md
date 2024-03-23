@@ -95,9 +95,9 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 ## Learning about Gno.land & writing Gno code
 
-Gno.land is a complex technical system, and as such many concepts need to be 
-explained to newcomers. For reading more about Gno.land, 
-check out the [Concepts](../../concepts/concepts.md) section.
+If you're new here, don't worry—content is regularly produced to breakdown
+Gno.land to explain its features. Dive into the essentials of Gno.land by 
+exploring the Concepts section.
 
 To get started writing Gno code, check out the
 [How-to](../../how-to-guides/how-to-guides.md) section, the `examples/` folder on
