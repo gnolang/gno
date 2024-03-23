@@ -1,0 +1,21 @@
+gnoland start
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script.gno
+
+-- script.gno --
+package main
+
+import (
+    "gno.land/r/demo/disperse"
+    "std"
+)
+
+func main() {
+
+
+
+    toSend := std.Coins{}
+
+
+
+}
