@@ -17,30 +17,60 @@ import (
 	"github.com/jaekwon/testify/require"
 )
 
-func BenchmarkIsUverseName(b *testing.B) {
-	a := map[string]struct{}{}
-
-	for i := 0; i < b.N; i++ {
-		_, _ = a[string(rune(i))]
-	}
-}
-
 func TestBuiltinIdentifiersShadowing(t *testing.T) {
 	tests := map[string]string{}
 
-	uverseNames := UverseNode().GetBlockNames()
+	uverseNames := []string{
+		"iota",
+		"append",
+		"cap",
+		"close",
+		"complex",
+		"copy",
+		"delete",
+		"len",
+		"make",
+		"new",
+		"panic",
+		"print",
+		"println",
+		"recover",
+		"nil",
+		"bigint",
+		"bool",
+		"byte",
+		"float32",
+		"float64",
+		"int",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+		"rune",
+		"string",
+		"uint",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+		"typeval",
+		"error",
+		"true",
+		"false",
+	}
+
 	for _, name := range uverseNames {
 		tests[string("struct builtin "+name)] = fmt.Sprintf(`
 			package test
 
 			type %v struct {}
-	
+
 			func main() {}
 		`, name)
 
 		tests[string("var builtin "+name)] = fmt.Sprintf(`
 			package test
-	
+
 			func main() {
 				%v := 1
 			}
@@ -48,7 +78,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 
 		tests[string("var declr builtin "+name)] = fmt.Sprintf(`
 			package test
-	
+
 			func main() {
 				var %v int
 			}
