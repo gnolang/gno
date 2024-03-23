@@ -33,7 +33,6 @@ The Playground has the following features:
 - `Run` - Execute a particular expression within your code to validate its functionality and output.
 - `Test` - Execute predefined tests to verify your code's integrity and ensure it meets expected outcomes.
 - `REPL` - Experiment and troubleshoot in real-time using the GnoVM with interactive REPL features.
-interactive REPL features (experimental)
 
 Let's dive into each of the Playground features.
 
@@ -62,11 +61,13 @@ cost at the time of deployment, removing the need for using a faucet.
 :::
 
 ### Format
+
 The **Format** feature utilizes the Monaco editor and
 [`gofmt`](https://pkg.go.dev/cmd/gofmt) to automatically refine and standardize 
 your Gno code's syntax.
 
 ### Run
+
 The **Run** feature will allow you to run an expression on your Gno code. Take the following code
 for an example:
 
@@ -89,8 +90,8 @@ will show you the output of the test. Read more about how Gno tests work
 
 ### REPL (experimental)
 
-The **REPL** Feature, although experimental, will let you experiment with the GnoVM
-in REPL mode. 
+The **REPL** feature allows you to experiment with the GnoVM.
+It provides a command-line interface for hands-on learning, iterative testing, and swift prototyping.
 
 ## Learning about Gno.land & writing Gno code
 
