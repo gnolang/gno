@@ -15,10 +15,6 @@ Our **GRC20** Realm will have the following functionality:
 - Keeping track of total token supply.
 - Fetching the balance of an account.
 
-## Prerequisites
-
-- **Internet connection**
-
 ## 1. Importing token package
 For this realm, we'll want to import the `grc20` package as this will include
 the main functionality of our token factory realm.

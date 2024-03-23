@@ -17,10 +17,6 @@ Our _Counter_ Realm will have the following functionality:
 - Incrementing / decrementing the count.
 - Fetching the current count value.
 
-## Prerequisites
-
-- **Internet connection**
-
 ## 1. Using Gno Playground
 
 When using the Gno Playground, writing, testing, deploying, and sharing Gno code

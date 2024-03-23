@@ -11,10 +11,6 @@ Realms and Packages we write. We will go over different CLI tools available to
 developers, gno testing libraries as well as testing techniques that involve 
 data mocking.
 
-## Prerequisites
-
-- **Internet connection**
-
 ## Example Realm
 
 For the purpose of this guide, we will be testing the simple **Counter** Realm created in

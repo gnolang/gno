@@ -13,10 +13,6 @@ intricacies of Packages, please see the [Packages concept page](../concepts/pack
 The Package we will be writing today will be a simple library for suggesting a random tapas dish.
 We will define a set list of tapas, and define a method that randomly selects a dish from the list.
 
-## Prerequisites
-
-- **Internet connection**
-
 ## 1. Using Gno Playground
 
 When using the Gno Playground, writing, testing, deploying, and sharing Gno code

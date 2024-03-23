@@ -10,10 +10,6 @@ This guide will show you how to write a complete dApp that combines both a packa
 Our app will allow any user to create a poll, and subsequently vote
 YAY or NAY for any poll that has not exceeded the voting deadline.
 
-## Prerequisites
-
-- **Internet connection**
-
 ## Defining dApp functionality
 
 Our dApp will consist of a Poll package, which will handle all things related to the Poll struct,

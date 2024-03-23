@@ -21,7 +21,6 @@ For this, check out the [**Deployment from a local environment**](#deployment-fr
 
 ### Prerequisites
 
-- **Internet connection**
 - **A Gno.land-compatible wallet, such as [Adena](https://adena.app)**
 
 ### Using Gno Playground
