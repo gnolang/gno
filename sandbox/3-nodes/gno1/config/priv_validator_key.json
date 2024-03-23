@@ -1,0 +1,11 @@
+{
+  "address": "g146crh74xyvlmnrknuqanguej6qrv5s2zv0tch2",
+  "pub_key": {
+    "@type": "/tm.PubKeyEd25519",
+    "value": "onYYkQTWUb1ycZxbMcB99fZchJFt+eTsAqtw8BIDJYY="
+  },
+  "priv_key": {
+    "@type": "/tm.PrivKeyEd25519",
+    "value": "QzOSLRAGQc2pUuzoo8tfHBWq/6ZFNlEAJVXkA6m04GWidhiRBNZRvXJxnFsxwH319lyEkW355OwCq3DwEgMlhg=="
+  }
+}
