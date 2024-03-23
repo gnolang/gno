@@ -60,7 +60,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 	}
 
 	for _, name := range uverseNames {
-		tests[string("struct builtin "+name)] = fmt.Sprintf(`
+		tests[("struct builtin " + name)] = fmt.Sprintf(`
 			package test
 
 			type %v struct {}
@@ -68,7 +68,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			func main() {}
 		`, name)
 
-		tests[string("var builtin "+name)] = fmt.Sprintf(`
+		tests[("var builtin " + name)] = fmt.Sprintf(`
 			package test
 
 			func main() {
@@ -76,7 +76,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			}
 		`, name)
 
-		tests[string("var declr builtin "+name)] = fmt.Sprintf(`
+		tests[("var declr builtin " + name)] = fmt.Sprintf(`
 			package test
 
 			func main() {
