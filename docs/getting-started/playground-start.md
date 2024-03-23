@@ -1,5 +1,5 @@
 ---
-id: start
+id: playground-start
 ---
 
 # Gno Playground
@@ -24,7 +24,7 @@ Gno.land, with more wallets being introduced in the future.
 To get started, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a
 simple `package.gno` file:
 
-![default_playground](../../assets/getting-started/playground/default_playground.png)
+![default_playground](../assets/getting-started/playground/default_playground.png)
 
 The Playground has the following features:
 - `Share` - Generate a unique, short, and shareable identifier for your Gno code.
@@ -49,10 +49,10 @@ The **Deploy** feature allows users to seamlessly deploy their Gno code to the
 chain. After connecting a Gno.land wallet, users can select their desired 
 package path and network for deployment.
 
-![default_deploy](../../assets/getting-started/playground/default_deploy.png)
+![default_deploy](../assets/getting-started/playground/default_deploy.png)
 
 After inputting your desired package path, you can select the network you would 
-like to deploy to, such as [Portal Loop](../../concepts/portal-loop.md) or local,
+like to deploy to, such as [Portal Loop](../concepts/portal-loop.md) or local,
 and click deploy.
 
 :::info
@@ -71,7 +71,7 @@ your Gno code's syntax.
 The **Run** feature will allow you to run an expression on your Gno code. Take the following code
 for an example:
 
-[![run_example](../../assets/getting-started/playground/run.png)](https://play.gno.land/p/nBq2W8drjMy)
+[![run_example](../assets/getting-started/playground/run.png)](https://play.gno.land/p/nBq2W8drjMy)
 
 Running `println(Render("Gnopher"))` will display the following output:
 
@@ -86,7 +86,7 @@ View the code [here](https://play.gno.land/p/nBq2W8drjMy).
 The **Test** feature will look for `_test.gno` files in your playground and run 
 the`gno test -v` command on them. Testing your code will open a terminal that
 will show you the output of the test. Read more about how Gno tests work
-[here](../../concepts/gno-test.md).
+[here](../concepts/gno-test.md).
 
 ### REPL (experimental)
 
@@ -97,9 +97,9 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 If you're new here, don't worry—content is regularly produced to breakdown
 Gno.land to explain its features. Dive into the essentials of Gno.land by 
-exploring the [Concepts](../../concepts/concepts.md) section.
+exploring the [Concepts](../concepts/concepts.md) section.
 
 To get started writing Gno code, check out the
-[How-to](../../how-to-guides/how-to-guides.md) section, the `examples/` folder on
+[How-to](../how-to-guides/how-to-guides.md) section, the `examples/` folder on
 the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
 [awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.

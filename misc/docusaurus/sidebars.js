@@ -9,13 +9,7 @@ const sidebars = {
             label: 'Getting Started',
             link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
-                {
-                    type: "category",
-                    label: 'Using Gno Playground',
-                    items: [
-                        'getting-started/playground/start',
-                    ]
-                },
+                'getting-started/playground-start',
                 {
                  type: "category",
                  label: 'Local Setup',
