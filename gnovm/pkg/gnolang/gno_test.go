@@ -18,6 +18,7 @@ import (
 )
 
 func TestBuiltinIdentifiersShadowing(t *testing.T) {
+	t.Parallel()
 	tests := map[string]string{}
 
 	uverseNames := []string{
@@ -87,6 +88,8 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 
 	for n, s := range tests {
 		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
 			defer func() {
 				if r := recover(); r == nil {
 					t.Fatalf("shadowing test: `%s` should have failed but didn't\n", n)
