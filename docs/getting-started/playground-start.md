@@ -14,7 +14,6 @@ making it the perfect tool to get started with Gno development.
 
 ## Prerequisites
 
-- **Internet connection**
 - **A Gno.land compatible wallet**
   - Currently, [Adena](https://www.adena.app/) is the go-to wallet for
 Gno.land, with more wallets being introduced in the future.
