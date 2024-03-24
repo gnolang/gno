@@ -78,7 +78,7 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	}
 
 	if page < 1 {
-		panic("page count cannot be less than 1")
+		panic("page number cannot be less than 1")
 	}
 
 	// No empty pages
@@ -89,6 +89,11 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	// No pages larger than 10
 	if pageSize > 10 {
 		panic("page size cannot be larger than 10")
+	}
+
+	// Need to pass in a sort parameter
+	if sortBy == "" {
+		panic("sortBy cannot be empty")
 	}
 
 	var filteredPosts []*Post
@@ -113,7 +118,7 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 			},
 		}
 		sort.Sort(dateSorter)
-	default:
+	case "DATE_CREATED":
 		// Sort by timestamp, beginning with newest
 		dateSorter := PostSorter{
 			Posts: filteredPosts,
@@ -122,6 +127,8 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 			},
 		}
 		sort.Sort(dateSorter)
+	default:
+		panic("sortBy can only be \"UPVOTES\" or \"DATE_CREATED\"")
 	}
 
 	// Pagination
