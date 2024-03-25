@@ -133,7 +133,7 @@ The realm will contain the following functionality:
 package poll
 
 import (
-    "bytes"
+	"bytes"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -213,16 +213,9 @@ import path in the realm code.
 :::
 
 With that we have written the core functionality of the realm, and all that is left is
-the [Render function](http://localhost:3000/explanation/realms).
+the [Render function](../concepts/realms.md).
 Its purpose is to help us display the state of the realm in Markdown, by formatting the state into a string buffer:
 
-Add this library:
-```go
-import (
-	...
-	"bytes"
-)
-```
 
 [embedmd]:# (../assets/how-to-guides/write-simple-dapp/poll-3.gno go)
 ```go
