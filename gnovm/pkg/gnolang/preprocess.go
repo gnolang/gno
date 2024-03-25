@@ -640,7 +640,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
 				// POP BLOCK YOURSELF.
 				case BlockNode:
-					// mutate bodystmt if needed
+					// mutate body if needed, mostly for implicit loop formed by goto label
+					// this can not be done in gotoStmt that mutate body while transcribe body
 					if imc != nil && imc.last == n {
 						debug.Printf("---trans_leave, has implicitClosure: %v \n", imc)
 						debug.Println("---names: ", imc.last.GetBlockNames())
@@ -650,7 +651,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 						// TODO: other outer block node handling
 						switch bns := imc.last.(type) {
-						//case *FuncDecl, *IfCaseStmt, *BlockStmt, *RangeStmt, *SwitchClauseStmt:
 						case *FuncDecl:
 							bns.Body = imc.nBody
 							imc.last = bns
@@ -663,7 +663,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						case *RangeStmt:
 							bns.Body = imc.nBody
 							imc.last = bns
+						case *ForStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
 						case *SwitchClauseStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
+						case *FuncLitExpr:
 							bns.Body = imc.nBody
 							imc.last = bns
 						}
@@ -1847,6 +1853,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case CONTINUE:
 				case GOTO:
 					debug.Println("---Goto")
+					debug.Println("---last of origin: ", last)
 					_, depth, index, labelLine := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
@@ -1855,11 +1862,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 					debug.Printf("---branchStmt, n.Label: %v, n.Line: %d \n", n.GetLabel(), n.GetLine())
 
-					println("---closureStack, height of ns is: ", len(closureStack))
+					debug.Println("---closureStack, height of ns is: ", len(closureStack))
 					for i, nd := range closureStack {
-						println("=================================")
+						debug.Println("=================================")
 						fmt.Printf("node[%d] type is: %T, value is: %v \n", i, nd, nd)
-						println("=================================")
+						debug.Println("=================================")
 					}
 
 					// TODO, NOTE this only support basic goto label, should be expanded
@@ -1891,6 +1898,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 											postBody = append(postBody, s)
 										}
 									}
+
 									debug.Println("---preBody: ", preBody)
 									debug.Println("---loopBody: ", loopBody)
 									debug.Println("---postBody: ", postBody)
@@ -1905,12 +1913,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 									debug.Println("---nBody: ", nBody)
 									debug.Println("---len of nBody: ", len(nBody))
-									debug.Println("---last: ", last)
+									debug.Println("---last after preprocess: ", last)
 									debug.Println("---type of last: ", reflect.TypeOf(last))
-									//if fd, ok := last.(*FuncDecl); ok {
-									//	fd.Body = nBody
-									//	last = fd
-									//}
+									// mutate body when this node end transcribed
 									imc = &implicitClosure{
 										nBody: nBody,
 										last:  last,
