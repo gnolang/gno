@@ -276,21 +276,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
 				pushInitBlock(n, &last, &stack)
-				// wrap body with blockstmt
-				debug.Println("---trans_block, for stmt")
-
-				//as := A(Nx("i"), ":=", Nx("i"))
-				//debug.Printf("as: %v \n", as)
-				//for _, stmt := range n.Body {
-				//	debug.Println("stmt: ", stmt)
-				//}
-				//nb := []Stmt{as}
-				//nb = append(nb, n.Body...)
-				//debug.Println("---new body: ", nb)
-				//
-				//bsn := BlockS(nb)
-				//n.WrappedBody = []Stmt{bsn}
-				//debug.Println("---n.WrappedBody: ", n.WrappedBody)
 
 			// TRANS_BLOCK -----------------------
 			case *IfStmt:
@@ -828,7 +813,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				var targetBlockNode BlockNode
 				for _, name := range n.GetExternNames() {
-					// TODO: note here should get outer most for loop
+					// TODO: note here should get outer most for loop, fix it,
 					// sort externs first, and find from outer to inner
 					path, bn := n.GetExternPathForName(store, name, isExternName)
 					debug.Printf("---extern nx: %v,  path: %v \n", name, path)
@@ -850,7 +835,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// end loop
 
 				if len(leNames) == 0 {
-					// nothing to transform
+					// no closure
 					return n, TRANS_CONTINUE
 				} // has a closure
 
@@ -4025,6 +4010,7 @@ func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
 // ----------------------------------------
 // SaveBlockNodes
 
+// TODO: fix this
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
 func SaveBlockNodes(store Store, fn *FileNode) {

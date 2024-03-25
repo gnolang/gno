@@ -687,23 +687,18 @@ func (m *Machine) doOpFuncLit() {
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
 
-	V := &FuncValue{
-		Type:       ft,
-		IsMethod:   false,
-		Source:     x,
-		Name:       "",
-		Closure:    lb,
-		PkgPath:    m.Package.PkgPath,
-		body:       x.Body,
-		nativeBody: nil,
-	}
-
-	debug.Println("---V: ", V)
-	debug.Println(V == nil)
-
 	m.PushValue(TypedValue{
 		T: ft,
-		V: V,
+		V: &FuncValue{
+			Type:       ft,
+			IsMethod:   false,
+			Source:     x,
+			Name:       "",
+			Closure:    lb,
+			PkgPath:    m.Package.PkgPath,
+			body:       x.Body,
+			nativeBody: nil,
+		},
 	})
 }
 

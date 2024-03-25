@@ -21,7 +21,6 @@ func (m *Machine) doOpEval() {
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
-		debug.Printf("---OpEval, nx: %v \n", nx)
 		m.PopExpr()
 		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
