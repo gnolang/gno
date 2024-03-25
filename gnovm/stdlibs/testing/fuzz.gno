@@ -4,6 +4,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type Fuzzer interface {
@@ -146,6 +148,21 @@ func InsertDelete(s string, p float64) string {
 
 type F struct {
 	corpus []string
+	failed bool     // Indicates whether the fuzzing has encountered a failure.
+	msgs   []string // Stores log messages for reporting.
+	iters  int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
+}
+
+// Runner is a type for the target function to fuzz.
+type Runner func([]interface{})
+
+// Fuzz applies the fuzzing process to the target function.
+func (f *F) Fuzz(targetFunc Runner, iter int) {
+	f.evolve(iter)
+
+	for _, input := range f.corpus {
+		targetFunc([]interface{}{input})
+	}
 }
 
 // Add adds test values to initialize the corpus.
@@ -165,8 +182,7 @@ func (f *F) Add(values ...interface{}) []Fuzzer {
 	return fuzzers
 }
 
-// Fuzz generates test values by evolving the corpus.
-func (f *F) Fuzz(generations int) {
+func (f *F) evolve(generations int) {
 	population := make([]*Individual, len(f.corpus))
 	for i, c := range f.corpus {
 		population[i] = &Individual{Fuzzer: &StringFuzzer{Value: c, f: f}}
@@ -220,7 +236,19 @@ func (f *F) Fuzz(generations int) {
 }
 
 // Fail marks the function as having failed bur continue execution.
-func (f *F) Fail() {}
+func (f *F) Fail() {
+	f.failed = true
+}
 
 // Fatal is equivalent to Log followed by FailNow.
-func (f *F) Fatal(args ...interface{}) {}
+// It logs the message and marks the fuzzing as failed.
+func (f *F) Fatal(args ...interface{}) {
+	var sb strings.Builder
+
+	for _, arg := range args {
+		sb.WriteString(ufmt.Sprintf("%s", arg))
+	}
+
+	f.msgs = append(f.msgs, sb.String())
+	f.Fail()
+}

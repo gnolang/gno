@@ -2,6 +2,7 @@ package testing
 
 import (
 	"encoding/binary"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,13 +79,12 @@ func TestCrossover(t *testing.T) {
 	}
 }
 
-func Test_Fuzz(t *testing.T) {
+func Test_StringManipulation(t *testing.T) {
 	f := &F{
 		corpus: []string{"hello", "world", "foo", "bar"},
 	}
-	println("initial corpus:", f.corpus)
 
-	f.Fuzz(30)
+	f.evolve(30)
 
 	if len(f.corpus) != 4 {
 		t.Fatalf("corpus length is %d, want 4", len(f.corpus))
@@ -102,19 +102,82 @@ func Test_Fuzz(t *testing.T) {
 		if f.corpus[0] == "hello" {
 			t.Fatalf("corpus[0] is still the same: %s", f.corpus[0])
 		}
-	
+
 		if f.corpus[1] == "world" {
 			t.Fatalf("corpus[1] is still the same: %s", f.corpus[1])
 		}
-	
+
 		if f.corpus[2] == "foo" {
 			t.Fatalf("corpus[2] is still the same: %s", f.corpus[2])
 		}
-	
+
 		if f.corpus[3] == "bar" {
 			t.Fatalf("corpus[3] is still the same: %s", f.corpus[3])
 		}
-	
+
 	}
 	println("\nFinal corpus:", f.corpus)
+}
+
+func TestFuzz(t *testing.T) {
+	testFunc := func(inputs []interface{}) {
+		for _, input := range inputs {
+			strInput, ok := input.(string)
+			if !ok {
+				t.Errorf("Type mismatch, expected a string but got %T", input)
+				continue
+			}
+			words := strings.Fields(strInput)
+			if len(words) == 0 {
+				t.Errorf("Expected non-empty input")
+			}
+		}
+	}
+
+	f := F{}
+	f.Add("hello", "world", "foo")
+	f.Fuzz(testFunc, 5)
+
+	if len(f.corpus) == 0 {
+		t.Fatalf("Fuzzing corpus is empty after testing")
+	}
+
+	if len(f.corpus) > 3 {
+		t.Fatalf("Fuzzing corpus has more than 3 elements: %v", f.corpus)
+	}
+
+	for _, c := range f.corpus {
+		if c == "hello" || c == "world" || c == "foo" {
+			t.Fatalf("Fuzzing corpus still contains the original elements: %v", f.corpus)
+		}
+	}
+
+	println("\nFinal corpus:", f.corpus)
+}
+
+func TestF_Fail(t *testing.T) {
+	f := F{}
+	f.Fail()
+
+	if !f.failed {
+		t.Errorf("Fail did not set the failed flag.")
+	}
+}
+
+func TestF_Fatal(t *testing.T) {
+	f := F{}
+	testMessage := "test failure message"
+	f.Fatal(testMessage)
+
+	if !f.failed {
+		t.Errorf("Fatal did not set the failed flag.")
+	}
+
+	if len(f.msgs) != 1 {
+		t.Fatalf("Fatal did not set the message correctly: got %v, want %v", f.msgs, testMessage)
+	}
+
+	if !strings.Contains(f.msgs[0], testMessage) {
+		t.Errorf("Fatal did not set the message correctly: got %v, want %v", f.msgs[0], testMessage)
+	}
 }
