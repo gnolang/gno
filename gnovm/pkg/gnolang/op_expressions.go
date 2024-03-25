@@ -682,7 +682,6 @@ func (m *Machine) doOpFuncLit() {
 	debug.Printf("---doOpFuncLit, x: %v \n", x)
 
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
-	debug.Println("---ft: ", ft)
 
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()

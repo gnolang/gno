@@ -596,7 +596,6 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
-	debug.Println("---GetSource")
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
 		fv.Source = source
@@ -2310,7 +2309,6 @@ func (b *Block) StringIndented(indent string) string {
 }
 
 func (b *Block) GetSource(store Store) BlockNode {
-	//debug.Println("---block GetSource, b: ", b)
 	if rn, ok := b.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
 		b.Source = source

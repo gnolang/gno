@@ -543,7 +543,6 @@ EXEC_SWITCH:
 		m.PopStmt()
 		fr := m.LastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
-		debug.Println("ft: ", ft)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)
 		// If has defers, return from the block stack.

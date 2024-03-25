@@ -776,7 +776,6 @@ type ForStmt struct {
 	Cond Expr // condition; or nil
 	Post Stmt // post iteration (simple) statement; or nil
 	Body
-	WrappedBody Body
 }
 
 type GoStmt struct {
@@ -986,10 +985,6 @@ type FuncDecl struct {
 	Type     FuncTypeExpr  // function signature: parameters and results
 	Body                   // function body; or empty for external (non-Go) function
 }
-
-//func (x *FuncDecl) SetBody(b Body) {
-//	x.Body = b
-//}
 
 func (x *FuncDecl) GetDeclNames() []Name {
 	if x.IsMethod {

@@ -89,11 +89,8 @@ func (m *Machine) doOpCall() {
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
 				ptr := b.GetPointerToInt(nil, numParams+i)
-				debug.Println("---ptr: ", ptr)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
-				debug.Println("---dtv: ", dtv)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
-				debug.Println("---ptr after assign: ", ptr)
 			}
 		}
 		// Exec body.
@@ -156,7 +153,6 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
-	debug.Println("---pvs: ", pvs)
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
 		if debug {
@@ -180,7 +176,6 @@ func (m *Machine) doOpCall() {
 		// Make a copy so that a reference to the argument isn't used
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
-		debug.Println("---do pv copy: ", pv)
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
 }

@@ -479,6 +479,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	loc := bn.GetLocation()
 	if loc.IsZero() {
+		// TODO: fix this
 		//panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
