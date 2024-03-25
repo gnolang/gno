@@ -39,3 +39,15 @@ LOOP_START:
 		return
 	}
 }
+
+// Output:
+// Outer loop start: counter0=0
+//   Nested loop: counter1=0
+//   Nested loop: counter1=1
+// Exiting nested loop
+// Outer loop start: counter0=1
+//   Nested loop: counter1=0
+//   Nested loop: counter1=1
+// Exiting nested loop
+// 0
+// 1

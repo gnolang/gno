@@ -643,18 +643,31 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// mutate bodystmt if needed
 					if imc != nil && imc.last == n {
 						debug.Printf("---trans_leave, has implicitClosure: %v \n", imc)
-						debug.Println("---n: ", n)
 						debug.Println("---names: ", imc.last.GetBlockNames())
 						debug.Println("---values: ", imc.last.GetStaticBlock().Values)
 						debug.Println("---last: ", imc.last)
 						debug.Println("---nBody: ", imc.nBody)
 
 						// TODO: other outer block node handling
-						if fd, ok := imc.last.(*FuncDecl); ok {
-							fd.Body = imc.nBody
-							imc.last = fd
+						switch bns := imc.last.(type) {
+						//case *FuncDecl, *IfCaseStmt, *BlockStmt, *RangeStmt, *SwitchClauseStmt:
+						case *FuncDecl:
+							bns.Body = imc.nBody
+							imc.last = bns
+						case *IfCaseStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
+						case *BlockStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
+						case *RangeStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
+						case *SwitchClauseStmt:
+							bns.Body = imc.nBody
+							imc.last = bns
 						}
-						debug.Println("---defer last: ", imc.last)
+						debug.Println("---new n: ", imc.last)
 						//imc = nil
 						n = imc.last
 					}

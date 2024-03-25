@@ -772,6 +772,7 @@ EXEC_SWITCH:
 		debug.Println("---op_exec, blockStmt")
 		debug.Println("---cs: ", cs)
 		debug.Println("---cs.NumNames: ", cs.GetNumNames())
+		debug.Println("---cs blockNames: ", cs.GetBlockNames())
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
