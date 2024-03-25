@@ -1,7 +1,3 @@
-package mytoken
-
-import "github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }

@@ -17,7 +17,8 @@ Our **GRC20** Realm will have the following functionality:
 
 ## 1. Importing token package
 For this realm, we import the `grc20` package, as this includes
-the main functionality of our token factory realm.
+the main functionality of our token realm. The package can be found the 
+`gno.land/p/demo/grc/grc20` path.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go

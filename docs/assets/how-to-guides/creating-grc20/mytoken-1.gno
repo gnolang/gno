@@ -22,3 +22,4 @@ func init() {
 	// Mint 1 million tokens to admin
 	mytoken.Mint(admin, 1000000*10000)
 }
+
