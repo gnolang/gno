@@ -1841,9 +1841,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					gotoLine := n.GetLine()
 
 					debug.Printf("---branchStmt, n.Label: %v, n.Line: %d \n", n.GetLabel(), n.GetLine())
-					debug.Println("depth:, index:, labelLine:", depth, index, labelLine)
-					debug.Printf("---BranchStmt, last: %v, %T \n", last, last)
-					debug.Println("---going to find funcLitExpr blockNode")
 
 					println("---closureStack, height of ns is: ", len(closureStack))
 					for i, nd := range closureStack {
@@ -1852,16 +1849,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						println("=================================")
 					}
 
-					// XXX, Hacky way for special case of a goto label forms an implicit loop block
-					// especially when to goto stmt is after the label, and has
-					// funcLitExpr embedded in this block.
-					// XXX, Note that in this case, all logic about capture happens here since
-					// funcLitExpr is already traversed without knowing if there is
-					// an outer loopBlock.
-					// and due to the face blockNode in []stack in popped every time the node
-					// is done preprocess, so a specified stack call []snare is used to catch
-					// this pattern. can this be improved?
-					if labelLine < gotoLine { // only jmp to previous line make it loop?
+					// TODO, NOTE this only support basic goto label, should be expanded
+					// find outer most block?
+					if labelLine < gotoLine {
 						for i := len(closureStack) - 1; i >= 0; i-- {
 							if fx, ok := closureStack[i].(*FuncLitExpr); ok {
 								// do staff on fx, copy x here
