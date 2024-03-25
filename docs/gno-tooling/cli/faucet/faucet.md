@@ -8,25 +8,25 @@ id: running-a-faucet
 
 In this tutorial, we will cover how to run a local native currency faucet that works seamlessly with a Gno node.
 Using the faucet, any address can get a hold of native currency funds in case they
-haven't [premined a balance beforehand](premining-balances.md).
+haven't [premined a balance beforehand](../../../getting-started/local-setup/premining-balances.md).
 
 ## Prerequisites
 
 - **`gnoland`, `gnofaucet` and `gnoweb` set up. Reference
-  the [Installation](../local-setup.md#3-installing-other-gno-tools) guide for steps**
+  the [Installation](../../../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide for steps**
 
 ## 1. Ensure a topped-up faucet address
 
 The Gno faucet works by designating a single address as a faucet address that will distribute funds.
 
-Ensure the faucet account will have enough funds by [premining its balance](premining-balances.md) to a high value.
+Ensure the faucet account will have enough funds by [premining its balance](../../../getting-started/local-setup/premining-balances.md) to a high value.
 In case you do not have an existing address added to `gnokey`, you can consult
-the [Working with Key Pairs](../working-with-key-pairs.md) guide.
+the [Working with Key Pairs](../../../getting-started/local-setup/working-with-key-pairs.md) guide.
 
 ## 2. Start the local chain
 
 After ensuring the faucet address will have enough funds in the premine, we
-can [run the local blockchain node](../setting-up-a-local-chain.md).
+can [run the local blockchain node](../../../getting-started/local-setup/setting-up-a-local-chain.md).
 Navigate to the `gno.land` sub-folder and run the appropriate make command:
 
 ```bash
@@ -50,7 +50,7 @@ The command will prompt you to enter the decryption password for the key you've 
 
 This will initialize the faucet to listen on port `5050`, by default.
 
-![gnofaucet serve](../../assets/getting-started/setting-up-funds/gnofaucet-serve.gif)
+![gnofaucet serve](../../../assets/getting-started/local-setup/setting-up-funds/gnofaucet-serve.gif)
 
 ## 4. Start the `gnoweb` interface
 
@@ -65,7 +65,7 @@ gnoweb
 
 This will initialize the `gnoweb` interface on `http://127.0.0.1:8888`.
 
-![gnoweb](../../assets/getting-started/setting-up-funds/gnoweb.gif)
+![gnoweb](../../../assets/getting-started/local-setup/setting-up-funds/gnoweb.gif)
 
 ## 5. Use the deployed faucet
 
@@ -73,7 +73,7 @@ Once `gnoweb` has been started, you can navigate to http://127.0.0.1:8888/faucet
 
 Simply input the desired address you wish to receive funds on (`1 GNOT` by default), and press the `GO` button.
 
-![gnofaucet page](../../assets/getting-started/setting-up-funds/faucet-page.png)
+![gnofaucet page](../../../assets/getting-started/local-setup/setting-up-funds/faucet-page.png)
 
 After you've added the address, you should see a success message in the browser:
 
