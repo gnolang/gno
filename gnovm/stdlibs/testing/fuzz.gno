@@ -3,6 +3,7 @@ package testing
 import (
 	"math"
 	"strings"
+	"testing"
 	"time"
 
 	"gno.land/p/demo/ufmt"
@@ -154,14 +155,19 @@ type F struct {
 }
 
 // Runner is a type for the target function to fuzz.
-type Runner func([]interface{})
+type Runner func(*T, ...interface{})
 
 // Fuzz applies the fuzzing process to the target function.
-func (f *F) Fuzz(targetFunc Runner, iter int) {
+func (f *F) Fuzz(run Runner, iter int) {
 	f.evolve(iter)
 
 	for _, input := range f.corpus {
-		targetFunc([]interface{}{input})
+		args := make([]interface{}, len(f.corpus))
+		for i := range args {
+			args[i] = input
+		}
+
+		run(nil, args...)
 	}
 }
 

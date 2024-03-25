@@ -120,23 +120,22 @@ func Test_StringManipulation(t *testing.T) {
 }
 
 func TestFuzz(t *testing.T) {
-	testFunc := func(inputs []interface{}) {
+	f := F{}
+	f.Add("hello", "world", "foo")
+	f.Fuzz(func(t *testing.T, inputs ...interface{}) {
 		for _, input := range inputs {
 			strInput, ok := input.(string)
 			if !ok {
 				t.Errorf("Type mismatch, expected a string but got %T", input)
 				continue
 			}
+
 			words := strings.Fields(strInput)
 			if len(words) == 0 {
 				t.Errorf("Expected non-empty input")
 			}
 		}
-	}
-
-	f := F{}
-	f.Add("hello", "world", "foo")
-	f.Fuzz(testFunc, 5)
+	}, 15)
 
 	if len(f.corpus) == 0 {
 		t.Fatalf("Fuzzing corpus is empty after testing")
@@ -151,8 +150,6 @@ func TestFuzz(t *testing.T) {
 			t.Fatalf("Fuzzing corpus still contains the original elements: %v", f.corpus)
 		}
 	}
-
-	println("\nFinal corpus:", f.corpus)
 }
 
 func TestF_Fail(t *testing.T) {
