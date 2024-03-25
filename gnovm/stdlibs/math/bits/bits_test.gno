@@ -646,12 +646,12 @@ func BenchmarkReverseBytes64(b *testing.B) {
 
 func TestLen(t *testing.T) {
 	for i := 0; i < 256; i++ {
-		len := 8 - tab[i].nlz
+		length := 8 - tab[i].nlz
 		for k := 0; k < 64-8; k++ {
 			x := uint64(i) << uint(k)
 			want := 0
 			if x != 0 {
-				want = len + k
+				want = length + k
 			}
 			if x <= 1<<8-1 {
 				got := Len8(uint8(x))
