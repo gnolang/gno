@@ -21,6 +21,8 @@ the main functionality of our token factory realm.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go
+package mytoken
+
 import (
 	"std"
 	"strings"
@@ -36,23 +38,22 @@ var (
 
 // init is called once at time of deployment
 func init() {
-    // Set deployer of Realm to admin 
-    admin = std.PrevRealm().Addr()
+	// Set deployer of Realm to admin
+	admin = std.PrevRealm().Addr()
 
-    // Set token name, symbol and number of decimals
-    mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
+	// Set token name, symbol and number of decimals
+	mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
 
-    // Mint 1 million tokens to admin
-    mytoken.Mint(admin, 1000000*10000)
+	// Mint 1 million tokens to admin
+	mytoken.Mint(admin, 1000000*10000)
 }
-
 ```
 
-In this code preview, we will:
-- Defines a new token variable (local), `mytoken`, and assigns it to a
-pointer, `grc20.AdminToken`,
-- Defines and sets the value of an administrator variable (local), `admin`, to point to a specific
-address of type `std.Address`,
+The code snippet above does the following:
+- Defines a new token variable, `mytoken`, and assigns it to a
+pointer to the GRC20 token type, `grc20.AdminToken`,
+- Defines and sets the value of `admin` with a type of `std.Address` to contain 
+the address of the deployer
 - Initializes `mytoken` as a new GRC20 token, and set its name, symbol, and 
 decimal values,
 - Mint 1 million units of `My Token` and assign them to the admin's address.
@@ -106,14 +107,22 @@ func Approve(spender std.Address, amount uint64) {
 
 func TransferFrom(from, to std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
+
+	if amount <= 0 {
+		panic("transfer amount must be greater than zero")
+	}
+
 	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
 		panic(err)
 	}
 }
 
 func Mint(address std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
+	assertIsAdmin(std.PrevRealm().Addr())
+
+	if amount <= 0 {
+		panic("mint amount must be greater than zero")
+	}
 
 	if err := mytoken.Mint(address, amount); err != nil {
 		panic(err)
@@ -121,8 +130,11 @@ func Mint(address std.Address, amount uint64) {
 }
 
 func Burn(address std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
+	assertIsAdmin(std.PrevRealm().Addr())
+
+	if amount <= 0 {
+		panic("burn amount must be greater than zero")
+	}
 
 	if err := mytoken.Burn(address, amount); err != nil {
 		panic(err)
@@ -173,6 +185,10 @@ string. Learn more about the `Render`
 - Lastly, we provide a local function designed to verify that the calling account is
 indeed the owner; it triggers a panic if this is not the case. This critical function acts
 as a safeguard to prevent unauthorized actions by non-administrators.
+
+
+You can view the full code on [this Playground link](https://play.gno.land/p/1UXqufodX6f).
+
 
 ## Conclusion
 
