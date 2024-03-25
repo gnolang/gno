@@ -98,11 +98,6 @@ func TestConvertArg2Gno_Array(t *testing.T) {
 			raw, err := MarshalTypedValueJSON(&tvIn)
 			require.NoError(t, err)
 
-			// Unquote intermediary result if needed
-			if isQuotedBytes(raw) {
-				raw = unquoteBytes(t, raw)
-			}
-
 			// Check if the representation is correct
 			require.Equal(t, tc.ArgRep, string(raw))
 
@@ -132,10 +127,16 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 	// Nested struct
 	type NestedStruct struct {
 		A int
-		B *NestedStruct
+		B *SimpleStruct
 	}
-	nested := &NestedStruct{A: 42}
-	nested.B = nested
+
+	// Recursive Nested struct
+	type RecurseNestedStruct struct {
+		A int
+		B *RecurseNestedStruct
+	}
+	recurseNested := &RecurseNestedStruct{A: 42}
+	recurseNested.B = recurseNested
 
 	cases := []struct {
 		ValueRep any    // Go representation
@@ -149,9 +150,15 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 		// Struct with unexported field
 		{UnexportedStruct{A: 42, b: "hidden"}, `{"A":42}`},
 
-		// Nested struct.
+		// Struct with nested struct
+		{
+			NestedStruct{A: 42, B: &SimpleStruct{A: true, B: 43}},
+			`{"A":42,"B":{"A":true,"B":43,"C":""}}`,
+		},
+
 		// XXX(FIXME): Currently commented out as it causes stack overflow in `Go2GnoValue`
-		// {nested, `{A:42}`},
+		// Struct with nested and recursive struct
+		// {recurseNested, `{A:42}`},
 	}
 
 	store := setupStore()
@@ -164,11 +171,6 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 			tvIn := gnolang.Go2GnoValue(store.GetAllocator(), store, rv)
 			raw, err := MarshalTypedValueJSON(&tvIn)
 			require.NoError(t, err)
-
-			// Unquote intermediary result if needed
-			if isQuotedBytes(raw) {
-				raw = unquoteBytes(t, raw)
-			}
 
 			// Check if the representation is correct
 			require.Equal(t, tc.ArgRep, string(raw))
