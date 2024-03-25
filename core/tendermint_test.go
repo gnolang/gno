@@ -139,7 +139,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		assert.ErrorIs(
 			t,
@@ -190,7 +191,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		assert.ErrorIs(
 			t,
@@ -238,7 +240,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		assert.ErrorIs(
 			t,
@@ -286,7 +289,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		assert.ErrorIs(
 			t,
@@ -334,7 +338,8 @@ func TestTendermint_AddMessage_Invalid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		assert.ErrorIs(
 			t,
@@ -390,7 +395,8 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		sub, unsubFn := tm.store.subscribeToPropose()
 		defer unsubFn()
@@ -474,7 +480,8 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		sub, unsubFn := tm.store.subscribeToPrevote()
 		defer unsubFn()
@@ -553,7 +560,8 @@ func TestTendermint_AddMessage_Valid(t *testing.T) {
 			nil,
 			signer,
 		)
-		tm.state = newState(currentView)
+		tm.state.setHeight(currentView.Height)
+		tm.state.setRound(currentView.Round)
 
 		sub, unsubFn := tm.store.subscribeToPrecommit()
 		defer unsubFn()
@@ -668,7 +676,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 				mockBroadcast,
 				mockSigner,
 			)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Run through the states
 			tm.finalizeProposal(ctx)
@@ -683,7 +692,7 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 			// Make sure the broadcast propose was valid
 			require.NotNil(t, broadcastPropose)
 			require.NotNil(t, tm.state.acceptedProposal)
-			assert.True(t, broadcastPropose.Equals(tm.state.acceptedProposal))
+			assert.Equal(t, broadcastPropose.GetProposal(), tm.state.acceptedProposal)
 
 			assert.True(t, view.Equals(broadcastPropose.GetView()))
 			assert.Equal(t, id, broadcastPropose.GetSender())
@@ -771,7 +780,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 				mockBroadcast,
 				mockSigner,
 			)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Set the old proposal
 			tm.state.validValue = proposal
@@ -790,7 +800,7 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 			// Make sure the broadcast propose was valid
 			require.NotNil(t, broadcastPropose)
 			require.NotNil(t, tm.state.acceptedProposal)
-			assert.True(t, broadcastPropose.Equals(tm.state.acceptedProposal))
+			assert.Equal(t, broadcastPropose.GetProposal(), tm.state.acceptedProposal)
 
 			assert.True(t, view.Equals(broadcastPropose.GetView()))
 			assert.Equal(t, id, broadcastPropose.GetSender())
@@ -897,7 +907,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Add in the proposal message
 			require.NoError(t, tm.AddProposalMessage(proposalMessage))
@@ -913,7 +924,7 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 			assert.Equal(t, hash, tm.state.acceptedProposalID)
 
 			// Make sure the correct proposal was accepted
-			assert.True(t, proposalMessage.Equals(tm.state.acceptedProposal))
+			assert.Equal(t, proposalMessage.GetProposal(), tm.state.acceptedProposal)
 			assert.Equal(t, hash, tm.state.acceptedProposalID)
 
 			// Make sure the broadcast prevote was valid
@@ -1012,7 +1023,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Add in the proposal message
 			require.NoError(t, tm.AddProposalMessage(proposalMessage))
@@ -1028,7 +1040,7 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 			assert.Equal(t, hash, tm.state.acceptedProposalID)
 
 			// Make sure the correct proposal was accepted
-			assert.True(t, proposalMessage.Equals(tm.state.acceptedProposal))
+			assert.Equal(t, proposalMessage.GetProposal(), tm.state.acceptedProposal)
 			assert.Equal(t, hash, tm.state.acceptedProposalID)
 
 			// Make sure the broadcast prevote was valid
@@ -1128,7 +1140,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Set the locked round
 			tm.state.lockedRound = lockedRound
@@ -1246,7 +1259,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Set the locked round
 			tm.state.lockedRound = lockedRound
@@ -1364,7 +1378,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Set the locked round
 			tm.state.lockedRound = lockedRound
@@ -1480,7 +1495,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 
 			// Create the tendermint instance
 			tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Add in the proposal message
 			require.NoError(t, tm.AddProposalMessage(proposalMessage))
@@ -1577,7 +1593,8 @@ func TestTendermint_FinalizeProposal_Propose(t *testing.T) {
 				mockSigner,
 				WithProposeTimeout(timeout),
 			)
-			tm.state = newState(view)
+			tm.state.setHeight(view.Height)
+			tm.state.setRound(view.Round)
 
 			// Run through the states
 			tm.finalizeProposal(ctx)
@@ -1724,9 +1741,10 @@ func TestTendermint_FinalizeProposal_Prevote(t *testing.T) {
 
 		// Create the tendermint instance
 		tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-		tm.state = newState(view)
+		tm.state.setHeight(view.Height)
+		tm.state.setRound(view.Round)
 		tm.state.step = prevote
-		tm.state.acceptedProposal = proposalMessage
+		tm.state.acceptedProposal = proposal
 		tm.state.acceptedProposalID = proposalID
 
 		// Add in 2F+1 non-NIL prevote messages
@@ -1771,14 +1789,6 @@ func TestTendermint_FinalizeProposal_Prevote(t *testing.T) {
 			}
 			proposalID = []byte("proposal ID")
 			proposal   = []byte("proposal")
-
-			proposalMessage = &types.ProposalMessage{
-				View:          view,
-				Sender:        []byte("proposer"),
-				Signature:     []byte("proposer signature"),
-				Proposal:      proposal,
-				ProposalRound: -1,
-			}
 
 			numPrevotes     = 10
 			prevoteMessages = generatePrevoteMessages(t, numPrevotes, view, nil)
@@ -1826,9 +1836,10 @@ func TestTendermint_FinalizeProposal_Prevote(t *testing.T) {
 
 		// Create the tendermint instance
 		tm := NewTendermint(mockVerifier, mockNode, mockBroadcast, mockSigner)
-		tm.state = newState(view)
+		tm.state.setHeight(view.Height)
+		tm.state.setRound(view.Round)
 		tm.state.step = prevote
-		tm.state.acceptedProposal = proposalMessage
+		tm.state.acceptedProposal = proposal
 		tm.state.acceptedProposalID = proposalID
 
 		// Add in 2F+1 non-NIL prevote messages
@@ -1874,14 +1885,6 @@ func TestTendermint_FinalizeProposal_Prevote(t *testing.T) {
 			}
 			proposalID = []byte("proposal ID")
 			proposal   = []byte("proposal")
-
-			proposalMessage = &types.ProposalMessage{
-				View:          view,
-				Sender:        []byte("proposer"),
-				Signature:     []byte("proposer signature"),
-				Proposal:      proposal,
-				ProposalRound: -1,
-			}
 
 			totalPrevoteCount     = 10
 			nilPrevoteMessages    = generatePrevoteMessages(t, totalPrevoteCount/2, view, nil)
@@ -1941,9 +1944,10 @@ func TestTendermint_FinalizeProposal_Prevote(t *testing.T) {
 			mockSigner,
 			WithPrevoteTimeout(timeout),
 		)
-		tm.state = newState(view)
+		tm.state.setHeight(view.Height)
+		tm.state.setRound(view.Round)
 		tm.state.step = prevote
-		tm.state.acceptedProposal = proposalMessage
+		tm.state.acceptedProposal = proposal
 		tm.state.acceptedProposalID = proposalID
 
 		// Add in non-NIL prevote messages
@@ -2010,11 +2014,7 @@ func TestTendermint_FinalizeProposal_Precommit(t *testing.T) {
 			proposal   = []byte("proposal")
 
 			proposalMessage = &types.ProposalMessage{
-				View:          view,
-				Sender:        []byte("proposer"),
-				Signature:     []byte("proposer signature"),
-				Proposal:      proposal,
-				ProposalRound: -1,
+				Proposal: proposal,
 			}
 
 			numPrecommits     = 10
@@ -2053,9 +2053,10 @@ func TestTendermint_FinalizeProposal_Precommit(t *testing.T) {
 
 		// Create the tendermint instance
 		tm := NewTendermint(mockVerifier, mockNode, &mockBroadcast{}, mockSigner)
-		tm.state = newState(view)
+		tm.state.setHeight(view.Height)
+		tm.state.setRound(view.Round)
 		tm.state.step = precommit
-		tm.state.acceptedProposal = proposalMessage
+		tm.state.acceptedProposal = proposal
 		tm.state.acceptedProposalID = proposalID
 
 		// Add in 2F+1 non-NIL precommit messages
@@ -2093,14 +2094,6 @@ func TestTendermint_FinalizeProposal_Precommit(t *testing.T) {
 			}
 			proposalID = []byte("proposal ID")
 			proposal   = []byte("proposal")
-
-			proposalMessage = &types.ProposalMessage{
-				View:          view,
-				Sender:        []byte("proposer"),
-				Signature:     []byte("proposer signature"),
-				Proposal:      proposal,
-				ProposalRound: -1,
-			}
 
 			totalPrecommitCount     = 10
 			nilPrecommitMessages    = generatePrecommitMessages(t, totalPrecommitCount/2, view, nil)
@@ -2150,9 +2143,10 @@ func TestTendermint_FinalizeProposal_Precommit(t *testing.T) {
 			mockSigner,
 			WithPrecommitTimeout(timeout),
 		)
-		tm.state = newState(view)
+		tm.state.setHeight(view.Height)
+		tm.state.setRound(view.Round)
 		tm.state.step = precommit
-		tm.state.acceptedProposal = proposalMessage
+		tm.state.acceptedProposal = proposal
 		tm.state.acceptedProposalID = proposalID
 
 		// Add in non-NIL precommit messages
@@ -2237,7 +2231,8 @@ func TestTendermint_WatchForFutureRounds(t *testing.T) {
 	)
 
 	// Set the process view
-	tm.state = newState(processView)
+	tm.state.setHeight(processView.GetHeight())
+	tm.state.setRound(processView.GetRound())
 
 	// Make sure F+1 messages are added to the
 	// message queue, with a higher round

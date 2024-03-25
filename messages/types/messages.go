@@ -190,3 +190,19 @@ func (m *PrecommitMessage) Verify() error {
 
 	return nil
 }
+
+func (m *PrecommitMessage) Equals(message *PrecommitMessage) bool {
+	if !m.GetView().Equals(message.GetView()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSender(), message.GetSender()) {
+		return false
+	}
+
+	if !bytes.Equal(m.GetSignature(), message.GetSignature()) {
+		return false
+	}
+
+	return bytes.Equal(m.GetIdentifier(), message.GetIdentifier())
+}

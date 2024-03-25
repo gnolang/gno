@@ -3,7 +3,6 @@ package core
 import (
 	"testing"
 
-	"github.com/gnolang/go-tendermint/messages/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -97,7 +96,6 @@ func TestTendermint_QuorumSuperMajority(t *testing.T) {
 				nil,
 				nil,
 			)
-			tm.state = newState(&types.View{})
 
 			convertedMessages := make([]Message, 0, len(testCase.messages))
 
@@ -204,7 +202,6 @@ func TestTendermint_QuorumFaultyMajority(t *testing.T) {
 				nil,
 				nil,
 			)
-			tm.state = newState(&types.View{})
 
 			convertedMessages := make([]Message, 0, len(testCase.messages))
 

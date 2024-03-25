@@ -1,6 +1,12 @@
 package core
 
-import "github.com/gnolang/go-tendermint/messages/types"
+import (
+	"context"
+	"sync"
+	"sync/atomic"
+
+	"github.com/gnolang/go-tendermint/messages/types"
+)
 
 type (
 	broadcastProposeDelegate   func(*types.ProposalMessage)
@@ -204,4 +210,201 @@ func (m *mockMessage) Verify() error {
 	}
 
 	return nil
+}
+
+// mockNodeContext keeps track of the node runtime context
+type mockNodeContext struct {
+	ctx      context.Context
+	cancelFn context.CancelFunc
+}
+
+// mockNodeWg is the WaitGroup wrapper for the cluster nodes
+type mockNodeWg struct {
+	sync.WaitGroup
+	count int64
+}
+
+func (wg *mockNodeWg) Add(delta int) {
+	wg.WaitGroup.Add(delta)
+}
+
+func (wg *mockNodeWg) Done() {
+	wg.WaitGroup.Done()
+	atomic.AddInt64(&wg.count, 1)
+}
+
+func (wg *mockNodeWg) resetDone() {
+	atomic.StoreInt64(&wg.count, 0)
+}
+
+type (
+	verifierConfigCallback  func(*mockVerifier)
+	nodeConfigCallback      func(*mockNode)
+	broadcastConfigCallback func(*mockBroadcast)
+	signerConfigCallback    func(*mockSigner)
+)
+
+// mockCluster represents a mock Tendermint cluster
+type mockCluster struct {
+	nodes              []*Tendermint     // references to the nodes in the cluster
+	ctxs               []mockNodeContext // context handlers for the nodes in the cluster
+	finalizedProposals [][]byte          // finalized proposals for the nodes
+
+	stoppedWg mockNodeWg
+}
+
+// newMockCluster creates a new mock Tendermint cluster
+func newMockCluster(
+	count uint64,
+	verifierCallbackMap map[int]verifierConfigCallback,
+	nodeCallbackMap map[int]nodeConfigCallback,
+	broadcastCallbackMap map[int]broadcastConfigCallback,
+	signerCallbackMap map[int]signerConfigCallback,
+	optionsMap map[int][]Option,
+) *mockCluster {
+	if count < 1 {
+		return nil
+	}
+
+	nodes := make([]*Tendermint, count)
+	nodeCtxs := make([]mockNodeContext, count)
+
+	for index := 0; index < int(count); index++ {
+		var (
+			verifier  = &mockVerifier{}
+			node      = &mockNode{}
+			broadcast = &mockBroadcast{}
+			signer    = &mockSigner{}
+			options   = make([]Option, 0)
+		)
+
+		// Execute set callbacks, if any
+		if verifierCallbackMap != nil {
+			if verifierCallback, isSet := verifierCallbackMap[index]; isSet {
+				verifierCallback(verifier)
+			}
+		}
+
+		if nodeCallbackMap != nil {
+			if nodeCallback, isSet := nodeCallbackMap[index]; isSet {
+				nodeCallback(node)
+			}
+		}
+
+		if broadcastCallbackMap != nil {
+			if broadcastCallback, isSet := broadcastCallbackMap[index]; isSet {
+				broadcastCallback(broadcast)
+			}
+		}
+
+		if signerCallbackMap != nil {
+			if signerCallback, isSet := signerCallbackMap[index]; isSet {
+				signerCallback(signer)
+			}
+		}
+
+		if optionsMap != nil {
+			if opts, isSet := optionsMap[index]; isSet {
+				options = opts
+			}
+		}
+
+		// Create a new instance of the Tendermint node
+		nodes[index] = NewTendermint(
+			verifier,
+			node,
+			broadcast,
+			signer,
+			options...,
+		)
+
+		// Instantiate context for the nodes
+		ctx, cancelFn := context.WithCancel(context.Background())
+		nodeCtxs[index] = mockNodeContext{
+			ctx:      ctx,
+			cancelFn: cancelFn,
+		}
+	}
+
+	return &mockCluster{
+		nodes:              nodes,
+		ctxs:               nodeCtxs,
+		finalizedProposals: make([][]byte, count),
+	}
+}
+
+// runSequence runs the cluster sequence for the given height
+func (m *mockCluster) runSequence(height uint64) {
+	m.stoppedWg.resetDone()
+
+	for nodeIndex, node := range m.nodes {
+		m.stoppedWg.Add(1)
+
+		go func(
+			ctx context.Context,
+			node *Tendermint,
+			nodeIndex int,
+			height uint64,
+		) {
+			defer m.stoppedWg.Done()
+
+			// Start the main run loop for the node
+			finalizedProposal := node.RunSequence(ctx, height)
+
+			m.finalizedProposals[nodeIndex] = finalizedProposal
+		}(m.ctxs[nodeIndex].ctx, node, nodeIndex, height)
+	}
+}
+
+// awaitCompletion waits for completion of all
+// nodes in the cluster
+func (m *mockCluster) awaitCompletion() {
+	// Wait for all main run loops to signalize
+	// that they're finished
+	m.stoppedWg.Wait()
+}
+
+// pushProposalMessage relays the proposal message to all nodes in the cluster
+func (m *mockCluster) pushProposalMessage(message *types.ProposalMessage) error {
+	for _, node := range m.nodes {
+		if err := node.AddProposalMessage(message); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// pushPrevoteMessage relays the prevote message to all nodes in the cluster
+func (m *mockCluster) pushPrevoteMessage(message *types.PrevoteMessage) error {
+	for _, node := range m.nodes {
+		if err := node.AddPrevoteMessage(message); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// pushPrecommitMessage relays the precommit message to all nodes in the cluster
+func (m *mockCluster) pushPrecommitMessage(message *types.PrecommitMessage) error {
+	for _, node := range m.nodes {
+		if err := node.AddPrecommitMessage(message); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// areAllNodesOnRound checks to make sure all nodes
+// are on the same specified round
+func (m *mockCluster) areAllNodesOnRound(round uint64) bool {
+	for _, node := range m.nodes {
+		if node.state.getRound() != round {
+			return false
+		}
+	}
+
+	return true
 }

@@ -299,3 +299,574 @@ func TestPrecommitMessage_Verify(t *testing.T) {
 		assert.ErrorIs(t, m.Verify(), ErrInvalidMessageSender)
 	})
 }
+
+func TestView_Equals(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name        string
+		views       []*View
+		shouldEqual bool
+	}{
+		{
+			"equal views",
+			[]*View{
+				{
+					Height: 10,
+					Round:  10,
+				},
+				{
+					Height: 10,
+					Round:  10,
+				},
+			},
+			true,
+		},
+		{
+			"not equal views",
+			[]*View{
+				{
+					Height: 10,
+					Round:  10,
+				},
+				{
+					Height: 10,
+					Round:  5, // different round
+				},
+			},
+			false,
+		},
+	}
+
+	for _, testCase := range testTable {
+		testCase := testCase
+
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(
+				t,
+				testCase.shouldEqual,
+				testCase.views[0].Equals(testCase.views[1]),
+			)
+		})
+	}
+}
+
+func TestProposalMessage_Equals(t *testing.T) {
+	t.Parallel()
+
+	t.Run("equal proposal messages", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+		)
+
+		assert.True(t, left.Equals(right))
+	})
+
+	t.Run("view mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View: &View{
+					Height: view.Height,
+					Round:  view.Round + 1, // round mismatch
+				}, Sender: sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("sender mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View:          view,
+				Sender:        []byte("different sender"), // sender mismatch
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("signature mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     []byte("different signature"), // signature mismatch
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("proposal mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      []byte("different proposal"), // proposal mismatch
+				ProposalRound: proposalRound,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("proposal round mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender        = []byte("sender")
+			signature     = []byte("signature")
+			proposal      = []byte("proposal")
+			proposalRound = int64(-1)
+
+			left = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound,
+			}
+
+			right = &ProposalMessage{
+				View:          view,
+				Sender:        sender,
+				Signature:     signature,
+				Proposal:      proposal,
+				ProposalRound: proposalRound + 1, // proposal round mismatch
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+}
+
+func TestPrevoteMessage_Equals(t *testing.T) {
+	t.Parallel()
+
+	t.Run("equal prevote messages", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.True(t, left.Equals(right))
+	})
+
+	t.Run("view mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrevoteMessage{
+				View: &View{
+					Height: view.Height,
+					Round:  view.Round + 1, // round mismatch
+				},
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("sender mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrevoteMessage{
+				View:       view,
+				Sender:     []byte("different sender"), // sender mismatch
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("signature mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  []byte("different signature"), // signature mismatch
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("identifier mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrevoteMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: []byte("different identifier"), // identifier mismatch
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+}
+
+func TestPrecommitMessage_Equals(t *testing.T) {
+	t.Parallel()
+
+	t.Run("equal precommit messages", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.True(t, left.Equals(right))
+	})
+
+	t.Run("view mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrecommitMessage{
+				View: &View{
+					Height: view.Height,
+					Round:  view.Round + 1, // round mismatch
+				},
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("sender mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrecommitMessage{
+				View:       view,
+				Sender:     []byte("different sender"), // sender mismatch
+				Signature:  signature,
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("signature mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  []byte("different signature"), // signature mismatch
+				Identifier: id,
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+
+	t.Run("identifier mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			view = &View{
+				Height: 10,
+				Round:  0,
+			}
+			sender    = []byte("sender")
+			signature = []byte("signature")
+			id        = []byte("id")
+
+			left = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: id,
+			}
+
+			right = &PrecommitMessage{
+				View:       view,
+				Sender:     sender,
+				Signature:  signature,
+				Identifier: []byte("different identifier"), // identifier mismatch
+			}
+		)
+
+		assert.False(t, left.Equals(right))
+	})
+}

@@ -31,7 +31,7 @@ func (t *Tendermint) AddProposalMessage(message *types.ProposalMessage) error {
 func (t *Tendermint) AddPrevoteMessage(message *types.PrevoteMessage) error {
 	// Verify the incoming message
 	if err := t.verifyMessage(message); err != nil {
-		return fmt.Errorf("unable to verify proposal message, %w", err)
+		return fmt.Errorf("unable to verify prevote message, %w", err)
 	}
 
 	// Add the message to the store
@@ -44,7 +44,7 @@ func (t *Tendermint) AddPrevoteMessage(message *types.PrevoteMessage) error {
 func (t *Tendermint) AddPrecommitMessage(message *types.PrecommitMessage) error {
 	// Verify the incoming message
 	if err := t.verifyMessage(message); err != nil {
-		return fmt.Errorf("unable to verify proposal message, %w", err)
+		return fmt.Errorf("unable to verify precommit message, %w", err)
 	}
 
 	// Add the message to the store

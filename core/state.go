@@ -29,7 +29,7 @@ func (s *step) get() step {
 type state struct {
 	view *types.View
 
-	acceptedProposal   *types.ProposalMessage // TODO make this a []byte
+	acceptedProposal   []byte
 	acceptedProposalID []byte
 
 	lockedValue []byte
@@ -42,9 +42,12 @@ type state struct {
 }
 
 // newState creates a fresh state using the given view
-func newState(view *types.View) state {
+func newState() state {
 	return state{
-		view:               view,
+		view: &types.View{
+			Height: 0, // zero height
+			Round:  0, // zero round
+		},
 		step:               propose,
 		acceptedProposal:   nil,
 		acceptedProposalID: nil,
@@ -73,4 +76,9 @@ func (s *state) increaseRound() {
 // setRound sets the current view round to the given value [THREAD SAFE]
 func (s *state) setRound(r uint64) {
 	atomic.SwapUint64(&s.view.Round, r)
+}
+
+// setHeight sets the current view height to the given value [THREAD SAFE]
+func (s *state) setHeight(h uint64) {
+	atomic.SwapUint64(&s.view.Height, h)
 }
