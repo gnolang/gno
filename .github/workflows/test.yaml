@@ -17,6 +17,14 @@ jobs:
       - name: Go test
         run: go test -shuffle=on -coverprofile coverage.out -timeout 5m ./...
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          slug: gnolang/go-tendermint
+          files: coverage.out
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   test-with-race:
     runs-on: ubuntu-latest
     steps:
