@@ -1,3 +1,7 @@
+package mytoken
+
+import "github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
@@ -40,14 +44,22 @@ func Approve(spender std.Address, amount uint64) {
 
 func TransferFrom(from, to std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
+
+	if amount <= 0 {
+		panic("transfer amount must be greater than zero")
+	}
+
 	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
 		panic(err)
 	}
 }
 
 func Mint(address std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
+	assertIsAdmin(std.PrevRealm().Addr())
+
+	if amount <= 0 {
+		panic("mint amount must be greater than zero")
+	}
 
 	if err := mytoken.Mint(address, amount); err != nil {
 		panic(err)
@@ -55,8 +67,11 @@ func Mint(address std.Address, amount uint64) {
 }
 
 func Burn(address std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
+	assertIsAdmin(std.PrevRealm().Addr())
+
+	if amount <= 0 {
+		panic("burn amount must be greater than zero")
+	}
 
 	if err := mytoken.Burn(address, amount); err != nil {
 		panic(err)
