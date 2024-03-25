@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"math/rand"
+	"time"
 
 	"github.com/gnolang/gno/telemetry/exporter"
 	"github.com/gnolang/gno/telemetry/options"
@@ -10,14 +11,14 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
 	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 var (
-	ctx context.Context
-
 	// Metrics.
-	BroadcastTxTimer Int64Collector
-	BuildBlockTimer  Int64Collector
+	BroadcastTxTimer Int64Histogram
+	BuildBlockTimer  Int64Histogram
 )
 
 func Init(setCtx context.Context, config options.Config) error {
@@ -25,11 +26,9 @@ func Init(setCtx context.Context, config options.Config) error {
 		return exporter.ErrEndpointNotSet
 	}
 
-	ctx = setCtx
-
 	// Use oltp metric exporter.
 	exporter, err := otlpmetricgrpc.New(
-		ctx,
+		context.Background(),
 		otlpmetricgrpc.WithEndpoint(config.ExporterEndpoint),
 		otlpmetricgrpc.WithInsecure(), // TODO: enable security
 	)
@@ -37,13 +36,20 @@ func Init(setCtx context.Context, config options.Config) error {
 		return err
 	}
 
-	provider := sdkMetric.NewMeterProvider(sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter)))
-	otel.SetMeterProvider(provider)
-	meter := provider.Meter(
-		config.MeterName,
-		metric.WithInstrumentationVersion("0.1.0"),
-		metric.WithSchemaURL(config.ServiceName),
+	periodOption := sdkMetric.WithInterval(time.Second)
+	provider := sdkMetric.NewMeterProvider(
+		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter, periodOption)),
+		sdkMetric.WithResource(
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(config.ServiceName),
+				semconv.ServiceVersionKey.String("1.0.0"),
+				semconv.ServiceInstanceIDKey.String("gno-node-1"),
+			),
+		),
 	)
+	otel.SetMeterProvider(provider)
+	meter := provider.Meter(config.MeterName)
 
 	broadcastTxTimer, err := meter.Int64Histogram(
 		"broadcast_tx_hist",
@@ -54,6 +60,26 @@ func Init(setCtx context.Context, config options.Config) error {
 	if err != nil {
 		return err
 	}
+
+	_, err = meter.Int64ObservableCounter(
+		"test_counter",
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			//attrs := attribute.String("address", faucetAddress)
+			o.Observe(100)
+			return nil
+		}),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	// meter.RegisterCallback(
+	// 	func(_ context.Context, o metric.Observer) error {
+	// 		o.ObserveInt64(TestCounter, 100)
+	// 	},
+	// 	TestCounter,
+	// )
+
 	BroadcastTxTimer = Int64Histogram{
 		Int64Histogram: broadcastTxTimer,
 		useFakeMetrics: config.UseFakeMetrics,
@@ -97,7 +123,7 @@ func (h Int64Histogram) Collect(value int64) {
 		value = rand.Int63n(h.fakeRangeEnd) + h.fakeRangeStart
 	}
 
-	h.Int64Histogram.Record(ctx, value)
+	h.Int64Histogram.Record(context.Background(), value)
 }
 
 type Int64Counter struct {
@@ -113,5 +139,5 @@ func (c Int64Counter) Collect(value int64) {
 		value = rand.Int63n(c.fakeRangeEnd) + c.fakeRangeStart
 	}
 
-	c.Int64Counter.Add(ctx, value)
+	c.Int64Counter.Add(context.Background(), value)
 }
