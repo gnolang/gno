@@ -148,13 +148,79 @@ type F struct {
 	corpus []string
 }
 
+// Add adds test values to initialize the corpus.
+// TODO: length assertion. if the input length exceeds or is less than the test target function, it should be fatal.
 func (f *F) Add(values ...interface{}) []Fuzzer {
 	fuzzers := make([]Fuzzer, len(values))
 
 	for i, v := range values {
-		f.corpus = append(f.corpus, v.(string))
-		fuzzers[i] = &StringFuzzer{Value: v.(string)}
+		str, ok := v.(string)
+		if !ok {
+			continue
+		}
+		f.corpus = append(f.corpus, str)
+		fuzzers[i] = &StringFuzzer{Value: str}
 	}
 
 	return fuzzers
 }
+
+// Fuzz generates test values by evolving the corpus.
+func (f *F) Fuzz(generations int) {
+	population := make([]*Individual, len(f.corpus))
+	for i, c := range f.corpus {
+		population[i] = &Individual{Fuzzer: &StringFuzzer{Value: c, f: f}}
+	}
+
+	for _, ind := range population {
+		ind.calculateFitness()
+	}
+
+	for gen := 0; gen < generations; gen++ {
+		population = Selection(population)
+		newPopulation := make([]*Individual, 0, len(population))
+		for i := 0; i < len(population); i += 2 {
+			if i+1 < len(population) {
+				child1, child2 := Crossover(population[i], population[i+1])
+				newPopulation = append(newPopulation, child1, child2)
+			} else {
+				newPopulation = append(newPopulation, population[i])
+			}
+		}
+
+		var (
+			bestFitness    int
+			bestIndividual string
+		)
+
+		for _, ind := range newPopulation {
+			if GenerateRandomBool(0.2) {
+				ind.Mutate()
+			}
+
+			if GenerateRandomBool(0.1) {
+				ind.Fuzzer = ind.Fuzzer.InsertDeleteMutate(0.3)
+			}
+
+			ind.calculateFitness()
+
+			if ind.Fitness > bestFitness {
+				bestFitness = ind.Fitness
+				bestIndividual = ind.Fuzzer.String()
+			}
+		}
+
+		population = newPopulation
+	}
+
+	f.corpus = make([]string, len(population))
+	for i, ind := range population {
+		f.corpus[i] = ind.Fuzzer.String()
+	}
+}
+
+// Fail marks the function as having failed bur continue execution.
+func (f *F) Fail() {}
+
+// Fatal is equivalent to Log followed by FailNow.
+func (f *F) Fatal(args ...interface{}) {}

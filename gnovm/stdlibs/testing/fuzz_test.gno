@@ -78,64 +78,43 @@ func TestCrossover(t *testing.T) {
 	}
 }
 
-// NOT TESTING PURPOSE (just main function)
-func Test_main(t *testing.T) {
-	population := []*Individual{
-		{Fuzzer: &StringFuzzer{Value: "hello"}},
-		{Fuzzer: &StringFuzzer{Value: "fuzz"}},
-		{Fuzzer: &StringFuzzer{Value: "worldwide"}},
-		{Fuzzer: &StringFuzzer{Value: "barfoo"}},
+func Test_Fuzz(t *testing.T) {
+	f := &F{
+		corpus: []string{"hello", "world", "foo", "bar"},
+	}
+	println("initial corpus:", f.corpus)
+
+	f.Fuzz(30)
+
+	if len(f.corpus) != 4 {
+		t.Fatalf("corpus length is %d, want 4", len(f.corpus))
 	}
 
-	for _, ind := range population {
-		ind.calculateFitness()
+	for i, c := range f.corpus {
+		if c == "" {
+			t.Fatalf("corpus[%d] is empty", i)
+		}
+
+		if len(c) < 3 {
+			t.Fatalf("corpus[%d] is too short: %s", i, c)
+		}
+
+		if f.corpus[0] == "hello" {
+			t.Fatalf("corpus[0] is still the same: %s", f.corpus[0])
+		}
+	
+		if f.corpus[1] == "world" {
+			t.Fatalf("corpus[1] is still the same: %s", f.corpus[1])
+		}
+	
+		if f.corpus[2] == "foo" {
+			t.Fatalf("corpus[2] is still the same: %s", f.corpus[2])
+		}
+	
+		if f.corpus[3] == "bar" {
+			t.Fatalf("corpus[3] is still the same: %s", f.corpus[3])
+		}
+	
 	}
-
-	for generation := 0; generation < 250; generation++ {
-		population = Selection(population)
-
-		newPopulation := make([]*Individual, 0, len(population))
-		for i := 0; i < len(population); i += 2 {
-			if i+1 < len(population) {
-				child1, child2 := Crossover(population[i], population[i+1])
-				newPopulation = append(newPopulation, child1, child2)
-			} else {
-				newPopulation = append(newPopulation, population[i])
-			}
-		}
-		// Apply mutation operator
-		for _, ind := range newPopulation {
-			if GenerateRandomBool(0.1) { // 10% mutation rate
-				ind.Mutate()
-			}
-		}
-
-		for _, ind := range newPopulation {
-            if GenerateRandomBool(0.1) {
-                ind.Fuzzer = ind.Fuzzer.InsertDeleteMutate(0.3)
-            }
-        }
-
-		// Calculate fitness for the new population
-		for _, ind := range newPopulation {
-			ind.calculateFitness()
-		}
-
-		// Print the best individual from the current generation
-		var (
-			bestFitness    int
-			bestIndividual string
-		)
-
-		for _, ind := range newPopulation {
-			if ind.Fitness > bestFitness {
-				bestFitness = ind.Fitness
-				bestIndividual = ind.Fuzzer.String()
-			}
-		}
-
-		// Update the population for the next generation
-		population = newPopulation
-		println("Generation", generation, ":", bestIndividual, "Fitness:", bestFitness)
-	}
+	println("\nFinal corpus:", f.corpus)
 }
