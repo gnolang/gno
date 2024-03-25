@@ -20,159 +20,145 @@ func assertCharNotPlus(b byte) {
 // in FunctionSignature{}.
 // String representation of arg must be deterministic.
 // NOTE: very important that there is no malleability.
-func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
-	tv.T = argT
+func convertArgToGno(store gno.Store, arg string, argT gno.Type) (gno.TypedValue, error) {
+	tv := gno.TypedValue{T: argT}
+
 	switch bt := gno.BaseOf(argT).(type) {
 	case gno.PrimitiveType:
 		switch bt {
 		case gno.BoolType:
+			// XXX: should we use `strconv.ParseBool` here ?
 			if arg == "true" {
 				tv.SetBool(true)
-				return
-			} else if arg == "false" {
-				tv.SetBool(false)
-				return
-			} else {
-				panic(fmt.Sprintf(
-					"unexpected bool value %q",
-					arg))
+				return tv, nil
 			}
+
+			if arg == "false" {
+				tv.SetBool(false)
+				return tv, nil
+			}
+
+			return gno.TypedValue{}, fmt.Errorf("unexpected bool value %q", arg)
 		case gno.StringType:
 			tv.SetString(gno.StringValue(arg))
-			return
+			return tv, nil
 		case gno.IntType:
 			assertCharNotPlus(arg[0])
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing int %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing int %q: %w", arg, err)
 			}
+
 			tv.SetInt(int(i64))
-			return
+			return tv, nil
 		case gno.Int8Type:
 			assertCharNotPlus(arg[0])
 			i8, err := strconv.ParseInt(arg, 10, 8)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing int8 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing int8 %q: %w", arg, err)
 			}
 			tv.SetInt8(int8(i8))
-			return
+			return tv, nil
 		case gno.Int16Type:
 			assertCharNotPlus(arg[0])
 			i16, err := strconv.ParseInt(arg, 10, 16)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing int16 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing int16 %q: %w", arg, err)
 			}
 			tv.SetInt16(int16(i16))
-			return
+			return tv, nil
 		case gno.Int32Type:
 			assertCharNotPlus(arg[0])
 			i32, err := strconv.ParseInt(arg, 10, 32)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing int32 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing int32 %q: %w", arg, err)
 			}
 			tv.SetInt32(int32(i32))
-			return
+			return tv, nil
 		case gno.Int64Type:
 			assertCharNotPlus(arg[0])
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing int64 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing int64 %q: %w", arg, err)
 			}
 			tv.SetInt64(i64)
-			return
+			return tv, nil
 		case gno.UintType:
 			assertCharNotPlus(arg[0])
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing uint %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing uint %q: %w", arg, err)
 			}
 			tv.SetUint(uint(u64))
-			return
+			return tv, nil
 		case gno.Uint8Type:
 			assertCharNotPlus(arg[0])
 			u8, err := strconv.ParseUint(arg, 10, 8)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing uint8 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing uint8 %q: %w", arg, err)
 			}
 			tv.SetUint8(uint8(u8))
-			return
+			return tv, nil
 		case gno.Uint16Type:
 			assertCharNotPlus(arg[0])
 			u16, err := strconv.ParseUint(arg, 10, 16)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing uint16 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing uint16 %q: %w", arg, err)
 			}
 			tv.SetUint16(uint16(u16))
-			return
+			return tv, nil
 		case gno.Uint32Type:
 			assertCharNotPlus(arg[0])
 			u32, err := strconv.ParseUint(arg, 10, 32)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing uint32 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing uint32 %q: %w", arg, err)
 			}
 			tv.SetUint32(uint32(u32))
-			return
+			return tv, nil
 		case gno.Uint64Type:
 			assertCharNotPlus(arg[0])
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing uint64 %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing uint64 %q: %w", arg, err)
 			}
 			tv.SetUint64(u64)
-			return
+			return tv, nil
 		case gno.Float32Type:
 			value := convertFloat(arg, 32)
 			tv.SetFloat32(float32(value))
-			return
+			return tv, nil
 		case gno.Float64Type:
 			value := convertFloat(arg, 64)
 			tv.SetFloat64(value)
-			return
+			return tv, nil
 		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
+			return gno.TypedValue{}, fmt.Errorf("unexpected primitive type %s", bt.String())
 		}
+
 	case *gno.ArrayType:
 		if bt.Elt == gno.Uint8Type {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing byte array %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing byte array %.50q: %w", arg, err)
 			}
 			tv.V = &gno.ArrayValue{
 				Data: bz,
 			}
-			return
-		} else {
-			panic("unexpected array type in contract arg")
+			return tv, nil
 		}
+
+		utv, err := UnmarshalTypedValueJSON(store.GetAllocator(), store, []byte(arg), argT)
+		if err != nil {
+			return gno.TypedValue{}, fmt.Errorf("error parsing array %.50q: %w", arg, err)
+		}
+
+		return utv, nil
+
 	case *gno.SliceType:
 		if bt.Elt == gno.Uint8Type {
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
-				panic(fmt.Sprintf(
-					"error parsing byte array %q: %v",
-					arg, err))
+				return gno.TypedValue{}, fmt.Errorf("error parsing byte slice %.50q: %w", arg, err)
 			}
 			tv.V = &gno.SliceValue{
 				Base: &gno.ArrayValue{
@@ -182,12 +168,25 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 				Length: len(bz),
 				Maxcap: len(bz),
 			}
-			return
-		} else {
-			panic("unexpected slice type in contract arg")
+			return tv, nil
 		}
+
+		utv, err := UnmarshalTypedValueJSON(store.GetAllocator(), store, []byte(arg), argT)
+		if err != nil {
+			return gno.TypedValue{}, fmt.Errorf("error unmarshal slice %.50q: %w", arg, err)
+		}
+
+		return utv, nil
+
+	case *gno.StructType:
+		utv, err := UnmarshalTypedValueJSON(store.GetAllocator(), store, []byte(arg), argT)
+		if err != nil {
+			return gno.TypedValue{}, fmt.Errorf("error unmarshal struct %.50q: %w", arg, err)
+		}
+
+		return utv, nil
 	default:
-		panic(fmt.Sprintf("unexpected type in contract arg: %v", argT))
+		return gno.TypedValue{}, fmt.Errorf("unexpected type in contract arg: %q", argT)
 	}
 }
 

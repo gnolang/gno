@@ -228,21 +228,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		pt := ft.Params[i].Type
 		arg = strings.TrimSpace(arg)
 
-		// XXX: move this to `convertArgToGno` method ?
-		if len(arg) >= 2 &&
-			((arg[0] == '{' && arg[len(arg)-1] == '}') ||
-				(arg[0] == '[' && arg[len(arg)-1] == ']')) {
-			// Handle JSON argument
-			request[i], err = UnmarshalJSON(store.GetAllocator(), store, []byte(arg), pt)
-			if err != nil {
-				return "", fmt.Errorf("unable to unmarshal arg#%d: %w", i, err)
-			}
-
-			continue
+		if request[i], err = convertArgToGno(store, arg, pt); err != nil {
+			return "", fmt.Errorf("unable to convert arg to gno type arg #%d: %w", i, err)
 		}
-
-		request[i] = convertArgToGno(arg, pt)
-
 	}
 
 	// Create expresion
@@ -302,6 +290,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Alloc:     store.GetAllocator(),
 			MaxCycles: vm.maxCycles,
 		})
+
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
@@ -335,11 +324,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 		// Define response fields
 		responseFS := []gno.FieldType{
-			gno.FieldType{
+			{
 				Name: gno.Name("Result"),
 				Type: result.T,
 			},
-			gno.FieldType{
+			{
 				Name: gno.Name("CPUCycles"),
 				Type: gno.Int64Type,
 			},
@@ -363,9 +352,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 
 	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
-	resraw, err := MarshalJSON(&response)
+	resraw, err := MarshalTypedValueJSON(&response)
 	if err != nil {
-		return "", fmt.Errorf("unable to unarmsahll result: %w", err)
+		return "", fmt.Errorf("unable to Marshall result: %w", err)
 	}
 
 	return string(resraw), nil
