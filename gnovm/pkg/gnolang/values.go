@@ -537,6 +537,7 @@ type FuncValue struct {
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
+	// TODO : make it pointer
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
 }
@@ -586,12 +587,12 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 }
 
 func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
-	if fv.body == nil {
-		source := fv.GetSource(store)
-		fv.body = source.GetBody()
-		return fv.body
-	}
+	//if fv.body == nil {
+	source := fv.GetSource(store)
+	fv.body = source.GetBody()
 	return fv.body
+	//}
+	//return fv.body
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {

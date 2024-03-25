@@ -9,7 +9,7 @@ func main() {
 		}
 	}()
 
-	// this is actually a implicit for loop
+	// this is actually an implicit for loop
 LABEL_1:
 	if counter == 2 {
 		return
@@ -22,5 +22,5 @@ LABEL_1:
 }
 
 // Output:
-// 1
+// 0
 // 1

@@ -76,6 +76,7 @@ func (m *Machine) doOpCall() {
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
+		debug.Println("---fbody: ", fbody)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only

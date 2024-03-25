@@ -987,6 +987,10 @@ type FuncDecl struct {
 	Body                   // function body; or empty for external (non-Go) function
 }
 
+//func (x *FuncDecl) SetBody(b Body) {
+//	x.Body = b
+//}
+
 func (x *FuncDecl) GetDeclNames() []Name {
 	if x.IsMethod {
 		return nil
@@ -1466,7 +1470,7 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) (ValuePath, BlockNode)
-	GetExternPathForName(Store, Name, func(n Name) bool) (ValuePath, uint16, BlockNode)
+	GetExternPathForName(Store, Name, func(n Name) bool) (ValuePath, BlockNode)
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
@@ -1656,35 +1660,17 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode
 
 // Like GetPathForName, but always returns the path of the extern name.
 // This is relevant for when a name is declared later in the block.
-func (sb *StaticBlock) GetExternPathForName(store Store, n Name, isExtern func(nn Name) bool) (ValuePath, uint16, BlockNode) {
+func (sb *StaticBlock) GetExternPathForName(store Store, n Name, isExtern func(nn Name) bool) (ValuePath, BlockNode) {
 	if n == "_" {
-		return NewValuePathBlock(0, 0, "_"), 0, nil
+		return NewValuePathBlock(0, 0, "_"), nil
 	}
 	parent := sb.GetParentNode(store)
 	path, bn := parent.GetPathForName(store, n)
 	debug.Printf("---got ExternPathForName, n: %v, path: %v, bn: %v \n", n, path, bn)
-	// adjust index here, exclude non-extern to get an absolute index
 
-	var offset uint16 = 0
-	if path.Depth != 0 { // not uverse
-
-		names := bn.GetBlockNames()
-		debug.Println("---names: ", names)
-
-		index := path.Index
-		debug.Println("---index: ", index)
-
-		for i := uint16(0); i < index; i++ {
-			if !isExtern(names[i]) {
-				offset++
-			}
-		}
-	}
-
-	debug.Println("---offset: ", offset)
 	path.Depth += 1 // 1 count for the funcLitBlock
 
-	return path, offset, bn
+	return path, bn
 }
 
 // Get the containing block node for node with path relative to this containing block.
