@@ -114,7 +114,7 @@ func (z *Uint) scanScientificFromString(src string) error {
 		return nil
 	}
 	exp := new(Uint)
-	if err := exp.SetFromDecimal(src[(idx+1):]); err != nil {
+	if err := exp.SetFromDecimal(src[(idx + 1):]); err != nil {
 		return err
 	}
 	if exp.GtUint64(77) { // 10**78 is larger than 2**256

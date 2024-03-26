@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/ufmt"
 	i256 "gno.land/p/demo/int256"
+	"gno.land/p/demo/ufmt"
 )
 
 func hex2Bytes(s string) []byte {
@@ -43,7 +43,7 @@ func TestByte(t *testing.T) {
 
 	z = new(Uint).SetBytes(hex2Bytes("ABCDEF09080706050403020100000000000000000000000000000000000000ef"))
 	actual = z.Byte(NewUint(32))
-	expected =new(Uint).SetBytes(hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"))
+	expected = new(Uint).SetBytes(hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"))
 	if !actual.Eq(expected) {
 		t.Fatalf("Expected %x, got %x", expected, actual)
 	}

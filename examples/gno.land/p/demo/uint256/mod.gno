@@ -35,7 +35,6 @@ func leadingZeros(x *Uint) (z int) {
 // - returns zero if m.arr[3] == 0
 // - starts with a 32-bit division, refines with newton-raphson iterations
 func Reciprocal(m *Uint) (mu [5]uint64) {
-
 	if m.arr[3] == 0 {
 		return mu
 	}
@@ -443,7 +442,6 @@ func Reciprocal(m *Uint) (mu [5]uint64) {
 //
 // requires a four-word modulus (m.arr[3] > 1) and its inverse (mu)
 func reduce4(x [8]uint64, m *Uint, mu [5]uint64) (z Uint) {
-
 	// NB: Most variable names in the comments match the pseudocode for
 	// 	Barrett reduction in the Handbook of Applied Cryptography.
 

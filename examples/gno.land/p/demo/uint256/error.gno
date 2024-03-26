@@ -19,9 +19,9 @@ var (
 )
 
 type u256Error struct {
-	fn string // function name
+	fn    string // function name
 	input string
-	err error
+	err   error
 }
 
 func (e *u256Error) Error() string {

@@ -507,7 +507,6 @@ func (z *Int) Uint64() uint64 {
 
 // Int64 returns the lower 64-bits of z
 func (z *Int) Int64() int64 {
-
 	_abs := z.abs.Clone()
 
 	if z.neg {
