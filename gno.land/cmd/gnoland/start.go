@@ -204,8 +204,7 @@ func execStart(c *startCfg, io commands.IO) error {
 
 	// Attempt to initialize telemetry. If the enviroment variables required to initialize
 	// telemetry are not set, then the initialization will do nothing.
-	ctx := context.Background()
-	if err := initTelemetry(ctx); err != nil {
+	if err := initTelemetry(); err != nil {
 		return fmt.Errorf("error initializing telemetry: %w", err)
 	}
 
@@ -382,7 +381,7 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	return cfg, nil
 }
 
-func initTelemetry(ctx context.Context) error {
+func initTelemetry() error {
 	var options []telemetry.Option
 
 	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
@@ -399,5 +398,5 @@ func initTelemetry(ctx context.Context) error {
 	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
 	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
 
-	return telemetry.Init(ctx, options...)
+	return telemetry.Init(options...)
 }

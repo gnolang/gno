@@ -4,8 +4,6 @@ package telemetry
 // https://github.com/open-telemetry/opentelemetry-go/blob/main/example/prometheus/main.go
 
 import (
-	"context"
-
 	"github.com/gnolang/gno/telemetry/metrics"
 	"github.com/gnolang/gno/telemetry/options"
 )
@@ -24,7 +22,7 @@ func MetricsEnabled() bool {
 
 // Init will initialize metrics with the options provided. This function may also intialize tracing when
 // this is something that we want to support.
-func Init(ctx context.Context, options ...Option) error {
+func Init(options ...Option) error {
 	config.MeterName = defaultMeterName
 	config.ServiceName = defaultServiceName
 	for _, opt := range options {
@@ -33,7 +31,7 @@ func Init(ctx context.Context, options ...Option) error {
 
 	// Initialize metrics to be collected.
 	if config.MetricsEnabled {
-		if err := metrics.Init(ctx, config); err != nil {
+		if err := metrics.Init(config); err != nil {
 			return err
 		}
 	}

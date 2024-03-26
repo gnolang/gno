@@ -20,7 +20,7 @@ var (
 	BuildBlockTimer  Int64Histogram
 )
 
-func Init(setCtx context.Context, config options.Config) error {
+func Init(config options.Config) error {
 	if config.ExporterEndpoint == "" {
 		return exporter.ErrEndpointNotSet
 	}
