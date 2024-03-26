@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	goerrors "errors"
 	"fmt"
 	"log/slog"
@@ -990,7 +991,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 	if telemetry.MetricsEnabled() {
 		startTime := time.Now()
 		defer func(t time.Time) {
-			metrics.BuildBlockTimer.Collect(time.Since(t).Milliseconds())
+			metrics.BuildBlockTimer.Record(context.Background(), time.Since(t).Milliseconds())
 		}(startTime)
 	}
 

@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -264,7 +265,7 @@ func (sw *Switch) Broadcast(chID byte, msgBytes []byte) chan bool {
 		wg.Wait()
 		close(successChan)
 		if telemetry.MetricsEnabled() {
-			metrics.BroadcastTxTimer.Collect(time.Since(startTime).Milliseconds())
+			metrics.BroadcastTxTimer.Record(context.Background(), time.Since(startTime).Milliseconds())
 		}
 	}()
 

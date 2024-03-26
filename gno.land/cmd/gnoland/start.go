@@ -388,10 +388,6 @@ func initTelemetry() error {
 		options = append(options, telemetry.WithOptionMetricsEnabled())
 	}
 
-	if os.Getenv("TELEM_USE_FAKE_METRICS") == "true" {
-		options = append(options, telemetry.WithOptionFakeMetrics())
-	}
-
 	// The string options can be added by default. Their absence would yield the same result
 	// as if the option were excluded altogether.
 	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))

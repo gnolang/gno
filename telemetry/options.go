@@ -26,12 +26,6 @@ func WithOptionExporterEndpoint(exporterEndpoint string) Option {
 	}
 }
 
-func WithOptionFakeMetrics() Option {
-	return func(c *options.Config) {
-		c.UseFakeMetrics = true
-	}
-}
-
 func WithOptionServiceName(serviceName string) Option {
 	return func(c *options.Config) {
 		if serviceName != "" {
