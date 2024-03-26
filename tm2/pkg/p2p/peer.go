@@ -2,9 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/cmap"
 	connm "github.com/gnolang/gno/tm2/pkg/p2p/conn"

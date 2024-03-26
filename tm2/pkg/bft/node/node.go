@@ -5,15 +5,14 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
-	_ "net/http/pprof" //nolint:gosec
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/exp/slog"
-
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
 
@@ -165,7 +164,7 @@ type Node struct {
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
-	proxyApp          proxy.AppConns       // connection to the application
+	proxyApp          appconn.AppConns     // connection to the application
 	rpcListeners      []net.Listener       // rpc servers
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
@@ -188,8 +187,8 @@ func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.Block
 	return
 }
 
-func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
+func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (appconn.AppConns, error) {
+	proxyApp := appconn.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
@@ -230,7 +229,7 @@ func createAndStartEventStoreService(
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
-	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger *slog.Logger,
+	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp appconn.AppConns, consensusLogger *slog.Logger,
 ) error {
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
@@ -264,7 +263,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 	return privVal.GetPubKey().Address() == addr
 }
 
-func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
+func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
 	state sm.State, logger *slog.Logger,
 ) (*mempl.Reactor, *mempl.CListMempool) {
 	mempool := mempl.NewCListMempool(
@@ -326,7 +325,7 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp proxy.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
+func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
 	var (
 		mConnConfig = p2p.MConnConfig(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
@@ -413,7 +412,7 @@ func createSwitch(config *cfg.Config,
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
 	nodeKey *p2p.NodeKey,
-	clientCreator proxy.ClientCreator,
+	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
 	logger *slog.Logger,
@@ -590,6 +589,16 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// Set up the GLOBAL variables in rpc/core which refer to this node.
+	// This is done separately from startRPC(), as the values in rpc/core are used,
+	// for instance, to set up Local clients (rpc/client) which work without
+	// a network connection.
+	n.configureRPC()
+	if n.config.RPC.Unsafe {
+		rpccore.AddUnsafeRoutes()
+	}
+	rpccore.Start()
+
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
 	if n.config.RPC.ListenAddress != "" {
@@ -675,9 +684,9 @@ func (n *Node) Ready() <-chan struct{} {
 	return n.firstBlockSignal
 }
 
-// ConfigureRPC sets all variables in rpccore so they will serve
+// configureRPC sets all variables in rpccore so they will serve
 // rpc calls from this node
-func (n *Node) ConfigureRPC() {
+func (n *Node) configureRPC() {
 	rpccore.SetStateDB(n.stateDB)
 	rpccore.SetBlockStore(n.blockStore)
 	rpccore.SetConsensusState(n.consensusState)
@@ -688,19 +697,13 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetConsensusReactor(n.consensusReactor)
+	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetEventSwitch(n.evsw)
 	rpccore.SetConfig(*n.config.RPC)
 }
 
 func (n *Node) startRPC() ([]net.Listener, error) {
-	n.ConfigureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
-	}
-	rpccore.Start()
-
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -833,7 +836,7 @@ func (n *Node) GenesisDoc() *types.GenesisDoc {
 }
 
 // ProxyApp returns the Node's AppConns, representing its connections to the ABCI application.
-func (n *Node) ProxyApp() proxy.AppConns {
+func (n *Node) ProxyApp() appconn.AppConns {
 	return n.proxyApp
 }
 

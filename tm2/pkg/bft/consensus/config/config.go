@@ -16,9 +16,10 @@ const (
 // ConsensusConfig defines the configuration for the Tendermint consensus service,
 // including timeouts and details about the WAL and the block structure.
 type ConsensusConfig struct {
-	RootDir string `toml:"home"`
-	WalPath string `toml:"wal_file"`
-	walFile string // overrides WalPath if set
+	RootDir     string `toml:"home"`
+	WALPath     string `toml:"wal_file"`
+	WALDisabled bool   `toml:"-"`
+	walFile     string // overrides WalPath if set
 
 	TimeoutPropose        time.Duration `toml:"timeout_propose"`
 	TimeoutProposeDelta   time.Duration `toml:"timeout_propose_delta"`
@@ -43,7 +44,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		WalPath:                     filepath.Join(defaultDataDir, "cs.wal", "wal"),
+		WALPath:                     filepath.Join(defaultDataDir, "cs.wal", "wal"),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -111,7 +112,7 @@ func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
 	}
-	return join(cfg.RootDir, cfg.WalPath)
+	return join(cfg.RootDir, cfg.WALPath)
 }
 
 // SetWalFile sets the path to the write-ahead log file

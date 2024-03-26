@@ -9,7 +9,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
 )
 
 var (
@@ -46,47 +45,6 @@ func (m *Microblog) GetPages() []*Page {
 	sort.Sort(byLastPosted(pages))
 
 	return pages
-}
-
-func (m *Microblog) RenderHome() string {
-	output := ufmt.Sprintf("# %s\n\n", m.Title)
-	output += "# pages\n\n"
-
-	for _, page := range m.GetPages() {
-		if u := users.GetUserByAddress(page.Author); u != nil {
-			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name(), page.Author.String(), m.Prefix, page.Author.String())
-		} else {
-			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
-		}
-	}
-
-	return output
-}
-
-func (m *Microblog) RenderUser(user string) string {
-	silo, found := m.Pages.Get(user)
-	if !found {
-		return StatusNotFound
-	}
-
-	return (silo.(*Page)).String()
-}
-
-func (m *Microblog) Render(path string) string {
-	parts := strings.Split(path, "/")
-
-	isHome := path == ""
-	isUser := len(parts) == 1
-
-	switch {
-	case isHome:
-		return m.RenderHome()
-
-	case isUser:
-		return m.RenderUser(parts[0])
-	}
-
-	return StatusNotFound
 }
 
 func (m *Microblog) NewPost(text string) error {
@@ -130,22 +88,6 @@ type byLastPosted []*Page
 func (a byLastPosted) Len() int           { return len(a) }
 func (a byLastPosted) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byLastPosted) Less(i, j int) bool { return a[i].LastPosted.After(a[j].LastPosted) }
-
-func (p *Page) String() string {
-	o := ""
-	if u := users.GetUserByAddress(p.Author); u != nil {
-		o += ufmt.Sprintf("# [%s](/r/demo/users:%s)\n\n", u.Name(), u.Name())
-		o += ufmt.Sprintf("%s\n\n", u.Profile())
-	}
-	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
-
-	o += ufmt.Sprintf("joined %s, last updated %s\n\n", p.CreatedAt.Format("2006-02-01"), p.LastPosted.Format("2006-02-01"))
-	o += "## feed\n\n"
-	for _, u := range p.GetPosts() {
-		o += u.String() + "\n\n"
-	}
-	return o
-}
 
 func (p *Page) NewPost(text string) error {
 	now := time.Now()

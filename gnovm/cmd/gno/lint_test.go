@@ -31,7 +31,7 @@ func TestLintApp(t *testing.T) {
 		// TODO: is gno source valid?
 		// TODO: are dependencies valid?
 		// TODO: is gno source using unsafe/discouraged features?
-		// TODO: consider making `gno precompile; go lint *gen.go`
+		// TODO: consider making `gno transpile; go lint *gen.go`
 		// TODO: check for imports of native libs from non _test.gno files
 	}
 	testMainCaseRun(t, tc)

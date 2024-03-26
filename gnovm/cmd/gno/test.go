@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -33,7 +34,7 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
+	transpile           bool // TODO: transpile should be the default, but it needs to automatically transpile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
@@ -46,7 +47,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the tests for the specified packages",
+			ShortHelp:  "runs the tests for the specified packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -104,16 +105,16 @@ instruction with the actual content of the test instead of failing.
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)
 
 	fs.BoolVar(
-		&c.precompile,
-		"precompile",
+		&c.transpile,
+		"transpile",
 		false,
-		"precompile gno to go before testing",
+		"transpile gno to go before testing",
 	)
 
 	fs.BoolVar(
@@ -166,7 +167,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	verbose := cfg.verbose
 
-	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
+	tempdirRoot, err := os.MkdirTemp("", "gno-transpile")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -174,7 +175,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// go.mod
 	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
+	err = makeTestGoMod(modPath, transpiler.ImportPrefix, "1.21")
 	if err != nil {
 		return fmt.Errorf("write .mod file: %w", err)
 	}
@@ -208,14 +209,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
-		if cfg.precompile {
+		if cfg.transpile {
 			if verbose {
 				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
 			}
-			precompileOpts := newPrecompileOptions(&precompileCfg{
+			transpileOpts := newTranspileOptions(&transpileCfg{
 				output: tempdirRoot,
 			})
-			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
+			err := transpilePkg(importPath(pkg.Dir), transpileOpts)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -233,7 +234,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				return errors.New("cannot resolve build dir")
 			}
-			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
+			err = goBuildFileOrPkg(tempDir, defaultTranspileCfg)
 			if err != nil {
 				io.ErrPrintln(err)
 				io.ErrPrintln("FAIL")
@@ -317,7 +318,7 @@ func gnoTestPkg(
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
-				gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)

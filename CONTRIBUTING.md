@@ -56,7 +56,7 @@ The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.20+)
+- Go (version 1.21+)
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
@@ -290,7 +290,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-    gno test <path-to-dir> --verbose
+    gno test <path-to-dir> -v
 
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available

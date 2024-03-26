@@ -32,7 +32,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "maketx",
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "Composes a tx document to sign",
+			ShortHelp:  "composes a tx document to sign",
 		},
 		cfg,
 		commands.HelpExec,
