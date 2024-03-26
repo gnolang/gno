@@ -1,0 +1,44 @@
+# test for https://github.com/gnolang/gno/pull/875
+
+## start a new node
+gnoland start
+
+## add realm_banker
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## check initial balance
+gnokey query bank/balances/g16kvq0mra3atvr07lkdwc2x6jqmna8a4kt0e85d
+stdout '""'
+
+## mint coin from banker
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g16kvq0mra3atvr07lkdwc2x6jqmna8a4kt0e85d" -args "ugnot" -args "31337" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## check balance after minting, without patching banker will return '31337ugnot'
+gnokey query bank/balances/g16kvq0mra3atvr07lkdwc2x6jqmna8a4kt0e85d
+stdout '"31337realm/gno.land/r/test/realm_banker/ugnot"'
+
+
+## burn coin
+gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args "g16kvq0mra3atvr07lkdwc2x6jqmna8a4kt0e85d" -args "ugnot" -args "7" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+## check balance after burning
+gnokey query bank/balances/g16kvq0mra3atvr07lkdwc2x6jqmna8a4kt0e85d
+stdout '"31330realm/gno.land/r/test/realm_banker/ugnot"'
+
+
+-- realm_banker.gno --
+package realm_banker
+
+import (
+	"std"
+)
+
+func Mint(addr std.Address, denom string, amount int64) {
+	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker.IssueCoin(addr, denom, amount)
+}
+
+func Burn(addr std.Address, denom string, amount int64) {
+  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker.RemoveCoin(addr, denom, amount)
+}
