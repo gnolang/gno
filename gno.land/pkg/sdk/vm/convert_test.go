@@ -206,6 +206,8 @@ func isQuotedBytes(raw []byte) bool {
 
 // Removes the quotes from the given byte array, if present
 func unquoteBytes(t *testing.T, raw []byte) []byte {
+	t.Helper()
+
 	unquoteRaw, err := strconv.Unquote(string(raw))
 	require.NoError(t, err)
 	return []byte(unquoteRaw)
