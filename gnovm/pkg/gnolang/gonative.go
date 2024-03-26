@@ -89,19 +89,6 @@ func (ds *defaultStore) SetStrictGo2GnoMapping(strict bool) {
 }
 
 // Implements Store.
-func (ds *defaultStore) AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string) {
-	rtPkgPath := rt.PkgPath()
-	if rtPkgPath == "" {
-		panic(fmt.Sprintf("type has no associated package path: %v", rt))
-	}
-	rtName := rt.Name()
-	if rtName == "" {
-		panic(fmt.Sprintf("type has no name: %v", rt))
-	}
-	ds.go2gnoMap[rtPkgPath+"."+rtName] = pkgPath + "." + name
-}
-
-// Implements Store.
 // See go2GnoValue2(). Like go2GnoType() but also converts any
 // top-level complex types (or pointers to them).  The result gets
 // memoized in *NativeType.GnoType() for type inference in the
@@ -110,9 +97,6 @@ func (ds *defaultStore) AddGo2GnoMapping(rt reflect.Type, pkgPath string, name s
 // The namedness of the native type gets converted to an
 // appropriate gno *DeclaredType with native methods
 // converted via go2GnoFuncType().
-// If store is not nil, native named types do not construct new
-// gno types, but rather the store is used to fetch gno types
-// from ds.go2gnoMap.
 func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 	if gnot, ok := ds.cacheNativeTypes[rt]; ok {
 		return gnot
@@ -125,61 +109,54 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 		// wrap t with declared type.
 		pkgPath := rt.PkgPath()
 		if pkgPath != "" {
-			// try to look up gno type from mapping.
-			gokey := pkgPath + "." + rt.Name()
-			gnokey, ok := ds.go2gnoMap[gokey]
-			if ok {
-				// mapping successful.
-				typ := ds.GetType(TypeID(gnokey))
-				if typ == nil {
-					panic(fmt.Sprintf("missing type %s", gnokey))
-				}
-				t = typ
-			} else if ds.go2gnoStrict {
+			// mappings have been removed, so for any non-builtin type in strict mode,
+			// this will panic.
+			if ds.go2gnoStrict {
 				// mapping failed and strict: error.
-				panic(fmt.Sprintf("native type mapping missing for %s", gokey))
-			} else {
-				// generate a new gno type for testing.
-				mtvs := []TypedValue(nil)
-				if t.Kind() == InterfaceKind {
-					// methods already set on t.Methods.
-					// *DT.Methods not used in Go for interfaces.
-				} else {
-					prt := rt
-					if rt.Kind() != reflect.Ptr {
-						// NOTE: go reflect requires ptr kind
-						// for methods with ptr receivers,
-						// whereas gno methods are all
-						// declared on the *DeclaredType.
-						prt = reflect.PtrTo(rt)
-					}
-					nm := prt.NumMethod()
-					mtvs = make([]TypedValue, nm)
-					for i := 0; i < nm; i++ {
-						mthd := prt.Method(i)
-						ft := ds.go2GnoFuncType(mthd.Type)
-						fv := &FuncValue{
-							Type:       ft,
-							IsMethod:   true,
-							Source:     nil,
-							Name:       Name(mthd.Name),
-							Closure:    nil,
-							PkgPath:    pkgPath,
-							body:       nil, // XXX
-							nativeBody: nil,
-						}
-						mtvs[i] = TypedValue{T: ft, V: fv}
-					}
-				}
-				dt := &DeclaredType{
-					PkgPath: pkgPath,
-					Name:    Name(rt.Name()),
-					Base:    t,
-					Methods: mtvs,
-				}
-				dt.Seal()
-				t = dt
+				gokey := pkgPath + "." + rt.Name()
+				panic(fmt.Sprintf("native type does not exist for %s", gokey))
 			}
+
+			// generate a new gno type for testing.
+			mtvs := []TypedValue(nil)
+			if t.Kind() == InterfaceKind {
+				// methods already set on t.Methods.
+				// *DT.Methods not used in Go for interfaces.
+			} else {
+				prt := rt
+				if rt.Kind() != reflect.Ptr {
+					// NOTE: go reflect requires ptr kind
+					// for methods with ptr receivers,
+					// whereas gno methods are all
+					// declared on the *DeclaredType.
+					prt = reflect.PtrTo(rt)
+				}
+				nm := prt.NumMethod()
+				mtvs = make([]TypedValue, nm)
+				for i := 0; i < nm; i++ {
+					mthd := prt.Method(i)
+					ft := ds.go2GnoFuncType(mthd.Type)
+					fv := &FuncValue{
+						Type:       ft,
+						IsMethod:   true,
+						Source:     nil,
+						Name:       Name(mthd.Name),
+						Closure:    nil,
+						PkgPath:    pkgPath,
+						body:       nil, // XXX
+						nativeBody: nil,
+					}
+					mtvs[i] = TypedValue{T: ft, V: fv}
+				}
+			}
+			dt := &DeclaredType{
+				PkgPath: pkgPath,
+				Name:    Name(rt.Name()),
+				Base:    t,
+				Methods: mtvs,
+			}
+			dt.Seal()
+			t = dt
 		}
 		// memoize t to cache.
 		if debug {

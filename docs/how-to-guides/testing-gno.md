@@ -12,7 +12,7 @@ testing techniques that involve data mocking.
 
 ## Prerequisites
 
-- **`gno` set up. Reference the [Installation](../getting-started/local-setup.md#3-installing-other-gno-tools) guide
+- **`gno` set up. Reference the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide
   for steps**
 
 ## Example Realm

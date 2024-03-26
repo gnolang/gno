@@ -228,7 +228,7 @@ type BaseConfig struct {
 	ProxyApp string `toml:"proxy_app" comment:"TCP or UNIX socket address of the ABCI application, \n or the name of an ABCI application compiled in with the Tendermint binary"`
 
 	// Local application instance in lieu of remote app.
-	LocalApp abci.Application
+	LocalApp abci.Application `toml:"-"`
 
 	// A custom human readable name for this node
 	Moniker string `toml:"moniker" comment:"A custom human readable name for this node"`
