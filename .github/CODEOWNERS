@@ -38,7 +38,7 @@
 /gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
 /gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
 /gno.land/pkg/log/            @zivkovicmilos @gfanton
-/gno.land/pkg/sdk/vm/         @gfanton @thehowl
+/gno.land/pkg/sdk/vm/         @moul @gfanton @thehowl
 /gno.land/pkg/integration/    @gfanton
 /gno.land/genesis/            @moul
 #...
@@ -46,7 +46,7 @@
 # GnoVM/Gnolang.
 /gnovm/                       @jaekwon @moul @piux2 @thehowl
 /gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @deelawn @thehowl
+/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes 
 /gnovm/cmd/gno/               @moul @thehowl @harry-hov
 /gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
 /gnovm/pkg/doc/               @thehowl
