@@ -103,6 +103,11 @@ func (z *Uint) Eq(x *Uint) bool {
 	return (z.arr[0] == x.arr[0]) && (z.arr[1] == x.arr[1]) && (z.arr[2] == x.arr[2]) && (z.arr[3] == x.arr[3])
 }
 
+// Neq returns true if z != x
+func (z *Uint) Neq(x *Uint) bool {
+	return !z.Eq(x)
+}
+
 // Sgt interprets z and x as signed integers, and returns
 // true if z > x
 func (z *Uint) Sgt(x *Uint) bool {
