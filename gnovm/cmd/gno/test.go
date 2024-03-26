@@ -24,7 +24,6 @@ import (
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
@@ -317,8 +316,7 @@ func gnoTestPkg(
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				return errors.New("unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
