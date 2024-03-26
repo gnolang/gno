@@ -75,7 +75,6 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
-	IsTest        bool
 }
 
 // the machine constructor gets spammed
@@ -100,10 +99,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
-	if !opts.IsTest && maxCycles == 0 {
-		// Never allow an infinite number of cycles.
-		maxCycles = 10_000_000
-	}
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -659,13 +654,6 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
-			// This is likely due to an infinite loop or recursion.
-			// Don't tryp to print out the machine state as it may
-			// take a very long time or never finish.
-			if v, ok := r.(cpuCyclePanic); ok {
-				panic(v.String())
-			}
-
 			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
 				r, m.String())
 			panic(r)
@@ -961,16 +949,10 @@ const (
 //----------------------------------------
 // "CPU" steps.
 
-type cpuCyclePanic struct{}
-
-func (p cpuCyclePanic) String() string {
-	return "CPU cycle overrun"
-}
-
 func (m *Machine) incrCPU(cycles int64) {
 	m.Cycles += cycles
 	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic(cpuCyclePanic{})
+		panic("CPU cycle overrun")
 	}
 }
 
