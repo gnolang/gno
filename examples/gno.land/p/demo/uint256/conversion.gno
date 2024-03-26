@@ -128,6 +128,7 @@ func (z *Uint) scanScientificFromString(src string) error {
 }
 
 // ToString returns the decimal string representation of z. It returns an empty string if z is nil.
+// OBS: doesn't exist from holiman's uint256
 func (z *Uint) ToString() string {
 	if z == nil {
 		return ""
