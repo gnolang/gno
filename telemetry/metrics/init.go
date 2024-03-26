@@ -54,7 +54,6 @@ func Init(setCtx context.Context, config options.Config) error {
 	broadcastTxTimer, err := meter.Int64Histogram(
 		"broadcast_tx_hist",
 		metric.WithDescription("broadcast tx duration"),
-		// metric.WithExplicitBucketBoundaries(0, 16, 32, 64, 128, 256, 512),
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
@@ -90,7 +89,6 @@ func Init(setCtx context.Context, config options.Config) error {
 	buildBlockTimer, err := meter.Int64Histogram(
 		"build_block_hist",
 		metric.WithDescription("block build duration"),
-		// metric.WithExplicitBucketBoundaries(0, 16, 32, 64, 128, 256, 512),
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
