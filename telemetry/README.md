@@ -16,12 +16,6 @@ There are many ways configure the OTEL pipeline for exporting metrics. Here is a
 ### OTEL collector
 The latest collector releases can be found [here](https://github.com/open-telemetry/opentelemetry-collector-releases/releases). This is an example of the config that can be used to receive metrics from gno.land and publish them to Grafana Cloud.
 ```yaml
-extensions:
-  basicauth/otlp:
-    client_auth:
-      username: <grafana instance id>
-      password: <grafana secret token>
-
 receivers:
   otlp:
     protocols:
@@ -33,12 +27,9 @@ processors:
 
 exporters:
   otlphttp:
-    auth:
-      authenticator: basicauth/otlp
     endpoint: https://otlp-gateway-prod-us-east-0.grafana.net/otlp
 
 service:
-  extensions: [basicauth/otlp]
   pipelines:
     metrics:
       receivers: [otlp]
@@ -46,8 +37,7 @@ service:
       exporters: [otlphttp]
 ```
 
-### Add as a connection in Grafana
-TODO: add details how to do this once the admin adds it as an option
+Collector exporter environment variables, including those for authentication, can be found [here](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
 
 ## Resources
 - https://opentelemetry.io/docs/collector/
