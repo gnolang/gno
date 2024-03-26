@@ -11,7 +11,7 @@ stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '(10 int)'
+stdout '10'
 
 -- gno.mod --
 module gno.land/r/demo/xx

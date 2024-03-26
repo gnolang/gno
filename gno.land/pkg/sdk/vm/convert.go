@@ -177,17 +177,27 @@ func convertArgToGno(store gno.Store, arg string, argT gno.Type) (gno.TypedValue
 		}
 
 		return utv, nil
-
-	case *gno.StructType:
-		utv, err := UnmarshalTypedValueJSON(store.GetAllocator(), store, []byte(arg), argT)
-		if err != nil {
-			return gno.TypedValue{}, fmt.Errorf("error unmarshal struct %.50q: %w", arg, err)
-		}
-
-		return utv, nil
 	default:
-		return gno.TypedValue{}, fmt.Errorf("unexpected type in contract arg: %q", argT)
 	}
+
+	var kind gno.Kind
+	if kind = argT.Kind(); kind == gno.PointerKind {
+		kind = argT.Elem().Kind()
+	}
+
+	// If there is no struct or struct pointer, return an error. We don't
+	// want to deal with nested pointers as arguments.
+	if kind != gno.StructKind {
+		return gno.TypedValue{}, fmt.Errorf("unexpected type in contract arg: %s(%q)", gno.KindOf(argT).String(), argT)
+	}
+
+	// Handle struct kind
+	utv, err := UnmarshalTypedValueJSON(store.GetAllocator(), store, []byte(arg), argT)
+	if err != nil {
+		return gno.TypedValue{}, fmt.Errorf("error unmarshal struct %.50q: %w", arg, err)
+	}
+
+	return utv, nil
 }
 
 func convertFloat(value string, precision int) float64 {

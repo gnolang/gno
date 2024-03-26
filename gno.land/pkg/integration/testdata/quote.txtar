@@ -1,0 +1,14 @@
+loadpkg gno.land/r/foobar/bar $WORK/bar
+
+gnoland start
+
+## execute Render
+gnokey query vm/qrender --data "gno.land/r/foobar/bar\n"
+stdout 'hello from foo'
+
+-- bar/bar.gno --
+package bar
+
+func Render(path string) string {
+ 	return "hello from foo"
+}

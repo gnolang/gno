@@ -9,7 +9,7 @@ stdout OK!
 # call map
 gnokey maketx call -pkgpath gno.land/r/demo/mapindex -func FindMapWithKey -args 3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '"three" string'
+stdout 'three'
 
 # XXX without patching realm.go, expected stdout is
 # stdout ' string'

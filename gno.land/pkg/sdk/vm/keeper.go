@@ -302,62 +302,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}()
 
 	rtvs := m.Eval(xn)
-
-	// Result
-
-	// Iterate through params
-	var response gno.TypedValue
-	{
-		var sv gno.StructValue
-		var st gno.StructType
-
-		// Generate result Typed Value
-		result := gno.TypedValue{
-			V: &gno.ArrayValue{
-				List: rtvs,
-			},
-			T: &gno.ArrayType{
-				Elt: &gno.InterfaceType{},
-				Len: len(rtvs),
-			},
-		}
-
-		// Define response fields
-		responseFS := []gno.FieldType{
-			{
-				Name: gno.Name("Result"),
-				Type: result.T,
-			},
-			{
-				Name: gno.Name("CPUCycles"),
-				Type: gno.Int64Type,
-			},
-		}
-		responseTV := make([]gno.TypedValue, 0, len(responseFS))
-
-		// Add result value
-		responseTV = append(responseTV, result)
-
-		// Add cpucycle to responses
-		cycle := gno.TypedValue{T: gno.Int64Type}
-		cycle.SetInt64(m.Cycles)
-		responseTV = append(responseTV, cycle)
-
-		st.PkgPath = mpn.PkgPath
-		st.Fields = responseFS
-		sv.Fields = responseTV
-
-		response.T = &st
-		response.V = &sv
-	}
-
 	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
-	resraw, err := MarshalTypedValueJSON(&response)
-	if err != nil {
-		return "", fmt.Errorf("unable to Marshall result: %w", err)
-	}
 
-	return string(resraw), nil
+	ret, err := processResult(ctx, rtvs, m, mpn.PkgPath)
+	return ret, err
 	// TODO pay for gas? TODO see context?
 }
 
@@ -550,15 +498,11 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		}
 		m.Release()
 	}()
+
 	rtvs := m.Eval(xx)
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
+
+	// TODO pay for gas? TODO see context?
+	return processResult(ctx, rtvs, m, pv.PkgPath)
 }
 
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
@@ -581,7 +525,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	if err != nil {
 		return "", err
 	}
-	// Construct new machine.
+	// Construct new         machine.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),
@@ -639,4 +583,57 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+func processResult(ctx sdk.Context, rtvs []gno.TypedValue, m *gno.Machine, pkgPath string) (string, error) {
+	var (
+		response gno.TypedValue
+		sv       gno.StructValue
+		st       gno.StructType
+	)
+
+	// Generate result Typed Value
+	result := gno.TypedValue{
+		V: &gno.ArrayValue{
+			List: rtvs,
+		},
+		T: &gno.ArrayType{
+			Elt: &gno.InterfaceType{},
+			Len: len(rtvs),
+		},
+	}
+
+	// Define response fields
+	responseFS := []gno.FieldType{
+		{
+			Name: gno.Name("Result"),
+			Type: result.T,
+		},
+		{
+			Name: gno.Name("CPUCycles"),
+			Type: gno.Int64Type,
+		},
+	}
+	responseTV := make([]gno.TypedValue, 0, len(responseFS))
+
+	// Add result value
+	responseTV = append(responseTV, result)
+
+	// Add cpucycle to responses
+	cycle := gno.TypedValue{T: gno.Int64Type}
+	cycle.SetInt64(m.Cycles)
+	responseTV = append(responseTV, cycle)
+
+	st.PkgPath = pkgPath
+	st.Fields = responseFS
+	sv.Fields = responseTV
+
+	response.T = &st
+	response.V = &sv
+
+	resraw, err := MarshalTypedValueJSON(&response)
+	if err != nil {
+		return "", fmt.Errorf("unable to Marshall result: %w", err)
+	}
+	return string(resraw), nil
 }
