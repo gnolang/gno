@@ -38,7 +38,7 @@ func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "add [flags] <key-name>",
-			ShortHelp:  "Adds key to the keybase",
+			ShortHelp:  "adds key to the keybase",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -51,7 +51,7 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.Multisig,
 		"multisig",
-		"Construct and store a multisig public key (implies --pubkey)",
+		"construct and store a multisig public key (implies --pubkey)",
 	)
 
 	fs.IntVar(
@@ -65,56 +65,56 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.NoSort,
 		"nosort",
 		false,
-		"Keys passed to --multisig are taken in the order they're supplied",
+		"keys passed to --multisig are taken in the order they're supplied",
 	)
 
 	fs.StringVar(
 		&c.PublicKey,
 		"pubkey",
 		"",
-		"Parse a public key in bech32 format and save it to disk",
+		"parse a public key in bech32 format and save it to disk",
 	)
 
 	fs.BoolVar(
 		&c.UseLedger,
 		"ledger",
 		false,
-		"Store a local reference to a private key on a Ledger device",
+		"store a local reference to a private key on a Ledger device",
 	)
 
 	fs.BoolVar(
 		&c.Recover,
 		"recover",
 		false,
-		"Provide seed phrase to recover existing key instead of creating",
+		"provide seed phrase to recover existing key instead of creating",
 	)
 
 	fs.BoolVar(
 		&c.NoBackup,
 		"nobackup",
 		false,
-		"Don't print out seed phrase (if others are watching the terminal)",
+		"don't print out seed phrase (if others are watching the terminal)",
 	)
 
 	fs.BoolVar(
 		&c.DryRun,
 		"dryrun",
 		false,
-		"Perform action, but don't add key to local keystore",
+		"perform action, but don't add key to local keystore",
 	)
 
 	fs.Uint64Var(
 		&c.Account,
 		"account",
 		0,
-		"Account number for HD derivation",
+		"account number for HD derivation",
 	)
 
 	fs.Uint64Var(
 		&c.Index,
 		"index",
 		0,
-		"Address index number for HD derivation",
+		"address index number for HD derivation",
 	)
 }
 
