@@ -61,6 +61,8 @@ func (s SignerFromKeybase) Info() keys.Info {
 	return info
 }
 
+// SignCfg provides the signing configuration, containing:
+// unsigned transaction data, account number, and account sequence.
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
@@ -122,10 +124,10 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 // Ensure SignerFromKeybase implements the Signer interface.
 var _ Signer = (*SignerFromKeybase)(nil)
 
-// SignerFromBip39 creates an in-memory keybase with a single default account.
+// SignerFromBip39 creates a signer from an in-memory keybase with a single default account, derived from the given mnemonic.
 // This can be useful in scenarios where storing private keys in the filesystem isn't feasible.
 //
-// Warning: Using keys.NewKeyBaseFromDir is recommended where possible, as it is more secure.
+// Warning: Using keys.NewKeyBaseFromDir to get a keypair from local storage is recommended where possible, as it is more secure.
 func SignerFromBip39(mnemonic string, chainID string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"

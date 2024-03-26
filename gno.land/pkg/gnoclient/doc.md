@@ -167,9 +167,9 @@ var (
 ```
 
 <a name="BaseTxCfg"></a>
-## type [BaseTxCfg](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L26-L32>)
+## type [BaseTxCfg](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L27-L33>)
 
-
+BaseTxCfg defines the base transaction configuration
 
 ```go
 type BaseTxCfg struct {
@@ -194,7 +194,7 @@ type Client struct {
 ```
 
 <a name="Client.Call"></a>
-### func \(\*Client\) [Call](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L55>)
+### func \(\*Client\) [Call](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L56>)
 
 ```go
 func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error)
@@ -203,7 +203,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 Call executes a one or more MsgCall calls on the blockchain.
 
 <a name="Client.QEval"></a>
-### func \(Client\) [QEval](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L107>)
+### func \(Client\) [QEval](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L108>)
 
 ```go
 func (c Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error)
@@ -230,16 +230,16 @@ func (c Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Res
 QueryAccount retrieves account information for a given address.
 
 <a name="Client.QueryAppVersion"></a>
-### func \(Client\) [QueryAppVersion](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L64>)
+### func \(Client\) [QueryAppVersion](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L65>)
 
 ```go
 func (c Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error)
 ```
 
-
+QueryAppVersion retrieves information about the app version
 
 <a name="Client.Render"></a>
-### func \(Client\) [Render](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L84>)
+### func \(Client\) [Render](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L85>)
 
 ```go
 func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error)
@@ -248,7 +248,7 @@ func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQ
 Render calls the Render function for pkgPath with optional args. The pkgPath should include the prefix like "gno.land/". This is similar to using a browser URL \<testnet\>/\<pkgPath\>:\<args\> where \<pkgPath\> doesn't have the prefix like "gno.land/".
 
 <a name="Client.Run"></a>
-### func \(\*Client\) [Run](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L111>)
+### func \(\*Client\) [Run](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L112>)
 
 ```go
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error)
@@ -257,7 +257,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 Run executes a one or more MsgRun calls on the blockchain.
 
 <a name="Client.Send"></a>
-### func \(\*Client\) [Send](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L175>)
+### func \(\*Client\) [Send](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L176>)
 
 ```go
 func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error)
@@ -266,7 +266,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 Send currency to an account on the blockchain.
 
 <a name="MsgCall"></a>
-## type [MsgCall](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L35-L40>)
+## type [MsgCall](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L36-L41>)
 
 MsgCall \- syntax sugar for vm.MsgCall
 
@@ -280,7 +280,7 @@ type MsgCall struct {
 ```
 
 <a name="MsgRun"></a>
-## type [MsgRun](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L49-L52>)
+## type [MsgRun](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L50-L53>)
 
 MsgRun \- syntax sugar for vm.MsgRun
 
@@ -292,9 +292,9 @@ type MsgRun struct {
 ```
 
 <a name="MsgSend"></a>
-## type [MsgSend](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L43-L46>)
+## type [MsgSend](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L44-L47>)
 
-MsgSend \- syntax sugar for bank.MsgSend minus fields in BaseTxCfg
+MsgSend \- syntax sugar for bank.MsgSend
 
 ```go
 type MsgSend struct {
@@ -317,9 +317,9 @@ type QueryCfg struct {
 ```
 
 <a name="SignCfg"></a>
-## type [SignCfg](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L64-L68>)
+## type [SignCfg](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L65-L69>)
 
-
+SignCfg provides the signing configuration
 
 ```go
 type SignCfg struct {
@@ -343,7 +343,7 @@ type Signer interface {
 ```
 
 <a name="SignerFromBip39"></a>
-### func [SignerFromBip39](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L129>)
+### func [SignerFromBip39](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L130>)
 
 ```go
 func SignerFromBip39(mnemonic string, chainID string, passphrase string, account uint32, index uint32) (Signer, error)
@@ -377,7 +377,7 @@ func (s SignerFromKeybase) Info() keys.Info
 Info gets keypair information.
 
 <a name="SignerFromKeybase.Sign"></a>
-### func \(SignerFromKeybase\) [Sign](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L71>)
+### func \(SignerFromKeybase\) [Sign](<https://github.com/leohhhn/gno/blob/master/gno.land/pkg/gnoclient/signer.go#L72>)
 
 ```go
 func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error)
