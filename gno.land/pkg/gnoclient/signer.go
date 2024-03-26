@@ -24,6 +24,7 @@ type SignerFromKeybase struct {
 	ChainID  string       // Chain ID for transaction signing
 }
 
+// Validate checks if the signer is properly configured.
 func (s SignerFromKeybase) Validate() error {
 	if s.ChainID == "" {
 		return errors.New("missing ChainID")
@@ -51,6 +52,7 @@ func (s SignerFromKeybase) Validate() error {
 	return nil
 }
 
+// Info gets keypair information.
 func (s SignerFromKeybase) Info() keys.Info {
 	info, err := s.Keybase.GetByNameOrAddress(s.Account)
 	if err != nil {
@@ -59,13 +61,13 @@ func (s SignerFromKeybase) Info() keys.Info {
 	return info
 }
 
-// Sign implements the Signer interface for SignerFromKeybase.
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
 	AccountNumber  uint64
 }
 
+// Sign implements the Signer interface for SignerFromKeybase.
 func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	tx := cfg.UnsignedTX
 	chainID := s.ChainID
