@@ -3,7 +3,6 @@ package metrics
 import (
 	"context"
 	"math/rand"
-	"time"
 
 	"github.com/gnolang/gno/telemetry/exporter"
 	"github.com/gnolang/gno/telemetry/options"
@@ -36,9 +35,9 @@ func Init(setCtx context.Context, config options.Config) error {
 		return err
 	}
 
-	periodOption := sdkMetric.WithInterval(time.Second)
 	provider := sdkMetric.NewMeterProvider(
-		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter, periodOption)),
+		// Default period is 1m.
+		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter)),
 		sdkMetric.WithResource(
 			resource.NewWithAttributes(
 				semconv.SchemaURL,
