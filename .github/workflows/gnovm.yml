@@ -3,6 +3,16 @@ name: gnovm
 on:
   pull_request:
     paths:
+      # XXX: for now keep the paths for gnovm, tm2, gnoland and misc the same,
+      # so that coverage information is uploaded for all of them together.
+      # This could be removed in the future.
+      - "gnovm/**"
+      - "tm2/**"
+      - "gno.land/**"
+      - "misc/**"
+      - "examples/**"
+      - ".github/workflows/**"
+      # XXX: end copied part, below is the "ideal" paths on which this workflow should run
       - "go.sum"
       - "gnovm/**.go"
       - "gnovm/**.gno"
@@ -11,12 +21,6 @@ on:
       - "gnovm/Makefile"
       - "tm2/**.go"
       - ".github/workflows/gnovm.yml"
-      # Until the codecov issue is resolved, it's essential to run the tests for gnovm, tm2, and gno.land concurrently.
-      - "gnovm/**"
-      - "tm2/**"
-      - "gno.land/**"
-      - "examples/**"
-      - ".github/workflows/**"
   push:
     branches: [ "master" ]
 
@@ -30,8 +34,8 @@ jobs:
       fail-fast: false
       matrix:
         goversion: # two latest versions
-          - "1.20.x"
           - "1.21.x"
+          - "1.22.x"
         goenv: # TODO: replace with pairs, so it's easier to read in the GH interface.
           - "GOARCH=amd64 GOOS=linux"
           - "GOARCH=wasm GOOS=js"
@@ -41,7 +45,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - name: go install
@@ -53,8 +57,8 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.20.x"
           - "1.21.x"
+          - "1.22.x"
         args:
           - _test.cmd
           - _test.pkg
@@ -71,7 +75,7 @@ jobs:
       COVERAGE_DIR: "/tmp/coverage"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - name: Set environment variables for debug mode
@@ -91,17 +95,17 @@ jobs:
 
           # Setup testing environements variables
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir=$COVERAGE_DIR" 
+          export GOTEST_FLAGS="-v -p 1 -timeout=30m -covermode=atomic -test.gocoverdir=$COVERAGE_DIR"
 
           # Run target test
           make ${{ matrix.args }}
-      - uses: actions/upload-artifact@v3
-        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.21.x' }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.22.x' }}
         with:
           name: ${{runner.os}}-coverage-gnovm-${{ matrix.args}}-${{matrix.goversion}}
           path: ${{ env.COVERAGE_DIR }}
       - name: Upload Debug Logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() && runner.debug == 1 }}
         with:
           name: logs-test-go${{ matrix.goversion }}-${{ matrix.args }}
@@ -116,13 +120,14 @@ jobs:
       COVERAGE_PROFILE: /tmp/coverage/coverage.txt
     steps:
       - run: mkdir -p $COVERAGE_DATA $COVERAGE_OUTPUT
+      - uses: actions/checkout@v4
       - name: Download all previous coverage data artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ${{ env.COVERAGE_DATA }}
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: "1.21.x"
+          go-version: "1.22.x"
       - name: Merge coverages
         working-directory: ${{ env.COVERAGE_DATA }}
         run: |
@@ -140,7 +145,7 @@ jobs:
           go tool covdata textfmt -v 1 -i=$COVERAGE_OUTPUT -o $COVERAGE_PROFILE
 
       - name: Upload combined coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: ${{ env.COVERAGE_PROFILE }}
           token: ${{ secrets.CODECOV_TOKEN }}

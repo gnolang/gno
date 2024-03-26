@@ -145,7 +145,7 @@ func TestModApp(t *testing.T) {
 			errShouldBe:          "create gno.mod file: gno.mod file already exists",
 		},
 
-		// test `gno mod tidy` with module name
+		// test `gno mod tidy`
 		{
 			args:                 []string{"mod", "tidy", "arg1"},
 			testDir:              "../../tests/integ/minimalist-gnomod",
@@ -184,6 +184,59 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/invalid-gno-file",
 			simulateExternalRepo: true,
 			errShouldContain:     "expected 'package', found packag",
+		},
+
+		// test `gno mod why`
+		{
+			args:                 []string{"mod", "why"},
+			testDir:              "../../tests/integ/minimalist-gnomod",
+			simulateExternalRepo: true,
+			errShouldContain:     "flag: help requested",
+		},
+		{
+			args:                 []string{"mod", "why", "std"},
+			testDir:              "../../tests/integ/empty-dir",
+			simulateExternalRepo: true,
+			errShouldContain:     "could not read gno.mod file",
+		},
+		{
+			args:                 []string{"mod", "why", "std"},
+			testDir:              "../../tests/integ/invalid-module-version1",
+			simulateExternalRepo: true,
+			errShouldContain:     "error parsing gno.mod file at",
+		},
+		{
+			args:                 []string{"mod", "why", "std"},
+			testDir:              "../../tests/integ/invalid-gno-file",
+			simulateExternalRepo: true,
+			errShouldContain:     "expected 'package', found packag",
+		},
+		{
+			args:                 []string{"mod", "why", "std"},
+			testDir:              "../../tests/integ/minimalist-gnomod",
+			simulateExternalRepo: true,
+			stdoutShouldBe: `# std
+(module minim does not need package std)
+`,
+		},
+		{
+			args:                 []string{"mod", "why", "std"},
+			testDir:              "../../tests/integ/require-remote-module",
+			simulateExternalRepo: true,
+			stdoutShouldBe: `# std
+(module gno.land/tests/importavl does not need package std)
+`,
+		},
+		{
+			args:                 []string{"mod", "why", "std", "gno.land/p/demo/avl"},
+			testDir:              "../../tests/integ/valid2",
+			simulateExternalRepo: true,
+			stdoutShouldBe: `# std
+(module gno.land/p/integ/valid does not need package std)
+
+# gno.land/p/demo/avl
+valid.gno
+`,
 		},
 	}
 	testMainCaseRun(t, tc)
@@ -297,7 +350,7 @@ func TestGetGnoImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	imports, err := getGnoImports(tmpDir)
+	imports, err := getGnoPackageImports(tmpDir)
 	require.NoError(t, err)
 
 	require.Equal(t, len(expected), len(imports))

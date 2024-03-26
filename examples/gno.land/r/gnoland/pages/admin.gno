@@ -38,20 +38,24 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
 
-func ModAddPost(slug, title, body, tags string) {
+func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	caller := std.GetOrigCaller()
 	tagList := strings.Split(tags, ",")
-	err := b.NewPost(caller, slug, title, body, tagList)
+	authorList := strings.Split(authors, ",")
+
+	err := b.NewPost(caller, slug, title, body, publicationDate, authorList, tagList)
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, tags string) {
+func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
-	err := b.GetPost(slug).Update(title, body, tagList)
+	authorList := strings.Split(authors, ",")
+
+	err := b.GetPost(slug).Update(title, body, publicationDate, authorList, tagList)
 	checkErr(err)
 }
 

@@ -5,7 +5,7 @@ gno test .
 ! stdout .+
 stderr '\?       \. 	\[no test files\]'
 
-! gno test --precompile .
+! gno test --transpile .
 
 ! stdout .+
 stderr 'expected ''package'', found ''EOF'''

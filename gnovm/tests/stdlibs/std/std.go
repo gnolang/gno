@@ -6,10 +6,8 @@ import (
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
@@ -68,11 +66,13 @@ func ClearStoreCache(m *gno.Machine) {
 	}
 }
 
-func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
+func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("GetCallerAt requires positive arg"))
 		return ""
 	}
+	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	n++
 	if n > m.NumFrames()-1 {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
@@ -82,35 +82,39 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	}
 	if n == m.NumFrames()-1 {
 		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
-		ctx := m.Context.(stdlibs.ExecContext)
-		return ctx.OrigCaller
+		ctx := m.Context.(std.ExecContext)
+		return string(ctx.OrigCaller)
 	}
-	return m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
+	return string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func TestSetOrigCaller(m *gno.Machine, addr crypto.Bech32Address) {
+func X_testSetOrigCaller(m *gno.Machine, addr string) {
 	ctx := m.Context.(std.ExecContext)
-	ctx.OrigCaller = addr
+	ctx.OrigCaller = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 
-func TestSetOrigPkgAddr(m *gno.Machine, addr crypto.Bech32Address) {
-	ctx := m.Context.(stdlibs.ExecContext)
-	ctx.OrigPkgAddr = addr
+func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
+	ctx := m.Context.(std.ExecContext)
+	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 
-func TestSetOrigSend(m *gno.Machine, sent, spent tm2std.Coins) {
-	ctx := m.Context.(stdlibs.ExecContext)
-	ctx.OrigSend = sent
+func X_testSetOrigSend(m *gno.Machine,
+	sentDenom []string, sentAmt []int64,
+	spentDenom []string, spentAmt []int64,
+) {
+	ctx := m.Context.(std.ExecContext)
+	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
+	spent := std.CompactCoins(spentDenom, spentAmt)
 	ctx.OrigSendSpent = &spent
 	m.Context = ctx
 }
 
-func TestIssueCoins(m *gno.Machine, addr crypto.Bech32Address, coins tm2std.Coins) {
-	ctx := m.Context.(stdlibs.ExecContext)
+func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
+	ctx := m.Context.(std.ExecContext)
 	banker := ctx.Banker
-	for _, coin := range coins {
-		banker.IssueCoin(addr, coin.Denom, coin.Amount)
+	for i := range denom {
+		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}
 }
