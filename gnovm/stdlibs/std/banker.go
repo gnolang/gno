@@ -88,10 +88,17 @@ func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
 
 func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
-	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
+
+	// Similar to ibc spec
+	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
+	// gno_realm_denom := 'realm/' + 'pkg_path' + '/' + 'base_denom'
+	newDenom := "realm/" + m.Realm.Path + "/" + denom
+	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
 
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
-	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
+
+	newDenom := "realm/" + m.Realm.Path + "/" + denom
+	m.Context.(ExecContext).Banker.RemoveCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
