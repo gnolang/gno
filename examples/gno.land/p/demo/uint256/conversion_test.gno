@@ -9,15 +9,15 @@ func TestIsUint64(t *testing.T) {
 		x    string
 		want bool
 	}{
-		{"0", true},
-		{"1", true},
-		{"10", true},
-		{"ffffffffffffffff", true},
-		{"10000000000000000", true},
+		{"0x0", true},
+		{"0x1", true},
+		{"0x10", true},
+		{"0xffffffffffffffff", true},
+		{"0x10000000000000000", false},
 	}
 
 	for _, tc := range tests {
-		x := new(Uint).SetBytes(hex2Bytes(tc.x))
+		x := MustFromHex(tc.x)
 		got := x.IsUint64()
 
 		if got != tc.want {

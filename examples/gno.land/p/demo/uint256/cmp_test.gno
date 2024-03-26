@@ -103,15 +103,15 @@ func TestLtUint64(t *testing.T) {
 }
 
 func TestSGT(t *testing.T) {
-	x := new(Uint).SetBytes(hex2Bytes("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"))
-	y := new(Uint).SetBytes(hex2Bytes("00"))
+	x := MustFromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
+	y := MustFromHex("0x0")
 	actual := x.Sgt(y)
 	if actual {
 		t.Fatalf("Expected %v false", actual)
 	}
 
-	x = new(Uint).SetBytes(hex2Bytes("00"))
-	y = new(Uint).SetBytes(hex2Bytes("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"))
+	x = MustFromHex("0x0")
+	y = MustFromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
 	actual = x.Sgt(y)
 	if !actual {
 		t.Fatalf("Expected %v true", actual)
