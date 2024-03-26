@@ -168,24 +168,6 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		return fmt.Errorf("invalid send amount, %w", err)
 	}
 
-func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
-	// Parse static gas values.
-	// It is worth noting that this is temporary,
-	// and will be removed once gas estimation is enabled
-	// on Gno.land
-	gasFee := std.MustParseCoin(defaultGasFee)
-
-	gasWanted, err := strconv.ParseInt(defaultGasWanted, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid gas wanted, %w", err)
-	}
-
-	// Parse the send amount
-	_, err = std.ParseCoins(cfg.maxSendAmount)
-	if err != nil {
-		return fmt.Errorf("invalid send amount, %w", err)
-	}
-
 	// Validate the remote address
 	if !remoteRegex.MatchString(cfg.remote) {
 		return errors.New("invalid remote address")
