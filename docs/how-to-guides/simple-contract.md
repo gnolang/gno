@@ -11,7 +11,7 @@ in [Gno](../concepts/gno-language.md).
 
 For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
-Our _Counter_ Realm will have the following functionality:
+Our **Counter** Realm will have the following functionality:
 
 - Keeping track of the current count.
 - Incrementing / decrementing the count.
