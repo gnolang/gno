@@ -57,7 +57,8 @@ func TestConvertArg2Gno_Primitive(t *testing.T) {
 			raw, err := MarshalTypedValueJSON(&tvIn)
 			require.NoError(t, err)
 
-			// Unquote intermediary result if needed
+			// Unquote intermediary result if necessary to prevent
+			// double quoting of a string.
 			if isQuotedBytes(raw) {
 				raw = unquoteBytes(t, raw)
 			}
