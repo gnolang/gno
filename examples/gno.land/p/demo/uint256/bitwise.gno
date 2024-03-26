@@ -27,6 +27,7 @@ func (z *Uint) Not(x *Uint) *Uint {
 	return z
 }
 
+// AndNot sets z = x &^ y and returns z.
 func (z *Uint) AndNot(x, y *Uint) *Uint {
 	z.arr[0] = x.arr[0] &^ y.arr[0]
 	z.arr[1] = x.arr[1] &^ y.arr[1]
