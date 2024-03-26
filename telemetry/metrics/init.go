@@ -60,25 +60,6 @@ func Init(setCtx context.Context, config options.Config) error {
 		return err
 	}
 
-	_, err = meter.Int64ObservableCounter(
-		"test_counter",
-		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
-			//attrs := attribute.String("address", faucetAddress)
-			o.Observe(100)
-			return nil
-		}),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	// meter.RegisterCallback(
-	// 	func(_ context.Context, o metric.Observer) error {
-	// 		o.ObserveInt64(TestCounter, 100)
-	// 	},
-	// 	TestCounter,
-	// )
-
 	BroadcastTxTimer = Int64Histogram{
 		Int64Histogram: broadcastTxTimer,
 		useFakeMetrics: config.UseFakeMetrics,
