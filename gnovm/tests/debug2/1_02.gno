@@ -10,7 +10,6 @@ func main() {
 	}()
 
 	{
-		// this is actually an implicit for loop
 	LABEL_1:
 		if counter == 2 {
 			return

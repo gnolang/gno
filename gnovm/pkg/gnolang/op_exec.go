@@ -663,16 +663,20 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
+			debug.Println("---exec goto")
 			for i := uint8(0); i < cs.Depth; i++ {
 				m.PopBlock()
 			}
 			last := m.LastBlock()
+			debug.Println("---exec goto, last: ", last)
 			bs := last.GetBodyStmt()
+			debug.Println("---exec goto, bs: ", bs)
 			m.NumOps = bs.NumOps
 			m.NumValues = bs.NumValues
 			m.Exprs = m.Exprs[:bs.NumExprs]
 			m.Stmts = m.Stmts[:bs.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex
+			debug.Println("---exec goto, bodyIndex: ", cs.BodyIndex)
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)

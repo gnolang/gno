@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var y, counter int
+	var y int
 	var f []func()
 	defer func() {
 		for _, ff := range f {
@@ -10,16 +10,11 @@ func main() {
 	}()
 
 	for i := 0; i < 2; i++ {
-		counter = 0
-	LABEL_1:
-		if counter == 2 {
-			continue
+		for j := 0; j < 2; j++ { // every inner loop will create a new block too, see 1_05
+			x := y
+			f = append(f, func() { println(x) })
+			y++
 		}
-		x := y
-		f = append(f, func() { println(x) })
-		y++
-		counter++
-		goto LABEL_1
 	}
 }
 
