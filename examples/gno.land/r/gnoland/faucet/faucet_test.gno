@@ -1,7 +1,6 @@
 package faucet
 
 import (
-	"fmt"
 	"std"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 func TestPackage(t *testing.T) {
 	var (
 		adminaddr        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-		faucetaddr       = std.DerivePkgAddr("gno.land/r/faucet")
+		faucetaddr       = std.DerivePkgAddr("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")
 		controlleraddr3  = testutils.TestAddress("controller3")
@@ -28,10 +27,8 @@ func TestPackage(t *testing.T) {
 		test1addr = testutils.TestAddress("test1")
 	)
 	// deposit 1000gnot to faucet contract
-
 	std.TestIssueCoins(faucetaddr, std.Coins{{"ugnot", 1000000000}})
-	std.TestSetOrigPkgAddr(faucetaddr)
-	assertBalance(t, faucetaddr, 1000000000)
+	assertBalance(t, faucetaddr, 1200000000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 
@@ -46,7 +43,7 @@ func TestPackage(t *testing.T) {
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
 	std.TestSetOrigCaller(adminaddr)
 	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
-	assertBalance(t, faucetaddr, 1000000000)
+	assertBalance(t, faucetaddr, 1200000000)
 
 	// now, send some tokens as controller.
 	std.TestSetOrigCaller(controlleraddr1)
@@ -54,7 +51,7 @@ func TestPackage(t *testing.T) {
 	assertBalance(t, test1addr, 1000000)
 	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
 	assertBalance(t, test1addr, 2000000)
-	assertBalance(t, faucetaddr, 998000000)
+	assertBalance(t, faucetaddr, 1198000000)
 
 	// remove controller
 	// as an admin, remove controller
