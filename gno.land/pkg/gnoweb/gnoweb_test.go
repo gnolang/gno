@@ -32,7 +32,7 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog/admin.gno", ok, "func "},
 		{"/r/demo/users:administrator", ok, "address"},
 		{"/r/demo/users", ok, "manfred"},
-		{"/r/demo/users/types.gno", ok, "type "},
+		{"/r/demo/users/users.gno", ok, "// State"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
 		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
 		{"/r/demo/deep/very/deep?help", ok, "exposed"},
@@ -45,12 +45,12 @@ func TestRoutes(t *testing.T) {
 	}
 
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
@@ -94,13 +94,13 @@ func TestAnalytics(t *testing.T) {
 	}
 
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
 	cfg.RemoteAddr = remoteAddr
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {

@@ -1356,6 +1356,8 @@ func fillTypesOfValue(store Store, val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
+
+			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
 	case TypeValue:
@@ -1511,13 +1513,14 @@ func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
+// realmPathPrefix is the prefix used to identify pkgpaths which are meant to
+// be realms and as such to have their state persisted. This is used by [IsRealmPath].
+const realmPathPrefix = "gno.land/r/"
+
+// IsRealmPath determines whether the given pkgpath is for a realm, and as such
+// should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, GnoRealmPkgsPrefixBefore) {
-		return true
-	} else {
-		return false
-	}
+	return strings.HasPrefix(pkgPath, realmPathPrefix)
 }
 
 func prettyJSON(jstr []byte) []byte {

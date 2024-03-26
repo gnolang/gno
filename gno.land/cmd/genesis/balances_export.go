@@ -16,7 +16,7 @@ func newBalancesExportCmd(balancesCfg *balancesCfg, io commands.IO) *commands.Co
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "balances export [flags] <output-path>",
-			ShortHelp:  "Exports the balances from the genesis.json",
+			ShortHelp:  "exports the balances from the genesis.json",
 			LongHelp:   "Exports the balances from the genesis.json to an output file",
 		},
 		commands.NewEmptyConfig(),

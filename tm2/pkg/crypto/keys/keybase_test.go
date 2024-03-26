@@ -45,7 +45,8 @@ func TestCreateLedger(t *testing.T) {
 	ledger, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
 	if err != nil {
 		assert.Error(t, err)
-		assert.Equal(t, "no Ledger discovery function defined", err.Error())
+		assert.Contains(t, err.Error(), "LedgerHID device (idx 0) not found.")
+
 		assert.Nil(t, ledger)
 		t.Skip("ledger nano S: support for ledger devices is not available in this executable")
 		return

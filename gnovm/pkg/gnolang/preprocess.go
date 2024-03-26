@@ -154,24 +154,27 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("--- preprocess stack ---")
-				for i := len(stack) - 1; i >= 0; i-- {
-					sbn := stack[i]
-					fmt.Printf("stack %d: %s\n", i, sbn.String())
-				}
-				fmt.Println("------------------------")
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
 					loc.Line = nline
 				}
-				if rerr, ok := r.(error); ok {
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.Wrap(rerr, loc.String()))
+					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+					err = fmt.Errorf("%s: %v", loc.String(), r)
 				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
 			}
 		}()
 		if debug {
@@ -975,11 +978,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
-
 							convertConst(store, last, arg0, ct)
 							constConverted = true
+						case SliceKind:
+							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
 						}
-
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
@@ -2894,7 +2900,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 				panic(errors.Wrap(rerr, loc.String()))
 			} else {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+				panic(fmt.Errorf("%s: %v", loc.String(), r))
 			}
 		}
 	}()
@@ -2906,6 +2912,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
+		if isUverseName(dn) {
+			panic(fmt.Sprintf(
+				"builtin identifiers cannot be shadowed: %s", dn))
+		}
 		m[dn] = struct{}{}
 	}
 	// recursively predefine dependencies.
@@ -3243,6 +3253,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}
+
 	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
 
 	// NOTE: ValueDecl names don't need this distinction, as
@@ -3276,7 +3287,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				} else {
 					path = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
-						panic("expected block value path type")
+						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
 					break
 				}
@@ -3285,6 +3296,9 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			nx.Path = path
 			return
 		}
+	} else if isUverseName(nx.Name) {
+		panic(fmt.Sprintf(
+			"builtin identifiers cannot be shadowed: %s", nx.Name))
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
