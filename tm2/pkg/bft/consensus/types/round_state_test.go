@@ -3,8 +3,6 @@ package cstypes
 import (
 	"testing"
 
-	"github.com/gnolang/gno/tm2/ordering"
-
 	amino "github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -87,48 +85,4 @@ func BenchmarkRoundStateDeepCopy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		amino.DeepCopy(rs)
 	}
-}
-
-func TestCompare(t *testing.T) {
-	tests := []struct {
-		name   string
-		hrs1   HRS
-		hrs2   HRS
-		result ordering.Ordering
-	}{
-		{"Equal HRS", HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, ordering.Equal},
-		{"HRS1 Lesser Height", HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, HRS{Height: 2, Round: 2, Step: RoundStepNewHeight}, ordering.Less},
-		{"HRS1 Greater Height", HRS{Height: 2, Round: 2, Step: RoundStepNewHeight}, HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, ordering.Greater},
-		{"Equal Height, HRS1 Lesser Round", HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, HRS{Height: 1, Round: 3, Step: RoundStepNewHeight}, ordering.Less},
-		{"Equal Height, HRS1 Greater Round", HRS{Height: 1, Round: 3, Step: RoundStepNewHeight}, HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, ordering.Greater},
-		{"Equal Height, Equal Round, HRS1 Lesser Step", HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, HRS{Height: 1, Round: 2, Step: RoundStepPropose}, ordering.Less},
-		{"Equal Height, Equal Round, HRS1 Greater Step", HRS{Height: 1, Round: 2, Step: RoundStepPropose}, HRS{Height: 1, Round: 2, Step: RoundStepNewHeight}, ordering.Greater},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.hrs1.Compare(tt.hrs2)
-			if result != tt.result {
-				t.Errorf("Expected %d, got %d", tt.result, result)
-			}
-		})
-	}
-
-	// Test cases for all RoundStepType values
-	t.Run("All RoundStepType Values", func(t *testing.T) {
-		for step1 := RoundStepInvalid; step1 <= RoundStepCommit; step1++ {
-			for step2 := RoundStepInvalid; step2 <= RoundStepCommit; step2++ {
-				hrs1 := HRS{Height: 1, Round: 2, Step: step1}
-				hrs2 := HRS{Height: 1, Round: 2, Step: step2}
-				result := hrs1.Compare(hrs2)
-				if step1 < step2 && result != ordering.Less {
-					t.Errorf("Expected -1, got %d for %s < %s", result, step1, step2)
-				} else if step1 > step2 && result != ordering.Greater {
-					t.Errorf("Expected 1, got %d for %s > %s", result, step1, step2)
-				} else if step1 == step2 && result != ordering.Equal {
-					t.Errorf("Expected 0, got %d for %s == %s", result, step1, step2)
-				}
-			}
-		}
-	})
 }

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gnolang/gno/tm2/ordering"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
@@ -95,34 +93,6 @@ type HRS struct {
 	Height int64         `json:"height"`
 	Round  int           `json:"round"`
 	Step   RoundStepType `json:"step"`
-}
-
-func (hrs HRS) Compare(other HRS) ordering.Ordering {
-	if hrs.Height < other.Height {
-		return ordering.Less
-	}
-
-	if hrs.Height > other.Height {
-		return ordering.Greater
-	}
-
-	if hrs.Round < other.Round {
-		return ordering.Less
-	}
-
-	if hrs.Round > other.Round {
-		return ordering.Greater
-	}
-
-	if hrs.Step < other.Step {
-		return ordering.Less
-	}
-
-	if hrs.Step > other.Step {
-		return ordering.Greater
-	}
-
-	return ordering.Equal
 }
 
 func (hrs HRS) IsHRSZero() bool {
