@@ -4,7 +4,6 @@ package uint256
 import (
 	"errors"
 	"math/bits"
-	"strconv"
 )
 
 const (
@@ -206,6 +205,18 @@ const (
 	badNibble = 0xff
 )
 
+// SetFromHex sets z from the given string, interpreted as a hexadecimal number.
+// OBS! This method is _not_ strictly identical to the (*big.Int).SetString(..., 16) method.
+// Notable differences:
+// - This method _require_ "0x" or "0X" prefix.
+// - This method does not accept zero-prefixed hex, e.g. "0x0001"
+// - This method does not accept underscore input, e.g. "100_000",
+// - This method does not accept negative zero as valid, e.g "-0x0",
+//   - (this method does not accept any negative input as valid)
+func (z *Uint) SetFromHex(hex string) error {
+	return z.fromHex(hex)
+}
+
 // fromHex is the internal implementation of parsing a hex-string.
 func (z *Uint) fromHex(hex string) error {
 	if err := checkNumberS(hex); err != nil {
@@ -234,7 +245,29 @@ func (z *Uint) fromHex(hex string) error {
 	return nil
 }
 
-// Clone creates a new Int identical to z
+// FromHex is a convenience-constructor to create an Uint from
+// a hexadecimal string. The string is required to be '0x'-prefixed
+// Numbers larger than 256 bits are not accepted.
+func FromHex(hex string) (*Uint, error) {
+	var z Uint
+	if err := z.fromHex(hex); err != nil {
+		return nil, err
+	}
+	return &z, nil
+}
+
+// MustFromHex is a convenience-constructor to create an Uint from
+// a hexadecimal string.
+// Returns a new Uint and panics if any error occurred.
+func MustFromHex(hex string) *Uint {
+	var z Uint
+	if err := z.fromHex(hex); err != nil {
+		panic(err)
+	}
+	return &z
+}
+
+// Clone creates a new Uint identical to z
 func (z *Uint) Clone() *Uint {
 	var x Uint
 	x.arr[0] = z.arr[0]
