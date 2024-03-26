@@ -1,4 +1,5 @@
 // Ported from https://github.com/holiman/uint256
+// This package provides a 256-bit unsigned integer type, Uint256, and associated functions.
 package uint256
 
 import (
@@ -96,6 +97,17 @@ func FromDecimal(decimal string) (*Uint, error) {
 		return nil, err
 	}
 	return &z, nil
+}
+
+// MustFromDecimal is a convenience-constructor to create an Uint from a
+// decimal (base 10) string.
+// Returns a new Uint and panics if any error occurred.
+func MustFromDecimal(decimal string) *Uint {
+	var z Uint
+	if err := z.SetFromDecimal(decimal); err != nil {
+		panic(err)
+	}
+	return &z
 }
 
 // multipliers holds the values that are needed for fromDecimal
