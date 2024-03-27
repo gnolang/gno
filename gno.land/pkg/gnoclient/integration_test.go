@@ -1,6 +1,8 @@
 package gnoclient
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -14,6 +16,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// XXX: This should probably be located in the keeper
+type Response struct {
+	Result    []string
+	CPUCycles int
+}
 
 func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
@@ -50,12 +58,13 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
 
-	expected := "(\"hi test argument\" string)"
-	got := string(res.DeliverTx.Data)
-
-	assert.Nil(t, err)
-	assert.Equal(t, expected, got)
+	var ret Response
+	err = json.Unmarshal(res.DeliverTx.Data, &ret)
+	require.NoError(t, err)
+	require.Len(t, ret.Result, 1)
+	assert.Equal(t, "hi test argument", ret.Result[0])
 }
 
 func TestCallMultiple_Integration(t *testing.T) {
@@ -99,14 +108,22 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Send:     "",
 	}
 
-	expected := "(\"it works!\" string)(\"hi test argument\" string)"
-
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
 
-	got := string(res.DeliverTx.Data)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, got)
+	datas := bytes.Split(res.DeliverTx.Data, []byte("\n"))
+	require.Len(t, datas, 2)
+	res1, res2 := datas[0], datas[1]
+
+	var ret Response
+
+	err = json.Unmarshal(res1, &ret)
+	require.NoError(t, err)
+	assert.Equal(t, "it works!", ret.Result[0])
+
+	err = json.Unmarshal(res2, &ret)
+	require.NoError(t, err)
+	assert.Equal(t, "hi test argument", ret.Result[0])
 }
 
 func TestSendSingle_Integration(t *testing.T) {
