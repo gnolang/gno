@@ -1870,38 +1870,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									if labelLine < fx.GetLine() && fx.GetLine() < gotoLine {
 										debug.Println("---implicit pattern found!")
 										debug.Printf("---located from line: %d, to line: %d \n", labelLine, gotoLine)
-										// TODO: get body stmt between label line and goto line
-										// XXX, should not be last, but the parent bn of goto stmt
-										//
-										//bs := last.GetBody()
-										//debug.Println("---body stmt: ", bs)
-										//for _, s := range bs {
-										//	debug.Printf("---s.Line: %d, s: %v \n", s.GetLine(), s)
-										//	if s.GetLine() < labelLine {
-										//		preBody = append(preBody, s)
-										//	} else if s.GetLine() >= labelLine && s.GetLine() < gotoLine {
-										//		loopBody = append(loopBody, s)
-										//	} else {
-										//		postBody = append(postBody, s)
-										//	}
-										//}
-										//
-										//debug.Println("---preBody: ", preBody)
-										//debug.Println("---loopBody: ", loopBody)
-										//debug.Println("---postBody: ", postBody)
-										//nn := BlockS(loopBody)
-										//resetStaticBlock(nn)
-										//debug.Println("---nn after reset is: ", nn)
-										//nn = Preprocess(store, last, nn).(*BlockStmt)
-										//debug.Println("---nn after preprocess: ", nn)
-										//
-										//nBody := append(preBody, nn)
-										//nBody = append(nBody, postBody...)
-										//
-										//debug.Println("---nBody: ", nBody)
-										//debug.Println("---len of nBody: ", len(nBody))
-										//debug.Println("---last after preprocess: ", last)
-										//debug.Println("---type of last: ", reflect.TypeOf(last))
 										// mutate body when this node end transcribed
 										imc = &implicitClosure{
 											labelLine: labelLine,
@@ -3968,12 +3936,17 @@ func resetStaticBlock(bn BlockNode) {
 func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loopBody, postBody []Stmt) {
 	debug.Println("---rebuildBody")
 
+	var stack []BlockNode = make([]BlockNode, 0, 32)
+	last := bn
+	stack = append(stack, last)
+
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
 			switch cn := n.(type) {
 			case *FuncDecl:
+				stack = append(stack, cn)
 				if !imc.isNewBody {
 					body := cn.GetBody()
 					debug.Println("--------------funcDecl, body: ", body)
@@ -4020,7 +3993,8 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 
 				return cn, TRANS_CONTINUE
 			case *BlockStmt:
-				if !imc.isNewBody {
+				stack = append(stack, cn)
+				if !imc.isNewBody { // avoid reentrant, see1_05b
 					body := cn.GetBody()
 					debug.Println("--------------blockStmt, body: ", body)
 					lblstmt, idx := body.GetLabeledStmt(imc.label)
@@ -4054,10 +4028,12 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 
 						//debug.Println("---new n: ", cn)
 						imc.isNewBody = true
+						imc.targetBn = cn
 					}
 				}
 				return cn, TRANS_CONTINUE
 			case *FuncLitExpr:
+				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("--------------enter, funcLitExpr, body: ", body)
 
@@ -4069,7 +4045,7 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 					return cn, TRANS_CONTINUE
 				} else {
 					debug.Println("------find target body!")
-					for i, s := range body {
+					for _, s := range body {
 						if s.GetLine() < imc.labelLine {
 							preBody = append(preBody, s)
 						} else if s.GetLine() >= imc.labelLine && s.GetLine() <= imc.gotoLine {
@@ -4107,6 +4083,7 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 
 				return cn, TRANS_CONTINUE
 			case *ForStmt:
+				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("--------------enter, ForStmt, body: ", body)
 				debug.Println("--------------enter, ForStmt, imc: ", imc)
@@ -4141,26 +4118,52 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 					imc.isNewBody = true
 					imc.targetBn = cn
 				}
-
+				return cn, TRANS_CONTINUE
+			case *IfCaseStmt:
+				stack = append(stack, cn)
+				return cn, TRANS_CONTINUE
+			case *IfStmt:
+				stack = append(stack, cn)
+				return cn, TRANS_CONTINUE
+			case *RangeStmt:
+				stack = append(stack, cn)
 				return cn, TRANS_CONTINUE
 
 			default:
 				return cn, TRANS_CONTINUE
 			}
 		case TRANS_LEAVE:
+			if bn, ok := n.(BlockNode); ok {
+				debug.Println("---trans_leaving bn: ", bn)
+				debug.Println("---stack before pop: ", stack)
+				debug.Println("---stack len before pop: ", len(stack))
+				stack = stack[:len(stack)-1]
+				if len(stack) < 1 {
+					last = nil
+				} else {
+					last = stack[len(stack)-1]
+				}
+				debug.Println("---stack after pop: ", stack)
+				debug.Println("---last after pop: ", last)
+			}
 			switch cn := n.(type) {
 			case *FuncDecl:
 				debug.Println("---trans_leave, cn", cn)
 				debug.Println("---trans_leave, cn.Body", cn.Body)
 				return cn, TRANS_CONTINUE
 			case *BlockStmt: // mutate node which contains implicit loop
-				debug.Println("---trans_leave, blockStmt", cn)
+				debug.Println("---trans_leave, blockStmt, cn: ", cn)
+				debug.Println("---trans_leave, blockStmt, targetBn: ", imc.targetBn)
+				debug.Println("---trans_leave, blockStmt, last: ", last)
 
-				resetStaticBlock(cn)
-				debug.Println("---blockStmt after reset is: ", cn)
-				cn = Preprocess(store, bn, cn).(*BlockStmt)
-				adjustGotoLabel(cn, imc)
-				debug.Println("---trans_leave, blockStmt final", cn)
+				if cn == imc.targetBn {
+					debug.Println("---match!")
+					resetStaticBlock(cn)
+					debug.Println("---blockStmt after reset is: ", cn)
+					cn = Preprocess(store, last, cn).(*BlockStmt)
+					adjustGotoLabel(cn, imc)
+					debug.Println("---trans_leave, blockStmt final", cn)
+				}
 
 				return cn, TRANS_CONTINUE
 
@@ -4169,16 +4172,13 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 				body := cn.GetBody()
 				debug.Println("--------------trans_leave, funcLitExpr, body: ", body)
 
-				for i, s := range body {
-					debug.Printf("stmt[%d] is : %v, start at line: %d, s.Label: %v \n", i, s, s.GetLine(), s.GetLabel())
-				}
 				if imc.targetBn == cn {
 					debug.Println("---got new body")
 					debug.Println("---trans_leave funcLitExpr, find target body ")
 					resetStaticBlock(cn)
 					debug.Println("---trans_leave, FuncLitExpr after reset is: ", cn)
 					reProcess = true
-					cn = Preprocess(store, bn, cn).(*FuncLitExpr)
+					cn = Preprocess(store, last, cn).(*FuncLitExpr)
 					reProcess = false
 					adjustGotoLabel(cn, imc)
 					debug.Println("---trans_leave, FuncLitExpr final", cn)
@@ -4196,7 +4196,7 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 				resetStaticBlock(cn)
 				debug.Println("---trans_leave, ForStmt after reset is: ", cn)
 				reProcess = true
-				cn = Preprocess(store, bn, cn).(*ForStmt)
+				cn = Preprocess(store, last, cn).(*ForStmt)
 				reProcess = false
 				adjustGotoLabel(cn, imc)
 				debug.Println("---trans_leave, ForStmt final", cn)
