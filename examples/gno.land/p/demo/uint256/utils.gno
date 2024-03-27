@@ -178,14 +178,3 @@ func parseUint(s string, base int, bitSize int) (uint64, error) {
 
 	return n, nil
 }
-
-func parseUintFromString(s string) (*Uint, error) {
-	if s == "0" {
-		return NewUint(0), nil
-	}
-	value, err := parseUint(s, 16, 64)
-	if err != nil {
-		return nil, err
-	}
-	return NewUint(value), nil
-}

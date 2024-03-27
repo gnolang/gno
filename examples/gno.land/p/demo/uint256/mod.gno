@@ -6,24 +6,6 @@ import (
 
 // Some utility functions
 
-func leadingZeros(x *Uint) (z int) {
-	var t int
-	z = bits.LeadingZeros64(x.arr[3])
-	t = bits.LeadingZeros64(x.arr[2])
-	if z == 64 {
-		z = t + 64
-	}
-	t = bits.LeadingZeros64(x.arr[1])
-	if z == 128 {
-		z = t + 128
-	}
-	t = bits.LeadingZeros64(x.arr[0])
-	if z == 192 {
-		z = t + 192
-	}
-	return z
-}
-
 // Reciprocal computes a 320-bit value representing 1/m
 //
 // Notes:
