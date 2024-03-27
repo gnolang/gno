@@ -3,7 +3,6 @@ package testing
 import (
 	"math"
 	"strings"
-	"testing"
 	"time"
 
 	"gno.land/p/demo/ufmt"

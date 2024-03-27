@@ -3,13 +3,10 @@ package testing
 import (
 	"encoding/binary"
 	"strings"
-	"testing"
 	"time"
-
-	"gno.land/p/demo/ufmt"
 )
 
-func TestMutate(t *testing.T) {
+func TestMutate(t *T) {
 	originalValue := "Hello"
 	fuzzer := StringFuzzer{Value: originalValue}
 
@@ -24,7 +21,7 @@ func TestMutate(t *testing.T) {
 	}
 }
 
-func TestSelection(t *testing.T) {
+func TestSelection(t *T) {
 	tests := []struct {
 		name       string
 		population []*Individual
@@ -52,7 +49,7 @@ func TestSelection(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *T) {
 			selected := Selection(tc.population)
 			if len(selected) != len(tc.population) {
 				t.Errorf("Expected selected length to be %d, got %d", len(tc.population), len(selected))
@@ -65,7 +62,7 @@ func helperNewStringFuzzer(value string) *StringFuzzer {
 	return &StringFuzzer{Value: value}
 }
 
-func TestCrossover(t *testing.T) {
+func TestCrossover(t *T) {
 	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("foobar"), Fitness: 0}
 	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("bazbiz"), Fitness: 0}
 
@@ -79,7 +76,7 @@ func TestCrossover(t *testing.T) {
 	}
 }
 
-func Test_StringManipulation(t *testing.T) {
+func Test_StringManipulation(t *T) {
 	f := &F{
 		corpus: []string{"hello", "world", "foo", "bar"},
 	}
@@ -119,10 +116,10 @@ func Test_StringManipulation(t *testing.T) {
 	println("\nFinal corpus:", f.corpus)
 }
 
-func TestFuzz(t *testing.T) {
+func TestFuzz(t *T) {
 	f := F{}
 	f.Add("hello", "world", "foo")
-	f.Fuzz(func(t *testing.T, inputs ...interface{}) {
+	f.Fuzz(func(t *T, inputs ...interface{}) {
 		for _, input := range inputs {
 			strInput, ok := input.(string)
 			if !ok {
@@ -152,7 +149,7 @@ func TestFuzz(t *testing.T) {
 	}
 }
 
-func TestF_Fail(t *testing.T) {
+func TestF_Fail(t *T) {
 	f := F{}
 	f.Fail()
 
@@ -161,7 +158,7 @@ func TestF_Fail(t *testing.T) {
 	}
 }
 
-func TestF_Fatal(t *testing.T) {
+func TestF_Fatal(t *T) {
 	f := F{}
 	testMessage := "test failure message"
 	f.Fatal(testMessage)

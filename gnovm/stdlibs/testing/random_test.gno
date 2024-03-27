@@ -3,7 +3,6 @@ package testing
 import (
 	"math"
 	"strconv"
-	"testing"
 	"time"
 )
 
@@ -13,7 +12,7 @@ func updateSeed() {
 }
 
 // TODO: use chi-squared test to check number distribution follows uniform distribution.
-func Test_UniformRand(t *testing.T) {
+func Test_UniformRand(t *T) {
 	valueMap := make(map[uint64]int)
 	maxIter := 1000
 
@@ -38,7 +37,7 @@ func Test_UniformRand(t *testing.T) {
 }
 
 // TODO: use chi-squared test to check number distribution follows normal distribution.
-func Test_nrand(t *testing.T) {
+func Test_nrand(t *T) {
 	sum := 0.0
 	for i := 0; i < 1000; i++ {
 		result := nrand()
@@ -55,7 +54,7 @@ func Test_nrand(t *testing.T) {
 	}
 }
 
-func Test_GenerateRandomBool(t *testing.T) {
+func Test_GenerateRandomBool(t *T) {
 	updateSeed()
 
 	for _, bias := range []float64{0, 0.5, 1} {
@@ -81,7 +80,7 @@ func Test_GenerateRandomBool(t *testing.T) {
 	}
 }
 
-func TestRandRange(t *testing.T) {
+func TestRandRange(t *T) {
 	nums := make(map[uint64]int)
 	for i := 0; i < 1000; i++ {
 		res := randRange(0, 10)
