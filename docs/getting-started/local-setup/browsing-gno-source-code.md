@@ -6,8 +6,8 @@ id: browsing-gno-source-code
 
 ## Overview
 
-In this tutorial, you will learn how to browse deployed Gno [Realms](../concepts/realms.md)
-and [Packages](../concepts/packages.md). Additionally, you will understand how the `Render` method is utilized
+In this tutorial, you will learn how to browse deployed Gno [Realms](../../concepts/realms.md)
+and [Packages](../../concepts/packages.md). Additionally, you will understand how the `Render` method is utilized
 to achieve Realm state visibility.
 
 ## Prerequisites
@@ -42,13 +42,13 @@ you can specify the remote URL with the `gnoweb` flag named `--remote`
 
 We should be able to access the website locally on http://127.0.0.1:8888/.
 
-![gnoweb screen](../assets/getting-started/browsing-gno-source-code/gnoweb.png)
+![gnoweb screen](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb.png)
 
 ## 3. Browse Package source code
 
 Packages in Gno.land usually have names resembling `gno.land/p/<name>`. Since packages do not contain state, we can only
 view their source code on-chain. To learn more about Packages, please check out
-the [Packages](../concepts/packages.md) explanation document.
+the [Packages](../../concepts/packages.md) explanation document.
 
 Using `gnoweb`, we can browse the source code in our browser.
 For example, the `avl` package is deployed at `gno.land/p/demo/avl`.
@@ -58,7 +58,7 @@ To access the source code of the `avl` package, we can append the `/p/demo/avl` 
 The final URL for the `avl` package source could be viewable at http://127.0.0.1:8888/p/demo/avl, if we followed
 default setup params, as we did in this guide.
 
-![gnoweb avl](../assets/getting-started/browsing-gno-source-code/gnoweb-avl.png)
+![gnoweb avl](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-avl.png)
 
 From here, we can open any source code file of the deployed on-chain package and inspect its API.
 
@@ -68,7 +68,7 @@ In contrast to Packages, Realms in Gno.land usually have names resembling `gno.l
 
 Realms _do_ contain state, and in addition to being able to view their source code on-chain, users can also view their
 internal state representation in the form of the `Render()` output. To learn more about Realms, please
-check out the [Realms](../concepts/realms.md) explanation document.
+check out the [Realms](../../concepts/realms.md) explanation document.
 
 Using `gnoweb`, we can browse the Realm `Render()` method output and source code in our browser.
 For example, the `boards` Realm is deployed at `gno.land/r/demo/boards`.
@@ -80,7 +80,7 @@ The final URL for the `boards` Realm internal state could be viewable at http://
 followed
 default setup params, as we did in this guide.
 
-![gnoweb boards](../assets/getting-started/browsing-gno-source-code/gnoweb-boards.png)
+![gnoweb boards](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-boards.png)
 
 :::info Render() is not required
 
@@ -93,4 +93,4 @@ Additionally, to view the source code for the realm, we simply need to append th
 
 http://127.0.0.1:8888/r/demo/boards/
 
-![gnoweb boards source](../assets/getting-started/browsing-gno-source-code/gnoweb-boards-source.png)
+![gnoweb boards source](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-boards-source.png)

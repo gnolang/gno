@@ -1,0 +1,29 @@
+---
+http:
+  middlewares:
+    ipwhitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "172.42.0.1/32"
+
+  routers:
+    gno-portal-loop-local:
+      service: gno-portal-loop
+      rule: "PathPrefix(`/`)"
+      entrypoints: ["private"]
+      middlewares: []
+
+    gno-portal-loop:
+      service: gno-portal-loop
+      tls:
+        certResolver: le
+      rule: "Host(`rpc.gno.land`) || Host(`rpc.portal.gnoteam.com`)"
+      entrypoints: ["web", "websecure"]
+      middlewares: []
+
+  services:
+    gno-portal-loop:
+      loadBalancer:
+        servers:
+          - url: "http://172.42.0.5:26657"
