@@ -3,11 +3,15 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var errInvalidDataDir = errors.New("invalid data directory provided")
+var (
+	errInvalidDataDir    = errors.New("invalid data directory provided")
+	errInvalidSecretsKey = errors.New("invalid number of secret key arguments")
+)
 
 const (
 	defaultSecretsDir         = "./secrets"
@@ -27,7 +31,7 @@ func newSecretsCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "secrets",
-			ShortUsage: "gnoland secrets <subcommand> [flags] [<arg>...]",
+			ShortUsage: "secrets <subcommand> [flags] [<arg>...]",
 			ShortHelp:  "gno secrets manipulation suite",
 			LongHelp:   "gno secrets manipulation suite, for managing the validator key, p2p key and validator state",
 		},
@@ -62,20 +66,28 @@ func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
 
 // verifySecretsKey verifies the secrets key value from the passed in arguments
 func verifySecretsKey(args []string) error {
+	// Check if any key is set
 	if len(args) == 0 {
 		return nil
 	}
 
+	// Check if more than 1 key is set
 	if len(args) > 1 {
-		return errors.New("invalid number of secret key arguments")
+		return errInvalidSecretsKey
 	}
 
+	// Verify the set key
 	key := args[0]
 
 	if key != nodeKeyKey &&
 		key != validatorPrivateKeyKey &&
 		key != validatorStateKey {
-		return errors.New("invalid secrets key value")
+		return fmt.Errorf(
+			"invalid secrets key value [%s, %s, %s]",
+			validatorPrivateKeyKey,
+			validatorStateKey,
+			nodeKeyKey,
+		)
 	}
 
 	return nil
