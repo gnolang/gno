@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -9,25 +12,82 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
-// newShowCmd creates the new secrets show command
-func newShowCmd(io commands.IO) *commands.Command {
+type secretsGetCfg struct {
+	commonAllCfg
+}
+
+// newSecretsGetCmd creates the secrets get command
+func newSecretsGetCmd(io commands.IO) *commands.Command {
+	cfg := &secretsGetCfg{}
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "show",
-			ShortUsage: "secrets show <subcommand> [flags]",
-			ShortHelp:  "Shows the Gno node secrets",
-			LongHelp:   "Shows the Gno node secrets locally, including the validator key, validator state and node key",
+			Name:       "get",
+			ShortUsage: "secrets get [flags] [<key>]",
+			ShortHelp:  "shows all Gno secrets present in a common directory",
+			LongHelp:   "shows the validator private key, the node p2p key and the validator's last sign state",
 		},
-		commands.NewEmptyConfig(),
-		commands.HelpExec,
-	)
-
-	cmd.AddSubCommands(
-		newShowAllCmd(io),
-		newShowSingleCmd(io),
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execSecretsGet(cfg, args, io)
+		},
 	)
 
 	return cmd
+}
+
+func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
+	c.commonAllCfg.RegisterFlags(fs)
+}
+
+func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
+	// Make sure the directory is there
+	if cfg.dataDir == "" || !isValidDirectory(cfg.dataDir) {
+		return errInvalidDataDir
+	}
+
+	// Verify the secrets key
+	if err := verifySecretsKey(args); err != nil {
+		return err
+	}
+
+	var key string
+
+	if len(args) > 0 {
+		key = args[0]
+	}
+
+	// Construct the paths
+	var (
+		validatorKeyPath   = filepath.Join(cfg.dataDir, defaultValidatorKeyName)
+		validatorStatePath = filepath.Join(cfg.dataDir, defaultValidatorStateName)
+		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
+	)
+
+	switch key {
+	case validatorPrivateKeyKey:
+		// Show the validator's key info
+		return readAndShowValidatorKey(validatorKeyPath, io)
+	case validatorStateKey:
+		// Show the validator's last sign state
+		return readAndShowValidatorState(validatorStatePath, io)
+	case nodeKeyKey:
+		// Show the node's p2p info
+		return readAndShowNodeKey(nodeKeyPath, io)
+	default:
+		// Show the node's p2p info
+		if err := readAndShowNodeKey(nodeKeyPath, io); err != nil {
+			return err
+		}
+
+		// Show the validator's key info
+		if err := readAndShowValidatorKey(validatorKeyPath, io); err != nil {
+			return err
+		}
+
+		// Show the validator's last sign state
+		return readAndShowValidatorState(validatorStatePath, io)
+	}
 }
 
 // readAndShowValidatorKey reads and shows the validator key from the given path

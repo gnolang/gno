@@ -16,23 +16,29 @@ const (
 	defaultValidatorStateName = "priv_validator_state.json"
 )
 
-// newSecretsCmd creates the new secrets root command
+const (
+	nodeKeyKey             = "NodeKey"
+	validatorPrivateKeyKey = "ValidatorPrivateKey"
+	validatorStateKey      = "ValidatorStateKey"
+)
+
+// newSecretsCmd creates the secrets root command
 func newSecretsCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "secrets",
-			ShortUsage: "secrets <subcommand> [flags] [<arg>...]",
-			ShortHelp:  "Gno secrets manipulation suite",
-			LongHelp:   "Gno secrets manipulation suite, for managing the validator key, p2p key and validator state",
+			ShortUsage: "gnoland secrets <subcommand> [flags] [<arg>...]",
+			ShortHelp:  "gno secrets manipulation suite",
+			LongHelp:   "gno secrets manipulation suite, for managing the validator key, p2p key and validator state",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
-		newInitCmd(io),
-		newVerifyCmd(io),
-		newShowCmd(io),
+		newSecretsInitCmd(io),
+		newSecretsVerifyCmd(io),
+		newSecretsGetCmd(io),
 	)
 
 	return cmd
@@ -54,34 +60,23 @@ func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-// commonSingleCfg is the common
-// configuration for secrets commands
-// that require individual secret path management
-type commonSingleCfg struct {
-	validatorKeyPath   string
-	validatorStatePath string
-	nodeKeyPath        string
-}
+// verifySecretsKey verifies the secrets key value from the passed in arguments
+func verifySecretsKey(args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
 
-func (c *commonSingleCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.validatorKeyPath,
-		"validator-key-path",
-		"",
-		"the path to the validator private key",
-	)
+	if len(args) > 1 {
+		return errors.New("invalid number of secret key arguments")
+	}
 
-	fs.StringVar(
-		&c.validatorStatePath,
-		"validator-state-path",
-		"",
-		"the path to the last validator state",
-	)
+	key := args[0]
 
-	fs.StringVar(
-		&c.nodeKeyPath,
-		"node-key-path",
-		"",
-		"the path to the node p2p key",
-	)
+	if key != nodeKeyKey &&
+		key != validatorPrivateKeyKey &&
+		key != validatorStateKey {
+		return errors.New("invalid secrets key value")
+	}
+
+	return nil
 }

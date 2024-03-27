@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSecrets_Show_All(t *testing.T) {
+func TestSecrets_Get_All(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid data directory", func(t *testing.T) {
@@ -25,8 +25,7 @@ func TestSecrets_Show_All(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
-			"show",
-			"all",
+			"get",
 			"--data-dir",
 			"",
 		}
@@ -49,7 +48,6 @@ func TestSecrets_Show_All(t *testing.T) {
 		initArgs := []string{
 			"secrets",
 			"init",
-			"all",
 			"--data-dir",
 			tempDir,
 		}
@@ -81,8 +79,7 @@ func TestSecrets_Show_All(t *testing.T) {
 		// Run the show command
 		showArgs := []string{
 			"secrets",
-			"show",
-			"all",
+			"get",
 			"--data-dir",
 			tempDir,
 		}
@@ -141,6 +138,139 @@ func TestSecrets_Show_All(t *testing.T) {
 			t,
 			output,
 			strconv.Itoa(state.Round),
+		)
+	})
+}
+
+func TestSecrets_Get_Single(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validator key shown", func(t *testing.T) {
+		t.Parallel()
+
+		dirPath := t.TempDir()
+		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
+
+		validKey := generateValidatorPrivateKey()
+
+		require.NoError(t, saveSecretData(validKey, keyPath))
+
+		mockOutput := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOutput))
+
+		// Create the command
+		cmd := newRootCmd(io)
+		args := []string{
+			"secrets",
+			"get",
+			"--data-dir",
+			dirPath,
+			validatorPrivateKeyKey,
+		}
+
+		// Run the command
+		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+		output := mockOutput.String()
+
+		// Make sure the private key info is displayed
+		assert.Contains(
+			t,
+			output,
+			validKey.Address.String(),
+		)
+
+		assert.Contains(
+			t,
+			output,
+			validKey.PubKey.String(),
+		)
+	})
+
+	t.Run("validator state shown", func(t *testing.T) {
+		t.Parallel()
+
+		dirPath := t.TempDir()
+		statePath := filepath.Join(dirPath, defaultValidatorStateName)
+
+		validState := generateLastSignValidatorState()
+
+		require.NoError(t, saveSecretData(validState, statePath))
+
+		mockOutput := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOutput))
+
+		// Create the command
+		cmd := newRootCmd(io)
+		args := []string{
+			"secrets",
+			"get",
+			"--data-dir",
+			dirPath,
+			validatorStateKey,
+		}
+
+		// Run the command
+		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+		output := mockOutput.String()
+
+		// Make sure the state info is displayed
+		assert.Contains(
+			t,
+			output,
+			fmt.Sprintf("%d", validState.Step),
+		)
+
+		assert.Contains(
+			t,
+			output,
+			fmt.Sprintf("%d", validState.Height),
+		)
+
+		assert.Contains(
+			t,
+			output,
+			strconv.Itoa(validState.Round),
+		)
+	})
+
+	t.Run("node key shown", func(t *testing.T) {
+		t.Parallel()
+
+		dirPath := t.TempDir()
+		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
+
+		validNodeKey := generateNodeKey()
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+
+		mockOutput := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOutput))
+
+		// Create the command
+		cmd := newRootCmd(io)
+		args := []string{
+			"secrets",
+			"get",
+			"--data-dir",
+			dirPath,
+			nodeKeyKey,
+		}
+
+		// Run the command
+		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+		output := mockOutput.String()
+
+		// Make sure the node p2p key is displayed
+		assert.Contains(
+			t,
+			output,
+			validNodeKey.ID().String(),
 		)
 	})
 }
