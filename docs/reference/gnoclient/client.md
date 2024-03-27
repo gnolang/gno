@@ -7,7 +7,8 @@ id: client
 ## type [Client](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client.go#L8-L11>)
 
 `Client` provides an interface for interacting with the blockchain. It is the main
-struct of the `gnoclient` package, exposing the high level 
+struct of the `gnoclient` package, exposing all APIs used to communicate with a 
+Gno.land chain.
 
 ```go
 type Client struct {
