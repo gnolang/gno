@@ -7,24 +7,26 @@ const sidebars = {
         {
             type: 'category',
             label: 'Getting Started',
+            link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
-                'getting-started/local-setup',
-                'getting-started/working-with-key-pairs',
+                'getting-started/playground-start',
                 {
-                    type: 'category',
-                    label: 'Setting up Funds',
+                 type: "category",
+                 label: 'Local Setup',
                     items: [
-                        'getting-started/setting-up-funds/premining-balances',
-                        'getting-started/setting-up-funds/running-a-faucet',
+                        'getting-started/local-setup/local-setup',
+                        'getting-started/local-setup/working-with-key-pairs',
+                        'getting-started/local-setup/premining-balances',
+                        'getting-started/local-setup/setting-up-a-local-chain',
+                        'getting-started/local-setup/browsing-gno-source-code',
                     ]
                 },
-                'getting-started/setting-up-a-local-chain',
-                'getting-started/browsing-gno-source-code',
             ],
         },
         {
             type: 'category',
             label: 'How-to Guides',
+            link: {type: 'doc', id: 'how-to-guides/how-to-guides'},
             items: [
                 'how-to-guides/simple-contract',
                 'how-to-guides/simple-library',
@@ -39,6 +41,7 @@ const sidebars = {
         {
             type: 'category',
             label: 'Concepts',
+            link: {type: 'doc', id: 'concepts/concepts'},
             items: [
                 'concepts/realms',
                 'concepts/packages',
@@ -66,17 +69,26 @@ const sidebars = {
         {
             type: 'category',
             label: 'Gno Tooling',
+            link: {type: 'doc', id: 'gno-tooling/gno-tooling'},
             items: [
                 'gno-tooling/cli/gno-tooling-gno',
                 'gno-tooling/cli/gno-tooling-gnokey',
                 'gno-tooling/cli/gno-tooling-gnodev',
                 'gno-tooling/cli/gno-tooling-gnoland',
-                'gno-tooling/cli/gno-tooling-gnofaucet',
+                {
+                    type: 'category',
+                    label: 'gnofaucet',
+                    link: {type: 'doc', id: 'gno-tooling/cli/faucet/gno-tooling-gnofaucet'},
+                    items: [
+                        'gno-tooling/cli/faucet/running-a-faucet',
+                    ]
+                },
             ]
         },
         {
             type: 'category',
             label: 'Reference',
+            link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
                 {

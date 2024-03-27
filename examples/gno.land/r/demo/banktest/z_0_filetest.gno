@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/banktest")
+	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("main")
@@ -21,7 +21,6 @@ func main() {
 	println("main before:", mainbal) // plus OrigSend equals 300.
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
 	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
 	res := banktest.Deposit("ugnot", 100000000)
@@ -45,3 +44,4 @@ func main() {
 //  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 2009-02-13 11:31pm UTC
 //
 // ## total deposits
+// 300000000ugnot

@@ -9,6 +9,10 @@ import (
 
 type BackendType string
 
+func (b BackendType) String() string {
+	return string(b)
+}
+
 // These are valid backend types.
 //
 // The backends themselves must be imported to be used (ie. using the blank
