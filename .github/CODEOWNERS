@@ -34,7 +34,7 @@
 /gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
 /gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
 /gno.land/cmd/gnoweb/         @gfanton @thehowl
-/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn
+/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton 
 /gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
 /gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
 /gno.land/pkg/log/            @zivkovicmilos @gfanton
