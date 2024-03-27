@@ -21,9 +21,11 @@ func Println(args ...interface{}) {
 		case bool:
 			if v {
 				strs = append(strs, "true")
-			} else {
-				strs = append(strs, "false")
+
+				continue
 			}
+
+			strs = append(strs, "false")
 		default:
 			strs = append(strs, "(unhandled)")
 		}
