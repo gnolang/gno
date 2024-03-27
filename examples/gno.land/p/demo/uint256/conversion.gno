@@ -91,10 +91,11 @@ func (z *Uint) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
+		return z.scanScientificFromString(src)
 	case []byte:
-	default:
-		return errors.New("unsupported type: can't convert to uint256.Uint")
+		return z.scanScientificFromString(string(src))
 	}
+	return errors.New("default // unsupported type: can't convert to uint256.Uint")
 }
 
 func (z *Uint) scanScientificFromString(src string) error {

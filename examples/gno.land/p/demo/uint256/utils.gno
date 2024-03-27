@@ -1,9 +1,5 @@
 package uint256
 
-import (
-	"errors"
-)
-
 // lower(c) is a lower-case letter if and only if
 // c is either that lower-case letter or the equivalent upper-case letter.
 // Instead of writing c == 'x' || c == 'X' one can write lower(c) == 'x'.
