@@ -60,13 +60,7 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	stdlibsDir string,
-	maxCycles int64,
 ) *VMKeeper {
-	cycles := maxCycles
-	if cycles <= 0 || cycles > maxVMCycles {
-		cycles = maxVMCycles
-	}
-
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
 		baseKey:    baseKey,
@@ -74,7 +68,7 @@ func NewVMKeeper(
 		acck:       acck,
 		bank:       bank,
 		stdlibsDir: stdlibsDir,
-		maxCycles:  cycles,
+		maxCycles:  maxVMCycles,
 	}
 	return vmk
 }
