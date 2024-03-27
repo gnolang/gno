@@ -4,6 +4,7 @@ import "strconv"
 
 // NOTE: this is selectly copied over from pkgs/std/coin.go
 // TODO: import all functionality(?).
+// TODO: implement Coin/Coins constructors.
 
 // Coin hold some amount of one currency.
 // A negative amount is invalid.
@@ -62,4 +63,13 @@ func (a Coins) Add(b Coins) Coins {
 	return c
 }
 
-// TODO implement Coin/Coins constructors.
+// expand for usage within natively bound functions.
+func (cz Coins) expandNative() (denoms []string, amounts []int64) {
+	denoms = make([]string, len(cz))
+	amounts = make([]int64, len(cz))
+	for i, coin := range cz {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}

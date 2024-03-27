@@ -15,7 +15,7 @@ have ample funds to interact with the chain and facilitate contract deployments.
 
 ## Prerequisites
 
-- **`gnoland` and `gnokey` set up. Reference the [Installation](../local-setup.md#3-installing-other-gno-tools) guide
+- **`gnoland` and `gnokey` set up. Reference the [Installation](local-setup.md#3-installing-other-gno-tools) guide
   for steps**
 
 ## 1. Clean chain data
@@ -78,7 +78,7 @@ gnoland start
 This command will initialize the Gno node, generate the `genesis.json` with our newly added premine information, and
 start the chain.
 
-![gnoland start](../../assets/getting-started/setting-up-funds/gnoland-start.gif)
+![gnoland start](../../assets/getting-started/local-setup/setting-up-funds/gnoland-start.gif)
 
 ## 3. Check the account balance
 
@@ -95,7 +95,7 @@ Let's break down this command:
 - **`bank/balances/g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt`** - the ABCI query targets the `bank` module to find
   the `balances` for address `g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt`. Replace the address with your desired address
 
-![gnokey query](../../assets/getting-started/setting-up-funds/gnokey-query.gif)
+![gnokey query](../../assets/getting-started/local-setup/setting-up-funds/gnokey-query.gif)
 
 ## Conclusion
 
