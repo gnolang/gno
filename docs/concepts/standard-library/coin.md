@@ -31,6 +31,6 @@ Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
 [//]: # (TODO ADD LINK TO Effective GNO)
-Read more about coins in the [Effective Gno] section. 
+Read more about coins in the [Effective Gno](https://docs.gno.land/concepts/effective-gno/#native-tokens) section. 
 
 The Coin(s) API can be found in under the `std` package [reference](../../reference/standard-library/std/coin.md).

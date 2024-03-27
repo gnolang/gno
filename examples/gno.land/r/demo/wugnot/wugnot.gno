@@ -40,7 +40,7 @@ func Withdraw(amount uint64) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	pkgaddr := std.GetOrigPkgAddr()
+	pkgaddr := std.CurrentRealm().Addr()
 
 	callerBal, _ := wugnot.BalanceOf(caller)
 	if callerBal < amount {
