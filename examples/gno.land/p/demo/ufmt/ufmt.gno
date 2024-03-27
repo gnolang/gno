@@ -29,16 +29,8 @@ func Println(args ...interface{}) {
 		}
 	}
 
-	printLine := ""
-	if len(strs) > 0 {
-		printLine = strs[0]
-		for _, s := range strs[1:] {
-			printLine += " " + s
-		}
-	}
-
 	// TODO: remove println after gno supports os.Stdout
-	println(printLine)
+	println(strings.Join(strs))
 }
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
