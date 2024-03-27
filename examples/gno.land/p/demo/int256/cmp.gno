@@ -1,5 +1,15 @@
 package int256
 
+// Eq returns true if z == x
+func (z *Int) Eq(x *Int) bool {
+	return (z.neg == x.neg) && z.abs.Eq(x.abs)
+}
+
+// Neq returns true if z != x
+func (z *Int) Neq(x *Int) bool {
+	return !z.Eq(x)
+}
+
 // Cmp compares x and y and returns:
 //
 //	-1 if x <  y

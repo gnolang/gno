@@ -4,6 +4,42 @@ import (
 	"testing"
 )
 
+func TestEq(t *testing.T) {
+	tests := []struct {
+		x, y string
+		want bool
+	}{
+		{"0", "0", true},
+		{"0", "1", false},
+		{"1", "0", false},
+		{"-1", "0", false},
+		{"0", "-1", false},
+		{"1", "1", true},
+		{"-1", "-1", true},
+		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "-115792089237316195423570985008687907853269984665640564039457584007913129639935", false},
+		{"-115792089237316195423570985008687907853269984665640564039457584007913129639935", "-115792089237316195423570985008687907853269984665640564039457584007913129639935", true},
+	}
+
+	for _, tc := range tests {
+		x, err := FromDecimal(tc.x)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		y, err := FromDecimal(tc.y)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		got := x.Eq(y)
+		if got != tc.want {
+			t.Errorf("Eq(%s, %s) = %v, want %v", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
 func TestCmp(t *testing.T) {
 	tests := []struct {
 		x, y string

@@ -27,6 +27,43 @@ func (z *Int) Add(x, y *Int) *Int {
 	return z
 }
 
+// AddUint256 set z to the sum x + y, where y is a uint256, and returns z
+func (z *Int) AddUint256(x *Int, y *uint256.Uint) *Int {
+	if x.neg {
+		if x.abs.Gt(y) {
+			z.abs.Sub(x.abs, y)
+			z.neg = true
+		} else {
+			z.abs.Sub(y, x.abs)
+			z.neg = false
+		}
+	} else {
+		z.abs.Add(x.abs, y)
+		z.neg = false
+	}
+	return z
+}
+
+// Sets z to the sum x + y, where z and x are uint256s and y is an int256.
+func AddDelta(z, x *uint256.Uint, y *Int) {
+	if y.neg {
+		z.Sub(x, y.abs)
+	} else {
+		z.Add(x, y.abs)
+	}
+}
+
+// Sets z to the sum x + y, where z and x are uint256s and y is an int256.
+func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
+	var overflow bool
+	if y.neg {
+		_, overflow = z.SubOverflow(x, y.abs)
+	} else {
+		_, overflow = z.AddOverflow(x, y.abs)
+	}
+	return overflow
+}
+
 // Sub sets z to the difference x-y and returns z.
 func (z *Int) Sub(x, y *Int) *Int {
 	z.initiateAbs()
@@ -47,6 +84,23 @@ func (z *Int) Sub(x, y *Int) *Int {
 		}
 	}
 	z.neg = neg // 0 has no sign
+	return z
+}
+
+// SubUint256 set z to the difference x - y, where y is a uint256, and returns z
+func (z *Int) SubUint256(x *Int, y *uint256.Uint) *Int {
+	if x.neg {
+		z.abs.Add(x.abs, y)
+		z.neg = true
+	} else {
+		if x.abs.Lt(y) {
+			z.abs.Sub(y, x.abs)
+			z.neg = true
+		} else {
+			z.abs.Sub(x.abs, y)
+			z.neg = false
+		}
+	}
 	return z
 }
 
