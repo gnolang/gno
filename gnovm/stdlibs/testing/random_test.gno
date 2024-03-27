@@ -11,7 +11,6 @@ func updateSeed() {
 	_srand(seed)
 }
 
-// TODO: use chi-squared test to check number distribution follows uniform distribution.
 func Test_UniformRand(t *T) {
 	valueMap := make(map[uint64]int)
 	maxIter := 1000
@@ -36,7 +35,6 @@ func Test_UniformRand(t *T) {
 	}
 }
 
-// TODO: use chi-squared test to check number distribution follows normal distribution.
 func Test_nrand(t *T) {
 	sum := 0.0
 	for i := 0; i < 1000; i++ {

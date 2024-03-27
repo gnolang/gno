@@ -19,6 +19,10 @@ type StringFuzzer struct {
 	f     *F
 }
 
+func NewStringFuzzer(value string) *StringFuzzer {
+	return &StringFuzzer{Value: value}
+}
+
 // Mutate changes a StringFuzzer's value by replacing a random character
 // with a random ASCII character.
 func (sf *StringFuzzer) Mutate() Fuzzer {
@@ -26,27 +30,34 @@ func (sf *StringFuzzer) Mutate() Fuzzer {
 	if len(runes) == 0 {
 		return sf
 	}
+
 	index := randRange(0, len(runes)-1)
 	runes[index] = randomASCIIChar()
-	return &StringFuzzer{Value: string(runes)}
+
+	return NewStringFuzzer(string(runes))
 }
 
 func (sf *StringFuzzer) InsertDeleteMutate(p float64) Fuzzer {
-	return &StringFuzzer{Value: InsertDelete(sf.Value, p)}
+	value := InsertDelete(sf.Value, p)
+	return NewStringFuzzer(value)
 }
 
 func (sf *StringFuzzer) Fuzz() string {
 	if GenerateRandomBool(0.2) {
 		return InsertDelete(sf.Value, 0.1)
-	} else {
-		rs := []rune(sf.Value)
-		if len(rs) > 0 {
-			index := randRange(0, len(rs)-1)
-			rs[index] = randomASCIIChar()
-		}
-
-		return string(rs)
 	}
+
+	rs := []rune(sf.Value)
+	lrs := len(rs)
+
+	if lrs == 0 {
+		return sf.Value
+	}
+
+	index := randRange(0, lrs-1)
+	rs[index] = randomASCIIChar()
+
+	return string(rs)
 }
 
 func (sf *StringFuzzer) String() string {
@@ -55,6 +66,7 @@ func (sf *StringFuzzer) String() string {
 
 func randomASCIIChar() rune {
 	r := int(randRange(32, 126))
+
 	return rune(r)
 }
 
@@ -62,6 +74,10 @@ func randomASCIIChar() rune {
 type Individual struct {
 	Fuzzer  Fuzzer
 	Fitness int
+}
+
+func NewIndividual(fuzzer Fuzzer) *Individual {
+	return &Individual{Fuzzer: fuzzer}
 }
 
 func (ind *Individual) calculateFitness() {
@@ -72,28 +88,39 @@ func (ind *Individual) calculateFitness() {
 //
 // Use roulette wheel selection to select individuals from the population.
 // ref: https://en.wikipedia.org/wiki/Fitness_proportionate_selection
-// TODO: resolve scaling issues with large fitness values.
-// TODO: what if fitness is negative?
 func Selection(population []*Individual) []*Individual {
+	totalFitness := calculateTotalFitness(population)
+	selected := make([]*Individual, len(population))
+
+	for i := range selected {
+		selected[i] = selectIndividual(population, totalFitness)
+	}
+
+	return selected
+}
+
+func calculateTotalFitness(population []*Individual) int {
 	totalFitness := 0
+
 	for _, ind := range population {
 		totalFitness += ind.Fitness
 	}
 
-	selected := make([]*Individual, len(population))
-	for i := range selected {
-		pick := randRange(0, totalFitness-1)
-		sum := 0
-		for _, ind := range population {
-			sum += ind.Fitness
-			if uint64(sum) > uint64(pick) {
-				selected[i] = ind
-				break
-			}
+	return totalFitness
+}
+
+func selectIndividual(population []*Individual, totalFitness int) *Individual {
+	pick := randRange(0, totalFitness-1)
+	sum := 0
+
+	for _, ind := range population {
+		sum += ind.Fitness
+		if uint64(sum) > uint64(pick) {
+			return ind
 		}
 	}
 
-	return selected
+	return nil
 }
 
 // Crossover takes two parents and creates two children by combining their genetic material.
@@ -113,10 +140,14 @@ func Crossover(parent1, parent2 *Individual) (*Individual, *Individual) {
 	} else {
 		point = int(randRange(0, p1Len-1))
 	}
+
 	child1 := append(append([]rune{}, p1Runes[:point]...), p2Runes[point:]...)
 	child2 := append(append([]rune{}, p2Runes[:point]...), p1Runes[point:]...)
 
-	return &Individual{Fuzzer: &StringFuzzer{Value: string(child1)}}, &Individual{Fuzzer: &StringFuzzer{Value: string(child2)}}
+	updatedIdv1 := NewIndividual(NewStringFuzzer(string(child1)))
+	updatedIdv2 := NewIndividual(NewStringFuzzer(string(child2)))
+
+	return updatedIdv1, updatedIdv2
 }
 
 func (ind *Individual) Mutate() {
@@ -131,16 +162,19 @@ func InsertDelete(s string, p float64) string {
 	// Insert
 	if GenerateRandomBool(p) {
 		pos := randRange(0, l-1)
-		char := randomASCIIChar()
 		rr = append(rr, 0)
+
 		copy(rr[pos+1:], rr[pos:])
+
+		char := randomASCIIChar()
 		rr[pos] = char
 	} else {
-		// delete
-		if l > 0 {
-			pos := randRange(0, l-1)
-			rr = append(rr[:pos], rr[pos+1:]...)
+		if l == 0 {
+			return s
 		}
+
+		pos := randRange(0, l-1)
+		rr = append(rr[:pos], rr[pos+1:]...)
 	}
 
 	return string(rr)
@@ -171,7 +205,6 @@ func (f *F) Fuzz(run Runner, iter int) {
 }
 
 // Add adds test values to initialize the corpus.
-// TODO: length assertion. if the input length exceeds or is less than the test target function, it should be fatal.
 func (f *F) Add(values ...interface{}) []Fuzzer {
 	fuzzers := make([]Fuzzer, len(values))
 
@@ -200,13 +233,15 @@ func (f *F) evolve(generations int) {
 	for gen := 0; gen < generations; gen++ {
 		population = Selection(population)
 		newPopulation := make([]*Individual, 0, len(population))
+
 		for i := 0; i < len(population); i += 2 {
 			if i+1 < len(population) {
 				child1, child2 := Crossover(population[i], population[i+1])
 				newPopulation = append(newPopulation, child1, child2)
-			} else {
-				newPopulation = append(newPopulation, population[i])
+				continue
 			}
+
+			newPopulation = append(newPopulation, population[i])
 		}
 
 		var (

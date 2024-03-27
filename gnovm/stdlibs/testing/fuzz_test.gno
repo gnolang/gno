@@ -58,13 +58,9 @@ func TestSelection(t *T) {
 	}
 }
 
-func helperNewStringFuzzer(value string) *StringFuzzer {
-	return &StringFuzzer{Value: value}
-}
-
 func TestCrossover(t *T) {
-	parent1 := &Individual{Fuzzer: helperNewStringFuzzer("foobar"), Fitness: 0}
-	parent2 := &Individual{Fuzzer: helperNewStringFuzzer("bazbiz"), Fitness: 0}
+	parent1 := NewIndividual(&StringFuzzer{Value: "foobar"})
+	parent2 := NewIndividual(&StringFuzzer{Value: "bazbiz"})
 
 	var child1, child2 *Individual
 	for i := 0; i < 100; i++ {
@@ -113,7 +109,6 @@ func Test_StringManipulation(t *T) {
 		}
 
 	}
-	println("\nFinal corpus:", f.corpus)
 }
 
 func TestFuzz(t *T) {
