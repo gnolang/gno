@@ -54,5 +54,6 @@ tidy:
 ########################################
 # Test suite
 .PHONY: test
-test:
-	@echo "nothing to do."
+test: test.gnodev
+test.gnodev:
+	$(MAKE) -C ./gnodev test

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -47,6 +48,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 // Node is not thread safe
 type Node struct {
 	*node.Node
+	muNode sync.RWMutex
 
 	config  *NodeConfig
 	emitter emitter.Emitter
@@ -80,19 +82,19 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
 
+	devnode := &Node{
+		config:         cfg,
+		client:         client.NewLocal(),
+		emitter:        emitter,
+		pkgs:           mpkgs,
+		logger:         logger,
+		loadedPackages: len(pkgsTxs),
+	}
+
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: DefaultBalance,
 		Txs:      pkgsTxs,
-	}
-
-	devnode := &Node{
-		config:         cfg,
-		emitter:        emitter,
-		client:         client.NewLocal(),
-		pkgs:           mpkgs,
-		logger:         logger,
-		loadedPackages: len(pkgsTxs),
 	}
 
 	if err := devnode.reset(ctx, genesis); err != nil {
@@ -107,24 +109,46 @@ func (d *Node) getLatestBlockNumber() uint64 {
 }
 
 func (d *Node) Close() error {
+	d.muNode.Lock()
+	defer d.muNode.Unlock()
+
 	return d.Node.Stop()
 }
 
 func (d *Node) ListPkgs() []gnomod.Pkg {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
 	return d.pkgs.toList()
 }
 
-func (d *Node) GetNodeReadiness() <-chan struct{} {
-	return gnoland.GetNodeReadiness(d.Node)
+func (d *Node) Client() client.Client {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
+	return d.client
+}
+
+func (d *Node) Ready() <-chan struct{} {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
+	return d.Ready()
 }
 
 func (d *Node) GetRemoteAddress() string {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
 	return d.Node.Config().RPC.ListenAddress
 }
 
 // UpdatePackages updates the currently known packages. It will be taken into
 // consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
+	d.muNode.Lock()
+	defer d.muNode.Unlock()
+
 	for _, path := range paths {
 		// List all packages from target path
 		pkgslist, err := gnomod.ListPkgs(path)
@@ -144,6 +168,9 @@ func (d *Node) UpdatePackages(paths ...string) error {
 // Reset stops the node, if running, and reloads it with a new genesis state,
 // effectively ignoring the current state.
 func (d *Node) Reset(ctx context.Context) error {
+	d.muNode.Lock()
+	defer d.muNode.Unlock()
+
 	// Stop the node if it's currently running.
 	if err := d.stopIfRunning(); err != nil {
 		return fmt.Errorf("unable to stop the node: %w", err)
@@ -172,6 +199,9 @@ func (d *Node) Reset(ctx context.Context) error {
 
 // ReloadAll updates all currently known packages and then reloads the node.
 func (d *Node) ReloadAll(ctx context.Context) error {
+	d.muNode.Lock()
+	defer d.muNode.Unlock()
+
 	pkgs := d.ListPkgs()
 	paths := make([]string, len(pkgs))
 	for i, pkg := range pkgs {
@@ -195,6 +225,9 @@ func (d *Node) Reload(ctx context.Context) error {
 		d.logger.Warn("replay disable")
 		return d.Reset(ctx)
 	}
+
+	d.muNode.Lock()
+	defer d.muNode.Unlock()
 
 	// Get current blockstore state
 	state, err := d.getBlockStoreState(ctx)
@@ -233,6 +266,15 @@ func (d *Node) Reload(ctx context.Context) error {
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
+	return d.getBlockTransactions(blockNum)
+}
+
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any
+func (d *Node) getBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 	int64BlockNum := int64(blockNum)
 	b, err := d.client.Block(&int64BlockNum)
 	if err != nil {
@@ -256,12 +298,18 @@ func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 // within the specified block, if any
 // GetLatestBlockNumber returns the latest block height from the chain
 func (d *Node) GetLatestBlockNumber() (uint64, error) {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
 	return d.getLatestBlockNumber(), nil
 }
 
 // SendTransaction executes a broadcast commit send
 // of the specified transaction to the chain
 func (d *Node) SendTransaction(tx *std.Tx) error {
+	d.muNode.RLock()
+	defer d.muNode.RUnlock()
+
 	aminoTx, err := amino.Marshal(tx)
 	if err != nil {
 		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
@@ -300,7 +348,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
 		default:
 		}
 
-		txs, txErr := n.GetBlockTransactions(blocnum)
+		txs, txErr := n.getBlockTransactions(blocnum)
 		if txErr != nil {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
