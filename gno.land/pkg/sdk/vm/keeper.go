@@ -22,7 +22,6 @@ import (
 const (
 	maxAllocTx    = 500 * 1000 * 1000
 	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
-	maxCycles     = 10_000_000
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -56,6 +55,7 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	stdlibsDir string,
+	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
