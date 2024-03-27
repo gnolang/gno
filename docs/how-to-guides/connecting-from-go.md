@@ -2,21 +2,21 @@
 id: connect-from-go
 ---
 
-# How to connect to a Gno.land chain from Go
+# How to connect a Go app to Gno.land 
 
-This guide will show you how to read chain state, sign & broadcast transactions 
-to a Gno.land network from your Go apps, using
-[gnoclient](../reference/gnoclient/gnoclient.md).
+This guide will show you how to connect to a Gno.land network from your Go application,
+using the [gnoclient](../reference/gnoclient/gnoclient.md) package.
+
+For this guide, we will build a small Go app that will:
 
 - Call `Render()` on a realm
 - Get account information from the chain
 - Broadcast a state-changing transaction
 - Evaluate an expression on a realm
 
-
 ## Prerequisites
-- local keybase from gnokey
-- possibly a bip39 mnemonic
+- A Local Gno.land keypair generated using
+[gnokey](../getting-started/local-setup/working-with-key-pairs.md)
 
 ## Installation
 Add `gnoclient` to your Go project by running the following command:
@@ -25,7 +25,7 @@ Add `gnoclient` to your Go project by running the following command:
 go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 ```
 
-## Initialize `gnoclient.Client`
+## Main components
 
 `gnoclient.Client` contains a `Signer` as well as a `RPCClient` connector:
 
@@ -42,23 +42,17 @@ The `Signer` provides functionality to sign transactions with a Gno.land keypair
 The keypair can be accessed from a local keybase, or it can be generated 
 in-memory from a BIP39 mnemonic.
 
-```go
-kb, _ := keys.NewKeyBaseFromDir("/path/to/keybase/dir")
-signer := gnoclient.SignerFromKeybase{
-    Keybase:  kb,       // keybase
-    Account:  "mykey",  // name of account from keybase
-    Password: "secure", // account password
-}
-```
-
 :::info
 The keybase directory path is set with the `gnokey --home` flag.
 You can find your local keybase path from `gnokey` under the `-home` flag. 
 :::
 
-### without signer
+### RPCClient
+
+The `RPCCLient` provides connectivity to a Gno.land network via HTTP or WebSockets.
 
 
+## 
 
 
 
