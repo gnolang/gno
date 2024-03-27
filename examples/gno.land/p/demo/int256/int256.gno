@@ -127,55 +127,6 @@ func (z *Int) SetString(s string) (*Int, error) {
 // 	return z, true // err == io.EOF => scan consumed all content of r
 // }
 
-func (z *Int) Add(x, y *Int) *Int {
-	neg := x.neg
-
-	if x.neg == y.neg {
-		// x + y == x + y
-		// (-x) + (-y) == -(x + y)
-		z.abs = z.abs.Add(x.abs, y.abs)
-	} else {
-		// x + (-y) == x - y == -(y - x)
-		// (-x) + y == y - x == -(x - y)
-		if x.abs.Cmp(y.abs) >= 0 {
-			z.abs = z.abs.Sub(x.abs, y.abs)
-		} else {
-			neg = !neg
-			z.abs = z.abs.Sub(y.abs, x.abs)
-		}
-	}
-	z.neg = neg // 0 has no sign
-	return z
-}
-
-// Sub sets z to the difference x-y and returns z.
-func (z *Int) Sub(x, y *Int) *Int {
-	neg := x.neg
-	if x.neg != y.neg {
-		// x - (-y) == x + y
-		// (-x) - y == -(x + y)
-		z.abs = z.abs.Add(x.abs, y.abs)
-	} else {
-		// x - y == x - y == -(y - x)
-		// (-x) - (-y) == y - x == -(x - y)
-		if x.abs.Cmp(y.abs) >= 0 {
-			z.abs = z.abs.Sub(x.abs, y.abs)
-		} else {
-			neg = !neg
-			z.abs = z.abs.Sub(y.abs, x.abs)
-		}
-	}
-	z.neg = neg // 0 has no sign
-	return z
-}
-
-// Mul sets z to the product x*y and returns z.
-func (z *Int) Mul(x, y *Int) *Int {
-	z.abs = z.abs.Mul(x.abs, y.abs)
-	z.neg = x.neg != y.neg // 0 has no sign
-	return z
-}
-
 // Rsh sets z = x >> n and returns z.
 func (z *Int) Rsh(x *Int, n uint) *Int {
 	if !x.neg {
@@ -192,24 +143,6 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 	z.abs = _tmp.Abs()
 	z.neg = true
 
-	return z
-}
-
-// Quo sets z to the quotient x/y for y != 0 and returns z.
-// If y == 0, a division-by-zero run-time panic occurs.
-// Quo implements truncated division (like Go); see QuoRem for more details.
-func (z *Int) Quo(x, y *Int) *Int {
-	z.abs = z.abs.Div(x.abs, y.abs)
-	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
-	return z
-}
-
-// Rem sets z to the remainder x%y for y != 0 and returns z.
-// If y == 0, a division-by-zero run-time panic occurs.
-// Rem implements truncated modulus (like Go); see QuoRem for more details.
-func (z *Int) Rem(x, y *Int) *Int {
-	z.abs.Mod(x.abs, y.abs)
-	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
 	return z
 }
 
@@ -237,16 +170,6 @@ func (z *Int) Cmp(x *Int) (r int) {
 		r = 1
 	}
 	return
-}
-
-func (z *Int) Div(x, y *Int) *Int {
-	z.abs.Div(x.abs, y.abs)
-	if x.neg == y.neg {
-		z.neg = false
-	} else {
-		z.neg = true
-	}
-	return z
 }
 
 // Lsh sets z = x << n and returns z.
@@ -386,6 +309,10 @@ func (z *Int) DivUint256(x *Int, y *uint256.Uint) *Int {
 // Eq returns true if z == x
 func (z *Int) Eq(x *Int) bool {
 	return (z.neg == x.neg) && z.abs.Eq(x.abs)
+}
+
+func (z *Int) Neq(x *Int) bool {
+	return !z.Eq(x)
 }
 
 // IsZero returns true if z == 0
@@ -537,7 +464,7 @@ func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
 	return overflow
 }
 
-// OBS, differs from original holiman uint256
+// OBS, differs from original mempooler int256
 // ToString returns the decimal representation of z.
 func (z *Int) ToString() string {
 	if z == nil {
@@ -551,11 +478,19 @@ func (z *Int) ToString() string {
 	return t
 }
 
-// OBS, differs from original holiman uint256
+// OBS, differs from original mempooler int256
 // NilToZero sets z to 0 and return it if it's nil, otherwise it returns z
 func (z *Int) NilToZero() *Int {
 	if z == nil {
 		return NewInt(0)
 	}
 	return z
+}
+
+// initiateAbs sets default value for `z.abs` value if is nil
+func (z *Int) initiateAbs() {
+	if z.abs == nil {
+		z.abs = new(uint256.Uint)
+	}
+
 }
