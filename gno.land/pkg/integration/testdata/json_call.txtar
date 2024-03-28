@@ -1,0 +1,56 @@
+# test json call inside txtar
+loadpkg gno.land/p/demo/ufmt
+loadpkg $WORK
+
+## start a new node
+gnoland start
+
+## execute Render
+# Call render
+gnokey maketx call -pkgpath gno.land/r/jsoncall -func Count -gas-fee 1000000ugnot -gas-wanted 2000000 -args '[1, 2, 3, 4, 5]' -broadcast -chainid=tendermint_test test1
+! stdout 'should not appears'
+stdout '[{"Message":"counter: 15","Counter":{"Result":15}}]'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/jsoncall -func GetMessageFromResult -gas-fee 1000000ugnot -gas-wanted 2000000 -args "{\"Message\":\"counter: 15\",\"Counter\":{\"Result\":15}}" -broadcast -chainid=tendermint_test test1
+stdout '15'
+stdout OK!
+
+-- gno.mod --
+module gno.land/r/jsoncall
+
+-- import.gno --
+package importtest
+
+import "gno.land/p/demo/ufmt"
+
+type Counter struct {
+	hidden string
+	Result int
+}
+
+type Result struct {
+	Message string
+	Counter *Counter
+}
+
+func Count(values []int) *Result {
+	var count int
+	for _, v := range values {
+		count += v
+	}
+
+
+	return &Result{
+		Message: ufmt.Sprintf("counter: %d", count),
+		Counter: &Counter{
+			hidden: "should not appears",
+			Result: count,
+		},
+	}
+}
+
+func GetMessageFromResult(res *Result) int {
+	return res.Counter.Result
+}
+

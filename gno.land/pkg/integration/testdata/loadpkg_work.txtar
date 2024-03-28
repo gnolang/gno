@@ -4,14 +4,18 @@ loadpkg gno.land/r/foobar/bar $WORK/bar
 ## start a new node
 gnoland start
 
-## execute Render
+## execute run
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
 
-## compare render
+## compare output
 stdout 'main: --- hello from foo ---'
 stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
+
+## execute render
+gnokey query vm/qrender --data "gno.land/r/foobar/bar\n"
+stdout 'hello from foo'
 
 -- bar/bar.gno --
 package bar

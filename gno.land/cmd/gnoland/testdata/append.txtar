@@ -23,7 +23,7 @@ stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("1-2-3-" string)'
+stdout '1-2-3-'
 stdout OK!
 
 # Call Pop
@@ -32,7 +32,7 @@ stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-" string)'
+stdout '2-3-'
 stdout OK!
 
 # Call Append 42
@@ -41,7 +41,7 @@ stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-" string)'
+stdout '2-3-42-'
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/append -func CopyAppend -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
@@ -52,7 +52,7 @@ stdout OK!
 
 # Call render
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-" string)'
+stdout '2-3-42-'
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/append -func AppendMoreAndC -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
@@ -62,11 +62,11 @@ gnokey maketx call -pkgpath gno.land/r/append -func ReassignC -gas-fee 1000000ug
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-70-100-" string)'
+stdout '2-3-42-70-100-'
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args 'd' -broadcast -chainid=tendermint_test test1
-stdout '("1-" string)'
+stdout '1-'
 stdout OK!
 
 -- append.gno --

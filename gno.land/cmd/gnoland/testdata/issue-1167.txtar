@@ -14,22 +14,23 @@ stdout OK!
 # execute Delta for the first time
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '"1,1,1;" string'
+stdout '1,1,1;'
 
 # execute Delta for the second time
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '1,1,1;2,2,2;" string'
+stdout '1,1,1;2,2,2;'
 
 # execute Delta for the third time
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func Delta -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '1,1,1;2,2,2;3,3,3;" string'
+stdout '1,1,1;2,2,2;3,3,3;'
 
 # execute Render
 gnokey maketx call -pkgpath gno.land/r/demo/xx -func Render -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '1,1,1;2,2,2;3,3,3;" string'
+stdout '1,1,1;2,2,2;3,3,3;'
+
 
 -- gno.mod --
 module gno.land/r/demo/xx
