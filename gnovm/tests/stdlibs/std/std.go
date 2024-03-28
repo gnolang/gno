@@ -2,9 +2,10 @@ package std
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/stdlibs"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
