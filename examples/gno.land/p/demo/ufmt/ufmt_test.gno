@@ -38,6 +38,7 @@ func TestSprintf(t *testing.T) {
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
 		{"stringer [%s]", []interface{}{stringer{}}, "stringer [I'm a stringer]"},
+		{"Hello, World! 😊", nil, "Hello, World! 😊"},
 	}
 
 	for _, tc := range cases {
