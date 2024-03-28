@@ -1052,10 +1052,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
 						if len(n.Args) == 2 {
+							args0T := evalStaticTypeOf(store, last, n.Args[0])
+							args1T := evalStaticTypeOf(store, last, n.Args[1])
+							if args0T.Elem().TypeID() != args1T.Elem().TypeID() {
+								panic(fmt.Sprintf(
+									"arguments to copy have different element types, want %s, got %s", args0T.Elem().TypeID(), args1T.Elem().TypeID()))
+							}
 							// If the second argument is a string,
 							// convert to byteslice.
 							args1 := n.Args[1]
-							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+							if args1T.Kind() == StringKind {
 								bsx := constType(nil, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
@@ -2358,9 +2364,11 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
+		var conversionNeeded bool
 		if t != nil {
-			checkType(xt, t, autoNative)
+			conversionNeeded = checkType(xt, t, autoNative)
 		}
+
 		if isUntyped(xt) {
 			if t == nil {
 				t = defaultTypeOf(xt)
@@ -2382,6 +2390,12 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// default:
 				}
 			}
+			cx := Expr(Call(constType(nil, t), *x))
+			cx = Preprocess(store, last, cx).(Expr)
+			*x = cx
+		}
+		// cover all declared type case
+		if conversionNeeded {
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
@@ -2413,7 +2427,7 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func checkType(xt Type, dt Type, autoNative bool) {
+func checkType(xt Type, dt Type, autoNative bool) (conversionNeeded bool) {
 	// Special case if dt is interface kind:
 	if dt.Kind() == InterfaceKind {
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
@@ -2519,6 +2533,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base
+				conversionNeeded = true
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
@@ -2529,9 +2544,10 @@ func checkType(xt Type, dt Type, autoNative bool) {
 				"cannot use %s as %s without explicit conversion",
 				xt.String(),
 				ddt.String()))
-		} else {
+		} else { // implies unnamed composite? XXX: Is this complete? any Boudary condetions?
 			// carry on with baseOf(ddt)
 			dt = ddt.Base
+			conversionNeeded = true
 		}
 	}
 	// General cases.
@@ -2576,24 +2592,24 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		}
 	case *PointerType:
 		if pt, ok := xt.(*PointerType); ok {
-			checkType(pt.Elt, cdt.Elt, false)
-			return // ok
+			cdt := checkType(pt.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			checkType(at.Elt, cdt.Elt, false)
-			return // ok
+			cdt := checkType(at.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			checkType(st.Elt, cdt.Elt, false)
-			return // ok
+			cdt := checkType(st.Elt, cdt.Elt, false)
+			return cdt || conversionNeeded
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			checkType(mt.Key, cdt.Key, false)
-			checkType(mt.Value, cdt.Value, false)
-			return // ok
+			cn1 := checkType(mt.Key, cdt.Key, false)
+			cn2 := checkType(mt.Value, cdt.Value, false)
+			return cn1 || cn2 || conversionNeeded
 		}
 	case *FuncType:
 		if xt.TypeID() == cdt.TypeID() {
