@@ -265,7 +265,7 @@ Legend:
 | time                                        | `full`[^7] |
 | time/tzdata                                 | `tbd`    |
 | unicode                                     | `full`   |
-| unicode/utf16                               | `tbd`    |
+| unicode/utf16                               | `full`   |
 | unicode/utf8                                | `full`   |
 | unsafe                                      | `nondet` |
 
