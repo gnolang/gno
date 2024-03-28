@@ -620,6 +620,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// elide composite lit element (nested) composite types.
 					elideCompositeElements(clx, clt)
 				}
+				switch n.(type) {
+				// TRANS_LEAVE (deferred)---------
+				// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+				// POP BLOCK YOURSELF.
+				case BlockNode:
+					// Pop block.
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
 			}()
 
 			// The main TRANS_LEAVE switch.
@@ -739,6 +749,88 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Replace with *ConstExpr.
 				cx := evalConst(store, last, n)
 				return cx, TRANS_CONTINUE
+
+			// TRANS_LEAVE -----------------------
+			case *FuncLitExpr:
+				// We need to closure-call if any variables
+				// used were declared in a for-loop, and this
+				// is the outer-most function within the loop.
+				// NOTE: if the variable is defined as a
+				// function parameter of the closure, then it
+				// is shadowed and not relevant whether or not
+				// the closure is immediately called.
+
+				// Step 1: check if this func lit is in a loop,
+				// not embedded within another func lit.
+				loopDepth, inLoop := isBlockNodeInLoop(store, n)
+				if !inLoop {
+					return n, TRANS_CONTINUE
+				}
+
+				// Step 2: gather all extern names declared in for-loops.
+				leNames := []Name{}
+				leTypes := []Type{}
+				lePaths := []ValuePath{}
+				for _, name := range n.GetExternNames() {
+					path := n.GetExternPathForName(store, name)
+					if path.Type != VPBlock {
+						continue // not a for-loop block path
+					}
+					if int(path.Depth) <= loopDepth+1 {
+						// it is within the loop, carry on...
+					} else {
+						// it is outside the closest loop ancestor,
+						// check to see if it is declared in outer loop.
+						container := n.GetBlockNodeForPath(store, path)
+						if _, ok := isBlockNodeInLoop(store, container); !ok {
+							continue // not declared in any loop.
+						}
+					}
+					typ := n.GetStaticTypeOfAt(store, path)
+					// Append loop extern name and related.
+					leNames = append(leNames, name)
+					lePaths = append(lePaths, path)
+					leTypes = append(leTypes, typ)
+				}
+				if len(leNames) == 0 {
+					// nothing to transform
+					return n, TRANS_CONTINUE
+				}
+				panic("!!! ITS HAPPENING (insert ron paul jazz hands) !!!")
+				// Finally, do the transform.
+				// The inner closure loop externs will be
+				// modified to have a path depth of 2 (or more)
+				// (1+1 to reach the outer closure ), while all
+				// other inner non-loop-externs names will have
+				// path depths +1, while non-extern names will
+				// not be affected.
+				// The outer closure call’s passed arguments
+				// will be modified by the final preprocess
+				// call on the call expression (variable depth).
+				adjustLoopExternPaths(n, leNames, lePaths)
+				// Inject a closure-call and preprocess it.
+				paramFields := []interface{}{}
+				for i := 0; i < len(leNames); i++ {
+					paramFields = append(paramFields,
+						leNames[i],
+						constType(nil, leTypes[i]),
+					)
+				}
+				params := Flds(paramFields...)
+				fnType := evalStaticTypeOf(store, last, n)
+				results := Flds("", constType(nil, fnType))
+				returnFn := Return(n)
+				closure := Fn(params, results, []Stmt{returnFn})
+				leNameExprs := []interface{}{}
+				for _, leName := range leNames {
+					leNameExprs = append(leNameExprs, Nx(leName))
+				}
+				call := Call(closure, leNameExprs...)
+				// this preprocess will also set the path for the
+				// outer closure's params and the call's
+				// argument value paths.
+				call = Preprocess(store, last, call).(*CallExpr)
+				return call, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
@@ -1957,17 +2049,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 			}
 			// end type switch statement
+			// END TRANS_LEAVE -----------------------
 
-			// TRANS_LEAVE -----------------------
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-				return n, TRANS_CONTINUE
-			} else {
-				return n, TRANS_CONTINUE
-			}
+			// Convenience return in case not already returned.
+			return n, TRANS_CONTINUE
 		}
 
 		panic(fmt.Sprintf(
@@ -3571,6 +3656,132 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			"unexpected node: %v (%v)",
 			n, reflect.TypeOf(n)))
 	}
+}
+
+// return the depth offset of loop and true if block node is in a loop,
+// but not embedded within another func lit intermediary.
+func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
+	depthOffset := 0
+	for bn != nil {
+		depthOffset += 1
+		bn = bn.GetParentNode(store)
+		switch bn.(type) {
+		case *FuncLitExpr:
+			return 0, false
+		case *ForStmt:
+			return depthOffset, true
+		default:
+			continue
+		}
+	}
+	return 0, false
+}
+
+func adjustLoopExternPaths(bn BlockNode, leNames []Name, lePaths []ValuePath) {
+	var depthOffset uint8 = 0
+	isLeName := func(name Name) (ValuePath, bool) {
+		for i, leName := range leNames {
+			if name == leName {
+				return lePaths[i], true
+			}
+		}
+		return ValuePath{}, false
+	}
+
+	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		// expect only preprocessed nodes.
+		if n.GetAttribute(ATTR_PREPROCESSED) != true {
+			panic("expected only preprocessed nodes for adjustLoopExrternPaths")
+		}
+
+		switch stage {
+		case TRANS_ENTER:
+			switch cn := n.(type) {
+			case *NameExpr:
+				if cn.Path.Type != VPBlock {
+					panic("unexpected value path type for name")
+				}
+				lePath, isLeName := isLeName(cn.Name)
+				if isLeName {
+					// sanity check
+					if cn.Path.Depth >
+						lePath.Depth+depthOffset {
+						panic("should not happen")
+					}
+					// If the depth is shallow,
+					// it does not apply, was redeclared.
+					if cn.Path.Depth <
+						lePath.Depth+depthOffset {
+						return cn, TRANS_CONTINUE
+					}
+					// e.g.
+					// for {
+					//   i := 0
+					//   for {
+					//     func() { // offset 0
+					//       func() { // offset 1
+					//         i // depth 4
+					//       }
+					//     }
+					//   }
+					// }
+					// becomes
+					// for {
+					//   i := 0
+					//   for {
+					//     func(i <int>) {
+					//       func() { // offset 0
+					//         func() { // offset 1
+					//           i // depth of 1+1+1
+					//           // 1 for base inner
+					//           // 1 for offset
+					//           // 1 for outer closure
+					//         }
+					//       }
+					//     }(i)
+					//   }
+					// }
+					cn.Path.Depth = 1 + depthOffset + 1
+				} else {
+					// If the depth is shallow,
+					// it is not affected.
+					if cn.Path.Depth <=
+						1+depthOffset {
+						return cn, TRANS_CONTINUE
+					} else {
+						// Non-loop extern names are
+						// bumped by 1.
+						cn.Path.Depth += 1
+					}
+				}
+				return cn, TRANS_CONTINUE
+			/*
+				case *FuncLitExpr:
+					// if func lit already has all args
+					// declared, we could skip recursion
+					// here, but tracking that would be
+					// cumbersome so just ignore and
+					// continue.
+					continue // "continue" to track offset.
+			*/
+			case BlockNode:
+				depthOffset += 1 // keep track of depth
+				return cn, TRANS_CONTINUE
+			default:
+				return cn, TRANS_SKIP
+			}
+		case TRANS_LEAVE:
+			switch cn := n.(type) {
+			case BlockNode:
+				depthOffset -= 1 // keep track of depth
+				return cn, TRANS_CONTINUE
+			default:
+				return cn, TRANS_SKIP
+			}
+		default:
+			return n, TRANS_CONTINUE
+		}
+	})
 }
 
 // ----------------------------------------

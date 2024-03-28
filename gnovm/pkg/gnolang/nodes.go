@@ -1459,6 +1459,8 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetExternPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name) *TypedValue
@@ -1557,6 +1559,7 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+// NOTE: Extern names may also be local, if declared later.
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
@@ -1598,6 +1601,8 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
+	// NOTE: if a name is later declared in this block later, it is both an
+	// extern name with depth > 1, as well as local name with depth == 1.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
@@ -1624,6 +1629,33 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
+}
+
+// Like GetPathForName, but always returns the path of the extern name.
+// This is relevant for when a name is declared later in the block.
+func (sb *StaticBlock) GetExternPathForName(store Store, n Name) ValuePath {
+	if n == "_" {
+		return NewValuePathBlock(0, 0, "_")
+	}
+	parent := sb.GetParentNode(store)
+	path := parent.GetPathForName(store, n)
+	path.Depth += 1
+	return path
+}
+
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got something else")
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	var bn BlockNode = sb.GetSource(store)
+	for i := 1; i < int(path.Depth); i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
 }
 
 // Returns whether a name defined here in in ancestry is a const.
