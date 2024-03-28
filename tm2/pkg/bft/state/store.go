@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -18,6 +19,8 @@ const (
 	valSetCheckpointInterval = 100000
 )
 
+var errTxResultCorrupted = errors.New("tx result corrupted")
+
 // ------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
@@ -30,6 +33,11 @@ func calcConsensusParamsKey(height int64) []byte {
 
 func calcABCIResponsesKey(height int64) []byte {
 	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
+}
+
+// CalcTxResultKey calculates the storage key for the transaction result
+func CalcTxResultKey(hash []byte) []byte {
+	return []byte(fmt.Sprintf("txResultKey:%v", hash))
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
@@ -169,6 +177,27 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
 func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 	db.SetSync(calcABCIResponsesKey(height), abciResponses.Bytes())
+}
+
+// LoadTxResult loads the tx result associated with the given
+// tx hash from the database, if any
+func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
+	buf := db.Get(CalcTxResultKey(txHash))
+	if buf == nil {
+		return nil, NoTxResultForHashError{txHash}
+	}
+
+	txResult := new(types.TxResult)
+	if err := amino.Unmarshal(buf, txResult); err != nil {
+		return nil, fmt.Errorf("%w, %w", errTxResultCorrupted, err)
+	}
+
+	return txResult, nil
+}
+
+// saveTxResult persists the transaction result to the database
+func saveTxResult(db dbm.DB, txResult *types.TxResult) {
+	db.SetSync(CalcTxResultKey(txResult.Tx.Hash()), txResult.Bytes())
 }
 
 // -----------------------------------------------------------------------------

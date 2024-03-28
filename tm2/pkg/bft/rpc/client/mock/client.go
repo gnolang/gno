@@ -36,6 +36,7 @@ type Client struct {
 	client.HistoryClient
 	client.StatusClient
 	client.MempoolClient
+	client.TxClient
 	service.Service
 }
 
