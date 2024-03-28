@@ -74,7 +74,7 @@ func Marshal(node *Node) ([]byte, error) {
 
 				elem, ok := node.next[strconv.Itoa(i)]
 				if !ok {
-					return nil, errors.New(ufmt.Sprintf("array element %d is not found", i))
+					return nil, ufmt.Errorf("array element %d is not found", i)
 				}
 
 				oVal, err = Marshal(elem)

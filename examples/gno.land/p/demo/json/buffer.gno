@@ -128,10 +128,10 @@ func (b *buffer) skipAny(endTokens map[byte]bool) error {
 		tokens = append(tokens, string(token))
 	}
 
-	return errors.New(ufmt.Sprintf(
+	return ufmt.Errorf(
 		"EOF reached before encountering one of the expected tokens: %s",
 		strings.Join(tokens, ", "),
-	))
+	)
 }
 
 // skipAndReturnIndex moves the buffer index forward by one and returns the new index.
@@ -478,7 +478,7 @@ func numberKind2f64(value interface{}) (result float64, err error) {
 	case uint64:
 		result = float64(typed)
 	default:
-		err = errors.New(ufmt.Sprintf("invalid number type: %T", value))
+		err = ufmt.Errorf("invalid number type: %T", value)
 	}
 
 	return

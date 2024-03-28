@@ -244,7 +244,7 @@ func getString(b *buffer) (*string, error) {
 }
 
 func unexpectedTokenError(data []byte, index int) error {
-	return errors.New(ufmt.Sprintf("unexpected token at index %d. data %b", index, data))
+	return ufmt.Errorf("unexpected token at index %d. data %b", index, data)
 }
 
 func createNode(current *Node, buf *buffer, nodeType ValueType, key **string) (*Node, error) {

@@ -44,7 +44,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 //
 // It utilizes double-precision (64-bit) floating-point format as defined
 // by the IEEE 754 standard, providing a decimal precision of approximately 15 digits.
-func ParseFloatLiteral(bytes []byte) (value float64, err error) {
+func ParseFloatLiteral(bytes []byte) (float64, error) {
 	if len(bytes) == 0 {
 		return -1, errors.New("JSON Error: empty byte slice found while parsing float value")
 	}
@@ -82,7 +82,7 @@ func ParseFloatLiteral(bytes []byte) (value float64, err error) {
 	return f, nil
 }
 
-func ParseIntLiteral(bytes []byte) (v int64, err error) {
+func ParseIntLiteral(bytes []byte) (int64, error) {
 	if len(bytes) == 0 {
 		return 0, errors.New("JSON Error: empty byte slice found while parsing integer value")
 	}
@@ -167,7 +167,7 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	return man, exp10, nil
 }
 
-func trimNegativeSign(bytes []byte) (neg bool, trimmed []byte) {
+func trimNegativeSign(bytes []byte) (bool, []byte) {
 	if bytes[0] == minus {
 		return true, bytes[1:]
 	}

@@ -92,12 +92,12 @@ func (n *Node) GetKey(key string) (*Node, error) {
 	}
 
 	if n.Type() != Object {
-		return nil, errors.New(ufmt.Sprintf("target node is not object type. got: %s", n.Type().String()))
+		return nil, ufmt.Errorf("target node is not object type. got: %s", n.Type().String())
 	}
 
 	value, ok := n.next[key]
 	if !ok {
-		return nil, errors.New(ufmt.Sprintf("key not found: %s", key))
+		return nil, ufmt.Errorf("key not found: %s", key)
 	}
 
 	return value, nil
@@ -968,7 +968,10 @@ func (n *Node) isContainer() bool {
 // remove removes the value from the current container type node.
 func (n *Node) remove(v *Node) error {
 	if !n.isContainer() {
-		return errors.New(ufmt.Sprintf("can't remove value from non-array or non-object node. got=%s", n.Type().String()))
+		return ufmt.Errorf(
+			"can't remove value from non-array or non-object node. got=%s",
+			n.Type().String(),
+		)
 	}
 
 	if v.prev != n {
