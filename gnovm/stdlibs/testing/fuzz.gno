@@ -4,8 +4,6 @@ import (
 	"math"
 	"strings"
 	"time"
-
-	"gno.land/p/demo/ufmt"
 )
 
 type Fuzzer interface {
@@ -286,7 +284,7 @@ func (f *F) Fatal(args ...interface{}) {
 	var sb strings.Builder
 
 	for _, arg := range args {
-		sb.WriteString(ufmt.Sprintf("%s", arg))
+		sb.WriteString(arg.(string))
 	}
 
 	f.msgs = append(f.msgs, sb.String())
