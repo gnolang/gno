@@ -2,8 +2,10 @@
 // NOTE: there was a bug with the original Quotient* functions, and
 // testing method. These have been fixed here, and tests ported to
 // tests/files/maths_int*.go respectively.
-// TODO: make PR upstream.
-package maths
+// Note: copied over from p/demo/maths & deprecated over there.
+package overflow
+
+import "math"
 
 /*
 Package overflow offers overflow-checked integer arithmetic operations
@@ -29,7 +31,7 @@ and new tests. */
 //go:generate ./overflow_template.sh
 
 func _is64Bit() bool {
-	maxU32 := uint(MaxUint32)
+	maxU32 := uint(math.MaxUint32)
 	return ((maxU32 << 1) >> 1) == maxU32
 }
 
@@ -220,7 +222,7 @@ func Div8p(a, b int8) int8 {
 func Quo8(a, b int8) (int8, int8, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == MinInt8 {
+	} else if b == -1 && a == math.MinInt8 {
 		return 0, 0, false
 	}
 	c := a / b
@@ -310,7 +312,7 @@ func Div16p(a, b int16) int16 {
 func Quo16(a, b int16) (int16, int16, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == MinInt16 {
+	} else if b == -1 && a == math.MinInt16 {
 		return 0, 0, false
 	}
 	c := a / b
@@ -400,7 +402,7 @@ func Div32p(a, b int32) int32 {
 func Quo32(a, b int32) (int32, int32, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == MinInt32 {
+	} else if b == -1 && a == math.MinInt32 {
 		return 0, 0, false
 	}
 	c := a / b
@@ -490,7 +492,7 @@ func Div64p(a, b int64) int64 {
 func Quo64(a, b int64) (int64, int64, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == MinInt64 {
+	} else if b == -1 && a == math.MinInt64 {
 		return 0, 0, false
 	}
 	c := a / b
