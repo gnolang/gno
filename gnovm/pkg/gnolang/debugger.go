@@ -72,7 +72,11 @@ func init() {
 	}
 
 	// Sort command names for help.
-	debugCmdNames = sort.Strings(maps.Keys(debugCmds))
+	debugCmdNames = make([]string, 0, len(debugCmds))
+	for name := range debugCmds {
+		debugCmdNames = append(debugCmdNames, name)
+	}
+	sort.SliceStable(debugCmdNames, func(i, j int) bool { return debugCmdNames[i] < debugCmdNames[j] })
 
 	// Set command aliases.
 	debugCmds["b"] = debugCmds["break"]
