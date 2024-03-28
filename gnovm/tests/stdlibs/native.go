@@ -174,6 +174,48 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
+		"testSetPrevRealm",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			testlibs_std.X_testSetPrevRealm(
+				m,
+				p0)
+		},
+	},
+	{
+		"std",
+		"testSetPrevAddr",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			testlibs_std.X_testSetPrevAddr(
+				m,
+				p0)
+		},
+	},
+	{
+		"std",
 		"testSetOrigSend",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]string")},
