@@ -77,9 +77,18 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
+
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
+		decls, err := sortValueDeps(store, fn.Decls)
+
+		if err != nil {
+			panic(err)
+		}
+
+		fn.Decls = decls
+
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			if d.GetAttribute(ATTR_PREDEFINED) == true {
