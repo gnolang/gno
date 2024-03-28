@@ -341,3 +341,10 @@ a.footer__link-item > svg {
     font-size: 0.8em;
   }
 }
+
+.container img {
+  margin: auto;
+  display: block;
+  border-radius: 0.5rem;
+  margin-block: 3rem;
+}

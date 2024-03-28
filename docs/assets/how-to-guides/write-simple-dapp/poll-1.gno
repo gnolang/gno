@@ -43,12 +43,12 @@ func NewPoll(title, description string, deadline int64) *Poll {
 
 // Vote Votes for a user
 func (p *Poll) Vote(voter std.Address, vote bool) {
-	p.Voters().Set(string(voter), vote)
+	p.Voters().Set(voter.String(), vote)
 }
 
 // HasVoted vote: yes - true, no - false
 func (p *Poll) HasVoted(address std.Address) (bool, bool) {
-	vote, exists := p.Voters().Get(string(address))
+	vote, exists := p.Voters().Get(address.String())
 	if exists {
 		return true, vote.(bool)
 	}

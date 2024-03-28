@@ -34,7 +34,6 @@ const sidebars = {
                 'how-to-guides/deploy',
                 'how-to-guides/write-simple-dapp',
                 'how-to-guides/creating-grc20',
-                'how-to-guides/creating-grc721',
                 'how-to-guides/connect-wallet-dapp',
             ],
         },
