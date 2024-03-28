@@ -95,18 +95,19 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
-type implicitClosure struct {
+// TODO: make this slice
+type gotoLoop struct {
 	labelLine int
 	gotoLine  int
 	label     Name
 	depth     uint8
 	index     int
-	isNewBody bool
-	targetBn  BlockNode
+	sealed    bool      // new body built
+	targetBn  BlockNode // parent block of goto loop, will also be parent of wrapped blockStmt block
 }
 
-var imc *implicitClosure
-var reProcess bool
+var gloop *gotoLoop
+var reProcessing bool
 
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
@@ -646,20 +647,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
 				// POP BLOCK YOURSELF.
 				case BlockNode:
-					// mutate body if needed, mostly for implicit loop formed by goto label
-					// this can not be done in gotoStmt that mutate body while transcribe body
-					// and rebuild body, re-preprocess..., see 1_06
-
-					if imc != nil {
-						debug.Println("---imc: ", imc)
-						popn := stack[len(stack)-1]
-						if _, ok := popn.(*FuncDecl); ok {
-							debug.Println("---start deferred handling")
-							rebuildBody(store, last, imc)
-							imc = nil
+					// mutate body if needed, mostly for implicit loop formed by goto label,
+					// this can not be done in gotoStmt that mutate body while transcribe body.
+					// see 1_06
+					if gloop != nil { // goto loop exist, transform new body
+						if fd, ok := n.(*FuncDecl); ok {
+							if fd.Path.Depth > 1 { // XXX, not uverse
+								transform(store, last, gloop)
+								gloop = nil
+							}
 						}
 					}
-
 					// Pop block.
 					stack = stack[:len(stack)-1]
 					last = stack[len(stack)-1]
@@ -1834,7 +1832,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BREAK:
 				case CONTINUE:
 				case GOTO:
-					if !reProcess { // TODO: check this logic
+					if !reProcessing { // TODO: check this logic
 						debug.Println("---Goto, n: ", n)
 						debug.Println("---last bn: ", last)
 						bn, depth, index, labelLine := findGotoLabel(last, n.Label)
@@ -1851,27 +1849,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						debug.Println("---closureStack, height of ns is: ", len(closureStack))
 						for i, nd := range closureStack {
 							debug.Println("=================================")
-							fmt.Printf("node[%d] type is: %T, value is: %v \n", i, nd, nd)
+							debug.Printf("node[%d] type is: %T, value is: %v \n", i, nd, nd)
 							debug.Println("=================================")
 						}
 
-						// TODO, NOTE this only support basic goto label, should be expanded
-						// find outer most block?
 						if labelLine < gotoLine {
 							for i := len(closureStack) - 1; i >= 0; i-- {
 								if fx, ok := closureStack[i].(*FuncLitExpr); ok {
-									// do staff on fx, copy x here
 									debug.Printf("---fx: %v, at line of: %d \n", fx, fx.GetLine())
-									// do staff with fx
-									// funcLit in implicit loop block
-									//preBody := []Stmt{}
-									//loopBody := []Stmt{}
-									//postBody := []Stmt{}
 									if labelLine < fx.GetLine() && fx.GetLine() < gotoLine {
-										debug.Println("---implicit pattern found!")
+										debug.Println("---goto loop found!")
 										debug.Printf("---located from line: %d, to line: %d \n", labelLine, gotoLine)
 										// mutate body when this node end transcribed
-										imc = &implicitClosure{
+										gloop = &gotoLoop{
 											labelLine: labelLine,
 											gotoLine:  gotoLine,
 											label:     n.Label,
@@ -1883,12 +1873,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						}
-
-						debug.Println("---end of handling goto---")
-						debug.Println("---new last: ", last)
 					}
-					// tag implicit block
-					//closureStack = closureStack[:0]
 				case FALLTHROUGH:
 					if swchC, ok := last.(*SwitchClauseStmt); ok {
 						// last is a switch clause, find its index in the switch and assign
@@ -1909,47 +1894,52 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
+				// TODO: transform logic should be delayed, specially if here are goto loops embedded in for loop,
+				// only inject here.
 				debug.Println("---trans_leave, for stmt: ", n)
 				debug.Printf("---trans_leave, for stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 
-				clo := n.GetStaticBlock().GetBodyStmt().closure
-				if clo != nil {
-					debug.Println("---trans_leave, clo: ", clo)
+				if !reProcessing {
+					clo := n.GetStaticBlock().GetBodyStmt().closure
+					if clo != nil {
+						debug.Println("---trans_leave, clo: ", clo)
 
-					stmts := []Stmt{}
-					// step2. inject i := 1 for loop extern
-					if clo.loopVars != nil {
-						for _, lv := range clo.loopVars {
-							lhs := Nx(lv)
-							rhs := Nx(lv)
-							as := A(lhs, ":=", rhs)
+						stmts := []Stmt{}
+						// step2. inject i := 1 for loop extern
+						if clo.loopVars != nil {
+							for _, lv := range clo.loopVars {
+								lhs := Nx(lv)
+								rhs := Nx(lv)
+								as := A(lhs, ":=", rhs)
 
-							debug.Printf("as: %v \n", as)
+								debug.Printf("as: %v \n", as)
 
-							stmts = append([]Stmt{as}, n.Body...)
+								stmts = append([]Stmt{as}, n.Body...)
+							}
+						} else {
+							stmts = n.Body
 						}
-					} else {
-						stmts = n.Body
+
+						// wrap body with {}
+						nn := BlockS(stmts)
+
+						// reset staticBlock initialized in for{...}
+						resetStaticBlock(nn)
+						debug.Println("---nn after reset is: ", nn)
+
+						// recursively
+						nn = Preprocess(store, n, nn).(*BlockStmt)
+						debug.Println("---nn after preprocess: ", nn)
+
+						// replace with wrapped blockStmt
+						n.Body = []Stmt{nn}
+						debug.Println("---n final: ", n)
 					}
 
-					// wrap body with {}
-					nn := BlockS(stmts)
-
-					// reset staticBlock initialized in for{...}
-					resetStaticBlock(nn)
-					debug.Println("---nn after reset is: ", nn)
-
-					nn = Preprocess(store, n, nn).(*BlockStmt)
-					debug.Println("---nn after preprocess: ", nn)
-
-					// replace with wrapped blockStmt
-					n.Body = []Stmt{nn}
-					debug.Println("---n final: ", n)
+					// preprocess n
+					// Cond consts become bool *ConstExprs.
+					checkOrConvertType(store, last, &n.Cond, BoolType, false)
 				}
-
-				// preprocess n
-				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
@@ -1960,40 +1950,42 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *RangeStmt:
 				debug.Printf("---trans_leave, range stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				// NOTE: k,v already defined @ TRANS_BLOCK.
-				clo := n.GetStaticBlock().GetBodyStmt().closure
-				if clo != nil {
-					debug.Println("---trans_leave, clo: ", clo)
+				if !reProcessing {
+					clo := n.GetStaticBlock().GetBodyStmt().closure
+					if clo != nil {
+						debug.Println("---trans_leave, clo: ", clo)
 
-					body := []Stmt{}
-					injectStmt := []Stmt{}
-					if clo.loopVars != nil {
-						for _, lv := range clo.loopVars {
-							// step2. inject i := 1 for loop extern
-							lhs := Nx(lv)
-							rhs := Nx(lv)
-							as := A(lhs, ":=", rhs)
+						body := []Stmt{}
+						injectStmt := []Stmt{}
+						if clo.loopVars != nil {
+							for _, lv := range clo.loopVars {
+								// step2. inject i := 1 for loop extern
+								lhs := Nx(lv)
+								rhs := Nx(lv)
+								as := A(lhs, ":=", rhs)
 
-							debug.Printf("as: %v \n", as)
-							injectStmt = append(injectStmt, as)
+								debug.Printf("as: %v \n", as)
+								injectStmt = append(injectStmt, as)
+							}
+							body = append(injectStmt, n.Body...)
+						} else {
+							body = n.Body
 						}
-						body = append(injectStmt, n.Body...)
-					} else {
-						body = n.Body
+
+						// wrap body with {}
+						nn := BlockS(body)
+
+						// reset staticBlock initialized in for{...}
+						resetStaticBlock(nn)
+						debug.Println("---nn after reset is: ", nn)
+
+						nn = Preprocess(store, n, nn).(*BlockStmt)
+						debug.Println("---nn after preprocess: ", nn)
+
+						// replace with wrapped blockStmt
+						n.Body = []Stmt{nn}
+						debug.Println("---n final: ", n)
 					}
-
-					// wrap body with {}
-					nn := BlockS(body)
-
-					// reset staticBlock initialized in for{...}
-					resetStaticBlock(nn)
-					debug.Println("---nn after reset is: ", nn)
-
-					nn = Preprocess(store, n, nn).(*BlockStmt)
-					debug.Println("---nn after preprocess: ", nn)
-
-					// replace with wrapped blockStmt
-					n.Body = []Stmt{nn}
-					debug.Println("---n final: ", n)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -3905,6 +3897,7 @@ func isLoopNode(store Store, bn BlockNode) bool {
 	return false
 }
 
+// reset vp, static block, etc
 func resetStaticBlock(bn BlockNode) {
 	debug.Println("---reset VP: ", bn)
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -3933,53 +3926,93 @@ func resetStaticBlock(bn BlockNode) {
 	})
 }
 
-func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loopBody, postBody []Stmt) {
-	debug.Println("---rebuildBody")
+// wrap goto loop into block stmt
+func rebuildBody(b Body, gloop *gotoLoop) Body {
+	preBody := []Stmt{}
+	loopBody := []Stmt{}
+	postBody := []Stmt{}
 
-	var stack []BlockNode = make([]BlockNode, 0, 32)
+	for _, s := range b {
+		if s.GetLine() < gloop.labelLine {
+			preBody = append(preBody, s)
+		} else if s.GetLine() >= gloop.labelLine && s.GetLine() <= gloop.gotoLine {
+			loopBody = append(loopBody, s)
+		} else {
+			postBody = append(postBody, s)
+		}
+	}
+	debug.Println("---preBody: ", preBody)
+	debug.Println("---loopBody: ", loopBody)
+	debug.Println("---postBody: ", postBody)
+
+	nn := BlockS(loopBody)
+	debug.Println("---wrapped loop Body: ", nn)
+
+	nBody := append(preBody, nn)
+	nBody = append(nBody, postBody...)
+	debug.Println("---nBody: ", nBody)
+	return nBody
+}
+
+// traverse from root node, find goto loop and its parent block, wrap body and re-process,
+// to rebuild value path.
+// TODO: optimize this
+func transform(store Store, bn BlockNode, gloop *gotoLoop) {
+	debug.Println("---transform, gloop: ", gloop)
+	stack := make([]BlockNode, 0, 32)
 	last := bn
-	stack = append(stack, last)
+
+	reProcessing = true
+	defer func() {
+		reProcessing = false
+	}()
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
 			switch cn := n.(type) {
+			// if goto loop is located in funcDecl(block level1), wrap body and re-process and exit without traversing deeper.
+			// if it's embedded in some other block, for, funcLit, blockStmt, then there would
+			// be two steps for the wrap and re-process:
+			// step1. trans_enter to the target block(targetBn) where goto loop located in
+			// wrap the goto loop body;
+			// step2. trans_leave the targetBn, and re-process it.
+			// XXX, think, can just set the targetBn to be the wrapped one, and re-process against it?
+			// such that all done in trans_enter stage
 			case *FuncDecl:
 				stack = append(stack, cn)
-				if !imc.isNewBody {
-					body := cn.GetBody()
-					debug.Println("--------------funcDecl, body: ", body)
-
-					lblstmt, _ := body.GetLabeledStmt(imc.label)
-					if lblstmt == nil {
-						debug.Println("---not find labeled stmt")
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("--- find labeled stmt!")
-						for _, s := range body {
-							if s.GetLine() < imc.labelLine {
-								preBody = append(preBody, s)
-							} else if s.GetLine() >= imc.labelLine && s.GetLine() < imc.gotoLine {
-								loopBody = append(loopBody, s)
-							} else {
-								postBody = append(postBody, s)
-							}
+				body := cn.GetBody()
+				debug.Println("--------------funcDecl, body: ", body)
+				// find labeled stmt
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("---labeled stmt found!")
+					preBody := []Stmt{}
+					loopBody := []Stmt{}
+					postBody := []Stmt{}
+					for _, s := range body {
+						if s.GetLine() < gloop.labelLine {
+							preBody = append(preBody, s)
+						} else if s.GetLine() >= gloop.labelLine && s.GetLine() < gloop.gotoLine {
+							loopBody = append(loopBody, s)
+						} else {
+							postBody = append(postBody, s)
 						}
 					}
 					nn := BlockS(loopBody)
 					debug.Println("---wrapped loop Body: ", nn)
-
+					// clear value path
 					resetStaticBlock(nn)
 					debug.Println("---nn after reset is: ", nn)
 					debug.Println("---last: ", bn)
-					reProcess = true
 					nn = Preprocess(store, bn, nn).(*BlockStmt)
-					reProcess = false
 
 					debug.Println("---nn after preprocess: ", nn)
 					// special case for goto stmt, bump depth +1
-					adjustGotoLabel(nn, imc)
+					adjustGotoLabel(nn, gloop)
 					debug.Println("---nn adjust goto label preprocess: ", nn)
 
 					nBody := append(preBody, nn)
@@ -3987,48 +4020,25 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 					debug.Println("---nBody: ", nBody)
 
 					cn.Body = nBody
-
-					imc.isNewBody = true
+					return cn, TRANS_EXIT
 				}
-
-				return cn, TRANS_CONTINUE
 			case *BlockStmt:
 				stack = append(stack, cn)
-				if !imc.isNewBody { // avoid reentrant, see1_05b
+				if !gloop.sealed { // avoid reentrant, see1_05b
 					body := cn.GetBody()
 					debug.Println("--------------blockStmt, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(imc.label)
+					lblstmt, idx := body.GetLabeledStmt(gloop.label)
 					debug.Println("---labeled_stmt: ", lblstmt, idx)
 
 					if lblstmt == nil {
 						return cn, TRANS_CONTINUE // find in embedded block
 					} else {
 						debug.Println("---got target body: ", body)
-						for _, s := range body {
-							if s.GetLine() < imc.labelLine {
-								preBody = append(preBody, s)
-							} else if s.GetLine() >= imc.labelLine && s.GetLine() <= imc.gotoLine {
-								loopBody = append(loopBody, s)
-							} else {
-								postBody = append(postBody, s)
-							}
-						}
-						debug.Println("---preBody: ", preBody)
-						debug.Println("---loopBody: ", loopBody)
-						debug.Println("---postBody: ", postBody)
 
-						nn := BlockS(loopBody)
-						debug.Println("---wrapped loop Body: ", nn)
-
-						nBody := append(preBody, nn)
-						nBody = append(nBody, postBody...)
-						debug.Println("---nBody: ", nBody)
-
+						nBody := rebuildBody(body, gloop)
 						cn.Body = nBody
-
-						//debug.Println("---new n: ", cn)
-						imc.isNewBody = true
-						imc.targetBn = cn
+						gloop.sealed = true
+						gloop.targetBn = cn
 					}
 				}
 				return cn, TRANS_CONTINUE
@@ -4036,173 +4046,118 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("--------------enter, funcLitExpr, body: ", body)
-
-				lblstmt, idx := body.GetLabeledStmt(imc.label)
-				debug.Println("---labeled_stmt: ", lblstmt, idx)
-
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
 				if lblstmt == nil {
-					debug.Println("---------return---------")
 					return cn, TRANS_CONTINUE
 				} else {
 					debug.Println("------find target body!")
-					for _, s := range body {
-						if s.GetLine() < imc.labelLine {
-							preBody = append(preBody, s)
-						} else if s.GetLine() >= imc.labelLine && s.GetLine() <= imc.gotoLine {
-							loopBody = append(loopBody, s)
-						} else {
-							postBody = append(postBody, s)
-						}
-					}
-					nn := BlockS(loopBody)
-					debug.Println("---wrapped loop Body: ", nn)
-
-					resetStaticBlock(nn)
-					debug.Println("---nn after reset is: ", nn)
-
-					debug.Println("---last: ", bn)
-					reProcess = true
-					nn = Preprocess(store, bn, nn).(*BlockStmt)
-					reProcess = false
-
-					debug.Println("---nn after preprocess: ", nn)
-					// special case for goto stmt, bump depth +1
-					adjustGotoLabel(nn, imc)
-					debug.Println("---nn adjust goto label preprocess: ", nn)
-
-					finalBody := append(preBody, nn)
-					finalBody = append(finalBody, postBody...)
-					debug.Println("---finalBody: ", finalBody)
-
-					cn.Body = finalBody
-
-					//debug.Println("---new n: ", cn)
-					imc.isNewBody = true
-					imc.targetBn = cn
+					nBody := rebuildBody(body, gloop)
+					debug.Println("---nBody: ", nBody)
+					cn.Body = nBody
+					gloop.targetBn = cn
 				}
-
 				return cn, TRANS_CONTINUE
 			case *ForStmt:
 				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("--------------enter, ForStmt, body: ", body)
-				debug.Println("--------------enter, ForStmt, imc: ", imc)
-
-				lblstmt, idx := body.GetLabeledStmt(imc.label)
-				debug.Println("---labeled_stmt: ", lblstmt, idx)
-
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
 				if lblstmt == nil {
-					debug.Println("---------return---------")
 					return cn, TRANS_CONTINUE
 				} else {
 					debug.Println("------find target body!")
-					for i, s := range body {
-						debug.Printf("stmt[%d] is : %v \n, start at line: %d, s.Label: %v \n", i, s, s.GetLine(), s.GetLabel())
-						if s.GetLine() < imc.labelLine {
-							preBody = append(preBody, s)
-						} else if s.GetLine() >= imc.labelLine && s.GetLine() <= imc.gotoLine {
-							loopBody = append(loopBody, s)
-						} else {
-							postBody = append(postBody, s)
-						}
-					}
-					nn := BlockS(loopBody)
-					debug.Println("---wrapped loop Body: ", nn)
-
-					finalBody := append(preBody, nn)
-					finalBody = append(finalBody, postBody...)
-					debug.Println("---finalBody: ", finalBody)
-
-					cn.Body = finalBody
-
-					imc.isNewBody = true
-					imc.targetBn = cn
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
 				}
 				return cn, TRANS_CONTINUE
 			case *IfCaseStmt:
 				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *RangeStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *SwitchClauseStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
 				return cn, TRANS_CONTINUE
 			case *IfStmt:
 				stack = append(stack, cn)
 				return cn, TRANS_CONTINUE
-			case *RangeStmt:
-				stack = append(stack, cn)
-				return cn, TRANS_CONTINUE
-
 			default:
 				return cn, TRANS_CONTINUE
 			}
 		case TRANS_LEAVE:
-			if bn, ok := n.(BlockNode); ok {
-				debug.Println("---trans_leaving bn: ", bn)
-				debug.Println("---stack before pop: ", stack)
-				debug.Println("---stack len before pop: ", len(stack))
+			// track last block node
+			if _, ok := n.(BlockNode); ok {
 				stack = stack[:len(stack)-1]
 				if len(stack) < 1 {
 					last = nil
 				} else {
 					last = stack[len(stack)-1]
 				}
-				debug.Println("---stack after pop: ", stack)
-				debug.Println("---last after pop: ", last)
 			}
 			switch cn := n.(type) {
 			case *FuncDecl:
 				debug.Println("---trans_leave, cn", cn)
-				debug.Println("---trans_leave, cn.Body", cn.Body)
+				// staff already done in trans_enter
 				return cn, TRANS_CONTINUE
 			case *BlockStmt: // mutate node which contains implicit loop
 				debug.Println("---trans_leave, blockStmt, cn: ", cn)
-				debug.Println("---trans_leave, blockStmt, targetBn: ", imc.targetBn)
-				debug.Println("---trans_leave, blockStmt, last: ", last)
-
-				if cn == imc.targetBn {
-					debug.Println("---match!")
-					resetStaticBlock(cn)
-					debug.Println("---blockStmt after reset is: ", cn)
-					cn = Preprocess(store, last, cn).(*BlockStmt)
-					adjustGotoLabel(cn, imc)
+				if cn == gloop.targetBn {
+					cn = reProcess(store, last, cn).(*BlockStmt)
 					debug.Println("---trans_leave, blockStmt final", cn)
+					return cn, TRANS_EXIT
 				}
-
 				return cn, TRANS_CONTINUE
-
 			case *FuncLitExpr:
 				debug.Println("---trans_leave, FuncLitExpr", cn)
-				body := cn.GetBody()
-				debug.Println("--------------trans_leave, funcLitExpr, body: ", body)
-
-				if imc.targetBn == cn {
-					debug.Println("---got new body")
-					debug.Println("---trans_leave funcLitExpr, find target body ")
-					resetStaticBlock(cn)
-					debug.Println("---trans_leave, FuncLitExpr after reset is: ", cn)
-					reProcess = true
-					cn = Preprocess(store, last, cn).(*FuncLitExpr)
-					reProcess = false
-					adjustGotoLabel(cn, imc)
+				if gloop.targetBn == cn {
+					cn = reProcess(store, last, cn).(*FuncLitExpr)
 					debug.Println("---trans_leave, FuncLitExpr final", cn)
+					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
-			case *ForStmt: // TODO: only case goto embedded inside for, should optimize to only reprocess here
+			case *ForStmt:
 				debug.Println("---trans_leave, ForStmt: ", cn)
-				debug.Println("---trans_leave, imc.targetBn: ", imc.targetBn)
-				body := cn.GetBody()
-				debug.Println("--------------trans_leave, ForStmt, body: ", body)
-
-				//if imc.targetBn == cn {
-				debug.Println("---got new body")
-				debug.Println("---trans_leave ForStmt, find target body ")
-				resetStaticBlock(cn)
-				debug.Println("---trans_leave, ForStmt after reset is: ", cn)
-				reProcess = true
-				cn = Preprocess(store, last, cn).(*ForStmt)
-				reProcess = false
-				adjustGotoLabel(cn, imc)
-				debug.Println("---trans_leave, ForStmt final", cn)
-				//}
+				if gloop.targetBn == cn {
+					cn = reProcess(store, last, cn).(*ForStmt)
+					debug.Println("---trans_leave, ForStmt final", cn)
+					return cn, TRANS_EXIT
+				}
 				return cn, TRANS_CONTINUE
-
 			default:
 				return cn, TRANS_CONTINUE
 			}
@@ -4211,25 +4166,30 @@ func rebuildBody(store Store, bn BlockNode, imc *implicitClosure) (preBody, loop
 		}
 	})
 
-	imc = nil
-	debug.Println("---end of rebuildBody, bn: ", bn)
+	debug.Println("---end of transform, bn: ", bn)
 	return
 }
 
-// TODO: merge with rebuildBody
-func adjustGotoLabel(bn BlockNode, imc *implicitClosure) {
-	debug.Println("---adjustGotoLabel, bn: ", bn)
-	debug.Println("---adjustGotoLabel, imc: ", imc)
+func reProcess(store Store, last BlockNode, bn BlockNode) Node {
+	resetStaticBlock(bn)
+	debug.Println("---bn after reset is: ", bn)
+	adjustGotoLabel(bn, gloop)
+	nn := Preprocess(store, last, bn)
+	debug.Println("---bn after reProcess is: ", nn)
+	return nn
+}
+
+// bump goto depth +1
+func adjustGotoLabel(bn BlockNode, gloop *gotoLoop) {
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
-			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
 			switch cn := n.(type) {
 			case *BranchStmt:
 				if cn.Op == GOTO {
-					if cn.Label == imc.label {
-						cn.Depth = imc.depth + 1
-						cn.BodyIndex = imc.index
+					if cn.Label == gloop.label {
+						cn.Depth = gloop.depth + 1
+						cn.BodyIndex = gloop.index
 					}
 				}
 				return cn, TRANS_CONTINUE
