@@ -1,0 +1,47 @@
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/callee -pkgpath gno.land/r/demo/callee -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/demo/caller -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath 'gno.land/r/demo/callee' -func 'GetCaller' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+stdout 'OK!'
+stdout '"gno.land/r/demo/caller"'
+
+gnokey maketx call -pkgpath 'gno.land/r/demo/callee' -func 'GetCallerAddr' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+stdout 'OK!'
+stdout '"g1r2h3mkm8ky54w60vphvk8q7uk36uyum9gsqyj3"'
+
+-- caller/main.gno --
+package caller
+
+import (
+    "gno.land/r/demo/callee"
+)
+
+func init() {
+    callee.SetCaller()
+}
+
+-- callee/main.gno --
+package callee
+
+import (
+    "std"
+)
+
+var caller string
+var callerAddr std.Address
+
+func SetCaller() {
+    caller = std.PrevRealm().PkgPath()
+    callerAddr = std.PrevRealm().Addr()
+}
+
+func GetCaller() string {
+    return caller
+}
+
+func GetCallerAddr() std.Address {
+    return callerAddr
+}
