@@ -476,28 +476,29 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-// NewSectionReader returns a SectionReader that reads from r
+// NewSectionReader returns a [SectionReader] that reads from r
 // starting at offset off and stops with EOF after n bytes.
 func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
 	var remaining int64
-	const maxInt64 = 1<<63 - 1
-	if off <= maxInt64-n {
+	const maxint64 = 1<<63 - 1
+	if off <= maxint64-n {
 		remaining = n + off
 	} else {
 		// Overflow, with no way to return error.
-		// Assume we can read up to an offset of `1<<63 - 1` bytes in this case.
-		remaining = maxInt64
+		// Assume we can read up to an offset of 1<<63 - 1.
+		remaining = maxint64
 	}
-	return &SectionReader{r, off, off, off + n}
+	return &SectionReader{r, off, off, remaining, n}
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section
-// of an underlying ReaderAt.
+// of an underlying [ReaderAt].
 type SectionReader struct {
-	r     ReaderAt
-	base  int64
+	r     ReaderAt // constant after creation
+	base  int64    // constant after creation
 	off   int64
-	limit int64
+	limit int64 // constant after creation
+	n     int64 // constant after creation
 }
 
 func (s *SectionReader) Read(p []byte) (n int, err error) {
@@ -536,7 +537,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
-	if off < 0 || off >= s.limit-s.base {
+	if off < 0 || off >= s.Size() {
 		return 0, EOF
 	}
 	off += s.base
@@ -553,6 +554,14 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
+
+// Outer returns the underlying [ReaderAt] and offsets for the section.
+//
+// The returned values are the same that were passed to [NewSectionReader]
+// when the [SectionReader] was created.
+func (s *SectionReader) Outer() (r ReaderAt, off int64, n int64) {
+	return s.r, s.base, s.n
+}
 
 // An OffsetWriter maps writers at offset base to offset base + off in the underlying writer.
 type OffsetWriter struct {
