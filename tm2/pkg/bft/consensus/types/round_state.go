@@ -95,23 +95,6 @@ type HRS struct {
 	Step   RoundStepType `json:"step"`
 }
 
-func (hrs HRS) Compare(other HRS) int {
-	if hrs.Height < other.Height {
-		return -1
-	} else if hrs.Height == other.Height {
-		if hrs.Round < other.Round {
-			return -1
-		} else if hrs.Round == other.Round {
-			if hrs.Step < other.Step {
-				return -1
-			} else if hrs.Step == other.Step {
-				return 0
-			}
-		}
-	}
-	return 1
-}
-
 func (hrs HRS) IsHRSZero() bool {
 	return hrs == HRS{}
 }

@@ -29,13 +29,11 @@ func (pvs PrivValidatorsByAddress) Len() int {
 
 func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
 	return pvs[i].GetPubKey().Address().Compare(
-		pvs[j].GetPubKey().Address()) == -1
+		pvs[j].GetPubKey().Address()).IsLess()
 }
 
 func (pvs PrivValidatorsByAddress) Swap(i, j int) {
-	it := pvs[i]
-	pvs[i] = pvs[j]
-	pvs[j] = it
+	pvs[i], pvs[j] = pvs[j], pvs[i]
 }
 
 // ----------------------------------------

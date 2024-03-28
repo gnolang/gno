@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 
+	"github.com/gnolang/gno/tm2/ordering"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -35,12 +36,12 @@ func newCacheMergeIterator(parent, cache types.Iterator, ascending bool) *cacheM
 func (iter *cacheMergeIterator) Domain() (start, end []byte) {
 	startP, endP := iter.parent.Domain()
 	startC, endC := iter.cache.Domain()
-	if iter.compare(startP, startC) < 0 {
+	if iter.compare(startP, startC).IsLess() {
 		start = startP
 	} else {
 		start = startC
 	}
-	if iter.compare(endP, endC) < 0 {
+	if iter.compare(endP, endC).IsLess() {
 		end = endC
 	} else {
 		end = endP
@@ -73,12 +74,12 @@ func (iter *cacheMergeIterator) Next() {
 	// Both are valid.  Compare keys.
 	keyP, keyC := iter.parent.Key(), iter.cache.Key()
 	switch iter.compare(keyP, keyC) {
-	case -1: // parent < cache
+	case ordering.Less: // parent < cache
 		iter.parent.Next()
-	case 0: // parent == cache
+	case ordering.Equal: // parent == cache
 		iter.parent.Next()
 		iter.cache.Next()
-	case 1: // parent > cache
+	case ordering.Greater: // parent > cache
 		iter.cache.Next()
 	}
 }
@@ -102,11 +103,11 @@ func (iter *cacheMergeIterator) Key() []byte {
 	keyP, keyC := iter.parent.Key(), iter.cache.Key()
 	cmp := iter.compare(keyP, keyC)
 	switch cmp {
-	case -1: // parent < cache
+	case ordering.Less: // parent < cache
 		return keyP
-	case 0: // parent == cache
+	case ordering.Equal: // parent == cache
 		return keyP
-	case 1: // parent > cache
+	case ordering.Greater: // parent > cache
 		return keyC
 	default:
 		panic("invalid compare result")
@@ -132,11 +133,11 @@ func (iter *cacheMergeIterator) Value() []byte {
 	keyP, keyC := iter.parent.Key(), iter.cache.Key()
 	cmp := iter.compare(keyP, keyC)
 	switch cmp {
-	case -1: // parent < cache
+	case ordering.Less: // parent < cache
 		return iter.parent.Value()
-	case 0: // parent == cache
+	case ordering.Equal: // parent == cache
 		return iter.cache.Value()
-	case 1: // parent > cache
+	case ordering.Greater: // parent > cache
 		return iter.cache.Value()
 	default:
 		panic("invalid comparison result")
@@ -150,11 +151,11 @@ func (iter *cacheMergeIterator) Close() {
 }
 
 // Like bytes.Compare but opposite if not ascending.
-func (iter *cacheMergeIterator) compare(a, b []byte) int {
+func (iter *cacheMergeIterator) compare(a, b []byte) ordering.Ordering {
 	if iter.ascending {
-		return bytes.Compare(a, b)
+		return ordering.NewOrdering(ordering.Order(bytes.Compare(a, b)))
 	}
-	return bytes.Compare(a, b) * -1
+	return ordering.NewOrdering(ordering.Order(bytes.Compare(a, b) * -1))
 }
 
 // Skip all delete-items from the cache w/ `key < until`.  After this function,
@@ -165,7 +166,7 @@ func (iter *cacheMergeIterator) compare(a, b []byte) int {
 func (iter *cacheMergeIterator) skipCacheDeletes(until []byte) {
 	for iter.cache.Valid() &&
 		iter.cache.Value() == nil &&
-		(until == nil || iter.compare(iter.cache.Key(), until) < 0) {
+		(until == nil || iter.compare(iter.cache.Key(), until).IsLess()) {
 		iter.cache.Next()
 	}
 }
@@ -191,10 +192,10 @@ func (iter *cacheMergeIterator) skipUntilExistsOrInvalid() bool {
 		keyP := iter.parent.Key()
 		keyC := iter.cache.Key()
 		switch iter.compare(keyP, keyC) {
-		case -1: // parent < cache.
+		case ordering.Less: // parent < cache.
 			return true
 
-		case 0: // parent == cache.
+		case ordering.Equal: // parent == cache.
 
 			// Skip over if cache item is a delete.
 			valueC := iter.cache.Value()
@@ -207,7 +208,7 @@ func (iter *cacheMergeIterator) skipUntilExistsOrInvalid() bool {
 
 			return true // cache exists.
 
-		case 1: // cache < parent
+		case ordering.Greater: // cache < parent
 
 			// Skip over if cache item is a delete.
 			valueC := iter.cache.Value()

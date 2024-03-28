@@ -500,6 +500,7 @@ func (enc *WALWriter) Write(v TimedWALMessage) error {
 	line64 := base64stdnp.EncodeToString(line)
 	line64 += "\n"
 	_, err := enc.wr.Write([]byte(line64))
+
 	return err
 }
 
