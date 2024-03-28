@@ -5,11 +5,12 @@ package ufmt
 
 import (
 	"strconv"
+	"strings"
 )
 
 // Println formats using the default formats for its operands and writes to standard output.
 // Println writes the given arguments to standard output with spaces between arguments
-// and a newline at the end. 
+// and a newline at the end.
 func Println(args ...interface{}) {
 	var strs []string
 	for _, arg := range args {
@@ -32,7 +33,7 @@ func Println(args ...interface{}) {
 	}
 
 	// TODO: remove println after gno supports os.Stdout
-	println(strings.Join(strs))
+	println(strings.Join(strs, " "))
 }
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
