@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -50,6 +51,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		EventLogger:   sdk.NewEventLogger(),
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.

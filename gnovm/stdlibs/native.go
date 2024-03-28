@@ -4,6 +4,7 @@
 package stdlibs
 
 import (
+	"fmt"
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -643,6 +644,67 @@ var nativeFuncs = [...]nativeFunc{
 				m.Store,
 				reflect.ValueOf(&r2).Elem(),
 			))
+		},
+	},
+	{
+		"std",
+		"emitEvent",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("typ"), Type: gno.X("string")},
+			{Name: gno.N("attrs"), Type: gno.X("[]string")},
+			{Name: gno.N("pkgPath"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				typ  string
+				rtyp = reflect.ValueOf(&typ).Elem()
+
+				attrs  []string
+				rattrs = reflect.ValueOf(&attrs).Elem()
+
+				pkgPath  string
+				rpkgPath = reflect.ValueOf(&pkgPath).Elem()
+			)
+
+			//for i := 0; i < rattrs.Len(); i++ {
+			//	//attrs = append(attrs, "")
+			//	fmt.Println("i is ", i)
+			//}
+
+			// NOTE: value is nil before you call Gno2GoValue
+			//fmt.Println("typ:", typ)
+			//fmt.Println("attrs:", attrs)
+			//fmt.Println("pkgPath:", pkgPath)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rtyp)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rattrs)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rpkgPath)
+
+			fmt.Println("typ:", typ)
+			fmt.Println("attrs:", attrs)
+			fmt.Println("pkgPath:", pkgPath)
+
+			libs_std.X_emitEvent(m, typ, attrs, pkgPath)
+			/*
+				RETURN
+				m.PushValue(gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(&r0).Elem(),
+				))
+				m.PushValue(gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(&r1).Elem(),
+				))
+				m.PushValue(gno.Go2GnoValue(
+					m.Alloc,
+					m.Store,
+					reflect.ValueOf(&r2).Elem(),
+				))
+			*/
 		},
 	},
 	{
