@@ -129,7 +129,7 @@ func (info *TypeInfo) String() string {
 		buf.Write([]byte(fmt.Sprintf("ReprType:\"%v\",", info.ReprType)))
 	}
 	if info.Type.Kind() == reflect.Struct {
-		buf.Write([]byte(fmt.Sprintf("Fields:%v,", info.Fields)))
+		buf.Write([]byte(fmt.Sprintf("Fields:%#v,", info.Fields)))
 	}
 	buf.Write([]byte("}"))
 	return buf.String()
@@ -532,7 +532,11 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 
 	info, ok := cdc.fullnameToTypeInfo[fullname]
 	if !ok {
-		err = fmt.Errorf("amino: unrecognized concrete type full name %s", fullname)
+		if printLog {
+			err = fmt.Printf("unrecognized concrete type full name %s of  %v", fullname, cdc.fullnameToTypeInfo)
+		}else{
+			err = fmt.Errorf("amino: unrecognized concrete type full name %s", fullname)
+		}
 		cdc.mtx.RUnlock()
 		return
 	}
