@@ -255,7 +255,9 @@ fmt.Println(qevalRes)
 
 ## Conclusion
 
-Congratulations! You've just built a small demo app in Go that connects to a Gno.land chain
+Congratulations 🎉
+
+You've just built a small demo app in Go that connects to a Gno.land chain
 to query account info, send a transaction, and read on-chain state.
 
 Check out the full example app code [here](https://github.com/leohhhn/connect-gno/blob/master/main.go). 
