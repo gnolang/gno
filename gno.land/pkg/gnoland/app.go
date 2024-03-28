@@ -28,17 +28,18 @@ type AppOptions struct {
 	DB dbm.DB
 	// `gnoRootDir` should point to the local location of the gno repository.
 	// It serves as the gno equivalent of GOROOT.
-	GnoRootDir            string
-	SkipFailingGenesisTxs bool
-	Logger                *slog.Logger
-	MaxCycles             int64
+	GnoRootDir       string
+	GenesisTxHandler GenesisTxHandler
+	Logger           *slog.Logger
+	MaxCycles        int64
 }
 
 func NewAppOptions() *AppOptions {
 	return &AppOptions{
-		Logger:     log.NewNoopLogger(),
-		DB:         memdb.NewMemDB(),
-		GnoRootDir: gnoenv.RootDir(),
+		GenesisTxHandler: PanicOnFailingTxHandler,
+		Logger:           log.NewNoopLogger(),
+		DB:               memdb.NewMemDB(),
+		GnoRootDir:       gnoenv.RootDir(),
 	}
 }
 
@@ -81,7 +82,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.SkipFailingGenesisTxs))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -127,7 +128,9 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 	var err error
 
 	cfg := NewAppOptions()
-	cfg.SkipFailingGenesisTxs = skipFailingGenesisTxs
+	if skipFailingGenesisTxs {
+		cfg.GenesisTxHandler = NoopGenesisTxHandler
+	}
 
 	// Get main DB.
 	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
@@ -140,8 +143,18 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 	return NewAppWithOptions(cfg)
 }
 
+type GenesisTxHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
+
+func NoopGenesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {}
+
+func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+	if res.IsErr() {
+		panic(res.Log)
+	}
+}
+
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		// Get genesis state.
 		genState := req.AppState.(GnoGenesisState)
@@ -154,21 +167,20 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 				panic(err)
 			}
 		}
+
 		// Run genesis txs.
 		for i, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
 				ctx.Logger().Error("LOG", "log", res.Log)
 				ctx.Logger().Error(fmt.Sprintf("#%d", i), "value", string(amino.MustMarshalJSON(tx)))
-
-				// NOTE: comment out to ignore.
-				if !skipFailingGenesisTxs {
-					panic(res.Log)
-				}
 			} else {
 				ctx.Logger().Info("SUCCESS:", "value", string(amino.MustMarshalJSON(tx)))
 			}
+
+			resHandler(ctx, tx, res)
 		}
+
 		// Done!
 		return abci.ResponseInitChain{
 			Validators: req.Validators,
