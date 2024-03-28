@@ -1,6 +1,7 @@
 package std
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -37,13 +38,31 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const rePathPart = `[a-z][a-z0-9_]*`
-
 var (
-	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
-	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
+	rePathPart = regexp.MustCompile(`^[a-z0-9_]+$`)
+	rePkgName  = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	reFileName = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
+
+func validatePkgOrRlmPath(path string) error {
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return errors.New("path must be in the format [gno.land/{p|r}/path/...]")
+	}
+	if parts[0] != "gno.land" {
+		return errors.New("invalid domain, must be gno.land")
+	}
+	if parts[1] != "p" && parts[1] != "r" {
+		return fmt.Errorf("must be 'p' or 'r'")
+	}
+	for i := 2; i < len(parts); i++ {
+		if !rePathPart.MatchString(parts[i]) {
+			return fmt.Errorf("path part failed to match %q", rePathPart)
+		}
+	}
+
+	return nil
+}
 
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
@@ -57,8 +76,8 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
-	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
+	if err := validatePkgOrRlmPath(mempkg.Path); err != nil {
+		return fmt.Errorf("invalid package/realm path %q: %w", mempkg.Path, err)
 	}
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
