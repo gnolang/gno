@@ -25,7 +25,10 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 			Name:       "get",
 			ShortUsage: "secrets get [flags] [<key>]",
 			ShortHelp:  "shows all Gno secrets present in a common directory",
-			LongHelp:   "shows the validator private key, the node p2p key and the validator's last sign state",
+			LongHelp: fmt.Sprintf(
+				"shows the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				getAvailableSecretsKeys(),
+			),
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

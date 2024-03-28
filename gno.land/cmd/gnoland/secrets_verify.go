@@ -24,7 +24,10 @@ func newSecretsVerifyCmd(io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "secrets verify [flags] [<key>]",
 			ShortHelp:  "verifies all Gno secrets in a common directory",
-			LongHelp:   "verifies the validator private key, the node p2p key and the validator's last sign state",
+			LongHelp: fmt.Sprintf(
+				"verifies the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				getAvailableSecretsKeys(),
+			),
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

@@ -23,7 +23,10 @@ func newSecretsInitCmd(io commands.IO) *commands.Command {
 			Name:       "init",
 			ShortUsage: "secrets init [flags] [<key>]",
 			ShortHelp:  "initializes required Gno secrets in a common directory",
-			LongHelp:   "initializes the validator private key, the node p2p key and the validator's last sign state",
+			LongHelp: fmt.Sprintf(
+				"initializes the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				getAvailableSecretsKeys(),
+			),
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

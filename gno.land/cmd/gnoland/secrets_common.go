@@ -178,3 +178,13 @@ func validateNodeKey(key *p2p.NodeKey) error {
 
 	return nil
 }
+
+// getAvailableSecretsKeys formats and returns the available secret keys (constants)
+func getAvailableSecretsKeys() string {
+	return fmt.Sprintf(
+		"[%s, %s, %s]",
+		validatorPrivateKeyKey,
+		nodeKeyKey,
+		validatorStateKey,
+	)
+}
