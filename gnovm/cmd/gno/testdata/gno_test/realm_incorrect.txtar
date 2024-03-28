@@ -7,7 +7,7 @@ stderr '=== RUN   file/x_filetest.gno'
 stderr 'panic: fail on x_filetest.gno: diff:'
 stderr '--- Expected'
 stderr '\+\+\+ Actual'
-stderr '@@ -1 \+1,66 @@'
+stderr '@@ -1 \+1,67 @@'
 stderr '-xxx'
 stderr '\+switchrealm\["gno.land/r/x"\]'
 

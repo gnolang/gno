@@ -69,6 +69,7 @@ func main() {
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
+//                 "TransientLoopData": null,
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],

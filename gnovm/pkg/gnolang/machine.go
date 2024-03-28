@@ -708,7 +708,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if debug {
-		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
+		//m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
@@ -1618,7 +1618,7 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 
 func (m *Machine) PushBlock(b *Block) {
 	if debug {
-		m.Println("+B")
+		m.Printf("+B: %v \n", b)
 	}
 	m.Blocks = append(m.Blocks, b)
 }

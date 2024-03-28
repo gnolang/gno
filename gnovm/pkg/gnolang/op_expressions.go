@@ -679,21 +679,53 @@ func (m *Machine) doOpStructLit() {
 
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
-	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+	debug.Printf("---doOpFuncLit, x: %v \n", x)
+	debug.Printf("---doOpFuncLit, get label: %v, getLine: %d \n", x.GetLabel(), x.GetLine())
+
 	lb := m.LastBlock()
+
+	var transientLoopData []*LoopBlockData // for fv to track all transient values
+	// mutate state of for control
+	for _, lbd := range x.TransientLoopData {
+		var cursor int
+		for _, tst := range lbd.loopValuesBox.transient {
+			tst.cursor++ // increase cursor of every nameExpr
+			cursor = tst.cursor
+			debug.Println("---cursor: ", cursor)
+		}
+		// unpack, mutate, pack
+		lvBox := lbd.loopValuesBox
+		lvBox.isSealed = false // reset per loop
+		//lbd.index = lbd.loopValuesBox.transient[0].cursor
+		debug.Printf("---lvBox: %v \n", lbd.loopValuesBox)
+		// update
+		transientLoopData = append(transientLoopData, &LoopBlockData{index: cursor, loopValuesBox: lvBox})
+	}
+	if debug {
+		for i, lbd := range transientLoopData {
+			fmt.Printf("========doOpFuncLit, TransientLoopData[%d] is: %s, index: %d \n", i, lbd.loopValuesBox, lbd.index)
+		}
+	}
+
+	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+
 	m.Alloc.AllocateFunc()
+
+	fv := &FuncValue{
+		Type:              ft,
+		IsMethod:          false,
+		Source:            x,
+		Name:              "",
+		Closure:           lb,
+		TransientLoopData: transientLoopData,
+		PkgPath:           m.Package.PkgPath,
+		body:              x.Body,
+		nativeBody:        nil,
+	}
+
 	m.PushValue(TypedValue{
 		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
-		},
+		V: fv,
 	})
 }
 

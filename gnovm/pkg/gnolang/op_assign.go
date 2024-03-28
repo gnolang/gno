@@ -1,10 +1,13 @@
 package gnolang
 
 func (m *Machine) doOpDefine() {
+	debug.Println("---doOpDefine")
 	s := m.PopStmt().(*AssignStmt)
+	debug.Printf("---s: %v \n", s)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
+	// m.PopValue()
 	rvs := m.PopValues(len(s.Lhs))
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
@@ -25,11 +28,14 @@ func (m *Machine) doOpDefine() {
 }
 
 func (m *Machine) doOpAssign() {
+	debug.Println("---doOpAssign")
 	s := m.PopStmt().(*AssignStmt)
+	debug.Printf("---s: %v \n", s)
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
+
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])

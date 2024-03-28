@@ -260,6 +260,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			cnn.Elts[idx] = KeyValueExpr{Key: k, Value: v}
 		}
 	case *FuncLitExpr:
+		debug.Printf("---transcribe, funcLitExpr: %v \n", cnn)
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
 			return
@@ -271,6 +272,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*FuncLitExpr)
 		}
+
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
 			if isBreak(c) {
@@ -392,6 +394,13 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *BranchStmt:
+		//cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
+		//if isStopOrSkip(nc, c2) {
+		//	nn = cnn2
+		//	return
+		//} else {
+		//	cnn = cnn2.(*BranchStmt)
+		//}
 	case *DeclStmt:
 		for idx := range cnn.Body {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)
@@ -594,6 +603,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		} else {
 			cnn = cnn2.(*SwitchStmt)
 		}
+
 		if cnn.Init != nil {
 			cnn.Init = transcribe(t, nns, TRANS_SWITCH_INIT, 0, cnn.Init, &c).(SimpleStmt)
 			if isStopOrSkip(nc, c) {

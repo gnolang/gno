@@ -46,6 +46,7 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug.Println("---doOpCall")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
@@ -54,8 +55,59 @@ func (m *Machine) doOpCall() {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
-	// Create new block scope.
-	clo := fr.Func.GetClosure(m.Store)
+	debug.Printf("---fv: %v \n", fv)
+
+	clo := fr.Func.GetClosure(m.Store) // this is "static"
+
+	// update block vars using captured vars
+	var loopBlock *Block             // target loop block with values to be updated
+	if fv.TransientLoopData != nil { // it captured a bundle of values
+		debug.Printf("---doOpCall, addr of x.LoopData: %p \n", fv.TransientLoopData)
+
+		if debug {
+			for i, lbd := range fv.TransientLoopData {
+				fmt.Printf("========doOpCall, TransientLoopData[%d] is: %s, index: %d \n", i, lbd.loopValuesBox, lbd.index)
+			}
+		}
+		for i, loopData := range fv.TransientLoopData { // each LoopValuesBox is for a certain level of block
+			box := loopData.loopValuesBox
+			if box.isSealed {
+				debug.Println("---isSealed, do update context")
+				for _, t := range box.transient { // unpack vars belong to a specific block
+					if debug {
+						debug.Printf("---len of values: %d \n", len(t.values))
+						for k, v := range t.values {
+							debug.Printf("values[%d] is %v \n", k, v)
+						}
+					}
+					loopBlock = clo.GetBlockWithDepth(m.Store, t.nx.Path) // find target block using depth
+					// check if exists, should always be?
+					names := loopBlock.GetSource(m.Store).GetBlockNames()
+					var index int
+					var match bool
+					for l, n := range names {
+						if n == t.nx.Name {
+							index = l
+							match = true
+							break
+						}
+					}
+					if match {
+						// update values in context with previously captured.
+						loopBlock.UpdateValue(index, t.values[loopData.index])
+					}
+				}
+			} else { // not sealed will be tainted, indicates not sealed with values when loopBlock ends, it's not a closure.
+				debug.Println("---not sealed, it's tainted")
+				debug.Printf("---tainted box is: %v \n", fv.TransientLoopData[i].loopValuesBox)
+				fv.TransientLoopData[i].loopValuesBox.isTainted = true
+			}
+		}
+		fv.TransientLoopData = nil
+	}
+
+	//debug.Println("---no closure ...")
+
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
@@ -67,6 +119,7 @@ func (m *Machine) doOpCall() {
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
+		debug.Printf("fbody: %v \n", fbody)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only

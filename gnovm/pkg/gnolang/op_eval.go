@@ -23,6 +23,7 @@ func (m *Machine) doOpEval() {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
+
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -312,7 +313,6 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpEval)
 	case *FuncLitExpr:
 		m.PushOp(OpFuncLit)
-		// evaluate func type
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)
 	case *ConstExpr:

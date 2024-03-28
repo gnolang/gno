@@ -494,8 +494,25 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type              FuncTypeExpr // function type
+	Body                           // function body
+	TransientLoopData []*LoopBlockData
+}
+
+func (fx *FuncLitExpr) GetCapturedNxs(store Store) (captures []*NameExpr) {
+	for _, name := range fx.GetExternNames() {
+		vp := fx.GetPathForName(store, name)
+		if vp.Depth == 0 { // skip uverse
+			continue
+		}
+		vp.Depth -= 1 // from the perspective of funcLit block
+		nx := &NameExpr{
+			Name: name,
+			Path: vp,
+		}
+		captures = append(captures, nx)
+	}
+	return
 }
 
 // The preprocessor replaces const expressions
@@ -870,18 +887,30 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
+// this assumes that a goto stmt to label ahead
+// forms an implicit loop.
+// if an funcLitExpr embeded, do capture staff.
+type LoopBlockAttr struct {
+	isLoop bool
+	start  int // line of label start
+	end    int // line of goto stmt
+}
+
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                       // for non-loop stmts
-	BodyLen       int          // for for-continue
-	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
-	NumExprs      int          // number of Exprs, for goto
-	NumStmts      int          // number of Stmts, for goto
-	Cond          Expr         // for ForStmt
-	Post          Stmt         // for ForStmt
+	Body                         // for non-loop stmts
+	BodyLen       int            // for for-continue
+	NextBodyIndex int            // init:-2, cond/elem:-1, body:0..., post:n
+	NumOps        int            // number of Ops, for goto
+	NumValues     int            // number of Values, for goto
+	NumExprs      int            // number of Exprs, for goto
+	NumStmts      int            // number of Stmts, for goto
+	Cond          Expr           // for ForStmt
+	Post          Stmt           // for ForStmt
+	LoopValuesBox *LoopValuesBox // a series of transient values of captured var generated as the iteration goes on
+	isLoop        bool
+	loopBlockAttr *LoopBlockAttr
 	Active        Stmt         // for PopStmt()
 	Key           Expr         // for RangeStmt
 	Value         Expr         // for RangeStmt
@@ -1502,6 +1531,7 @@ func (sb *StaticBlock) revertToOld() {
 
 // Implements BlockNode
 func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
+	debug.Printf("---init static block, source: %v, parent: %v \n", source, parent)
 	if sb.Names != nil || sb.Block.Source != nil {
 		panic("StaticBlock already initialized")
 	}
@@ -1512,7 +1542,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 			Parent: nil,
 		}
 	} else {
-		sb.Block = Block{
+		sb.Block = Block{ // build Hierarchical structure in preprocess stage
 			Source: source,
 			Values: nil,
 			Parent: parent.GetStaticBlock().GetBlock(),
@@ -1523,6 +1553,22 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	return
+}
+
+func (sb *StaticBlock) dump() {
+	debug.Println("==============dump staticBlock==============")
+	for i, n := range sb.Names {
+		debug.Printf("name[%d] is : %v \n", i, n)
+	}
+	for i, c := range sb.Consts {
+		debug.Printf("const[%d] is : %v \n", i, c)
+	}
+
+	debug.Printf("block.Source: %v \n", sb.Block.Source)
+	debug.Printf("block.Parent: %v \n", sb.Block.Parent)
+	debug.Printf("block: %v \n", sb.Block.String())
+
+	debug.Println("==============end==============")
 }
 
 // Implements BlockNode.

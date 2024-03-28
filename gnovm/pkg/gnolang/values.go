@@ -527,18 +527,72 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type      // includes unbound receiver(s)
-	IsMethod   bool      // is an (unbound) method
-	Source     BlockNode // for block mem allocation
-	Name       Name      // name of function/method
-	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName   Name      // file name where declared
-	PkgPath    string
-	NativePkg  string // for native bindings through NativeStore
-	NativeName Name   // not redundant with Name; this cannot be changed in userspace
+	Type              Type      // includes unbound receiver(s)
+	IsMethod          bool      // is an (unbound) method
+	Source            BlockNode // for block mem allocation
+	Name              Name      // name of function/method
+	Closure           Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	TransientLoopData []*LoopBlockData
+	FileName          Name // file name where declared
+	PkgPath           string
+	NativePkg         string // for native bindings through NativeStore
+	NativeName        Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+}
+
+// LoopBlockData is a wrap of LoopValuesBox, index indicates iteration number of fv.
+// there are n replicas of fv generated as the iteration goes on, we have to identify
+// which replica is executing thus find proper value in the box to update context(replay).
+type LoopBlockData struct { // every fv points to n loopData
+	index         int
+	loopValuesBox *LoopValuesBox // per loop block
+}
+
+// Transient record all dynamic value for captured variable as iteration goes on.
+// e.g. for i:=0;i<2;i++{func(){println(i)}, i will have a [0,1] values.
+type Transient struct {
+	nx     *NameExpr
+	values []TypedValue // one name with multi snapshot
+	cursor int          // cursor per fv to find value in time series
+}
+
+// LoopValuesBox stores a slice of transient values of captured vars
+// that generated as the iterations goes on.
+// it is used for a closure execution.
+type LoopValuesBox struct {
+	isFilled  bool // filled with names, no values
+	isSealed  bool // filled with names and values
+	isTainted bool // with names but no values. for cases funcLit is called before loop block ends, makes it not a closure.
+	transient []*Transient
+}
+
+func (tsb *LoopValuesBox) getIndexByName(n Name) int {
+	debug.Printf("---getIndexByName, target n is: %s,  len of transient is: %d \n", n, len(tsb.transient))
+	for i, tt := range tsb.transient {
+		if n == tt.nx.Name {
+			return i
+		}
+	}
+	return -1 // never reach
+}
+
+func (tsb *LoopValuesBox) String() string {
+	var s string
+	s += "\n"
+	s += "==================LoopValuesBox===================\n"
+	s += fmt.Sprintf("isFilled: %v \n", tsb.isFilled)
+	s += fmt.Sprintf("isSealed: %v \n", tsb.isSealed)
+	for i, t := range tsb.transient {
+		s += fmt.Sprintf("nx[%d]: %v \n", i, t.nx)
+		for j, v := range t.values {
+			s += fmt.Sprintf("values[%d]: %v \n", j, v)
+		}
+		s += fmt.Sprintf("cursor: %v \n", t.cursor)
+	}
+	s += "====================end======================\n"
+	return s
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -2274,6 +2328,17 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
+func (b *Block) UpdateValue(index int, tv TypedValue) {
+	debug.Printf("---UpdateValue, index: %d \n", index)
+	debug.Printf("---UpdateValue, tv: %v \n", tv)
+	debug.Printf("---UpdateValue, block: %v \n", b)
+	for i := range b.Values {
+		if i == index {
+			b.Values[i] = tv
+		}
+	}
+}
+
 func (b *Block) String() string {
 	return b.StringIndented("    ")
 }
@@ -2285,8 +2350,8 @@ func (b *Block) StringIndented(indent string) string {
 	}
 	lines := []string{}
 	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+		fmt.Sprintf("Block(ID:%v,HASH:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b.ObjectInfo.Hash, b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		if _, ok := b.Source.(RefNode); ok {
 			lines = append(lines,
@@ -2338,6 +2403,28 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 		Base:  b,
 		Index: index,
 	}
+}
+
+func (b *Block) GetBlockWithDepth(store Store, path ValuePath) *Block {
+	for i := uint8(1); i < path.Depth; i++ {
+		b = b.GetParent(store)
+	}
+	return b
+}
+
+func (b *Block) GetNearestEnclosingLoopBlock(store Store) *Block {
+	debug.Printf("---GetNearestEnclosingLoopBlock, b: %v \n", b)
+	b = b.GetParent(store)
+	debug.Printf("--- b: %v \n", b)
+	debug.Printf("--- b.bodyStmt: %v \n", b.bodyStmt)
+	debug.Printf("--- b.bodyStmt: %v \n", b.bodyStmt)
+	for b != nil {
+		if b.bodyStmt.loopBlockAttr.isLoop {
+			return b
+		}
+		b = b.GetParent(store)
+	}
+	return nil
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
