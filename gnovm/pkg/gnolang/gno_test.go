@@ -121,14 +121,26 @@ func TestRunLoopyMain(t *testing.T) {
 	t.Parallel()
 
 	m := NewMachine("test", nil)
-	c := `package test
+	c := `
+package test
+
 func main() {
-	for i:=0; i<1000; i++ {
-		if i == -1 {
-			return
-		}
-	}
-}`
+	//println(a)
+	//println(b)
+	//println(c)
+
+	b()
+}
+
+//var a, b, c = 1, a + 1, b + 1
+
+var b = func(){println(123)}
+//var c = a
+//var a = "123"
+
+//var a, b, c = 1, a + d, 3
+//var d = a
+`
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
