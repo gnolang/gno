@@ -4,6 +4,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -117,6 +118,14 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 		return "", [20]byte{}, false
 	}
 	return prefix, [20]byte(bz), true
+}
+
+func X_emitEvent(m *gno.Machine, typ string, attrs []string, pkgPath string) {
+	eventAttrs := make([]sdk.EventAttribute, len(attrs)/2)
+	event := sdk.NewEvent(typ, eventAttrs...)
+
+	ctx := m.Context.(ExecContext)
+	ctx.EventLogger.EmitEvent(event)
 }
 
 func typedString(s string) gno.TypedValue {

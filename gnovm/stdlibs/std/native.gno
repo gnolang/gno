@@ -49,6 +49,9 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 	return decodeBech32(string(addr))
 }
 
+func EmitEvent(typ string, attrs []string, pkgPath string) { emitEvent(typ, attrs, pkgPath) }
+func emitEvent(typ string, attrs []string, pkgPath string)
+
 // Variations which don't use named types.
 func origSend() (denoms []string, amounts []int64)
 func origCaller() string
