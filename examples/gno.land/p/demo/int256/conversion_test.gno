@@ -108,3 +108,26 @@ func TestInt64(t *testing.T) {
 		}
 	}
 }
+
+func TestNeg(t *testing.T) {
+	tests := []struct {
+		x    string
+		want string
+	}{
+		{"0", "0"},
+		{"1", "-1"},
+		{"-1", "1"},
+		{"9223372036854775807", "-9223372036854775807"},
+		{"-18446744073709551615", "18446744073709551615"},
+	}
+
+	for _, tc := range tests {
+		z := MustFromDecimal(tc.x)
+		z.Neg(z)
+
+		got := z.ToString()
+		if got != tc.want {
+			t.Errorf("Neg(%s) = %s, want %s", tc.x, got, tc.want)
+		}
+	}
+}

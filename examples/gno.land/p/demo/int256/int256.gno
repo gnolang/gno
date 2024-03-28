@@ -28,7 +28,9 @@ func One() *Int {
 //	 0 if x == 0
 //	+1 if x >  0
 func (z *Int) Sign() int {
-	if len(z.abs) == 0 {
+	z.initiateAbs()
+
+	if z.abs.IsZero() {
 		return 0
 	}
 	if z.neg {
@@ -37,6 +39,7 @@ func (z *Int) Sign() int {
 	return 1
 }
 
+// New returns a new Int set to 0.
 func New() *Int {
 	return &Int{
 		abs: new(uint256.Uint),
@@ -48,10 +51,14 @@ func NewInt(x int64) *Int {
 	return New().SetInt64(x)
 }
 
+// FromDecimal returns a new Int from a decimal string.
+// Returns a new Int and an error if the string is not a valid decimal.
 func FromDecimal(s string) (*Int, error) {
 	return new(Int).SetString(s)
 }
 
+// MustFromDecimal returns a new Int from a decimal string.
+// Panics if the string is not a valid decimal.
 func MustFromDecimal(s string) *Int {
 	z, err := FromDecimal(s)
 	if err != nil {
@@ -111,9 +118,10 @@ func (z *Int) NilToZero() *Int {
 	return z
 }
 
-// initiateAbs sets default value for `z.abs` value if is nil
+// initiateAbs sets default value for `z` or `z.abs` value if is nil
+// OBS: differs from mempooler int256. It checks not only `z.abs` but also `z`
 func (z *Int) initiateAbs() {
-	if z.abs == nil {
+	if z == nil || z.abs == nil {
 		z.abs = new(uint256.Uint)
 	}
 }
