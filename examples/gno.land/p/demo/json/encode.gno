@@ -33,7 +33,7 @@ func Marshal(node *Node) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			
+
 			// ufmt does not support %g. by doing so, we need to check if the number is an integer
 			// after then, apply the correct format for each float and integer numbers.
 			if math.Mod(nVal, 1.0) == 0 {

@@ -272,29 +272,29 @@ func unquoteBytes(s []byte, border byte) ([]byte, bool) {
 // If the escape sequence is invalid, or if 'in' does not completely enclose the escape sequence,
 // function returns (-1, -1) to indicate an error.
 func processEscapedUTF8(in, out []byte) (int, int, error) {
-    if len(in) < 2 || in[0] != backSlash {
-        return -1, -1, errors.New("invalid escape sequence")
-    }
+	if len(in) < 2 || in[0] != backSlash {
+		return -1, -1, errors.New("invalid escape sequence")
+	}
 
-    escapeSeqLen := 2
-    escapeChar := in[1]
+	escapeSeqLen := 2
+	escapeChar := in[1]
 
-    if escapeChar != 'u' {
-        val := escapeByteSet[escapeChar]
-        if val == 0 {
-            return -1, -1, errors.New("invalid escape sequence")
-        }
+	if escapeChar != 'u' {
+		val := escapeByteSet[escapeChar]
+		if val == 0 {
+			return -1, -1, errors.New("invalid escape sequence")
+		}
 
 		out[0] = val
-        return escapeSeqLen, 1, nil
-    }
+		return escapeSeqLen, 1, nil
+	}
 
-    r, size := decodeUnicodeEscape(in)
-    if size == -1 {
-        return -1, -1, errors.New("invalid escape sequence")
-    }
+	r, size := decodeUnicodeEscape(in)
+	if size == -1 {
+		return -1, -1, errors.New("invalid escape sequence")
+	}
 
-    outLen := utf8.EncodeRune(out, r)
+	outLen := utf8.EncodeRune(out, r)
 
-    return size, outLen, nil
+	return size, outLen, nil
 }

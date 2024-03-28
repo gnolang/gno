@@ -214,7 +214,6 @@ func TestNode_AppendObject(t *testing.T) {
 	}
 
 	val, err := Marshal(root)
-
 	if err != nil {
 		t.Errorf("Marshal returns error: %v", err)
 	}
@@ -526,7 +525,6 @@ func TestNode_MustString(t *testing.T) {
 
 func TestUnmarshal_Array(t *testing.T) {
 	root, err := Unmarshal([]byte(" [1,[\"1\",[1,[1,2,3]]]]\r\n"))
-
 	if err != nil {
 		t.Errorf("Error on Unmarshal: %s", err.Error())
 	}
@@ -766,7 +764,6 @@ func TestNode_Index_Fail(t *testing.T) {
 				t.Errorf("Index() = %v, want %v", got, tt.want)
 			}
 		})
-
 	}
 }
 
@@ -805,10 +802,10 @@ func TestNode_GetIndex_InputIndex_Exceed_Original_Node_Index(t *testing.T) {
 
 func TestNode_DeleteIndex(t *testing.T) {
 	tests := []struct {
-		name string
+		name     string
 		expected string
-		index int
-		ok   bool
+		index    int
+		ok       bool
 	}{
 		{`null`, ``, 0, false},
 		{`1`, ``, 0, false},

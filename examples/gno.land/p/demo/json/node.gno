@@ -442,7 +442,7 @@ func ArrayNode(key string, value []*Node) *Node {
 		curr.value = value
 
 		for i, v := range value {
-			var idx = i
+			idx := i
 			curr.next[strconv.Itoa(i)] = v
 
 			v.prev = curr

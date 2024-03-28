@@ -17,11 +17,12 @@ const maxNestingDepth = 10000
 // The data must be a valid JSON-encoded value.
 //
 // Usage:
-// 	node, err := json.Unmarshal([]byte(`{"key": "value"}`))
-// 	if err != nil {
-// 		ufmt.Println(err)
-// 	}
-// 	println(node) // {"key": "value"}
+//
+//	node, err := json.Unmarshal([]byte(`{"key": "value"}`))
+//	if err != nil {
+//		ufmt.Println(err)
+//	}
+//	println(node) // {"key": "value"}
 func Unmarshal(data []byte) (*Node, error) {
 	buf := newBuffer(data)
 
