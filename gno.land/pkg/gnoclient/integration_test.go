@@ -17,12 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// XXX: This should probably be located in the keeper
-type Response struct {
-	Result    []string
-	CPUCycles int
-}
-
 func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -60,11 +54,11 @@ func TestCallSingle_Integration(t *testing.T) {
 	res, err := client.Call(baseCfg, msg)
 	require.NoError(t, err)
 
-	var ret Response
+	var ret []string
 	err = json.Unmarshal(res.DeliverTx.Data, &ret)
 	require.NoError(t, err)
-	require.Len(t, ret.Result, 1)
-	assert.Equal(t, "hi test argument", ret.Result[0])
+	require.Len(t, ret, 1)
+	assert.Equal(t, "hi test argument", ret[0])
 }
 
 func TestCallMultiple_Integration(t *testing.T) {
@@ -115,15 +109,14 @@ func TestCallMultiple_Integration(t *testing.T) {
 	require.Len(t, datas, 2)
 	res1, res2 := datas[0], datas[1]
 
-	var ret Response
-
+	var ret []string
 	err = json.Unmarshal(res1, &ret)
 	require.NoError(t, err)
-	assert.Equal(t, "it works!", ret.Result[0])
+	assert.Equal(t, "it works!", ret[0])
 
 	err = json.Unmarshal(res2, &ret)
 	require.NoError(t, err)
-	assert.Equal(t, "hi test argument", ret.Result[0])
+	assert.Equal(t, "hi test argument", ret[0])
 }
 
 func TestSendSingle_Integration(t *testing.T) {
@@ -217,7 +210,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	// Execute send
 	res, err := client.Send(baseCfg, msg1, msg2)
 	assert.Nil(t, err)
-	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "\n", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
@@ -360,7 +353,7 @@ func main() {
 		Send: "",
 	}
 
-	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
+	expected := "- before: 0\n- after: 10\n\nhi gnoclient!\n"
 
 	res, err := client.Run(baseCfg, msg1, msg2)
 	assert.NoError(t, err)

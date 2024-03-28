@@ -3,12 +3,14 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -94,7 +96,13 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+
+	var evalRes VMEvalResponse
+	err = json.Unmarshal([]byte(res), &evalRes)
+	require.NoError(t, err)
+	require.Len(t, 1, len(evalRes.Return))
+
+	assert.Equal(t, res, `{"return":["echo:hello world"],"cpucycles":256}`)
 	// t.Log("result:", res)
 }
 
@@ -237,7 +245,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, res, `["echo:hello world"]`)
 }
 
 // Sending too much realm package coins fails.
@@ -333,7 +341,7 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf(`["%s"], addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
 }

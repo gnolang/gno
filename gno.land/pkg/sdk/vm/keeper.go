@@ -4,6 +4,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -221,7 +222,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpv := mpn.NewPackage()
 
 	if len(msg.Args) != len(ft.Params) {
-		return "", fmt.Errorf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args))
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d",
+			fnc, len(ft.Params), len(msg.Args)))
 	}
 
 	request := make([]gno.TypedValue, len(ft.Params))
@@ -230,7 +232,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		arg = strings.TrimSpace(arg)
 
 		if request[i], err = convertArgToGno(store, arg, pt); err != nil {
-			return "", fmt.Errorf("unable to convert arg to gno type arg #%d: %w", i, err)
+			panic(fmt.Sprintf("unable to convert arg[%d] to gno type: %s", i, err))
 		}
 	}
 
@@ -305,9 +307,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	rtvs := m.Eval(xn)
 	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
 
-	ret, err := processResult(ctx, rtvs, m, mpn.PkgPath)
-	return ret, err
+	// Marshal return values to json
+	rawRtvs, err := marshalReturnValuesJSON(rtvs)
+	if err != nil {
+		return "", fmt.Errorf("unable to precess return values: %w", err)
+	}
+
 	// TODO pay for gas? TODO see context?
+	return string(rawRtvs), nil
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
@@ -502,8 +509,14 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 
 	rtvs := m.Eval(xx)
 
+	// Marshal return values to json
+	rawRtvs, err := marshalReturnValuesJSON(rtvs)
+	if err != nil {
+		return "", fmt.Errorf("unable to precess return values: %w", err)
+	}
+
 	// TODO pay for gas? TODO see context?
-	return processResult(ctx, rtvs, m, pv.PkgPath)
+	return string(rawRtvs), nil
 }
 
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
@@ -586,55 +599,19 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func processResult(ctx sdk.Context, rtvs []gno.TypedValue, m *gno.Machine, pkgPath string) (string, error) {
-	var (
-		response gno.TypedValue
-		sv       gno.StructValue
-		st       gno.StructType
-	)
-
-	// Generate result Typed Value
-	result := gno.TypedValue{
-		V: &gno.ArrayValue{
-			List: rtvs,
-		},
-		T: &gno.ArrayType{
-			Elt: &gno.InterfaceType{},
-			Len: len(rtvs),
-		},
+func marshalReturnValuesJSON(rtvs []gno.TypedValue) (string, error) {
+	var err error
+	ret := make([]json.RawMessage, len(rtvs))
+	for i, rtv := range rtvs {
+		if ret[i], err = MarshalTypedValueJSON(&rtv); err != nil {
+			return "", fmt.Errorf("unable to marshal return value[%d]: %w", i, err)
+		}
 	}
 
-	// Define response fields
-	responseFS := []gno.FieldType{
-		{
-			Name: gno.Name("Result"),
-			Type: result.T,
-		},
-		{
-			Name: gno.Name("CPUCycles"),
-			Type: gno.Int64Type,
-		},
-	}
-	responseTV := make([]gno.TypedValue, 0, len(responseFS))
-
-	// Add result value
-	responseTV = append(responseTV, result)
-
-	// Add cpucycle to responses
-	cycle := gno.TypedValue{T: gno.Int64Type}
-	cycle.SetInt64(m.Cycles)
-	responseTV = append(responseTV, cycle)
-
-	st.PkgPath = pkgPath
-	st.Fields = responseFS
-	sv.Fields = responseTV
-
-	response.T = &st
-	response.V = &sv
-
-	resraw, err := MarshalTypedValueJSON(&response)
+	rawRes, err := json.Marshal(ret)
 	if err != nil {
-		return "", fmt.Errorf("unable to Marshall result: %w", err)
+		return "", fmt.Errorf("unable to marshal return values: %w", err)
 	}
-	return string(resraw), nil
+
+	return string(rawRes), nil
 }
