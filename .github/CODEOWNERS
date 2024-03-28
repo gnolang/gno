@@ -18,15 +18,19 @@
 /.gitpod.yml                  @gnolang/devrels
 
 # Gno examples and default contracts.
-/examples/                    @gnolang/tech-staff @gnolang/devrels
-/examples/gno.land/r/gnoland/ @moul
-/examples/gno.land/r/gov/     @moul
-/examples/gno.land/r/sys/     @moul
-/examples/gno.land/r/worx/    @moul
-/examples/gno.land/r/x        @gnolang/devrels
-# TODO: add people from the community here.
-/examples/gno.land/r/jaekwon/ @jaekwon
-/examples/gno.land/r/manfred/ @moul
+/examples/                            @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/p/demo/avl/        @jaekwon
+/examples/gno.land/p/demo/bf/         @moul
+/examples/gno.land/p/demo/blog/       @gnolang/devrels
+/examples/gno.land/p/demo/cford32/    @thehowl
+/examples/gno.land/p/demo/memeland/   @leohhhn
+/examples/gno.land/p/demo/seqid/      @thehowl
+# TODO
+/examples/gno.land/r/demo/art         @moul
+/examples/gno.land/r/gnoland/         @moul
+/examples/gno.land/r/system/          @moul
+/examples/gno.land/r/jaekwon/         @jaekwon
+/examples/gno.land/r/manfred/         @moul
 
 # Gno.land.
 /gno.land/                    @moul @zivkovicmilos
@@ -34,7 +38,7 @@
 /gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
 /gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
 /gno.land/cmd/gnoweb/         @gfanton @thehowl
-/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton 
+/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton
 /gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
 /gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
 /gno.land/pkg/log/            @zivkovicmilos @gfanton
@@ -46,7 +50,7 @@
 # GnoVM/Gnolang.
 /gnovm/                       @jaekwon @moul @piux2 @thehowl
 /gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes 
+/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
 /gnovm/cmd/gno/               @moul @thehowl @harry-hov
 /gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
 /gnovm/pkg/doc/               @thehowl
