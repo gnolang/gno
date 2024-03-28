@@ -1,8 +1,6 @@
 package gnoclient_test
 
 import (
-	"fmt"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -44,9 +42,6 @@ func Example_withInMemCrypto() {
 		RPCClient: rpcClient,
 	}
 	_ = client
-	fmt.Println("Hello")
-	// Output:
-	// Hello
 }
 
 // Example_readOnly demonstrates how to initialize a read-only gnoclient, which can only query.
@@ -58,7 +53,4 @@ func Example_readOnly() {
 		RPCClient: rpcClient,
 	}
 	_ = client
-	fmt.Println("Hello")
-	// Output:
-	// Hello
 }
