@@ -253,6 +253,9 @@ fmt.Println(qevalRes)
 // (1000000 uint64)
 ```
 
+To see all functionality the `gnoclient` package provides, see the gnoclient
+[reference page](../reference/gnoclient/gnoclient.md).
+
 ## Conclusion
 
 Congratulations 🎉
