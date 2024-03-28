@@ -43,31 +43,6 @@ func New() *Int {
 	}
 }
 
-// SetInt64 sets z to x and returns z.
-func (z *Int) SetInt64(x int64) *Int {
-	neg := false
-	if x < 0 {
-		neg = true
-		x = -x
-	}
-	if z.abs == nil {
-		panic("abs is nil")
-	}
-	z.abs = z.abs.SetUint64(uint64(x))
-	z.neg = neg
-	return z
-}
-
-// SetUint64 sets z to x and returns z.
-func (z *Int) SetUint64(x uint64) *Int {
-	if z.abs == nil {
-		panic("abs is nil")
-	}
-	z.abs = z.abs.SetUint64(x)
-	z.neg = false
-	return z
-}
-
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
 	return New().SetInt64(x)
@@ -113,19 +88,6 @@ func (z *Int) SetString(s string) (*Int, error) {
 		neg,
 	}, nil
 }
-
-// // setFromScanner implements SetString given an io.ByteScanner.
-// // For documentation see comments of SetString.
-// func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
-// 	if _, _, err := z.scan(r, base); err != nil {
-// 		return nil, false
-// 	}
-// 	// entire content must have been consumed
-// 	if _, err := r.ReadByte(); err != io.EOF {
-// 		return nil, false
-// 	}
-// 	return z, true // err == io.EOF => scan consumed all content of r
-// }
 
 // FromUint256 is a convenience-constructor from uint256.Uint.
 // Returns a new Int and whether overflow occurred.
