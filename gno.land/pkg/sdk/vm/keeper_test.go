@@ -97,12 +97,12 @@ func Echo(msg string) string {
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 
-	var evalRes VMEvalResponse
+	var evalRes []string
 	err = json.Unmarshal([]byte(res), &evalRes)
 	require.NoError(t, err)
-	require.Len(t, 1, len(evalRes.Return))
+	require.Len(t, evalRes, 1)
 
-	assert.Equal(t, res, `{"return":["echo:hello world"],"cpucycles":256}`)
+	assert.Equal(t, res, `["echo:hello world"]`)
 	// t.Log("result:", res)
 }
 
@@ -341,7 +341,7 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf(`["%s"], addr.String())
+	addrString := fmt.Sprintf(`["%s"]`, addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
 }

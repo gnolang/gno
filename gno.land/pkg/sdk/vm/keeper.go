@@ -314,7 +314,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 
 	// TODO pay for gas? TODO see context?
-	return string(rawRtvs), nil
+	return rawRtvs, nil
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
@@ -516,7 +516,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 
 	// TODO pay for gas? TODO see context?
-	return string(rawRtvs), nil
+	return rawRtvs, nil
 }
 
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
@@ -602,7 +602,8 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 func marshalReturnValuesJSON(rtvs []gno.TypedValue) (string, error) {
 	var err error
 	ret := make([]json.RawMessage, len(rtvs))
-	for i, rtv := range rtvs {
+	for i := 0; i < len(rtvs); i++ {
+		rtv := rtvs[i]
 		if ret[i], err = MarshalTypedValueJSON(&rtv); err != nil {
 			return "", fmt.Errorf("unable to marshal return value[%d]: %w", i, err)
 		}
