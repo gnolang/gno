@@ -46,6 +46,7 @@ func TestCurrentRealm(m *gno.Machine) string {
 func TestSkipHeights(m *gno.Machine, count int64) {
 	ctx := m.Context.(std.ExecContext)
 	ctx.Height += count
+	ctx.Timestamp += (count * 5)
 	m.Context = ctx
 }
 
