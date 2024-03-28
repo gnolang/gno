@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"strings"
 	"testing"
 
@@ -97,6 +98,21 @@ func X_testSetOrigCaller(m *gno.Machine, addr string) {
 func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
 	ctx := m.Context.(std.ExecContext)
 	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
+	m.Context = ctx
+}
+
+func X_testSetPrevRealm(m *gno.Machine, pkgPath string) {
+	m.Frames[m.NumFrames()-2].LastPackage = &gno.PackageValue{PkgPath: pkgPath}
+}
+
+func X_testSetPrevAddr(m *gno.Machine, addr string) {
+	// clear all frames to return mocked origin caller
+	for i := m.NumFrames() - 1; i > 0; i-- {
+		m.Frames[i].LastPackage = nil
+	}
+
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.OrigCaller = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 
