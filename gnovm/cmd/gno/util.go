@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"go/ast"
 	"io"
 	"io/fs"
 	"os"
@@ -10,9 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -23,36 +19,6 @@ func isGnoFile(f fs.DirEntry) bool {
 func isFileExist(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-func gnoFilesFromArgs(args []string) ([]string, error) {
-	paths := []string{}
-	for _, arg := range args {
-		info, err := os.Stat(arg)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-		if !info.IsDir() {
-			curpath := arg
-			paths = append(paths, curpath)
-		} else {
-			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("%s: walk dir: %w", arg, err)
-				}
-
-				if !isGnoFile(f) {
-					return nil // skip
-				}
-				paths = append(paths, curpath)
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return paths, nil
 }
 
 func gnoPackagesFromArgs(args []string) ([]string, error) {
@@ -198,36 +164,36 @@ func makeTestGoMod(path string, packageName string, goversion string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
-// getPathsFromImportSpec derive and returns ImportPaths
-// without ImportPrefix from *ast.ImportSpec
-func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
-	for _, i := range importSpec {
-		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, transpiler.ImportPrefix) {
-			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
-			importPaths = append(importPaths, importPath("."+res))
-		}
+// ResolvePath determines the path where to place output files.
+// dstPath is the desired output path by the gno program. output is the output
+// directory provided by the user.
+//
+// If dstPath is absolute, it will be simply joined together with output.
+// If dstPath is local, the output will be joined together with the relative
+// path to reach dstPath.
+// If dstPath is relative non-local path (ie. contains ../), the dstPath will
+// be made absolute and joined with output
+//
+//	Working directory: /home/gno
+//	ResolvePath("transpile-result", "./examples/test/test1.gno.gen.go")
+//		-> transpile-result/examples/test/test1.gen.go
+//	ResolvePath("/transpile-result", "./examples/test/test1.gno.gen.go")
+//		-> /transpile-result/examples/test/test1.gen.go
+//	ResolvePath("/transpile-result", "/home/gno/examples/test/test1.gno.gen.go")
+//		-> /transpile-result/home/gno/examples/test/test1.gen.go
+//	ResolvePath("result", "../jae/hello")
+//		-> result/home/jae/hello
+func ResolvePath(output string, dstPath string) (string, error) {
+	if filepath.IsAbs(dstPath) ||
+		filepath.IsLocal(dstPath) {
+		return filepath.Join(output, dstPath), nil
 	}
-	return
-}
-
-// ResolvePath joins the output dir with relative pkg path
-// e.g
-// Output Dir: Temp/gno-transpile
-// Pkg Path: ../example/gno.land/p/pkg
-// Returns -> Temp/gno-transpile/example/gno.land/p/pkg
-func ResolvePath(output string, path importPath) (string, error) {
-	absOutput, err := filepath.Abs(output)
+	// Make dstPath absolute and join it with output.
+	absDst, err := filepath.Abs(dstPath)
 	if err != nil {
 		return "", err
 	}
-	absPkgPath, err := filepath.Abs(string(path))
-	if err != nil {
-		return "", err
-	}
-	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
-
-	return filepath.Join(absOutput, pkgPath), nil
+	return filepath.Join(output, absDst), nil
 }
 
 // WriteDirFile write file to the path and also create

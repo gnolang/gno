@@ -13,11 +13,12 @@ import (
 )
 
 type nativeFunc struct {
-        gnoPkg  string
-        gnoFunc gno.Name
-        params  []gno.FieldTypeExpr
-        results []gno.FieldTypeExpr
-        f       func(m *gno.Machine)
+        gnoPkg     string
+        gnoFunc    gno.Name
+        params     []gno.FieldTypeExpr
+        results    []gno.FieldTypeExpr
+		hasMachine bool
+        f          func(m *gno.Machine)
 }
 
 var nativeFuncs = [...]nativeFunc{
@@ -36,6 +37,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r{{ $i }}"), Type: gno.X({{ printf "%q" $r.GnoType }})},
 		{{- end }}
 		},
+		{{ if $m.MachineParam }}true{{ else }}false{{ end }},
 		func(m *gno.Machine) {
 			{{ if $m.Params -}}
 				b := m.LastBlock()
