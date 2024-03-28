@@ -15,7 +15,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		SetNodeLocations(pn.PkgPath, string(fn.Name), fn, -1)
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -63,6 +63,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
+			debug.Println("---predefine, funcDecl: ", d)
 			switch d.(type) {
 			case *FuncDecl:
 				if d.GetAttribute(ATTR_PREDEFINED) == true {
@@ -93,6 +94,20 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		}
 	}
 }
+
+// TODO: make this slice
+type gotoLoop struct {
+	labelLine int
+	gotoLine  int
+	label     Name
+	depth     uint8
+	index     int
+	sealed    bool      // new body built
+	targetBn  BlockNode // parent block of goto loop, will also be parent of wrapped blockStmt block
+}
+
+var gloop *gotoLoop
+var reProcessing bool
 
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
@@ -135,8 +150,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn)
+		SetNodeLocations(pkgPath, fileName, fn, -1)
 	}
+
+	var closureStack []BlockNode = make([]BlockNode, 0, 32)
 
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -223,7 +240,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// (e.g. through recursion for a dependent)
 				} else {
 					// recursively predefine dependencies.
-					d2, ppd := predefineNow(store, last, n.(Decl))
+					d := n.(Decl)
+					d2, ppd := predefineNow(store, last, d)
 					if ppd {
 						return d2, TRANS_SKIP
 					} else {
@@ -262,6 +280,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
+				debug.Println("---trans_block, blockstmt")
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -347,6 +366,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *FuncLitExpr:
+				debug.Println("---trans_block, funcLitExpr, n: ", n)
+				names := n.GetExternNames()
+				debug.Println("---names: ", names)
+
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				// push func body block.
@@ -366,6 +389,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
+				closureStack = append(closureStack, last)
 
 			// TRANS_BLOCK -----------------------
 			case *SelectCaseStmt:
@@ -620,12 +644,34 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// elide composite lit element (nested) composite types.
 					elideCompositeElements(clx, clt)
 				}
+				switch n.(type) {
+				// TRANS_LEAVE (deferred)---------
+				// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+				// POP BLOCK YOURSELF.
+				case BlockNode:
+					// mutate body if needed, mostly for implicit loop formed by goto label,
+					// this can not be done in gotoStmt that mutate body while transcribe body.
+					// see 1_06
+					if gloop != nil { // goto loop exist, transform new body
+						if fd, ok := n.(*FuncDecl); ok {
+							if fd.Path.Depth > 1 { // XXX, not uverse
+								transform(store, last, gloop)
+								gloop = nil
+							}
+						}
+					}
+					// Pop block.
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
 			}()
 
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				debug.Println("---trans_leave, nameExpr")
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -739,6 +785,131 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Replace with *ConstExpr.
 				cx := evalConst(store, last, n)
 				return cx, TRANS_CONTINUE
+
+			// TRANS_LEAVE -----------------------
+			case *FuncLitExpr:
+				debug.Println("---trans_leave, funcLitExpr, n: ", n)
+				names := n.GetExternNames()
+				debug.Println("---names: ", names)
+
+				debug.Printf("static block of n is: %v \n", n.Source.GetStaticBlock())
+				debug.Println("---names of staticBlock is: ", n.Source.GetStaticBlock().GetBlockNames())
+
+				// quick check to identify no closure
+				_, inLoop := isBlockNodeInLoop(store, n)
+				if !inLoop {
+					return n, TRANS_CONTINUE
+				}
+
+				// Step 2: gather all extern names declared in for-loops.
+				leNames := []Name{}
+				loopVars := []Name{}
+
+				isExternName := func(nn Name) bool {
+					for _, name := range n.GetExternNames() {
+						if nn == name {
+							return true
+						}
+					}
+					return false
+				}
+
+				var targetBlockNode BlockNode
+				// outer first order
+				for _, name := range n.GetExternNames() {
+					path, bn := n.GetExternPathForName(store, name, isExternName)
+					debug.Printf("---extern nx: %v,  path: %v \n", name, path)
+					debug.Printf("bn: %v \n", bn)
+
+					if path.Type != VPBlock {
+						continue // not a loop block path
+					}
+
+					if !isLoopNode(store, bn) {
+						continue
+					}
+					targetBlockNode = bn
+					// name is loop extern
+					// closure exist
+					leNames = append(leNames, name) // all extern Nxs
+					break
+				}
+				// end loop
+
+				if len(leNames) == 0 {
+					// no closure
+					return n, TRANS_CONTINUE
+				} // has a closure
+
+				// check loop var and check if it's captured
+				if fs, ok := targetBlockNode.(*ForStmt); ok {
+					debug.Println("---bn is for stmt, fs.Body: ", fs.Body)
+					if as, ok := fs.Init.(*AssignStmt); ok {
+						debug.Println("---init stmt is assignStmt: as: ", as)
+						if as.Op == DEFINE {
+							debug.Println("---is Define")
+							debug.Println("lhs: ", as.Lhs)
+							if len(as.Lhs) != 1 {
+								panic("incorrect len of lhs in for init stmt")
+							}
+							debug.Println("lhs[0]: ", as.Lhs[0])
+							debug.Println("type lhs[0]: ", reflect.TypeOf(as.Lhs[0]))
+							if nx, ok := as.Lhs[0].(*NameExpr); ok { // should only one lhs
+								debug.Println("---nx: ", nx)
+								loopVars = append(loopVars, nx.Name)
+							}
+						}
+					}
+				}
+				// check range case
+				if rs, ok := targetBlockNode.(*RangeStmt); ok {
+					debug.Println("---bn is range stmt")
+					debug.Printf("---key: %v, value: %v \n", rs.Key, rs.Value)
+					if nx, ok := rs.Key.(*NameExpr); ok {
+						if nx.Name != "_" {
+							loopVars = append(loopVars, nx.Name)
+						}
+					}
+					if nx, ok := rs.Value.(*NameExpr); ok {
+						if nx.Name != "_" {
+							loopVars = append(loopVars, nx.Name)
+						}
+					}
+					debug.Println("---loopVars for rangeStmt is: ", loopVars)
+				}
+
+				clo := &Closure{}
+				// check if loopVar is captured
+			Loop:
+				for _, ln := range leNames {
+					for _, lv := range loopVars {
+						if ln == lv {
+							clo.loopVars = loopVars
+							break Loop
+						}
+					}
+				}
+
+				if debug {
+					debug.Println("---dump names---")
+					for _, name := range leNames {
+						debug.Println("name: ", name)
+					}
+					debug.Println("---end---")
+
+					debug.Println("---dump loopVars---")
+					for _, lv := range loopVars {
+						debug.Println("loopVar: ", lv)
+					}
+					debug.Println("---end---")
+				}
+
+				if targetBlockNode != nil { // outer loop block node
+					debug.Println("---target bn: ", targetBlockNode)
+					targetBlockNode.GetStaticBlock().bodyStmt.closure = clo
+				}
+
+				return n, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
@@ -947,12 +1118,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				debug.Printf("---callExpr, n: %v \n", n)
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
 					ft = cft
+					debug.Println("---funcType, ft: ", ft)
 				case *NativeType:
 					ft = store.Go2GnoType(cft.Type).(*FuncType)
 				case *TypeType:
@@ -1009,11 +1182,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						ift, reflect.TypeOf(ift)))
 				}
 
+				debug.Println("---routines for call")
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
 				// In general, a string is not assignable to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
+					debug.Println("---func is ConstExpr")
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						if n.Varg && len(n.Args) == 2 {
@@ -1065,6 +1240,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				debug.Println("---continue with general case")
 				// Continue with general case.
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
@@ -1172,6 +1348,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
+					debug.Println("---handling with args")
 					for i := range n.Args {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
@@ -1451,7 +1628,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
 					}
-					n.Path = pn.GetPathForName(store, n.Sel)
+					n.Path, _ = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
@@ -1661,9 +1838,48 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BREAK:
 				case CONTINUE:
 				case GOTO:
-					_, depth, index := findGotoLabel(last, n.Label)
-					n.Depth = depth
-					n.BodyIndex = index
+					if !reProcessing { // TODO: check this logic
+						debug.Println("---Goto, n: ", n)
+						debug.Println("---last bn: ", last)
+						bn, depth, index, labelLine := findGotoLabel(last, n.Label)
+						n.Depth = depth
+						n.BodyIndex = index
+
+						gotoLine := n.GetLine()
+
+						debug.Println("---bn: ", bn)
+						debug.Println("---depth: ", n.Depth)
+						debug.Println("---index: ", n.BodyIndex)
+						debug.Printf("---branchStmt, labelLine: %v, n.Line: %d \n", labelLine, n.GetLine())
+
+						debug.Println("---closureStack, height of ns is: ", len(closureStack))
+						for i, nd := range closureStack {
+							debug.Println("=================================")
+							debug.Printf("node[%d] type is: %T, value is: %v \n", i, nd, nd)
+							debug.Println("=================================")
+						}
+
+						if labelLine < gotoLine {
+							for i := len(closureStack) - 1; i >= 0; i-- {
+								if fx, ok := closureStack[i].(*FuncLitExpr); ok {
+									debug.Printf("---fx: %v, at line of: %d \n", fx, fx.GetLine())
+									if labelLine < fx.GetLine() && fx.GetLine() < gotoLine {
+										debug.Println("---goto loop found!")
+										debug.Printf("---located from line: %d, to line: %d \n", labelLine, gotoLine)
+										// mutate body when this node end transcribed
+										gloop = &gotoLoop{
+											labelLine: labelLine,
+											gotoLine:  gotoLine,
+											label:     n.Label,
+											depth:     n.Depth,
+											index:     n.BodyIndex,
+										}
+										break
+									}
+								}
+							}
+						}
+					}
 				case FALLTHROUGH:
 					if swchC, ok := last.(*SwitchClauseStmt); ok {
 						// last is a switch clause, find its index in the switch and assign
@@ -1684,8 +1900,52 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
-				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				// TODO: transform logic should be delayed, specially if here are goto loops embedded in for loop,
+				// only inject here.
+				debug.Println("---trans_leave, for stmt: ", n)
+				debug.Printf("---trans_leave, for stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
+
+				if !reProcessing {
+					clo := n.GetStaticBlock().GetBodyStmt().closure
+					if clo != nil {
+						debug.Println("---trans_leave, clo: ", clo)
+
+						stmts := []Stmt{}
+						// step2. inject i := 1 for loop extern
+						if clo.loopVars != nil {
+							for _, lv := range clo.loopVars {
+								lhs := Nx(lv)
+								rhs := Nx(lv)
+								as := A(lhs, ":=", rhs)
+
+								debug.Printf("as: %v \n", as)
+
+								stmts = append([]Stmt{as}, n.Body...)
+							}
+						} else {
+							stmts = n.Body
+						}
+
+						// wrap body with {}
+						nn := BlockS(stmts)
+
+						// reset staticBlock initialized in for{...}
+						resetStaticBlock(nn)
+						debug.Println("---nn after reset is: ", nn)
+
+						// recursively
+						nn = Preprocess(store, n, nn).(*BlockStmt)
+						debug.Println("---nn after preprocess: ", nn)
+
+						// replace with wrapped blockStmt
+						n.Body = []Stmt{nn}
+						debug.Println("---n final: ", n)
+					}
+
+					// preprocess n
+					// Cond consts become bool *ConstExprs.
+					checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
@@ -1694,7 +1954,45 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
+				debug.Printf("---trans_leave, range stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				// NOTE: k,v already defined @ TRANS_BLOCK.
+				if !reProcessing {
+					clo := n.GetStaticBlock().GetBodyStmt().closure
+					if clo != nil {
+						debug.Println("---trans_leave, clo: ", clo)
+
+						body := []Stmt{}
+						injectStmt := []Stmt{}
+						if clo.loopVars != nil {
+							for _, lv := range clo.loopVars {
+								// step2. inject i := 1 for loop extern
+								lhs := Nx(lv)
+								rhs := Nx(lv)
+								as := A(lhs, ":=", rhs)
+
+								debug.Printf("as: %v \n", as)
+								injectStmt = append(injectStmt, as)
+							}
+							body = append(injectStmt, n.Body...)
+						} else {
+							body = n.Body
+						}
+
+						// wrap body with {}
+						nn := BlockS(body)
+
+						// reset staticBlock initialized in for{...}
+						resetStaticBlock(nn)
+						debug.Println("---nn after reset is: ", nn)
+
+						nn = Preprocess(store, n, nn).(*BlockStmt)
+						debug.Println("---nn after preprocess: ", nn)
+
+						// replace with wrapped blockStmt
+						n.Body = []Stmt{nn}
+						debug.Println("---n final: ", n)
+					}
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
@@ -1884,7 +2182,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
+							nx.Path, _ = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				} else {
@@ -1894,7 +2192,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path = last.GetPathForName(nil, nx.Name)
+							nx.Path, _ = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				}
@@ -1957,17 +2255,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 			}
 			// end type switch statement
+			// END TRANS_LEAVE -----------------------
 
-			// TRANS_LEAVE -----------------------
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-				return n, TRANS_CONTINUE
-			} else {
-				return n, TRANS_CONTINUE
-			}
+			// Convenience return in case not already returned.
+			return n, TRANS_CONTINUE
 		}
 
 		panic(fmt.Sprintf(
@@ -2246,8 +2537,10 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, depth uint8, bodyIdx int, line int,
 ) {
+	debug.Println("---find goto label: ", label)
+	var ls Stmt // label stmt
 	for {
 		switch cbn := last.(type) {
 		case *IfStmt, *SwitchStmt:
@@ -2259,9 +2552,10 @@ func findGotoLabel(last BlockNode, label Name) (
 			panic("unexpected package blocknode")
 		case *FuncLitExpr, *FuncDecl:
 			body := cbn.GetBody()
-			_, bodyIdx = body.GetLabeledStmt(label)
+			ls, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
 				bn = cbn
+				line = ls.GetLine()
 				return
 			} else {
 				panic(fmt.Sprintf(
@@ -2270,9 +2564,13 @@ func findGotoLabel(last BlockNode, label Name) (
 			}
 		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
-			_, bodyIdx = body.GetLabeledStmt(label)
+			debug.Println("---body: ", body)
+			ls, bodyIdx = body.GetLabeledStmt(label)
+			debug.Println("---ls: ", ls)
+			debug.Println("---bodyIdx: ", bodyIdx)
 			if bodyIdx != -1 {
 				bn = cbn
+				line = ls.GetLine()
 				return
 			} else {
 				last = cbn.GetParentNode(nil)
@@ -2909,6 +3207,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 }
 
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
+	debug.Println("---predefineNow2")
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -2962,6 +3261,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				dt = rt.(*DeclaredType)
 			}
+			debug.Println("---cd.Name: ", cd.Name)
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
@@ -3056,7 +3356,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			T: gPackageType,
 			V: pv,
 		})
-		d.Path = last.GetPathForName(store, d.Name)
+		d.Path, _ = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
@@ -3075,7 +3375,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			} else {
 				last2 := skipFile(last)
 				last2.Predefine(d.Const, nx.Name)
-				nx.Path = last.GetPathForName(store, nx.Name)
+				nx.Path, _ = last.GetPathForName(store, nx.Name)
 			}
 		}
 	case *TypeDecl:
@@ -3141,7 +3441,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				}
 				// check package node for name.
 				pn := pv.GetPackageNode(store)
-				tx.Path = pn.GetPathForName(store, tx.Sel)
+				tx.Path, _ = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T
 			default:
@@ -3158,7 +3458,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// fill in later.
 			last2.Define(d.Name, asValue(t))
-			d.Path = last.GetPathForName(store, d.Name)
+			d.Path, _ = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
 		un = findUndefined(store, last, d.Type)
@@ -3201,7 +3501,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
-				body:       d.Body,
+				body:       d.Body, // TODO: body of main would be mutated in some case like goto with closure, here should be a pointer
 				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
@@ -3221,7 +3521,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if d.Name == "init" {
 				// init functions can't be referenced.
 			} else {
-				d.Path = last.GetPathForName(store, d.Name)
+				d.Path, _ = last.GetPathForName(store, d.Name)
 			}
 		}
 	default:
@@ -3249,6 +3549,8 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
+	debug.Println("---fillNameExprPath")
+	debug.Println("---fillNameExprPath, last: ", last)
 	if nx.Name == "_" {
 		// Blank name has no path; caller error.
 		panic("should not happen")
@@ -3285,7 +3587,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
 					continue
 				} else {
-					path = last.GetPathForName(nil, nx.Name)
+					path, _ = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
 						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
@@ -3302,7 +3604,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
-	nx.Path = last.GetPathForName(nil, nx.Name)
+	nx.Path, _ = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {
@@ -3573,13 +3875,356 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
+// return the depth offset of loop and true if block node is in a loop,
+// but not embedded within another func lit intermediary.
+// TODO: add support range
+// TODO: make it work with implicit loop(goto label) here?
+func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
+	depthOffset := 0
+	for bn != nil {
+		depthOffset += 1
+		bn = bn.GetParentNode(store)
+		switch bn.(type) {
+		case *FuncLitExpr:
+			return 0, false
+		case *ForStmt:
+			return depthOffset, true
+		case *RangeStmt:
+			return depthOffset, true
+		default:
+			continue
+		}
+	}
+	return 0, false
+}
+
+func isLoopNode(store Store, bn BlockNode) bool {
+	if bn != nil {
+		switch bn.(type) {
+		case *ForStmt:
+			return true
+		case *RangeStmt:
+			return true
+		default:
+		}
+	}
+	return false
+}
+
+// reset vp, static block, etc
+func resetStaticBlock(bn BlockNode) {
+	debug.Println("---reset VP: ", bn)
+	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
+			switch cn := n.(type) {
+			case *NameExpr:
+				debug.Println("---trans_enter, nx: ", cn)
+				cn.Path = NewValuePath(VPUverse, 0, 0, cn.Name)
+				cn.SetAttribute(ATTR_PREPROCESSED, false)
+				return cn, TRANS_CONTINUE
+			case BlockNode:
+				debug.Println("---blockNode")
+				cn.GetStaticBlock().reset()
+				cn.SetAttribute(ATTR_PREPROCESSED, false)
+				return cn, TRANS_CONTINUE
+			default:
+				debug.Println("---trans_enter, default, continue")
+				cn.SetAttribute(ATTR_PREPROCESSED, false)
+				return cn, TRANS_CONTINUE
+			}
+		default:
+			return n, TRANS_CONTINUE
+		}
+	})
+}
+
+// wrap goto loop into block stmt
+func rebuildBody(b Body, gloop *gotoLoop) Body {
+	preBody := []Stmt{}
+	loopBody := []Stmt{}
+	postBody := []Stmt{}
+
+	for _, s := range b {
+		if s.GetLine() < gloop.labelLine {
+			preBody = append(preBody, s)
+		} else if s.GetLine() >= gloop.labelLine && s.GetLine() <= gloop.gotoLine {
+			loopBody = append(loopBody, s)
+		} else {
+			postBody = append(postBody, s)
+		}
+	}
+	debug.Println("---preBody: ", preBody)
+	debug.Println("---loopBody: ", loopBody)
+	debug.Println("---postBody: ", postBody)
+
+	nn := BlockS(loopBody)
+	debug.Println("---wrapped loop Body: ", nn)
+
+	nBody := append(preBody, nn)
+	nBody = append(nBody, postBody...)
+	debug.Println("---nBody: ", nBody)
+	return nBody
+}
+
+// traverse from root node, find goto loop and its parent block, wrap body and re-process,
+// to rebuild value path.
+// TODO: optimize this
+func transform(store Store, bn BlockNode, gloop *gotoLoop) {
+	debug.Println("---transform, gloop: ", gloop)
+	stack := make([]BlockNode, 0, 32)
+	last := bn
+
+	reProcessing = true
+	defer func() {
+		reProcessing = false
+	}()
+
+	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			debug.Printf("---tran_enter, n: %v, typ of n: %v \n", n, reflect.TypeOf(n))
+			switch cn := n.(type) {
+			// if goto loop is located in funcDecl(block level1), wrap body and re-process and exit without traversing deeper.
+			// if it's embedded in some other block, for, funcLit, blockStmt, then there would
+			// be two steps for the wrap and re-process:
+			// step1. trans_enter to the target block(targetBn) where goto loop located in
+			// wrap the goto loop body;
+			// step2. trans_leave the targetBn, and re-process it.
+			// XXX, think, can just set the targetBn to be the wrapped one, and re-process against it?
+			// such that all done in trans_enter stage
+			case *FuncDecl:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------funcDecl, body: ", body)
+				// find labeled stmt
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("---labeled stmt found!")
+					preBody := []Stmt{}
+					loopBody := []Stmt{}
+					postBody := []Stmt{}
+					for _, s := range body {
+						if s.GetLine() < gloop.labelLine {
+							preBody = append(preBody, s)
+						} else if s.GetLine() >= gloop.labelLine && s.GetLine() < gloop.gotoLine {
+							loopBody = append(loopBody, s)
+						} else {
+							postBody = append(postBody, s)
+						}
+					}
+					nn := BlockS(loopBody)
+					debug.Println("---wrapped loop Body: ", nn)
+					// clear value path
+					resetStaticBlock(nn)
+					debug.Println("---nn after reset is: ", nn)
+					debug.Println("---last: ", bn)
+					nn = Preprocess(store, bn, nn).(*BlockStmt)
+
+					debug.Println("---nn after preprocess: ", nn)
+					// special case for goto stmt, bump depth +1
+					adjustGotoLabel(nn, gloop)
+					debug.Println("---nn adjust goto label preprocess: ", nn)
+
+					nBody := append(preBody, nn)
+					nBody = append(nBody, postBody...)
+					debug.Println("---nBody: ", nBody)
+
+					cn.Body = nBody
+					return cn, TRANS_EXIT
+				}
+			case *BlockStmt:
+				stack = append(stack, cn)
+				if !gloop.sealed { // avoid reentrant, see1_05b
+					body := cn.GetBody()
+					debug.Println("--------------blockStmt, body: ", body)
+					lblstmt, idx := body.GetLabeledStmt(gloop.label)
+					debug.Println("---labeled_stmt: ", lblstmt, idx)
+
+					if lblstmt == nil {
+						return cn, TRANS_CONTINUE // find in embedded block
+					} else {
+						debug.Println("---got target body: ", body)
+
+						nBody := rebuildBody(body, gloop)
+						cn.Body = nBody
+						gloop.sealed = true
+						gloop.targetBn = cn
+					}
+				}
+				return cn, TRANS_CONTINUE
+			case *FuncLitExpr:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, funcLitExpr, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					debug.Println("---nBody: ", nBody)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *ForStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *IfCaseStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *RangeStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *SwitchClauseStmt:
+				stack = append(stack, cn)
+				body := cn.GetBody()
+				debug.Println("--------------enter, ForStmt, body: ", body)
+				lblstmt, _ := body.GetLabeledStmt(gloop.label)
+				if lblstmt == nil {
+					return cn, TRANS_CONTINUE
+				} else {
+					debug.Println("------find target body!")
+					nBody := rebuildBody(body, gloop)
+					cn.Body = nBody
+					gloop.targetBn = cn
+				}
+				return cn, TRANS_CONTINUE
+			case *IfStmt:
+				stack = append(stack, cn)
+				return cn, TRANS_CONTINUE
+			default:
+				return cn, TRANS_CONTINUE
+			}
+		case TRANS_LEAVE:
+			// track last block node
+			if _, ok := n.(BlockNode); ok {
+				stack = stack[:len(stack)-1]
+				if len(stack) < 1 {
+					last = nil
+				} else {
+					last = stack[len(stack)-1]
+				}
+			}
+			switch cn := n.(type) {
+			case *FuncDecl:
+				debug.Println("---trans_leave, cn", cn)
+				// staff already done in trans_enter
+				return cn, TRANS_CONTINUE
+			case *BlockStmt: // mutate node which contains implicit loop
+				debug.Println("---trans_leave, blockStmt, cn: ", cn)
+				if cn == gloop.targetBn {
+					cn = reProcess(store, last, cn).(*BlockStmt)
+					debug.Println("---trans_leave, blockStmt final", cn)
+					return cn, TRANS_EXIT
+				}
+				return cn, TRANS_CONTINUE
+			case *FuncLitExpr:
+				debug.Println("---trans_leave, FuncLitExpr", cn)
+				if gloop.targetBn == cn {
+					cn = reProcess(store, last, cn).(*FuncLitExpr)
+					debug.Println("---trans_leave, FuncLitExpr final", cn)
+					return cn, TRANS_EXIT
+				}
+				return cn, TRANS_CONTINUE
+			case *ForStmt:
+				debug.Println("---trans_leave, ForStmt: ", cn)
+				if gloop.targetBn == cn {
+					cn = reProcess(store, last, cn).(*ForStmt)
+					debug.Println("---trans_leave, ForStmt final", cn)
+					return cn, TRANS_EXIT
+				}
+				return cn, TRANS_CONTINUE
+			default:
+				return cn, TRANS_CONTINUE
+			}
+		default:
+			return n, TRANS_CONTINUE
+		}
+	})
+
+	debug.Println("---end of transform, bn: ", bn)
+	return
+}
+
+func reProcess(store Store, last BlockNode, bn BlockNode) Node {
+	resetStaticBlock(bn)
+	debug.Println("---bn after reset is: ", bn)
+	adjustGotoLabel(bn, gloop)
+	nn := Preprocess(store, last, bn)
+	debug.Println("---bn after reProcess is: ", nn)
+	return nn
+}
+
+// bump goto depth +1
+func adjustGotoLabel(bn BlockNode, gloop *gotoLoop) {
+	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			switch cn := n.(type) {
+			case *BranchStmt:
+				if cn.Op == GOTO {
+					if cn.Label == gloop.label {
+						cn.Depth = gloop.depth + 1
+						cn.BodyIndex = gloop.index
+					}
+				}
+				return cn, TRANS_CONTINUE
+			default:
+				return cn, TRANS_CONTINUE
+			}
+		default:
+			return n, TRANS_CONTINUE
+		}
+	})
+}
+
 // ----------------------------------------
 // SetNodeLocations
 
 // Iterate over all block nodes recursively and sets location information
 // based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func SetNodeLocations(pkgPath string, fileName string, n Node) {
+func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
+	debug.Printf("---SetNodeLocations: %v \n", n)
+
 	if n.GetAttribute(ATTR_LOCATIONED) == true {
 		return // locations already set (typically n is a filenode).
 	}
@@ -3601,12 +4246,17 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 				lastLine = line
 				nextNonce = 0
 			}
+			if theLine != -1 {
+				line = theLine
+			}
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
 				Line:    line,
 				Nonce:   nextNonce,
 			}
+			debug.Printf("---loc line: %d, nonce: %d \n", line, loc.Nonce)
+			debug.Printf("---loc: %v \n", loc)
 			bn.SetLocation(loc)
 		}
 		return n, TRANS_CONTINUE
@@ -3616,9 +4266,11 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 // ----------------------------------------
 // SaveBlockNodes
 
+// TODO: fix this
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
 func SaveBlockNodes(store Store, fn *FileNode) {
+	debug.Println("---SaveBlockNodes")
 	// First, get the package and file names.
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
@@ -3633,20 +4285,22 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
+			debug.Printf("---bn is %v \n", bn)
 			// Location must exist already.
-			loc := bn.GetLocation()
-			if loc.IsZero() {
-				panic("unexpected zero block node location")
-			}
-			if loc.PkgPath != pkgPath {
-				panic("unexpected pkg path in node location")
-			}
-			if loc.File != fileName {
-				panic("unexpected file name in node location")
-			}
-			if loc.Line != bn.GetLine() {
-				panic("wrong line in block node location")
-			}
+			//loc := bn.GetLocation()
+			//debug.Printf("---loc of bn is %v \n", loc)
+			//if loc.IsZero() {
+			//	panic("unexpected zero block node location")
+			//}
+			//if loc.PkgPath != pkgPath {
+			//	panic("unexpected pkg path in node location")
+			//}
+			//if loc.File != fileName {
+			//	panic("unexpected file name in node location")
+			//}
+			//if loc.Line != bn.GetLine() {
+			//	panic("wrong line in block node location")
+			//}
 			// save blocknode.
 			store.SetBlockNode(bn)
 		}

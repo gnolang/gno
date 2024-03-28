@@ -35,6 +35,7 @@ func (m *Machine) doOpEval() {
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
+			debug.Println("---op_eval, lb: ", lb)
 			// Push value, done.
 			ptr := lb.GetPointerTo(m.Store, nx.Path)
 			m.PushValue(ptr.Deref())

@@ -679,9 +679,13 @@ func (m *Machine) doOpStructLit() {
 
 func (m *Machine) doOpFuncLit() {
 	x := m.PopExpr().(*FuncLitExpr)
+	debug.Printf("---doOpFuncLit, x: %v \n", x)
+
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
+
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{

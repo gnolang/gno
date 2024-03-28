@@ -537,6 +537,7 @@ type FuncValue struct {
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
+	// TODO : make it pointer
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
 }
@@ -586,12 +587,12 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 }
 
 func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
-	if fv.body == nil {
-		source := fv.GetSource(store)
-		fv.body = source.GetBody()
-		return fv.body
-	}
+	//if fv.body == nil {
+	source := fv.GetSource(store)
+	fv.body = source.GetBody()
 	return fv.body
+	//}
+	//return fv.body
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
@@ -2317,6 +2318,7 @@ func (b *Block) GetSource(store Store) BlockNode {
 }
 
 func (b *Block) GetParent(store Store) *Block {
+	//debug.Println("---get parent")
 	switch pb := b.Parent.(type) {
 	case nil:
 		return nil
@@ -2332,6 +2334,9 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	debug.Printf("---GetPointerToInt, b: %v \n", b)
+	debug.Printf("---GetPointerToInt, b.Source: %v, type of source: %v \n", b.Source, reflect.TypeOf(b.Source))
+	debug.Printf("---GetPointerToInt, index: %v \n", index)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2341,6 +2346,9 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	debug.Printf("---GetPointerTo, b: %v \n", b)
+	debug.Printf("---GetPointerTo, path: %v \n", path)
+	debug.Println("-----------------------------------")
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != "_" {
@@ -2513,6 +2521,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	debug.Printf("---fillValueTV, tv: %v \n", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

@@ -46,18 +46,27 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug.Println("---doOpCall")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	debug.Printf("---fv: %v \n", fv)
 	ft := fr.Func.GetType(m.Store)
+	debug.Printf("---ft: %v \n", ft)
+	debug.Printf("---fv.Source: %v \n", fv.Source)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-	m.PushBlock(b)
+
+	debug.Printf("---clo: %v \n", clo)
+
+	debug.Println("---b: ", b)
+
+	m.PushBlock(b) // this push a new block for the outer closure
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
@@ -67,6 +76,7 @@ func (m *Machine) doOpCall() {
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
+		debug.Println("---fbody: ", fbody)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
@@ -89,6 +99,7 @@ func (m *Machine) doOpCall() {
 			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
+		debug.Printf("---b.bodyStmt: %v \n", b.bodyStmt)
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {

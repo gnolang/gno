@@ -135,6 +135,7 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
+	//debug.Printf("---transcribe, n: %v \n", n)
 	// transcribe n on the way in.
 	var c TransCtrl
 	nn, c = t(ns, ftype, index, n, TRANS_ENTER)
@@ -262,6 +263,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *FuncLitExpr:
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
+			debug.Println("---stop or skip funclit type")
 			return
 		}
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
@@ -408,6 +410,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *EmptyStmt:
 	case *ExprStmt:
+		debug.Printf("---transcribe, expr stmt, X: %v \n", cnn.X)
 		cnn.X = transcribe(t, nns, TRANS_EXPR_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
 			return
