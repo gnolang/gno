@@ -36,6 +36,21 @@ type Tendermint struct {
 	wg sync.WaitGroup
 }
 
+// FinalizedProposal is the finalized proposal wrapper, that
+// contains the raw proposal data, and the ID of the data (usually hash)
+type FinalizedProposal struct {
+	Data []byte // the raw proposal data, accepted proposal
+	ID   []byte // the ID of the proposal (usually hash)
+}
+
+// newFinalizedProposal creates a new finalized proposal wrapper
+func newFinalizedProposal(data, id []byte) *FinalizedProposal {
+	return &FinalizedProposal{
+		Data: data,
+		ID:   id,
+	}
+}
+
 // NewTendermint creates a new instance of the Tendermint consensus engine
 func NewTendermint(
 	verifier Verifier,
@@ -66,7 +81,7 @@ func NewTendermint(
 // RunSequence runs the Tendermint consensus sequence for a given height,
 // returning only when a proposal has been finalized (consensus reached), or
 // the context has been cancelled
-func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
+func (t *Tendermint) RunSequence(ctx context.Context, h uint64) *FinalizedProposal {
 	t.logger.Debug(
 		"RunSequence",
 		slog.Uint64("height", h),
@@ -102,6 +117,7 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 				t.logger.Info(
 					"RunSequence: proposal finalized",
 					slog.Uint64("height", h),
+					slog.String("node", string(t.node.ID())),
 				)
 
 				return proposal
@@ -111,6 +127,7 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 				"RunSequence round expired",
 				slog.Uint64("height", h),
 				slog.Uint64("round", t.state.getRound()),
+				slog.String("node", string(t.node.ID())),
 			)
 
 			// 65: Function OnTimeoutPrecommit(height, round) :
@@ -126,6 +143,7 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 				slog.Uint64("height", h),
 				slog.Uint64("from", t.state.getRound()),
 				slog.Uint64("to", recvRound),
+				slog.String("node", string(t.node.ID())),
 			)
 
 			t.state.setRound(recvRound)
@@ -137,6 +155,7 @@ func (t *Tendermint) RunSequence(ctx context.Context, h uint64) []byte {
 				"RunSequence: context done",
 				slog.Uint64("height", h),
 				slog.Uint64("round", t.state.getRound()),
+				slog.String("node", string(t.node.ID())),
 			)
 
 			return nil
@@ -293,8 +312,8 @@ func (t *Tendermint) watchForRoundJumps(ctx context.Context) <-chan uint64 {
 }
 
 // finalizeProposal starts the proposal finalization sequence
-func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan []byte {
-	ch := make(chan []byte, 1)
+func (t *Tendermint) finalizeProposal(ctx context.Context) <-chan *FinalizedProposal {
+	ch := make(chan *FinalizedProposal, 1)
 
 	t.wg.Add(1)
 
@@ -337,6 +356,7 @@ func (t *Tendermint) startRound(height, round uint64) {
 			"building a proposal",
 			slog.Uint64("height", height),
 			slog.Uint64("round", round),
+			slog.String("node", string(t.node.ID())),
 		)
 
 		// No previous valid value present,
@@ -378,7 +398,7 @@ func (t *Tendermint) startRound(height, round uint64) {
 }
 
 // runStates runs the consensus states, depending on the current step
-func (t *Tendermint) runStates(ctx context.Context) []byte {
+func (t *Tendermint) runStates(ctx context.Context) *FinalizedProposal {
 	for {
 		currentStep := t.state.step.get()
 
@@ -430,7 +450,7 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 	)
 
 	t.logger.Debug(
-		"Entering propose state",
+		"entering propose state",
 		slog.Uint64("height", height),
 		slog.Uint64("round", round),
 		slog.String("node", string(t.node.ID())),
@@ -461,6 +481,7 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 		slog.Uint64("height", height),
 		slog.Uint64("round", round),
 		slog.Duration("timeout", timeoutPropose),
+		slog.String("node", string(t.node.ID())),
 	)
 
 	t.scheduleTimeout(timerCtx, timeoutPropose, expiredCh)
@@ -559,9 +580,10 @@ func (t *Tendermint) runPropose(ctx context.Context) {
 				t.state.step.set(prevote)
 
 				t.logger.Debug(
-					"Received invalid proposal",
+					"received invalid proposal",
 					slog.Uint64("height", height),
 					slog.Uint64("round", round),
+					slog.String("node", string(t.node.ID())),
 				)
 
 				return
@@ -626,7 +648,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 	)
 
 	t.logger.Debug(
-		"Entering prevote state",
+		"entering prevote state",
 		slog.Uint64("height", height),
 		slog.Uint64("round", round),
 		slog.String("node", string(t.node.ID())),
@@ -694,6 +716,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 					"scheduling timeoutPrevote",
 					slog.Uint64("round", round),
 					slog.Duration("timeout", timeoutPrevote),
+					slog.String("node", string(t.node.ID())),
 				)
 
 				t.scheduleTimeout(timeoutCtx, timeoutPrevote, expiredCh)
@@ -775,7 +798,7 @@ func (t *Tendermint) runPrevote(ctx context.Context) {
 // - A validator has received 2F+1 PRECOMMIT messages with any value (valid ID or NIL)
 // 47: upon 2f + 1 <PRECOMMIT, hP, roundP, ∗> for the first time do
 // 48: schedule OnTimeoutPrecommit(hP , roundP) to be executed after timeoutPrecommit(roundP)
-func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
+func (t *Tendermint) runPrecommit(ctx context.Context) *FinalizedProposal {
 	var (
 		height             = t.state.getHeight()
 		round              = t.state.getRound()
@@ -787,7 +810,7 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 	)
 
 	t.logger.Debug(
-		"Entering precommit state",
+		"entering precommit state",
 		slog.Uint64("height", height),
 		slog.Uint64("round", round),
 		slog.String("node", string(t.node.ID())),
@@ -806,7 +829,12 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 			// Make sure the precommit view matches the process view
 			return round == precommit.GetView().GetRound()
 		}
-		matchingIDMiddleware = func(precommit *types.PrecommitMessage) bool {
+		nonNilIDFn = func(precommit *types.PrecommitMessage) bool {
+			// Make sure the precommit ID is not nil
+			if precommit.Identifier == nil {
+				return false
+			}
+
 			// Make sure the ID matches the accepted proposal ID
 			return bytes.Equal(acceptedProposalID, precommit.Identifier)
 		}
@@ -814,7 +842,7 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 
 	var (
 		summedPrecommits = newMessageCache[*types.PrecommitMessage](isValidFn)
-		nonNilCache      = newMessageCache[*types.PrecommitMessage](matchingIDMiddleware)
+		nonNilCache      = newMessageCache[*types.PrecommitMessage](nonNilIDFn)
 
 		timeoutScheduled = false
 	)
@@ -847,6 +875,7 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 					"scheduling timeoutPrecommit",
 					slog.Uint64("round", round),
 					slog.Duration("timeout", timeoutPrecommit),
+					slog.String("node", string(t.node.ID())),
 				)
 
 				t.scheduleTimeout(timeoutCtx, timeoutPrecommit, expiredCh)
@@ -868,7 +897,10 @@ func (t *Tendermint) runPrecommit(ctx context.Context) []byte {
 
 			// Check if there are 2F+1 non-NIL precommit messages
 			if t.hasSuperMajority(convertedMessages) {
-				return t.state.acceptedProposal
+				return newFinalizedProposal(
+					t.state.acceptedProposal,
+					t.state.acceptedProposalID,
+				)
 			}
 		}
 	}

@@ -201,11 +201,14 @@ func TestConsensus_ValidFlow(t *testing.T) {
 	cluster.runSequence(0)
 
 	// Wait until the main run loops finish
-	cluster.awaitCompletion()
+	cluster.ensureShutdown(5 * time.Second)
 
 	// Make sure the finalized proposals match what node 0 proposed
 	for _, finalizedProposal := range cluster.finalizedProposals {
-		assert.True(t, bytes.Equal(finalizedProposal, proposal))
+		require.NotNil(t, finalizedProposal)
+
+		assert.True(t, bytes.Equal(finalizedProposal.Data, proposal))
+		assert.True(t, bytes.Equal(finalizedProposal.ID, proposalHash))
 	}
 }
 
@@ -243,6 +246,11 @@ func TestConsensus_InvalidFlow(t *testing.T) {
 
 		defaultTimeout = Timeout{
 			Initial: 2 * time.Second,
+			Delta:   200 * time.Millisecond,
+		}
+
+		precommitTimeout = Timeout{
+			Initial: 300 * time.Millisecond, // low timeout, so a new round is started quicker
 			Delta:   200 * time.Millisecond,
 		}
 	)
@@ -375,7 +383,7 @@ func TestConsensus_InvalidFlow(t *testing.T) {
 		commonOptions = []Option{
 			WithProposeTimeout(defaultTimeout),
 			WithPrevoteTimeout(defaultTimeout),
-			WithPrecommitTimeout(defaultTimeout),
+			WithPrecommitTimeout(precommitTimeout),
 		}
 
 		optionsCallbackMap = map[int][]Option{
@@ -412,13 +420,16 @@ func TestConsensus_InvalidFlow(t *testing.T) {
 	cluster.runSequence(0)
 
 	// Wait until the main run loops finish
-	cluster.awaitCompletion()
+	cluster.ensureShutdown(5 * time.Second)
 
 	// Make sure the nodes switched to the new round
 	assert.True(t, cluster.areAllNodesOnRound(1))
 
 	// Make sure the finalized proposals match what node 0 proposed
 	for _, finalizedProposal := range cluster.finalizedProposals {
-		assert.True(t, bytes.Equal(finalizedProposal, proposals[1]))
+		require.NotNil(t, finalizedProposal)
+
+		assert.True(t, bytes.Equal(finalizedProposal.Data, proposals[1]))
+		assert.True(t, bytes.Equal(finalizedProposal.ID, proposalHashes[1]))
 	}
 }

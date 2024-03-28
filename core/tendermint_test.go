@@ -2075,7 +2075,7 @@ func TestTendermint_FinalizeProposal_Precommit(t *testing.T) {
 
 		// Make sure the finalized proposal is valid
 		require.NotNil(t, finalizedProposal)
-		assert.Equal(t, proposalMessage.Proposal, finalizedProposal)
+		assert.Equal(t, proposalMessage.Proposal, finalizedProposal.Data)
 	})
 
 	t.Run("validator does not receive quorum PRECOMMITs in time", func(t *testing.T) {

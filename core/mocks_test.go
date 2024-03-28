@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gnolang/go-tendermint/messages/types"
 )
@@ -233,6 +234,10 @@ func (wg *mockNodeWg) Done() {
 	atomic.AddInt64(&wg.count, 1)
 }
 
+func (wg *mockNodeWg) getDone() int64 {
+	return atomic.LoadInt64(&wg.count)
+}
+
 func (wg *mockNodeWg) resetDone() {
 	atomic.StoreInt64(&wg.count, 0)
 }
@@ -246,9 +251,9 @@ type (
 
 // mockCluster represents a mock Tendermint cluster
 type mockCluster struct {
-	nodes              []*Tendermint     // references to the nodes in the cluster
-	ctxs               []mockNodeContext // context handlers for the nodes in the cluster
-	finalizedProposals [][]byte          // finalized proposals for the nodes
+	nodes              []*Tendermint        // references to the nodes in the cluster
+	ctxs               []mockNodeContext    // context handlers for the nodes in the cluster
+	finalizedProposals []*FinalizedProposal // finalized proposals for the nodes
 
 	stoppedWg mockNodeWg
 }
@@ -329,7 +334,7 @@ func newMockCluster(
 	return &mockCluster{
 		nodes:              nodes,
 		ctxs:               nodeCtxs,
-		finalizedProposals: make([][]byte, count),
+		finalizedProposals: make([]*FinalizedProposal, count),
 	}
 }
 
@@ -362,6 +367,37 @@ func (m *mockCluster) awaitCompletion() {
 	// Wait for all main run loops to signalize
 	// that they're finished
 	m.stoppedWg.Wait()
+}
+
+// ensureShutdown ensures the cluster is shutdown within the given duration
+func (m *mockCluster) ensureShutdown(timeout time.Duration) {
+	ch := time.After(timeout)
+
+	for {
+		select {
+		case <-ch:
+			m.forceShutdown()
+
+			return
+		default:
+			if m.stoppedWg.getDone() == int64(len(m.nodes)) {
+				// All nodes are finished
+				return
+			}
+		}
+	}
+}
+
+// forceShutdown sends a stop signal to all running nodes
+// in the cluster, and awaits their completion
+func (m *mockCluster) forceShutdown() {
+	// Send a stop signal to all the nodes
+	for _, ctx := range m.ctxs {
+		ctx.cancelFn()
+	}
+
+	// Wait for all the nodes to finish
+	m.awaitCompletion()
 }
 
 // pushProposalMessage relays the proposal message to all nodes in the cluster
