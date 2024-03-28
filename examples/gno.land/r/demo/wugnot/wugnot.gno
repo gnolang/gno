@@ -6,6 +6,10 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+
+	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -82,16 +86,16 @@ func TotalSupply() uint64 {
 	return wugnot.TotalSupply()
 }
 
-func BalanceOf(owner std.Address) uint64 {
-	balance, err := wugnot.BalanceOf(owner)
+func BalanceOf(owner pusers.AddressOrName) uint64 {
+	balance, err := wugnot.BalanceOf(users.Resolve(owner))
 	if err != nil {
 		panic(err)
 	}
 	return balance
 }
 
-func Allowance(owner, spender std.Address) uint64 {
-	allowance, err := wugnot.Allowance(owner, spender)
+func Allowance(owner, spender pusers.AddressOrName) uint64 {
+	allowance, err := wugnot.Allowance(users.Resolve(owner), users.Resolve(spender))
 	if err != nil {
 		panic(err)
 	}
@@ -101,25 +105,25 @@ func Allowance(owner, spender std.Address) uint64 {
 // setters.
 //
 
-func Transfer(to std.Address, amount uint64) {
+func Transfer(to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := wugnot.Transfer(caller, to, amount)
+	err := wugnot.Transfer(caller, users.Resolve(to), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Approve(spender std.Address, amount uint64) {
+func Approve(spender pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := wugnot.Approve(caller, spender, amount)
+	err := wugnot.Approve(caller, users.Resolve(spender), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, amount uint64) {
+func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := wugnot.TransferFrom(caller, from, to, amount)
+	err := wugnot.TransferFrom(caller, users.Resolve(from), users.Resolve(to), amount)
 	if err != nil {
 		panic(err)
 	}
