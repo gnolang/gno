@@ -92,7 +92,7 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
 	// gno_realm_denom := 'realm/' + 'pkg_path' + '/' + 'base_denom'
-	newDenom := "realm/" + m.Realm.Path + "/" + denom
+	newDenom := "/" + m.Realm.Path + ":" + denom
 	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
 
