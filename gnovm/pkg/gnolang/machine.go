@@ -250,15 +250,14 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		m.Store.SetCachePackage(pv)
 	}
 	m.SetActivePackage(pv)
+
 	// run files.
-	m.RunFiles(files.Files...)
-	// maybe save package value and mempackage.
 	if save {
-		// store package values and types
-		m.savePackageValuesAndTypes()
-		// store mempackage
-		m.Store.AddMemPackage(memPkg)
+		m.RunFilesWithMemPkg(memPkg, files.Files...)
+	} else {
+		m.RunFiles(files.Files...)
 	}
+
 	return pn, pv
 }
 
@@ -460,10 +459,16 @@ func (m *Machine) injectLocOnPanic() {
 // Add files to the package's *FileSet and run them.
 // This will also run each init function encountered.
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	m.runFiles(fns...)
+	m.runFiles(nil, fns...)
 }
 
-func (m *Machine) runFiles(fns ...*FileNode) {
+// RunFilesWithMemPkg is almost the same as RunFiles; the difference is that it
+// saves the mempackage to the store.
+func (m *Machine) RunFilesWithMemPkg(memPkg *std.MemPackage, fns ...*FileNode) {
+	m.runFiles(memPkg, fns...)
+}
+
+func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -589,6 +594,16 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		for _, decl := range fn.Decls {
 			runDeclarationFor(fn, decl)
 		}
+	}
+
+	// Save the mempackage if provided. We do this here so that it occurs before
+	// the init functions are run. This avoids any realm object ownership issues that may arise
+	// when passing around unpersisted realm object pointers to other realms during initialization.
+	if memPkg != nil {
+		// store package values and types
+		m.savePackageValuesAndTypes()
+		// store mempackage
+		m.Store.AddMemPackage(memPkg)
 	}
 
 	// Run new init functions.
