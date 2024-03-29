@@ -6,14 +6,14 @@ import (
 	"hash/fnv"
 	"io"
 	"log/slog"
-	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/muesli/termenv"
 )
 
-func NewColumnLogger(w io.Writer, level slog.Level, color bool) *slog.Logger {
+func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *slog.Logger {
 	charmLogger := log.NewWithOptions(w, log.Options{
 		ReportTimestamp: false,
 		ReportCaller:    false,
@@ -27,21 +27,15 @@ func NewColumnLogger(w io.Writer, level slog.Level, color bool) *slog.Logger {
 		writer: w,
 	})
 
-	colorProfile := termenv.TrueColor
-	if !color {
-		colorProfile = termenv.Ascii
-	}
-
 	columnHandler := &columnLogger{
-		Logger:       charmLogger,
-		writer:       w,
-		prefix:       charmLogger.GetPrefix(),
-		colorProfile: colorProfile,
+		Logger: charmLogger,
+		writer: w,
+		prefix: charmLogger.GetPrefix(),
 	}
 
 	charmLogger.SetOutput(newColumeWriter(lipgloss.NewStyle(), "", w))
-	charmLogger.SetStyles(DefaultStyles())
-	charmLogger.SetColorProfile(colorProfile)
+	charmLogger.SetStyles(defaultStyles())
+	charmLogger.SetColorProfile(profile)
 	charmLogger.SetReportCaller(false)
 	switch level {
 	case slog.LevelDebug:
@@ -72,10 +66,16 @@ func (cl *columnLogger) WithGroup(name string) slog.Handler {
 		name = fmt.Sprintf("%.1s.%s", cl.prefix, name)
 	}
 
+	fg := ColorFromString(name, 0.6, 0.4)
+	baseStyle := lipgloss.NewStyle().Foreground(fg)
+
+	styles := defaultStyles()
+	styles.Message = styles.Message.Foreground(fg)
+
 	nlog := cl.Logger.With() // clone logger
-	baseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(strconv.Itoa(stringToColor(name))))
 	nlog.SetOutput(newColumeWriter(baseStyle, name, cl.writer))
 	nlog.SetColorProfile(cl.colorProfile)
+	nlog.SetStyles(styles)
 	return &columnLogger{
 		Logger: nlog,
 		prefix: name,
@@ -93,11 +93,18 @@ type columnWriter struct {
 }
 
 func newColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) *columnWriter {
+	const width = 12
+
 	style := baseStyle.
 		Border(lipgloss.ThickBorder(), false, true, false, false).
 		BorderForeground(baseStyle.GetForeground()).
 		Bold(true).
-		Width(12)
+		Width(width)
+
+	if len(prefix) > width {
+		prefix = prefix[:width-3] + "..."
+	}
+
 	return &columnWriter{style: style, prefix: prefix, writer: writer}
 }
 
@@ -142,4 +149,50 @@ func stringToColor(s string) int {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return int((h.Sum32()+10)%255) + 1
+}
+
+// defaultStyles returns the default styles.
+func defaultStyles() *log.Styles {
+	style := log.DefaultStyles()
+	style.Levels = map[log.Level]lipgloss.Style{
+		log.DebugLevel: lipgloss.NewStyle().
+			SetString(strings.ToUpper(log.DebugLevel.String())).
+			Bold(true).
+			MaxWidth(1).
+			Foreground(lipgloss.Color("63")),
+		log.InfoLevel: lipgloss.NewStyle().
+			SetString(strings.ToUpper(log.InfoLevel.String())).
+			MaxWidth(1).
+			Foreground(lipgloss.Color("12")),
+
+		log.WarnLevel: lipgloss.NewStyle().
+			SetString(strings.ToUpper(log.WarnLevel.String())).
+			Bold(true).
+			MaxWidth(1).
+			Foreground(lipgloss.Color("192")),
+		log.ErrorLevel: lipgloss.NewStyle().
+			SetString(strings.ToUpper(log.ErrorLevel.String())).
+			Bold(true).
+			MaxWidth(1).
+			Foreground(lipgloss.Color("204")),
+		log.FatalLevel: lipgloss.NewStyle().
+			SetString(strings.ToUpper(log.FatalLevel.String())).
+			Bold(true).
+			MaxWidth(1).
+			Foreground(lipgloss.Color("134")),
+	}
+	style.Keys = map[string]lipgloss.Style{
+		"err": lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")),
+		"error": lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")),
+	}
+	style.Values = map[string]lipgloss.Style{
+		"err": lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")),
+		"error": lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")),
+	}
+
+	return style
 }

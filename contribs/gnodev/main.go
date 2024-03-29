@@ -17,24 +17,22 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
-	clogger "github.com/gnolang/gno/contribs/gnodev/pkg/logger"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/muesli/termenv"
 )
 
 const (
 	NodeLogName        = "Node"
 	WebLogName         = "GnoWeb"
 	KeyPressLogName    = "KeyPress"
-	EventServerLogName = "Events"
+	EventServerLogName = "Event"
 )
 
 type devCfg struct {
@@ -43,13 +41,14 @@ type devCfg struct {
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
 
-	minimal   bool
-	verbose   bool
-	hotreload bool
-	noWatch   bool
-	noReplay  bool
-	maxGas    int64
-	chainId   string
+	minimal    bool
+	verbose    bool
+	hotreload  bool
+	noWatch    bool
+	noReplay   bool
+	maxGas     int64
+	chainId    string
+	serverMode bool
 }
 
 var defaultDevOptions = &devCfg{
@@ -108,6 +107,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.serverMode,
+		"server-mode",
+		defaultDevOptions.serverMode,
+		"disable interaction, and adjust logging for server use.",
+	)
+
+	fs.BoolVar(
 		&c.verbose,
 		"verbose",
 		defaultDevOptions.verbose,
@@ -162,7 +168,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	}
 
 	// Setup Raw Terminal
-	rt, restore, err := setupRawTerm(io)
+	rt, restore, err := setupRawTerm(cfg, io)
 	if err != nil {
 		return fmt.Errorf("unable to init raw term: %w", err)
 	}
@@ -174,12 +180,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 		cancel(nil)
 	})
 
-	loglevel := slog.LevelInfo
-	if cfg.verbose {
-		loglevel = slog.LevelDebug
-	}
-
-	logger := clogger.NewColumnLogger(rt, loglevel, true)
+	logger := setuplogger(cfg, rt)
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
 
@@ -197,9 +198,6 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 			"addr", gnodev.DefaultCreator.String(),
 			"chainID", cfg.chainId,
 		)
-	// rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
-	// rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
-	// rt.Taskf(NodeLogName, "Chain ID: %s\n", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()
@@ -239,22 +237,19 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// Add node pkgs to watcher
 	watcher.AddPackages(devNode.ListPkgs()...)
 
-	logger.WithGroup("[READY]").Info("for commands and help, press `h`")
+	logger.WithGroup("---- READY").
+		Info("for commands and help, press `h`", "helper", helper)
 
 	// Run the main event loop
 	return runEventLoop(ctx, logger, rt, devNode, watcher)
 }
 
-// XXX: Automatize this the same way command does
-func printHelper(logger *slog.Logger) {
-	logger.Info(`
-Gno Dev Helper:
-  H           Help - display this message
-  R           Reload - Reload all packages to take change into account.
-  Ctrl+R      Reset - Reset application state.
-  Ctrl+C      Exit - Exit the application
-`)
-}
+var helper string = `
+H           Help - display this message
+R           Reload - Reload all packages to take change into account.
+Ctrl+R      Reset - Reset application state.
+Ctrl+C      Exit - Exit the application
+`
 
 func runEventLoop(
 	ctx context.Context,
@@ -298,7 +293,7 @@ func runEventLoop(
 
 			switch key.Upper() {
 			case rawterm.KeyH:
-				printHelper(logger)
+				logger.Info("Gno Dev Helper", "helper", helper)
 			case rawterm.KeyR:
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {
@@ -370,15 +365,20 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 }
 
-func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, err error) {
-	rt = rawterm.NewRawTerm()
+var noopRestore = func() error { return nil }
 
-	restore, err = rt.Init()
-	if err != nil {
-		return nil, nil, err
+func setupRawTerm(cfg *devCfg, io commands.IO) (*rawterm.RawTerm, func() error, error) {
+	rt := rawterm.NewRawTerm()
+	restore := noopRestore
+	if !cfg.serverMode {
+		var err error
+		restore, err = rt.Init()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	// Correctly format output for terminal
+	// correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
 	return rt, restore, nil
 }
@@ -479,15 +479,16 @@ func resolveUnixOrTCPAddr(in string) (out string) {
 	panic(err)
 }
 
-// NewZapLogger creates a zap logger with a console encoder for development use.
-func NewZapLogger(w io.Writer, level zapcore.Level) *zap.Logger {
-	// Build encoder config
-	consoleConfig := zap.NewDevelopmentEncoderConfig()
-	consoleConfig.TimeKey = ""
-	consoleConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	consoleConfig.EncodeName = zapcore.FullNameEncoder
+func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
+	level := slog.LevelInfo
+	if cfg.verbose {
+		level = slog.LevelDebug
+	}
 
-	// Build encoder
-	enc := zapcore.NewConsoleEncoder(consoleConfig)
-	return log.NewZapLogger(enc, w, level)
+	if cfg.serverMode {
+		return logger.NewZapLogger(out, level)
+	}
+
+	colorProfile := termenv.DefaultOutput().Profile
+	return logger.NewColumnLogger(out, level, colorProfile)
 }
