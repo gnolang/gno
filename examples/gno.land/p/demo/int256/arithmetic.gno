@@ -124,6 +124,7 @@ func (z *Int) MulUint256(x *Int, y *uint256.Uint) *Int {
 	return z
 }
 
+// Div sets z to the quotient x/y for y != 0 and returns z.
 func (z *Int) Div(x, y *Int) *Int {
 	z.initiateAbs()
 
@@ -150,19 +151,29 @@ func (z *Int) DivUint256(x *Int, y *uint256.Uint) *Int {
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
+// OBS: differs from mempooler int256, we need to panic manually if y == 0
 // Quo implements truncated division (like Go); see QuoRem for more details.
 func (z *Int) Quo(x, y *Int) *Int {
+	if y.IsZero() {
+		panic("division by zero")
+	}
+
 	z.initiateAbs()
 
 	z.abs = z.abs.Div(x.abs, y.abs)
-	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
+	z.neg = !(z.abs.IsZero()) && x.neg != y.neg // 0 has no sign
 	return z
 }
 
 // Rem sets z to the remainder x%y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
+// OBS: differs from mempooler int256, we need to panic manually if y == 0
 // Rem implements truncated modulus (like Go); see QuoRem for more details.
 func (z *Int) Rem(x, y *Int) *Int {
+	if y.IsZero() {
+		panic("division by zero")
+	}
+
 	z.initiateAbs()
 
 	z.abs.Mod(x.abs, y.abs)
