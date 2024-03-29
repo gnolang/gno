@@ -539,7 +539,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	if err != nil {
 		return "", err
 	}
-	// Construct new         machine.
+	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:   ctx.ChainID(),
 		Height:    ctx.BlockHeight(),

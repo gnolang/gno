@@ -119,11 +119,6 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 		C string
 	}
 
-	// Basic struct
-	type InterfaceStruct struct {
-		C any
-	}
-
 	// Struct with unexported field
 	type UnexportedStruct struct {
 		A int
@@ -135,14 +130,6 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 		A int
 		B *SimpleStruct
 	}
-
-	// Recursive Nested struct
-	type RecurseNestedStruct struct {
-		A int
-		B *RecurseNestedStruct
-	}
-	recurseNested := &RecurseNestedStruct{A: 42}
-	recurseNested.B = recurseNested
 
 	cases := []struct {
 		ValueRep any    // Go representation
@@ -163,11 +150,9 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 		},
 
 		// XXX(FIXME): Interface arn't supported yet
-		// {InterfaceStruct{C: "hello"}, "hello"},
+		// {struct{ C any }{C: "hello"}, "hello"},
 
-		// XXX(FIXME): Currently commented out as it causes stack overflow in `Go2GnoValue`
-		// Struct with nested and recursive struct
-		// {recurseNested, `{A:42}`},
+		// XXX(FIXME): Recursive struct is currently causing a stack overflow in the `Go2GnoValue` function.
 	}
 
 	store := setupStore()
