@@ -1,0 +1,75 @@
+# Reproducible Test for https://github.com/gnolang/gno/issues/974
+
+loadpkg gno.land/r/steal_ownership $WORK/steal
+loadpkg gno.land/r/mis_ownership $WORK/mis
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func PtrValues -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(42 uint32)'
+stdout '(42 uint32)'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func MutateDeref -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func PtrValues -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(21 uint32)'
+stdout '(21 uint32)'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func MutateValue -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func PtrValues -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(15 uint32)'
+stdout '(15 uint32)'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func MutatePtr -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func PtrValues -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(5 uint32)'
+stdout '(15 uint32)'
+stdout OK!
+
+-- steal/steal.gno --
+package steal_ownership
+
+var Ptr *uint32
+
+func Steal(xptr *uint32) {
+	Ptr = xptr
+}
+
+-- mis/mis.gno --
+package mis_ownership
+
+import "gno.land/r/steal_ownership"
+
+var (
+	x   = uint32(42)
+	ptr = &x
+)
+
+func init() {
+	steal_ownership.Steal(ptr)
+}
+
+func MutateDeref() {
+	*ptr = 21
+}
+
+func MutatePtr() {
+	y := uint32(5)
+	ptr = &y
+}
+
+func MutateValue() {
+	x = 15
+}
+
+func PtrValues() (uint32, uint32) {
+	return *ptr, *steal_ownership.Ptr
+}
