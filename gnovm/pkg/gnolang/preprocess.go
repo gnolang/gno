@@ -82,7 +82,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
 		decls, err := sortValueDeps(store, fn.Decls)
-
 		if err != nil {
 			panic(err)
 		}
