@@ -45,6 +45,8 @@ paid for by the realm.  Anyone can pay the storage upkeep of
 a realm to keep it alive.
 */
 
+const cannotModifyExternalRealm = "cannot modify external-realm or non-realm object"
+
 //----------------------------------------
 // PkgID & Realm
 
@@ -145,7 +147,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
+		panic(cannotModifyExternalRealm)
 	}
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
@@ -555,7 +557,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 				}
 				if eo.GetObjectID().IsZero() {
 					if eo.GetOwnerID().PkgID.Hashlet != rlm.ID.Hashlet {
-						panic("persisting a pointer to an unpersisted object owned by another realm is not allowed")
+						panic(cannotModifyExternalRealm)
 					}
 
 					panic("new escaped mark has no object ID")
