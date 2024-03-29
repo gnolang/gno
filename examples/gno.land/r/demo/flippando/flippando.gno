@@ -117,9 +117,9 @@ func CreateBasicNFT(player std.Address, gameId string) string {
 	// call CreateBasicFlipNFT from basicNFT.gno
 	// call MintFlipFungibleToken from token,gno
 	// lock the Flip fungible token inside the basicNFT in nft2Flip avl.tree
-	metadata, error := CreateBasicFlipNFT(player, gameId)
-	if error != "" {
-		return error
+	metadata, errString := CreateBasicFlipNFT(player, gameId)
+	if errString != "" {
+		return errString
 	}
 	return metadata
 }
