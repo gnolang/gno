@@ -29,6 +29,10 @@ func Marshal(node *Node) ([]byte, error) {
 		return nil, errors.New("node is not ready")
 	}
 
+	if !node.modified && node.ready() {
+		buf.Write(node.source())
+	}
+
 	if node.modified {
 		switch node.nodeType {
 		case Null:
@@ -118,8 +122,6 @@ func Marshal(node *Node) ([]byte, error) {
 
 			buf.WriteByte(curlyClose)
 		}
-	} else if node.ready() {
-		buf.Write(node.source())
 	}
 
 	return buf.Bytes(), nil
