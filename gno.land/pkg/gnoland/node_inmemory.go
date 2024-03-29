@@ -100,6 +100,10 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
+	if cfg.GenesisTxHandler == nil {
+		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
+	}
+
 	return nil
 }
 
