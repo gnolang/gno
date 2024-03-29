@@ -25,16 +25,16 @@ func NewTodolist(title string) (int, string) {
 	// Create new Todolist
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state
-	todolistTree.Set(tlid.String(), tl)
 	tlid.Next()
-	return tlid - 1, "created successfully"
+	todolistTree.Set(strconv.Itoa(int(tlid)), tl)
+	return int(tlid), "created successfully"
 }
 
 func AddTask(todolistID int, title string) string {
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
-		return "Todolist not found"
+		panic("Todolist not found")
 	}
 
 	// get the number of tasks in the todolist
@@ -53,13 +53,13 @@ func ToggleTaskStatus(todolistID int, taskID int) string {
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
-		return "Todolist not found"
+		panic("Todolist not found")
 	}
 
 	// Get the task from the todolist
 	task, found := tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
 	if !found {
-		return "Task not found"
+		panic("Task not found")
 	}
 
 	// Change the status of the task
@@ -69,19 +69,16 @@ func ToggleTaskStatus(todolistID int, taskID int) string {
 }
 
 func RemoveTask(todolistID int, taskID int) string {
-	// Get user who sent the transaction
-	// txSender := std.GetOrigCaller()
-
 	// Get Todolist from AVL tree
 	tl, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
-		return "Todolist not found"
+		panic("Todolist not found")
 	}
 
 	// Get the task from the todolist
 	_, ok = tl.(*todolist.TodoList).Tasks.Get(strconv.Itoa(taskID))
 	if !ok {
-		return "Task not found"
+		panic("Task not found")
 	}
 
 	// Change the status of the task
@@ -91,13 +88,10 @@ func RemoveTask(todolistID int, taskID int) string {
 }
 
 func RemoveTodoList(todolistID int) string {
-	// Get user who sent the transaction
-	// txSender := std.GetOrigCaller()
-
 	// Get Todolist from AVL tree
 	_, ok := todolistTree.Get(strconv.Itoa(todolistID))
 	if !ok {
-		return "Todolist not found"
+		panic("Todolist not found")
 	}
 
 	// Remove the todolist
@@ -135,7 +129,7 @@ func renderHomepage() string {
 		b.WriteString(
 			ufmt.Sprintf(
 				"## Todolist #%s: %s\n",
-				key+1, // Todolist ID
+				key, // Todolist ID
 				tl.GetTodolistTitle(),
 			),
 		)
@@ -158,15 +152,17 @@ func renderHomepage() string {
 				b.WriteString(
 					ufmt.Sprintf("#%d - %s  ", index, todo.Title),
 				)
+				// displays a checked box if task is marked as done, an empty box if not
 				if todo.Done {
 					b.WriteString(
 						"☑\n\n",
 					)
-				} else {
-					b.WriteString(
-						"☐\n\n",
-					)
+					continue
 				}
+
+				b.WriteString(
+					"☐\n\n",
+				)
 			}
 		} else {
 			b.WriteString("No tasks in this list currently\n")
