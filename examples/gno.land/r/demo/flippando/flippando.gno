@@ -139,10 +139,10 @@ func GetAllBasicNFTs(excludePlayer std.Address) string {
 }
 
 func CreateCompositeNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) string {
-	metadata, error := CreateCompositeFlipNFT(player, cWidth, cHeight, bTokenIDsArray)
+	metadata, errString := CreateCompositeFlipNFT(player, cWidth, cHeight, bTokenIDsArray)
 	
-	if error != "" {
-		return error
+	if errString != "" {
+		return errString
 	}
 	return metadata
 }
