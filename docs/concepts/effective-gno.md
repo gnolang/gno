@@ -683,8 +683,61 @@ func SetLargeObjRef(ref *large.Object) {
 #### Sharing pointers to non-global realm variables
 Before passing a pointer as an argument to another realm, it is important to always check how that realm will
 use that pointer. Be wary of realms that persist pointer values to their own global realm state. If you pass
-a pointer to a variable that is not part of your own global realm state, and other realm tries to persis it,
-it will result in a panic message because the value being pointed to has not yet, and may never be, persisted.
+a pointer to a variable that is not part of your own global realm state, and other realm tries to persist it,
+that variable may be persisted there so any further attempts to modify it in the realm in which it originated will fail.
+For this reason, passing and persisting pointers between realms is generally discouraged unless you have a good
+understanding of how the VM handles these types of operations.
+
+Example:
+```go
+package steal_ownership
+
+var Ptr *uint32
+
+func Steal(xptr *uint32) {
+	Ptr = xptr
+}
+
+--------------------------------------------
+package mis_ownership
+
+import "gno.land/r/steal_ownership"
+
+var y *uint32
+
+func SharePtr1() {
+	x := uint32(42)
+	y = &x
+
+	// This is not okay because the x value is owned by this realm by way of y, and is
+	// currently planned to be persisted.
+	steal_ownership.Steal(&x)
+}
+
+
+func SharePtr2() {
+	x := uint32(42)
+	steal_ownership.Steal(&x)
+
+	// This is okay because the x value was already persisted and is now owned by the
+	// steal realm because it was unowned with no plan to persist it at the time.
+	// However, it is not owned by this realm now so attempting to modify the value by
+    // calling Update() will fail.
+	y = &x
+}
+
+func SharePtr3() {
+	x := uint32(42)
+
+	// This is okay because the x value is unowned and will not be persisted by this realm.
+	steal_ownership.Steal(&x)
+}
+
+func Update() {
+	*y = 43
+}
+
+```
 
 ### Choosing between Coins and GRC20 tokens
 
