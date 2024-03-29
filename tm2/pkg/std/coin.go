@@ -616,7 +616,7 @@ func (coins Coins) Sort() Coins {
 // Parsing
 
 var (
-	reDnmString = `[a-z][a-z0-9/:._-]{2,127}` // cosmos regex(https://github.com/cosmos/cosmos-sdk/blob/b2c26cdc4c3d2f5b7cb28e5153e2b458c61ee8fa/types/coin.go#L852) without capital letters
+	reDnmString = `.*` // TODO: limit pkg_path length // REF: https://github.com/gnolang/gno/pull/875#discussion_r1543384275
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
 	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))

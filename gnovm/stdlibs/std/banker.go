@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"regexp"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -89,9 +90,16 @@ func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
 func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
 
+	// check origin denom format
+	matched, err := regexp.MatchString("[a-z][a-z0-9]{2,15}", denom)
+	if err != nil || !matched {
+		m.Panic(typedString("invalid denom format, must be [a-z][a-z0-9]{2,15}"))
+		return
+	}
+
 	// Similar to ibc spec
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
-	// gno_realm_denom := 'realm/' + 'pkg_path' + '/' + 'base_denom'
+	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
 	newDenom := "/" + m.Realm.Path + ":" + denom
 	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
@@ -99,6 +107,12 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
 
-	newDenom := "realm/" + m.Realm.Path + "/" + denom
+	matched, err := regexp.MatchString("[a-z][a-z0-9]{2,15}", denom)
+	if err != nil || !matched {
+		m.Panic(typedString("invalid denom format, must be [a-z][a-z0-9]{2,15}"))
+		return
+	}
+
+	newDenom := "/" + m.Realm.Path + ":" + denom
 	m.Context.(ExecContext).Banker.RemoveCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
