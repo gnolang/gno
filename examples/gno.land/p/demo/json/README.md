@@ -123,10 +123,6 @@ func main() {
 
 ### Searching
 
-Node 타입으로 변환된 JSON 데이터를 이용하여 특정 조건을 만족하는 데이터를 검색, 추출할 수 있습니다. 예를 들어, 특정 타입을 가진 데이터를 찾거나, 특정 키를 가진 데이터를 찾을 수 있습니다. 이 기능을 사용하려면 GetXXX 형태의 메서드를 사용합니다. MustXXX 메서드 역시 GetXXX 메서드와 동일한 기능을 제공하지만, 만약 조건을 만족하는 데이터가 없을 경우 panic을 발생시킵니다.
-
-아래는 특정 키를 가진 데이터를 찾는 예제입니다. 더 많은 예제는 [node.gno](node.gno) 파일을 참고하세요.
-
 Once the JSON data converted into a `Node` type, you can **search** and **extract** data that satisfy specific conditions. For example, you can find data with a specific type or data with a specific key.
 
 To use this functionality, you can use methods in the `GetXXX` prefixed methods. The `MustXXX` methods also provide the same functionality as the former methods, but they will **panic** if data doesn't satisfies the condition.
