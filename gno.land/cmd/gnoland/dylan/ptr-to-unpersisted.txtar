@@ -1,0 +1,81 @@
+# This test is meant to exhibit how pointers to unpersisted values cannot be
+# persisted as realm variables in other realms.
+
+loadpkg gno.land/r/steal_ownership $WORK/steal
+loadpkg gno.land/r/mis_ownership $WORK/mis
+
+gnoland start
+
+! gnokey maketx call -pkgpath gno.land/r/mis_ownership -func SharePtr1 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot modify external-realm or non-realm object'
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func SharePtr2 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/mis_ownership -func Update -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot modify external-realm or non-realm object'
+
+gnokey maketx call -pkgpath gno.land/r/mis_ownership -func SharePtr3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/steal_ownership -func Update -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/steal_ownership -func PtrValue -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '(43 uint32)'
+stdout OK!
+
+-- steal/steal.gno --
+package steal_ownership
+
+var Ptr *uint32
+
+func Steal(xptr *uint32) {
+	Ptr = xptr
+}
+
+func Update() {
+	*Ptr = 43
+}
+
+func PtrValue() uint32 {
+	return *Ptr
+}
+
+-- mis/mis.gno --
+package mis_ownership
+
+import "gno.land/r/steal_ownership"
+
+var y *uint32
+
+func SharePtr1() {
+	x := uint32(42)
+	y = &x
+
+	// This is not okay because the x value is owned by this realm by way of y, and is
+	// currently planned to be persisted.
+	steal_ownership.Steal(&x)
+}
+
+
+func SharePtr2() {
+	x := uint32(42)
+	steal_ownership.Steal(&x)
+
+	// This is okay because the x value was already persisted and is now owned by the
+	// steal realm because it was unowned with no plan to persist it at the time.
+	// However, it is not owned by this realm now so any attempt to modify it will fail.
+	y = &x
+}
+
+func SharePtr3() {
+	x := uint32(42)
+
+	// This is okay because the x value is unowned and will not be persisted by this realm.
+	steal_ownership.Steal(&x)
+}
+
+func Update() {
+	*y = 43
+}
