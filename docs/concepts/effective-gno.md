@@ -596,6 +596,96 @@ func init() {
 // the object.
 ```
 
+### Be careful sharing pointers with other realms
+
+It is possible and, in some cases, advantageous to declare global realm variables that are pointers.
+However, be careful; there may be unintended consequences when passing these global pointers as arguments
+to other realms' functions. If the other realm persists this pointer into its own realm state, the 
+underlying value being pointed to will continue to exist even if the original realm no longer maintains
+any references to it. If the object is large, this means that the owner's realm will never be able to 
+reclaim this storage, something that may have serious cost implications if gno.land moves to a rent-based
+realm storage plan in the future.
+
+This is an example of a pointer that is safe to pass to another realm:
+```go
+package obj_owner
+import (
+    "gno.land/p/large"
+    "gno.land/r/obj_ref"
+)
+
+var bigObj large.Object
+
+func init() {
+    bigObj.FillwithLotsOfData()
+}
+
+// This is safe because the object being referenced will always exist in this realm.
+func ShareReference() {
+    obj_ref.SetLargeObjRef(&bigObj)
+}
+
+------------------------------------------
+package obj_ref
+
+import "gno.land/p/large"
+
+var sharedObj *large.Object
+
+func SetLargeObjRef(ref *large.Object) {
+    sharedObj = ref
+}
+```
+
+This is an unsafe example that may result in the referenced large object being doomed to exist forever.
+```go
+package obj_owner
+import (
+    "gno.land/p/large"
+    "gno.land/r/obj_ref"
+)
+
+var bigObjs []large.Object
+
+func init() {
+    ResetBigObjs()
+}
+
+func ResetBigObjs() {
+    bigObjs = make([]bigObj, 3)
+    for i := 1; i < len(bigObj); i++ {
+        bigObjs[i].FillwithLotsOfData()
+    }
+}
+
+// This is unsafe because the object being referenced will not be referenced from this realm anymore
+// after the next call to ResetBigObjs.
+func ShareReference() {
+    if len(bigObjs) == 0 {
+        return
+    }
+
+    obj_ref.SetLargeObjRef(&bigObjs[len(bigObjs)-1])
+}
+
+------------------------------------------
+package obj_ref
+
+import "gno.land/p/large"
+
+var sharedObj *large.Object
+
+func SetLargeObjRef(ref *large.Object) {
+    sharedObj = ref
+}
+```
+
+#### Sharing pointers to non-global realm variables
+Before passing a pointer as an argument to another realm, it is important to always check how that realm will
+use that pointer. Be wary of realms that persist pointer values to their own global realm state. If you pass
+a pointer to a variable that is not part of your own global realm state, and other realm tries to persis it,
+it will result in a panic message because the value being pointed to has not yet, and may never be, persisted.
+
 ### Choosing between Coins and GRC20 tokens
 
 In Gno, you've got two primary options: Coins or GRC20. Each option
