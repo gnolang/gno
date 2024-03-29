@@ -31,7 +31,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error)
 ```
 
-`Send` executes a one or more [MsgSend](#type-msgsend) calls on the blockchain.
+`Send` executes one or more [MsgSend](#type-msgsend) calls on the blockchain.
 
 ### func \(\*Client\) [Run](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L112>)
 
