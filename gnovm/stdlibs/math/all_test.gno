@@ -2235,9 +2235,9 @@ func tolerance(a, b, e float64) bool {
 	}
 	return d < e
 }
-func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
-func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
-func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
+func closeFloat64(a, b float64) bool { return tolerance(a, b, 1e-14) }
+func veryclose(a, b float64) bool    { return tolerance(a, b, 4e-16) }
+func soclose(a, b, e float64) bool   { return tolerance(a, b, e) }
 func alike(a, b float64) bool {
 	switch {
 	case math.IsNaN(a) && math.IsNaN(b):
@@ -2262,7 +2262,7 @@ func TestNaN(t *testing.T) {
 func TestAcos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := vf[i] / 10
-		if f := math.Acos(a); !close(acos[i], f) {
+		if f := math.Acos(a); !closeFloat64(acos[i], f) {
 			t.Errorf("math.Acos(%g) = %g, want %g", a, f, acos[i])
 		}
 	}
@@ -2413,7 +2413,7 @@ func TestCos(t *testing.T) {
 
 func TestCosh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Cosh(vf[i]); !close(cosh[i], f) {
+		if f := math.Cosh(vf[i]); !closeFloat64(cosh[i], f) {
 			t.Errorf("math.Cosh(%g) = %g, want %g", vf[i], f, cosh[i])
 		}
 	}
@@ -2465,12 +2465,12 @@ func TestErfinv(t *testing.T) {
 		}
 	}
 	for x := -0.9; x <= 0.90; x += 1e-2 {
-		if f := math.Erf(math.Erfinv(x)); !close(x, f) {
+		if f := math.Erf(math.Erfinv(x)); !closeFloat64(x, f) {
 			t.Errorf("math.Erf(math.Erfinv(%g)) = %g, want %g", x, f, x)
 		}
 	}
 	for x := -0.9; x <= 0.90; x += 1e-2 {
-		if f := math.Erfinv(math.Erf(x)); !close(x, f) {
+		if f := math.Erfinv(math.Erf(x)); !closeFloat64(x, f) {
 			t.Errorf("math.Erfinv(math.Erf(%g)) = %g, want %g", x, f, x)
 		}
 	}
@@ -2489,12 +2489,12 @@ func TestErfcinv(t *testing.T) {
 		}
 	}
 	for x := 0.1; x <= 1.9; x += 1e-2 {
-		if f := math.Erfc(math.Erfcinv(x)); !close(x, f) {
+		if f := math.Erfc(math.Erfcinv(x)); !closeFloat64(x, f) {
 			t.Errorf("math.Erfc(math.Erfcinv(%g)) = %g, want %g", x, f, x)
 		}
 	}
 	for x := 0.1; x <= 1.9; x += 1e-2 {
-		if f := math.Erfcinv(math.Erfc(x)); !close(x, f) {
+		if f := math.Erfcinv(math.Erfc(x)); !closeFloat64(x, f) {
 			t.Errorf("math.Erfcinv(math.Erfc(%g)) = %g, want %g", x, f, x)
 		}
 	}
@@ -2527,7 +2527,7 @@ func TestExpm1(t *testing.T) {
 	}
 	for i := 0; i < len(vf); i++ {
 		a := vf[i] * 10
-		if f := math.Expm1(a); !close(expm1Large[i], f) {
+		if f := math.Expm1(a); !closeFloat64(expm1Large[i], f) {
 			t.Errorf("math.Expm1(%g) = %g, want %g", a, f, expm1Large[i])
 		}
 	}
@@ -2545,7 +2545,7 @@ func TestExp2(t *testing.T) {
 
 func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Exp2(vf[i]); !close(exp2[i], f) {
+		if f := math.Exp2(vf[i]); !closeFloat64(exp2[i], f) {
 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp2[i])
 		}
 	}
@@ -2680,7 +2680,7 @@ func TestFrexp(t *testing.T) {
 
 func TestGamma(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Gamma(vf[i]); !close(gamma[i], f) {
+		if f := math.Gamma(vf[i]); !closeFloat64(gamma[i], f) {
 			t.Errorf("math.Gamma(%g) = %g, want %g", vf[i], f, gamma[i])
 		}
 	}
@@ -2692,7 +2692,7 @@ func TestGamma(t *testing.T) {
 		} else if g[0] > -50 && g[0] <= 171 {
 			ok = veryclose(g[1], f)
 		} else {
-			ok = close(g[1], f)
+			ok = closeFloat64(g[1], f)
 		}
 		if !ok {
 			t.Errorf("math.Gamma(%g) = %g, want %g", g[0], f, g[1])
@@ -2762,7 +2762,7 @@ func TestJ0(t *testing.T) {
 
 func TestJ1(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.J1(vf[i]); !close(j1[i], f) {
+		if f := math.J1(vf[i]); !closeFloat64(j1[i], f) {
 			t.Errorf("math.J1(%g) = %g, want %g", vf[i], f, j1[i])
 		}
 	}
@@ -2775,10 +2775,10 @@ func TestJ1(t *testing.T) {
 
 func TestJn(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Jn(2, vf[i]); !close(j2[i], f) {
+		if f := math.Jn(2, vf[i]); !closeFloat64(j2[i], f) {
 			t.Errorf("math.Jn(2, %g) = %g, want %g", vf[i], f, j2[i])
 		}
-		if f := math.Jn(-3, vf[i]); !close(jM3[i], f) {
+		if f := math.Jn(-3, vf[i]); !closeFloat64(jM3[i], f) {
 			t.Errorf("math.Jn(-3, %g) = %g, want %g", vf[i], f, jM3[i])
 		}
 	}
@@ -2822,7 +2822,7 @@ func TestLdexp(t *testing.T) {
 
 func TestLgamma(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f, s := math.Lgamma(vf[i]); !close(lgamma[i].f, f) || lgamma[i].i != s {
+		if f, s := math.Lgamma(vf[i]); !closeFloat64(lgamma[i].f, f) || lgamma[i].i != s {
 			t.Errorf("math.Lgamma(%g) = %g, %d, want %g, %d", vf[i], f, s, lgamma[i].f, lgamma[i].i)
 		}
 	}
@@ -2969,7 +2969,7 @@ func TestNextafter64(t *testing.T) {
 
 func TestPow(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Pow(10, vf[i]); !close(pow[i], f) {
+		if f := math.Pow(10, vf[i]); !closeFloat64(pow[i], f) {
 			t.Errorf("math.Pow(10, %g) = %g, want %g", vf[i], f, pow[i])
 		}
 	}
@@ -3081,7 +3081,7 @@ func TestSincos(t *testing.T) {
 
 func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := math.Sinh(vf[i]); !close(sinh[i], f) {
+		if f := math.Sinh(vf[i]); !closeFloat64(sinh[i], f) {
 			t.Errorf("math.Sinh(%g) = %g, want %g", vf[i], f, sinh[i])
 		}
 	}
@@ -3156,7 +3156,7 @@ func TestTrunc(t *testing.T) {
 func TestY0(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := math.Abs(vf[i])
-		if f := math.Y0(a); !close(y0[i], f) {
+		if f := math.Y0(a); !closeFloat64(y0[i], f) {
 			t.Errorf("math.Y0(%g) = %g, want %g", a, f, y0[i])
 		}
 	}
@@ -3184,10 +3184,10 @@ func TestY1(t *testing.T) {
 func TestYn(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := math.Abs(vf[i])
-		if f := math.Yn(2, a); !close(y2[i], f) {
+		if f := math.Yn(2, a); !closeFloat64(y2[i], f) {
 			t.Errorf("math.Yn(2, %g) = %g, want %g", a, f, y2[i])
 		}
-		if f := math.Yn(-3, a); !close(yM3[i], f) {
+		if f := math.Yn(-3, a); !closeFloat64(yM3[i], f) {
 			t.Errorf("math.Yn(-3, %g) = %g, want %g", a, f, yM3[i])
 		}
 	}
@@ -3267,7 +3267,7 @@ func TestLargeCos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		f1 := cosLarge[i]
 		f2 := math.Cos(vf[i] + large)
-		if !close(f1, f2) {
+		if !closeFloat64(f1, f2) {
 			t.Errorf("math.Cos(%g) = %g, want %g", vf[i]+large, f2, f1)
 		}
 	}
@@ -3278,7 +3278,7 @@ func TestLargeSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		f1 := sinLarge[i]
 		f2 := math.Sin(vf[i] + large)
-		if !close(f1, f2) {
+		if !closeFloat64(f1, f2) {
 			t.Errorf("math.Sin(%g) = %g, want %g", vf[i]+large, f2, f1)
 		}
 	}
@@ -3289,7 +3289,7 @@ func TestLargeSincos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		f1, g1 := sinLarge[i], cosLarge[i]
 		f2, g2 := math.Sincos(vf[i] + large)
-		if !close(f1, f2) || !close(g1, g2) {
+		if !closeFloat64(f1, f2) || !closeFloat64(g1, g2) {
 			t.Errorf("math.Sincos(%g) = %g, %g, want %g, %g", vf[i]+large, f2, g2, f1, g1)
 		}
 	}
@@ -3300,7 +3300,7 @@ func TestLargeTan(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		f1 := tanLarge[i]
 		f2 := math.Tan(vf[i] + large)
-		if !close(f1, f2) {
+		if !closeFloat64(f1, f2) {
 			t.Errorf("math.Tan(%g) = %g, want %g", vf[i]+large, f2, f1)
 		}
 	}
@@ -3325,18 +3325,18 @@ func TestTrigReduce(t *testing.T) {
 		j, z := math.TrigReduce(x)
 		xred := float64(j)*(math.Pi/4) + z
 
-		if f, fred := math.Sin(x), math.Sin(xred); !close(f, fred) {
+		if f, fred := math.Sin(x), math.Sin(xred); !closeFloat64(f, fred) {
 			t.Errorf("math.Sin(trigmath.Reduce(%g)) != math.Sin(%g), got %g, want %g", x, x, fred, f)
 		}
-		if f, fred := math.Cos(x), math.Cos(xred); !close(f, fred) {
+		if f, fred := math.Cos(x), math.Cos(xred); !closeFloat64(f, fred) {
 			t.Errorf("math.Cos(trigmath.Reduce(%g)) != math.Cos(%g), got %g, want %g", x, x, fred, f)
 		}
-		if f, fred := math.Tan(x), math.Tan(xred); !close(f, fred) {
+		if f, fred := math.Tan(x), math.Tan(xred); !closeFloat64(f, fred) {
 			t.Errorf(" math.Tan(trigmath.Reduce(%g)) != math.Tan(%g), got %g, want %g", x, x, fred, f)
 		}
 		f, g := math.Sincos(x)
 		fred, gred := math.Sincos(xred)
-		if !close(f, fred) || !close(g, gred) {
+		if !closeFloat64(f, fred) || !closeFloat64(g, gred) {
 			t.Errorf(" math.Sincos(trigmath.Reduce(%g)) != math.Sincos(%g), got %g, %g, want %g, %g", x, x, fred, gred, f, g)
 		}
 	}

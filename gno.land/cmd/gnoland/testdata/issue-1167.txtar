@@ -1,4 +1,5 @@
 # Reproducible Test for https://github.com/gnolang/gno/issues/1167
+loadpkg gno.land/p/demo/avl
 
 gnoland start
 

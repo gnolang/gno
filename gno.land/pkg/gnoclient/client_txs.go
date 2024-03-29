@@ -2,29 +2,28 @@ package gnoclient
 
 import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// CallCfg contains configuration options for executing a contract call.
-type CallCfg struct {
-	PkgPath        string   // Package path
-	FuncName       string   // Function name
-	Args           []string // Function arguments
-	GasFee         string   // Gas fee
-	GasWanted      int64    // Gas wanted
-	Send           string   // Send amount
-	AccountNumber  uint64   // Account number
-	SequenceNumber uint64   // Sequence number
-	Memo           string   // Memo
-}
+var (
+	ErrEmptyPackage      = errors.New("empty package to run")
+	ErrEmptyPkgPath      = errors.New("empty pkg path")
+	ErrEmptyFuncName     = errors.New("empty function name")
+	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
+	ErrInvalidGasFee     = errors.New("invalid gas fee")
+	ErrMissingSigner     = errors.New("missing Signer")
+	ErrMissingRPCClient  = errors.New("missing RPCClient")
+	ErrInvalidToAddress  = errors.New("invalid send to address")
+	ErrInvalidSendAmount = errors.New("invalid send amount")
+)
 
-// RunCfg contains configuration options for running a temporary package on the blockchain.
-type RunCfg struct {
-	Package        *std.MemPackage
+type BaseTxCfg struct {
 	GasFee         string // Gas fee
 	GasWanted      int64  // Gas wanted
 	AccountNumber  uint64 // Account number
@@ -32,119 +31,198 @@ type RunCfg struct {
 	Memo           string // Memo
 }
 
-// Call executes a contract call on the blockchain.
-func (c *Client) Call(cfg CallCfg) (*ctypes.ResultBroadcastTxCommit, error) {
-	// Validate required client fields.
-	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
-	}
-	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
-	}
-
-	pkgPath := cfg.PkgPath
-	funcName := cfg.FuncName
-	args := cfg.Args
-	gasWanted := cfg.GasWanted
-	gasFee := cfg.GasFee
-	send := cfg.Send
-	sequenceNumber := cfg.SequenceNumber
-	accountNumber := cfg.AccountNumber
-	memo := cfg.Memo
-
-	// Validate config.
-	if pkgPath == "" {
-		return nil, errors.New("missing PkgPath")
-	}
-	if funcName == "" {
-		return nil, errors.New("missing FuncName")
-	}
-
-	// Parse send amount.
-	sendCoins, err := std.ParseCoins(send)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing send coins")
-	}
-
-	// Parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(gasFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	caller := c.Signer.Info().GetAddress()
-
-	// Construct message & transaction and marshal.
-	msg := vm.MsgCall{
-		Caller:  caller,
-		Send:    sendCoins,
-		PkgPath: pkgPath,
-		Func:    funcName,
-		Args:    args,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
-		Signatures: nil,
-		Memo:       memo,
-	}
-
-	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+// MsgCall - syntax sugar for vm.MsgCall
+type MsgCall struct {
+	PkgPath  string   // Package path
+	FuncName string   // Function name
+	Args     []string // Function arguments
+	Send     string   // Send amount
 }
 
-// Temporarily load cfg.Package on the blockchain and run main() which can
-// call realm functions and use println() to output to the "console".
-// This returns bres where string(bres.DeliverTx.Data) is the "console" output.
-func (c *Client) Run(cfg RunCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+// MsgSend - syntax sugar for bank.MsgSend minus fields in BaseTxCfg
+type MsgSend struct {
+	ToAddress crypto.Address // Send to address
+	Send      string         // Send amount
+}
+
+// MsgRun - syntax sugar for vm.MsgRun
+type MsgRun struct {
+	Package *std.MemPackage // Package to run
+	Send    string          // Send amount
+}
+
+// Call executes a one or more MsgCall calls on the blockchain.
+func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
-		return nil, errors.Wrap(err, "validate signer")
+		return nil, err
 	}
 	if err := c.validateRPCClient(); err != nil {
-		return nil, errors.Wrap(err, "validate RPC client")
+		return nil, err
 	}
 
-	memPkg := cfg.Package
-	gasWanted := cfg.GasWanted
-	gasFee := cfg.GasFee
-	sequenceNumber := cfg.SequenceNumber
-	accountNumber := cfg.AccountNumber
-	memo := cfg.Memo
-
-	// Validate config.
-	if memPkg.IsEmpty() {
-		return nil, errors.New("found an empty package " + memPkg.Path)
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
 	}
 
-	// Parse gas wanted & fee.
-	gasFeeCoins, err := std.ParseCoin(gasFee)
+	// Parse MsgCall slice
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgCall fields
+		if err := msg.validateMsgCall(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unwrap syntax sugar to vm.MsgCall slice
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
+			Caller:  c.Signer.Info().GetAddress(),
+			PkgPath: msg.PkgPath,
+			Func:    msg.FuncName,
+			Args:    msg.Args,
+			Send:    send,
+		}))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing gas fee coin")
+		return nil, err
 	}
 
-	caller := c.Signer.Info().GetAddress()
-
-	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
-	if err != nil {
-		return nil, errors.Wrap(err, "precompile and check")
-	}
-	memPkg.Name = "main"
-	memPkg.Path = "gno.land/r/" + caller.String() + "/run"
-
-	// Construct message & transaction and marshal.
-	msg := vm.MsgRun{
-		Caller:  caller,
-		Package: memPkg,
-	}
+	// Pack transaction
 	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gasWanted, gasFeeCoins),
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
 		Signatures: nil,
-		Memo:       memo,
+		Memo:       cfg.Memo,
 	}
 
-	return c.signAndBroadcastTxCommit(tx, accountNumber, sequenceNumber)
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
+}
+
+// Run executes a one or more MsgRun calls on the blockchain.
+func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	// Parse MsgRun slice
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgCall fields
+		if err := msg.validateMsgRun(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		caller := c.Signer.Info().GetAddress()
+
+		// Transpile and validate Gno syntax
+		if err = transpiler.TranspileAndCheckMempkg(msg.Package); err != nil {
+			return nil, err
+		}
+
+		msg.Package.Name = "main"
+		msg.Package.Path = ""
+
+		// Unwrap syntax sugar to vm.MsgCall slice
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
+			Caller:  caller,
+			Package: msg.Package,
+			Send:    send,
+		}))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	tx := std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}
+
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
+}
+
+// Send currency to an account on the blockchain.
+func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	// Parse MsgSend slice
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgSend fields
+		if err := msg.validateMsgSend(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unwrap syntax sugar to vm.MsgSend slice
+		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
+			FromAddress: c.Signer.Info().GetAddress(),
+			ToAddress:   msg.ToAddress,
+			Amount:      send,
+		}))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	tx := std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}
+
+	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result.
