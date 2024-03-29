@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/todolist"
 	"gno.land/p/demo/ufmt"
 )
@@ -12,7 +13,7 @@ import (
 // State variables
 var (
 	todolistTree *avl.Tree
-	tlid         int
+	tlid         seqid.ID
 )
 
 // Constructor
@@ -24,8 +25,8 @@ func NewTodolist(title string) (int, string) {
 	// Create new Todolist
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state
-	todolistTree.Set(strconv.Itoa(tlid), tl)
-	tlid++
+	todolistTree.Set(tlid.String(), tl)
+	tlid.Next()
 	return tlid - 1, "created successfully"
 }
 
@@ -134,7 +135,7 @@ func renderHomepage() string {
 		b.WriteString(
 			ufmt.Sprintf(
 				"## Todolist #%s: %s\n",
-				key, // Todolist ID
+				key+1, // Todolist ID
 				tl.GetTodolistTitle(),
 			),
 		)

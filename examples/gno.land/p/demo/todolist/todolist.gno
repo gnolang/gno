@@ -5,12 +5,11 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 )
 
 type TodoList struct {
 	Title string
-	Tasks avl.Tree
+	Tasks *avl.Tree
 	Owner std.Address
 }
 
@@ -22,7 +21,7 @@ type Task struct {
 func NewTodoList(title string) *TodoList {
 	return &TodoList{
 		Title: title,
-		Tasks: avl.Tree{},
+		Tasks: avl.NewTree(),
 		Owner: std.GetOrigCaller(),
 	}
 }
@@ -53,10 +52,6 @@ func (tl *TodoList) GetTasks() []*Task {
 		return false
 	})
 	return tasks
-}
-
-func (tl *TodoList) String() string {
-	return ufmt.Sprintf("TodoList{Title: %q, Tasks: %v, Owner: %v}", tl.Title, tl.GetTasks(), tl.Owner)
 }
 
 func (tl *TodoList) GetTodolistOwner() std.Address {

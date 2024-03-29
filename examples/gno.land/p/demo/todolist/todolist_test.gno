@@ -1,51 +1,81 @@
 package todolist
 
 import (
+	"std"
 	"testing"
-
-	"gno.land/p/demo/avl"
 )
 
-func TestTodolistNew(t *testing.T) {
-	newtl := &TodoList{
-		Title: "new todolist",
-		Tasks: avl.Tree{},
-	}
-	tl := NewTodoList("new todolist")
-	if tl.Title != newtl.Title {
-		t.Fatalf("title is not good")
-	}
-	if tl.Tasks != newtl.Tasks {
-		t.Fatalf("tasks not good")
+func TestNewTodoList(t *testing.T) {
+	title := "My Todo List"
+	todoList := NewTodoList(title)
+
+	if todoList.GetTodolistTitle() != title {
+		t.Errorf("Expected title %q, got %q", title, todoList.GetTodolistTitle())
 	}
 
-	// test new task
-	newtask := &Task{
-		Title: "new task",
-		Done:  false,
-	}
-	nt := NewTask("new task")
-	if nt.Title != newtask.Title {
-		t.Fatalf("title is not good")
-	}
-	if nt.Done != newtask.Done {
-		t.Fatalf("done is not good")
+	if len(todoList.GetTasks()) != 0 {
+		t.Errorf("Expected 0 tasks, got %d", len(todoList.GetTasks()))
 	}
 
-	// test add a task
-	id := tl.Tasks.Size()
-	tl.AddTask(id, nt)
-	if tl.Tasks.Size() != 1 {
-		t.Fatalf("task not added")
+	if todoList.GetTodolistOwner() != std.GetOrigCaller() {
+		t.Errorf("Expected owner %v, got %v", std.GetOrigCaller(), todoList.GetTodolistOwner())
+	}
+}
+
+func TestNewTask(t *testing.T) {
+	title := "My Task"
+	task := NewTask(title)
+
+	if task.Title != title {
+		t.Errorf("Expected title %q, got %q", title, task.Title)
 	}
 
-	// test ToggleTaskStatus
-	task, exists := tl.Tasks.Get("0")
-	if !exists {
-		t.Fatalf("task not found")
+	if task.Done {
+		t.Errorf("Expected task to be not done, but it is done")
 	}
-	ToggleTaskStatus(task.(*Task))
-	if task.(*Task).Done != true {
-		t.Fatalf("task not toggled")
+}
+
+func TestAddTask(t *testing.T) {
+	todoList := NewTodoList("My Todo List")
+	task := NewTask("My Task")
+
+	todoList.AddTask(1, task)
+
+	tasks := todoList.GetTasks()
+	if len(tasks) != 1 {
+		t.Errorf("Expected 1 task, got %d", len(tasks))
+	}
+
+	if tasks[0] != task {
+		t.Errorf("Expected task %v, got %v", task, tasks[0])
+	}
+}
+
+func TestToggleTaskStatus(t *testing.T) {
+	task := NewTask("My Task")
+
+	ToggleTaskStatus(task)
+
+	if !task.Done {
+		t.Errorf("Expected task to be done, but it is not done")
+	}
+
+	ToggleTaskStatus(task)
+
+	if task.Done {
+		t.Errorf("Expected task to be not done, but it is done")
+	}
+}
+
+func TestRemoveTask(t *testing.T) {
+	todoList := NewTodoList("My Todo List")
+	task := NewTask("My Task")
+	todoList.AddTask(1, task)
+
+	todoList.RemoveTask("1")
+
+	tasks := todoList.GetTasks()
+	if len(tasks) != 0 {
+		t.Errorf("Expected 0 tasks, got %d", len(tasks))
 	}
 }
