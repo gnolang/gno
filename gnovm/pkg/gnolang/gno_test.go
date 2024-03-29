@@ -125,21 +125,22 @@ func TestRunLoopyMain(t *testing.T) {
 package test
 
 func main() {
-	//println(a)
-	//println(b)
-	//println(c)
+	println(a)
+	println(b)
+	println(c)
+	println(d)
 
-	b()
+	//b()
 }
 
 //var a, b, c = 1, a + 1, b + 1
 
-var b = func(){println(123)}
+//var b = func(){println(a)}
 //var c = a
 //var a = "123"
 
-//var a, b, c = 1, a + d, 3
-//var d = a
+var a, b, c = 1, a + d, 3
+var d = a
 `
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)

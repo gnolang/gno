@@ -12,7 +12,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		d := decls[i]
 		vd, ok := d.(*ValueDecl)
 
-		if !ok || d.GetAttribute(ATTR_PREDEFINED) == true {
+		if !ok {
 			continue
 		}
 
@@ -25,7 +25,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		d := decls[i]
 		vd, ok := d.(*ValueDecl)
 
-		if !ok || d.GetAttribute(ATTR_PREDEFINED) == true {
+		if !ok {
 			continue
 		}
 
@@ -42,7 +42,8 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		for _, decl := range decls {
 			vd, ok := decl.(*ValueDecl)
 
-			if !ok || vd.GetAttribute(ATTR_PREDEFINED) == true {
+			if !ok {
+				sorted = append(sorted, decl)
 				continue
 			}
 
