@@ -168,7 +168,6 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 }
 
 func TestBadSortBy(t *testing.T) {
-
 	m := NewMemeland()
 	now := time.Now()
 
