@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,6 +12,8 @@ import (
 	rtdb "runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"

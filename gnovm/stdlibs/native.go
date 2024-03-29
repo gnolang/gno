@@ -674,9 +674,9 @@ var nativeFuncs = [...]nativeFunc{
 			//}
 
 			// NOTE: value is nil before you call Gno2GoValue
-			//fmt.Println("typ:", typ)
-			//fmt.Println("attrs:", attrs)
-			//fmt.Println("pkgPath:", pkgPath)
+			// fmt.Println("typ:", typ)
+			// fmt.Println("attrs:", attrs)
+			// fmt.Println("pkgPath:", pkgPath)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rtyp)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rattrs)

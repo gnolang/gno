@@ -14,6 +14,8 @@ type testEvent struct {
 }
 
 func TestCreateNewEventAndAddAttributesWithStringSlice(t *testing.T) {
+	t.Parallel()
+
 	cases := []testEvent{
 		{
 			name:      "Basic event with attributes",
@@ -68,49 +70,51 @@ func TestCreateNewEventAndAddAttributesWithStringSlice(t *testing.T) {
 }
 
 func TestCreateNewEventWithUsingAddAttribute(t *testing.T) {
-    tests := []struct {
-        name       string
-        attributes map[string]string
-        expected   map[string]string
-    }{
-        {
-            name: "Test 1",
-            attributes: map[string]string{
-                "world": "hello world!",
-                "foo":   "bar",
-            },
-            expected: map[string]string{
-                "Type":       "hello",
-                "Attributes": "2",
-                "world":      "hello world!",
-                "foo":        "bar",
-            },
-        },
-    }
+	t.Parallel()
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            e, err := NewEvent("hello")
-            if err != nil {
-                t.Errorf("unexpected error: %v", err)
-            }
+	tests := []struct {
+		name       string
+		attributes map[string]string
+		expected   map[string]string
+	}{
+		{
+			name: "Test 1",
+			attributes: map[string]string{
+				"world": "hello world!",
+				"foo":   "bar",
+			},
+			expected: map[string]string{
+				"Type":       "hello",
+				"Attributes": "2",
+				"world":      "hello world!",
+				"foo":        "bar",
+			},
+		},
+	}
 
-            for key, value := range tt.attributes {
-                e.AddAttribute(key, value)
-            }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e, err := NewEvent("hello")
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
 
-            actual := map[string]string{
-                "Type":       e.Type,
-                "Attributes": strconv.Itoa(len(e.Attributes)),
-                "world":      e.Attributes[0].Value,
-                "foo":        e.Attributes[1].Value,
-            }
+			for key, value := range tt.attributes {
+				e.AddAttribute(key, value)
+			}
 
-            for key, value := range tt.expected {
-                if actual[key] != value {
-                    t.Errorf("expected %s, got %s", value, actual[key])
-                }
-            }
-        })
-    }
+			actual := map[string]string{
+				"Type":       e.Type,
+				"Attributes": strconv.Itoa(len(e.Attributes)),
+				"world":      e.Attributes[0].Value,
+				"foo":        e.Attributes[1].Value,
+			}
+
+			for key, value := range tt.expected {
+				if actual[key] != value {
+					t.Errorf("expected %s, got %s", value, actual[key])
+				}
+			}
+		})
+	}
 }
