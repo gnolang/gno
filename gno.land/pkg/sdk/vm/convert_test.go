@@ -119,6 +119,11 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 		C string
 	}
 
+	// Basic struct
+	type InterfaceStruct struct {
+		C any
+	}
+
 	// Struct with unexported field
 	type UnexportedStruct struct {
 		A int
@@ -156,6 +161,9 @@ func TestConvertArg2Gno_Struct(t *testing.T) {
 			NestedStruct{A: 42, B: &SimpleStruct{A: true, B: 43}},
 			`{"A":42,"B":{"A":true,"B":43,"C":""}}`,
 		},
+
+		// XXX(FIXME): Interface arn't supported yet
+		// {InterfaceStruct{C: "hello"}, "hello"},
 
 		// XXX(FIXME): Currently commented out as it causes stack overflow in `Go2GnoValue`
 		// Struct with nested and recursive struct
