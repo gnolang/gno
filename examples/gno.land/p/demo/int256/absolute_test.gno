@@ -1,8 +1,9 @@
 package int256
 
 import (
-	"gno.land/p/demo/uint256"
 	"testing"
+
+	"gno.land/p/demo/uint256"
 )
 
 func TestAbs(t *testing.T) {

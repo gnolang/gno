@@ -24,7 +24,7 @@ func (z *Int) SetInt64(x int64) *Int {
 // SetUint64 sets z to x and returns z.
 func (z *Int) SetUint64(x uint64) *Int {
 	z.initiateAbs()
-	
+
 	if z.abs == nil {
 		panic("abs is nil")
 	}
