@@ -11,7 +11,7 @@ type Client struct {
 }
 
 // validateSigner checks that the signer is correctly configured.
-func (c Client) validateSigner() error {
+func (c *Client) validateSigner() error {
 	if c.Signer == nil {
 		return ErrMissingSigner
 	}
@@ -19,7 +19,7 @@ func (c Client) validateSigner() error {
 }
 
 // validateRPCClient checks that the RPCClient is correctly configured.
-func (c Client) validateRPCClient() error {
+func (c *Client) validateRPCClient() error {
 	if c.RPCClient == nil {
 		return ErrMissingRPCClient
 	}

@@ -1,13 +1,13 @@
 # Test with a failing _test.gno file
 
-! gno test -verbose .
+! gno test -v .
 
 ! stdout .+
 stderr '=== RUN   TestAlwaysFailing'
 stderr '--- FAIL: TestAlwaysFailing'
 stderr 'FAIL: 0 build errors, 1 test errors'
 
-! gno test -verbose --precompile .
+! gno test -v --transpile .
 
 ! stdout .+
 stderr '=== RUN   TestAlwaysFailing'

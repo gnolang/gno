@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -30,7 +31,7 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <key-name or address> <file or - or dir>",
-			ShortHelp:  "Runs Gno code by invoking main() in a package",
+			ShortHelp:  "runs Gno code by invoking main() in a package",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -108,8 +109,8 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
-	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
+	// transpile and validate syntax
+	err = transpiler.TranspileAndCheckMempkg(memPkg)
 	if err != nil {
 		panic(err)
 	}

@@ -15,7 +15,7 @@ import (
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 // for testing
@@ -145,7 +145,7 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	t.Parallel()
 
 	state, privVals := randGenesisState(1, false, 10)
-	blockDB := dbm.NewMemDB()
+	blockDB := memdb.NewMemDB()
 	app := NewCounterApplication()
 	cs := newConsensusStateWithConfigAndBlockStore(config, state, privVals[0], app, blockDB)
 	sm.SaveState(blockDB, state)
@@ -179,7 +179,7 @@ func TestMempoolRmBadTx(t *testing.T) {
 
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
-	blockDB := dbm.NewMemDB()
+	blockDB := memdb.NewMemDB()
 	cs := newConsensusStateWithConfigAndBlockStore(config, state, privVals[0], app, blockDB)
 	sm.SaveState(blockDB, state)
 

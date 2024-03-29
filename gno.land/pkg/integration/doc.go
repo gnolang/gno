@@ -16,6 +16,8 @@
 //   - Supports most of the common commands.
 //   - `--remote`, `--insecure-password-stdin`, and `--home` flags are set automatically to
 //     communicate with the gnoland node.
+//   - In order to handle escape sequences like `\n` within arguments, you can enclose the argument
+//     in `"`
 //
 // 3. `adduser`:
 //   - Must be run before `gnoland start`.

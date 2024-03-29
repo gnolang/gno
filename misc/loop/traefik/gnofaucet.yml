@@ -1,0 +1,22 @@
+---
+http:
+  routers:
+    gnofaucet-local:
+      service: gnofaucet
+      rule: "Host(`faucet.portal.gno.local`)"
+      entrypoints: ["web", "websecure", "private"]
+      middlewares: []
+
+    gnofaucet:
+      service: gnofaucet
+      rule: "Host(`faucet.gno.land`) || Host(`faucet.portal.gnoteam.com`)"
+      tls:
+        certResolver: le
+      entrypoints: ["web", "websecure"]
+      middlewares: []
+
+  services:
+    gnofaucet:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:9000"

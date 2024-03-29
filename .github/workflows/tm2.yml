@@ -59,6 +59,7 @@ jobs:
           - _test.pkg.amino
           - _test.pkg.bft
           - _test.pkg.others
+          # _test.pkg.db needs special dependencies -- see db-tests.
     runs-on: ubuntu-latest
     timeout-minutes: 21
     steps:

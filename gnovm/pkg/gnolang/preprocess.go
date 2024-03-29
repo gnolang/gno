@@ -167,7 +167,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.New(fmt.Sprintf("%s: %v", loc.String(), r))
+					err = fmt.Errorf("%s: %v", loc.String(), r)
 				}
 
 				// Re-throw the error after wrapping it with the preprocessing stack information.
@@ -2900,7 +2900,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 				panic(errors.Wrap(rerr, loc.String()))
 			} else {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+				panic(fmt.Errorf("%s: %v", loc.String(), r))
 			}
 		}
 	}()
@@ -2912,6 +2912,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
+		if isUverseName(dn) {
+			panic(fmt.Sprintf(
+				"builtin identifiers cannot be shadowed: %s", dn))
+		}
 		m[dn] = struct{}{}
 	}
 	// recursively predefine dependencies.
@@ -3249,6 +3253,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}
+
 	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
 
 	// NOTE: ValueDecl names don't need this distinction, as
@@ -3282,7 +3287,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				} else {
 					path = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
-						panic("expected block value path type")
+						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
 					break
 				}
@@ -3291,6 +3296,9 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			nx.Path = path
 			return
 		}
+	} else if isUverseName(nx.Name) {
+		panic(fmt.Sprintf(
+			"builtin identifiers cannot be shadowed: %s", nx.Name))
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.

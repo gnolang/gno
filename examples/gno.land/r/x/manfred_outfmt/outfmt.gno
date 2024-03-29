@@ -39,9 +39,9 @@ func genResult() Result {
 		Number: r.Intn(1000),
 	}
 
-	len := r.Intn(8) + 2
-	res.Numbers = make([]int, len)
-	for i := 0; i < len; i++ {
+	length := r.Intn(8) + 2
+	res.Numbers = make([]int, length)
+	for i := 0; i < length; i++ {
 		res.Numbers[i] = r.Intn(100)
 	}
 
