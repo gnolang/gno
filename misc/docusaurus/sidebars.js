@@ -9,18 +9,18 @@ const sidebars = {
             label: 'Getting Started',
             link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
-                'getting-started/local-setup',
-                'getting-started/working-with-key-pairs',
+                'getting-started/playground-start',
                 {
-                    type: 'category',
-                    label: 'Setting up Funds',
+                 type: "category",
+                 label: 'Local Setup',
                     items: [
-                        'getting-started/setting-up-funds/premining-balances',
-                        'getting-started/setting-up-funds/running-a-faucet',
+                        'getting-started/local-setup/local-setup',
+                        'getting-started/local-setup/working-with-key-pairs',
+                        'getting-started/local-setup/premining-balances',
+                        'getting-started/local-setup/setting-up-a-local-chain',
+                        'getting-started/local-setup/browsing-gno-source-code',
                     ]
                 },
-                'getting-started/setting-up-a-local-chain',
-                'getting-started/browsing-gno-source-code',
             ],
         },
         {
@@ -35,6 +35,7 @@ const sidebars = {
                 'how-to-guides/write-simple-dapp',
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
+                'how-to-guides/connect-from-go',
                 'how-to-guides/connect-wallet-dapp',
             ],
         },
@@ -75,7 +76,14 @@ const sidebars = {
                 'gno-tooling/cli/gno-tooling-gnokey',
                 'gno-tooling/cli/gno-tooling-gnodev',
                 'gno-tooling/cli/gno-tooling-gnoland',
-                'gno-tooling/cli/gno-tooling-gnofaucet',
+                {
+                    type: 'category',
+                    label: 'gnofaucet',
+                    link: {type: 'doc', id: 'gno-tooling/cli/faucet/gno-tooling-gnofaucet'},
+                    items: [
+                        'gno-tooling/cli/faucet/running-a-faucet',
+                    ]
+                },
             ]
         },
         {
@@ -107,8 +115,8 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'tm2-js-client',
+                    link: {type: 'doc', id: 'reference/tm2-js-client/tm2-js-client'},
                     items: [
-                        'reference/tm2-js-client/tm2-js-getting-started',
                         'reference/tm2-js-client/tm2-js-wallet',
                         {
                             type: 'category',
@@ -134,10 +142,19 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'gno-js-client',
+                    link: {type: 'doc', id: 'reference/gno-js-client/gno-js-client'},
                     items: [
-                        'reference/gno-js-client/gno-js-getting-started',
                         'reference/gno-js-client/gno-js-provider',
                         'reference/gno-js-client/gno-js-wallet',
+                    ]
+                },
+                {
+                    type: 'category',
+                    label: 'gnoclient',
+                    link: {type: 'doc', id: 'reference/gnoclient/gnoclient'},
+                    items: [
+                        'reference/gnoclient/signer',
+                        'reference/gnoclient/client'
                     ]
                 },
             ],
