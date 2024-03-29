@@ -67,6 +67,7 @@ func (z *Int) And(x, y *Int) *Int {
 }
 
 // Rsh sets z = x >> n and returns z.
+// OBS: Different from original implementation it was using math.Big
 func (z *Int) Rsh(x *Int, n uint) *Int {
 	if !x.neg {
 		z.abs.Rsh(x.abs, n)
@@ -75,7 +76,7 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 	}
 
 	// REF: https://cs.opensource.google/go/go/+/refs/tags/go1.22.1:src/math/big/int.go;l=1118-1126;drc=d57303e65f00b84b528ee682747dbe1fd3316d30
-	t := NewInt(0).Sub(FromUint256(x.abs), NewInt(0))
+	t := NewInt(0).Sub(FromUint256(x.abs), NewInt(1))
 	t = t.Rsh(t, n)
 
 	_tmp := t.Add(t, NewInt(1))
