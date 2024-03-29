@@ -35,6 +35,7 @@ const sidebars = {
                 'how-to-guides/write-simple-dapp',
                 'how-to-guides/creating-grc20',
                 'how-to-guides/creating-grc721',
+                'how-to-guides/connect-from-go',
                 'how-to-guides/connect-wallet-dapp',
             ],
         },
@@ -114,8 +115,8 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'tm2-js-client',
+                    link: {type: 'doc', id: 'reference/tm2-js-client/tm2-js-client'},
                     items: [
-                        'reference/tm2-js-client/tm2-js-getting-started',
                         'reference/tm2-js-client/tm2-js-wallet',
                         {
                             type: 'category',
@@ -141,10 +142,19 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'gno-js-client',
+                    link: {type: 'doc', id: 'reference/gno-js-client/gno-js-client'},
                     items: [
-                        'reference/gno-js-client/gno-js-getting-started',
                         'reference/gno-js-client/gno-js-provider',
                         'reference/gno-js-client/gno-js-wallet',
+                    ]
+                },
+                {
+                    type: 'category',
+                    label: 'gnoclient',
+                    link: {type: 'doc', id: 'reference/gnoclient/gnoclient'},
+                    items: [
+                        'reference/gnoclient/signer',
+                        'reference/gnoclient/client'
                     ]
                 },
             ],
