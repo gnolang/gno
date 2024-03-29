@@ -3,7 +3,6 @@ package logger
 import (
 	"bytes"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"log/slog"
 	"strings"
@@ -101,7 +100,7 @@ func newColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) 
 		Bold(true).
 		Width(width)
 
-	if len(prefix) > width {
+	if len(prefix) >= width {
 		prefix = prefix[:width-3] + "..."
 	}
 
@@ -145,12 +144,6 @@ func (cl *columnWriter) Write(buf []byte) (n int, err error) {
 	return n, nil
 }
 
-func stringToColor(s string) int {
-	h := fnv.New32a()
-	h.Write([]byte(s))
-	return int((h.Sum32()+10)%255) + 1
-}
-
 // defaultStyles returns the default styles.
 func defaultStyles() *log.Styles {
 	style := log.DefaultStyles()
@@ -183,15 +176,15 @@ func defaultStyles() *log.Styles {
 	}
 	style.Keys = map[string]lipgloss.Style{
 		"err": lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")),
+			Foreground(lipgloss.Color("204")),
 		"error": lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")),
+			Foreground(lipgloss.Color("204")),
 	}
 	style.Values = map[string]lipgloss.Style{
 		"err": lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")),
+			Foreground(lipgloss.Color("204")),
 		"error": lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")),
+			Foreground(lipgloss.Color("204")),
 	}
 
 	return style
