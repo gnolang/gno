@@ -29,9 +29,6 @@ import (
 	"math"
 )
 
-// TODO: move to strconv package?
-// TODO: support %g and %f formats in ufmt package.
-
 const (
 	mantBits32 = 23
 	expBits32  = 8
@@ -79,10 +76,11 @@ func appendSpecial(b []byte, neg, expZero, mantZero bool) []byte {
 	if !expZero {
 		if neg {
 			return append(b, "-Inf"...)
-		} else {
-			return append(b, "+Inf"...)
 		}
+
+		return append(b, "+Inf"...)
 	}
+
 	if neg {
 		b = append(b, '-')
 	}

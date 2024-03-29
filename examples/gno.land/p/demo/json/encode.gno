@@ -12,8 +12,8 @@ import (
 
 // Marshal returns the JSON encoding of a Node.
 func Marshal(node *Node) ([]byte, error) {
-	var buf bytes.Buffer
 	var (
+		buf  bytes.Buffer
 		sVal string
 		bVal bool
 		nVal float64
@@ -23,7 +23,13 @@ func Marshal(node *Node) ([]byte, error) {
 
 	if node == nil {
 		return nil, errors.New("node is nil")
-	} else if node.modified {
+	}
+
+	if !node.modified && !node.ready() {
+		return nil, errors.New("node is not ready")
+	}
+
+	if node.modified {
 		switch node.nodeType {
 		case Null:
 			buf.Write(nullLiteral)
@@ -114,8 +120,6 @@ func Marshal(node *Node) ([]byte, error) {
 		}
 	} else if node.ready() {
 		buf.Write(node.source())
-	} else {
-		return nil, errors.New("node is not modified")
 	}
 
 	return buf.Bytes(), nil

@@ -37,17 +37,6 @@ func TestNode_CreateNewNode(t *testing.T) {
 		expectErr   bool
 		expectPanic bool
 	}{
-		// {
-		// 	name: "object with empty key",
-		// 	args: _args{
-		// 		prev: ObjectNode("", make(map[string]*Node)),
-		// 		buf:  newBuffer(make([]byte, 10)),
-		// 		typ:  Boolean,
-		// 		key:  &nilKey,
-		// 	},
-		// 	expectCurr:  nil,
-		// 	expectPanic: true,
-		// },
 		{
 			name: "child for non container type",
 			args: _args{

@@ -4,8 +4,6 @@ import (
 	"errors"
 )
 
-// TODO: not fully implemented yet.
-
 // ParsePath takes a JSONPath string and returns a slice of strings representing the path segments.
 func ParsePath(path string) ([]string, error) {
 	buf := newBuffer([]byte(path))

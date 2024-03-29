@@ -140,9 +140,6 @@ func (n *Node) UniqueKeyLists() []string {
 	return collectKeys(n)
 }
 
-// TODO: implement the EachKey method. this takes a callback function and executes it for each key in the object node.
-// func (n *Node) EachKey(callback func(key string, value *Node)) { ... }
-
 // Empty returns true if the current node is empty.
 func (n *Node) Empty() bool {
 	if n == nil {
