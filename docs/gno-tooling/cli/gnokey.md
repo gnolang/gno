@@ -118,16 +118,16 @@ gnokey query {QUERY_PATH}
 
 #### **Query**
 
-| Query Path                | Description                                                        | Example                                                                                |
-|---------------------------|--------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| `auth/accounts/{ADDRESS}` | Returns information about an account.                              | `gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
-| `bank/balances/{ADDRESS}` | Returns balances of an account.                                    | `gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
-| `vm/qfuncs`               | Returns public facing function signatures as JSON.                 | `gnokey query vm/qfuncs --data "gno.land/r/demo/boards"`                               |
-| `vm/qfile`                | Returns the file bytes, or list of files if directory.             | `gnokey query vm/qfile --data "gno.land/r/demo/boards"`                                |
-| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards"`                              |
-| `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. | `gnokey query vm/qeval --data "gno.land/r/demo/boards GetBoardIDFromName("my_board")"` |
-| `vm/store`                | (not yet supported) Fetches items from the store.                  | -                                                                                      |
-| `vm/package`              | (not yet supported) Fetches a package's files.                     | -                                                                                      |
+| Query Path                | Description                                                                | Example                                                                                |
+|---------------------------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `auth/accounts/{ADDRESS}` | Returns information about an account.                                      | `gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
+| `bank/balances/{ADDRESS}` | Returns balances of an account.                                            | `gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
+| `vm/qfuncs`               | Returns public facing function signatures as JSON.                         | `gnokey query vm/qfuncs --data "gno.land/r/demo/boards"`                               |
+| `vm/qfile`                | Returns the file bytes, or list of files if directory.                     | `gnokey query vm/qfile --data "gno.land/r/demo/boards"`                                |
+| `vm/qrender`              | Calls .Render(path) in readonly mode.                                      | `gnokey query vm/qrender --data "gno.land/r/demo/boards"`                              |
+| `vm/qeval`                | Evaluates any expression in readonly mode and returns the results as JSON. | `gnokey query vm/qeval --data "gno.land/r/demo/boards GetBoardIDFromName("my_board")"` |
+| `vm/store`                | (not yet supported) Fetches items from the store.                          | -                                                                                      |
+| `vm/package`              | (not yet supported) Fetches a package's files.                             | -                                                                                      |
 
 #### **Options**
 
@@ -148,11 +148,11 @@ gnokey maketx {SUB_COMMAND} {ADDRESS or KeyName}
 
 #### **Subcommands**
 
-| Name     | Description                  |
-|----------|------------------------------|
-| `addpkg` | Uploads a new package.       |
-| `call`   | Calls a public function.     |
-| `send`   | The amount of coins to send. |
+| Name     | Description                                            |
+|----------|--------------------------------------------------------|
+| `addpkg` | Uploads a new package.                                 |
+| `call`   | Calls a public function and return the result as JSON. |
+| `send`   | The amount of coins to send.                           |
 
 ### `addpkg`
 
@@ -189,7 +189,10 @@ gnokey maketx addpkg \
 
 ### `call`
 
-This subcommand lets you call a public function.
+This subcommand allows you to invoke a public function by passing parameters as
+arguments using the `-args` flag. It supports primitive types, slices, arrays,
+and structs using JSON format.
+The output displays the return values of the method as an array containing values in JSON format.
 
 ```bash
 # Register
@@ -218,17 +221,13 @@ gnokey maketx call \
 
 #### **makeTx Call Options**
 
-| Name      | Type   | Description                                                                                                                                          |
-|-----------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `send`    | String | The amount of coins to send.                                                                                                                         |
-| `pkgpath` | String | The package path (required).                                                                                                                         |
-| `func`    | String | The contract to call (required).                                                                                                                     |
-| `args`    | String | An argument of the function being called. Can be used multiple times in a single `call` command to accommodate possible multiple function arguments. |
+| Name      | Type   | Description                                                                                                                                 |
+|-----------|--------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `send`    | String | The amount of coins to send.                                                                                                                |
+| `pkgpath` | String | The package path (required).                                                                                                                |
+| `func`    | String | The contract to call (required).                                                                                                            |
+| `args`    | String | Represents the function's argument in JSON format. You can use it multiple times within one `call` command for multiple function arguments. |
 
-:::info
-Currently, only primitive types are supported as `-args` parameters. This limitation will be addressed in the future.
-Alternatively, see how `maketx run` works.
-:::
 
 ### `send`
 
