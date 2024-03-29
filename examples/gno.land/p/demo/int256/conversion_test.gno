@@ -2,6 +2,8 @@ package int256
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uint256"
 )
 
 func TestSetInt64(t *testing.T) {
@@ -14,12 +16,6 @@ func TestSetInt64(t *testing.T) {
 		{-1, "-1"},
 		{9223372036854775807, "9223372036854775807"},
 		{-9223372036854775808, "-9223372036854775808"},
-
-		// bigint overflows target kind
-		// {9223372036854775808, "9223372036854775808"},
-
-		// bigint underflows target kind:
-		// {-9223372036854775809, "-9223372036854775809"},
 	}
 
 	for _, tc := range tests {
@@ -40,8 +36,6 @@ func TestSetUint64(t *testing.T) {
 	}{
 		{0, "0"},
 		{1, "1"},
-		// bigint overflows target kind
-		//{115792089237316195423570985008687907853269984665640564039457584007913129639935, "115792089237316195423570985008687907853269984665640564039457584007913129639935"},
 	}
 
 	for _, tc := range tests {
@@ -91,12 +85,10 @@ func TestInt64(t *testing.T) {
 		{"0", 0},
 		{"1", 1},
 		{"9223372036854775807", 9223372036854775807},
-		//{"9223372036854775808", 9223372036854775808}, // overflow int64
 		{"18446744073709551616", 0},
 		{"18446744073709551617", 1},
 		{"-1", -1},
 		{"-9223372036854775808", -9223372036854775808},
-		//{"-9223372036854775809", -9223372036854775809}, // underflow int64
 	}
 
 	for _, tc := range tests {
@@ -128,6 +120,52 @@ func TestNeg(t *testing.T) {
 		got := z.ToString()
 		if got != tc.want {
 			t.Errorf("Neg(%s) = %s, want %s", tc.x, got, tc.want)
+		}
+	}
+}
+
+func TestSet(t *testing.T) {
+	tests := []struct {
+		x    string
+		want string
+	}{
+		{"0", "0"},
+		{"1", "1"},
+		{"-1", "-1"},
+		{"9223372036854775807", "9223372036854775807"},
+		{"-18446744073709551615", "-18446744073709551615"},
+	}
+
+	for _, tc := range tests {
+		z := MustFromDecimal(tc.x)
+		z.Set(z)
+
+		got := z.ToString()
+		if got != tc.want {
+			t.Errorf("Set(%s) = %s, want %s", tc.x, got, tc.want)
+		}
+	}
+}
+
+func TestSetUint256(t *testing.T) {
+	tests := []struct {
+		x    string
+		want string
+	}{
+		{"0", "0"},
+		{"1", "1"},
+		{"9223372036854775807", "9223372036854775807"},
+		{"18446744073709551615", "18446744073709551615"},
+	}
+
+	for _, tc := range tests {
+		got := New()
+
+		z := uint256.MustFromDecimal(tc.x)
+		got.SetUint256(z)
+
+		if got.ToString() != tc.want {
+			t.Errorf("SetUint256(%s) = %s, want %s", tc.x, got.ToString(), tc.want)
 		}
 	}
 }
