@@ -135,7 +135,6 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
-	//debug.Printf("---transcribe, n: %v \n", n)
 	// transcribe n on the way in.
 	var c TransCtrl
 	nn, c = t(ns, ftype, index, n, TRANS_ENTER)
@@ -410,7 +409,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *EmptyStmt:
 	case *ExprStmt:
-		debug.Printf("---transcribe, expr stmt, X: %v \n", cnn.X)
 		cnn.X = transcribe(t, nns, TRANS_EXPR_X, 0, cnn.X, &c).(Expr)
 		if isStopOrSkip(nc, c) {
 			return

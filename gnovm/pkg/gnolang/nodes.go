@@ -777,6 +777,7 @@ type ForStmt struct {
 	Cond Expr // condition; or nil
 	Post Stmt // post iteration (simple) statement; or nil
 	Body
+	closure *Closure
 }
 
 type GoStmt struct {
@@ -815,6 +816,7 @@ type RangeStmt struct {
 	Key, Value Expr // Key, Value may be nil
 	Op         Word // ASSIGN or DEFINE
 	Body
+	closure    *Closure
 	IsMap      bool // if X is map type
 	IsString   bool // if X is string type
 	IsArrayPtr bool // if X is array-pointer type
@@ -885,7 +887,6 @@ type bodyStmt struct {
 	NumValues     int          // number of Values, for goto
 	NumExprs      int          // number of Exprs, for goto
 	NumStmts      int          // number of Stmts, for goto
-	closure       *Closure     // for ForStmt
 	Cond          Expr         // for ForStmt
 	Post          Stmt         // for ForStmt
 	Active        Stmt         // for PopStmt()

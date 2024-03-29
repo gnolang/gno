@@ -1,0 +1,40 @@
+package main
+
+var y, counter int
+var f []func()
+
+func main() {
+	defer func() {
+		for _, ff := range f {
+			ff()
+		}
+	}()
+
+	//bar()
+LABEL_1:
+	x := y
+	if counter == 2 {
+		counter = 0
+		bar()
+	}
+	f = append(f, func() { println(x) })
+	y++
+	counter++
+	goto LABEL_1
+}
+
+func bar() {
+LABEL_2:
+	if counter == 2 {
+		return
+	}
+	z := y
+	f = append(f, func() { println(z) })
+	y++
+	counter++
+	goto LABEL_2
+}
+
+// Output:
+// 0
+// 1

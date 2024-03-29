@@ -2318,7 +2318,6 @@ func (b *Block) GetSource(store Store) BlockNode {
 }
 
 func (b *Block) GetParent(store Store) *Block {
-	//debug.Println("---get parent")
 	switch pb := b.Parent.(type) {
 	case nil:
 		return nil
