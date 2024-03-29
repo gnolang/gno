@@ -554,6 +554,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
+					if eo.GetOwnerID().PkgID.Hashlet != rlm.ID.Hashlet {
+						panic("persisting a pointer to an unpersisted object owned by another realm is not allowed")
+					}
+
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
