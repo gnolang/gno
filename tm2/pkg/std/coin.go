@@ -616,7 +616,7 @@ func (coins Coins) Sort() Coins {
 // Parsing
 
 var (
-	reDnmString = `.*` // TODO: limit pkg_path length // REF: https://github.com/gnolang/gno/pull/875#discussion_r1543384275
+	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}` // TODO: limit pkg_path length // REF: https://github.com/gnolang/gno/pull/875#discussion_r1543384275
 	reAmt       = `[[:digit:]]+`
 	reSpc       = `[[:space:]]*`
 	reDnm       = regexp.MustCompile(fmt.Sprintf(`^%s$`, reDnmString))
