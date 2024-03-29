@@ -5,12 +5,10 @@ import (
 	"testing"
 )
 
-type binOp2Test struct {
-	x, y, want string
-}
-
 func TestAdd(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "1"},
 		{"1", "0", "1"},
 		{"1", "1", "2"},
@@ -55,7 +53,9 @@ func TestAdd(t *testing.T) {
 }
 
 func TestAddUint256(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "1"},
 		{"1", "0", "1"},
 		{"1", "1", "2"},
@@ -180,7 +180,9 @@ func TestAddDeltaOverflow(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"1", "0", "1"},
 		{"1", "1", "0"},
 		{"-1", "1", "-2"},
@@ -220,7 +222,9 @@ func TestSub(t *testing.T) {
 }
 
 func TestSubUint256(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "-1"},
 		{"1", "0", "1"},
 		{"1", "1", "0"},
@@ -262,7 +266,9 @@ func TestSubUint256(t *testing.T) {
 }
 
 func TestMul(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"5", "3", "15"},
 		{"-5", "3", "-15"},
 		{"5", "-3", "-15"},
@@ -299,7 +305,9 @@ func TestMul(t *testing.T) {
 }
 
 func TestMulUint256(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"1", "0", "0"},
 		{"1", "1", "1"},
@@ -341,7 +349,9 @@ func TestMulUint256(t *testing.T) {
 }
 
 func TestDiv(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"0", "-1", "-0"},
 		{"10", "0", "0"},
@@ -383,7 +393,9 @@ func TestDiv(t *testing.T) {
 }
 
 func TestDivUint256(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"1", "0", "0"},
 		{"1", "1", "1"},
@@ -426,7 +438,9 @@ func TestDivUint256(t *testing.T) {
 }
 
 func TestQuo(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"0", "-1", "0"},
 		{"10", "1", "10"},
@@ -466,7 +480,9 @@ func TestQuo(t *testing.T) {
 }
 
 func TestRem(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"0", "-1", "0"},
 		{"10", "1", "0"},
@@ -508,7 +524,9 @@ func TestRem(t *testing.T) {
 }
 
 func TestMod(t *testing.T) {
-	tests := []binOp2Test{
+	tests := []struct {
+		x, y, want string
+	}{
 		{"0", "1", "0"},
 		{"0", "-1", "0"},
 		{"10", "0", "0"},
