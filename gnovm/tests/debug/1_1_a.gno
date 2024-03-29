@@ -9,20 +9,32 @@ func main() {
 		}
 	}()
 
-	f1 := func() {
+	{
 	LABEL_1:
-		if counter == 2 {
-			return
-		}
 		x := y
+		if counter == 2 {
+			counter = 0
+			goto LABEL_2
+		}
 		f = append(f, func() { println(x) })
 		y++
 		counter++
 		goto LABEL_1
 	}
-	f1()
+
+LABEL_2:
+	if counter == 2 {
+		return
+	}
+	z := y
+	f = append(f, func() { println(z) })
+	y++
+	counter++
+	goto LABEL_2
 }
 
 // Output:
 // 0
 // 1
+// 2
+// 3

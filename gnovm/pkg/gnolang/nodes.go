@@ -671,6 +671,7 @@ func (ss Body) GetBody() Body {
 
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	for idx, stmt = range ss {
+		debug.Printf("---GetLabeledStmt, stmt[%d] is : %v, label: %s \n", idx, stmt, stmt.GetLabel())
 		if label == stmt.GetLabel() {
 			return stmt, idx
 		}
