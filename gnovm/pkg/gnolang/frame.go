@@ -89,6 +89,6 @@ type Defer struct {
 
 	// PanicScope is set to the value of the Machine's PanicScope when the
 	// defer is created. The PanicScope of the Machine is incremented each time
-	// a panic occurrs and is decremented each time a panic is recovered.
+	// a panic occurs and is decremented each time a panic is recovered.
 	PanicScope uint
 }

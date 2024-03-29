@@ -16,7 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Exception represents an panic that originates from a gno program.
+// Exception represents a panic that originates from a gno program.
 type Exception struct {
 	// Value is the value passed to panic.
 	Value TypedValue
