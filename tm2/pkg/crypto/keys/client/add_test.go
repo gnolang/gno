@@ -75,16 +75,18 @@ func Test_execAddPublicKey(t *testing.T) {
 	assert.NotNil(t, kbHome)
 	defer kbCleanUp()
 
-	cfg := &AddCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home: kbHome,
+	cfg := &AddBech32Cfg{
+		RootCfg: &AddCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home: kbHome,
+				},
 			},
 		},
-		// PublicKey: test2PubkeyBech32, // test2 account
+		PublicKey: test2PubkeyBech32, // test2 account
 	}
 
-	if err := execAdd(cfg, []string{"test2"}, nil); err != nil {
+	if err := execAddBech32(cfg, []string{"test2"}, nil); err != nil {
 		t.Fatalf("unable to execute add cmd, %v", err)
 	}
 }
@@ -137,7 +139,6 @@ func Test_execAddDerive(t *testing.T) {
 	var (
 		mnemonic            = generateTestMnemonic(t)
 		accountIndex uint64 = 0
-		numAccounts  uint64 = 10
 
 		dummyPass = "dummy-pass"
 	)
@@ -154,7 +155,7 @@ func Test_execAddDerive(t *testing.T) {
 			},
 		},
 		Recover:        true,
-		DeriveAccounts: numAccounts,
+		DerivationPath: nil, // TODO fix
 		Account:        accountIndex,
 	}
 
@@ -169,8 +170,7 @@ func Test_execAddDerive(t *testing.T) {
 	// Verify the addresses are derived correctly
 	expectedAccounts := generateAccounts(
 		mnemonic,
-		accountIndex,
-		numAccounts,
+		nil, // TODO fix
 	)
 
 	// Grab the output

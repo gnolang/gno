@@ -18,7 +18,7 @@ func NewAddLedgerCmd(cfg *AddCfg, io commands.IO) *commands.Command {
 			ShortUsage: "add ledger [flags] <key-name>",
 			ShortHelp:  "adds a Ledger key reference to the keybase",
 		},
-		cfg,
+		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
 			return execAddLedger(cfg, args, io)
 		},

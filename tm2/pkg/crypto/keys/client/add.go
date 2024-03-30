@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"regexp"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -14,20 +15,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
-var errInvalidMnemonic = errors.New("invalid bip39 mnemonic")
+var (
+	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
+	errInvalidDerivationPath = errors.New("invalid derivation path")
+)
+
+var reDerivationPath = regexp.MustCompile(`^44'\/118'\/\d+'\/0\/\d+$`)
 
 type AddCfg struct {
 	RootCfg *BaseCfg
 
-	Recover        bool
-	NoBackup       bool
-	Account        uint64
-	Index          uint64
-	DeriveAccounts uint64
-}
+	Recover  bool
+	NoBackup bool
+	Account  uint64
+	Index    uint64
 
-type AddBaseCfg struct {
-	RootCfg *BaseCfg
+	DerivationPath commands.StringArr
 }
 
 func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -85,28 +88,30 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"address index number for HD derivation",
 	)
 
-	fs.Uint64Var(
-		&c.DeriveAccounts,
-		"derive-accounts",
-		0,
-		"the number of accounts to derive from the mnemonic",
+	fs.Var(
+		&c.DerivationPath,
+		"derivation-path",
+		"derivation path for deriving the address",
 	)
 }
 
-/*
-input
-  - bip39 mnemonic
-  - bip39 passphrase
-  - bip44 path
-  - local encryption password
-
-output
-  - armor encrypted private key (saved to file)
-*/
 func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	// Check if the key name is provided
 	if len(args) != 1 {
 		return flag.ErrHelp
+	}
+
+	// Validate the derivation paths are correct
+	for _, path := range cfg.DerivationPath {
+		// Make sure the path is valid
+		if _, err := hd.NewParamsFromPath(path); err != nil {
+			return fmt.Errorf("invalid derivation path, %w", err)
+		}
+
+		// Make sure the path conforms to the Gno derivation path
+		if !reDerivationPath.MatchString(path) {
+			return errInvalidDerivationPath
+		}
 	}
 
 	name := args[0]
@@ -180,7 +185,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	}
 
 	// Print the derived address info
-	printDerive(mnemonic, cfg.Index, cfg.DeriveAccounts, io)
+	printDerive(mnemonic, cfg.DerivationPath, io)
 
 	// Recover key from seed passphrase
 	if cfg.Recover {
@@ -223,11 +228,10 @@ func printNewInfo(info keys.Info, io commands.IO) {
 // printDerive prints the derived accounts, if any
 func printDerive(
 	mnemonic string,
-	accountIndex,
-	numAccounts uint64,
+	paths []string,
 	io commands.IO,
 ) {
-	if numAccounts == 0 {
+	if len(paths) == 0 {
 		// No accounts to print
 		return
 	}
@@ -235,43 +239,44 @@ func printDerive(
 	// Generate the accounts
 	accounts := generateAccounts(
 		mnemonic,
-		accountIndex,
-		numAccounts,
+		paths,
 	)
 
 	io.Printf("[Derived Accounts]\n\n")
-	io.Printf("Account Index: %d\n\n", accountIndex)
 
 	// Print them out
-	for index, account := range accounts {
-		io.Printfln("%d. %s", index, account.String())
+	for index, path := range paths {
+		io.Printfln(
+			"%d. %s: %s",
+			index,
+			path,
+			accounts[index].String(),
+		)
 	}
 }
 
 // generateAccounts the accounts using the provided mnemonics
-func generateAccounts(mnemonic string, accountIndex, numAccounts uint64) []crypto.Address {
-	addresses := make([]crypto.Address, numAccounts)
+func generateAccounts(mnemonic string, paths []string) []crypto.Address {
+	addresses := make([]crypto.Address, len(paths))
 
 	// Generate the seed
 	seed := bip39.NewSeed(mnemonic, "")
 
-	for i := uint64(0); i < numAccounts; i++ {
-		key := generateKeyFromSeed(seed, uint32(accountIndex), uint32(i))
+	for index, path := range paths {
+		key := generateKeyFromSeed(seed, path)
 		address := key.PubKey().Address()
 
-		addresses[i] = address
+		addresses[index] = address
 	}
 
 	return addresses
 }
 
 // generateKeyFromSeed generates a private key from
-// the provided seed and index
-func generateKeyFromSeed(seed []byte, account, index uint32) crypto.PrivKey {
-	pathParams := hd.NewFundraiserParams(account, crypto.CoinType, index)
-
+// the provided seed and path
+func generateKeyFromSeed(seed []byte, path string) crypto.PrivKey {
 	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
-	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, pathParams.String())
+	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, path)
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }
