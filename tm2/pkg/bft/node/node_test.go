@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -21,6 +22,7 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -33,7 +35,7 @@ func TestNodeStartStop(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewNoopLogger())
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
@@ -96,7 +98,7 @@ func TestNodeDelayedStart(t *testing.T) {
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	n.GenesisDoc().GenesisTime = now.Add(2 * time.Second)
 	require.NoError(t, err)
 
@@ -108,12 +110,45 @@ func TestNodeDelayedStart(t *testing.T) {
 	assert.Equal(t, true, startTime.After(n.GenesisDoc().GenesisTime))
 }
 
+func TestNodeReady(t *testing.T) {
+	config := cfg.ResetTestRoot("node_node_test")
+	defer os.RemoveAll(config.RootDir)
+
+	// Create & start node
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	require.NoError(t, err)
+
+	// Assert that blockstore has zero block before waiting for the first block
+	require.Equal(t, int64(0), n.BlockStore().Height())
+
+	// Assert that first block signal is not alreay received by calling Ready
+	select {
+	case <-n.Ready():
+		require.FailNow(t, "first block signal should not be close before starting the node")
+	default: // ok
+	}
+
+	err = n.Start()
+	require.NoError(t, err)
+	defer n.Stop()
+
+	// Wait until the node is ready or timeout
+	select {
+	case <-time.After(time.Second):
+		require.FailNow(t, "timeout while waiting for first block signal")
+	case <-n.Ready(): // ready
+	}
+
+	// Check that blockstore have at last one block
+	require.GreaterOrEqual(t, n.BlockStore().Height(), int64(1))
+}
+
 func TestNodeSetAppVersion(t *testing.T) {
 	config := cfg.ResetTestRoot("node_app_version_test")
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// default config uses the kvstore app
@@ -138,7 +173,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	dialer := privval.DialTCPFn(addr, 100*time.Millisecond, ed25519.GenPrivKey())
 	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.TestingLogger(),
+		log.NewTestingLogger(t),
 		dialer,
 	)
 	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
@@ -157,7 +192,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	}()
 	defer signerServer.Stop()
 
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -170,7 +205,7 @@ func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
 
-	_, err := DefaultNewNode(config, log.TestingLogger())
+	_, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	assert.Error(t, err)
 }
 
@@ -184,7 +219,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 
 	dialer := privval.DialUnixFn(tmpfile)
 	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.TestingLogger(),
+		log.NewTestingLogger(t),
 		dialer,
 	)
 	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
@@ -201,7 +236,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	}()
 	defer pvsc.Stop()
 
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -223,12 +258,12 @@ func TestCreateProposalBlock(t *testing.T) {
 	config := cfg.ResetTestRoot("node_create_proposal")
 	defer os.RemoveAll(config.RootDir)
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 
 	var height int64 = 1
 	state, stateDB := state(1, height)
@@ -289,7 +324,7 @@ func TestNodeNewNodeCustomReactors(t *testing.T) {
 		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(config),
 		DefaultDBProvider,
-		log.TestingLogger(),
+		log.NewTestingLogger(t),
 		CustomReactors(map[string]p2p.Reactor{"FOO": cr, "BLOCKCHAIN": customBlockchainReactor}),
 	)
 	require.NoError(t, err)
@@ -324,7 +359,7 @@ func state(nVals int, height int64) (sm.State, dbm.DB) {
 	})
 
 	// save validators to db for 2 heights
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	sm.SaveState(stateDB, s)
 
 	for i := 1; i < int(height); i++ {

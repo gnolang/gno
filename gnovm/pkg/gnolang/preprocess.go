@@ -118,18 +118,6 @@ var preprocessing int
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// When panic, revert any package updates.
-	defer func() {
-		// Revert all new values.
-		// this is needed to revert top level
-		// function redeclarations.
-		if r := recover(); r != nil {
-			pkg := packageOf(ctx)
-			pkg.StaticBlock.revertToOld()
-			panic(r)
-		}
-	}()
-
 	// Increment preprocessing counter while preprocessing.
 	{
 		preprocessing += 1
@@ -166,24 +154,27 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("--- preprocess stack ---")
-				for i := len(stack) - 1; i >= 0; i-- {
-					sbn := stack[i]
-					fmt.Printf("stack %d: %s\n", i, sbn.String())
-				}
-				fmt.Println("------------------------")
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
 					loc.Line = nline
 				}
-				if rerr, ok := r.(error); ok {
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.Wrap(rerr, loc.String()))
+					err = errors.Wrap(rerr, loc.String())
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+					err = fmt.Errorf("%s: %v", loc.String(), r)
 				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
 			}
 		}()
 		if debug {
@@ -970,6 +961,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
+						var constConverted bool
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
@@ -986,10 +978,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
+							convertConst(store, last, arg0, ct)
+							constConverted = true
+						case SliceKind:
+							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
 						}
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, nil)
+						if !constConverted {
+							convertConst(store, last, arg0, nil)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
@@ -1023,6 +1025,29 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
+							}
+						} else {
+							var tx *constTypeExpr // array type expr, lazily initialized
+							// Another special case for append: adding untyped constants.
+							// They must be converted to the array type for consistency.
+							for i, arg := range n.Args[1:] {
+								if _, ok := arg.(*ConstExpr); !ok {
+									// Consider only constant expressions.
+									continue
+								}
+								if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+									// Consider only untyped values (including nil).
+									continue
+								}
+
+								if tx == nil {
+									// Get the array type from the first argument.
+									s0 := evalStaticTypeOf(store, last, n.Args[0])
+									tx = constType(arg, s0.Elem())
+								}
+								// Convert to the array type.
+								arg1 := Call(tx, arg)
+								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
@@ -2875,7 +2900,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 				panic(errors.Wrap(rerr, loc.String()))
 			} else {
 				// NOTE: gotuna/gorilla expects error exceptions.
-				panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
+				panic(fmt.Errorf("%s: %v", loc.String(), r))
 			}
 		}
 	}()
@@ -2887,6 +2912,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
+		if isUverseName(dn) {
+			panic(fmt.Sprintf(
+				"builtin identifiers cannot be shadowed: %s", dn))
+		}
 		m[dn] = struct{}{}
 	}
 	// recursively predefine dependencies.
@@ -2933,7 +2962,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				dt = rt.(*DeclaredType)
 			}
-			dt.DefineMethod(&FuncValue{
+			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
 				Source:     cd,
@@ -2943,7 +2972,13 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				PkgPath:    pkg.PkgPath,
 				body:       cd.Body,
 				nativeBody: nil,
-			})
+			}) {
+				// Revert to old function declarations in the package we're preprocessing.
+				pkg := packageOf(last)
+				pkg.StaticBlock.revertToOld()
+				panic(fmt.Sprintf("redeclaration of method %s.%s",
+					dt.Name, cd.Name))
+			}
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
 			ft := ftv.T.(*FuncType)
@@ -3218,6 +3253,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}
+
 	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
 
 	// NOTE: ValueDecl names don't need this distinction, as
@@ -3251,7 +3287,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				} else {
 					path = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
-						panic("expected block value path type")
+						panic("expected block value path type; check this is not shadowing a builtin type")
 					}
 					break
 				}
@@ -3260,6 +3296,9 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			nx.Path = path
 			return
 		}
+	} else if isUverseName(nx.Name) {
+		panic(fmt.Sprintf(
+			"builtin identifiers cannot be shadowed: %s", nx.Name))
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.

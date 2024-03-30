@@ -36,8 +36,8 @@ func Test_execAddBasic(t *testing.T) {
 	assert.NotNil(t, kbHome)
 	defer kbCleanUp()
 
-	cfg := &addCfg{
-		rootCfg: &baseCfg{
+	cfg := &AddCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
@@ -75,13 +75,13 @@ func Test_execAddPublicKey(t *testing.T) {
 	assert.NotNil(t, kbHome)
 	defer kbCleanUp()
 
-	cfg := &addCfg{
-		rootCfg: &baseCfg{
+	cfg := &AddCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home: kbHome,
 			},
 		},
-		publicKey: test2PubkeyBech32, // test2 account
+		PublicKey: test2PubkeyBech32, // test2 account
 	}
 
 	if err := execAdd(cfg, []string{"test2"}, nil); err != nil {
@@ -96,14 +96,14 @@ func Test_execAddRecover(t *testing.T) {
 	assert.NotNil(t, kbHome)
 	defer kbCleanUp()
 
-	cfg := &addCfg{
-		rootCfg: &baseCfg{
+	cfg := &AddCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},
 		},
-		recover: true, // init test2 account
+		Recover: true, // init test2 account
 	}
 
 	test2Name := "test2"

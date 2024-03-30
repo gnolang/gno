@@ -28,7 +28,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <file> [<file>...]",
-			ShortHelp:  "Runs the specified gno files",
+			ShortHelp:  "runs the specified gno files",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -40,7 +40,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)
@@ -49,7 +49,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
 
 	fs.StringVar(
@@ -144,7 +144,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 		n := f.Name()
 		if isGnoFile(f) &&
 			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasPrefix(n, "_filetest.gno") {
+			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))
 		}
 	}

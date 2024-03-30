@@ -4,6 +4,19 @@ id: rpc-endpoints
 
 # Gno RPC Endpoints
 
+## Network Configurations
+
+This is a list of Gno.land networks. Use the information below to configure wallets and Web3 middleware providers to the appropriate RPC Server Address and Chain ID to connect to the correct Gno network.
+
+Note: The below endpoints may produce errors on dialing if the ports are not provided (eg, `:443`).
+
+| Network     | RPC Server Addr.               | Chain ID      |
+| ----------- | ------------------------------ | ------------- |
+| Portal Loop | https://rpc.gno.land:443       | `portal-loop` |
+| Testnet 3   | https://rpc.test3.gno.land:443 | `test3`       |
+| Staging     | http://staging.gno.land:36657  | `test3`       |
+| Local       | http://127.0.0.1:26657         | `dev`         |
+
 ## Common Parameters
 
 #### Response
@@ -108,7 +121,7 @@ Call with the /consensus\_params path to check the consensus algorithm parameter
 | `block_height`                | String | The block height.          |
 | `consensus_params`            | Object | The parameter information. |
 | `consensus_params.Block`      | Object | The block parameters.      |
-| `consensus_params.Validattor` | Object | The validator parameters.  |
+| `consensus_params.Validator` | Object | The validator parameters.  |
 
 ## Get Consensus State
 

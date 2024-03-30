@@ -5,6 +5,9 @@ services:
     container_name: gnoland
     build: ../../..
     environment:
+      - VIRTUAL_HOST=rpc.staging.gno.land
+      - VIRTUAL_PORT=36657
+      - LETSENCRYPT_HOST=rpc.staging.gno.land
       - LOG_LEVEL=4
     working_dir: /opt/gno/src/gno.land
     command:
@@ -36,7 +39,6 @@ services:
       - --faucet-url=https://faucet-staging.gno.land/
       - --help-chainid=staging
       - --help-remote=staging.gno.land:36657
-      - --views-dir=./gno.land/cmd/gnoweb/views
       - --with-analytics
     volumes:
       - "./overlay:/overlay:ro"
