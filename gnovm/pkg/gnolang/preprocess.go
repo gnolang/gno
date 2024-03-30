@@ -15,9 +15,17 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
+		decls, err := sortValueDeps(store, fn.Decls)
+		if err != nil {
+			panic(err)
+		}
+
+		fn.Decls = decls
+
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
+
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -81,13 +89,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
-		decls, err := sortValueDeps(store, fn.Decls)
-		if err != nil {
-			panic(err)
-		}
-
-		fn.Decls = decls
-
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			if d.GetAttribute(ATTR_PREDEFINED) == true {

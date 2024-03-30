@@ -8,11 +8,14 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		vertices: make([]string, 0),
 	}
 
+	otherDecls := make(Decls, 0)
+
 	for i := 0; i < len(decls); i++ {
 		d := decls[i]
 		vd, ok := d.(*ValueDecl)
 
 		if !ok {
+			otherDecls = append(otherDecls, d)
 			continue
 		}
 
@@ -43,7 +46,6 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			vd, ok := decl.(*ValueDecl)
 
 			if !ok {
-				sorted = append(sorted, decl)
 				continue
 			}
 
@@ -69,7 +71,9 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 
 	slices.Reverse(sorted)
 
-	return sorted, nil
+	otherDecls = append(otherDecls, sorted...)
+
+	return otherDecls, nil
 }
 
 func addDepFromExpr(dg *Graph, fromNode string, expr Expr) {
