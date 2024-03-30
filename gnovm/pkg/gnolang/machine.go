@@ -631,7 +631,7 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 	// worry about pointer ownership issues for packages because they (eventually) will only be
 	// able to import other packages and those packages won't be able to persist any pointers
 	// to their own state that they receive from other packages.
-	if memPkg != nil && IsPackagePath(memPkg.Path) {
+	if memPkg != nil && !IsRealmPath(memPkg.Path) {
 		// store package values and types
 		m.savePackageValuesAndTypes()
 		// store mempackage
