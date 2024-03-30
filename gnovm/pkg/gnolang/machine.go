@@ -596,10 +596,10 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 		}
 	}
 
-	// Save the mempackage if provided. We do this here so that it occurs before
+	// Save the realm mempackage if provided. We do this here so that it occurs before
 	// the init functions are run. This avoids any realm object ownership issues that may arise
 	// when passing around unpersisted realm object pointers to other realms during initialization.
-	if memPkg != nil {
+	if memPkg != nil && IsRealmPath(memPkg.Path) {
 		// store package values and types
 		m.savePackageValuesAndTypes()
 		// store mempackage
@@ -624,6 +624,18 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 				m.PopBlock()
 			}
 		}
+	}
+
+	// If this is a package, we can save it after the init function because init is the
+	// only way stateful realm variables can be dynamically set in a package. We don't need to
+	// worry about pointer ownership issues for packages because they (eventually) will only be
+	// able to import other packages and those packages won't be able to persist any pointers
+	// to their own state that they receive from other packages.
+	if memPkg != nil && IsPackagePath(memPkg.Path) {
+		// store package values and types
+		m.savePackageValuesAndTypes()
+		// store mempackage
+		m.Store.AddMemPackage(memPkg)
 	}
 }
 
