@@ -1614,7 +1614,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			bp = bp.GetParentNode(store)
 			gen++
 			if 0xff < gen {
-				panic("value path depth overflow")
+				panic("GetPathForName: value path depth overflow")
 			}
 		}
 	}
@@ -1641,7 +1641,7 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 			sb = bp.GetStaticBlock()
 			bp = bp.GetParentNode(store)
 		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+			panic(fmt.Sprintf("GetIsConst: name %s not declared", n))
 		}
 	}
 }
@@ -1674,7 +1674,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			tv := Uverse().GetValueAt(store, path)
 			return tv.T
 		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+			panic(fmt.Sprintf("GetStaticTypeOf: name %s not declared", n))
 		}
 	}
 }
