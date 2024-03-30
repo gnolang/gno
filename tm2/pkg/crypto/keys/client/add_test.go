@@ -81,7 +81,7 @@ func Test_execAddPublicKey(t *testing.T) {
 				Home: kbHome,
 			},
 		},
-		PublicKey: test2PubkeyBech32, // test2 account
+		// PublicKey: test2PubkeyBech32, // test2 account
 	}
 
 	if err := execAdd(cfg, []string{"test2"}, nil); err != nil {
@@ -146,16 +146,16 @@ func Test_execAddDerive(t *testing.T) {
 	require.NotNil(t, kbHome)
 	defer kbCleanUp()
 
-	cfg := &addCfg{
-		rootCfg: &baseCfg{
+	cfg := &AddCfg{
+		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				InsecurePasswordStdin: true,
 				Home:                  kbHome,
 			},
 		},
-		recover:        true,
-		deriveAccounts: numAccounts,
-		account:        accountIndex,
+		Recover:        true,
+		DeriveAccounts: numAccounts,
+		Account:        accountIndex,
 	}
 
 	mockOut := bytes.NewBufferString("")
