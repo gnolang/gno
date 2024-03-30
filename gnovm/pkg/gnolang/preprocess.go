@@ -13,7 +13,6 @@ import (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		decls, err := sortValueDeps(store, fn.Decls)
 		if err != nil {
@@ -21,7 +20,10 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		}
 
 		fn.Decls = decls
+	}
 
+	// First, initialize all file nodes and connect to package node.
+	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
@@ -37,11 +39,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *ImportDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -49,17 +47,14 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
+
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -73,11 +68,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *FuncDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -91,10 +82,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
-			if d.GetAttribute(ATTR_PREDEFINED) == true {
-				// skip declarations already predefined (e.g.
-				// through recursion for a dependent)
-			} else {
+			if d.GetAttribute(ATTR_PREDEFINED) != true {
 				// recursively predefine dependencies.
 				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
