@@ -65,7 +65,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		}
 
 		if dd == nil {
-			panic("should not happen")
+			continue
 		}
 
 		sorted = append(sorted, dd)
