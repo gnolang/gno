@@ -105,7 +105,11 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	for _, path := range cfg.DerivationPath {
 		// Make sure the path is valid
 		if _, err := hd.NewParamsFromPath(path); err != nil {
-			return fmt.Errorf("invalid derivation path, %w", err)
+			return fmt.Errorf(
+				"%w, %w",
+				errInvalidDerivationPath,
+				err,
+			)
 		}
 
 		// Make sure the path conforms to the Gno derivation path
