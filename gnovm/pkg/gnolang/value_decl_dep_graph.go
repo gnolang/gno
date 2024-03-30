@@ -33,7 +33,9 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 		}
 
 		for j := 0; j < len(vd.NameExprs); j++ {
-			addDepFromExpr(graph, string(vd.NameExprs[j].Name), vd.Values[j])
+			if len(vd.Values) > j {
+				addDepFromExpr(graph, string(vd.NameExprs[j].Name), vd.Values[j])
+			}
 		}
 	}
 
@@ -50,7 +52,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			}
 
 			for i, nameExpr := range vd.NameExprs {
-				if string(nameExpr.Name) == node {
+				if len(vd.Values) > i && string(nameExpr.Name) == node {
 					dd = &ValueDecl{
 						Attributes: vd.Attributes,
 						NameExprs:  []NameExpr{nameExpr},
