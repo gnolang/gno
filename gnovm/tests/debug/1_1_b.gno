@@ -4,18 +4,15 @@ var y, counter int
 var f []func()
 
 func main() {
-	defer func() {
-		for _, ff := range f {
-			ff()
-		}
-	}()
-
-	//bar()
 LABEL_1:
 	x := y
 	if counter == 2 {
 		counter = 0
 		bar()
+		for _, ff := range f {
+			ff()
+		}
+		return
 	}
 	f = append(f, func() { println(x) })
 	y++
@@ -24,8 +21,10 @@ LABEL_1:
 }
 
 func bar() {
+	println("---bar---")
 LABEL_2:
 	if counter == 2 {
+		println("---end---")
 		return
 	}
 	z := y
@@ -36,5 +35,9 @@ LABEL_2:
 }
 
 // Output:
+// ---bar---
+// ---end---
 // 0
 // 1
+// 2
+// 3

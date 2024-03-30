@@ -1677,7 +1677,7 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 	}
 
 	// NOTE: path.Depth == 1 means it's in bn.
-	var bn BlockNode = sb.GetSource(store)
+	var bn = sb.GetSource(store)
 	for i := 1; i < int(path.Depth); i++ {
 		bn = bn.GetParentNode(store)
 	}
