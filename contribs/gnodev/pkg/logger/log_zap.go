@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewZapLogger(w io.Writer, slevel slog.Level) *slog.Logger {
+func NewZapLogger(w io.Writer, slevel slog.Level) *zap.Logger {
 	// Build encoder config
 	consoleConfig := zap.NewDevelopmentEncoderConfig()
 	consoleConfig.EncodeCaller = zapcore.FullCallerEncoder
@@ -34,6 +34,5 @@ func NewZapLogger(w io.Writer, slevel slog.Level) *slog.Logger {
 		panic("invalid slog level")
 	}
 
-	zapLog := log.NewZapLogger(enc, w, level)
-	return log.ZapLoggerToSlog(zapLog)
+	return log.NewZapLogger(enc, w, level)
 }

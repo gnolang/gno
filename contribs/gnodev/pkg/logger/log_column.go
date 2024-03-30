@@ -6,13 +6,14 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/muesli/termenv"
 )
 
-func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *slog.Logger {
+func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *ColumnLogger {
 	charmLogger := log.NewWithOptions(w, log.Options{
 		ReportTimestamp: false,
 		ReportCaller:    false,
@@ -20,19 +21,8 @@ func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *sl
 	})
 
 	// Default column output
-	charmLogger.SetOutput(&columnWriter{
-		style:  lipgloss.NewStyle(),
-		prefix: "",
-		writer: w,
-	})
-
-	columnHandler := &columnLogger{
-		Logger: charmLogger,
-		writer: w,
-		prefix: charmLogger.GetPrefix(),
-	}
-
-	charmLogger.SetOutput(newColumeWriter(lipgloss.NewStyle(), "", w))
+	defaultOutput := newColumeWriter(lipgloss.NewStyle(), "", w)
+	charmLogger.SetOutput(defaultOutput)
 	charmLogger.SetStyles(defaultStyles())
 	charmLogger.SetColorProfile(profile)
 	charmLogger.SetReportCaller(false)
@@ -49,37 +39,56 @@ func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *sl
 		panic("invalid slog level")
 	}
 
-	return slog.New(columnHandler)
+	return &ColumnLogger{
+		Logger: charmLogger,
+		writer: w,
+		prefix: charmLogger.GetPrefix(),
+		colors: map[string]lipgloss.Color{},
+	}
 }
 
-type columnLogger struct {
+type ColumnLogger struct {
 	*log.Logger
 
 	prefix       string
 	writer       io.Writer
 	colorProfile termenv.Profile
+
+	colors   map[string]lipgloss.Color
+	muColors sync.RWMutex
 }
 
-func (cl *columnLogger) WithGroup(name string) slog.Handler {
+func (cl *ColumnLogger) WithGroup(group string) slog.Handler {
+	cl.muColors.RLock()
+	defer cl.muColors.RUnlock()
+
 	if cl.prefix != "" {
-		name = fmt.Sprintf("%.1s.%s", cl.prefix, name)
+		group = fmt.Sprintf("%.1s.%s", cl.prefix, group)
 	}
 
-	fg := ColorFromString(name, 0.6, 0.4)
+	// check if we already know this group
+	fg, ok := cl.colors[group]
+	if !ok {
+		// generate bright color based on the group name
+		fg = colorFromString(group, 0.5, 0.6)
+	}
+
 	baseStyle := lipgloss.NewStyle().Foreground(fg)
 
-	styles := defaultStyles()
-	styles.Message = styles.Message.Foreground(fg)
-
 	nlog := cl.Logger.With() // clone logger
-	nlog.SetOutput(newColumeWriter(baseStyle, name, cl.writer))
+	nlog.SetOutput(newColumeWriter(baseStyle, group, cl.writer))
 	nlog.SetColorProfile(cl.colorProfile)
-	nlog.SetStyles(styles)
-	return &columnLogger{
+	return &ColumnLogger{
 		Logger: nlog,
-		prefix: name,
+		prefix: group,
 		writer: cl.writer,
 	}
+}
+
+func (cl *ColumnLogger) RegisterGroupColor(group string, color lipgloss.Color) {
+	cl.muColors.Lock()
+	cl.colors[group] = color
+	cl.muColors.Unlock()
 }
 
 var lf = []byte{'\n'}

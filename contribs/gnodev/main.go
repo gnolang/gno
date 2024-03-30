@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
@@ -21,6 +22,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	zaplog "github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -237,8 +239,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	// Add node pkgs to watcher
 	watcher.AddPackages(devNode.ListPkgs()...)
 
-	logger.WithGroup("---- READY").
-		Info("for commands and help, press `h`", "helper", helper)
+	logger.WithGroup("--- READY").Info("for commands and help, press `h`")
 
 	// Run the main event loop
 	return runEventLoop(ctx, logger, rt, devNode, watcher)
@@ -486,9 +487,19 @@ func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
 	}
 
 	if cfg.serverMode {
-		return logger.NewZapLogger(out, level)
+		zaplogger := logger.NewZapLogger(out, level)
+		return zaplog.ZapLoggerToSlog(zaplogger)
 	}
 
+	// Detect term color profile
 	colorProfile := termenv.DefaultOutput().Profile
-	return logger.NewColumnLogger(out, level, colorProfile)
+	clogger := logger.NewColumnLogger(out, level, colorProfile)
+
+	// Register well known group color with system colors
+	clogger.RegisterGroupColor(NodeLogName, lipgloss.Color("3"))
+	clogger.RegisterGroupColor(WebLogName, lipgloss.Color("4"))
+	clogger.RegisterGroupColor(KeyPressLogName, lipgloss.Color("5"))
+	clogger.RegisterGroupColor(EventServerLogName, lipgloss.Color("6"))
+
+	return slog.New(clogger)
 }

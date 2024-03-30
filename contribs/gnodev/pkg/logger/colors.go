@@ -8,22 +8,25 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func ColorFromString(s string, saturation, lightness float64) lipgloss.Color {
+const jitter = 0
+
+func colorFromString(s string, saturation, lightness float64) lipgloss.Color {
 	hue := float64(hash(s) % 360)
-	r, g, b := HSLToRGB(hue, saturation, lightness)
-	hex := rgbToHex(int(r*255), int(g*255), int(b*255))
+
+	r, g, b := hslToRGB(float64(hue), saturation, lightness)
+	hex := rgbToHex(r, g, b)
 	return lipgloss.Color(hex)
 }
 
 func hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
-	return h.Sum32()
+	return h.Sum32() + jitter
 }
 
 // from: https://www.rapidtables.com/convert/color/hsl-to-rgb.html
-// HSLToRGB converts an HSL triple to an RGB triple.
-func HSLToRGB(h, s, l float64) (r, g, b uint8) {
+// hslToRGB converts an HSL triple to an RGB triple.
+func hslToRGB(h, s, l float64) (r, g, b uint8) {
 	if h < 0 || h >= 360 || s < 0 || s > 1 || l < 0 || l > 1 {
 		return 0, 0, 0
 	}
@@ -54,6 +57,6 @@ func HSLToRGB(h, s, l float64) (r, g, b uint8) {
 	return r, g, b
 }
 
-func rgbToHex(r, g, b int) string {
+func rgbToHex(r, g, b uint8) string {
 	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
 }
