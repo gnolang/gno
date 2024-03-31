@@ -58,6 +58,7 @@ const sidebars = {
                 },
                 'concepts/gnovm',
                 'concepts/gno-language',
+                'concepts/testnets',
                 'concepts/effective-gno',
                 'concepts/proof-of-contribution',
                 'concepts/tendermint2',
