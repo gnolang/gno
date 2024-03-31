@@ -2,7 +2,7 @@
 // NOTE: there was a bug with the original Quotient* functions, and
 // testing method. These have been fixed here, and tests ported to
 // tests/files/maths_int*.go respectively.
-// Note: copied over from p/demo/maths & deprecated over there.
+// Note: moved over from p/demo/maths.
 package overflow
 
 import "math"
