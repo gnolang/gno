@@ -21,11 +21,10 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator      bft.PrivValidator // identity of the validator
-	Genesis            *bft.GenesisDoc
-	TMConfig           *tmcfg.Config
-	GenesisTxHandler   GenesisTxHandler
-	GenesisMaxVMCycles int64
+	PrivValidator    bft.PrivValidator // identity of the validator
+	Genesis          *bft.GenesisDoc
+	TMConfig         *tmcfg.Config
+	GenesisTxHandler GenesisTxHandler
 }
 
 // NewMockedPrivValidator generate a new key
@@ -79,11 +78,10 @@ func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
 	}
 
 	return &InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tm,
-		Genesis:            genesis,
-		GenesisTxHandler:   PanicOnFailingTxHandler,
-		GenesisMaxVMCycles: 10_000_000,
+		PrivValidator:    pv,
+		TMConfig:         tm,
+		Genesis:          genesis,
+		GenesisTxHandler: PanicOnFailingTxHandler,
 	}
 }
 
@@ -115,16 +113,13 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
 
-	// Setup options
-	opts := NewAppOptions()
-	opts.Logger = logger
-	opts.GnoRootDir = cfg.TMConfig.RootDir
-	opts.MaxCycles = cfg.GenesisMaxVMCycles
-	opts.GenesisTxHandler = cfg.GenesisTxHandler
-	opts.DB = memdb.NewMemDB()
-
 	// Initialize the application with the provided options
-	gnoApp, err := NewAppWithOptions(opts)
+	gnoApp, err := NewAppWithOptions(&AppOptions{
+		Logger:           logger,
+		GnoRootDir:       cfg.TMConfig.RootDir,
+		GenesisTxHandler: cfg.GenesisTxHandler,
+		DB:               memdb.NewMemDB(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
 	}

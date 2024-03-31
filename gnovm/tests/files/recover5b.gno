@@ -24,4 +24,3 @@ func g() {
 // Output:
 // g recover undefined
 // f recover wtf
-// false
