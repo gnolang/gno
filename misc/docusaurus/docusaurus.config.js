@@ -64,10 +64,9 @@ const config = {
         },
         items: [
           {
-            position: "right",
-            label: "Back to Gno.Land",
+            position: "left",
+            label: "Home",
             to: "https://gno.land",
-            className: "gno-header__copy",
           },
           {
             type: "docSidebar",
@@ -83,7 +82,7 @@ const config = {
           {
             position: "left",
             label: "Blog",
-            to: "https://test3.gno.land/r/gnoland/blog",
+            to: "https://gno.land/r/gnoland/blog",
           },
           {
             href: "https://github.com/gnolang/gno",

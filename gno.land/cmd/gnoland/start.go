@@ -36,7 +36,6 @@ type startCfg struct {
 	chainID               string
 	genesisRemote         string
 	dataDir               string
-	genesisMaxVMCycles    int64
 	config                string
 
 	txEventStoreType string
@@ -66,7 +65,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -125,23 +124,16 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"replacement for '%%REMOTE%%' in genesis",
 	)
 
-	fs.Int64Var(
-		&c.genesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		10_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)
@@ -254,7 +246,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}

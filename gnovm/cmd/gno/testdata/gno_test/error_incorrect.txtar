@@ -1,6 +1,6 @@
 # Test Error instruction incorrect
 
-! gno test -verbose .
+! gno test -v .
 
 stdout 'Machine\.RunMain\(\) panic: oups'
 stderr '=== RUN   file/x_filetest.gno'

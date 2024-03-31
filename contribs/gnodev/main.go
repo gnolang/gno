@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -34,15 +36,30 @@ const (
 )
 
 type devCfg struct {
-	webListenerAddr string
-	minimal         bool
-	verbose         bool
-	hotreload       bool
-	noWatch         bool
+	webListenerAddr          string
+	nodeRPCListenerAddr      string
+	nodeP2PListenerAddr      string
+	nodeProxyAppListenerAddr string
+
+	minimal   bool
+	verbose   bool
+	hotreload bool
+	noWatch   bool
+	noReplay  bool
+	maxGas    int64
+	chainId   string
 }
 
 var defaultDevOptions = &devCfg{
-	webListenerAddr: "127.0.0.1:8888",
+	chainId:             "dev",
+	maxGas:              10_000_000_000,
+	webListenerAddr:     "127.0.0.1:8888",
+	nodeRPCListenerAddr: "127.0.0.1:36657",
+
+	// As we have no reason to configure this yet, set this to random port
+	// to avoid potential conflict with other app
+	nodeP2PListenerAddr:      "tcp://127.0.0.1:0",
+	nodeProxyAppListenerAddr: "tcp://127.0.0.1:0",
 }
 
 func main() {
@@ -74,10 +91,17 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"web server listening address",
 	)
 
+	fs.StringVar(
+		&c.nodeRPCListenerAddr,
+		"node-rpc-listener",
+		defaultDevOptions.nodeRPCListenerAddr,
+		"gnoland rpc node listening address",
+	)
+
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
-		defaultDevOptions.verbose,
+		defaultDevOptions.minimal,
 		"do not load packages from examples directory",
 	)
 
@@ -88,11 +112,32 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose output when deving",
 	)
 
+	fs.StringVar(
+		&c.chainId,
+		"chain-id",
+		defaultDevOptions.chainId,
+		"set node ChainID",
+	)
+
 	fs.BoolVar(
 		&c.noWatch,
 		"no-watch",
 		defaultDevOptions.noWatch,
 		"do not watch for files change",
+	)
+
+	fs.BoolVar(
+		&c.noReplay,
+		"no-replay",
+		defaultDevOptions.noReplay,
+		"do not replay previous transactions on reload",
+	)
+
+	fs.Int64Var(
+		&c.maxGas,
+		"max-gas",
+		defaultDevOptions.maxGas,
+		"set the maximum gas by block",
 	)
 }
 
@@ -133,7 +178,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, emitterServer, rt, pkgpaths)
+	devNode, err := setupDevNode(ctx, cfg, emitterServer, rt, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -141,7 +186,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
 	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
-	rt.Taskf(NodeLogName, "Chain ID: %s\n", devNode.Config().ChainID())
+	rt.Taskf(NodeLogName, "Chain ID: %s\n", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()
@@ -317,18 +362,40 @@ func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, er
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, emitter emitter.Emitter, rt *rawterm.RawTerm, pkgspath []string) (*gnodev.Node, error) {
+func setupDevNode(
+	ctx context.Context,
+	cfg *devCfg,
+	remitter emitter.Emitter,
+	rt *rawterm.RawTerm,
+	pkgspath []string,
+) (*gnodev.Node, error) {
 	nodeOut := rt.NamespacedWriter("Node")
 	zapLogger := NewZapLogger(nodeOut, zapcore.ErrorLevel)
-	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), emitter, pkgspath)
+
+	gnoroot := gnoenv.RootDir()
+
+	// configure gnoland node
+	config := gnodev.DefaultNodeConfig(gnoroot)
+	config.PackagesPathList = pkgspath
+	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
+	config.NoReplay = cfg.noReplay
+	config.SkipFailingGenesisTxs = true
+	config.MaxGasPerBlock = cfg.maxGas
+	config.ChainID = cfg.chainId
+
+	// other listeners
+	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
+	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
+
+	return gnodev.NewDevNode(ctx, log.ZapLoggerToSlog(zapLogger), remitter, config)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
 func setupGnoWebServer(cfg *devCfg, dnode *gnodev.Node, rt *rawterm.RawTerm) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
-	webConfig.HelpChainID = dnode.Config().ChainID()
 	webConfig.HelpRemote = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = cfg.chainId
 
 	zapLogger := NewZapLogger(rt.NamespacedWriter("GnoWeb"), zapcore.DebugLevel)
 	app := gnoweb.MakeApp(log.ZapLoggerToSlog(zapLogger), webConfig)
@@ -377,6 +444,29 @@ func checkForError(w io.Writer, err error) {
 	}
 
 	fmt.Fprintln(w, "[DONE]")
+}
+
+func resolveUnixOrTCPAddr(in string) (out string) {
+	var err error
+	var addr net.Addr
+
+	if strings.HasPrefix(in, "unix://") {
+		in = strings.TrimPrefix(in, "unix://")
+		if addr, err := net.ResolveUnixAddr("unix", in); err == nil {
+			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		}
+
+		err = fmt.Errorf("unable to resolve unix address `unix://%s`: %w", in, err)
+	} else { // don't bother to checking prefix
+		in = strings.TrimPrefix(in, "tcp://")
+		if addr, err = net.ResolveTCPAddr("tcp", in); err == nil {
+			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		}
+
+		err = fmt.Errorf("unable to resolve tcp address `tcp://%s`: %w", in, err)
+	}
+
+	panic(err)
 }
 
 // NewZapLogger creates a zap logger with a console encoder for development use.
