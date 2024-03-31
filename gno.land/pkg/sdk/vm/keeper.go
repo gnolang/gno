@@ -314,7 +314,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Marshal return values to json
 	rawRtvs, err := marshalReturnValuesJSON(rtvs)
 	if err != nil {
-		return "", fmt.Errorf("unable to precess return values: %w", err)
+		return "", fmt.Errorf("unable to process return values: %w", err)
 	}
 
 	// TODO pay for gas? TODO see context?
