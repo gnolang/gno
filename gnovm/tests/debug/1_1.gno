@@ -9,18 +9,16 @@ func main() {
 		}
 	}()
 
-	{
-	LABEL_1:
-		x := y
-		if counter == 2 {
-			counter = 0
-			goto LABEL_2
-		}
-		f = append(f, func() { println(x) })
-		y++
-		counter++
-		goto LABEL_1
+LABEL_1:
+	x := y
+	if counter == 2 {
+		counter = 0
+		goto LABEL_2
 	}
+	f = append(f, func() { println(x) })
+	y++
+	counter++
+	goto LABEL_1
 
 LABEL_2:
 	if counter == 2 {

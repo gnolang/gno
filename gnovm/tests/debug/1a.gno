@@ -1,28 +1,25 @@
 package main
 
+// the vp of the arg of the outer closure should be (1,0), 1 is loopDepth
+// the vp of the x of inner closure should be (2,0)
 func main() {
-	var y, counter int
+	var y int
 	var f []func()
+
 	defer func() {
 		for _, ff := range f {
 			ff()
 		}
 	}()
 
-	f1 := func() {
-	LABEL_1:
-		if counter == 2 {
-			return
-		}
+	for i := 0; i < 3; i++ {
 		x := y
 		f = append(f, func() { println(x) })
 		y++
-		counter++
-		goto LABEL_1
 	}
-	f1()
 }
 
 // Output:
 // 0
 // 1
+// 2
