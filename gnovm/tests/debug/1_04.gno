@@ -9,7 +9,7 @@ func main() {
 		}
 	}()
 
-	{
+	f1 := func() {
 	LABEL_1:
 		if counter == 2 {
 			return
@@ -20,8 +20,9 @@ func main() {
 		counter++
 		goto LABEL_1
 	}
+	f1()
 }
 
 // Output:
-// 0
+// 1
 // 1

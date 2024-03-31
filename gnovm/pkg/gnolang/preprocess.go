@@ -101,7 +101,7 @@ type gotoLoop struct {
 	label     Name
 	depth     uint8
 	index     int
-	sealed    bool // new body built
+	sealed    bool // new body built, avoiding reenter {{{...}}}
 }
 
 type LoopInfo struct {
@@ -650,10 +650,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BlockNode:
 					if len(loopInfos) != 0 { // goto loop exist, transform new body
 						if _, ok := n.(*FileNode); ok {
-							//if fd, ok := n.(*FuncDecl); ok {
-							//	debug.Println("---fd: ", fd)
 							transform(store, last, loopInfos)
-							//loopInfo = nil
 							loopInfos = loopInfos[:0]
 						}
 					}
@@ -3977,7 +3974,7 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 		reProcessing = false
 	}()
 
-	var loopInfo *LoopInfo
+	var loopInfo *LoopInfo // per funcDecl
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
@@ -3987,15 +3984,14 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("--------------funcDecl, body: ", body)
-				for _, lp := range loopInfos {
+				for i, lp := range loopInfos {
 					for _, gloop := range lp.gloops {
-						debug.Println("---target label: ", gloop.label)
 						// find labeled stmt
 						lblstmt, idx := body.GetLabeledStmt(gloop.label)
 						if lblstmt == nil {
 							continue // drain gloops
 						} else {
-							debug.Println("---labeled stmt found!")
+							debug.Println("---labeled stmt found: ", gloop.label)
 							// clear origin label, set this label on blockStmt in future
 							body[idx].SetLabel("")
 							preBody := []Stmt{}
@@ -4019,8 +4015,8 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 							debug.Println("---nBody: ", nBody)
 							debug.Println("---depth: ", len(stack))
 							cn.Body = nBody
-							// set target block, might be updated later on
 
+							// set target block, might be updated later on
 							loopInfo = lp
 							loopInfo.ctx = cn
 							loopInfo.depth = len(stack)
@@ -4028,6 +4024,15 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 
 							// update
 							body = nBody
+							// pop out
+							if len(loopInfos) == 1 {
+								loopInfos = loopInfos[:0]
+							} else if i == len(loopInfos)-1 { // tail
+								loopInfos = loopInfos[:len(loopInfos)-1]
+							} else {
+								loopInfos[i] = loopInfos[len(loopInfos)-1]
+								loopInfos = loopInfos[:len(loopInfos)-1]
+							}
 						}
 					}
 				}
@@ -4035,25 +4040,50 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 			case *BlockStmt:
 				debug.Println("---enter, BlockStmt")
 				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					if !gloop.sealed { // avoid reentrant, see1_05b
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
+						if !gloop.sealed { // avoid reentrant, see1_05b
+							body := cn.GetBody()
+							debug.Println("--------------blockStmt, body: ", body)
+							lblstmt, idx := body.GetLabeledStmt(gloop.label)
+							debug.Println("---lblstmt, idx: ", lblstmt, idx)
+							if lblstmt == nil {
+								return cn, TRANS_CONTINUE // find in embedded block
+							} else {
+								debug.Println("---blockStmt, labeled stmt found!", body)
+								// clear old label
+								body[idx].SetLabel("")
+								nBody := rebuildBody(body, gloop)
+								cn.Body = nBody
+								debug.Println("---nBody: ", nBody)
+								debug.Println("---depth: ", len(stack))
+
+								gloop.sealed = true
+								// == 0 means no target encountered before, < means got an outerer one
+								if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
+									loopInfo.ctx = cn
+									loopInfo.depth = len(stack)
+								}
+							}
+						}
+					}
+				}
+				return cn, TRANS_CONTINUE
+			case *FuncLitExpr:
+				stack = append(stack, cn)
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
 						body := cn.GetBody()
-						debug.Println("--------------blockStmt, body: ", body)
+						debug.Println("--------------enter, funcLitExpr, body: ", body)
 						lblstmt, idx := body.GetLabeledStmt(gloop.label)
-						debug.Println("---lblstmt, idx: ", lblstmt, idx)
 						if lblstmt == nil {
-							return cn, TRANS_CONTINUE // find in embedded block
+							return cn, TRANS_CONTINUE
 						} else {
-							debug.Println("---blockStmt, labeled stmt found!", body)
-							// clear old label
+							debug.Println("------find target body!")
 							body[idx].SetLabel("")
 							nBody := rebuildBody(body, gloop)
-							cn.Body = nBody
 							debug.Println("---nBody: ", nBody)
-							debug.Println("---depth: ", len(stack))
-
-							gloop.sealed = true
-							// == 0 means no target encountered before, < means got an outerer one
+							cn.Body = nBody
 							if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
 								loopInfo.ctx = cn
 								loopInfo.depth = len(stack)
@@ -4062,103 +4092,90 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 					}
 				}
 				return cn, TRANS_CONTINUE
-			case *FuncLitExpr:
-				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					body := cn.GetBody()
-					debug.Println("--------------enter, funcLitExpr, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(gloop.label)
-					if lblstmt == nil {
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("------find target body!")
-						body[idx].SetLabel("")
-						nBody := rebuildBody(body, gloop)
-						debug.Println("---nBody: ", nBody)
-						cn.Body = nBody
-						if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
-							loopInfo.ctx = cn
-							loopInfo.depth = len(stack)
-						}
-					}
-				}
-				return cn, TRANS_CONTINUE
 			case *ForStmt:
 				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					body := cn.GetBody()
-					debug.Println("--------------enter, ForStmt, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(gloop.label)
-					if lblstmt == nil {
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("------find target body!")
-						body[idx].SetLabel("")
-						nBody := rebuildBody(body, gloop)
-						cn.Body = nBody
-						if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
-							loopInfo.ctx = cn
-							loopInfo.depth = len(stack)
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
+						body := cn.GetBody()
+						debug.Println("--------------enter, ForStmt, body: ", body)
+						lblstmt, idx := body.GetLabeledStmt(gloop.label)
+						if lblstmt == nil {
+							return cn, TRANS_CONTINUE
+						} else {
+							debug.Println("------find target body!")
+							body[idx].SetLabel("")
+							nBody := rebuildBody(body, gloop)
+							cn.Body = nBody
+							if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
+								loopInfo.ctx = cn
+								loopInfo.depth = len(stack)
+							}
 						}
 					}
 				}
 				return cn, TRANS_CONTINUE
 			case *IfCaseStmt:
 				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					body := cn.GetBody()
-					debug.Println("--------------enter, ForStmt, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(gloop.label)
-					if lblstmt == nil {
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("------find target body!")
-						body[idx].SetLabel("")
-						nBody := rebuildBody(body, gloop)
-						cn.Body = nBody
-						if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
-							loopInfo.ctx = cn
-							loopInfo.depth = len(stack)
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
+						body := cn.GetBody()
+						debug.Println("--------------enter, ForStmt, body: ", body)
+						lblstmt, idx := body.GetLabeledStmt(gloop.label)
+						if lblstmt == nil {
+							return cn, TRANS_CONTINUE
+						} else {
+							debug.Println("------find target body!")
+							body[idx].SetLabel("")
+							nBody := rebuildBody(body, gloop)
+							cn.Body = nBody
+							if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
+								loopInfo.ctx = cn
+								loopInfo.depth = len(stack)
+							}
 						}
 					}
 				}
 				return cn, TRANS_CONTINUE
 			case *RangeStmt:
 				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					body := cn.GetBody()
-					debug.Println("--------------enter, ForStmt, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(gloop.label)
-					if lblstmt == nil {
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("------find target body!")
-						body[idx].SetLabel("")
-						nBody := rebuildBody(body, gloop)
-						cn.Body = nBody
-						if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
-							loopInfo.ctx = cn
-							loopInfo.depth = len(stack)
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
+						body := cn.GetBody()
+						debug.Println("--------------enter, ForStmt, body: ", body)
+						lblstmt, idx := body.GetLabeledStmt(gloop.label)
+						if lblstmt == nil {
+							return cn, TRANS_CONTINUE
+						} else {
+							debug.Println("------find target body!")
+							body[idx].SetLabel("")
+							nBody := rebuildBody(body, gloop)
+							cn.Body = nBody
+							if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
+								loopInfo.ctx = cn
+								loopInfo.depth = len(stack)
+							}
 						}
 					}
 				}
 				return cn, TRANS_CONTINUE
 			case *SwitchClauseStmt:
 				stack = append(stack, cn)
-				for _, gloop := range loopInfo.gloops {
-					body := cn.GetBody()
-					debug.Println("--------------enter, ForStmt, body: ", body)
-					lblstmt, idx := body.GetLabeledStmt(gloop.label)
-					if lblstmt == nil {
-						return cn, TRANS_CONTINUE
-					} else {
-						debug.Println("------find target body!")
-						body[idx].SetLabel("")
-						nBody := rebuildBody(body, gloop)
-						cn.Body = nBody
-						if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
-							loopInfo.ctx = cn
-							loopInfo.depth = len(stack)
+				if loopInfo != nil {
+					for _, gloop := range loopInfo.gloops {
+						body := cn.GetBody()
+						debug.Println("--------------enter, ForStmt, body: ", body)
+						lblstmt, idx := body.GetLabeledStmt(gloop.label)
+						if lblstmt == nil {
+							return cn, TRANS_CONTINUE
+						} else {
+							debug.Println("------find target body!")
+							body[idx].SetLabel("")
+							nBody := rebuildBody(body, gloop)
+							cn.Body = nBody
+							if len(stack) < loopInfo.depth || loopInfo.depth == 0 { // got an outer ctx
+								loopInfo.ctx = cn
+								loopInfo.depth = len(stack)
+							}
 						}
 					}
 				}
@@ -4182,52 +4199,54 @@ func transform(store Store, bn BlockNode, loopInfos []*LoopInfo) {
 			switch cn := n.(type) {
 			case *FuncDecl:
 				debug.Println("---trans_leave funcDecl, cn: ", cn)
-				debug.Println("---ctx: ", loopInfo.ctx)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					//last = last.GetParentNode(store)
 					debug.Println("---last: ", last)
 					cn = reProcess(store, last, cn).(*FuncDecl)
-					//return cn, TRANS_EXIT
+					if len(loopInfos) == 0 {
+						debug.Println("---trans_exit")
+						return cn, TRANS_EXIT
+					}
 				}
 				return cn, TRANS_CONTINUE
 			case *BlockStmt: // mutate node which contains implicit loop
 				debug.Println("---trans_leave, blockStmt, cn: ", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*BlockStmt)
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
 			case *FuncLitExpr:
 				debug.Println("---trans_leave, FuncLitExpr", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*FuncLitExpr)
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
 			case *ForStmt:
 				debug.Println("---trans_leave, ForStmt: ", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*ForStmt)
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
 			case *RangeStmt:
 				debug.Println("---trans_leave, RangeStmt: ", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*RangeStmt)
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
 			case *SwitchClauseStmt:
 				debug.Println("---trans_leave, SwitchClauseStmt: ", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*SwitchClauseStmt)
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
 			case *IfCaseStmt:
 				debug.Println("---trans_leave, IfCaseStmt: ", cn)
-				if cn == loopInfo.ctx {
+				if loopInfo != nil && cn == loopInfo.ctx {
 					cn = reProcess(store, last, cn).(*IfCaseStmt)
 					return cn, TRANS_EXIT
 				}

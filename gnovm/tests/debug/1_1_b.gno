@@ -9,7 +9,7 @@ LABEL_1:
 	if counter == 2 {
 		counter = 0
 		bar()
-		for _, ff := range f {
+		for _, ff := range f { // XXX, why defer on this not work
 			ff()
 		}
 		return
