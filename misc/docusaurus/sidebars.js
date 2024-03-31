@@ -93,6 +93,7 @@ const sidebars = {
             link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
+                'reference/network-config',
                 {
                     type: 'category',
                     label: 'Standard Libraries',
