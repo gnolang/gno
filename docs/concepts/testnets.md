@@ -21,7 +21,6 @@ Gno.land testnets are categorized by 4 main points:
 Below you can find a breakdown of each existing testnet by these categories.
 
 ## Portal Loop
-
 Portal Loop is an always up-to-date rolling testnet. It is meant to be used as 
 a nightly build of the Gno tech stack. The home page of gno.land is the `gnoweb`
 render of the Portal Loop testnet. 
@@ -44,7 +43,6 @@ check out the [Portal Loop concept page](./portal-loop.md).
 View the Portal Loop network configuration [here]. // add rpc config 
 
 ## Staging
-
 Staging is a testnet that is reset once every 60 minutes.
 
 - **Persistence of state:**
@@ -61,7 +59,6 @@ Staging is a testnet that is reset once every 60 minutes.
 View the staging network configuration [here]. // add rpc config
 
 ## Test4 (upcoming)
-
 Test4 (name subject to change) is an upcoming, permanent, multi-node testnet. 
 To follow test4 progress, view the test4 milestone
 [here](https://github.com/gnolang/gno/milestone/4).
@@ -77,7 +74,7 @@ where persistence partly depends on implementing a migration strategy
 dApps, creating tools that require persisted state & transaction history
 - **Versioning strategy**:
   - Test4 will be the first testnet to be release-based, following releases of
-the Gno tech stack
+the Gno tech stack. 
 
 View the staging network configuration [here]. // add rpc config
 
