@@ -74,16 +74,18 @@ func TestAlgorithms(t *testing.T) {
 			// DIVISION
 			if b8 != 0 {
 				r64 := a64 / b64
+				rem64 := a64 % b64
 
 				// now the verification
-				result, _, ok := Quo8(a8, b8)
+				result, rem, ok := Quo8(a8, b8)
 				if ok && int64(result) != r64 {
 					t.Errorf("failed to fail on %v / %v = %v instead of %v\n",
 						a8, b8, result, r64)
 					errors++
 				}
-				if !ok && result != 0 && int64(result) == r64 {
-					t.Fail()
+				if ok && int64(rem) != rem64 {
+					t.Errorf("failed to fail on %v %% %v = %v instead of %v\n",
+						a8, b8, rem, rem64)
 					errors++
 				}
 			}
