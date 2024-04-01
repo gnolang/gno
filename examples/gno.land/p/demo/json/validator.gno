@@ -28,7 +28,7 @@ func (v KeyExistsValidator) Validate(n *Node) (bool, error) {
 
 // NumberRangeValidator checks if a node's value is within a specified range.
 type NumberRangeValidator struct {
-	Key string
+	Key      string
 	Min, Max float64
 }
 
@@ -56,7 +56,7 @@ func (v NumberRangeValidator) Validate(n *Node) (bool, error) {
 
 // Validate takes a node and a list of validators and applies each validator to the node.
 func Validate(m *Node, validators ...Validator) (bool, error) {
-	for i, v := range validators {
+	for _, v := range validators {
 		valid, err := v.Validate(m)
 		if !valid {
 			return false, err

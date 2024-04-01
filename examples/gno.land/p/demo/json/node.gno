@@ -161,7 +161,7 @@ func (n *Node) Type() ValueType {
 //	root := Unmarshal([]byte(`{"key": "value"}`))
 //	val, err := root.MustKey("key").Value()
 //	if err != nil {
-//		t.Errorf("Value returns error: %v", err)
+//		ufmt.Errorf("Value returns error: %v", err)
 //	}
 //
 //	result: "value"
@@ -331,7 +331,7 @@ func (n *Node) UpdateValue(newValue interface{}) error {
 //
 //	root := Unmarshal([]byte(`{"key": "value"}`))
 //	if err := root.MustKey("key").Delete(); err != nil {
-//		t.Errorf("Delete returns error: %v", err)
+//		ufmt.Errorf("Delete returns error: %v", err)
 //	}
 //
 //	result: {} (empty object)
@@ -353,11 +353,11 @@ func (n *Node) Delete() error {
 //
 //	root := ArrayNode("", []*Node{StringNode("", "foo"), NumberNode("", 1)})
 //	if root == nil {
-//		t.Errorf("ArrayNode returns nil")
+//		ufmt.Errorf("ArrayNode returns nil")
 //	}
 //
 //	if root.Size() != 2 {
-//		t.Errorf("ArrayNode returns wrong size: %d", root.Size())
+//		ufmt.Errorf("ArrayNode returns wrong size: %d", root.Size())
 //	}
 func (n *Node) Size() int {
 	if n == nil {
@@ -373,11 +373,11 @@ func (n *Node) Size() int {
 //
 //	root := ArrayNode("", []*Node{StringNode("", "foo"), NumberNode("", 1)})
 //	if root == nil {
-//		t.Errorf("ArrayNode returns nil")
+//		ufmt.Errorf("ArrayNode returns nil")
 //	}
 //
 //	if root.MustIndex(1).Index() != 1 {
-//		t.Errorf("Index returns wrong index: %d", root.MustIndex(1).Index())
+//		ufmt.Errorf("Index returns wrong index: %d", root.MustIndex(1).Index())
 //	}
 //
 // We can also use the index to the byte slice of the JSON data directly.
@@ -386,11 +386,11 @@ func (n *Node) Size() int {
 //
 //	root := Unmarshal([]byte(`["foo", 1]`))
 //	if root == nil {
-//		t.Errorf("Unmarshal returns nil")
+//		ufmt.Errorf("Unmarshal returns nil")
 //	}
 //
 //	if string(root.MustIndex(1).source()) != "1" {
-//		t.Errorf("source returns wrong result: %s", root.MustIndex(1).source())
+//		ufmt.Errorf("source returns wrong result: %s", root.MustIndex(1).source())
 //	}
 func (n *Node) Index() int {
 	if n == nil || n.index == nil {
@@ -473,7 +473,7 @@ func NullNode(key string) *Node {
 //
 //	root := NumberNode("", 1)
 //	if root == nil {
-//		t.Errorf("NumberNode returns nil")
+//		ufmt.Errorf("NumberNode returns nil")
 //	}
 func NumberNode(key string, value float64) *Node {
 	return &Node{
@@ -490,7 +490,7 @@ func NumberNode(key string, value float64) *Node {
 //
 //	root := StringNode("", "foo")
 //	if root == nil {
-//		t.Errorf("StringNode returns nil")
+//		ufmt.Errorf("StringNode returns nil")
 //	}
 func StringNode(key string, value string) *Node {
 	return &Node{
@@ -507,7 +507,7 @@ func StringNode(key string, value string) *Node {
 //
 //	root := BoolNode("", true)
 //	if root == nil {
-//		t.Errorf("BoolNode returns nil")
+//		ufmt.Errorf("BoolNode returns nil")
 //	}
 func BoolNode(key string, value bool) *Node {
 	return &Node{
@@ -526,7 +526,7 @@ func BoolNode(key string, value bool) *Node {
 //
 //	root := ArrayNode("", []*Node{StringNode("", "foo"), NumberNode("", 1)})
 //	if root == nil {
-//		t.Errorf("ArrayNode returns nil")
+//		ufmt.Errorf("ArrayNode returns nil")
 //	}
 func ArrayNode(key string, value []*Node) *Node {
 	curr := &Node{
@@ -650,10 +650,10 @@ func (n *Node) root() *Node {
 //	root := Unmarshal([]byte("null"))
 //	val, err := root.GetNull()
 //	if err != nil {
-//		t.Errorf("GetNull returns error: %v", err)
+//		ufmt.Errorf("GetNull returns error: %v", err)
 //	}
 //	if val != nil {
-//		t.Errorf("GetNull returns wrong result: %v", val)
+//		ufmt.Errorf("GetNull returns wrong result: %v", val)
 //	}
 func (n *Node) GetNull() (interface{}, error) {
 	if n == nil {
@@ -686,7 +686,7 @@ func (n *Node) MustNull() interface{} {
 //	root := Unmarshal([]byte("10.5"))
 //	val, err := root.GetNumeric()
 //	if err != nil {
-//		t.Errorf("GetNumeric returns error: %v", err)
+//		ufmt.Errorf("GetNumeric returns error: %v", err)
 //	}
 //	println(val) // 10.5
 func (n *Node) GetNumeric() (float64, error) {
@@ -729,12 +729,12 @@ func (n *Node) MustNumeric() float64 {
 //
 //	root, err := Unmarshal([]byte("foo"))
 //	if err != nil {
-//		t.Errorf("Error on Unmarshal(): %s", err)
+//		ufmt.Errorf("Error on Unmarshal(): %s", err)
 //	}
 //
 //	str, err := root.GetString()
 //	if err != nil {
-//		t.Errorf("should retrieve string value: %s", err)
+//		ufmt.Errorf("should retrieve string value: %s", err)
 //	}
 //
 //	println(str) // "foo"
@@ -779,7 +779,7 @@ func (n *Node) MustString() string {
 //	root := Unmarshal([]byte("true"))
 //	val, err := root.GetBool()
 //	if err != nil {
-//		t.Errorf("GetBool returns error: %v", err)
+//		ufmt.Errorf("GetBool returns error: %v", err)
 //	}
 //	println(val) // true
 func (n *Node) GetBool() (bool, error) {
@@ -823,7 +823,7 @@ func (n *Node) MustBool() bool {
 //		root := Must(Unmarshal([]byte(`["foo", 1]`)))
 //		arr, err := root.GetArray()
 //		if err != nil {
-//			t.Errorf("GetArray returns error: %v", err)
+//			ufmt.Errorf("GetArray returns error: %v", err)
 //		}
 //
 //		for _, val := range arr {
@@ -873,7 +873,7 @@ func (n *Node) MustArray() []*Node {
 //
 //	root := Must(Unmarshal([]byte(`[{"foo":"bar"}]`)))
 //	if err := root.AppendArray(NullNode("")); err != nil {
-//		t.Errorf("should not return error: %s", err)
+//		ufmt.Errorf("should not return error: %s", err)
 //	}
 //
 //	result: [{"foo":"bar"}, null]
@@ -883,7 +883,7 @@ func (n *Node) MustArray() []*Node {
 //	root := Must(Unmarshal([]byte(`["bar", "baz"]`)))
 //	err := root.AppendArray(NumberNode("", 1), StringNode("", "foo"))
 //	if err != nil {
-//		t.Errorf("AppendArray returns error: %v", err)
+//		ufmt.Errorf("AppendArray returns error: %v", err)
 //	 }
 //
 //	result: ["bar", "baz", 1, "foo"]
@@ -931,7 +931,7 @@ func (n *Node) ArrayEach(callback func(i int, target *Node)) {
 //	root := Must(Unmarshal([]byte(`{"key": "value"}`)))
 //	obj, err := root.GetObject()
 //	if err != nil {
-//		t.Errorf("GetObject returns error: %v", err)
+//		ufmt.Errorf("GetObject returns error: %v", err)
 //	}
 //
 //	result: map[string]*Node{"key": StringNode("key", "value")}
