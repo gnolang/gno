@@ -4,8 +4,6 @@ id: network-config
 
 # Network configurations
 
-
-
 | Network     | RPC Endpoint                       | Chain ID      | 
 |-------------|------------------------------------|---------------|
 | Portal Loop | https://rpc.gno.land:443           | `portal-loop` |

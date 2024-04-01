@@ -6,7 +6,7 @@ id: testnets
 
 This page documents all Gno.land testnets, what their properties are, and how
 they are meant to be used. For testnet configuration, visit the 
-[reference section](../reference/testnets.md).
+[reference section](../reference/network-config).
 
 Gno.land testnets are categorized by 4 main points:
 - **Persistence of state**
@@ -22,8 +22,8 @@ Below you can find a breakdown of each existing testnet by these categories.
 
 ## Portal Loop
 Portal Loop is an always up-to-date rolling testnet. It is meant to be used as 
-a nightly build of the Gno tech stack. The home page of gno.land is the `gnoweb`
-render of the Portal Loop testnet. 
+a nightly build of the Gno tech stack. The home page of [gno.land](https://gno.land)
+is the `gnoweb` render of the Portal Loop testnet. 
 
 - **Persistence of state:**
   - State is kept on a best-effort basis 
@@ -35,12 +35,11 @@ state - they are refreshed with every new commit to the `master` branch.
 - **Intended purpose**
   - Providing access the latest version of Gno for fast development & demoing
 - **Versioning strategy**:
-  - Portal Loop infrastructure is managed within the `misc/loop` folder
+  - Portal Loop infrastructure is managed within the `misc/loop` folder in the 
+monorepo
 
 For more information on the Portal Loop, and how it can be best utilized, 
 check out the [Portal Loop concept page](./portal-loop.md).
-
-View the Portal Loop network configuration [here]. // add rpc config 
 
 ## Staging
 Staging is a testnet that is reset once every 60 minutes.
@@ -74,9 +73,7 @@ where persistence partly depends on implementing a migration strategy
 dApps, creating tools that require persisted state & transaction history
 - **Versioning strategy**:
   - Test4 will be the first testnet to be release-based, following releases of
-the Gno tech stack. 
-
-View the staging network configuration [here]. // add rpc config
+the Gno tech stack.
 
 ## TestX
 These testnets are deprecated and currently serve as archives of previous progress.
@@ -99,8 +96,7 @@ Since Gno.land is designed with open-source in mind, anyone can see currently
 available code by browsing the [test3 homepage](https://test3.gno.land/). 
 
 Test3 is a single-node testnet, ran by the Gno core team. There is no plan to 
-upgrade test3 to a multi-node testnet. View the staging network
-configuration [here]. // add rpc config
+upgrade test3 to a multi-node testnet. 
 
 ### Test2 (archive)
 // add launch date?
