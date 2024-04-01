@@ -13,7 +13,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 )
 
-var errOverwriteAborted = errors.New("overwrite aborted")
+var (
+	errOverwriteAborted       = errors.New("overwrite aborted")
+	errUnableToVerifyMultisig = errors.New("unable to verify multisig threshold")
+)
 
 type AddMultisigCfg struct {
 	RootCfg *AddCfg
@@ -75,7 +78,7 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 		cfg.MultisigThreshold,
 		len(cfg.Multisig),
 	); err != nil {
-		return fmt.Errorf("unable to verify multisig threshold")
+		return errUnableToVerifyMultisig
 	}
 
 	name := args[0]
