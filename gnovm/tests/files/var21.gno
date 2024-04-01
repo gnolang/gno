@@ -5,7 +5,9 @@ func main() {
 	myVar()
 }
 
-func hello(s string) {}
+func hello(s string) {
+	println(s)
+}
 
 var myVar = func() { hello(myDep) }
 
