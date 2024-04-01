@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,11 +11,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
+var errOverwriteNotEnabled = errors.New("overwrite not enabled")
+
 type secretsInitCfg struct {
 	commonAllCfg
+
+	forceOverwrite bool
 }
 
 // newSecretsInitCmd creates the secrets init command
@@ -41,6 +47,13 @@ func newSecretsInitCmd(io commands.IO) *commands.Command {
 
 func (c *secretsInitCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonAllCfg.RegisterFlags(fs)
+
+	fs.BoolVar(
+		&c.forceOverwrite,
+		"force",
+		false,
+		"overwrite existing secrets, if any",
+	)
 }
 
 func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
@@ -74,15 +87,42 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 
 	switch key {
 	case validatorPrivateKeyKey:
+		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
 		// Initialize and save the validator's private key
 		return initAndSaveValidatorKey(validatorKeyPath, io)
 	case nodeKeyKey:
+		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
 		// Initialize and save the node's p2p key
 		return initAndSaveNodeKey(nodeKeyPath, io)
 	case validatorStateKey:
+		if osm.FileExists(validatorStatePath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
 		// Initialize and save the validator's last sign state
 		return initAndSaveValidatorState(validatorStatePath, io)
 	default:
+		// Check if the validator key should be overwritten
+		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
+		// Check if the validator state should be overwritten
+		if osm.FileExists(validatorStatePath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
+		// Check if the node key should be overwritten
+		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
+			return errOverwriteNotEnabled
+		}
+
 		// No key provided, initialize everything
 		// Initialize and save the validator's private key
 		if err := initAndSaveValidatorKey(validatorKeyPath, io); err != nil {
