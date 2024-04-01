@@ -2,6 +2,7 @@ package caller
 
 import (
 	"testing"
+
 	"gno.land/r/demo/teritori/callee"
 )
 

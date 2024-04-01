@@ -1,21 +1,23 @@
 package callee
 
 import (
-    "std"
+	"std"
 )
 
-var caller string
-var callerAddr std.Address
+var (
+	caller     string
+	callerAddr std.Address
+)
 
 func SetCaller() {
-    caller = std.PrevRealm().PkgPath()
+	caller = std.PrevRealm().PkgPath()
 	callerAddr = std.PrevRealm().Addr()
 }
 
 func GetCaller() string {
-    return caller
+	return caller
 }
 
 func GetCallerAddress() std.Address {
-    return callerAddr
+	return callerAddr
 }
