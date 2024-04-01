@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +45,7 @@ func TestStoreLoadTxResult(t *testing.T) {
 		t.Parallel()
 
 		var (
-			stateDB   = dbm.NewMemDB()
+			stateDB   = memdb.NewMemDB()
 			txResults = generateTxResults(t, 100)
 		)
 
@@ -67,7 +67,7 @@ func TestStoreLoadTxResult(t *testing.T) {
 		t.Parallel()
 
 		var (
-			stateDB   = dbm.NewMemDB()
+			stateDB   = memdb.NewMemDB()
 			txResults = generateTxResults(t, 10)
 		)
 
@@ -87,7 +87,7 @@ func TestStoreLoadTxResult(t *testing.T) {
 		t.Parallel()
 
 		var (
-			stateDB         = dbm.NewMemDB()
+			stateDB         = memdb.NewMemDB()
 			corruptedResult = "totally valid amino"
 			hash            = []byte("tx hash")
 		)

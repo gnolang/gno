@@ -7,7 +7,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func TestTxHandler(t *testing.T) {
 		}
 
 		// Prepare the DB
-		sdb := db.NewMemDB()
+		sdb := memdb.NewMemDB()
 		sdb.Set(state.CalcTxResultKey(res.Tx.Hash()), res.Bytes())
 
 		// Set the GLOBALLY referenced db
@@ -56,7 +56,7 @@ func TestTxHandler(t *testing.T) {
 
 	t.Run("result not found", func(t *testing.T) {
 		var (
-			sdb         = db.NewMemDB()
+			sdb         = memdb.NewMemDB()
 			hash        = []byte("hash")
 			expectedErr = state.NoTxResultForHashError{
 				Hash: hash,
