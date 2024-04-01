@@ -224,6 +224,107 @@ func (n *Node) Value() (value interface{}, err error) {
 	return value, nil
 }
 
+// Filter applies a predicate function to each child of the node and returns a new node
+// containing all children that match the predicate.
+// - object nodes, it returns an object node with matching key-value pairs.
+// - array nodes, it returns an array node with matching elements.
+// For other types of nodes, it returns nil as they don't contain children.
+func (n *Node) Filter(predicate func(*Node) bool) *Node {
+	if n == nil {
+		return nil
+	}
+
+	switch n.nodeType {
+	case Object:
+		matching := make(map[string]*Node)
+		for key, children := range n.next {
+			if predicate(children) {
+				matching[key] = children
+			}
+		}
+		return ObjectNode("", matching)
+
+	case Array:
+		matching := make([]*Node, 0)
+		for _, children := range n.next {
+			if predicate(children) {
+				matching = append(matching, children)
+			}
+		}
+		return ArrayNode("", matching)
+
+	default:
+		// Non-container nodes don't have children to filter.
+		return nil
+	}
+}
+
+// Update updates the value or adds a new key-value pair to the target object node.
+// This method only applies to nodes of the Object type.
+func (n *Node) Update(key string, value *Node) error {
+	if n == nil {
+		return errors.New("node is nil")
+	}
+
+	if !n.IsObject() {
+		return ufmt.Errorf("can't update key on non-object node. got=%s", n.Type().String())
+	}
+
+	if exist, ok := n.next[key]; ok {
+		if err := n.remove(exist); err != nil {
+			return err
+		}
+	}
+
+	if err := n.append(&key, value); err != nil {
+		return err
+	}
+
+	n.mark()
+	return nil
+}
+
+// UpdateValue updates the value of the current node.
+// It returns an error if the node type does not support direct value update (e.g., Object or Array).
+func (n *Node) UpdateValue(newValue interface{}) error {
+	if n == nil {
+		return errors.New("cannot update value of nil node")
+	}
+
+	switch n.nodeType {
+	case Object, Array:
+		return errors.New("cannot update value of object or array node")
+	case String:
+		val, ok := newValue.(string)
+		if !ok {
+			return errors.New("type mismatch: expected string value")
+		}
+		n.value = val
+	case Number:
+		val, ok := newValue.(float64)
+		if !ok {
+			return errors.New("type mismatch: expected numeric value")
+		}
+		n.value = val
+	case Boolean:
+		val, ok := newValue.(bool)
+		if !ok {
+			return errors.New("type mismatch: expected boolean value")
+		}
+		n.value = val
+	case Null:
+		if newValue != nil {
+			return errors.New("non-nil value for null node")
+		}
+		n.value = nil
+	default:
+		return errors.New("unsupported node type for value update")
+	}
+
+	n.modified = true
+	return nil
+}
+
 // Delete removes the current node from the parent node.
 //
 // Usage:

@@ -126,6 +126,207 @@ func TestNode_Value(t *testing.T) {
 	}
 }
 
+func TestNode_Filter(t *testing.T) {
+	tests := []struct {
+		name          string
+		node          *Node
+		predicate     func(*Node) bool
+		expectedCount int
+	}{
+		{
+			name: "filter object node",
+			node: ObjectNode("", map[string]*Node{
+				"a": NumberNode("a", 1),
+				"b": StringNode("b", "test"),
+				"c": NumberNode("c", 3),
+			}),
+			predicate: func(n *Node) bool {
+				_, ok := n.value.(float64)
+				return ok
+			},
+			expectedCount: 2,
+		},
+		{
+			name: "filter array node",
+			node: ArrayNode("", []*Node{
+				NumberNode("0", 1),
+				StringNode("1", "test"),
+				NumberNode("2", 3),
+			}),
+			predicate: func(n *Node) bool {
+				v, ok := n.value.(float64)
+				return ok && v >= 3
+			},
+			expectedCount: 1,
+		},
+		{
+			name: "non-container node",
+			node: StringNode("", "test"),
+			predicate: func(n *Node) bool {
+				return true
+			},
+			expectedCount: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			filtered := tc.node.Filter(tc.predicate)
+
+			var actualCount int
+			if filtered != nil {
+				if filtered.IsObject() {
+					actualCount = len(filtered.next)
+				} else if filtered.IsArray() {
+					actualCount = len(filtered.next)
+				}
+			}
+
+			if actualCount != tc.expectedCount {
+				t.Errorf("expected %d items after filter, got %d", tc.expectedCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestNode_Update(t *testing.T) {
+	tests := []struct {
+		name         string
+		initialValue map[string]*Node
+		key          string
+		newValue     *Node
+		expectError  bool
+		expectedKeys []string
+	}{
+		{
+			name: "Add new key",
+			initialValue: map[string]*Node{
+				"existing": StringNode("existing", "value"),
+			},
+			key:         "new",
+			newValue:    StringNode("new", "new value"),
+			expectError: false,
+			expectedKeys: []string{
+				"existing",
+				"new",
+			},
+		},
+		{
+			name: "Update existing key",
+			initialValue: map[string]*Node{
+				"existing": StringNode("existing", "value"),
+			},
+			key:         "existing",
+			newValue:    StringNode("existing", "updated value"),
+			expectError: false,
+			expectedKeys: []string{
+				"existing",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objNode := ObjectNode("", tt.initialValue)
+
+			err := objNode.Update(tt.key, tt.newValue)
+			if err != nil {
+				if !tt.expectError {
+					t.Fatalf("%s unexpected error: %v", tt.name, err)
+				}
+			}
+			if tt.expectError {
+				t.Fatalf("%s expected error but got none", tt.name)
+			}
+
+			for _, expectedKey := range tt.expectedKeys {
+				if _, ok := objNode.next[expectedKey]; !ok {
+					t.Errorf("expected key %s not found in node", expectedKey)
+				}
+			}
+		})
+	}
+}
+
+func TestNode_UpdateValue(t *testing.T) {
+	tests := []struct {
+		name       string
+		initial    *Node
+		newValue   interface{}
+		expectErr  bool
+		expectType interface{}
+	}{
+		{
+			name:       "update string value",
+			initial:    StringNode("test", "old value"),
+			newValue:   "new value",
+			expectErr:  false,
+			expectType: "new value",
+		},
+		{
+			name:       "update number value",
+			initial:    NumberNode("number", 42),
+			newValue:   100.5,
+			expectErr:  false,
+			expectType: 100.5,
+		},
+		{
+			name:       "update boolean value",
+			initial:    BoolNode("bool", true),
+			newValue:   false,
+			expectErr:  false,
+			expectType: false,
+		},
+		{
+			name:       "update null value with nil",
+			initial:    NullNode("null"),
+			newValue:   nil,
+			expectErr:  false,
+			expectType: nil,
+		},
+		{
+			name:       "type mismatch error",
+			initial:    StringNode("test", "old value"),
+			newValue:   100,
+			expectErr:  true,
+			expectType: nil,
+		},
+		{
+			name:       "update object node error",
+			initial:    ObjectNode("object", nil),
+			newValue:   "any value",
+			expectErr:  true,
+			expectType: nil,
+		},
+		{
+			name:       "update array node error",
+			initial:    ArrayNode("array", nil),
+			newValue:   "any value",
+			expectErr:  true,
+			expectType: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.initial.UpdateValue(tc.newValue)
+
+			if tc.expectErr {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if tc.initial.value != tc.expectType {
+					t.Errorf("expected value to be %v, got %v", tc.expectType, tc.initial.value)
+				}
+			}
+		})
+	}
+}
+
 func TestNode_Delete(t *testing.T) {
 	root := Must(Unmarshal([]byte(`{"foo":"bar"}`)))
 	if err := root.Delete(); err != nil {
@@ -648,9 +849,9 @@ func TestNode_ArrayEach(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root, err := Unmarshal([]byte(tt.json))
 			if err != nil {
 				t.Fatalf("Unmarshal failed: %v", err)
 			}
@@ -662,14 +863,14 @@ func TestNode_ArrayEach(t *testing.T) {
 				}
 			})
 
-			if len(result) != len(tc.expected) {
-				t.Errorf("%s: expected %d elements, got %d", tc.name, len(tc.expected), len(result))
+			if len(result) != len(tt.expected) {
+				t.Errorf("%s: expected %d elements, got %d", tt.name, len(tt.expected), len(result))
 				return
 			}
 
 			for i, val := range result {
-				if val != tc.expected[i] {
-					t.Errorf("%s: expected value at index %d to be %d, got %d", tc.name, i, tc.expected[i], val)
+				if val != tt.expected[i] {
+					t.Errorf("%s: expected value at index %d to be %d, got %d", tt.name, i, tt.expected[i], val)
 				}
 			}
 		})
@@ -1047,9 +1248,9 @@ func TestNode_ObjectEach(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			root, err := Unmarshal([]byte(tc.json))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root, err := Unmarshal([]byte(tt.json))
 			if err != nil {
 				t.Fatalf("Unmarshal failed: %v", err)
 			}
@@ -1062,14 +1263,14 @@ func TestNode_ObjectEach(t *testing.T) {
 				}
 			})
 
-			if len(result) != len(tc.expected) {
-				t.Errorf("%s: expected %d key-value pairs, got %d", tc.name, len(tc.expected), len(result))
+			if len(result) != len(tt.expected) {
+				t.Errorf("%s: expected %d key-value pairs, got %d", tt.name, len(tt.expected), len(result))
 				return
 			}
 
-			for key, val := range tc.expected {
+			for key, val := range tt.expected {
 				if result[key] != val {
-					t.Errorf("%s: expected value for key %s to be %d, got %d", tc.name, key, val, result[key])
+					t.Errorf("%s: expected value for key %s to be %d, got %d", tt.name, key, val, result[key])
 				}
 			}
 		})
