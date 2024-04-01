@@ -14,7 +14,7 @@ import (
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	for _, fn := range fset.Files {
-		decls, err := sortValueDeps(store, fn.Decls)
+		decls, err := sortValueDeps(fn.Decls)
 		if err != nil {
 			panic(err)
 		}
