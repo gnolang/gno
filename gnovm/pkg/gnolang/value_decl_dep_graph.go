@@ -52,13 +52,17 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			}
 
 			for i, nameExpr := range vd.NameExprs {
-				if len(vd.Values) > i && string(nameExpr.Name) == node {
-					dd = &ValueDecl{
-						Attributes: vd.Attributes.Copy(),
-						NameExprs:  []NameExpr{nameExpr},
-						Type:       vd.Type,
-						Values:     []Expr{vd.Values[i]},
-						Const:      vd.Const,
+				if string(nameExpr.Name) == node {
+					if len(vd.Values) > i {
+						dd = &ValueDecl{
+							Attributes: vd.Attributes.Copy(),
+							NameExprs:  []NameExpr{nameExpr},
+							Type:       vd.Type,
+							Values:     []Expr{vd.Values[i]},
+							Const:      vd.Const,
+						}
+					} else {
+						dd = vd
 					}
 				}
 			}
