@@ -82,6 +82,8 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 		if validatorKey, err := readAndVerifyValidatorKey(validatorKeyPath, io); validatorKey != nil && err == nil {
 			// Validate the signature bytes
 			return validateValidatorStateSignature(validatorState, validatorKey.PubKey)
+		} else {
+			io.Println("WARN: Skipped verification of validator state, as validator key is not present")
 		}
 
 		return nil
