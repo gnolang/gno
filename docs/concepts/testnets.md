@@ -96,14 +96,21 @@ available code by browsing the [test3 homepage](https://test3.gno.land/).
 Test3 is a single-node testnet, ran by the Gno core team. There is no plan to 
 upgrade test3 to a multi-node testnet. 
 
-### Test2 (archive)
-// add launch date?
+Launch date: November 4th 2022  
+Release commit: [1ca2d97](https://github.com/gnolang/gno/commit/1ca2d973817b174b5b06eb9da011e1fcd2cca575)
 
+### Test2 (archive)
 The second Gno testnet. Find archive data [here](https://github.com/gnolang/tx-exports/tree/main/test2.gno.land).
 
-### Test1 (archive)
-// add launch date?
+Launch date: July 10th 2022  
+Release commit: [652dc7a](https://github.com/gnolang/gno/commit/652dc7a3a62ee0438093d598d123a8c357bf2499) 
 
+### Test1 (archive)
 The first Gno testnet. Find archive data [here](https://github.com/gnolang/tx-exports/tree/main/test1.gno.land).
+
+Launch date: May 6th 2022  
+Release commit: [797c7a1](https://github.com/gnolang/gno/commit/797c7a132d65534df373c63b837cf94b7831ac6e) 
+
+
 
 
