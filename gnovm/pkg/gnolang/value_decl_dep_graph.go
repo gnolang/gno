@@ -1,6 +1,10 @@
 package gnolang
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 func sortValueDeps(store Store, decls Decls) (Decls, error) {
 	graph := &Graph{
@@ -19,6 +23,14 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			continue
 		}
 
+		if len(vd.NameExprs) > len(vd.Values) && len(vd.Values) > 0 {
+			_, ok := vd.Values[0].(*CallExpr)
+			if ok {
+				graph.addVertex(vd.NameExprs.String())
+				continue
+			}
+		}
+
 		for j := 0; j < len(vd.NameExprs); j++ {
 			graph.addVertex(string(vd.NameExprs[j].Name))
 		}
@@ -30,6 +42,14 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 
 		if !ok {
 			continue
+		}
+
+		if len(vd.NameExprs) > len(vd.Values) && len(vd.Values) > 0 {
+			ce, ok := vd.Values[0].(*CallExpr)
+			if ok {
+				addDepFromExpr(graph, vd.NameExprs.String(), ce)
+				continue
+			}
 		}
 
 		for j := 0; j < len(vd.NameExprs); j++ {
@@ -51,6 +71,30 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 				continue
 			}
 
+			if strings.Contains(node, ", ") {
+				names := strings.Split(node, ", ")
+
+				if len(names) != len(vd.NameExprs) {
+					panic("1should not happen")
+				}
+
+				equal := true
+
+				for i, name := range names {
+					if vd.NameExprs[i].String() != name {
+						equal = false
+						break
+					}
+				}
+
+				if !equal {
+					panic(fmt.Sprintf("names: %+v != nameExprs: %+v\n", names, vd.NameExprs))
+				}
+
+				dd = decl
+				break
+			}
+
 			for i, nameExpr := range vd.NameExprs {
 				if string(nameExpr.Name) == node {
 					if len(vd.Values) > i {
@@ -61,8 +105,10 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 							Values:     []Expr{vd.Values[i]},
 							Const:      vd.Const,
 						}
+						break
 					} else {
 						dd = vd
+						break
 					}
 				}
 			}
