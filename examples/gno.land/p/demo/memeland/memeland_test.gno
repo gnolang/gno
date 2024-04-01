@@ -167,6 +167,56 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	}
 }
 
+func TestBadSortBy(t *testing.T) {
+	m := NewMemeland()
+	now := time.Now()
+
+	numOfPosts := 5
+	var memeData []string
+	for i := 1; i <= numOfPosts; i++ {
+		// Prepare meme data
+		nextTime := now.Add(time.Duration(i) * time.Minute)
+		data := ufmt.Sprintf("Meme #%d", i)
+		memeData = append(memeData, data)
+
+		m.PostMeme(data, nextTime.Unix())
+	}
+
+	// Get timestamps
+	beforeEarliest := now.Add(-1 * time.Minute)
+	afterLatest := now.Add(time.Duration(numOfPosts)*time.Minute + time.Minute)
+
+	tests := []struct {
+		name      string
+		sortBy    string
+		wantPanic string
+	}{
+		{
+			name:      "Empty sortBy",
+			sortBy:    "",
+			wantPanic: "runtime error: index out of range",
+		},
+		{
+			name:      "Wrong sortBy",
+			sortBy:    "random string",
+			wantPanic: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("code did not panic when it should have")
+				}
+			}()
+
+			// Panics should be caught
+			_ = m.GetPostsInRange(beforeEarliest.Unix(), afterLatest.Unix(), 1, 1, tc.sortBy)
+		})
+	}
+}
+
 func TestNoPosts(t *testing.T) {
 	m := NewMemeland()
 
@@ -252,7 +302,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("code did not panic when in should have")
+			t.Errorf("code did not panic when it should have")
 		}
 	}()
 
