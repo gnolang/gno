@@ -111,7 +111,9 @@ func TestNewEventWithContext(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			event, err := NewEvent(tc.ctx, tc.eventType, tc.pkgPath, tc.attributes...)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("NewEventWithCtx() error = %v, wantErr %v", err, tc.wantErr)
@@ -143,6 +145,7 @@ func makeLongAttributesList(n int) []string {
 }
 
 func TestAddAttributes(t *testing.T) {
+	t.Parallel()
 	ctx := &ExecContext{
 		Height:    10,
 		Timestamp: time.Now().Unix(),
