@@ -26,7 +26,8 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 			ShortUsage: "secrets get [flags] [<key>]",
 			ShortHelp:  "shows all Gno secrets present in a common directory",
 			LongHelp: fmt.Sprintf(
-				"shows the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				"shows the validator private key, the node p2p key and the validator's last sign state. "+
+					"If a key is provided, it shows the specified key value. Available keys: %s",
 				getAvailableSecretsKeys(),
 			),
 		},

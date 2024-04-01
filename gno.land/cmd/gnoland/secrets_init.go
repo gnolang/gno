@@ -24,7 +24,8 @@ func newSecretsInitCmd(io commands.IO) *commands.Command {
 			ShortUsage: "secrets init [flags] [<key>]",
 			ShortHelp:  "initializes required Gno secrets in a common directory",
 			LongHelp: fmt.Sprintf(
-				"initializes the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				"initializes the validator private key, the node p2p key and the validator's last sign state. "+
+					"If a key is provided, it initializes the specified key. Available keys: %s",
 				getAvailableSecretsKeys(),
 			),
 		},

@@ -25,7 +25,8 @@ func newSecretsVerifyCmd(io commands.IO) *commands.Command {
 			ShortUsage: "secrets verify [flags] [<key>]",
 			ShortHelp:  "verifies all Gno secrets in a common directory",
 			LongHelp: fmt.Sprintf(
-				"verifies the validator private key, the node p2p key and the validator's last sign state. Available keys: %s",
+				"verifies the validator private key, the node p2p key and the validator's last sign state. "+
+					"If a key is provided, it verifies the specified key value. Available keys: %s",
 				getAvailableSecretsKeys(),
 			),
 		},
