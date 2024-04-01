@@ -23,7 +23,7 @@ const (
 const (
 	nodeKeyKey             = "NodeKey"
 	validatorPrivateKeyKey = "ValidatorPrivateKey"
-	validatorStateKey      = "ValidatorStateKey"
+	validatorStateKey      = "ValidatorState"
 )
 
 // newSecretsCmd creates the secrets root command
