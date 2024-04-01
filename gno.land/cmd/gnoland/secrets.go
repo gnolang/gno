@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -62,33 +61,4 @@ func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultSecretsDir,
 		"the secrets output directory",
 	)
-}
-
-// verifySecretsKey verifies the secrets key value from the passed in arguments
-func verifySecretsKey(args []string) error {
-	// Check if any key is set
-	if len(args) == 0 {
-		return nil
-	}
-
-	// Check if more than 1 key is set
-	if len(args) > 1 {
-		return errInvalidSecretsKey
-	}
-
-	// Verify the set key
-	key := args[0]
-
-	if key != nodeKeyKey &&
-		key != validatorPrivateKeyKey &&
-		key != validatorStateKey {
-		return fmt.Errorf(
-			"invalid secrets key value [%s, %s, %s]",
-			validatorPrivateKeyKey,
-			validatorStateKey,
-			nodeKeyKey,
-		)
-	}
-
-	return nil
 }
