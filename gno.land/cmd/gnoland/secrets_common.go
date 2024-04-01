@@ -55,7 +55,7 @@ func generateNodeKey() *p2p.NodeKey {
 // saveSecretData saves the given data as Amino JSON to the path
 func saveSecretData(data any, path string) error {
 	// Get Amino JSON
-	marshalledData, err := amino.MarshalJSONIndent(data, "", "  ")
+	marshalledData, err := amino.MarshalJSONIndent(data, "", "\t")
 	if err != nil {
 		return fmt.Errorf("unable to marshal data into JSON, %w", err)
 	}
