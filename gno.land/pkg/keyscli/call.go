@@ -32,7 +32,7 @@ func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command
 		commands.Metadata{
 			Name:       "call",
 			ShortUsage: "call [flags] <key-name or address>",
-			ShortHelp:  "Executes a Realm function call",
+			ShortHelp:  "executes a realm function call",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

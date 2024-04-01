@@ -2,7 +2,6 @@ package gnoclient
 
 import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // Client provides an interface for interacting with the blockchain.
@@ -12,17 +11,17 @@ type Client struct {
 }
 
 // validateSigner checks that the signer is correctly configured.
-func (c Client) validateSigner() error {
+func (c *Client) validateSigner() error {
 	if c.Signer == nil {
-		return errors.New("missing Signer")
+		return ErrMissingSigner
 	}
 	return nil
 }
 
 // validateRPCClient checks that the RPCClient is correctly configured.
-func (c Client) validateRPCClient() error {
+func (c *Client) validateRPCClient() error {
 	if c.RPCClient == nil {
-		return errors.New("missing RPCClient")
+		return ErrMissingRPCClient
 	}
 	return nil
 }

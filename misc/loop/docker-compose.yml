@@ -1,0 +1,90 @@
+version: "3"
+
+networks:
+  portal-loop:
+    name: portal-loop
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.42.0.0/16
+
+services:
+  traefik:
+    image: "traefik:v2.10"
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.file=true"
+      - "--providers.file.watch=true"
+      - "--providers.file.directory=/etc/traefik/configs"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.private.address=:26657"
+      - "--entrypoints.traefik.address=:8080"
+    networks:
+      - portal-loop
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "26657:26657"
+    volumes:
+      - ./traefik:/etc/traefik/configs
+
+  gnoweb:
+    image: ghcr.io/gnolang/gno/gnoweb-slim
+    restart: unless-stopped
+    networks:
+      - portal-loop
+    ports:
+      - 8888:8888
+    entrypoint:
+      - gnoweb
+      - --bind=0.0.0.0:8888
+      - --remote=traefik:26657
+      - --faucet-url
+      - "http://localhost:5050"
+      - --help-chainid
+      - portal-loop
+      - --help-remote
+      - http://127.0.0.1:26657
+
+  gnofaucet:
+    image: ghcr.io/gnolang/gno/gnofaucet-slim
+    networks:
+      - portal-loop
+    ports:
+      - 5050:5050
+    command:
+      - "serve"
+      - "--listen-address=0.0.0.0:5050"
+      - "--chain-id=portal-loop"
+      # - "--is-behind-proxy=true"
+      - "--mnemonic=${MNEMONIC}"
+      # - "--num-accounts=1"
+      - "--remote=http://traefik:26657"
+    environment:
+      # from .env
+      - RECAPTCHA_SECRET_KEY
+
+  portalloopd:
+    build:
+      context: .
+      target: portalloopd
+    restart: unless-stopped
+    volumes:
+      - ./scripts:/scripts
+      - ./backups:/backups
+      - ./traefik:/etc/traefik/configs
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - portal-loop
+    ports:
+      - 9090:9090
+    environment:
+      HOST_PWD: $PWD
+      BACKUP_DIR: "/backups"
+      RPC_URL: "http://traefik:26657"
+      PROM_ADDR: "0.0.0.0:9090"
+      TRAEFIK_GNO_FILE: "/etc/traefik/configs/gno.yml"
+    extra_hosts:
+      - host.docker.internal:host-gateway

@@ -12,12 +12,13 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 func TestStoreLoadValidators(t *testing.T) {
 	t.Parallel()
 
-	stateDB := dbm.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
 
