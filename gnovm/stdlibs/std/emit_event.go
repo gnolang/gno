@@ -9,12 +9,21 @@ import (
 )
 
 type Event struct {
-	Type       string
-	Attributes []sdk.EventAttribute
+	Type       string               // Type of event
+	PkgPath    string               // Path of the package that emitted the event
+	Height     int64                // Height at which the event was emitted
+	Timestamp  int64                // Timestamp at which the event was emitted
+	Attributes []sdk.EventAttribute // List of event attributes
 }
 
-func NewEvent(typ string, attrs ...string) (Event, error) {
-	var eventAttrs []sdk.EventAttribute
+// NewEvent creates a new event with the given type and attributes.
+// The attributes must be a list of key-value pairs. The number of attributes
+func NewEvent(ctx *ExecContext, typ string, pkgPath string, attrs ...string) (Event, error) {
+	if typ == "" {
+		return Event{}, fmt.Errorf("event type cannot be empty")
+	}
+
+	eventAttrs := make([]sdk.EventAttribute, 0, len(attrs)/2)
 
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
@@ -30,15 +39,18 @@ func NewEvent(typ string, attrs ...string) (Event, error) {
 
 	return Event{
 		Type:       typ,
+		PkgPath:    pkgPath,
+		Height:     ctx.Height,
+		Timestamp:  ctx.Timestamp,
 		Attributes: eventAttrs,
 	}, nil
 }
 
-func (e *Event) AddAttribute(key, value string) *Event {
+// AddAttribute adds a new key-value pair to the event attributes.
+// It appends the new attribute to the existing list of attributes.
+func (e *Event) AddAttribute(key, value string) {
 	e.Attributes = append(
 		e.Attributes,
 		sdk.EventAttribute{Key: key, Value: value},
 	)
-
-	return e
 }
