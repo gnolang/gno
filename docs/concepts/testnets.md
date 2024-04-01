@@ -55,8 +55,6 @@ Staging is a testnet that is reset once every 60 minutes.
 - **Versioning strategy**:
   - Staging is reset every 60 minutes to match the latest monorepo commit
 
-View the staging network configuration [here]. // add rpc config
-
 ## Test4 (upcoming)
 Test4 (name subject to change) is an upcoming, permanent, multi-node testnet. 
 To follow test4 progress, view the test4 milestone
@@ -67,7 +65,7 @@ Once it is complete, it will have the following properties:
   - State is fully persisted unless there are breaking changes in a new release,
 where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - 
+  - ?
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno 
 dApps, creating tools that require persisted state & transaction history
