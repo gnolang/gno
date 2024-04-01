@@ -7,7 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 type secretsInitCfg struct {
@@ -139,4 +142,29 @@ func initAndSaveNodeKey(path string, io commands.IO) error {
 	io.Printfln("Node key saved at %s", path)
 
 	return nil
+}
+
+// generateValidatorPrivateKey generates the validator's private key
+func generateValidatorPrivateKey() *privval.FilePVKey {
+	privKey := ed25519.GenPrivKey()
+
+	return &privval.FilePVKey{
+		Address: privKey.PubKey().Address(),
+		PubKey:  privKey.PubKey(),
+		PrivKey: privKey,
+	}
+}
+
+// generateLastSignValidatorState generates the empty last sign state
+func generateLastSignValidatorState() *privval.FilePVLastSignState {
+	return &privval.FilePVLastSignState{} // Empty last sign state
+}
+
+// generateNodeKey generates the p2p node key
+func generateNodeKey() *p2p.NodeKey {
+	privKey := ed25519.GenPrivKey()
+
+	return &p2p.NodeKey{
+		PrivKey: privKey,
+	}
 }

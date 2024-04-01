@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -26,31 +25,6 @@ var (
 
 	errInvalidNodeKey = errors.New("invalid node p2p key")
 )
-
-// generateValidatorPrivateKey generates the validator's private key
-func generateValidatorPrivateKey() *privval.FilePVKey {
-	privKey := ed25519.GenPrivKey()
-
-	return &privval.FilePVKey{
-		Address: privKey.PubKey().Address(),
-		PubKey:  privKey.PubKey(),
-		PrivKey: privKey,
-	}
-}
-
-// generateLastSignValidatorState generates the empty last sign state
-func generateLastSignValidatorState() *privval.FilePVLastSignState {
-	return &privval.FilePVLastSignState{} // Empty last sign state
-}
-
-// generateNodeKey generates the p2p node key
-func generateNodeKey() *p2p.NodeKey {
-	privKey := ed25519.GenPrivKey()
-
-	return &p2p.NodeKey{
-		PrivKey: privKey,
-	}
-}
 
 // saveSecretData saves the given data as Amino JSON to the path
 func saveSecretData(data any, path string) error {
