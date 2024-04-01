@@ -6,7 +6,9 @@ import (
 	"strings"
 )
 
-func sortValueDeps(store Store, decls Decls) (Decls, error) {
+// sortValueDeps creates a new topologically sorted
+// decl slice ready for processing in order
+func sortValueDeps(decls Decls) (Decls, error) {
 	graph := &Graph{
 		edges:    make(map[string][]string),
 		vertices: make([]string, 0),
@@ -23,7 +25,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			continue
 		}
 
-		if len(vd.NameExprs) > len(vd.Values) && len(vd.Values) > 0 {
+		if isTuple(vd) {
 			_, ok := vd.Values[0].(*CallExpr)
 			if ok {
 				graph.addVertex(vd.NameExprs.String())
@@ -44,7 +46,7 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 			continue
 		}
 
-		if len(vd.NameExprs) > len(vd.Values) && len(vd.Values) > 0 {
+		if isTuple(vd) {
 			ce, ok := vd.Values[0].(*CallExpr)
 			if ok {
 				addDepFromExpr(graph, vd.NameExprs.String(), ce)
@@ -71,27 +73,8 @@ func sortValueDeps(store Store, decls Decls) (Decls, error) {
 				continue
 			}
 
-			if strings.Contains(node, ", ") {
-				names := strings.Split(node, ", ")
-
-				if len(names) != len(vd.NameExprs) {
-					panic("1should not happen")
-				}
-
-				equal := true
-
-				for i, name := range names {
-					if vd.NameExprs[i].String() != name {
-						equal = false
-						break
-					}
-				}
-
-				if !equal {
-					panic(fmt.Sprintf("names: %+v != nameExprs: %+v\n", names, vd.NameExprs))
-				}
-
-				dd = decl
+			if isCompoundNode(node) {
+				dd = processCompound(node, vd, decl)
 				break
 			}
 
@@ -193,4 +176,35 @@ func (g *Graph) topologicalSort() []string {
 	}
 
 	return stack
+}
+
+func isTuple(vd *ValueDecl) bool {
+	return len(vd.NameExprs) > len(vd.Values) && len(vd.Values) > 0
+}
+
+func isCompoundNode(node string) bool {
+	return strings.Contains(node, ", ")
+}
+
+func processCompound(node string, vd *ValueDecl, decl Decl) Decl {
+	names := strings.Split(node, ", ")
+
+	if len(names) != len(vd.NameExprs) {
+		panic("1should not happen")
+	}
+
+	equal := true
+
+	for i, name := range names {
+		if vd.NameExprs[i].String() != name {
+			equal = false
+			break
+		}
+	}
+
+	if !equal {
+		panic(fmt.Sprintf("names: %+v != nameExprs: %+v\n", names, vd.NameExprs))
+	}
+
+	return decl
 }
