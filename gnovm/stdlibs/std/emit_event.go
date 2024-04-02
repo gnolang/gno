@@ -5,6 +5,7 @@ package std
 import (
 	"fmt"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -53,4 +54,12 @@ func (e *Event) AddAttribute(key, value string) {
 		e.Attributes,
 		sdk.EventAttribute{Key: key, Value: value},
 	)
+}
+
+func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
+	eventAttrs := make([]sdk.EventAttribute, len(attrs)/2)
+	pkgPath := CurrentRealmPath(m)
+	event := sdk.NewEvent(typ, pkgPath, eventAttrs...)
+	ctx := m.Context.(ExecContext)
+	ctx.EventLogger.EmitEvent(event)
 }
