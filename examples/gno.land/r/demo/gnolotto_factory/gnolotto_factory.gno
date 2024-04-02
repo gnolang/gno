@@ -10,9 +10,11 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnolotto"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/seqid"
 )
 
 var lotteries *avl.Tree
+var lotteriesID seqid.ID
 
 // Replace this address with your address
 var admin std.Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
@@ -23,41 +25,39 @@ func init() {
 }
 
 // Creates a new lottery, only callable by admin.
-func CreateLottery(drawTime int64, prizePool int64) (int, string) {
+func CreateLottery(drawTime int64, prizePool int64) (string, string) {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	send := std.Coins{{"ugnot", amount}}
 
 	if prizePool != amount {
 		panic("Prize pool must match the transaction value")
 	}
 
 	if drawTime < time.Now().Unix() {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "Invalid draw time"
+		panic("Invalid draw time")
 	}
 
 	if std.GetOrigCaller() != admin {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "Only the admin can create a lottery"
+		panic("Only the admin can create a lottery")
 	}
 
-	lotteryID := lotteries.Size()
+	lotteryID := lotteriesID.Next()
 	lottery := gnolotto.NewLottery(time.Unix(drawTime, 0), prizePool)
 
-	lotteries.Set(ufmt.Sprintf("%d", lotteryID), lottery)
-	return lotteryID, "Lottery created successfully"
+	lotteries.Set(lotteryID.Binary(), lottery)
+	return lotteryID.String(), "Lottery created successfully"
 }
 
 // Buy ticket for a specific lottery.
-func BuyTicket(lotteryID int, numbersStr string) (int, string) {
+func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 
-	id := ufmt.Sprintf("%d", lotteryID)
+	lotteryID, _ := seqid.FromString(lotteryIDStr)
+	id := lotteryID.Binary()
+
 	lotteryRaw, exists := lotteries.Get(id)
 	if !exists {
 		panic("Lottery not found")
@@ -113,8 +113,10 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 }
 
 // Draws the winning numbers for a specific lottery, only callable by admin the draw time has passed.
-func Draw(lotteryID int) (int, string) {
-	id := ufmt.Sprintf("%d", lotteryID)
+func Draw(lotteryIDStr string) (int, string) {
+	lotteryID, _ := seqid.FromString(lotteryIDStr)
+	id := lotteryID.Binary()
+
 	if std.GetOrigCaller() != admin {
 		panic("Only the admin can draw the winning numbers")
 	}
@@ -154,10 +156,13 @@ func renderHomepage() string {
 	lotteries.Iterate("", "", func(key string, value interface{}) bool {
 		l := value.(*gnolotto.Lottery)
 
+		lotteryID, _ := seqid.FromBinary(key)
+		readableID := lotteryID.String()
+
 		b.WriteString(
 			ufmt.Sprintf(
 				"## Lottery ID: *%s*\n",
-				key,
+				readableID,
 			),
 		)
 
