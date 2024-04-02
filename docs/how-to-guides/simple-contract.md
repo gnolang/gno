@@ -6,18 +6,79 @@ id: simple-contract
 
 ## Overview
 
-This guide shows you how to write a simple **Counter** Smart Contract, or rather a [Realm](../concepts/realms.md),
+This guide shows you how to write a simple **Counter** Smart Contract, or rather a [realm](../concepts/realms.md),
 in [Gno](../concepts/gno-language.md). 
 
 For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
-Our **Counter** Realm will have the following functionality:
+Our **Counter** realm will have the following functionality:
 
 - Keeping track of the current count.
 - Incrementing / decrementing the count.
 - Fetching the current count value.
 
-## 1. Using Gno Playground
+## 1. Environment
+Currently, Gno apps can be developed locally or via the online editor, Gno 
+Playground. Below we detail how to set up and use both. 
+
+### Local setup
+To get started with a local setup
+Gno Realms can be typically written anywhere, under any structure, just like
+regular Go code. However, Gno developers have adopted a standard of organizing 
+Gno logic under a specific directory hierarchy, which we
+will explore here.
+
+Create the main working directory for our Realm:
+
+```bash
+mkdir counter-app
+```
+
+Since we are building a simple _Counter_ Realm, inside our created `counter-app` directory, we can create another
+directory named `r`, which stands for `realm`:
+
+```bash
+cd counter-app
+mkdir r
+```
+
+Alternatively, if we were writing a [Gno Package](../concepts/packages.md), we would denote this directory name
+as `p` (for `package`). You can learn more about Packages in our [Package development guide](simple-library.md).
+
+Additionally, we will create another sub-folder that will house our Realm code, named `counter`:
+
+```bash
+cd r
+mkdir counter
+```
+
+After setting up our work directory structure, we should have something like this:
+
+```text
+counter-app/
+├─ r/
+│  ├─ counter/
+│  │  ├─ // source code here
+```
+
+### 2. Create `counter.gno`
+
+Now that the work directory structure is set up, we can go into the `counter` sub-folder, and actually create
+our _Counter_ Smart Contract:
+
+```bash
+cd counter
+touch counter.gno
+```
+
+:::info Gno file extension
+All Gno (Gnolang) source code has the file extension `.gno`.
+
+This file extension is required for existing gno tools and processes to work.
+:::
+
+
+### Using the Gno Playground
 
 When using the Gno Playground, writing, testing, deploying, and sharing Gno code
 is simple. This makes it perfect for getting started with Gno.
