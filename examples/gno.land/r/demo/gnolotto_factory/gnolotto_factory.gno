@@ -27,7 +27,7 @@ func CreateLottery(drawTime int64, prizePool int64) (int, string) {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	send := std.Coins{{"ugnot", int64(amount)}}
+	send := std.Coins{{"ugnot", amount}}
 
 	if prizePool != amount {
 		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
