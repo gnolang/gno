@@ -1,5 +1,5 @@
-//go:build !ledger_mock
-// +build !ledger_mock
+//go:build !ledger_suite
+// +build !ledger_suite
 
 package ledger
 

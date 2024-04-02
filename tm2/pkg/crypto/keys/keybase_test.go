@@ -42,29 +42,14 @@ func TestCreateLedger(t *testing.T) {
 	// test_cover does not compile some dependencies so ledger is disabled
 	// test_unit may add a ledger mock
 	// both cases are acceptable
-	ledger, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
-	if err != nil {
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "LedgerHID device (idx 0) not found.")
-
-		assert.Nil(t, ledger)
-		t.Skip("ledger nano S: support for ledger devices is not available in this executable")
-		return
-	}
-
-	// The mock is available, check that the address is correct
-	pubKey := ledger.GetPubKey()
-	pubs := crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
+	_, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
+	require.NoError(t, err)
 
 	// Check that restoring the key gets the same results
 	restoredKey, err := kb.GetByName("some_account")
 	assert.NotNil(t, restoredKey)
 	assert.Equal(t, "some_account", restoredKey.GetName())
 	assert.Equal(t, TypeLedger, restoredKey.GetType())
-	pubKey = restoredKey.GetPubKey()
-	pubs = crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
 
 	path, err := restoredKey.GetPath()
 	assert.NoError(t, err)

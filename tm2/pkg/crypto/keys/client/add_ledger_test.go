@@ -1,5 +1,5 @@
-//go:build ledger_mock
-// +build ledger_mock
+//go:build ledger_suite
+// +build ledger_suite
 
 package client
 
@@ -16,7 +16,7 @@ import (
 )
 
 // Make sure to run these tests with the following tag enabled:
-// -tags='ledger_mock'
+// -tags='ledger_suite'
 func TestAdd_Ledger(t *testing.T) {
 	t.Parallel()
 
