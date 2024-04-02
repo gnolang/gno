@@ -72,7 +72,6 @@ func (cl *ColumnLogger) WithGroup(group string) slog.Handler {
 		// generate bright color based on the group name
 		fg = colorFromString(group, 0.5, 0.6)
 	}
-
 	baseStyle := lipgloss.NewStyle().Foreground(fg)
 
 	nlog := cl.Logger.With() // clone logger

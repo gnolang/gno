@@ -8,8 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const jitter = 0
-
 func colorFromString(s string, saturation, lightness float64) lipgloss.Color {
 	hue := float64(hash(s) % 360)
 
@@ -18,10 +16,10 @@ func colorFromString(s string, saturation, lightness float64) lipgloss.Color {
 	return lipgloss.Color(hex)
 }
 
-func hash(s string) uint32 {
+func hash32a(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
-	return h.Sum32() + jitter
+	return h.Sum32()
 }
 
 // from: https://www.rapidtables.com/convert/color/hsl-to-rgb.html
