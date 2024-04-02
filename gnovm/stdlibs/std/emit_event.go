@@ -58,8 +58,17 @@ func (e *Event) AddAttribute(key, value string) {
 
 func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs := make([]sdk.EventAttribute, len(attrs)/2)
+
+	for i := 0; i < len(attrs); i += 2 {
+		eventAttrs[i/2] = sdk.EventAttribute{
+			Key:   attrs[i],
+			Value: attrs[i+1],
+		}
+	}
+
 	pkgPath := CurrentRealmPath(m)
 	event := sdk.NewEvent(typ, pkgPath, eventAttrs...)
+
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(event)
 }
