@@ -1892,14 +1892,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 										debug.Printf("---loopInfos: %v \n", loopInfos)
 										debug.Println("---dump loopInfos")
-
-										//for fn, loops := range loopInfos {
-										//	debug.Println("---fn: ", fn)
-										//	for i, lp := range loops {
-										//		debug.Printf("---loops[%d] is %v \n", i, lp)
-										//	}
-										//}
-
 										break
 									}
 								}
@@ -1927,12 +1919,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				debug.Println("---trans_leave, for stmt: ", n)
-				debug.Printf("---trans_leave, for stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				if !reProcessing {
 					clo := n.closure
 					if clo != nil {
 						debug.Println("---trans_leave, clo: ", clo)
-
 						stmts := []Stmt{}
 						// step2. inject i := 1 for loop extern
 						if clo.loopVars != nil {
@@ -1946,19 +1936,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							stmts = n.Body
 						}
-
 						// wrap body with {}
 						nn := BlockS(stmts)
-
-						// TODO: XXX, think, merge this transform, same as goto loop?
-						// reset staticBlock initialized in for{...}
-						//resetStaticBlock(nn)
-						//debug.Println("---nn after reset is: ", nn)
-						//
-						//// recursively
-						//nn = Preprocess(store, n, nn).(*BlockStmt)
-						//debug.Println("---nn after preprocess: ", nn)
-
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
 						debug.Println("---n final: ", n)
@@ -1997,17 +1976,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							body = n.Body
 						}
-
 						// wrap body with {}
 						nn := BlockS(body)
-
-						//// reset staticBlock initialized in for{...}
-						//resetStaticBlock(nn)
-						//debug.Println("---nn after reset is: ", nn)
-						//
-						//nn = Preprocess(store, n, nn).(*BlockStmt)
-						//debug.Println("---nn after preprocess: ", nn)
-
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
 						debug.Println("---n final: ", n)
@@ -4007,10 +3977,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		}
 	}
 
-	stack := make([]BlockNode, 0, 32)
-	last := bn
-	stack = append(stack, last)
-
 	reProcessing = true
 	defer func() {
 		reProcessing = false
@@ -4024,7 +3990,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		case TRANS_ENTER:
 			switch cn := n.(type) {
 			case *FuncDecl:
-				stack = append(stack, cn)
 				body := cn.GetBody()
 				debug.Println("---trans_enter, funcDecl: ", cn.Name)
 				debug.Println("--------------funcDecl, body: ", body)
@@ -4083,8 +4048,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				return cn, TRANS_CONTINUE
 			case *BlockStmt:
 				debug.Println("---enter, BlockStmt")
-				stack = append(stack, cn)
-
 				for i, loop := range loops {
 					debug.Printf("---goto loop at %d is %v \n: ", i, loop)
 					if loop.isGotoLoop { // for/range has build new body prior
@@ -4096,7 +4059,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 							lblstmt, idx := body.GetLabeledStmt(loop.label)
 							debug.Println("---lblstmt, idx: ", lblstmt, idx)
 							if lblstmt == nil {
-								debug.Println("---continue")
 								continue
 							} else {
 								debug.Println("---blockStmt, labeled stmt found: ", loop.label)
@@ -4105,7 +4067,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 								nBody := rebuildBody(body, loop)
 								cn.Body = nBody
 								debug.Println("---nBody: ", nBody)
-								debug.Println("---depth: ", len(stack))
 
 								debug.Println("---loopInfo.Fn: ", loop.fn)
 								loop.sealed = true
@@ -4115,7 +4076,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *FuncLitExpr:
-				stack = append(stack, cn)
 				for _, loop := range loops {
 					if loop.isGotoLoop { // for/range has build new body prior
 						body := cn.GetBody()
@@ -4134,7 +4094,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *ForStmt:
-				stack = append(stack, cn)
 				for _, loop := range loops {
 					if loop.isGotoLoop { // for/range has build new body prior
 						body := cn.GetBody()
@@ -4152,7 +4111,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *IfCaseStmt:
-				stack = append(stack, cn)
 				for _, loop := range loops {
 					if loop.isGotoLoop { // for/range has build new body prior
 						body := cn.GetBody()
@@ -4170,7 +4128,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *RangeStmt:
-				stack = append(stack, cn)
 				for _, loop := range loops {
 					if loop.isGotoLoop { // for/range has build new body prior
 						body := cn.GetBody()
@@ -4188,7 +4145,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *SwitchClauseStmt:
-				stack = append(stack, cn)
 				for _, loop := range loops {
 					if loop.isGotoLoop { // for/range has build new body prior
 						body := cn.GetBody()
@@ -4206,30 +4162,16 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				}
 				return cn, TRANS_CONTINUE
 			case *IfStmt:
-				stack = append(stack, cn)
 				return cn, TRANS_CONTINUE
 			default:
 				return cn, TRANS_CONTINUE
 			}
 		case TRANS_LEAVE:
-			// track last block node
-			//if _, ok := n.(BlockNode); ok {
-			//	stack = stack[:len(stack)-1]
-			//	if len(stack) < 1 {
-			//		last = nil
-			//	} else {
-			//		last = stack[len(stack)-1]
-			//	}
-			//}
 			switch cn := n.(type) {
 			case *FuncDecl: // all reProcess happens in the root funcDecl
 				debug.Println("---trans_leave funcDecl, cn: ", cn)
 				debug.Println("---currentFn: ", currentFn)
 				if cn.Name == currentFn {
-					debug.Println("---last: ", last)
-					//if last == nil {
-					//	panic("last should not be nil-------------")
-					//}
 					cn = reProcess(store, bn, cn).(*FuncDecl)
 				}
 				return cn, TRANS_CONTINUE
@@ -4241,7 +4183,6 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		}
 	})
 
-	//loopInfos = loopInfos[:0]
 	debug.Println("---end of transform, bn: ", bn)
 	return
 }
