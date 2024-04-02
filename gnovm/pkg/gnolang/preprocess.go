@@ -3038,7 +3038,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
-				"unknown import path %s",
+				"unknown import path %s; is gno.mod tidy?",
 				d.PkgPath))
 		}
 		if d.Name == "" { // use default
