@@ -33,7 +33,7 @@ func (l *Lottery) AddTicket(numbers []int, owner std.Address) {
 	l.Tickets = append(l.Tickets, Ticket{Numbers: numbers, Owner: owner})
 }
 
-// Conducts the draw by generating 5 random numbers between 1 and 15
+// Conducts the draw by generating 5 pseudo-random numbers between 1 and 15
 func (l *Lottery) Draw() {
 	var blockHeight int64 = std.GetHeight()
 
