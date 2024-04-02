@@ -66,15 +66,9 @@ func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 	}
 
 	// Convert string to slice of integers.
-	numbersSlice := strings.Split(numbersStr, ",")
-	numbers := make([]int, len(numbersSlice))
-	for i, numStr := range numbersSlice {
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-			panic("Invalid number: " + err.Error())
-		}
-		numbers[i] = num
+	numbers, err := gnolotto.StringToIntSlice(numbersStr)
+	if err != nil {
+		panic("Invalid number: " + err.Error()) // Gestion de l'erreur si la conversion échoue.
 	}
 
 	//Verify if the amount sent is equal to the ticket price.

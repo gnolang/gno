@@ -100,3 +100,16 @@ func (l *Lottery) PayWinners(winningOwners []std.Address) {
 		l.PrizePool = 0 // Reset the prize pool after distribution
 	}
 }
+
+func StringToIntSlice(numbersStr string) ([]int, error) {
+	numbersSlice := strings.Split(numbersStr, ",")
+	numbers := make([]int, len(numbersSlice))
+	for i, numStr := range numbersSlice {
+		num, err := strconv.Atoi(strings.TrimSpace(numStr))
+		if err != nil {
+			return nil, err
+		}
+		numbers[i] = num
+	}
+	return numbers, nil
+}
