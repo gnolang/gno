@@ -17,11 +17,26 @@ Our **Counter** realm will have the following functionality:
 - Incrementing / decrementing the count.
 - Fetching the current count value.
 
-## 1. Environment
+## 1. Development environment
 Currently, Gno apps can be developed locally or via the online editor, Gno 
 Playground. Below we detail how to set up and use both. 
-
+  
 ### Local setup
+
+#### Prerequisites
+
+- **Text editor**
+
+:::info Editor support
+The Gno language is based on Go, but it does not have all the bells and whistles in major text editors like Go.
+Advanced language features like IntelliSense are still in the works.
+
+Currently, we officially have language support
+for [ViM](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md#vim-support),
+[Emacs](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md#emacs-support)
+and [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno).
+:::
+
 To get started with a local setup, simply create a new empty folder.
 
 ```bash
@@ -61,8 +76,8 @@ counter-app/
 │  │  ├─ // source code here
 ```
 
-Now that the work directory structure is set up, we can go into the `counter` sub-folder, and actually create
-our **Counter** Smart Contract:
+Now that the work directory structure is set up, we can go into the `counter`
+sub-folder, and actually create the file to store our **Counter** realm:
 
 ```bash
 cd counter
@@ -81,9 +96,9 @@ to see how to start.
 ### Using the Gno Playground
 
 For smaller apps and Gno code snippets, the Gno Playground can be used. It provides
-a simple sandbox environment where developers can write Gno code.
+a simple sandbox environment where developers can write, test, and deploy Gno code.
 
-Vising the [Playground](https://play.gno.land) will greet you with a template file:
+Visiting the [Playground](https://play.gno.land) will greet you with a template file:
 
 ![Default](../assets/how-to-guides/simple-contract/playground_welcome.png)
 
