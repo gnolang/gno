@@ -120,7 +120,7 @@ func Draw(lotteryID int) (int, string) {
 	}
 	lotteryRaw, exists := lotteries.Get(id)
 	if !exists {
-		return -1, "Lottery not found"
+		panic("Lottery not found")
 	}
 
 	l, _ := lotteryRaw.(*gnolotto.Lottery)
