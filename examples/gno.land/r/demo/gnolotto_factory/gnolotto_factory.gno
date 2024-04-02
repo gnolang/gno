@@ -126,7 +126,7 @@ func Draw(lotteryID int) (int, string) {
 	l, _ := lotteryRaw.(*gnolotto.Lottery)
 
 	if time.Now().Unix() < l.DrawTime.Unix() {
-		return -1, "Draw time has not passed yet"
+		panic("Draw time has not passed yet")
 	}
 
 	l.Draw()
