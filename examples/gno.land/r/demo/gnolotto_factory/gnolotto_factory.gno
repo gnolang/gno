@@ -116,7 +116,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 func Draw(lotteryID int) (int, string) {
 	id := ufmt.Sprintf("%d", lotteryID)
 	if std.GetOrigCaller() != admin {
-		return -1, "Only the admin can draw the winning numbers"
+		panic("Only the admin can draw the winning numbers")
 	}
 	lotteryRaw, exists := lotteries.Get(id)
 	if !exists {
