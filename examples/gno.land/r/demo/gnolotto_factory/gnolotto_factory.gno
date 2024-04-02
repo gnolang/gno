@@ -19,6 +19,8 @@ var lotteriesID seqid.ID
 // Replace this address with your address
 var admin std.Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
+const TICKET_PRICE = 10
+
 // Initializes the lottery AVL tree
 func init() {
 	lotteries = avl.NewTree()
@@ -76,9 +78,8 @@ func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 	}
 
 	//Verify if the amount sent is equal to the ticket price.
-	if amount != 10 {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "Ticket price must be 10 UGNOT"
+	if amount != TICKET_PRICE {
+		panic("Ticket price must be 10 UGNOT")
 	}
 
 	// Verify if the numbers are unique.
