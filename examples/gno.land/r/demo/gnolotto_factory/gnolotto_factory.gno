@@ -30,8 +30,7 @@ func CreateLottery(drawTime int64, prizePool int64) (int, string) {
 	send := std.Coins{{"ugnot", amount}}
 
 	if prizePool != amount {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "Prize pool must match the transaction value"
+		panic("Prize pool must match the transaction value")
 	}
 
 	if drawTime < time.Now().Unix() {
