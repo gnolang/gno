@@ -3,8 +3,6 @@ package gnolotto_factory
 import (
 	"bytes"
 	"std"
-	"strconv"
-	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -54,8 +52,6 @@ func CreateLottery(drawTime int64, prizePool int64) (string, string) {
 func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	send := std.Coins{{"ugnot", int64(amount)}}
 
 	lotteryID, _ := seqid.FromString(lotteryIDStr)
 	id := lotteryID.Binary()
