@@ -62,19 +62,27 @@ decimal values,
 ## 2. Adding token functionality
 
 In order to call exported functions from the `grc20` package, we also need to 
-expose them in the Realm. 
+expose them in the realm. Let's go through all functions in the GRC20 package,
+one by one:
 
-[embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
 // TotalSupply returns the total supply of mytoken
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
+
+```
+Calling the `TotalSupply` method would return the total number of tokens minted.
+
+```go
 // Decimals returns the number of decimals of mytoken
 func Decimals() uint {
 	return mytoken.GetDecimals()
 }
+```
+Calling the `Decimals` method would return number of decimals of the token.
 
+```go
 // BalanceOf returns the balance mytoken for `account`
 func BalanceOf(account std.Address) uint64 {
 	balance, err := mytoken.BalanceOf(account)
@@ -84,7 +92,11 @@ func BalanceOf(account std.Address) uint64 {
 
 	return balance
 }
+```
 
+Calling the `BalanceOf` method would return the total balance of an account.
+
+```go
 // Allowance returns the allowance of spender on owner's balance
 func Allowance(owner, spender std.Address) uint64 {
 	allowance, err := mytoken.Allowance(owner, spender)
@@ -94,7 +106,11 @@ func Allowance(owner, spender std.Address) uint64 {
 
 	return allowance
 }
+```
+Calling the `Allowance` method will return the amount `spender` is allowed to spend
+from `owner`'s balance.
 
+```go
 // Transfer transfers amount from caller to recipient
 func Transfer(recipient std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
@@ -102,17 +118,24 @@ func Transfer(recipient std.Address, amount uint64) {
 		panic(err)
 	}
 }
+```
+Calling the `Transfer` method transfers amount of token from the calling account 
+to the recipient account.
 
-// Approve approves amount of caller's tokens to be spent by spender
+```go
 func Approve(spender std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	if err := mytoken.Approve(caller, spender, amount); err != nil {
 		panic(err)
 	}
 }
+```
+Calling the `Approve` method approves `spender` to spend `amount` from the caller's
+balance of tokens.
 
+```go
 // TransferFrom transfers `amount` of tokens from `from` to `to` 
-func TransferFrom(from, to std.Address, amount uint64) {
+func TransferFrom(sender, recipient std.Address, amount uint64) {
 	caller := std.PrevRealm().Addr()
 
 	if amount <= 0 {
@@ -123,7 +146,12 @@ func TransferFrom(from, to std.Address, amount uint64) {
 		panic(err)
 	}
 }
+```
+Calling the `TransferFrom` method moves `amount` of tokens from `sender` to 
+`recipient` using the allowance mechanism. `amount` is then deducted from the
+caller’s allowance.
 
+```go
 // Mint mints amount of tokens to address. Callable only by admin of token
 func Mint(address std.Address, amount uint64) {
 	assertIsAdmin(std.PrevRealm().Addr())
@@ -136,7 +164,11 @@ func Mint(address std.Address, amount uint64) {
 		panic(err)
 	}
 }
+```
+Calling the `Mint` method creates `amount` of tokens and assigns them to `address`,
+increasing the total supply.
 
+```go
 // Burn burns amount of tokens from address. Callable only by admin of token
 func Burn(address std.Address, amount uint64) {
 	assertIsAdmin(std.PrevRealm().Addr())
@@ -149,14 +181,22 @@ func Burn(address std.Address, amount uint64) {
 		panic(err)
 	}
 }
+```
+Calling the `Mint` method burns `amount` of tokens from the balance of `address`,
+decreasing the total supply.
 
+```go
 // assertIsAdmin asserts the address is the admin of token
 func assertIsAdmin(address std.Address) {
 	if address != admin {
 		panic("restricted access")
 	}
 }
+```
+Calling the `assertIsAdmin` method checks if `address` is equal to the 
+package-level `admin` variable. 
 
+```go
 // Render renders the state of the realm
 func Render(path string) string {
 	parts := strings.Split(path, "/")
@@ -176,33 +216,12 @@ func Render(path string) string {
 	}
 }
 ```
+Calling the `Render` method returns a general render of the GRC20 realm, or
+if given a specific address, the user's `balance` as a formatted string.
 
-Detailing what is happening in the above code:
-- Calling the `TotalSupply` method would return the total number of tokens minted.
-- Calling the `BalanceOf` method would return the total balance of an account.
-- Calling the `Allowance` method would set an account as an allowed spender to
-serve on behalf of the owner.
-- Calling the `transfer` method transfers a configurable amount of token
-from the calling account to another account, either owned or unowned.
-- Calling the `Approve` method approves a calling account to spend a
-configurable amount of token(s) on behalf of the token owner.
-- Calling the `TransferFrom` method transfers a configurable amount of 
-token from an account that granted approval to another account, either owned or unowned.
-- Calling the `Mint` method creates a configurable number of tokens by 
-the administrator.
-- Calling the `Burn` method destroys a configurable number of tokens by
-the administrator.
-- Calling the `Render` method returns a user's `balance` as a formatted
-string. Learn more about the `Render`
-  method and how it's used [here](../concepts/realms.md).
-- Lastly, we provide a local function designed to verify that the calling account is
-indeed the owner; it triggers a panic if this is not the case. This critical function acts
-as a safeguard to prevent unauthorized actions by non-administrators.
-
-You can view the full code on [this Playground link](https://play.gno.land/p/1UXqufodX6f).
+You can view the full code on [this Playground link](https://play.gno.land/p/km7Ja6WDQoL).
 
 ## Conclusion
-
 That's it 🎉
 
 You have successfully built a simple GRC20 Realm that is ready to be deployed on the Gno chain and called by users.

@@ -41,7 +41,7 @@ func Render(_ string) string {
 
 Visit [this Playground link](https://play.gno.land/p/XbkFKAIpLO8) to get started.
 
-## 1. Writing the Gno test
+## 1. Testing in Gno
 
 Gno tests are written in the same manner and format as regular Go tests, just in
 `_test.gno` files.
