@@ -152,7 +152,7 @@ func (cl *columnWriter) Write(buf []byte) (n int, err error) {
 	return n, nil
 }
 
-// defaultStyles returns the default styles.
+// defaultStyles returns the default lipgloss styles for column logger
 func defaultStyles() *log.Styles {
 	style := log.DefaultStyles()
 	style.Levels = map[log.Level]lipgloss.Style{
