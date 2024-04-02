@@ -60,8 +60,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 	id := ufmt.Sprintf("%d", lotteryID)
 	lotteryRaw, exists := lotteries.Get(id)
 	if !exists {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "Lottery not found"
+		panic("Lottery not found")
 	}
 
 	// Convert string to slice of integers.
