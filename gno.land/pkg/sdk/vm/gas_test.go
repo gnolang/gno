@@ -12,12 +12,13 @@ import (
 	"github.com/jaekwon/testify/assert"
 )
 
-// Gas is consumed in both CheckTx and DeliverTx.
-// VM gas is consumed only in DeliverTx.
+// Gas for entire tx is consumed in both CheckTx and DeliverTx.
+// Gas for executing VM tx (VM CPU and Store Access in bytes) is consumed in DeliverTx.
+// Gas for balance checking, message size checking, and signature verification is consumed (deducted) in checkTx.
 
-// Not enough gas for a successful message.
+// Insufficient gas for a successful message.
 
-func TestAddPkgDeliverTxNoGas(t *testing.T) {
+func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	success := true
 	ctx, tx, vmHandler := setupAddPkg(success)
 

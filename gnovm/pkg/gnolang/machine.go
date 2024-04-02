@@ -43,9 +43,9 @@ type Machine struct {
 	ReadOnly   bool
 	MaxCycles  int64
 
-	Output     io.Writer
-	Store      Store
-	Context    interface{}
+	Output   io.Writer
+	Store    Store
+	Context  interface{}
 	GasMeter store.GasMeter
 }
 
@@ -75,7 +75,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
-	GasMeter    store.GasMeter
+	GasMeter      store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -888,15 +888,15 @@ const (
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
-const GasFactorCpu int64 = 1
+const GasFactorCPU int64 = 1
 
 //----------------------------------------
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
-		gasCpu := overflow.Mul64p(cycles, GasFactorCpu)
-		m.GasMeter.ConsumeGas(gasCpu, "CpuCycles")
+		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
 	}
 
 	m.Cycles += cycles
