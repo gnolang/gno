@@ -51,20 +51,13 @@ func (m *Machine) doOpCall() {
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
-	debug.Printf("---fv: %v \n", fv)
 	ft := fr.Func.GetType(m.Store)
-	debug.Printf("---ft: %v \n", ft)
-	debug.Printf("---fv.Source: %v \n", fv.Source)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-
-	debug.Printf("---clo: %v \n", clo)
-
-	debug.Println("---b: ", b)
 
 	m.PushBlock(b) // this push a new block for the outer closure
 	if fv.nativeBody == nil && fv.NativePkg != "" {

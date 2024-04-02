@@ -671,7 +671,6 @@ func (ss Body) GetBody() Body {
 
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	for idx, stmt = range ss {
-		debug.Printf("---GetLabeledStmt, stmt[%d] is : %v, label: %s \n", idx, stmt, stmt.GetLabel())
 		if label == stmt.GetLabel() {
 			return stmt, idx
 		}
@@ -1612,15 +1611,12 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode) {
-	debug.Println("---getPathForName, n: ", n)
-	debug.Println("---getPathForName, sb: ", sb)
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_"), nil
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		debug.Println("---idx")
 		return NewValuePathBlock(uint8(gen), idx, n), sb.Source
 	}
 	// Register as extern.

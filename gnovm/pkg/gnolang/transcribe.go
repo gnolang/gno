@@ -262,7 +262,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *FuncLitExpr:
 		cnn.Type = *transcribe(t, nns, TRANS_FUNCLIT_TYPE, 0, &cnn.Type, &c).(*FuncTypeExpr)
 		if isStopOrSkip(nc, c) {
-			debug.Println("---stop or skip funclit type")
 			return
 		}
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
