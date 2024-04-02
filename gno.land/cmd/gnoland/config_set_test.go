@@ -107,7 +107,7 @@ func TestConfig_Set_Invalid(t *testing.T) {
 			"set",
 			"--config-path",
 			path,
-			"DBBackend",
+			"db_backend",
 			"random db backend",
 		}
 
@@ -124,7 +124,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"root dir updated",
 			[]string{
-				"RootDir",
+				"home",
 				"example root dir",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -134,7 +134,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"proxy app updated",
 			[]string{
-				"ProxyApp",
+				"proxy_app",
 				"example proxy app",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -144,7 +144,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"moniker updated",
 			[]string{
-				"Moniker",
+				"moniker",
 				"example moniker",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -154,7 +154,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"fast sync mode updated",
 			[]string{
-				"FastSyncMode",
+				"fast_sync",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -167,7 +167,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"db backend updated",
 			[]string{
-				"DBBackend",
+				"db_backend",
 				db.GoLevelDBBackend.String(),
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -177,7 +177,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"db path updated",
 			[]string{
-				"DBPath",
+				"db_dir",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -187,7 +187,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"genesis path updated",
 			[]string{
-				"Genesis",
+				"genesis_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -197,7 +197,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"validator key updated",
 			[]string{
-				"PrivValidatorKey",
+				"priv_validator_key_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -207,7 +207,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"validator state file updated",
 			[]string{
-				"PrivValidatorState",
+				"priv_validator_state_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -217,7 +217,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"validator listen addr updated",
 			[]string{
-				"PrivValidatorListenAddr",
+				"priv_validator_laddr",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -227,7 +227,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"node key path updated",
 			[]string{
-				"NodeKey",
+				"node_key_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -237,7 +237,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"abci updated",
 			[]string{
-				"ABCI",
+				"abci",
 				config.LocalABCI,
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -247,7 +247,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"profiling listen address updated",
 			[]string{
-				"ProfListenAddress",
+				"prof_laddr",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -257,7 +257,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"filter peers flag updated",
 			[]string{
-				"FilterPeers",
+				"filter_peers",
 				"true",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -279,7 +279,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"root dir updated",
 			[]string{
-				"Consensus.RootDir",
+				"consensus.home",
 				"example root dir",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -289,7 +289,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"WAL path updated",
 			[]string{
-				"Consensus.WALPath",
+				"consensus.wal_file",
 				"example WAL path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -299,7 +299,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"propose timeout updated",
 			[]string{
-				"Consensus.TimeoutPropose",
+				"consensus.timeout_propose",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -309,7 +309,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"propose timeout delta updated",
 			[]string{
-				"Consensus.TimeoutProposeDelta",
+				"consensus.timeout_propose_delta",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -319,7 +319,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"prevote timeout updated",
 			[]string{
-				"Consensus.TimeoutPrevote",
+				"consensus.timeout_prevote",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -329,7 +329,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"prevote timeout delta updated",
 			[]string{
-				"Consensus.TimeoutPrevoteDelta",
+				"consensus.timeout_prevote_delta",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -339,7 +339,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"precommit timeout updated",
 			[]string{
-				"Consensus.TimeoutPrecommit",
+				"consensus.timeout_precommit",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -349,7 +349,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"precommit timeout delta updated",
 			[]string{
-				"Consensus.TimeoutPrecommitDelta",
+				"consensus.timeout_precommit_delta",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -359,7 +359,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"commit timeout updated",
 			[]string{
-				"Consensus.TimeoutCommit",
+				"consensus.timeout_commit",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -369,7 +369,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"skip commit timeout toggle updated",
 			[]string{
-				"Consensus.SkipTimeoutCommit",
+				"consensus.skip_timeout_commit",
 				"true",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -382,7 +382,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"create empty blocks toggle updated",
 			[]string{
-				"Consensus.CreateEmptyBlocks",
+				"consensus.create_empty_blocks",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -394,7 +394,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"create empty blocks interval updated",
 			[]string{
-				"Consensus.CreateEmptyBlocksInterval",
+				"consensus.create_empty_blocks_interval",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -404,7 +404,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"peer gossip sleep duration updated",
 			[]string{
-				"Consensus.PeerGossipSleepDuration",
+				"consensus.peer_gossip_sleep_duration",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -414,7 +414,7 @@ func TestConfig_Set_Consensus(t *testing.T) {
 		{
 			"peer query majority sleep duration updated",
 			[]string{
-				"Consensus.PeerQueryMaj23SleepDuration",
+				"consensus.peer_query_maj23_sleep_duration",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -433,7 +433,7 @@ func TestConfig_Set_Events(t *testing.T) {
 		{
 			"event store type updated",
 			[]string{
-				"TxEventStore.EventStoreType",
+				"tx_event_store.event_store_type",
 				file.EventStoreType,
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -443,7 +443,7 @@ func TestConfig_Set_Events(t *testing.T) {
 		{
 			"event store params updated",
 			[]string{
-				"TxEventStore.Params",
+				"tx_event_store.event_store_params",
 				"key1=value1,key2=value2",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -468,7 +468,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"root dir updated",
 			[]string{
-				"P2P.RootDir",
+				"p2p.home",
 				"example root dir",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -478,7 +478,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"listen address updated",
 			[]string{
-				"P2P.ListenAddress",
+				"p2p.laddr",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -488,7 +488,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"external address updated",
 			[]string{
-				"P2P.ExternalAddress",
+				"p2p.external_address",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -498,7 +498,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"seeds updated",
 			[]string{
-				"P2P.Seeds",
+				"p2p.seeds",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -508,7 +508,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"persistent peers updated",
 			[]string{
-				"P2P.PersistentPeers",
+				"p2p.persistent_peers",
 				"nodeID@0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -518,7 +518,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"upnp toggle updated",
 			[]string{
-				"P2P.UPNP",
+				"p2p.upnp",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -531,7 +531,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"max inbound peers updated",
 			[]string{
-				"P2P.MaxNumInboundPeers",
+				"p2p.max_num_inbound_peers",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -541,7 +541,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"max outbound peers updated",
 			[]string{
-				"P2P.MaxNumOutboundPeers",
+				"p2p.max_num_outbound_peers",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -551,7 +551,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"flush throttle timeout updated",
 			[]string{
-				"P2P.FlushThrottleTimeout",
+				"p2p.flush_throttle_timeout",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -561,7 +561,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"max package payload size updated",
 			[]string{
-				"P2P.MaxPacketMsgPayloadSize",
+				"p2p.max_packet_msg_payload_size",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -571,7 +571,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"send rate updated",
 			[]string{
-				"P2P.SendRate",
+				"p2p.send_rate",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -581,7 +581,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"receive rate updated",
 			[]string{
-				"P2P.RecvRate",
+				"p2p.recv_rate",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -591,7 +591,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"pex reactor toggle updated",
 			[]string{
-				"P2P.PexReactor",
+				"p2p.pex",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -604,7 +604,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"seed mode updated",
 			[]string{
-				"P2P.SeedMode",
+				"p2p.seed_mode",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -617,7 +617,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"private peer IDs updated",
 			[]string{
-				"P2P.PrivatePeerIDs",
+				"p2p.private_peer_ids",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -627,7 +627,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"allow duplicate IPs updated",
 			[]string{
-				"P2P.AllowDuplicateIP",
+				"p2p.allow_duplicate_ip",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -640,7 +640,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"handshake timeout updated",
 			[]string{
-				"P2P.HandshakeTimeout",
+				"p2p.handshake_timeout",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -650,7 +650,7 @@ func TestConfig_Set_P2P(t *testing.T) {
 		{
 			"dial timeout updated",
 			[]string{
-				"P2P.DialTimeout",
+				"p2p.dial_timeout",
 				"1s",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -669,7 +669,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"root dir updated",
 			[]string{
-				"RPC.RootDir",
+				"rpc.home",
 				"example root dir",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -679,7 +679,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"listen address updated",
 			[]string{
-				"RPC.ListenAddress",
+				"rpc.laddr",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -689,7 +689,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"CORS Allowed Origins updated",
 			[]string{
-				"RPC.CORSAllowedOrigins",
+				"rpc.cors_allowed_origins",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -699,7 +699,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"CORS Allowed Methods updated",
 			[]string{
-				"RPC.CORSAllowedMethods",
+				"rpc.cors_allowed_methods",
 				"POST,GET",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -709,7 +709,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"CORS Allowed Headers updated",
 			[]string{
-				"RPC.CORSAllowedHeaders",
+				"rpc.cors_allowed_headers",
 				"*",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -719,7 +719,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"GRPC listen address updated",
 			[]string{
-				"RPC.GRPCListenAddress",
+				"rpc.grpc_laddr",
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -729,7 +729,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"GRPC max open connections updated",
 			[]string{
-				"RPC.GRPCMaxOpenConnections",
+				"rpc.grpc_max_open_connections",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -739,7 +739,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"unsafe value updated",
 			[]string{
-				"RPC.Unsafe",
+				"rpc.unsafe",
 				"true",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -750,9 +750,9 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
-			"RPC max open connections updated",
+			"rpc max open connections updated",
 			[]string{
-				"RPC.MaxOpenConnections",
+				"rpc.max_open_connections",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -762,7 +762,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"tx commit broadcast timeout updated",
 			[]string{
-				"RPC.TimeoutBroadcastTxCommit",
+				"rpc.timeout_broadcast_tx_commit",
 				(time.Second * 10).String(),
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -772,7 +772,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"max body bytes updated",
 			[]string{
-				"RPC.MaxBodyBytes",
+				"rpc.max_body_bytes",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -782,7 +782,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"max header bytes updated",
 			[]string{
-				"RPC.MaxHeaderBytes",
+				"rpc.max_header_bytes",
 				"10",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -792,7 +792,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"TLS cert file updated",
 			[]string{
-				"RPC.TLSCertFile",
+				"rpc.tls_cert_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -802,7 +802,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 		{
 			"TLS key file updated",
 			[]string{
-				"RPC.TLSKeyFile",
+				"rpc.tls_key_file",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -821,7 +821,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"root dir updated",
 			[]string{
-				"Mempool.RootDir",
+				"mempool.home",
 				"example root dir",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -831,7 +831,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"recheck flag updated",
 			[]string{
-				"Mempool.Recheck",
+				"mempool.recheck",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -844,7 +844,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"broadcast flag updated",
 			[]string{
-				"Mempool.Broadcast",
+				"mempool.broadcast",
 				"false",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -857,7 +857,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"WAL path updated",
 			[]string{
-				"Mempool.WalPath",
+				"mempool.wal_dir",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -867,7 +867,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"size updated",
 			[]string{
-				"Mempool.Size",
+				"mempool.size",
 				"100",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -877,7 +877,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"max pending txs bytes updated",
 			[]string{
-				"Mempool.MaxPendingTxsBytes",
+				"mempool.max_pending_txs_bytes",
 				"100",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -887,7 +887,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 		{
 			"cache size updated",
 			[]string{
-				"Mempool.CacheSize",
+				"mempool.cache_size",
 				"100",
 			},
 			func(loadedCfg *config.Config, value string) {
