@@ -93,8 +93,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 	l, _ := lotteryRaw.(*gnolotto.Lottery)
 
 	if time.Now().Unix() > l.DrawTime.Unix() {
-		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-		return -1, "This lottery has already ended"
+		panic("This lottery has already ended")
 	}
 
 	if len(numbers) > gnolotto.MaxLottoNumbers || len(numbers) < gnolotto.MaxLottoNumbers {
