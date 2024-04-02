@@ -383,14 +383,36 @@ Congratulations, your lottery has been successfully created 🥳 ! Below you'll 
 
 **Create a new Lottery (Admin) :**
 ```
-gnokey maketx call -pkgpath "gno.land/r/demo/gnolotto_factory" -func "CreateLottery" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "10000ugnot" -broadcast -chainid "dev" -args "1711487446" -args "10000" -remote "tcp://127.0.0.1:36657" test1
+gnokey maketx call \
+-pkgpath "gno.land/r/demo/gnolotto_factory" \
+-func "CreateLottery" \
+-gas-fee 1000000ugnot \
+-gas-wanted 2000000 \
+-send "10000ugnot" \
+-broadcast \
+-chainid "dev" \
+-args "1711487446" \
+-args "10000" \
+-remote "tcp://127.0.0.1:36657" \
+test1
 ```
 *The first argument corresponds to the date and time of the draw run, in unix format*
 *The second is the prize pool amount, so don't forget to put the same amount in `-send`.*
 
 **Buy a ticket :**
 ```
-gnokey maketx call -pkgpath "gno.land/r/demo/gnolotto_factory" -func "BuyTicket" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "10ugnot" -broadcast -chainid "dev" -args "0" -args "1,2,3,4,5" -remote "tcp://127.0.0.1:36657" test1
+gnokey maketx call \
+-pkgpath "gno.land/r/demo/gnolotto_factory" \
+-func "BuyTicket" \
+-gas-fee 1000000ugnot \
+-gas-wanted 2000000 \
+-send "10ugnot" \
+-broadcast \
+-chainid "dev" \
+-args "0" \
+-args "1,2,3,4,5" \
+-remote "tcp://127.0.0.1:36657" \
+test1
 ```
 *The first argument corresponds to the ID of Lottery*
 *The second arguments corresponds to the lottery participation numbers*
@@ -399,7 +421,17 @@ gnokey maketx call -pkgpath "gno.land/r/demo/gnolotto_factory" -func "BuyTicket"
 **Drawing (Admin) :**
 
 ```
-gnokey maketx call -pkgpath "gno.land/r/demo/gnolotto_factory" -func "Draw" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid "dev" -args "0" -remote "tcp://127.0.0.1:36657" test1
+gnokey maketx call \
+-pkgpath "gno.land/r/demo/gnolotto_factory" \
+-func "Draw" \
+-gas-fee 1000000ugnot \
+-gas-wanted 2000000 \
+-send "" \
+-broadcast \
+-chainid "dev" \
+-args "0" \
+-remote "tcp://127.0.0.1:36657" \
+test1
 ```
 
 *The argument corresponds to the ID of the lottery for which you wish to perform the draw. (Don't forget that you can't make a draw until the date defined at creation has passed.)*
