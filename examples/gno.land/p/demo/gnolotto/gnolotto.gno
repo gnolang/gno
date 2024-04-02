@@ -28,6 +28,8 @@ func NewLottery(drawTime time.Time, prizePool int64) *Lottery {
 	}
 }
 
+const MaxLottoNumbers = 5
+
 // Adds a new ticket to the lottery
 func (l *Lottery) AddTicket(numbers []int, owner std.Address) {
 	l.Tickets = append(l.Tickets, Ticket{Numbers: numbers, Owner: owner})
@@ -43,7 +45,7 @@ func (l *Lottery) Draw() {
 	// Add variability to the pseudo-random number generation
 	var variabilityFactor int64 = 1
 
-	for len(l.WinningNumbers) < 5 {
+	for len(l.WinningNumbers) < MaxLottoNumbers {
 		simpleSeed := (blockHeight + variabilityFactor*251) % 233280
 		number := int(simpleSeed%15) + 1 // Ensure number is between 1 and 15
 

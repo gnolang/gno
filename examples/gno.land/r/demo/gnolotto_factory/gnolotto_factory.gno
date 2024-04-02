@@ -100,7 +100,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 		return -1, "This lottery has already ended"
 	}
 
-	if len(numbers) > 5 || len(numbers) < 5 {
+	if len(numbers) > gnolotto.MaxLottoNumbers || len(numbers) < gnolotto.MaxLottoNumbers {
 		banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
 		return -1, "You must select exactly 5 numbers"
 	}
