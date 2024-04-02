@@ -102,8 +102,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 
 	for _, num := range numbers {
 		if num > 15 || num < 1 {
-			banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-			return -1, "Invalid number, select number range from 1 to 15"
+			panic("Invalid number, select number range from 1 to 15")
 		}
 	}
 
