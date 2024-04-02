@@ -120,10 +120,10 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 	return prefix, [20]byte(bz), true
 }
 
-func X_emitEvent(m *gno.Machine, typ string, attrs []string, pkgPath string) {
+func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs := make([]sdk.EventAttribute, len(attrs)/2)
-	event := sdk.NewEvent(typ, eventAttrs...)
-
+	pkgPath := CurrentRealmPath(m)
+	event := sdk.NewEvent(typ, pkgPath, eventAttrs...)
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(event)
 }

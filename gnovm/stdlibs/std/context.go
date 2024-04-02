@@ -14,6 +14,7 @@ type ExecContext struct {
 	Msg           sdk.Msg
 	OrigCaller    crypto.Bech32Address
 	OrigPkgAddr   crypto.Bech32Address
+	EmitPkgAddr   string
 	OrigSend      std.Coins
 	OrigSendSpent *std.Coins // mutable
 	Banker        BankerInterface

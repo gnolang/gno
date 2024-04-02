@@ -427,7 +427,6 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("[]string")},
-			{Name: gno.N("p2"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
 		func(m *gno.Machine) {
@@ -437,17 +436,14 @@ var nativeFuncs = [...]nativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 				p1  []string
 				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  string
-				rp2 = reflect.ValueOf(&p2).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
 
 			libs_std.X_emitEvent(
 				m,
-				p0, p1, p2)
+				p0, p1)
 		},
 	},
 	{

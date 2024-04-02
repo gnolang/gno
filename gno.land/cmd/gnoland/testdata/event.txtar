@@ -22,6 +22,5 @@ func Hello() string {
 	std.EmitEvent(
 		"type_goes_here",
 		[]string{"value1", "value2"},
-		"gno.land/r/test123", // TODO: gnovm should found this value automatically somehow
 	)
 }
