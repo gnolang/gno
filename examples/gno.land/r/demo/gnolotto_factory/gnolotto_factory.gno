@@ -85,8 +85,7 @@ func BuyTicket(lotteryID int, numbersStr string) (int, string) {
 	uniqueNumbers := make(map[int]bool)
 	for _, num := range numbers {
 		if uniqueNumbers[num] {
-			banker.SendCoins(std.GetOrigPkgAddr(), std.GetOrigCaller(), send)
-			return -1, "Numbers must be unique"
+			panic("Numbers must be unique")
 		}
 		uniqueNumbers[num] = true
 	}
