@@ -58,7 +58,7 @@ func (l *Lottery) Draw() {
 	}
 }
 
-// Iterate over all tickets to identify and return the addresses of the winners
+// Iterate over all tickets to identify and return the addresses of the winningOwners
 func (l *Lottery) CheckWinners() []std.Address {
 	var winningOwners []std.Address
 
