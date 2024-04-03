@@ -12,7 +12,6 @@ require (
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/gnolang/faucet v0.1.3
-	github.com/gnolang/goleveldb v0.0.9
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.4
 	github.com/google/gofuzz v1.2.0
@@ -30,6 +29,7 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0
 	github.com/rs/cors v1.10.1
 	github.com/stretchr/testify v1.9.0
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -39,12 +39,11 @@ require (
 	golang.org/x/mod v0.16.0
 	golang.org/x/net v0.22.0
 	golang.org/x/term v0.18.0
+	golang.org/x/time v0.5.0
 	golang.org/x/tools v0.19.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-require golang.org/x/time v0.5.0
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
