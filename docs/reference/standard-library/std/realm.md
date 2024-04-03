@@ -3,7 +3,7 @@ id: realm
 ---
 
 # Realm
-Structure representing a Realm in Gno. See concept page [here](../../../concepts/realms.md). 
+Structure representing a realm in Gno. See concept page [here](../../../concepts/realms.md). 
 
 ```go
 type Realm struct {
