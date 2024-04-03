@@ -35,7 +35,8 @@ state - they are refreshed with every new commit to the `master` branch.
 - **Intended purpose**
   - Providing access the latest version of Gno for fast development & demoing
 - **Versioning strategy**:
-  - Portal Loop infrastructure is managed within the `misc/loop` folder in the 
+  - Portal Loop infrastructure is managed within the
+[`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the 
 monorepo
 
 For more information on the Portal Loop, and how it can be best utilized, 
