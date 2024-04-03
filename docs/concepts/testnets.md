@@ -84,7 +84,8 @@ most packages, such as the AVL package, are outdated.
 - **Persistence of state:**
   - State is fully preserved
 - **Timeliness of code:**
-  - Test3 is at commit XYZ, and it can contain new on-chain code
+  - Test3 is at commit [1ca2d97](https://github.com/gnolang/gno/commit/1ca2d973817b174b5b06eb9da011e1fcd2cca575)
+of Gno, and it can contain new on-chain code
 - **Intended purpose**
   - Running a full node, building an indexer, showing demos, persisting history  
 - **Versioning strategy**:
