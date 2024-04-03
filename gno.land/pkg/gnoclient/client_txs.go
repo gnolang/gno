@@ -23,6 +23,7 @@ var (
 	ErrInvalidSendAmount = errors.New("invalid send amount")
 )
 
+// BaseTxCfg defines the base transaction configuration, shared by all message types.
 type BaseTxCfg struct {
 	GasFee         string // Gas fee
 	GasWanted      int64  // Gas wanted
@@ -31,7 +32,7 @@ type BaseTxCfg struct {
 	Memo           string // Memo
 }
 
-// MsgCall - syntax sugar for vm.MsgCall
+// MsgCall - syntax sugar for vm.MsgCall.
 type MsgCall struct {
 	PkgPath  string   // Package path
 	FuncName string   // Function name
@@ -39,13 +40,13 @@ type MsgCall struct {
 	Send     string   // Send amount
 }
 
-// MsgSend - syntax sugar for bank.MsgSend minus fields in BaseTxCfg
+// MsgSend - syntax sugar for bank.MsgSend.
 type MsgSend struct {
 	ToAddress crypto.Address // Send to address
 	Send      string         // Send amount
 }
 
-// MsgRun - syntax sugar for vm.MsgRun
+// MsgRun - syntax sugar for vm.MsgRun.
 type MsgRun struct {
 	Package *std.MemPackage // Package to run
 	Send    string          // Send amount
@@ -171,7 +172,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// Send currency to an account on the blockchain.
+// Send executes one or more MsgSend calls on the blockchain.
 func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
@@ -226,7 +227,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result.
-func (c Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
 
 	if sequenceNumber == 0 || accountNumber == 0 {

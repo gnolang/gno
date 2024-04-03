@@ -35,7 +35,7 @@ func (b BackendType) String() string {
 //		db.NewDB("mydb", db.BackendType(userProvidedBackend), "./data")
 //	}
 const (
-	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most
+	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
 	// popular implementation)
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"

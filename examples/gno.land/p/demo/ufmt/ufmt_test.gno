@@ -99,3 +99,46 @@ func TestErrorf(t *testing.T) {
 		})
 	}
 }
+
+// NOTE: Currently, there is no way to get the output of Println without using os.Stdout,
+// so we can only test that it doesn't panic and print arguments well.
+func TestPrintln(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []interface{}
+		expected string
+	}{
+		{
+			name:     "Empty args",
+			args:     []interface{}{},
+			expected: "",
+		},
+		{
+			name:     "String args",
+			args:     []interface{}{"Hello", "World"},
+			expected: "Hello World",
+		},
+		{
+			name:     "Integer args",
+			args:     []interface{}{1, 2, 3},
+			expected: "1 2 3",
+		},
+		{
+			name:     "Mixed args",
+			args:     []interface{}{"Hello", 42, true, false, "World"},
+			expected: "Hello 42 true false World",
+		},
+		{
+			name:     "Unhandled type",
+			args:     []interface{}{"Hello", 3.14, []int{1, 2, 3}},
+			expected: "Hello (unhandled) (unhandled)",
+		},
+	}
+
+	// TODO: replace os.Stdout with a buffer to capture the output and test it.
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Println(tt.args...)
+		})
+	}
+}
