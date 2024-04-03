@@ -1659,15 +1659,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BranchStmt:
 				switch n.Op {
 				case BREAK:
-					swch := lastSwitch(ns)
-
-					if !(swch != nil && swch.GetLabel() == n.Label && n.Label != "") {
+					if !isSwitchLabel(ns, n.Label) {
 						findBranchLabel(last, n.Label)
 					}
 				case CONTINUE:
-					swch := lastSwitch(ns)
-
-					if swch != nil && swch.GetLabel() == n.Label && n.Label != "" {
+					if isSwitchLabel(ns, n.Label) {
 						panic(fmt.Sprintf("invalid continue label %v\n", n.Label))
 					}
 					findBranchLabel(last, n.Label)
@@ -1986,6 +1982,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	})
 
 	return nn
+}
+
+func isSwitchLabel(ns []Node, label Name) bool {
+	for {
+		swch := lastSwitch(ns)
+		if swch == nil {
+			break
+		}
+
+		if swch.GetLabel() == label && label != "" {
+			return true
+		}
+
+		ns = ns[:len(ns)-1]
+	}
+
+	return false
 }
 
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
