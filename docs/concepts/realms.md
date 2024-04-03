@@ -52,6 +52,12 @@ EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
 phrase in a key management application, such as
 [`gnokey`](../gno-tooling/cli/gnokey.md), and [Adena](https://adena.app).
 
+Currently, EOAs are the only realms that can initiate a transaction. User realms
+can do this by calling any of the possible messages in Gno.land, such as 
+[Call](../gno-tooling/cli/gnokey.md#call),
+[AddPackage](../gno-tooling/cli/gnokey.md#addpkg),
+[Send](../gno-tooling/cli/gnokey.md#send), or Run.
+
 ## Working with realms
 In Gno, each transaction consists of a call stack, which is made up of `frames`.
 A single frame is a unique realm in the call stack. Every frame and its properties 
@@ -70,7 +76,6 @@ Let's look at return values of these functions in two distinct situations:
 2. EOA calling a sequence of realms
 
 ### 1. EOA calling a realm
-
 Take these two actors in the call stack:
 ```
 EOA:
@@ -107,12 +112,7 @@ std.GetCallerAt(3) => error
 ```
 
 ### 2. EOA calling a sequence of realms
-
 Take these three actors in the call stack:
-
-
-
-
 ```
 EOA:
     addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
@@ -130,7 +130,7 @@ Realm B:
 │         EOA         │   │       Realm A        │   │       Realm B       │
 │                     │   │                      │   │                     │
 │  addr:              │   │  addr:               │   │  addr:              │
-│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g17m...8v2s        │
+│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g1rs...cm3v        │
 │                     │   │                      │   │                     │
 │  pkgPath:           │   │  pkgPath:            │   │  pkgPath:           │
 │  ""                 │   │  gno.land/p/demo/a   │   │  gno.land/p/demo/b  │
@@ -166,3 +166,14 @@ std.GetCallerAt(2) => `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
 std.GetCallerAt(3) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.GetCallerAt(4) => error
 ```
+
+## Browsing & interacting with existing realms
+
+You can see the some of the currently deployed realms on the Portal Loop testnet
+here. // link homepage
+// mention [source] & [help] buttons
+
+## `Render()`
+
+// todo add render
+
