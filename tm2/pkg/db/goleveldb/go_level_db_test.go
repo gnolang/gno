@@ -6,9 +6,9 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/goleveldb/leveldb/opt"
 	"github.com/jaekwon/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 func TestGoLevelDBNewGoLevelDB(t *testing.T) {
