@@ -46,7 +46,7 @@ check out the [Portal Loop concept page](./portal-loop.md).
 Staging is a testnet that is reset once every 60 minutes.
 
 - **Persistence of state:**
-    - State is fully discarded
+  - State is fully discarded
 - **Timeliness of code:**
   - With every reset, the latest commit of the Gno tech stack is applied, including
   the demo packages and realms
