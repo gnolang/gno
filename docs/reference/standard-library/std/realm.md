@@ -7,11 +7,11 @@ Structure representing a Realm in Gno. See concept page [here](../../../concepts
 
 ```go
 type Realm struct {
-    addr    crypto.Bech32Address
+    addr    Address
     pkgPath string
 }
 
-func (r Realm) Addr() Addres {...}
+func (r Realm) Addr() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {}
 ```

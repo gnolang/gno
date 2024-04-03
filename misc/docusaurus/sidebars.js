@@ -102,6 +102,7 @@ const sidebars = {
                             label: 'std',
                             items: [
                                 'reference/standard-library/std/address',
+                                'reference/standard-library/std/realm',
                                 'reference/standard-library/std/banker',
                                 'reference/standard-library/std/coin',
                                 'reference/standard-library/std/coins',

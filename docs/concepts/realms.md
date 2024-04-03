@@ -3,8 +3,9 @@ id: realms
 ---
 
 # Realms
-In Gno, Realms are Gno accounts which are addressable by a 
-[Gno address](../reference/standard-library/std/address.md). Realms have several 
+In Gno.land, realms are entities that are addressable and identifiable by a 
+[Gno address](../reference/standard-library/std/address.md). These can be user 
+realms (EOAs), as well as smart contract realms. Realms have several 
 properties:
 - They can own, receive & send [Coins](./standard-library/coin.md) through the
 [Banker](./standard-library/banker.md) module
@@ -18,25 +19,46 @@ type Realm struct {
     pkgPath string  // realm's path on-chain
 }
 ```
+The full Realm API can be found under the 
+[reference section](../reference/standard-library/std/realm.md).
 
 ## Smart Contract Realms
-Often simply called "realms", Gno smart contracts contain Gno code and exist
-on-chain at a specific address and package path.
+Often simply called `realms`, Gno smart contracts contain Gno code and exist
+on-chain at a specific package path. A package path is the defining identifier
+of a realm, while its address is derived from it.
+
+### On-chain paths
+Since Gno.land is built for full transparency and auditability, all on-chain Gno
+code is open-sourced. You can view realm code by simply going to its path in
+your web browser. For example, to take a look at the `gno.land/r/demo/users` realm,
+used for user registration, by visiting
+[`gno.land/r/demo/users`](https://gno.land/r/demo/users/users.gno).
+
+:::info
+Depending on the network, the realm domain might change. Currently, 
+the `gno.land/` domain (and all of its subdomains, such as `r/`) is pointing to
+the [Portal Loop](./portal-loop.md) testnet endpoint, which is subject 
+to change. To view realms on the `test3` network (depr.), prepend `test3` to 
+the domain: [`test3.gno.land/r/demo/users`](https://test3.gno.land/r/demo/users).
+:::
+
+[//]: # (Learn more about package paths & allowed namespaces [here].)
+
+To learn how to actually write a realm,
+view the [Simple realm guide](../how-to-guides/simple-contract.md)
 
 ## Externally Owned Accounts (EOAs)
-EOAs, or simply user realms, are Gno addresses generated from a BIP39 mnemonic
-phrase in a key management application, such as [`gnokey`](../gno-tooling/cli/gnokey.md).
+EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
+phrase in a key management application, such as
+[`gnokey`](../gno-tooling/cli/gnokey.md), and [Adena](https://adena.app).
+
+## Working with realms
+
+- when part of the call stack, using chain functions to get realm info
 
 
 
 
-
-
-
-
-
-
-
-
-
+User realms are recognizable by the fact that their package path is empty.
+This can be checked by calling the `IsUser()` method on the realm object. 
 
