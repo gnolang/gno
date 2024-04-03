@@ -548,9 +548,8 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 		return balance, fmt.Errorf("invalid mnemonic")
 	}
 
-	var keyInfo keys.Info
-	var err error
-	if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", account, index); err != nil {
+	keyInfo, err := kb.CreateAccount(accountName, mnemonic, "", "", account, index)
+	if err != nil {
 		return balance, fmt.Errorf("unable to create account: %w", err)
 	}
 
