@@ -27,6 +27,12 @@ Often simply called `realms`, Gno smart contracts contain Gno code and exist
 on-chain at a specific package path. A package path is the defining identifier
 of a realm, while its address is derived from it.
 
+As opposed to [packages](./packages.md), realms are stateful, meaning they keep
+their state between transactions calls. In practice, global variables in the
+realm code are automatically persisted after a transaction has been executed,
+resulting in the fact that developers do not need to bother with the intricacies 
+of state management and persistence.
+
 ### On-chain paths
 Since Gno.land is built for full transparency and auditability, all on-chain Gno
 code is open-sourced. You can view realm code by simply going to its path in
@@ -35,25 +41,24 @@ used for user registration, by visiting
 [`gno.land/r/demo/users`](https://gno.land/r/demo/users/users.gno).
 
 :::info
-Depending on the network, the realm domain might change. Currently, 
+Depending on the network, the realm domain might change. Currently,
 the `gno.land/` domain (and all of its subdomains, such as `r/`) is pointing to
-the [Portal Loop](./portal-loop.md) testnet endpoint, which is subject 
-to change. To view realms on the `test3` network (depr.), prepend `test3` to 
+the [Portal Loop](./portal-loop.md) testnet endpoint, which is subject
+to change. To view realms on the `test3` network (depr.), prepend `test3` to
 the domain: [`test3.gno.land/r/demo/users`](https://test3.gno.land/r/demo/users).
 :::
 
 [//]: # (Learn more about package paths & allowed namespaces [here].)
 
-To learn how to actually write a realm,
-see [How to write a simple Gno Smart Contract](../how-to-guides/simple-contract.md).
+To learn how to write a realm, see [How to write a simple Gno Smart Contract](../how-to-guides/simple-contract.md).
 
 ## Externally Owned Accounts (EOAs)
 EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
 phrase in a key management application, such as
 [`gnokey`](../gno-tooling/cli/gnokey.md), and [Adena](https://adena.app).
 
-Currently, EOAs are the only realms that can initiate a transaction. User realms
-can do this by calling any of the possible messages in Gno.land, such as 
+Currently, EOAs are the only realms that can initiate a transaction. They can do
+this by calling any of the possible messages in Gno.land, such as 
 [Call](../gno-tooling/cli/gnokey.md#call),
 [AddPackage](../gno-tooling/cli/gnokey.md#addpkg),
 [Send](../gno-tooling/cli/gnokey.md#send), or Run.
@@ -167,12 +172,7 @@ std.GetCallerAt(3) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.GetCallerAt(4) => error
 ```
 
-## State persistence
-
-// todo add paragraph on state persistence
-
 ## `Render`
-
 A notable feature of non-EOA realms is the ability to have a render function. A
 render function allows the developer of the realm to choose how to render the 
 state of the realm by returning a custom-made valid Markdown string. It also 
@@ -192,7 +192,7 @@ func Render(path string) string {
 
 :::info
 You can see the ender function in action by visiting the 
-[home page of Gno.land]((https://gno.land/) - it is actually the render of 
+[home page of Gno.land](https://gno.land/) - it is actually the render of 
 `r/gnoland/home` realm. The same is true for the
 [Gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
 :::
