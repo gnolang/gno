@@ -311,7 +311,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 
 				default:
-					ts.Fatalf("to create account from metadatas, user name and mnemonic are required ( account and index are optional numeric value )")
+					ts.Fatalf("to create account from metadatas, user name and mnemonic are required ( account and index are optional )")
 				}
 
 				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
