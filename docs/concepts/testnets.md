@@ -111,8 +111,4 @@ Release commit: [652dc7a](https://github.com/gnolang/gno/commit/652dc7a3a62ee043
 The first Gno testnet. Find archive data [here](https://github.com/gnolang/tx-exports/tree/main/test1.gno.land).
 
 Launch date: May 6th 2022  
-Release commit: [797c7a1](https://github.com/gnolang/gno/commit/797c7a132d65534df373c63b837cf94b7831ac6e) 
-
-
-
-
+Release commit: [797c7a1](https://github.com/gnolang/gno/commit/797c7a132d65534df373c63b837cf94b7831ac6e)
