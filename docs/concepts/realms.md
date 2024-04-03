@@ -68,11 +68,22 @@ or a smart contract realm
 the transaction call stack
 
 Let's look at return values of these functions in two distinct situations:
-- EOA calling a realm
-- EOA calling a realm, in turn calling another realm
+1. EOA calling a realm
+2. EOA calling a realm, in turn calling another realm
+
+### EOA calling a realm
 
 
 
+
+
+Let's look at values for each of the calls:
+- `std.GetOrigCaller()` > 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+- `std.GetOrigPkgAddr()` > 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+- `std.PrevRealm()` > 
+- `std.CurrentRealm()` > 
+- `std.CurrentRealmPath()` >
+- `std.GetCallerAt()` >
 
 
 User realms are recognizable by the fact that their package path is empty.

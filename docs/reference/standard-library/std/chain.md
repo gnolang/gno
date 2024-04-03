@@ -57,7 +57,8 @@ caller := std.GetOrigSend()
 ```go
 func GetOrigPkgAddr() string
 ```
-Returns the address of the first caller (entry point) in a sequence of realm calls
+Returns the address of the first non-EOA realm (entry point) in a sequence of 
+realm/package calls.
 
 #### Usage
 ```go
@@ -69,8 +70,7 @@ origPkgAddr := std.GetOrigPkgAddr()
 ```go
 func CurrentRealm() Realm
 ```
-Returns the instance of the [realm](../../../concepts/realms.md) that has called
-it.
+Returns the instance of the [realm](../../../concepts/realms.md) that has called it.
 
 #### Usage
 ```go
@@ -82,7 +82,7 @@ currentRealm := std.CurrentRealm()
 ```go
 func CurrentRealmPath() string
 ```
-Returns the path of the realm it is called in. Shorthand for
+Returns the path of the realm it is called in. Shorthand for 
 `CurrentRealm().PkgPath()`.
 
 #### Usage
