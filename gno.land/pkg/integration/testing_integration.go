@@ -328,7 +328,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 
-				fmt.Fprintln(ts.Stdout(), fmt.Sprintf("Added %s(%s) to genesis", args[0], balance.Address))
+				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 			},
 			// `loadpkg` load a specific package from the 'examples' or working directory
 			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
