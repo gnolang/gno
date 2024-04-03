@@ -294,24 +294,24 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				var account, index uint64
 				var err error
 
-				switch {
-				case len(args) == 2:
+				switch len(args) {
+				case 2:
 					// Do nothing
-				case len(args) == 3, len(args) == 4:
+				case 4:
+					index, err = strconv.ParseUint(args[3], 10, 32)
+					if err != nil {
+						ts.Fatalf("invalid index number %s", args[3])
+					}
+
+					fallthrough // parse account
+				case 3:
 					account, err = strconv.ParseUint(args[2], 10, 32)
 					if err != nil {
 						ts.Fatalf("invalid account number %s", args[2])
 					}
-
-					if len(args) == 4 {
-						index, err = strconv.ParseUint(args[3], 10, 32)
-						if err != nil {
-							ts.Fatalf("invalid index number %s", args[3])
-						}
-					}
-
 				default:
 					ts.Fatalf("to create account from metadatas, user name and mnemonic are required ( account and index are optional )")
+				}
 				}
 
 				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
