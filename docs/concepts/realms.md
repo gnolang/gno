@@ -58,8 +58,6 @@ A single frame is a unique realm in the call stack. Every frame and its properti
 can be accessed via different functions defined in the `std` package in Gno:
 - `std.GetOrigCaller()` - returns the address of the original signer of the
 transaction
-- `std.GetOrigPkgAddr()` - returns the address of the first caller (entry point) 
-in a sequence of realm calls
 - `std.PrevRealm()` - returns the previous realm instance, which can be a user realm
 or a smart contract realm
 - `std.CurrentRealm()` - returns the instance of the realm that has called it
@@ -69,23 +67,102 @@ the transaction call stack
 
 Let's look at return values of these functions in two distinct situations:
 1. EOA calling a realm
-2. EOA calling a realm, in turn calling another realm
+2. EOA calling a sequence of realms
 
-### EOA calling a realm
+### 1. EOA calling a realm
+
+Take these two actors in the call stack:
+```
+EOA:
+    addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+    pkgPath: "" // empty as this is a user realm
+
+Realm A:
+    addr: g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s
+    pkgPath: gno.land/p/demo/users
+    
+        ┌─────────────────────┐      ┌─────────────────────────┐
+        │         EOA         │      │         Realm A         │
+        │                     │      │                         │
+        │  addr:              │      │  addr:                  │
+        │  g1jg...sqf5        ├──────►  g17m...8v2s            │
+        │                     │      │                         │
+        │  pkgPath:           │      │  pkgPath:               │
+        │  ""                 │      │  gno.land/p/demo/users  │
+        └─────────────────────┘      └─────────────────────────┘
+```
+
+Let's look at return values for each of the methods:
+```go
+std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PrevRealm() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.CurrentRealm() => Realm {
+    addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
+    pkgPath: `gno.land/r/demo/users`
+}
+std.CurrentRealmPath() => `gno.land/r/demo/users`
+std.GetCallerAt(1) => `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
+std.GetCallerAt(2) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.GetCallerAt(3) => error
+```
+
+### 2. EOA calling a sequence of realms
+
+Take these three actors in the call stack:
 
 
 
 
+```
+EOA:
+    addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+    pkgPath: "" // empty as this is a user realm
 
-Let's look at values for each of the calls:
-- `std.GetOrigCaller()` > 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
-- `std.GetOrigPkgAddr()` > 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
-- `std.PrevRealm()` > 
-- `std.CurrentRealm()` > 
-- `std.CurrentRealmPath()` >
-- `std.GetCallerAt()` >
+Realm A:
+    addr: g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6
+    pkgPath: gno.land/p/demo/a
+    
+Realm B:
+    addr: g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v
+    pkgPath: gno.land/p/demo/b
 
+┌─────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐
+│         EOA         │   │       Realm A        │   │       Realm B       │
+│                     │   │                      │   │                     │
+│  addr:              │   │  addr:               │   │  addr:              │
+│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g17m...8v2s        │
+│                     │   │                      │   │                     │
+│  pkgPath:           │   │  pkgPath:            │   │  pkgPath:           │
+│  ""                 │   │  gno.land/p/demo/a   │   │  gno.land/p/demo/b  │
+└─────────────────────┘   └──────────────────────┘   └─────────────────────┘
+```
 
-User realms are recognizable by the fact that their package path is empty.
-This can be checked by calling the `IsUser()` method on the realm object. 
+Depending on which realm the methods are called in, the values will change. For
+`Realm A`:
+```go
+std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PrevRealm() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.CurrentRealm() => Realm {
+    addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+    pkgPath: `gno.land/r/demo/a`
+}
+std.CurrentRealmPath() => `gno.land/r/demo/a`
+std.GetCallerAt(1) => `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+std.GetCallerAt(2) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.GetCallerAt(3) => error
+```
 
+For `Realm B`:
+```go
+std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PrevRealm() => `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+std.CurrentRealm() => Realm {
+    addr:    `g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v`
+    pkgPath: `gno.land/r/demo/b`
+}
+std.CurrentRealmPath() => `gno.land/r/demo/b`
+std.GetCallerAt(1) => `g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v`
+std.GetCallerAt(2) => `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+std.GetCallerAt(3) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.GetCallerAt(4) => error
+```
