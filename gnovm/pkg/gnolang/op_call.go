@@ -58,8 +58,7 @@ func (m *Machine) doOpCall() {
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-
-	m.PushBlock(b) // this push a new block for the outer closure
+	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
@@ -69,7 +68,6 @@ func (m *Machine) doOpCall() {
 	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
-		debug.Println("---fbody: ", fbody)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
@@ -92,7 +90,6 @@ func (m *Machine) doOpCall() {
 			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
-		debug.Printf("---b.bodyStmt: %v \n", b.bodyStmt)
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {

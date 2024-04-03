@@ -1444,7 +1444,6 @@ type RefNode struct {
 }
 
 func (rn RefNode) GetLocation() Location {
-	debug.Println("---rn GetLocation")
 	return rn.Location
 }
 
@@ -1610,7 +1609,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
-func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode) {
+func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode) { // TODO: revert this
 	if n == "_" {
 		return NewValuePathBlock(0, 0, "_"), nil
 	}
@@ -1645,7 +1644,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode
 	}
 	// Finally, check uverse.
 	if idx, ok := UverseNode().GetLocalIndex(n); ok {
-		return NewValuePathUverse(idx, n), nil // TODO: uverse block, not used actually, but make it right
+		return NewValuePathUverse(idx, n), nil
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
@@ -1756,7 +1755,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
-	debug.Println("---GetLocalIndex: ", n)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
