@@ -18,5 +18,5 @@ id: network-config
 All networks follow the same pattern for websocket connections: 
 
 ```shell
-ws://<rpc-endpoint:port>/ws
+wss://<rpc-endpoint:port>/websocket
 ```
