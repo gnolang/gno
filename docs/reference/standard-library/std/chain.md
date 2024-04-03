@@ -8,7 +8,8 @@ id: chain
 ```go
 func IsOriginCall() bool
 ```
-Checks if the caller of the function is an EOA. Returns **true** if caller is an EOA, **false** otherwise.
+Checks if the caller of the function is an EOA. Returns **true** if caller is an
+EOA, **false** otherwise.
 
 #### Usage
 ```go
@@ -28,47 +29,11 @@ std.AssertOriginCall()
 ```
 ---
 
-## CurrentRealmPath
-```go
-func CurrentRealmPath() string
-```
-Returns the path of the realm it is called in.
-
-#### Usage
-```go
-realmPath := std.CurrentRealmPath() // gno.land/r/demo/users
-```
----
-
-## GetChainID
-```go
-func GetChainID() string
-```
-Returns the chain ID.
-
-#### Usage
-```go
-chainID := std.GetChainID() // dev | test3 | main ...
-```
----
-
-## GetHeight
-```go
-func GetHeight() int64
-```
-Returns the current block number (height).
-
-#### Usage
-```go
-height := std.GetHeight()
-```
----
-
 ## GetOrigSend
 ```go
 func GetOrigSend() Coins
 ```
-Returns the `Coins` that were sent along with the calling transaction.
+Returns the `Coins` that were sent along with the transaction.
 
 #### Usage
 ```go
@@ -80,7 +45,7 @@ coinsSent := std.GetOrigSend()
 ```go
 func GetOrigCaller() Address
 ```
-Returns the original signer of the transaction.
+Returns the address of the original signer of the transaction.
 
 #### Usage
 ```go
@@ -92,7 +57,7 @@ caller := std.GetOrigSend()
 ```go
 func GetOrigPkgAddr() string
 ```
-Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
+Returns the address of the first caller (entry point) in a sequence of realm calls
 
 #### Usage
 ```go
@@ -104,12 +69,25 @@ origPkgAddr := std.GetOrigPkgAddr()
 ```go
 func CurrentRealm() Realm
 ```
-Returns current Realm object.
+Returns the instance of the [realm](../../../concepts/realms.md) that has called
+it.
 
-[//]: # (todo link to realm type explanation)
 #### Usage
 ```go
 currentRealm := std.CurrentRealm()
+```
+---
+
+## CurrentRealmPath
+```go
+func CurrentRealmPath() string
+```
+Returns the path of the realm it is called in. Shorthand for
+`CurrentRealm().PkgPath()`.
+
+#### Usage
+```go
+realmPath := std.CurrentRealmPath() // gno.land/r/demo/users
 ```
 ---
 
@@ -117,7 +95,7 @@ currentRealm := std.CurrentRealm()
 ```go
 func PrevRealm() Realm
 ```
-Returns the previous caller realm (can be realm or EOA). If caller is am EOA, `pkgpath` will be empty.
+Returns the previous caller realm. If caller is am EOA, `pkgpath` will be empty.
 
 #### Usage
 ```go
@@ -143,9 +121,33 @@ std.GetCallerAt(0)                      // error, n must be > 0
 ```go
 func DerivePkgAddr(pkgPath string) Address
 ```
-Derives the Realm address from its `pkgpath` parameter.
+Derives a Gno address from a `pkgpath` parameter.
 
 #### Usage
 ```go
 realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4
+```
+---
+
+## GetChainID
+```go
+func GetChainID() string
+```
+Returns the chain ID.
+
+#### Usage
+```go
+chainID := std.GetChainID() // dev | test3 | main ...
+```
+---
+
+## GetHeight
+```go
+func GetHeight() int64
+```
+Returns the current block number (height).
+
+#### Usage
+```go
+height := std.GetHeight()
 ```
