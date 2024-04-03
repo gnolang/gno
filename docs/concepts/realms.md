@@ -167,13 +167,32 @@ std.GetCallerAt(3) => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.GetCallerAt(4) => error
 ```
 
-## Browsing & interacting with existing realms
+## State persistence
 
-You can see the some of the currently deployed realms on the Portal Loop testnet
-here. // link homepage
-// mention [source] & [help] buttons
+// todo add paragraph on state persistence
 
-## `Render()`
+## `Render`
 
-// todo add render
+A notable feature of non-EOA realms is the ability to have a render function. A
+render function allows the developer of the realm to choose how to render the 
+state of the realm by returning a custom-made valid Markdown string. It also 
+allows the developer to define different renders depending on the `path` argument:
 
+```go
+package demo
+
+func Render(path string) string {
+	if path == "" {
+		return "# Hello Gno!"
+	}
+	
+	return "# Hello" + path
+}
+```
+
+:::info
+You can see the ender function in action by visiting the 
+[home page of Gno.land]((https://gno.land/) - it is actually the render of 
+`r/gnoland/home` realm. The same is true for the
+[Gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
+:::
