@@ -3,15 +3,17 @@ package avl
 //----------------------------------------
 // Node
 
+// Node represents a node in an AVL tree.
 type Node struct {
-	key       string
-	value     interface{}
-	height    int8
-	size      int
-	leftNode  *Node
-	rightNode *Node
+	key       string      // key is the unique identifier for the node.
+	value     interface{} // value is the data stored in the node.
+	height    int8        // height is the height of the node in the tree.
+	size      int         // size is the number of nodes in the subtree rooted at this node.
+	leftNode  *Node       // leftNode is the left child of the node.
+	rightNode *Node       // rightNode is the right child of the node.
 }
 
+// NewNode creates a new node with the given key and value.
 func NewNode(key string, value interface{}) *Node {
 	return &Node{
 		key:    key,
@@ -21,6 +23,7 @@ func NewNode(key string, value interface{}) *Node {
 	}
 }
 
+// Size returns the size of the subtree rooted at the node.
 func (node *Node) Size() int {
 	if node == nil {
 		return 0
@@ -28,18 +31,22 @@ func (node *Node) Size() int {
 	return node.size
 }
 
+// IsLeaf checks if the node is a leaf node (has no children).
 func (node *Node) IsLeaf() bool {
 	return node.height == 0
 }
 
+// Key returns the key of the node.
 func (node *Node) Key() string {
 	return node.key
 }
 
+// Value returns the value of the node.
 func (node *Node) Value() interface{} {
 	return node.value
 }
 
+// _copy creates a copy of the node (excluding value).
 func (node *Node) _copy() *Node {
 	if node.height == 0 {
 		panic("Why are you copying a value node?")
@@ -53,6 +60,7 @@ func (node *Node) _copy() *Node {
 	}
 }
 
+// Has checks if a node with the given key exists in the subtree rooted at the node.
 func (node *Node) Has(key string) (has bool) {
 	if node == nil {
 		return false
@@ -70,6 +78,8 @@ func (node *Node) Has(key string) (has bool) {
 	}
 }
 
+// Get searches for a node with the given key in the subtree rooted at the node
+// and returns its index, value, and whether it exists.
 func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 	if node == nil {
 		return 0, nil, false
@@ -92,6 +102,8 @@ func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 	return index, value, exists
 }
 
+// GetByIndex retrieves the key-value pair of the node at the given index
+// in the subtree rooted at the node.
 func (node *Node) GetByIndex(index int) (key string, value interface{}) {
 	if node.height == 0 {
 		if index == 0 {
@@ -107,6 +119,9 @@ func (node *Node) GetByIndex(index int) (key string, value interface{}) {
 	return node.getRightNode().GetByIndex(index - leftNode.size)
 }
 
+// Set inserts a new node with the given key-value pair into the subtree rooted at the node,
+// and returns the new root of the subtree and whether an existing node was updated.
+//
 // XXX consider a better way to do this... perhaps split Node from Node.
 func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated bool) {
 	if node == nil {
@@ -147,9 +162,9 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 	return node.balance(), updated
 }
 
-// newNode: The new node to replace node after remove.
-// newKey: new leftmost leaf key for node after successfully removing 'key' if changed.
-// value: removed value.
+// Remove deletes the node with the given key from the subtree rooted at the node.
+// returns the new root of the subtree, the new leftmost leaf key (if changed),
+// the removed value and the removal was successful.
 func (node *Node) Remove(key string) (
 	newNode *Node, newKey string, value interface{}, removed bool,
 ) {
@@ -194,14 +209,17 @@ func (node *Node) Remove(key string) (
 	return node, "", value, true
 }
 
+// getLeftNode returns the left child of the node.
 func (node *Node) getLeftNode() *Node {
 	return node.leftNode
 }
 
+// getRightNode returns the right child of the node.
 func (node *Node) getRightNode() *Node {
 	return node.rightNode
 }
 
+// rotateRight performs a right rotation on the node and returns the new root.
 // NOTE: overwrites node
 // TODO: optimize balance & rotate
 func (node *Node) rotateRight() *Node {
@@ -219,6 +237,7 @@ func (node *Node) rotateRight() *Node {
 	return _l
 }
 
+// rotateLeft performs a left rotation on the node and returns the new root.
 // NOTE: overwrites node
 // TODO: optimize balance & rotate
 func (node *Node) rotateLeft() *Node {
@@ -236,16 +255,19 @@ func (node *Node) rotateLeft() *Node {
 	return _r
 }
 
+// calcHeightAndSize updates the height and size of the node based on its children.
 // NOTE: mutates height and size
 func (node *Node) calcHeightAndSize() {
 	node.height = maxInt8(node.getLeftNode().height, node.getRightNode().height) + 1
 	node.size = node.getLeftNode().size + node.getRightNode().size
 }
 
+// calcBalance calculates the balance factor of the node.
 func (node *Node) calcBalance() int {
 	return int(node.getLeftNode().height) - int(node.getRightNode().height)
 }
 
+// balance balances the subtree rooted at the node and returns the new root.
 // NOTE: assumes that node can be modified
 // TODO: optimize balance & rotate
 func (node *Node) balance() (newSelf *Node) {
@@ -369,6 +391,9 @@ func (node *Node) TraverseByOffset(offset, limit int, descending bool, leavesOnl
 	return node.traverseByOffset(offset, limit, descending, leavesOnly, cb)
 }
 
+// TraverseByOffset traverses the subtree rooted at the node by offset and limit,
+// in either ascending or descending order, and applies the callback function to each traversed node.
+// If leavesOnly is true, only leaf nodes are visited.
 func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	// caller guarantees: offset < node.size; limit > 0.
 
