@@ -65,15 +65,17 @@ func (node *Node) Has(key string) (has bool) {
 	} else {
 		if key < node.key {
 			return node.getLeftNode().Has(key)
-		} else {
-			return node.getRightNode().Has(key)
 		}
+		return node.getRightNode().Has(key)
 	}
 }
 
 func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 	if node == nil {
 		return 0, nil, false
+	}
+	if key < node.key {
+		return node.getLeftNode().Get(key)
 	}
 	if node.height == 0 {
 		if node.key == key {
@@ -83,35 +85,26 @@ func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 		} else {
 			return 0, nil, false
 		}
-	} else {
-		if key < node.key {
-			return node.getLeftNode().Get(key)
-		} else {
-			rightNode := node.getRightNode()
-			index, value, exists = rightNode.Get(key)
-			index += node.size - rightNode.size
-			return index, value, exists
-		}
 	}
+	rightNode := node.getRightNode()
+	index, value, exists = rightNode.Get(key)
+	index += node.size - rightNode.size
+	return index, value, exists
 }
 
 func (node *Node) GetByIndex(index int) (key string, value interface{}) {
 	if node.height == 0 {
 		if index == 0 {
 			return node.key, node.value
-		} else {
-			panic("GetByIndex asked for invalid index")
-			return "", nil
 		}
-	} else {
-		// TODO: could improve this by storing the sizes
-		leftNode := node.getLeftNode()
-		if index < leftNode.size {
-			return leftNode.GetByIndex(index)
-		} else {
-			return node.getRightNode().GetByIndex(index - leftNode.size)
-		}
+		panic("GetByIndex asked for invalid index")
 	}
+	// TODO: could improve this by storing the sizes
+	leftNode := node.getLeftNode()
+	if index < leftNode.size {
+		return leftNode.GetByIndex(index)
+	}
+	return node.getRightNode().GetByIndex(index - leftNode.size)
 }
 
 // XXX consider a better way to do this... perhaps split Node from Node.
@@ -139,20 +132,19 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 				rightNode: NewNode(key, value),
 			}, false
 		}
-	} else {
-		node = node._copy()
-		if key < node.key {
-			node.leftNode, updated = node.getLeftNode().Set(key, value)
-		} else {
-			node.rightNode, updated = node.getRightNode().Set(key, value)
-		}
-		if updated {
-			return node, updated
-		} else {
-			node.calcHeightAndSize()
-			return node.balance(), updated
-		}
 	}
+
+	node = node._copy()
+	if key < node.key {
+		node.leftNode, updated = node.getLeftNode().Set(key, value)
+	} else {
+		node.rightNode, updated = node.getRightNode().Set(key, value)
+	}
+	if updated {
+		return node, updated
+	}
+	node.calcHeightAndSize()
+	return node.balance(), updated
 }
 
 // newNode: The new node to replace node after remove.
@@ -167,41 +159,39 @@ func (node *Node) Remove(key string) (
 	if node.height == 0 {
 		if key == node.key {
 			return nil, "", node.value, true
-		} else {
-			return node, "", nil, false
 		}
-	} else {
-		if key < node.key {
-			var newLeftNode *Node
-			newLeftNode, newKey, value, removed = node.getLeftNode().Remove(key)
-			if !removed {
-				return node, "", value, false
-			} else if newLeftNode == nil { // left node held value, was removed
-				return node.rightNode, node.key, value, true
-			}
-			node = node._copy()
-			node.leftNode = newLeftNode
-			node.calcHeightAndSize()
-			node = node.balance()
-			return node, newKey, value, true
-		} else {
-			var newRightNode *Node
-			newRightNode, newKey, value, removed = node.getRightNode().Remove(key)
-			if !removed {
-				return node, "", value, false
-			} else if newRightNode == nil { // right node held value, was removed
-				return node.leftNode, "", value, true
-			}
-			node = node._copy()
-			node.rightNode = newRightNode
-			if newKey != "" {
-				node.key = newKey
-			}
-			node.calcHeightAndSize()
-			node = node.balance()
-			return node, "", value, true
-		}
+		return node, "", nil, false
 	}
+	if key < node.key {
+		var newLeftNode *Node
+		newLeftNode, newKey, value, removed = node.getLeftNode().Remove(key)
+		if !removed {
+			return node, "", value, false
+		} else if newLeftNode == nil { // left node held value, was removed
+			return node.rightNode, node.key, value, true
+		}
+		node = node._copy()
+		node.leftNode = newLeftNode
+		node.calcHeightAndSize()
+		node = node.balance()
+		return node, newKey, value, true
+	}
+
+	var newRightNode *Node
+	newRightNode, newKey, value, removed = node.getRightNode().Remove(key)
+	if !removed {
+		return node, "", value, false
+	} else if newRightNode == nil { // right node held value, was removed
+		return node.leftNode, "", value, true
+	}
+	node = node._copy()
+	node.rightNode = newRightNode
+	if newKey != "" {
+		node.key = newKey
+	}
+	node.calcHeightAndSize()
+	node = node.balance()
+	return node, "", value, true
 }
 
 func (node *Node) getLeftNode() *Node {
@@ -260,34 +250,29 @@ func (node *Node) calcBalance() int {
 // TODO: optimize balance & rotate
 func (node *Node) balance() (newSelf *Node) {
 	balance := node.calcBalance()
+	if balance >= -1 {
+		return node
+	}
 	if balance > 1 {
 		if node.getLeftNode().calcBalance() >= 0 {
 			// Left Left Case
 			return node.rotateRight()
-		} else {
-			// Left Right Case
-			// node = node._copy()
-			left := node.getLeftNode()
-			node.leftNode = left.rotateLeft()
-			// node.calcHeightAndSize()
-			return node.rotateRight()
 		}
+		// Left Right Case
+		left := node.getLeftNode()
+		node.leftNode = left.rotateLeft()
+		return node.rotateRight()
 	}
-	if balance < -1 {
-		if node.getRightNode().calcBalance() <= 0 {
-			// Right Right Case
-			return node.rotateLeft()
-		} else {
-			// Right Left Case
-			// node = node._copy()
-			right := node.getRightNode()
-			node.rightNode = right.rotateRight()
-			// node.calcHeightAndSize()
-			return node.rotateLeft()
-		}
+
+	if node.getRightNode().calcBalance() <= 0 {
+		// Right Right Case
+		return node.rotateLeft()
 	}
-	// Nothing changed
-	return node
+
+	// Right Left Case
+	right := node.getRightNode()
+	node.rightNode = right.rotateRight()
+	return node.rotateLeft()
 }
 
 // Shortcut for TraverseInRange.
@@ -311,6 +296,7 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	if node == nil {
 		return false
 	}
+
 	afterStart := (start == "" || start < node.key)
 	startOrAfter := (start == "" || start <= node.key)
 	beforeEnd := false
@@ -329,6 +315,7 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 			return stop
 		}
 	}
+
 	if node.IsLeaf() {
 		return stop
 	}

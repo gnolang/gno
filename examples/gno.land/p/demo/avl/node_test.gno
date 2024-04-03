@@ -80,58 +80,58 @@ Browser`
 }
 
 func TestHas(t *testing.T) {
-    tests := []struct {
-        name     string
-        input    []string
-        hasKey   string
-        expected bool
-    }{
-        {
-            "has key in non-empty tree",
-            []string{"C", "A", "B", "E", "D"},
-            "B",
-            true,
-        },
-        {
-            "does not have key in non-empty tree",
-            []string{"C", "A", "B", "E", "D"},
-            "F",
-            false,
-        },
-        {
-            "has key in single-node tree",
-            []string{"A"},
-            "A",
-            true,
-        },
-        {
-            "does not have key in single-node tree",
-            []string{"A"},
-            "B",
-            false,
-        },
-        {
-            "does not have key in empty tree",
-            []string{},
-            "A",
-            false,
-        },
-    }
+	tests := []struct {
+		name     string
+		input    []string
+		hasKey   string
+		expected bool
+	}{
+		{
+			"has key in non-empty tree",
+			[]string{"C", "A", "B", "E", "D"},
+			"B",
+			true,
+		},
+		{
+			"does not have key in non-empty tree",
+			[]string{"C", "A", "B", "E", "D"},
+			"F",
+			false,
+		},
+		{
+			"has key in single-node tree",
+			[]string{"A"},
+			"A",
+			true,
+		},
+		{
+			"does not have key in single-node tree",
+			[]string{"A"},
+			"B",
+			false,
+		},
+		{
+			"does not have key in empty tree",
+			[]string{},
+			"A",
+			false,
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            var tree *Node
-            for _, key := range tt.input {
-                tree, _ = tree.Set(key, nil)
-            }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tree *Node
+			for _, key := range tt.input {
+				tree, _ = tree.Set(key, nil)
+			}
 
-            result := tree.Has(tt.hasKey)
+			result := tree.Has(tt.hasKey)
 
-            if result != tt.expected {
-                t.Errorf("Expected %v, got %v", tt.expected, result)
-            }
-        })
-    }
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
 }
 
 func TestGet(t *testing.T) {
@@ -479,53 +479,53 @@ func TestRotateWhenHeightDiffers(t *testing.T) {
 }
 
 func TestRotateAndBalance(t *testing.T) {
-    tests := []struct {
-        name     string
-        input    []string
-        expected []string
-    }{
-        {
-            "right rotation",
-            []string{"A", "B", "C", "D", "E"},
-            []string{"A", "B", "C", "D", "E"},
-        },
-        {
-            "left rotation",
-            []string{"E", "D", "C", "B", "A"},
-            []string{"A", "B", "C", "D", "E"},
-        },
-        {
-            "left-right rotation",
-            []string{"C", "A", "E", "B", "D"},
-            []string{"A", "B", "C", "D", "E"}, 
-        },
-        {
-            "right-left rotation",
-            []string{"C", "E", "A", "D", "B"}, 
-            []string{"A", "B", "C", "D", "E"},
-        },
-    }
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			"right rotation",
+			[]string{"A", "B", "C", "D", "E"},
+			[]string{"A", "B", "C", "D", "E"},
+		},
+		{
+			"left rotation",
+			[]string{"E", "D", "C", "B", "A"},
+			[]string{"A", "B", "C", "D", "E"},
+		},
+		{
+			"left-right rotation",
+			[]string{"C", "A", "E", "B", "D"},
+			[]string{"A", "B", "C", "D", "E"},
+		},
+		{
+			"right-left rotation",
+			[]string{"C", "E", "A", "D", "B"},
+			[]string{"A", "B", "C", "D", "E"},
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            var tree *Node
-            for _, key := range tt.input {
-                tree, _ = tree.Set(key, nil) 
-            }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tree *Node
+			for _, key := range tt.input {
+				tree, _ = tree.Set(key, nil)
+			}
 
-            tree = tree.balance()
+			tree = tree.balance()
 
-            var result []string
-            tree.Iterate("", "", func(n *Node) bool {
-                result = append(result, n.Key())
-                return false 
-            })
+			var result []string
+			tree.Iterate("", "", func(n *Node) bool {
+				result = append(result, n.Key())
+				return false
+			})
 
-            if !slicesEqual(tt.expected, result) {
+			if !slicesEqual(tt.expected, result) {
 				t.Errorf("want %v got %v", tt.expected, result)
 			}
-        }) 
-    }
+		})
+	}
 }
 
 func slicesEqual(w1, w2 []string) bool {
