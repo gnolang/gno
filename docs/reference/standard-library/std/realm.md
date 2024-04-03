@@ -13,7 +13,7 @@ type Realm struct {
 
 func (r Realm) Addr() Address {...}
 func (r Realm) PkgPath() string {...}
-func (r Realm) IsUser() bool {}
+func (r Realm) IsUser() bool {...}
 ```
 
 ## Addr
