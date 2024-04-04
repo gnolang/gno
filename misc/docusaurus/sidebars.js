@@ -49,11 +49,11 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'Standard Libraries',
+                    link: {type: 'doc', id: 'concepts/stdlibs/stdlibs'},
                     items: [
-                        'concepts/standard-library/overview',
-                        'concepts/standard-library/banker',
-                        'concepts/standard-library/coin',
-                        'concepts/standard-library/gnopher-hole-stdlib',
+                        'concepts/stdlibs/banker',
+                        'concepts/stdlibs/coin',
+                        'concepts/stdlibs/gnopher-hole-stdlib',
                     ]
                 },
                 'concepts/gnovm',
