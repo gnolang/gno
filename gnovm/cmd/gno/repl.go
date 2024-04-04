@@ -1,3 +1,4 @@
+// go:build !js
 package main
 
 import (
@@ -280,14 +281,14 @@ func clearScreen(executor CommandExecutor, osGetter OsGetter) {
 func printHelp() {
 	fmt.Printf(
 		helpText, importExample, funcExample,
-		srcCommand, editorCommand, clearCommand, 
+		srcCommand, editorCommand, clearCommand,
 		resetCommand, exitCommand, printExample,
 	)
 }
 
 var (
-	input chan byte
-	lastIn byte
+	input    chan byte
+	lastIn   byte
 	lastInOk bool
 )
 
@@ -311,11 +312,11 @@ func peekChar() (byte, bool) {
 	}
 
 	select {
-	case ch := <- input:
+	case ch := <-input:
 		lastIn = ch
 		lastInOk = true
 		return lastIn, true
-	case <- time.After(10 * time.Millisecond):
+	case <-time.After(10 * time.Millisecond):
 		return 0, false
 	}
 }
@@ -325,14 +326,14 @@ func getChar() byte {
 		lastInOk = false
 		return lastIn
 	}
-	return <- input
+	return <-input
 }
 
 type terminalState struct {
 	termios syscall.Termios
 }
 
-// MakeRaw puts the terminal connected to the given file descriptor
+// makeRaw puts the terminal connected to the given file descriptor
 // into raw mode and returns the previous state of the terminal so that it can be restored.
 func makeRaw(fd int) (*terminalState, error) {
 	var oldState terminalState
@@ -341,7 +342,9 @@ func makeRaw(fd int) (*terminalState, error) {
 	}
 
 	newState := oldState.termios
+	// Disable input character processing
 	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
+	// Disable canonical mode and echoing
 	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
 
 	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
@@ -349,4 +352,35 @@ func makeRaw(fd int) (*terminalState, error) {
 	}
 
 	return &oldState, nil
+}
+
+// makeCbreak puts the terminal connected to the given file descriptor into cbreak mode
+// and returns the previous state of the terminal so that it can be restored.
+func makeCbreak(fd int) (*terminalState, error) {
+	var oldState terminalState
+	// Get the current terminal settings
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
+		return nil, err
+	}
+
+	newState := oldState.termios
+	// Disable input character processing
+	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
+	// Disable canonical mode and echoing
+	newState.Lflag &^= syscall.ECHO | syscall.ICANON
+	// Set the new terminal settings
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
+		return nil, err
+	}
+
+	return &oldState, nil
+}
+
+// restore restores the terminal connected to the given file descriptor to a previous state.
+func restore(fd int, state *terminalState) error {
+	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
+	if err != 0 {
+		return err
+	}
+	return nil
 }

@@ -261,9 +261,9 @@ func TestPeekChar(t *testing.T) {
 func TestGetChar(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name          string
-		setupFunc     func()
-		expected      byte
+		name      string
+		setupFunc func()
+		expected  byte
 	}{
 		{
 			name: "get from lastIn",
@@ -336,3 +336,83 @@ func TestMakeRaw(t *testing.T) {
 	}
 }
 
+func TestMakeCbreak(t *testing.T) {
+	pty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("Failed to open pty: %v", err)
+	}
+	defer pty.Close()
+	defer tty.Close()
+
+	fd := int(tty.Fd())
+
+	savedState, err := makeCbreak(fd)
+	if err != nil {
+		t.Fatalf("MakeCbreak failed: %v", err)
+	}
+	defer func() {
+		syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&savedState.termios)), 0, 0, 0)
+	}()
+
+	// Check if the terminal is in cbreak mode
+	var newState terminalState
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&newState.termios)), 0, 0, 0); err != 0 {
+		t.Fatalf("Failed to get terminal settings: %v", err)
+	}
+	if newState.termios.Iflag&(syscall.ISTRIP|syscall.INLCR|syscall.ICRNL|syscall.IGNCR|syscall.IXON|syscall.IXOFF) != 0 {
+		t.Errorf("Input flags are not disabled")
+	}
+	if newState.termios.Lflag&(syscall.ECHO|syscall.ICANON) != 0 {
+		t.Errorf("Local flags are not disabled")
+	}
+
+	// Restore the terminal settings and check if they match the original settings
+	syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&savedState.termios)), 0, 0, 0)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&newState.termios)), 0, 0, 0); err != 0 {
+		t.Fatalf("Failed to get terminal settings: %v", err)
+	}
+	if newState.termios != savedState.termios {
+		t.Errorf("Terminal settings are not restored correctly")
+	}
+}
+
+func TestRestore(t *testing.T) {
+    pty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("Failed to open pty: %v", err)
+	}
+	defer pty.Close()
+	defer tty.Close()
+
+	fd := int(tty.Fd())
+
+    // Save the current terminal state
+    var originalState terminalState
+    if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&originalState.termios)), 0, 0, 0); err != 0 {
+        t.Fatalf("Failed to get terminal settings: %v", err)
+    }
+
+    // Modify the terminal state
+    var modifiedState terminalState
+    modifiedState.termios = originalState.termios
+    modifiedState.termios.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
+    modifiedState.termios.Lflag &^= syscall.ECHO | syscall.ICANON
+    if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&modifiedState.termios)), 0, 0, 0); err != 0 {
+        t.Fatalf("Failed to set terminal settings: %v", err)
+    }
+
+    // Restore the terminal state
+    err = restore(fd, &originalState)
+    if err != nil {
+        t.Fatalf("restore failed: %v", err)
+    }
+
+    // Check if the terminal state is restored correctly
+    var restoredState terminalState
+    if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&restoredState.termios)), 0, 0, 0); err != 0 {
+        t.Fatalf("Failed to get terminal settings: %v", err)
+    }
+    if restoredState.termios != originalState.termios {
+        t.Errorf("Terminal settings are not restored correctly")
+    }
+}
