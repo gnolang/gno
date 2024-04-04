@@ -5,7 +5,7 @@ id: packages
 # Packages
 In Gno.land, packages are Gno code which is meant to be reused by other Gno code,
 be it by other packages or realms. Here are some defining features of packages:
-- Packages are stored on-chain under the `"gno.land/p/"` path, and can de 
+- Packages are stored on-chain under the `"gno.land/p/"` path, and can be 
 written & deployed on-chain by anyone
 - Packages are meant to be imported by other packages & realms
 - Packages do not persist state - packages can have global variables & constants,
