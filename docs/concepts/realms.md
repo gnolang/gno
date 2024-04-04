@@ -31,7 +31,7 @@ As opposed to [packages](./packages.md), realms are stateful, meaning they keep
 their state between transactions calls. In practice, global variables in the
 realm code are automatically persisted after a transaction has been executed,
 resulting in the fact that developers do not need to bother with the intricacies 
-of state management and persistence.
+of state management and persistence, like they do with other languages.
 
 ### On-chain paths
 Since Gno.land is built for full transparency and auditability, all on-chain Gno
@@ -183,7 +183,7 @@ package demo
 
 func Render(path string) string {
 	if path == "" {
-		return "# Hello Gno!"
+		return "# Hello Gnopher!"
 	}
 	
 	return "# Hello" + path
@@ -191,8 +191,12 @@ func Render(path string) string {
 ```
 
 :::info
-You can see the ender function in action by visiting the 
+You can see the `Render` function in action by visiting the 
 [home page of Gno.land](https://gno.land/) - it is actually the render of 
 `r/gnoland/home` realm. The same is true for the
 [Gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
 :::
+
+
+## Sending & receiving coins in Realms
+// todo add section on this?
