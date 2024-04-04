@@ -100,7 +100,7 @@ understand the difference between these two concepts, let's compare a few
 specific points:
 - Packages can be written and deployed by anyone at any time, while standard
 libraries require thorough battle-testing and reviews by the core team & community
-before being added as a standard library
+before being added to the language
 - Standard libraries usually provide low-level necessities for the language,
 while packages utilize them to create a broader range of functionality
 - A breaking change in the standard libraries will equate to a breaking change
