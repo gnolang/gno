@@ -311,10 +311,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	}
 	// case3
 	if dt.Kind() == InterfaceKind { // note native interface
-		debug.Println("---dt: ", dt)
-		debug.Println("---baseOf dt: ", baseOf(dt))
-		debug.Println("---dt.Kind: ", dt.Kind())
-		debug.Printf("---xt: %v, baseOf(xt): %v \n", xt, baseOf(xt))
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				// if dt is an empty Gno interface, any x ok.

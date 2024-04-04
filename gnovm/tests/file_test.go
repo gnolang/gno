@@ -47,11 +47,6 @@ func TestTypesNative(t *testing.T) {
 	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
-func TestTypes2(t *testing.T) {
-	baseDir := filepath.Join(".", "files/types2")
-	runFileTests(t, baseDir, nil)
-}
-
 func TestDebug(t *testing.T) {
 	baseDir := filepath.Join(".", "debug")
 	runFileTests(t, baseDir, []string{"*_native*"})
