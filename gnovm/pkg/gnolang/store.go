@@ -24,8 +24,6 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
-	AddAssignableCheckResult(key Expr, value Type)
-	AssertAssignableExists(key Expr, value Type) bool
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object)
@@ -63,18 +61,17 @@ type Store interface {
 
 // Used to keep track of in-mem objects during tx.
 type defaultStore struct {
-	alloc                *Allocator    // for accounting for cached items
-	pkgGetter            PackageGetter // non-realm packages
-	cacheObjects         map[ObjectID]Object
-	cacheTypes           map[TypeID]Type
-	cacheNodes           map[Location]BlockNode
-	cacheNativeTypes     map[reflect.Type]Type // go spec: reflect.Type are comparable
-	cacheAssignableCheck map[string]map[string]bool
-	baseStore            store.Store       // for objects, types, nodes
-	iavlStore            store.Store       // for escaped object hashes
-	pkgInjector          PackageInjector   // for injecting natives
-	go2gnoMap            map[string]string // go pkgpath.name -> gno pkgpath.name
-	go2gnoStrict         bool              // if true, native->gno type conversion must be registered.
+	alloc            *Allocator    // for accounting for cached items
+	pkgGetter        PackageGetter // non-realm packages
+	cacheObjects     map[ObjectID]Object
+	cacheTypes       map[TypeID]Type
+	cacheNodes       map[Location]BlockNode
+	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
+	baseStore        store.Store           // for objects, types, nodes
+	iavlStore        store.Store           // for escaped object hashes
+	pkgInjector      PackageInjector       // for injecting natives
+	go2gnoMap        map[string]string     // go pkgpath.name -> gno pkgpath.name
+	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
 	opslog  []StoreOp           // for debugging and testing.
@@ -83,18 +80,17 @@ type defaultStore struct {
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
-		alloc:                alloc,
-		pkgGetter:            nil,
-		cacheObjects:         make(map[ObjectID]Object),
-		cacheTypes:           make(map[TypeID]Type),
-		cacheNodes:           make(map[Location]BlockNode),
-		cacheNativeTypes:     make(map[reflect.Type]Type),
-		cacheAssignableCheck: make(map[string]map[string]bool),
-		baseStore:            baseStore,
-		iavlStore:            iavlStore,
-		go2gnoMap:            make(map[string]string),
-		go2gnoStrict:         true,
-		current:              make(map[string]struct{}),
+		alloc:            alloc,
+		pkgGetter:        nil,
+		cacheObjects:     make(map[ObjectID]Object),
+		cacheTypes:       make(map[TypeID]Type),
+		cacheNodes:       make(map[Location]BlockNode),
+		cacheNativeTypes: make(map[reflect.Type]Type),
+		baseStore:        baseStore,
+		iavlStore:        iavlStore,
+		go2gnoMap:        make(map[string]string),
+		go2gnoStrict:     true,
+		current:          make(map[string]struct{}),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -200,33 +196,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, package does not exist.
 	return nil
-}
-
-func (ds *defaultStore) AddAssignableCheckResult(key Expr, value Type) {
-	if ds.cacheAssignableCheck[key.String()] == nil {
-		ds.cacheAssignableCheck[key.String()] = make(map[string]bool)
-	}
-	var destTypeStr string
-	if value != nil {
-		destTypeStr = value.String()
-	} else {
-		destTypeStr = "<nil>"
-	}
-	ds.cacheAssignableCheck[key.String()][destTypeStr] = true
-}
-
-func (ds *defaultStore) AssertAssignableExists(key Expr, value Type) bool {
-	if valSet, ok := ds.cacheAssignableCheck[key.String()]; ok {
-		// Check if the value exists in the set
-		var destTypeStr string
-		if value != nil {
-			destTypeStr = value.String()
-		} else {
-			destTypeStr = "<nil>"
-		}
-		return valSet[destTypeStr]
-	}
-	return false
 }
 
 // Used to set throwaway packages.
@@ -728,7 +697,6 @@ func (ds *defaultStore) ClearCache() {
 	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
-	ds.cacheAssignableCheck = make(map[string]map[string]bool)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
 }

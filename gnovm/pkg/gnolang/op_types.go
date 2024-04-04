@@ -231,8 +231,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		// NOTE: this code segment similar to that in op_types.go
 		var dxt Type
 		path := x.Path // mutable
-		debug.Printf("---SelectorExpr, path: %v \n", path)
-		debug.Printf("---SelectorExpr, path.Type: %v \n", path.Type)
 		switch path.Type {
 		case VPField:
 			switch path.Depth { // see tests/selector_test.go for cases.

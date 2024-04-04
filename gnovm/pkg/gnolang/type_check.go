@@ -125,7 +125,6 @@ func isNumeric(t Type) bool {
 	}
 }
 
-// TODO: also compatible with 1.0, 2.0...
 func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
@@ -182,38 +181,33 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-func isSameType(lt, rt Type) bool {
-	debug.Printf("---isSameType, lt: %v, rt: %v \n", lt, rt)
+// more strict, only for both typed and both nil
+// use by isEql
+func assertSameTypes2(lt, rt Type) bool {
 	return lt == nil && rt == nil || // both are nil/undefined
 		(lt != nil && rt != nil) && // both are defined
 			(lt.TypeID() == rt.TypeID()) // and identical.
 }
 
 // runtime assert
-// TODO: consider this!!!
-func assertAssignable(lt, rt Type) {
+func assertEqualityTypes(lt, rt Type) {
 	if debug {
-		debug.Printf("assertAssignable, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
+		debug.Printf("assertEqualityTypes, lt: %v, rt: %v, isLeftDataByte: %v, isRightDataByte: %v \n", lt, rt, isDataByte(lt), isDataByte(rt))
 	}
-	if isSameType(lt, rt) {
-		println("1")
+	if assertSameTypes2(lt, rt) {
 		// both are nil/undefined or same type.
 	} else if lt == nil || rt == nil { // has support (interface{}) typed-nil, yet support for (native interface{}) typed-nil
-		println("2")
 		// LHS is undefined
 	} else if lt.Kind() == rt.Kind() &&
 		isUntyped(lt) || isUntyped(rt) {
 		// one is untyped of same kind.
-		println("3")
 	} else if lt.Kind() == rt.Kind() &&
 		isDataByte(lt) {
 		// left is databyte of same kind,
 		// specifically for assignments.
 		// TODO: make another function
 		// and remove this case?
-		println("4")
 	} else {
-		//panic("---8")
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
@@ -273,7 +267,10 @@ func assertComparable(xt, dt Type) {
 		if !cdt.Type.Comparable() {
 			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
-	case nil: // refer to 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
+	case nil: // see 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
+		if xt == nil {
+			panic(fmt.Sprintf("invalid operation, nil can not be compared to %s \n", "nil"))
+		}
 		assertMaybeNil("invalid operation, nil can not be compared to", xt)
 	default:
 		panic(fmt.Sprintf("%v is not comparable \n", dt))
@@ -281,9 +278,6 @@ func assertComparable(xt, dt Type) {
 }
 
 func assertMaybeNil(msg string, t Type) {
-	if t == nil {
-		panic(fmt.Sprintf("%s %s \n", msg, "nil"))
-	}
 	switch cxt := baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
 	case *NativeType:
@@ -307,9 +301,6 @@ func assertMaybeNil(msg string, t Type) {
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general cases for primitives and composite.
-// XXX. the name of checkAssignableTo should be considered.
-// we have another func of assertAssignable for runtime check, that is a narrow version since we have all concrete types in runtime
-// XXX: make it (t Type) CheckAssignableTo?
 func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
@@ -578,7 +569,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			// xt: any type but a *DeclaredType; could be native.
 			// cdt: actual concrete native target type.
 			// ie, if cdt can match against xt.
-			debug.Println("---going to check gno2go matches")
 			if gno2GoTypeMatches(xt, cdt.Type) {
 				return // ok
 			}
@@ -596,7 +586,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 
 // ===========================================================
 func (bx *BinaryExpr) checkShiftExpr(dt Type) {
-	debug.Printf("---checkShiftExpr: dt: %v \n", dt)
 	var destKind interface{}
 	if dt != nil {
 		destKind = dt.Kind()
@@ -616,7 +605,6 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
-	debug.Printf("---AssertCompatible, bx: %v, lt: %v, rt: %v \n", bx, lt, rt)
 	// we can't check compatible with native types at current stage,
 	// so leave it to later operations(trans_leave on binaryExpr)
 	// to be converted into gno(only for primitive types), and do
@@ -684,7 +672,6 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 }
 
 func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
-	debug.Printf("---checkCompatibility, op: %v, xt: %v, dt: %v\n", bx.Op, xt, dt)
 	// cache it to be reused in later stage in checkOrConvertType
 	var destKind interface{}
 	if !checker(dt) { // lt not compatible with op
@@ -696,15 +683,13 @@ func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(
 }
 
 func (ux *UnaryExpr) AssertCompatible(xt, dt Type) {
-	debug.Printf("---AssertCompatible, ux: %v, xt: %v, dt: %v \n", ux, xt, dt)
-
 	var destKind interface{}
+
 	if nt, ok := xt.(*NativeType); ok {
 		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
-
 	// check compatible
 	if checker, ok := unaryChecker[ux.Op]; ok {
 		if dt == nil {
@@ -722,8 +707,6 @@ func (ux *UnaryExpr) AssertCompatible(xt, dt Type) {
 }
 
 func (idst *IncDecStmt) AssertCompatible(t Type) {
-	debug.Printf("---AssertCompatible, stmt: %v, t: %v, op: %v \n", idst, t, idst.Op)
-
 	var destKind interface{}
 
 	if nt, ok := t.(*NativeType); ok {
@@ -731,7 +714,6 @@ func (idst *IncDecStmt) AssertCompatible(t Type) {
 			return
 		}
 	}
-
 	// check compatible
 	if checker, ok := IncDecStmtChecker[idst.Op]; ok {
 		if !checker(t) {
@@ -746,8 +728,6 @@ func (idst *IncDecStmt) AssertCompatible(t Type) {
 }
 
 func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
-	debug.Printf("---AssertCompatible, as: %v \n", as)
-
 	escapedOpStr := strings.Replace(wordTokenStrings[as.Op], "%", "%%", 1)
 	var destKind interface{}
 
@@ -768,7 +748,6 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			}
 		}
 
-		debug.Printf("AssertCompatible,lt: %v, rt: %v,op: %v \n", lt, rt, as.Op)
 		// check compatible
 		if as.Op != ASSIGN {
 			if checker, ok := AssignStmtChecker[as.Op]; ok {
@@ -818,8 +797,6 @@ func isComparison(op Word) bool {
 }
 
 func cmpSpecificity(t1, t2 Type) int {
-	debug.Printf("comSpecificity, t1: %v, t2: %v \n", t1, t2)
-
 	if it1, ok := baseOf(t1).(*InterfaceType); ok {
 		if it1.IsEmptyInterface() {
 			return 1 // left empty interface
