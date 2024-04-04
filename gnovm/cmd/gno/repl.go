@@ -11,6 +11,9 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
+	"time"
+	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
@@ -296,4 +299,70 @@ func printHelp() {
 		srcCommand, editorCommand, clearCommand, 
 		resetCommand, exitCommand, printExample,
 	)
+}
+
+var (
+	input chan byte
+	lastIn byte
+	lastInOk bool
+)
+
+// putChar writes a single byte to stdout.
+func putChar(b byte) error {
+	_, err := os.Stdout.Write([]byte{b})
+	return err
+}
+
+// putChars writes a slice of bytes to stdout.
+func putChars(bs []byte) error {
+	_, err := os.Stdout.Write(bs)
+	return err
+}
+
+// peekChar reads a single byte from stdin.
+// If no byte is available, it returns false.
+func peekChar() (byte, bool) {
+	if lastInOk {
+		return lastIn, true
+	}
+
+	select {
+	case ch := <- input:
+		lastIn = ch
+		lastInOk = true
+		return lastIn, true
+	case <- time.After(10 * time.Millisecond):
+		return 0, false
+	}
+}
+
+func getChar() byte {
+	if lastInOk {
+		lastInOk = false
+		return lastIn
+	}
+	return <- input
+}
+
+type terminalState struct {
+	termios syscall.Termios
+}
+
+// MakeRaw puts the terminal connected to the given file descriptor
+// into raw mode and returns the previous state of the terminal so that it can be restored.
+func makeRaw(fd int) (*terminalState, error) {
+	var oldState terminalState
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
+		return nil, err
+	}
+
+	newState := oldState.termios
+	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
+	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
+
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
+		return nil, err
+	}
+
+	return &oldState, nil
 }

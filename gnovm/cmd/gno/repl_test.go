@@ -1,12 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"os/exec"
 	"reflect"
+	"syscall"
 	"testing"
+	"unsafe"
+
+	"github.com/creack/pty"
 )
 
 func TestReplApp(t *testing.T) {
+	t.Parallel()
 	tc := []testMainCase{
 		{args: []string{"repl", "invalid-arg"}, errShouldBe: "flag: help requested"},
 
@@ -17,6 +25,7 @@ func TestReplApp(t *testing.T) {
 }
 
 func TestUpdateIndentLevel(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		line        string
@@ -112,6 +121,7 @@ func (m MockOSGetter) Get() string {
 }
 
 func TestClearScreen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		osGetter OsGetter
@@ -139,3 +149,190 @@ func TestClearScreen(t *testing.T) {
 		})
 	}
 }
+
+// captureStdout captures the output written to stdout
+func captureStdout(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
+
+func TestPutChar(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input    byte
+		expected string
+	}{
+		{'A', "A"},
+		{'B', "B"},
+		{'1', "1"},
+		{'\n', "\n"},
+	}
+
+	for _, test := range tests {
+		output := captureStdout(func() {
+			err := putChar(test.input)
+			if err != nil {
+				t.Errorf("putChar(%q) returned an error: %v", test.input, err)
+			}
+		})
+		if output != test.expected {
+			t.Errorf("putChar(%q) = %q, want %q", test.input, output, test.expected)
+		}
+	}
+}
+
+func TestPutChars(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input    []byte
+		expected string
+	}{
+		{[]byte("Hello"), "Hello"},
+		{[]byte("World"), "World"},
+		{[]byte("12345"), "12345"},
+		{[]byte("\nNewLine"), "\nNewLine"},
+	}
+
+	for _, test := range tests {
+		output := captureStdout(func() {
+			err := putChars(test.input)
+			if err != nil {
+				t.Errorf("putChars(%q) returned an error: %v", string(test.input), err)
+			}
+		})
+		if output != test.expected {
+			t.Errorf("putChars(%q) = %q, want %q", string(test.input), output, test.expected)
+		}
+	}
+}
+
+func TestPeekChar(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		prepFunc func()
+		expected byte
+		ok       bool
+	}{
+		{
+			name: "available byte",
+			prepFunc: func() {
+				input = make(chan byte, 1)
+				input <- 'A'
+			},
+			expected: 'A',
+			ok:       true,
+		},
+		{
+			name: "no available byte - timeout",
+			prepFunc: func() {
+				input = make(chan byte)
+			},
+			expected: 0,
+			ok:       false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.prepFunc()
+
+			b, ok := peekChar()
+
+			if b != tc.expected || ok != tc.ok {
+				t.Errorf("peekChar() = (%q, %v), want (%q, %v)", b, ok, tc.expected, tc.ok)
+			}
+
+			lastInOk = false
+		})
+	}
+}
+
+func TestGetChar(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name          string
+		setupFunc     func()
+		expected      byte
+	}{
+		{
+			name: "get from lastIn",
+			setupFunc: func() {
+				lastIn = 'A'
+				lastInOk = true
+			},
+			expected: 'A',
+		},
+		{
+			name: "get from channel",
+			setupFunc: func() {
+				input = make(chan byte, 1)
+				input <- 'B'
+				lastInOk = false
+			},
+			expected: 'B',
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.setupFunc()
+			result := getChar()
+
+			if result != tc.expected {
+				t.Errorf("getChar() = %q, want %q", result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestMakeRaw(t *testing.T) {
+	pty, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("Failed to open pty: %v", err)
+	}
+	defer pty.Close()
+	defer tty.Close()
+
+	fd := int(tty.Fd())
+
+	savedState, err := makeRaw(fd)
+	if err != nil {
+		t.Fatalf("MakeRaw failed: %v", err)
+	}
+	defer func() {
+		syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&savedState.termios)), 0, 0, 0)
+	}()
+
+	// Check if the terminal is in raw mode
+	var newState terminalState
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&newState.termios)), 0, 0, 0); err != 0 {
+		t.Fatalf("Failed to get terminal settings: %v", err)
+	}
+	if newState.termios.Iflag&(syscall.ISTRIP|syscall.INLCR|syscall.ICRNL|syscall.IGNCR|syscall.IXON|syscall.IXOFF) != 0 {
+		t.Errorf("Input flags are not disabled")
+	}
+	if newState.termios.Lflag&(syscall.ECHO|syscall.ICANON|syscall.ISIG) != 0 {
+		t.Errorf("Local flags are not disabled")
+	}
+
+	// Restore the terminal settings and check if they match the original settings
+	syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&savedState.termios)), 0, 0, 0)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&newState.termios)), 0, 0, 0); err != 0 {
+		t.Fatalf("Failed to get terminal settings: %v", err)
+	}
+	if newState.termios != savedState.termios {
+		t.Errorf("Terminal settings are not restored correctly")
+	}
+}
+
