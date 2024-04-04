@@ -297,15 +297,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 		switch path.Type {
-		case VPUverse:
-			println("---case match vpuverse")
-			switch path.Depth {
-			case 0:
-				println("---depth is 0")
-				dxt = xt
-			default:
-				panic("should not happen")
-			}
 		case VPBlock:
 			switch dxt.(type) {
 			case *PackageType:

@@ -37,18 +37,8 @@ func main() {
 //                 "value": "somekey"
 //             }
 //         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.Node"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.Node"
-//             }
-//         }
+//         {},
+//         {}
 //     ],
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
@@ -205,7 +195,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "5684cb2d35e7da2ec67cf7a389db879a44bb4d30",
+//                 "Hash": "ae4e9e2d205cc0081d4ee249e1d188ebe270b220",
 //                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //             }
 //         }
