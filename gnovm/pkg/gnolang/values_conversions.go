@@ -75,11 +75,6 @@ GNO_CASE:
 	// special case for interface target
 	// see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
-		if tv.IsUndefined() && tv.T == nil { // see 0f47f
-			if _, ok := t.(*NativeType); !ok { // no support for native now
-				tv.T = t
-			}
-		}
 		return
 	}
 	// special case for undefined/nil source

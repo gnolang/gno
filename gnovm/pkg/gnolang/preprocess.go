@@ -1030,21 +1030,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
-					var dt Type
-					ct := evalStaticType(store, last, n.Func)
 					//switch arg0 := n.Args[0].(type) {
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
-						// check legal type for nil
-						if arg0.IsUndefined() {
-							switch ct.Kind() { // special case for nil conversion check. refer to 0f47a
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
-								dt = ct // convert nil to typed-nil
-							default:
-								panic(fmt.Sprintf(
-									"cannot convert %v to %v",
-									arg0, ct.Kind()))
-							}
-						}
+						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -1064,19 +1052,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// TODO: consider this, need check?
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, dt) // convert to default type if dt is nil
+						//convertConst(store, last, arg0, dt) // convert to default type if dt is nil
+						convertConst(store, last, arg0, nil) // convert to default type if dt is nil
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
-						cx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
+						//cx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
+						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
+					} else {
+						ct := evalStaticType(store, last, n.Func)
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n, TRANS_CONTINUE
 					}
-					// general case, for non-const untyped && no nested untyped shift
-					// after handling const, and special cases recursively, set the target node type
-					// ct := evalStaticType(store, last, n.Func)
-					n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-					return n, TRANS_CONTINUE
+					//// general case, for non-const untyped && no nested untyped shift
+					//// after handling const, and special cases recursively, set the target node type
+					//// ct := evalStaticType(store, last, n.Func)
+					//n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+					//return n, TRANS_CONTINUE
 				default:
 					panic(fmt.Sprintf(
 						"unexpected func type %v (%v)",
@@ -2476,13 +2470,6 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
-		if cx.IsUndefined() && cx.T == nil { // if cx is nil, not undefined interface
-			if _, ok := t.(*NativeType); !ok { // bypass native nil interface, not support native interface(nil) now
-				ConvertTo(nilAllocator, store, &cx.TypedValue, t)
-				setConstAttrs(cx)
-				return
-			}
-		}
 		t = nil
 	}
 	if isUntyped(cx.T) {

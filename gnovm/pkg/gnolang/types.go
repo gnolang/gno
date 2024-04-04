@@ -2067,6 +2067,64 @@ func KindOf(t Type) Kind {
 }
 
 // ----------------------------------------
+// main type-assertion functions.
+
+// TODO: document what class of problems its for.
+// One of them can be nil, and this lets uninitialized primitives
+// and others serve as empty values.  See doOpAdd()
+// usage: if debug { assertSameTypes() }
+func assertSameTypes(lt, rt Type) {
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == rt.Kind() &&
+		isDataByte(lt) {
+		// left is databyte of same kind,
+		// specifically for assignments.
+		// TODO: make another function
+		// and remove this case?
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil types are identical.
+	} else {
+		debug.Errorf(
+			"incompatible operands in binary expression: %s and %s",
+			lt.String(),
+			rt.String(),
+		)
+	}
+}
+
+// Like assertSameTypes(), but more relaxed, for == and !=.
+func assertEqualityTypes(lt, rt Type) {
+	if lt == nil && rt == nil {
+		// both are nil.
+	} else if lt == nil || rt == nil {
+		// one is nil.  see function comment.
+	} else if lt.Kind() == rt.Kind() &&
+		isUntyped(lt) || isUntyped(rt) {
+		// one is untyped of same kind.
+	} else if lt.Kind() == InterfaceKind &&
+		IsImplementedBy(lt, rt) {
+		// rt implements lt (and lt is nil interface).
+	} else if rt.Kind() == InterfaceKind &&
+		IsImplementedBy(rt, lt) {
+		// lt implements rt (and rt is nil interface).
+	} else if lt.TypeID() == rt.TypeID() {
+		// non-nil types are identical.
+	} else {
+		debug.Errorf(
+			"incompatible operands in binary (eql/neq) expression: %s and %s",
+			lt.String(),
+			rt.String(),
+		)
+	}
+}
+
+// ----------------------------------------
 // misc
 
 func isUntyped(t Type) bool {

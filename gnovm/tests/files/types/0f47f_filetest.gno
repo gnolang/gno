@@ -10,5 +10,5 @@ func main() {
 }
 
 // Output:
-// false
+// true
 // <nil>
