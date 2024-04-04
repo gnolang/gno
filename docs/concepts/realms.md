@@ -196,7 +196,3 @@ You can see the `Render` function in action by visiting the
 `r/gnoland/home` realm. The same is true for the
 [Gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
 :::
-
-
-## Sending & receiving coins in Realms
-// todo add section on this?
