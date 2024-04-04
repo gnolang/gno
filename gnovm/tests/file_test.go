@@ -3,6 +3,7 @@ package tests
 import (
 	"flag"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -57,7 +58,7 @@ func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFile
 	var name string
 	for _, file := range files {
 		path = file.path
-		name = file.DirEntry.Name()
+		name = strings.TrimPrefix(file.path, baseDir+string(os.PathSeparator))
 		t.Run(name, func(t *testing.T) {
 			runFileTest(t, path, opts...)
 		})

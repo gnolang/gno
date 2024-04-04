@@ -375,7 +375,7 @@ func (ft FieldType) GetPkgPath() string {
 }
 
 func (ft FieldType) IsNamed() bool {
-	panic("unexpected")
+	panic("FieldType is a pseudotype with no property called named")
 }
 
 // ----------------------------------------
@@ -893,7 +893,7 @@ func (pt *PackageType) GetPkgPath() string {
 }
 
 func (pt *PackageType) IsNamed() bool {
-	panic("unexpected")
+	panic("package types have no property called named")
 }
 
 // ----------------------------------------
@@ -1406,7 +1406,7 @@ func (tt *TypeType) GetPkgPath() string {
 }
 
 func (tt *TypeType) IsNamed() bool {
-	panic("unexpected")
+	panic("typeval types have no property called 'named'")
 }
 
 // ----------------------------------------
@@ -1900,7 +1900,7 @@ func (bt blockType) GetPkgPath() string {
 }
 
 func (bt blockType) IsNamed() bool {
-	panic("unexpected")
+	panic("blockType has no property called named")
 }
 
 // ----------------------------------------
@@ -1954,7 +1954,7 @@ func (tt *tupleType) GetPkgPath() string {
 }
 
 func (tt *tupleType) IsNamed() bool {
-	panic("unexpected")
+	panic("typleType has no property called named")
 }
 
 // ----------------------------------------
@@ -1977,15 +1977,15 @@ func (rt RefType) String() string {
 }
 
 func (rt RefType) Elem() Type {
-	panic("should not happen")
+	panic("RefType has no elem type")
 }
 
 func (rt RefType) GetPkgPath() string {
-	panic("should not happen")
+	panic("RefType has no package path")
 }
 
 func (rt RefType) IsNamed() bool {
-	panic("unexpected")
+	panic("RefType has no property called named")
 }
 
 // ----------------------------------------

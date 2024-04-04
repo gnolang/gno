@@ -1543,7 +1543,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if dt, ok := st.(*DeclaredType); ok {
 								mt = dt.Base.(*MapType)
 							} else if mt, ok = st.(*MapType); !ok {
-								panic("should not happen")
+								panic("invalid index expression on MapType")
 							}
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
@@ -2341,34 +2341,45 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				}
 			}
 			// convert x to destination type t
-			cx := Expr(Call(constType(nil, t), *x))
-			cx = Preprocess(store, last, cx).(Expr)
-			*x = cx
+			convertType(store, last, x, t)
 		} else {
 			// if one side is declared name type and the other side is unnamed type
 			if isNamedConversion(xt, t) {
 				// covert right (xt) to the type of the left (t)
-				cx := Expr(Call(constType(nil, t), *x))
-				cx = Preprocess(store, last, cx).(Expr)
-				*x = cx
+				convertType(store, last, x, t)
 			}
 		}
 	}
 }
 
-// Return true if we need to convert named and unnamed types in an assignment
+// convert x to destination type t
+func convertType(store Store, last BlockNode, x *Expr, t Type) {
+	cx := Expr(Call(constType(nil, t), *x))
+	cx = Preprocess(store, last, cx).(Expr)
+	*x = cx
+}
+
+// isNamedConversion returns true if assigning a value of type
+// xt (rhs) into a value of type t (lhs) entails an implicit type conversion.
+// xt is the result of an expression type.
+//
+// In a few special cases, we should not perform the conversion:
+//    case 1: the LHS is an interface, which is unnamed, so we should not
+//    convert to that even if right is a named type.
+//    case 2: isNamedConversion is called within evaluating make() or new()
+//    (uverse functions). It returns TypType (generic) which does have IsNamed appropriate
+
 func isNamedConversion(xt, t Type) bool {
 	if t == nil {
 		t = xt
 	}
 
-	// t is left hand destination type, xt is right hand expression type
-	// In a few special cases, we should not consider compare named and unnamed type
-	// case 1: if left is interface, which is unnamed, we dont convert to the left type even right is named type.
+	// no conversion case 1: the LHS is an interface
 
 	_, c1 := t.(*InterfaceType)
 
-	// case2: TypeType is used in make() new() native uverse definition and TypeType.IsNamed() will panic on unexpected.
+	// no conversion case2: isNamedConversion is called within evaluating make() or new()
+	//   (uverse functions)
 
 	_, oktt := t.(*TypeType)
 	_, oktt2 := xt.(*TypeType)

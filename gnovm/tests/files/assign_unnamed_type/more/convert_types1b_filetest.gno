@@ -16,3 +16,9 @@ func main() {
 	println(a)
 	println(b)
 }
+
+// Output:
+// (slice[(0 int)] main.nat)
+// slice[(1 int)]
+// (slice[(1 int)] main.nat)
+// slice[(1 int)]

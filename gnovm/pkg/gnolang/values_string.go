@@ -234,8 +234,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			return sv.String()
 		default:
 			panic(fmt.Sprintf(
-				"unexpected slice type %v",
-				reflect.TypeOf(tv.V)))
+				"unexpected slice type %T",
+				tv.V))
 		}
 	case *StructType:
 		return tv.V.(*StructValue).String()

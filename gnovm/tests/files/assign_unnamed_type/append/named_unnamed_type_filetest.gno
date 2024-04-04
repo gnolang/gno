@@ -3,8 +3,8 @@ package main
 type nat []int
 
 func main() {
-	nlist := nat{0}
-	ulist := []int{1}
+	var nlist = nat{0}
+	var ulist = []int{1}
 	var n int = 3
 
 	a := append(nlist, n)
@@ -23,6 +23,7 @@ func main() {
 	println(b)
 	println(c)
 	println(d)
+
 }
 
 // Output:

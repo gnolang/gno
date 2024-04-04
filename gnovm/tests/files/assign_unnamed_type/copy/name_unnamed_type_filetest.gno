@@ -3,8 +3,8 @@ package main
 type nat []int
 
 func main() {
-	nlist := nat{0}
-	ulist := []int{1}
+	var nlist = nat{0}
+	var ulist = []int{1}
 
 	copy(nlist, ulist)
 
