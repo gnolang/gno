@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -419,7 +420,7 @@ func (pool *BlockPool) debug() string {
 	return str
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bpPeer struct {
 	pool        *BlockPool
@@ -431,7 +432,7 @@ type bpPeer struct {
 	timeout    *time.Timer
 	didTimeout bool
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 func newBPPeer(pool *BlockPool, peerID p2p.ID, height int64) *bpPeer {
@@ -440,12 +441,12 @@ func newBPPeer(pool *BlockPool, peerID p2p.ID, height int64) *bpPeer {
 		id:         peerID,
 		height:     height,
 		numPending: 0,
-		logger:     log.NewNopLogger(),
+		logger:     log.NewNoopLogger(),
 	}
 	return peer
 }
 
-func (peer *bpPeer) setLogger(l log.Logger) {
+func (peer *bpPeer) setLogger(l *slog.Logger) {
 	peer.logger = l
 }
 
@@ -491,7 +492,7 @@ func (peer *bpPeer) onTimeout() {
 	peer.didTimeout = true
 }
 
-//-------------------------------------
+// -------------------------------------
 
 type bpRequester struct {
 	service.BaseService

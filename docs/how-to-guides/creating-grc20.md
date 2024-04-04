@@ -6,7 +6,7 @@ id: creating-grc20
 
 ## Overview
 
-This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../explanation/realms.md), in [Gno (Gnolang)](../explanation/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
+This guide shows you how to write a simple _GRC20_ Smart Contract, or rather a [Realm](../concepts/realms.md), in [Gno (Gno)](../concepts/gno-language.md). For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
 Our _GRC20_ Realm will have the following functionality:
 
@@ -56,65 +56,79 @@ In this code preview, we have:
 
 The following section will be about introducing Public functions to expose functionality imported from the [grc20 package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/grc/grc20).
 
+Add this imports :
+
+```go
+import (
+	....
+	"strings"
+
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
+)
+```
+
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-2.gno go)
 ```go
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
 }
 
-func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := mytoken.BalanceOf(owner.Resolve())
+func BalanceOf(owner pusers.AddressOrName) uint64 {
+	balance, err := mytoken.BalanceOf(users.Resolve(owner))
 	if err != nil {
 		panic(err)
 	}
 	return balance
 }
 
-func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := mytoken.Allowance(owner.Resolve(), spender.Resolve())
+func Allowance(owner, spender pusers.AddressOrName) uint64 {
+	allowance, err := mytoken.Allowance(users.Resolve(owner), users.Resolve(spender))
 	if err != nil {
 		panic(err)
 	}
 	return allowance
 }
 
-func Transfer(to users.AddressOrName, amount uint64) {
+func Transfer(to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.Transfer(caller, to.Resolve(), amount)
+	err := mytoken.Transfer(caller, users.Resolve(to), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Approve(spender users.AddressOrName, amount uint64) {
+func Approve(spender pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.Approve(caller, spender.Resolve(), amount)
+	err := mytoken.Approve(caller, users.Resolve(spender), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to users.AddressOrName, amount uint64) {
+func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := mytoken.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
+	err := mytoken.TransferFrom(caller, users.Resolve(from), users.Resolve(to), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Mint(address users.AddressOrName, amount uint64) {
+func Mint(address pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := mytoken.Mint(address.Resolve(), amount)
+	err := mytoken.Mint(users.Resolve(address), amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Burn(address users.AddressOrName, amount uint64) {
+func Burn(address pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := mytoken.Burn(address.Resolve(), amount)
+	err := mytoken.Burn(users.Resolve(address), amount)
 	if err != nil {
 		panic(err)
 	}
@@ -128,8 +142,8 @@ func Render(path string) string {
 	case path == "":
 		return mytoken.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := users.AddressOrName(parts[1])
-		balance, _ := mytoken.BalanceOf(owner.Resolve())
+		owner := pusers.AddressOrName(parts[1])
+		balance, _ := mytoken.BalanceOf(users.Resolve(owner))
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
@@ -153,7 +167,7 @@ Detailing what is happening in the above code:
 - Calling the `Mint` method would create a configurable number of tokens by the administrator.
 - Calling the `Burn` method would destroy a configurable number of tokens by the administrator.
 - Calling the `Render` method would return a user's `balance` as a formatted string. Learn more about the `Render`
-  method and how it's used [here](../explanation/realms.md).
+  method and how it's used [here](../concepts/realms.md).
 - Finally, we provide a local function to assert that the calling account is in fact the owner, otherwise panic. This is a very important function that serves to prevent abuse by non-administrators.
 
 ## Conclusion
