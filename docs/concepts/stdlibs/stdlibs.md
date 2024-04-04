@@ -14,7 +14,7 @@ of their import path. For example:
 - `import "encoding/binary"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.
 
-To see concrete implementation details & API references, see the [reference](../../reference/standard-library/overview.md) section.
+To see concrete implementation details & API references, see the [reference](../../reference/stdlibs/stdlibs.md) section.
 
 ## Accessing documentation
 

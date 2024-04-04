@@ -95,18 +95,18 @@ const sidebars = {
                 {
                     type: 'category',
                     label: 'Standard Libraries',
+                    link: {type: 'doc', id: 'reference/stdlibs/stdlibs'},
                     items: [
-                        'reference/standard-library/overview',
                         {
                             type: 'category',
                             label: 'std',
                             items: [
-                                'reference/standard-library/std/address',
-                                'reference/standard-library/std/banker',
-                                'reference/standard-library/std/coin',
-                                'reference/standard-library/std/coins',
-                                'reference/standard-library/std/chain',
-                                'reference/standard-library/std/testing',
+                                'reference/stdlibs/std/address',
+                                'reference/stdlibs/std/banker',
+                                'reference/stdlibs/std/coin',
+                                'reference/stdlibs/std/coins',
+                                'reference/stdlibs/std/chain',
+                                'reference/stdlibs/std/testing',
                             ]
                         }
                     ]
