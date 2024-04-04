@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 var (
@@ -107,7 +106,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	for i := 0; i < total; i++ {
 		part := &Part{
 			Index: i,
-			Bytes: data[i*partSize : maths.MinInt(len(data), (i+1)*partSize)],
+			Bytes: data[i*partSize : min(len(data), (i+1)*partSize)],
 		}
 		parts[i] = part
 		partsBytes[i] = part.Bytes

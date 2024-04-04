@@ -25,7 +25,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name> <signature>",
-			ShortHelp:  "Verifies the document signature",
+			ShortHelp:  "verifies the document signature",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

@@ -3,13 +3,106 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"text/template"
 	"unsafe"
 
 	// "github.com/davecgh/go-spew/spew"
 	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 )
+
+func TestBuiltinIdentifiersShadowing(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{}
+
+	uverseNames := []string{
+		"iota",
+		"append",
+		"cap",
+		"close",
+		"complex",
+		"copy",
+		"delete",
+		"len",
+		"make",
+		"new",
+		"panic",
+		"print",
+		"println",
+		"recover",
+		"nil",
+		"bigint",
+		"bool",
+		"byte",
+		"float32",
+		"float64",
+		"int",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+		"rune",
+		"string",
+		"uint",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+		"typeval",
+		"error",
+		"true",
+		"false",
+	}
+
+	for _, name := range uverseNames {
+		tests[("struct builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			type %v struct {}
+
+			func main() {}
+		`, name)
+
+		tests[("var builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				%v := 1
+			}
+		`, name)
+
+		tests[("var declr builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				var %v int
+			}
+		`, name)
+	}
+
+	for n, s := range tests {
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("shadowing test: `%s` should have failed but didn't\n", n)
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			nn := MustParseFile("main.go", s)
+			m.RunFiles(nn)
+			m.RunMain()
+		})
+	}
+}
 
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
@@ -192,43 +285,84 @@ func main() {
 // Benchmarks
 
 func BenchmarkPreprocess(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		// stop timer
-		b.StopTimer()
-		pkg := &PackageNode{
-			PkgName: "main",
-			PkgPath: ".main",
-			FileSet: nil,
-		}
-		pkg.InitStaticBlock(pkg, nil)
-		main := FuncD("main", nil, nil, Ss(
-			A("mx", ":=", "1000000"),
-			For(
-				A("i", ":=", "0"),
-				X("i < mx"),
-				Inc("i"),
-			),
-		))
-		b.StartTimer()
-		// timer started
-		main = Preprocess(nil, pkg, main).(*FuncDecl)
+	pkg := &PackageNode{
+		PkgName: "main",
+		PkgPath: ".main",
+		FileSet: nil,
 	}
-}
-
-func BenchmarkLoopyMain(b *testing.B) {
-	m := NewMachine("test", nil)
+	pkg.InitStaticBlock(pkg, nil)
 	main := FuncD("main", nil, nil, Ss(
-		A("mx", ":=", "10000000"),
+		A("mx", ":=", "1000000"),
 		For(
 			A("i", ":=", "0"),
-			// X("i < 10000000"),
 			X("i < mx"),
 			Inc("i"),
 		),
 	))
-	m.RunDeclaration(main)
+	copies := make([]*FuncDecl, b.N)
 	for i := 0; i < b.N; i++ {
-		m.RunMain()
+		copies[i] = main.Copy().(*FuncDecl)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+	}
+}
+
+type bdataParams struct {
+	N     int
+	Param string
+}
+
+func BenchmarkBenchdata(b *testing.B) {
+	const bdDir = "./benchdata"
+	files, err := os.ReadDir(bdDir)
+	require.NoError(b, err)
+	for _, file := range files {
+		// Read file and parse template.
+		bcont, err := os.ReadFile(filepath.Join(bdDir, file.Name()))
+		cont := string(bcont)
+		require.NoError(b, err)
+		tpl, err := template.New("").Parse(cont)
+		require.NoError(b, err)
+
+		// Determine parameters.
+		const paramString = "// param: "
+		var params []string
+		pos := strings.Index(cont, paramString)
+		if pos >= 0 {
+			paramsRaw := strings.SplitN(cont[pos+len(paramString):], "\n", 2)[0]
+			params = strings.Fields(paramsRaw)
+		} else {
+			params = []string{""}
+		}
+
+		for _, param := range params {
+			name := file.Name()
+			if param != "" {
+				name += "_param:" + param
+			}
+			b.Run(name, func(b *testing.B) {
+				// Gen template with N and param.
+				var buf bytes.Buffer
+				require.NoError(b, tpl.Execute(&buf, bdataParams{
+					N:     b.N,
+					Param: param,
+				}))
+
+				// Set up machine.
+				m := NewMachineWithOptions(MachineOptions{
+					PkgPath: "main",
+					Output:  io.Discard,
+				})
+				n := MustParseFile("main.go", buf.String())
+				m.RunFiles(n)
+
+				b.ResetTimer()
+				m.RunMain()
+			})
+		}
 	}
 }
 

@@ -581,7 +581,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
-		mockErr := bytes.NewBufferString("")
+		mockErr := new(bytes.Buffer)
 		io := commands.NewTestIO()
 		io.SetErr(commands.WriteNopCloser(mockErr))
 
@@ -638,7 +638,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
-		mockErr := bytes.NewBufferString("")
+		mockErr := new(bytes.Buffer)
 		io := commands.NewTestIO()
 		io.SetErr(commands.WriteNopCloser(mockErr))
 
@@ -690,7 +690,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 			marshalledTxs = append(marshalledTxs, string(marshalledTx))
 		}
 
-		mockErr := bytes.NewBufferString("")
+		mockErr := new(bytes.Buffer)
 		io := commands.NewTestIO()
 		io.SetErr(commands.WriteNopCloser(mockErr))
 

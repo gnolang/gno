@@ -1,10 +1,10 @@
 package main
 
 func main() {
-	println(int)
+	println(i)
 }
 
-var int string = "foobar"
+var i string = "foobar"
 
 // Output:
 // foobar
