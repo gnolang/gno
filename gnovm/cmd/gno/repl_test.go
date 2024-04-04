@@ -92,12 +92,42 @@ func TestUpdateIndentLevel(t *testing.T) {
 			indentLevel: 1,
 			want:        0,
 		},
+		{
+			name: "Test with brackets in string",
+			line: "ufmt.Println(\"{\")",
+			indentLevel: 0,
+			want: 0,
+		},
+		{
+			name: "Test with brackets in single line comment",
+			line: "// { [ (",
+			indentLevel: 0,
+			want: 0,
+		},
+		// {
+		// 	name: "Test with brackets in multi line comment",
+		// 	line: "/* { [ ( ) ] */",
+		// 	indentLevel: 0,
+		// 	want: 0,
+		// },
+		// {
+		// 	name: "Test with brackets in string and comment",
+		// 	line: "ufmt.Println(\"{ [ ( ) ] }\") // { [ ( ) ] }",
+		// 	indentLevel: 0,
+		// 	want: 0,
+		// },
+		// {
+		// 	name: "Test with brackets and comment",
+		// 	line: "func Foo() { // { [ ( ) ] }",
+		// 	indentLevel: 1,
+		// 	want: 1,
+		// },
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := updateIndentLevel(tt.line, tt.indentLevel); got != tt.want {
-				t.Errorf("updateIndentLevel() = %v, want %v", got, tt.want)
+				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}
@@ -415,4 +445,56 @@ func TestRestore(t *testing.T) {
     if restoredState.termios != originalState.termios {
         t.Errorf("Terminal settings are not restored correctly")
     }
+}
+
+func TestCursorBackward(t *testing.T) {
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cursorBackward()
+	if err != nil {
+		t.Errorf("cursorBackward failed: %v", err)
+	}
+
+	// Restore stdout
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	expected := "\x1b[1D"
+	actual := buf.String()
+
+	if actual != expected {
+		t.Errorf("cursorBackward output mismatch - expected: %q, actual: %q", expected, actual)
+	}
+}
+
+func TestCursorForward(t *testing.T) {
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := cursorForward()
+	if err != nil {
+		t.Errorf("cursorForward failed: %v", err)
+	}
+
+	// Restore stdout
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	expected := "\x1b[1C"
+	actual := buf.String()
+
+	if actual != expected {
+		t.Errorf("cursorForward output mismatch - expected: %q, actual: %q", expected, actual)
+	}
 }

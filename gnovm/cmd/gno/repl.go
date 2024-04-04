@@ -178,17 +178,37 @@ func handleEditor(line string) (string, bool) {
 func updateIndentLevel(line string, indentLevel int) int {
 	openCount, closeCount := 0, 0
 	increaseIndent := false
+	inString := false
+	inComment := false
+	var stringChar rune
 
 	for i, char := range line {
-		switch char {
-		case '{', '(', '[':
-			openCount++
-
-			if i < len(line)-1 && line[i+1] == '\n' {
-				increaseIndent = true
+		if !inString && !inComment {
+			switch char {
+			case '{', '(', '[':
+				openCount++
+				if i < len(line)-1 && line[i+1] == '\n' {
+					increaseIndent = true
+				}
+			case '}', ')', ']':
+				closeCount++
+			case '"', '\'':
+				inString = true
+				stringChar = char
+			case '/':
+				if i < len(line)-1 {
+					if line[i+1] == '/' {
+						break
+					} else if line[i+1] == '*' {
+						inComment = true
+					}
+				}
 			}
-		case '}', ')', ']':
-			closeCount++
+		} else if inString && char == stringChar {
+			inString = false
+		} else if inComment && i < len(line)-1 && char == '*' && line[i+1] == '/' {
+			inComment = false
+			i++
 		}
 	}
 
@@ -201,7 +221,7 @@ func updateIndentLevel(line string, indentLevel int) int {
 		indentLevel++
 	}
 
-	if strings.HasSuffix(line, ":") {
+	if strings.HasSuffix(strings.TrimSpace(line), ":") {
 		indentLevel++
 	}
 
@@ -321,12 +341,18 @@ func peekChar() (byte, bool) {
 	}
 }
 
+// getChar reads a single byte from stdin.
 func getChar() byte {
 	if lastInOk {
 		lastInOk = false
 		return lastIn
 	}
 	return <-input
+}
+
+// putString writes a string to stdout.
+func putString(s string) error {
+	return putChars([]byte(s))
 }
 
 type terminalState struct {
@@ -354,8 +380,9 @@ func makeRaw(fd int) (*terminalState, error) {
 	return &oldState, nil
 }
 
-// makeCbreak puts the terminal connected to the given file descriptor into cbreak mode
-// and returns the previous state of the terminal so that it can be restored.
+// makeCbreak puts the terminal connected to the given file descriptor into cbreak mode.
+// cbreak mode is like raw mode, but it allows the user to interrupt the program with Ctrl-C.
+// returns the previous state of the terminal so that it can be restored.
 func makeCbreak(fd int) (*terminalState, error) {
 	var oldState terminalState
 	// Get the current terminal settings
@@ -383,4 +410,52 @@ func restore(fd int, state *terminalState) error {
 		return err
 	}
 	return nil
+}
+
+// cursorBackward moves the cursor one character to the left (backward).
+func cursorBackward() error {
+	chars := []byte{27, '[', '1', 'D'}
+	return putChars(chars)
+}
+
+// cursorForward moves the cursor one character to the right (forward).
+func cursorForward() error {
+	chars := []byte{27, '[', '1', 'C'}
+	return putChars(chars)
+}
+
+var state *terminalState
+
+// exit exits the program.
+func exit() {
+	if state != nil {
+		restore(syscall.Stdin, state)
+		black := "\033[0;0m"
+		fmt.Print(black)
+	}
+	os.Exit(1)
+}
+
+type lineBuf struct {
+	length int
+	cursor int
+	buf    []byte
+}
+
+func newLineBuf(cap int) *lineBuf {
+	storage := make([]byte, cap)
+	return &lineBuf{
+		length: 0,
+		cursor: 0,
+		buf:    storage,
+	}
+}
+
+func (l *lineBuf) Empty() bool {
+	return l.length == 0
+}
+
+func (l *lineBuf) Clear() {
+	l.length = 0
+	l.cursor = 0
 }
