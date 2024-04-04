@@ -73,7 +73,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	}
 GNO_CASE:
 	// special case for interface target
-	// see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
 		return
 	}

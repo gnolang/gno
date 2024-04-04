@@ -113,7 +113,6 @@ func (m *Machine) doOpSlice() {
 		high = xv.GetLength()
 	}
 	// all low:high:max cases
-	//var sv TypedValue
 	if max == -1 {
 		sv := xv.GetSlice(m.Alloc, low, high)
 		m.PushValue(sv)

@@ -765,7 +765,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else {
 					n.AssertCompatible(store, lt, rt)
 				}
-
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
@@ -1030,7 +1029,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
-					//switch arg0 := n.Args[0].(type) {
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
 						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
@@ -1052,13 +1050,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// TODO: consider this, need check?
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						//convertConst(store, last, arg0, dt) // convert to default type if dt is nil
-						convertConst(store, last, arg0, nil) // convert to default type if dt is nil
+						convertConst(store, last, arg0, nil)
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
-						//cx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					} else {
@@ -1066,11 +1062,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
 					}
-					//// general case, for non-const untyped && no nested untyped shift
-					//// after handling const, and special cases recursively, set the target node type
-					//// ct := evalStaticType(store, last, n.Func)
-					//n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-					//return n, TRANS_CONTINUE
 				default:
 					panic(fmt.Sprintf(
 						"unexpected func type %v (%v)",
@@ -1284,9 +1275,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
-
 				n.AssertCompatible(xt, nil)
-
 				if xnt, ok := xt.(*NativeType); ok {
 					// get concrete native base type.
 					pt := go2GnoBaseType(xnt.Type).(PrimitiveType)
@@ -2251,7 +2240,6 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
-	debug.Printf("---evalConst, x: %v \n", x)
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	cv := NewMachine(".dontcare", store)
@@ -2425,7 +2413,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			needConversion = checkAssignableTo(xt, t, autoNative)
 		}
 		if isUntyped(xt) {
-			if _, ok := t.(*InterfaceType); ok || t == nil {
+			if t == nil {
 				t = defaultTypeOf(xt)
 			}
 			if debug {
@@ -2470,7 +2458,7 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
-		t = nil
+		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
 		ConvertUntypedTo(&cx.TypedValue, t)
@@ -2924,8 +2912,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				t = &MapType{}
 			case *StructTypeExpr:
 				t = &StructType{}
-			case *StarExpr:
-				t = &PointerType{}
 			case *NameExpr:
 				if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name

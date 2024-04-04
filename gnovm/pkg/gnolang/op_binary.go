@@ -76,10 +76,11 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
+
+	// set result in lv.
 	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
@@ -92,11 +93,11 @@ func (m *Machine) doOpNeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-
 	if debug {
 		assertEqualityTypes(lv.T, rv.T)
 	}
 
+	// set result in lv.
 	res := !isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
@@ -343,7 +344,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
-
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -456,7 +456,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("function can only be compared with `nil`")
 			}
 		}
-
 		if _, ok := lv.V.(*BoundMethodValue); ok {
 			// BoundMethodValues are objects so just compare.
 			return lv.V == rv.V
