@@ -48,8 +48,6 @@ to change. To view realms on the `test3` network (depr.), prepend `test3` to
 the domain: [`test3.gno.land/r/demo/users`](https://test3.gno.land/r/demo/users).
 :::
 
-[//]: # (Learn more about package paths & allowed namespaces [here].)
-
 To learn how to write a realm, see [How to write a simple Gno Smart Contract](../how-to-guides/simple-contract.md).
 
 ## Externally Owned Accounts (EOAs)
