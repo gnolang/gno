@@ -166,11 +166,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				if rerr, ok := r.(error); ok {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					fmt.Println(errors.Wrap(rerr, loc.String()))
 					panic(errors.Wrap(rerr, loc.String()))
 				} else {
 					// NOTE: gotuna/gorilla expects error exceptions.
-					fmt.Println(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
 					panic(errors.New(fmt.Sprintf("%s: %v", loc.String(), r)))
 				}
 			}
@@ -1314,7 +1312,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// always computed in gno, never with reflect.
 				}
 				// Replace with *ConstExpr if const X.
-				if _, ok := n.X.(*ConstExpr); ok {
+				if isConst(n.X) {
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
@@ -2381,6 +2379,11 @@ func anyValue(t Type) TypedValue {
 		T: t,
 		V: nil,
 	}
+}
+
+func isConst(x Expr) bool {
+	_, ok := x.(*ConstExpr)
+	return ok
 }
 
 func isConstType(x Expr) bool {
