@@ -96,7 +96,7 @@ type MachineOptions struct {
 	DebugAddr     string    // debugger io stream address (stdin/stdout if empty)
 	Input         io.Reader // used for default debugger input only
 	Output        io.Writer // default os.Stdout
-	Store         Store.    // default NewStore(Alloc, nil, nil)
+	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
