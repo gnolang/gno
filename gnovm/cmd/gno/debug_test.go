@@ -14,6 +14,7 @@ type dtest struct{ in, out string }
 const debugTarget = "../../tests/integ/debugger/sample.gno"
 
 func runDebugTest(t *testing.T, tests []dtest) {
+	t.Helper()
 	args := []string{"run", "-debug", debugTarget}
 
 	for _, test := range tests {
