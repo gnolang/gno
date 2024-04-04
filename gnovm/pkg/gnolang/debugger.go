@@ -16,32 +16,41 @@ import (
 	"strings"
 )
 
-// DebugState is the state of the machine debugger.
+// DebugState is the state of the machine debugger, defined by a finite state
+// automaton with the following transitions, evaluated at each debugger input
+// or each gnoVM instruction while in step mode:
+// - DebugAtInit -> DebugAtCmd: initial debugger setup is performed
+// - DebugAtCmd  -> DebugAtCmd: when command is for inspecting or setting a breakpoint
+// - DebugAtCmd  -> DebuAtRun:  when command is 'continue', 'step' or 'stepi'
+// - DebugAtCmd  -> DebugAtExit: when command is 'quit' or 'resume'
+// - DebugAtRun  -> DebugAtRun: when current machine instruction doesn't match a breakpoint
+// - DebugAtRun  -> DebugAtCmd: when current machine instruction matches a breakpoint
+// - DebugAtRun  -> DebugAtExit: when the program terminates
 type DebugState int
 
 const (
-	DebugAtInit DebugState = iota
-	DebugAtCmd
-	DebugAtRun
-	DebugAtExit
+	DebugAtInit DebugState = iota // performs debugger IO setup and enters gnoVM in step mode
+	DebugAtCmd                    // awaits a new command from the debugger input stream
+	DebugAtRun                    // awaits the next machine instruction
+	DebugAtExit                   // closes debugger IO and exits gnoVM from step mode
 )
 
-// Debugger describes a machine debugger state.
+// Debugger describes a machine debugger.
 type Debugger struct {
-	DebugEnabled bool
-	DebugAddr    string    // optional address [host]:port for DebugIn/DebugOut
-	DebugIn      io.Reader // debugger input, defaults to Stdin
-	DebugOut     io.Writer // debugger output, defaults to Stdout
-	DebugScanner *bufio.Scanner
+	enabled bool           // when true, machine is in step mode
+	addr    string         // optional network address [host]:port for In/Out
+	in      io.Reader      // debugger input, defaults to Stdin
+	out     io.Writer      // debugger output, defaults to Stdout
+	scanner *bufio.Scanner // to parse input per line
 
-	DebugState
-	lastDebugCmd    string
-	lastDebugArg    string
-	DebugLoc        Location
-	PrevDebugLoc    Location
-	breakpoints     []Location
-	debugCall       []Location // should be provided by machine frame
-	debugFrameLevel int
+	state       DebugState // current state of debugger
+	lastCmd     string     // last debugger command
+	lastArg     string     // last debugger command arguments
+	loc         Location   // source location of the current machine instruction
+	prevLoc     Location   // source location of the previous machine instruction
+	breakpoints []Location // list of breakpoints set by user, as source locations
+	call        []Location // for function tracking, ideally should be provided by machine frame
+	frameLevel  int        // frame level of the current machine instruction
 }
 
 type debugCommand struct {
@@ -49,8 +58,10 @@ type debugCommand struct {
 	usage, short, long string                       // command help texts
 }
 
-var debugCmds map[string]debugCommand
-var debugCmdNames []string
+var (
+	debugCmds     map[string]debugCommand
+	debugCmdNames []string
+)
 
 func init() {
 	// Register debugger commands.
@@ -66,9 +77,11 @@ func init() {
 		"list":        {debugList, listUsage, listShort, listLong},
 		"print":       {debugPrint, printUsage, printShort, ""},
 		"stack":       {debugStack, stackUsage, stackShort, ""},
-		"step":        {debugContinue, stepUsage, stepShort, ""},
-		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
-		"up":          {debugUp, upUsage, upShort, ""},
+		// NOTE: the difference between continue, step and stepi is handled within
+		// the main Debug() loop.:w
+		"step":  {debugContinue, stepUsage, stepShort, ""},
+		"stepi": {debugContinue, stepiUsage, stepiShort, ""},
+		"up":    {debugUp, upUsage, upShort, ""},
 	}
 
 	// Sort command names for help.
@@ -92,37 +105,37 @@ func init() {
 	debugCmds["si"] = debugCmds["stepi"]
 }
 
-// Debug is the debug callback invoked at each VM execution step.
+// Debug is the debug callback invoked at each VM execution step. It implements the DebugState FSA.
 func (m *Machine) Debug() {
 loop:
 	for {
-		switch m.DebugState {
+		switch m.Debugger.state {
 		case DebugAtInit:
 			initDebugIO(m)
 			debugUpdateLocation(m)
-			fmt.Fprintln(m.DebugOut, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
-			m.DebugState = DebugAtCmd
+			fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
+			m.Debugger.state = DebugAtCmd
 		case DebugAtCmd:
 			if err := debugCmd(m); err != nil {
-				fmt.Fprintln(m.DebugOut, "Command failed:", err)
+				fmt.Fprintln(m.Debugger.out, "Command failed:", err)
 			}
 		case DebugAtRun:
-			switch m.lastDebugCmd {
+			switch m.Debugger.lastCmd {
 			case "si", "stepi":
-				m.DebugState = DebugAtCmd
+				m.Debugger.state = DebugAtCmd
 				debugLineInfo(m)
 			case "s", "step":
-				if m.DebugLoc != m.PrevDebugLoc {
-					m.DebugState = DebugAtCmd
-					m.PrevDebugLoc = m.DebugLoc
+				if m.Debugger.loc != m.Debugger.prevLoc {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
 					debugList(m, "")
 					continue loop
 				}
 			default:
 				for _, b := range m.breakpoints {
-					if b == m.DebugLoc && m.DebugLoc != m.PrevDebugLoc {
-						m.DebugState = DebugAtCmd
-						m.PrevDebugLoc = m.DebugLoc
+					if b == m.Debugger.loc && m.Debugger.loc != m.Debugger.prevLoc {
+						m.Debugger.state = DebugAtCmd
+						m.Debugger.prevLoc = m.Debugger.loc
 						debugList(m, "")
 						continue loop
 					}
@@ -139,9 +152,9 @@ loop:
 	op := m.Ops[m.NumOps-1]
 	switch op {
 	case OpCall:
-		m.debugCall = append(m.debugCall, m.DebugLoc)
+		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
 	case OpReturn, OpReturnFromBlock:
-		m.debugCall = m.debugCall[:len(m.debugCall)-1]
+		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
 }
 
@@ -151,17 +164,17 @@ loop:
 // If the command is empty, the last non-empty command is repeated.
 func debugCmd(m *Machine) error {
 	var cmd, arg string
-	fmt.Fprint(m.DebugOut, "dbg> ")
-	if !m.DebugScanner.Scan() {
+	fmt.Fprint(m.Debugger.out, "dbg> ")
+	if !m.Debugger.scanner.Scan() {
 		return debugDetach(m, arg) // Clean close of debugger, the target program resumes.
 	}
-	line := m.DebugScanner.Text()
+	line := m.Debugger.scanner.Text()
 	n, _ := fmt.Sscan(line, &cmd, &arg)
 	if n == 0 {
-		if m.lastDebugCmd == "" {
+		if m.Debugger.lastCmd == "" {
 			return nil
 		}
-		cmd, arg = m.lastDebugCmd, m.lastDebugArg
+		cmd, arg = m.Debugger.lastCmd, m.Debugger.lastArg
 	} else if cmd[0] == '#' {
 		return nil
 	}
@@ -169,7 +182,7 @@ func debugCmd(m *Machine) error {
 	if !ok {
 		return errors.New("command not available: " + cmd)
 	}
-	m.lastDebugCmd, m.lastDebugArg = cmd, arg
+	m.Debugger.lastCmd, m.Debugger.lastArg = cmd, arg
 	return c.debugFunc(m, arg)
 }
 
@@ -181,21 +194,21 @@ func debugCmd(m *Machine) error {
 // not affecting the target program's.
 // An error during connection setting will result in program panic.
 func initDebugIO(m *Machine) {
-	if m.DebugAddr != "" {
-		l, err := net.Listen("tcp", m.DebugAddr)
+	if m.Debugger.addr != "" {
+		l, err := net.Listen("tcp", m.Debugger.addr)
 		if err != nil {
 			panic(err)
 		}
-		print("Waiting for debugger client to connect at ", m.DebugAddr)
+		print("Waiting for debugger client to connect at ", m.Debugger.addr)
 		conn, err := l.Accept()
 		if err != nil {
 			panic(err)
 		}
 		println(" connected!")
-		m.DebugIn = conn
-		m.DebugOut = conn
+		m.Debugger.in = conn
+		m.Debugger.out = conn
 	}
-	m.DebugScanner = bufio.NewScanner(m.DebugIn)
+	m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
 }
 
 // debugUpdateLocation computes the source code location for the current VM state.
@@ -208,10 +221,10 @@ func debugUpdateLocation(m *Machine) {
 		loc.File, _ = filepath.Abs(loc.File)
 	}
 
-	if m.DebugLoc.PkgPath == "" ||
-		loc.PkgPath != "" && loc.PkgPath != m.DebugLoc.PkgPath ||
-		loc.File != "" && loc.File != m.DebugLoc.File {
-		m.DebugLoc = loc
+	if m.Debugger.loc.PkgPath == "" ||
+		loc.PkgPath != "" && loc.PkgPath != m.Debugger.loc.PkgPath ||
+		loc.File != "" && loc.File != m.Debugger.loc.File {
+		m.Debugger.loc = loc
 	}
 
 	// The location computed from above points to the block start. Examine
@@ -221,7 +234,7 @@ func debugUpdateLocation(m *Machine) {
 	for i := nx - 1; i >= 0; i-- {
 		expr := m.Exprs[i]
 		if l := expr.GetLine(); l > 0 {
-			m.DebugLoc.Line = l
+			m.Debugger.loc.Line = l
 			return
 		}
 	}
@@ -229,7 +242,7 @@ func debugUpdateLocation(m *Machine) {
 	if len(m.Stmts) > 0 {
 		if stmt := m.PeekStmt1(); stmt != nil {
 			if l := stmt.GetLine(); l > 0 {
-				m.DebugLoc.Line = l
+				m.Debugger.loc.Line = l
 				return
 			}
 		}
@@ -237,29 +250,31 @@ func debugUpdateLocation(m *Machine) {
 }
 
 // ---------------------------------------
-const breakUsage = `break|b [locspec]`
-const breakShort = `Set a breakpoint.`
-const breakLong = `
+const (
+	breakUsage = `break|b [locspec]`
+	breakShort = `Set a breakpoint.`
+	breakLong  = `
 The syntax accepted for locspec is:
 - <filename>:<line> specifies the line in filename. Filename can be relative.
 - <line> specifies the line in the current source file.
 - +<offset> specifies the line offset lines after the current one.
 - -<offset> specifies the line offset lines before the current one.
 `
+)
 
 func debugBreak(m *Machine, arg string) error {
-	loc, err := arg2loc(m, arg)
+	loc, err := parseLocSpec(m, arg)
 	if err != nil {
 		return err
 	}
 	m.breakpoints = append(m.breakpoints, loc)
-	fmt.Fprintf(m.DebugOut, "Breakpoint %d at %s %s:%d\n", len(m.breakpoints)-1, loc.PkgPath, loc.File, loc.Line)
+	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", len(m.breakpoints)-1, loc.PkgPath, loc.File, loc.Line)
 	return nil
 }
 
-func arg2loc(m *Machine, arg string) (loc Location, err error) {
+func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
 	var line int
-	loc = m.DebugLoc
+	loc = m.Debugger.loc
 
 	if strings.Contains(arg, ":") {
 		// Location is specified by filename:line.
@@ -293,19 +308,23 @@ func arg2loc(m *Machine, arg string) (loc Location, err error) {
 }
 
 // ---------------------------------------
-const breakpointsUsage = `breakpoints|bp`
-const breakpointsShort = `Print out info for active breakpoints.`
+const (
+	breakpointsUsage = `breakpoints|bp`
+	breakpointsShort = `Print out info for active breakpoints.`
+)
 
 func debugBreakpoints(m *Machine, arg string) error {
 	for i, b := range m.breakpoints {
-		fmt.Fprintf(m.DebugOut, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
+		fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
 	}
 	return nil
 }
 
 // ---------------------------------------
-const clearUsage = `clear [id]`
-const clearShort = `Delete breakpoint (all if no id).`
+const (
+	clearUsage = `clear [id]`
+	clearShort = `Delete breakpoint (all if no id).`
+)
 
 func debugClear(m *Machine, arg string) error {
 	if arg != "" {
@@ -321,37 +340,47 @@ func debugClear(m *Machine, arg string) error {
 }
 
 // ---------------------------------------
-const continueUsage = `continue|c`
-const continueShort = `Run until breakpoint or program termination.`
+const (
+	continueUsage = `continue|c`
+	continueShort = `Run until breakpoint or program termination.`
+)
 
-const stepUsage = `step|s`
-const stepShort = `Single step through program.`
+const (
+	stepUsage = `step|s`
+	stepShort = `Single step through program.`
+)
 
-const stepiUsage = `stepi|si`
-const stepiShort = `Single step a single VM instruction.`
+const (
+	stepiUsage = `stepi|si`
+	stepiShort = `Single step a single VM instruction.`
+)
 
 func debugContinue(m *Machine, arg string) error {
-	m.DebugState = DebugAtRun
-	m.debugFrameLevel = 0
+	m.state = DebugAtRun
+	m.frameLevel = 0
 	return nil
 }
 
 // ---------------------------------------
-const detachUsage = `detach`
-const detachShort = `Close debugger and resume program.`
+const (
+	detachUsage = `detach`
+	detachShort = `Close debugger and resume program.`
+)
 
 func debugDetach(m *Machine, arg string) error {
-	m.DebugEnabled = false
-	m.DebugState = DebugAtRun
-	if i, ok := m.DebugIn.(io.Closer); ok {
+	m.enabled = false
+	m.state = DebugAtRun
+	if i, ok := m.Debugger.in.(io.Closer); ok {
 		i.Close()
 	}
 	return nil
 }
 
 // ---------------------------------------
-const downUsage = `down [n]`
-const downShort = `Move the current frame down by n (default 1).`
+const (
+	downUsage = `down [n]`
+	downShort = `Move the current frame down by n (default 1).`
+)
 
 func debugDown(m *Machine, arg string) (err error) {
 	n := 1
@@ -360,22 +389,26 @@ func debugDown(m *Machine, arg string) (err error) {
 			return err
 		}
 	}
-	if level := m.debugFrameLevel - n; level >= 0 && level < len(m.debugCall) {
-		m.debugFrameLevel = level
+	if level := m.frameLevel - n; level >= 0 && level < len(m.Debugger.call) {
+		m.frameLevel = level
 	}
 	debugList(m, "")
 	return nil
 }
 
 // ---------------------------------------
-const exitUsage = `exit|quit|q`
-const exitShort = `Exit the debugger and program.`
+const (
+	exitUsage = `exit|quit|q`
+	exitShort = `Exit the debugger and program.`
+)
 
-func debugExit(m *Machine, arg string) error { m.DebugState = DebugAtExit; return nil }
+func debugExit(m *Machine, arg string) error { m.state = DebugAtExit; return nil }
 
 // ---------------------------------------
-const helpUsage = `help|h [command]`
-const helpShort = `Print the help message.`
+const (
+	helpUsage = `help|h [command]`
+	helpShort = `Print the help message.`
+)
 
 func debugHelp(m *Machine, arg string) error {
 	c, ok := debugCmds[arg]
@@ -387,7 +420,7 @@ func debugHelp(m *Machine, arg string) error {
 		if c.long != "" {
 			t += "\n" + c.long
 		}
-		fmt.Fprintln(m.DebugOut, t)
+		fmt.Fprintln(m.Debugger.out, t)
 		return nil
 	}
 	t := "The following commands are available:\n\n"
@@ -396,34 +429,36 @@ func debugHelp(m *Machine, arg string) error {
 		t += fmt.Sprintf("%-25s %s\n", c.usage, c.short)
 	}
 	t += "\nType help followed by a command for full documentation."
-	fmt.Fprintln(m.DebugOut, t)
+	fmt.Fprintln(m.Debugger.out, t)
 	return nil
 }
 
 // ---------------------------------------
-const listUsage = `list|l [locspec]`
-const listShort = `Show source code.`
-const listLong = `
+const (
+	listUsage = `list|l [locspec]`
+	listShort = `Show source code.`
+	listLong  = `
 See 'help break' for locspec syntax. If locspec is empty,
 list shows the source code around the current line.
 `
+)
 
 func debugList(m *Machine, arg string) (err error) {
-	loc := m.DebugLoc
+	loc := m.Debugger.loc
 	hideCursor := false
 
 	if arg == "" {
 		debugLineInfo(m)
-		if m.lastDebugCmd == "up" || m.lastDebugCmd == "down" {
-			loc = debugFrameLoc(m, m.debugFrameLevel)
-			fmt.Fprintf(m.DebugOut, "Frame %d: %s:%d\n", m.debugFrameLevel, loc.File, loc.Line)
+		if m.Debugger.lastCmd == "up" || m.Debugger.lastCmd == "down" {
+			loc = debugFrameLoc(m, m.frameLevel)
+			fmt.Fprintf(m.Debugger.out, "Frame %d: %s:%d\n", m.frameLevel, loc.File, loc.Line)
 		}
 	} else {
-		if loc, err = arg2loc(m, arg); err != nil {
+		if loc, err = parseLocSpec(m, arg); err != nil {
 			return err
 		}
 		hideCursor = true
-		fmt.Fprintf(m.DebugOut, "Showing %s:%d\n", loc.File, loc.Line)
+		fmt.Fprintf(m.Debugger.out, "Showing %s:%d\n", loc.File, loc.Line)
 	}
 	file, line := loc.File, loc.Line
 	lines, offset, err := sourceLines(file, line)
@@ -435,7 +470,7 @@ func debugList(m *Machine, arg string) (err error) {
 		if !hideCursor && file == loc.File && loc.Line == i+offset {
 			cursor = "=>"
 		}
-		fmt.Fprintf(m.DebugOut, "%2s %4d: %s\n", cursor, i+offset, l)
+		fmt.Fprintf(m.Debugger.out, "%2s %4d: %s\n", cursor, i+offset, l)
 	}
 	return nil
 }
@@ -448,7 +483,7 @@ func debugLineInfo(m *Machine) {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-	fmt.Fprintf(m.DebugOut, "> %s %s:%d\n", line, m.DebugLoc.File, m.DebugLoc.Line)
+	fmt.Fprintf(m.Debugger.out, "> %s %s:%d\n", line, m.Debugger.loc.File, m.Debugger.loc.Line)
 }
 
 const listLength = 10 // number of lines to display
@@ -479,8 +514,10 @@ func min(a, b int) int {
 }
 
 // ---------------------------------------
-const printUsage = `print|p <expression>`
-const printShort = `Print a variable or expression.`
+const (
+	printUsage = `print|p <expression>`
+	printShort = `Print a variable or expression.`
+)
 
 func debugPrint(m *Machine, arg string) (err error) {
 	if arg == "" {
@@ -495,12 +532,12 @@ func debugPrint(m *Machine, arg string) (err error) {
 	if err != nil {
 		return err
 	}
-	fmt.Println(m.DebugOut, tv)
+	fmt.Fprintln(m.Debugger.out, tv)
 	return nil
 }
 
 // debugEvalExpr evaluates a Go expression in the context of the VM and returns
-// the corresponding value, or an error.
+// the corresponding typed value, or an error.
 // The supported expression syntax is a small subset of Go expressions:
 // basic literals, identifiers, selectors, index expressions, or a combination
 // of those are supported, but none of function calls, arithmetic, logic or
@@ -582,7 +619,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		if m.Frames[i].Func != nil {
 			funBlock = m.Frames[i].Func.Source
 		}
-		if ncall == m.debugFrameLevel {
+		if ncall == m.frameLevel {
 			break
 		}
 		if m.Frames[i].Func != nil {
@@ -619,7 +656,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		sblocks = append(sblocks, m.Blocks[0]) // Add global block
 	}
 
-	// Search value in current frame level blocks, or main.
+	// Search value in current frame level blocks, or main scope.
 	for _, b := range sblocks {
 		for i, s := range b.Source.GetBlockNames() {
 			if string(s) == name {
@@ -631,8 +668,10 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 }
 
 // ---------------------------------------
-const stackUsage = `stack|bt`
-const stackShort = `Print stack trace.`
+const (
+	stackUsage = `stack|bt`
+	stackShort = `Print stack trace.`
+)
 
 func debugStack(m *Machine, arg string) error {
 	i := 0
@@ -648,7 +687,7 @@ func debugStack(m *Machine, arg string) error {
 		} else {
 			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
 		}
-		fmt.Fprintf(m.DebugOut, "%d\tin %s\n\tat %s:%d\n", i, fname, loc.File, loc.Line)
+		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s:%d\n", i, fname, loc.File, loc.Line)
 		i++
 	}
 	return nil
@@ -669,15 +708,17 @@ func debugFrameFunc(m *Machine, n int) *FuncValue {
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
-	if n == 0 || len(m.debugCall) == 0 {
-		return m.DebugLoc
+	if n == 0 || len(m.Debugger.call) == 0 {
+		return m.Debugger.loc
 	}
-	return m.debugCall[len(m.debugCall)-n]
+	return m.Debugger.call[len(m.Debugger.call)-n]
 }
 
 // ---------------------------------------
-const upUsage = `up [n]`
-const upShort = `Move the current frame up by n (default 1).`
+const (
+	upUsage = `up [n]`
+	upShort = `Move the current frame up by n (default 1).`
+)
 
 func debugUp(m *Machine, arg string) (err error) {
 	n := 1
@@ -686,8 +727,8 @@ func debugUp(m *Machine, arg string) (err error) {
 			return err
 		}
 	}
-	if level := m.debugFrameLevel + n; level >= 0 && level < len(m.debugCall) {
-		m.debugFrameLevel = level
+	if level := m.frameLevel + n; level >= 0 && level < len(m.Debugger.call) {
+		m.frameLevel = level
 	}
 	debugList(m, "")
 	return nil

@@ -69,7 +69,8 @@ type MachineOptions struct {
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
 	Debug         bool
-	DebugAddr     string // debugger io stream address (stdin/stdout if empty)
+	DebugAddr     string    // debugger io stream address (stdin/stdout if empty)
+	Input         io.Reader // used for default debugger input only
 	Output        io.Writer
 	Store         Store
 	Context       interface{}
@@ -129,8 +130,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
-	mm.DebugEnabled = opts.Debug
-	mm.DebugAddr = opts.DebugAddr
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.addr = opts.DebugAddr
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -1026,7 +1029,7 @@ const (
 
 func (m *Machine) Run() {
 	for {
-		if m.DebugEnabled {
+		if m.Debugger.enabled {
 			m.Debug()
 		}
 		op := m.PopOp()

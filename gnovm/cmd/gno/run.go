@@ -113,13 +113,12 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:   string(files[0].PkgName),
+		Input:     stdin,
 		Output:    stdout,
 		Store:     testStore,
 		Debug:     cfg.debug || cfg.debugAddr != "",
 		DebugAddr: cfg.debugAddr,
 	})
-	m.DebugIn = stdin
-	m.DebugOut = stdout
 
 	defer m.Release()
 
