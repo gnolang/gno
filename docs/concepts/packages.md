@@ -41,12 +41,12 @@ import (
 var tree *avl.Tree
 
 func Set(key string, value int) {
-	// tree.Set takes in a string key, and an interface{} value
+	// tree.Set takes in a string key, and a value that can be of any type
 	tree.Set(key, value)
 }
 
 func Get(key string) int {
-  // tree.Get returns the  interface{} value at given key, 
+  // tree.Get returns the value at given key in its raw form, 
   // and a bool to signify the existence of the key-value pair
   rawValue, exists := tree.Get(key)
   if !exists {
