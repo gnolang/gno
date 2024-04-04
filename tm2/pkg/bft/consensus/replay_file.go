@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -301,7 +302,7 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 		config.ABCI,
 		config.DBDir(),
 	)
-	proxyApp := proxy.NewAppConns(clientCreator)
+	proxyApp := appconn.NewAppConns(clientCreator)
 	err = proxyApp.Start()
 	if err != nil {
 		osm.Exit(fmt.Sprintf("Error starting proxy app conns: %v", err))
@@ -320,7 +321,7 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 	}
 
 	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 
 	consensusState := NewConsensusState(csConfig, state.Copy(), blockExec,
 		blockStore, mempool)

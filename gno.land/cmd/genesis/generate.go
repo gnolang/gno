@@ -23,15 +23,15 @@ type generateCfg struct {
 }
 
 // newGenerateCmd creates the genesis generate subcommand
-func newGenerateCmd(io *commands.IO) *commands.Command {
+func newGenerateCmd(io commands.IO) *commands.Command {
 	cfg := &generateCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "generate",
 			ShortUsage: "generate [flags]",
+			ShortHelp:  "generates a fresh genesis.json",
 			LongHelp:   "Generates a node's genesis.json based on specified parameters",
-			ShortHelp:  "Generates a fresh genesis.json",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -91,7 +91,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execGenerate(cfg *generateCfg, io *commands.IO) error {
+func execGenerate(cfg *generateCfg, io commands.IO) error {
 	// Start with the default configuration
 	genesis := getDefaultGenesis()
 

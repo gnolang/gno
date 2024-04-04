@@ -5,27 +5,27 @@ option go_package = "github.com/gnolang/gno/tm2/pkg/crypto/merkle/pb";
 
 // messages
 message ProofOp {
-	string Type = 1;
-	bytes Key = 2;
-	bytes Data = 3;
+	string type = 1;
+	bytes key = 2;
+	bytes data = 3;
 }
 
 message Proof {
-	repeated ProofOp Ops = 1;
+	repeated ProofOp ops = 1;
 }
 
 message SimpleProof {
-	sint64 Total = 1;
-	sint64 Index = 2;
-	bytes LeafHash = 3;
-	repeated bytes Aunts = 4;
+	sint64 total = 1;
+	sint64 index = 2;
+	bytes leaf_hash = 3;
+	repeated bytes aunts = 4;
 }
 
 message SimpleProofNode {
-	bytes Hash = 1;
-	SimpleProofNode Parent = 2;
-	SimpleProofNode Left = 3;
-	SimpleProofNode Right = 4;
+	bytes hash = 1 [json_name = "Hash"];
+	SimpleProofNode parent = 2 [json_name = "Parent"];
+	SimpleProofNode left = 3 [json_name = "Left"];
+	SimpleProofNode right = 4 [json_name = "Right"];
 }
 
 message MERKLE_BytesList {

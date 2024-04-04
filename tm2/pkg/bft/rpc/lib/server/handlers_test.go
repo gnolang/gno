@@ -1,7 +1,6 @@
 package rpcserver_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -30,9 +29,8 @@ func testMux() *http.ServeMux {
 		"c": rs.NewRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
 	mux := http.NewServeMux()
-	buf := new(bytes.Buffer)
-	logger := log.NewTMLogger(buf)
-	rs.RegisterRPCFuncs(mux, funcMap, logger)
+
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
 
 	return mux
 }
@@ -43,6 +41,8 @@ func statusOK(code int) bool { return code >= 200 && code <= 299 }
 // do not crash our RPC handlers.
 // See Issue https://github.com/gnolang/gno/tm2/pkg/bft/issues/708.
 func TestRPCParams(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -91,6 +91,8 @@ func TestRPCParams(t *testing.T) {
 }
 
 func TestJSONRPCID(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload    string
@@ -138,6 +140,8 @@ func TestJSONRPCID(t *testing.T) {
 }
 
 func TestRPCNotification(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	body := strings.NewReader(`{"jsonrpc": "2.0", "id": ""}`)
 	req, _ := http.NewRequest("POST", "http://localhost/", body)
@@ -153,6 +157,8 @@ func TestRPCNotification(t *testing.T) {
 }
 
 func TestRPCNotificationInBatch(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	tests := []struct {
 		payload     string
@@ -219,6 +225,8 @@ func TestRPCNotificationInBatch(t *testing.T) {
 }
 
 func TestUnknownRPCPath(t *testing.T) {
+	t.Parallel()
+
 	mux := testMux()
 	req, _ := http.NewRequest("GET", "http://localhost/unknownrpcpath", nil)
 	rec := httptest.NewRecorder()
@@ -233,6 +241,8 @@ func TestUnknownRPCPath(t *testing.T) {
 // JSON-RPC over WEBSOCKETS
 
 func TestWebsocketManagerHandler(t *testing.T) {
+	t.Parallel()
+
 	s := newWSServer()
 	defer s.Close()
 
@@ -262,7 +272,7 @@ func newWSServer() *httptest.Server {
 		"c": rs.NewWSRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
 	wm := rs.NewWebsocketManager(funcMap)
-	wm.SetLogger(log.TestingLogger())
+	wm.SetLogger(log.NewNoopLogger())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)

@@ -19,12 +19,14 @@ import (
 const validationTestsStopHeight int64 = 10
 
 func TestValidateBlockHeader(t *testing.T) {
+	t.Parallel()
+
 	proxyApp := newTestApp()
 	require.NoError(t, proxyApp.Start())
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(3, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 
 	// some bad values
@@ -80,12 +82,14 @@ func TestValidateBlockHeader(t *testing.T) {
 }
 
 func TestValidateBlockCommit(t *testing.T) {
+	t.Parallel()
+
 	proxyApp := newTestApp()
 	require.NoError(t, proxyApp.Start())
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(1, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 	wrongPrecommitsCommit := types.NewCommit(types.BlockID{}, nil)
 	badPrivVal := types.NewMockPV()

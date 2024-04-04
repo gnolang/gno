@@ -11,15 +11,15 @@ type balancesCfg struct {
 }
 
 // newBalancesCmd creates the genesis balances subcommand
-func newBalancesCmd(io *commands.IO) *commands.Command {
+func newBalancesCmd(io commands.IO) *commands.Command {
 	cfg := &balancesCfg{}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "balances",
 			ShortUsage: "balances <subcommand> [flags]",
+			ShortHelp:  "manages genesis.json account balances",
 			LongHelp:   "Manipulates the initial genesis.json account balances (pre-mines)",
-			ShortHelp:  "Manages genesis.json account balances",
 		},
 		cfg,
 		commands.HelpExec,

@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -18,7 +19,7 @@ const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
 func GetGnoModPath() string {
-	return filepath.Join(client.HomeDir(), "pkg", "mod")
+	return filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 }
 
 // PackageDir resolves a given module.Version to the path on the filesystem.
@@ -61,21 +62,21 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 		}
 	} else {
 		// Is File
-		// Precompile and write generated go file
+		// Transpile and write generated go file
 		if strings.HasSuffix(fileName, ".gno") {
 			filePath := filepath.Join(basePath, pkgPath)
-			targetFilename, _ := gnolang.GetPrecompileFilenameAndTags(filePath)
-			precompileRes, err := gnolang.Precompile(string(res.Data), "", fileName)
+			targetFilename, _ := transpiler.GetTranspileFilenameAndTags(filePath)
+			transpileRes, err := transpiler.Transpile(string(res.Data), "", fileName)
 			if err != nil {
-				return nil, fmt.Errorf("precompile: %w", err)
+				return nil, fmt.Errorf("transpile: %w", err)
 			}
 
-			for _, i := range precompileRes.Imports {
+			for _, i := range transpileRes.Imports {
 				requirements = append(requirements, i.Path.Value)
 			}
 
 			targetFileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
-			err = os.WriteFile(targetFileNameWithPath, []byte(precompileRes.Translated), 0o644)
+			err = os.WriteFile(targetFileNameWithPath, []byte(transpileRes.Translated), 0o644)
 			if err != nil {
 				return nil, fmt.Errorf("writefile %q: %w", targetFileNameWithPath, err)
 			}
@@ -97,9 +98,9 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 func GnoToGoMod(f File) (*File, error) {
 	gnoModPath := GetGnoModPath()
 
-	if strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
-		strings.HasPrefix(f.Module.Mod.Path, gnolang.GnoPackagePrefixBefore) {
-		f.AddModuleStmt(gnolang.ImportPrefix + "/examples/" + f.Module.Mod.Path)
+	if strings.HasPrefix(f.Module.Mod.Path, transpiler.GnoRealmPkgsPrefixBefore) ||
+		strings.HasPrefix(f.Module.Mod.Path, transpiler.GnoPackagePrefixBefore) {
+		f.AddModuleStmt(transpiler.ImportPrefix + "/examples/" + f.Module.Mod.Path)
 	}
 
 	for i := range f.Require {
@@ -110,10 +111,10 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoRealmPkgsPrefixBefore) ||
-			strings.HasPrefix(f.Require[i].Mod.Path, gnolang.GnoPackagePrefixBefore) {
+		if strings.HasPrefix(f.Require[i].Mod.Path, transpiler.GnoRealmPkgsPrefixBefore) ||
+			strings.HasPrefix(f.Require[i].Mod.Path, transpiler.GnoPackagePrefixBefore) {
 			// Add dependency with a modified import path
-			f.AddRequire(gnolang.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
+			f.AddRequire(transpiler.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
 		}
 		f.AddReplace(f.Require[i].Mod.Path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
 		// Remove the old require since the new dependency was added above

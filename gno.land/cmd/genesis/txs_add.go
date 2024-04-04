@@ -22,12 +22,12 @@ var (
 )
 
 // newTxsAddCmd creates the genesis txs add subcommand
-func newTxsAddCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
+func newTxsAddCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "txs add <tx-file ...>",
-			ShortHelp:  "Imports transactions into the genesis.json",
+			ShortHelp:  "imports transactions into the genesis.json",
 			LongHelp:   "Imports the transactions from a tx-archive backup to the genesis.json",
 		},
 		commands.NewEmptyConfig(),
@@ -40,7 +40,7 @@ func newTxsAddCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 func execTxsAdd(
 	ctx context.Context,
 	cfg *txsCfg,
-	io *commands.IO,
+	io commands.IO,
 	args []string,
 ) error {
 	// Load the genesis

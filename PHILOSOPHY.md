@@ -5,7 +5,7 @@
  * Readability is paramount - beautiful is better than fast.
  * Minimal code - keep total footprint small.
  * Minimal dependencies - all dependencies must get audited, and become part of the repo.
- * Modular dependencies - whereever reasonable, make components modular.
+ * Modular dependencies - wherever reasonable, make components modular.
  * Finished - software projects that don't become finished are projects that
    are forever vulnerable. One of the primary goals of the Gno language and
    related works is to become finished within a reasonable timeframe.
@@ -33,7 +33,11 @@
 ## CLI Philosophy
 
  * No envs.
- * No short flags.
+ * No short flags, with the following exceptions:
+   * `-h` for showing help
+   * `-v` for being verbose
+   * mimicking the short flags of Go commands
+   * after software maturity
  * No /bin/ calls.
  * No process forks.
  * Struct-based command options.

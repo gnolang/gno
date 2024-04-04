@@ -88,6 +88,8 @@ func listenerTestCases(t *testing.T, timeoutAccept, timeoutReadWrite time.Durati
 }
 
 func TestListenerTimeoutAccept(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range listenerTestCases(t, time.Millisecond, time.Second) {
 		_, err := tc.listener.Accept()
 		opErr, ok := err.(*net.OpError)

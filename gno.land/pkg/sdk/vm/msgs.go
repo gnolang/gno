@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -133,5 +134,73 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgCall) GetReceived() std.Coins {
+	return msg.Send
+}
+
+//----------------------------------------
+// MsgRun
+
+// MsgRun - executes arbitrary Gno code.
+type MsgRun struct {
+	Caller  crypto.Address  `json:"caller" yaml:"caller"`
+	Send    std.Coins       `json:"send" yaml:"send"`
+	Package *std.MemPackage `json:"package" yaml:"package"`
+}
+
+var _ std.Msg = MsgRun{}
+
+func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+	for _, file := range files {
+		if strings.HasSuffix(file.Name, ".gno") {
+			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			if pkgName != "main" {
+				panic("package name should be 'main'")
+			}
+		}
+	}
+	return MsgRun{
+		Caller: caller,
+		Send:   send,
+		Package: &std.MemPackage{
+			Name:  "main",
+			Path:  "", // auto set by the handler
+			Files: files,
+		},
+	}
+}
+
+// Implements Msg.
+func (msg MsgRun) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgRun) Type() string { return "run" }
+
+// Implements Msg.
+func (msg MsgRun) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+
+	// Force memPkg path to the reserved run path.
+	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
+	if path := msg.Package.Path; path != "" && path != wantPath {
+		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+	}
+
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgRun) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgRun) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// Implements ReceiveMsg.
+func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
 }

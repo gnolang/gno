@@ -2,20 +2,20 @@ package ledger
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 
+	ledger "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
-
-// discoverLedger defines a function to be invoked at runtime for discovering
-// a connected Ledger device.
-var discoverLedger discoverLedgerFn
 
 type (
 	// discoverLedgerFn defines a Ledger discovery function that returns a
@@ -31,7 +31,7 @@ type (
 		// Returns a compressed pubkey and bech32 address (requires user confirmation)
 		GetAddressPubKeySECP256K1([]uint32, string) ([]byte, string, error)
 		// Signs a message (requires user confirmation)
-		SignSECP256K1([]uint32, []byte) ([]byte, error)
+		SignSECP256K1([]uint32, []byte, byte) ([]byte, error)
 	}
 
 	// PrivKeyLedgerSecp256k1 implements PrivKey, calling the ledger nano we
@@ -44,6 +44,17 @@ type (
 		Path         hd.BIP44Params
 	}
 )
+
+// discoverLedger defines a function to be invoked at runtime for discovering
+// a connected Ledger device.
+var discoverLedger discoverLedgerFn = func() (LedgerSECP256K1, error) {
+	device, err := ledger.FindLedgerCosmosUserApp()
+	if err != nil {
+		return nil, err
+	}
+
+	return device, nil
+}
 
 // NewPrivKeyLedgerSecp256k1Unsafe will generate a new key and store the public key for later use.
 //
@@ -166,19 +177,33 @@ func warnIfErrors(f func() error) {
 }
 
 func convertDERtoBER(signatureDER []byte) ([]byte, error) {
-	sigDER, err := btcec.ParseDERSignature(signatureDER[:], btcec.S256())
+	sigDER, err := ecdsa.ParseDERSignature(signatureDER)
 	if err != nil {
 		return nil, err
 	}
-	sigBER := btcec.Signature{R: sigDER.R, S: sigDER.S}
-	return sigBER.Serialize(), nil
+
+	sigStr := sigDER.Serialize()
+	// The format of a DER encoded signature is as follows:
+	// 0x30 <total length> 0x02 <length of R> <R> 0x02 <length of S> <S>
+	r, s := new(big.Int), new(big.Int)
+	r.SetBytes(sigStr[4 : 4+sigStr[3]])
+	s.SetBytes(sigStr[4+sigStr[3]+2:])
+
+	sModNScalar := new(secp.ModNScalar)
+	sModNScalar.SetByteSlice(s.Bytes())
+	if sModNScalar.IsOverHalfOrder() {
+		s = new(big.Int).Sub(secp.S256().N, s)
+	}
+
+	sigBytes := make([]byte, 64)
+	// 0 pad the byte arrays from the left if they aren't big enough.
+	copy(sigBytes[32-len(r.Bytes()):32], r.Bytes())
+	copy(sigBytes[64-len(s.Bytes()):64], s.Bytes())
+
+	return sigBytes, nil
 }
 
 func getLedgerDevice() (LedgerSECP256K1, error) {
-	if discoverLedger == nil {
-		return nil, errors.New("no Ledger discovery function defined")
-	}
-
 	device, err := discoverLedger()
 	if err != nil {
 		return nil, errors.Wrap(err, "ledger nano S")
@@ -211,8 +236,7 @@ func sign(device LedgerSECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
-
-	sig, err := device.SignSECP256K1(pkl.Path.DerivationPath(), msg)
+	sig, err := device.SignSECP256K1(pkl.Path.DerivationPath(), msg, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +259,7 @@ func getPubKeyUnsafe(device LedgerSECP256K1, path hd.BIP44Params) (crypto.PubKey
 	}
 
 	// re-serialize in the 33-byte compressed format
-	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
+	cmp, err := btcec.ParsePubKey(publicKey[:])
 	if err != nil {
 		return nil, fmt.Errorf("error parsing public key: %w", err)
 	}
@@ -259,7 +283,7 @@ func getPubKeyAddrSafe(device LedgerSECP256K1, path hd.BIP44Params, hrp string) 
 	}
 
 	// re-serialize in the 33-byte compressed format
-	cmp, err := btcec.ParsePubKey(publicKey[:], btcec.S256())
+	cmp, err := btcec.ParsePubKey(publicKey[:])
 	if err != nil {
 		return nil, "", fmt.Errorf("error parsing public key: %w", err)
 	}

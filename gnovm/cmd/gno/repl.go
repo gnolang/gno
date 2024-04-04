@@ -10,14 +10,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type replCfg struct {
-	verbose        bool
 	rootDir        string
-	initialImports string
 	initialCommand string
 	skipUsage      bool
 }
@@ -29,7 +28,7 @@ func newReplCmd() *commands.Command {
 		commands.Metadata{
 			Name:       "repl",
 			ShortUsage: "repl [flags]",
-			ShortHelp:  "Starts a GnoVM REPL",
+			ShortHelp:  "starts a GnoVM REPL",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -39,25 +38,11 @@ func newReplCmd() *commands.Command {
 }
 
 func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when running",
-	)
-
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
 		"",
 		"clone location of github.com/gnolang/gno (gno tries to guess it)",
-	)
-
-	fs.StringVar(
-		&c.initialImports,
-		"imports",
-		"gno.land/p/demo/avl,gno.land/p/demo/ufmt",
-		"initial imports, separated by a comma",
 	)
 
 	fs.StringVar(
@@ -81,7 +66,7 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	if !cfg.skipUsage {

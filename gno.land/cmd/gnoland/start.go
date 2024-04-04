@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -20,9 +22,9 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/zap/zapcore"
 )
 
 type startCfg struct {
@@ -34,22 +36,24 @@ type startCfg struct {
 	chainID               string
 	genesisRemote         string
 	dataDir               string
-	genesisMaxVMCycles    int64
 	config                string
 
 	txEventStoreType string
 	txEventStorePath string
 	nodeConfigPath   string
+
+	logLevel  string
+	logFormat string
 }
 
-func newStartCmd(io *commands.IO) *commands.Command {
+func newStartCmd(io commands.IO) *commands.Command {
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Run the full node",
+			ShortHelp:  "run the full node",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -59,9 +63,9 @@ func newStartCmd(io *commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	gnoroot := gnoland.MustGuessGnoRootDir()
+	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -120,23 +124,16 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"replacement for '%%REMOTE%%' in genesis",
 	)
 
-	fs.Int64Var(
-		&c.genesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		10_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)
@@ -164,6 +161,20 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 
+	fs.StringVar(
+		&c.logLevel,
+		"log-level",
+		zapcore.DebugLevel.String(),
+		"log level for the gnoland node,",
+	)
+
+	fs.StringVar(
+		&c.logFormat,
+		"log-format",
+		log.ConsoleFormat.String(),
+		"log format for the gnoland node",
+	)
+
 	// XXX(deprecated): use data-dir instead
 	fs.StringVar(
 		&c.dataDir,
@@ -173,8 +184,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(c *startCfg, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
+func execStart(c *startCfg, io commands.IO) error {
 	dataDir := c.dataDir
 
 	var (
@@ -189,12 +199,27 @@ func execStart(c *startCfg, io *commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir, nil)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
 	}
 
 	if loadCfgErr != nil {
 		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
 	}
+
+	// Initialize the log level
+	logLevel, err := zapcore.ParseLevel(c.logLevel)
+	if err != nil {
+		return fmt.Errorf("unable to parse log level, %w", err)
+	}
+
+	// Initialize the log format
+	logFormat := log.Format(strings.ToLower(c.logFormat))
+
+	// Initialize the zap logger
+	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
+
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
 
 	// Write genesis file if missing.
 	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
@@ -221,7 +246,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
@@ -232,7 +257,7 @@ func execStart(c *startCfg, io *commands.IO) error {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -247,6 +272,9 @@ func execStart(c *startCfg, io *commands.IO) error {
 		if gnoNode.IsRunning() {
 			_ = gnoNode.Stop()
 		}
+
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
 	})
 
 	// Run forever

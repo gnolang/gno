@@ -337,3 +337,102 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 	assert.Equal(t, res, addrString)
 }
+
+// Call Run without imports, without variables.
+func TestVMKeeperRunSimple(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	files := []*std.MemFile{
+		{"script.gno", `
+package main
+
+func main() {
+	println("hello world!")
+}
+`},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgRun(addr, coins, files)
+	res, err := env.vmk.Run(ctx, msg2)
+	assert.NoError(t, err)
+	assert.Equal(t, res, "hello world!\n")
+}
+
+// Call Run with stdlibs.
+func TestVMKeeperRunImportStdlibs(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	files := []*std.MemFile{
+		{"script.gno", `
+package main
+
+import "std"
+
+func main() {
+	addr := std.GetOrigCaller()
+	println("hello world!", addr)
+}
+`},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgRun(addr, coins, files)
+	res, err := env.vmk.Run(ctx, msg2)
+	assert.NoError(t, err)
+	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
+	assert.Equal(t, res, expectedString)
+}
+
+func TestNumberOfArgsError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "test.gno",
+			Body: `package test
+
+import "std"
+
+func Echo(msg string) string {
+	return "echo:"+msg
+}`,
+		},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Call Echo function with wrong number of arguments
+	coins := std.MustParseCoins("1ugnot")
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
+	assert.PanicsWithValue(
+		t,
+		func() {
+			env.vmk.Call(ctx, msg2)
+		},
+		"wrong number of arguments in call to Echo: want 1 got 2",
+	)
+}

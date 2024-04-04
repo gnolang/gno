@@ -20,12 +20,12 @@ var (
 )
 
 // newTxsRemoveCmd creates the genesis txs remove subcommand
-func newTxsRemoveCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
+func newTxsRemoveCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "remove",
 			ShortUsage: "txs remove <tx-hash ...>",
-			ShortHelp:  "Removes the transactions from the genesis.json",
+			ShortHelp:  "removes the transactions from the genesis.json",
 			LongHelp:   "Removes the transactions using the transaction hash",
 		},
 		commands.NewEmptyConfig(),
@@ -35,7 +35,7 @@ func newTxsRemoveCmd(txsCfg *txsCfg, io *commands.IO) *commands.Command {
 	)
 }
 
-func execTxsRemove(cfg *txsCfg, io *commands.IO, args []string) error {
+func execTxsRemove(cfg *txsCfg, io commands.IO, args []string) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {

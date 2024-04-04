@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
 
@@ -88,22 +87,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-var colorFn = func(keyvals ...interface{}) colors.Color {
-	for i := 0; i < len(keyvals)-1; i += 2 {
-		if keyvals[i] == "socket" {
-			if keyvals[i+1] == "tcp" {
-				return colors.Blue
-			} else if keyvals[i+1] == "unix" {
-				return colors.Cyan
-			}
-		}
-	}
-	return colors.None
-}
-
 // launch unix and tcp servers
 func setup() {
-	logger := log.NewTMLoggerWithColorFn(log.NewSyncWriter(os.Stdout), colorFn)
+	logger := log.NewNoopLogger()
 
 	cmd := exec.Command("rm", "-f", unixSocket)
 	err := cmd.Start()
@@ -280,6 +266,8 @@ func testWithWSClient(t *testing.T, cl *client.WSClient) {
 // -------------
 
 func TestServersAndClientsBasic(t *testing.T) {
+	t.Parallel()
+
 	serverAddrs := [...]string{tcpAddr, unixAddr}
 	for _, addr := range serverAddrs {
 		cl1 := client.NewURIClient(addr)
@@ -291,7 +279,7 @@ func TestServersAndClientsBasic(t *testing.T) {
 		testWithHTTPClient(t, cl2)
 
 		cl3 := client.NewWSClient(addr, websocketEndpoint)
-		cl3.SetLogger(log.TestingLogger())
+		cl3.SetLogger(log.NewTestingLogger(t))
 		err := cl3.Start()
 		require.Nil(t, err)
 		fmt.Printf("=== testing server on %s using WS client", addr)
@@ -309,6 +297,8 @@ func TestServersAndClientsBasic(t *testing.T) {
 }
 
 func TestHexStringArg(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewURIClient(tcpAddr)
 	// should NOT be handled as hex
 	val := "0xabc"
@@ -318,6 +308,8 @@ func TestHexStringArg(t *testing.T) {
 }
 
 func TestQuotedStringArg(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewURIClient(tcpAddr)
 	// should NOT be unquoted
 	val := "\"abc\""
@@ -327,8 +319,10 @@ func TestQuotedStringArg(t *testing.T) {
 }
 
 func TestWSNewWSRPCFunc(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -352,8 +346,10 @@ func TestWSNewWSRPCFunc(t *testing.T) {
 }
 
 func TestWSHandlesArrayParams(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()
@@ -377,8 +373,10 @@ func TestWSHandlesArrayParams(t *testing.T) {
 // TestWSClientPingPong checks that a client & server exchange pings
 // & pongs so connection stays alive.
 func TestWSClientPingPong(t *testing.T) {
+	t.Parallel()
+
 	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
+	cl.SetLogger(log.NewTestingLogger(t))
 	err := cl.Start()
 	require.Nil(t, err)
 	defer cl.Stop()

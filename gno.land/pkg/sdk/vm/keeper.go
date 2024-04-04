@@ -3,8 +3,10 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -20,6 +22,11 @@ import (
 const (
 	maxAllocTx    = 500 * 1000 * 1000
 	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
+
+	// maxVMCycles is the maximum number of cycles allowed while executing a single VM
+	// message. Ideally this should not be needed, as execution should halt when out of
+	// gas. The worst case scenario is that this value is used as a fallback.
+	maxVMCycles = 10_000_000
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -27,6 +34,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
+	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -52,7 +60,6 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	stdlibsDir string,
-	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
@@ -61,7 +68,7 @@ func NewVMKeeper(
 		acck:       acck,
 		bank:       bank,
 		stdlibsDir: stdlibsDir,
-		maxCycles:  maxCycles,
+		maxCycles:  maxVMCycles,
 	}
 	return vmk
 }
@@ -128,6 +135,8 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+var reRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	creator := msg.Creator
@@ -150,6 +159,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if pv := store.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
+
+	if reRunPath.MatchString(pkgPath) {
+		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	}
+
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
@@ -164,6 +178,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err != nil {
 		return err
 	}
+
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
@@ -230,6 +245,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
+	if len(msg.Args) != len(ft.Params) {
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
+	}
 	for i, arg := range msg.Args {
 		argType := ft.Params[i].Type
 		atv := convertArgToGno(arg, argType)
@@ -271,7 +289,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -280,6 +298,87 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	return res, nil
 	// TODO pay for gas? TODO see context?
+}
+
+// Run executes arbitrary Gno code in the context of the caller's realm.
+func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
+	caller := msg.Caller
+	pkgAddr := caller
+	store := vm.getGnoStore(ctx)
+	send := msg.Send
+	memPkg := msg.Package
+
+	// coerce path to right one.
+	// the path in the message must be "" or the following path.
+	// this is already checked in MsgRun.ValidateBasic
+	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
+
+	// Validate arguments.
+	callerAcc := vm.acck.GetAccount(ctx, caller)
+	if callerAcc == nil {
+		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
+	}
+	if err := msg.Package.Validate(); err != nil {
+		return "", ErrInvalidPkgPath(err.Error())
+	}
+
+	// Send send-coins to pkg from caller.
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse and run the files, construct *PV.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		Msg:           msg,
+		OrigCaller:    caller.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
+	}
+	// Parse and run the files, construct *PV.
+	buf := new(bytes.Buffer)
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    buf,
+			Store:     store,
+			Alloc:     store.GetAllocator(),
+			Context:   msgCtx,
+			MaxCycles: vm.maxCycles,
+		})
+	defer m.Release()
+	_, pv := m.RunMemPackage(memPkg, false)
+	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
+
+	m2 := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    buf,
+			Store:     store,
+			Alloc:     store.GetAllocator(),
+			Context:   msgCtx,
+			MaxCycles: vm.maxCycles,
+		})
+	m2.SetActivePackage(pv)
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
+				r, m2.String())
+			return
+		}
+		m2.Release()
+	}()
+	m2.RunMain()
+	ctx.Logger().Info("CPUCYCLES call",
+		"cycles", m2.Cycles,
+	)
+	res = buf.String()
+	return res, nil
 }
 
 // QueryFuncs returns public facing function signatures.

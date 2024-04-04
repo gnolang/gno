@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -14,7 +15,7 @@ import (
 )
 
 func newCacheStore() types.Store {
-	mem := dbadapter.Store{dbm.NewMemDB()}
+	mem := dbadapter.Store{memdb.NewMemDB()}
 	return cache.New(mem)
 }
 
@@ -22,7 +23,9 @@ func keyFmt(i int) []byte { return bz(fmt.Sprintf("key%0.8d", i)) }
 func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 
 func TestCacheStore(t *testing.T) {
-	mem := dbadapter.Store{dbm.NewMemDB()}
+	t.Parallel()
+
+	mem := dbadapter.Store{memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
@@ -65,13 +68,17 @@ func TestCacheStore(t *testing.T) {
 }
 
 func TestCacheStoreNoNilSet(t *testing.T) {
-	mem := dbadapter.Store{dbm.NewMemDB()}
+	t.Parallel()
+
+	mem := dbadapter.Store{memdb.NewMemDB()}
 	st := cache.New(mem)
 	require.Panics(t, func() { st.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
 
 func TestCacheStoreNested(t *testing.T) {
-	mem := dbadapter.Store{dbm.NewMemDB()}
+	t.Parallel()
+
+	mem := dbadapter.Store{memdb.NewMemDB()}
 	st := cache.New(mem)
 
 	// set. check its there on st and not on mem.
@@ -100,6 +107,8 @@ func TestCacheStoreNested(t *testing.T) {
 }
 
 func TestCacheKVIteratorBounds(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items
@@ -151,6 +160,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 }
 
 func TestCacheKVReverseIteratorBounds(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items
@@ -195,6 +206,8 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorBasics(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set and delete an item in the cache, iterator should be empty
@@ -243,6 +256,8 @@ func TestCacheKVMergeIteratorBasics(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// set some items and write them
@@ -269,8 +284,10 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorDeletes(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
-	truth := dbm.NewMemDB()
+	truth := memdb.NewMemDB()
 
 	// set some items and write them
 	nItems := 10
@@ -287,7 +304,7 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 
 	// reset
 	st = newCacheStore()
-	truth = dbm.NewMemDB()
+	truth = memdb.NewMemDB()
 
 	// set some items and write them
 	for i := 0; i < nItems; i++ {
@@ -303,10 +320,12 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorChunks(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
 
 	// Use the truth to check values on the merge iterator
-	truth := dbm.NewMemDB()
+	truth := memdb.NewMemDB()
 
 	// sets to the parent
 	setRange(st, truth, 0, 20)
@@ -334,8 +353,10 @@ func TestCacheKVMergeIteratorChunks(t *testing.T) {
 }
 
 func TestCacheKVMergeIteratorRandom(t *testing.T) {
+	t.Parallel()
+
 	st := newCacheStore()
-	truth := dbm.NewMemDB()
+	truth := memdb.NewMemDB()
 
 	start, end := 25, 975
 	max := 1000

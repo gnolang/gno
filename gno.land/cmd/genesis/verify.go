@@ -18,15 +18,15 @@ type verifyCfg struct {
 }
 
 // newVerifyCmd creates the genesis verify subcommand
-func newVerifyCmd(io *commands.IO) *commands.Command {
+func newVerifyCmd(io commands.IO) *commands.Command {
 	cfg := &verifyCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "verify",
 			ShortUsage: "verify [flags]",
+			ShortHelp:  "verifies a genesis.json",
 			LongHelp:   "Verifies a node's genesis.json",
-			ShortHelp:  "Verifies a genesis.json",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -39,7 +39,7 @@ func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonCfg.RegisterFlags(fs)
 }
 
-func execVerify(cfg *verifyCfg, io *commands.IO) error {
+func execVerify(cfg *verifyCfg, io commands.IO) error {
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
 	if loadErr != nil {

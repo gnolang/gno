@@ -13,6 +13,8 @@ import (
 )
 
 func TestStartInitialize(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		args []string
 	}{
@@ -23,10 +25,13 @@ func TestStartInitialize(t *testing.T) {
 	os.Chdir(filepath.Join("..", "..")) // go to repo's root dir
 
 	for _, tc := range cases {
+		tc := tc
 		name := strings.Join(tc.args, " ")
 		t.Run(name, func(t *testing.T) {
-			mockOut := bytes.NewBufferString("")
-			mockErr := bytes.NewBufferString("")
+			t.Parallel()
+
+			mockOut := new(bytes.Buffer)
+			mockErr := new(bytes.Buffer)
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))

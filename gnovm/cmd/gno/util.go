@@ -5,15 +5,14 @@ import (
 	"go/ast"
 	"io"
 	"io/fs"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -193,22 +192,6 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-func guessRootDir() string {
-	// try to get the root directory from the GNOROOT environment variable.
-	if rootdir := os.Getenv("GNOROOT"); rootdir != "" {
-		return filepath.Clean(rootdir)
-	}
-
-	// if GNOROOT is not set, try to guess the root directory using the `go list` command.
-	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal("can't guess --root-dir, please fill it manually or define the GNOROOT environment variable globally.")
-	}
-	rootDir := strings.TrimSpace(string(out))
-	return rootDir
-}
-
 // makeTestGoMod creates the temporary go.mod for test
 func makeTestGoMod(path string, packageName string, goversion string) error {
 	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
@@ -220,8 +203,8 @@ func makeTestGoMod(path string, packageName string, goversion string) error {
 func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, gno.ImportPrefix) {
-			res := strings.TrimPrefix(path, gno.ImportPrefix)
+		if strings.HasPrefix(path, transpiler.ImportPrefix) {
+			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
 			importPaths = append(importPaths, importPath("."+res))
 		}
 	}
@@ -230,9 +213,9 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 
 // ResolvePath joins the output dir with relative pkg path
 // e.g
-// Output Dir: Temp/gno-precompile
+// Output Dir: Temp/gno-transpile
 // Pkg Path: ../example/gno.land/p/pkg
-// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+// Returns -> Temp/gno-transpile/example/gno.land/p/pkg
 func ResolvePath(output string, path importPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
@@ -242,7 +225,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }
