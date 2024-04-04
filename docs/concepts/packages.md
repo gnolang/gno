@@ -95,13 +95,13 @@ View the package on-chain [here](https://gno.land/p/demo/seqid), or on GitHub,
 [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
 ## Packages vs Standard Libraries
-Apart from packages, Gno, like Go, has a list of standard libraries. To better
+Apart from packages, Gno, like Go, has standard libraries. To better
 understand the difference between these two concepts, let's compare a few
 specific points:
 - Packages can be written and deployed by anyone at any time, while standard
-  libraries require thorough battle-testing and reviews by the core team & community
-  before being added
+libraries require thorough battle-testing and reviews by the core team & community
+before being added as a standard library
 - Standard libraries usually provide low-level necessities for the language,
-  while packages utilize them to create a broader range of functionality
+while packages utilize them to create a broader range of functionality
 - A breaking change in the standard libraries will equate to a breaking change
-  in the language, while the same is not true for packages
+in the language, while the same is not true for packages
