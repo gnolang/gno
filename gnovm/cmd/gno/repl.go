@@ -17,9 +17,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-const indentSize = 4
-
 const (
+	indentSize = 4
+
+	importExample = "import \"gno.land/p/demo/avl\""
+	funcExample   = "func a() string { return \"a\" }"
+	printExample  = "println(a())"
 	srcCommand    = "/src"
 	editorCommand = "/editor"
 	resetCommand  = "/reset"
@@ -28,6 +31,18 @@ const (
 	helpCommand   = "/help"
 	gnoREPL       = "gno> "
 	inEditMode    = "...  "
+
+	helpText = `// Usage:
+//   gno> %-35s // import the p/demo/avl package
+//   gno> %-35s // declare a new function named a
+//   gno> %-35s // print current generated source
+//   gno> %-35s // enter in multi-line mode, end with ';'
+//   gno> %-35s // clear the terminal screen
+//   gno> %-35s // remove all previously inserted code
+//   gno> %-35s // print the result of calling a()
+//   gno> %-35s // alternative to <Ctrl-D>
+
+`
 )
 
 type replCfg struct {
@@ -166,7 +181,6 @@ func handleEditor(line string) (string, bool) {
 		return "", false
 	} else if l == editorCommand {
 		fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
-
 		return "", true
 	}
 
@@ -207,10 +221,11 @@ func updateIndentLevel(line string, indentLevel int) int {
 }
 
 func printPrompt(indentLevel int, prev string) {
+	indent := strings.Repeat(" ", indentLevel*indentSize)
 	if prev == "" {
-		fmt.Fprintf(os.Stdout, "gno> %s", strings.Repeat(" ", indentLevel*indentSize))
+		fmt.Fprintf(os.Stdout, "%s%s", gnoREPL, indent)
 	} else {
-		fmt.Fprintf(os.Stdout, "... %s", strings.Repeat(" ", indentLevel*indentSize))
+		fmt.Fprintf(os.Stdout, "%s%s", inEditMode, indent)
 	}
 }
 
@@ -276,14 +291,9 @@ func clearScreen(executor CommandExecutor, osGetter OsGetter) {
 }
 
 func printHelp() {
-	fmt.Fprint(os.Stderr, `// Usage:
-//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
-//   gno> func a() string { return "a" }   // declare a new function named a
-//   gno> /src                             // print current generated source
-//   gno> /editor                          // enter in multi-line mode, end with ';'
-//   gno> /reset                           // remove all previously inserted code
-//   gno> println(a())                     // print the result of calling a()
-//   gno> /exit                            // alternative to <Ctrl-D>
-
-`)
+	fmt.Printf(
+		helpText, importExample, funcExample,
+		srcCommand, editorCommand, clearCommand, 
+		resetCommand, exitCommand, printExample,
+	)
 }
