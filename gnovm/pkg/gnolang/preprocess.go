@@ -794,7 +794,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								} else if rcx.T == nil {
 									checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
 								} else {
-									//checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
+									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 									// do nothing, all compatibility is checked,
 									// e.g. int(1) == int8(1), will also conduct type check
 								}
@@ -817,7 +817,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							debug.Printf("---rt: %v \n", rt)
 							debug.Printf("---rnt: %v \n", rnt)
 							// get concrete native base type.
-							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							pt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							if !ok {
+								panic(fmt.Sprintf(
+									"unexpected type pair: cannot use %s as %s",
+									lt.String(),
+									rnt.String()))
+							}
 							// convert n.Left to pt type,
 							checkOrConvertType(store, last, &n.Left, pt, false, false)
 							// if check pass, convert n.Right to (gno) pt type,
@@ -867,7 +873,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if !isShift {
 							if lnt, ok := lt.(*NativeType); ok {
 								// get concrete native base type.
-								pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+								pt, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
+								if !ok {
+									panic(fmt.Sprintf(
+										"unexpected type pair: cannot use %s as %s",
+										rt.String(),
+										lnt.String()))
+								}
 								// convert n.Left to (gno) pt type,
 								ln := Expr(Call(pt.String(), n.Left))
 								// convert n.Right to pt type,
@@ -910,13 +922,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// convert result back to native.
 							//
 							// get concrete native base type.
-							lpt := go2GnoBaseType(lnt.Type).(PrimitiveType)
+							lpt, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
+							if !ok {
+								panic(fmt.Sprintf(
+									"unexpected type pair: cannot use %s as %s",
+									rt.String(),
+									lnt.String()))
+							}
 							// convert n.Left to (gno) pt type,
 							ln := Expr(Call(lpt.String(), n.Left))
 
 							rn := n.Right
 							if rnt, ok := rt.(*NativeType); ok { // e.g. native: time.Second * time.Second
-								rpt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+								rpt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
+								if !ok {
+									panic(fmt.Sprintf(
+										"unexpected type pair: cannot use %s as %s",
+										lt.String(),
+										rnt.String()))
+								}
 								// check assignable, if pass, convert right to gno first
 								// TODO: cmp?
 								// XXX, can we just check on native type?
@@ -951,7 +975,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// convert result back to native.
 							//
 							// get concrete native base type.
-							pt := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							pt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
+							if !ok {
+								panic(fmt.Sprintf(
+									"unexpected type pair: cannot use %s as %s",
+									lt.String(),
+									rnt.String()))
+							}
 							// convert n.Left to (gno) pt type,
 							rn := Expr(Call(pt.String(), n.Right))
 							// convert n.Right to pt or uint type,
@@ -2413,13 +2443,13 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				// e.g. int(1) == int8(1), the pre check won't halt this kind of expr(with op ==, !=).
 				// we still need a safeguard before convertConst, which will conduct mandatory conversion from int(1) to int8(1).
 				// this is for binaryExpr that assignable has already been checked and cached
-				if store.AssertAssignableExists(*x, t) {
-					debug.Printf("---assignable already set for: %v => %v \n", cx, t)
-				} else {
-					// still need for non-binary, like arg
-					checkAssignableTo(cx.T, t, autoNative) // refer to 22a17a
-					debug.Println("---check pass in checkOrConvertType!")
-				}
+				//if store.AssertAssignableExists(*x, t) {
+				//	debug.Printf("---assignable already set for: %v => %v \n", cx, t)
+				//} else {
+				// still need for non-binary, like arg
+				checkAssignableTo(cx.T, t, autoNative) // refer to 22a17a
+				debug.Println("---check pass in checkOrConvertType!")
+				//}
 			}
 		}
 		convertConst(store, last, cx, t)

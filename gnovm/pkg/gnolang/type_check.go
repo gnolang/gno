@@ -595,21 +595,8 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 }
 
 // ===========================================================
-
-// type_check for shift expr is a `delayed check`, it has two stages:
-// stage1. check on first encounter of a shift expr, if it asserts to be good, pass,
-// and if it has const on both side, evalConst, e.g. float32(1 << 4) is legal.
-// or if it fails assertion, e.g. uint64(1.0 << 1), tag it to be delayed, to be handled
-// on stage2.
-// stage2. when an untyped shift expr is used in somewhere, e.g. uint64(1.0 << 1),
-// uint64 is used as the potential type of this expr, so uint64(1.0 << 1) is a
-// valid representation.
-// so dt would be either the type of lhs or the type from outer context.
-// isFinal indicates whether it's first check or final check(this happens in checkOrConvertType)
-
-// XXX, is this logic only for this special case?
 func (bx *BinaryExpr) checkShiftExpr(dt Type) {
-	debug.Printf("---checkShiftExpr: dt: %v, isFinal: %t \n", dt)
+	debug.Printf("---checkShiftExpr: dt: %v \n", dt)
 	var destKind interface{}
 	if dt != nil {
 		destKind = dt.Kind()
@@ -623,25 +610,18 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type) {
 	}
 }
 
-// check both sides since no aware of which side is dest type,
-// that lt not compatible but rt is compatible would be good.
-
 // AssertCompatible works as a pre-check prior to checkOrConvertType()
-// It checks expressions to ensure the compatibility between operands and operators.
+// It checks against expressions to ensure the compatibility between operands and operators.
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
-
-// things like this would fail: 1.0 % 1, bigInt has a bigger specificity than bidDec.
 func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 	debug.Printf("---AssertCompatible, bx: %v, lt: %v, rt: %v \n", bx, lt, rt)
 	// we can't check compatible with native types at current stage,
 	// so leave it to later operations(trans_leave on binaryExpr)
 	// to be converted into gno(only for primitive types), and do
 	// this check again. (AssertCompatible would be invoked again)
-	// non-primitive types is a special case that is not handled
-	// (not needed at all?), or it might be expanded to check for case
-	// like a gno declared type implement a native interface?
+	// non-primitive types is a special case that is not handled.
 	if lnt, ok := lt.(*NativeType); ok {
 		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
 		if ok {
@@ -657,20 +637,23 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 
 	escapedOpStr := strings.Replace(wordTokenStrings[bx.Op], "%", "%%", 1)
 
+	var xt, dt Type
+	cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
+	if cmp <= 0 {
+		xt = lt
+		dt = rt
+	} else {
+		xt = rt
+		dt = lt
+	}
+
 	if isComparison(bx.Op) {
 		switch bx.Op {
 		case EQL, NEQ:
-			cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
-			if cmp <= 0 {
-				assertComparable(lt, rt)        // only check if dest type is comparable
-				checkAssignableTo(lt, rt, true) // check if src type is assignable to dest type
-			} else {
-				assertComparable(rt, lt)
-				checkAssignableTo(rt, lt, true)
-			}
+			assertComparable(xt, dt) // only check if dest type is comparable
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[bx.Op]; ok {
-				bx.checkCompatibility(store, lt, rt, checker, escapedOpStr)
+				bx.checkCompatibility(store, xt, dt, checker, escapedOpStr)
 			} else {
 				panic("should not happen")
 			}
@@ -679,7 +662,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[bx.Op]; ok {
-			bx.checkCompatibility(store, lt, rt, checker, escapedOpStr)
+			bx.checkCompatibility(store, xt, dt, checker, escapedOpStr)
 		} else {
 			panic("should not happen")
 		}
@@ -700,86 +683,15 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 	}
 }
 
-// XXX, these kind of type_check happens before checkOrConvertType which get type conversion all
-// sorted out, kinda make the type check logic complex, for we have to deal with much undetermined
-// types. the upside for this is it quick fails the incompatibility before  concrete type conversion
-// happens in checkOrConvertType, but does this weigh out the complexity it brings in?
-// TODO: maybe should simplify this to only check dt and left other work to checkOrConvertType
-func (bx *BinaryExpr) checkCompatibility(store Store, lt, rt Type, checker func(t Type) bool, escapedOpStr string) {
-	debug.Printf("---checkCompatibility, op: %v, lt: %v, rt: %v\n", bx.Op, lt, rt)
+func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
+	debug.Printf("---checkCompatibility, op: %v, xt: %v, dt: %v\n", bx.Op, xt, dt)
 	// cache it to be reused in later stage in checkOrConvertType
 	var destKind interface{}
-	// XXX, this logic is based on an assumption that one side is not defined on op
-	// while the other side is ok, and this side is assignable to the other side
-	// (that would be converted to the other side eventually).
-	// consider 1.2 % int64(1), and 1.0 % int64, is this the only scenario?
-	cmp := cmpSpecificity(lt, rt)
-	if !checker(lt) { // lt not compatible with op
-		if !checker(rt) { // rt not compatible with op
-			if lt != nil { // return error on left side that is checked first
-				destKind = lt.Kind()
-			}
-			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
-		} else {
-			debug.Println("---cmp: ", cmp)
-			// left not compatible, right is compatible
-			// cmp means the expected convert direction
-			// if cmp < 0, means potential conversion
-			// from left to right, so check assignable
-			// from left to right.
-			// if cmp > 0, means potential conversion to
-			// left side which is already asserted to be
-			// not compatible, so assert fail.
-			// no check for cmp == 0 since no possible they have
-			// same specificity with one side is compatible
-			// and the other is not while assert to be assignable.
-			// e.g. "a" - 1.
-			if cmp < 0 {
-				checkAssignableTo(lt, rt, true)
-				store.AddAssignableCheckResult(bx.Left, rt)
-			} else {
-				if lt != nil {
-					destKind = lt.Kind()
-				}
-				panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
-			}
+	if !checker(dt) { // lt not compatible with op
+		if dt != nil { // return error on left side that is checked first
+			destKind = dt.Kind()
 		}
-	} else if !checker(rt) { // left is compatible, right is not
-		if cmp > 0 { // right to left
-			checkAssignableTo(rt, lt, true)
-			store.AddAssignableCheckResult(bx.Right, lt)
-		} else {
-			if rt != nil {
-				destKind = rt.Kind()
-			}
-			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
-		}
-	} else {
-		// both good
-		// only check both typed.
-		//  should not check on both untyped case TypeID equality, e.g.
-		// MaxRune         = '\U0010FFFF'
-		// MaxRune + 1
-		// that left type is untyped rune with default type of Int32Type
-		// and right type is untyped bigInt can be converted to int32 too.
-		if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
-			// check when both typed
-			if lt != nil && rt != nil { // XXX, this should already be excluded by previous checker check.
-				// TODO: filter byte that has no typeID?
-				if lt.TypeID() != rt.TypeID() {
-					panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
-				}
-			}
-		}
-		// check even when both sides are compatible with op,
-		if cmp <= 0 {
-			checkAssignableTo(lt, rt, true)
-			store.AddAssignableCheckResult(bx.Left, rt)
-
-		} else {
-			checkAssignableTo(rt, lt, true)
-			store.AddAssignableCheckResult(bx.Right, lt)
-		}
+		panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
 	}
 }
 
@@ -840,7 +752,6 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	var destKind interface{}
 
 	// XXX, assume lhs length is same with of rhs
-	// TODO: how about call func case?
 	// Call case: a, b = x(...)
 	for i, x := range as.Lhs {
 		lt := evalStaticTypeOf(store, last, x)
@@ -869,29 +780,20 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				switch as.Op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
-					// if both typed
+					// check when both typed
 					if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
 						if lt != nil && rt != nil {
-							// TODO: filter byte that has no typeID?
 							if lt.TypeID() != rt.TypeID() {
 								panic(fmt.Sprintf("invalid operation: mismatched types %v and %v \n", lt, rt))
 							}
 						}
 					}
-					// TODO: checkAssignable
 				default:
 					// do nothing
 				}
 			} else {
 				panic("should not happen")
 			}
-		} else if as.Op != SHR_ASSIGN && as.Op != SHL_ASSIGN {
-			// TODO: test on simple assign
-			// check assignable, after done check operand with op.
-			// special case if rhs is(or embedded) untyped shift,
-			// assignable is checked prior to this.
-			checkAssignableTo(rt, lt, false) // TODO: should be for all
-			store.AddAssignableCheckResult(as.Rhs[i], lt)
 		}
 	}
 }

@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/20a0_LSS_filetest.gno:4: invalid operation: mismatched types int and int8
+// main/files/types/20a0_LSS_filetest.gno:4: cannot use int as int8

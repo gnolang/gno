@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	println((1 + 2) == (int(1) + "a"))
-}
-
-// Error:
-// main/debug/binary_2.gno:4: ===invalid operation: mismatched types int and string
