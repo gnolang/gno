@@ -1,4 +1,4 @@
-package todolist
+package todolistrealm
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func init() {
 	todolistTree = avl.NewTree()
 }
 
-func NewTodolist(title string) (int, string) {
+func NewTodoList(title string) (int, string) {
 	// Create new Todolist
 	tl := todolist.NewTodoList(title)
 	// Update AVL tree with new state

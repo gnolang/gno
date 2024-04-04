@@ -1,33 +1,45 @@
-package todolist
+package todolistrealm
 
 import (
+	"std"
+	"strconv"
 	"testing"
+
+	"gno.land/p/demo/todolist"
+)
+
+var (
+	node interface{}
+	tdl  *todolist.TodoList
 )
 
 func TestNewTodoList(t *testing.T) {
 	title := "My Todo List"
-	todoList := NewTodoList(title)
-
-	if todoList.GetTodolistTitle() != title {
-		t.Errorf("Expected title to be %s, but got %s", title, todoList.GetTodolistTitle())
+	tlid, _ := NewTodoList(title)
+	if tlid != 1 {
+		t.Errorf("Expected tlid to be 1, but got %d", tlid)
 	}
 
-	if todoList.GetTodolistOwner() != std.GetOrigCaller() {
-		t.Errorf("Expected owner to be %s, but got %s", std.GetOrigCaller(), todoList.GetTodolistOwner())
-	}
+	// get the todolist node from the tree
+	node, _ = todolistTree.Get(strconv.Itoa(tlid))
+	// convert the node to a TodoList struct
+	tdl = node.(*todolist.TodoList)
 
-	if len(todoList.GetTasks()) != 0 {
-		t.Errorf("Expected no tasks in the todo list, but got %d tasks", len(todoList.GetTasks()))
+	if tdl.Title != title {
+		t.Errorf("Expected title to be %s, but got %s", title, tdl.Title)
+	}
+	if tdl.Owner != std.GetOrigCaller() {
+		t.Errorf("Expected owner to be %s, but got %s", std.GetOrigCaller(), tdl.Owner)
+	}
+	if len(tdl.GetTasks()) != 0 {
+		t.Errorf("Expected no tasks in the todo list, but got %d tasks", len(tdl.GetTasks()))
 	}
 }
 
 func TestAddTask(t *testing.T) {
-	todoList := NewTodoList("My Todo List")
-	task := NewTask("Task 1")
+	AddTask(1, "Task 1")
 
-	todoList.AddTask(1, task)
-
-	tasks := todoList.GetTasks()
+	tasks := tdl.GetTasks()
 	if len(tasks) != 1 {
 		t.Errorf("Expected 1 task in the todo list, but got %d tasks", len(tasks))
 	}
@@ -42,15 +54,14 @@ func TestAddTask(t *testing.T) {
 }
 
 func TestToggleTaskStatus(t *testing.T) {
-	task := NewTask("Task 1")
-
-	ToggleTaskStatus(task)
+	ToggleTaskStatus(1, 0)
+	task := tdl.GetTasks()[0]
 
 	if !task.Done {
 		t.Errorf("Expected task to be done, but it is not marked as done")
 	}
 
-	ToggleTaskStatus(task)
+	ToggleTaskStatus(1, 0)
 
 	if task.Done {
 		t.Errorf("Expected task to be not done, but it is marked as done")
@@ -58,15 +69,18 @@ func TestToggleTaskStatus(t *testing.T) {
 }
 
 func TestRemoveTask(t *testing.T) {
-	todoList := NewTodoList("My Todo List")
-	task := NewTask("Task 1")
+	RemoveTask(1, 0)
+	tasks := tdl.GetTasks()
 
-	todoList.AddTask(1, task)
-
-	todoList.RemoveTask("1")
-
-	tasks := todoList.GetTasks()
 	if len(tasks) != 0 {
 		t.Errorf("Expected no tasks in the todo list, but got %d tasks", len(tasks))
+	}
+}
+
+func TestRemoveTodoList(t *testing.T) {
+	RemoveTodoList(1)
+
+	if todolistTree.Size() != 0 {
+		t.Errorf("Expected no tasks in the todo list, but got %d tasks", todolistTree.Size())
 	}
 }
