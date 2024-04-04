@@ -3,7 +3,38 @@
 // (hence the name µfmt - micro fmt).
 package ufmt
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
+
+// Println formats using the default formats for its operands and writes to standard output.
+// Println writes the given arguments to standard output with spaces between arguments
+// and a newline at the end.
+func Println(args ...interface{}) {
+	var strs []string
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case string:
+			strs = append(strs, v)
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			strs = append(strs, Sprintf("%d", v))
+		case bool:
+			if v {
+				strs = append(strs, "true")
+
+				continue
+			}
+
+			strs = append(strs, "false")
+		default:
+			strs = append(strs, "(unhandled)")
+		}
+	}
+
+	// TODO: remove println after gno supports os.Stdout
+	println(strings.Join(strs, " "))
+}
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
 // equivalent available in many languages, including C/C++.

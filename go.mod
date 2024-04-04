@@ -4,17 +4,16 @@ go 1.21
 
 require (
 	dario.cat/mergo v1.0.0
-	github.com/btcsuite/btcd/btcutil v1.1.3
+	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/cockroachdb/apd/v3 v3.2.1
 	github.com/cosmos/ledger-cosmos-go v0.13.3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/gdamore/tcell/v2 v2.6.0
+	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/gnolang/faucet v0.1.3
-	github.com/gnolang/goleveldb v0.0.9
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
@@ -27,24 +26,24 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/rogpeppe/go-internal v1.11.0
+	github.com/rogpeppe/go-internal v1.12.0
 	github.com/rs/cors v1.10.1
-	github.com/stretchr/testify v1.8.4
-	go.etcd.io/bbolt v1.3.8
-	go.uber.org/multierr v1.10.0
-	go.uber.org/zap v1.26.0
+	github.com/stretchr/testify v1.9.0
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	go.etcd.io/bbolt v1.3.9
+	go.uber.org/multierr v1.11.0
+	go.uber.org/zap v1.27.0
 	go.uber.org/zap/exp v0.2.0
-	golang.org/x/crypto v0.19.0
+	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
-	golang.org/x/mod v0.15.0
-	golang.org/x/net v0.21.0
-	golang.org/x/term v0.17.0
-	golang.org/x/tools v0.18.0
-	google.golang.org/protobuf v1.31.0
+	golang.org/x/mod v0.16.0
+	golang.org/x/net v0.22.0
+	golang.org/x/term v0.18.0
+	golang.org/x/time v0.5.0
+	golang.org/x/tools v0.19.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-require golang.org/x/time v0.5.0
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2

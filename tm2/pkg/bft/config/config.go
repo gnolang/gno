@@ -239,7 +239,7 @@ type BaseConfig struct {
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
-	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
+	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
 	// * cleveldb (uses levigo wrapper)
@@ -250,7 +250,7 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
