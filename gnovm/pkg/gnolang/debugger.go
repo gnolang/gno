@@ -78,7 +78,7 @@ func init() {
 		"print":       {debugPrint, printUsage, printShort, ""},
 		"stack":       {debugStack, stackUsage, stackShort, ""},
 		// NOTE: the difference between continue, step and stepi is handled within
-		// the main Debug() loop.:w
+		// the main Debug() loop.
 		"step":  {debugContinue, stepUsage, stepShort, ""},
 		"stepi": {debugContinue, stepiUsage, stepiShort, ""},
 		"up":    {debugUp, upUsage, upShort, ""},
@@ -89,7 +89,7 @@ func init() {
 	for name := range debugCmds {
 		debugCmdNames = append(debugCmdNames, name)
 	}
-	sort.SliceStable(debugCmdNames, func(i, j int) bool { return debugCmdNames[i] < debugCmdNames[j] })
+	sort.Strings(debugCmdNames)
 
 	// Set command aliases.
 	debugCmds["b"] = debugCmds["break"]
@@ -497,20 +497,6 @@ func sourceLines(name string, n int) ([]string, int, error) {
 	start := max(1, n-listLength/2) - 1
 	end := min(start+listLength, len(lines))
 	return lines[start:end], start + 1, nil
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // ---------------------------------------
