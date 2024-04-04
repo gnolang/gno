@@ -52,9 +52,8 @@ func Get(key string) int {
   if !exists {
 	  panic("value at given key does not exist")
   }
-  // rawValue needs to be converted into the proper type
-  value := rawValue.(int)
-  return value
+  // rawValue needs to be converted into the proper type before returning it
+  return rawValue.(int)
 }
 ```
 
