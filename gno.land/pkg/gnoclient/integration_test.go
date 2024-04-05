@@ -352,28 +352,6 @@ func main() {
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
-// todo add more integration tests:
-// MsgCall with Send field populated (single/multiple)
-// MsgRun with Send field populated (single/multiple)
-
-func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
-	t.Helper()
-
-	mnemonic := integration.DefaultAccount_Seed
-	name := integration.DefaultAccount_Name
-
-	kb := keys.NewInMemory()
-	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
-	require.NoError(t, err)
-
-	return &SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
-		Account:  name,    // Account name or bech32 format
-		Password: "",      // Password for encryption
-		ChainID:  chainid, // Chain ID for transaction signing
-	}
-}
-
 func TestAddPackageSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -399,14 +377,15 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
-	pkg := `package echo
+	body := `package echo
 
 func Echo(str string) string {
 	return str
 }`
 
-	deposit := "100ugnot"
+	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
+	deposit := "100ugnot"
 
 	// Make Msg config
 	msg := MsgAddPackage{
@@ -415,8 +394,8 @@ func Echo(str string) string {
 			Path: deploymentPath,
 			Files: []*std.MemFile{
 				{
-					Name: "echo.gno",
-					Body: pkg,
+					Name: fileName,
+					Body: body,
 				},
 			},
 		},
@@ -427,22 +406,143 @@ func Echo(str string) string {
 	_, err := client.AddPackage(baseCfg, msg)
 	assert.Nil(t, err)
 
-	// Execute Call to validate deployment
-	expectedEcho := "will you echo this?"
-	res, err := client.Call(baseCfg, MsgCall{
-		PkgPath:  deploymentPath,
-		FuncName: "Echo",
-		Args: []string{
-			expectedEcho,
-		},
-		Send: "",
+	// Check for deployed file on the node
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath),
 	})
-
 	require.NoError(t, err)
-	assert.Contains(t, string(res.DeliverTx.Data), expectedEcho)
+	assert.Equal(t, string(query.Response.Data), fileName)
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+}
+
+func TestAddPackageMultiple_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	deposit := "100ugnot"
+	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
+
+	body1 := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	deploymentPath2 := "gno.land/p/demo/integration/test/hello"
+	body2 := `package hello
+
+func Hello(str string) string {
+	return "Hello " + str + "!" 
+}`
+
+	msg1 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath1,
+			Files: []*std.MemFile{
+				{
+					Name: "echo.gno",
+					Body: body1,
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	msg2 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: deploymentPath2,
+			Files: []*std.MemFile{
+				{
+					Name: "gno.mod",
+					Body: "module gno.land/p/demo/integration/test/hello",
+				},
+				{
+					Name: "hello.gno",
+					Body: body2,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err := client.AddPackage(baseCfg, msg1, msg2)
+	assert.Nil(t, err)
+
+	// Check Package #1
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), "")
+
+	// Check Package #2
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
+
+	// Query balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+}
+
+// todo add more integration tests:
+// MsgCall with Send field populated (single/multiple)
+// MsgRun with Send field populated (single/multiple)
+
+func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
+	t.Helper()
+
+	mnemonic := integration.DefaultAccount_Seed
+	name := integration.DefaultAccount_Name
+
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
+	require.NoError(t, err)
+
+	return &SignerFromKeybase{
+		Keybase:  kb,      // Stores keys in memory or on disk
+		Account:  name,    // Account name or bech32 format
+		Password: "",      // Password for encryption
+		ChainID:  chainid, // Chain ID for transaction signing
+	}
 }
