@@ -12,9 +12,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
-	"time"
-	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
@@ -176,20 +173,31 @@ func handleEditor(line string) (string, bool) {
 }
 
 func updateIndentLevel(line string, indentLevel int) int {
+	openCount, closeCount := countBrackets(line)
+	increaseIndent := shouldIncreaseIndent(line)
+	indentLevel += openCount - closeCount
+
+	if indentLevel < 0 {
+		indentLevel = 0
+	}
+
+	if increaseIndent {
+		indentLevel++
+	}
+
+	return indentLevel
+}
+
+func countBrackets(line string) (int, int) {
 	openCount, closeCount := 0, 0
-	increaseIndent := false
-	inString := false
-	inComment := false
+	inString, inComment, inSingleLineComment := false, false, false
 	var stringChar rune
 
 	for i, char := range line {
-		if !inString && !inComment {
+		if !inString && !inComment && !inSingleLineComment {
 			switch char {
 			case '{', '(', '[':
 				openCount++
-				if i < len(line)-1 && line[i+1] == '\n' {
-					increaseIndent = true
-				}
 			case '}', ')', ']':
 				closeCount++
 			case '"', '\'':
@@ -198,7 +206,7 @@ func updateIndentLevel(line string, indentLevel int) int {
 			case '/':
 				if i < len(line)-1 {
 					if line[i+1] == '/' {
-						break
+						inSingleLineComment = true
 					} else if line[i+1] == '*' {
 						inComment = true
 					}
@@ -208,24 +216,18 @@ func updateIndentLevel(line string, indentLevel int) int {
 			inString = false
 		} else if inComment && i < len(line)-1 && char == '*' && line[i+1] == '/' {
 			inComment = false
-			i++
 		}
 	}
 
-	indentLevel += openCount - closeCount
-	if indentLevel < 0 {
-		indentLevel = 0
-	}
+	return openCount, closeCount
+}
 
-	if increaseIndent {
-		indentLevel++
+func shouldIncreaseIndent(line string) bool {
+	openIndex := strings.IndexAny(line, "{([")
+	if openIndex != -1 && openIndex < len(line)-1 && line[openIndex+1] == '\n' {
+		return true
 	}
-
-	if strings.HasSuffix(strings.TrimSpace(line), ":") {
-		indentLevel++
-	}
-
-	return indentLevel
+	return false
 }
 
 func printPrompt(indentLevel int, prev string) {
@@ -304,158 +306,4 @@ func printHelp() {
 		srcCommand, editorCommand, clearCommand,
 		resetCommand, exitCommand, printExample,
 	)
-}
-
-var (
-	input    chan byte
-	lastIn   byte
-	lastInOk bool
-)
-
-// putChar writes a single byte to stdout.
-func putChar(b byte) error {
-	_, err := os.Stdout.Write([]byte{b})
-	return err
-}
-
-// putChars writes a slice of bytes to stdout.
-func putChars(bs []byte) error {
-	_, err := os.Stdout.Write(bs)
-	return err
-}
-
-// peekChar reads a single byte from stdin.
-// If no byte is available, it returns false.
-func peekChar() (byte, bool) {
-	if lastInOk {
-		return lastIn, true
-	}
-
-	select {
-	case ch := <-input:
-		lastIn = ch
-		lastInOk = true
-		return lastIn, true
-	case <-time.After(10 * time.Millisecond):
-		return 0, false
-	}
-}
-
-// getChar reads a single byte from stdin.
-func getChar() byte {
-	if lastInOk {
-		lastInOk = false
-		return lastIn
-	}
-	return <-input
-}
-
-// putString writes a string to stdout.
-func putString(s string) error {
-	return putChars([]byte(s))
-}
-
-type terminalState struct {
-	termios syscall.Termios
-}
-
-// makeRaw puts the terminal connected to the given file descriptor
-// into raw mode and returns the previous state of the terminal so that it can be restored.
-func makeRaw(fd int) (*terminalState, error) {
-	var oldState terminalState
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
-		return nil, err
-	}
-
-	newState := oldState.termios
-	// Disable input character processing
-	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
-	// Disable canonical mode and echoing
-	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
-
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
-		return nil, err
-	}
-
-	return &oldState, nil
-}
-
-// makeCbreak puts the terminal connected to the given file descriptor into cbreak mode.
-// cbreak mode is like raw mode, but it allows the user to interrupt the program with Ctrl-C.
-// returns the previous state of the terminal so that it can be restored.
-func makeCbreak(fd int) (*terminalState, error) {
-	var oldState terminalState
-	// Get the current terminal settings
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(getTermios), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
-		return nil, err
-	}
-
-	newState := oldState.termios
-	// Disable input character processing
-	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
-	// Disable canonical mode and echoing
-	newState.Lflag &^= syscall.ECHO | syscall.ICANON
-	// Set the new terminal settings
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
-		return nil, err
-	}
-
-	return &oldState, nil
-}
-
-// restore restores the terminal connected to the given file descriptor to a previous state.
-func restore(fd int, state *terminalState) error {
-	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
-	if err != 0 {
-		return err
-	}
-	return nil
-}
-
-// cursorBackward moves the cursor one character to the left (backward).
-func cursorBackward() error {
-	chars := []byte{27, '[', '1', 'D'}
-	return putChars(chars)
-}
-
-// cursorForward moves the cursor one character to the right (forward).
-func cursorForward() error {
-	chars := []byte{27, '[', '1', 'C'}
-	return putChars(chars)
-}
-
-var state *terminalState
-
-// exit exits the program.
-func exit() {
-	if state != nil {
-		restore(syscall.Stdin, state)
-		black := "\033[0;0m"
-		fmt.Print(black)
-	}
-	os.Exit(1)
-}
-
-type lineBuf struct {
-	length int
-	cursor int
-	buf    []byte
-}
-
-func newLineBuf(cap int) *lineBuf {
-	storage := make([]byte, cap)
-	return &lineBuf{
-		length: 0,
-		cursor: 0,
-		buf:    storage,
-	}
-}
-
-func (l *lineBuf) Empty() bool {
-	return l.length == 0
-}
-
-func (l *lineBuf) Clear() {
-	l.length = 0
-	l.cursor = 0
 }
