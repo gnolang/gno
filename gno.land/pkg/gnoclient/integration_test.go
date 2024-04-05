@@ -1,8 +1,9 @@
 package gnoclient
 
 import (
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 
