@@ -1,37 +1,60 @@
-package main
+package gnolang_test
 
 import (
 	"bytes"
-	"context"
+	"io"
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/tests"
 )
 
 type dtest struct{ in, out string }
 
 const debugTarget = "../../tests/integ/debugger/sample.gno"
 
+type writeNopCloser struct{ io.Writer }
+
+func (writeNopCloser) Close() error { return nil }
+
+func eval(in, file string) (string, string) {
+	out := bytes.NewBufferString("")
+	err := bytes.NewBufferString("")
+	stdin := bytes.NewBufferString(in)
+	stdout := writeNopCloser{out}
+	stderr := writeNopCloser{err}
+
+	testStore := tests.TestStore(gnoenv.RootDir(), "", stdin, stdout, stderr, tests.ImportModeStdlibsPreferred)
+
+	f := gnolang.MustReadFile(file)
+
+	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+		PkgPath: string(f.PkgName),
+		Input:   stdin,
+		Output:  stdout,
+		Store:   testStore,
+		Debug:   true,
+	})
+
+	defer m.Release()
+
+	m.RunFiles(f)
+	ex, _ := gnolang.ParseExpr("main()")
+	m.Eval(ex)
+	return out.String(), err.String()
+}
+
 func runDebugTest(t *testing.T, tests []dtest) {
 	t.Helper()
-	args := []string{"run", "-debug", debugTarget}
 
 	for _, test := range tests {
-		test := test
 		t.Run("", func(t *testing.T) {
-			out := bytes.NewBufferString("")
-			err := bytes.NewBufferString("")
-			io := commands.NewTestIO()
-			io.SetIn(bytes.NewBufferString(test.in))
-			io.SetOut(commands.WriteNopCloser(out))
-			io.SetErr(commands.WriteNopCloser(err))
-			if err := newGnocliCmd(io).ParseAndRun(context.Background(), args); err != nil {
-				t.Fatal(err)
-			}
+			out, err := eval(test.in, debugTarget)
 			t.Log("in:", test.in, "out:", out, "err:", err)
-			if !strings.Contains(out.String(), test.out) {
-				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out.String())
+			if !strings.Contains(out, test.out) {
+				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out)
 			}
 		})
 	}
