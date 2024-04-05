@@ -49,6 +49,24 @@ func TestUpdateIndentLevel(t *testing.T) {
 			want:        0,
 		},
 		{
+			name:        "Test with colon and closed bracket",
+			line:        "case 'a': }",
+			indentLevel: 1,
+			want:        0,
+		},
+		{
+			name:        "Test with colon in string",
+			line:        "\"case 'a':\"",
+			indentLevel: 0,
+			want:        0,
+		},
+		{
+			name:        "Test with colon in string and string end with colon",
+			line:        "case ':':",
+			indentLevel: 0,
+			want:        0,
+		},
+		{
 			name:        "Test with multiple open brackets",
 			line:        "func main() { if true {",
 			indentLevel: 0,
@@ -77,12 +95,6 @@ func TestUpdateIndentLevel(t *testing.T) {
 			line:        "case 'a': {",
 			indentLevel: 0,
 			want:        1,
-		},
-		{
-			name:        "Test with colon and closed bracket",
-			line:        "case 'a': }",
-			indentLevel: 1,
-			want:        0,
 		},
 		{
 			name:        "Test with brackets in string",
