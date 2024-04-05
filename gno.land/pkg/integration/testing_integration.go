@@ -296,15 +296,25 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				switch len(args) {
 				case 2:
-					// Do nothing
+					// expected user input
+					// adduserfrom 'username 'menmonic'
+					// no need to do anything
+
 				case 4:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account' 'index'
+
+					// parse 'index' first, then fallghrough to `case 3` to parse 'account'
 					index, err = strconv.ParseUint(args[3], 10, 32)
 					if err != nil {
 						ts.Fatalf("invalid index number %s", args[3])
 					}
 
-					fallthrough // parse account
+					fallthrough // parse 'account'
 				case 3:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account'
+
 					account, err = strconv.ParseUint(args[2], 10, 32)
 					if err != nil {
 						ts.Fatalf("invalid account number %s", args[2])
