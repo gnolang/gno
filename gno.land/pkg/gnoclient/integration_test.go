@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -371,4 +372,77 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
+}
+
+func TestAddPackageSingle_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	pkg := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	deposit := "100ugnot"
+	deploymentPath := "gno.land/p/demo/integration/test/echo"
+
+	// Make Msg config
+	msg := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath,
+			Files: []*std.MemFile{
+				{
+					Name: "echo.gno",
+					Body: pkg,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err := client.AddPackage(baseCfg, msg)
+	assert.Nil(t, err)
+
+	// Execute Call to validate deployment
+	expectedEcho := "will you echo this?"
+	res, err := client.Call(baseCfg, MsgCall{
+		PkgPath:  deploymentPath,
+		FuncName: "Echo",
+		Args: []string{
+			expectedEcho,
+		},
+		Send: "",
+	})
+
+	require.NoError(t, err)
+	assert.Contains(t, string(res.DeliverTx.Data), expectedEcho)
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 }

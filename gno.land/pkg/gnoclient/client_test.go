@@ -888,3 +888,71 @@ func TestRunErrors(t *testing.T) {
 		})
 	}
 }
+
+// AddPackage tests
+//func TestAddPackageSingle(t *testing.T) {
+//	t.Parallel()
+//
+//	client := Client{
+//		Signer: &mockSigner{
+//			sign: func(cfg SignCfg) (*std.Tx, error) {
+//				return &std.Tx{}, nil
+//			},
+//			info: func() keys.Info {
+//				return &mockKeysInfo{
+//					getAddress: func() crypto.Address {
+//						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+//						return adr
+//					},
+//				}
+//			},
+//		},
+//		RPCClient: &mockRPCClient{
+//			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+//				res := &ctypes.ResultBroadcastTxCommit{
+//					DeliverTx: abci.ResponseDeliverTx{
+//						ResponseBase: abci.ResponseBase{
+//							Data: []byte("hi gnoclient!\n"),
+//						},
+//					},
+//				}
+//				return res, nil
+//			},
+//		},
+//	}
+//
+//	cfg := BaseTxCfg{
+//		GasWanted:      100000,
+//		GasFee:         "10000ugnot",
+//		AccountNumber:  1,
+//		SequenceNumber: 1,
+//		Memo:           "Test memo",
+//	}
+//
+//	fileBody := `package main
+//import (
+//	"std"
+//	"gno.land/p/demo/ufmt"
+//	"gno.land/r/demo/deep/very/deep"
+//)
+//func main() {
+//	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
+//}`
+//
+//	msg := MsgAddPackage{
+//		Package: &std.MemPackage{
+//			Files: []*std.MemFile{
+//				{
+//					Name: "main.gno",
+//					Body: fileBody,
+//				},
+//			},
+//		},
+//		Deposit: "",
+//	}
+//
+//	res, err := client.AddPackage(cfg, msg)
+//	assert.NoError(t, err)
+//	require.NotNil(t, res)
+//	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+//}
