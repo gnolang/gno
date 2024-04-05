@@ -45,8 +45,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/creack/pty v1.1.21 // indirect
-
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/gdamore/encoding v1.0.0 // indirect

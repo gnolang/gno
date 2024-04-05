@@ -7,7 +7,6 @@ import (
 )
 
 func TestReplApp(t *testing.T) {
-	t.Parallel()
 	tc := []testMainCase{
 		{args: []string{"repl", "invalid-arg"}, errShouldBe: "flag: help requested"},
 
@@ -86,51 +85,53 @@ func TestUpdateIndentLevel(t *testing.T) {
 			want:        0,
 		},
 		{
-			name: "Test with brackets in string",
-			line: "\"}}}}\"",
+			name:        "Test with brackets in string",
+			line:        "\"}}}}\"",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test with brackets in single line comment",
-			line: "// { [ (",
+			name:        "Test with brackets in single line comment",
+			line:        "// { [ (",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test with brackets in multi line comment",
-			line: "/* {{{{ */",
+			name:        "Test with brackets in multi line comment",
+			line:        "/* {{{{ */",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test with brackets in string and comment",
-			line: "ufmt.Println(\"{ [ ( ) ] } {{\") // { [ ( ) ] ",
+			name:        "Test with brackets in string and comment",
+			line:        "ufmt.Println(\"{ [ ( ) ] } {{\") // { [ ( ) ] ",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test string and single line comment",
-			line: "CurlyToken = '{' // {",
+			name:        "Test string and single line comment",
+			line:        "CurlyToken = '{' // {",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test curly bracket in string",
-			line: "a := '{'",
+			name:        "Test curly bracket in string",
+			line:        "a := '{'",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 		{
-			name: "Test curly bracket in string 2",
-			line: "a := \"{hello\"",
+			name:        "Test curly bracket in string 2",
+			line:        "a := \"{hello\"",
 			indentLevel: 0,
-			want: 0,
+			want:        0,
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := updateIndentLevel(tt.line, tt.indentLevel); got != tt.want {
 				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
@@ -167,7 +168,9 @@ func TestClearScreen(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Set up the mock executor
 			executor := &MockCommandExecutor{}
 
