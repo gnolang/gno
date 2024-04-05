@@ -103,5 +103,3 @@ libraries require thorough battle-testing and reviews by the core team & communi
 before being added to the language
 - Standard libraries usually provide low-level necessities for the language,
 while packages utilize them to create a broader range of functionality
-- A breaking change in the standard libraries will equate to a breaking change
-in the language, while the same is not true for packages
