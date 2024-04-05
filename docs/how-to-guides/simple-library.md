@@ -83,7 +83,7 @@ to see how to start.
 When using the Gno Playground, writing, testing, deploying, and sharing Gno code
 is simple. This makes it perfect for getting started with Gno.
 
-Vising the [Playground](https://play.gno.land) will greet you with a template file:
+Visiting the [Playground](https://play.gno.land) will greet you with a template file:
 
 ![Default](../assets/how-to-guides/simple-library/playground_welcome.png)
 
