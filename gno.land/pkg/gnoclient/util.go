@@ -35,7 +35,13 @@ func (msg MsgSend) validateMsgSend() error {
 }
 
 func (msg MsgRun) validateMsgRun() error {
-	// todo replace with msg.ValidateBasic() after PR #1646 is merged.
+	if msg.Package == nil || len(msg.Package.Files) == 0 {
+		return ErrEmptyPackage
+	}
+	return nil
+}
+
+func (msg MsgAddPackage) validateMsgAddPackage() error {
 	if msg.Package == nil || len(msg.Package.Files) == 0 {
 		return ErrEmptyPackage
 	}
