@@ -67,6 +67,14 @@ func TestRunApp(t *testing.T) {
 			args:                 []string{"run", "../../tests/integ/undefined-variable-test/undefined_variables_test.gno"},
 			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
 		},
+		{
+			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
+			stdoutShouldContain: "Welcome to the Gnovm debugger",
+		},
+		{
+			args:                 []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
+			recoverShouldContain: "listen tcp: lookup invalidhost: no such host",
+		},
 		// TODO: a test file
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs

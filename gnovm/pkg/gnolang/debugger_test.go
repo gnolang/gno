@@ -1,10 +1,14 @@
 package gnolang_test
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 	"io"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -19,7 +23,7 @@ type writeNopCloser struct{ io.Writer }
 
 func (writeNopCloser) Close() error { return nil }
 
-func eval(in, file string) (string, string) {
+func eval(debugAddr, in, file string) (string, string) {
 	out := bytes.NewBufferString("")
 	err := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -31,11 +35,12 @@ func eval(in, file string) (string, string) {
 	f := gnolang.MustReadFile(file)
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath: string(f.PkgName),
-		Input:   stdin,
-		Output:  stdout,
-		Store:   testStore,
-		Debug:   true,
+		PkgPath:   string(f.PkgName),
+		Input:     stdin,
+		Output:    stdout,
+		Store:     testStore,
+		Debug:     true,
+		DebugAddr: debugAddr,
 	})
 
 	defer m.Release()
@@ -51,7 +56,7 @@ func runDebugTest(t *testing.T, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := eval(test.in, debugTarget)
+			out, err := eval("", test.in, debugTarget)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out)
@@ -74,7 +79,59 @@ func TestDebug(t *testing.T) {
 		{in: cont, out: "=>    7: 	println(name, i)"},
 		{in: cont + "stack\n", out: "2	in main.main"},
 		{in: cont + "up\n", out: "=>   11: 	f(s, n)"},
+		{in: cont + "up\nup\ndown\n", out: "=>   11: 	f(s, n)"},
 		{in: cont + "print name\n", out: `("hello" string)`},
-		{in: cont + "p i\n", out: `(3 int)`},
+		{in: cont + "p i\n", out: "(3 int)"},
+		{in: cont + "bp\n", out: "Breakpoint 0 at main "},
+		{in: "p 3\n", out: "(3 int)"},
+		{in: "p 'a'\n", out: "(39 int32)"},
+		{in: "p \"xxxx\"\n", out: `("\"xxxx\"" string)`},
+		{in: "si\n", out: "sample.gno:4"},
+		{in: "s\ns\n", out: "=>   17: 	num := 5"},
+		{in: "s\n\n", out: "=>   17: 	num := 5"},
+		{in: "foo", out: "command not available: foo"},
+		{in: "\n\n", out: "dbg> "},
+		{in: "#\n", out: "dbg> "},
+		{in: "p foo", out: "Command failed: could not find symbol value for foo"},
+		{in: "b +7\nc\n", out: "=>   11:"},
+		{in: brk + "clear 0\n", out: "dbg> "},
+		{in: brk + "clear -1\n", out: "Command failed: invalid breakpoint id: -1"},
+		{in: brk + "clear\n", out: "dbg> "},
+		{in: "p\n", out: "Command failed: missing argument"},
+		{in: "p 1+2\n", out: "Command failed: expression not supported"},
+		{in: "p 1.2\n", out: "Command failed: invalid basic literal value: 1.2"},
+		{in: "p 31212324222123123232123123123123123123123123123123\n", out: "value out of range"},
+		{in: "p 3)\n", out: "Command failed:"},
 	})
+}
+
+const debugAddress = "localhost:17358"
+
+func TestRemoteDebug(t *testing.T) {
+	var (
+		conn  net.Conn
+		err   error
+		retry int
+	)
+
+	go eval(debugAddress, "", debugTarget)
+
+	for retry = 100; retry > 0; retry-- {
+		conn, err = net.Dial("tcp", debugAddress)
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if retry == 0 {
+		t.Error(err)
+	}
+	defer conn.Close()
+
+	fmt.Fprintf(conn, "d\n")
+	resp, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log("resp:", resp)
 }
