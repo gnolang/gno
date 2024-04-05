@@ -54,11 +54,11 @@ type MsgRun struct {
 
 // MsgAddPackage - syntax sugar for vm.MsgAddPackage
 type MsgAddPackage struct {
-	Package *std.MemPackage
-	Deposit string
+	Package *std.MemPackage // Package to add
+	Deposit string          // Coin deposit
 }
 
-// Call executes a one or more MsgCall calls on the blockchain
+// Call executes one or more MsgCall calls on the blockchain
 func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
@@ -114,7 +114,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// Run executes a one or more MsgRun calls on the blockchain
+// Run executes one or more MsgRun calls on the blockchain
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
@@ -232,7 +232,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// AddPackage executes a one or more AddPackage calls on the blockchain
+// AddPackage executes one or more AddPackage calls on the blockchain
 func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	if err := c.validateSigner(); err != nil {
