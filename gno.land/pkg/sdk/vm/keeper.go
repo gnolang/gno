@@ -199,20 +199,18 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
+	defer m2.Release()
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m2.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
 					r, m2.String())
-				m2.Release()
 				return
 			}
 		}
-		m2.Release()
 	}()
 
 	m2.RunMemPackage(memPkg, true)
@@ -288,21 +286,19 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
 					r, m.String())
-				m.Release()
 				return
 			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
@@ -363,20 +359,18 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			GasMeter:  ctx.GasMeter(),
 		})
 	// XXX MsgRun does not have pkgPath. How do we find it on chain?
+	defer m.Release()
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
 					r, m.String())
-				m.Release()
 				return
 			}
 		}
-		m.Release()
 	}()
 
 	_, pv := m.RunMemPackage(memPkg, false)
@@ -391,21 +385,19 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
+	defer m2.Release()
 	m2.SetActivePackage(pv)
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m2.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
 					r, m2.String())
-				m2.Release()
 				return
 			}
 		}
-		m2.Release()
 	}()
 	m2.RunMain()
 	res = buf.String()
@@ -513,20 +505,18 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
 					r, m.String())
-				m.Release()
 				return
 			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	res = ""
@@ -581,20 +571,18 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
-				m.Release()
 				panic(r)
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
 					r, m.String())
-				m.Release()
 				return
 			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {
