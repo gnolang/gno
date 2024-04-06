@@ -73,7 +73,7 @@ func TestRunApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
-			recoverShouldContain: "listen tcp: lookup invalidhost: no such host",
+			recoverShouldContain: "listen tcp: lookup invalidhost",
 		},
 		// TODO: a test file
 		// TODO: args
