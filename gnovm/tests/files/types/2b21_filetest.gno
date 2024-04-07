@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/2b21_filetest.gno:5: cannot use untyped string as BigintKind
+// main/files/types/2b21_filetest.gno:5: operator - not defined on: StringKind

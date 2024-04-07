@@ -602,13 +602,27 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 }
 
 func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
-	// cache it to be reused in later stage in checkOrConvertType
 	var destKind interface{}
-	if !checker(dt) { // lt not compatible with op
-		if dt != nil { // return error on left side that is checked first
+
+	if !checker(dt) {
+		if dt != nil {
 			destKind = dt.Kind()
 		}
 		panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+	}
+
+	defer func() { // rewrite err msg
+		if r := recover(); r != nil {
+			if xt != nil {
+				destKind = xt.Kind()
+			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+		}
+	}()
+
+	// e.g. 1%1e9
+	if !checker(xt) { // lt not compatible with op
+		checkAssignableTo(xt, dt, false) // XXX, cache this?
 	}
 }
 

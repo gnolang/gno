@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/11a8_LAND_filetest.gno:4: cannot use untyped Bigint as BoolKind
+// main/files/types/11a8_LAND_filetest.gno:4: operator && not defined on: BigintKind

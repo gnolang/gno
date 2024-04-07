@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/20a4_filetest.gno:4: cannot use untyped bool as BigintKind
+// main/files/types/20a4_filetest.gno:4: operator < not defined on: BoolKind
