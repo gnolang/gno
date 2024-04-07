@@ -235,7 +235,7 @@ func assertMaybeNil(msg string, t Type) {
 // case 2. unnamed to named
 // case 3. dt is interface, xt satisfied dt
 // case 4. general cases for primitives and composite.
-func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
+func checkAssignableTo(xt, dt Type, autoNative bool) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
@@ -357,8 +357,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 					dt.String()))
 			} else {
 				// carry on with baseOf(dxt)
-				xt = dxt.Base           // set as base to do the rest check
-				conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
+				xt = dxt.Base // set as base to do the rest check
 			}
 		}
 	} else if ddt, ok := dt.(*DeclaredType); ok {
@@ -379,7 +378,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 			}
 		} else {
 			dt = ddt.Base
-			conversionNeeded = true // conduct a type conversion from unnamed to named, it below checks pass
 		}
 	}
 
@@ -449,24 +447,24 @@ func checkAssignableTo(xt, dt Type, autoNative bool) (conversionNeeded bool) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			cdt := checkAssignableTo(pt.Elt, cdt.Elt, false)
-			return cdt || conversionNeeded
+			checkAssignableTo(pt.Elt, cdt.Elt, false)
 		}
+		return
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
-			cdt := checkAssignableTo(at.Elt, cdt.Elt, false)
-			return cdt || conversionNeeded
+			checkAssignableTo(at.Elt, cdt.Elt, false)
+			return
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			cdt := checkAssignableTo(st.Elt, cdt.Elt, false)
-			return cdt || conversionNeeded
+			checkAssignableTo(st.Elt, cdt.Elt, false)
+			return
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			cn1 := checkAssignableTo(mt.Key, cdt.Key, false)
-			cn2 := checkAssignableTo(mt.Value, cdt.Value, false)
-			return cn1 || cn2 || conversionNeeded
+			checkAssignableTo(mt.Key, cdt.Key, false)
+			checkAssignableTo(mt.Value, cdt.Value, false)
+			return
 		}
 	case *FuncType:
 		if xt.TypeID() == cdt.TypeID() {
@@ -621,7 +619,7 @@ func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(
 	}()
 
 	// e.g. 1%1e9
-	if !checker(xt) { // lt not compatible with op
+	if !checker(xt) {
 		checkAssignableTo(xt, dt, false) // XXX, cache this?
 	}
 }

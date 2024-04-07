@@ -747,7 +747,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// special case of shift
 				if isShift {
 					// check LHS type compatibility
-					// check compatible
 					n.checkShiftExpr(lt)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
@@ -2408,9 +2407,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if debug {
 			debug.Printf("else expr, xt not nil,x: %v, xt: %v, t: %v, isUntyped: %v \n", *x, xt, t, isUntyped(xt))
 		}
-		var needConversion bool // for unnamed -> named
 		if t != nil && !coerce {
-			needConversion = checkAssignableTo(xt, t, autoNative)
+			checkAssignableTo(xt, t, autoNative)
 		}
 		if isUntyped(xt) {
 			if t == nil {
@@ -2435,13 +2433,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				}
 			}
 			// general case
-			cx := Expr(Call(constType(nil, t), *x))
-			cx = Preprocess(store, last, cx).(Expr)
-			*x = cx
-		}
-
-		// unnamed to named
-		if needConversion {
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
