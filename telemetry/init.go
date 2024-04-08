@@ -20,7 +20,7 @@ func MetricsEnabled() bool {
 	return config.MetricsEnabled
 }
 
-// Init will initialize metrics with the options provided. This function may also intialize tracing when
+// Init will initialize metrics with the options provided. This function may also initialize tracing when
 // this is something that we want to support.
 func Init(options ...Option) error {
 	config.MeterName = defaultMeterName

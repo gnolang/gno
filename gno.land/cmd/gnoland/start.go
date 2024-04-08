@@ -202,7 +202,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		loadCfgErr error
 	)
 
-	// Attempt to initialize telemetry. If the enviroment variables required to initialize
+	// Attempt to initialize telemetry. If the environment variables required to initialize
 	// telemetry are not set, then the initialization will do nothing.
 	if err := initTelemetry(); err != nil {
 		return fmt.Errorf("error initializing telemetry: %w", err)
