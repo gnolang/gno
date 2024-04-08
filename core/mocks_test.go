@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gnolang/go-tendermint/messages/types"
+	"github.com/gnolang/libtm/messages/types"
 )
 
 type (

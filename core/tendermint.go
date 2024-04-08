@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/gnolang/go-tendermint/messages"
+	"github.com/gnolang/libtm/messages"
 
-	"github.com/gnolang/go-tendermint/messages/types"
+	"github.com/gnolang/libtm/messages/types"
 )
 
 // Tendermint is the single consensus engine instance

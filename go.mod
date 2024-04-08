@@ -1,4 +1,4 @@
-module github.com/gnolang/go-tendermint
+module github.com/gnolang/libtm
 
 go 1.21
 

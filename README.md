@@ -1,6 +1,6 @@
 ## Overview
 
-`go-tendermint` is a simple, minimal and compact Go library that implements the Tendermint consensus engine.
+`libtm` is a simple, minimal and compact Go library that implements the Tendermint consensus engine.
 
 The implementation is based on Algorithm 1, of
 the [Tendermint consensus whitepaper](https://arxiv.org/pdf/1807.04938.pdf) and
@@ -33,10 +33,10 @@ requirements.
 
 ## Installation
 
-To get up and running with the `go-tendermint` package, you can add it to your project using:
+To get up and running with the `libtm` package, you can add it to your project using:
 
 ```shell
-go get -u github.com/gnolang/go-tendermint
+go get -u github.com/gnolang/libtm
 ```
 
 Currently, the minimum required go version is `go 1.21`.
@@ -49,32 +49,32 @@ package main
 import (
 	"context"
 
-	"github.com/gnolang/go-tendermint/core"
-	"github.com/gnolang/go-tendermint/messages/types"
+	"github.com/gnolang/libtm/core"
+	"github.com/gnolang/libtm/messages/types"
 )
 
-// Verifier implements the go-tendermint Verifier interface.
+// Verifier implements the libtm Verifier interface.
 // Verifier is an abstraction over the outer consensus calling context
 // that has access to validator set information
 type Verifier struct {
 	// ...
 }
 
-// Node implements the go-tendermint Node interface.
+// Node implements the libtm Node interface.
 // The Node interface is an abstraction over a single entity (current process) that runs
 // the consensus algorithm
 type Node struct {
 	// ...
 }
 
-// Broadcast implements the go-tendermint Broadcast interface.
+// Broadcast implements the libtm Broadcast interface.
 // Broadcast is an abstraction over the networking / message sharing interface
 // that enables message passing between validators
 type Broadcast struct {
 	// ...
 }
 
-// Signer implements the go-tendermint Signer interface.
+// Signer implements the libtm Signer interface.
 // Signer is an abstraction over the signature manipulation process
 type Signer struct {
 	// ...

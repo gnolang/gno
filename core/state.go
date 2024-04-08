@@ -3,7 +3,7 @@ package core
 import (
 	"sync/atomic"
 
-	"github.com/gnolang/go-tendermint/messages/types"
+	"github.com/gnolang/libtm/messages/types"
 )
 
 // step is the current state step

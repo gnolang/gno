@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gnolang/go-tendermint/messages/types"
+	"github.com/gnolang/libtm/messages/types"
 )
 
 var (
