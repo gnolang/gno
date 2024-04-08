@@ -255,14 +255,14 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			nonConcrete := "non-concrete "
+			errPrefix := "non-concrete "
 			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
 				// If the underlying native type is reflect.Interface kind, then this has no
 				// concrete value and should fail.
 				if nxt.Type.Kind() != reflect.Interface {
 					impl = nxt.Type.Implements(nt.Type)
-					nonConcrete = ""
+					errPrefix = ""
 				}
 			}
 
@@ -270,7 +270,7 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s%s doesn't implement %s",
-					nonConcrete,
+					errPrefix,
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
