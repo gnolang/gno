@@ -31,3 +31,11 @@ Returns the **string** package path of the realm it was called upon.
 ```go
 realmPath := r.PkgPath() // eg. gno.land/r/gnoland/blog
 ```
+---
+## IsUser
+Checks if the realm it was called upon is a user realm.
+
+#### Usage
+```go
+if r.IsUser() {...}
+```
