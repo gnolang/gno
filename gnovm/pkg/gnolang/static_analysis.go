@@ -30,7 +30,7 @@ func Analyze(f *FuncDecl) []error {
 
 	errs := make([]error, 0)
 	if !term {
-		errs = append(errs, fmt.Errorf("function %qexi does not terminate", f.Name))
+		errs = append(errs, fmt.Errorf("function %q does not terminate", f.Name))
 	}
 
 	errs = append(errs, s.errs...)
