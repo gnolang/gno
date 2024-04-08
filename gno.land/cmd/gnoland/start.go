@@ -56,7 +56,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Run the full node",
+			ShortHelp:  "run the full node",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -68,7 +68,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -136,14 +136,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)

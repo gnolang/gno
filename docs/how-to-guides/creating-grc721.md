@@ -6,31 +6,25 @@ id: creating-grc721
 
 ## Overview
 
-This guide shows you how to write a simple _GRC721_ Smart Contract, or rather a [Realm](../concepts/realms.md),
-in [Gno (Gnolang)](../concepts/gno-language.md). For actually deploying the Realm, please see
-the [deployment](deploy.md) guide.
+This guide shows you how to write a simple **GRC721** Smart Contract, or rather
+a [Realm](../concepts/realms.md), in [Gno](../concepts/gno-language.md). 
+For actually deploying the Realm, please see the [deployment](deploy.md) guide.
 
-Our _GRC721_ Realm will have the following functionality:
+Our **GRC721** Realm will have the following functionality:
 
-- Minting a configurable amount of token.
+- Minting a configurable amount of tokens.
 - Keeping track of total token supply.
 - Fetching the balance of an account.
 
-## Prerequisites
-
-We will proceed using the typical directory structure for a Realm found within
-the [simple-contract guide](simple-contract.md). It is also worthwhile to consult
-the [GRC721 interface](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/igrc721.gno) which we will be borrowing from within
-this guide.
-
 ## 1. Importing token package
 
-For this realm, we'll want to import the `grc20` package as this will include the main functionality of our token
-factory realm.
+For this realm, we'll want to import the `grc721` package as this will include 
+the main functionality of our NFT realm. The package can be found the
+`gno.land/p/demo/grc/grc721` path.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc721/mynonfungibletoken-1.gno go)
 ```go
-package mynonfungibletoken
+package mynft
 
 import (
 	"std"
@@ -39,13 +33,20 @@ import (
 )
 
 var (
-	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // set admin account
-	// provision the token's name and symbol
-	mynonfungibletoken = grc721.NewBasicNFT("mynonfungibletoken", "MNFT")
+  mytoken *grc20.AdminToken
+  admin   std.Address
 )
 
+// init is called once at time of deployment
 func init() {
-	mintNNFT(admin, 10) // @administrator (supply = 10)
+  // Set deployer of Realm to admin
+  admin = std.PrevRealm().Addr()
+
+  // Set token name, symbol and number of decimals
+  mynft = grc721.NewBasicNFT("My NFT", "MNFT")
+
+  // Mint 1 million tokens to admin
+  mytoken.Mint(admin, 1000000*10000)
 }
 ```
 
