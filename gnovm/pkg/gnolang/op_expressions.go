@@ -143,15 +143,21 @@ func (m *Machine) doOpSlice() {
 // deref, but the result is a pointer-to type.
 func (m *Machine) doOpStar() {
 	xv := m.PopValue()
+	debug.Println("---doOpStar, xv: ", xv)
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
+		debug.Println("---doOpStar, pv: ", pv)
+		debug.Println("---doOpStar, pv.TV: ", pv.TV)
+		debug.Println("---doOpStar, xv.T: ", xv.T)
+		debug.Println("---doOpStar, bt.Elt: ", bt.Elt)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
+			debug.Println("---else")
 			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
 				refv := TypedValue{T: bt.Elt}
 				m.PushValue(refv)

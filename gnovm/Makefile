@@ -66,6 +66,8 @@ _test.gnolang.stdlibs:;      go test tests/*.go -test.short -run 'TestFiles$$/' 
 _test.gnolang.native.sync:;  go test tests/*.go -test.short -run "TestFilesNative/" --update-golden-tests $(GOTEST_FLAGS)
 _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' --update-golden-tests $(GOTEST_FLAGS)
 
+_test.gnolang.debug:;      go test tests/*.go -test.short -run 'TestDebug$$/' $(GOTEST_FLAGS)
+_test.gnolang.debug.native:;      go test tests/*.go -test.short -run 'TestDebugNative$$/' $(GOTEST_FLAGS)
 ########################################
 # Code gen
 # TODO: move _dev.stringer to go:generate instructions, simplify generate

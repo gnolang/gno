@@ -1,9 +1,5 @@
 package gnolang
 
-import (
-	"fmt"
-)
-
 func (m *Machine) doOpValueDecl() {
 	s := m.PopStmt().(*ValueDecl)
 	lb := m.LastBlock()
@@ -41,14 +37,15 @@ func (m *Machine) doOpValueDecl() {
 					ConvertUntypedTo(&tv, nt)
 				} else {
 					if debug {
-						if nt.TypeID() != tv.T.TypeID() &&
-							baseOf(nt).TypeID() != tv.T.TypeID() {
-							panic(fmt.Sprintf(
-								"type mismatch: %s vs %s",
-								nt.TypeID(),
-								tv.T.TypeID(),
-							))
-						}
+						//debug.Println("---doOpValueDecl, nt, tv.T: ", nt, tv.T)
+						//if nt.TypeID() != tv.T.TypeID() &&
+						//	baseOf(nt).TypeID() != tv.T.TypeID() {
+						//	panic(fmt.Sprintf(
+						//		"type mismatch: %s vs %s",
+						//		nt.TypeID(),
+						//		tv.T.TypeID(),
+						//	))
+						//}
 					}
 					tv.T = nt
 				}

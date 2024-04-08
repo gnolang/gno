@@ -181,6 +181,7 @@ func (m *Machine) doOpMaybeNativeType() {
 // already swapped for *ConstExpr in the preprocessor.  If not, panics.
 func (m *Machine) doOpStaticTypeOf() {
 	x := m.PopExpr()
+	debug.Println("---doOpStaticTypeOf, x, type of x ", x, reflect.TypeOf(x))
 	switch x := x.(type) {
 	case *NameExpr:
 		// NOTE: duplicated from doOpEval
@@ -397,7 +398,24 @@ func (m *Machine) doOpStaticTypeOf() {
 			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		case VPNative:
+			//debug.Println("---VPNative, dxt: ", dxt)
+			//debug.Println("---VPNative, baseOf(dxt): ", baseOf(dxt))
+			//debug.Println("---VPNative, dxt.elem, type of elem ", dxt.Elem(), reflect.TypeOf(dxt.Elem()))
+			//if nt, ok := dxt.Elem().(*NativeType); ok {
+			//	//nt.Elem()
+			//	//debug.Println("---nt.Elem: ", nt.Elem())
+			//	debug.Println("---nt.Type: ", nt.Type)
+			//	debug.Println("---nt.gnoType: ", nt.gnoType)
+			//	debug.Println("---nt.gnoType type: ", reflect.TypeOf(nt.gnoType))
+			//
+			//	debug.Println("---nt.gnoType base: ", baseOf(nt.gnoType))
+			//	debug.Println("---nt.gnoType base type: ", reflect.TypeOf(baseOf(nt.gnoType)))
+			//	if _, ok := baseOf(nt.gnoType).(*PointerType); ok {
+			//		panic("hey!!!!!!!!!!!!!!!")
+			//	}
+			//}
 			// if dxt is *PointerType, convert to *NativeType.
+			//if pt, ok := baseOf(dxt).(*PointerType); ok {
 			if pt, ok := dxt.(*PointerType); ok {
 				net, ok := pt.Elt.(*NativeType)
 				if !ok {
@@ -467,18 +485,22 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		if pt, ok := xt.(*PointerType); ok {
+		debug.Println("---doOpStaticTypeOf, SliceExpr, xt: ", xt)
+		if pt, ok := baseOf(xt).(*PointerType); ok {
+			debug.Println("---pointer type, pt: ", pt)
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
 		} else if xt.Kind() == StringKind {
 			m.PushValue(asValue(StringType))
 		} else {
+			debug.Println("---else")
 			m.PushValue(asValue(&SliceType{
 				Elt: xt.Elem(),
 			}))
 		}
 	case *StarExpr:
+		debug.Println("---doOpStaticTypeOf, starX")
 		start := m.NumValues
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)

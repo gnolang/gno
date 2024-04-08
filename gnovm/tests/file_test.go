@@ -32,6 +32,16 @@ func TestFiles(t *testing.T) {
 	runFileTests(t, baseDir, []string{"*_native*"})
 }
 
+func TestDebug(t *testing.T) {
+	baseDir := filepath.Join(".", "debug")
+	runFileTests(t, baseDir, []string{"*_native*"})
+}
+
+func TestDebugNative(t *testing.T) {
+	baseDir := filepath.Join(".", "debug")
+	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
+}
+
 func TestChallenges(t *testing.T) {
 	baseDir := filepath.Join(".", "challenges")
 	runFileTests(t, baseDir, nil)
