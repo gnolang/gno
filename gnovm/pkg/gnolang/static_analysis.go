@@ -1,38 +1,36 @@
 package gnolang
 
 import (
-	"errors"
 	"fmt"
 )
 
-type StaticAnalysis struct {
-	// contexts for switch and for
-	contexts []Context
-	// funcContexts for functions and lambdas
-	funcContexts []FuncContext
+type staticAnalysis struct {
+	// contexts for switch, for, functions, and lambdas
+	contexts []interface{}
 
 	// here we accumulate errors
 	// from lambdas defined in the function declaration
 	errs []error
 }
 
-func NewStaticAnalysis() *StaticAnalysis {
-	return &StaticAnalysis{contexts: make([]Context, 0), funcContexts: make([]FuncContext, 0), errs: make([]error, 0)}
+func newStaticAnalysis() *staticAnalysis {
+	return &staticAnalysis{
+		contexts: make([]interface{}, 0),
+		errs:     make([]error, 0),
+	}
 }
 
-func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
-	s.pushFuncContext(&FuncDeclContext{
+func Analyze(f *FuncDecl) []error {
+	s := newStaticAnalysis()
+	s.push(&FuncDeclContext{
 		hasRet: false,
 		f:      f,
 	})
 	term := s.staticAnalysisBlockStmt(f.Body)
 
-	// todo use later maybe?
-	_ = s.popFuncContext().(*FuncDeclContext)
-
 	errs := make([]error, 0)
 	if !term {
-		errs = append(errs, errors.New(fmt.Sprintf("function %q does not terminate", f.Name)))
+		errs = append(errs, fmt.Errorf("function %qexi does not terminate", f.Name))
 	}
 
 	errs = append(errs, s.errs...)
@@ -40,36 +38,32 @@ func (s *StaticAnalysis) Analyse(f *FuncDecl) []error {
 	return errs
 }
 
-func (s *StaticAnalysis) pushContext(ctx Context) {
+func (s *staticAnalysis) push(ctx interface{}) {
 	s.contexts = append(s.contexts, ctx)
 }
 
-func (s *StaticAnalysis) popContext() Context {
+func (s *staticAnalysis) pop() interface{} {
+	if len(s.contexts) == 0 {
+		return nil
+	}
 	last := s.contexts[len(s.contexts)-1]
-	s.contexts = s.contexts[0 : len(s.contexts)-1]
-	return last
-}
-
-func (s *StaticAnalysis) pushFuncContext(fc FuncContext) {
-	s.funcContexts = append(s.funcContexts, fc)
-}
-
-func (s *StaticAnalysis) popFuncContext() FuncContext {
-	last := s.funcContexts[len(s.funcContexts)-1]
-	s.funcContexts = s.funcContexts[0 : len(s.funcContexts)-1]
+	s.contexts = s.contexts[:len(s.contexts)-1]
 	return last
 }
 
 // findCtxByLabel returns the last context if the label is empty
 // otherwise it returns the context that matches the label
 // if it doesn't exist, it returns nil
-func (s *StaticAnalysis) findCtxByLabel(label string) Context {
+func (s *staticAnalysis) findCtxByLabel(label string) interface{} {
 	if len(label) == 0 {
-		return s.contexts[len(s.contexts)-1]
+		if len(s.contexts) > 0 {
+			return s.contexts[len(s.contexts)-1]
+		}
+		return nil
 	}
 
-	for i := len(s.contexts) - 1; i > -1; i-- {
-		if s.contexts[i].label() == label {
+	for i := len(s.contexts) - 1; i >= 0; i-- {
+		if ctx, ok := s.contexts[i].(contextLabeler); ok && ctx.label() == label {
 			return s.contexts[i]
 		}
 	}
@@ -77,50 +71,52 @@ func (s *StaticAnalysis) findCtxByLabel(label string) Context {
 	return nil
 }
 
-func (s *StaticAnalysis) staticAnalysisBlockStmt(stmts []Stmt) bool {
+func (s *staticAnalysis) staticAnalysisBlockStmt(stmts []Stmt) bool {
 	if len(stmts) == 0 {
 		return false
 	}
 	return s.staticAnalysisStmt(stmts[len(stmts)-1])
 }
 
-func (s *StaticAnalysis) staticAnalysisExpr(expr Expr) (bool, bool) {
+func (s *staticAnalysis) staticAnalysisExpr(expr Expr) bool {
 	switch n := expr.(type) {
 	case *CallExpr:
 		for _, arg := range n.Args {
-			term, is := s.staticAnalysisExpr(arg)
-
-			if is && !term {
-				return true, true
+			term := s.staticAnalysisExpr(arg)
+			if !term {
+				return false
 			}
 		}
 	case *FuncLitExpr:
-		s.pushFuncContext(&FuncLitContext{
+		s.push(&FuncLitContext{
 			hasRet: false,
 			f:      n,
 		})
 		term := s.staticAnalysisBlockStmt(n.Body)
-		ctx := s.popFuncContext().(*FuncLitContext)
-
 		if !term {
-			s.errs = append(s.errs, errors.New(fmt.Sprintf("lambda at %v does not terminate\n", ctx.f.Loc)))
+			ctx := s.pop().(*FuncLitContext)
+			s.errs = append(s.errs, fmt.Errorf("lambda at %v does not terminate", ctx.f.Loc))
 		}
-		return false, false
+		return false
 	case *NameExpr:
-		return false, false
+		return false
 	}
-	return false, false
+	return false
 }
 
 // staticAnalysisStmt returns a boolean value,
-// indicating weather a statement is terminating or not
-func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
+// indicating whether a statement is terminating or not
+func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 	switch n := stmt.(type) {
 	case *BranchStmt:
 		switch n.Op {
 		case BREAK:
 			ctx := s.findCtxByLabel(string(n.Label))
-			ctx.pushBreak(n)
+			if ctx != nil {
+				if c, ok := ctx.(breakPusher); ok {
+					c.pushBreak(n)
+				}
+			}
 		case CONTINUE:
 			//
 		case DEFAULT:
@@ -138,38 +134,22 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 
 		return terminates && elseTerminates
 	case *ForStmt:
-		s.pushContext(&ForContext{forstmt: n})
+		s.push(&ForContext{forstmt: n})
 		_ = s.staticAnalysisBlockStmt(n.Body)
-
-		ctx := s.popContext().(*ForContext)
-
-		// there are no "break" statements referring to the "for" statement, and
+		ctx := s.pop().(*ForContext)
+		// there are no "break" statements referring to the "for" statement
 		hasNoBreaks := len(ctx.breakstmts) == 0
-		// the loop condition is absent, and
+		// the loop condition is absent
 		hasNoCond := n.Cond == nil
-
-		// the "for" statement does not use a range clause.
-		// this one is always false because in our nodes
-		// the range loop is a different data structure
-		hasRange := false
-
-		terminates := hasNoBreaks && hasNoCond && !hasRange
-
-		if !terminates {
-			return false
-		}
-
-		return true
-	// for statement
+		terminates := hasNoBreaks && hasNoCond
+		return terminates
 	case *ReturnStmt:
-		// n.Results
 		return true
 	case *AssignStmt:
 		for _, rh := range n.Rhs {
-			term, is := s.staticAnalysisExpr(rh)
-
-			if is && !term {
-				return true
+			term := s.staticAnalysisExpr(rh)
+			if !term {
+				return false
 			}
 		}
 		return false
@@ -183,39 +163,34 @@ func (s *StaticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 				break
 			}
 		}
-
-		s.pushContext(&SwitchContext{switchStmt: n})
+		s.push(&SwitchContext{switchStmt: n})
 
 		// the statement lists in each case,
 		// including the default
 		// end in a terminating statement,
 		// or a possibly labeled "fallthrough" statement.
 		casesTerm := true
-
 		for _, clause := range n.Clauses {
 			ct := s.staticAnalysisBlockStmt(clause.Body)
-			casesTerm = casesTerm && ct
+			casesTerm = ct
 		}
-
-		ctx := s.popContext().(*SwitchContext)
+		ctx := s.pop().(*SwitchContext)
 		// there are no "break" statements referring to the "switch" statement
 		hasNoBreaks := len(ctx.breakstmts) == 0
-
 		terminates := hasNoBreaks && hasDefault && casesTerm
-
-		if !terminates {
-			return false
-		}
-
-		return true
+		return terminates
 	case *PanicStmt:
 		return true
 	}
 	return false
 }
 
-type FuncContext interface {
-	isLastExprRet() bool
+type contextLabeler interface {
+	label() string
+}
+
+type breakPusher interface {
+	pushBreak(breakstmt *BranchStmt)
 }
 
 type FuncLitContext struct {
@@ -223,22 +198,9 @@ type FuncLitContext struct {
 	f      *FuncLitExpr
 }
 
-func (fdc *FuncLitContext) isLastExprRet() bool {
-	return fdc.hasRet
-}
-
 type FuncDeclContext struct {
 	hasRet bool
 	f      *FuncDecl
-}
-
-func (fdc *FuncDeclContext) isLastExprRet() bool {
-	return fdc.hasRet
-}
-
-type Context interface {
-	label() string
-	pushBreak(breakstmt *BranchStmt)
 }
 
 type ForContext struct {

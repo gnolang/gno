@@ -1,121 +1,139 @@
 package gnolang
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestStaticAnalysisShouldPanic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("The code did not panic")
-		}
-	}()
-
-	cases := []string{
-		`package test
+	cases := []struct {
+		name string
+		code string
+	}{
+		{
+			name: "Test Case 1",
+			code: `package test
 				func main() {
 					invalidSwitch()
 				}
-			func invalidSwitch() int {
-			mockVar := map[string]int{
-				"apple":      10,
-				"banana":     20,
-				"orange":     30,
-				"mango":      5,
-				"watermelon": 15,
-			}
-		
-			for k, v := range mockVar {
-				switch k {
-				case "apple":
-					if v < 50 {
-						return(v)
-					} else {
-						return(50)
+				func invalidSwitch() int {
+					mockVar := map[string]int{
+						"apple":      10,
+						"banana":     20,
+						"orange":     30,
+						"mango":      5,
+						"watermelon": 15,
 					}
-				case "banana":
-					if v > 10 {
-						return(v)
-					} else {
-						return(10)
+
+					for k, v := range mockVar {
+						switch k {
+						case "apple":
+							if v < 50 {
+								return v
+							} else {
+								return 50
+							}
+						case "banana":
+							if v > 10 {
+								return v
+							} else {
+								return 10
+							}
+						case "orange":
+							if v > 30 {
+							} else {
+								return 30
+							}
+						case "mango":
+							if v == 5 {
+								return v
+							} else {
+								return 5
+							}
+						case "watermelon":
+							if v == 15 {
+								return v
+							} else {
+								return 15
+							}
+						default:
+							return 0
+						}
 					}
-				case "orange":
-					if v > 30 {
-					} else {
-						return(30)
-					}
-				case "mango":
-					if v == 5 {
-						return(v)
-					} else {
-						return(5)
-					}
-				case "watermelon":
-					if v == 15 {
-						return(v)
-					} else {
-						return(15)
-					}
-				default:
-					return 0
 				}
-			}
-		}
 		`,
-		`package test
+		},
+		{
+			name: "Test Case 2",
+			code: `package test
 				func main() {
 		
 				}
 		
-			func invalidLabel() int{
-				Outer:
-					for {
+				func invalidLabel() int{
+					Outer:
 						for {
-							break Outer
+							for {
+								break Outer
+							}
 						}
-					}
-			}
+				}
 		`,
-		`package test
+		},
+		{
+			name: "Test Case 3",
+			code: `package test
 				func main() {
 					oddOrEven(3)
 				}
 		
-			func oddOrEven(x int) bool {
-				for i := 0; i < x; i++ {
-					if(x % 2 == 0){
+				func oddOrEven(x int) bool {
+					for i := 0; i < x; i++ {
+						if x%2 == 0 {
 		
-					} else {
-						return false
+						} else {
+							return false
+						}
 					}
 				}
-			}
-			`,
-		`package test
+		`,
+		},
+		{
+			name: "Test Case 4",
+			code: `package test
 				func main() {
 					sumArr([]int{1,1,1})
 				}
 		
-			func sumArr(x []int) int {
-				sum := 0
-				for _, s := range x {
-					sum = sum + s
+				func sumArr(x []int) int {
+					sum := 0
+					for _, s := range x {
+						sum = sum + s
+					}
 				}
-			}
 		`,
-		`package test
+		},
+		{
+			name: "Test Case 5",
+			code: `package test
 				func main() {
 					invalidSwitch(3)
 				}
 		
-			func invalidSwitch(x int) int {
-				switch x {
-					case 1:
-						return 1
-					case 2:
-						return 2
+				func invalidSwitch(x int) int {
+					switch x {
+						case 1:
+							return 1
+						case 2:
+							return 2
+					}
 				}
-			}
 		`,
-		`package test
+		},
+		{
+			name: "Test Case 6",
+			code: `package test
 				func main() {
 					invalidCompareBool(4,5)
 				}
@@ -126,44 +144,61 @@ func TestStaticAnalysisShouldPanic(t *testing.T) {
 					} else {
 					}
 				}
-				`,
-		`package test
+		`,
+		},
+		{
+			name: "Test Case 7",
+			code: `package test
 				func main() {
 					invalidIfStatement(6)
 				}
 		
-		func invalidIfStatement(x int) int {
-		   if x > 5 {
+				func invalidIfStatement(x int) int {
+				   if x > 5 {
 		
-		   } else {
-		       return x
-		   }
-		}
-		
+				   } else {
+				       return x
+				   }
+				}
 		`,
+		},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			testFunc := func() {
+				m := NewMachine("test", nil)
 
-	for _, s := range cases {
-		m := NewMachine("test", nil)
+				n := MustParseFile("main.go", tc.code)
+				m.RunFiles(n)
+				m.RunMain()
+			}
 
-		n := MustParseFile("main.go", s)
-		m.RunFiles(n)
-		m.RunMain()
+			assert.Panics(t, testFunc, "The code did not panic")
+		})
 	}
 }
 
 func TestStaticAnalysisShouldPass(t *testing.T) {
-	cases := []string{
-		`package test
+	testCases := []struct {
+		name string
+		code string
+	}{
+		{
+			name: "Test Case 1",
+			code: `package test
 			func main() {
 				first := a()
-		}
+			}
 		
-		func a() int {
-			x := 9
-			return 9
-		}
-		`, `package test
+			func a() int {
+				x := 9
+				return 9
+			}
+		`,
+		},
+		{
+			name: "Test Case 2",
+			code: `package test
 			func main() {
 			validLabel()
 		}
@@ -177,7 +212,11 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		}
 			return 0
 		}
-		`, `package test
+		`,
+		},
+		{
+			name: "Test Case 3",
+			code: `package test
 		func main() {
 			fruitStall()
 		
@@ -230,7 +269,11 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			}
 			return 0
 		}
-		`, `
+		`,
+		},
+		{
+			name: "Test Case 4",
+			code: `
 			package test
 			func main() {
 				whichDay()
@@ -267,7 +310,11 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			return "Not a day"
 		}
 		
-		`, `package test
+		`,
+		},
+		{
+			name: "Test Case 5",
+			code: `package test
 			func main() {
 			switchLabel()
 		}
@@ -284,7 +331,11 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		}
 		return 3
 		}
-		`, `
+		`,
+		},
+		{
+			name: "Test Case 6",
+			code: `
 			package test
 			func main() {
 				add(1,1)
@@ -292,7 +343,10 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		func add(a, b int) int {
 		return a + b
 		}`,
-		`package test
+		},
+		{
+			name: "Test Case 7",
+			code: `package test
 				func main() {
 					z := y()
 				}
@@ -301,7 +355,11 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 				x := 9
 				return 9
 			}
-		`, `package test
+		`,
+		},
+		{
+			name: "Test Case 8",
+			code: `package test
 				func main() {
 					isEqual(2,2)
 				}
@@ -312,7 +370,10 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 				return false
 			}
 		`,
-		`
+		},
+		{
+			name: "Test Case 9",
+			code: `
 		package test
 				func main() {
 					f(2)	
@@ -326,7 +387,10 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			}
 		} 
 		`,
-		`
+		},
+		{
+			name: "Test Case 10",
+			code: `
 		package test
 				func main() {
 					f(0)	
@@ -339,13 +403,15 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			}
 		}
 		`,
+		},
 	}
 
-	for _, s := range cases {
-		m := NewMachine("test", nil)
-
-		n := MustParseFile("main.go", s)
-		m.RunFiles(n)
-		m.RunMain()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewMachine("test", nil)
+			n := MustParseFile("main.go", tc.code)
+			m.RunFiles(n)
+			m.RunMain()
+		})
 	}
 }
