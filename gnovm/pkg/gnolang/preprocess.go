@@ -492,7 +492,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
-
+				// functions that don't return a value do not need termination analysis
+				// functions that are externally defined or builtin implemented in the vm can't be analysed
+				if len(ft.Results) > 0 && lastpn.PkgPath != uversePkgPath && n.Body != nil {
+					errs := Analyze(n)
+					if len(errs) > 0 {
+						panic(fmt.Sprintf("%+v\n", errs))
+					}
+				}
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
 				// only for imports.
@@ -1659,7 +1666,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BranchStmt:
 				switch n.Op {
 				case BREAK:
+					if !isSwitchLabel(ns, n.Label) {
+						findBranchLabel(last, n.Label)
+					}
 				case CONTINUE:
+					if isSwitchLabel(ns, n.Label) {
+						panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
+					}
+					findBranchLabel(last, n.Label)
 				case GOTO:
 					_, depth, index := findGotoLabel(last, n.Label)
 					n.Depth = depth
@@ -1977,6 +1991,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
+func isSwitchLabel(ns []Node, label Name) bool {
+	for {
+		swch := lastSwitch(ns)
+		if swch == nil {
+			break
+		}
+
+		if swch.GetLabel() == label && label != "" {
+			return true
+		}
+
+		ns = ns[:len(ns)-1]
+	}
+
+	return false
+}
+
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
 		bn.InitStaticBlock(bn, *last)
@@ -2242,6 +2273,46 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 			return fd, &fd.Type
 		}
 		last = last.GetParentNode(nil)
+	}
+}
+
+func findBranchLabel(last BlockNode, label Name) (
+	bn BlockNode, depth uint8, bodyIdx int,
+) {
+	for {
+		switch cbn := last.(type) {
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
+			lbl := cbn.GetLabel()
+			if label == lbl {
+				bn = cbn
+				return
+			}
+			last = cbn.GetParentNode(nil)
+			depth += 1
+		case *IfStmt:
+			// These are faux blocks -- shouldn't happen.
+			panic("unexpected faux blocknode")
+		case *FileNode:
+			panic("unexpected file blocknode")
+		case *PackageNode:
+			panic("unexpected package blocknode")
+		case *FuncLitExpr:
+			body := cbn.GetBody()
+			_, bodyIdx = body.GetLabeledStmt(label)
+			if bodyIdx != -1 {
+				bn = cbn
+				return
+			}
+			panic(fmt.Sprintf(
+				"cannot find branch label %q",
+				label))
+		case *FuncDecl:
+			panic(fmt.Sprintf(
+				"cannot find branch label %q",
+				label))
+		default:
+			panic("unexpected block node")
+		}
 	}
 }
 
