@@ -1,11 +1,6 @@
 package rpc
 
 import (
-	"bytes"
-	"context"
-	crand "crypto/rand"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,13 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/random"
-
 	client "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	server "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 // Client and Server should work over tcp or unix sockets
@@ -33,8 +26,6 @@ const (
 	unixAddr   = "unix://" + unixSocket
 
 	websocketEndpoint = "/websocket/endpoint"
-
-	testVal = "acbd"
 )
 
 type ResultEcho struct {
@@ -164,160 +155,7 @@ func echoViaHTTP(cl client.HTTPClient, val string) (string, error) {
 	return result.Value, nil
 }
 
-func echoIntViaHTTP(cl client.HTTPClient, val int) (int, error) {
-	params := map[string]interface{}{
-		"arg": val,
-	}
-	result := new(ResultEchoInt)
-	if err := cl.Call("echo_int", params, result); err != nil {
-		return 0, err
-	}
-	return result.Value, nil
-}
-
-func echoBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
-	params := map[string]interface{}{
-		"arg": bytes,
-	}
-	result := new(ResultEchoBytes)
-	if err := cl.Call("echo_bytes", params, result); err != nil {
-		return []byte{}, err
-	}
-	return result.Value, nil
-}
-
-func echoDataBytesViaHTTP(cl client.HTTPClient, bytes []byte) ([]byte, error) {
-	params := map[string]interface{}{
-		"arg": bytes,
-	}
-	result := new(ResultEchoDataBytes)
-	if err := cl.Call("echo_data_bytes", params, result); err != nil {
-		return []byte{}, err
-	}
-	return result.Value, nil
-}
-
-func testWithHTTPClient(t *testing.T, cl client.HTTPClient) {
-	t.Helper()
-
-	val := testVal
-	got, err := echoViaHTTP(cl, val)
-	require.Nil(t, err)
-	assert.Equal(t, got, val)
-
-	val2 := randBytes(t)
-	got2, err := echoBytesViaHTTP(cl, val2)
-	require.Nil(t, err)
-	assert.Equal(t, got2, val2)
-
-	val3 := randBytes(t)
-	got3, err := echoDataBytesViaHTTP(cl, val3)
-	require.Nil(t, err)
-	assert.Equal(t, got3, val3)
-
-	val4 := random.RandIntn(10000)
-	got4, err := echoIntViaHTTP(cl, val4)
-	require.Nil(t, err)
-	assert.Equal(t, got4, val4)
-}
-
-func echoViaWS(cl *client.WSClient, val string) (string, error) {
-	params := map[string]interface{}{
-		"arg": val,
-	}
-	err := cl.Call(context.Background(), "echo", params, nil)
-	if err != nil {
-		return "", err
-	}
-
-	msgs := <-cl.ResponsesCh
-	if len(msgs) != 1 {
-		return "", fmt.Errorf("invalid number of responses, %d", len(msgs))
-	}
-
-	msg := msgs[0]
-
-	result := new(ResultEcho)
-	err = json.Unmarshal(msg.Result, result)
-	if err != nil {
-		return "", nil
-	}
-	return result.Value, nil
-}
-
-func echoBytesViaWS(cl *client.WSClient, bytes []byte) ([]byte, error) {
-	params := map[string]interface{}{
-		"arg": bytes,
-	}
-	err := cl.Call(context.Background(), "echo_bytes", params, nil)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	msgs := <-cl.ResponsesCh
-	if len(msgs) != 1 {
-		return nil, fmt.Errorf("invalid number of responses, %d", len(msgs))
-	}
-
-	msg := msgs[0]
-	if msg.Error != nil {
-		return []byte{}, msg.Error
-	}
-	result := new(ResultEchoBytes)
-	err = json.Unmarshal(msg.Result, result)
-	if err != nil {
-		return []byte{}, nil
-	}
-	return result.Value, nil
-}
-
-func testWithWSClient(t *testing.T, cl *client.WSClient) {
-	t.Helper()
-
-	val := testVal
-	got, err := echoViaWS(cl, val)
-	require.Nil(t, err)
-	assert.Equal(t, got, val)
-
-	val2 := randBytes(t)
-	got2, err := echoBytesViaWS(cl, val2)
-	require.Nil(t, err)
-	assert.Equal(t, got2, val2)
-}
-
 // -------------
-
-func TestServersAndClientsBasic(t *testing.T) {
-	t.Parallel()
-
-	serverAddrs := [...]string{tcpAddr, unixAddr}
-	for _, addr := range serverAddrs {
-		cl1 := client.NewURIClient(addr)
-		fmt.Printf("=== testing server on %s using URI client", addr)
-		testWithHTTPClient(t, cl1)
-
-		cl2 := client.NewJSONRPCClient(addr)
-		fmt.Printf("=== testing server on %s using JSONRPC client", addr)
-		testWithHTTPClient(t, cl2)
-
-		cl3 := client.NewWSClient(addr, websocketEndpoint)
-		cl3.SetLogger(log.TestingLogger())
-		err := cl3.Start()
-		require.Nil(t, err)
-		fmt.Printf("=== testing server on %s using WS client", addr)
-		testWithWSClient(t, cl3)
-		cl3.Stop()
-	}
-
-	cl1 := client.NewURIClient(tcpServerUnavailableAddr)
-	err := cl1.Call("error", nil, nil)
-	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
-
-	cl2 := client.NewJSONRPCClient(tcpServerUnavailableAddr)
-	err = cl2.Call("error", nil, nil)
-	require.EqualError(t, err, "server at 'http://0.0.0.0:47769' returned 418 I'm a teapot")
-}
-
 func TestHexStringArg(t *testing.T) {
 	t.Parallel()
 
@@ -338,86 +176,4 @@ func TestQuotedStringArg(t *testing.T) {
 	got, err := echoViaHTTP(cl, val)
 	require.Nil(t, err)
 	assert.Equal(t, got, val)
-}
-
-func TestWSNewWSRPCFunc(t *testing.T) {
-	t.Parallel()
-
-	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
-	err := cl.Start()
-	require.Nil(t, err)
-	defer cl.Stop()
-
-	val := testVal
-	params := map[string]interface{}{
-		"arg": val,
-	}
-	err = cl.Call(context.Background(), "echo_ws", params, nil)
-	require.Nil(t, err)
-
-	msgs := <-cl.ResponsesCh
-
-	for _, msg := range msgs {
-		if msg.Error != nil {
-			t.Fatal(err)
-		}
-		result := new(ResultEcho)
-		err = json.Unmarshal(msg.Result, result)
-		require.Nil(t, err)
-		got := result.Value
-		assert.Equal(t, got, val)
-	}
-}
-
-func TestWSHandlesArrayParams(t *testing.T) {
-	t.Parallel()
-
-	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
-	err := cl.Start()
-	require.Nil(t, err)
-	defer cl.Stop()
-
-	val := testVal
-	params := []interface{}{val}
-	err = cl.CallWithArrayParams(context.Background(), "echo_ws", params, nil)
-	require.Nil(t, err)
-
-	msgs := <-cl.ResponsesCh
-
-	for _, msg := range msgs {
-		if msg.Error != nil {
-			t.Fatalf("%+v", err)
-		}
-		result := new(ResultEcho)
-		err = json.Unmarshal(msg.Result, result)
-		require.Nil(t, err)
-		got := result.Value
-		assert.Equal(t, got, val)
-	}
-}
-
-// TestWSClientPingPong checks that a client & server exchange pings
-// & pongs so connection stays alive.
-func TestWSClientPingPong(t *testing.T) {
-	t.Parallel()
-
-	cl := client.NewWSClient(tcpAddr, websocketEndpoint)
-	cl.SetLogger(log.TestingLogger())
-	err := cl.Start()
-	require.Nil(t, err)
-	defer cl.Stop()
-
-	time.Sleep(6 * time.Second)
-}
-
-func randBytes(t *testing.T) []byte {
-	t.Helper()
-
-	n := random.RandIntn(10) + 2
-	buf := make([]byte, n)
-	_, err := crand.Read(buf)
-	require.Nil(t, err)
-	return bytes.Replace(buf, []byte("="), []byte{100}, -1)
 }

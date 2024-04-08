@@ -131,20 +131,20 @@ type RPCCaller interface {
 	Call(method string, params map[string]any, result any) error
 }
 
-// wrappedRPCRequest encapsulates a single buffered request, as well as its
+// WrappedRPCRequest encapsulates a single buffered request, as well as its
 // anticipated response structure
-type wrappedRPCRequest struct {
+type WrappedRPCRequest struct {
 	request types.RPCRequest
 	result  any // The result will be deserialized into this object (Amino)
 }
 
-type wrappedRPCRequests []*wrappedRPCRequest
+type WrappedRPCRequests []*WrappedRPCRequest
 
-func (w *wrappedRPCRequest) extractRPCRequest() types.RPCRequest {
+func (w *WrappedRPCRequest) extractRPCRequest() types.RPCRequest {
 	return w.request
 }
 
-func (w *wrappedRPCRequests) extractRPCRequests() types.RPCRequests {
+func (w *WrappedRPCRequests) extractRPCRequests() types.RPCRequests {
 	requests := make([]types.RPCRequest, 0, len(*w))
 
 	for _, wrappedRequest := range *w {
@@ -226,7 +226,7 @@ func (c *JSONRPCClient) Call(method string, params map[string]any, result any) e
 	return unmarshalResponseIntoResult(&response, id, result)
 }
 
-func (c *JSONRPCClient) SendBatch(_ context.Context, wrappedRequests wrappedRPCRequests) (types.RPCResponses, error) {
+func (c *JSONRPCClient) SendBatch(_ context.Context, wrappedRequests WrappedRPCRequests) (types.RPCResponses, error) {
 	requests := make(types.RPCRequests, 0, len(wrappedRequests))
 	for _, request := range wrappedRequests {
 		requests = append(requests, request.request)

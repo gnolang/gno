@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -16,6 +15,7 @@ import (
 // TODO: refactor when Go 2.0 arrives https://github.com/golang/go/issues/19412
 type JSONRPCID interface {
 	IsJSONRPCID()
+	String() string
 }
 
 // JSONRPCStringID a wrapper for JSON-RPC string IDs
@@ -23,10 +23,18 @@ type JSONRPCStringID string
 
 func (JSONRPCStringID) IsJSONRPCID() {}
 
+func (id JSONRPCStringID) String() string {
+	return string(id)
+}
+
 // JSONRPCIntID a wrapper for JSON-RPC integer IDs
 type JSONRPCIntID int
 
 func (JSONRPCIntID) IsJSONRPCID() {}
+
+func (id JSONRPCIntID) String() string {
+	return fmt.Sprintf("%d", id)
+}
 
 func idFromInterface(idInterface interface{}) (JSONRPCID, error) {
 	switch id := idInterface.(type) {
@@ -110,23 +118,6 @@ func MapToRequest(id JSONRPCID, method string, params map[string]interface{}) (R
 	return request, nil
 }
 
-func ArrayToRequest(id JSONRPCID, method string, params []interface{}) (RPCRequest, error) {
-	params_ := make([]json.RawMessage, len(params))
-	for i, value := range params {
-		valueJSON, err := amino.MarshalJSON(value)
-		if err != nil {
-			return RPCRequest{}, err
-		}
-		params_[i] = valueJSON
-	}
-	payload, err := json.Marshal(params_) // NOTE: Amino doesn't handle maps yet.
-	if err != nil {
-		return RPCRequest{}, err
-	}
-	request := NewRPCRequest(id, method, payload)
-	return request, nil
-}
-
 // ----------------------------------------
 // RESPONSE
 
@@ -191,7 +182,7 @@ func NewRPCSuccessResponse(id JSONRPCID, res interface{}) RPCResponse {
 		if err != nil {
 			return RPCInternalError(id, errors.Wrap(err, "Error marshalling response"))
 		}
-		rawMsg = json.RawMessage(js)
+		rawMsg = js
 	}
 
 	return RPCResponse{JSONRPC: "2.0", ID: id, Result: rawMsg}
@@ -300,18 +291,4 @@ func (ctx *Context) Context() context.Context {
 		return ctx.WSConn.Context()
 	}
 	return context.Background()
-}
-
-// ----------------------------------------
-// SOCKETS
-
-// Determine if its a unix or tcp socket.
-// If tcp, must specify the port; `0.0.0.0` will return incorrectly as "unix" since there's no port
-// TODO: deprecate
-func SocketType(listenAddr string) string {
-	socketType := "unix"
-	if len(strings.Split(listenAddr, ":")) >= 2 {
-		socketType = "tcp"
-	}
-	return socketType
 }

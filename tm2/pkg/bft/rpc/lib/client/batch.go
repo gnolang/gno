@@ -10,7 +10,7 @@ import (
 )
 
 type BatchClient interface {
-	SendBatch(ctx context.Context, requests wrappedRPCRequests) (types.RPCResponses, error)
+	SendBatch(ctx context.Context, requests WrappedRPCRequests) (types.RPCResponses, error)
 	GetIDPrefix() types.JSONRPCID
 }
 
@@ -23,14 +23,14 @@ type RPCRequestBatch struct {
 	sync.Mutex
 
 	client   BatchClient
-	requests wrappedRPCRequests
+	requests WrappedRPCRequests
 }
 
 // NewRPCRequestBatch creates a new
 func NewRPCRequestBatch(client BatchClient) *RPCRequestBatch {
 	return &RPCRequestBatch{
 		client:   client,
-		requests: make(wrappedRPCRequests, 0),
+		requests: make(WrappedRPCRequests, 0),
 	}
 }
 
@@ -52,7 +52,7 @@ func (b *RPCRequestBatch) Clear() int {
 
 func (b *RPCRequestBatch) clear() int {
 	count := len(b.requests)
-	b.requests = make(wrappedRPCRequests, 0)
+	b.requests = make(WrappedRPCRequests, 0)
 
 	return count
 }
@@ -101,7 +101,7 @@ func (b *RPCRequestBatch) Call(method string, params map[string]any, result any)
 	}
 
 	b.enqueue(
-		&wrappedRPCRequest{
+		&WrappedRPCRequest{
 			request: request,
 			result:  result,
 		},
@@ -110,7 +110,7 @@ func (b *RPCRequestBatch) Call(method string, params map[string]any, result any)
 	return nil
 }
 
-func (b *RPCRequestBatch) enqueue(req *wrappedRPCRequest) {
+func (b *RPCRequestBatch) enqueue(req *WrappedRPCRequest) {
 	b.Lock()
 	defer b.Unlock()
 

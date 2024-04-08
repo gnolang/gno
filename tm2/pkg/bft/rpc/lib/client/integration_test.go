@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/ws"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -27,11 +28,11 @@ func TestWSClientReconnectWithJitter(t *testing.T) {
 	maxSleepTime := time.Second * time.Duration(((1<<uint(maxReconnectAttempts))-1)+maxReconnectAttempts)
 
 	errNotConnected := errors.New("not connected")
-	clientMap := make(map[int]*WSClient)
+	clientMap := make(map[int]*ws.Client)
 	buf := new(bytes.Buffer)
 	logger := log.NewTMLogger(buf)
 	for i := 0; i < n; i++ {
-		c := NewWSClient("tcp://foo", "/websocket")
+		c := ws.NewClient("tcp://foo", "/websocket")
 		c.Dialer = func(string, string) (net.Conn, error) {
 			return nil, errNotConnected
 		}
