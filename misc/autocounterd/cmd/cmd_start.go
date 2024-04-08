@@ -43,6 +43,7 @@ func NewStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
+			ShortHelp:  "Runs the linter for the specified packages",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
