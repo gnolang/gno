@@ -35,9 +35,9 @@ of state management and persistence, like they do with other languages.
 
 ### On-chain paths
 Since Gno.land is built for full transparency and auditability, all on-chain Gno
-code is open-sourced. You can view realm code by simply going to its path in
-your web browser. For example, to take a look at the `gno.land/r/demo/users` realm,
-used for user registration, by visiting
+code is open-sourced. You can view realm code with an ABCI query, or simply going
+to its path in your web browser. For example, to take a look at the
+`gno.land/r/demo/users` realm, used for user registration, by visiting
 [`gno.land/r/demo/users`](https://gno.land/r/demo/users/users.gno).
 
 :::info
