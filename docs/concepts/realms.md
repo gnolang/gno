@@ -103,7 +103,10 @@ Realm A:
 Let's look at return values for each of the methods:
 ```go
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PrevRealm() => Realm {
+    addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+    pkgPath: ``
+}
 std.CurrentRealm() => Realm {
     addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
     pkgPath: `gno.land/r/demo/users`
@@ -144,7 +147,10 @@ Depending on which realm the methods are called in, the values will change. For
 `Realm A`:
 ```go
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PrevRealm() => Realm {
+    addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+    pkgPath: ``
+}
 std.CurrentRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
@@ -158,7 +164,10 @@ std.GetCallerAt(3) => error
 For `Realm B`:
 ```go
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+std.PrevRealm() => Realm {
+    addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
+    pkgPath: `gno.land/r/demo/a`
+}
 std.CurrentRealm() => Realm {
     addr:    `g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v`
     pkgPath: `gno.land/r/demo/b`
