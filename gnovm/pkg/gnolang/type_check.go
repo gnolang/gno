@@ -402,8 +402,12 @@ func checkAssignableTo(xt, dt Type, autoNative bool) {
 					"cannot use untyped string as %s",
 					dt.Kind()))
 			}
-
-		case UntypedBigdecType: // can bigdec assign to bigint?
+		// XXX, this is a loose check, we don't have the context
+		// to check if it is an exact integer, e.g. 1.2 or 1.0(1.0 can be converted to int).
+		// this ensure expr like (a % 1.0) pass check, while
+		// expr like (a % 1.2) panic at ConvertUntypedTo, which is a delayed assertion when const evaluated.
+		// assignable does not guarantee convertable.
+		case UntypedBigdecType:
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
@@ -418,7 +422,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) {
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind: // see 0d0
 				return // ok
 			default:
 				panic(fmt.Sprintf(

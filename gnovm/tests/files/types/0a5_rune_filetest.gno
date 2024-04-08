@@ -8,9 +8,11 @@ func main() {
 	println(r)
 	println(float32(r))
 	println(float64(r))
+	println(string(r))
 }
 
 // Output:
 // 97
 // 97
 // 97
+// a
