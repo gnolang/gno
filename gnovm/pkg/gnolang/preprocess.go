@@ -1664,7 +1664,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				case CONTINUE:
 					if isSwitchLabel(ns, n.Label) {
-						panic(fmt.Sprintf("invalid continue label %v\n", n.Label))
+						panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
 					}
 					findBranchLabel(last, n.Label)
 				case GOTO:
@@ -2274,6 +2274,14 @@ func findBranchLabel(last BlockNode, label Name) (
 ) {
 	for {
 		switch cbn := last.(type) {
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
+			lbl := cbn.GetLabel()
+			if label == lbl {
+				bn = cbn
+				return
+			}
+			last = cbn.GetParentNode(nil)
+			depth += 1
 		case *IfStmt:
 			// These are faux blocks -- shouldn't happen.
 			panic("unexpected faux blocknode")
@@ -2287,20 +2295,10 @@ func findBranchLabel(last BlockNode, label Name) (
 			if bodyIdx != -1 {
 				bn = cbn
 				return
-			} else {
-				panic(fmt.Sprintf(
-					"cannot find branch label %q",
-					label))
 			}
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
-			lbl := cbn.GetLabel()
-			if label == lbl {
-				bn = cbn
-				return
-			} else {
-				last = cbn.GetParentNode(nil)
-				depth += 1
-			}
+			panic(fmt.Sprintf(
+				"cannot find branch label %q",
+				label))
 		case *FuncDecl:
 			panic(fmt.Sprintf(
 				"cannot find branch label %q",
