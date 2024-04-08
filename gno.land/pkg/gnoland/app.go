@@ -31,6 +31,7 @@ type AppOptions struct {
 	GnoRootDir            string
 	SkipFailingGenesisTxs bool
 	Logger                *slog.Logger
+	MaxCycles             int64
 }
 
 func NewAppOptions() *AppOptions {
@@ -77,7 +78,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir)
+	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.SkipFailingGenesisTxs))
@@ -122,7 +123,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger) (abci.Application, error) {
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
