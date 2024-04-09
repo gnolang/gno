@@ -3,13 +3,13 @@ package dev
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"strings"
 	"unicode"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	devlogger "github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -401,8 +401,7 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err 
 }
 
 func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	nooplogger := slog.NewJSONHandler(io.Discard, nil)
-	node, err := gnoland.NewInMemoryNode(slog.New(nooplogger), cfg)
+	node, err := gnoland.NewInMemoryNode(slog.New(&devlogger.Noop{}), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new node: %w", err)
 	}
