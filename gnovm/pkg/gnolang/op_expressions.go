@@ -78,7 +78,16 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
+	debug.Println("---doOpSelector")
+	debug.Println("---doOpSelector, sx: ", sx)
+	debug.Println("---doOpSelector, sx path: ", sx.Path)
+	debug.Println("---doOpSelector, xv: ", xv)
+	ptr := xv.GetPointerTo(m.Alloc, m.Store, sx.Path)
+	debug.Println("---doOpSelector, ptr: ", ptr)
+	debug.Println("---doOpSelector, ptr.TV: ", ptr.TV)
+	res := ptr.Deref()
+	//res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
+	debug.Println("---doOpSelector, res: ", res)
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)

@@ -1548,6 +1548,12 @@ func (m *Machine) PeekType(offset int) Type {
 func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
+		m.Printf("type of tv: %v \n", tv.T)
+		m.Printf("value of tv: %v \n", tv.V)
+		if tv, ok := tv.V.(TypeValue); ok {
+			m.Printf("tv.Type: %v \n", tv.Type)
+
+		}
 	}
 	if len(m.Values) == m.NumValues {
 		// TODO tune. also see PushOp().
