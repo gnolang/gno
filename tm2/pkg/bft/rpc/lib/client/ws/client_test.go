@@ -163,10 +163,140 @@ func TestClient_SendBatch(t *testing.T) {
 	t.Parallel()
 
 	t.Run("batch timed out", func(t *testing.T) {
-		t.Parallel() // TODO implement
+		t.Parallel()
+
+		var (
+			upgrader = websocket.Upgrader{}
+
+			request = types.RPCRequest{
+				JSONRPC: "2.0",
+				ID:      types.JSONRPCStringID("id"),
+			}
+
+			batch = types.RPCRequests{request}
+		)
+
+		ctx, cancelFn := context.WithCancel(context.Background())
+		defer cancelFn()
+
+		// Create the server
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrader.Upgrade(w, r, nil)
+			require.NoError(t, err)
+
+			defer c.Close()
+
+			for {
+				_, message, err := c.ReadMessage()
+				if websocket.IsUnexpectedCloseError(err) {
+					return
+				}
+
+				require.NoError(t, err)
+
+				// Parse the message
+				var req types.RPCRequests
+				require.NoError(t, json.Unmarshal(message, &req))
+
+				require.Len(t, req, 1)
+				require.Equal(t, request.ID.String(), req[0].ID.String())
+
+				// Simulate context cancellation mid-request parsing
+				cancelFn()
+			}
+		}
+
+		s := createTestServer(t, http.HandlerFunc(handler))
+		url := "ws" + strings.TrimPrefix(s.URL, "http")
+
+		// Create the client
+		c, err := NewClient(url)
+		require.NoError(t, err)
+
+		defer func() {
+			assert.NoError(t, c.Close())
+		}()
+
+		// Try to send the request, but wait for
+		// the context to be cancelled
+		response, err := c.SendBatch(ctx, batch)
+		require.Nil(t, response)
+
+		assert.ErrorIs(t, err, errTimedOut)
 	})
 
 	t.Run("valid batch sent", func(t *testing.T) {
-		t.Parallel() // TODO implement
+		t.Parallel()
+
+		var (
+			upgrader = websocket.Upgrader{}
+
+			request = types.RPCRequest{
+				JSONRPC: "2.0",
+				ID:      types.JSONRPCStringID("id"),
+			}
+
+			response = types.RPCResponse{
+				JSONRPC: "2.0",
+				ID:      request.ID,
+			}
+
+			batch         = types.RPCRequests{request}
+			batchResponse = types.RPCResponses{response}
+		)
+
+		// Create the server
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrader.Upgrade(w, r, nil)
+			require.NoError(t, err)
+
+			defer c.Close()
+
+			for {
+				mt, message, err := c.ReadMessage()
+				if websocket.IsUnexpectedCloseError(err) {
+					return
+				}
+
+				require.NoError(t, err)
+
+				// Parse the message
+				var req types.RPCRequests
+				require.NoError(t, json.Unmarshal(message, &req))
+
+				require.Len(t, req, 1)
+				require.Equal(t, request.ID.String(), req[0].ID.String())
+
+				marshalledResponse, err := json.Marshal(batchResponse)
+				require.NoError(t, err)
+
+				require.NoError(t, c.WriteMessage(mt, marshalledResponse))
+			}
+		}
+
+		s := createTestServer(t, http.HandlerFunc(handler))
+		url := "ws" + strings.TrimPrefix(s.URL, "http")
+
+		// Create the client
+		c, err := NewClient(url)
+		require.NoError(t, err)
+
+		defer func() {
+			assert.NoError(t, c.Close())
+		}()
+
+		// Try to send the valid request
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancelFn()
+
+		resp, err := c.SendBatch(ctx, batch)
+		require.NoError(t, err)
+
+		require.Len(t, resp, 1)
+
+		assert.Equal(t, response.ID, resp[0].ID)
+		assert.Equal(t, response.JSONRPC, resp[0].JSONRPC)
+		assert.Equal(t, response.Result, resp[0].Result)
+		assert.Equal(t, response.Error, resp[0].Error)
 	})
 }
