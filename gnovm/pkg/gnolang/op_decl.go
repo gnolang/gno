@@ -1,6 +1,8 @@
 package gnolang
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func (m *Machine) doOpValueDecl() {
 	s := m.PopStmt().(*ValueDecl)
@@ -39,7 +41,6 @@ func (m *Machine) doOpValueDecl() {
 					ConvertUntypedTo(&tv, nt)
 				} else {
 					if debug {
-						debug.Println("---doOpValueDecl, nt, tv.T: ", nt, tv.T)
 						if nt.TypeID() != tv.T.TypeID() &&
 							baseOf(nt).TypeID() != tv.T.TypeID() {
 							panic(fmt.Sprintf(

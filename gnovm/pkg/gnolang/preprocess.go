@@ -2954,7 +2954,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
-			// see a20a
 			if pt, ok := rt.(*PointerType); ok {
 				dt = pt.Elem().(*DeclaredType)
 			} else {
