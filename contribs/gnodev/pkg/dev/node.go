@@ -361,34 +361,34 @@ func (n *Node) stopIfRunning() error {
 	return nil
 }
 
-func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
+func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxHandler = n.genesisTxHandler
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 
-	var recoverErr error
-
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
 		if r := recover(); r != nil {
-			var ok bool
-			if recoverErr, ok = r.(error); !ok {
-				panic(r) // Re-panic if not an error
+			switch val := r.(type) {
+			case error:
+				err = val
+			case string:
+				err = fmt.Errorf("error: %s", val)
+			default:
+				err = fmt.Errorf("unknown error: %#v", val)
 			}
 		}
 	}
 
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
+
 	node, nodeErr := buildNode(n.logger, n.emitter, nodeConfig)
-	if recoverErr != nil { // First check for recover error in case of panic
-		return fmt.Errorf("recovered from a node panic: %w", recoverErr)
-	}
 	if nodeErr != nil { // Then for any node error
 		return fmt.Errorf("unable to build the node: %w", nodeErr)
 	}
-
+	c
 	// Wait for the node to be ready
 	select {
 	case <-gnoland.GetNodeReadiness(node): // Ok
