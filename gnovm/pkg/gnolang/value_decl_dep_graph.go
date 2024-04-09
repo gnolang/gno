@@ -9,7 +9,7 @@ import (
 // sortValueDeps creates a new topologically sorted
 // decl slice ready for processing in order
 func sortValueDeps(decls Decls) (Decls, error) {
-	graph := &Graph{
+	graph := &graph{
 		edges:    make(map[string][]string),
 		vertices: make([]string, 0),
 	}
@@ -111,7 +111,7 @@ func sortValueDeps(decls Decls) (Decls, error) {
 	return otherDecls, nil
 }
 
-func addDepFromExpr(dg *Graph, fromNode string, expr Expr) {
+func addDepFromExpr(dg *graph, fromNode string, expr Expr) {
 	switch e := expr.(type) {
 	case *FuncLitExpr:
 		for _, stmt := range e.Body {
@@ -133,7 +133,7 @@ func addDepFromExpr(dg *Graph, fromNode string, expr Expr) {
 	}
 }
 
-func addDepFromExprStmt(dg *Graph, fromNode string, stmt Stmt) {
+func addDepFromExprStmt(dg *graph, fromNode string, stmt Stmt) {
 	switch e := stmt.(type) {
 	case *ExprStmt:
 		addDepFromExpr(dg, fromNode, e.X)
@@ -175,20 +175,20 @@ func addDepFromExprStmt(dg *Graph, fromNode string, stmt Stmt) {
 	}
 }
 
-type Graph struct {
+type graph struct {
 	edges    map[string][]string
 	vertices []string
 }
 
-func (g *Graph) addEdge(u, v string) {
+func (g *graph) addEdge(u, v string) {
 	g.edges[u] = append(g.edges[u], v)
 }
 
-func (g *Graph) addVertex(v string) {
+func (g *graph) addVertex(v string) {
 	g.vertices = append(g.vertices, v)
 }
 
-func (g *Graph) topologicalSortUtil(v string, visited map[string]bool, stack *[]string) {
+func (g *graph) topologicalSortUtil(v string, visited map[string]bool, stack *[]string) {
 	visited[v] = true
 
 	for _, u := range g.edges[v] {
@@ -200,7 +200,7 @@ func (g *Graph) topologicalSortUtil(v string, visited map[string]bool, stack *[]
 	*stack = append([]string{v}, *stack...)
 }
 
-func (g *Graph) topologicalSort() []string {
+func (g *graph) topologicalSort() []string {
 	stack := make([]string, 0)
 	visited := make(map[string]bool)
 
