@@ -388,7 +388,7 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err 
 	if nodeErr != nil { // Then for any node error
 		return fmt.Errorf("unable to build the node: %w", nodeErr)
 	}
-	c
+
 	// Wait for the node to be ready
 	select {
 	case <-gnoland.GetNodeReadiness(node): // Ok

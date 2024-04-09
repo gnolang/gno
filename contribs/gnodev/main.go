@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -151,7 +152,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execDev(cfg *devCfg, args []string, io commands.IO) error {
+func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
@@ -174,17 +175,24 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return fmt.Errorf("unable to init raw term: %w", err)
 	}
-	defer restore()
-
 	// Setup trap signal
 	osm.TrapSignal(func() {
-		restore()
 		cancel(nil)
+		restore()
 	})
 
 	logger := setuplogger(cfg, rt)
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
+
+	// Defer cleanup
+	cleanup := func() {
+		if r := recover(); r != nil {
+			logger.Error("something went wrong", "err", r, "stack", string(debug.Stack()))
+		}
+		restore()
+	}
+	defer cleanup()
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
@@ -311,6 +319,9 @@ func runEventLoop(
 				}
 
 			case rawterm.KeyCtrlC:
+				return nil
+			case rawterm.KeyCtrlE:
+				panic("NOOOO")
 				return nil
 			default:
 			}
