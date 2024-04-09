@@ -205,9 +205,9 @@ func TestClient_SendBatchRequest(t *testing.T) {
 	resps, err := c.SendBatch(ctx, requests)
 	require.NoError(t, err)
 
-	require.Len(t, *resps, len(requests))
+	require.Len(t, resps, len(requests))
 
-	for _, resp := range *resps {
+	for _, resp := range resps {
 		assert.Equal(t, request.ID, resp.ID)
 		assert.Equal(t, request.JSONRPC, resp.JSONRPC)
 		assert.Nil(t, resp.Result)

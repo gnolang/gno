@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
 	http2 "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 )
 
@@ -38,7 +38,7 @@ type HTTP struct {
 // batch, but ordering of transactions in the batch cannot be guaranteed in such
 // an example.
 type Batch struct {
-	rpcBatch *rpcclient.RPCRequestBatch
+	rpcBatch *rpcclient.Batch
 	*baseRPCClient
 }
 
@@ -80,7 +80,7 @@ func NewHTTPWithClient(remote string, client *http.Client) *HTTP {
 
 // NewBatch creates a new rpcBatch client for this HTTP client.
 func (c *HTTP) NewBatch() *Batch {
-	batch := rpcclient.NewRPCRequestBatch(c.rpc)
+	batch := rpcclient.NewBatch(c.rpc)
 	return &Batch{
 		rpcBatch: batch,
 		baseRPCClient: &baseRPCClient{

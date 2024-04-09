@@ -8,10 +8,10 @@ import (
 	"time"
 
 	http2 "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
+	client "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/uri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	client "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	server "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -146,7 +146,7 @@ func echoViaHTTP(cl http2.HTTPClient, val string) (string, error) {
 func TestHexStringArg(t *testing.T) {
 	t.Parallel()
 
-	cl := client.NewURIClient(tcpAddr)
+	cl := client.NewClient(tcpAddr)
 	// should NOT be handled as hex
 	val := "0xabc"
 	got, err := echoViaHTTP(cl, val)
@@ -157,7 +157,7 @@ func TestHexStringArg(t *testing.T) {
 func TestQuotedStringArg(t *testing.T) {
 	t.Parallel()
 
-	cl := client.NewURIClient(tcpAddr)
+	cl := client.NewClient(tcpAddr)
 	// should NOT be unquoted
 	val := "\"abc\""
 	got, err := echoViaHTTP(cl, val)
