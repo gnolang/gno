@@ -85,22 +85,22 @@ func TestRePkgOrRlmPath(t *testing.T) {
 		{
 			desc:     "Invalid With Underscore 1",
 			in:       "gno.land/r/path/_",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Invalid With Underscore 2",
 			in:       "gno.land/r/path/_/_",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Invalid With Underscore 3",
 			in:       "gno.land/r/path/__/path",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Invalid With Hyphen",
 			in:       "gno.land/r/path/pa-th",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Invalid x",
@@ -125,17 +125,17 @@ func TestRePkgOrRlmPath(t *testing.T) {
 		{
 			desc:     "Special Character 1",
 			in:       "gno.land/p/p@th/abc/def",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Special Character 2",
 			in:       "gno.land/p/p&th/abc/def",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Special Character 3",
 			in:       "gno.land/p/p&%$#h/abc/def",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Leading Number",
@@ -150,17 +150,17 @@ func TestRePkgOrRlmPath(t *testing.T) {
 		{
 			desc:     "Empty Path Part",
 			in:       "gno.land/p/path//def",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Trailing Slash",
 			in:       "gno.land/p/path/abc/def/",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Extra Slash(s)",
 			in:       "gno.land/p/path///abc/def",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Valid Long path",
@@ -170,22 +170,22 @@ func TestRePkgOrRlmPath(t *testing.T) {
 		{
 			desc:     "Long Path With Special Character 1",
 			in:       "gno.land/r/very/very/very/long/p@th",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Long Path With Special Character 2",
 			in:       "gno.land/r/very/very/v%ry/long/path",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Long Path With Trailing Slash",
 			in:       "gno.land/r/very/very/very/long/path/",
-			expected: false, // fails
+			expected: false,
 		},
 		{
 			desc:     "Long Path With Empty Path Part",
 			in:       "gno.land/r/very/very/very//long/path/",
-			expected: false, // fails
+			expected: false,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
