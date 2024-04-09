@@ -225,7 +225,7 @@ func processCompound(node string, vd *ValueDecl, decl Decl) Decl {
 	names := strings.Split(node, ", ")
 
 	if len(names) != len(vd.NameExprs) {
-		panic("1should not happen")
+		panic("should not happen")
 	}
 
 	equal := true
