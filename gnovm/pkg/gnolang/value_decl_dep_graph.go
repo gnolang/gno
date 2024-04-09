@@ -137,6 +137,41 @@ func addDepFromExprStmt(dg *Graph, fromNode string, stmt Stmt) {
 	switch e := stmt.(type) {
 	case *ExprStmt:
 		addDepFromExpr(dg, fromNode, e.X)
+	case *IfStmt:
+		addDepFromExprStmt(dg, fromNode, e.Init)
+		addDepFromExpr(dg, fromNode, e.Cond)
+
+		for _, stm := range e.Then.Body {
+			addDepFromExprStmt(dg, fromNode, stm)
+		}
+		for _, stm := range e.Else.Body {
+			addDepFromExprStmt(dg, fromNode, stm)
+		}
+	case *ReturnStmt:
+		for _, stm := range e.Results {
+			addDepFromExpr(dg, fromNode, stm)
+		}
+	case *AssignStmt:
+		for _, stm := range e.Rhs {
+			addDepFromExpr(dg, fromNode, stm)
+		}
+	case *SwitchStmt:
+		addDepFromExpr(dg, fromNode, e.X)
+		for _, clause := range e.Clauses {
+			addDepFromExpr(dg, fromNode, clause.bodyStmt.Cond)
+			for _, s := range clause.bodyStmt.Body {
+				addDepFromExprStmt(dg, fromNode, s)
+			}
+		}
+	case *ForStmt:
+		addDepFromExpr(dg, fromNode, e.Cond)
+		for _, s := range e.bodyStmt.Body {
+			addDepFromExprStmt(dg, fromNode, s)
+		}
+	case *BlockStmt:
+		for _, s := range e.Block.bodyStmt.Body {
+			addDepFromExprStmt(dg, fromNode, s)
+		}
 	}
 }
 
