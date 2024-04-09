@@ -257,76 +257,8 @@ func main() {
 //                                 "FileName": "realm_method38d.gno",
 //                                 "IsMethod": true,
 //                                 "Name": "Add",
-//                                 "PkgPath": "gno.land/r/demo/tests",
-//                                 "Source": {
-//                                     "@type": "/gno.RefNode",
-//                                     "BlockNode": null,
-//                                     "Location": {
-//                                         "File": "realm_method38d.gno",
-//                                         "Line": "5",
-//                                         "Nonce": "0",
-//                                         "PkgPath": "gno.land/r/demo/tests"
-//                                     }
-//                                 },
-//                                 "Type": {
-//                                     "@type": "/gno.FuncType",
-//                                     "Params": [
-//                                         {
-//                                             "Embedded": false,
-//                                             "Name": "n",
-//                                             "Tag": "",
-//                                             "Type": {
-//                                                 "@type": "/gno.RefType",
-//                                                 "ID": "gno.land/r/demo/tests.nat"
-//                                             }
-//                                         }
-//                                     ],
-//                                     "Results": [
-//                                         {
-//                                             "Embedded": false,
-//                                             "Name": "",
-//                                             "Tag": "",
-//                                             "Type": {
-//                                                 "@type": "/gno.RefType",
-//                                                 "ID": "gno.land/r/demo/tests.nat"
-//                                             }
-//                                         }
-//                                     ]
-//                                 }
-//                             }
-//                         },
-//                         {
-//                             "T": {
-//                                 "@type": "/gno.FuncType",
-//                                 "Params": [
-//                                     {
-//                                         "Embedded": false,
-//                                         "Name": "n",
-//                                         "Tag": "",
-//                                         "Type": {
-//                                             "@type": "/gno.RefType",
-//                                             "ID": "gno.land/r/demo/tests.nat"
-//                                         }
-//                                     }
-//                                 ],
-//                                 "Results": [
-//                                     {
-//                                         "Embedded": false,
-//                                         "Name": "",
-//                                         "Tag": "",
-//                                         "Type": {
-//                                             "@type": "/gno.RefType",
-//                                             "ID": "gno.land/r/demo/tests.nat"
-//                                         }
-//                                     }
-//                                 ]
-//                             },
-//                             "V": {
-//                                 "@type": "/gno.FuncValue",
-//                                 "Closure": null,
-//                                 "FileName": "realm_method38d.gno",
-//                                 "IsMethod": true,
-//                                 "Name": "Add",
+//                                 "NativeName": "",
+//                                 "NativePkg": "",
 //                                 "PkgPath": "gno.land/r/demo/tests",
 //                                 "Source": {
 //                                     "@type": "/gno.RefNode",
@@ -696,6 +628,8 @@ func main() {
 //                 "FileName": "realm_compositelit.gno",
 //                 "IsMethod": false,
 //                 "Name": "GetZeroType",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -750,6 +684,8 @@ func main() {
 //                 "FileName": "realm_method38d.gno",
 //                 "IsMethod": false,
 //                 "Name": "GetAbs",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -804,6 +740,8 @@ func main() {
 //                 "FileName": "realm_method38d.gno",
 //                 "IsMethod": false,
 //                 "Name": "AbsAdd",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/demo/tests",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
