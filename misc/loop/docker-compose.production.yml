@@ -95,8 +95,7 @@ services:
       traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.period: "1m"
 
   portalloopd:
-    # image: ghcr.io/gnolang/gno/portalloopd
-    image: ghcr.io/albttx/gno/portalloopd
+    image: ghcr.io/gnolang/gno/portalloopd
     restart: unless-stopped
     volumes:
       - ./scripts:/scripts
@@ -119,11 +118,14 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
+    #image: ghcr.io/gnolang/gno/autocounterd
     image: ghcr.io/albttx/gno/autocounterd
     restart: unless-stopped
     env_file: ".env"
     command:
       - "start"
+      - "--chain-id=portal-loop"
+      - "--interval=15m"
       - "--mnemonic=${COUNTER_MNEMONIC}"
       - "--rpc=http://traefik:26657"
     networks:
