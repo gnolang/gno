@@ -7,12 +7,12 @@ import (
 	"sync"
 	"testing"
 
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	rpctest "github.com/gnolang/gno/tm2/pkg/bft/rpc/test"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )

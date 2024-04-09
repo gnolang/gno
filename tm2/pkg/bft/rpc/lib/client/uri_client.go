@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	http2 "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -18,18 +19,18 @@ type URIClient struct {
 
 // The function panics if the provided remote is invalid.
 func NewURIClient(remote string) *URIClient {
-	clientAddress, err := toClientAddress(remote)
+	clientAddress, err := http2.toClientAddress(remote)
 	if err != nil {
 		panic(fmt.Sprintf("invalid remote %s: %s", remote, err))
 	}
 	return &URIClient{
 		address: clientAddress,
-		client:  DefaultHTTPClient(remote),
+		client:  http2.DefaultHTTPClient(remote),
 	}
 }
 
 func (c *URIClient) Call(method string, params map[string]any, result any) error {
-	values, err := argsToURLValues(params)
+	values, err := http2.argsToURLValues(params)
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,7 @@ func (c *URIClient) Call(method string, params map[string]any, result any) error
 	}
 	defer resp.Body.Close() //nolint: errcheck
 
-	if !statusOK(resp.StatusCode) {
+	if !http2.statusOK(resp.StatusCode) {
 		return errors.New("server at '%s' returned %s", c.address, resp.Status)
 	}
 
@@ -60,5 +61,5 @@ func (c *URIClient) Call(method string, params map[string]any, result any) error
 		return errors.Wrap(response.Error, "response error")
 	}
 
-	return unmarshalResponseIntoResult(&response, types.JSONRPCStringID(""), result)
+	return http2.unmarshalResponseIntoResult(&response, types.JSONRPCStringID(""), result)
 }

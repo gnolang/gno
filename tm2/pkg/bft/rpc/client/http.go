@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
+	http2 "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 )
 
 /*
@@ -21,7 +22,7 @@ the example for more details.
 */
 type HTTP struct {
 	remote string
-	rpc    *rpcclient.JSONRPCClient
+	rpc    *http2.Client
 
 	*baseRPCClient
 }
@@ -44,7 +45,7 @@ type Batch struct {
 // baseRPCClient implements the basic RPC method logic without the actual
 // underlying RPC call functionality, which is provided by `caller`.
 type baseRPCClient struct {
-	caller rpcclient.RPCCaller
+	caller http2.RPCCaller
 }
 
 var (
@@ -58,7 +59,7 @@ var (
 // NewHTTP takes a remote endpoint in the form <protocol>://<host>:<port>
 // The function panics if the provided remote is invalid.<Paste>
 func NewHTTP(remote string) *HTTP {
-	httpClient := rpcclient.DefaultHTTPClient(remote)
+	httpClient := http2.DefaultHTTPClient(remote)
 	return NewHTTPWithClient(remote, httpClient)
 }
 
@@ -68,7 +69,7 @@ func NewHTTPWithClient(remote string, client *http.Client) *HTTP {
 	if client == nil {
 		panic("nil http.Client provided")
 	}
-	rc := rpcclient.NewJSONRPCClientWithHTTPClient(remote, client)
+	rc := http2.NewJSONRPCClientWithHTTPClient(remote, client)
 
 	return &HTTP{
 		rpc:           rc,

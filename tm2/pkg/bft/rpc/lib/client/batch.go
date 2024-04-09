@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type BatchClient interface {
-	SendBatch(ctx context.Context, requests WrappedRPCRequests) (types.RPCResponses, error)
+	SendBatch(ctx context.Context, requests http.WrappedRPCRequests) (types.RPCResponses, error)
 	GetIDPrefix() types.JSONRPCID
 }
 
-var _ RPCCaller = (*RPCRequestBatch)(nil)
+var _ http.RPCCaller = (*RPCRequestBatch)(nil)
 
 // RPCRequestBatch allows us to buffer multiple request/response structures
 // into a single batch request. Note that this batch acts like a FIFO queue, and
@@ -23,14 +24,14 @@ type RPCRequestBatch struct {
 	sync.Mutex
 
 	client   BatchClient
-	requests WrappedRPCRequests
+	requests http.WrappedRPCRequests
 }
 
 // NewRPCRequestBatch creates a new
 func NewRPCRequestBatch(client BatchClient) *RPCRequestBatch {
 	return &RPCRequestBatch{
 		client:   client,
-		requests: make(WrappedRPCRequests, 0),
+		requests: make(http.WrappedRPCRequests, 0),
 	}
 }
 
@@ -52,7 +53,7 @@ func (b *RPCRequestBatch) Clear() int {
 
 func (b *RPCRequestBatch) clear() int {
 	count := len(b.requests)
-	b.requests = make(WrappedRPCRequests, 0)
+	b.requests = make(http.WrappedRPCRequests, 0)
 
 	return count
 }
@@ -80,7 +81,7 @@ func (b *RPCRequestBatch) Send(ctx context.Context) ([]any, error) {
 		return nil, err
 	}
 
-	if err := unmarshalResponsesIntoResults(requests, responses, results); err != nil {
+	if err := http.unmarshalResponsesIntoResults(requests, responses, results); err != nil {
 		return nil, err
 	}
 
@@ -101,7 +102,7 @@ func (b *RPCRequestBatch) Call(method string, params map[string]any, result any)
 	}
 
 	b.enqueue(
-		&WrappedRPCRequest{
+		&http.WrappedRPCRequest{
 			request: request,
 			result:  result,
 		},
@@ -110,7 +111,7 @@ func (b *RPCRequestBatch) Call(method string, params map[string]any, result any)
 	return nil
 }
 
-func (b *RPCRequestBatch) enqueue(req *WrappedRPCRequest) {
+func (b *RPCRequestBatch) enqueue(req *http.WrappedRPCRequest) {
 	b.Lock()
 	defer b.Unlock()
 

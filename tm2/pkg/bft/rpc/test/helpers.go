@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )

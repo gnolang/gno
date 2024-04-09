@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	http2 "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -130,7 +131,7 @@ func setup() {
 	time.Sleep(time.Second * 2)
 }
 
-func echoViaHTTP(cl client.HTTPClient, val string) (string, error) {
+func echoViaHTTP(cl http2.HTTPClient, val string) (string, error) {
 	params := map[string]interface{}{
 		"arg": val,
 	}

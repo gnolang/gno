@@ -25,7 +25,7 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
@@ -68,7 +68,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
@@ -119,7 +119,7 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
@@ -167,7 +167,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
@@ -223,7 +223,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	client := Client{
 		Signer:    signer,
@@ -281,7 +281,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	client := Client{
 		Signer:    signer,
@@ -361,7 +361,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
@@ -429,7 +429,7 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient := rpcclient.NewHTTP(remoteAddr)
 
 	// Setup Client
 	client := Client{
