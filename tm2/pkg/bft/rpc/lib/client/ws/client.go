@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"log/slog"
 	"sync"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -24,7 +23,7 @@ type Client struct {
 
 	conn *websocket.Conn
 
-	logger *slog.Logger
+	// logger *slog.Logger
 	rpcURL string // the remote RPC URL of the node
 
 	backlog chan any // Either a single RPC request, or a batch of RPC requests
@@ -45,6 +44,8 @@ func NewClient(rpcURL string, opts ...Option) (*Client, error) {
 		rpcURL:     rpcURL,
 		conn:       conn,
 		requestMap: make(map[string]responseCh),
+		backlog:    make(chan any, 1),
+		// logger:     log.NewNopLogger(),
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -140,18 +141,18 @@ func (c *Client) runWriteRoutine(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Debug("write context finished")
+			// c.logger.Debug("write context finished")
 
 			return
 		case item := <-c.backlog:
 			// Write the JSON request to the server
 			if err := c.conn.WriteJSON(item); err != nil {
-				c.logger.Error("unable to send request", "err", err)
+				// c.logger.Error("unable to send request", "err", err)
 
 				continue
 			}
 
-			c.logger.Debug("successfully sent request", "request", item)
+			// c.logger.Debug("successfully sent request", "request", item)
 		}
 	}
 }
@@ -161,15 +162,15 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Debug("read context finished")
+			// c.logger.Debug("read context finished")
 
 			return
 		default:
 			// Read the message from the active connection
-			_, data, err := c.conn.ReadMessage() // TODO check message type
+			_, data, err := c.conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					c.logger.Error("failed to read response", "err", err)
+					// c.logger.Error("failed to read response", "err", err)
 
 					return
 				}
@@ -188,7 +189,7 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 				var response types.RPCResponse
 
 				if err := json.Unmarshal(data, &response); err != nil {
-					c.logger.Error("failed to parse response", "err", err, "data", string(data))
+					// c.logger.Error("failed to parse response", "err", err, "data", string(data))
 
 					continue
 				}
@@ -213,7 +214,7 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 			ch := c.requestMap[responseHash]
 			if ch == nil {
 				c.requestMapMux.Unlock()
-				c.logger.Error("response listener not set", "hash", responseHash, "responses", responses)
+				// c.logger.Error("response listener not set", "hash", responseHash, "responses", responses)
 
 				continue
 			}
@@ -222,19 +223,21 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 			delete(c.requestMap, responseHash)
 			c.requestMapMux.Unlock()
 
-			c.logger.Debug("received response", "hash", responseHash)
+			// c.logger.Debug("received response", "hash", responseHash)
 
 			// Alert the listener of the response
 			select {
 			case ch <- responses:
 			default:
-				c.logger.Warn("response listener timed out", "hash", responseHash)
+				// c.logger.Warn("response listener timed out", "hash", responseHash)
 			}
 		}
 	}
 }
 
 // Close closes the WS client
-func (c *Client) Close() {
+func (c *Client) Close() error {
 	c.cancelFn()
+
+	return c.conn.Close()
 }
