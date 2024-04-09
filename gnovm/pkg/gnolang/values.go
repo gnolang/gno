@@ -1832,19 +1832,13 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		}
 		panic("should not happen")
 	case VPNative:
-		debug.Println("---VPNative")
-		debug.Println("---VPNative, dtv: ", dtv)
-		debug.Println("---VPNative, dtv.T: ", dtv.T)
 		var nv *NativeValue
 		// Special case if tv.T.(PointerType):
 		// we may need to treat this as a native pointer
 		// to get the correct pointer-receiver value.
 		if _, ok := dtv.T.(*PointerType); ok {
-			debug.Println("---dtv.T pointer type")
 			pv := dtv.V.(PointerValue)
 			nv = pv.TV.V.(*NativeValue)
-			debug.Println("---dtv.T pointer type, pv: ", pv)
-			debug.Println("---dtv.T pointer type, nv: ", nv)
 		} else {
 			nv = dtv.V.(*NativeValue)
 		}

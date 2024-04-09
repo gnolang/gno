@@ -1092,14 +1092,12 @@ func (ft *FuncType) IsZero() bool {
 
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
-	debug.Println("---HasPointerReceiver")
 	if debug {
 		if len(ft.Params) == 0 {
 			panic("expected unbound method function type, but found no receiver parameter.")
 		}
 	}
 	_, ok := ft.Params[0].Type.(*PointerType)
-	debug.Println("---ok: ", ok)
 	return ok
 	// return ft.Params[0].Type.Kind() == PointerKind
 }
