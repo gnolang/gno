@@ -2414,13 +2414,10 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
 func checkType(xt Type, dt Type, autoNative bool) {
-	debug.Println("---checkType, xt, dt: ", xt, dt)
-	debug.Println("---checkType,type of xt, dt: ", reflect.TypeOf(xt), reflect.TypeOf(dt))
 	// Special case if dt is interface kind:
 	if dt.Kind() == InterfaceKind {
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
 			if idt.IsEmptyInterface() {
-				debug.Println("---return, empty interface")
 				// if dt is an empty Gno interface, any x ok.
 				return // ok
 			} else if idt.IsImplementedBy(xt) {
@@ -2436,7 +2433,6 @@ func checkType(xt Type, dt Type, autoNative bool) {
 			nidt := ndt.Type
 			if nidt.NumMethod() == 0 {
 				// if dt is an empty Go native interface, ditto.
-				debug.Println("---ditto, native empty interface")
 				return // ok
 			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
 				// if xt has native base, do the naive native.
@@ -2475,22 +2471,18 @@ func checkType(xt Type, dt Type, autoNative bool) {
 			panic("should not happen")
 		}
 	}
-	debug.Println("---2")
 	// Special case if xt or dt is *PointerType to *NativeType,
 	// convert to *NativeType of pointer kind.
 	if pxt, ok := xt.(*PointerType); ok {
-		debug.Println("---checkType, xt is pointer type: pxt: ", pxt)
 		// *gonative{x} is(to) gonative{*x}
 		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
 				Type: reflect.PtrTo(enxt.Type),
 			}
-			debug.Println("---xt: ", xt)
 		}
 	}
 	if pdt, ok := dt.(*PointerType); ok {
-		debug.Println("---checkType, dt is pointer type: pdt: ", pdt)
 		// *gonative{x} is gonative{*x}
 		if endt, ok := pdt.Elt.(*NativeType); ok {
 			dt = &NativeType{
@@ -2917,7 +2909,6 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 }
 
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
-	debug.Println("---predefineNow2")
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -2945,7 +2936,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	}
 	switch cd := d.(type) {
 	case *FuncDecl:
-		debug.Println("---FuncDecl")
 		// *FuncValue/*FuncType is mostly empty still; here
 		// we just fill the func type (and recv if method).
 		// NOTE: unlike the *ValueDecl case, this case doesn't
@@ -2964,17 +2954,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
-			debug.Println("---FuncDecl, rt: ", rt)
-			debug.Println("---FuncDecl, baseOf rt: ", baseOf(rt))
 			// see a20a
 			if pt, ok := rt.(*PointerType); ok {
-				debug.Println("---1")
 				dt = pt.Elem().(*DeclaredType)
 			} else {
-				debug.Println("---2")
 				dt = rt.(*DeclaredType)
 			}
-			debug.Println("---dt: ", dt)
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,

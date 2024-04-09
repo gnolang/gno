@@ -181,7 +181,6 @@ func (m *Machine) doOpMaybeNativeType() {
 // already swapped for *ConstExpr in the preprocessor.  If not, panics.
 func (m *Machine) doOpStaticTypeOf() {
 	x := m.PopExpr()
-	debug.Println("---doOpStaticTypeOf, x, type of x ", x, reflect.TypeOf(x))
 	switch x := x.(type) {
 	case *NameExpr:
 		// NOTE: duplicated from doOpEval
@@ -398,6 +397,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		case VPNative:
+			// if dxt is *PointerType, convert to *NativeType.
 			if pt, ok := dxt.(*PointerType); ok {
 				net, ok := pt.Elt.(*NativeType)
 				if !ok {
