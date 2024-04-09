@@ -5,6 +5,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
 	"reflect"
@@ -16,8 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/flow"
-	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/timer"
 )
@@ -197,7 +196,7 @@ func NewMConnectionWithConfig(conn net.Conn, chDescs []*ChannelDescriptor, onRec
 	return mconn
 }
 
-func (c *MConnection) SetLogger(l log.Logger) {
+func (c *MConnection) SetLogger(l *slog.Logger) {
 	c.BaseService.SetLogger(l)
 	for _, ch := range c.channels {
 		ch.SetLogger(l)
@@ -550,7 +549,7 @@ FOR_LOOP:
 		// Peek into bufConnReader for debugging
 		/*
 			if numBytes := c.bufConnReader.Buffered(); numBytes > 0 {
-				bz, err := c.bufConnReader.Peek(maths.MinInt(numBytes, 100))
+				bz, err := c.bufConnReader.Peek(min(numBytes, 100))
 				if err == nil {
 					// return
 				} else {
@@ -732,7 +731,7 @@ type Channel struct {
 
 	maxPacketMsgPayloadSize int
 
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
@@ -749,7 +748,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 	}
 }
 
-func (ch *Channel) SetLogger(l log.Logger) {
+func (ch *Channel) SetLogger(l *slog.Logger) {
 	ch.Logger = l
 }
 
@@ -809,14 +808,14 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 	packet := PacketMsg{}
 	packet.ChannelID = ch.desc.ID
 	maxSize := ch.maxPacketMsgPayloadSize
-	packet.Bytes = ch.sending[:maths.MinInt(maxSize, len(ch.sending))]
+	packet.Bytes = ch.sending[:min(maxSize, len(ch.sending))]
 	if len(ch.sending) <= maxSize {
 		packet.EOF = byte(0x01)
 		ch.sending = nil
 		atomic.AddInt32(&ch.sendQueueSize, -1) // decrement sendQueueSize
 	} else {
 		packet.EOF = byte(0x00)
-		ch.sending = ch.sending[maths.MinInt(maxSize, len(ch.sending)):]
+		ch.sending = ch.sending[min(maxSize, len(ch.sending)):]
 	}
 	return packet
 }

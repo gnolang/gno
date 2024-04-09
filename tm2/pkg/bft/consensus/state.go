@@ -4,6 +4,7 @@ import (
 	"bytes"
 	goerrors "errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -20,7 +21,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
@@ -122,6 +122,7 @@ type ConsensusState struct {
 	// a Write-Ahead Log ensures we can recover from any kind of crash
 	// and helps us avoid signing conflicting votes
 	wal          walm.WAL
+	walDisabled  bool
 	replayMode   bool // so we don't log signing errors during replay
 	doWALCatchup bool // determines if we even try to do the catchup
 
@@ -162,6 +163,7 @@ func NewConsensusState(
 		doWALCatchup:     true,
 		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
+		walDisabled:      config.WALDisabled,
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal
@@ -184,7 +186,7 @@ func NewConsensusState(
 // Public interface
 
 // SetLogger implements Service.
-func (cs *ConsensusState) SetLogger(l log.Logger) {
+func (cs *ConsensusState) SetLogger(l *slog.Logger) {
 	cs.BaseService.Logger = l
 	cs.timeoutTicker.SetLogger(l)
 }
@@ -294,7 +296,7 @@ func (cs *ConsensusState) OnStart() error {
 
 	// we may set the WAL in testing before calling Start,
 	// so only OpenWAL if its still the walm.NopWAL
-	if _, ok := cs.wal.(walm.NopWAL); ok {
+	if _, ok := cs.wal.(walm.NopWAL); ok && !cs.walDisabled {
 		walFile := cs.config.WalFile()
 		wal, err := cs.OpenWAL(walFile)
 		if err != nil {

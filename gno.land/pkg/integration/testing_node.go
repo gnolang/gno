@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"log/slog"
 	"path/filepath"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/jaekwon/testify/require"
 )
@@ -23,7 +23,7 @@ const (
 
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
 // It returns the node instance and its RPC remote address.
-func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
+func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
 	node, err := gnoland.NewInMemoryNode(logger, config)
 	require.NoError(t, err)
 
@@ -31,8 +31,8 @@ func TestingInMemoryNode(t TestingTS, logger log.Logger, config *gnoland.InMemor
 	require.NoError(t, err)
 
 	select {
-	case <-gnoland.GetNodeReadiness(node):
-	case <-time.After(time.Second * 6):
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
 		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 
@@ -132,7 +132,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
 func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
-	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display
 	// XXX: Do we care loading this TXs for testing ?
@@ -147,6 +147,7 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	const defaultListner = "tcp://127.0.0.1:0"
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
+	tmconfig.Consensus.WALDisabled = true
 	tmconfig.Consensus.CreateEmptyBlocks = true
 	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
 	tmconfig.RPC.ListenAddress = defaultListner

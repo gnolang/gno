@@ -158,6 +158,23 @@ type Attributes struct {
 	data  map[interface{}]interface{} // not persisted
 }
 
+func (attr *Attributes) Copy() Attributes {
+	if attr == nil {
+		return Attributes{}
+	}
+
+	data := make(map[interface{}]interface{})
+	for k, v := range attr.data {
+		data[k] = v
+	}
+
+	return Attributes{
+		Line:  attr.Line,
+		Label: attr.Label,
+		data:  data,
+	}
+}
+
 func (attr *Attributes) GetLine() int {
 	return attr.Line
 }
@@ -1614,7 +1631,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			bp = bp.GetParentNode(store)
 			gen++
 			if 0xff < gen {
-				panic("value path depth overflow")
+				panic("GetPathForName: value path depth overflow")
 			}
 		}
 	}
@@ -1797,8 +1814,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 				// special case,
 				// allow re-predefining for func upgrades.
 				// keep the old type so we can check it at preprocessor.
-				// fmt.Println("QWEQWEQWE>>>", old.String())
-				// fmt.Println("QWEQWEQWE>>>", tv.String())
 				tv.T = old.T
 				fv := tv.V.(*FuncValue)
 				fv.Type = old.T
@@ -2078,11 +2093,12 @@ const (
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
 
+var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
+
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
 func validatePkgName(name string) {
-	if nameOK, _ := regexp.MatchString(
-		`^[a-z][a-z0-9_]+$`, name); !nameOK {
+	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
 }
