@@ -2,10 +2,7 @@ module loop
 
 go 1.21
 
-require (
-	github.com/gnolang/gno v0.0.0-20240125181217-b6193518e278
-	github.com/peterbourgon/ff/v4 v4.0.0-alpha.4
-)
+require github.com/gnolang/gno v0.0.0-20240125181217-b6193518e278
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
