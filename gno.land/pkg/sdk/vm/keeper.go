@@ -22,11 +22,6 @@ import (
 const (
 	maxAllocTx    = 500 * 1000 * 1000
 	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
-
-	// maxVMCycles is the maximum number of cycles allowed while executing a single VM
-	// message. Ideally this should not be needed, as execution should halt when out of
-	// gas. The worst case scenario is that this value is used as a fallback.
-	maxVMCycles = 10_000_000
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -60,6 +55,7 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	stdlibsDir string,
+	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
@@ -68,7 +64,7 @@ func NewVMKeeper(
 		acck:       acck,
 		bank:       bank,
 		stdlibsDir: stdlibsDir,
-		maxCycles:  maxVMCycles,
+		maxCycles:  maxCycles,
 	}
 	return vmk
 }

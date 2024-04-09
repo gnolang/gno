@@ -39,7 +39,7 @@ func setupTestEnv() testEnv {
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 10_000_000)
 
 	vmk.Initialize(ms.MultiCacheWrap())
 

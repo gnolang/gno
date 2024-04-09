@@ -21,10 +21,11 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator    bft.PrivValidator // identity of the validator
-	Genesis          *bft.GenesisDoc
-	TMConfig         *tmcfg.Config
-	GenesisTxHandler GenesisTxHandler
+	PrivValidator      bft.PrivValidator // identity of the validator
+	Genesis            *bft.GenesisDoc
+	TMConfig           *tmcfg.Config
+	GenesisTxHandler   GenesisTxHandler
+	GenesisMaxVMCycles int64
 }
 
 // NewMockedPrivValidator generate a new key
@@ -78,10 +79,11 @@ func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
 	}
 
 	return &InMemoryNodeConfig{
-		PrivValidator:    pv,
-		TMConfig:         tm,
-		Genesis:          genesis,
-		GenesisTxHandler: PanicOnFailingTxHandler,
+		PrivValidator:      pv,
+		TMConfig:           tm,
+		Genesis:            genesis,
+		GenesisTxHandler:   PanicOnFailingTxHandler,
+		GenesisMaxVMCycles: 10_000_000,
 	}
 }
 
@@ -118,6 +120,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		Logger:           logger,
 		GnoRootDir:       cfg.TMConfig.RootDir,
 		GenesisTxHandler: cfg.GenesisTxHandler,
+		MaxCycles:        cfg.GenesisMaxVMCycles,
 		DB:               memdb.NewMemDB(),
 	})
 	if err != nil {

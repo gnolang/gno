@@ -36,6 +36,7 @@ type startCfg struct {
 	chainID               string
 	genesisRemote         string
 	dataDir               string
+	genesisMaxVMCycles    int64
 	config                string
 
 	txEventStoreType string
@@ -122,6 +123,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-remote",
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
+	)
+
+	fs.Int64Var(
+		&c.genesisMaxVMCycles,
+		"genesis-max-vm-cycles",
+		10_000_000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
 	fs.StringVar(
@@ -246,7 +254,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}

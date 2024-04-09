@@ -11,7 +11,7 @@ type protectedStringer interface {
 	ProtectedString(*seenValues) string
 }
 
-// This indicates the maximum ancticipated depth of the stack when printing a Value type.
+// This indicates the maximum anticipated depth of the stack when printing a Value type.
 const defaultSeenValuesSize = 32
 
 type seenValues struct {
@@ -322,6 +322,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%d", tv.GetUint())
 		case Uint8Type:
 			return fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
 		case Uint16Type:
 			return fmt.Sprintf("%d", tv.GetUint16())
 		case Uint32Type:

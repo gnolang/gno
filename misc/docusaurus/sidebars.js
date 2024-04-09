@@ -34,7 +34,6 @@ const sidebars = {
                 'how-to-guides/deploy',
                 'how-to-guides/write-simple-dapp',
                 'how-to-guides/creating-grc20',
-                'how-to-guides/creating-grc721',
                 'how-to-guides/connect-from-go',
                 'how-to-guides/connect-wallet-dapp',
             ],
@@ -58,6 +57,7 @@ const sidebars = {
                 },
                 'concepts/gnovm',
                 'concepts/gno-language',
+                'concepts/testnets',
                 'concepts/effective-gno',
                 'concepts/proof-of-contribution',
                 'concepts/tendermint2',
@@ -92,6 +92,7 @@ const sidebars = {
             link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
+                'reference/network-config',
                 {
                     type: 'category',
                     label: 'Standard Libraries',
