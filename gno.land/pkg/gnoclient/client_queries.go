@@ -2,13 +2,16 @@ package gnoclient
 
 import (
 	"fmt"
-
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+var (
+	ErrInvalidBlockHeight = errors.New("invalid block height provided")
 )
 
 // QueryCfg contains configuration options for performing ABCI queries.
@@ -122,4 +125,17 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 
 	return string(qres.Response.Data), qres, nil
+}
+
+func (c *Client) Block(height int64) (*ctypes.ResultBlockResults, error) {
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	blockResults, err := c.RPCClient.BlockResults(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return blockResults, nil
 }
