@@ -3,7 +3,7 @@ id: coin
 ---
 
 # Coin
-View concept page [here](../../../concepts/standard-library/coin.md).
+View concept page [here](../../../concepts/stdlibs/coin.md).
 
 ```go
 type Coin struct {
