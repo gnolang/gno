@@ -1,7 +1,6 @@
 package gnoclient
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -547,29 +546,4 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
-}
-
-func TestBlock_Integration(t *testing.T) {
-	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-	defer node.Stop()
-
-	// Init Signer & RPCClient
-	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
-
-	// Setup Client
-	client := Client{
-		Signer:    signer,
-		RPCClient: rpcClient,
-	}
-
-	//res, _ := client.Block(1)
-
-	//fmt.Println(res.Height, res.Results.BeginBlock, res.Results.EndBlock, res.Results.DeliverTxs)
-
-	status, _ := client.RPCClient.Status()
-
-	fmt.Println(status.SyncInfo.LatestBlockHeight)
 }
