@@ -17,7 +17,15 @@ type Client struct {
 }
 ```
 
-### func \(\*Client\) [Call](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L56>)
+### func \(\*Client\) [AddPackage](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L236>)
+
+```go
+func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error)
+```
+
+`AddPackage` executes one or more [AddPackage](#type-msgaddpackage) calls on the blockchain.
+
+### func \(\*Client\) [Call](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L62>)
 
 ```go
 func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error)
@@ -25,7 +33,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 
 `Call` executes a one or more [MsgCall](#type-msgcall) calls on the blockchain.
 
-### func \(\*Client\) [Send](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L176>)
+### func \(\*Client\) [Send](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L182>)
 
 ```go
 func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error)
@@ -33,7 +41,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 
 `Send` executes one or more [MsgSend](#type-msgsend) calls on the blockchain.
 
-### func \(\*Client\) [Run](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L112>)
+### func \(\*Client\) [Run](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L118>)
 
 ```go
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error)
@@ -41,7 +49,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 
 `Run` executes a one or more MsgRun calls on the blockchain.
 
-### func \(*Client\) [QEval](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L108>)
+### func \(\*Client\) [QEval](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L108>)
 
 ```go
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error)
@@ -98,6 +106,17 @@ type BaseTxCfg struct {
     AccountNumber  uint64 // Account number
     SequenceNumber uint64 // Sequence number
     Memo           string // Memo
+}
+```
+
+## type [MsgAddPackage](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L59-L59>)
+
+`MsgAddPackage` \- syntax sugar for `vm.MsgAddPackage`.
+
+```go
+type MsgAddPackage struct {
+    Package *std.MemPackage // Package to add
+    Deposit string          // Coin deposit
 }
 ```
 

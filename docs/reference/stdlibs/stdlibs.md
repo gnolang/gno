@@ -1,8 +1,8 @@
 ---
-id: overview
+id: stdlibs
 ---
 
-# Overview
+# Standard Libraries
 
 This section serves as a reference to the standard libraries available in Gno.
 

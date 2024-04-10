@@ -13,11 +13,21 @@ import (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	for _, fn := range fset.Files {
+		decls, err := sortValueDeps(fn.Decls)
+		if err != nil {
+			panic(err)
+		}
+
+		fn.Decls = decls
+	}
+
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
+
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -29,11 +39,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *ImportDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -41,17 +47,14 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
+
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -65,11 +68,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *FuncDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-				} else {
+				if d.GetAttribute(ATTR_PREDEFINED) != true {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -77,15 +76,13 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
+
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
-			if d.GetAttribute(ATTR_PREDEFINED) == true {
-				// skip declarations already predefined (e.g.
-				// through recursion for a dependent)
-			} else {
+			if d.GetAttribute(ATTR_PREDEFINED) != true {
 				// recursively predefine dependencies.
 				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
@@ -2545,7 +2542,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 	// Special case if xt or dt is *PointerType to *NativeType,
 	// convert to *NativeType of pointer kind.
 	if pxt, ok := xt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
+		// *gonative{x} is(to) gonative{*x}
 		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
@@ -3028,11 +3025,32 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
-			if pt, ok := rt.(*PointerType); ok {
-				dt = pt.Elem().(*DeclaredType)
-			} else {
-				dt = rt.(*DeclaredType)
+
+			// check base type of receiver type, should not be pointer type or interface type
+			assertValidReceiverType := func(t Type) {
+				if _, ok := t.(*PointerType); ok {
+					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)\n", rt))
+				}
+				if _, ok := t.(*InterfaceType); ok {
+					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)\n", rt))
+				}
 			}
+
+			if pt, ok := rt.(*PointerType); ok {
+				assertValidReceiverType(pt.Elem())
+				if ddt, ok := pt.Elem().(*DeclaredType); ok {
+					assertValidReceiverType(baseOf(ddt))
+					dt = ddt
+				} else {
+					panic("should not happen")
+				}
+			} else if ddt, ok := rt.(*DeclaredType); ok {
+				assertValidReceiverType(baseOf(ddt))
+				dt = ddt
+			} else {
+				panic("should not happen")
+			}
+
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
@@ -3171,6 +3189,8 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				t = &MapType{}
 			case *StructTypeExpr:
 				t = &StructType{}
+			case *StarExpr:
+				t = &PointerType{}
 			case *NameExpr:
 				if tv := last.GetValueRef(store, tx.Name); tv != nil {
 					// (file) block name
