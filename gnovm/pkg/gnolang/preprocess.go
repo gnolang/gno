@@ -2954,6 +2954,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
+			debug.Println("---predefine now, funcDecl")
+			if dt, ok := rt.(*DeclaredType); ok {
+				if _, ok := baseOf(dt).(*PointerType); ok {
+					panic("invalid receiver type IntPtr (pointer or interface type)")
+				}
+			}
 			if pt, ok := rt.(*PointerType); ok {
 				dt = pt.Elem().(*DeclaredType)
 			} else {
