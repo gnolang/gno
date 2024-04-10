@@ -2973,7 +2973,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 					panic("should not happen")
 				}
 			} else if ddt, ok := rt.(*DeclaredType); ok {
-				debug.Println("---rt is declared type")
 				assertValidReceiverType(baseOf(ddt))
 				dt = ddt
 			} else {
