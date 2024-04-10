@@ -127,7 +127,20 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	return string(qres.Response.Data), qres, nil
 }
 
-func (c *Client) Block(height int64) (*ctypes.ResultBlockResults, error) {
+func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	blockResults, err := c.RPCClient.Block(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return blockResults, nil
+}
+
+func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
 	if height <= 0 {
 		return nil, ErrInvalidBlockHeight
 	}
@@ -138,4 +151,13 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlockResults, error) {
 	}
 
 	return blockResults, nil
+}
+
+func (c *Client) BlockNumber() (int64, error) {
+	status, err := c.RPCClient.Status()
+	if err != nil {
+		return 0, fmt.Errorf("block number query failed: %w", err)
+	}
+
+	return status.SyncInfo.LatestBlockHeight, nil
 }
