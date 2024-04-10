@@ -2954,13 +2954,20 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
-			debug.Println("---predefine now, funcDecl")
+			// check against base type, should not be pointer type or interface type as a receiver
 			if dt, ok := rt.(*DeclaredType); ok {
 				if _, ok := baseOf(dt).(*PointerType); ok {
-					panic("invalid receiver type IntPtr (pointer or interface type)")
+					panic(fmt.Sprintf("invalid receiver type %v (pointer type)\n", rt))
+				}
+				if _, ok := baseOf(dt).(*InterfaceType); ok {
+					panic(fmt.Sprintf("invalid receiver type %v (interface type)\n", rt))
 				}
 			}
+
 			if pt, ok := rt.(*PointerType); ok {
+				if _, ok := pt.Elem().(*PointerType); ok {
+					panic(fmt.Sprintf("invalid receiver type %v (pointer type)\n", rt))
+				}
 				dt = pt.Elem().(*DeclaredType)
 			} else {
 				dt = rt.(*DeclaredType)

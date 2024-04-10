@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/debug/type37.gno:8: invalid receiver type IntPtr (pointer or interface type)
+// main/debug/type37.gno:8: invalid receiver type main.Arr (pointer type)
