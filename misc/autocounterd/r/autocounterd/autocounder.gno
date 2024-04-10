@@ -1,10 +1,6 @@
 package counter
 
-import (
-	"fmt"
-
-	"gno.land/p/demo/ufmt"
-)
+import "gno.land/p/demo/ufmt"
 
 var counter int = 0
 
