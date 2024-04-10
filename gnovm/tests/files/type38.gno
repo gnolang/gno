@@ -1,16 +1,26 @@
 package main
 
-type IntPtr *int
+import "fmt"
 
-var ip IntPtr = new(int)
+type IntArray []int
+type Arr *IntArray
 
-func (p IntPtr) Int() int {
-	return *p
+func add(arr Arr) { // receiver is val, not ptr
+	*arr = append(*arr, 1)
 }
 
 func main() {
-	println(ip.Int())
+	a := new(IntArray)
+	add(a)
+
+	fmt.Println(a)
+	fmt.Println(*a)
+	fmt.Println(len(*a))
+	fmt.Println((*a)[0])
 }
 
-// Error:
-// main/debug/type38.gno:7: invalid receiver type main.IntPtr (pointer type)
+// Output:
+// &[1]
+// [1]
+// 1
+// 1

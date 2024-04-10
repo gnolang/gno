@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/debug/type39.gno:7: invalid receiver type main.foo (interface type)
+// main/files/type39.gno:7: invalid receiver type main.foo (interface type)

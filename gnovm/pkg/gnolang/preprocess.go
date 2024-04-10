@@ -2954,24 +2954,32 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			ft = ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
-			// check against base type, should not be pointer type or interface type as a receiver
-			if dt, ok := rt.(*DeclaredType); ok {
-				if _, ok := baseOf(dt).(*PointerType); ok {
+			// check base type of receiver type, should not be pointer type or interface type
+			assertValidReceiverType := func(t Type) {
+				if _, ok := t.(*PointerType); ok {
 					panic(fmt.Sprintf("invalid receiver type %v (pointer type)\n", rt))
 				}
-				if _, ok := baseOf(dt).(*InterfaceType); ok {
+				if _, ok := t.(*InterfaceType); ok {
 					panic(fmt.Sprintf("invalid receiver type %v (interface type)\n", rt))
 				}
 			}
 
 			if pt, ok := rt.(*PointerType); ok {
-				if _, ok := pt.Elem().(*PointerType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (pointer type)\n", rt))
+				assertValidReceiverType(pt.Elem())
+				if ddt, ok := pt.Elem().(*DeclaredType); ok {
+					assertValidReceiverType(baseOf(ddt))
+					dt = ddt
+				} else {
+					panic("should not happen")
 				}
-				dt = pt.Elem().(*DeclaredType)
+			} else if ddt, ok := rt.(*DeclaredType); ok {
+				debug.Println("---rt is declared type")
+				assertValidReceiverType(baseOf(ddt))
+				dt = ddt
 			} else {
-				dt = rt.(*DeclaredType)
+				panic("should not happen")
 			}
+
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,

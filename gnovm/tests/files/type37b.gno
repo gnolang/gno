@@ -2,19 +2,21 @@ package main
 
 import "fmt"
 
-type IntArray []int
-type Arr *IntArray
+type Integer int
 
-func (a Arr) Add(x int) { // receiver is val, not ptr
-	*a = append(*a, x)
+func (i **Integer) Add(x int) {
+	**i += Integer(x) // Dereference twice to get to the actual Integer value and modify it
 }
 
 func main() {
-	a := new(IntArray)
-	Arr(a).Add(4)
+	a := new(Integer) // a is a pointer to Integer
+	b := &a           // b is a pointer to a pointer to Integer
 
-	fmt.Println(*a)
+	// Since Add is defined on **Integer, you need to pass b
+	b.Add(4) // Adds 4 to the value **b points to
+
+	fmt.Println(**b) // Should print 4, as **b is the same as *a
 }
 
 // Error:
-// main/debug/type37b.gno:8: invalid receiver type IntPtr (pointer or interface type)
+// main/files/type37b.gno:7: invalid receiver type **main.Integer (pointer type)

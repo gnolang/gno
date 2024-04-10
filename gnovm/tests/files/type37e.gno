@@ -1,21 +1,17 @@
 package main
 
-import "fmt"
+type IntPtr *int
+type Int2 IntPtr
 
-type IntArray []int
-type Arr *IntArray
+var ip IntPtr = new(int)
 
-func print(arr Arr) { // receiver is val, not ptr
-	println(arr)
+func (i2 Int2) Int() int {
+	return *i2
 }
 
 func main() {
-	a := new(IntArray)
-	print(a)
-
-	fmt.Println(*a)
+	println(Int2(ip).Int())
 }
 
-// Output:
-// &(nil main.IntArray)
-// []
+// Error:
+// main/files/type37e.gno:8: invalid receiver type main.Int2 (pointer type)
