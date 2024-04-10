@@ -12,7 +12,7 @@ This feature is currently a work in progress (WIP). To learn more about namespac
 
 A package path is a unique identifier for each package/realm. It specifies the location of the package's source code and helps differentiate it from others. You can use a package path to:
 
-- Call a specific function from a package/realm using `gnokey maketx call`
+- Call a specific function from a package/realm (e.g using `gnokey maketx call`)
 - Import it in other packages/realms.
 
 Here's a breakdown of the structure of a package path:
