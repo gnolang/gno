@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// main/files/type37d.gno:7: invalid receiver type main.IntPtr (pointer type)
+// main/files/type37d.gno:7: invalid receiver type main.IntPtr (base type is pointer type)

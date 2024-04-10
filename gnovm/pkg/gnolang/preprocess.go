@@ -2957,10 +2957,10 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			// check base type of receiver type, should not be pointer type or interface type
 			assertValidReceiverType := func(t Type) {
 				if _, ok := t.(*PointerType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (pointer type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is pointer type)\n", rt))
 				}
 				if _, ok := t.(*InterfaceType); ok {
-					panic(fmt.Sprintf("invalid receiver type %v (interface type)\n", rt))
+					panic(fmt.Sprintf("invalid receiver type %v (base type is interface type)\n", rt))
 				}
 			}
 
