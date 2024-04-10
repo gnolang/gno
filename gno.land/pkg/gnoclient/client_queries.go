@@ -130,6 +130,10 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 // Block gets the latest block at height, if any
 // Height must be larger than 0
 func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
 	if height <= 0 {
 		return nil, ErrInvalidBlockHeight
 	}
@@ -145,6 +149,10 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
 // BlockResult gets the latest block results at height, if any
 // Height must be larger than 0
 func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
 	if height <= 0 {
 		return nil, ErrInvalidBlockHeight
 	}
@@ -159,6 +167,10 @@ func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
 
 // BlockNumber gets the latest block height on the chain
 func (c *Client) BlockNumber() (int64, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return 0, ErrMissingRPCClient
+	}
+
 	status, err := c.RPCClient.Status()
 	if err != nil {
 		return 0, fmt.Errorf("block number query failed: %w", err)
