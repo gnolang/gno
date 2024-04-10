@@ -9,7 +9,6 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
-	devlogger "github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -20,6 +19,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	// backup "github.com/gnolang/tx-archive/backup/client"
@@ -400,8 +400,11 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err 
 	return nil
 }
 
+var noopLogger = log.NewNoopLogger()
+
 func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	node, err := gnoland.NewInMemoryNode(slog.New(&devlogger.Noop{}), cfg)
+	// XXX(TODO): Redirect the node log somewhere else
+	node, err := gnoland.NewInMemoryNode(noopLogger, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new node: %w", err)
 	}
