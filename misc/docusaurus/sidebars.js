@@ -11,7 +11,7 @@ const sidebars = {
             items: [
                 'getting-started/playground-start',
                 {
-                 type: "category",
+                 type: 'category',
                  label: 'Local Setup',
                     items: [
                         'getting-started/local-setup/local-setup',
