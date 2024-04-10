@@ -295,8 +295,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) {
 				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
 					return
 				} // not check against native interface
-				//debug.Println("---matches!")
-				//return
 			} else {
 				panic(fmt.Sprintf(
 					"unexpected type pair: cannot use %s as %s",
@@ -536,7 +534,7 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type) {
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
-func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
+func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 	// we can't check compatible with native types at current stage,
 	// so leave it to later operations(trans_leave on binaryExpr)
 	// to be converted into gno(only for primitive types), and do
@@ -573,7 +571,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 			assertComparable(xt, dt) // only check if dest type is comparable
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[bx.Op]; ok {
-				bx.checkCompatibility(store, xt, dt, checker, escapedOpStr)
+				bx.checkCompatibility(xt, dt, checker, escapedOpStr)
 			} else {
 				panic("should not happen")
 			}
@@ -582,7 +580,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[bx.Op]; ok {
-			bx.checkCompatibility(store, xt, dt, checker, escapedOpStr)
+			bx.checkCompatibility(xt, dt, checker, escapedOpStr)
 		} else {
 			panic("should not happen")
 		}
@@ -603,7 +601,7 @@ func (bx *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 	}
 }
 
-func (bx *BinaryExpr) checkCompatibility(store Store, xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
+func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
 	var destKind interface{}
 
 	if !checker(dt) {
