@@ -44,7 +44,7 @@ Used by some other packages to properly nest markdown renders
 
 Binary utilities we used before having JSON encoding to transfer complex object between UI and chain
 
-### gno.land/p/demo/teritori/utf16
+### unicode/utf16
 
 Golang's utf16 library, used by ujson
 
