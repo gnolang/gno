@@ -53,6 +53,8 @@ func TestMemPackage_Validate(t *testing.T) {
 }
 
 func TestRePkgOrRlmPath(t *testing.T) {
+	t.Parallel()
+
 	testTable := []struct {
 		desc, in string
 		expected bool
@@ -190,7 +192,10 @@ func TestRePkgOrRlmPath(t *testing.T) {
 	}
 
 	for _, tc := range testTable {
+		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			assert.Equal(t, tc.expected, rePkgOrRlmPath.MatchString(tc.in))
 		})
 	}
