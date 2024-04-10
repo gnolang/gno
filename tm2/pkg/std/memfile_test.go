@@ -53,7 +53,7 @@ func TestMemPackage_Validate(t *testing.T) {
 }
 
 func TestRePkgOrRlmPath(t *testing.T) {
-	for _, tc := range []struct {
+	testTable := []struct {
 		desc, in string
 		expected bool
 	}{
@@ -187,7 +187,9 @@ func TestRePkgOrRlmPath(t *testing.T) {
 			in:       "gno.land/r/very/very/very//long/path/",
 			expected: false,
 		},
-	} {
+	}
+
+	for _, tc := range testTable {
 		t.Run(tc.desc, func(t *testing.T) {
 			assert.Equal(t, tc.expected, rePkgOrRlmPath.MatchString(tc.in))
 		})
