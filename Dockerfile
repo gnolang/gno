@@ -5,6 +5,7 @@ WORKDIR     /opt/build
 ADD         go.mod go.sum ./
 RUN         go mod download
 ADD         . ./
+ENV         CGO_ENABLED=0
 RUN         go build -o ./build/gnoland   ./gno.land/cmd/gnoland
 RUN         go build -o ./build/gnokey    ./gno.land/cmd/gnokey
 RUN         go build -o ./build/gnofaucet ./gno.land/cmd/gnofaucet
