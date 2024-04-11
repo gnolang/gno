@@ -47,7 +47,7 @@ func NewVotingGroup() *VotingGroup {
 
 func (v *VotingGroup) Info() dao_interfaces.ModuleInfo {
 	return dao_interfaces.ModuleInfo{
-		Kind:    "Group",
+		Kind:    "gno.land/p/demo/teritori/dao_voting_group",
 		Version: "0.1.0",
 	}
 }
@@ -141,11 +141,12 @@ func (g *VotingGroup) GetMembers(start, end string, limit uint64, height int64) 
 }
 
 func (v *VotingGroup) Render(path string) string {
-	s := "Members: " + strconv.FormatUint(uint64(v.MemberCount(havl.Latest)), 10) + "\n"
-	s += "Total power: " + strconv.FormatUint(v.TotalPowerAtHeight(havl.Latest), 10) + "\n"
+	s := "Member count: " + strconv.FormatUint(uint64(v.MemberCount(havl.Latest)), 10) + "\n\n"
+	s += "Total power: " + strconv.FormatUint(v.TotalPowerAtHeight(havl.Latest), 10) + "\n\n"
+	s += "Members:\n"
 	v.powerByAddr.Iterate("", "", havl.Latest, func(k string, v interface{}) bool {
 		s += "- " + k + ": " + strconv.FormatUint(v.(uint64), 10) + "\n"
 		return false
 	})
-	return s
+	return s + "\n"
 }

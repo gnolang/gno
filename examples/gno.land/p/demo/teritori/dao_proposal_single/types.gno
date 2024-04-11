@@ -25,6 +25,10 @@ func (b Ballot) ToJSON() *json.Node {
 	})
 }
 
+func (b Ballot) String() string {
+	return b.Vote.String() + " with power " + strconv.FormatUint(b.Power, 10) + "" + ": " + b.Rationale
+}
+
 type Votes struct {
 	Yes     uint64
 	No      uint64

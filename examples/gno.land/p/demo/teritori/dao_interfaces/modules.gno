@@ -9,6 +9,10 @@ type ModuleInfo struct {
 	Version string
 }
 
+func (mi ModuleInfo) String() string {
+	return mi.Kind + "@v" + mi.Version
+}
+
 // NOTE: Some queries take a height param in DA0-DA0 contracts, but since gno seem to aim to support queries at any height, we shouldn't need it
 
 type IVotingModule interface {

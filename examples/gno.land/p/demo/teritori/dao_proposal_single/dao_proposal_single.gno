@@ -149,38 +149,37 @@ func (d *DAOProposalSingle) Render(path string) string {
 		panic("unsupported Threshold type")
 	}
 
-	proposalsStr := "## Proposals\n"
+	proposalsStr := "Proposals:\n\n"
 	for _, p := range d.proposals {
 		messagesStr := ""
 		for _, m := range p.Messages {
-			messagesStr += "- " + m.(dao_interfaces.ExecutableMessage).String() + "\n"
+			messagesStr += m.(dao_interfaces.ExecutableMessage).Type() + "\n\n"
+			messagesStr += m.(dao_interfaces.ExecutableMessage).String() + "\n\n"
 		}
 
-		proposalsStr += "### #" + strconv.Itoa(p.ID) + " " + p.Title + "\n" +
-			"Status: " + p.Status.String() + "\n\n" +
-			"Proposed by " + p.Proposer.String() + "\n\n" +
-			p.Description + "\n\n" +
-			"Votes summary:" + "\n\n" +
-			"- Yes: " + strconv.FormatUint(p.Votes.Yes, 10) + "\n" +
-			"- No: " + strconv.FormatUint(p.Votes.No, 10) + "\n" +
-			"- Abstain: " + strconv.FormatUint(p.Votes.Abstain, 10) + "\n\n" +
-			"Total: " + strconv.FormatUint(p.Votes.Total(), 10) + "\n" +
-			"#### Messages\n" +
+		proposalsStr += "\\#" + strconv.Itoa(p.ID) + ": " + p.Title + ":\n\n" +
+			"  Status: " + p.Status.String() + "\n\n" +
+			"  Proposed by " + p.Proposer.String() + "\n\n" +
+			"  " + p.Description + "\n\n" +
+			"  Votes summary:" + "\n\n" +
+			"  - Yes: " + strconv.FormatUint(p.Votes.Yes, 10) + "\n" +
+			"  - No: " + strconv.FormatUint(p.Votes.No, 10) + "\n" +
+			"  - Abstain: " + strconv.FormatUint(p.Votes.Abstain, 10) + "\n\n" +
+			"  Total: " + strconv.FormatUint(p.Votes.Total(), 10) + "\n\n" +
+			"  Messages:\n\n" +
 			messagesStr +
-			"#### Votes\n"
+			"  Votes:\n\n"
 
 		p.Ballots.Iterate("", "", func(k string, v interface{}) bool {
 			ballot := v.(Ballot)
-			proposalsStr += "- " + k + " voted " + ballot.Vote.String() + "\n"
+			proposalsStr += k + " voted " + ballot.String() + "\n\n"
 			return false
 		})
 
 		proposalsStr += "\n"
 	}
 
-	return "# Single choice proposals module" + "\n" +
-		"## Summary" + "\n" +
-		"Max voting period: " + d.opts.MaxVotingPeriod.String() + "\n\n" +
+	return "Max voting period: " + d.opts.MaxVotingPeriod.String() + "\n\n" +
 		minVotingPeriodStr + "\n\n" +
 		executeStr + "\n\n" +
 		revotingStr + "\n\n" +
@@ -195,7 +194,7 @@ func (d *DAOProposalSingle) Core() dao_interfaces.IDAOCore {
 
 func (d *DAOProposalSingle) Info() dao_interfaces.ModuleInfo {
 	return dao_interfaces.ModuleInfo{
-		Kind:    "SingleChoiceProposal",
+		Kind:    "gno.land/p/demo/teritori/dao_proposal_single",
 		Version: "0.1.0",
 	}
 }

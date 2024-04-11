@@ -68,6 +68,10 @@ func init() {
 
 	daoCore = dao_core.NewDAOCore(votingModuleFactory, proposalModulesFactories, messageHandlersFactories)
 
+	id := ProposeJSON(0, `{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/dao_voting_group.UpdateMembers", "payload": [{"power": "2", "address": "g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy"}]}]}`)
+	VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
+	Execute(0, id)
+
 	// dao_registry.Register(func() dao_interfaces.IDAOCore { return daoCore }, "DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
 }
 

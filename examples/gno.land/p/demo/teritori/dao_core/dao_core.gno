@@ -2,6 +2,7 @@ package core
 
 import (
 	"std"
+	"strconv"
 
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"
@@ -124,15 +125,20 @@ func (d *daoCore) ActiveProposalModuleCount() int {
 
 func (d *daoCore) Render(path string) string {
 	s := "# DAO Core\n"
-	s += "This is an attempt at porting [DA0-DA0 contracts](https://github.com/DA0-DA0/dao-contracts)\n"
-	s += markdown_utils.Indent(d.votingModule.Render(path)) + "\n"
-	for _, propMod := range d.proposalModules {
+	s += "Inspired by [DA0-DA0 contracts](https://github.com/DA0-DA0/dao-contracts)\n"
+	votingInfo := d.votingModule.Info()
+	s += "## Voting Module: " + votingInfo.String() + "\n"
+	s += d.votingModule.Render("")
+	s += "## Proposal Modules:\n"
+	for i, propMod := range d.proposalModules {
 		if !propMod.Enabled {
 			continue
 		}
-		s += markdown_utils.Indent(propMod.Module.Render(path)) + "\n"
+		info := propMod.Module.Info()
+		s += "### #" + strconv.Itoa(i) + ": " + info.String() + "\n"
+		s += propMod.Module.Render("")
 	}
-	return s
+	return s + "\n"
 }
 
 func (d *daoCore) Registry() *dao_interfaces.MessagesRegistry {
