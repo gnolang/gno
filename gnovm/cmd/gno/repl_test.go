@@ -19,124 +19,117 @@ func TestReplApp(t *testing.T) {
 func TestUpdateIndentLevel(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		line        string
-		indentLevel int
-		want        int
+		name                string
+		line                string
+		startingIndentLevel int
+		want                int
 	}{
 		{
-			name:        "Test with no brackets",
-			line:        "Hello, World!",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with no brackets",
+			line: "Hello, World!",
 		},
 		{
-			name:        "Test with open brackets",
-			line:        "func main() {",
-			indentLevel: 0,
-			want:        1,
+			name: "Test with open brackets",
+			line: "func main() {",
+			want: 1,
 		},
 		{
-			name:        "Test with closed brackets",
-			line:        "}",
-			indentLevel: 1,
-			want:        0,
+			name:                "Test with closed brackets",
+			line:                "}",
+			startingIndentLevel: 1,
 		},
 		{
-			name:        "Test with colon",
-			line:        "case 'a':",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with colon",
+			line: "case 'a':",
 		},
 		{
-			name:        "Test with colon and closed bracket",
-			line:        "case 'a': }",
-			indentLevel: 1,
-			want:        0,
+			name:                "Test with colon and closed bracket",
+			line:                "case 'a': }",
+			startingIndentLevel: 1,
 		},
 		{
-			name:        "Test with colon in string",
-			line:        "\"case 'a':\"",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with colon in string",
+			line: "\"case 'a':\"",
 		},
 		{
-			name:        "Test with colon in string and string end with colon",
-			line:        "case ':':",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with colon in string and string end with colon",
+			line: "case ':':",
 		},
 		{
-			name:        "Test with multiple open brackets",
-			line:        "func main() { if true {",
-			indentLevel: 0,
-			want:        2,
+			name: "Test with multiple open brackets",
+			line: "func main() { if true {",
+			want: 2,
 		},
 		{
-			name:        "Test with multiple closed brackets",
-			line:        "} }",
-			indentLevel: 2,
-			want:        0,
+			name:                "Test with multiple closed brackets",
+			line:                "} }",
+			startingIndentLevel: 2,
 		},
 		{
-			name:        "Test with mixed brackets",
-			line:        "} else {",
-			indentLevel: 1,
-			want:        1,
+			name:                "Test with mixed brackets",
+			line:                "} else {",
+			startingIndentLevel: 1,
+			want:                1,
 		},
 		{
-			name:        "Test with no change in indent level",
-			line:        "fmt.Println(\"Hello, World!\")",
-			indentLevel: 1,
-			want:        1,
+			name:                "Test with no change in indent level",
+			line:                "fmt.Println(\"Hello, World!\")",
+			startingIndentLevel: 1,
+			want:                1,
 		},
 		{
-			name:        "Test with colon and open bracket",
-			line:        "case 'a': {",
-			indentLevel: 0,
-			want:        1,
+			name: "Test with colon and open bracket",
+			line: "case 'a': {",
+			want: 1,
 		},
 		{
-			name:        "Test with brackets in string",
-			line:        "\"}}}}\"",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with brackets in string",
+			line: "\"}}}}\"",
 		},
 		{
-			name:        "Test with brackets in single line comment",
-			line:        "// { [ (",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with brackets in single line comment",
+			line: "// { [ (",
 		},
 		{
-			name:        "Test with brackets in multi line comment",
-			line:        "/* {{{{ */",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with brackets in multi line comment",
+			line: "/* {{{{ */",
 		},
 		{
-			name:        "Test with brackets in string and comment",
-			line:        "ufmt.Println(\"{ [ ( ) ] } {{\") // { [ ( ) ] ",
-			indentLevel: 0,
-			want:        0,
+			name: "Test with brackets in string and comment",
+			line: "ufmt.Println(\"{ [ ( ) ] } {{\") // { [ ( ) ] ",
 		},
 		{
-			name:        "Test string and single line comment",
-			line:        "CurlyToken = '{' // {",
-			indentLevel: 0,
-			want:        0,
+			name: "Test string and single line comment",
+			line: "CurlyToken = '{' // {",
 		},
 		{
-			name:        "Test curly bracket in string",
-			line:        "a := '{'",
-			indentLevel: 0,
-			want:        0,
+			name: "Test curly bracket in string",
+			line: "a := '{'",
 		},
 		{
-			name:        "Test curly bracket in string 2",
-			line:        "a := \"{hello\"",
-			indentLevel: 0,
-			want:        0,
+			name: "Test curly bracket in string 2",
+			line: "a := \"{hello\"",
+		},
+		{
+			name: "Test with backticks",
+			line: "`Hello, World!`",
+		},
+		{
+			name: "Test with brackets in backticks",
+			line: "`{([`",
+		},
+		{
+			name: "Test with escaped brackets in backticks",
+			line: "`\\{\\(\\[`",
+		},
+		{
+			name: "Test with backticks and brackets",
+			line: "func main() { `{([` }",
+		},
+		{
+			name: "Test with escaped brackets",
+			line: "c := \"asdf\\\\\"{{{{\"",
+			want: 4,
 		},
 	}
 
@@ -144,7 +137,7 @@ func TestUpdateIndentLevel(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := updateIndentLevel(tt.line, tt.indentLevel); got != tt.want {
+			if got := updateIndentLevel(tt.line, tt.startingIndentLevel); got != tt.want {
 				t.Errorf("%s = %v, want %v", tt.name, got, tt.want)
 			}
 		})

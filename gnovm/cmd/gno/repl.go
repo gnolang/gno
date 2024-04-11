@@ -173,60 +173,80 @@ func handleEditor(line string) (string, bool) {
 
 func updateIndentLevel(line string, indentLevel int) int {
 	openCount, closeCount := countBrackets(line)
-	increaseIndent := shouldIncreaseIndent(line)
 	indentLevel += openCount - closeCount
 
 	if indentLevel < 0 {
 		indentLevel = 0
 	}
 
-	if increaseIndent {
-		indentLevel++
-	}
-
 	return indentLevel
 }
 
+// replState represents the current state of the REPL.
+type replState int
+
+const (
+	defaultState replState = iota
+	stringState
+	singleLineCommentState
+	multiLineCommentState
+	backtickState
+)
+
 func countBrackets(line string) (int, int) {
-	openCount, closeCount := 0, 0
-	inString, inComment, inSingleLineComment := false, false, false
-	var stringChar rune
+	var (
+		openCount, closeCount int
+		stringDelim           rune
+		state                 = defaultState
+	)
 
 	for i, char := range line {
-		if !inString && !inComment && !inSingleLineComment {
+		switch state {
+		case defaultState:
 			switch char {
 			case '{', '(', '[':
 				openCount++
 			case '}', ')', ']':
 				closeCount++
 			case '"', '\'':
-				inString = true
-				stringChar = char
+				state = stringState
+				stringDelim = char
+			case '`':
+				state = backtickState
 			case '/':
 				if i < len(line)-1 {
-					if line[i+1] == '/' {
-						inSingleLineComment = true
-					} else if line[i+1] == '*' {
-						inComment = true
+					nextChar := line[i+1]
+					if nextChar == '/' {
+						state = singleLineCommentState
+					} else if nextChar == '*' {
+						state = multiLineCommentState
 					}
 				}
 			}
-		} else if inString && char == stringChar {
-			inString = false
-		} else if inComment && i < len(line)-1 && char == '*' && line[i+1] == '/' {
-			inComment = false
+		case stringState:
+			if char == stringDelim {
+				state = defaultState
+			}
+		case singleLineCommentState:
+			if char == '\n' {
+				state = defaultState
+			}
+		case multiLineCommentState:
+			if i < len(line)-1 && char == '*' && line[i+1] == '/' {
+				state = defaultState
+			}
+		case backtickState:
+			if char == '`' {
+				state = defaultState
+			}
+		}
+
+		if state == singleLineCommentState && char == '\n' {
+			state = defaultState
 		}
 	}
 
 	return openCount, closeCount
-}
-
-func shouldIncreaseIndent(line string) bool {
-	openIndex := strings.IndexAny(line, "{([")
-	if openIndex != -1 && openIndex < len(line)-1 && line[openIndex+1] == '\n' {
-		return true
-	}
-	return false
 }
 
 func printPrompt(indentLevel int, prev string) {
