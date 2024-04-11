@@ -3,7 +3,6 @@ package jsonutil
 import (
 	"std"
 	"strconv"
-	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"

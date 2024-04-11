@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/teritori/dao_utils"
 	voting_group "gno.land/p/demo/teritori/dao_voting_group"
 	"gno.land/r/demo/teritori/dao_registry"
-	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/tori"
 )
 
