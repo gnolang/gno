@@ -4,7 +4,6 @@ package std
 
 import (
 	"fmt"
-	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -26,7 +25,7 @@ func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 		}
 	}
 
-	timestamp := time.Now().Unix()
+	timestamp := GetTimestamp(m)
 	height := GetHeight(m)
 
 	event := sdk.NewEvent(typ, pkgPath, height, timestamp, eventAttrs...)

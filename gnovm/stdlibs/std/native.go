@@ -32,6 +32,10 @@ func GetHeight(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Height
 }
 
+func GetTimestamp(m *gno.Machine) int64 {
+	return m.Context.(ExecContext).Timestamp
+}
+
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := m.Context.(ExecContext).OrigSend
 	return ExpandCoins(os)
