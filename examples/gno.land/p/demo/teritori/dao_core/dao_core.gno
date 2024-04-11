@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
-	"gno.land/p/demo/teritori/markdown_utils"
 )
 
 // TODO: add wrapper message handler to handle multiple proposal modules messages

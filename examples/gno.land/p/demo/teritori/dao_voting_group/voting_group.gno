@@ -8,7 +8,6 @@ import (
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/havl"
 	"gno.land/p/demo/teritori/jsonutil"
-	"gno.land/p/demo/teritori/markdown_utils"
 )
 
 type Member struct {

@@ -24,10 +24,6 @@ Voting module that manages a mapping from address to voting power
 
 Provides an avl-like interface that allows to query state at any height, the implementation is a very simple wrapper around an avl and is very inefficient
 
-### gno.land/p/demo/markdown_utils
-
-Used by some other packages to properly nest markdown renders
-
 ## Realms
 
 ### gno.land/r/demo/teritori/dao_registry
