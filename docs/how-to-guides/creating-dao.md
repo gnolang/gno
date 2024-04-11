@@ -1,8 +1,11 @@
-# DAO Framework Quick Start Guide
+# How to Create a GRC20 Token
 
 ## Overview
 
-In this guide, we'll go over how to set up and configure a Decentralized Autonomous Organization (DAO) using the Gno DAO framework. We'll cover the core components that make up a DAO, walk you through the process of creating your first DAO, and provide code examples to help you get started.
+This guide will show you how to write a simple **DAO** [Realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
+[deployment](deploy.md) guide.
+
+We'll cover the core components that make up a DAO, walk you through the process of creating your first DAO, and provide code examples to help you get started.
 
 ## Table of Contents
 
@@ -368,11 +371,5 @@ func getProposalJSON(moduleIndex int, proposalIndex int) string {
 	return module.Module.ProposalJSON(proposalIndex)
 }
 ```
-
-## Deploying and Interacting with Your DAO
-
-*TODO: Add instructions for deploying and interacting with the DAO.*
-
----
 
 That's it! You've successfully created your first DAO using the Gno DAO framework. To expand its capabilities, you can register additional message handlers or even create new modules if you feel bold
