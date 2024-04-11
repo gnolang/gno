@@ -31,8 +31,27 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
+		var lhsIsStarExpr bool
+		lhsExpr := s.Lhs[i]
+		if _, lhsIsStarExpr = lhsExpr.(*StarExpr); lhsIsStarExpr {
+			// We need to unwrap the lhs value to get to the pointer's base and index.
+			lhsExpr = lhsExpr.(*StarExpr).X
+			// We didn't know this star expression was the left hand side of an assingment,
+			// so we need to pop the value off the stack.
+			m.PopValue()
+		}
+
 		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(s.Lhs[i])
+		lv := m.PopAsPointer(lhsExpr)
+		if lhsIsStarExpr {
+			// Copy over the base and index so the pointer value gets updated in Assign2.
+			// These base and index values will not be persisted.
+			newLV := lv.TV.V.(PointerValue)
+			newLV.Base = lv.Base
+			newLV.Index = lv.Index
+			lv = newLV
+		}
+
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := lv.Base.(Object); ok {
