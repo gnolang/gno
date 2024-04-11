@@ -467,7 +467,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		if pt, ok := xt.(*PointerType); ok {
+		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
@@ -485,7 +485,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		if pt, ok := xt.(*PointerType); ok {
+		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
 			m.PushValue(asValue(gTypeType))
