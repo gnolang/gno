@@ -13,17 +13,11 @@ type Campaign struct {
 	description  string
 	goal         uint64
 	current      uint64
+	begin        time.Time
 	deadline     time.Time
 	owner        *User
 	beneficiary  *User
 	contributors *avl.Tree
-}
-
-type User struct {
-	name      string
-	email     string
-	address   std.Address
-	campaigns []*Campaign
 }
 
 type Contributor struct {
@@ -33,25 +27,59 @@ type Contributor struct {
 	display bool
 }
 
-func NewUser(name string, email string, address std.Address) *User {
-	return &User{
-		name:    name,
-		email:   email,
-		address: address,
-	}
-}
-
-func NewCampaign(title string, description string, goal uint64, deadline time.Time, owner *User, beneficiary *User) *Campaign {
+func NewCampaign(title string, description string, goal uint64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	return &Campaign{
 		title:        title,
 		description:  description,
 		goal:         goal,
 		current:      0,
+		begin:        begin,
 		deadline:     deadline,
 		owner:        owner,
 		beneficiary:  beneficiary,
 		contributors: avl.NewTree(),
 	}
+}
+
+func (c Campaign) GetTitle() string {
+	return c.title
+}
+
+func (c Campaign) GetDescription() string {
+	return c.description
+}
+
+func (c Campaign) GetGoal() uint64 {
+	return c.goal
+}
+
+func (c Campaign) GetCurrent() uint64 {
+	return c.current
+}
+
+func (c Campaign) GetBegin() time.Time {
+	return c.begin
+}
+
+func (c Campaign) GetDeadline() time.Time {
+	return c.deadline
+}
+
+func (c Campaign) GetOwner() *User {
+	return c.owner
+}
+
+func (c Campaign) GetBeneficiary() *User {
+	return c.beneficiary
+}
+
+func (c Campaign) GetContributors() []*Contributor {
+	contributors := make([]*Contributor, c.contributors.Size())
+	c.contributors.Iterate("", "", func(key string, value interface{}) bool {
+		contributors = append(contributors, value.(*Contributor))
+		return false
+	})
+	return contributors
 }
 
 func (c Campaign) AddContributor(user *User, amount uint64, display bool) {
@@ -63,16 +91,4 @@ func (c Campaign) AddContributor(user *User, amount uint64, display bool) {
 		amount:  amount,
 		display: display,
 	})
-}
-
-func (u User) GetName() string {
-	return u.name
-}
-
-func (u User) GetEmail() string {
-	return u.email
-}
-
-func (u User) GetAddress() std.Address {
-	return u.address
 }
