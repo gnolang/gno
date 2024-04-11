@@ -674,7 +674,6 @@ func (idst *IncDecStmt) AssertCompatible(t Type) {
 func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	escapedOpStr := strings.Replace(wordTokenStrings[as.Op], "%", "%%", 1)
 	var destKind interface{}
-
 	if as.Op == ASSIGN || as.Op == DEFINE {
 		if len(as.Lhs) > len(as.Rhs) {
 			if len(as.Rhs) != 1 {
@@ -701,7 +700,6 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if len(as.Lhs) != 2 {
 					panic("should not happen")
 				}
-				debug.Println("---type assertion, assert type, reflect type of at: ", cx.Type, reflect.TypeOf(cx.Type))
 				if ctex, ok := cx.Type.(*constTypeExpr); ok {
 					// check assignable
 					dt := evalStaticTypeOf(store, last, as.Lhs[0])
@@ -709,9 +707,14 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				} else if _, ok := cx.Type.(*InterfaceTypeExpr); ok {
 					dt := evalStaticTypeOf(store, last, as.Lhs[0])
 					if isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
-						debug.Println("---blank")
-					} else if dt != nil && dt.Kind() == InterfaceKind {
 						// do nothing
+					} else if dt != nil && dt.Kind() == InterfaceKind {
+						ift := evalStaticTypeOf(store, last, cx)
+						debug.Println("---ift, type of: ", ift, reflect.TypeOf(ift))
+						idt := dt.(*InterfaceType)
+						if !idt.IsImplementedBy(ift) {
+							panic(fmt.Sprintf("cannot assign to %v \n", as.Lhs[0]))
+						}
 					} else {
 						panic(fmt.Sprintf("cannot assign to %v \n", as.Lhs[0]))
 					}
@@ -722,24 +725,17 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				lt := evalStaticTypeOf(store, last, as.Lhs[0])
-				debug.Println("---cx.X, type of: ", cx.X, reflect.TypeOf(cx.X))
 				if nx, ok := cx.X.(*NameExpr); ok {
 					rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
-					debug.Println("---rx, type of rx: ", rx, reflect.TypeOf(rx))
-					debug.Println("---rx.T: ", rx.T)
-					debug.Println("---rx.V: ", rx.V)
-
 					if mt, ok := rx.T.(*MapType); ok {
-						debug.Println("---mt: ", mt)
-						debug.Println("---type of value of map type: ", mt.Value)
 						checkAssignableTo(mt.Value, lt, false)
 					}
 				} else if _, ok := cx.X.(*CompositeLitExpr); ok {
 					cpt := evalStaticTypeOf(store, last, cx.X)
-					debug.Println("---cpt: ", cpt)
 					if mt, ok := cpt.(*MapType); ok {
-						debug.Println("---mt: ", mt)
 						checkAssignableTo(mt.Value, lt, false)
+					} else {
+						panic("should not happen")
 					}
 				}
 				cx.HasOK = true
@@ -750,8 +746,6 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			if as.Op == ASSIGN {
 				for i, lx := range as.Lhs {
 					rt := evalStaticTypeOf(store, last, as.Rhs[i])
-
-					debug.Println("lx, type of lx: ", lx, reflect.TypeOf(lx))
 
 					// check native cases
 					if rnt, ok := rt.(*NativeType); ok {
@@ -765,7 +759,6 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					case *NameExpr, *StarExpr, *SelectorExpr:
 						shouldPanic = false
 					case *IndexExpr:
-						debug.Println("---ix.X, type of ix.X: ", clx.X, reflect.TypeOf(clx.X))
 						xt := evalStaticTypeOf(store, last, clx.X)
 						shouldPanic = xt != nil && xt.Kind() == StringKind
 					default:

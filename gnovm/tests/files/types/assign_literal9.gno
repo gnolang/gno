@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// &0x14000189110.(*main.foo)
+// &0x140002f85a0.(*main.foo)

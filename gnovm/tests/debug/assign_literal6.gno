@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	1 + 2 = 6
-}
-
-// Error:
-// main/debug/assign_literal6.gno:4: cannot assign to (const (3 <untyped> bigint))

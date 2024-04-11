@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/debug/assign_index.gno:8: cannot use int as string
+// main/files/types/assign_index.gno:8: cannot use int as string

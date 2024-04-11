@@ -2,9 +2,10 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // In the case of a *FileSet, some declaration steps have to happen
@@ -1572,13 +1573,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *AssignStmt:
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					n.AssertCompatible(store, last)
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, rx)
 					}
 
-					n.AssertCompatible(store, last)
 					if len(n.Lhs) > len(n.Rhs) {
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
@@ -1592,7 +1593,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								last.Define(ln, anyValue(rf.Type))
 							}
 						case *TypeAssertExpr:
-							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 							tt := evalStaticType(store, last, cx.Type)
@@ -1600,7 +1600,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							last.Define(lhs0, anyValue(tt))
 							last.Define(lhs1, anyValue(BoolType))
 						case *IndexExpr:
-							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 
