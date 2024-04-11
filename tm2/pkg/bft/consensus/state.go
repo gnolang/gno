@@ -956,7 +956,6 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			"proposal round", proposal.POLRound,
 			"proposal timestamp", proposal.Timestamp.Unix(),
 		)
-
 	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
