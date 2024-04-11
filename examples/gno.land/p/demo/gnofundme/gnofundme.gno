@@ -1,60 +1,78 @@
 package gnofundme
 
-import "std"
+import (
+	"std"
+	"strconv"
+	"time"
 
-type Campaign struct{
-	Title: string
-	Description: string
-	Goal: uint64
-	Current: uint64
-	Deadline: time
-	Owner: *User
-	Beneficiary: *User
-	Contributors: *avl.Tree
+	"gno.land/p/demo/avl"
+)
+
+type Campaign struct {
+	title        string
+	description  string
+	goal         uint64
+	current      uint64
+	deadline     time.Time
+	owner        *User
+	beneficiary  *User
+	contributors *avl.Tree
 }
 
-type User struct{
-	Name: string
-	Email: string
-	Address: std.Address
-	Campaigns: []Campaign
+type User struct {
+	name      string
+	email     string
+	address   std.Address
+	campaigns []*Campaign
 }
 
 type Contributor struct {
-	User: *User
-	Date: time
-	Amount: uint64
-	Display: bool
+	user    *User
+	date    time.Time
+	amount  uint64
+	display bool
 }
 
-func NewUser(name string, email string, address std.Address) *User{
+func NewUser(name string, email string, address std.Address) *User {
 	return &User{
-		Name: name,
-		Email: email,
-		Address: address,
+		name:    name,
+		email:   email,
+		address: address,
 	}
 }
 
-func NewCampaign(title string, description string, goal uint64, deadline time, owner *User, beneficiary *User) *Campaign{
+func NewCampaign(title string, description string, goal uint64, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	return &Campaign{
-		Title: title,
-		Description: description,
-		Goal: goal,
-		Current: 0,
-		Deadline: deadline,
-		Owner: owner,
-		Beneficiary: beneficiary,
-		Contributors: avl.NewTree(),
+		title:        title,
+		description:  description,
+		goal:         goal,
+		current:      0,
+		deadline:     deadline,
+		owner:        owner,
+		beneficiary:  beneficiary,
+		contributors: avl.NewTree(),
 	}
 }
 
-func AddContributor(campaign *Campaign, user *User, amount uint64, display bool){
-	campaign.Current += amount
-	key := campaign.Contributors.Size()
-	campaign.Contributors.Set(strconv.Itoa() &Contributor{
-		User: user,
-		Date: time.Now(),
-		Amount: amount,
-		Display: display,
+func (c Campaign) AddContributor(user *User, amount uint64, display bool) {
+	c.current += amount
+	key := c.contributors.Size()
+	c.contributors.Set(strconv.Itoa(key), &Contributor{
+		user:    user,
+		date:    time.Now(),
+		amount:  amount,
+		display: display,
 	})
+}
+
+func (u User) GetName() string {
+	return u.name
+}
+
+func (u User) GetEmail() string {
+	return u.email
+}
+
+func (u User) GetAddress() std.Address {
+	return u.address
 }
