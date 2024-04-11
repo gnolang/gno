@@ -18,9 +18,9 @@ import (
 
 const EventAttrKeySender = "sender"
 
-func Hello() string {
+func Hello() {
 	std.EmitEvent(
-		"type_goes_here",
+		EventAttrKeySender,
 		[]string{"value1", "value2"},
 	)
 }
