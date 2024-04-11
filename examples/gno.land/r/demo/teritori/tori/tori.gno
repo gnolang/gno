@@ -13,7 +13,7 @@ import (
 var (
 	tori     *grc20.AdminToken
 	userTori grc20.IGRC20
-	admin    std.Address = std.DerivePkgAddr("gno.land/r/demo/teritori/dao_realm") // TODO: helper to change admin
+	admin    std.Address = std.DerivePkgAddr("gno.land/r/demo/teritori/dao_realm") // TODO: public func and message to change admin
 )
 
 func init() {
