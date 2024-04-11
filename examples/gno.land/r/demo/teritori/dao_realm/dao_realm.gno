@@ -10,30 +10,27 @@ import (
 	"gno.land/p/demo/teritori/dao_utils"
 	voting_group "gno.land/p/demo/teritori/dao_voting_group"
 	"gno.land/r/demo/teritori/dao_registry"
-	// registry "gno.land/r/demo/teritori/dao_registry"
-	"gno.land/r/demo/teritori/groups"
-	modboards "gno.land/r/demo/teritori/modboards"
+	registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/tori"
 )
 
+// Example DAO realm
+
 var (
-	daoCore       dao_interfaces.IDAOCore
-	mainBoardName = "dao_realm"
-	groupName     = mainBoardName + "_voting_group"
-	groupID       groups.GroupID
+	daoCore    dao_interfaces.IDAOCore
+	group      *voting_group.VotingGroup
+	registered bool
 )
 
 func init() {
-	modboards.CreateBoard(mainBoardName)
-
 	votingModuleFactory := func(core dao_interfaces.IDAOCore) dao_interfaces.IVotingModule {
-		groupID = groups.CreateGroup(groupName)
-		groups.AddMember(groupID, "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", 1, "")
-		groups.AddMember(groupID, "g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv", 1, "")
-		groups.AddMember(groupID, "g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a", 1, "")
-		groups.AddMember(groupID, "g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym", 1, "")
-		groups.AddMember(groupID, std.GetOrigCaller().String(), 1, "")
-		return voting_group.NewVotingGroup(groupID)
+		group = voting_group.NewVotingGroup()
+		group.SetMemberPower("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", 1)
+		group.SetMemberPower("g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv", 1)
+		group.SetMemberPower("g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a", 1)
+		group.SetMemberPower("g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym", 1)
+		group.SetMemberPower(std.GetOrigCaller(), 1)
+		return group
 	}
 
 	// TODO: consider using factories that return multiple modules and handlers
@@ -54,10 +51,7 @@ func init() {
 
 	messageHandlersFactories := []dao_interfaces.MessageHandlerFactory{
 		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-			return groups.NewAddMemberHandler()
-		},
-		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-			return groups.NewDeleteMemberHandler()
+			return group.UpdateMembersHandler()
 		},
 		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
 			// TODO: add a router to support multiple proposal modules
@@ -65,13 +59,10 @@ func init() {
 			return proposal_single.NewUpdateSettingsHandler(propMod.Module.(*proposal_single.DAOProposalSingle))
 		},
 		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-			return modboards.NewCreateBoardHandler()
-		},
-		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-			return modboards.NewDeletePostHandler()
-		},
-		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
 			return tori.NewMintToriHandler()
+		},
+		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
+			return tori.NewBurnToriHandler()
 		},
 	}
 
@@ -80,8 +71,18 @@ func init() {
 	// dao_registry.Register(func() dao_interfaces.IDAOCore { return daoCore }, "DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
 }
 
+// FIXME: the registry is currently broken in 'gno test', see https://github.com/gnolang/gno/issues/1852
+// so we're exposing a way to register after DAO instantiation
+func RegisterSelf() {
+	if registered {
+		panic("already registered")
+	}
+	dao_registry.Register(func() dao_interfaces.IDAOCore { return daoCore }, "DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
+	registered = true
+}
+
 func Render(path string) string {
-	return "[[board](/r/demo/modboards:" + mainBoardName + ")]\n\n" + daoCore.Render(path)
+	return daoCore.Render(path)
 }
 
 func VoteJSON(moduleIndex int, proposalID int, voteJSON string) {

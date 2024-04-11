@@ -16,21 +16,9 @@ Implementation of the DAO core interface, partial port of [dao-dao-core](https:/
 
 Proposal module implementation that supports binary proposals, users can only vote Yes or No
 
-### gno.land/p/demo/teritori/voting_group
+### gno.land/p/demo/teritori/dao_voting_group
 
-Voting module that queries a group to get the voting power of users
-
-### gno.land/p/demo/ujson
-
-Simple-to-use JSON encoding and decoding without reflection
-
-### gno.land/p/demo/teritori/flags_index
-
-Provides generic flagging features, allows to:
-- Flag an ID
-- List most flagged IDs
-- Check if an address has flagged a particular ID
-- Clear flags on an ID
+Voting module that manages a mapping from address to voting power
 
 ### gno.land/p/demo/teritori/havl
 
@@ -39,14 +27,6 @@ Provides an avl-like interface that allows to query state at any height, the imp
 ### gno.land/p/demo/markdown_utils
 
 Used by some other packages to properly nest markdown renders
-
-### gno.land/p/demo/teritori/binutils
-
-Binary utilities we used before having JSON encoding to transfer complex object between UI and chain
-
-### unicode/utf16
-
-Golang's utf16 library, used by ujson
 
 ## Realms
 
@@ -67,54 +47,6 @@ Supported proposals actions:
 - Create and moderate boards
 - Mint Toris (grc20)
 - Update proposal settings (threshold/quorum)
-
-### gno.land/r/demo/teritori/groups
-
-Fork of `gno.land/r/demo/groups` with the following changes:
-- allows non-EOA to create groups (so a DAO can create and manage a group)
-- add `ExecutableMessage`s implementations to support adding and removing members via proposals
-- use `havl` to store members weight so we can query it at any height (this is needed by the `dao_voting_group` module)
-
-### gno.land/r/demo/teritori/modboards
-
-Fork of `gno.land/r/demo/boards` with the following changes:
-- allows non-EOA to create boards (so a DAO can create and moderate a board)
-- allow users to flag content and display most flagged posts (using `gno.land/p/demo/teritori/flags_index`)
-- add `ExecutableMessage`s implementations to support creating boards an deleting threads/posts via proposals
-
-### gno.land/r/demo/teritori/social_feeds
-
-Social feed contract that strives to have feature-parity with Teritori's cosmwasm social feed
-
-It supports content flagging and moderation by DAOs
-
-See the [live demo](https://app.teritori.com/feed?network=gno-portal)
-
-### gno.land/r/demo/teritori/social_feeds_dao
-
-Example of a DAO that can moderate social feeds
-
-### gno.land/r/demo/teritori/projects_manager
-
-Kanban with integrated payments and conflict resolution
-
-See the [live demo](https://app.teritori.com/projects?network=gno-portal)
-
-### gno.land/r/demo/teritori/gnodaos
-
-Exploration of a realm managing monolitic DAOs
-
-This can't be used as is because we can't have a single realm handle multiple DAOs due to the PrevRealm auth model
-
-Since this supports NoWithVeto we will probably refactor this code into a "cosmos-like" proposal module
-
-### gno.land/r/demo/teritori/justicedao
-
-Exploration based on `gno.land/r/demo/teritori/gnodaos` that randomly (using vrf realm) selects members that are allowed to vote
-
-### gno.land/r/demo/teritori/vrf
-
-Chainlink-style VRF contract
 
 ### gno.land/r/demo/teritori/tori
 

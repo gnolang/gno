@@ -13,6 +13,8 @@ type Tree struct {
 	initialHeight int64
 }
 
+var Latest = int64(0)
+
 // FIXME: don't cast height to int
 
 // this is not optimized at all, we make a full copy on write

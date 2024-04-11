@@ -9,8 +9,8 @@ import (
 	dao_core "gno.land/p/demo/teritori/dao_core"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	proposal_single "gno.land/p/demo/teritori/dao_proposal_single"
-	"gno.land/r/demo/teritori/groups"
-	modboards "gno.land/r/demo/teritori/modboards"
+	"gno.land/p/demo/teritori/dao_voting_group"
+	"gno.land/p/demo/teritori/havl"
 	"gno.land/r/demo/users"
 )
 
@@ -24,13 +24,13 @@ func TestInit(t *testing.T) {
 	}
 
 	{
-		members := groups.GetMembers(groupID)
+		members := group.GetMembers("", "", 0, havl.Latest)
 		iSlice := make([]*json.Node, len(members))
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
 		membersJSON := json.ArrayNode("", iSlice).String()
-		expected := `[{"id":"0","address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"}]`
+		expected := `[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
 		if membersJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
@@ -41,92 +41,62 @@ func TestUpdateMembers(t *testing.T) {
 	var membersJSON string
 
 	{
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.AddMember", "payload": {"groupId": "%d", "weight": "1", "address": "g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy", "metadata": "hello"}}]}`, groupID))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/dao_voting_group.UpdateMembers", "payload": [{"power": "2", "address": "g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy"}]}]}`))
 		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
-		members := groups.GetMembers(groupID)
+		members := group.GetMembers("", "", 0, havl.Latest)
 		iSlice := make([]*json.Node, len(members))
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
 		membersJSON = json.ArrayNode("", iSlice).String()
-		expected := fmt.Sprintf(`[{"id":"0","address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"5","address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","weight":"1","metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`)
+		expected := fmt.Sprintf(`[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`)
 		if membersJSON != expected {
-			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
+		}
+		totalPower := group.TotalPowerAtHeight(havl.Latest)
+		if totalPower != 7 {
+			t.Errorf("Expected total power to be 6, got %d", totalPower)
 		}
 	}
 
 	{
 		children := json.Must(json.Unmarshal([]byte(membersJSON))).MustArray()
 		if len(children) != 6 {
-			t.Fatalf("Expected 6 members, got %d", len(children))
+			t.Errorf("Expected 6 members, got %d", len(children))
 		}
-		var member groups.Member
+		var member dao_voting_group.Member
 		member.FromJSON(children[0])
 
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.DeleteMember", "payload": {"groupId": "%d", "memberId": "%d"}}]}`, groupID, member.GetID()))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/dao_voting_group.UpdateMembers", "payload": [{"address": "%s", "power": "0"}]}]}`, member.Address.String()))
 		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
-		members := groups.GetMembers(groupID)
+		members := group.GetMembers("", "", 0, havl.Latest)
 		iSlice := make([]*json.Node, len(members))
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
 		membersJSON := json.ArrayNode("", iSlice).String()
-		expected := `[{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"5","address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","weight":"1","metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`
+		expected := `[{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
 		if membersJSON != expected {
-			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
-	}
-}
-
-func TestModeration(t *testing.T) {
-	std.TestSetOrigSend(std.Coins{{Amount: 100000000, Denom: "ugnot"}}, nil)
-	boardID, ok := modboards.GetBoardIDFromName(mainBoardName)
-	if !ok {
-		t.Fatalf("Board %s not found", mainBoardName)
-	}
-	modboards.CreateThread(boardID, "Test thread", "Offensive stuff")
-	modboards.FlagPost(boardID, 1, 1)
-	{
-		expected := `\[[post](/r/demo/modboards?help&__func=CreateThread&bid=1&body.type=textarea)]\[[see flags](/r/demo/modboards:dao_realm/flags)]
-
-----------------------------------------
-## [Test thread](/r/demo/modboards:dao_realm/1)
-
-Offensive stuff
-\- [g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/r/users:g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm), [2009-02-13 11:31pm UTC](/r/demo/modboards:dao_realm/1) \[[🚩](/r/demo/modboards?help&__func=FlagPost&boardID=1&threadID=1&postID=1)] \[[x](/r/demo/modboards?help&__func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies, 1 red flags)
-
-`
-		render := modboards.Render(mainBoardName)
-		if render != expected {
-			t.Fatalf("Expected %s, got `%s`", expected, render)
-		}
-	}
-
-	id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/modboards.DeletePost", "payload": {"boardId": "%d", "threadId": "1", "postId":"1", "reason": "testing"}}]}`, boardID))
-	VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
-	Execute(0, id)
-	{
-		expected := `\[[post](/r/demo/modboards?help&__func=CreateThread&bid=1&body.type=textarea)]\[[see flags](/r/demo/modboards:dao_realm/flags)]
-
-`
-		render := modboards.Render(mainBoardName)
-		if render != expected {
-			t.Fatalf("Expected:\n%s\nGot:\n%s`", expected, render)
+		totalPower := group.TotalPowerAtHeight(havl.Latest)
+		if totalPower != 6 {
+			t.Errorf("Expected total power to be 6, got %d", totalPower)
 		}
 	}
 }
 
 func TestUpdateSettings(t *testing.T) {
-	// not sure why but in this test the proposal ids start at 3, shouldn't tests be isolated? TODO: investigate
+	// not sure why but in this test the proposal ids start at 3 and the voting power is 5 when all tests are run, shouldn't tests be isolated? TODO: investigate
 
 	{
 		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings", "payload": {"threshold": {"thresholdQuorum": {"threshold": {"percent": 200}, "quorum": {"percent": 200}}}}}]}`))
 		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		proposalJSON := getProposalJSON(0, id)
-		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"5","messages":[{"type":"gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}}}`, id)
+		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"6","messages":[{"type":"gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}}}`, id)
 		if proposalJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, proposalJSON)
 		}
@@ -138,24 +108,9 @@ func TestUpdateSettings(t *testing.T) {
 		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		proposalJSON := getProposalJSON(0, id)
-		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"5","messages":[],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}`, id)
+		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"6","messages":[],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}`, id)
 		if proposalJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, proposalJSON)
-		}
-	}
-}
-
-func TestCreateBoard(t *testing.T) {
-	{
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Create moderated board", "description": "", "messages": [{"type":"gno.land/r/demo/teritori/modboards.CreateBoard","payload":{"name":"test_board"}}]}`))
-		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
-		Execute(0, id)
-		render := modboards.Render("test_board")
-		expected := `\[[post](/r/demo/modboards?help&__func=CreateThread&bid=2&body.type=textarea)]\[[see flags](/r/demo/modboards:test_board/flags)]
-
-`
-		if render != expected {
-			t.Fatalf("Expected:\n`%s`\nGot:\n`%s`", expected, render)
 		}
 	}
 }

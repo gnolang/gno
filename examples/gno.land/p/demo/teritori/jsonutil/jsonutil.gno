@@ -63,6 +63,14 @@ func MustInt(value *json.Node) int {
 	return i
 }
 
+func Uint32Node(value uint32) *json.Node {
+	return json.StringNode("", strconv.FormatUint(uint64(value), 10))
+}
+
+func MustUint32(value *json.Node) uint32 {
+	return uint32(MustInt(value))
+}
+
 func Int64Node(value int64) *json.Node {
 	return json.StringNode("", strconv.FormatInt(value, 10))
 }
@@ -71,12 +79,12 @@ func MustInt64(value *json.Node) int64 {
 	return int64(MustInt(value))
 }
 
-func MustUint64(value *json.Node) uint64 {
-	return uint64(MustInt(value)) // FIXME: full uint64 range support (currently limited to [-2^63, 2^63-1])
-}
-
 func Uint64Node(value uint64) *json.Node {
 	return json.StringNode("", strconv.FormatUint(value, 10))
+}
+
+func MustUint64(value *json.Node) uint64 {
+	return uint64(MustInt(value)) // FIXME: full uint64 range support (currently limited to [-2^63, 2^63-1])
 }
 
 func AVLTreeNode(root *avl.Tree, transform func(elem interface{}) *json.Node) *json.Node {
