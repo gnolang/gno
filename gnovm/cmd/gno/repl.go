@@ -303,6 +303,6 @@ func printHelp() {
 	fmt.Printf(
 		helpText, importExample, funcExample,
 		srcCommand, editorCommand, clearCommand,
-		resetCommand, exitCommand, printExample,
+		resetCommand, printExample, exitCommand,
 	)
 }
