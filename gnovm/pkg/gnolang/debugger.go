@@ -496,6 +496,9 @@ func sourceLines(name string, n int) ([]string, int, error) {
 	lines := strings.Split(string(buf), "\n")
 	start := max(1, n-listLength/2) - 1
 	end := min(start+listLength, len(lines))
+	if start >= end {
+		start = max(1, end-listLength)
+	}
 	return lines[start:end], start + 1, nil
 }
 

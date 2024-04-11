@@ -75,6 +75,7 @@ func TestDebug(t *testing.T) {
 		{in: "h\n", out: "The following commands are available"},
 		{in: "help h\n", out: "Print the help message."},
 		{in: "list " + debugTarget + ":1\n", out: "1: // This is a sample target"},
+		{in: "l 40\n", out: "23: }"},
 		{in: brk, out: "Breakpoint 0 at main "},
 		{in: cont, out: "=>    7: 	println(name, i)"},
 		{in: cont + "stack\n", out: "2	in main.main"},
