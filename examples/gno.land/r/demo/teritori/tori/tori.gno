@@ -19,7 +19,6 @@ var (
 func init() {
 	tori = grc20.NewAdminToken("Tori", "TORI", 6)
 	userTori = tori.GRC20()
-	// grc20_registry.Register(userTori) // found another bug, calling this sets some grc20 internal object's pkgid to the registry realm id
 }
 
 // method proxies as public functions.
@@ -62,15 +61,6 @@ func Approve(spender users.AddressOrName, amount uint64) {
 func TransferFrom(from, to users.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	tori.TransferFrom(caller, rusers.Resolve(from), rusers.Resolve(to), amount)
-}
-
-// faucet.
-
-func Faucet() {
-	// FIXME: add limits?
-	// FIXME: add payment in gnot?
-	caller := std.PrevRealm().Addr()
-	tori.Mint(caller, 1000*10000) // 1k
 }
 
 // administration.
