@@ -2521,7 +2521,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 						nidt.String()))
 				}
 				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
+				if reflect.PointerTo(nxt.Type).AssignableTo(nidt) {
 					return // ok
 				} else {
 					panic(fmt.Sprintf(
@@ -2546,7 +2546,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
-				Type: reflect.PtrTo(enxt.Type),
+				Type: reflect.PointerTo(enxt.Type),
 			}
 		}
 	}
@@ -2554,7 +2554,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		// *gonative{x} is gonative{*x}
 		if endt, ok := pdt.Elt.(*NativeType); ok {
 			dt = &NativeType{
-				Type: reflect.PtrTo(endt.Type),
+				Type: reflect.PointerTo(endt.Type),
 			}
 		}
 	}
