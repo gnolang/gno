@@ -1,27 +1,15 @@
-# How to Create a GRC20 Token
+---
+id: creating-dao
+---
+
+# How to Create a DAO
 
 ## Overview
 
-This guide will show you how to write a simple **DAO** [Realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
+This guide will show you how to write a simple [**DAO**](https://en.wikipedia.org/wiki/Decentralized_autonomous_organization) [Realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
 [deployment](deploy.md) guide.
 
 We'll cover the core components that make up a DAO, walk you through the process of creating your first DAO, and provide code examples to help you get started.
-
-## Table of Contents
-
-1. [Theoretical Foundations](#theoretical-foundations)
-    - [Core Interface](#core-interface)
-    - [Voting Module](#voting-module)
-    - [Proposal Modules](#proposal-modules)
-    - [Message Handlers](#message-handlers)
-2. [Practical Implementation](#practical-implementation)
-    - [Setting Up Your Workspace](#setting-up-your-workspace)
-    - [Creating the Voting Module](#creating-the-voting-module)
-    - [Creating the Proposal Module](#creating-the-proposal-module)
-    - [Registering Message Handlers](#registering-message-handlers)
-    - [Creating the DAO Core](#creating-the-dao-core)
-
----
 
 ## Theoretical Foundations
 
