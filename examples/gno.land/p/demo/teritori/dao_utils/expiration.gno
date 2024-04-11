@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/teritori/jsonutil"
 )
 
 // loosely ported from https://github.com/CosmWasm/cw-utils/blob/7fce8a214f2f1e7763b8718dcbd2a6dd07f30988/src/expiration.rs
@@ -13,7 +14,7 @@ import (
 type (
 	Expiration interface {
 		IsExpired() bool
-		ToJSON() string
+		ToJSON() *json.Node
 		String() string
 	}
 	ExpirationAtHeight int64
@@ -25,8 +26,9 @@ func (e ExpirationAtHeight) IsExpired() bool {
 	return std.GetHeight() >= int64(e)
 }
 
-func (e ExpirationAtHeight) ToJSON() string {
-	return ujson.FormatUnionMember("atHeight", int64(e), false)
+func (e ExpirationAtHeight) ToJSON() *json.Node {
+	val := jsonutil.Int64Node(int64(e))
+	return jsonutil.UnionNode("atHeight", val)
 }
 
 func (e ExpirationAtHeight) String() string {
@@ -39,8 +41,9 @@ func (e ExpirationAtTime) IsExpired() bool {
 	return now.Equal(t) || now.After(t)
 }
 
-func (e ExpirationAtTime) ToJSON() string {
-	return ujson.FormatUnionMember("atTime", time.Time(e), false)
+func (e ExpirationAtTime) ToJSON() *json.Node {
+	val := jsonutil.TimeNode(time.Time(e))
+	return jsonutil.UnionNode("atTime", val)
 }
 
 func (e ExpirationAtTime) String() string {
@@ -51,8 +54,8 @@ func (e ExpirationNever) IsExpired() bool {
 	return false
 }
 
-func (e ExpirationNever) ToJSON() string {
-	return ujson.FormatUnionMember("never", "{}", true)
+func (e ExpirationNever) ToJSON() *json.Node {
+	return jsonutil.UnionNode("never", jsonutil.EmptyObjectNode())
 }
 
 func (e ExpirationNever) String() string {
@@ -62,7 +65,7 @@ func (e ExpirationNever) String() string {
 type (
 	Duration interface {
 		AfterCurrentBlock() Expiration
-		ToJSON() string
+		ToJSON() *json.Node
 		String() string
 	}
 	DurationHeight int64
@@ -73,8 +76,9 @@ func (d DurationHeight) AfterCurrentBlock() Expiration {
 	return ExpirationAtHeight(std.GetHeight() + int64(d))
 }
 
-func (d DurationHeight) ToJSON() string {
-	return ujson.FormatUnionMember("height", int64(d), false)
+func (d DurationHeight) ToJSON() *json.Node {
+	val := json.NumberNode("", float64(d))
+	return jsonutil.UnionNode("height", val)
 }
 
 func (d DurationHeight) String() string {
@@ -85,8 +89,9 @@ func (d DurationTime) AfterCurrentBlock() Expiration {
 	return ExpirationAtTime(time.Now().Add(time.Duration(d)))
 }
 
-func (d DurationTime) ToJSON() string {
-	return ujson.FormatUnionMember("time", time.Duration(d), false)
+func (d DurationTime) ToJSON() *json.Node {
+	val := jsonutil.DurationNode(time.Duration(d))
+	return jsonutil.UnionNode("time", val)
 }
 
 func (d DurationTime) String() string {

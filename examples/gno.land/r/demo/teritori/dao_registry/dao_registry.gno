@@ -6,18 +6,19 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/teritori/dao_interfaces"
+	"gno.land/p/demo/teritori/jsonutil"
 )
-
-// TODO: rewrite
 
 type Registration struct {
 	PkgPath     string      `json:"pkgPath"`
 	Addr        std.Address `json:"addr"`
-	CreatedAt   uint64      `json:"createdAt"`
+	CreatedAt   time.Time   `json:"createdAt"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	ImageURI    string      `json:"imageURI"`
+	Getter      DAOGetter   `json:"-"`
 }
 
 var (
@@ -26,37 +27,47 @@ var (
 )
 
 // TODO: use profile for info
-// TODO: make core accessible
 
-func Register(name string, description string, imageURI string) {
+type DAOGetter func() dao_interfaces.IDAOCore
+
+func Register(getter DAOGetter, name string, description string, imageURI string) {
 	realm := std.PrevRealm()
 	pkgPath := realm.PkgPath()
 	if pkgPath == "" {
-		panic("no pkg path in prev realm")
+		panic("caller is not a realm")
 	}
-	doRegister(pkgPath, realm.Addr(), name, description, imageURI)
+	doRegister(getter, pkgPath, realm.Addr(), name, description, imageURI)
 }
 
 // splitted for tests
-func doRegister(pkgPath string, addr std.Address, name string, description string, imageURI string) {
+func doRegister(getter DAOGetter, pkgPath string, addr std.Address, name string, description string, imageURI string) {
 	if byPkgPath.Has(pkgPath) {
 		panic("already registered")
 	}
 	registration := &Registration{
 		PkgPath:     pkgPath,
 		Addr:        addr,
-		CreatedAt:   uint64(time.Now().UnixMilli()),
+		CreatedAt:   time.Now(),
 		Name:        name,
 		Description: description,
 		ImageURI:    imageURI,
+		Getter:      getter,
 	}
 	byPkgPath.Set(pkgPath, registration)
 
 	keyBytes := []byte{}
-	keyBytes = binary.BigEndian.AppendUint64(keyBytes, uint64(registration.CreatedAt))
+	keyBytes = binary.BigEndian.AppendUint64(keyBytes, uint64(registration.CreatedAt.UnixMilli())) // won't be before unix epoch
 	keyBytes = append(keyBytes, []byte(pkgPath)...)
 	key := string(keyBytes)
 	byCreatedAt.Set(key, registration)
+}
+
+func GetCore(pkgPath string) dao_interfaces.IDAOCore {
+	r, ok := byPkgPath.Get(pkgPath)
+	if !ok {
+		panic("not found")
+	}
+	return r.(*Registration).Getter()
 }
 
 func GetJSON(pkgPath string) string {
@@ -64,7 +75,7 @@ func GetJSON(pkgPath string) string {
 	if !ok {
 		panic("not found")
 	}
-	return r.(*Registration).ToJSON()
+	return r.(*Registration).ToJSON().String()
 }
 
 func List(start string, end string, limit int, reverse bool) []Registration {
@@ -86,20 +97,20 @@ func List(start string, end string, limit int, reverse bool) []Registration {
 
 func ListJSON(start string, end string, limit int, reverse bool) string {
 	regs := List(start, end, limit, reverse)
-	iSlice := make([]interface{}, len(regs))
+	iSlice := make([]*json.Node, len(regs))
 	for i, v := range regs {
-		iSlice[i] = v
+		iSlice[i] = v.ToJSON()
 	}
-	return ujson.FormatSlice(iSlice)
+	return json.ArrayNode("", iSlice).String()
 }
 
-func (r Registration) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "pkgPath", Value: r.PkgPath},
-		{Key: "addr", Value: r.Addr},
-		{Key: "createdAt", Value: r.CreatedAt},
-		{Key: "name", Value: r.Name},
-		{Key: "description", Value: r.Description},
-		{Key: "imageURI", Value: r.ImageURI},
+func (r Registration) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"pkgPath":     json.StringNode("", r.PkgPath),
+		"addr":        jsonutil.AddressNode(r.Addr),
+		"createdAt":   jsonutil.TimeNode(r.CreatedAt),
+		"name":        json.StringNode("", r.Name),
+		"description": json.StringNode("", r.Description),
+		"imageURI":    json.StringNode("", r.ImageURI),
 	})
 }

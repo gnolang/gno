@@ -3,9 +3,9 @@ package dao_voting_group
 import (
 	"std"
 
+	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/markdown_utils"
-	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/groups"
 )
 
@@ -27,9 +27,9 @@ func (v *VotingGroup) Info() dao_interfaces.ModuleInfo {
 }
 
 func (v *VotingGroup) ConfigJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "groupId", Value: v.groupID},
-	})
+	return json.ObjectNode("", map[string]*json.Node{
+		"groupId": v.groupID.ToJSON(),
+	}).String()
 }
 
 func (v *VotingGroup) VotingPowerAtHeight(addr std.Address, height int64) uint64 {

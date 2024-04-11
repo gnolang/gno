@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/dao_utils"
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/teritori/jsonutil"
 )
 
 type Ballot struct {
@@ -16,11 +17,11 @@ type Ballot struct {
 	Rationale string
 }
 
-func (b Ballot) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "power", Value: b.Power},
-		{Key: "vote", Value: b.Vote},
-		{Key: "rationale", Value: b.Rationale},
+func (b Ballot) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"power":     jsonutil.Uint64Node(b.Power),
+		"vote":      b.Vote.ToJSON(),
+		"rationale": json.StringNode("", b.Rationale),
 	})
 }
 
@@ -60,11 +61,11 @@ func (v *Votes) Total() uint64 {
 	return v.Yes + v.No + v.Abstain
 }
 
-func (v Votes) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "yes", Value: v.Yes},
-		{Key: "no", Value: v.No},
-		{Key: "abstain", Value: v.Abstain},
+func (v Votes) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"yes":     jsonutil.Uint64Node(v.Yes),
+		"no":      jsonutil.Uint64Node(v.No),
+		"abstain": jsonutil.Uint64Node(v.Abstain),
 	})
 }
 
@@ -88,49 +89,54 @@ type Proposal struct {
 	Ballots *avl.Tree
 }
 
-var _ ujson.JSONAble = (*Proposal)(nil)
-
 type messageWithType struct {
 	Type    string
 	Message dao_interfaces.ExecutableMessage
 }
 
-func (m *messageWithType) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "type", Value: m.Type},
-		{Key: "payload", Value: m.Message},
+func (m *messageWithType) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"type":    json.StringNode("", m.Type),
+		"payload": m.Message.ToJSON(),
 	})
 }
 
-func formatMessages(messages []dao_interfaces.ExecutableMessage) string {
-	var out []interface{}
-	for _, m := range messages {
-		out = append(out, &messageWithType{
+func formatMessages(messages []dao_interfaces.ExecutableMessage) []*json.Node {
+	out := make([]*json.Node, len(messages))
+	for i, m := range messages {
+		mt := messageWithType{
 			Type:    m.Type(),
 			Message: m,
-		})
+		}
+		out[i] = mt.ToJSON()
 	}
-	return ujson.FormatSlice(out)
+	return out
 }
 
-func (p Proposal) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "id", Value: p.ID},
-		{Key: "title", Value: p.Title},
-		{Key: "description", Value: p.Description},
-		{Key: "proposer", Value: p.Proposer},
-		{Key: "startHeight", Value: p.StartHeight},
-		{Key: "minVotingPeriod", Value: p.MinVotingPeriod},
-		{Key: "expiration", Value: p.Expiration},
-		{Key: "threshold", Value: p.Threshold},
-		{Key: "totalPower", Value: p.TotalPower},
-		{Key: "messages", Value: formatMessages(p.Messages), Raw: true},
-		{Key: "status", Value: p.Status},
-		{Key: "votes", Value: p.Votes},
-		{Key: "allowRevoting", Value: p.AllowRevoting},
-
-		{Key: "ballots", Value: p.Ballots},
-	})
+func (p Proposal) ToJSON() *json.Node {
+	fields := map[string]*json.Node{
+		"id":            jsonutil.IntNode(p.ID),
+		"title":         json.StringNode("", p.Title),
+		"description":   json.StringNode("", p.Description),
+		"proposer":      jsonutil.AddressNode(p.Proposer),
+		"startHeight":   jsonutil.Int64Node(p.StartHeight),
+		"totalPower":    jsonutil.Uint64Node(p.TotalPower),
+		"messages":      json.ArrayNode("", formatMessages(p.Messages)),
+		"status":        p.Status.ToJSON(),
+		"votes":         p.Votes.ToJSON(),
+		"allowRevoting": json.BoolNode("", p.AllowRevoting),
+		"ballots":       jsonutil.AVLTreeNode(p.Ballots, func(v interface{}) *json.Node { return v.(Ballot).ToJSON() }),
+	}
+	if p.MinVotingPeriod != nil {
+		fields["minVotingPeriod"] = p.MinVotingPeriod.ToJSON()
+	}
+	if p.Expiration != nil {
+		fields["expiration"] = p.Expiration.ToJSON()
+	}
+	if p.Threshold != nil {
+		fields["threshold"] = p.Threshold.ToJSON()
+	}
+	return json.ObjectNode("", fields)
 }
 
 type ProposalStatus int
@@ -141,8 +147,8 @@ const (
 	ProposalStatusExecuted
 )
 
-func (p ProposalStatus) ToJSON() string {
-	return ujson.FormatString(p.String())
+func (p ProposalStatus) ToJSON() *json.Node {
+	return json.StringNode("", p.String())
 }
 
 func (p ProposalStatus) String() string {
@@ -166,15 +172,25 @@ const (
 	VoteAbstain
 )
 
-func (v Vote) ToJSON() string {
-	return ujson.FormatString(v.String())
+func (v Vote) ToJSON() *json.Node {
+	return json.StringNode("", v.String())
 }
 
-func (v *Vote) FromJSON(ast *ujson.JSONASTNode) {
-	var val int
-	ast.ParseAny(&val)
-	// FIXME: validate
-	*v = Vote(val)
+func (v *Vote) FromJSON(ast *json.Node) {
+	v.FromString(ast.MustString())
+}
+
+func (v *Vote) FromString(s string) {
+	switch s {
+	case "Yes":
+		*v = VoteYes
+	case "No":
+		*v = VoteNo
+	case "Abstain":
+		*v = VoteAbstain
+	default:
+		panic("unknown vote kind")
+	}
 }
 
 func (v Vote) String() string {

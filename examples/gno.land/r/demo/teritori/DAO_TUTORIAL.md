@@ -106,7 +106,7 @@ They are deserialized and executed by message handlers implementing `gno.land/p/
 ```go
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
-	MessageFromJSON(ast *ujson.JSONASTNode) ExecutableMessage
+	MessageFromJSON(ast *json.Node) ExecutableMessage
 	Type() string
 }
 ```

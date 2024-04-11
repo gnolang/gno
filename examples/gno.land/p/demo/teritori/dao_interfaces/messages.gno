@@ -1,12 +1,12 @@
 package dao_interfaces
 
 import (
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
 )
 
 type ExecutableMessage interface {
-	ujson.JSONAble
-	ujson.FromJSONAble
+	ToJSON() *json.Node
+	FromJSON(ast *json.Node)
 
 	String() string
 	Type() string
@@ -14,7 +14,7 @@ type ExecutableMessage interface {
 
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
-	MessageFromJSON(ast *ujson.JSONASTNode) ExecutableMessage
+	Instantiate() ExecutableMessage
 	Type() string
 }
 

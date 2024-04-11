@@ -9,6 +9,7 @@ import (
 	proposal_single "gno.land/p/demo/teritori/dao_proposal_single"
 	"gno.land/p/demo/teritori/dao_utils"
 	voting_group "gno.land/p/demo/teritori/dao_voting_group"
+	"gno.land/r/demo/teritori/dao_registry"
 	// registry "gno.land/r/demo/teritori/dao_registry"
 	"gno.land/r/demo/teritori/groups"
 	modboards "gno.land/r/demo/teritori/modboards"
@@ -76,7 +77,7 @@ func init() {
 
 	daoCore = dao_core.NewDAOCore(votingModuleFactory, proposalModulesFactories, messageHandlersFactories)
 
-	// registry.Register("DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
+	// dao_registry.Register(func() dao_interfaces.IDAOCore { return daoCore }, "DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
 }
 
 func Render(path string) string {

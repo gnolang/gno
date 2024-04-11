@@ -3,7 +3,8 @@ package dao_proposal_single
 import (
 	"strconv"
 
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/teritori/jsonutil"
 )
 
 // ported from https://github.com/DA0-DA0/dao-contracts/blob/7776858e780f1ce9f038a3b06cce341dd41d2189/packages/dao-voting/src/threshold.rs
@@ -11,15 +12,20 @@ import (
 type PercentageThreshold interface {
 	String() string
 	Clone() PercentageThreshold
-	ToJSON() string
+	ToJSON() *json.Node
 }
 
-func PercentageThresholdFromJSON(ast *ujson.JSONASTNode) PercentageThreshold {
-	p := PercentageThresholdPercent(0)
-	return ast.ParseUnion([]*ujson.ParseKV{
-		{Key: "majority", Value: &PercentageThresholdMajority{}},
-		{Key: "percent", Value: &p},
-	}).(PercentageThreshold)
+func PercentageThresholdFromJSON(ast *json.Node) PercentageThreshold {
+	variant, valueNode := jsonutil.MustUnion(ast)
+	switch variant {
+	case "majority":
+		return &PercentageThresholdMajority{}
+	case "percent":
+		p := PercentageThresholdPercent(0)
+		p.FromJSON(valueNode)
+		return &p
+	}
+	panic("unknown PercentageThreshold variant")
 }
 
 type PercentageThresholdMajority struct{}
@@ -32,8 +38,8 @@ func (p *PercentageThresholdMajority) Clone() PercentageThreshold {
 	return &PercentageThresholdMajority{}
 }
 
-func (p *PercentageThresholdMajority) ToJSON() string {
-	return ujson.FormatUnionMember("majority", "{}", true)
+func (p *PercentageThresholdMajority) ToJSON() *json.Node {
+	return jsonutil.UnionNode("majority", jsonutil.EmptyObjectNode())
 }
 
 type PercentageThresholdPercent uint16 // 4 decimals fixed point
@@ -47,9 +53,8 @@ func (p *PercentageThresholdPercent) String() string {
 	return s + "%"
 }
 
-func (p *PercentageThresholdPercent) FromJSON(ast *ujson.JSONASTNode) {
-	var val uint32
-	ujson.ParseAny(ast.Value, &val)
+func (p *PercentageThresholdPercent) FromJSON(ast *json.Node) {
+	val := ast.MustNumeric() // FIXME: don't pass by float64
 	*p = PercentageThresholdPercent(val)
 }
 
@@ -58,22 +63,30 @@ func (p *PercentageThresholdPercent) Clone() PercentageThreshold {
 	return &c
 }
 
-func (p *PercentageThresholdPercent) ToJSON() string {
-	return ujson.FormatUnionMember("percent", uint64(*p), false)
+func (p *PercentageThresholdPercent) ToJSON() *json.Node {
+	return jsonutil.UnionNode("percent", json.NumberNode("", float64(*p)))
 }
 
 type Threshold interface {
 	Clone() Threshold
-	ToJSON() string
+	ToJSON() *json.Node
 }
 
-func ThresholdFromJSON(ast *ujson.JSONASTNode) Threshold {
-	ac := ThresholdAbsoluteCount(0)
-	return ast.ParseUnion([]*ujson.ParseKV{
-		// TODO: {Key: "absolutePercentage"},
-		{Key: "thresholdQuorum", Value: &ThresholdThresholdQuorum{}},
-		{Key: "absoluteCount", Value: &ac},
-	}).(Threshold)
+func ThresholdFromJSON(ast *json.Node) Threshold {
+	variant, valueNode := jsonutil.MustUnion(ast)
+	switch variant {
+	case "absolutePercentage":
+		panic("not implemented")
+	case "thresholdQuorum":
+		t := &ThresholdThresholdQuorum{}
+		t.FromJSON(valueNode)
+		return t
+	case "absoluteCount":
+		val := valueNode.MustNumeric()
+		ac := ThresholdAbsoluteCount(val)
+		return &ac
+	}
+	panic("unknown Threshold variant")
 }
 
 type ThresholdAbsolutePercentage struct {
@@ -85,8 +98,8 @@ func (t ThresholdAbsolutePercentage) Clone() Threshold {
 	return &ThresholdAbsolutePercentage{Value: c}
 }
 
-func (t ThresholdAbsolutePercentage) ToJSON() string {
-	return ujson.FormatUnionMember("absolutePercentage", t.Value, false)
+func (t ThresholdAbsolutePercentage) ToJSON() *json.Node {
+	return jsonutil.UnionNode("absolutePercentage", t.Value.ToJSON())
 }
 
 type ThresholdThresholdQuorum struct {
@@ -101,22 +114,19 @@ func (t *ThresholdThresholdQuorum) Clone() Threshold {
 	}
 }
 
-func (t *ThresholdThresholdQuorum) FromJSON(ast *ujson.JSONASTNode) {
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "threshold", CustomParser: func(ast *ujson.JSONASTNode) {
-			t.Threshold = PercentageThresholdFromJSON(ast)
-		}},
-		{Key: "quorum", CustomParser: func(ast *ujson.JSONASTNode) {
-			t.Quorum = PercentageThresholdFromJSON(ast)
-		}},
-	})
+// TODO: make union members json utilities bijective
+
+func (t *ThresholdThresholdQuorum) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	t.Threshold = PercentageThresholdFromJSON(obj["threshold"])
+	t.Quorum = PercentageThresholdFromJSON(obj["quorum"])
 }
 
-func (t *ThresholdThresholdQuorum) ToJSON() string {
-	return ujson.FormatUnionMember("thresholdQuorum", ujson.FormatObject([]ujson.FormatKV{
-		{Key: "threshold", Value: t.Threshold},
-		{Key: "quorum", Value: t.Quorum},
-	}), true)
+func (t *ThresholdThresholdQuorum) ToJSON() *json.Node {
+	return jsonutil.UnionNode("thresholdQuorum", json.ObjectNode("", map[string]*json.Node{
+		"threshold": t.Threshold.ToJSON(),
+		"quorum":    t.Quorum.ToJSON(),
+	}))
 }
 
 type ThresholdAbsoluteCount uint64
@@ -126,6 +136,6 @@ func (t *ThresholdAbsoluteCount) Clone() Threshold {
 	return &val
 }
 
-func (t *ThresholdAbsoluteCount) ToJSON() string {
-	return ujson.FormatUnionMember("absoluteCount", uint64(*t), false)
+func (t *ThresholdAbsoluteCount) ToJSON() *json.Node {
+	return jsonutil.UnionNode("absoluteCount", jsonutil.Uint64Node(uint64(*t)))
 }

@@ -4,17 +4,20 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/teritori/dao_interfaces"
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/teritori/jsonutil"
 	"gno.land/p/demo/users"
 )
 
 type ExecutableMessageMintTori struct {
 	dao_interfaces.ExecutableMessage
 
-	Address users.AddressOrName
-	Amount  uint64
+	Recipient users.AddressOrName
+	Amount    uint64
 }
+
+var _ dao_interfaces.ExecutableMessage = &ExecutableMessageMintTori{}
 
 func (msg ExecutableMessageMintTori) Type() string {
 	return "gno.land/r/demo/teritori/tori.Mint"
@@ -23,23 +26,22 @@ func (msg ExecutableMessageMintTori) Type() string {
 func (msg *ExecutableMessageMintTori) String() string {
 	var ss []string
 	ss = append(ss, msg.Type())
-	s := "Address: " + string(msg.Address) + "\n"
+	s := "Recipient: " + string(msg.Recipient) + "\n"
 	s += "Amount: " + strconv.FormatUint(msg.Amount, 10)
 	ss = append(ss, s)
 	return strings.Join(ss, "\n---\n")
 }
 
-func (msg *ExecutableMessageMintTori) FromJSON(ast *ujson.JSONASTNode) {
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "address", Value: &msg.Address},
-		{Key: "amount", Value: &msg.Amount},
-	})
+func (msg *ExecutableMessageMintTori) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	msg.Recipient = jsonutil.MustAddressOrName(obj["recipient"])
+	msg.Amount = jsonutil.MustUint64(obj["amount"])
 }
 
-func (msg *ExecutableMessageMintTori) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "address", Value: msg.Address},
-		{Key: "amount", Value: msg.Amount},
+func (msg *ExecutableMessageMintTori) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"recipient": jsonutil.AddressOrNameNode(msg.Recipient),
+		"amount":    jsonutil.Uint64Node(msg.Amount),
 	})
 }
 
@@ -47,50 +49,65 @@ type MintToriHandler struct {
 	dao_interfaces.MessageHandler
 }
 
+var _ dao_interfaces.MessageHandler = &MintToriHandler{}
+
 func NewMintToriHandler() *MintToriHandler {
 	return &MintToriHandler{}
 }
 
 func (h *MintToriHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	msg := imsg.(*ExecutableMessageMintTori)
-	Mint(msg.Address, msg.Amount)
+	Mint(msg.Recipient, msg.Amount)
 }
 
 func (h MintToriHandler) Type() string {
 	return ExecutableMessageMintTori{}.Type()
 }
 
-func (h *MintToriHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
-	msg := &ExecutableMessageMintTori{}
-	msg.FromJSON(ast)
-	return msg
+func (h *MintToriHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &ExecutableMessageMintTori{}
 }
-
-// TODO: JSON
 
 type ExecutableMessageBurnTori struct {
 	dao_interfaces.ExecutableMessage
 
-	Address users.AddressOrName
-	Amount  uint64
+	Target users.AddressOrName
+	Amount uint64
 }
 
+var _ dao_interfaces.ExecutableMessage = &ExecutableMessageBurnTori{}
+
 func (msg ExecutableMessageBurnTori) Type() string {
-	return "BurnTori"
+	return "gno.land/r/demo/teritori/tori.Burn"
 }
 
 func (msg *ExecutableMessageBurnTori) String() string {
 	var ss []string
 	ss = append(ss, msg.Type())
-	s := "Address: " + string(msg.Address) + "\n"
+	s := "Target: " + string(msg.Target) + "\n"
 	s += "Amount: " + strconv.FormatUint(msg.Amount, 10)
 	ss = append(ss, s)
 	return strings.Join(ss, "\n---\n")
 }
 
+func (msg *ExecutableMessageBurnTori) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	msg.Target = jsonutil.MustAddressOrName(obj["target"])
+	msg.Amount = jsonutil.MustUint64(obj["amount"])
+}
+
+func (msg *ExecutableMessageBurnTori) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"target": jsonutil.AddressOrNameNode(msg.Target),
+		"amount": jsonutil.Uint64Node(msg.Amount),
+	})
+}
+
 type BurnToriHandler struct {
 	dao_interfaces.MessageHandler
 }
+
+var _ dao_interfaces.MessageHandler = &BurnToriHandler{}
 
 func NewBurnToriHandler() *BurnToriHandler {
 	return &BurnToriHandler{}
@@ -98,9 +115,13 @@ func NewBurnToriHandler() *BurnToriHandler {
 
 func (h *BurnToriHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
 	msg := imsg.(*ExecutableMessageBurnTori)
-	Burn(msg.Address, msg.Amount)
+	Burn(msg.Target, msg.Amount)
 }
 
 func (h BurnToriHandler) Type() string {
 	return ExecutableMessageBurnTori{}.Type()
+}
+
+func (h *BurnToriHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &ExecutableMessageBurnTori{}
 }

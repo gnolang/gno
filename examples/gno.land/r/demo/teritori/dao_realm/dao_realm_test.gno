@@ -5,10 +5,10 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/json"
 	dao_core "gno.land/p/demo/teritori/dao_core"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 	proposal_single "gno.land/p/demo/teritori/dao_proposal_single"
-	"gno.land/p/demo/teritori/ujson"
 	"gno.land/r/demo/teritori/groups"
 	modboards "gno.land/r/demo/teritori/modboards"
 	"gno.land/r/demo/users"
@@ -25,12 +25,12 @@ func TestInit(t *testing.T) {
 
 	{
 		members := groups.GetMembers(groupID)
-		iSlice := make([]interface{}, len(members))
+		iSlice := make([]*json.Node, len(members))
 		for i, v := range members {
-			iSlice[i] = v
+			iSlice[i] = v.ToJSON()
 		}
-		membersJSON := ujson.FormatSlice(iSlice)
-		expected := `[{"id":0,"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":1,"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":2,"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":3,"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":4,"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"}]`
+		membersJSON := json.ArrayNode("", iSlice).String()
+		expected := `[{"id":"0","address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"}]`
 		if membersJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
@@ -41,55 +41,43 @@ func TestUpdateMembers(t *testing.T) {
 	var membersJSON string
 
 	{
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Fatalf("Panic AddMember: %v", r)
-				}
-			}()
-			id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.AddMember", "payload": {"groupId": %d, "weight": 1, "address": "0x42", "metadata": "hello"}}]}`, groupID))
-			VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
-			Execute(0, id)
-			members := groups.GetMembers(groupID)
-			iSlice := make([]interface{}, len(members))
-			for i, v := range members {
-				iSlice[i] = v
-			}
-			membersJSON = ujson.FormatSlice(iSlice)
-			expected := fmt.Sprintf(`[{"id":0,"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":1,"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":2,"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":3,"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":4,"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":5,"address":"0x42","weight":1,"metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`)
-			if membersJSON != expected {
-				t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
-			}
-		}()
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.AddMember", "payload": {"groupId": "%d", "weight": "1", "address": "g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy", "metadata": "hello"}}]}`, groupID))
+		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
+		Execute(0, id)
+		members := groups.GetMembers(groupID)
+		iSlice := make([]*json.Node, len(members))
+		for i, v := range members {
+			iSlice[i] = v.ToJSON()
+		}
+		membersJSON = json.ArrayNode("", iSlice).String()
+		expected := fmt.Sprintf(`[{"id":"0","address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"5","address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","weight":"1","metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`)
+		if membersJSON != expected {
+			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
+		}
 	}
 
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Fatalf("Panic DeleteMember: %v", r)
-			}
-		}()
-		children := ujson.ParseSlice(membersJSON)
+	{
+		children := json.Must(json.Unmarshal([]byte(membersJSON))).MustArray()
 		if len(children) != 6 {
 			t.Fatalf("Expected 6 members, got %d", len(children))
 		}
 		var member groups.Member
-		children[0].ParseAny(&member)
+		member.FromJSON(children[0])
 
-		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.DeleteMember", "payload": {"groupId": %d, "memberId": %d}}]}`, groupID, member.GetID()))
-		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
+		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop 2", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/groups.DeleteMember", "payload": {"groupId": "%d", "memberId": "%d"}}]}`, groupID, member.GetID()))
+		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		members := groups.GetMembers(groupID)
-		iSlice := make([]interface{}, len(members))
+		iSlice := make([]*json.Node, len(members))
 		for i, v := range members {
-			iSlice[i] = v
+			iSlice[i] = v.ToJSON()
 		}
-		membersJSON = ujson.FormatSlice(iSlice)
-		expected := fmt.Sprintf(`[{"id":1,"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":2,"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":3,"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":4,"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":1,"metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":5,"address":"0x42","weight":1,"metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`)
+		membersJSON := json.ArrayNode("", iSlice).String()
+		expected := `[{"id":"1","address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"2","address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"3","address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"4","address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","weight":"1","metadata":"","createdAt":"2009-02-13T23:31:30Z"},{"id":"5","address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","weight":"1","metadata":"hello","createdAt":"2009-02-13T23:31:30Z"}]`
 		if membersJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
-	}()
+	}
 }
 
 func TestModeration(t *testing.T) {
@@ -116,8 +104,8 @@ Offensive stuff
 		}
 	}
 
-	id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/modboards.DeletePost", "payload": {"boardId": %d, "threadId": 1, "postId": 1, "reason": "testing"}}]}`, boardID))
-	VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
+	id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/r/demo/teritori/modboards.DeletePost", "payload": {"boardId": "%d", "threadId": "1", "postId":"1", "reason": "testing"}}]}`, boardID))
+	VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 	Execute(0, id)
 	{
 		expected := `\[[post](/r/demo/modboards?help&__func=CreateThread&bid=1&body.type=textarea)]\[[see flags](/r/demo/modboards:dao_realm/flags)]
@@ -131,13 +119,14 @@ Offensive stuff
 }
 
 func TestUpdateSettings(t *testing.T) {
-	// why is state preversed between tests??
+	// not sure why but in this test the proposal ids start at 3, shouldn't tests be isolated? TODO: investigate
+
 	{
 		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": [{"type": "gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings", "payload": {"threshold": {"thresholdQuorum": {"threshold": {"percent": 200}, "quorum": {"percent": 200}}}}}]}`))
-		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
+		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		proposalJSON := getProposalJSON(0, id)
-		expected := `{"id":3,"title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":123,"minVotingPeriod":null,"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}},"totalPower":5,"messages":[{"type":"gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":1,"no":0,"abstain":0},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":1,"vote":"Yes","rationale":"testing"}}}`
+		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"5","messages":[{"type":"gno.land/p/demo/teritori/dao_proposal_single.UpdateSettings","payload":{"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}}],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}}}`, id)
 		if proposalJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, proposalJSON)
 		}
@@ -146,10 +135,10 @@ func TestUpdateSettings(t *testing.T) {
 	{
 		// make sentiment proposal
 		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Test prop", "description": "A description", "messages": []}`))
-		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
+		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		proposalJSON := getProposalJSON(0, id)
-		expected := `{"id":4,"title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":123,"minVotingPeriod":null,"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}},"totalPower":5,"messages":[],"status":"Executed","votes":{"yes":1,"no":0,"abstain":0},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":1,"vote":"Yes","rationale":"testing"}}}`
+		expected := fmt.Sprintf(`{"id":"%d","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"5","messages":[],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":200},"quorum":{"percent":200}}}}`, id)
 		if proposalJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, proposalJSON)
 		}
@@ -159,7 +148,7 @@ func TestUpdateSettings(t *testing.T) {
 func TestCreateBoard(t *testing.T) {
 	{
 		id := ProposeJSON(0, fmt.Sprintf(`{"title": "Create moderated board", "description": "", "messages": [{"type":"gno.land/r/demo/teritori/modboards.CreateBoard","payload":{"name":"test_board"}}]}`))
-		VoteJSON(0, id, fmt.Sprintf(`{"vote": %d, "rationale": "%s"}`, proposal_single.VoteYes, "testing"))
+		VoteJSON(0, id, `{"vote": "Yes", "rationale": "testing"}`)
 		Execute(0, id)
 		render := modboards.Render("test_board")
 		expected := `\[[post](/r/demo/modboards?help&__func=CreateThread&bid=2&body.type=textarea)]\[[see flags](/r/demo/modboards:test_board/flags)]

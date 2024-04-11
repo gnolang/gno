@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/teritori/flags_index"
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/teritori/jsonutil"
 )
 
 //----------------------------------------
@@ -15,8 +16,12 @@ import (
 
 type BoardID uint64
 
-func (bid *BoardID) FromJSON(ast *ujson.JSONASTNode) {
-	*bid = BoardID(ujson.ParseUint64(ast.Value))
+func (bid BoardID) ToJSON() *json.Node {
+	return jsonutil.Uint64Node(uint64(bid))
+}
+
+func (bid *BoardID) FromJSON(ast *json.Node) {
+	*bid = BoardID(jsonutil.MustUint64(ast))
 }
 
 func (bid BoardID) String() string {

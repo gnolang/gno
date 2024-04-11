@@ -3,8 +3,8 @@ package boards
 import (
 	"strings"
 
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/teritori/dao_interfaces"
-	"gno.land/p/demo/teritori/ujson"
 )
 
 // Create board
@@ -14,6 +14,8 @@ type ExecutableMessageCreateBoard struct {
 
 	Name string
 }
+
+var _ dao_interfaces.ExecutableMessage = &ExecutableMessageCreateBoard{}
 
 func (msg ExecutableMessageCreateBoard) Type() string {
 	return "gno.land/r/demo/teritori/modboards.CreateBoard"
@@ -26,10 +28,15 @@ func (msg *ExecutableMessageCreateBoard) String() string {
 	return strings.Join(ss, "\n---\n")
 }
 
-func (msg *ExecutableMessageCreateBoard) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "name", Value: msg.Name},
+func (msg *ExecutableMessageCreateBoard) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"name": json.StringNode("", msg.Name),
 	})
+}
+
+func (msg *ExecutableMessageCreateBoard) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	msg.Name = obj["name"].MustString()
 }
 
 type CreateBoardHandler struct {
@@ -49,12 +56,8 @@ func (h CreateBoardHandler) Type() string {
 	return ExecutableMessageCreateBoard{}.Type()
 }
 
-func (h *CreateBoardHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
-	msg := &ExecutableMessageCreateBoard{}
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "name", Value: &msg.Name},
-	})
-	return msg
+func (h *CreateBoardHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &ExecutableMessageCreateBoard{}
 }
 
 // Delete post
@@ -67,6 +70,8 @@ type ExecutableMessageDeletePost struct {
 	PostID   PostID
 	Reason   string
 }
+
+var _ dao_interfaces.ExecutableMessage = &ExecutableMessageDeletePost{}
 
 func (msg ExecutableMessageDeletePost) Type() string {
 	return "gno.land/r/demo/teritori/modboards.DeletePost"
@@ -108,13 +113,21 @@ func (msg *ExecutableMessageDeletePost) String() string {
 	return strings.Join(ss, "\n---\n")
 }
 
-func (msg *ExecutableMessageDeletePost) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "boardId", Value: msg.BoardID},
-		{Key: "threadId", Value: msg.ThreadID},
-		{Key: "postId", Value: msg.PostID},
-		{Key: "reason", Value: msg.Reason},
+func (msg *ExecutableMessageDeletePost) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"boardId":  msg.BoardID.ToJSON(),
+		"threadId": msg.ThreadID.ToJSON(),
+		"postId":   msg.PostID.ToJSON(),
+		"reason":   json.StringNode("", msg.Reason),
 	})
+}
+
+func (msg *ExecutableMessageDeletePost) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	msg.BoardID.FromJSON(obj["boardId"])
+	msg.ThreadID.FromJSON(obj["threadId"])
+	msg.PostID.FromJSON(obj["postId"])
+	msg.Reason = obj["reason"].MustString()
 }
 
 type DeletePostHandler struct {
@@ -134,13 +147,6 @@ func (h DeletePostHandler) Type() string {
 	return ExecutableMessageDeletePost{}.Type()
 }
 
-func (h *DeletePostHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
-	msg := &ExecutableMessageDeletePost{}
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "boardId", Value: &msg.BoardID},
-		{Key: "threadId", Value: &msg.ThreadID},
-		{Key: "postId", Value: &msg.PostID},
-		{Key: "reason", Value: &msg.Reason},
-	})
-	return msg
+func (h *DeletePostHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &ExecutableMessageDeletePost{}
 }

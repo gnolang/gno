@@ -1,8 +1,8 @@
 package core
 
 import (
+	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
-	"gno.land/p/demo/teritori/ujson"
 )
 
 // UpdateProposalModules
@@ -12,6 +12,8 @@ type UpdateProposalModulesExecutableMessage struct {
 	ToDisable []int
 }
 
+var _ dao_interfaces.ExecutableMessage = &UpdateProposalModulesExecutableMessage{}
+
 func (msg UpdateProposalModulesExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_core.UpdateProposalModules"
 }
@@ -20,17 +22,19 @@ func (msg *UpdateProposalModulesExecutableMessage) String() string {
 	panic(ErrNotImplemented)
 }
 
-func (msg *UpdateProposalModulesExecutableMessage) ToJSON() string {
+func (msg *UpdateProposalModulesExecutableMessage) ToJSON() *json.Node {
 	panic(ErrNotImplemented)
 }
 
-func (msg *UpdateProposalModulesExecutableMessage) FromJSON(ast *ujson.JSONASTNode) {
+func (msg *UpdateProposalModulesExecutableMessage) FromJSON(ast *json.Node) {
 	panic(ErrNotImplemented)
 }
 
 type UpdateProposalModulesMessageHandler struct {
 	dao dao_interfaces.IDAOCore
 }
+
+var _ dao_interfaces.MessageHandler = &UpdateProposalModulesMessageHandler{}
 
 func NewUpdateProposalModulesMessageHandler(dao dao_interfaces.IDAOCore) *UpdateProposalModulesMessageHandler {
 	return &UpdateProposalModulesMessageHandler{dao: dao}
@@ -45,8 +49,8 @@ func (handler *UpdateProposalModulesMessageHandler) Execute(message dao_interfac
 	handler.dao.UpdateProposalModules(msg.ToAdd, msg.ToDisable)
 }
 
-func (handler *UpdateProposalModulesMessageHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
-	panic(ErrNotSupported)
+func (handler *UpdateProposalModulesMessageHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &UpdateProposalModulesExecutableMessage{}
 }
 
 // UpdateVotingModule
@@ -54,6 +58,8 @@ func (handler *UpdateProposalModulesMessageHandler) MessageFromJSON(ast *ujson.J
 type UpdateVotingModuleExecutableMessage struct {
 	Module dao_interfaces.IVotingModule
 }
+
+var _ dao_interfaces.ExecutableMessage = &UpdateVotingModuleExecutableMessage{}
 
 func (msg UpdateVotingModuleExecutableMessage) Type() string {
 	return "gno.land/p/demo/teritori/dao_core.UpdateVotingModule"
@@ -63,17 +69,19 @@ func (msg *UpdateVotingModuleExecutableMessage) String() string {
 	panic(ErrNotImplemented)
 }
 
-func (msg *UpdateVotingModuleExecutableMessage) ToJSON() string {
+func (msg *UpdateVotingModuleExecutableMessage) ToJSON() *json.Node {
 	panic(ErrNotImplemented)
 }
 
-func (msg *UpdateVotingModuleExecutableMessage) FromJSON(ast *ujson.JSONASTNode) {
+func (msg *UpdateVotingModuleExecutableMessage) FromJSON(ast *json.Node) {
 	panic(ErrNotImplemented)
 }
 
 type UpdateVotingModuleMessageHandler struct {
 	dao dao_interfaces.IDAOCore
 }
+
+var _ dao_interfaces.MessageHandler = &UpdateVotingModuleMessageHandler{}
 
 func NewUpdateVotingModuleMessageHandler(dao dao_interfaces.IDAOCore) *UpdateVotingModuleMessageHandler {
 	return &UpdateVotingModuleMessageHandler{dao: dao}
@@ -88,6 +96,6 @@ func (handler *UpdateVotingModuleMessageHandler) Execute(message dao_interfaces.
 	handler.dao.UpdateVotingModule(msg.Module)
 }
 
-func (handler *UpdateVotingModuleMessageHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
-	panic(ErrNotSupported)
+func (handler *UpdateVotingModuleMessageHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &UpdateVotingModuleExecutableMessage{}
 }

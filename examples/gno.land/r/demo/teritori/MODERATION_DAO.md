@@ -135,7 +135,7 @@ func (msg *ExecutableMessageDeletePost) String() string {
 	// Code excluded for brevity, this method is used in gnoweb renders of the DAO
 }
 
-func (msg *ExecutableMessageDeletePost) ToJSON() string {
+func (msg *ExecutableMessageDeletePost) ToJSON() *json.Node {
 	return ujson.FormatObject([]ujson.FormatKV{
 		{Key: "boardId", Value: msg.BoardID},
 		{Key: "threadId", Value: msg.ThreadID},
@@ -161,7 +161,7 @@ func (h DeletePostHandler) Type() string {
 	return ExecutableMessageDeletePost{}.Type()
 }
 
-func (h *DeletePostHandler) MessageFromJSON(ast *ujson.JSONASTNode) dao_interfaces.ExecutableMessage {
+func (h *DeletePostHandler) MessageFromJSON(ast *json.Node) dao_interfaces.ExecutableMessage {
 	msg := &ExecutableMessageDeletePost{}
 	ast.ParseObject([]*ujson.ParseKV{
 		{Key: "boardId", Value: &msg.BoardID},

@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/teritori/jsonutil"
 )
 
 //----------------------------------------
@@ -15,8 +16,12 @@ import (
 // NOTE: a PostID is relative to the board.
 type PostID uint64
 
-func (pid *PostID) FromJSON(ast *ujson.JSONASTNode) {
-	*pid = PostID(ujson.ParseUint64(ast.Value))
+func (pid *PostID) FromJSON(ast *json.Node) {
+	*pid = PostID(jsonutil.MustUint64(ast))
+}
+
+func (pid PostID) ToJSON() *json.Node {
+	return jsonutil.Uint64Node(uint64(pid))
 }
 
 func (pid PostID) String() string {

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/teritori/dao_interfaces"
 	"gno.land/p/demo/teritori/dao_utils"
-	"gno.land/p/demo/teritori/ujson"
 )
 
 type DAOProposalSingleOpts struct {
@@ -43,14 +43,14 @@ type DAOProposalSingleOpts struct {
 	CloseProposalOnExecutionFailure bool
 }
 
-func (opts DAOProposalSingleOpts) ToJSON() string {
-	return ujson.FormatObject([]ujson.FormatKV{
-		{Key: "threshold", Value: opts.Threshold},
-		{Key: "maxVotingPeriod", Value: opts.MaxVotingPeriod},
-		{Key: "minVotingPeriod", Value: opts.MinVotingPeriod},
-		{Key: "onlyMembersExecute", Value: opts.OnlyMembersExecute},
-		{Key: "allowRevoting", Value: opts.AllowRevoting},
-		{Key: "closeProposalOnExecutionFailure", Value: opts.CloseProposalOnExecutionFailure},
+func (opts DAOProposalSingleOpts) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"threshold":                       opts.Threshold.ToJSON(),
+		"maxVotingPeriod":                 opts.MaxVotingPeriod.ToJSON(),
+		"minVotingPeriod":                 opts.MinVotingPeriod.ToJSON(),
+		"onlyMembersExecute":              json.BoolNode("", opts.OnlyMembersExecute),
+		"allowRevoting":                   json.BoolNode("", opts.AllowRevoting),
+		"closeProposalOnExecutionFailure": json.BoolNode("", opts.CloseProposalOnExecutionFailure),
 	})
 }
 
@@ -201,7 +201,11 @@ func (d *DAOProposalSingle) Info() dao_interfaces.ModuleInfo {
 }
 
 func (d *DAOProposalSingle) ConfigJSON() string {
-	return ujson.FormatAny(d.opts)
+	b, err := json.Marshal(d.opts.ToJSON())
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 func (d *DAOProposalSingle) Propose(title string, description string, messages []dao_interfaces.ExecutableMessage) int {
@@ -254,16 +258,15 @@ type VoteWithRationale struct {
 	Rationale string
 }
 
-func (v *VoteWithRationale) FromJSON(ast *ujson.JSONASTNode) {
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "vote", Value: &v.Vote},
-		{Key: "rationale", Value: &v.Rationale},
-	})
+func (v *VoteWithRationale) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	v.Vote.FromJSON(obj["vote"])
+	v.Rationale = obj["rationale"].MustString()
 }
 
 func (d *DAOProposalSingle) VoteJSON(proposalID int, voteJSON string) {
 	var v VoteWithRationale
-	ujson.ParseAny(voteJSON, &v)
+	v.FromJSON(json.Must(json.Unmarshal([]byte(voteJSON))))
 
 	voter := std.PrevRealm().Addr()
 
@@ -317,21 +320,20 @@ func (d *DAOProposalSingle) Execute(proposalID int) {
 type ProposalRequest struct {
 	Title       string
 	Description string
-	Messages    *ujson.JSONASTNode
+	Messages    []*json.Node
 }
 
-func (pr *ProposalRequest) FromJSON(ast *ujson.JSONASTNode) {
-	ast.ParseObject([]*ujson.ParseKV{
-		{Key: "title", Value: &pr.Title},
-		{Key: "description", Value: &pr.Description},
-		{Key: "messages", Value: &pr.Messages},
-	})
+func (pr *ProposalRequest) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	pr.Title = obj["title"].MustString()
+	pr.Description = obj["description"].MustString()
+	pr.Messages = obj["messages"].MustArray()
 }
 
 func (d *DAOProposalSingle) ProposeJSON(proposalJSON string) int {
 	var req ProposalRequest
-	ujson.ParseAny(proposalJSON, &req)
-	msgs := d.core.Registry().MessagesFromJSON(req.Messages.String()) // TODO: optimize
+	req.FromJSON(json.Must(json.Unmarshal([]byte(proposalJSON))))
+	msgs := d.core.Registry().MessagesFromJSON(req.Messages)
 	return d.Propose(req.Title, req.Description, msgs)
 }
 
@@ -340,18 +342,18 @@ func (d *DAOProposalSingle) Proposals() []*Proposal {
 }
 
 func (d *DAOProposalSingle) ProposalsJSON(limit int, startAfter string, reverse bool) string {
-	iSlice := make([]interface{}, len(d.proposals))
+	iSlice := make([]*json.Node, len(d.proposals))
 	for i, p := range d.proposals {
-		iSlice[i] = p
+		iSlice[i] = p.ToJSON()
 	}
-	return ujson.FormatSlice(iSlice)
+	return json.ArrayNode("", iSlice).String()
 }
 
 func (d *DAOProposalSingle) ProposalJSON(proposalID int) string {
 	if proposalID < 0 || proposalID >= len(d.proposals) {
 		panic("proposal does not exist")
 	}
-	return ujson.FormatAny(d.proposals[proposalID])
+	return d.proposals[proposalID].ToJSON().String()
 }
 
 func (d *DAOProposalSingle) Threshold() Threshold {

@@ -24,7 +24,7 @@ func TestVotingGroup(t *testing.T) {
 
 	{
 		conf := v.ConfigJSON()
-		expected := `{"groupId":1}`
+		expected := `{"groupId":"1"}`
 		if conf != expected {
 			t.Fatalf("expected %q, got %q.", expected, conf)
 		}

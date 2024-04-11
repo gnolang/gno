@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/p/demo/teritori/ujson"
+	"gno.land/p/demo/json"
 	// "gno.land/r/demo/users"
 )
 
@@ -118,9 +118,9 @@ func GetMembers(gid GroupID) []Member {
 
 func GetMembersJSON(gid GroupID) string {
 	members := GetMembers(gid)
-	iSlice := make([]interface{}, len(members))
+	iSlice := make([]*json.Node, len(members))
 	for i, member := range members {
-		iSlice[i] = member
+		iSlice[i] = member.ToJSON()
 	}
-	return ujson.FormatSlice(iSlice)
+	return json.ArrayNode("", iSlice).String()
 }
