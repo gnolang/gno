@@ -675,25 +675,138 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	escapedOpStr := strings.Replace(wordTokenStrings[as.Op], "%", "%%", 1)
 	var destKind interface{}
 
-	// XXX, assume lhs length is same with of rhs
-	// Call case: a, b = x(...)
-	for i, x := range as.Lhs {
-		lt := evalStaticTypeOf(store, last, x)
-		rt := evalStaticTypeOf(store, last, as.Rhs[i])
+	if as.Op == ASSIGN || as.Op == DEFINE {
+		if len(as.Lhs) > len(as.Rhs) {
+			if len(as.Rhs) != 1 {
+				panic("should not happen")
+			}
+			switch cx := as.Rhs[0].(type) {
+			case *CallExpr:
+				// Call case: a, b = x(...)
+				ift := evalStaticTypeOf(store, last, cx.Func)
+				cft := getGnoFuncTypeOf(store, ift)
+				if len(as.Lhs) != len(cft.Results) {
+					panic(fmt.Sprintf(
+						"assignment mismatch: "+
+							"%d variables but %s returns %d values",
+						len(as.Lhs), cx.Func.String(), len(cft.Results)))
+				}
+				// check assignable
+				for i, lx := range as.Lhs {
+					lxt := evalStaticTypeOf(store, last, lx)
+					checkAssignableTo(cft.Results[i].Type, lxt, false) // TODO: autoNative?
+				}
+			case *TypeAssertExpr:
+				// Type-assert case: a, ok := x.(type)
+				if len(as.Lhs) != 2 {
+					panic("should not happen")
+				}
+				debug.Println("---type assertion, assert type, reflect type of at: ", cx.Type, reflect.TypeOf(cx.Type))
+				if ctex, ok := cx.Type.(*constTypeExpr); ok {
+					// check assignable
+					dt := evalStaticTypeOf(store, last, as.Lhs[0])
+					checkAssignableTo(ctex.Type, dt, false)
+				} else if _, ok := cx.Type.(*InterfaceTypeExpr); ok {
+					dt := evalStaticTypeOf(store, last, as.Lhs[0])
+					if isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
+						debug.Println("---blank")
+					} else if dt != nil && dt.Kind() == InterfaceKind {
+						// do nothing
+					} else {
+						panic(fmt.Sprintf("cannot assign to %v \n", as.Lhs[0]))
+					}
+				}
+				cx.HasOK = true
+			case *IndexExpr:
+				if len(as.Lhs) != 2 {
+					panic("should not happen")
+				}
+				lt := evalStaticTypeOf(store, last, as.Lhs[0])
+				debug.Println("---cx.X, type of: ", cx.X, reflect.TypeOf(cx.X))
+				if nx, ok := cx.X.(*NameExpr); ok {
+					rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
+					debug.Println("---rx, type of rx: ", rx, reflect.TypeOf(rx))
+					debug.Println("---rx.T: ", rx.T)
+					debug.Println("---rx.V: ", rx.V)
 
-		if lnt, ok := lt.(*NativeType); ok {
-			if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
-				return
+					if mt, ok := rx.T.(*MapType); ok {
+						debug.Println("---mt: ", mt)
+						debug.Println("---type of value of map type: ", mt.Value)
+						checkAssignableTo(mt.Value, lt, false)
+					}
+				} else if _, ok := cx.X.(*CompositeLitExpr); ok {
+					cpt := evalStaticTypeOf(store, last, cx.X)
+					debug.Println("---cpt: ", cpt)
+					if mt, ok := cpt.(*MapType); ok {
+						debug.Println("---mt: ", mt)
+						checkAssignableTo(mt.Value, lt, false)
+					}
+				}
+				cx.HasOK = true
+			default:
+				panic("should not happen")
+			}
+		} else {
+			if as.Op == ASSIGN {
+				for i, lx := range as.Lhs {
+					rt := evalStaticTypeOf(store, last, as.Rhs[i])
+
+					debug.Println("lx, type of lx: ", lx, reflect.TypeOf(lx))
+
+					// check native cases
+					if rnt, ok := rt.(*NativeType); ok {
+						if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
+							return
+						}
+					}
+
+					shouldPanic := true
+					switch clx := lx.(type) {
+					case *NameExpr, *StarExpr, *SelectorExpr:
+						shouldPanic = false
+					case *IndexExpr:
+						debug.Println("---ix.X, type of ix.X: ", clx.X, reflect.TypeOf(clx.X))
+						xt := evalStaticTypeOf(store, last, clx.X)
+						shouldPanic = xt != nil && xt.Kind() == StringKind
+					default:
+					}
+					if shouldPanic {
+						panic(fmt.Sprintf("cannot assign to %v \n", lx))
+					}
+				}
+			} else {
+				// NOTE: this is already checked while parsing file
+				for i, lx := range as.Lhs {
+					rt := evalStaticTypeOf(store, last, as.Rhs[i])
+					if rnt, ok := rt.(*NativeType); ok {
+						if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
+							return
+						}
+					}
+					switch lx.(type) {
+					case *NameExpr:
+					default:
+						panic(fmt.Sprintf("non-name %v on left side of := \n", lx))
+					}
+				}
 			}
 		}
-		if rnt, ok := rt.(*NativeType); ok {
-			if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-				return
-			}
-		}
+	} else {
+		for i, lx := range as.Lhs {
+			lt := evalStaticTypeOf(store, last, lx)
+			rt := evalStaticTypeOf(store, last, as.Rhs[i])
 
-		// check compatible
-		if as.Op != ASSIGN {
+			if lnt, ok := lt.(*NativeType); ok {
+				if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
+					return
+				}
+			}
+			if rnt, ok := rt.(*NativeType); ok {
+				if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
+					return
+				}
+			}
+
 			if checker, ok := AssignStmtChecker[as.Op]; ok {
 				if !checker(lt) {
 					if lt != nil {
@@ -774,4 +887,13 @@ func cmpSpecificity(t1, t2 Type) int {
 	} else {
 		return -1
 	}
+}
+
+func isBlankIdentifier(x Expr) bool {
+	if nx, ok := x.(*NameExpr); ok {
+		if nx.Path.Depth == 0 && nx.Path.Index == 0 && nx.Name == "_" {
+			return true
+		}
+	}
+	return false
 }

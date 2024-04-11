@@ -762,7 +762,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return resn, TRANS_CONTINUE
 					}
 				} else {
-					n.AssertCompatible(store, lt, rt)
+					n.AssertCompatible(lt, rt)
 				}
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
@@ -1577,22 +1577,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, rx)
 					}
+
+					n.AssertCompatible(store, last)
 					if len(n.Lhs) > len(n.Rhs) {
-						// Unpack n.Rhs[0] to n.Lhs[:]
-						if len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
 						switch cx := n.Rhs[0].(type) {
 						case *CallExpr:
 							// Call case: a, b := x(...)
 							ift := evalStaticTypeOf(store, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
-							if len(n.Lhs) != len(cft.Results) {
-								panic(fmt.Sprintf(
-									"assignment mismatch: "+
-										"%d variables but %s returns %d values",
-									len(n.Lhs), cx.Func.String(), len(cft.Results)))
-							}
 							for i, lx := range n.Lhs {
 								ln := lx.(*NameExpr).Name
 								rf := cft.Results[i]
@@ -1600,10 +1592,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								last.Define(ln, anyValue(rf.Type))
 							}
 						case *TypeAssertExpr:
-							// Type-assert case: a, ok := x.(type)
-							if len(n.Lhs) != 2 {
-								panic("should not happen")
-							}
 							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
@@ -1612,10 +1600,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							last.Define(lhs0, anyValue(tt))
 							last.Define(lhs1, anyValue(BoolType))
 						case *IndexExpr:
-							// Index case: v, ok := x[k], x is map.
-							if len(n.Lhs) != 2 {
-								panic("should not happen")
-							}
 							cx.HasOK = true
 							lhs0 := n.Lhs[0].(*NameExpr).Name
 							lhs1 := n.Lhs[1].(*NameExpr).Name
@@ -1645,41 +1629,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else { // ASSIGN.
 					// NOTE: Keep in sync with DEFINE above.
+					n.AssertCompatible(store, last)
 					if len(n.Lhs) > len(n.Rhs) {
-						// TODO dry code w/ above.
-						// Unpack n.Rhs[0] to n.Lhs[:]
-						if len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
-						switch cx := n.Rhs[0].(type) {
-						// TODO: check compatible with this case? a, b = x(...)
-						case *CallExpr:
-							// Call case: a, b = x(...)
-							ift := evalStaticTypeOf(store, last, cx.Func)
-							cft := getGnoFuncTypeOf(store, ift)
-							if len(n.Lhs) != len(cft.Results) {
-								panic(fmt.Sprintf(
-									"assignment mismatch: "+
-										"%d variables but %s returns %d values",
-									len(n.Lhs), cx.Func.String(), len(cft.Results)))
-							}
-						case *TypeAssertExpr:
-							// Type-assert case: a, ok := x.(type)
-							if len(n.Lhs) != 2 {
-								panic("should not happen")
-							}
-							cx.HasOK = true
-						case *IndexExpr:
-							// Index case: v, ok := x[k], x is map.
-							if len(n.Lhs) != 2 {
-								panic("should not happen")
-							}
-							cx.HasOK = true
-						default:
-							panic("should not happen")
-						}
+						// check is done in assertCompatible
 					} else {
-						n.AssertCompatible(store, last)
+						debug.Println("---assignStmt, assign")
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
 								panic("should not happen")
