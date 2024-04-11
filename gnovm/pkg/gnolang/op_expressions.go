@@ -147,7 +147,7 @@ func (m *Machine) doOpStar() {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
