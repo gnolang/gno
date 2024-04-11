@@ -124,10 +124,11 @@ func (d *daoCore) ActiveProposalModuleCount() int {
 
 func (d *daoCore) Render(path string) string {
 	s := "# DAO Core\n"
-	s += "Inspired by [DA0-DA0 contracts](https://github.com/DA0-DA0/dao-contracts)\n"
 	votingInfo := d.votingModule.Info()
 	s += "## Voting Module: " + votingInfo.String() + "\n"
 	s += d.votingModule.Render("")
+	s += "## Supported Messages:\n"
+	s += d.registry.Render()
 	s += "## Proposal Modules:\n"
 	for i, propMod := range d.proposalModules {
 		if !propMod.Enabled {

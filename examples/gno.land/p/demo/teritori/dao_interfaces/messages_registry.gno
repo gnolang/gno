@@ -54,6 +54,15 @@ func (r *MessagesRegistry) ExecuteMessages(msgs []ExecutableMessage) {
 	}
 }
 
+func (r *MessagesRegistry) Render() string {
+	s := ""
+	r.handlers.Iterate("", "", func(key string, value interface{}) bool {
+		s += "- " + value.(MessageHandler).Type() + "\n"
+		return false
+	})
+	return s
+}
+
 type RegisterHandlerExecutableMessage struct {
 	Handler MessageHandler
 }
