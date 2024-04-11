@@ -7,7 +7,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -155,18 +154,20 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			}
 		}
 		// Run genesis txs.
-		for i, tx := range genState.Txs {
+		for _, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
-				ctx.Logger().Error("LOG", "log", res.Log)
-				ctx.Logger().Error(fmt.Sprintf("#%d", i), "value", string(amino.MustMarshalJSON(tx)))
+				ctx.Logger().Error(
+					"Unable to deliver genesis tx",
+					"log", res.Log,
+					"error", res.Error,
+					"gas-used", res.GasUsed,
+				)
 
 				// NOTE: comment out to ignore.
 				if !skipFailingGenesisTxs {
 					panic(res.Log)
 				}
-			} else {
-				ctx.Logger().Info("SUCCESS:", "value", string(amino.MustMarshalJSON(tx)))
 			}
 		}
 		// Done!
