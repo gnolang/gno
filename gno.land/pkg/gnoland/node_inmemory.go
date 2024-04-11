@@ -25,6 +25,7 @@ type InMemoryNodeConfig struct {
 	Genesis               *bft.GenesisDoc
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
+	GenesisMaxVMCycles    int64
 }
 
 // NewMockedPrivValidator generate a new key
@@ -78,9 +79,10 @@ func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
 	}
 
 	return &InMemoryNodeConfig{
-		PrivValidator: pv,
-		TMConfig:      tm,
-		Genesis:       genesis,
+		PrivValidator:      pv,
+		TMConfig:           tm,
+		Genesis:            genesis,
+		GenesisMaxVMCycles: 10_000_000,
 	}
 }
 
@@ -113,6 +115,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		Logger:                logger,
 		GnoRootDir:            cfg.TMConfig.RootDir,
 		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
+		MaxCycles:             cfg.GenesisMaxVMCycles,
 		DB:                    memdb.NewMemDB(),
 	})
 	if err != nil {
