@@ -70,12 +70,11 @@ func (node *Node) Has(key string) (has bool) {
 	}
 	if node.height == 0 {
 		return false
-	} else {
-		if key < node.key {
-			return node.getLeftNode().Has(key)
-		}
-		return node.getRightNode().Has(key)
 	}
+	if key < node.key {
+		return node.getLeftNode().Has(key)
+	}
+	return node.getRightNode().Has(key)
 }
 
 // Get searches for a node with the given key in the subtree rooted at the node
@@ -84,18 +83,21 @@ func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 	if node == nil {
 		return 0, nil, false
 	}
-	if key < node.key {
-		return node.getLeftNode().Get(key)
-	}
+
 	if node.height == 0 {
 		if node.key == key {
 			return 0, node.value, true
-		} else if node.key < key {
-			return 1, nil, false
-		} else {
-			return 0, nil, false
 		}
+		if node.key < key {
+			return 1, nil, false
+		}
+		return 0, nil, false
 	}
+
+	if key < node.key {
+		return node.getLeftNode().Get(key)
+	}
+
 	rightNode := node.getRightNode()
 	index, value, exists = rightNode.Get(key)
 	index += node.size - rightNode.size
@@ -127,26 +129,9 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 	if node == nil {
 		return NewNode(key, value), false
 	}
+
 	if node.height == 0 {
-		if key < node.key {
-			return &Node{
-				key:       node.key,
-				height:    1,
-				size:      2,
-				leftNode:  NewNode(key, value),
-				rightNode: node,
-			}, false
-		} else if key == node.key {
-			return NewNode(key, value), true
-		} else {
-			return &Node{
-				key:       key,
-				height:    1,
-				size:      2,
-				leftNode:  node,
-				rightNode: NewNode(key, value),
-			}, false
-		}
+		return node.setLeaf(key, value)
 	}
 
 	node = node._copy()
@@ -155,11 +140,39 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 	} else {
 		node.rightNode, updated = node.getRightNode().Set(key, value)
 	}
+
 	if updated {
 		return node, updated
 	}
+
 	node.calcHeightAndSize()
 	return node.balance(), updated
+}
+
+// setLeaf inserts a new leaf node with the given key-value pair into the subtree rooted at the node,
+// and returns the new root of the subtree and whether an existing node was updated.
+func (node *Node) setLeaf(key string, value interface{}) (newSelf *Node, updated bool) {
+	if key == node.key {
+		return NewNode(key, value), true
+	}
+
+	if key < node.key {
+		return &Node{
+			key:       node.key,
+			height:    1,
+			size:      2,
+			leftNode:  NewNode(key, value),
+			rightNode: node,
+		}, false
+	}
+
+	return &Node{
+		key:       key,
+		height:    1,
+		size:      2,
+		leftNode:  node,
+		rightNode: NewNode(key, value),
+	}, false
 }
 
 // Remove deletes the node with the given key from the subtree rooted at the node.
@@ -182,7 +195,8 @@ func (node *Node) Remove(key string) (
 		newLeftNode, newKey, value, removed = node.getLeftNode().Remove(key)
 		if !removed {
 			return node, "", value, false
-		} else if newLeftNode == nil { // left node held value, was removed
+		}
+		if newLeftNode == nil { // left node held value, was removed
 			return node.rightNode, node.key, value, true
 		}
 		node = node._copy()
@@ -196,7 +210,8 @@ func (node *Node) Remove(key string) (
 	newRightNode, newKey, value, removed = node.getRightNode().Remove(key)
 	if !removed {
 		return node, "", value, false
-	} else if newRightNode == nil { // right node held value, was removed
+	}
+	if newRightNode == nil { // right node held value, was removed
 		return node.leftNode, "", value, true
 	}
 	node = node._copy()
@@ -329,44 +344,36 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	}
 
 	// Run callback per inner/leaf node.
-	stop := false
 	if (!node.IsLeaf() && !leavesOnly) ||
 		(node.IsLeaf() && startOrAfter && beforeEnd) {
-		stop = cb(node)
-		if stop {
-			return stop
+		if cb(node) {
+			return true
 		}
 	}
 
 	if node.IsLeaf() {
-		return stop
+		return false
 	}
 
 	if ascending {
 		// check lower nodes, then higher
-		if afterStart {
-			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		if afterStart && node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
+			return true
 		}
-		if stop {
-			return stop
-		}
-		if beforeEnd {
-			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		if beforeEnd && node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
+			return true
 		}
 	} else {
 		// check the higher nodes first
-		if beforeEnd {
-			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		if beforeEnd && node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
+			return true
 		}
-		if stop {
-			return stop
-		}
-		if afterStart {
-			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
+		if afterStart && node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
+			return true
 		}
 	}
 
-	return stop
+	return false
 }
 
 // TraverseByOffset traverses all nodes, including inner nodes.
@@ -396,7 +403,6 @@ func (node *Node) TraverseByOffset(offset, limit int, descending bool, leavesOnl
 // If leavesOnly is true, only leaf nodes are visited.
 func (node *Node) traverseByOffset(offset, limit int, descending bool, leavesOnly bool, cb func(*Node) bool) bool {
 	// caller guarantees: offset < node.size; limit > 0.
-
 	if !leavesOnly {
 		if cb(node) {
 			return true
