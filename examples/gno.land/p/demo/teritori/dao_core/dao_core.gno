@@ -76,7 +76,6 @@ func (d *daoCore) UpdateVotingModule(newVotingModule dao_interfaces.IVotingModul
 		panic(ErrUnauthorized)
 	}
 
-	// FIXME: check da0-da0 implem
 	d.votingModule = newVotingModule
 }
 
