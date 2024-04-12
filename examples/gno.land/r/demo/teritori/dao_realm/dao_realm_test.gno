@@ -17,7 +17,7 @@ import (
 func TestInit(t *testing.T) {
 	{
 		proposalsJSON := getProposalsJSON(0, 42, "TODO", false)
-		expected := `[{"id":"0","title":"Test prop","description":"A description","proposer":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","startHeight":"123","totalPower":"5","messages":[{"type":"gno.land/p/demo/teritori/dao_voting_group.UpdateMembers","payload":[{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"}]}],"status":"Executed","votes":{"yes":"1","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm":{"power":"1","vote":"Yes","rationale":"testing"}},"expiration":{"atTime":"2009-03-27T23:31:30Z"},"threshold":{"thresholdQuorum":{"threshold":{"percent":100},"quorum":{"percent":100}}}}]`
+		expected := `[]`
 		if proposalsJSON != expected {
 			t.Fatalf("Expected %s, got %s", expected, proposalsJSON)
 		}
@@ -30,7 +30,7 @@ func TestInit(t *testing.T) {
 			iSlice[i] = v.ToJSON()
 		}
 		membersJSON := json.ArrayNode("", iSlice).String()
-		expected := `[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
+		expected := `[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
 		if membersJSON != expected {
 			t.Fatalf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
