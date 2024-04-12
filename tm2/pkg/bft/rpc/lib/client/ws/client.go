@@ -14,7 +14,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var errTimedOut = errors.New("context timed out")
+var (
+	ErrTimedOut                  = errors.New("context timed out")
+	ErrRequestResponseIDMismatch = errors.New("ws request / response ID mismatch")
+	ErrInvalidBatchResponse      = errors.New("invalid ws batch response size")
+)
 
 type responseCh chan<- types.RPCResponses
 
@@ -62,6 +66,39 @@ func NewClient(rpcURL string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
+// SendRequest sends a single RPC request to the server
+func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
+	// Create the response channel for the pipeline
+	responseCh := make(chan types.RPCResponses, 1)
+
+	// Generate a unique request ID hash
+	requestHash := generateIDHash(request.ID.String())
+
+	c.requestMapMux.Lock()
+	c.requestMap[requestHash] = responseCh
+	c.requestMapMux.Unlock()
+
+	// Pipe the request to the backlog
+	select {
+	case <-ctx.Done():
+		return nil, ErrTimedOut
+	case c.backlog <- request:
+	}
+
+	// Wait for the response
+	select {
+	case <-ctx.Done():
+		return nil, ErrTimedOut
+	case response := <-responseCh:
+		// Make sure the ID matches
+		if response[0].ID != request.ID {
+			return nil, ErrRequestResponseIDMismatch
+		}
+
+		return &response[0], nil
+	}
+}
+
 // SendBatch sends a batch of RPC requests to the server
 func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
 	// Create the response channel for the pipeline
@@ -83,44 +120,28 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	// Pipe the request to the backlog
 	select {
 	case <-ctx.Done():
-		return nil, errTimedOut
+		return nil, ErrTimedOut
 	case c.backlog <- requests:
 	}
 
 	// Wait for the response
 	select {
 	case <-ctx.Done():
-		return nil, errTimedOut
+		return nil, ErrTimedOut
 	case responses := <-responseCh:
+		// Make sure the length matches
+		if len(responses) != len(requests) {
+			return nil, ErrInvalidBatchResponse
+		}
+
+		// Make sure the IDs match
+		for index, response := range responses {
+			if requests[index].ID != response.ID {
+				return nil, ErrRequestResponseIDMismatch
+			}
+		}
+
 		return responses, nil
-	}
-}
-
-// SendRequest sends a single RPC request to the server
-func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
-	// Create the response channel for the pipeline
-	responseCh := make(chan types.RPCResponses, 1)
-
-	// Generate a unique request ID hash
-	requestHash := generateIDHash(request.ID.String())
-
-	c.requestMapMux.Lock()
-	c.requestMap[requestHash] = responseCh
-	c.requestMapMux.Unlock()
-
-	// Pipe the request to the backlog
-	select {
-	case <-ctx.Done():
-		return nil, errTimedOut
-	case c.backlog <- request:
-	}
-
-	// Wait for the response
-	select {
-	case <-ctx.Done():
-		return nil, errTimedOut
-	case response := <-responseCh:
-		return &response[0], nil
 	}
 }
 

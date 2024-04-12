@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,6 +20,11 @@ const (
 	protoWSS   = "wss"
 	protoWS    = "ws"
 	protoTCP   = "tcp"
+)
+
+var (
+	ErrRequestResponseIDMismatch = errors.New("http request / response ID mismatch")
+	ErrInvalidBatchResponse      = errors.New("invalid http batch response size")
 )
 
 // Client is an HTTP client implementation
@@ -46,12 +52,41 @@ func NewClient(rpcURL string) (*Client, error) {
 
 // SendRequest sends a single RPC request to the server
 func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
-	return sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, c.client, c.rpcURL, request)
+	// Send the request
+	response, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, c.client, c.rpcURL, request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Make sure the ID matches
+	if response.ID != response.ID {
+		return nil, ErrRequestResponseIDMismatch
+	}
+
+	return response, nil
 }
 
 // SendBatch sends a single RPC batch request to the server
 func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
-	return sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, c.client, c.rpcURL, requests)
+	// Send the batch
+	responses, err := sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, c.client, c.rpcURL, requests)
+	if err != nil {
+		return nil, err
+	}
+
+	// Make sure the length matches
+	if len(responses) != len(requests) {
+		return nil, ErrInvalidBatchResponse
+	}
+
+	// Make sure the IDs match
+	for index, response := range responses {
+		if requests[index].ID != response.ID {
+			return nil, ErrRequestResponseIDMismatch
+		}
+	}
+
+	return responses, nil
 }
 
 type (

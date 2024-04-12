@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// createTestServer creates a test HTTP server
+// createTestServer creates a test WS server
 func createTestServer(
 	t *testing.T,
 	handler http.Handler,
@@ -87,7 +87,7 @@ func TestClient_SendRequest(t *testing.T) {
 		response, err := c.SendRequest(ctx, request)
 		require.Nil(t, response)
 
-		assert.ErrorIs(t, err, errTimedOut)
+		assert.ErrorIs(t, err, ErrTimedOut)
 	})
 
 	t.Run("valid request sent", func(t *testing.T) {
@@ -222,7 +222,7 @@ func TestClient_SendBatch(t *testing.T) {
 		response, err := c.SendBatch(ctx, batch)
 		require.Nil(t, response)
 
-		assert.ErrorIs(t, err, errTimedOut)
+		assert.ErrorIs(t, err, ErrTimedOut)
 	})
 
 	t.Run("valid batch sent", func(t *testing.T) {
