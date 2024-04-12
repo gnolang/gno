@@ -125,3 +125,57 @@ func (h BurnToriHandler) Type() string {
 func (h *BurnToriHandler) Instantiate() dao_interfaces.ExecutableMessage {
 	return &ExecutableMessageBurnTori{}
 }
+
+type ExecutableMessageChangeAdmin struct {
+	dao_interfaces.ExecutableMessage
+
+	NewAdmin users.AddressOrName
+}
+
+var _ dao_interfaces.ExecutableMessage = &ExecutableMessageChangeAdmin{}
+
+func (msg ExecutableMessageChangeAdmin) Type() string {
+	return "gno.land/r/demo/teritori/tori.ChangeAdmin"
+}
+
+func (msg *ExecutableMessageChangeAdmin) String() string {
+	var ss []string
+	ss = append(ss, msg.Type())
+	s := "New admin: " + string(msg.NewAdmin)
+	ss = append(ss, s)
+	return strings.Join(ss, "\n---\n")
+}
+
+func (msg *ExecutableMessageChangeAdmin) FromJSON(ast *json.Node) {
+	obj := ast.MustObject()
+	msg.NewAdmin = jsonutil.MustAddressOrName(obj["newAdmin"])
+}
+
+func (msg *ExecutableMessageChangeAdmin) ToJSON() *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"newAdmin": jsonutil.AddressOrNameNode(msg.NewAdmin),
+	})
+}
+
+type ChangeAdminHandler struct {
+	dao_interfaces.MessageHandler
+}
+
+var _ dao_interfaces.MessageHandler = &ChangeAdminHandler{}
+
+func NewChangeAdminHandler() *ChangeAdminHandler {
+	return &ChangeAdminHandler{}
+}
+
+func (h *ChangeAdminHandler) Execute(imsg dao_interfaces.ExecutableMessage) {
+	msg := imsg.(*ExecutableMessageChangeAdmin)
+	ChangeAdmin(msg.NewAdmin)
+}
+
+func (h ChangeAdminHandler) Type() string {
+	return ExecutableMessageChangeAdmin{}.Type()
+}
+
+func (h *ChangeAdminHandler) Instantiate() dao_interfaces.ExecutableMessage {
+	return &ExecutableMessageChangeAdmin{}
+}

@@ -63,6 +63,9 @@ func init() {
 		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
 			return tori.NewBurnToriHandler()
 		},
+		func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
+			return tori.NewChangeAdminHandler()
+		},
 	}
 
 	daoCore = dao_core.NewDAOCore(votingModuleFactory, proposalModulesFactories, messageHandlersFactories)
