@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -116,6 +117,14 @@ func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
 }
 
+func (r ResponseBase) String() string {
+	eventString := make([]string, len(r.Events))
+	for i, event := range r.Events {
+		eventString[i] = event.String()
+	}
+	return "[" + strings.Join(eventString, "\n") + "]"
+}
+
 // nondeterministic
 type ResponseException struct {
 	ResponseBase
@@ -193,6 +202,7 @@ type Error interface {
 }
 
 type Event interface {
+	String() string
 	AssertABCIEvent()
 }
 
@@ -222,6 +232,10 @@ type EventString string
 func (EventString) AssertABCIEvent() {}
 
 func (err EventString) Event() string {
+	return string(err)
+}
+
+func (err EventString) String() string {
 	return string(err)
 }
 
