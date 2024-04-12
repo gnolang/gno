@@ -60,7 +60,7 @@ func (e AttributedEvent) AssertABCIEvent() {}
 
 func (e AttributedEvent) String() string {
 	return fmt.Sprintf(
-		"type: %s, pkgPath: %s, fn: %s timestamp: %d, attributes: %s",
+		"type: %s, pkgPath: %s, fn: %s, timestamp: %d, attributes: %s",
 		e.Type, e.PkgPath, e.Identifier, e.Timestamp, e.Attributes,
 	)
 }

@@ -180,8 +180,8 @@ func ExecSignAndBroadcast(
 	io.Println(string(bres.DeliverTx.Data))
 	io.Println("OK!")
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	io.Println("EVENTS:	", bres.DeliverTx.Events)
+	io.Println("GAS USED:", bres.DeliverTx.GasUsed)
+	io.Println("EVENTS:", bres.DeliverTx.Events)
 
 	return nil
 }

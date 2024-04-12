@@ -6,6 +6,8 @@ stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/demo/ee -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED: [0-9]+'
 
 -- ee.gno --
 package ee
