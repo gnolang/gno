@@ -11,8 +11,8 @@ import (
 type Campaign struct {
 	title        string
 	description  string
-	goal         uint64
-	current      uint64
+	goal         uint
+	current      uint
 	begin        time.Time
 	deadline     time.Time
 	owner        *User
@@ -23,11 +23,11 @@ type Campaign struct {
 type Contributor struct {
 	user    *User
 	date    time.Time
-	amount  uint64
+	amount  uint
 	display bool
 }
 
-func NewCampaign(title string, description string, goal uint64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
+func NewCampaign(title string, description string, goal uint, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	return &Campaign{
 		title:        title,
 		description:  description,
@@ -49,11 +49,11 @@ func (c Campaign) GetDescription() string {
 	return c.description
 }
 
-func (c Campaign) GetGoal() uint64 {
+func (c Campaign) GetGoal() uint {
 	return c.goal
 }
 
-func (c Campaign) GetCurrent() uint64 {
+func (c Campaign) GetCurrent() uint {
 	return c.current
 }
 
@@ -74,7 +74,7 @@ func (c Campaign) GetBeneficiary() *User {
 }
 
 func (c Campaign) GetContributors() []*Contributor {
-	contributors := make([]*Contributor, c.contributors.Size())
+	contributors := make([]*Contributor, 0, c.contributors.Size())
 	c.contributors.Iterate("", "", func(key string, value interface{}) bool {
 		contributors = append(contributors, value.(*Contributor))
 		return false
@@ -82,13 +82,14 @@ func (c Campaign) GetContributors() []*Contributor {
 	return contributors
 }
 
-func (c Campaign) AddContributor(user *User, amount uint64, display bool) {
+func (c *Campaign) AddContributor(user *User, amount uint, display bool) {
 	c.current += amount
 	key := c.contributors.Size()
-	c.contributors.Set(strconv.Itoa(key), &Contributor{
+	contributor := &Contributor{
 		user:    user,
 		date:    time.Now(),
 		amount:  amount,
 		display: display,
-	})
+	}
+	c.contributors.Set(strconv.Itoa(key), contributor)
 }
