@@ -13,7 +13,8 @@ gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -gas-fee 1000000u
 stdout '("hello from foo" string)'
 stdout 'OK!'
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED:   [0-9]+'
+stdout 'GAS USED: \d+'
+stdout 'EVENTS: \[\]'
 
 -- bar.gno --
 package bar
