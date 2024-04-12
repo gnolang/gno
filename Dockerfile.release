@@ -1,5 +1,4 @@
 FROM scratch
-
-COPY /tx-archive /tx-archive
-
-ENTRYPOINT ["/tx-archive"]
+COPY tx-archive /
+ENTRYPOINT [ "/tx-archive" ]
+CMD [ "backup" ]

@@ -1,0 +1,157 @@
+project_name: tx-archive
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - main: ./cmd
+    binary: tx-archive
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+
+gomod:
+  proxy: true
+
+archives:
+   # https://goreleaser.com/customization/archive/
+  - files:
+      # Standard Release Files
+      - LICENSE.md
+      - README.md
+
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - "--yes" # needed on cosign 2.0.0+
+    artifacts: checksum
+    output: true
+
+dockers:
+  # https://goreleaser.com/customization/docker/
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:latest
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7
+    
+docker_signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    artifacts: images
+    output: true
+    args:
+      - 'sign'
+      - '${artifact}'
+      - "--yes" # needed on cosign 2.0.0+
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+
+source:
+  enabled: true
+
+sboms:
+  - artifacts: archive
+  - id: source # Two different sbom configurations need two different IDs
+    artifacts: source
+
+release:
+  draft: true
+  replace_existing_draft: true
+  prerelease: true
+  footer: |
+    ### Container Images
+
+    https://ghcr.io/gnolang/{{ .ProjectName }}:{{ .Tag }}
+
+    For example:
+    ```
+    docker pull ghcr.io/gnolang/{{ .ProjectName }}:{{ .Tag }}
+    ```
+
