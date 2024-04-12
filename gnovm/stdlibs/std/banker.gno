@@ -2,8 +2,6 @@ package std
 
 import (
 	"strconv"
-
-	"gno.land/p/demo/ufmt"
 )
 
 // Realm functions can call std.GetBanker(options) to get
@@ -109,7 +107,8 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 		panic("BankerTypeReadonly cannot send coins")
 	}
 	if b.pkgAddr != from.String() {
-		panic(ufmt.Sprintf("can only send coins from realm that created banker(%s), not (%s)", b.pkgAddr, from))
+		msg := "can only send coins from realm that created banker(" + b.pkgAddr + ")" + " not ( " + from.String() + ")" // TODO: format string needed
+		panic(msg)
 	}
 	denoms, amounts := amt.expandNative()
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
