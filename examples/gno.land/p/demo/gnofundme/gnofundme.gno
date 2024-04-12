@@ -73,15 +73,6 @@ func (c Campaign) GetBeneficiary() *User {
 	return c.beneficiary
 }
 
-func (c Campaign) GetContributors() []*Contributor {
-	contributors := make([]*Contributor, 0, c.contributors.Size())
-	c.contributors.Iterate("", "", func(key string, value interface{}) bool {
-		contributors = append(contributors, value.(*Contributor))
-		return false
-	})
-	return contributors
-}
-
 func (c *Campaign) AddContributor(user *User, amount uint, display bool) {
 	c.current += amount
 	key := c.contributors.Size()
@@ -92,4 +83,13 @@ func (c *Campaign) AddContributor(user *User, amount uint, display bool) {
 		display: display,
 	}
 	c.contributors.Set(strconv.Itoa(key), contributor)
+}
+
+func (c Campaign) GetContributors() []*Contributor {
+	contributors := make([]*Contributor, 0, c.contributors.Size())
+	c.contributors.Iterate("", "", func(key string, value interface{}) bool {
+		contributors = append(contributors, value.(*Contributor))
+		return false
+	})
+	return contributors
 }
