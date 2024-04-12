@@ -35,8 +35,6 @@ type IDAOCore interface {
 
 A default implementation is provided in the package `gno.land/p/demo/teritori/dao_core`, and custom implementations are generally not required.
 
-### A voting module
-
 ### Voting Module
 
 The `gno.land/p/demo/teritori/dao_interfaces.IVotingModule` interface defines how voting power is allocated to addresses within the DAO.
@@ -140,9 +138,7 @@ func init() {
 }
 ```
 
-2. **Create the Group**
-
-First we need to create a group that will be queried by the module. We use the teritori fork of the groups realm since the upstream groups can't be created by a non-EOA
+2. **Instantiate the module**
 
 `examples/gno.land/r/demo/my_dao/my_dao.gno`
 ```go
@@ -150,50 +146,30 @@ package my_dao
 
 import (
     "gno.land/p/demo/teritori/dao_interfaces"
-    "gno.land/p/demo/teritori/groups" // <- new
-)
-
-func init() {
-    var groupID groups.GroupID
-
-    votingModuleFactory := func(core dao_interfaces.IDAOCore) {
-        groupID = groups.CreateGroup("my_dao_voting_group") // <- new
-    }
-}
-```
-
-We need to keep a reference to the group ID to instantiate it's message handlers later
-
-3. **Add Initial Members**
-
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
-```go
-func init() {
-    votingModuleFactory := func(core dao_interfaces.IDAOCore) {
-        groupID = groups.CreateGroup("my_dao_voting_group")
-        groups.AddMember(groupID, "your-address", 1, "") // <- new
-        // repeat for any other initial members you want in the DAO
-    }
-}
-```
-
-4. **Instantiate the voting module**
-
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
-```go
-package my_dao
-
-import (
-    "gno.land/p/demo/teritori/dao_interfaces"
-    "gno.land/p/demo/teritori/groups"
     "gno.land/p/demo/teritori/dao_voting_group" // <- new
 )
 
 func init() {
-    votingModuleFactory := func(core dao_interfaces.IDAOCore) dao_interfaces.IVotingModule {
-        groupID = groups.CreateGroup("my_dao_voting_group")
-        groups.AddMember(groupID, "your-address", 1, "")
-        return dao_voting_group.NewVotingGroup(groupID) // <- new
+    var group *dao_voting_group.VotingGroup // <- new
+
+    votingModuleFactory := func(core dao_interfaces.IDAOCore) {
+        group = dao_voting_group.NewVotingGroup() // <- new
+    }
+}
+```
+
+We need to keep a reference to the module to instantiate it's message handlers later
+
+3. **Add Initial Members and return the module**
+
+`examples/gno.land/r/demo/my_dao/my_dao.gno`
+```go
+func init() {
+    votingModuleFactory := func(core dao_interfaces.IDAOCore) {
+        group = dao_voting_group.NewVotingGroup()
+        group.SetMemberPower("your-address", 1) // <- new
+        // repeat for any other initial members you want in the DAO
+        return group // <- new
     }
 }
 ```
@@ -226,7 +202,6 @@ package my_dao
 
 import (
     "gno.land/p/demo/teritori/dao_interfaces"
-    "gno.land/p/demo/teritori/groups"
     "gno.land/p/demo/teritori/dao_voting_group"
     "gno.land/p/demo/teritori/dao_proposal_single" // <- new
 )
@@ -251,7 +226,7 @@ func init() {
 }
 ```
 
-We need to keep a reference to the group ID to instantiate it's message handlers later
+We also need to keep a reference to the module to instantiate it's message handlers later
 
 ### Registering Message Handlers
 
@@ -263,7 +238,6 @@ package my_dao
 
 import (
     "gno.land/p/demo/teritori/dao_interfaces"
-    "gno.land/p/demo/teritori/groups"
     "gno.land/p/demo/teritori/dao_voting_group"
     "gno.land/p/demo/teritori/dao_proposal_single"
 )
@@ -273,10 +247,7 @@ func init() {
     messageHandlersFactories := []dao_interfaces.MessageHandlerFactory{
         // Allow to manage the voting group
         func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-            return groups.NewAddMemberHandler(groupID)
-        },
-        func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
-            return groups.NewDeleteMemberHandler(groupID)
+            return group.UpdateMembersHandler()
         },
         // Allow to update the proposal module settings
         func(core dao_interfaces.IDAOCore) dao_interfaces.MessageHandler {
@@ -295,7 +266,6 @@ package my_dao
 
 import (
     "gno.land/p/demo/teritori/dao_interfaces"
-    "gno.land/p/demo/teritori/groups"
     "gno.land/p/demo/teritori/dao_voting_group"
     "gno.land/p/demo/teritori/dao_proposal_single"
     "gno.land/p/demo/teritori/dao_core" // <- new
