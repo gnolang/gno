@@ -94,8 +94,11 @@ func NewWSClient(rpcURL string) (*RPCClient, error) {
 }
 
 // NewBatch creates a new RPC batch
-func (c *RPCClient) NewBatch() *batch.Batch {
-	return batch.NewBatch(c.caller)
+func (c *RPCClient) NewBatch() *RPCBatch {
+	return &RPCBatch{
+		batch:     batch.NewBatch(c.caller),
+		resultMap: make(map[string]any),
+	}
 }
 
 func (c *RPCClient) Status() (*ctypes.ResultStatus, error) {
@@ -305,6 +308,14 @@ func (c *RPCClient) Validators(height *int64) (*ctypes.ResultValidators, error) 
 	)
 }
 
+// newRequest creates a new request based on the method
+// and given params
+func newRequest(method string, params map[string]any) (rpctypes.RPCRequest, error) {
+	id := rpctypes.JSONRPCStringID(xid.New().String())
+
+	return rpctypes.MapToRequest(id, method, params)
+}
+
 // sendRequestCommon is the common request creation, sending, and parsing middleware
 func sendRequestCommon[T any](
 	caller rpcclient.Client,
@@ -313,8 +324,7 @@ func sendRequestCommon[T any](
 	params map[string]any,
 ) (*T, error) {
 	// Prepare the RPC request
-	id := rpctypes.JSONRPCStringID(xid.New().String())
-	request, err := rpctypes.MapToRequest(id, method, params)
+	request, err := newRequest(method, params)
 	if err != nil {
 		return nil, err
 	}

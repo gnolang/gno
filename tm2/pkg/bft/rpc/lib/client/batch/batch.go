@@ -2,7 +2,6 @@ package batch
 
 import (
 	"context"
-	"sync"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 )
@@ -12,11 +11,9 @@ type Client interface {
 }
 
 // Batch allows us to buffer multiple request/response structures
-// into a single batch request. Note that this batch acts like a FIFO queue, and
-// is thread-safe
+// into a single batch request.
+// NOT thread safe
 type Batch struct {
-	sync.RWMutex
-
 	client   Client
 	requests types.RPCRequests
 }
@@ -31,17 +28,11 @@ func NewBatch(client Client) *Batch {
 
 // Count returns the number of enqueued requests waiting to be sent
 func (b *Batch) Count() int {
-	b.RLock()
-	defer b.RUnlock()
-
 	return len(b.requests)
 }
 
 // Clear empties out the request batch
 func (b *Batch) Clear() int {
-	b.Lock()
-	defer b.Unlock()
-
 	return b.clear()
 }
 
@@ -55,10 +46,8 @@ func (b *Batch) clear() int {
 // Send will attempt to send the current batch of enqueued requests, and then
 // will clear out the requests once done
 func (b *Batch) Send(ctx context.Context) (types.RPCResponses, error) {
-	b.Lock()
 	defer func() {
 		b.clear()
-		b.Unlock()
 	}()
 
 	responses, err := b.client.SendBatch(ctx, b.requests)
@@ -71,8 +60,5 @@ func (b *Batch) Send(ctx context.Context) (types.RPCResponses, error) {
 
 // AddRequest adds a new request onto the batch
 func (b *Batch) AddRequest(request types.RPCRequest) {
-	b.Lock()
-	defer b.Unlock()
-
 	b.requests = append(b.requests, request)
 }

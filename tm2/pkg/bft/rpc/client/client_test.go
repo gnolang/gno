@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -56,6 +57,54 @@ func generateMockRequestClient(
 			}
 
 			return response, nil
+		},
+	}
+}
+
+// generateMockRequestsClient generates a batch RPC request mock client
+func generateMockRequestsClient(
+	t *testing.T,
+	method string,
+	verifyParamsFn func(*testing.T, map[string]any),
+	responseData []any,
+) *mockClient {
+	t.Helper()
+
+	return &mockClient{
+		sendBatchFn: func(
+			_ context.Context,
+			requests types.RPCRequests,
+		) (types.RPCResponses, error) {
+			responses := make(types.RPCResponses, 0, len(requests))
+
+			// Validate the requests
+			for index, r := range requests {
+				require.Equal(t, "2.0", r.JSONRPC)
+				require.NotNil(t, r.ID)
+				require.Equal(t, r.Method, method)
+
+				// Validate the params
+				var params map[string]any
+				require.NoError(t, json.Unmarshal(r.Params, &params))
+
+				verifyParamsFn(t, params)
+
+				// Prepare the result
+				result, err := amino.MarshalJSON(responseData[index])
+				require.NoError(t, err)
+
+				// Prepare the response
+				response := types.RPCResponse{
+					JSONRPC: "2.0",
+					ID:      r.ID,
+					Result:  result,
+					Error:   nil,
+				}
+
+				responses = append(responses, response)
+			}
+
+			return responses, nil
 		},
 	}
 }
@@ -671,4 +720,77 @@ func TestRPCClient_Validators(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedResult, result)
+}
+
+func TestRPCClient_Batch(t *testing.T) {
+	t.Parallel()
+
+	convertResults := func(results []*ctypes.ResultStatus) []any {
+		res := make([]any, len(results))
+
+		for index, item := range results {
+			res[index] = item
+		}
+
+		return res
+	}
+
+	var (
+		expectedStatuses = []*ctypes.ResultStatus{
+			{
+				NodeInfo: p2p.NodeInfo{
+					Moniker: "dummy",
+				},
+			},
+			{
+				NodeInfo: p2p.NodeInfo{
+					Moniker: "dummy",
+				},
+			},
+			{
+				NodeInfo: p2p.NodeInfo{
+					Moniker: "dummy",
+				},
+			},
+		}
+
+		verifyFn = func(t *testing.T, params map[string]any) {
+			assert.Len(t, params, 0)
+		}
+
+		mockClient = generateMockRequestsClient(
+			t,
+			statusMethod,
+			verifyFn,
+			convertResults(expectedStatuses),
+		)
+	)
+
+	// Create the client
+	c := NewRPCClient(mockClient)
+
+	// Create the batch
+	batch := c.NewBatch()
+
+	require.NoError(t, batch.Status())
+	require.NoError(t, batch.Status())
+	require.NoError(t, batch.Status())
+
+	require.EqualValues(t, 3, batch.Count())
+
+	// Send the batch
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	results, err := batch.Send(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, results, len(expectedStatuses))
+
+	for index, result := range results {
+		castResult, ok := result.(*ctypes.ResultStatus)
+		require.True(t, ok)
+
+		assert.Equal(t, expectedStatuses[index], castResult)
+	}
 }
