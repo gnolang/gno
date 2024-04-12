@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 // here are a range of rules predefined for preprocessor to check the compatibility between operands and operators
@@ -553,7 +552,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	}
 
-	escapedOpStr := strings.Replace(wordTokenStrings[bx.Op], "%", "%%", 1)
+	OpStr := wordTokenStrings[bx.Op]
 
 	var xt, dt Type
 	cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
@@ -571,7 +570,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 			assertComparable(xt, dt) // only check if dest type is comparable
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[bx.Op]; ok {
-				bx.checkCompatibility(xt, dt, checker, escapedOpStr)
+				bx.checkCompatibility(xt, dt, checker, OpStr)
 			} else {
 				panic("should not happen")
 			}
@@ -580,7 +579,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[bx.Op]; ok {
-			bx.checkCompatibility(xt, dt, checker, escapedOpStr)
+			bx.checkCompatibility(xt, dt, checker, OpStr)
 		} else {
 			panic("should not happen")
 		}
@@ -601,14 +600,14 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 	}
 }
 
-func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, escapedOpStr string) {
+func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
 	var destKind interface{}
 
 	if !checker(dt) {
 		if dt != nil {
 			destKind = dt.Kind()
 		}
-		panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, destKind))
 	}
 
 	defer func() { // rewrite err msg
@@ -616,7 +615,7 @@ func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool,
 			if xt != nil {
 				destKind = xt.Kind()
 			}
-			panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+			panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, destKind))
 		}
 	}()
 
@@ -672,7 +671,7 @@ func (idst *IncDecStmt) AssertCompatible(t Type) {
 }
 
 func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
-	escapedOpStr := strings.Replace(wordTokenStrings[as.Op], "%", "%%", 1)
+	Opstr := wordTokenStrings[as.Op]
 	var destKind interface{}
 	if as.Op == ASSIGN || as.Op == DEFINE {
 		if len(as.Lhs) > len(as.Rhs) {
@@ -805,7 +804,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					if lt != nil {
 						destKind = lt.Kind()
 					}
-					panic(fmt.Sprintf("operator %s not defined on: %v", escapedOpStr, destKind))
+					panic(fmt.Sprintf("operator %s not defined on: %v", Opstr, destKind))
 				}
 				switch as.Op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:

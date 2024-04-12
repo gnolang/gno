@@ -7,8 +7,8 @@ type foo struct {
 func main() {
 	s := &foo{}
 	s.a = 1
-	println(s)
+	println(s.a)
 }
 
 // Output:
-// &0x140002f85a0.(*main.foo)
+// 1

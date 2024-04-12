@@ -262,11 +262,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 						}
 						// check tip line, write to file
-						ctl := fmt.Sprintf(
-							errstr +
-								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
-								"DELETE THIS LINE AND RUN TEST AGAIN ***",
-						)
+						ctl := errstr +
+							"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
+							"DELETE THIS LINE AND RUN TEST AGAIN ***"
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
@@ -424,6 +422,7 @@ func readComments(cg *ast.CommentGroup) string {
 
 // Replace comment in file with given output given directive.
 func replaceWantedInPlace(path string, directive string, output string) {
+	fmt.Println("---replace...: ", directive, output)
 	bz := osm.MustReadFile(path)
 	body := string(bz)
 	lines := strings.Split(body, "\n")
