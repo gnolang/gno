@@ -13,6 +13,9 @@ type Client interface {
 
 	// SendBatch sends a batch of RPC requests to the JSON-RPC layer
 	SendBatch(context.Context, types.RPCRequests) (types.RPCResponses, error)
+
+	// Close closes the RPC client
+	Close() error
 }
 
 // Batch is the JSON-RPC batch abstraction

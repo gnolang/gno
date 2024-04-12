@@ -93,6 +93,11 @@ func NewWSClient(rpcURL string) (*RPCClient, error) {
 	return NewRPCClient(wsClient), nil
 }
 
+// Close attempts to gracefully close the RPC client
+func (c *RPCClient) Close() error {
+	return c.caller.Close()
+}
+
 // NewBatch creates a new RPC batch
 func (c *RPCClient) NewBatch() *RPCBatch {
 	return &RPCBatch{

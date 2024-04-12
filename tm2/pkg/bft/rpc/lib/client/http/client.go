@@ -89,6 +89,11 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	return responses, nil
 }
 
+// Close has no effect on an HTTP client
+func (c *Client) Close() error {
+	return nil
+}
+
 type (
 	requestType interface {
 		types.RPCRequest | types.RPCRequests
