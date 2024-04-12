@@ -11,6 +11,7 @@ func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 	attrLen := len(attrs)
 	eventAttrs := make([]sdk.EventAttribute, attrLen/2)
 	pkgPath := CurrentRealmPath(m)
+	fnIdent := GetFuncNameFromCallStack(m)
 
 	for i := 0; i < attrLen-1; i += 2 {
 		eventAttrs[i/2] = sdk.EventAttribute{
@@ -21,7 +22,7 @@ func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 
 	timestamp := GetTimestamp(m)
 
-	event := sdk.NewEvent(typ, pkgPath, timestamp, eventAttrs...)
+	event := sdk.NewEvent(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
 
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(event)

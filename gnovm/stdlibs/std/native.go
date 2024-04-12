@@ -36,6 +36,14 @@ func GetTimestamp(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Timestamp
 }
 
+// GetFuncNameFromCallStack returns the last called function name (identifier) from the call stack.
+func GetFuncNameFromCallStack(m *gno.Machine) string {
+	if len(m.Frames) == 0 {
+		return ""
+	}
+	return string(m.Frames[0].Func.Name)
+}
+
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := m.Context.(ExecContext).OrigSend
 	return ExpandCoins(os)

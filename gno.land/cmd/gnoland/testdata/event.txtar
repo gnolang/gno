@@ -1,5 +1,3 @@
-loadpkg gno.land/p/demo/ufmt
-
 # start a new node
 gnoland start
 
@@ -7,7 +5,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ee -gas-fee 1000000u
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/demo/ee -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-
+stdout OK!
 
 -- ee.gno --
 package ee
@@ -21,6 +19,12 @@ const EventAttrKeySender = "sender"
 func Hello() {
 	std.EmitEvent(
 		EventAttrKeySender,
-		[]string{"value1", "value2"},
+
+		[]string{
+			"key1", "value1",
+			"key2", "value2",
+			"key3", "value3",
+			"not-a-pair",		// ignore the key-value not in pairs
+		},
 	)
 }

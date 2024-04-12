@@ -38,28 +38,30 @@ func (em *EventLogger) EmitEvents(events []Event) {
 
 type Event = abci.Event
 
-func NewEvent(eventType string, pkgPath string, timestamp int64, attrs ...EventAttribute) Event {
+func NewEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
 	return AttributedEvent{
 		Type:       eventType,
 		PkgPath:    pkgPath,
+		Identifier: ident,
 		Attributes: attrs,
 		Timestamp:  timestamp,
 	}
 }
 
 type AttributedEvent struct {
-	Type       string
-	PkgPath    string
+	Type       string // type of event
+	PkgPath    string // event occurred package path
+	Identifier string // event occurred function identifier
 	Timestamp  int64
-	Attributes []EventAttribute
+	Attributes []EventAttribute // list of event attributes (comma separated key-value pairs)
 }
 
 func (e AttributedEvent) AssertABCIEvent() {}
 
 func (e AttributedEvent) String() string {
 	return fmt.Sprintf(
-		"type: %s, pkgPath: %s, timestamp: %d, attributes: %s",
-		e.Type, e.PkgPath, e.Timestamp, e.Attributes,
+		"type: %s, pkgPath: %s, fn: %s timestamp: %d, attributes: %s",
+		e.Type, e.PkgPath, e.Identifier, e.Timestamp, e.Attributes,
 	)
 }
 
