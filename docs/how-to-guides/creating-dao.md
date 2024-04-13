@@ -20,6 +20,11 @@ The `IDAOCore` interface ties all the other components together and offers the m
 **Interface Definition:**
 
 ```go
+type ActivableProposalModule struct {
+	Enabled bool
+	Module  IProposalModule
+}
+
 type IDAOCore interface {
 	Render(path string) string
 
@@ -51,7 +56,7 @@ type IVotingModule interface {
 }
 ```
 
-There is only one implementation currently, `gno.land/p/demo/teritori/dao_voting_group`, it's a wrapper around a gno group, providing a membership-based voting power definition
+There is only one implementation currently, `gno.land/p/demo/teritori/dao_voting_group`, providing a membership-based voting power definition
 
 ### Proposal Modules
 
@@ -83,8 +88,8 @@ There is only one implementation currently, `gno.land/p/demo/teritori/dao_propos
 Proposals actions are encoded as objects implementing `gno.land/p/demo/teritori/dao_interfaces.ExecutableMessage`
 ```go
 type ExecutableMessage interface {
-	ujson.JSONAble
-	ujson.FromJSONAble
+	ToJSON() *json.Node
+	FromJSON(ast *json.Node)
 
 	String() string
 	Type() string
@@ -95,7 +100,7 @@ They are deserialized and executed by message handlers implementing `gno.land/p/
 ```go
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
-	MessageFromJSON(ast *json.Node) ExecutableMessage
+	Instantiate() ExecutableMessage
 	Type() string
 }
 ```
@@ -111,7 +116,6 @@ Sooo, let's create a new realm
 ```
 git clone https://github.com/TERITORI/gno.git gno-dao-tutorial
 cd gno-dao-tutorial
-git checkout teritori-unified
 mkdir examples/gno.land/r/demo/my_dao
 ```
 
