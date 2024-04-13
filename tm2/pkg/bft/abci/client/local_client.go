@@ -3,6 +3,7 @@ package abcicli
 import (
 	"context"
 	"sync"
+	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/service"
@@ -20,15 +21,18 @@ type localClient struct {
 	mtx *sync.Mutex
 	abci.Application
 	Callback
+
+	timeout time.Duration
 }
 
-func NewLocalClient(mtx *sync.Mutex, app abci.Application) *localClient {
+func NewLocalClient(mtx *sync.Mutex, app abci.Application, timeout time.Duration) *localClient {
 	if mtx == nil {
 		mtx = new(sync.Mutex)
 	}
 	cli := &localClient{
 		mtx:         mtx,
 		Application: app,
+		timeout:     timeout,
 	}
 	cli.BaseService = *service.NewBaseService(nil, "localClient", cli)
 	return cli
@@ -81,8 +85,10 @@ func (app *localClient) DeliverTxAsync(req abci.RequestDeliverTx) *ReqRes {
 	defer app.mtx.Unlock()
 
 	ctx := context.Background()
-	if req.RequestBase.Ctx != nil {
-		ctx = req.RequestBase.Ctx
+	if app.timeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, app.timeout)
+		defer cancel()
 	}
 
 	respCh := make(chan abci.ResponseDeliverTx, 1)

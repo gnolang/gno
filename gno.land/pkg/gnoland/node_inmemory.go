@@ -130,6 +130,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		cfg.TMConfig.ProxyApp,
 		cfg.TMConfig.ABCI,
 		cfg.TMConfig.DBDir(),
+		cfg.TMConfig.RPC.TimeoutBroadcastTxCommit,
 	)
 
 	// Create genesis factory

@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"sync"
+	"time"
 
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/counter"
@@ -18,19 +19,25 @@ type ClientCreator interface {
 // local proxy uses a mutex on an in-proc app
 
 type localClientCreator struct {
-	mtx *sync.Mutex
-	app abci.Application
+	mtx     *sync.Mutex
+	app     abci.Application
+	timeout time.Duration
 }
 
 func NewLocalClientCreator(app abci.Application) ClientCreator {
+	return NewLocalClientCreatorWithTimeout(app, 0)
+}
+
+func NewLocalClientCreatorWithTimeout(app abci.Application, timeout time.Duration) ClientCreator {
 	return &localClientCreator{
-		mtx: new(sync.Mutex),
-		app: app,
+		mtx:     new(sync.Mutex),
+		app:     app,
+		timeout: timeout,
 	}
 }
 
 func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
-	return abcicli.NewLocalClient(l.mtx, l.app), nil
+	return abcicli.NewLocalClient(l.mtx, l.app, l.timeout), nil
 }
 
 //-----------------------------------------------------------------
@@ -38,23 +45,23 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 
 // Returns the local application, or constructs a new one via proxy.
 // This function is meant to work with config fields.
-func DefaultClientCreator(local abci.Application, proxy string, transport, dbDir string) ClientCreator {
+func DefaultClientCreator(local abci.Application, proxy string, transport, dbDir string, timeout time.Duration) ClientCreator {
 	if local != nil {
 		// local applications (ignores other arguments)
-		return NewLocalClientCreator(local)
+		return NewLocalClientCreatorWithTimeout(local, timeout)
 	} else {
 		switch proxy {
 		// default mock applications
 		case "mock://counter":
-			return NewLocalClientCreator(counter.NewCounterApplication(false))
+			return NewLocalClientCreatorWithTimeout(counter.NewCounterApplication(false), timeout)
 		case "mock://counter_serial":
-			return NewLocalClientCreator(counter.NewCounterApplication(true))
+			return NewLocalClientCreatorWithTimeout(counter.NewCounterApplication(true), timeout)
 		case "mock://kvstore":
-			return NewLocalClientCreator(kvstore.NewKVStoreApplication())
+			return NewLocalClientCreatorWithTimeout(kvstore.NewKVStoreApplication(), timeout)
 		case "mock://persistent_kvstore":
-			return NewLocalClientCreator(kvstore.NewPersistentKVStoreApplication(dbDir))
+			return NewLocalClientCreatorWithTimeout(kvstore.NewPersistentKVStoreApplication(dbDir), timeout)
 		case "mock://noop":
-			return NewLocalClientCreator(abci.NewBaseApplication())
+			return NewLocalClientCreatorWithTimeout(abci.NewBaseApplication(), timeout)
 		default:
 			// socket transport applications
 			panic("proxy scheme not yet supported: " + proxy)

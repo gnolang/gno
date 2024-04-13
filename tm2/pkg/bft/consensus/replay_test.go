@@ -687,7 +687,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	kvstoreApp := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), fmt.Sprintf("replay_test_%d_%d_a", nBlocks, mode)))
 	defer kvstoreApp.Close()
 
-	clientCreator2 := proxy.NewLocalClientCreator(kvstoreApp)
+	clientCreator2 := proxy.NewLocalClientCreatorWithTimeout(kvstoreApp, config.RPC.TimeoutBroadcastTxCommit)
 	if nBlocks > 0 {
 		// run nBlocks against a new client to build up the app state.
 		// use a throwaway tendermint state
@@ -788,7 +788,7 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 	// run the whole chain against this client to build up the tendermint state
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), fmt.Sprintf("replay_test_%d_%d_t", nBlocks, mode)))
 	defer app.Close()
-	clientCreator := proxy.NewLocalClientCreator(app)
+	clientCreator := proxy.NewLocalClientCreatorWithTimeout(app, config.RPC.TimeoutBroadcastTxCommit)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	if err := proxyApp.Start(); err != nil {
 		panic(err)
@@ -850,7 +850,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- 0x03
 	{
 		app := &badApp{numBlocks: 3, allHashesAreWrong: true}
-		clientCreator := proxy.NewLocalClientCreator(app)
+		clientCreator := proxy.NewLocalClientCreatorWithTimeout(app, config.RPC.TimeoutBroadcastTxCommit)
 		proxyApp := appconn.NewAppConns(clientCreator)
 		err := proxyApp.Start()
 		require.NoError(t, err)
@@ -868,7 +868,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- RANDOM HASH
 	{
 		app := &badApp{numBlocks: 3, onlyLastHashIsWrong: true}
-		clientCreator := proxy.NewLocalClientCreator(app)
+		clientCreator := proxy.NewLocalClientCreatorWithTimeout(app, config.RPC.TimeoutBroadcastTxCommit)
 		proxyApp := appconn.NewAppConns(clientCreator)
 		err := proxyApp.Start()
 		require.NoError(t, err)

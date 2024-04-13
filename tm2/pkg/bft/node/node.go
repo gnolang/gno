@@ -97,6 +97,7 @@ func DefaultNewNode(config *cfg.Config, logger *slog.Logger) (*Node, error) {
 		config.ProxyApp,
 		config.ABCI,
 		config.DBDir(),
+		config.RPC.TimeoutBroadcastTxCommit,
 	)
 
 	return NewNode(config,

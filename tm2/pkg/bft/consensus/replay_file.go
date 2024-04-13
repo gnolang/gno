@@ -301,6 +301,7 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 		config.ProxyApp,
 		config.ABCI,
 		config.DBDir(),
+		0,
 	)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	err = proxyApp.Start()

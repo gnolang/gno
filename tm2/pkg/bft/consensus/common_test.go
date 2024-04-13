@@ -276,8 +276,8 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 
 	// one for mempool, one for consensus
 	mtx := new(sync.Mutex)
-	proxyAppConnMem := abcicli.NewLocalClient(mtx, app)
-	proxyAppConnCon := abcicli.NewLocalClient(mtx, app)
+	proxyAppConnMem := abcicli.NewLocalClient(mtx, app, thisConfig.RPC.TimeoutBroadcastTxCommit)
+	proxyAppConnCon := abcicli.NewLocalClient(mtx, app, thisConfig.RPC.TimeoutBroadcastTxCommit)
 
 	// Make Mempool
 	mempool := mempl.NewCListMempool(thisConfig.Mempool, proxyAppConnMem, 0, state.ConsensusParams.Block.MaxTxBytes)
