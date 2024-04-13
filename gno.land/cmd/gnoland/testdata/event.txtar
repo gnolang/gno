@@ -8,7 +8,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/ee -func Hello -gas-fee 1000000ugnot
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED: [0-9]+'
-stdout '[EVENTS: type: sender, pkgPath: gno.land/r/demo/ee, fn: Hello, timestamp: [0-9]+, attributes: \[key1: value1 key2: value2 key3: value3\]]'
+stdout 'EVENTS: \[.*?\]'
 
 -- ee.gno --
 package ee
@@ -17,17 +17,26 @@ import (
 	"std"
 )
 
-const EventAttrKeySender = "sender"
+const (
+	EventAttrKeySender = "sender"
+	EventAttrKeyReceiver = "receiver"
+)
 
 func Hello() {
 	std.EmitEvent(
 		EventAttrKeySender,
-
 		[]string{
 			"key1", "value1",
 			"key2", "value2",
 			"key3", "value3",
 			"not-a-pair",		// ignore the key-value not in pairs
+		},
+	)
+
+	std.EmitEvent(
+		EventAttrKeyReceiver,
+		[]string{
+			"foo", "bar",
 		},
 	)
 }

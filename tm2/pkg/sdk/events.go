@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
@@ -59,10 +60,23 @@ type AttributedEvent struct {
 func (e AttributedEvent) AssertABCIEvent() {}
 
 func (e AttributedEvent) String() string {
-	return fmt.Sprintf(
-		"type: %s, pkgPath: %s, fn: %s, timestamp: %d, attributes: %s",
-		e.Type, e.PkgPath, e.Identifier, e.Timestamp, e.Attributes,
-	)
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("type: %s, pkgPath: %s, fn: %s, timestamp: %d, attributes: ",
+		e.Type, e.PkgPath, e.Identifier, e.Timestamp))
+
+	builder.WriteString("[")
+	if len(e.Attributes) > 0 {
+		builder.WriteString(e.Attributes[0].String())
+	}
+
+	for i := 1; i < len(e.Attributes); i++ {
+		builder.WriteString(", ")
+		builder.WriteString(e.Attributes[i].String())
+	}
+	builder.WriteString("]")
+
+	return builder.String()
 }
 
 type EventAttribute struct {
@@ -70,13 +84,17 @@ type EventAttribute struct {
 	Value string
 }
 
+func (ea EventAttribute) String() string {
+	var builder strings.Builder
+	builder.WriteString(ea.Key)
+	builder.WriteString(": ")
+	builder.WriteString(ea.Value)
+	return builder.String()
+}
+
 func NewEventAttribute(key, value string) EventAttribute {
 	return EventAttribute{
 		Key:   key,
 		Value: value,
 	}
-}
-
-func (ea EventAttribute) String() string {
-	return fmt.Sprintf("%s: %s", ea.Key, ea.Value)
 }

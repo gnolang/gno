@@ -117,12 +117,23 @@ func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
 }
 
-func (r ResponseBase) String() string {
-	eventString := make([]string, len(r.Events))
+func (r ResponseBase) EventString() string {
+	var builder strings.Builder
+
+	builder.WriteString("[")
+
 	for i, event := range r.Events {
-		eventString[i] = event.String()
+		if i > 0 {
+			builder.WriteString(", ")
+		}
+		builder.WriteString("{")
+		builder.WriteString(event.String())
+		builder.WriteString("}")
 	}
-	return "[" + strings.Join(eventString, "\n") + "]"
+
+	builder.WriteString("]")
+
+	return builder.String()
 }
 
 // nondeterministic
