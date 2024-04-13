@@ -551,7 +551,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	}
 
-	OpStr := wordTokenStrings[bx.Op]
+	OpStr := bx.Op.TokenString()
 
 	var xt, dt Type
 	cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
