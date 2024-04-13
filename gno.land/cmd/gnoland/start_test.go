@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/stretchr/testify/require"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestStartInitialize(t *testing.T) {

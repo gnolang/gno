@@ -9,8 +9,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestGenesis_Generate(t *testing.T) {

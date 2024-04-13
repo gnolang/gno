@@ -6,8 +6,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/jaekwon/testify/require"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCommon_SaveReadData(t *testing.T) {

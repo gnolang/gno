@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	asrt "github.com/stretchr/testify/assert"
+	"github.com/jaekwon/testify/assert"
 )
 
 type thCounter struct {
@@ -35,45 +35,43 @@ func (c *thCounter) Read() {
 	}
 }
 
-func TestThrottle(test *testing.T) {
-	test.Parallel()
-
-	assert := asrt.New(test)
+func TestThrottle(t *testing.T) {
+	t.Parallel()
 
 	ms := 100
 	delay := time.Duration(ms) * time.Millisecond
 	longwait := time.Duration(2) * delay
-	t := NewThrottleTimer("foo", delay)
+	timer := NewThrottleTimer("foo", delay)
 
 	// start at 0
-	c := &thCounter{input: t.Ch}
-	assert.Equal(0, c.Count())
+	c := &thCounter{input: timer.Ch}
+	assert.Equal(t, c.Count(), 0)
 	go c.Read()
 
 	// waiting does nothing
 	time.Sleep(longwait)
-	assert.Equal(0, c.Count())
+	assert.Equal(t, c.Count(), 0)
 
 	// send one event adds one
-	t.Set()
+	timer.Set()
 	time.Sleep(longwait)
-	assert.Equal(1, c.Count())
+	assert.Equal(t, c.Count(), 1)
 
 	// send a burst adds one
 	for i := 0; i < 5; i++ {
-		t.Set()
+		timer.Set()
 	}
 	time.Sleep(longwait)
-	assert.Equal(2, c.Count())
+	assert.Equal(t, c.Count(), 2)
 
 	// send 14, over 2 delay sections, adds 3
 	short := time.Duration(ms/5) * time.Millisecond
 	for i := 0; i < 14; i++ {
-		t.Set()
+		timer.Set()
 		time.Sleep(short)
 	}
 	time.Sleep(longwait)
-	assert.Equal(5, c.Count())
+	assert.Equal(t, c.Count(), 5)
 
-	close(t.Ch)
+	close(timer.Ch)
 }

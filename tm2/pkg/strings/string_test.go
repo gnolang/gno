@@ -3,9 +3,8 @@ package strings
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/jaekwon/testify/assert"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestStringInSlice(t *testing.T) {
@@ -60,7 +59,7 @@ func TestStringSliceEqual(t *testing.T) {
 		{[]string{"two", "words!"}, []string{"only 1 word"}, false},
 	}
 	for i, tt := range tests {
-		require.Equal(t, tt.want, StringSliceEqual(tt.a, tt.b),
+		require.Equal(t, StringSliceEqual(tt.a, tt.b), tt.want,
 			"StringSliceEqual failed on test %d", i)
 	}
 }

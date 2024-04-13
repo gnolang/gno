@@ -11,7 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/mock"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
-	"github.com/stretchr/testify/require"
+	"github.com/jaekwon/testify/require"
 )
 
 func TestGenesis_Verify(t *testing.T) {

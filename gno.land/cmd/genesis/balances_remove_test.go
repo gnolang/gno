@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
-	"github.com/stretchr/testify/assert"
+	"github.com/jaekwon/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
