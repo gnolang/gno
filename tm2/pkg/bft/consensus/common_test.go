@@ -649,6 +649,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		app.InitChain(abci.RequestInitChain{Validators: vals})
 		// sm.SaveState(stateDB,state)	//height 1's validatorsInfo already saved in LoadStateFromDBOrGenesisDoc above
 
+		thisConfig.RPC.TimeoutBroadcastTxCommit = time.Second * 10
 		css[i] = newConsensusStateWithConfig(thisConfig, state, privVal, app)
 		css[i].SetTimeoutTicker(tickerFunc())
 		css[i].SetLogger(logger.With("validator", i, "module", "consensus"))

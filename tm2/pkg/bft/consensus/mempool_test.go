@@ -31,6 +31,7 @@ func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
 	config.Consensus.CreateEmptyBlocks = false
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
+	config.RPC.TimeoutBroadcastTxCommit = time.Second * 10
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
 	height, round := cs.Height, cs.Round
@@ -56,6 +57,7 @@ func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
 	config.Consensus.CreateEmptyBlocksInterval = ensureTimeout
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
+	config.RPC.TimeoutBroadcastTxCommit = time.Second * 10
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
 	height, round := cs.Height, cs.Round
@@ -80,6 +82,7 @@ func TestMempoolProgressInHigherRound(t *testing.T) {
 	config.Consensus.CreateEmptyBlocks = false
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
+	config.RPC.TimeoutBroadcastTxCommit = time.Second * 10
 	cs := newConsensusStateWithConfig(config, state, privVals[0], app)
 	assertMempool(cs.txNotifier).EnableTxsAvailable()
 	height, round := cs.Height, cs.Round
