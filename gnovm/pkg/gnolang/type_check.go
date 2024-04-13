@@ -227,7 +227,6 @@ func assertMaybeNil(msg string, t Type) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-
 // check if xt can be assigned to dt. conversionNeeded indicates further conversion needed especially from unnamed -> named
 // case 0. nil check
 // case 1. untyped const to typed const with same kind
