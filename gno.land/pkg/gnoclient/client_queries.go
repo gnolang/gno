@@ -2,6 +2,7 @@ package gnoclient
 
 import (
 	"fmt"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -10,9 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	ErrInvalidBlockHeight = errors.New("invalid block height provided")
-)
+var ErrInvalidBlockHeight = errors.New("invalid block height provided")
 
 // QueryCfg contains configuration options for performing ABCI queries.
 type QueryCfg struct {
