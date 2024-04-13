@@ -1,6 +1,8 @@
 package dao_interfaces
 
 import (
+	"strings"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/json"
 )
@@ -55,12 +57,14 @@ func (r *MessagesRegistry) ExecuteMessages(msgs []ExecutableMessage) {
 }
 
 func (r *MessagesRegistry) Render() string {
-	s := ""
+	sb := strings.Builder{}
 	r.handlers.Iterate("", "", func(key string, value interface{}) bool {
-		s += "- " + value.(MessageHandler).Type() + "\n"
+		sb.WriteString("- ")
+		sb.WriteString(value.(MessageHandler).Type())
+		sb.WriteRune('\n')
 		return false
 	})
-	return s
+	return sb.String()
 }
 
 type RegisterHandlerExecutableMessage struct {

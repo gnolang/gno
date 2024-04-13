@@ -24,12 +24,15 @@ func (msg ExecutableMessageMintTori) Type() string {
 }
 
 func (msg *ExecutableMessageMintTori) String() string {
-	var ss []string
-	ss = append(ss, msg.Type())
-	s := "Recipient: " + string(msg.Recipient) + "\n"
-	s += "Amount: " + strconv.FormatUint(msg.Amount, 10)
-	ss = append(ss, s)
-	return strings.Join(ss, "\n---\n")
+	sb := strings.Builder{}
+	sb.WriteString(msg.Type())
+	sb.WriteString("\n---\n")
+	sb.WriteString("Recipient: ")
+	sb.WriteString(string(msg.Recipient))
+	sb.WriteRune('\n')
+	sb.WriteString("Amount: ")
+	sb.WriteString(strconv.FormatUint(msg.Amount, 10))
+	return sb.String()
 }
 
 func (msg *ExecutableMessageMintTori) FromJSON(ast *json.Node) {
@@ -82,12 +85,15 @@ func (msg ExecutableMessageBurnTori) Type() string {
 }
 
 func (msg *ExecutableMessageBurnTori) String() string {
-	var ss []string
-	ss = append(ss, msg.Type())
-	s := "Target: " + string(msg.Target) + "\n"
-	s += "Amount: " + strconv.FormatUint(msg.Amount, 10)
-	ss = append(ss, s)
-	return strings.Join(ss, "\n---\n")
+	sb := strings.Builder{}
+	sb.WriteString(msg.Type())
+	sb.WriteString("\n---\n")
+	sb.WriteString("Target: ")
+	sb.WriteString(string(msg.Target))
+	sb.WriteRune('\n')
+	sb.WriteString("Amount: ")
+	sb.WriteString(strconv.FormatUint(msg.Amount, 10))
+	return sb.String()
 }
 
 func (msg *ExecutableMessageBurnTori) FromJSON(ast *json.Node) {

@@ -3,6 +3,7 @@ package dao_proposal_single
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/json"
@@ -139,53 +140,91 @@ func (d *DAOProposalSingle) Render(path string) string {
 		closeOnExecFailureStr = "Proposals will be closed if their execution fails"
 	}
 
-	thresholdStr := ""
+	sb := strings.Builder{}
+	sb.WriteString("Max voting period: ")
+	sb.WriteString(d.opts.MaxVotingPeriod.String())
+	sb.WriteString("\n\n")
+	sb.WriteString(minVotingPeriodStr)
+	sb.WriteString("\n\n")
+	sb.WriteString(executeStr)
+	sb.WriteString("\n\n")
+	sb.WriteString(revotingStr)
+	sb.WriteString("\n\n")
+	sb.WriteString(closeOnExecFailureStr)
+	sb.WriteString("\n\n")
 	switch d.opts.Threshold.(type) {
 	case *ThresholdThresholdQuorum:
 		threshold := d.opts.Threshold.(*ThresholdThresholdQuorum)
-		thresholdStr = "Threshold: " + threshold.Threshold.String() + "\n\n" +
-			"Quorum: " + threshold.Quorum.String()
+		sb.WriteString("Threshold: ")
+		sb.WriteString(threshold.Threshold.String())
+		sb.WriteString("\n\nQuorum: ")
+		sb.WriteString(threshold.Quorum.String())
+	case *ThresholdAbsolutePercentage:
+		threshold := d.opts.Threshold.(*ThresholdAbsolutePercentage)
+		sb.WriteString("Threshold (Absolute Percentage): ")
+		sb.WriteString(threshold.Value.String())
+	case *ThresholdAbsoluteCount:
+		threshold := d.opts.Threshold.(*ThresholdAbsoluteCount)
+		sb.WriteString("Threshold (Absolute Count): ")
+		sb.WriteString(strconv.FormatUint(uint64(*threshold), 10))
 	default:
 		panic("unsupported Threshold type")
 	}
-
-	proposalsStr := "Proposals:\n\n"
+	sb.WriteString("\n\n")
+	sb.WriteString("Proposals:\n\n")
 	for _, p := range d.proposals {
-		messagesStr := ""
+		sb.WriteString("\\#")
+		sb.WriteString(strconv.Itoa(p.ID))
+		sb.WriteString(": ")
+		sb.WriteString(p.Title)
+		sb.WriteString(":\n\n")
+		sb.WriteString("  Status: ")
+		sb.WriteString(p.Status.String())
+		sb.WriteString("\n\n")
+		sb.WriteString("  Proposed by ")
+		sb.WriteString(p.Proposer.String())
+		sb.WriteString("\n\n")
+		sb.WriteString("  ")
+		sb.WriteString(p.Description)
+		sb.WriteString("\n\n")
+		sb.WriteString("  Votes summary:")
+		sb.WriteString("\n\n")
+		sb.WriteString("  - Yes: ")
+		sb.WriteString(strconv.FormatUint(p.Votes.Yes, 10))
+		sb.WriteRune('\n')
+		sb.WriteString("  - No: ")
+		sb.WriteString(strconv.FormatUint(p.Votes.No, 10))
+		sb.WriteRune('\n')
+		sb.WriteString("  - Abstain: ")
+		sb.WriteString(strconv.FormatUint(p.Votes.Abstain, 10))
+		sb.WriteString("\n\n")
+		sb.WriteString("  Total: ")
+		sb.WriteString(strconv.FormatUint(p.Votes.Total(), 10))
+		sb.WriteString("\n\n")
+		sb.WriteString("  Messages:")
+		sb.WriteString("\n\n")
 		for _, m := range p.Messages {
-			messagesStr += m.(dao_interfaces.ExecutableMessage).Type() + "\n\n"
-			messagesStr += m.(dao_interfaces.ExecutableMessage).String() + "\n\n"
+			sb.WriteString(m.(dao_interfaces.ExecutableMessage).Type())
+			sb.WriteString("\n\n")
+			sb.WriteString(m.(dao_interfaces.ExecutableMessage).String())
+			sb.WriteString("\n\n")
 		}
-
-		proposalsStr += "\\#" + strconv.Itoa(p.ID) + ": " + p.Title + ":\n\n" +
-			"  Status: " + p.Status.String() + "\n\n" +
-			"  Proposed by " + p.Proposer.String() + "\n\n" +
-			"  " + p.Description + "\n\n" +
-			"  Votes summary:" + "\n\n" +
-			"  - Yes: " + strconv.FormatUint(p.Votes.Yes, 10) + "\n" +
-			"  - No: " + strconv.FormatUint(p.Votes.No, 10) + "\n" +
-			"  - Abstain: " + strconv.FormatUint(p.Votes.Abstain, 10) + "\n\n" +
-			"  Total: " + strconv.FormatUint(p.Votes.Total(), 10) + "\n\n" +
-			"  Messages:\n\n" +
-			messagesStr +
-			"  Votes:\n\n"
+		sb.WriteString("  Votes:")
+		sb.WriteString("\n\n")
 
 		p.Ballots.Iterate("", "", func(k string, v interface{}) bool {
 			ballot := v.(Ballot)
-			proposalsStr += k + " voted " + ballot.String() + "\n\n"
+			sb.WriteString(k)
+			sb.WriteString(" voted ")
+			sb.WriteString(ballot.String())
+			sb.WriteString("\n\n")
 			return false
 		})
 
-		proposalsStr += "\n"
+		sb.WriteRune('\n')
 	}
 
-	return "Max voting period: " + d.opts.MaxVotingPeriod.String() + "\n\n" +
-		minVotingPeriodStr + "\n\n" +
-		executeStr + "\n\n" +
-		revotingStr + "\n\n" +
-		closeOnExecFailureStr + "\n\n" +
-		thresholdStr + "\n\n" +
-		proposalsStr
+	return sb.String()
 }
 
 func (d *DAOProposalSingle) Core() dao_interfaces.IDAOCore {

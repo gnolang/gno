@@ -2,6 +2,7 @@ package dao_proposal_single
 
 import (
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/teritori/jsonutil"
@@ -45,12 +46,15 @@ func (p *PercentageThresholdMajority) ToJSON() *json.Node {
 type PercentageThresholdPercent uint16 // 4 decimals fixed point
 
 func (p *PercentageThresholdPercent) String() string {
-	s := strconv.FormatUint(uint64(*p)/100, 10)
+	sb := strings.Builder{}
+	sb.WriteString(strconv.FormatUint(uint64(*p)/100, 10))
 	decPart := uint64(*p) % 100
 	if decPart != 0 {
-		s += "." + strconv.FormatUint(decPart, 10)
+		sb.WriteRune('.')
+		sb.WriteString(strconv.FormatUint(decPart, 10))
 	}
-	return s + "%"
+	sb.WriteRune('%')
+	return sb.String()
 }
 
 func (p *PercentageThresholdPercent) FromJSON(ast *json.Node) {

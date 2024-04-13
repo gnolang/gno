@@ -3,6 +3,7 @@ package core
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
 )
@@ -122,22 +123,30 @@ func (d *daoCore) ActiveProposalModuleCount() int {
 }
 
 func (d *daoCore) Render(path string) string {
-	s := "# DAO Core\n"
+	sb := strings.Builder{}
+	sb.WriteString("# DAO Core\n")
 	votingInfo := d.votingModule.Info()
-	s += "## Voting Module: " + votingInfo.String() + "\n"
-	s += d.votingModule.Render("")
-	s += "## Supported Messages:\n"
-	s += d.registry.Render()
-	s += "## Proposal Modules:\n"
+	sb.WriteString("## Voting Module: ")
+	sb.WriteString(votingInfo.String())
+	sb.WriteRune('\n')
+	sb.WriteString(d.votingModule.Render(""))
+	sb.WriteString("## Supported Messages:\n")
+	sb.WriteString(d.registry.Render())
+	sb.WriteString("## Proposal Modules:\n")
 	for i, propMod := range d.proposalModules {
 		if !propMod.Enabled {
 			continue
 		}
 		info := propMod.Module.Info()
-		s += "### #" + strconv.Itoa(i) + ": " + info.String() + "\n"
-		s += propMod.Module.Render("")
+		sb.WriteString("### #")
+		sb.WriteString(strconv.Itoa(i))
+		sb.WriteString(": ")
+		sb.WriteString(info.String())
+		sb.WriteRune('\n')
+		sb.WriteString(propMod.Module.Render(""))
 	}
-	return s + "\n"
+	sb.WriteRune('\n')
+	return sb.String()
 }
 
 func (d *daoCore) Registry() *dao_interfaces.MessagesRegistry {

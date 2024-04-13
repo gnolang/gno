@@ -3,6 +3,7 @@ package dao_voting_group
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/json"
 	dao_interfaces "gno.land/p/demo/teritori/dao_interfaces"
@@ -140,12 +141,22 @@ func (g *VotingGroup) GetMembers(start, end string, limit uint64, height int64) 
 }
 
 func (v *VotingGroup) Render(path string) string {
-	s := "Member count: " + strconv.FormatUint(uint64(v.MemberCount(havl.Latest)), 10) + "\n\n"
-	s += "Total power: " + strconv.FormatUint(v.TotalPowerAtHeight(havl.Latest), 10) + "\n\n"
-	s += "Members:\n"
+	sb := strings.Builder{}
+	sb.WriteString("Member count: ")
+	sb.WriteString(strconv.FormatUint(uint64(v.MemberCount(havl.Latest)), 10))
+	sb.WriteString("\n\n")
+	sb.WriteString("Total power: ")
+	sb.WriteString(strconv.FormatUint(v.TotalPowerAtHeight(havl.Latest), 10))
+	sb.WriteString("\n\n")
+	sb.WriteString("Members:\n")
 	v.powerByAddr.Iterate("", "", havl.Latest, func(k string, v interface{}) bool {
-		s += "- " + k + ": " + strconv.FormatUint(v.(uint64), 10) + "\n"
+		sb.WriteString("- ")
+		sb.WriteString(k)
+		sb.WriteString(": ")
+		sb.WriteString(strconv.FormatUint(v.(uint64), 10))
+		sb.WriteRune('\n')
 		return false
 	})
-	return s + "\n"
+	sb.WriteRune('\n')
+	return sb.String()
 }
