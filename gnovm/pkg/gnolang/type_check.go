@@ -202,7 +202,7 @@ func assertComparable(xt, dt Type) {
 		}
 	case nil: // see 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
 		if xt == nil {
-			panic(fmt.Sprintf("invalid operation, nil can not be compared to %s \n", "nil"))
+			panic("invalid operation, nil can not be compared to nil")
 		}
 		assertMaybeNil("invalid operation, nil can not be compared to", xt)
 	default:
