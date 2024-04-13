@@ -2,6 +2,7 @@ package gnofundme
 
 import (
 	"testing"
+
 	"gno.land/p/demo/testutils"
 )
 

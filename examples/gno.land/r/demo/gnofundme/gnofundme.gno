@@ -21,18 +21,30 @@ func init() {
 	users = avl.NewTree()
 }
 
-func NewUser(name string, email string) (int, string) {
+func NewUser(name string, email string, address std.Address) (int, string) {
 	// create the user
-	user := pkg.NewUser(name, email, std.GetOrigCaller())
+	user := pkg.NewUser(name, email, address)
 	// the key will be the size of the tree
 	key := users.Size()
 	users.Set(strconv.Itoa(key), user)
 	return key, "user added successfully"
 }
 
-func NewCampaign(title string, description string, goal uint, begin time.Time, deadline time.Time, owner *pkg.User, beneficiary *pkg.User) (int, string) {
+func NewCampaign(title string, description string, goal uint, beginT int64, deadlineT int64, owner string, beneficiary string) (int, string) {
+	o, ok := users.Get(owner)
+	if !ok {
+		panic("owner not found")
+	}
+	ownerU := o.(*pkg.User)
+	b, ok := users.Get(beneficiary)
+	if !ok {
+		panic("owner not found")
+	}
+	beneficiaryU := b.(*pkg.User)
+	begin := time.Unix(beginT, 0)
+	deadline := time.Unix(deadlineT, 0)
 	// create the campaign
-	campaign := pkg.NewCampaign(title, description, goal, begin, deadline, owner, beneficiary)
+	campaign := pkg.NewCampaign(title, description, goal, begin, deadline, ownerU, beneficiaryU)
 	// the key will be the size of the tree
 	key := campaigns.Size()
 	campaigns.Set(strconv.Itoa(key), campaign)
@@ -50,9 +62,7 @@ func AddContributor(campaignId string, amount uint, display bool) string {
 		u := value.(*pkg.User)
 		if u.GetAddress() == userAddress {
 			user = u
-			break
 		}
-		return false
 	})
 	// add the contributor to the campaign
 	campaign.(*pkg.Campaign).AddContributor(user, amount, display)
@@ -81,6 +91,57 @@ func renderHomePage() string {
 		b.WriteString(
 			ufmt.Sprintf(
 				"### Description: %s\n", c.GetDescription(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"#### Goal: %d ", c.GetGoal(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"********** Current: %d\n", c.GetCurrent(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"#### Begin: %s", c.GetBegin().String(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"  ------------->  Deadline: %s\n", c.GetDeadline().String(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"#### Owner: %s\n", c.GetOwner().GetName(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"#### Beneficiary: %s\n", c.GetBeneficiary().GetName(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"#### Contributors: %d\n", len(c.GetContributors()),
+			),
+		)
+		return false
+	})
+	b.WriteString("# Users:\n")
+
+	users.Iterate("", "", func(key string, value interface{}) bool {
+		u := value.(*pkg.User)
+		b.WriteString(
+			ufmt.Sprintf(
+				"## User #%s: %s\n", key, u.GetName(),
+			),
+		)
+		b.WriteString(
+			ufmt.Sprintf(
+				"- email: %s\n - address: %s\n", u.GetEmail(), u.GetAddress(),
 			),
 		)
 		return false

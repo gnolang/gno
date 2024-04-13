@@ -18,7 +18,6 @@ func NewUser(name string, email string, address std.Address) *User {
 }
 
 func (u User) GetName() string {
-	return u.name
 }
 
 func (u User) GetEmail() string {
