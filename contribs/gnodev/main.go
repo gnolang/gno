@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -21,12 +22,19 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/balances"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	zaplog "github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	gnolog "github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/muesli/termenv"
 )
 
@@ -37,20 +45,36 @@ const (
 	EventServerLogName = "Event"
 )
 
+var (
+	DefaultCreatorName    = integration.DefaultAccount_Name
+	DefaultCreatorAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	DefaultCreatorSeed    = integration.DefaultAccount_Seed
+	DefaultFee            = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+)
+
 type devCfg struct {
+	// Listeners
 	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
 
-	minimal    bool
-	verbose    bool
-	hotreload  bool
-	noWatch    bool
-	noReplay   bool
-	maxGas     int64
-	chainId    string
-	serverMode bool
+	// Users default
+	genesisCreator string
+	home           string
+	root           string
+
+	// Node Configuration
+	minimal         bool
+	verbose         bool
+	hotreload       bool
+	noWatch         bool
+	noReplay        bool
+	maxGas          int64
+	chainId         string
+	serverMode      bool
+	balancesFile    string
+	additionalUsers string
 }
 
 var defaultDevOptions = &devCfg{
@@ -58,6 +82,9 @@ var defaultDevOptions = &devCfg{
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:36657",
+	genesisCreator:      DefaultCreatorAddress.String(),
+	home:                gnoenv.HomeDir(),
+	root:                gnoenv.RootDir(),
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -88,6 +115,20 @@ additional specified paths.`,
 
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
+		&c.home,
+		"home",
+		defaultDevOptions.home,
+		"user's local directory for keys",
+	)
+
+	fs.StringVar(
+		&c.root,
+		"root",
+		defaultDevOptions.root,
+		"gno root directory",
+	)
+
+	fs.StringVar(
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
@@ -98,14 +139,28 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.nodeRPCListenerAddr,
 		"node-rpc-listener",
 		defaultDevOptions.nodeRPCListenerAddr,
-		"gnoland rpc node listening address",
+		"listening address for GnoLand RPC node",
+	)
+
+	fs.StringVar(
+		&c.nodeRPCListenerAddr,
+		"add-users",
+		defaultDevOptions.nodeRPCListenerAddr,
+		"pre-add users, separated by commas",
+	)
+
+	fs.StringVar(
+		&c.genesisCreator,
+		"creator",
+		defaultDevOptions.genesisCreator,
+		"name of the genesis creator (from Keybase) or address",
 	)
 
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
 		defaultDevOptions.minimal,
-		"do not load packages from examples directory",
+		"do not load packages from the examples directory",
 	)
 
 	fs.BoolVar(
@@ -119,7 +174,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.verbose,
 		"verbose",
 		defaultDevOptions.verbose,
-		"verbose output when deving",
+		"enable verbose output for development",
 	)
 
 	fs.StringVar(
@@ -133,41 +188,27 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noWatch,
 		"no-watch",
 		defaultDevOptions.noWatch,
-		"do not watch for files change",
+		"do not watch for file changes",
 	)
 
 	fs.BoolVar(
 		&c.noReplay,
 		"no-replay",
 		defaultDevOptions.noReplay,
-		"do not replay previous transactions on reload",
+		"do not replay previous transactions upon reload",
 	)
 
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
 		defaultDevOptions.maxGas,
-		"set the maximum gas by block",
+		"set the maximum gas per block",
 	)
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
-
-	// Guess root dir
-	gnoroot := gnoenv.RootDir()
-
-	// Check and Parse packages
-	pkgpaths, err := parseArgsPackages(args)
-	if err != nil {
-		return fmt.Errorf("unable to parse package paths: %w", err)
-	}
-
-	if !cfg.minimal {
-		examplesDir := filepath.Join(gnoroot, "examples")
-		pkgpaths = append(pkgpaths, examplesDir)
-	}
 
 	// Setup Raw Terminal
 	rt, restore, err := setupRawTerm(cfg, io)
@@ -186,9 +227,21 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
 
+	// load keybase
+	kb, err := setupKeybase(cfg)
+	if err != nil {
+		return fmt.Errorf("unable to load keybase: %w", err)
+	}
+
+	// Check and Parse packages
+	pkgpaths, err := resolvePackagesPathFromArgs(cfg, kb, args)
+	if err != nil {
+		return fmt.Errorf("unable to parse package paths: %w", err)
+	}
+
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, logger, cfg, emitterServer, pkgpaths)
+	devNode, err := setupDevNode(ctx, logger, cfg, emitterServer, kb, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -393,14 +446,19 @@ func setupDevNode(
 	logger *slog.Logger,
 	cfg *devCfg,
 	remitter emitter.Emitter,
-	pkgspath []string,
+	kb keys.Keybase,
+	pkgspath []dev.PackagePath,
 ) (*gnodev.Node, error) {
 	nodeLogger := logger.WithGroup(NodeLogName)
 
-	gnoroot := gnoenv.RootDir()
+	balances, err := generateBalances(kb, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate balances: %w", err)
+	}
 
 	// configure gnoland node
-	config := gnodev.DefaultNodeConfig(gnoroot)
+	config := gnodev.DefaultNodeConfig(cfg.root)
+	config.BalancesList = balances.List()
 	config.PackagesPathList = pkgspath
 	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
 	config.NoReplay = cfg.noReplay
@@ -425,26 +483,79 @@ func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) htt
 	return app.Router
 }
 
-func parseArgsPackages(args []string) (paths []string, err error) {
-	paths = make([]string, len(args))
+func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([]dev.PackagePath, error) {
+	paths := make([]dev.PackagePath, len(args))
+
+	if cfg.genesisCreator == "" {
+		return nil, fmt.Errorf("default genesis creator cannot be empty")
+	}
+
+	defaultKey, err := kb.GetByNameOrAddress(cfg.genesisCreator)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get genesis creator %q: %w", cfg.genesisCreator, err)
+	}
+
 	for i, arg := range args {
-		abspath, err := filepath.Abs(arg)
+		path, err := dev.ResolvePackagePathQuery(kb, arg)
 		if err != nil {
-			return nil, fmt.Errorf("invalid path %q: %w", arg, err)
+			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
 		}
 
-		ppath, err := gnomod.FindRootDir(abspath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to find root dir of %q: %w", abspath, err)
+		if path.Creator.IsZero() {
+			path.Creator = defaultKey.GetAddress()
 		}
 
-		paths[i] = ppath
+		paths[i] = path
+	}
+
+	// Add examples folder if minimal specified
+	if !cfg.minimal {
+		fmt.Println("adding example folder: ", filepath.Join(cfg.root, "examples"))
+		paths = append(paths, gnodev.PackagePath{
+			Path:    filepath.Join(cfg.root, "examples"),
+			Creator: defaultKey.GetAddress(),
+			Deposit: nil,
+		})
 	}
 
 	return paths, nil
 }
 
-func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
+func generateBalances(kb keys.Keybase, cfg *devCfg) (balances.Balances, error) {
+	bls := balances.New()
+	amount := std.Coins{std.NewCoin("ugnot", 10e6)}
+
+	keys, err := kb.List()
+	if err != nil {
+		return nil, fmt.Errorf("unable to list keys from keybase: %w", err)
+	}
+
+	// Automatically set every key from keybase to unlimited found
+	for _, key := range keys {
+		address := key.GetAddress()
+		bls[address] = gnoland.Balance{Amount: amount, Address: address}
+	}
+
+	if cfg.balancesFile == "" {
+		return bls, nil
+	}
+
+	file, err := os.Open(cfg.balancesFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open balance file %q: %w", cfg.balancesFile, err)
+	}
+
+	blsFile, err := balances.GetBalancesFromSheet(file)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read balances file %q: %w", cfg.balancesFile, err)
+	}
+
+	// Left merge keybase balance into file balance
+	blsFile.LeftMerge(bls)
+	return blsFile, nil
+}
+
+func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
 	cc := make(chan rawterm.KeyPress, 1)
 	go func() {
 		defer close(cc)
@@ -458,6 +569,30 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	}()
 
 	return cc
+}
+
+// createAccount creates a new account with the given name and adds it to the keybase.
+func createAccount(kb keys.Keybase, accountName string) (keys.Info, error) {
+	entropy, err := bip39.NewEntropy(256)
+	if err != nil {
+		return nil, fmt.Errorf("error creating entropy: %w", err)
+	}
+
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return nil, fmt.Errorf("error generating mnemonic: %w", err)
+	}
+
+	return kb.CreateAccount(accountName, mnemonic, "", "", 0, 0)
+}
+
+func checkForError(w io.Writer, err error) {
+	if err != nil {
+		fmt.Fprintf(w, "[ERROR] - %s\n", err.Error())
+		return
+	}
+
+	fmt.Fprintln(w, "[DONE]")
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {
@@ -483,6 +618,64 @@ func resolveUnixOrTCPAddr(in string) (out string) {
 	panic(err)
 }
 
+func setupKeybase(cfg *devCfg) (keys.Keybase, error) {
+	kb := keys.NewInMemory()
+	if cfg.home != "" {
+		// load home keybase into our inMemory keybase
+		kbHome, err := keys.NewKeyBaseFromDir(cfg.home)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load keybae from dir %q: %w", cfg.home, err)
+		}
+
+		keys, err := kbHome.List()
+		if err != nil {
+			return nil, fmt.Errorf("unable to list keys from keybase %q: %w", cfg.home, err)
+		}
+
+		for _, key := range keys {
+			name := key.GetName()
+			armor, err := kbHome.Export(key.GetName())
+			if err != nil {
+				return nil, fmt.Errorf("unable to export key %q: %w", name, err)
+			}
+
+			if err := kb.Import(name, armor); err != nil {
+				return nil, fmt.Errorf("unable to import key %q: %w", name, err)
+			}
+		}
+	}
+
+	// Add additional users to our keybase
+	addUsers := strings.Split(cfg.additionalUsers, ",")
+	for _, user := range addUsers {
+		if _, err := createAccount(kb, user); err != nil {
+			return nil, fmt.Errorf("unable to create user %q: %w", user, err)
+		}
+	}
+
+	// Add default creator it doesn't exist
+	ok, _ := kb.HasByAddress(DefaultCreatorAddress)
+	if ok {
+		return kb, nil
+	}
+
+	for i := 0; i < 5; i++ {
+		creatorName := fmt.Sprintf("_testUser%05d\n", rand.Intn(100000))
+		ok, _ := kb.HasByName(creatorName)
+		if ok {
+			continue
+		}
+
+		if _, err := kb.CreateAccount(creatorName, DefaultCreatorSeed, "", "", 0, 0); err != nil {
+			return nil, fmt.Errorf("unable to create default %q account: %w", DefaultCreatorName, err)
+		}
+
+		return kb, nil
+	}
+
+	panic("unable to generate ranmdom test user name")
+}
+
 func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
 	level := slog.LevelInfo
 	if cfg.verbose {
@@ -491,7 +684,7 @@ func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
 
 	if cfg.serverMode {
 		zaplogger := logger.NewZapLogger(out, level)
-		return zaplog.ZapLoggerToSlog(zaplogger)
+		return gnolog.ZapLoggerToSlog(zaplogger)
 	}
 
 	// Detect term color profile

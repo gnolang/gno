@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -27,22 +28,36 @@ import (
 )
 
 type NodeConfig struct {
-	PackagesPathList []string
-	TMConfig         *tmcfg.Config
-	NoReplay         bool
-	MaxGasPerBlock   int64
-	ChainID          string
+	DefaultCreator        crypto.Address
+	BalancesList          []gnoland.Balance
+	PackagesPathList      []PackagePath
+	TMConfig              *tmcfg.Config
+	SkipFailingGenesisTxs bool
+	NoReplay              bool
+	MaxGasPerBlock        int64
+	ChainID               string
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 
+	defaultCreator := crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	balances := []gnoland.Balance{
+		{
+			Address: defaultCreator,
+			Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+		},
+	}
+
 	return &NodeConfig{
-		ChainID:          tmc.ChainID(),
-		PackagesPathList: []string{},
-		TMConfig:         tmc,
-		MaxGasPerBlock:   10_000_000_000,
+		DefaultCreator:        defaultCreator,
+		BalancesList:          balances,
+		ChainID:               tmc.ChainID(),
+		PackagesPathList:      []PackagePath{},
+		TMConfig:              tmc,
+		SkipFailingGenesisTxs: true,
+		MaxGasPerBlock:        10_000_000_000,
 	}
 }
 
@@ -54,30 +69,21 @@ type Node struct {
 	emitter emitter.Emitter
 	client  client.Client
 	logger  *slog.Logger
-	pkgs    PkgsMap // path -> pkg
+	pkgs    PackagesMap // path -> pkg
 
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 }
 
-var (
-	DefaultFee     = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-	DefaultCreator = crypto.MustAddressFromString(integration.DefaultAccount_Address)
-	DefaultBalance = []gnoland.Balance{
-		{
-			Address: DefaultCreator,
-			Amount:  std.MustParseCoins("10000000000000ugnot"),
-		},
-	}
-)
+var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 
 func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, cfg *NodeConfig) (*Node, error) {
-	mpkgs, err := newPkgsMap(cfg.PackagesPathList)
+	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
 
-	pkgsTxs, err := mpkgs.Load(DefaultCreator, DefaultFee, nil)
+	pkgsTxs, err := mpkgs.Load(cfg.DefaultCreator, DefaultFee)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
@@ -86,7 +92,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
-		Balances: DefaultBalance,
+		Balances: cfg.BalancesList,
 		Txs:      pkgsTxs,
 	}
 
@@ -131,15 +137,36 @@ func (d *Node) GetRemoteAddress() string {
 func (d *Node) UpdatePackages(paths ...string) error {
 	var n int
 	for _, path := range paths {
+		abspath, err := filepath.Abs(path)
+		if err != nil {
+			return fmt.Errorf("unable to resolve abs path of %q: %w", path, err)
+		}
+
+		creator := d.config.DefaultCreator
+		var deposit std.Coins
+		for _, ppath := range d.config.PackagesPathList {
+			if !strings.HasPrefix(abspath, ppath.Path) {
+				continue
+			}
+
+			creator = ppath.Creator
+			deposit = ppath.Deposit
+		}
+
 		// List all packages from target path
-		pkgslist, err := gnomod.ListPkgs(path)
+		pkgslist, err := gnomod.ListPkgs(abspath)
 		if err != nil {
 			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
 		}
 
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
-			d.pkgs[pkg.Dir] = pkg
+			d.pkgs[pkg.Dir] = Package{
+				Pkg:     pkg,
+				Creator: creator,
+				Deposit: deposit,
+			}
+
 			d.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
 		}
 
@@ -159,13 +186,13 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	// Generate a new genesis state based on the current packages
-	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	txs, err := d.pkgs.Load(d.config.DefaultCreator, DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	genesis := gnoland.GnoGenesisState{
-		Balances: DefaultBalance,
+		Balances: d.config.BalancesList,
 		Txs:      txs,
 	}
 
@@ -217,14 +244,14 @@ func (d *Node) Reload(ctx context.Context) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	pkgsTxs, err := d.pkgs.Load(d.config.DefaultCreator, DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
-		Balances: DefaultBalance,
+		Balances: d.config.BalancesList,
 		Txs:      append(pkgsTxs, state...),
 	}
 
