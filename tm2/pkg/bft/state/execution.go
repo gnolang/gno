@@ -1,8 +1,10 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -250,7 +252,14 @@ func execBlockOnProxyApp(
 
 	// Run txs of block.
 	for _, tx := range block.Txs {
-		proxyAppConn.DeliverTxAsync(abci.RequestDeliverTx{Tx: tx})
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+		proxyAppConn.DeliverTxAsync(
+			abci.RequestDeliverTx{
+				RequestBase: abci.RequestBase{Ctx: ctx},
+				Tx:          tx,
+			},
+		)
+		cancel()
 		if err := proxyAppConn.Error(); err != nil {
 			return nil, err
 		}

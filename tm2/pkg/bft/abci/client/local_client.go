@@ -1,6 +1,7 @@
 package abcicli
 
 import (
+	"context"
 	"sync"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -79,7 +80,23 @@ func (app *localClient) DeliverTxAsync(req abci.RequestDeliverTx) *ReqRes {
 	app.mtx.Lock()
 	defer app.mtx.Unlock()
 
-	res := app.Application.DeliverTx(req)
+	ctx := context.Background()
+	if req.RequestBase.Ctx != nil {
+		ctx = req.RequestBase.Ctx
+	}
+
+	respCh := make(chan abci.ResponseDeliverTx, 1)
+	go func() {
+		respCh <- app.Application.DeliverTx(req)
+		close(respCh)
+	}()
+
+	var res abci.ResponseDeliverTx
+	select {
+	case <-ctx.Done():
+		return nil
+	case res = <-respCh:
+	}
 	return app.completeRequest(req, res)
 }
 

@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"context"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -14,7 +15,9 @@ type Request interface {
 	AssertRequest()
 }
 
-type RequestBase struct{}
+type RequestBase struct {
+	Ctx context.Context
+}
 
 func (RequestBase) AssertRequest() {}
 
