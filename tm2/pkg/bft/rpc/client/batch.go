@@ -8,13 +8,15 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
+var errEmptyBatch = errors.New("RPC batch is empty")
+
 type RPCBatch struct {
-	batch *batch.Batch
+	batch rpcclient.Batch
 
 	// resultMap maps the request ID -> result Amino type
 	// Why?
@@ -50,6 +52,11 @@ func (b *RPCBatch) Send(ctx context.Context) ([]any, error) {
 
 	// Save the initial batch size
 	batchSize := b.batch.Count()
+
+	// Sanity check for not sending empty batches
+	if batchSize == 0 {
+		return nil, errEmptyBatch
+	}
 
 	// Send the batch
 	responses, err := b.batch.Send(ctx)
