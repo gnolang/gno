@@ -46,7 +46,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	balances := []gnoland.Balance{
 		{
 			Address: defaultCreator,
-			Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+			Amount:  std.Coins{std.NewCoin("ugnot", 10e12)},
 		},
 	}
 
@@ -83,7 +83,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
 
-	pkgsTxs, err := mpkgs.Load(cfg.DefaultCreator, DefaultFee)
+	pkgsTxs, err := mpkgs.Load(DefaultFee)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
@@ -186,7 +186,7 @@ func (d *Node) Reset(ctx context.Context) error {
 	}
 
 	// Generate a new genesis state based on the current packages
-	txs, err := d.pkgs.Load(d.config.DefaultCreator, DefaultFee)
+	txs, err := d.pkgs.Load(DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
@@ -244,7 +244,7 @@ func (d *Node) Reload(ctx context.Context) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := d.pkgs.Load(d.config.DefaultCreator, DefaultFee)
+	pkgsTxs, err := d.pkgs.Load(DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
@@ -316,6 +316,12 @@ func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 	}
 
 	return txs, nil
+}
+
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any
+func (d *Node) CurrentBalances(blockNum uint64) ([]std.Tx, error) {
+	return nil, nil
 }
 
 // GetBlockTransactions returns the transactions contained

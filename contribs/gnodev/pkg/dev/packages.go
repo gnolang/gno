@@ -9,7 +9,6 @@ import (
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -24,7 +23,7 @@ type PackagePath struct {
 func ResolvePackagePathQuery(kb keys.Keybase, path string) (PackagePath, error) {
 	var ppath PackagePath
 
-	upath, err := url.Parse(filepath.Clean(path))
+	upath, err := url.Parse(path)
 	if err != nil {
 		return ppath, fmt.Errorf("malformed path/query: %w", err)
 	}
@@ -78,24 +77,14 @@ var (
 func NewPackagesMap(ppaths []PackagePath) (PackagesMap, error) {
 	pkgs := make(map[string]Package)
 	for _, ppath := range ppaths {
-		fmt.Println(ppath)
 		if ppath.Creator.IsZero() {
 			return nil, fmt.Errorf("unable to load package %q: %w", ppath.Path, ErrEmptyCreatorPackage)
 		}
-
-		// if ppath.Deposit.Empty() {
-		// 	return nil, fmt.Errorf("unable to load package %q: %w", ppath.Path, ErrEmptyDepositPackage)
-		// }
 
 		abspath, err := filepath.Abs(ppath.Path)
 		if err != nil {
 			return nil, fmt.Errorf("unable to guess absolute path for %q: %w", ppath.Path, err)
 		}
-
-		// rootdir, err := gnomod.FindRootDir(abspath)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("unable to find rootdir for package %q: %w", ppath.Path, err)
-		// }
 
 		// list all packages from target path
 		pkgslist, err := gnomod.ListPkgs(abspath)
@@ -130,7 +119,7 @@ func (pm PackagesMap) toList() gnomod.PkgList {
 	return list
 }
 
-func (pm PackagesMap) Load(creator bft.Address, fee std.Fee) ([]std.Tx, error) {
+func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 	pkgs := pm.toList()
 
 	sorted, err := pkgs.Sort()
@@ -142,6 +131,9 @@ func (pm PackagesMap) Load(creator bft.Address, fee std.Fee) ([]std.Tx, error) {
 	txs := []std.Tx{}
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
+		if pkg.Creator.IsZero() {
+			return nil, fmt.Errorf("no creator was set for %q", pkg.Dir)
+		}
 
 		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(modPkg.Dir, modPkg.Name)
