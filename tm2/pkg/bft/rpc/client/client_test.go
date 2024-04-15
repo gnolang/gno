@@ -120,6 +120,8 @@ func TestRPCClient_Status(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -152,6 +154,8 @@ func TestRPCClient_ABCIInfo(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -188,6 +192,8 @@ func TestRPCClient_ABCIQuery(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, path, params["path"])
 			assert.Equal(t, base64.StdEncoding.EncodeToString(data), params["data"])
 			assert.Equal(t, fmt.Sprintf("%d", opts.Height), params["height"])
@@ -223,6 +229,8 @@ func TestRPCClient_BroadcastTxCommit(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
 		}
 
@@ -255,6 +263,8 @@ func TestRPCClient_BroadcastTxAsync(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
 		}
 
@@ -287,6 +297,8 @@ func TestRPCClient_BroadcastTxSync(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
 		}
 
@@ -319,6 +331,8 @@ func TestRPCClient_UnconfirmedTxs(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", limit), params["limit"])
 		}
 
@@ -349,6 +363,8 @@ func TestRPCClient_NumUnconfirmedTxs(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -379,6 +395,8 @@ func TestRPCClient_NetInfo(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -411,6 +429,8 @@ func TestRPCClient_DumpConsensusState(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -443,6 +463,8 @@ func TestRPCClient_ConsensusState(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -475,6 +497,8 @@ func TestRPCClient_ConsensusParams(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", blockHeight), params["height"])
 		}
 
@@ -503,6 +527,8 @@ func TestRPCClient_Health(t *testing.T) {
 		expectedResult = &ctypes.ResultHealth{}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -536,6 +562,8 @@ func TestRPCClient_BlockchainInfo(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", minHeight), params["minHeight"])
 			assert.Equal(t, fmt.Sprintf("%d", maxHeight), params["maxHeight"])
 		}
@@ -569,6 +597,8 @@ func TestRPCClient_Genesis(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 
@@ -605,6 +635,8 @@ func TestRPCClient_Block(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
 		}
 
@@ -637,6 +669,8 @@ func TestRPCClient_BlockResults(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
 		}
 
@@ -669,6 +703,8 @@ func TestRPCClient_Commit(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
 		}
 
@@ -701,6 +737,8 @@ func TestRPCClient_Validators(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
 		}
 
@@ -755,6 +793,8 @@ func TestRPCClient_Batch(t *testing.T) {
 		}
 
 		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
 			assert.Len(t, params, 0)
 		}
 

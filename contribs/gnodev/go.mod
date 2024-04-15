@@ -36,6 +36,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
+	github.com/rs/xid v1.5.0 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
