@@ -67,3 +67,72 @@ type errorString struct {
 func (e *errorString) Error() string {
 	return e.s
 }
+
+// Is reports whether any error in err's chain matches target.
+//
+// The chain consists of err itself followed by the sequence of errors obtained by
+// repeatedly calling Unwrap.
+//
+// An error is considered to match a target if it is equal to that target or if
+// it implements a method Is(error) bool such that Is(target) returns true.
+//
+// An error type might provide an Is method so it can be treated as equivalent
+// to an existing error. For example, if MyError defines
+//
+//	func (m MyError) Is(target error) bool { return target == os.ErrExist }
+//
+// then Is(MyError{}, os.ErrExist) returns true. See syscall.Errno.Is for
+// an example in the standard library.
+//
+// This implementation also compares the error strings for equality if both err and target
+// are of type *errorString. This is different from the standard library's errors package.
+//
+// Example:
+//
+//	if errors.Is(err, fs.ErrExist) {
+//	    ...
+//	}
+func Is(err, target error) bool {
+	if target == nil {
+		return err == target
+	}
+
+	if err == nil {
+		return false
+	}
+
+	for {
+		if err == target {
+			return true
+		}
+
+		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
+			return true
+		}
+
+		if x, ok := err.(*errorString); ok {
+			if t, ok := target.(*errorString); ok && x.s == t.s {
+				return true
+			}
+		}
+
+		if err = Unwrap(err); err == nil {
+			return false
+		}
+	}
+}
+
+// Unwrap returns the result of calling the Unwrap method on err, if err's
+// type contains an Unwrap method returning error.
+// Otherwise, Unwrap returns nil.
+func Unwrap(err error) error {
+	u, ok := err.(interface {
+		Unwrap() error
+	})
+
+	if !ok {
+		return nil
+	}
+
+	return u.Unwrap()
+}

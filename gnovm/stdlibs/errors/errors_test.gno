@@ -51,3 +51,60 @@ func ExampleNew_errorf() {
 	}
 	// Output: user "bimmler" (id 17) not found
 }
+
+type customError struct {
+	msg string
+}
+
+func (e *customError) Error() string {
+	return e.msg
+}
+
+func (e *customError) Is(target error) bool {
+	t, ok := target.(*customError)
+	if !ok {
+		return false
+	}
+	return e.msg == t.msg
+}
+
+func TestIs(t *testing.T) {
+	testCases := []struct {
+		err    error
+		target error
+		want   bool
+	}{
+		{nil, nil, true},
+		{errors.New("test"), nil, false},
+		{&customError{msg: "custom"}, &customError{msg: "custom"}, true},
+		{&customError{msg: "custom"}, &customError{msg: "other"}, false},
+		{&customError{msg: "custom"}, errors.New("custom"), false},
+		{errors.New("custom"), &customError{msg: "custom"}, false},
+		{errors.New("custom"), errors.New("custom"), true},
+		{&wrappedError{err: errors.New("wrapped")}, errors.New("wrapped"), true},
+		{&wrappedError{err: &customError{msg: "custom"}}, &customError{msg: "custom"}, true},
+		{&wrappedError{err: errors.New("wrapped")}, errors.New("other"), false},
+		{&wrappedError{err: &customError{msg: "custom"}}, &customError{msg: "other"}, false},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("Test Case %d", i+1), func(t *testing.T) {
+			got := errors.Is(tc.err, tc.target)
+			if got != tc.want {
+				t.Errorf("Is(%v, %v) = %v, want %v", tc.err, tc.target, got, tc.want)
+			}
+		})
+	}
+}
+
+type wrappedError struct {
+	err error
+}
+
+func (e *wrappedError) Error() string {
+	return "wrapped error: " + e.err.Error()
+}
+
+func (e *wrappedError) Unwrap() error {
+	return e.err
+}
