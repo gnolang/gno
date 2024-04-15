@@ -11,11 +11,8 @@ import (
 	goscanner "go/scanner"
 	"go/token"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -39,8 +36,8 @@ func TranspileImportPath(s string) string {
 func IsStdlib(s string) bool {
 	// NOTE(morgan): this is likely to change in the future as we add support for
 	// IBC/ICS and we allow import paths to other chains. It might be good to
-	// follow the same rule as Go, which is: does the first element of the
-	// import path contain a dot?
+	// (eventually) follow the same rule as Go, which is: does the first
+	// element of the import path contain a dot?
 	return !strings.HasPrefix(s, "gno.land/")
 }
 
@@ -148,105 +145,6 @@ func Transpile(source, tags, filename string) (*Result, error) {
 		File:       transformed,
 	}
 	return res, nil
-}
-
-// TranspileBuildPackage tries to run `go build` against the transpiled .go files.
-//
-// This method is the most efficient to detect errors but requires that
-// all the import are valid and available.
-func TranspileBuildPackage(fileOrPkg, goBinary string) error {
-	// TODO: use cmd/compile instead of exec?
-	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
-	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
-	// TODO: ignore .go files that were not generated from gno?
-	// TODO: automatically transpile if not yet done.
-
-	files := []string{}
-
-	info, err := os.Stat(fileOrPkg)
-	if err != nil {
-		return fmt.Errorf("invalid file or package path %s: %w", fileOrPkg, err)
-	}
-	if !info.IsDir() {
-		file := fileOrPkg
-		files = append(files, file)
-	} else {
-		pkgDir := fileOrPkg
-		goGlob := filepath.Join(pkgDir, "*.go")
-		goMatches, err := filepath.Glob(goGlob)
-		if err != nil {
-			return fmt.Errorf("glob %s: %w", goGlob, err)
-		}
-		for _, goMatch := range goMatches {
-			switch {
-			case strings.HasPrefix(goMatch, "."): // skip
-			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-			default:
-				if !filepath.IsAbs(pkgDir) {
-					// Makes clear to go compiler that this is a relative path,
-					// rather than a path to a package/module.
-					// can't use filepath.Join as it cleans its results.
-					goMatch = "." + string(filepath.Separator) + goMatch
-				}
-				files = append(files, goMatch)
-			}
-		}
-	}
-
-	sort.Strings(files)
-	args := append([]string{"build", "-tags=gno"}, files...)
-	cmd := exec.Command(goBinary, args...)
-	out, err := cmd.CombinedOutput()
-	if _, ok := err.(*exec.ExitError); ok {
-		// exit error
-		return parseGoBuildErrors(string(out))
-	}
-	return err
-}
-
-var (
-	errorRe   = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
-	commentRe = regexp.MustCompile(`(?m)^#.*$`)
-)
-
-// parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
-// in out, which is supposed to be the output of the `go build` command.
-//
-// TODO(tb): update when `go build -json` is released to replace regexp usage.
-// See https://github.com/golang/go/issues/62067
-func parseGoBuildErrors(out string) error {
-	var errList goscanner.ErrorList
-	matches := errorRe.FindAllStringSubmatch(out, -1)
-	for _, match := range matches {
-		filename := match[1]
-		line, err := strconv.Atoi(match[2])
-		if err != nil {
-			return fmt.Errorf("parse line go build error %s: %w", match, err)
-		}
-
-		column, err := strconv.Atoi(match[3])
-		if err != nil {
-			return fmt.Errorf("parse column go build error %s: %w", match, err)
-		}
-		msg := match[4]
-		errList.Add(token.Position{
-			Filename: filename,
-			Line:     line,
-			Column:   column,
-		}, msg)
-	}
-
-	replaced := errorRe.ReplaceAllLiteralString(out, "")
-	replaced = commentRe.ReplaceAllString(replaced, "")
-	replaced = strings.TrimSpace(replaced)
-	if replaced != "" {
-		errList.Add(token.Position{}, "Additional go build errors:\n"+replaced)
-	}
-
-	return errList.Err()
 }
 
 type transpileCtx struct {
