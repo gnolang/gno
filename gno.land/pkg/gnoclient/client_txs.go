@@ -257,11 +257,6 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 
 		caller := c.Signer.Info().GetAddress()
 
-		// Transpile and validate Gno syntax
-		if err = transpiler.TranspileAndCheckMempkg(msg.Package); err != nil {
-			return nil, err
-		}
-
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{
 			Creator: caller,

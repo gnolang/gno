@@ -489,7 +489,6 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
 		remaining = maxint64
 	}
 	return &SectionReader{r, off, off, remaining, n}
-
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section
