@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_pkgNameFromPath(t *testing.T) {
@@ -25,7 +25,7 @@ func Test_pkgNameFromPath(t *testing.T) {
 	}
 	for i, tv := range tt {
 		t.Run(fmt.Sprintf("n%d", i+1), func(t *testing.T) {
-			assert.Equal(t, pkgNameFromPath(tv.input), tv.result)
+			assert.Equal(t, tv.result, pkgNameFromPath(tv.input))
 		})
 	}
 }

@@ -3,7 +3,7 @@ package rpcclient
 import (
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_parseRemoteAddr(t *testing.T) {
@@ -25,8 +25,8 @@ func Test_parseRemoteAddr(t *testing.T) {
 			_ = assert.NotNil(t, err) && assert.Contains(t, err.Error(), tc.errContains)
 		}
 		assert.NoError(t, err)
-		assert.Equal(t, n, tc.network)
-		assert.Equal(t, s, tc.s)
+		assert.Equal(t, tc.network, n)
+		assert.Equal(t, tc.s, s)
 	}
 }
 
