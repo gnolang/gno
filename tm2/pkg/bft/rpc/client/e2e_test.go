@@ -8,8 +8,11 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +32,7 @@ func createTestServer(
 	return s
 }
 
+// defaultHTTPHandler generates a default HTTP test handler
 func defaultHTTPHandler(
 	t *testing.T,
 	method string,
@@ -68,6 +72,7 @@ func defaultHTTPHandler(
 	}
 }
 
+// defaultWSHandler generates a default WS test handler
 func defaultWSHandler(
 	t *testing.T,
 	method string,
@@ -124,6 +129,7 @@ type e2eTestCase struct {
 	client *RPCClient
 }
 
+// generateE2ETestCases generates RPC client test cases (HTTP / WS)
 func generateE2ETestCases(
 	t *testing.T,
 	method string,
@@ -153,18 +159,257 @@ func generateE2ETestCases(
 	}
 }
 
-func TestRPCClient_E2E_Status(t *testing.T) {
+func TestRPCClient_E2E_Endpoints(t *testing.T) {
 	t.Parallel()
 
-	var (
-		expectedStatus = &ctypes.ResultStatus{
-			NodeInfo: p2p.NodeInfo{
-				Moniker: "dummy",
+	testTable := []struct {
+		name           string
+		expectedResult any
+		verifyFn       func(*RPCClient, any)
+	}{
+		{
+			statusMethod,
+			&ctypes.ResultStatus{
+				NodeInfo: p2p.NodeInfo{
+					Moniker: "dummy",
+				},
 			},
-		}
-	)
+			func(client *RPCClient, expectedResult any) {
+				status, err := client.Status()
+				require.NoError(t, err)
 
-	testTable := generateE2ETestCases(t, statusMethod, expectedStatus)
+				assert.Equal(t, expectedResult, status)
+			},
+		},
+		{
+			abciInfoMethod,
+			&ctypes.ResultABCIInfo{
+				Response: abci.ResponseInfo{
+					LastBlockAppHash: []byte("dummy"),
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.ABCIInfo()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			abciQueryMethod,
+			&ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: []byte("dummy"),
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.ABCIQuery("path", []byte("dummy"))
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			broadcastTxCommitMethod,
+			&ctypes.ResultBroadcastTxCommit{
+				Hash: []byte("dummy"),
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.BroadcastTxCommit([]byte("dummy"))
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			broadcastTxAsyncMethod,
+			&ctypes.ResultBroadcastTx{
+				Hash: []byte("dummy"),
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.BroadcastTxAsync([]byte("dummy"))
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			broadcastTxSyncMethod,
+			&ctypes.ResultBroadcastTx{
+				Hash: []byte("dummy"),
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.BroadcastTxSync([]byte("dummy"))
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			unconfirmedTxsMethod,
+			&ctypes.ResultUnconfirmedTxs{
+				Count: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.UnconfirmedTxs(0)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			numUnconfirmedTxsMethod,
+			&ctypes.ResultUnconfirmedTxs{
+				Count: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.NumUnconfirmedTxs()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			netInfoMethod,
+			&ctypes.ResultNetInfo{
+				NPeers: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.NetInfo()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			dumpConsensusStateMethod,
+			&ctypes.ResultDumpConsensusState{
+				RoundState: &cstypes.RoundState{
+					Round: 10,
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.DumpConsensusState()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			consensusStateMethod,
+			&ctypes.ResultConsensusState{
+				RoundState: cstypes.RoundStateSimple{
+					ProposalBlockHash: []byte("dummy"),
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.ConsensusState()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			consensusParamsMethod,
+			&ctypes.ResultConsensusParams{
+				BlockHeight: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.ConsensusParams(nil)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			healthMethod,
+			&ctypes.ResultHealth{},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Health()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			blockchainMethod,
+			&ctypes.ResultBlockchainInfo{
+				LastHeight: 100,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.BlockchainInfo(0, 0)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			genesisMethod,
+			&ctypes.ResultGenesis{
+				Genesis: &bfttypes.GenesisDoc{
+					ChainID: "dummy",
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Genesis()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			blockMethod,
+			&ctypes.ResultBlock{
+				BlockMeta: &bfttypes.BlockMeta{
+					Header: bfttypes.Header{
+						Height: 10,
+					},
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Block(nil)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			blockResultsMethod,
+			&ctypes.ResultBlockResults{
+				Height: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.BlockResults(nil)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			commitMethod,
+			&ctypes.ResultCommit{
+				CanonicalCommit: true,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Commit(nil)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
+			validatorsMethod,
+			&ctypes.ResultValidators{
+				BlockHeight: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Validators(nil)
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+	}
 
 	for _, testCase := range testTable {
 		testCase := testCase
@@ -172,14 +417,25 @@ func TestRPCClient_E2E_Status(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			defer func() {
-				require.NoError(t, testCase.client.Close())
-			}()
+			clientTable := generateE2ETestCases(
+				t,
+				testCase.name,
+				testCase.expectedResult,
+			)
 
-			status, err := testCase.client.Status()
-			require.NoError(t, err)
+			for _, clientCase := range clientTable {
+				clientCase := clientCase
 
-			assert.Equal(t, expectedStatus, status)
+				t.Run(clientCase.name, func(t *testing.T) {
+					t.Parallel()
+
+					defer func() {
+						require.NoError(t, clientCase.client.Close())
+					}()
+
+					testCase.verifyFn(clientCase.client, testCase.expectedResult)
+				})
+			}
 		})
 	}
 }
