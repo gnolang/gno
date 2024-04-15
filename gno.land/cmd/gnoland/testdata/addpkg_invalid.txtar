@@ -4,7 +4,7 @@
 gnoland start
 
 # add bar package located in $WORK directory as gno.land/r/foobar/bar
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 3_000_000 -broadcast -chainid=tendermint_test test1
 
 # compare render
 ! stdout .+
