@@ -11,17 +11,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// a wrapper to emulate a sum type: JSONRPCID = string | int
-// TODO: refactor when Go 2.0 arrives https://github.com/golang/go/issues/19412
+// JSONRPCID is a wrapper type for JSON-RPC request IDs,
+// which can be a string value | number value | not set (nil)
 type JSONRPCID interface {
-	IsJSONRPCID()
 	String() string
 }
 
 // JSONRPCStringID a wrapper for JSON-RPC string IDs
 type JSONRPCStringID string
-
-func (JSONRPCStringID) IsJSONRPCID() {}
 
 func (id JSONRPCStringID) String() string {
 	return string(id)
@@ -30,14 +27,13 @@ func (id JSONRPCStringID) String() string {
 // JSONRPCIntID a wrapper for JSON-RPC integer IDs
 type JSONRPCIntID int
 
-func (JSONRPCIntID) IsJSONRPCID() {}
-
 func (id JSONRPCIntID) String() string {
 	return fmt.Sprintf("%d", id)
 }
 
-func idFromInterface(idInterface interface{}) (JSONRPCID, error) {
-	switch id := idInterface.(type) {
+// parseID parses the given ID value
+func parseID(idValue any) (JSONRPCID, error) {
+	switch id := idValue.(type) {
 	case string:
 		return JSONRPCStringID(id), nil
 	case float64:
@@ -66,25 +62,32 @@ type RPCRequest struct {
 func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 	unsafeReq := &struct {
 		JSONRPC string          `json:"jsonrpc"`
-		ID      interface{}     `json:"id"`
+		ID      any             `json:"id"`
 		Method  string          `json:"method"`
-		Params  json.RawMessage `json:"params"` // must be map[string]interface{} or []interface{}
+		Params  json.RawMessage `json:"params"` // must be map[string]any or []any
 	}{}
-	err := json.Unmarshal(data, &unsafeReq)
-	if err != nil {
-		return err
+
+	if err := json.Unmarshal(data, &unsafeReq); err != nil {
+		return fmt.Errorf("unable to JSON-parse the RPC request, %w", err)
 	}
+
 	request.JSONRPC = unsafeReq.JSONRPC
 	request.Method = unsafeReq.Method
 	request.Params = unsafeReq.Params
+
+	// Check if the ID is set
 	if unsafeReq.ID == nil {
 		return nil
 	}
-	id, err := idFromInterface(unsafeReq.ID)
+
+	// Parse the ID
+	id, err := parseID(unsafeReq.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse request ID, %w", err)
 	}
+
 	request.ID = id
+
 	return nil
 }
 
@@ -101,21 +104,25 @@ func (request RPCRequest) String() string {
 	return fmt.Sprintf("[%s %s]", request.ID, request.Method)
 }
 
-func MapToRequest(id JSONRPCID, method string, params map[string]interface{}) (RPCRequest, error) {
+// MapToRequest generates an RPC request with the given ID and method.
+// The params are encoded as a JSON map
+func MapToRequest(id JSONRPCID, method string, params map[string]any) (RPCRequest, error) {
 	params_ := make(map[string]json.RawMessage, len(params))
 	for name, value := range params {
 		valueJSON, err := amino.MarshalJSON(value)
 		if err != nil {
-			return RPCRequest{}, err
+			return RPCRequest{}, fmt.Errorf("unable to parse param, %w", err)
 		}
+
 		params_[name] = valueJSON
 	}
+
 	payload, err := json.Marshal(params_) // NOTE: Amino doesn't handle maps yet.
 	if err != nil {
-		return RPCRequest{}, err
+		return RPCRequest{}, fmt.Errorf("unable to JSON marshal params, %w", err)
 	}
-	request := NewRPCRequest(id, method, payload)
-	return request, nil
+
+	return NewRPCRequest(id, method, payload), nil
 }
 
 // ----------------------------------------
@@ -128,10 +135,11 @@ type RPCError struct {
 }
 
 func (err RPCError) Error() string {
-	const baseFormat = "RPC error %v - %s"
+	const baseFormat = "RPC error %d - %s"
 	if err.Data != "" {
 		return fmt.Sprintf(baseFormat+": %s", err.Code, err.Message, err.Data)
 	}
+
 	return fmt.Sprintf(baseFormat, err.Code, err.Message)
 }
 
@@ -155,25 +163,33 @@ func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 		Result  json.RawMessage `json:"result,omitempty"`
 		Error   *RPCError       `json:"error,omitempty"`
 	}{}
-	err := json.Unmarshal(data, &unsafeResp)
-	if err != nil {
-		return err
+
+	// Parse the response
+	if err := json.Unmarshal(data, &unsafeResp); err != nil {
+		return fmt.Errorf("unable to JSON-parse the RPC response, %w", err)
 	}
+
 	response.JSONRPC = unsafeResp.JSONRPC
 	response.Error = unsafeResp.Error
 	response.Result = unsafeResp.Result
+
+	// Check if any response ID is set
 	if unsafeResp.ID == nil {
 		return nil
 	}
-	id, err := idFromInterface(unsafeResp.ID)
+
+	// Parse the ID
+	id, err := parseID(unsafeResp.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse response ID, %w", err)
 	}
+
 	response.ID = id
+
 	return nil
 }
 
-func NewRPCSuccessResponse(id JSONRPCID, res interface{}) RPCResponse {
+func NewRPCSuccessResponse(id JSONRPCID, res any) RPCResponse {
 	var rawMsg json.RawMessage
 
 	if res != nil {
@@ -221,10 +237,6 @@ func RPCInvalidParamsError(id JSONRPCID, err error) RPCResponse {
 
 func RPCInternalError(id JSONRPCID, err error) RPCResponse {
 	return NewRPCErrorResponse(id, -32603, "Internal error", err.Error())
-}
-
-func RPCServerError(id JSONRPCID, err error) RPCResponse {
-	return NewRPCErrorResponse(id, -32000, "Server error", err.Error())
 }
 
 // ----------------------------------------
