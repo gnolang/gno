@@ -46,8 +46,6 @@ import (
 	"std"
 
 	"gno.land/r/demo/wugnot"
-
-	"gno.land/p/demo/ufmt"
 )
 
 func ProxyWrap() {
