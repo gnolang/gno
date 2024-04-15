@@ -52,7 +52,7 @@ test.sync:
 
 .PHONY: clean
 clean:
-	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
+	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno clean -x \;
 
 .PHONY: fmt
 GOFMT_FLAGS ?= -w
