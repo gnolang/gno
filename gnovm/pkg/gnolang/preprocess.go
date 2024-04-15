@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -95,7 +96,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
 // It is a counter because Preprocess() is recursive.
-var preprocessing int
+// As a global counter, use lockless atomic to support concurrency.
+var preprocessing atomic.Int32
 
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
@@ -116,12 +118,8 @@ var preprocessing int
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// Increment preprocessing counter while preprocessing.
-	{
-		preprocessing += 1
-		defer func() {
-			preprocessing -= 1
-		}()
-	}
+	preprocessing.Add(1)
+	defer preprocessing.Add(-1)
 
 	if ctx == nil {
 		// Generally a ctx is required, but if not, it's ok to pass in nil.
