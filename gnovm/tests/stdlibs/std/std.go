@@ -85,7 +85,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := m.Context.(std.ExecContext)
 		return string(ctx.OrigCaller)
 	}
-	return string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_testSetOrigCaller(m *gno.Machine, addr string) {

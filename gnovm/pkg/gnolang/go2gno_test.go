@@ -29,27 +29,6 @@ func main(){
 	fmt.Printf("AST.String():\n%s\n", n.String())
 }
 
-func newMemPackage(
-	pkgName, pkgPath string,
-	namesAndFiles ...string,
-) *std.MemPackage {
-	if len(namesAndFiles)%2 != 0 {
-		panic("namesAndFiles must be pairs")
-	}
-	files := make([]*std.MemFile, 0, len(namesAndFiles)/2)
-	for i := 0; i < len(namesAndFiles); i += 2 {
-		files = append(files, &std.MemFile{
-			Name: namesAndFiles[i],
-			Body: namesAndFiles[i+1],
-		})
-	}
-	return &std.MemPackage{
-		Name:  pkgName,
-		Path:  pkgPath,
-		Files: files,
-	}
-}
-
 type mockPackageGetter []*std.MemPackage
 
 func (mi mockPackageGetter) GetMemPackage(path string) *std.MemPackage {
@@ -103,126 +82,178 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	tt := []testCase{
 		{
 			"Simple",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				type S struct{}
-				func A() S { return S{} }
-				func B() S { return A() }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							type S struct{}
+							func A() S { return S{} }
+							func B() S { return A() }`,
+					},
+				},
+			},
 			nil,
 			nil,
 		},
 		{
 			"WrongReturn",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				type S struct{}
-				func A() S { return S{} }
-				func B() S { return 11 }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							type S struct{}
+							func A() S { return S{} }
+							func B() S { return 11 }`,
+					},
+				},
+			},
 			nil,
 			errContains("cannot use 11"),
 		},
 		{
 			"ParseError",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello!
-				func B() int { return 11 }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello!
+							func B() int { return 11 }`,
+					},
+				},
+			},
 			nil,
 			errContains("found '!'"),
 		},
 		{
 			"MultiError",
-			newMemPackage(
-				"main", "gno.land/p/demo/main",
-
-				"hello.gno",
-				`package main
-					func main() {
-						_, _ = 11
-						return 88, 88
-					}`,
-			),
+			&std.MemPackage{
+				Name: "main",
+				Path: "gno.land/p/demo/main",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package main
+							func main() {
+								_, _ = 11
+								return 88, 88
+							}`,
+					},
+				},
+			},
 			nil,
 			errContains("assignment mismatch", "too many return values"),
 		},
 		{
 			"TestsIgnored",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				func B() int { return 11 }`,
-				"hello_test.gno",
-				`This is not valid Gno code, but it doesn't matter because test
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							func B() int { return 11 }`,
+					},
+					{
+						Name: "hello_test.gno",
+						Body: `This is not valid Gno code, but it doesn't matter because test
 				files are not checked.`,
-			),
+					},
+				},
+			},
 			nil,
 			nil,
 		},
 		{
 			"ImportFailed",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				import "std"
-				func Hello() std.Address { return "hello" }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							import "std"
+							func Hello() std.Address { return "hello" }`,
+					},
+				},
+			},
 			mockPackageGetter{},
 			errContains("import not found: std"),
 		},
 		{
 			"ImportSucceeded",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				import "std"
-				func Hello() std.Address { return "hello" }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							import "std"
+							func Hello() std.Address { return "hello" }`,
+					},
+				},
+			},
 			mockPackageGetter{
-				newMemPackage(
-					"std", "std",
-
-					"std.gno",
-					`package std
-					type Address string`,
-				),
+				&std.MemPackage{
+					Name: "std",
+					Path: "std",
+					Files: []*std.MemFile{
+						{
+							Name: "std.gno",
+							Body: `
+								package std
+								type Address string`,
+						},
+					},
+				},
 			},
 			nil,
 		},
 		{
 			"ImportBadIdent",
-			newMemPackage(
-				"hello", "gno.land/p/demo/hello",
-
-				"hello.gno",
-				`package hello
-				import "std"
-				func Hello() std.Address { return "hello" }`,
-			),
+			&std.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*std.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `
+							package hello
+							import "std"
+							func Hello() std.Address { return "hello" }`,
+					},
+				},
+			},
 			mockPackageGetter{
-				newMemPackage(
-					"a_completely_dfferent_identifier", "std",
-
-					"std.gno",
-					`package a_completely_different_identifier
-					type Address string`,
-				),
+				&std.MemPackage{
+					Name: "a_completely_different_identifier",
+					Path: "std",
+					Files: []*std.MemFile{
+						{
+							Name: "std.gno",
+							Body: `
+								package a_completely_different_identifier
+								type Address string`,
+						},
+					},
+				},
 			},
 			errContains("undefined: std", "a_completely_different_identifier and not used"),
 		},
@@ -230,21 +261,31 @@ func TestTypeCheckMemPackage(t *testing.T) {
 
 	cacheMpg := mockPackageGetterCounts{
 		mockPackageGetter{
-			newMemPackage(
-				"bye", "bye",
-
-				"bye.gno",
-				`package bye
-				import "std"
-				func Bye() std.Address { return "bye" }`,
-			),
-			newMemPackage(
-				"std", "std",
-
-				"std.gno",
-				`package std
-				type Address string`,
-			),
+			&std.MemPackage{
+				Name: "bye",
+				Path: "bye",
+				Files: []*std.MemFile{
+					{
+						Name: "bye.gno",
+						Body: `
+							package bye
+							import "std"
+							func Bye() std.Address { return "bye" }`,
+					},
+				},
+			},
+			&std.MemPackage{
+				Name: "std",
+				Path: "std",
+				Files: []*std.MemFile{
+					{
+						Name: "std.gno",
+						Body: `
+							package std
+							type Address string`,
+					},
+				},
+			},
 		},
 		make(map[string]int),
 	}
@@ -252,17 +293,22 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	tt = append(tt, testCase{
 		"ImportWithCache",
 		// This test will make use of the importer's internal cache for package `std`.
-		newMemPackage(
-			"hello", "gno.land/p/demo/hello",
-
-			"hello.gno",
-			`package hello
-			import (
-				"std"
-				"bye"
-			)
-			func Hello() std.Address { return bye.Bye() }`,
-		),
+		&std.MemPackage{
+			Name: "hello",
+			Path: "gno.land/p/demo/hello",
+			Files: []*std.MemFile{
+				{
+					Name: "hello.gno",
+					Body: `
+						package hello
+						import (
+							"std"
+							"bye"
+						)
+						func Hello() std.Address { return bye.Bye() }`,
+				},
+			},
+		},
 		cacheMpg,
 		func(t *testing.T, err error) {
 			t.Helper()

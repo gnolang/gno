@@ -85,7 +85,7 @@ func ParseExpr(expr string) (retx Expr, err error) {
 			if rerr, ok := r.(error); ok {
 				err = rerr
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = fmt.Errorf("%v", r)
 			}
 			return
 		}

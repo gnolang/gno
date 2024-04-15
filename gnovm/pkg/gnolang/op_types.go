@@ -405,7 +405,7 @@ func (m *Machine) doOpStaticTypeOf() {
 						"VPNative access on pointer to non-native value %v", pt.Elt))
 				}
 				dxt = &NativeType{
-					Type: reflect.PtrTo(net.Type),
+					Type: reflect.PointerTo(net.Type),
 				}
 			}
 			// switch on type and maybe match field.
@@ -431,10 +431,10 @@ func (m *Machine) doOpStaticTypeOf() {
 					return
 				}
 				// make rt ptr.
-				rt = reflect.PtrTo(rt)
+				rt = reflect.PointerTo(rt)
 			} else {
 				// make rt ptr.
-				rt = reflect.PtrTo(rt)
+				rt = reflect.PointerTo(rt)
 			}
 			// match method.
 			rmt, ok := rt.MethodByName(string(x.Sel))
@@ -467,7 +467,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
-		if pt, ok := xt.(*PointerType); ok {
+		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
@@ -485,7 +485,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpStaticTypeOf)
 		m.Run() // XXX replace
 		xt := m.ReapValues(start)[0].GetType()
-		if pt, ok := xt.(*PointerType); ok {
+		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
 			m.PushValue(asValue(gTypeType))
