@@ -83,7 +83,7 @@ func ParseExpr(expr string) (retx Expr, err error) {
 			if rerr, ok := r.(error); ok {
 				err = rerr
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = fmt.Errorf("%v", r)
 			}
 			return
 		}
@@ -490,56 +490,62 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+	var errs error
 	imp := &gnoImporter{
 		getter: getter,
-		cache:  map[string]any{},
-		cfg:    &types.Config{},
+		cache:  map[string]gnoImporterResult{},
+		cfg: &types.Config{
+			Error: func(err error) {
+				errs = multierr.Append(errs, err)
+			},
+		},
 	}
 	imp.cfg.Importer = imp
 
 	_, err := imp.parseCheckMemPackage(mempkg)
-	if err != nil {
-		return err
+	// prefer to return errs instead of err:
+	// err will generally contain only the first error encountered.
+	if errs != nil {
+		return errs
 	}
+	return err
+}
 
-	return nil
+type gnoImporterResult struct {
+	pkg *types.Package
+	err error
 }
 
 type gnoImporter struct {
 	getter MemPackageGetter
-	cache  map[string]any // *types.Package or error
+	cache  map[string]gnoImporterResult
 	cfg    *types.Config
 }
 
+// Unused, but satisfies the Importer interface.
 func (g *gnoImporter) Import(path string) (*types.Package, error) {
 	return g.ImportFrom(path, "", 0)
 }
+
+type importNotFoundError string
+
+func (e importNotFoundError) Error() string { return "import not found: " + string(e) }
 
 // ImportFrom returns the imported package for the given import
 // path when imported by a package file located in dir.
 func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
 	if pkg, ok := g.cache[path]; ok {
-		switch ret := pkg.(type) {
-		case *types.Package:
-			return ret, nil
-		case error:
-			return nil, ret
-		default:
-			panic(fmt.Sprintf("invalid type in gnoImporter.cache %T", ret))
-		}
+		return pkg.pkg, pkg.err
 	}
 	mpkg := g.getter.GetMemPackage(path)
 	if mpkg == nil {
-		g.cache[path] = (*types.Package)(nil)
-		return nil, nil
-	}
-	result, err := g.parseCheckMemPackage(mpkg)
-	if err != nil {
-		g.cache[path] = err
+		err := importNotFoundError(path)
+		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	g.cache[path] = result
-	return result, nil
+	result, err := g.parseCheckMemPackage(mpkg)
+	g.cache[path] = gnoImporterResult{pkg: result, err: err}
+	return result, err
 }
 
 func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
@@ -555,7 +561,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
 		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
 		if err != nil {
-			err = multierr.Append(errs, err)
+			errs = multierr.Append(errs, err)
 			continue
 		}
 
@@ -565,7 +571,6 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		return nil, errs
 	}
 
-	// TODO g.cfg.Error
 	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 

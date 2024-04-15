@@ -70,7 +70,7 @@ func newTranspileCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "transpile",
 			ShortUsage: "transpile [flags] <package> [<package>...]",
-			ShortHelp:  "Transpiles .gno files to .go",
+			ShortHelp:  "transpiles .gno files to .go",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -82,7 +82,7 @@ func newTranspileCmd(io commands.IO) *commands.Command {
 func (c *transpileCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)

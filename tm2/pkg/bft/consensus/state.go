@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	goerrors "errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/telemetry"
+	"github.com/gnolang/gno/telemetry/metrics"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -122,6 +125,7 @@ type ConsensusState struct {
 	// a Write-Ahead Log ensures we can recover from any kind of crash
 	// and helps us avoid signing conflicting votes
 	wal          walm.WAL
+	walDisabled  bool
 	replayMode   bool // so we don't log signing errors during replay
 	doWALCatchup bool // determines if we even try to do the catchup
 
@@ -162,6 +166,7 @@ func NewConsensusState(
 		doWALCatchup:     true,
 		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
+		walDisabled:      config.WALDisabled,
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal
@@ -294,7 +299,7 @@ func (cs *ConsensusState) OnStart() error {
 
 	// we may set the WAL in testing before calling Start,
 	// so only OpenWAL if its still the walm.NopWAL
-	if _, ok := cs.wal.(walm.NopWAL); ok {
+	if _, ok := cs.wal.(walm.NopWAL); ok && !cs.walDisabled {
 		walFile := cs.config.WalFile()
 		wal, err := cs.OpenWAL(walFile)
 		if err != nil {
@@ -983,6 +988,13 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		// This shouldn't happen.
 		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return
+	}
+
+	if telemetry.MetricsEnabled() {
+		startTime := time.Now()
+		defer func(t time.Time) {
+			metrics.BuildBlockTimer.Record(context.Background(), time.Since(t).Milliseconds())
+		}(startTime)
 	}
 
 	proposerAddr := cs.privValidator.GetPubKey().Address()

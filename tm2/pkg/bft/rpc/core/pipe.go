@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -55,7 +54,7 @@ type peers interface {
 
 var (
 	// external, thread safe interfaces
-	proxyAppQuery proxy.AppConnQuery
+	proxyAppQuery appconn.Query
 
 	// interfaces defined in types and above
 	stateDB        dbm.DB
@@ -65,12 +64,12 @@ var (
 	p2pTransport   transport
 
 	// objects
-	pubKey           crypto.PubKey
-	genDoc           *types.GenesisDoc // cache the genesis structure
-	consensusReactor *consensus.ConsensusReactor
-	evsw             events.EventSwitch
-	gTxDispatcher    *txDispatcher
-	mempool          mempl.Mempool
+	pubKey        crypto.PubKey
+	genDoc        *types.GenesisDoc // cache the genesis structure
+	evsw          events.EventSwitch
+	gTxDispatcher *txDispatcher
+	mempool       mempl.Mempool
+	getFastSync   func() bool // avoids dependency on consensus pkg
 
 	logger *slog.Logger
 
@@ -109,12 +108,12 @@ func SetGenesisDoc(doc *types.GenesisDoc) {
 	genDoc = doc
 }
 
-func SetProxyAppQuery(appConn proxy.AppConnQuery) {
+func SetProxyAppQuery(appConn appconn.Query) {
 	proxyAppQuery = appConn
 }
 
-func SetConsensusReactor(conR *consensus.ConsensusReactor) {
-	consensusReactor = conR
+func SetGetFastSync(v func() bool) {
+	getFastSync = v
 }
 
 func SetLogger(l *slog.Logger) {

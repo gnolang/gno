@@ -79,7 +79,6 @@ type defaultStore struct {
 	iavlStore        store.Store           // for escaped object hashes
 	pkgInjector      PackageInjector       // for injecting natives
 	nativeStore      NativeStore           // for injecting natives
-	go2gnoMap        map[string]string     // go pkgpath.name -> gno pkgpath.name
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
@@ -96,7 +95,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		baseStore:        baseStore,
 		iavlStore:        iavlStore,
-		go2gnoMap:        make(map[string]string),
 		go2gnoStrict:     true,
 	}
 	InitStoreCaches(ds)
@@ -178,7 +176,7 @@ func (ds *defaultStore) getPackage(pkgPath string, impStore importerStore) *Pack
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if impStore.defaultStore == nil {
-			// pre-allocate 16 strings to likely avoid further slice allocations.
+			// pre-allocate 16 entries to likely avoid further slice allocations.
 			impStore = importerStore{defaultStore: ds, importChain: make([]string, 0, 16)}
 		}
 		impStore.importChain = append(impStore.importChain, pkgPath)
@@ -645,7 +643,6 @@ func (ds *defaultStore) Fork() Store {
 		iavlStore:        ds.iavlStore,
 		pkgInjector:      ds.pkgInjector,
 		nativeStore:      ds.nativeStore,
-		go2gnoMap:        ds.go2gnoMap,
 		go2gnoStrict:     ds.go2gnoStrict,
 		opslog:           nil, // new ops log.
 	}
