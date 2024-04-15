@@ -3,7 +3,38 @@
 // (hence the name µfmt - micro fmt).
 package ufmt
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
+
+// Println formats using the default formats for its operands and writes to standard output.
+// Println writes the given arguments to standard output with spaces between arguments
+// and a newline at the end.
+func Println(args ...interface{}) {
+	var strs []string
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case string:
+			strs = append(strs, v)
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			strs = append(strs, Sprintf("%d", v))
+		case bool:
+			if v {
+				strs = append(strs, "true")
+
+				continue
+			}
+
+			strs = append(strs, "false")
+		default:
+			strs = append(strs, "(unhandled)")
+		}
+	}
+
+	// TODO: remove println after gno supports os.Stdout
+	println(strings.Join(strs, " "))
+}
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
 // equivalent available in many languages, including C/C++.
@@ -21,24 +52,26 @@ import "strconv"
 //	%t: formats a boolean value to "true" or "false".
 //	%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
-	end := len(format)
+	// we use runes to handle multi-byte characters
+	sTor := []rune(format)
+	end := len(sTor)
 	argNum := 0
 	argLen := len(args)
 	buf := ""
 
 	for i := 0; i < end; {
 		isLast := i == end-1
-		c := format[i]
+		c := string(sTor[i])
 
-		if isLast || c != '%' {
+		if isLast || c != "%" {
 			// we don't check for invalid format like a one ending with "%"
 			buf += string(c)
 			i++
 			continue
 		}
 
-		verb := format[i+1]
-		if verb == '%' {
+		verb := string(sTor[i+1])
+		if verb == "%" {
 			buf += "%"
 			i += 2
 			continue
@@ -51,7 +84,7 @@ func Sprintf(format string, args ...interface{}) string {
 		argNum++
 
 		switch verb {
-		case 's':
+		case "s":
 			switch v := arg.(type) {
 			case interface{ String() string }:
 				buf += v.String()
@@ -60,7 +93,7 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += "(unhandled)"
 			}
-		case 'd':
+		case "d":
 			switch v := arg.(type) {
 			case int:
 				buf += strconv.Itoa(v)
@@ -85,7 +118,7 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += "(unhandled)"
 			}
-		case 't':
+		case "t":
 			switch v := arg.(type) {
 			case bool:
 				if v {
