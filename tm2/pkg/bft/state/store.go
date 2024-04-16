@@ -19,7 +19,7 @@ const (
 	valSetCheckpointInterval = 100000
 )
 
-var errTxResultCorrupted = errors.New("tx result corrupted")
+var errTxResultIndexCorrupted = errors.New("tx result index corrupted")
 
 // ------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ func calcConsensusParamsKey(height int64) []byte {
 	return []byte(fmt.Sprintf("consensusParamsKey:%x", height))
 }
 
-func calcABCIResponsesKey(height int64) []byte {
+func CalcABCIResponsesKey(height int64) []byte {
 	return []byte(fmt.Sprintf("abciResponsesKey:%x", height))
 }
 
@@ -155,7 +155,7 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 // This is useful for recovering from crashes where we called app.Commit and before we called
 // s.Save(). It can also be used to produce Merkle proofs of the result of txs.
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
-	buf := db.Get(calcABCIResponsesKey(height))
+	buf := db.Get(CalcABCIResponsesKey(height))
 	if buf == nil {
 		return nil, NoABCIResponsesForHeightError{height}
 	}
@@ -176,28 +176,38 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
 func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	db.Set(calcABCIResponsesKey(height), abciResponses.Bytes())
+	db.Set(CalcABCIResponsesKey(height), abciResponses.Bytes())
 }
 
-// LoadTxResult loads the tx result associated with the given
+// TxResultIndex keeps the result index information for a transaction
+type TxResultIndex struct {
+	BlockNum int64  // the block number the tx was contained in
+	TxIndex  uint32 // the index of the transaction within the block
+}
+
+func (t *TxResultIndex) Bytes() []byte {
+	return amino.MustMarshal(t)
+}
+
+// LoadTxResultIndex loads the tx result associated with the given
 // tx hash from the database, if any
-func LoadTxResult(db dbm.DB, txHash []byte) (*types.TxResult, error) {
+func LoadTxResultIndex(db dbm.DB, txHash []byte) (*TxResultIndex, error) {
 	buf := db.Get(CalcTxResultKey(txHash))
 	if buf == nil {
 		return nil, NoTxResultForHashError{txHash}
 	}
 
-	txResult := new(types.TxResult)
-	if err := amino.Unmarshal(buf, txResult); err != nil {
-		return nil, fmt.Errorf("%w, %w", errTxResultCorrupted, err)
+	txResultIndex := new(TxResultIndex)
+	if err := amino.Unmarshal(buf, txResultIndex); err != nil {
+		return nil, fmt.Errorf("%w, %w", errTxResultIndexCorrupted, err)
 	}
 
-	return txResult, nil
+	return txResultIndex, nil
 }
 
-// saveTxResult persists the transaction result to the database
-func saveTxResult(db dbm.DB, txResult *types.TxResult) {
-	db.SetSync(CalcTxResultKey(txResult.Tx.Hash()), txResult.Bytes())
+// saveTxResultIndex persists the transaction result index to the database
+func saveTxResultIndex(db dbm.DB, txHash []byte, resultIndex TxResultIndex) {
+	db.Set(CalcTxResultKey(txHash), resultIndex.Bytes())
 }
 
 // -----------------------------------------------------------------------------

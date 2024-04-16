@@ -111,14 +111,14 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Save the transaction results
 	for index, tx := range block.Txs {
-		txResult := &types.TxResult{
-			Height:   block.Height,
-			Index:    uint32(index),
-			Tx:       tx,
-			Response: abciResponses.DeliverTxs[index],
-		}
-
-		saveTxResult(blockExec.db, txResult)
+		saveTxResultIndex(
+			blockExec.db,
+			tx.Hash(),
+			TxResultIndex{
+				BlockNum: block.Height,
+				TxIndex:  uint32(index),
+			},
+		)
 	}
 
 	fail.Fail() // XXX

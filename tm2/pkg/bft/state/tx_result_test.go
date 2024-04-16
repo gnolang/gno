@@ -51,15 +51,28 @@ func TestStoreLoadTxResult(t *testing.T) {
 
 		// Save the results
 		for _, txResult := range txResults {
-			saveTxResult(stateDB, txResult)
+			saveTxResultIndex(
+				stateDB,
+				txResult.Tx.Hash(),
+				TxResultIndex{
+					BlockNum: txResult.Height,
+					TxIndex:  txResult.Index,
+				},
+			)
 		}
 
 		// Verify they are saved correctly
 		for _, txResult := range txResults {
-			dbResult, err := LoadTxResult(stateDB, txResult.Tx.Hash())
+			result := TxResultIndex{
+				BlockNum: txResult.Height,
+				TxIndex:  txResult.Index,
+			}
+
+			dbResult, err := LoadTxResultIndex(stateDB, txResult.Tx.Hash())
 			require.NoError(t, err)
 
-			assert.Equal(t, txResult, dbResult)
+			assert.Equal(t, result.BlockNum, dbResult.BlockNum)
+			assert.Equal(t, result.TxIndex, dbResult.TxIndex)
 		}
 	})
 
@@ -73,7 +86,7 @@ func TestStoreLoadTxResult(t *testing.T) {
 
 		// Verify they are not present
 		for _, txResult := range txResults {
-			_, err := LoadTxResult(stateDB, txResult.Tx.Hash())
+			_, err := LoadTxResultIndex(stateDB, txResult.Tx.Hash())
 
 			expectedErr := NoTxResultForHashError{
 				Hash: txResult.Tx.Hash(),
@@ -95,9 +108,9 @@ func TestStoreLoadTxResult(t *testing.T) {
 		// Save the "corrupted" result to the DB
 		stateDB.SetSync(CalcTxResultKey(hash), []byte(corruptedResult))
 
-		txResult, err := LoadTxResult(stateDB, hash)
+		txResult, err := LoadTxResultIndex(stateDB, hash)
 		require.Nil(t, txResult)
 
-		assert.ErrorIs(t, err, errTxResultCorrupted)
+		assert.ErrorIs(t, err, errTxResultIndexCorrupted)
 	})
 }
