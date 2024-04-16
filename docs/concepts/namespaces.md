@@ -4,7 +4,7 @@ id: namespaces
 
 # Namespaces
 
-Namespaces provide users with the capability to publish contracts under their designated namespaces, similar to GitHub's user and organization model.
+Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces, similar to GitHub's user and organization model.
 
 This feature is currently a work in progress (WIP). To learn more about namespaces, please checkout https://github.com/gnolang/gno/issues/1107.
 
@@ -32,4 +32,4 @@ Here's a breakdown of the structure of a package path:
 Examples:
 
 - `gno.land/p/demo/avl`: This signifies a package named `avl` within the `demo` namespace.
-- `gno.land/r/demo/users`: This signifies a realm named `users` within the `demo` namespace. 
+- `gno.land/r/gnoland/home`: This signifies a realm named `home` within the `gnoland` namespace.
