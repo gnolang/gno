@@ -26,10 +26,12 @@ your terminal.
 
 ![gnodev](../../assets/getting-started/local-setup/browsing-gno-source-code/gnodev.gif)
 
-By visiting [`http://localhost:8888`](http://localhost:8888), you will be able
-to see the gno.land home page:
+`gnodev` remembers the folder where it was installed, and loads the
+[`examples/`](https://github.com/gnolang/gno/tree/master/examples) subfolder by default. By visiting 
+[`http://localhost:8888`](http://localhost:8888), you will be able to see the
+gno.land home page:
 
-[![homepage](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoland-homepage.png)](http://localhost:8888)
+![homepage](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoland-homepage.png)
 
 ## 2. Browsing Gno.land
 
@@ -62,28 +64,33 @@ code on-chain, users can also view their internal state representation in the
 form of the `Render()` output. To learn more about realms, please check out the
 [Realms](../../concepts/realms.md) concept page.
 
-Using `gnoweb`, we can browse the Realm `Render()` method output and source code
-in our browser. For example, the `boards` Realm is deployed at
-`gno.land/r/demo/boards`.
+We can browse the realm `Render()` method output and source code in our browser.
+For example, the `gnoland/blog` realm is deployed at `gno.land/r/gnoland/blog`.
 
-To view the internal Realm state of the `boards` package, we can append the `/r/demo/boards` to our browser URL (from
-the homepage).
+To view the internal realm state of the `blog` realm, we can append the
+`/r/gnoland/blog` to our browser URL (from the homepage).
 
-The final URL for the `boards` Realm internal state could be viewable at http://127.0.0.1:8888/r/demo/boards, if we
-followed
-default setup params, as we did in this guide.
+The final URL for the `blog` realm internal state could be viewable at
+[`http://127.0.0.1:8888/r/gnoland/blog`](http://127.0.0.1:8888/r/gnoland/blog),
+if we followed default setup params, as we did in this guide.
 
-![gnoweb boards](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-boards.png)
+![blog_render](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_render.png)
 
 :::info Render() is not required
-
-Internal Realm state does not have to be exposed through the `Render()` method of the realm, as it is
-not a requirement for deploying a Realm.
-
+Internal realm state does not have to be exposed through the `Render()` method
+of the realm, as it is not a requirement for deploying a Realm.
 :::
 
-Additionally, to view the source code for the realm, we simply need to append the `/` to the full realm path:
+Additionally, to view the source code for the realm, we have two options:
+- append `/` to the full realm path - [`http://127.0.0.1:8888/r/gnoland/blog/`](http://127.0.0.1:8888/r/gnoland/blog/)
+- click on the `[source]` button in the top-right corner
 
-http://127.0.0.1:8888/r/demo/boards/
+![blog_source](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_source.png)
 
-![gnoweb boards source](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-boards-source.png)
+Additionally, the `[help]` button takes us to the realm help page, where you will
+be able to see the user-facing API of the realm. 
+
+![blog_help](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_help.png)
+
+This page will also allow you to quickly generate `gnokey` commands for easily
+interacting with the realm in question.
