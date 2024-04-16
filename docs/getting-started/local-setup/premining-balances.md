@@ -12,7 +12,7 @@ Additionally, you will understand how to query the account balance after you pre
 Premining balance is the process of making sure some accounts (addresses) have specific funds when the chain initially
 launches. In the context of local chain deployments, premine balances are used to ensure the user accounts (developers)
 have ample funds to interact with the chain and facilitate contract deployments.
-
+  
 ## Prerequisites
 
 - **`gnoland` and `gnokey` set up. Reference the [Installation](local-setup.md#3-installing-other-gno-tools) guide

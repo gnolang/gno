@@ -13,8 +13,9 @@ const sidebars = {
                 {
                  type: 'category',
                  label: 'Local Setup',
+                    link: {type: 'doc', id: 'getting-started/local-setup/local-setup'},
                     items: [
-                        'getting-started/local-setup/local-setup',
+                        'getting-started/local-setup/installation',
                         'getting-started/local-setup/working-with-key-pairs',
                         'getting-started/local-setup/premining-balances',
                         'getting-started/local-setup/setting-up-a-local-chain',

@@ -7,8 +7,8 @@ id: installation
 ## Overview
 In this tutorial, you will learn how to set up the Gno development environment 
 locally, so you can get up and running writing Gno code. You will download and 
-install all the necessary tooling, and validate that they are correctly 
-configured to run on your machine.
+install all the necessary tooling, and validate that it is correctly configured
+to run on your machine.
 
 ## Prerequisites
 - **Git**
@@ -36,21 +36,10 @@ Next, we are going to build and install the `gno` development toolkit.
 transpiling, testing and building `.gno` files.
 
 To install the toolkit, navigate to the `gnovm` folder from the repository root,
-and run the `build` make directive:
+and run the `install` make directive:
 
 ```bash
 cd gnovm
-make build
-```
-
-This will build out the necessary `gno` binary into the `gnovm/cmd` sub-folder:
-
-![gno tool build](../../assets/getting-started/local-setup/local-setup/make-build-gnovm.gif)
-
-Next, to make development easier, we need to make the binary available system-wide.
-From the same `gnovm` sub-folder, you can run:
-
-```bash
 make install
 ```
 
@@ -71,34 +60,28 @@ go run ./cmd/gno --help
 ```
 
 ## 3. Installing other `gno` tools
-
-The next step is to install several other tools that are required for the Gno development environment, like
+The next step is to install two other tools that are required for the Gno 
+development environment:
 
 - `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
 - `gnokey` - the Gno [private key manager](working-with-key-pairs.md)
 
-To build `gnodev`, simply run
-
-To build these tools, from the root directory navigate to the `gno.land` sub-folder, and run the `build` make
-directive:
+To build these tools, navigate to the root folder, and run the following:
 
 ```bash
-cd gno.land
-make build
+make install.gnodev install.gnokey
 ```
 
-This will build out the necessary binaries into the `gno.land/cmd` sub-folder:
-
-![gno tools build](../../assets/getting-started/local-setup/local-setup/make-build-gnoland.gif)
-
-Same as with the `gno` tool, we can make these binaries available system-wide.
-From the same `gno.land` sub-folder, you can run:
+To verify that the `gnodev` binary is installed system-wide, you can run:
 
 ```bash
-make install
+gnodev
 ```
 
-To verify that, for example, the `gnokey` binary is installed system-wide, you can run:
+You should get the following output:
+![gnodev](../../assets/getting-started/local-setup/local-setup/gnodev.gif)
+
+Finally, to verify that the `gnokey` binary is installed system-wide, you can run:
 
 ```bash
 gnokey --help
