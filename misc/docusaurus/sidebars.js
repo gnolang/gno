@@ -17,9 +17,7 @@ const sidebars = {
                     items: [
                         'getting-started/local-setup/installation',
                         'getting-started/local-setup/working-with-key-pairs',
-                        'getting-started/local-setup/premining-balances',
-                        'getting-started/local-setup/setting-up-a-local-chain',
-                        'getting-started/local-setup/browsing-gno-source-code',
+                        'getting-started/local-setup/browsing-gno.land',
                     ]
                 },
             ],

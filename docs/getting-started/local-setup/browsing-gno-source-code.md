@@ -1,77 +1,70 @@
 ---
-id: browsing-gno-source-code
+id: browsing-gno.land
 ---
 
-# Browsing Gno Source Code
+# Browsing Gno.land
 
 ## Overview
-
-In this tutorial, you will learn how to browse deployed Gno [Realms](../../concepts/realms.md)
-and [Packages](../../concepts/packages.md). Additionally, you will understand how the `Render` method is utilized
-to achieve Realm state visibility.
+In this tutorial, you will learn how to browse [realms](../../concepts/realms.md)
+and [packages](../../concepts/packages.md) deployed to a Gno.land chain. 
+You will understand how the `Render` method is utilized to achieve realm state
+visibility, and you will learn how to easily access realm APIs.
 
 ## Prerequisites
+- **`gnodev` installed.** Reference the 
+[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
 
-- **`gnoweb` set up. Reference the [Local Setup](local-setup.md#3-installing-other-gno-tools) guide for steps**
+## 1. Start `gnodev`
+To browse Gno source code, we need two components:
+- a running `gno.land` node,
+- a gno.land source code viewer, like `gnoweb`
 
-## 1. Start the local chain
+Luckily, `gnodev` comes prepackaged with both. To start, simply run `gnodev` in
+your terminal.
 
-In order for `gnoweb` to fetch realm and package source code, it needs to connect a running Gno node. For a better
-overview on running a local node, please reference the [Starting a Local Chain](setting-up-a-local-chain.md) guide.
+`gnodev` will start an in-memory node, as well as a `gnoweb` server:
 
-In this guide, we will start a local node with the default configuration. Navigate to the `gno.land` sub-folder and run:
+![gnodev](../../assets/getting-started/local-setup/browsing-gno-source-code/gnodev.gif)
 
-```bash
-gnoland start
-```
+By visiting [`http://localhost:8888`](http://localhost:8888), you will be able
+to see the gno.land home page:
 
-## 2. Start `gnoweb`
+[![homepage](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoland-homepage.png)](http://localhost:8888)
 
-Now that the chain is running, we can start the `gnoweb` tool:
+## 2. Browsing Gno.land
 
-```bash
-gnoweb
-```
+### Package source code
+Packages in Gno.land usually have names resembling `gno.land/p/<name>`. Since 
+packages do not contain state, only their source code can be viewed on-chain. To
+learn more about packages, check out the [Packages](../../concepts/packages.md) 
+concept page.
 
-:::info Different JSON-RPC URL
+Let's take a specific example: the `avl` package, deployed at `gno.land/p/demo/avl`.
 
-In case you are running a node on a different JSON-RPC URL from the default one (`http://127.0.0.1:26657`),
-you can specify the remote URL with the `gnoweb` flag named `--remote`
+To access the source code of the `avl` package, we can append the `/p/demo/avl`
+to our browser URL (from the homepage).
 
-:::
-
-We should be able to access the website locally on http://127.0.0.1:8888/.
-
-![gnoweb screen](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb.png)
-
-## 3. Browse Package source code
-
-Packages in Gno.land usually have names resembling `gno.land/p/<name>`. Since packages do not contain state, we can only
-view their source code on-chain. To learn more about Packages, please check out
-the [Packages](../../concepts/packages.md) explanation document.
-
-Using `gnoweb`, we can browse the source code in our browser.
-For example, the `avl` package is deployed at `gno.land/p/demo/avl`.
-
-To access the source code of the `avl` package, we can append the `/p/demo/avl` to our browser URL (from the homepage).
-
-The final URL for the `avl` package source could be viewable at http://127.0.0.1:8888/p/demo/avl, if we followed
-default setup params, as we did in this guide.
+The final URL for the `avl` package source could be viewable at 
+[`http://127.0.0.1:8888/p/demo/avl`](http://127.0.0.1:8888/p/demo/avl),
+if we followed default setup params, as we did in this guide.
 
 ![gnoweb avl](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoweb-avl.png)
 
-From here, we can open any source code file of the deployed on-chain package and inspect its API.
+From here, we can open any source code file of the deployed on-chain package
+and inspect its API.
 
-## 4. Browse Realm source code
+### Realm source code & state
+In contrast to Packages, Realms in Gno.land usually have names resembling
+`gno.land/r/<name>`.
 
-In contrast to Packages, Realms in Gno.land usually have names resembling `gno.land/r/<name>`.
+Realms _do_ contain state, and in addition to being able to view their source 
+code on-chain, users can also view their internal state representation in the 
+form of the `Render()` output. To learn more about realms, please check out the
+[Realms](../../concepts/realms.md) concept page.
 
-Realms _do_ contain state, and in addition to being able to view their source code on-chain, users can also view their
-internal state representation in the form of the `Render()` output. To learn more about Realms, please
-check out the [Realms](../../concepts/realms.md) explanation document.
-
-Using `gnoweb`, we can browse the Realm `Render()` method output and source code in our browser.
-For example, the `boards` Realm is deployed at `gno.land/r/demo/boards`.
+Using `gnoweb`, we can browse the Realm `Render()` method output and source code
+in our browser. For example, the `boards` Realm is deployed at
+`gno.land/r/demo/boards`.
 
 To view the internal Realm state of the `boards` package, we can append the `/r/demo/boards` to our browser URL (from
 the homepage).
