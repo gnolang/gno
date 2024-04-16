@@ -8,6 +8,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+const blankIdentifer string = "_"
+
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
@@ -1232,6 +1234,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Type == nil {
 					panic("should not happen")
 				}
+
+				// Type assertions on the blank identifier are illegal.
+				if string(n.X.(*NameExpr).Name) == blankIdentifer {
+					panic("cannot use _ as a value or type")
+				}
+
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
 				t := evalStaticTypeOf(store, last, n.X)
