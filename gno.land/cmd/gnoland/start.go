@@ -277,7 +277,9 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 	cfg.LocalApp = gnoApp
 
-	io.Println(startGraphic)
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
 
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
