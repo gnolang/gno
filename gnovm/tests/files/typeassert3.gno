@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// nil is not of type main.ex
+// *cannot use _ as a value or type*

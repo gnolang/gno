@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// nil doesn't implement main.A
+// interface conversion: interface is nil, not main.A
