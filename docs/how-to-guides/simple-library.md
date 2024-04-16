@@ -141,7 +141,7 @@ There are a few things happening here, so let's dissect them:
 
 - We defined the logic of our library into a package called `tapas`.
 - The package imports `std`, which
-is the [Gno standard library](../concepts/standard-library/overview.md)
+is the [Gno standard library](../concepts/stdlibs/stdlibs.md)
 - We use the imported package inside of `GetTapaSuggestion` to generate a
 random index value for a tapa
 

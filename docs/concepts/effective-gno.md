@@ -612,7 +612,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](../concepts/standard-library/banker).
+Read about how to use the Banker module [here](stdlibs/banker).
 
 #### GRC20 tokens
 
