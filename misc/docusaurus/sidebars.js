@@ -17,7 +17,8 @@ const sidebars = {
                     items: [
                         'getting-started/local-setup/installation',
                         'getting-started/local-setup/working-with-key-pairs',
-                        'getting-started/local-setup/browsing-gno.land',
+                        'getting-started/local-setup/browsing-gnoland',
+                        'getting-started/local-setup/interacting-with-gnoland',
                     ]
                 },
             ],

@@ -1,5 +1,5 @@
 ---
-id: browsing-gno.land
+id: browsing-gnoland
 ---
 
 # Browsing Gno.land
