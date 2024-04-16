@@ -216,9 +216,9 @@ func (m *Machine) doOpTypeAssert1() {
 	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
-		if xt == nil {
+		if xt == nil || xv.IsNilInterface() {
 			// TODO: default panic type?
-			ex := fmt.Sprintf("nil doesn't implement %s", t.String())
+			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
 			m.Panic(typedString(ex))
 			return
 		}
