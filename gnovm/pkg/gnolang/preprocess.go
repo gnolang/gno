@@ -1239,7 +1239,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Type assertions on the blank identifier are illegal.
 				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifer {
-					panic("cannot use _ as a value or type")
+					panic("cannot use _ as value or type")
 				}
 
 				// ExprStmt of form `x.(<type>)`,
