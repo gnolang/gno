@@ -653,11 +653,19 @@ func (wsc *wsConnection) readRoutine() {
 				responses types.RPCResponses
 			)
 
+			// Try to unmarshal the requests as a batch
 			if err := json.Unmarshal(in, &requests); err != nil {
-				// next, try to unmarshal as a single request
+				// Next, try to unmarshal as a single request
 				var request types.RPCRequest
 				if err := json.Unmarshal(in, &request); err != nil {
-					wsc.WriteRPCResponses(types.RPCResponses{types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "error unmarshalling request"))})
+					wsc.WriteRPCResponses(
+						types.RPCResponses{
+							types.RPCParseError(
+								types.JSONRPCStringID(""),
+								errors.Wrap(err, "error unmarshalling request"),
+							),
+						},
+					)
 
 					return
 				}
@@ -671,7 +679,8 @@ func (wsc *wsConnection) readRoutine() {
 				// A Notification is a Request object without an "id" member.
 				// The Server MUST NOT reply to a Notification, including those that are within a batch request.
 				if request.ID == types.JSONRPCStringID("") {
-					wsc.Logger.Debug("WSJSONRPC received a notification, skipping... (please send a non-empty ID if you want to call a method)")
+					wsc.Logger.Debug("Skipping notification JSON-RPC request")
+
 					continue
 				}
 
