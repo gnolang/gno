@@ -1,4 +1,4 @@
-# Run gno transpile with gno files with whitelist errors
+# Run gno transpile with gno files with an invalid import path
 
 ! gno transpile .
 
