@@ -11,7 +11,7 @@ const sidebars = {
             items: [
                 'getting-started/playground-start',
                 {
-                 type: "category",
+                 type: 'category',
                  label: 'Local Setup',
                     items: [
                         'getting-started/local-setup/local-setup',
@@ -34,7 +34,6 @@ const sidebars = {
                 'how-to-guides/deploy',
                 'how-to-guides/write-simple-dapp',
                 'how-to-guides/creating-grc20',
-                'how-to-guides/creating-grc721',
                 'how-to-guides/connect-from-go',
                 'how-to-guides/connect-wallet-dapp',
             ],
@@ -46,18 +45,20 @@ const sidebars = {
             items: [
                 'concepts/realms',
                 'concepts/packages',
+                'concepts/namespaces',
                 {
                     type: 'category',
                     label: 'Standard Libraries',
+                    link: {type: 'doc', id: 'concepts/stdlibs/stdlibs'},
                     items: [
-                        'concepts/standard-library/overview',
-                        'concepts/standard-library/banker',
-                        'concepts/standard-library/coin',
-                        'concepts/standard-library/gnopher-hole-stdlib',
+                        'concepts/stdlibs/banker',
+                        'concepts/stdlibs/coin',
+                        'concepts/stdlibs/gnopher-hole-stdlib',
                     ]
                 },
                 'concepts/gnovm',
                 'concepts/gno-language',
+                'concepts/testnets',
                 'concepts/effective-gno',
                 'concepts/proof-of-contribution',
                 'concepts/tendermint2',
@@ -92,21 +93,22 @@ const sidebars = {
             link: {type: 'doc', id: 'reference/reference'},
             items: [
                 'reference/rpc-endpoints',
+                'reference/network-config',
                 {
                     type: 'category',
                     label: 'Standard Libraries',
+                    link: {type: 'doc', id: 'reference/stdlibs/stdlibs'},
                     items: [
-                        'reference/standard-library/overview',
                         {
                             type: 'category',
                             label: 'std',
                             items: [
-                                'reference/standard-library/std/address',
-                                'reference/standard-library/std/banker',
-                                'reference/standard-library/std/coin',
-                                'reference/standard-library/std/coins',
-                                'reference/standard-library/std/chain',
-                                'reference/standard-library/std/testing',
+                                'reference/stdlibs/std/address',
+                                'reference/stdlibs/std/banker',
+                                'reference/stdlibs/std/coin',
+                                'reference/stdlibs/std/coins',
+                                'reference/stdlibs/std/chain',
+                                'reference/stdlibs/std/testing',
                             ]
                         }
                     ]

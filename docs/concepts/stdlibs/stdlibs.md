@@ -1,13 +1,12 @@
 ---
-id: overview
+id: stdlibs
 ---
 
-# Overview
+# Standard Libraries
 
 Gno comes with a set of standard libraries which are included to ease development and provide extended functionality to the language. These include:
 - standard libraries as we know them in classic Go, i.e. `encoding/binary`, `strings`, `testing`, etc.
 - a special `std` package, which contains types, interfaces, and APIs created to handle blockchain-related functionality.
-
 
 Standard libraries differ from on-chain packages in terms of their import path structure.
 Unlike on-chain [packages](../packages.md), standard libraries do not incorporate a domain-like format at the beginning
@@ -15,7 +14,7 @@ of their import path. For example:
 - `import "encoding/binary"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.
 
-To see concrete implementation details & API references, see the [reference](../../reference/standard-library/overview.md) section.
+To see concrete implementation details & API references, see the [reference](../../reference/stdlibs/stdlibs.md) section.
 
 ## Accessing documentation
 
