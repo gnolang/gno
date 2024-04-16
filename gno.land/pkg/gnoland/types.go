@@ -82,7 +82,7 @@ func (b Balance) String() string {
 
 type Balances map[crypto.Address]Balance
 
-func New() Balances {
+func NewBalances() Balances {
 	return make(Balances)
 }
 
@@ -116,7 +116,7 @@ func (a Balances) LeftMerge(b Balances) {
 }
 
 func GetBalancesFromEntries(entries ...string) (Balances, error) {
-	balances := New()
+	balances := NewBalances()
 	return balances, balances.LoadFromEntries(entries...)
 }
 
@@ -134,7 +134,7 @@ func (balances Balances) LoadFromEntries(entries ...string) error {
 }
 
 func GetBalancesFromSheet(sheet io.Reader) (Balances, error) {
-	balances := New()
+	balances := NewBalances()
 	return balances, balances.LoadFromSheet(sheet)
 }
 

@@ -12,13 +12,15 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
 
 ## Features
 - **In-Memory Node**: Gnodev starts an in-memory node, and automatically loads
-the **examples** folder and any user-specified paths.
+  the **examples** folder and any user-specified paths.
 - **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
 [`localhost:8888`](https://localhost:8888).
-- **Hot Reload**: Gnodev monitors the **examples** folder and any specified for file changes,
-reloading and automatically restarting the node as needed.
+- **Balances and Keybase Customization**: Users can specify balances, load from
+  a balances file or create temporary users.
+- **Hot Reload**: Gnodev monitors the **examples** folder and any specified for
+  file changes, reloading and automatically restarting the node as needed.
 - **State Maintenance**: Gnodev replays all transactions in between reloads,
-ensuring the previous node state is preserved.
+  ensuring the previous node state is preserved.
 
 ## Installation
 Gnodev can be found in the `contribs` folder in the monorepo.
@@ -35,15 +37,45 @@ For hot reloading, `gnodev` watches the examples folder, as well as any specifie
 gnodev ./myrealm
 ```
 
+## Keybase and Balance
+
+Gnodev will by default, load your keybase located in GNOHOME directory.
+Given all you keys an (almost unlimited found).
+
+All realm will be upload by the `-genesis-creator`, but You can also pass query
+options to realm path load a realm with specific creator and deposit:
+```
+gnodev ./myrealm?creator=foo&deposit=42ugnot``
+```
+
+### Additional User
+Use `-add-user` flag in the format <user>(:<amount>) to add temporary users. You can repeat this to add multiple users.
+Addresses of those will be display at runtime, or by pressing `A` interactivly to display accounts.
+
+## Interactive Usage
+
 While `gnodev` is running, the following shortcuts are available:
+- To see help, press `H`.
+- To display accounts, press `A`.
 - To reload manually, press `R`.
 - To reset the state of the node, press `CMD+R`.
-- To see help, press `H`.
 - To stop `gnodev`, press `CMD+C`.
 
 ### Options
 
-| Flag       | Effect                                              |
-|------------|-----------------------------------------------------|
-| --minimal  | Start `gnodev` without loading the examples folder. |
-| --no-watch | Disable hot reload.                                 |
+| Flag                | Effect                                                  |
+|---------------------|---------------------------------------------------------|
+| --minimal           | Start `gnodev` without loading the examples folder.     |
+| --no-watch          | Disable hot reload.                                     |
+| --add-user          | Pre-add user(s) in the form <user>(:<amount>)           |
+| --balances-file     | Load a balance for the user(s) from a balance file.     |
+| --chain-id          | Set node ChainID                                        |
+| --genesis-creator   | Name or bech32 address of the genesis creator           |
+| --home              | Set the path to load user's Keybase.                    |
+| --max-gas           | Set the maximum gas per block                           |
+| --no-replay         | Do not replay previous transactions upon reload         |
+| --node-rpc-listener | listening address for GnoLand RPC node                  |
+| --root              | gno root directory                                      |
+| --server-mode       | disable interaction, and adjust logging for server use. |
+| --verbose           | enable verbose output for development                   |
+| --web-listener      | web server listening address                            |

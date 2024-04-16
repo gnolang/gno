@@ -3,7 +3,7 @@ GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../../)
 GOBUILD_FLAGS := -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 
 install:
-	go install $(GOBUILD_FLAGS) .
+	go install $(GOBUILD_FLAGS) ./cmd/gnodev
 
 build:
-	go build $(GOBUILD_FLAGS) -o build/gnodev ./cmd/gno
+	go build $(GOBUILD_FLAGS) -o build/gnodev ./cmd/gnodev
