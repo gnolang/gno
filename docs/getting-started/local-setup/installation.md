@@ -1,20 +1,19 @@
 ---
-id: local-setup
+id: installation
 ---
 
-# Local Setup
+# Installation
 
 ## Overview
-
-In this tutorial, you will learn how to set up the Gno development environment locally, so you
-can get up and running writing Gno code. You will download and install all the necessary tooling,
-and validate that they are correctly configured to run on your machine.
+In this tutorial, you will learn how to set up the Gno development environment 
+locally, so you can get up and running writing Gno code. You will download and 
+install all the necessary tooling, and validate that they are correctly 
+configured to run on your machine.
 
 ## Prerequisites
-
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 19+**
+- **Go 1.19+**
 - **Go Environment Setup**:
   - Make sure `$GOPATH` is well-defined, and `$GOPATH/bin` is added to your `$PATH` variable.
   - To do this, you can add the following line to your `.bashrc`, `.zshrc` or other config file:
@@ -24,20 +23,20 @@ export PATH=$GOPATH/bin:$PATH
 ```
 
 ## 1. Cloning the repository
-
-To get started with a local Gno.land development environment, you must clone the GitHub repository
-somewhere on disk:
+To get started with a local Gno.land development environment, you must clone the
+GitHub repository somewhere on disk:
 
 ```bash
 git clone https://github.com/gnolang/gno.git
 ```
 
 ## 2. Installing the `gno` development toolkit
-
 Next, we are going to build and install the `gno` development toolkit.
-`gno` provides ample functionality to the user, among which is running, transpiling, testing and building `.gno` files.
+`gno` provides ample functionality to the user, among which is running,
+transpiling, testing and building `.gno` files.
 
-To install the toolkit, navigate to the `gnovm` folder from the repository root, and run the `build` make directive:
+To install the toolkit, navigate to the `gnovm` folder from the repository root,
+and run the `build` make directive:
 
 ```bash
 cd gnovm
@@ -75,10 +74,10 @@ go run ./cmd/gno --help
 
 The next step is to install several other tools that are required for the Gno development environment, like
 
-- `gnoland` - the Gno [blockchain node](setting-up-a-local-chain.md)
+- `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
 - `gnokey` - the Gno [private key manager](working-with-key-pairs.md)
-- `gnoweb` - the Gno [source code viewer](browsing-gno-source-code.md)
-- `gnofaucet` - the Gno [native currency faucet](../../gno-tooling/cli/faucet/faucet.md)
+
+To build `gnodev`, simply run
 
 To build these tools, from the root directory navigate to the `gno.land` sub-folder, and run the `build` make
 directive:
