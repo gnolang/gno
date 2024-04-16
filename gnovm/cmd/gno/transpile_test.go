@@ -80,6 +80,8 @@ pkg/file.gno:60:20: ugly error`,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := parseGoBuildErrors(tt.output)
 
 			assert.Equal(t, tt.expectedError, err)

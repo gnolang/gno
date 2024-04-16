@@ -3,6 +3,8 @@ package gnomod
 import (
 	"errors"
 	"fmt"
+	"go/parser"
+	gotoken "go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,23 +65,12 @@ func writePackage(remote, basePath, pkgPath string) (requirements []string, err 
 	} else {
 		// Is File
 		// Transpile and write generated go file
-		if strings.HasSuffix(fileName, ".gno") {
-			filePath := filepath.Join(basePath, pkgPath)
-			targetFilename, _ := transpiler.TranspiledFilenameAndTags(filePath)
-			transpileRes, err := transpiler.Transpile(string(res.Data), "", fileName)
-			if err != nil {
-				return nil, fmt.Errorf("transpile: %w", err)
-			}
-
-			for _, i := range transpileRes.Imports {
-				requirements = append(requirements, i.Path.Value)
-			}
-
-			targetFileNameWithPath := filepath.Join(basePath, dirPath, targetFilename)
-			err = os.WriteFile(targetFileNameWithPath, []byte(transpileRes.Translated), 0o644)
-			if err != nil {
-				return nil, fmt.Errorf("writefile %q: %w", targetFileNameWithPath, err)
-			}
+		file, err := parser.ParseFile(gotoken.NewFileSet(), fileName, res.Data, parser.ImportsOnly)
+		if err != nil {
+			return nil, fmt.Errorf("parse gno file: %w", err)
+		}
+		for _, i := range file.Imports {
+			requirements = append(requirements, i.Path.Value)
 		}
 
 		// Write file

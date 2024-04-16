@@ -184,8 +184,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 				continue
 			}
 
-			if strings.HasPrefix(path, transpiler.ImportPrefix) {
-				path = strings.TrimPrefix(path, transpiler.ImportPrefix+"/examples/")
+			if !transpiler.IsStdlib(path) {
 				modFile.AddNewRequire(path, "v0.0.0-latest", true)
 			}
 		}
