@@ -82,48 +82,6 @@ func ParseFloatLiteral(bytes []byte) (float64, error) {
 	return f, nil
 }
 
-func ParseIntLiteral(bytes []byte) (int64, error) {
-	if len(bytes) == 0 {
-		return 0, errors.New("JSON Error: empty byte slice found while parsing integer value")
-	}
-
-	neg, bytes := trimNegativeSign(bytes)
-
-	var n uint64 = 0
-	for _, c := range bytes {
-		if notDigit(c) {
-			return 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
-		}
-
-		if n > maxUint64/10 {
-			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
-		}
-
-		n *= 10
-
-		n1 := n + uint64(c-'0')
-		if n1 < n {
-			return 0, errors.New("JSON Error: numeric value exceeds the range limit")
-		}
-
-		n = n1
-	}
-
-	if n > maxInt64 {
-		if neg && n == absMinInt64 {
-			return -absMinInt64, nil
-		}
-
-		return 0, errors.New("JSON Error: numeric value exceeds the range limit")
-	}
-
-	if neg {
-		return -int64(n), nil
-	}
-
-	return int64(n), nil
-}
-
 // extractMantissaAndExp10 parses a byte slice representing a decimal number and extracts the mantissa and the exponent of its base-10 representation.
 // It iterates through the bytes, constructing the mantissa by treating each byte as a digit.
 // If a decimal point is encountered, the function keeps track of the position of the decimal point to calculate the exponent.
@@ -147,7 +105,7 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 			continue
 		}
 
-		if notDigit(c) {
+		if !isNumber(c) {
 			return 0, 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
 		}
 
@@ -175,8 +133,8 @@ func trimNegativeSign(bytes []byte) (bool, []byte) {
 	return false, bytes
 }
 
-func notDigit(c byte) bool {
-	return (c & 0xF0) != 0x30
+func isNumber(c byte) bool {
+	return (c & 0xF0) == 0x30
 }
 
 // lower converts a byte to lower case if it is an uppercase letter.

@@ -28,6 +28,10 @@ func newBuffer(data []byte) *buffer {
 	}
 }
 
+func (b *buffer) reset() {
+	b.last = GO
+}
+
 // first retrieves the first non-whitespace (or other escaped) character in the buffer.
 func (b *buffer) first() (byte, error) {
 	for ; b.index < b.length; b.index++ {
@@ -483,3 +487,142 @@ func numberKind2f64(value interface{}) (result float64, err error) {
 
 	return
 }
+
+func (b *buffer) nextToken() (string, error) {
+	var token strings.Builder
+
+	c, err := b.first()
+	if err != nil {
+		return "", err
+	}
+
+	switch {
+	case isNumber(c):
+		token.WriteByte(c)
+		b.next()
+
+		for b.index < b.length && (isNumber(b.data[b.index]) || b.data[b.index] == dot) {
+			token.WriteByte(b.data[b.index])
+			b.next()
+		}
+	case isAlpha(c):
+		for b.index < b.length && isAlpha(b.data[b.index]) {
+			token.WriteByte(b.data[b.index])
+			b.next()
+		}
+	case isQuote(c):
+        quote := c
+        token.WriteByte(c)
+        b.index++
+        for b.index < b.length && b.data[b.index] != quote {
+            token.WriteByte(b.data[b.index])
+            b.index++
+        }
+        if b.index < b.length {
+            token.WriteByte(b.data[b.index])
+            b.index++
+        }
+	case isVariable(c):
+        token.WriteByte(c)
+        b.index++
+        for b.index < b.length && isAlphaNumeric(b.data[b.index]) {
+            token.WriteByte(b.data[b.index])
+            b.index++
+        }
+	default:
+		token.WriteByte(c)
+		b.next()
+	}
+
+	return token.String(), nil
+}
+
+func isAlpha(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
+func isAlphaNumeric(c byte) bool {
+    return isAlpha(c) || isNumber(c) || c == '_'
+}
+
+func isQuote(c byte) bool {
+	return c == doubleQuote || c == singleQuote
+}
+
+func isVariable(c byte) bool {
+    return c == '@' || c == '$'
+}
+
+var (
+    ErrInvalidSymbol        = errors.New("invalid symbol")
+    ErrMissingLeftParen     = errors.New("missing left parenthesis")
+    ErrInvalidOperationFunc = errors.New("invalid operation or function")
+)
+
+var binOps = map[string]int {
+	"+": 1,
+    "-": 1,
+    "*": 2,
+    "/": 2,
+    "^": 3,
+    "%": 2,
+}
+
+func isOperation(s string) bool {
+	_, ok := binOps[s]
+	return ok
+}
+
+func operationPriority(op string) int {
+	if p, ok := binOps[op]; ok {
+		return p
+	}
+
+	return 0
+}
+
+var reservedFunc = map[string]bool{
+	"add": true,
+}
+
+func (b *buffer) processOperation(token string, stack *[]string, result *[]string) error {
+    for len(*stack) > 0 {
+        top := (*stack)[len(*stack)-1]
+        if isFunction(top) || (isOperation(top) && operationPriority(top) >= operationPriority(token)) {
+            *result = append(*result, top)
+            *stack = (*stack)[:len(*stack)-1]
+        } else {
+            break
+        }
+    }
+    *stack = append(*stack, token)
+    return nil
+}
+
+func isFunction(s string) bool {
+	return reservedFunc[s]
+}
+
+// func (b *buffer) rpn() ([]string, error) {
+// 	var (
+// 		stack, result []string
+// 		token 	   string
+// 	)
+
+// 	for {
+// 		b.reset()
+
+// 		token, err := b.nextToken()
+// 		if err != nil {
+// 			if err == io.EOF {
+// 				break
+// 			}
+// 			return nil, err
+// 		}
+
+// 		switch {
+// 		case isOperator(token):
+// 			if err := b.
+// 		}
+// 	}
+// }
