@@ -175,7 +175,12 @@ func SignHandler(cfg *SignCfg) (*std.Tx, error) {
 	chainID := cfg.ChainID
 	accountNumber := cfg.AccountNumber
 	sequence := cfg.Sequence
-	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
+
+	signbz, err := tx.GetSignBytes(chainID, accountNumber, sequence)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get tx signature payload, %w", err)
+	}
+
 	if cfg.ShowSignBytes {
 		fmt.Printf("sign bytes: %X\n", signbz)
 		return nil, nil
