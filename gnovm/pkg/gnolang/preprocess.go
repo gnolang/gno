@@ -1245,7 +1245,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
 				t := evalStaticTypeOf(store, last, n.X)
-				if _, ok := baseOf(t).(*InterfaceType); !ok {
+				baseType := baseOf(t) // The base type of the asserted value must be an interface.
+				switch bt := baseType.(type) {
+				case *InterfaceType:
+					break
+				case *NativeType:
+					if bt.Type.Kind() == reflect.Interface {
+						break
+					}
+				default:
 					panic(
 						fmt.Sprintf(
 							"invalid operation: %s (variable of type %s) is not an interface",
@@ -1254,6 +1262,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						),
 					)
 				}
+
 				evalStaticType(store, last, n.Type)
 
 			// TRANS_LEAVE -----------------------
