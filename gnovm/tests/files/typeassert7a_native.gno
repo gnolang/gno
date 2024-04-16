@@ -39,5 +39,5 @@ func main() {
 
 // Output:
 // ok
-// non-concrete gonative{io.Reader} doesn't implement gonative{io.Reader}
+// interface conversion: interface is nil, not gonative{io.Reader}
 // ok

@@ -55,8 +55,8 @@ func main() {
 }
 
 // Output:
-// non-concrete interface{} doesn't implement interface{Set func(string)()}
-// non-concrete main.Setter doesn't implement interface{Set func(string)()}
+// interface conversion: interface is nil, not main.Setter
+// interface conversion: interface is nil, not main.Setter
 // ok
 // main.ValueSetter doesn't implement interface{Set func(string)()}
 // ok
