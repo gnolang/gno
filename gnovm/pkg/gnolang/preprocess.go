@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -95,7 +96,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
 // It is a counter because Preprocess() is recursive.
-var preprocessing int
+// As a global counter, use lockless atomic to support concurrency.
+var preprocessing atomic.Int32
 
 // Preprocess n whose parent block node is ctx. If any names
 // are defined in another file, generally you must call
@@ -116,12 +118,8 @@ var preprocessing int
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// Increment preprocessing counter while preprocessing.
-	{
-		preprocessing += 1
-		defer func() {
-			preprocessing -= 1
-		}()
-	}
+	preprocessing.Add(1)
+	defer preprocessing.Add(-1)
 
 	if ctx == nil {
 		// Generally a ctx is required, but if not, it's ok to pass in nil.
@@ -2521,7 +2519,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 						nidt.String()))
 				}
 				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
+				if reflect.PointerTo(nxt.Type).AssignableTo(nidt) {
 					return // ok
 				} else {
 					panic(fmt.Sprintf(
@@ -2546,7 +2544,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		//nolint:misspell
 		if enxt, ok := pxt.Elt.(*NativeType); ok {
 			xt = &NativeType{
-				Type: reflect.PtrTo(enxt.Type),
+				Type: reflect.PointerTo(enxt.Type),
 			}
 		}
 	}
@@ -2554,7 +2552,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		// *gonative{x} is gonative{*x}
 		if endt, ok := pdt.Elt.(*NativeType); ok {
 			dt = &NativeType{
-				Type: reflect.PtrTo(endt.Type),
+				Type: reflect.PointerTo(endt.Type),
 			}
 		}
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -17,18 +19,19 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	// backup "github.com/gnolang/tx-archive/backup/client"
 	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 type NodeConfig struct {
-	PackagesPathList      []string
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
-	NoReplay              bool
-	MaxGasPerBlock        int64
-	ChainID               string
+	PackagesPathList []string
+	TMConfig         *tmcfg.Config
+	NoReplay         bool
+	MaxGasPerBlock   int64
+	ChainID          string
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
@@ -36,11 +39,10 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 
 	return &NodeConfig{
-		ChainID:               tmc.ChainID(),
-		PackagesPathList:      []string{},
-		TMConfig:              tmc,
-		SkipFailingGenesisTxs: true,
-		MaxGasPerBlock:        10_000_000_000,
+		ChainID:          tmc.ChainID(),
+		PackagesPathList: []string{},
+		TMConfig:         tmc,
+		MaxGasPerBlock:   10_000_000_000,
 	}
 }
 
@@ -79,6 +81,8 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
+
+	logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
 
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
@@ -125,6 +129,7 @@ func (d *Node) GetRemoteAddress() string {
 // UpdatePackages updates the currently known packages. It will be taken into
 // consideration in the next reload of the node.
 func (d *Node) UpdatePackages(paths ...string) error {
+	var n int
 	for _, path := range paths {
 		// List all packages from target path
 		pkgslist, err := gnomod.ListPkgs(path)
@@ -135,9 +140,13 @@ func (d *Node) UpdatePackages(paths ...string) error {
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
 			d.pkgs[pkg.Dir] = pkg
+			d.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
 		}
+
+		n += len(pkgslist)
 	}
 
+	d.logger.Info(fmt.Sprintf("updated %d pacakges", n))
 	return nil
 }
 
@@ -228,6 +237,36 @@ func (d *Node) Reload(ctx context.Context) error {
 
 	d.emitter.Emit(&events.Reload{})
 	return nil
+}
+
+func (d *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+	if res.IsErr() {
+		// XXX: for now, this is only way to catch the error
+		before, after, found := strings.Cut(res.Log, "\n")
+		if !found {
+			d.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
+			return
+		}
+
+		var attrs []slog.Attr
+
+		// Add error
+		attrs = append(attrs, slog.Any("err", res.Error))
+
+		// Fetch first line as error message
+		msg := strings.TrimFunc(before, func(r rune) bool {
+			return unicode.IsSpace(r) || r == ':'
+		})
+		attrs = append(attrs, slog.String("err", msg))
+
+		// If debug is enable, also append stack
+		if d.logger.Enabled(context.Background(), slog.LevelDebug) {
+			attrs = append(attrs, slog.String("stack", after))
+
+		}
+
+		d.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
+	}
 }
 
 // GetBlockTransactions returns the transactions contained
@@ -322,30 +361,30 @@ func (n *Node) stopIfRunning() error {
 	return nil
 }
 
-func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
+func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
-	nodeConfig.SkipFailingGenesisTxs = n.config.SkipFailingGenesisTxs
+	nodeConfig.GenesisTxHandler = n.genesisTxHandler
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
-
-	var recoverErr error
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
 		if r := recover(); r != nil {
-			var ok bool
-			if recoverErr, ok = r.(error); !ok {
-				panic(r) // Re-panic if not an error.
+			switch val := r.(type) {
+			case error:
+				err = val
+			case string:
+				err = fmt.Errorf("error: %s", val)
+			default:
+				err = fmt.Errorf("unknown error: %#v", val)
 			}
 		}
 	}
 
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
+
 	node, nodeErr := buildNode(n.logger, n.emitter, nodeConfig)
-	if recoverErr != nil { // First check for recover error in case of panic
-		return fmt.Errorf("recovered from a node panic: %w", recoverErr)
-	}
 	if nodeErr != nil { // Then for any node error
 		return fmt.Errorf("unable to build the node: %w", nodeErr)
 	}
@@ -361,8 +400,11 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error
 	return nil
 }
 
+var noopLogger = log.NewNoopLogger()
+
 func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	node, err := gnoland.NewInMemoryNode(logger, cfg)
+	// XXX(TODO): Redirect the node log somewhere else
+	node, err := gnoland.NewInMemoryNode(noopLogger, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a new node: %w", err)
 	}
@@ -371,8 +413,9 @@ func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemo
 		switch data := evt.(type) {
 		case bft.EventTx:
 			resEvt := events.TxResult{
-				Height:   data.Result.Height,
-				Index:    data.Result.Index,
+				Height: data.Result.Height,
+				Index:  data.Result.Index,
+				// XXX: Update this to split error for stack
 				Response: data.Result.Response,
 			}
 
