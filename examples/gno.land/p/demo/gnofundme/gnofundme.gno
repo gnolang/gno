@@ -20,13 +20,6 @@ type Campaign struct {
 	contributors *avl.Tree
 }
 
-type Contributor struct {
-	user    *User
-	date    time.Time
-	amount  uint
-	display bool
-}
-
 func NewCampaign(title string, description string, goal uint, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	return &Campaign{
 		title:        title,

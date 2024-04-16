@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -14,7 +15,7 @@ import (
 var (
 	campaigns      *avl.Tree
 	users          *avl.Tree
-	campaignPrefix = "/r/demo/campaign:"
+	campaignPrefix = "/r/demo/gnofundme:"
 )
 
 func init() {
@@ -89,6 +90,13 @@ func Render(path string) string {
 	if path == "" {
 		return renderHomePage()
 	}
+
+	// split the path
+	parts := strings.Split(path, "/")
+	switch {
+	case len(parts) == 2 && parts[0] == "campaign":
+		return renderCampaign(parts[1])
+	}
 	return "unknown page"
 }
 
@@ -97,54 +105,20 @@ func renderHomePage() string {
 	var b bytes.Buffer
 	// users counter
 	userc := 1
-
-	b.WriteString("# Campaigns list:\n\n")
+	b.WriteString("# Welcome to GnoFundMe\n\n")
+	b.WriteString("# Campaigns :\n\n")
 	campaigns.Iterate("", "", func(key string, value interface{}) bool {
 		c := value.(*pkg.Campaign)
-		campaignURL := ufmt.Sprintf("%s%s:%s", campaignPrefix, key, c.GetTitle())
+		campaignURL := ufmt.Sprintf("%scampaign/%s", campaignPrefix, key)
 		b.WriteString(
-			ufmt.Sprintf("## [Campaign #%s](%s)\n", key, campaignURL),
+			ufmt.Sprintf("## [Campaign %s](%s)\n", key, campaignURL),
 		)
 		b.WriteString(
 			ufmt.Sprintf(
 				"### Description: %s\n", c.GetDescription(),
 			),
 		)
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"#### Goal: %d ", c.GetGoal(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"********** Current: %d\n", c.GetCurrent(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"#### Begin: %s", c.GetBegin().String(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"  ------------->  Deadline: %s\n", c.GetDeadline().String(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"#### Owner: %s\n", c.GetOwner().GetName(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"#### Beneficiary: %s\n", c.GetBeneficiary().GetName(),
-		// 	),
-		// )
-		// b.WriteString(
-		// 	ufmt.Sprintf(
-		// 		"#### Contributors: %d\n", len(c.GetContributors()),
-		// 	),
-		// )
+
 		return false
 	})
 	b.WriteString("# Users:\n")
@@ -164,5 +138,81 @@ func renderHomePage() string {
 		userc++
 		return false
 	})
+	return b.String()
+}
+
+func renderCampaign(id string) string {
+	// get the campaign if it exists
+	campaign, ok := campaigns.Get(id)
+	if !ok {
+		return "campaign not found"
+	}
+
+	// define empty buffer
+	var b bytes.Buffer
+	c := campaign.(*pkg.Campaign)
+	b.WriteString(
+		ufmt.Sprintf(
+			"# Campaign %s\n", id,
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"## Description: %s\n", c.GetDescription(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"### Goal: %d ", c.GetGoal(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"********** Current: %d\n", c.GetCurrent(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"### Begin: %s", c.GetBegin().String(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"  ------------->  Deadline: %s\n", c.GetDeadline().String(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"### Owner: %s, %s\n", c.GetOwner().GetName(), c.GetOwner().GetAddress(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"### Beneficiary: %s, %s\n", c.GetBeneficiary().GetName(), c.GetBeneficiary().GetAddress(),
+		),
+	)
+	b.WriteString(
+		ufmt.Sprintf(
+			"## Contributors: %d\n", len(c.GetContributors()),
+		),
+	)
+	if len(c.GetContributors()) != 0 {
+		contributors := c.GetContributors()
+		for _, contributor := range contributors {
+			if contributor.GetDisplay() {
+				b.WriteString(
+					ufmt.Sprintf(
+						"### %s: %d\n", contributor.GetUser().GetName(), contributor.GetAmount(),
+					),
+				)
+			} else {
+				b.WriteString(
+					ufmt.Sprintf(
+						"### Anonymous: %d\n", contributor.GetAmount(),
+					),
+				)
+			}
+		}
+	}
 	return b.String()
 }
