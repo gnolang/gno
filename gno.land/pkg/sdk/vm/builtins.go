@@ -41,7 +41,6 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetNativeStore(stdlibs.NativeStore)
-	stdlibs.InjectNativeMappings(store)
 }
 
 // ----------------------------------------

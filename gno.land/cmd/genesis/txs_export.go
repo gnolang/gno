@@ -20,7 +20,7 @@ func newTxsExportCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "txs export [flags] <output-path>",
-			ShortHelp:  "Exports the transactions from the genesis.json",
+			ShortHelp:  "exports the transactions from the genesis.json",
 			LongHelp:   "Exports the transactions from the genesis.json to an output file",
 		},
 		commands.NewEmptyConfig(),
