@@ -27,6 +27,9 @@ GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
 # We can't use '-trimpath' yet as amino use absolute path from call stack
 # to find some directory: see #1236
 GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+# file where to place cover profile; used for coverage commands which are
+# more complex than adding -coverprofile, like test.cmd.coverage.
+GOTEST_COVER_PROFILE ?= cmd-profile.out
 
 ########################################
 # Dev tools
@@ -65,6 +68,24 @@ test: _test.cmd _test.pkg _test.gnolang
 .PHONY: _test.cmd
 _test.cmd:
 	go test ./cmd/... $(GOTEST_FLAGS)
+
+# Run tests on ./cmd/, saving the result of the coverage in
+# GOTEST_COVER_PROFILE.
+.PHONY: test.cmd.coverage
+test.cmd.coverage:
+	$(eval export TXTARCOVERDIR := $(shell mktemp -d --tmpdir gnovm-make.XXXXXXX))
+	go test ./cmd/... -covermode atomic -test.gocoverdir='$(TXTARCOVERDIR)' $(GOTEST_FLAGS)
+	@echo "coverage results:"
+	go tool covdata percent -i="$(TXTARCOVERDIR)"
+	go tool covdata textfmt -v 1 -i="$(TXTARCOVERDIR)" -o '$(GOTEST_COVER_PROFILE)'
+	rm -rf "$(TXTARCOVERDIR)"
+
+# Run test.cmd.coverage, then view the result in the HTML browser render
+# and delete the original file.
+.PHONY: test.cmd.coverage_view
+test.cmd.coverage_view: test.cmd.coverage
+	go tool cover -html='$(GOTEST_COVER_PROFILE)'
+	rm '$(GOTEST_COVER_PROFILE)'
 
 .PHONY: _test.pkg
 _test.pkg:

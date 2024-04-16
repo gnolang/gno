@@ -295,7 +295,7 @@ func goBuildFileOrPkg(fileOrPkg string, cfg *transpileCfg) error {
 		fmt.Fprintf(os.Stderr, "%s [build]\n", fileOrPkg)
 	}
 
-	return transpiler.TranspileBuildPackage(fileOrPkg, goBinary)
+	return buildTranspiledPackage(fileOrPkg, goBinary)
 }
 
 // getPathsFromImportSpec returns the directory paths where the code for each
@@ -383,7 +383,7 @@ var (
 // TODO(tb): update when `go build -json` is released to replace regexp usage.
 // See https://github.com/golang/go/issues/62067
 func parseGoBuildErrors(out string) error {
-	var errList goscanner.ErrorList
+	var errList scanner.ErrorList
 	matches := errorRe.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		filename := match[1]

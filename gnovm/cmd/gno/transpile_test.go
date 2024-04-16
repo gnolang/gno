@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go/scanner"
 	"go/token"
 	"testing"
 
@@ -43,8 +44,8 @@ func Test_parseGoBuildErrors(t *testing.T) {
 		{
 			name:   "random output",
 			output: "xxx",
-			expectedError: goscanner.ErrorList{
-				&goscanner.Error{
+			expectedError: scanner.ErrorList{
+				&scanner.Error{
 					Msg: "Additional go build errors:\nxxx",
 				},
 			},
@@ -54,8 +55,8 @@ func Test_parseGoBuildErrors(t *testing.T) {
 			output: `xxx
 main.gno:6:2: nasty error
 pkg/file.gno:60:20: ugly error`,
-			expectedError: goscanner.ErrorList{
-				&goscanner.Error{
+			expectedError: scanner.ErrorList{
+				&scanner.Error{
 					Pos: token.Position{
 						Filename: "main.gno",
 						Line:     6,
@@ -63,7 +64,7 @@ pkg/file.gno:60:20: ugly error`,
 					},
 					Msg: "nasty error",
 				},
-				&goscanner.Error{
+				&scanner.Error{
 					Pos: token.Position{
 						Filename: "pkg/file.gno",
 						Line:     60,
@@ -71,7 +72,7 @@ pkg/file.gno:60:20: ugly error`,
 					},
 					Msg: "ugly error",
 				},
-				&goscanner.Error{
+				&scanner.Error{
 					Msg: "Additional go build errors:\nxxx",
 				},
 			},
