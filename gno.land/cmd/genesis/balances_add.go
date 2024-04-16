@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/gnolang/gno/gno.land/pkg/balances"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -93,11 +92,11 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 		return errNoBalanceSource
 	}
 
-	finalBalances := balances.New()
+	finalBalances := gnoland.NewBalances()
 
 	// Get the balance sheet from the source
 	if singleEntriesSet {
-		balances, err := balances.GetBalancesFromEntries(cfg.singleEntries...)
+		balances, err := gnoland.GetBalancesFromEntries(cfg.singleEntries...)
 		if err != nil {
 			return fmt.Errorf("unable to get balances from entries, %w", err)
 		}
@@ -112,7 +111,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 			return fmt.Errorf("unable to open balance sheet, %w", loadErr)
 		}
 
-		balances, err := balances.GetBalancesFromSheet(file)
+		balances, err := gnoland.GetBalancesFromSheet(file)
 		if err != nil {
 			return fmt.Errorf("unable to get balances from balance sheet, %w", err)
 		}
@@ -184,8 +183,8 @@ func getBalancesFromTransactions(
 	ctx context.Context,
 	io commands.IO,
 	reader io.Reader,
-) (balances.Balances, error) {
-	balances := balances.New()
+) (gnoland.Balances, error) {
+	balances := gnoland.NewBalances()
 
 	scanner := bufio.NewScanner(reader)
 
@@ -235,7 +234,7 @@ func getBalancesFromTransactions(
 				// This way of determining final account balances is not really valid,
 				// because we take into account only the ugnot transfer messages (MsgSend)
 				// and not other message types (like MsgCall), that can also
-				// initialize accounts with some balances. Because of this,
+				// initialize accounts with some gnoland. Because of this,
 				// we can run into a situation where a message send amount or fee
 				// causes an accounts balance to go < 0. In these cases,
 				// we initialize the account (it is present in the balance sheet), but
@@ -286,9 +285,9 @@ func getBalancesFromTransactions(
 
 // mapGenesisBalancesFromState extracts the initial account balances from the
 // genesis app state
-func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (balances.Balances, error) {
+func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (gnoland.Balances, error) {
 	// Construct the initial genesis balance sheet
-	genesisBalances := balances.New()
+	genesisBalances := gnoland.NewBalances()
 
 	for _, balance := range state.Balances {
 		genesisBalances[balance.Address] = balance
