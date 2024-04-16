@@ -7,7 +7,6 @@ RUN         go mod download
 ADD         . ./
 RUN         go build -o ./build/gnoland   ./gno.land/cmd/gnoland
 RUN         go build -o ./build/gnokey    ./gno.land/cmd/gnokey
-RUN         go build -o ./build/gnofaucet ./contribs/gnofaucet
 RUN         go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
 RUN         go build -o ./build/gno       ./gnovm/cmd/gno
 RUN         ls -la ./build
