@@ -29,12 +29,7 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno
-	@if ! command -v gnodev > /dev/null; then \
-		echo ------------------------------; \
-		echo "For local realm development, gnodev is recommended: https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev"; \
-		echo "You can install it by calling 'make install.gnodev'"; \
-	fi
+install: install.gnokey install.gno install.gnodev
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
