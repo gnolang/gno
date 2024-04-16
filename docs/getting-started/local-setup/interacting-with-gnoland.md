@@ -24,7 +24,10 @@ testnet. We can access the Portal Loop faucet by visiting its
 [faucet page](https://gno.land/faucet). Here, you can input your Gno address and receive testnet GNOTs.
 
 ## 2. Visit a realm
-.
+For this example, we will use the GNOT wrapper realm. This realm can be found on
+[gno.land/r/demo/wugnot](https://gno.land/r/demo/wugnot), and serves the purpose
+of wrapping native GNOTs into a GRC20 standard token.
+
 
 
 
