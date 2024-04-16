@@ -39,18 +39,18 @@ gnodev ./myrealm
 
 ## Keybase and Balance
 
-Gnodev will by default, load your keybase located in GNOHOME directory.
-Given all you keys an (almost unlimited found).
+Gnodev will, by default, load your keybase located in the GNOHOME directory, giving all your keys (almost) unlimited fund. 
 
-All realm will be upload by the `-genesis-creator`, but You can also pass query
-options to realm path load a realm with specific creator and deposit:
+All realms will be by the `-genesis-creator`, but You can also pass query options to the realm path to load a
+realm with specific creator and deposit:
 ```
 gnodev ./myrealm?creator=foo&deposit=42ugnot``
 ```
 
 ### Additional User
-Use `-add-user` flag in the format <user>(:<amount>) to add temporary users. You can repeat this to add multiple users.
-Addresses of those will be display at runtime, or by pressing `A` interactivly to display accounts.
+Use `-add-user` flag in the format <user>(:<amount>) to add temporary users. You can repeat this to add
+multiple users. Addresses of those will be displayed at runtime, or by pressing `A` interactively to display
+accounts.
 
 ## Interactive Usage
 
