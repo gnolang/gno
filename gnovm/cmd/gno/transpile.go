@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -292,7 +291,7 @@ func goBuildFileOrPkg(fileOrPkg string, cfg *transpileCfg) error {
 	goBinary := cfg.goBinary
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "%s [build]\n", fileOrPkg)
+		fmt.Fprintf(os.Stderr, "%s [build]\n", filepath.Clean(fileOrPkg))
 	}
 
 	return buildTranspiledPackage(fileOrPkg, goBinary)
@@ -324,45 +323,38 @@ func buildTranspiledPackage(fileOrPkg, goBinary string) error {
 	// TODO: find the nearest go.mod file, chdir in the same folder, trim prefix?
 	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
 	// TODO: ignore .go files that were not generated from gno?
-	// TODO: automatically transpile if not yet done.
-
-	files := []string{}
 
 	info, err := os.Stat(fileOrPkg)
 	if err != nil {
 		return fmt.Errorf("invalid file or package path %s: %w", fileOrPkg, err)
 	}
+	var (
+		target string
+		chdir  string
+	)
 	if !info.IsDir() {
-		file := fileOrPkg
-		files = append(files, file)
+		dstFilename, _ := transpiler.TranspiledFilenameAndTags(fileOrPkg)
+		// Makes clear to go compiler that this is a relative path,
+		// rather than a path to a package/module.
+		// can't use filepath.Join as it cleans its results.
+		target = filepath.Dir(fileOrPkg) + string(filepath.Separator) + dstFilename
 	} else {
-		pkgDir := fileOrPkg
-		goGlob := filepath.Join(pkgDir, "*.go")
-		goMatches, err := filepath.Glob(goGlob)
-		if err != nil {
-			return fmt.Errorf("glob %s: %w", goGlob, err)
-		}
-		for _, goMatch := range goMatches {
-			switch {
-			case strings.HasPrefix(goMatch, "."): // skip
-			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-			default:
-				if !filepath.IsAbs(pkgDir) {
-					// Makes clear to go compiler that this is a relative path,
-					// rather than a path to a package/module.
-					// can't use filepath.Join as it cleans its results.
-					goMatch = "." + string(filepath.Separator) + goMatch
-				}
-				files = append(files, goMatch)
-			}
+		target = fileOrPkg
+		if filepath.IsAbs(target) {
+			// Go does not allow building packages using absolute paths.
+			// To circumvent this, we use the -C flag to chdir into the right
+			// directory, then run `go build .`
+			chdir = target
+			target = "."
 		}
 	}
 
-	sort.Strings(files)
-	args := append([]string{"build", "-tags=gno"}, files...)
+	// pre-alloc max 5 args
+	args := append(make([]string, 0, 5), "build")
+	if chdir != "" {
+		args = append(args, "-C", chdir)
+	}
+	args = append(args, "-tags=gno", target)
 	cmd := exec.Command(goBinary, args...)
 	out, err := cmd.CombinedOutput()
 	if _, ok := err.(*exec.ExitError); ok {

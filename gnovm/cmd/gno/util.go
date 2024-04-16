@@ -29,7 +29,11 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
 		if !info.IsDir() {
-			paths = append(paths, arg)
+			if filepath.IsAbs(arg) {
+				paths = append(paths, arg)
+			} else {
+				paths = append(paths, "."+string(filepath.Separator)+arg)
+			}
 		} else {
 			// if the passed arg is a dir, then we'll recursively walk the dir
 			// and look for directories containing at least one .gno file.
@@ -57,7 +61,7 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 					// cannot use path.Join or filepath.Join, because we need
 					// to ensure that ./ is the prefix to pass to go build.
 					// if not absolute.
-					pkg = "./" + parentDir
+					pkg = "." + string(filepath.Separator) + parentDir
 				}
 
 				paths = append(paths, pkg)
