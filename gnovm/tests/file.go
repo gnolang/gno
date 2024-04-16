@@ -251,7 +251,20 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
-					if errstr != errWanted {
+
+					matches := errstr == errWanted
+					if strings.Contains(errWanted, "*") {
+						if errWanted == "*" {
+							matches = true
+						} else if len(errWanted) > 1 && errWanted[0] == '*' && errWanted[len(errWanted)-1] == '*' {
+							matches = strings.Contains(errstr, errWanted[1:len(errWanted)-1])
+						} else if errWanted[0] == '*' {
+							matches = strings.HasSuffix(errstr, errWanted[1:])
+						} else if errWanted[len(errWanted)-1] == '*' {
+							matches = strings.HasPrefix(errstr, errWanted[:len(errWanted)-1])
+						}
+					}
+					if !matches {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
 
