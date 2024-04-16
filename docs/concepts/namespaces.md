@@ -23,8 +23,9 @@ Here's a breakdown of the structure of a package path:
     - `r/`: [Realm](realms.md)
 - Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a way to group related packages or realms, but currently ownership cannot be claimed. (see [Issue #1107](https://github.com/gnolang/gno/issues/1107) for more info)
 - Remaining Path: The remaining part of the path.
-    - No special characters (except underscore).
-    - Cannot consist solely of underscores. It must have at least one alphanumeric character (letters and numbers).
+    - Can only contain alphanumeric characters (letters and numbers) and underscores.
+    - No special characters allowed (except underscore).
+    - Cannot consist solely of underscores. It must have at least one allowed alphanumeric character.
     - Cannot start with a number. It should begin with a letter.
     - Cannot end with a trailing slash (`/`).
 
