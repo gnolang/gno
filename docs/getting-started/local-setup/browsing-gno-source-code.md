@@ -87,7 +87,7 @@ Additionally, to view the source code for the realm, we have two options:
 
 ![blog_source](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_source.png)
 
-Additionally, the `[help]` button takes us to the realm help page, where you will
+Finally, the `[help]` button takes us to the realm help page, where you will
 be able to see the user-facing API of the realm. 
 
 ![blog_help](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_help.png)
