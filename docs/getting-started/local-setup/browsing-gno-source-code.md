@@ -92,5 +92,5 @@ be able to see the user-facing API of the realm.
 
 ![blog_help](../../assets/getting-started/local-setup/browsing-gno-source-code/blog_help.png)
 
-This page will also allow you to quickly generate `gnokey` commands for easily
-interacting with the realm in question.
+This page will allow you to easily generate `gnokey` commands for interacting 
+with the realm in question. 
