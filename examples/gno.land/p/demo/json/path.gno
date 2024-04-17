@@ -336,7 +336,7 @@ func (b *buffer) findNextToken() error {
 			if c == parenClose {
 				expected = parenOpen
 			}
-			if stack[ls-1] != expected {
+			if rune(stack[ls-1]) != expected {
 				return errors.New("mismatched bracket or parenthesis")
 			}
 			stack = stack[:ls-1]
