@@ -1,7 +1,11 @@
 // This package is used to manage the validator set.
 package validators
 
-import govdao "gno.land/r/gov/dao"
+import (
+	"std"
+
+	govdao "gno.land/r/gov/dao"
+)
 
 type Change struct {
 	Address std.Address
