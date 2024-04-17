@@ -1,8 +1,13 @@
 package core
 
 import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -251,5 +256,22 @@ func UnsafeDialPeers(ctx *rpctypes.Context, peers []string, persistent bool) (*c
 //
 // ```
 func Genesis(ctx *rpctypes.Context) (*ctypes.ResultGenesis, error) {
-	return &ctypes.ResultGenesis{Genesis: genDoc}, nil
+	res, err := loadGenesisRes(stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return &ctypes.ResultGenesis{Genesis: genDoc, Response: res}, nil
+}
+
+func loadGenesisRes(db dbm.DB) (*abci.ResponseInitChain, error) {
+	b := db.Get([]byte("genesisRes"))
+	if len(b) == 0 {
+		return nil, errors.New("Genesis res not found")
+	}
+	var genRes *abci.ResponseInitChain
+	err := amino.UnmarshalJSON(b, &genRes)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load genesis res due to unmarshaling error: %v (bytes: %X)", err, b))
+	}
+	return genRes, nil
 }

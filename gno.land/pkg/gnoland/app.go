@@ -168,6 +168,7 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 		}
 
 		// Run genesis txs.
+		txResponses := make([]abci.ResponseDeliverTx, 0, len(genState.Txs))
 		for _, tx := range genState.Txs {
 			res := baseApp.Deliver(tx)
 			if res.IsErr() {
@@ -180,11 +181,17 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			}
 
 			resHandler(ctx, tx, res)
+			txResponses = append(txResponses, abci.ResponseDeliverTx{
+				ResponseBase: res.ResponseBase,
+				GasWanted:    res.GasWanted,
+				GasUsed:      res.GasUsed,
+			})
 		}
 
 		// Done!
 		return abci.ResponseInitChain{
-			Validators: req.Validators,
+			Validators:  req.Validators,
+			TxResponses: txResponses,
 		}
 	}
 }
