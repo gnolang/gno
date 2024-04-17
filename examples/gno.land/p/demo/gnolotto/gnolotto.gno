@@ -63,18 +63,16 @@ func (l *Lottery) CheckWinners() []std.Address {
 	var winningOwners []std.Address
 
 	for _, ticket := range l.Tickets {
-		matchCount := 0
+		isWinner := true
 
-		for _, tNum := range ticket.Numbers {
-			for _, wNum := range l.WinningNumbers {
-				if tNum == wNum {
-					matchCount++
-					break
-				}
+		for i := 0; i < MaxLottoNumbers; i++ {
+			if ticket.Numbers[i] != l.WinningNumbers[i] {
+				isWinner = false
+				break
 			}
 		}
 
-		if matchCount == len(l.WinningNumbers) {
+		if isWinner {
 			winningOwners = append(winningOwners, ticket.Owner)
 		}
 	}
