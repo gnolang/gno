@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -32,21 +32,12 @@ func TranspileImportPath(s string) string {
 	return ImportPrefix + "/" + PackageDirLocation(s)
 }
 
-// IsStdlib determines whether s is a pkgpath for a standard library.
-func IsStdlib(s string) bool {
-	// NOTE(morgan): this is likely to change in the future as we add support for
-	// IBC/ICS and we allow import paths to other chains. It might be good to
-	// (eventually) follow the same rule as Go, which is: does the first
-	// element of the import path contain a dot?
-	return !strings.HasPrefix(s, "gno.land/")
-}
-
 // PackageDirLocation provides the supposed directory of the package, relative to the root dir.
 //
 // TODO(morgan): move out, this should go in a "resolver" package.
 func PackageDirLocation(s string) string {
 	switch {
-	case !IsStdlib(s):
+	case !gno.IsStdlib(s):
 		return "examples/" + s
 	default:
 		return "gnovm/stdlibs/" + s
@@ -186,7 +177,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			}
 
 			// Create mapping
-			if IsStdlib(importPath) {
+			if gno.IsStdlib(importPath) {
 				if importSpec.Name != nil {
 					ctx.stdlibImports[importSpec.Name.Name] = importPath
 				} else {
@@ -246,7 +237,7 @@ func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) 
 		if !ok {
 			break
 		}
-		if stdlibs.HasMachineParam(ip, gnolang.Name(fe.Sel.Name)) {
+		if stdlibs.HasMachineParam(ip, gno.Name(fe.Sel.Name)) {
 			// Because it's an import, the symbol is always exported, so no need for the
 			// X_ prefix we add below.
 			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
@@ -259,8 +250,8 @@ func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) 
 		// defined scope. However, because native bindings have a narrowly defined and
 		// controlled scope (standard libraries) this will work for our usecase.
 		if ctx.stdlibPath != "" &&
-			stdlibs.HasNativeBinding(ctx.stdlibPath, gnolang.Name(fe.Name)) {
-			if stdlibs.HasMachineParam(ctx.stdlibPath, gnolang.Name(fe.Name)) {
+			stdlibs.HasNativeBinding(ctx.stdlibPath, gno.Name(fe.Name)) {
+			if stdlibs.HasMachineParam(ctx.stdlibPath, gno.Name(fe.Name)) {
 				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
 			}
 			if !fe.IsExported() {

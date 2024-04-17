@@ -28,3 +28,27 @@ func TestIsRealmPath(t *testing.T) {
 		)
 	}
 }
+
+func TestIsStdlib(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		s      string
+		result bool
+	}{
+		{"std", true},
+		{"math", true},
+		{"very/long/path/with_underscores", true},
+		{"gno.land/r/demo/users", false},
+		{"gno.land/hello", false},
+	}
+
+	for _, tc := range tt {
+		assert.Equal(
+			t,
+			tc.result,
+			IsStdlib(tc.s),
+			"IsStdlib(%q)", tc.s,
+		)
+	}
+}

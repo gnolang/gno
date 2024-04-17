@@ -91,7 +91,7 @@ func GnoToGoMod(f File) (*File, error) {
 
 	gnoModPath := GetGnoModPath()
 
-	if !transpiler.IsStdlib(f.Module.Mod.Path) {
+	if !gnolang.IsStdlib(f.Module.Mod.Path) {
 		f.AddModuleStmt(transpiler.TranspileImportPath(f.Module.Mod.Path))
 	}
 
@@ -103,7 +103,7 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if !transpiler.IsStdlib(path) {
+		if !gnolang.IsStdlib(path) {
 			// Add dependency with a modified import path
 			f.AddRequire(transpiler.TranspileImportPath(path), f.Require[i].Mod.Version)
 		}

@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -184,7 +184,7 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 				continue
 			}
 
-			if !transpiler.IsStdlib(path) {
+			if !gno.IsStdlib(path) {
 				modFile.AddNewRequire(path, "v0.0.0-latest", true)
 			}
 		}

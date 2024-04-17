@@ -1131,12 +1131,16 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	}
 	allowedFileExtensions := []string{
 		".gno",
+	}
+	// exceptions to allowedFileExtensions
+	var rejectedFileExtensions []string
+
+	if IsStdlib(pkgPath) {
 		// Allows transpilation to work on stdlibs with native fns.
-		".go",
+		allowedFileExtensions = append(allowedFileExtensions, ".go")
+		rejectedFileExtensions = []string{".gen.go"}
 	}
-	rejectedFileExtensions := []string{
-		".gen.go",
-	}
+
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
