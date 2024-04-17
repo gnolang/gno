@@ -1904,7 +1904,11 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushOp(OpEval)
 	case *StarExpr:
 		// evaluate X (a reference)
-		m.PushExpr(lx.X)
+		if lx.IsLHS {
+			m.PushExpr(&RefExpr{X: lx.X})
+		} else {
+			m.PushExpr(lx.X)
+		}
 		m.PushOp(OpEval)
 	case *CompositeLitExpr: // for *RefExpr e.g. &mystruct{}
 		// evaluate lx.

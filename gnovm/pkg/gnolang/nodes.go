@@ -440,7 +440,8 @@ type SliceExpr struct { // X[Low:High:Max]
 // expression, or a pointer type.
 type StarExpr struct { // *X
 	Attributes
-	X Expr // operand
+	IsLHS bool // if true, is left-hand side of assignment
+	X     Expr // operand
 }
 
 type RefExpr struct { // &X

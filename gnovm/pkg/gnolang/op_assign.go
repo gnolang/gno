@@ -31,25 +31,48 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		var lhsIsStarExpr bool
 		lhsExpr := s.Lhs[i]
-		if _, lhsIsStarExpr = lhsExpr.(*StarExpr); lhsIsStarExpr {
-			// We need to unwrap the lhs value to get to the pointer's base and index.
-			lhsExpr = lhsExpr.(*StarExpr).X
-			// We didn't know this star expression was the left hand side of an assingment,
-			// so we need to pop the value off the stack.
-			m.PopValue()
-		}
+		_, lhsIsStarExpr := lhsExpr.(*StarExpr)
+		rv := rvs[i]
 
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(lhsExpr)
 		if lhsIsStarExpr {
-			// Copy over the base and index so the pointer value gets updated in Assign2.
-			// These base and index values will not be persisted.
-			newLV := lv.TV.V.(PointerValue)
-			newLV.Base = lv.Base
-			newLV.Index = lv.Index
-			lv = newLV
+			rvCopy := rv.Copy(m.Alloc)
+
+			if lvPtrValue := lv.TV.V.(PointerValue); lvPtrValue.Base == nil {
+				// The LHS is a star expression and the pointer value it is referring to has no base.
+				// It must have been set in one two ways:
+				//   1. assigned to a value using the `new()` function
+				//   2. assigned to a literal pointer like &Type{}
+				//
+				// If there are any other references to this value, they can only be in the local scope,
+				// and any other references will be updated accordingly if the value is changed before
+				// this is persisted to the realm (if it is persisted to the realm.
+				rv = TypedValue{
+					T: lv.TV.T,
+					V: PointerValue{
+						TV: &rvCopy,
+						// Base:  lv.TV.V.(PointerValue).Base,
+						// Index: lv.TV.V.(PointerValue).Index,
+					},
+				}
+			} else {
+				// The LHS has an underlying value of a pointer with a base, so construct a new
+				// PointerValue for the RHS with a pointer to the existing LHS value and then overwrite
+				// that pointer's TypeValue with a copy of the RHS value. This ensures that the value of
+				// the LHS's base value is also updated. The only reason a new TypedValue is created here
+				// is because of how the `Assign2` method works.
+				rv = TypedValue{
+					T: lv.TV.T,
+					V: PointerValue{
+						TV:    lv.TV.V.(PointerValue).TV,
+						Base:  lv.TV.V.(PointerValue).Base,
+						Index: lv.TV.V.(PointerValue).Index,
+					},
+				}
+				*rv.V.(PointerValue).TV = rvCopy
+			}
 		}
 
 		// XXX HACK (until value persistence impl'd)
@@ -60,7 +83,7 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
-		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		lv.Assign2(m.Alloc, m.Store, m.Realm, rv, true)
 	}
 }
 
