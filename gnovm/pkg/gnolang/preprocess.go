@@ -750,7 +750,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// check LHS type compatibility
 					n.checkShiftExpr(lt)
 					// checkOrConvert RHS
-					if baseOf(rt) != UintType {
+					if baseOf(rt) != UintType { // convert rhs of shift expr to uint
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
 						// reset/create n2 to preprocess right child.
@@ -777,20 +777,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
 						// refer to 0a0_filetest
-						if !isShift {
+						if !isShift { // rhs of shift expr has already been converted to uint
 							cmp := cmpSpecificity(lcx.T, rcx.T)
 							if cmp < 0 {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 							} else if cmp == 0 {
-								// to typed-nil. refer to 0f46
-								if lcx.T == nil {
-									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
-								} else if rcx.T == nil {
-									checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
-								} else {
-									checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
-								}
+								checkOrConvertType(store, last, &n.Left, rcx.T, false, false)
 							} else {
 								// convert n.Right to left type.
 								checkOrConvertType(store, last, &n.Right, lcx.T, false, false)
@@ -800,7 +793,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) { // left untyped const -> right not const
-						// Left untyped const, Right not const ----------------
 						if rnt, ok := rt.(*NativeType); ok { // untyped -> gno(native), e.g. 1*time.Second
 							if isShift { // RHS of shift should not be native
 								panic("should not happen")
@@ -842,7 +834,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						}
 					} else { // left is typed const, right not const
-						if !isShift {
+						if !isShift { // rhs of shift expr has already been converted to uint
 							if isUntyped(rt) { // refer to 0_d.gno. e.g. int(1) + 1<<x
 								checkOrConvertType(store, last, &n.Right, lt, false, false)
 							} else { // left typed const, right typed non-const
@@ -896,7 +888,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else { // ---both not const---
-					if !isShift {
+					if !isShift { // rhs of shift expr has already been converted to uint
 						if lnt, ok := lt.(*NativeType); ok {
 							// If left and right are native type,
 							// convert left and right to gno, then

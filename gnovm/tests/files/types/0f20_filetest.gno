@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f20_filetest.gno:9: invalid operation, nil can not be compared to [2]main.f
+// main/files/types/0f20_filetest.gno:9: <nil> and [2]main.f cannot be compared
