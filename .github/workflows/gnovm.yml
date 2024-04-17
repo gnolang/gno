@@ -65,9 +65,9 @@ jobs:
           - _test.gnolang.native
           - _test.gnolang.stdlibs
           - _test.gnolang.realm
-          - _test.gnolang.pkg0
-          - _test.gnolang.pkg1
-          - _test.gnolang.pkg2
+          - _test.gnolang.pkg
+          - _test.gnolang.bytes
+          - _test.gnolang.pkg.regexp
           - _test.gnolang.other
     runs-on: ubuntu-latest
     timeout-minutes: 15
