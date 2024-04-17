@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
 
 		// Create a default config
 		cfg := DefaultConfig()
@@ -42,7 +43,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
 
 		cfg, err := LoadOrMakeConfigWithOptions(cfgDir)
 		require.NoError(t, err)
@@ -69,7 +70,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
 
 		cfg, err := LoadOrMakeConfigWithOptions(
 			cfgDir,

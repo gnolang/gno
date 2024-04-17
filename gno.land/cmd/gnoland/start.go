@@ -125,7 +125,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.dataDir,
 		"data-dir",
 		"gno-chain",
-		"directory for config and data",
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -195,7 +195,11 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io commands.IO) error {
-	dataDir := c.dataDir
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
 
 	var (
 		cfg        *config.Config
@@ -215,7 +219,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(nodeDir)
 	}
 
 	if loadCfgErr != nil {
@@ -238,7 +242,9 @@ func execStart(c *startCfg, io commands.IO) error {
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	// Write genesis file if missing.
-	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
+	// NOTE: this will be dropped in a PR that resolves issue #1883:
+	// https://github.com/gnolang/gno/issues/1883
+	genesisFilePath := filepath.Join(nodeDir, "../", cfg.Genesis)
 
 	if !osm.FileExists(genesisFilePath) {
 		// Create priv validator first.
@@ -262,7 +268,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}

@@ -3,6 +3,7 @@ package config
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ func ensureFiles(t *testing.T, rootDir string, files ...string) {
 	t.Helper()
 
 	for _, f := range files {
-		p := join(f, rootDir)
+		p := filepath.Join(rootDir, f)
 		_, err := os.Stat(p)
 		assert.Nil(t, err, p)
 	}
@@ -33,24 +34,21 @@ func TestEnsureRoot(t *testing.T) {
 	throwaway := DefaultConfig()
 	throwaway.SetRootDir(tmpDir)
 	require.NoError(t, throwaway.EnsureDirs())
-	configPath := join(tmpDir, defaultConfigFilePath)
+
+	configPath := filepath.Join(tmpDir, defaultConfigFileName)
 	require.NoError(t, WriteConfigFile(configPath, throwaway))
 
 	// make sure config is set properly
-	data, err := os.ReadFile(join(tmpDir, defaultConfigFilePath))
+	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigFileName))
 	require.Nil(t, err)
 
-	if !checkConfig(string(data)) {
-		t.Fatalf("config file missing some information")
-	}
+	require.True(t, checkConfig(string(data)))
 
 	ensureFiles(t, tmpDir, "data")
 }
 
 func TestEnsureTestRoot(t *testing.T) {
 	t.Parallel()
-
-	require := require.New(t)
 
 	testName := "ensureTestRoot"
 
@@ -60,16 +58,26 @@ func TestEnsureTestRoot(t *testing.T) {
 	rootDir := cfg.RootDir
 
 	// make sure config is set properly
-	data, err := os.ReadFile(join(rootDir, defaultConfigFilePath))
-	require.Nil(err)
+	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigFileName))
+	require.Nil(t, err)
 
-	if !checkConfig(string(data)) {
-		t.Fatalf("config file missing some information")
-	}
+	require.True(t, checkConfig(string(data)))
 
 	// TODO: make sure the cfg returned and testconfig are the same!
 	baseConfig := DefaultBaseConfig()
-	ensureFiles(t, rootDir, defaultDataDir, baseConfig.Genesis, baseConfig.PrivValidatorKey, baseConfig.PrivValidatorState)
+	ensureFiles(
+		t,
+		rootDir,
+		defaultDataDir,
+		baseConfig.PrivValidatorKey,
+		baseConfig.PrivValidatorState,
+	)
+
+	ensureFiles(
+		t,
+		filepath.Join(rootDir, ".."),
+		baseConfig.Genesis,
+	)
 }
 
 func checkConfig(configFile string) bool {

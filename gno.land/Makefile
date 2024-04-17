@@ -53,7 +53,7 @@ install.genesis:;    go install ./cmd/genesis
 
 .PHONY: fclean
 fclean: clean
-	rm -rf gno-chain
+	rm -rf gno-chain genesis.json
 
 .PHONY: clean
 clean:

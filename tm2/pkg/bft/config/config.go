@@ -77,7 +77,7 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	// Initialize the config as default
 	var (
 		cfg        = DefaultConfig()
-		configPath = join(root, defaultConfigFilePath)
+		configPath = filepath.Join(root, defaultConfigFileName)
 	)
 
 	// Config doesn't exist, create it
@@ -161,7 +161,7 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
@@ -196,9 +196,24 @@ func (cfg *Config) ValidateBasic() error {
 // -----------------------------------------------------------------------------
 // BaseConfig
 
+// Base node data structure:
+// .
+// ├── genesis.json (required)
+// └── my-node-dir/
+// ├── data/
+// │   ├── blockstore.db (folder)
+// │   ├── gnolang.db (folder)
+// │   ├── state.db (folder)
+// │   └── cs.wal
+// ├── secrets/
+// │   ├── priv_validator_state.json
+// │   ├── node_key.json
+// │   └── priv_validator_key.json
+// └── config.toml (optional)
+
 var (
-	defaultConfigDir = "config"
-	defaultDataDir   = "data"
+	defaultDataDir    = "data"
+	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
 	defaultGenesisJSONName  = "genesis.json"
@@ -206,11 +221,9 @@ var (
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigFilePath   = filepath.Join(defaultConfigDir, defaultConfigFileName)
-	defaultGenesisJSONPath  = filepath.Join(defaultConfigDir, defaultGenesisJSONName)
-	defaultPrivValKeyPath   = filepath.Join(defaultConfigDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(defaultDataDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(defaultConfigDir, defaultNodeKeyName)
+	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node
@@ -285,7 +298,7 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONPath,
+		Genesis:            defaultGenesisJSONName,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -296,7 +309,7 @@ func DefaultBaseConfig() BaseConfig {
 		FastSyncMode:       true,
 		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             "data",
+		DBPath:             defaultDataDir,
 	}
 }
 
@@ -316,27 +329,27 @@ func (cfg BaseConfig) ChainID() string {
 
 // GenesisFile returns the full path to the genesis.json file
 func (cfg BaseConfig) GenesisFile() string {
-	return join(cfg.RootDir, cfg.Genesis)
+	return filepath.Join(cfg.RootDir, "../", defaultGenesisJSONName)
 }
 
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorKey)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)
 }
 
-// PrivValidatorFile returns the full path to the priv_validator_state.json file
+// PrivValidatorStateFile returns the full path to the priv_validator_state.json file
 func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorState)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
 func (cfg BaseConfig) NodeKeyFile() string {
-	return join(cfg.RootDir, cfg.NodeKey)
+	return filepath.Join(cfg.RootDir, cfg.NodeKey)
 }
 
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
-	return join(cfg.RootDir, cfg.DBPath)
+	return filepath.Join(cfg.RootDir, cfg.DBPath)
 }
 
 var defaultMoniker = getDefaultMoniker()
