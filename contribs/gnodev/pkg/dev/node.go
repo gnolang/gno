@@ -112,39 +112,39 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 	return devnode, nil
 }
 
-func (d *Node) getLatestBlockNumber() uint64 {
-	return uint64(d.Node.BlockStore().Height())
+func (n *Node) getLatestBlockNumber() uint64 {
+	return uint64(n.Node.BlockStore().Height())
 }
 
-func (d *Node) Close() error {
-	return d.Node.Stop()
+func (n *Node) Close() error {
+	return n.Node.Stop()
 }
 
-func (d *Node) ListPkgs() []gnomod.Pkg {
-	return d.pkgs.toList()
+func (n *Node) ListPkgs() []gnomod.Pkg {
+	return n.pkgs.toList()
 }
 
-func (d *Node) GetNodeReadiness() <-chan struct{} {
-	return gnoland.GetNodeReadiness(d.Node)
+func (n *Node) GetNodeReadiness() <-chan struct{} {
+	return gnoland.GetNodeReadiness(n.Node)
 }
 
-func (d *Node) GetRemoteAddress() string {
-	return d.Node.Config().RPC.ListenAddress
+func (n *Node) GetRemoteAddress() string {
+	return n.Node.Config().RPC.ListenAddress
 }
 
 // UpdatePackages updates the currently known packages. It will be taken into
 // consideration in the next reload of the node.
-func (d *Node) UpdatePackages(paths ...string) error {
-	var n int
+func (n *Node) UpdatePackages(paths ...string) error {
+	var i int
 	for _, path := range paths {
 		abspath, err := filepath.Abs(path)
 		if err != nil {
 			return fmt.Errorf("unable to resolve abs path of %q: %w", path, err)
 		}
 
-		creator := d.config.DefaultCreator
+		creator := n.config.DefaultCreator
 		var deposit std.Coins
-		for _, ppath := range d.config.PackagesPathList {
+		for _, ppath := range n.config.PackagesPathList {
 			if !strings.HasPrefix(abspath, ppath.Path) {
 				continue
 			}
@@ -161,117 +161,117 @@ func (d *Node) UpdatePackages(paths ...string) error {
 
 		// Update or add package in the current known list.
 		for _, pkg := range pkgslist {
-			d.pkgs[pkg.Dir] = Package{
+			n.pkgs[pkg.Dir] = Package{
 				Pkg:     pkg,
 				Creator: creator,
 				Deposit: deposit,
 			}
 
-			d.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
+			n.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
 		}
 
-		n += len(pkgslist)
+		i += len(pkgslist)
 	}
 
-	d.logger.Info(fmt.Sprintf("updated %d pacakges", n))
+	n.logger.Info(fmt.Sprintf("updated %d pacakges", i))
 	return nil
 }
 
 // Reset stops the node, if running, and reloads it with a new genesis state,
 // effectively ignoring the current state.
-func (d *Node) Reset(ctx context.Context) error {
+func (n *Node) Reset(ctx context.Context) error {
 	// Stop the node if it's currently running.
-	if err := d.stopIfRunning(); err != nil {
+	if err := n.stopIfRunning(); err != nil {
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
 	// Generate a new genesis state based on the current packages
-	txs, err := d.pkgs.Load(DefaultFee)
+	txs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	genesis := gnoland.GnoGenesisState{
-		Balances: d.config.BalancesList,
+		Balances: n.config.BalancesList,
 		Txs:      txs,
 	}
 
 	// Reset the node with the new genesis state.
-	err = d.reset(ctx, genesis)
+	err = n.reset(ctx, genesis)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
-	d.emitter.Emit(&events.Reset{})
+	n.emitter.Emit(&events.Reset{})
 	return nil
 }
 
 // ReloadAll updates all currently known packages and then reloads the node.
-func (d *Node) ReloadAll(ctx context.Context) error {
-	pkgs := d.ListPkgs()
+func (n *Node) ReloadAll(ctx context.Context) error {
+	pkgs := n.ListPkgs()
 	paths := make([]string, len(pkgs))
 	for i, pkg := range pkgs {
 		paths[i] = pkg.Dir
 	}
 
-	if err := d.UpdatePackages(paths...); err != nil {
+	if err := n.UpdatePackages(paths...); err != nil {
 		return fmt.Errorf("unable to reload packages: %w", err)
 	}
 
-	return d.Reload(ctx)
+	return n.Reload(ctx)
 }
 
 // Reload saves the current state, stops the node if running, starts a new node,
 // and re-apply previously saved state along with packages updated by `UpdatePackages`.
 // If any transaction, including 'addpkg', fails, it will be ignored.
 // Use 'Reset' to completely reset the node's state in case of persistent errors.
-func (d *Node) Reload(ctx context.Context) error {
-	if d.config.NoReplay {
+func (n *Node) Reload(ctx context.Context) error {
+	if n.config.NoReplay {
 		// If NoReplay is true, reload as the same effect as reset
-		d.logger.Warn("replay disable")
-		return d.Reset(ctx)
+		n.logger.Warn("replay disable")
+		return n.Reset(ctx)
 	}
 
 	// Get current blockstore state
-	state, err := d.getBlockStoreState(ctx)
+	state, err := n.getBlockStoreState(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
 
 	// Stop the node if it's currently running.
-	if err := d.stopIfRunning(); err != nil {
+	if err := n.stopIfRunning(); err != nil {
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := d.pkgs.Load(DefaultFee)
+	pkgsTxs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Create genesis with loaded pkgs + previous state
 	genesis := gnoland.GnoGenesisState{
-		Balances: d.config.BalancesList,
+		Balances: n.config.BalancesList,
 		Txs:      append(pkgsTxs, state...),
 	}
 
 	// Reset the node with the new genesis state.
-	err = d.reset(ctx, genesis)
-	d.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+	err = n.reset(ctx, genesis)
+	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
 
 	// Update node infos
-	d.loadedPackages = len(pkgsTxs)
+	n.loadedPackages = len(pkgsTxs)
 
-	d.emitter.Emit(&events.Reload{})
+	n.emitter.Emit(&events.Reload{})
 	return nil
 }
 
-func (d *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	if res.IsErr() {
 		// XXX: for now, this is only way to catch the error
 		before, after, found := strings.Cut(res.Log, "\n")
 		if !found {
-			d.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
+			n.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
 			return
 		}
 
@@ -287,20 +287,19 @@ func (d *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 		attrs = append(attrs, slog.String("err", msg))
 
 		// If debug is enable, also append stack
-		if d.logger.Enabled(context.Background(), slog.LevelDebug) {
+		if n.logger.Enabled(context.Background(), slog.LevelDebug) {
 			attrs = append(attrs, slog.String("stack", after))
-
 		}
 
-		d.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
+		n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 	}
 }
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
-func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 	int64BlockNum := int64(blockNum)
-	b, err := d.client.Block(&int64BlockNum)
+	b, err := n.client.Block(&int64BlockNum)
 	if err != nil {
 		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
 	}
@@ -320,38 +319,38 @@ func (d *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
-func (d *Node) CurrentBalances(blockNum uint64) ([]std.Tx, error) {
+func (n *Node) CurrentBalances(blockNum uint64) ([]std.Tx, error) {
 	return nil, nil
 }
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
 // GetLatestBlockNumber returns the latest block height from the chain
-func (d *Node) GetLatestBlockNumber() (uint64, error) {
-	return d.getLatestBlockNumber(), nil
+func (n *Node) GetLatestBlockNumber() (uint64, error) {
+	return n.getLatestBlockNumber(), nil
 }
 
 // SendTransaction executes a broadcast commit send
 // of the specified transaction to the chain
-func (d *Node) SendTransaction(tx *std.Tx) error {
+func (n *Node) SendTransaction(tx *std.Tx) error {
 	aminoTx, err := amino.Marshal(tx)
 	if err != nil {
 		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
 	}
 
 	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := d.client.BroadcastTxCommit(aminoTx)
+	res, err := n.client.BroadcastTxCommit(aminoTx)
 	if err != nil {
 		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
 	}
 
 	if res.CheckTx.Error != nil {
-		d.logger.Error("check tx error trace", "log", res.CheckTx.Log)
+		n.logger.Error("check tx error trace", "log", res.CheckTx.Log)
 		return fmt.Errorf("check transaction error: %w", res.CheckTx.Error)
 	}
 
 	if res.DeliverTx.Error != nil {
-		d.logger.Error("deliver tx error trace", "log", res.CheckTx.Log)
+		n.logger.Error("deliver tx error trace", "log", res.CheckTx.Log)
 		return fmt.Errorf("deliver transaction error: %w", res.DeliverTx.Error)
 	}
 

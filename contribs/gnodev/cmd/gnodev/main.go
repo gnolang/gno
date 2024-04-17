@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -52,7 +52,6 @@ type devCfg struct {
 	// Node Configuration
 	minimal    bool
 	verbose    bool
-	hotreload  bool
 	noWatch    bool
 	noReplay   bool
 	maxGas     int64
@@ -235,8 +234,9 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Create server
 	mux := http.NewServeMux()
 	server := http.Server{
-		Handler: mux,
-		Addr:    cfg.webListenerAddr,
+		Handler:           mux,
+		Addr:              cfg.webListenerAddr,
+		ReadHeaderTimeout: time.Minute,
 	}
 	defer server.Close()
 
@@ -291,10 +291,9 @@ func runEventLoop(
 	logger *slog.Logger,
 	kb keys.Keybase,
 	rt *rawterm.RawTerm,
-	dnode *dev.Node,
+	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
-
 	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
@@ -337,7 +336,6 @@ func runEventLoop(
 				if err = dnode.ReloadAll(ctx); err != nil {
 					logger.WithGroup(NodeLogName).
 						Error("unable to reload node", "err", err)
-
 				}
 
 			case rawterm.KeyCtrlR: // Reset
@@ -374,8 +372,8 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	return cc
 }
 
-func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([]dev.PackagePath, error) {
-	paths := make([]dev.PackagePath, len(args))
+func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([]gnodev.PackagePath, error) {
+	paths := make([]gnodev.PackagePath, 0, len(args))
 
 	if cfg.genesisCreator == "" {
 		return nil, fmt.Errorf("default genesis creator cannot be empty")
@@ -386,8 +384,8 @@ func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([
 		return nil, fmt.Errorf("unable to get genesis creator %q: %w", cfg.genesisCreator, err)
 	}
 
-	for i, arg := range args {
-		path, err := dev.ResolvePackagePathQuery(kb, arg)
+	for _, arg := range args {
+		path, err := gnodev.ResolvePackagePathQuery(kb, arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
 		}
@@ -397,7 +395,7 @@ func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([
 			path.Creator = defaultKey.GetAddress()
 		}
 
-		paths[i] = path
+		paths = append(paths, path)
 	}
 
 	// Add examples folder if minimal is set to false
