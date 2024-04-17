@@ -23,7 +23,7 @@ const (
 )
 
 func Hello() {
-	std.EmitEvent(
+	std.Emit(
 		EventAttrKeySender,
 		[]string{
 			"key1", "value1",
@@ -33,7 +33,7 @@ func Hello() {
 		},
 	)
 
-	std.EmitEvent(
+	std.Emit(
 		EventAttrKeyReceiver,
 		[]string{
 			"foo", "bar",

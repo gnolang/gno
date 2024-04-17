@@ -1,8 +1,8 @@
 package sdk
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
