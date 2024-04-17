@@ -27,6 +27,7 @@ const (
 	WebLogName         = "GnoWeb"
 	KeyPressLogName    = "KeyPress"
 	EventServerLogName = "Event"
+	AccountsLogName    = "Accounts"
 )
 
 var (
@@ -43,11 +44,11 @@ type devCfg struct {
 	nodeProxyAppListenerAddr string
 
 	// Users default
-	genesisCreator  string
-	home            string
-	root            string
-	additionalUsers varAccounts
-	balancesFile    string
+	genesisCreator     string
+	home               string
+	root               string
+	additionalAccounts varAccounts
+	balancesFile       string
 
 	// Node Configuration
 	minimal    bool
@@ -125,9 +126,9 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.Var(
-		&c.additionalUsers,
-		"add-user",
-		"pre-add a user",
+		&c.additionalAccounts,
+		"add-account",
+		"add and set account(s) in the form `<bech32>[:<amount>]`, can be use multiple time",
 	)
 
 	fs.StringVar(
@@ -209,7 +210,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	emitterServer := emitter.NewServer(loggerEvents)
 
 	// load keybase
-	kb, err := setupKeybase(logger, cfg)
+	kb, err := setupKeybase(logger.WithGroup(AccountsLogName), cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
@@ -279,7 +280,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 }
 
 var helper string = `
-A           Accounts - Display known accounts
+A           Accounts - Display known accounts and balances
 H           Help - Display this message
 R           Reload - Reload all packages to take change into account.
 Ctrl+R      Reset - Reset application state.
@@ -330,7 +331,7 @@ func runEventLoop(
 			case rawterm.KeyH: // Helper
 				logger.Info("Gno Dev Helper", "helper", helper)
 			case rawterm.KeyA: // Accounts
-				logAccounts(logger.WithGroup("accounts"), kb, dnode)
+				logAccounts(logger.WithGroup(AccountsLogName), kb, dnode)
 			case rawterm.KeyR: // Reload
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {

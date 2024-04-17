@@ -15,8 +15,7 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
   the **examples** folder and any user-specified paths.
 - **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
 [`localhost:8888`](https://localhost:8888).
-- **Balances and Keybase Customization**: Users can specify balances, load from
-  a balances file or create temporary users.
+- **Balances and Keybase Customization**: Users can set balances, load from a file, or add users via a flag.
 - **Hot Reload**: Gnodev monitors the **examples** folder and any specified for
   file changes, reloading and automatically restarting the node as needed.
 - **State Maintenance**: Gnodev replays all transactions in between reloads,
@@ -47,16 +46,16 @@ realm with specific creator and deposit:
 gnodev ./myrealm?creator=foo&deposit=42ugnot``
 ```
 
-### Additional User
-Use `-add-user` flag in the format <user>(:<amount>) to add temporary users. You can repeat this to add
-multiple users. Addresses of those will be displayed at runtime, or by pressing `A` interactively to display
-accounts.
+### Additional Account
+Use the `-add-account` flag with the format `<bech32/name>[:<amount>]` to add a specific address or key name
+from your local keybase. You can set an optional amount for this address. Repeat this command to add multiple
+accounts. The addresses will be shown during runtime or by pressing `A` to display accounts interactively.
 
 ## Interactive Usage
 
 While `gnodev` is running, the following shortcuts are available:
 - To see help, press `H`.
-- To display accounts, press `A`.
+- To display accounts balances, press `A`.
 - To reload manually, press `R`.
 - To reset the state of the node, press `CMD+R`.
 - To stop `gnodev`, press `CMD+C`.
@@ -67,7 +66,7 @@ While `gnodev` is running, the following shortcuts are available:
 |---------------------|---------------------------------------------------------|
 | --minimal           | Start `gnodev` without loading the examples folder.     |
 | --no-watch          | Disable hot reload.                                     |
-| --add-user          | Pre-add user(s) in the form <user>(:<amount>)           |
+| --add-account       | Pre-add account(s) in the form `<bech32>[:<amount>]`    |
 | --balances-file     | Load a balance for the user(s) from a balance file.     |
 | --chain-id          | Set node ChainID                                        |
 | --genesis-creator   | Name or bech32 address of the genesis creator           |
