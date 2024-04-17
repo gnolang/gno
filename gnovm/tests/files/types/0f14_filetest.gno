@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f14_filetest.gno:10: cannot use string as int
+// main/files/types/0f14_filetest.gno:10: comparison on arrays of unequal type

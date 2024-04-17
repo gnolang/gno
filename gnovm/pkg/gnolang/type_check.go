@@ -169,24 +169,41 @@ func assertComparable(xt, dt Type) {
 				}
 			}
 		}
-	case *ArrayType: // NOTE: no recursive allowed
+		// assert xt is primitive type
+		if _, ok := baseOf(xt).(PrimitiveType); !ok {
+			panic(fmt.Sprintf("%v and %v cannot be compared", baseOf(xt), cdt))
+		}
+	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType: // NOTE: nativeType?
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType: // NOTE: nativeType?
 			switch cxt := baseOf(xt).(type) {
 			case *ArrayType:
 				if cxt.Len != cdt.Len { // check length
 					panic(fmt.Sprintf("%v and %v cannot be compared", cxt, cdt))
+				} else if cxt.TypeID() != cdt.TypeID() { // see 0f14_filetest.gno
+					panic("comparison on arrays of unequal type")
 				}
+				// assert elem comparable
+				assertComparable(cxt.Elem(), cdt.Elem())
 			default:
 				panic(fmt.Sprintf("%v and %v cannot be compared", cxt, cdt))
 			}
 		default:
 			panic(fmt.Sprintf("%v and %v cannot be compared", xt, cdt))
 		}
-	case *StructType:
-		for _, f := range cdt.Fields {
-			switch baseOf(f.Type).(type) {
-			case PrimitiveType, *PointerType, *InterfaceType, *NativeType:
+	case *StructType: // struct type, not pointer type
+		for i, f := range cdt.Fields {
+			switch cft := baseOf(f.Type).(type) {
+			case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
+				if cxt, ok := baseOf(xt).(*StructType); ok { // if xt is also a struct type
+					if cxt.TypeID() != cdt.TypeID() {
+						panic("comparison on structs of unequal types")
+					}
+					if len(cxt.Fields) != len(cdt.Fields) {
+						panic("comparison on structs of unequal size")
+					}
+					assertComparable(cxt.Fields[i].Type, cft)
+				}
 			default:
 				panic(fmt.Sprintf("%v and %v cannot be compared", xt, cdt))
 			}
