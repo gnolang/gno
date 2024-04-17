@@ -37,16 +37,13 @@ func nextStatus(m *Monitor) Status {
 	return m.Status()
 }
 
-// XXX interface conversion: interface {} is nil, not std.ExecContext
-func _TestReader(t *testing.T) {
+func TestReader(t *testing.T) {
 	in := make([]byte, 100)
 	for i := range in {
 		in[i] = byte(i)
 	}
-
 	b := make([]byte, 100)
 	r := NewReader(bytes.NewReader(in), 100)
-
 	start := time.Now()
 
 	// Make sure r implements Limiter
