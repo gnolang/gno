@@ -1,6 +1,8 @@
 // This package is used to manage the validator set.
 package validators
 
+import govdao "gno.land/r/gov/dao"
+
 type Change struct {
 	ValAddr     std.Address
 	VotingPower uint
@@ -17,15 +19,21 @@ var proposals = make([]Proposal, 0)
 // ProposeChanges is designed to be called by another contract, not by a maketx call.
 func ProposeChanges(proposal Proposal) int {
 	// XXX: require payment?
-	// XXX: assert caller is auhtorized
 	// XXX: sanitize proposal
-	proposal.author = std.PrevRealm().Addr()
+	caller := std.PrevRealm().Addr()
+
+	// XXX: consider not having proposal object here, but depend on govdao for proposals, taking a callback
+	//   ->    govdao.Propose(func() { ExecuteProposal(idx)}
+
+	govdao.AssertIsMember(caller)
+	proposal.author = caller
 	idx := len(proposals)
 	proposals = append(proposals, proposal)
 	return idx
 }
 
 func VoteOnProposal(idx int, option string) {
+	govdao.AssertIsMember(caller)
 	// XXX: assert caller
 	// XXX: implement the voting (woudl be nice to have a dedicated p/)
 }
