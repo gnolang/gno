@@ -53,7 +53,7 @@ install.genesis:;    go install ./cmd/genesis
 
 .PHONY: fclean
 fclean: clean
-	rm -rf testdir
+	rm -rf gno-chain
 
 .PHONY: clean
 clean:

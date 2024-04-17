@@ -12,7 +12,7 @@ unsorted.*
 .DS_Store
 data/*
 proto/*
-testdir/
+gno-chain/
 pkgs/sdk/vm/_testdata
 build/*
 *.tx

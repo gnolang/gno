@@ -121,11 +121,10 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the root directory of the gno repository",
 	)
 
-	// XXX: Use home directory for this
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"testdir",
+		"gno-chain",
 		"directory for config and data",
 	)
 
@@ -192,14 +191,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"log-format",
 		log.ConsoleFormat.String(),
 		"log format for the gnoland node",
-	)
-
-	// XXX(deprecated): use data-dir instead
-	fs.StringVar(
-		&c.dataDir,
-		"root-dir",
-		"testdir",
-		"deprecated: use data-dir instead - directory for config and data",
 	)
 }
 

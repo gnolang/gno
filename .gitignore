@@ -3,7 +3,7 @@ cmd/foo.go
 unsorted.*
 .DS_Store
 data/*
-testdir
+gno-chain
 pkgs/sdk/vm/_testdata
 build
 *.tx

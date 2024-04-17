@@ -19,11 +19,11 @@ gnoland start \
     --skip-start=true \
     --skip-failing-genesis-txs
 
-sed -i "s#^moniker = \".*\"#moniker = \"${MONIKER}\"#" ./testdir/config/config.toml
-sed -i "s#laddr = \".*:26656\"#laddr = \"${P2P_LADDR}\"#" ./testdir/config/config.toml
-sed -i "s#laddr = \".*:26657\"#laddr = \"${RPC_LADDR}\"#" ./testdir/config/config.toml
+sed -i "s#^moniker = \".*\"#moniker = \"${MONIKER}\"#" ./gno-chain/config/config.toml
+sed -i "s#laddr = \".*:26656\"#laddr = \"${P2P_LADDR}\"#" ./gno-chain/config/config.toml
+sed -i "s#laddr = \".*:26657\"#laddr = \"${RPC_LADDR}\"#" ./gno-chain/config/config.toml
 
-sed -i "s#seeds = \".*\"#seeds = \"${SEEDS}\"#" ./testdir/config/config.toml
-sed -i "s#persistent_peers = \".*\"#persistent_peers = \"${PERSISTENT_PEERS}\"#" ./testdir/config/config.toml
+sed -i "s#seeds = \".*\"#seeds = \"${SEEDS}\"#" ./gno-chain/config/config.toml
+sed -i "s#persistent_peers = \".*\"#persistent_peers = \"${PERSISTENT_PEERS}\"#" ./gno-chain/config/config.toml
 
 exec gnoland start --skip-failing-genesis-txs
