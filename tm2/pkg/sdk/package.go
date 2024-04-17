@@ -15,6 +15,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	).
 	WithTypes(
 		Result{},
-		AttributedEvent{},
+		DetailedEvent{},
 		EventAttribute{},
 	))

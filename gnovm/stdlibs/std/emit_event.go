@@ -22,7 +22,7 @@ func X_emitEvent(m *gno.Machine, typ string, attrs []string) {
 
 	timestamp := GetTimestamp(m)
 
-	event := sdk.NewEvent(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
+	event := sdk.CreateDetailedEvent(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
 
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(event)

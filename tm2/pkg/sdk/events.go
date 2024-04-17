@@ -2,7 +2,7 @@ package sdk
 
 import (
 	"fmt"
-	"strings"
+	"encoding/json"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
@@ -39,8 +39,16 @@ func (em *EventLogger) EmitEvents(events []Event) {
 
 type Event = abci.Event
 
-func NewEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
-	return AttributedEvent{
+type DetailedEvent struct {
+	Type       string // type of event
+	PkgPath    string // event occurred package path
+	Identifier string // event occurred function identifier
+	Timestamp  int64
+	Attributes []EventAttribute // list of event attributes (comma separated key-value pairs)
+}
+
+func CreateDetailedEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
+	return DetailedEvent{
 		Type:       eventType,
 		PkgPath:    pkgPath,
 		Identifier: ident,
@@ -49,47 +57,19 @@ func NewEvent(eventType string, pkgPath string, ident string, timestamp int64, a
 	}
 }
 
-type AttributedEvent struct {
-	Type       string // type of event
-	PkgPath    string // event occurred package path
-	Identifier string // event occurred function identifier
-	Timestamp  int64
-	Attributes []EventAttribute // list of event attributes (comma separated key-value pairs)
-}
+func (e DetailedEvent) AssertABCIEvent() {}
 
-func (e AttributedEvent) AssertABCIEvent() {}
-
-func (e AttributedEvent) String() string {
-	var builder strings.Builder
-
-	builder.WriteString(fmt.Sprintf("type: %s, pkgPath: %s, fn: %s, timestamp: %d, attributes: ",
-		e.Type, e.PkgPath, e.Identifier, e.Timestamp))
-
-	builder.WriteString("[")
-	if len(e.Attributes) > 0 {
-		builder.WriteString(e.Attributes[0].String())
+func (e DetailedEvent) String() string {
+	result, err := json.Marshal(e)
+	if err != nil {
+		return fmt.Sprintf("Error marshalling event: %v", err)
 	}
-
-	for i := 1; i < len(e.Attributes); i++ {
-		builder.WriteString(", ")
-		builder.WriteString(e.Attributes[i].String())
-	}
-	builder.WriteString("]")
-
-	return builder.String()
+	return string(result)
 }
 
 type EventAttribute struct {
 	Key   string
 	Value string
-}
-
-func (ea EventAttribute) String() string {
-	var builder strings.Builder
-	builder.WriteString(ea.Key)
-	builder.WriteString(": ")
-	builder.WriteString(ea.Value)
-	return builder.String()
 }
 
 func NewEventAttribute(key, value string) EventAttribute {

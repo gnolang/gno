@@ -118,20 +118,27 @@ func (r ResponseBase) IsErr() bool {
 }
 
 func (r ResponseBase) EventString() string {
+	levts := len(r.Events)
+	if levts == 0 {
+		return `""`
+	}
+
 	var builder strings.Builder
 
-	builder.WriteString("[")
+	if levts > 1 {
+		builder.WriteString("[")
+	}
 
 	for i, event := range r.Events {
 		if i > 0 {
-			builder.WriteString(", ")
+			builder.WriteString(",")
 		}
-		builder.WriteString("{")
 		builder.WriteString(event.String())
-		builder.WriteString("}")
 	}
 
-	builder.WriteString("]")
+	if levts > 1 {
+		builder.WriteString("]")
+	}
 
 	return builder.String()
 }

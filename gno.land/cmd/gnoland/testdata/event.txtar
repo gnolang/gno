@@ -8,7 +8,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/ee -func Hello -gas-fee 1000000ugnot
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED: [0-9]+'
-stdout 'EVENTS: \[.*?\]'
+stdout 'EVENTS:'
 
 -- ee.gno --
 package ee
