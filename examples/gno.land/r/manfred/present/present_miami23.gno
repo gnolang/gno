@@ -4,8 +4,6 @@ func init() {
 	path := "miami23"
 	title := "Portal Loop Demo (Miami 2023)"
 	body := `
-# Portal Loop Demo (Miami 2023)
-
 Rendered by Gno.
 
 [Source (WIP)](https://github.com/gnolang/gno/pull/1176)
@@ -40,5 +38,5 @@ Rendered by Gno.
 - Engage in workshops.
 - Connect and have fun with colleagues.
 `
-	_ = b.NewPost(adminAddr, path, title, body, []string{"demo", "portal-loop", "miami"})
+	_ = b.NewPost(adminAddr, path, title, body, "2023-10-15T13:17:24Z", []string{"moul"}, []string{"demo", "portal-loop", "miami"})
 }

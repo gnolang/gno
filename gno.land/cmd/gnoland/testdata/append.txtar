@@ -1,3 +1,5 @@
+loadpkg gno.land/p/demo/ufmt
+
 # start a new node
 gnoland start
 

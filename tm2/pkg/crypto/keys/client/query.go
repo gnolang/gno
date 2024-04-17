@@ -29,7 +29,7 @@ func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "query",
 			ShortUsage: "query [flags] <path>",
-			ShortHelp:  "Makes an ABCI query",
+			ShortHelp:  "makes an ABCI query",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
