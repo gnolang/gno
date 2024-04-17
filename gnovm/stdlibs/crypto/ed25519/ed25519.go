@@ -4,6 +4,6 @@ import (
 	"crypto/ed25519"
 )
 
-func X_verifyED25519(publicKey []byte, message []byte, signature []byte) bool {
+func X_verify(publicKey []byte, message []byte, signature []byte) bool {
 	return ed25519.Verify(publicKey, message, signature)
 }

@@ -27,7 +27,7 @@ type nativeFunc struct {
 var nativeFuncs = [...]nativeFunc{
 	{
 		"crypto/ed25519",
-		"verifyED25519",
+		"verify",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]byte")},
 			{Name: gno.N("p1"), Type: gno.X("[]byte")},
@@ -51,7 +51,7 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
 
-			r0 := libs_crypto_ed25519.X_verifyED25519(p0, p1, p2)
+			r0 := libs_crypto_ed25519.X_verify(p0, p1, p2)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
