@@ -9,12 +9,13 @@ type Change struct {
 }
 
 func ProposeChanges(changesFn func() []Change) int {
-	// XXX: require payment?
-	// XXX: sanitize proposal
+	if changesFn == nil {
+		panic("changesFn should not be nil")
+	}
 
 	callback := func() {
 		changes := changesFn()
-		std.Emit(changes)
+		std.Emit(changes) // depends on std.Emit implementation
 	}
 
 	idx := govdao.ProposeChanges(govdao.Proposal{
