@@ -1609,7 +1609,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else { // ASSIGN.
 					// NOTE: Keep in sync with DEFINE above.
-					if len(n.Lhs) > len(n.Rhs) {
+					if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
+						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
+							panic("should not happen")
+						}
+						// Special case if shift assign <<= or >>=.
+						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+					} else if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
 						// Unpack n.Rhs[0] to n.Lhs[:]
 						if len(n.Rhs) != 1 {
@@ -1641,12 +1647,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
-					} else if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
-						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
-						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
