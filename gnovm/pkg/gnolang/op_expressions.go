@@ -163,7 +163,7 @@ func (m *Machine) doOpStar() {
 		t := xv.GetType()
 		var pt Type
 		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
+			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}
