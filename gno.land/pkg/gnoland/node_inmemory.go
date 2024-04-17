@@ -21,11 +21,11 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator         bft.PrivValidator // identity of the validator
-	Genesis               *bft.GenesisDoc
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
-	GenesisMaxVMCycles    int64
+	PrivValidator      bft.PrivValidator // identity of the validator
+	Genesis            *bft.GenesisDoc
+	TMConfig           *tmcfg.Config
+	GenesisTxHandler   GenesisTxHandler
+	GenesisMaxVMCycles int64
 }
 
 // NewMockedPrivValidator generate a new key
@@ -82,6 +82,7 @@ func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
 		PrivValidator:      pv,
 		TMConfig:           tm,
 		Genesis:            genesis,
+		GenesisTxHandler:   PanicOnFailingTxHandler,
 		GenesisMaxVMCycles: 10_000_000,
 	}
 }
@@ -99,6 +100,10 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
+	if cfg.GenesisTxHandler == nil {
+		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
+	}
+
 	return nil
 }
 
@@ -112,11 +117,11 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                logger,
-		GnoRootDir:            cfg.TMConfig.RootDir,
-		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
-		MaxCycles:             cfg.GenesisMaxVMCycles,
-		DB:                    memdb.NewMemDB(),
+		Logger:           logger,
+		GnoRootDir:       cfg.TMConfig.RootDir,
+		GenesisTxHandler: cfg.GenesisTxHandler,
+		MaxCycles:        cfg.GenesisMaxVMCycles,
+		DB:               memdb.NewMemDB(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
