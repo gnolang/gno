@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_d.gno:15: main.foo and struct{b []int} cannot be compared
+// main/files/types/cmp_struct_d.gno:15: main.bar is not comparable

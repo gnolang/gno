@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_b.gno:15: comparison on structs of unequal types
+// main/files/types/cmp_struct_b.gno:15: cannot use main.foo as main.bar without explicit conversion

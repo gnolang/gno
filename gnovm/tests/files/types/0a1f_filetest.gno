@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0a1f_filetest.gno:6: invalid operation: mismatched types int and string
+// main/files/types/0a1f_filetest.gno:6: cannot use int as string

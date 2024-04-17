@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0a02.gno:7: *int and string cannot be compared
+// main/files/types/0a02.gno:7: cannot use *int as string

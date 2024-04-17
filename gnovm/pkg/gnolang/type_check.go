@@ -153,92 +153,55 @@ func isNumericOrString(t Type) bool {
 // assertComparable is used in preprocess.
 // assert value with dt is comparable
 // special case when both typed, check if type identical
-func assertComparable(xt, dt Type) {
+func assertComparable(dt Type) {
 	if debug {
-		debug.Printf("--- assertComparable---, xt: %v, dt: %v \n", xt, dt)
+		debug.Printf("--- assertComparable---, dt: %v \n", dt)
 	}
+
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
-		// both typed primitive types
-		if _, ok := baseOf(xt).(PrimitiveType); ok {
-			if !isUntyped(xt) && !isUntyped(dt) { // in this stage, lt or rt maybe untyped, not converted yet
-				if xt != nil && dt != nil {
-					if xt.TypeID() != dt.TypeID() {
-						panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", xt, dt))
-					}
-				}
-			}
-		}
-		// assert xt is primitive type
-		if _, ok := baseOf(xt).(PrimitiveType); !ok {
-			panic(fmt.Sprintf("%v and %v cannot be compared", baseOf(xt), cdt))
-		}
 	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType: // NOTE: nativeType?
-			switch cxt := baseOf(xt).(type) {
-			case *ArrayType:
-				if cxt.Len != cdt.Len { // check length
-					panic(fmt.Sprintf("%v and %v cannot be compared", cxt, cdt))
-				} else if cxt.TypeID() != cdt.TypeID() { // see 0f14_filetest.gno
-					panic("comparison on arrays of unequal type")
-				}
-				// assert elem comparable
-				assertComparable(cxt.Elem(), cdt.Elem())
-			default:
-				panic(fmt.Sprintf("%v and %v cannot be compared", cxt, cdt))
-			}
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
+			assertComparable(cdt.Elem())
 		default:
-			panic(fmt.Sprintf("%v and %v cannot be compared", xt, cdt))
+			panic(fmt.Sprintf("%v is not comparable", dt))
 		}
 	case *StructType: // struct type, not pointer type
-		for i, f := range cdt.Fields {
+		for _, f := range cdt.Fields {
 			switch cft := baseOf(f.Type).(type) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
-				if cxt, ok := baseOf(xt).(*StructType); ok { // if xt is also a struct type
-					if cxt.TypeID() != cdt.TypeID() {
-						panic("comparison on structs of unequal types")
-					}
-					if len(cxt.Fields) != len(cdt.Fields) {
-						panic("comparison on structs of unequal size")
-					}
-					assertComparable(cxt.Fields[i].Type, cft)
-				}
+				assertComparable(cft)
 			default:
-				panic(fmt.Sprintf("%v and %v cannot be compared", xt, cdt))
+				panic(fmt.Sprintf("%v is not comparable", dt))
 			}
 		}
 	case *PointerType: // &a == &b
 	case *InterfaceType: // var a, b interface{}
-	case *SliceType, *FuncType, *MapType:
-		if xt != nil {
-			panic(fmt.Sprintf("%v can only be compared to nil", dt))
-		}
+	case *SliceType, *FuncType, *MapType: // xt is not nil here
+		panic(fmt.Sprintf("%v can only be compared to nil", dt))
 	case *NativeType:
 		if !cdt.Type.Comparable() {
 			panic(fmt.Sprintf("%v is not comparable \n", dt))
 		}
-	case nil: // see 0a01, or that can be identified earlier in cmpSpecificity? to remove this check.
-		if xt == nil {
-			panic("invalid operation, nil can not be compared to nil")
-		}
-		assertMaybeNil("invalid operation, nil can not be compared to", xt)
 	default:
 		panic(fmt.Sprintf("%v is not comparable", dt))
 	}
 }
 
-func assertMaybeNil(msg string, t Type) {
+func assertMaybeNil(t Type) bool {
 	switch cxt := baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+		return true
 	case *NativeType:
 		switch nk := cxt.Type.Kind(); nk {
 		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
+			return true
 		default:
-			panic(fmt.Sprintf("%s %s \n", msg, nk))
+			return false
 		}
 	default:
-		panic(fmt.Sprintf("%s %s \n", msg, t))
+		return false
 	}
 }
 
@@ -426,7 +389,7 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 		// to check if it is an exact integer, e.g. 1.2 or 1.0(1.0 can be converted to int).
 		// this ensure expr like (a % 1.0) pass check, while
 		// expr like (a % 1.2) panic at ConvertUntypedTo, which is a delayed assertion when const evaluated.
-		// assignable does not guarantee convertable.
+		// assignable does not guarantee convertible.
 		case UntypedBigdecType:
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
@@ -476,6 +439,12 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 		return nil
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
+			if at.Len != cdt.Len {
+				return fmt.Errorf(
+					"cannot use %s as %s",
+					at.String(),
+					cdt.String())
+			}
 			checkAssignableTo(at.Elt, cdt.Elt, false)
 			return nil
 		}
@@ -497,9 +466,7 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 	case *InterfaceType:
 		return errors.New("should not happen")
 	case *DeclaredType:
-		// do nothing, untyped to declared type
-		return nil
-		// panic("should not happen")
+		panic("should not happen")
 	case *StructType, *PackageType, *ChanType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
@@ -586,7 +553,14 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 	if isComparison(bx.Op) {
 		switch bx.Op {
 		case EQL, NEQ:
-			assertComparable(xt, dt) // only check if dest type is comparable
+			// special case when xt is nil
+			if xt == nil {
+				if !assertMaybeNil(dt) {
+					panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
+				}
+			} else {
+				assertComparable(dt) // only check if dest type is comparable
+			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[bx.Op]; ok {
 				bx.checkCompatibility(xt, dt, checker, OpStr)

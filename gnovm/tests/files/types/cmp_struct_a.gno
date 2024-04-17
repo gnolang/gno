@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_a.gno:15: [2][]int and [2][]int cannot be compared
+// main/files/types/cmp_struct_a.gno:15: [2][]int is not comparable

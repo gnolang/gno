@@ -12,8 +12,8 @@ func main() {
 	fa := foo{}
 	bb := bar{}
 
-	println(fa == bb)
+	println(bb == fa)
 }
 
 // Error:
-// main/files/types/cmp_struct_c.gno:15: main.bar is not comparable
+// main/files/types/cmp_struct_c1.gno:15: cannot use main.bar as main.foo without explicit conversion

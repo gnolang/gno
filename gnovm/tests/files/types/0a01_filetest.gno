@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0a01_filetest.gno:4: invalid operation, nil can not be compared to nil
+// main/files/types/0a01_filetest.gno:4: invalid operation, nil can not be compared to <nil>

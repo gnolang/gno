@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0f30f_filetest.gno:7: [2]int and [3]int cannot be compared
+// main/files/types/0f30f_filetest.gno:7: cannot use [2]int as [3]int
