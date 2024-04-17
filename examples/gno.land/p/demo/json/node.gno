@@ -56,6 +56,23 @@ func NewNode(prev *Node, b *buffer, typ ValueType, key **string) (*Node, error) 
 	return curr, nil
 }
 
+func valueNode(prev *Node, key string, typ ValueType, value interface{}) *Node {
+	curr := &Node{
+		prev:     prev,
+		data:     nil,
+		borders:  [2]int{0, 0},
+		key:      &key,
+		nodeType: typ,
+		modified: false,
+	}
+
+	if curr.value != nil {
+		curr.value = value
+	}
+
+	return curr
+}
+
 // load retrieves the value of the current node.
 func (n *Node) load() interface{} {
 	return n.value
@@ -480,31 +497,49 @@ func ObjectNode(key string, value map[string]*Node) *Node {
 
 // IsArray returns true if the current node is array type.
 func (n *Node) IsArray() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Array
 }
 
 // IsObject returns true if the current node is object type.
 func (n *Node) IsObject() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Object
 }
 
 // IsNull returns true if the current node is null type.
 func (n *Node) IsNull() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Null
 }
 
 // IsBool returns true if the current node is boolean type.
 func (n *Node) IsBool() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Boolean
 }
 
 // IsString returns true if the current node is string type.
 func (n *Node) IsString() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == String
 }
 
 // IsNumber returns true if the current node is number type.
 func (n *Node) IsNumber() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Number
 }
 

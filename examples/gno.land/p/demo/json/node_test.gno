@@ -300,21 +300,6 @@ func TestNode_GetBool_Fail(t *testing.T) {
 	}
 }
 
-func TestNode_IsBool(t *testing.T) {
-	tests := []simpleNode{
-		{"true", BoolNode("", true)},
-		{"false", BoolNode("", false)},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !tt.node.IsBool() {
-				t.Errorf("%s should be a bool", tt.name)
-			}
-		})
-	}
-}
-
 func TestNode_IsBool_With_Unmarshal(t *testing.T) {
 	tests := []struct {
 		name string
@@ -334,6 +319,208 @@ func TestNode_IsBool_With_Unmarshal(t *testing.T) {
 
 			if root.IsBool() != tt.want {
 				t.Errorf("%s should be a bool", tt.name)
+			}
+		})
+	}
+}
+
+func TestNode_IsString(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "String node",
+			node: &Node{nodeType: String},
+			want: true,
+		},
+		{
+			name: "Non-string node",
+			node: &Node{nodeType: Number},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsString(); got != tt.want {
+				t.Errorf("Node.IsString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNode_IsNumber(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "Number node",
+			node: &Node{nodeType: Number},
+			want: true,
+		},
+		{
+			name: "Non-number node",
+			node: &Node{nodeType: String},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsNumber(); got != tt.want {
+				t.Errorf("Node.IsNumber() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNode_IsBool(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "Bool node",
+			node: &Node{nodeType: Boolean},
+			want: true,
+		},
+		{
+			name: "Non-bool node",
+			node: &Node{nodeType: String},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsBool(); got != tt.want {
+				t.Errorf("Node.IsBool() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNode_IsNull(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "Null node",
+			node: &Node{nodeType: Null},
+			want: true,
+		},
+		{
+			name: "Non-null node",
+			node: &Node{nodeType: String},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsNull(); got != tt.want {
+				t.Errorf("Node.IsNull() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNode_IsArray(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "Array node",
+			node: &Node{nodeType: Array},
+			want: true,
+		},
+		{
+			name: "Non-array node",
+			node: &Node{nodeType: String},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsArray(); got != tt.want {
+				t.Errorf("Node.IsArray() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	root, err := Unmarshal(sampleArr)
+	if err != nil {
+		t.Errorf("Error on Unmarshal(): %s", err)
+		return
+	}
+
+	if root.Type() != Array {
+		t.Errorf(ufmt.Sprintf("Must be an array. got: %s", root.Type().String()))
+	}
+}
+
+func TestNode_IsObject(t *testing.T) {
+	tests := []struct {
+		name string
+		node *Node
+		want bool
+	}{
+		{
+			name: "Object node",
+			node: &Node{nodeType: Object},
+			want: true,
+		},
+		{
+			name: "Non-object node",
+			node: &Node{nodeType: String},
+			want: false,
+		},
+		{
+			name: "Nil node",
+			node: nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.node.IsObject(); got != tt.want {
+				t.Errorf("Node.IsObject() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -590,18 +777,6 @@ func TestNode_GetArray_Fail(t *testing.T) {
 				t.Errorf("%s should be an error", tt.name)
 			}
 		})
-	}
-}
-
-func TestNode_IsArray(t *testing.T) {
-	root, err := Unmarshal(sampleArr)
-	if err != nil {
-		t.Errorf("Error on Unmarshal(): %s", err)
-		return
-	}
-
-	if root.Type() != Array {
-		t.Errorf(ufmt.Sprintf("Must be an array. got: %s", root.Type().String()))
 	}
 }
 

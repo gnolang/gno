@@ -1,8 +1,8 @@
 package json
 
 import (
-	"testing"
 	"io"
+	"testing"
 )
 
 func TestBufferCurrent(t *testing.T) {
@@ -622,39 +622,4 @@ func TestBufferFirst(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestNextToken(t *testing.T) {
-    testCases := []struct {
-        input    string
-        expected []string
-    }{
-        {"1 + 2", []string{"1", "+", "2"}},
-        {"(1 + 2) * 3", []string{"(", "1", "+", "2", ")", "*", "3"}},
-        {"sin(0)", []string{"sin", "(", "0", ")"}},
-        {"max(1, 2, 3)", []string{"max", "(", "1", ",", "2", ",", "3", ")"}},
-        {"2 * (3 + 4)", []string{"2", "*", "(", "3", "+", "4", ")"}},
-        {"2 * (3 + 4) / 5", []string{"2", "*", "(", "3", "+", "4", ")", "/", "5"}},
-        {"2 * @length", []string{"2", "*", "@length"}},
-        {"$.price * 1.5", []string{"$.price", "*", "1.5"}},
-        {"-1e6", []string{"-1e6"}},
-        {"'hello'", []string{"'hello'"}},
-        {"true", []string{"true"}},
-        {"PI", []string{"PI"}},
-    }
-
-    for _, tc := range testCases {
-        b := &buffer{data: []byte(tc.input)}
-        var result []string
-        for {
-            token, err := b.nextToken()
-            if err != nil {
-                if err == io.EOF {
-                    break
-                }
-                t.Fatalf("Unexpected error: %v", err)
-            }
-            result = append(result, token)
-        }
-    }
 }

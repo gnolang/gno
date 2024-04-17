@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+	"unicode"
 
 	el "gno.land/p/demo/json/eisel_lemire"
 )
@@ -105,7 +106,7 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 			continue
 		}
 
-		if !isNumber(c) {
+		if !unicode.IsDigit(rune(c)) {
 			return 0, 0, errors.New("JSON Error: non-digit characters found while parsing integer value")
 		}
 
@@ -133,11 +134,11 @@ func trimNegativeSign(bytes []byte) (bool, []byte) {
 	return false, bytes
 }
 
-func isNumber(c byte) bool {
-	return (c & 0xF0) == 0x30
-}
-
 // lower converts a byte to lower case if it is an uppercase letter.
 func lower(c byte) byte {
 	return c | 0x20
+}
+
+func isAlphaNumeric(c byte) bool {
+	return unicode.IsLetter(rune(c)) || unicode.IsDigit(rune(c))
 }

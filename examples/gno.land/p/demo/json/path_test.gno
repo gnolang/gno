@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestParseJSONPath(t *testing.T) {
+func TestPath_ParseJSONPath(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string
@@ -44,6 +44,74 @@ func TestParseJSONPath(t *testing.T) {
 			reult, _ := ParsePath(tt.path)
 			if !isEqualSlice(reult, tt.expected) {
 				t.Errorf("ParsePath(%s) expected: %v, got: %v", tt.path, tt.expected, reult)
+			}
+		})
+	}
+}
+
+func TestPath_pathTokenizer(t *testing.T) {
+	tests := []struct {
+		name  string
+		want  []string
+		isErr bool
+	}{
+		{
+			name: "",
+			want: []string{},
+		},
+		{
+			name: "1234",
+			want: []string{"1234"},
+		},
+		{
+			name: "12e34",
+			want: []string{"12e34"},
+		},
+		{
+			name: "12.34",
+			want: []string{"12.34"},
+		},
+		{
+			name: "'foo'",
+			want: []string{"'foo'"},
+		},
+		{
+			name: "@.length",
+			want: []string{"@.length"},
+		},
+		{
+			name: "$.var2",
+			want: []string{"$.var2"},
+		},
+		{
+			name: "(@.length)",
+			want: []string{"(", "@.length", ")"},
+		},
+		{
+			name: `"{"`,
+			want: []string{`"{"`},
+		},
+		{
+			name:  "@.[",
+			isErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &buffer{
+				data:   []byte(tt.name),
+				length: len(tt.name),
+			}
+
+			got, err := b.pathTokenizer()
+			if (err != nil) != tt.isErr {
+				t.Errorf("pathTokenizer() error = %v, wantErr %v", err, tt.isErr)
+				return
+			}
+
+			if !isEqualSlice(got, tt.want) {
+				t.Errorf("pathTokenizer() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
