@@ -9,12 +9,28 @@ cmp stderr stderr.golden
 cmp main.gno.gen.go main.gno.gen.go.golden
 ! exists .main_test.gno.gen_test.go
 cmp sub/sub.gno.gen.go sub/sub.gno.gen.go.golden
+rm mai.gno.gen.gosub/sub.gno.gen.go
+
+# Re-try, but use an absolute path.
+gno transpile -gobuild -v $WORK
+
+! stdout .+
+cmpenv stderr stderr2.golden
+
+cmp main.gno.gen.go main.gno.gen.go.golden
+! exists .main_test.gno.gen_test.go
+cmp sub/sub.gno.gen.go sub/sub.gno.gen.go.golden
 
 -- stderr.golden --
 .
 sub
 . [build]
 sub [build]
+-- stderr2.golden --
+$WORK
+$WORK/sub
+$WORK [build]
+$WORK/sub [build]
 -- main.gno --
 package main
 

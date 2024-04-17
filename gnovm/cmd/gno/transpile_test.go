@@ -3,6 +3,7 @@ package main
 import (
 	"go/scanner"
 	"go/token"
+	"strconv"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -77,6 +78,16 @@ pkg/file.gno:60:20: ugly error`,
 				},
 			},
 		},
+		{
+			name:          "line parse error",
+			output:        `main.gno:9000000000000000000000000000000000000000000000000000:11: error`,
+			expectedError: strconv.ErrRange,
+		},
+		{
+			name:          "column parse error",
+			output:        `main.gno:1:9000000000000000000000000000000000000000000000000000: error`,
+			expectedError: strconv.ErrRange,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -84,7 +95,7 @@ pkg/file.gno:60:20: ugly error`,
 
 			err := parseGoBuildErrors(tt.output)
 
-			assert.Equal(t, tt.expectedError, err)
+			assert.ErrorIs(t, err, tt.expectedError)
 		})
 	}
 }

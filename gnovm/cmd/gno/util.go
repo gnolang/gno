@@ -169,25 +169,16 @@ func makeTestGoMod(path string, packageName string, goversion string) error {
 }
 
 // ResolvePath determines the path where to place output files.
-// dstPath is the desired output path by the gno program. output is the output
-// directory provided by the user.
+// output is the output directory provided by the user.
+// dstPath is the desired output path by the gno program.
 //
-// If dstPath is absolute, it will be simply joined together with output.
-// If dstPath is local, the output will be joined together with the relative
-// path to reach dstPath.
 // If dstPath is relative non-local path (ie. contains ../), the dstPath will
-// be made absolute and joined with output
+// be made absolute and joined with output.
 //
-//	Working directory: /home/gno
-//	ResolvePath("transpile-result", "./examples/test/test1.gno.gen.go")
-//		-> transpile-result/examples/test/test1.gen.go
-//	ResolvePath("/transpile-result", "./examples/test/test1.gno.gen.go")
-//		-> /transpile-result/examples/test/test1.gen.go
-//	ResolvePath("/transpile-result", "/home/gno/examples/test/test1.gno.gen.go")
-//		-> /transpile-result/home/gno/examples/test/test1.gen.go
-//	ResolvePath("result", "../jae/hello")
-//		-> result/home/jae/hello
-func ResolvePath(output string, dstPath string) (string, error) {
+// Otherwise, the result is simply filepath.Join(output, dstPath).
+//
+// See related test for examples.
+func ResolvePath(output, dstPath string) (string, error) {
 	if filepath.IsAbs(dstPath) ||
 		filepath.IsLocal(dstPath) {
 		return filepath.Join(output, dstPath), nil

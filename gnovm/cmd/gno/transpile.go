@@ -173,6 +173,12 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			if slices.Contains(opts.skipped, pkgPath) {
 				continue
 			}
+			if cfg.output != "." {
+				pkgPath, err = ResolvePath(cfg.output, pkgPath)
+				if err != nil {
+					return fmt.Errorf("resolve output path: %w", err)
+				}
+			}
 			err := goBuildFileOrPkg(pkgPath, cfg)
 			if err != nil {
 				var fileErrlist scanner.ErrorList
@@ -339,14 +345,13 @@ func buildTranspiledPackage(fileOrPkg, goBinary string) error {
 		// can't use filepath.Join as it cleans its results.
 		target = filepath.Dir(fileOrPkg) + string(filepath.Separator) + dstFilename
 	} else {
-		target = fileOrPkg
-		if filepath.IsAbs(target) {
-			// Go does not allow building packages using absolute paths.
-			// To circumvent this, we use the -C flag to chdir into the right
-			// directory, then run `go build .`
-			chdir = target
-			target = "."
-		}
+		// Go does not allow building packages using absolute paths, and requires
+		// relative paths to always be prefixed with `./` (because the argument
+		// go expects are import paths, not directories).
+		// To circumvent this, we use the -C flag to chdir into the right
+		// directory, then run `go build .`
+		chdir = fileOrPkg
+		target = "."
 	}
 
 	// pre-alloc max 5 args
