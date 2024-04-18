@@ -43,11 +43,10 @@ run.gnoland:;      go run ./cmd/gnoland start
 run.gnoweb:;       go run ./cmd/gnoweb
 
 .PHONY: install
-install: install.gnoland install.gnoweb install.gnofaucet install.gnokey install.genesis
+install: install.gnoland install.gnoweb install.gnokey install.genesis
 
 install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
-install.gnofaucet:;  go install ./cmd/gnofaucet
 install.gnokey:;     go install ./cmd/gnokey
 install.genesis:;    go install ./cmd/genesis
 
