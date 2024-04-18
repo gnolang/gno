@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign22.gno:7: should not happen
+// main/files/assign22.gno:7: assignment operator <<= requires only one expression on lhs and rhs
