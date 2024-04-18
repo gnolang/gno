@@ -11,7 +11,8 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "genesis",
 			ShortUsage: "genesis <subcommand> [flags] [<arg>...]",
-			LongHelp:   "gno genesis manipulation suite",
+			ShortHelp:  "gno genesis manipulation suite",
+			LongHelp:   "Gno genesis.json manipulation suite, for managing genesis parameters",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
