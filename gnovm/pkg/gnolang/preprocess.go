@@ -2340,7 +2340,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if !coerce {
 			if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno.
 				// e.g. int(1) == int8(1)
-				checkAssignableTo(cx.T, t, autoNative) // refer to 22a17a
+				checkAssignableTo(cx.T, t, autoNative)
 			}
 		}
 		convertConst(store, last, cx, t)
