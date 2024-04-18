@@ -44,7 +44,7 @@ type devCfg struct {
 	nodeProxyAppListenerAddr string
 
 	// Users default
-	genesisCreator     string
+	deployKey          string
 	home               string
 	root               string
 	additionalAccounts varAccounts
@@ -65,7 +65,7 @@ var defaultDevOptions = &devCfg{
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:36657",
-	genesisCreator:      DefaultCreatorAddress.String(),
+	deployKey:           DefaultCreatorAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
 
@@ -132,10 +132,10 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.genesisCreator,
-		"genesis-creator",
-		defaultDevOptions.genesisCreator,
-		"name or bech32 address of the genesis creator",
+		&c.deployKey,
+		"deploy-key",
+		defaultDevOptions.deployKey,
+		"default key name or Bech32 address for deploying packages",
 	)
 
 	fs.BoolVar(
@@ -376,13 +376,13 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([]gnodev.PackagePath, error) {
 	paths := make([]gnodev.PackagePath, 0, len(args))
 
-	if cfg.genesisCreator == "" {
-		return nil, fmt.Errorf("default genesis creator cannot be empty")
+	if cfg.deployKey == "" {
+		return nil, fmt.Errorf("default deploy key cannot be empty")
 	}
 
-	defaultKey, err := kb.GetByNameOrAddress(cfg.genesisCreator)
+	defaultKey, err := kb.GetByNameOrAddress(cfg.deployKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get genesis creator %q: %w", cfg.genesisCreator, err)
+		return nil, fmt.Errorf("unable to get deploy key %q: %w", cfg.deployKey, err)
 	}
 
 	for _, arg := range args {

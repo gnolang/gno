@@ -22,6 +22,7 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
   ensuring the previous node state is preserved.
 
 ## Installation
+
 Gnodev can be found in the `contribs` folder in the monorepo.
 To install `gnodev`, run `make install`.
 
@@ -38,18 +39,41 @@ gnodev ./myrealm
 
 ## Keybase and Balance
 
-Gnodev will, by default, load your keybase located in the GNOHOME directory, giving all your keys (almost) unlimited fund. 
-
-All realms will be by the `-genesis-creator`, but You can also pass query options to the realm path to load a
-realm with specific creator and deposit:
-```
-gnodev ./myrealm?creator=foo&deposit=42ugnot``
-```
+Gnodev will, by default, load the keybase located in your GNOHOME directory, pre-mining `10e12` amount of
+ugnot to all of them. This way, users can interact with Gnodev's in-memory node out of the box. The addresses
+and their respective balance can be shown at runtime by pressing `A` to display accounts interactively.
 
 ### Additional Account
-Use the `-add-account` flag with the format `<bech32/name>[:<amount>]` to add a specific address or key name
-from your local keybase. You can set an optional amount for this address. Repeat this command to add multiple
-accounts. The addresses will be shown during runtime or by pressing `A` to display accounts interactively.
+
+To add or set a specific address or key name from your local Keybase with an optional amount, use the
+`--add-account` flag in the format `<bech32/name>[:<amount>]`. You can use this command multiple times to add
+or set multiple accounts:
+
+```
+gnodev --add-acount=g1...:42ugnot --add-acount=test2:42ugnot
+```
+
+### Deploy
+
+All realms and packages will be deployed to the in-memory node by the address passed in with the
+`--deploy-key` flag. The `deploy-key` address can be changed for a specific package or realm by passing in
+the desired address (or a known keyname) using with the following pattern:
+
+```
+gnodev ./myrealm?deployer=g1....
+```
+
+A specific deposit amount can also be set with the following pattern:
+
+```
+gnodev ./myrealm?deposit=42ugnot
+```
+
+This patten can be expanded to accommodate both options:
+
+```
+gnodev ./myrealm?deployer=<addr>&deposit=<amount>
+```
 
 ## Interactive Usage
 
@@ -62,19 +86,19 @@ While `gnodev` is running, the following shortcuts are available:
 
 ### Options
 
-| Flag                | Effect                                                  |
-|---------------------|---------------------------------------------------------|
-| --minimal           | Start `gnodev` without loading the examples folder.     |
-| --no-watch          | Disable hot reload.                                     |
-| --add-account       | Pre-add account(s) in the form `<bech32>[:<amount>]`    |
-| --balances-file     | Load a balance for the user(s) from a balance file.     |
-| --chain-id          | Set node ChainID                                        |
-| --genesis-creator   | Name or bech32 address of the genesis creator           |
-| --home              | Set the path to load user's Keybase.                    |
-| --max-gas           | Set the maximum gas per block                           |
-| --no-replay         | Do not replay previous transactions upon reload         |
-| --node-rpc-listener | listening address for GnoLand RPC node                  |
-| --root              | gno root directory                                      |
-| --server-mode       | disable interaction, and adjust logging for server use. |
-| --verbose           | enable verbose output for development                   |
-| --web-listener      | web server listening address                            |
+| Flag                | Effect                                                     |
+|---------------------|------------------------------------------------------------|
+| --minimal           | Start `gnodev` without loading the examples folder.        |
+| --no-watch          | Disable hot reload.                                        |
+| --add-account       | Pre-add account(s) in the form `<bech32>[:<amount>]`       |
+| --balances-file     | Load a balance for the user(s) from a balance file.        |
+| --chain-id          | Set node ChainID                                           |
+| --deploy-key        | Default key name or Bech32 address for uploading packages. |
+| --home              | Set the path to load user's Keybase.                       |
+| --max-gas           | Set the maximum gas per block                              |
+| --no-replay         | Do not replay previous transactions upon reload            |
+| --node-rpc-listener | listening address for GnoLand RPC node                     |
+| --root              | gno root directory                                         |
+| --server-mode       | disable interaction, and adjust logging for server use.    |
+| --verbose           | enable verbose output for development                      |
+| --web-listener      | web server listening address                               |
