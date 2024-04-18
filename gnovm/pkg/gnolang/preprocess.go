@@ -748,7 +748,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// special case of shift
 				if isShift {
 					// check LHS type compatibility
-					n.checkShiftExpr(lt)
+					n.checkShiftLhs(lt)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType { // convert rhs of shift expr to uint
 						// convert n.Right to (gno) uint type,
