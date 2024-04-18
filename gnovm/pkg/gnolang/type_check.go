@@ -514,7 +514,7 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type) {
 			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
 		}
 	} else {
-		panic("should not happen")
+		panic(fmt.Sprintf("binary checker for %s does not exist", bx.Op))
 	}
 }
 
