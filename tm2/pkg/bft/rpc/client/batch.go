@@ -390,6 +390,23 @@ func (b *RPCBatch) Commit(height *int64) error {
 	return nil
 }
 
+func (b *RPCBatch) Tx(hash []byte) error {
+	// Prepare the RPC request
+	request, err := newRequest(
+		txMethod,
+		map[string]interface{}{
+			"hash": hash,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create request, %w", err)
+	}
+
+	b.addRequest(request, &ctypes.ResultTx{})
+
+	return nil
+}
+
 func (b *RPCBatch) Validators(height *int64) error {
 	params := map[string]any{}
 	if height != nil {

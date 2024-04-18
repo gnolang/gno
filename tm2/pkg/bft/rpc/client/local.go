@@ -137,3 +137,7 @@ func (c *Local) Commit(height *int64) (*ctypes.ResultCommit, error) {
 func (c *Local) Validators(height *int64) (*ctypes.ResultValidators, error) {
 	return core.Validators(c.ctx, height)
 }
+
+func (c *Local) Tx(hash []byte) (*ctypes.ResultTx, error) {
+	return core.Tx(c.ctx, hash)
+}

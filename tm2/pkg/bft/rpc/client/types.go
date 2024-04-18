@@ -28,6 +28,7 @@ type Client interface {
 	SignClient
 	StatusClient
 	MempoolClient
+	TxClient
 }
 
 // ABCIClient groups together the functionality that principally affects the
@@ -82,4 +83,8 @@ type NetworkClient interface {
 type MempoolClient interface {
 	UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error)
 	NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error)
+}
+
+type TxClient interface {
+	Tx(hash []byte) (*ctypes.ResultTx, error)
 }

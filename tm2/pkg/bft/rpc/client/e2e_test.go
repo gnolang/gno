@@ -398,6 +398,19 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			txMethod,
+			&ctypes.ResultTx{
+				Hash:   []byte("tx hash"),
+				Height: 10,
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Tx([]byte("tx hash"))
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
 			validatorsMethod,
 			&ctypes.ResultValidators{
 				BlockHeight: 10,

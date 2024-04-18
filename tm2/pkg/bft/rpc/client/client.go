@@ -37,6 +37,7 @@ const (
 	blockMethod              = "block"
 	blockResultsMethod       = "block_results"
 	commitMethod             = "commit"
+	txMethod                 = "tx"
 	validatorsMethod         = "validators"
 )
 
@@ -296,6 +297,17 @@ func (c *RPCClient) Commit(height *int64) (*ctypes.ResultCommit, error) {
 		c.requestTimeout,
 		commitMethod,
 		params,
+	)
+}
+
+func (c *RPCClient) Tx(hash []byte) (*ctypes.ResultTx, error) {
+	return sendRequestCommon[ctypes.ResultTx](
+		c.caller,
+		c.requestTimeout,
+		txMethod,
+		map[string]interface{}{
+			"hash": hash,
+		},
 	)
 }
 

@@ -726,6 +726,41 @@ func TestRPCClient_Commit(t *testing.T) {
 	assert.Equal(t, expectedResult, result)
 }
 
+func TestRPCClient_Tx(t *testing.T) {
+	t.Parallel()
+
+	var (
+		hash = []byte("tx hash")
+
+		expectedResult = &ctypes.ResultTx{
+			Hash:   hash,
+			Height: 10,
+		}
+
+		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
+			assert.Equal(t, base64.StdEncoding.EncodeToString(hash), params["hash"])
+		}
+
+		mockClient = generateMockRequestClient(
+			t,
+			txMethod,
+			verifyFn,
+			expectedResult,
+		)
+	)
+
+	// Create the client
+	c := NewRPCClient(mockClient)
+
+	// Get the result
+	result, err := c.Tx(hash)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedResult, result)
+}
+
 func TestRPCClient_Validators(t *testing.T) {
 	t.Parallel()
 

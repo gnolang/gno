@@ -442,6 +442,22 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			txMethod,
+			&ctypes.ResultTx{
+				Hash:   []byte("tx hash"),
+				Height: 10,
+			},
+			func(batch *RPCBatch) {
+				require.NoError(t, batch.Tx([]byte("tx hash")))
+			},
+			func(result any) any {
+				castResult, ok := result.(*ctypes.ResultTx)
+				require.True(t, ok)
+
+				return castResult
+			},
+		},
+		{
 			validatorsMethod,
 			&ctypes.ResultValidators{
 				BlockHeight: 10,
