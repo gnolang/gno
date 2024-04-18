@@ -25,7 +25,7 @@ func SignUp() string {
 	return caller + " signed up!"
 }
 
-func GetSignedUpInRange(page, pageSize uint) []string {
+func GetSignedUpInRange(page, pageSize int) []string {
 	if page < 1 {
 		panic("page number cannot be less than 1")
 	}
@@ -34,6 +34,22 @@ func GetSignedUpInRange(page, pageSize uint) []string {
 		panic("page size must be between 1 and 50")
 	}
 
+	// Pagination
+	// Calculate indexes
+	startIndex := (page - 1) * pageSize
+	endIndex := startIndex + pageSize
+
+	// If page does not contain any posts
+	if startIndex >= len(list) {
+		return nil
+	}
+
+	// If page contains fewer posts than the page size
+	if endIndex > len(list) {
+		endIndex = len(list)
+	}
+
+	return list[startIndex:endIndex]
 }
 
 func Render(path string) string {
