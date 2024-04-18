@@ -1,1 +1,1 @@
-module gno.land/r/system/rewards
+module gno.land/r/sys/rewards
