@@ -6,11 +6,18 @@ package pagination
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 	"std"
+	"strconv"
 )
 
 var list []string     // keep a slice of signed up addresses efficient pagination
 var tracker *avl.Tree // keep track of who signed up
+
+func init() {
+	tracker = avl.NewTree()
+	SignUp()
+}
 
 func SignUp() string {
 	caller := std.GetOrigCaller().String()
@@ -54,17 +61,35 @@ func GetSignedUpInRange(page, pageSize int) []string {
 }
 
 func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
-	num := req.GetVar("number")
+	res.Write("# Welcome to Gno.land!\n\n")
+	res.Write("## Signed up users:\n\n")
 
-	if num != "" {
-		res.Write("page: " + num + "!")
-	} else {
-		res.Write("Hello, world!")
+	page, err := strconv.Atoi(req.GetVar("number"))
+	if err != nil {
+		page = 1 // render first page on bad input
 	}
+
+	addresses := GetSignedUpInRange(page, 20)
+	if len(addresses) == 0 {
+		res.Write("No users are signed up currently.")
+	}
+
+	for i, addr := range addresses {
+		out := ufmt.Sprintf("#### User #%d - %s\n", i, addr)
+		res.Write(out)
+	}
+
+	res.Write("---\n\n")
+	res.Write(ufmt.Sprintf("You're viewing page #%d\n\n", page))
+
+	nextPage := ufmt.Sprintf("[Next page](page/%d)", page+1)
+	res.Write(nextPage)
+
 }
 
 func Render(path string) string {
 	router := mux.NewRouter()
+	router.HandleFunc("", renderHelper)
 	router.HandleFunc("page/{number}", renderHelper)
 	return router.Render(path)
 }
