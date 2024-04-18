@@ -15,8 +15,9 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
   the **examples** folder and any user-specified paths.
 - **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
 [`localhost:8888`](https://localhost:8888).
-- **Balances and Keybase Customization**: Users can set balances, load from a file, or add users via a flag.
-- **Hot Reload**: Gnodev monitors the **examples** folder and any specified for
+- **Balances and Keybase Customization**: Users can set account balances, load them from a file, or add new
+  accounts via a flag.
+- **Hot Reload**: Gnodev monitors the **examples** folder, as well as any folder specified as an argument for
   file changes, reloading and automatically restarting the node as needed.
 - **State Maintenance**: Gnodev replays all transactions in between reloads,
   ensuring the previous node state is preserved.
