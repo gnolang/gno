@@ -12,13 +12,13 @@ type AddressSet interface {
 	HasAddress(Address) bool
 }
 
-type AddressList *avl.Tree
+type AddressList avl.Tree
 
 func NewAddressList() *AddressList {
 	return avl.Newtree()
 }
 
-func (alist *AddressList) Size() int {
+func (alist AddressList) Size() int {
 	return alist.Size()
 }
 
@@ -29,6 +29,6 @@ func (alist *AddressList) AddAddress(newAddr Address) error {
 	return nil
 }
 
-func (alist *AddressList) HasAddress(newAddr Address) bool {
+func (alist AddressList) HasAddress(newAddr Address) bool {
 	return alist.Has(newAddr)
 }
