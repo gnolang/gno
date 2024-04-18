@@ -1611,7 +1611,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: Keep in sync with DEFINE above.
 					if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-							panic("should not happen")
+							panic("operators <<= and >>= require one expression on lhs and rhs")
 						}
 						// Special case if shift assign <<= or >>=.
 						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
