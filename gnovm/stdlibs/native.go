@@ -336,7 +336,7 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"emitEvent",
+		"emit",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("[]string")},
@@ -354,7 +354,7 @@ var nativeFuncs = [...]nativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			libs_std.X_emitEvent(
+			libs_std.X_emit(
 				m,
 				p0, p1)
 		},

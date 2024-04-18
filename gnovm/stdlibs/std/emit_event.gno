@@ -1,4 +1,4 @@
 package std
 
-func Emit(typ string, attrs []string) { emitEvent(typ, attrs) }
-func emitEvent(typ string, attrs []string)
+func Emit(typ string, attrs []string) { emit(typ, attrs) }
+func emit(typ string, attrs []string)

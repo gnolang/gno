@@ -39,7 +39,7 @@ func (em *EventLogger) EmitEvents(events []Event) {
 
 type Event = abci.Event
 
-type DetailedEvent struct {
+type EventDetail struct {
 	Type       string // type of event
 	PkgPath    string // event occurred package path
 	Identifier string // event occurred function identifier
@@ -47,8 +47,8 @@ type DetailedEvent struct {
 	Attributes []EventAttribute // list of event attributes (comma separated key-value pairs)
 }
 
-func CreateDetailedEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
-	return DetailedEvent{
+func NewDetailedEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
+	return EventDetail{
 		Type:       eventType,
 		PkgPath:    pkgPath,
 		Identifier: ident,
@@ -57,9 +57,9 @@ func CreateDetailedEvent(eventType string, pkgPath string, ident string, timesta
 	}
 }
 
-func (e DetailedEvent) AssertABCIEvent() {}
+func (e EventDetail) AssertABCIEvent() {}
 
-func (e DetailedEvent) String() string {
+func (e EventDetail) String() string {
 	result, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Sprintf("Error marshalling event: %v", err)
@@ -70,11 +70,4 @@ func (e DetailedEvent) String() string {
 type EventAttribute struct {
 	Key   string
 	Value string
-}
-
-func NewEventAttribute(key, value string) EventAttribute {
-	return EventAttribute{
-		Key:   key,
-		Value: value,
-	}
 }
