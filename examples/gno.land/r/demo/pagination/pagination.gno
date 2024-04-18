@@ -4,11 +4,12 @@
 package pagination
 
 import (
+	"std"
+	"strconv"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
-	"std"
-	"strconv"
 )
 
 var list []string     // keep a slice of signed up addresses efficient pagination
