@@ -1585,7 +1585,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							var mt *MapType
 							st := evalStaticTypeOf(store, last, cx.X)
 							if dt, ok := st.(*DeclaredType); ok {
-								mt = dt.Base.(*MapType)
+								if mt, ok = dt.Base.(*MapType); !ok {
+									s := fmt.Sprintf("the base of the %s is invalid, it should be MapType", dt.Name)
+									panic(s)
+								}
 							} else if mt, ok = st.(*MapType); !ok {
 								panic("invalid index expression on MapType")
 							}
