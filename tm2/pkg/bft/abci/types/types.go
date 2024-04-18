@@ -1,7 +1,8 @@
 package abci
 
 import (
-	"strings"
+	"bytes"
+	"encoding/json"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -117,30 +118,27 @@ func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
 }
 
-func (r ResponseBase) EventString() string {
+func (r ResponseBase) String() string {
 	levts := len(r.Events)
 	if levts == 0 {
 		return `""`
 	}
 
-	var builder strings.Builder
+	var buf bytes.Buffer
 
-	if levts > 1 {
-		builder.WriteString("[")
-	}
-
-	for i, event := range r.Events {
-		if i > 0 {
-			builder.WriteString(",")
+	for _, event := range r.Events {
+		json, err := event.MarshalJSON()
+		if err != nil {
+			return err.Error()
 		}
-		builder.WriteString(event.String())
+		buf.Write(json)
 	}
 
-	if levts > 1 {
-		builder.WriteString("]")
+	if !json.Valid(buf.Bytes()) {
+		return "invalid JSON"
 	}
 
-	return builder.String()
+	return buf.String()
 }
 
 // nondeterministic
@@ -220,7 +218,8 @@ type Error interface {
 }
 
 type Event interface {
-	String() string
+	// String() string
+	MarshalJSON() ([]byte, error)
 	AssertABCIEvent()
 }
 
@@ -248,6 +247,10 @@ func (err StringError) Error() string {
 type EventString string
 
 func (EventString) AssertABCIEvent() {}
+
+func (EventString) MarshalJSON() ([]byte, error) {
+	return nil, nil
+}
 
 func (err EventString) Event() string {
 	return string(err)

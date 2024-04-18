@@ -4,7 +4,13 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ee -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/demo/ee -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Sender -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED: [0-9]+'
+stdout 'EVENTS:'
+
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Receiver -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED: [0-9]+'
@@ -18,13 +24,13 @@ import (
 )
 
 const (
-	EventAttrKeySender = "sender"
-	EventAttrKeyReceiver = "receiver"
+	EventSender = "sender"
+	EventReceiver = "receiver"
 )
 
-func Hello() {
+func Sender() {
 	std.Emit(
-		EventAttrKeySender,
+		EventSender,
 		[]string{
 			"key1", "value1",
 			"key2", "value2",
@@ -32,9 +38,11 @@ func Hello() {
 			"not-a-pair",		// ignore the key-value not in pairs
 		},
 	)
+}
 
+func Receiver() {
 	std.Emit(
-		EventAttrKeyReceiver,
+		EventReceiver,
 		[]string{
 			"foo", "bar",
 		},

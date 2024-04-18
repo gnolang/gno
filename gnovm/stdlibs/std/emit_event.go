@@ -31,11 +31,11 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 }
 
 type GnoEvent struct {
-	Type       string // type of event
-	PkgPath    string // event occurred package path
-	Identifier string // event occurred function identifier
-	Timestamp  int64
-	Attributes []GnoEventAttribute // list of event attributes (comma separated key-value pairs)
+	Type       string              `json:"type"`
+	PkgPath    string              `json:"pkg_path"`
+	Identifier string              `json:"identifier"`
+	Timestamp  int64               `json:"timestamp"`
+	Attributes []GnoEventAttribute `json:"attributes"`
 }
 
 func NewGnoEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...GnoEventAttribute) sdk.Event {
@@ -50,15 +50,28 @@ func NewGnoEvent(eventType string, pkgPath string, ident string, timestamp int64
 
 func (e GnoEvent) AssertABCIEvent() {}
 
-func (e GnoEvent) String() string {
-	result, err := json.Marshal(e)
-	if err != nil {
-		return fmt.Sprintf("Error marshalling event: %v", err)
+func (e GnoEvent) MarshalJSON() ([]byte, error) {
+	attributesMap := make(map[string]string)
+	for _, attr := range e.Attributes {
+		attributesMap[attr.Key] = attr.Value
 	}
-	return string(result)
+	data := map[string]interface{}{
+		"pkg_path":   e.PkgPath,
+		"identifier": e.Identifier,
+		"timestamp":  e.Timestamp,
+		"attributes": attributesMap,
+	}
+	wrapper := map[string]interface{}{
+		e.Type: data,
+	}
+	res, err := json.Marshal(wrapper)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling event: %v", err)
+	}
+	return res, nil
 }
 
 type GnoEventAttribute struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
