@@ -15,7 +15,7 @@ type AddressSet interface {
 type AddressList avl.Tree
 
 func NewAddressList() *AddressList {
-	return avl.Newtree()
+	return avl.NewTree()
 }
 
 func (alist AddressList) Size() int {
