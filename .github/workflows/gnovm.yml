@@ -60,6 +60,8 @@ jobs:
           - _test.pkg
           - _test.gnolang.native
           - _test.gnolang.stdlibs
+          - _test.gnolang.types
+          - _test.gnolang.types.native
           - _test.gnolang.realm
           - _test.gnolang.pkg0
           - _test.gnolang.pkg1
