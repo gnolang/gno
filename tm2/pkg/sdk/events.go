@@ -1,9 +1,6 @@
 package sdk
 
 import (
-	"encoding/json"
-	"fmt"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
@@ -38,36 +35,3 @@ func (em *EventLogger) EmitEvents(events []Event) {
 // ----------------------------------------------------------------------------
 
 type Event = abci.Event
-
-type EventDetail struct {
-	Type       string // type of event
-	PkgPath    string // event occurred package path
-	Identifier string // event occurred function identifier
-	Timestamp  int64
-	Attributes []EventAttribute // list of event attributes (comma separated key-value pairs)
-}
-
-func NewDetailedEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...EventAttribute) Event {
-	return EventDetail{
-		Type:       eventType,
-		PkgPath:    pkgPath,
-		Identifier: ident,
-		Attributes: attrs,
-		Timestamp:  timestamp,
-	}
-}
-
-func (e EventDetail) AssertABCIEvent() {}
-
-func (e EventDetail) String() string {
-	result, err := json.Marshal(e)
-	if err != nil {
-		return fmt.Sprintf("Error marshalling event: %v", err)
-	}
-	return string(result)
-}
-
-type EventAttribute struct {
-	Key   string
-	Value string
-}
