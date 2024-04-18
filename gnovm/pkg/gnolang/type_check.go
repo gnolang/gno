@@ -36,7 +36,7 @@ var (
 		XOR: isIntNum,
 		NOT: isBoolean,
 	}
-	IncDecStmtChecker = map[Word]func(t Type) bool{ // NOTE: to be consistent with op_inc_dec.go, line3, no float support for now(while go does).
+	IncDecStmtChecker = map[Word]func(t Type) bool{
 		INC: isNumeric,
 		DEC: isNumeric,
 	}
@@ -514,7 +514,7 @@ func (bx *BinaryExpr) checkShiftExpr(dt Type) {
 			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
 		}
 	} else {
-		panic("should not happen")
+		panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
 	}
 }
 
@@ -565,7 +565,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 			if checker, ok := binaryChecker[bx.Op]; ok {
 				bx.checkCompatibility(xt, dt, checker, OpStr)
 			} else {
-				panic("should not happen")
+				panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
 			}
 		default:
 			panic("invalid comparison operator")
@@ -574,7 +574,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		if checker, ok := binaryChecker[bx.Op]; ok {
 			bx.checkCompatibility(xt, dt, checker, OpStr)
 		} else {
-			panic("should not happen")
+			panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
 		}
 
 		switch bx.Op {
@@ -595,14 +595,14 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 
 func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
 	if !checker(dt) {
-		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, destKind(dt)))
+		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
 
 	// e.g. 1%1e9
 	if !checker(xt) {
 		err := tryCheckAssignableTo(xt, dt, false) // XXX, cache this?
 		if err != nil {
-			panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, destKind(xt)))
+			panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(xt)))
 		}
 	}
 }
@@ -619,10 +619,10 @@ func (ux *UnaryExpr) AssertCompatible(xt, dt Type) {
 			dt = xt
 		}
 		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", ux.Op.TokenString(), destKind(dt)))
+			panic(fmt.Sprintf("operator %s not defined on: %v", ux.Op.TokenString(), kindString(dt)))
 		}
 	} else {
-		panic("should not happen")
+		panic(fmt.Sprintf("checker for %s does not exist", ux.Op))
 	}
 }
 
@@ -635,10 +635,10 @@ func (idst *IncDecStmt) AssertCompatible(t Type) {
 	// check compatible
 	if checker, ok := IncDecStmtChecker[idst.Op]; ok {
 		if !checker(t) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", idst.Op.TokenString(), destKind(t)))
+			panic(fmt.Sprintf("operator %s not defined on: %v", idst.Op.TokenString(), kindString(t)))
 		}
 	} else {
-		panic("should not happen")
+		panic(fmt.Sprintf("checker for %s does not exist", idst.Op))
 	}
 }
 
@@ -772,7 +772,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 
 			if checker, ok := AssignStmtChecker[as.Op]; ok {
 				if !checker(lt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", Opstr, destKind(lt)))
+					panic(fmt.Sprintf("operator %s not defined on: %v", Opstr, kindString(lt)))
 				}
 				switch as.Op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
@@ -788,19 +788,18 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// do nothing
 				}
 			} else {
-				panic("should not happen")
+				panic(fmt.Sprintf("checker for %s does not exist", as.Op))
 			}
 		}
 	}
 }
 
 // misc
-func destKind(xt Type) Kind {
-	var dk Kind
+func kindString(xt Type) string {
 	if xt != nil {
-		dk = xt.Kind()
+		return xt.Kind().String()
 	}
-	return dk
+	return "nil"
 }
 
 func isQuoOrRem(op Word) bool {
