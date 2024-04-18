@@ -324,8 +324,8 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
 			if !dxt.sealed && !ddt.sealed &&
-				dxt.PkgPath == ddt.PkgPath &&
-				dxt.Name == ddt.Name { // not yet sealed
+					dxt.PkgPath == ddt.PkgPath &&
+					dxt.Name == ddt.Name { // not yet sealed
 				return nil // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return nil // ok
@@ -529,11 +529,8 @@ func (bx *BinaryExpr) checkShiftLhs(dt Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
-	// we can't check compatible with native types at current stage,
-	// so leave it to later operations(trans_leave on binaryExpr)
-	// to be converted into gno(only for primitive types), and do
-	// this check again. (AssertCompatible would be invoked again)
-	// non-primitive types is a special case that is not handled.
+	// native type will be converted to gno in latter logic,
+	// this check logic will be conduct again
 	if lnt, ok := lt.(*NativeType); ok {
 		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
 		if ok {
@@ -655,7 +652,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if len(as.Lhs) != len(cft.Results) {
 					panic(fmt.Sprintf(
 						"assignment mismatch: "+
-							"%d variables but %s returns %d values",
+								"%d variables but %s returns %d values",
 						len(as.Lhs), cx.Func.String(), len(cft.Results)))
 				}
 				// check assignable
