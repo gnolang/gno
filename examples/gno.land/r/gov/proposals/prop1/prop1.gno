@@ -15,6 +15,8 @@ func Propose() {
 	if done {
 		panic("already done")
 	}
+
+	// create the validators change proposal.
 	changesFn := func() []validators.Change {
 		return []validators.Change{
 			{Address: std.Address("g12345678"), Power: 1},  // add a new validator
@@ -22,10 +24,13 @@ func Propose() {
 		}
 	}
 
+	// wraps changesFn to emit a certified event only if executed from a complete governance proposal process.
 	executor := validators.NewExecutor(changesFn)
 
+	// create a proposal
+	// XXX: payment
 	govdao.Propose(govdao.Proposal{
-		Comment:  "manual valset changes",
+		Comment:  "manual valset changes proposal example",
 		Executor: executor,
 	})
 	done = true

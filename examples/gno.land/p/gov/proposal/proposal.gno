@@ -10,16 +10,24 @@ func NewExecutor(callback func() error) Executor {
 type executorImpl struct {
 	callback func() error
 	done     bool
+	success  bool
 }
 
 func (exec *executorImpl) execute() error {
 	if exec.done {
 		return ErrAlreadyDone
 	}
-	// XXX: verify prevrealm or framestack is govdao
-	return exec.callback()
+	// XXX: assertCalledByGovdao
+	err := exec.callback()
+	exec.done = true
+	exec.success = err == nil
+	return err
 }
 
 func (exec *executorImpl) Done() bool {
 	return exec.done
+}
+
+func (exec *executorImpl) Success() bool {
+	return exec.success
 }
