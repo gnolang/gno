@@ -66,7 +66,7 @@ func (e GnoEvent) MarshalJSON() ([]byte, error) {
 	}
 	res, err := json.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling event: %v", err)
+		return nil, fmt.Errorf("error marshalling event: %w", err)
 	}
 	return res, nil
 }

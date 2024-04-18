@@ -218,7 +218,6 @@ type Error interface {
 }
 
 type Event interface {
-	// String() string
 	MarshalJSON() ([]byte, error)
 	AssertABCIEvent()
 }
