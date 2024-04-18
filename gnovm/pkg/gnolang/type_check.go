@@ -504,7 +504,7 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 }
 
 // ===========================================================
-func (bx *BinaryExpr) checkShiftExpr(dt Type) {
+func (bx *BinaryExpr) checkShiftLhs(dt Type) {
 	var destKind interface{}
 	if dt != nil {
 		destKind = dt.Kind()
