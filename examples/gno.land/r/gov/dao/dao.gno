@@ -4,9 +4,9 @@ import "std"
 
 var proposals = make([]Proposal, 0)
 
-// var members ...
-// var levels
+// XXX var members ...
 
+// Proposal represents a proposal in the governance system.
 type Proposal struct {
 	author   std.Address
 	idx      int
@@ -14,8 +14,9 @@ type Proposal struct {
 	Callback func()
 }
 
-// ProposeChanges is designed to be called by another contract, not by a maketx call.
-func ProposeChanges(proposal Proposal) int {
+// Propose is designed to be called by another contract or with
+// `maketx run`, not by a `maketx call`.
+func Propose(proposal Proposal) int {
 	// XXX: require payment?
 	// XXX: sanitize proposal
 	caller := std.PrevRealm().Addr()
@@ -28,6 +29,7 @@ func ProposeChanges(proposal Proposal) int {
 
 func VoteOnProposal(idx int, option string) {
 	AssertIsMember(caller)
+	panic("not implemented")
 	// XXX: implement the voting (woudl be cool to have a generic p/)
 }
 
