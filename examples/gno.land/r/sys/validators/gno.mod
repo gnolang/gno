@@ -1,1 +1,1 @@
-module gno.land/r/system/validators
+module gno.land/r/sys/validators

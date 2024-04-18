@@ -4,7 +4,7 @@ package validators
 import (
 	"std"
 
-	govdao "gno.land/r/gov/dao"
+	"gno.land/p/gov/proposal"
 )
 
 type Change struct {
@@ -12,19 +12,17 @@ type Change struct {
 	Power   int
 }
 
-func ProposeChanges(changesFn func() []Change) int {
+func NewExecutor(changesFn []Change) proposal.Executor {
 	if changesFn == nil {
 		panic("changesFn should not be nil")
 	}
 
+	// certify that the changes are sent from the context of this realm.
 	callback := func() {
 		changes := changesFn()
 		std.Emit(changes) // depends on std.Emit implementation
 	}
 
-	idx := govdao.ProposeChanges(govdao.Proposal{
-		Callback: callback,
-		Comment:  comment,
-	})
-	return idx
+	exec := proposal.NewExecutor(callback)
+	return exec
 }
