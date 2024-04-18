@@ -43,24 +43,29 @@ Gnodev will, by default, load the keybase located in your GNOHOME directory, pre
 ugnot to all of them. This way, users can interact with Gnodev's in-memory node out of the box. The addresses
 and their respective balance can be shown at runtime by pressing `A` to display accounts interactively.
 
-### Additional Account
+### Adding or Updating Accounts
 
-To add or set a specific address or key name from your local Keybase with an optional amount, use the
-`--add-account` flag in the format `<bech32/name>[:<amount>]`. You can use this command multiple times to add
-or set multiple accounts:
+Utilize the `--add-account` flag to add a new account or update an existing one in your local Keybase,
+following the format `<bech32/name>[:<amount>]`. The `<bech32/name>` represents the specific key name or
+address, and `<amount>` is an optional limitation on the account.
+
+Example of use:
 
 ```
-gnodev --add-acount=g1...:42ugnot --add-acount=test2:42ugnot
+gnodev --add-account <bech32/name1>[:<amount1>] --add-account <bech32/name2>[:<amount2>] ...
 ```
+
+Please note: If the address exists in your local Keybase, the `--add-account` flag will only update its amount,
+instead of creating a duplicate.
 
 ### Deploy
 
 All realms and packages will be deployed to the in-memory node by the address passed in with the
 `--deploy-key` flag. The `deploy-key` address can be changed for a specific package or realm by passing in
-the desired address (or a known keyname) using with the following pattern:
+the desired address (or a known key name) using with the following pattern:
 
 ```
-gnodev ./myrealm?deployer=g1....
+gnodev ./myrealm?creator=g1....
 ```
 
 A specific deposit amount can also be set with the following pattern:
@@ -72,7 +77,7 @@ gnodev ./myrealm?deposit=42ugnot
 This patten can be expanded to accommodate both options:
 
 ```
-gnodev ./myrealm?deployer=<addr>&deposit=<amount>
+gnodev ./myrealm?creator=<addr>&deposit=<amount>
 ```
 
 ## Interactive Usage

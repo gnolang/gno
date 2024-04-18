@@ -31,9 +31,9 @@ const (
 )
 
 var (
-	DefaultCreatorName    = integration.DefaultAccount_Name
-	DefaultCreatorAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
-	DefaultCreatorSeed    = integration.DefaultAccount_Seed
+	DefaultDeployerName    = integration.DefaultAccount_Name
+	DefaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	DefaultDeployerSeed    = integration.DefaultAccount_Seed
 )
 
 type devCfg struct {
@@ -65,7 +65,7 @@ var defaultDevOptions = &devCfg{
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:36657",
-	deployKey:           DefaultCreatorAddress.String(),
+	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
 

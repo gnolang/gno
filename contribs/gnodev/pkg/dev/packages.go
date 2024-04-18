@@ -132,7 +132,7 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
-			return nil, fmt.Errorf("no creator was set for %q", pkg.Dir)
+			return nil, fmt.Errorf("no creator set for %q", pkg.Dir)
 		}
 
 		// Open files in directory as MemPackage.

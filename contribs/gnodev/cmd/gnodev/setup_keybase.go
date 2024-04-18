@@ -60,26 +60,26 @@ func setupKeybase(logger *slog.Logger, cfg *devCfg) (keys.Keybase, error) {
 	}
 
 	// Ensure that we have a default address
-	info, err := kb.GetByAddress(DefaultCreatorAddress)
+	info, err := kb.GetByAddress(DefaultDeployerAddress)
 	switch {
 	case err == nil: // Account already exist in the keybase
 		logger.Info("default address imported from keybase", "name", info.GetName(), "addr", info.GetAddress())
 	case keyerror.IsErrKeyNotFound(err):
 		// If the key isn't found, create a default one
-		creatorName := fmt.Sprintf("_default#%.6s", DefaultCreatorAddress.String())
+		creatorName := fmt.Sprintf("_default#%.6s", DefaultDeployerAddress.String())
 		if ok, _ := kb.HasByName(creatorName); ok {
 			return nil, fmt.Errorf("unable to create default account, %q already exist in imported keybase", creatorName)
 		}
 
-		info, err = kb.CreateAccount(creatorName, DefaultCreatorSeed, "", "", 0, 0)
+		info, err = kb.CreateAccount(creatorName, DefaultDeployerSeed, "", "", 0, 0)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create default account %q: %w", DefaultCreatorName, err)
+			return nil, fmt.Errorf("unable to create default account %q: %w", DefaultDeployerName, err)
 		}
 
 		logger.Warn("default address created",
 			"name", info.GetName(),
 			"addr", info.GetAddress(),
-			"mnemonic", DefaultCreatorSeed,
+			"mnemonic", DefaultDeployerSeed,
 		)
 	default:
 		return nil, fmt.Errorf("unable to get address %q: %w", info.GetAddress(), err)

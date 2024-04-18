@@ -34,23 +34,23 @@ func TestResolvePackagePathQuery(t *testing.T) {
 		{"/ambiguo/u//s/path///", PackagePath{
 			Path: "/ambiguo/u/s/path",
 		}, false},
-		{"/path/with/creator?creator=testAccount", PackagePath{
-			Path:    "/path/with/creator",
+		{"/path/with/deployer?deployer=testAccount", PackagePath{
+			Path:    "/path/with/deployer",
 			Creator: testingAddress,
 		}, false},
 		{"/path/with/deposit?deposit=100ugnot", PackagePath{
 			Path:    "/path/with/deposit",
 			Deposit: std.MustParseCoins("100ugnot"),
 		}, false},
-		{".?creator=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=100ugnot", PackagePath{
+		{".?deployer=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=100ugnot", PackagePath{
 			Path:    ".",
 			Creator: testingAddress,
 			Deposit: std.MustParseCoins("100ugnot"),
 		}, false},
 
 		// errors cases
-		{"/invalid/account?creator=UnknownAccount", PackagePath{}, true},
-		{"/invalid/address?creator=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", PackagePath{}, true},
+		{"/invalid/account?deployer=UnknownAccount", PackagePath{}, true},
+		{"/invalid/address?deployer=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", PackagePath{}, true},
 		{"/invalid/deposit?deposit=abcd", PackagePath{}, true},
 	}
 

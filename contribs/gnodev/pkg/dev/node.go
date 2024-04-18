@@ -28,7 +28,7 @@ import (
 )
 
 type NodeConfig struct {
-	DefaultCreator        crypto.Address
+	DefaultDeployer       crypto.Address
 	BalancesList          []gnoland.Balance
 	PackagesPathList      []PackagePath
 	TMConfig              *tmcfg.Config
@@ -42,16 +42,16 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 
-	defaultCreator := crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
 		{
-			Address: defaultCreator,
+			Address: defaultDeployer,
 			Amount:  std.Coins{std.NewCoin("ugnot", 10e12)},
 		},
 	}
 
 	return &NodeConfig{
-		DefaultCreator:        defaultCreator,
+		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
 		PackagesPathList:      []PackagePath{},
@@ -142,14 +142,14 @@ func (n *Node) UpdatePackages(paths ...string) error {
 			return fmt.Errorf("unable to resolve abs path of %q: %w", path, err)
 		}
 
-		creator := n.config.DefaultCreator
+		deployer := n.config.DefaultDeployer
 		var deposit std.Coins
 		for _, ppath := range n.config.PackagesPathList {
 			if !strings.HasPrefix(abspath, ppath.Path) {
 				continue
 			}
 
-			creator = ppath.Creator
+			deployer = ppath.Creator
 			deposit = ppath.Deposit
 		}
 
@@ -163,7 +163,7 @@ func (n *Node) UpdatePackages(paths ...string) error {
 		for _, pkg := range pkgslist {
 			n.pkgs[pkg.Dir] = Package{
 				Pkg:     pkg,
-				Creator: creator,
+				Creator: deployer,
 				Deposit: deposit,
 			}
 
