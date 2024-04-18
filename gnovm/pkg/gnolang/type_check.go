@@ -150,46 +150,52 @@ func isNumericOrString(t Type) bool {
 }
 
 // ===========================================================
-// assertComparable is used in preprocess.
-// assert value with dt is comparable
-// special case when both typed, check if type identical
-func assertComparable(dt Type) {
-	if debug {
-		debug.Printf("--- assertComparable---, dt: %v \n", dt)
+func assertComparable(xt, dt Type) {
+	switch baseOf(dt).(type) {
+	case *SliceType, *FuncType, *MapType:
+		if xt != nil {
+			panic(fmt.Sprintf("%v can only be compared to nil", dt))
+		}
 	}
+	assertComparable2(dt)
+}
 
+// assert value with dt is comparable
+func assertComparable2(dt Type) {
+	if debug {
+		debug.Printf("---assertComparable2 dt: %v \n", dt)
+	}
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
 	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
 		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
-			assertComparable(cdt.Elem())
+			assertComparable2(cdt.Elem())
 		default:
 			panic(fmt.Sprintf("%v is not comparable", dt))
 		}
-	case *StructType: // struct type, not pointer type
+	case *StructType:
 		for _, f := range cdt.Fields {
 			switch cft := baseOf(f.Type).(type) {
 			case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
-				assertComparable(cft)
+				assertComparable2(cft)
 			default:
 				panic(fmt.Sprintf("%v is not comparable", dt))
 			}
 		}
 	case *PointerType: // &a == &b
-	case *InterfaceType: // var a, b interface{}
-	case *SliceType, *FuncType, *MapType: // xt is not nil here
-		panic(fmt.Sprintf("%v can only be compared to nil", dt))
+	case *InterfaceType:
+	case *SliceType, *FuncType, *MapType:
 	case *NativeType:
 		if !cdt.Type.Comparable() {
-			panic(fmt.Sprintf("%v is not comparable \n", dt))
+			panic(fmt.Sprintf("%v is not comparable", dt))
 		}
 	default:
 		panic(fmt.Sprintf("%v is not comparable", dt))
 	}
 }
 
-func assertMaybeNil(t Type) bool {
+func maybeNil(t Type) bool {
 	switch cxt := baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
 		return true
@@ -215,18 +221,17 @@ func checkAssignableTo(xt, dt Type, autoNative bool) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-// check if xt can be assigned to dt. conversionNeeded indicates further conversion needed especially from unnamed -> named
-// case 0. nil check
-// case 1. untyped const to typed const with same kind
-// case 2. unnamed to named
-// case 3. dt is interface, xt satisfied dt
-// case 4. general cases for primitives and composite.
 func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
-	if xt == nil || dt == nil { // see 0f18, assign8.gno
+	if xt == nil { // see test/files/types/0f18
+		if !maybeNil(dt) {
+			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
+		}
+		return nil
+	} else if dt == nil { // _ = xxx, assign8.gno, 0f31. else cases?
 		return nil
 	}
 	// case3
@@ -553,14 +558,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 	if isComparison(bx.Op) {
 		switch bx.Op {
 		case EQL, NEQ:
-			// special case when xt is nil
-			if xt == nil {
-				if !assertMaybeNil(dt) {
-					panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
-				}
-			} else {
-				assertComparable(dt) // only check if dest type is comparable
-			}
+			assertComparable(xt, dt)
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[bx.Op]; ok {
 				bx.checkCompatibility(xt, dt, checker, OpStr)
