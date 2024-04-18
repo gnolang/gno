@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// *cannot use _ as value or type*
+// main/files/typeassert3.gno:9: cannot use _ as value or type

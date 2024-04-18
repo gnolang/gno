@@ -252,21 +252,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 
-					// Matching on long panic strings from the preprocessor can be hard/annoying. This allows support for a
-					// wildcard match for the entire string, prefix, suffix, or both.
-					matches := errstr == errWanted
-					if strings.Contains(errWanted, "*") {
-						if errWanted == "*" {
-							matches = true
-						} else if len(errWanted) > 1 && errWanted[0] == '*' && errWanted[len(errWanted)-1] == '*' {
-							matches = strings.Contains(errstr, errWanted[1:len(errWanted)-1])
-						} else if errWanted[0] == '*' {
-							matches = strings.HasSuffix(errstr, errWanted[1:])
-						} else if errWanted[len(errWanted)-1] == '*' {
-							matches = strings.HasPrefix(errstr, errWanted[:len(errWanted)-1])
-						}
-					}
-					if !matches {
+					if errstr != errWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
 
