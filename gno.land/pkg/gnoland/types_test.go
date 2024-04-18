@@ -178,7 +178,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		balanceMap, err := GetBalancesFromEntries(balances...)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, "invalid amount")
+		assert.Contains(t, err.Error(), "invalid amount")
 	})
 }
 
@@ -231,7 +231,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 		balanceMap, err := GetBalancesFromSheet(reader)
 
 		assert.Nil(t, balanceMap)
-		assert.ErrorContains(t, err, "invalid amount")
+		assert.Contains(t, err.Error(), "invalid amount")
 	})
 }
 

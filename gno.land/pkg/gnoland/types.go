@@ -86,31 +86,31 @@ func NewBalances() Balances {
 	return make(Balances)
 }
 
-func (balances Balances) Set(address crypto.Address, amount std.Coins) {
-	balances[address] = Balance{
+func (bs Balances) Set(address crypto.Address, amount std.Coins) {
+	bs[address] = Balance{
 		Address: address,
 		Amount:  amount,
 	}
 }
 
-func (balances Balances) Get(address crypto.Address) (balance Balance, ok bool) {
-	balance, ok = balances[address]
+func (bs Balances) Get(address crypto.Address) (balance Balance, ok bool) {
+	balance, ok = bs[address]
 	return
 }
 
-func (balances Balances) List() []Balance {
-	list := make([]Balance, 0, len(balances))
-	for _, balance := range balances {
+func (bs Balances) List() []Balance {
+	list := make([]Balance, 0, len(bs))
+	for _, balance := range bs {
 		list = append(list, balance)
 	}
 	return list
 }
 
 // leftMerge left-merges the two maps
-func (a Balances) LeftMerge(b Balances) {
-	for key, bVal := range b {
-		if _, present := (a)[key]; !present {
-			(a)[key] = bVal
+func (bs Balances) LeftMerge(from Balances) {
+	for key, bVal := range from {
+		if _, present := (bs)[key]; !present {
+			(bs)[key] = bVal
 		}
 	}
 }
@@ -121,13 +121,13 @@ func GetBalancesFromEntries(entries ...string) (Balances, error) {
 }
 
 // LoadFromEntries extracts the balance entries in the form of <address>=<amount>
-func (balances Balances) LoadFromEntries(entries ...string) error {
+func (bs Balances) LoadFromEntries(entries ...string) error {
 	for _, entry := range entries {
 		var balance Balance
 		if err := balance.Parse(entry); err != nil {
 			return fmt.Errorf("unable to parse balance entry: %w", err)
 		}
-		balances[balance.Address] = balance
+		bs[balance.Address] = balance
 	}
 
 	return nil
@@ -140,7 +140,7 @@ func GetBalancesFromSheet(sheet io.Reader) (Balances, error) {
 
 // LoadFromSheet extracts the balance sheet from the passed in
 // balance sheet file, that has the format of <address>=<amount>ugnot
-func (balances Balances) LoadFromSheet(sheet io.Reader) error {
+func (bs Balances) LoadFromSheet(sheet io.Reader) error {
 	// Parse the balances
 	scanner := bufio.NewScanner(sheet)
 
@@ -156,7 +156,7 @@ func (balances Balances) LoadFromSheet(sheet io.Reader) error {
 			continue
 		}
 
-		if err := balances.LoadFromEntries(entry); err != nil {
+		if err := bs.LoadFromEntries(entry); err != nil {
 			return fmt.Errorf("unable to load entries: %w", err)
 		}
 	}
