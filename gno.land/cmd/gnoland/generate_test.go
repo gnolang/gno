@@ -27,6 +27,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--output-path",
 			genesisPath,
@@ -60,6 +61,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--chain-id",
 			chainID,
@@ -91,6 +93,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--block-max-tx-bytes",
 			fmt.Sprintf("%d", blockMaxTxBytes),
@@ -126,6 +129,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--block-max-data-bytes",
 			fmt.Sprintf("%d", blockMaxDataBytes),
@@ -161,6 +165,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--block-max-gas",
 			fmt.Sprintf("%d", blockMaxGas),
@@ -196,6 +201,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--block-time-iota",
 			fmt.Sprintf("%d", blockTimeIota),
@@ -231,6 +237,7 @@ func TestGenesis_Generate(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"generate",
 			"--chain-id",
 			invalidChainID,
