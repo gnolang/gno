@@ -4,8 +4,9 @@
 package pagination
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
+	"std"
 )
 
 var list []string     // keep a slice of signed up addresses efficient pagination
@@ -52,6 +53,18 @@ func GetSignedUpInRange(page, pageSize int) []string {
 	return list[startIndex:endIndex]
 }
 
-func Render(path string) string {
+func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
+	num := req.GetVar("number")
 
+	if num != "" {
+		res.Write("page: " + num + "!")
+	} else {
+		res.Write("Hello, world!")
+	}
+}
+
+func Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("page/{number}", renderHelper)
+	return router.Render(path)
 }
