@@ -49,7 +49,7 @@ install.gnokey:;     go install ./cmd/gnokey
 
 .PHONY: fclean
 fclean: clean
-	rm -rf gno-chain genesis.json
+	rm -rf gnoland-data genesis.json
 
 .PHONY: clean
 clean:

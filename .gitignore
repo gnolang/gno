@@ -4,7 +4,7 @@
 .idea
 
 # Default node data
-gno-chain
+gnoland-data
 genesis.json
 
 # Build leftovers

@@ -124,7 +124,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"gno-chain",
+		"gnoland-data",
 		"the path to the node's data directory",
 	)
 

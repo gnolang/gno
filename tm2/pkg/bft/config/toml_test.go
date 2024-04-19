@@ -44,7 +44,7 @@ func TestEnsureRoot(t *testing.T) {
 
 	require.True(t, checkConfig(string(data)))
 
-	ensureFiles(t, tmpDir, "data")
+	ensureFiles(t, tmpDir, DefaultDBDir)
 }
 
 func TestEnsureTestRoot(t *testing.T) {
@@ -68,7 +68,7 @@ func TestEnsureTestRoot(t *testing.T) {
 	ensureFiles(
 		t,
 		rootDir,
-		defaultDataDir,
+		DefaultDBDir,
 		baseConfig.PrivValidatorKey,
 		baseConfig.PrivValidatorState,
 	)

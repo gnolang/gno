@@ -165,7 +165,7 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no data directory, %w", err)
 	}
 
@@ -196,7 +196,7 @@ func (cfg *Config) ValidateBasic() error {
 // -----------------------------------------------------------------------------
 
 var (
-	defaultDataDir    = "data"
+	DefaultDBDir      = "db"
 	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
@@ -221,8 +221,9 @@ type BaseConfig struct {
 	//	┌── db/
 	//	│   ├── blockstore.db (folder)
 	//	│   ├── gnolang.db (folder)
-	//	│   ├── state.db (folder)
-	//	│   └── cs.wal
+	//	│   └── state.db (folder)
+	//	├── wal/
+	//	│   └── cs.wal (folder)
 	//	├── secrets/
 	//	│   ├── priv_validator_state.json
 	//	│   ├── node_key.json
@@ -304,7 +305,7 @@ func DefaultBaseConfig() BaseConfig {
 		FastSyncMode:       true,
 		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             defaultDataDir,
+		DBPath:             DefaultDBDir,
 	}
 }
 

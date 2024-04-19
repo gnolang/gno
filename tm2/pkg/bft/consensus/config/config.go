@@ -10,7 +10,7 @@ import (
 // ConsensusConfig
 
 const (
-	defaultDataDir = "data"
+	defaultWALDir = "wal"
 )
 
 // ConsensusConfig defines the configuration for the Tendermint consensus service,
@@ -44,7 +44,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		WALPath:                     filepath.Join(defaultDataDir, "cs.wal", "wal"),
+		WALPath:                     filepath.Join(defaultWALDir, "cs.wal", "wal"),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
