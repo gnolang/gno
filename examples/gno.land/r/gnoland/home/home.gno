@@ -194,7 +194,8 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/demo/microblog"},
 						ui.Link{URL: "r/demo/nft"},
 						ui.Link{URL: "r/demo/types"},
-						ui.Link{URL: "r/demo/art"},
+						// ui.Link{URL: "r/demo/art/gnoface"}, // broke
+						ui.Link{URL: "r/demo/art/millipede"},
 						ui.Link{URL: "r/demo/groups"},
 						ui.Text("..."),
 					},
