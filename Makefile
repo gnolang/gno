@@ -29,26 +29,22 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno
-	@if ! command -v gnodev > /dev/null; then \
-		echo ------------------------------; \
-		echo "For local realm development, gnodev is recommended: https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev"; \
-		echo "You can install it by calling 'make install.gnodev'"; \
-	fi
+install: install.gnokey install.gno install.gnodev
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
 install.gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
-	@echo "[+] 'gnokey' is installed. more info in ./gno.land/."
+	# \033[0;32m ... \033[0m is ansi for green text.
+	@echo "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m"
 .PHONY: install.gno
 install.gno:
 	$(MAKE) --no-print-directory -C ./gnovm	install
-	@echo "[+] 'gno' is installed. more info in ./gnovm/."
+	@echo "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m"
 .PHONY: install.gnodev
 install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs install.gnodev
-	@echo "[+] 'gnodev' is installed."
+	@echo "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m"
 
 # old aliases
 .PHONY: install_gnokey
