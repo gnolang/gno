@@ -1,14 +1,23 @@
 # start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ee -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ee -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
+stdout 'GAS WANTED: 2500000'
+stdout 'GAS USED: [0-9]+'
+stdout 'EVENTS: null'
 
 gnokey maketx call -pkgpath gno.land/r/demo/ee -func Sender -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED: [0-9]+'
-stdout 'EVENTS:'
+stdout 'EVENTS: \[?.*sender.*SubSender.*receiver.*SubReceiver.*\]'
+
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Receiver -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED: [0-9]+'
+stdout 'EVENTS: \[?.*(R|r)eceiver.*\]'
 
 -- ee.gno --
 package ee
@@ -24,7 +33,8 @@ const (
 
 func Sender(){
     SubSender()
-}  
+    SubReceiver()
+}
 
 func SubSender() {
     std.Emit(
@@ -33,4 +43,18 @@ func SubSender() {
 		"key2", "value2",
 		"key3", "value3",
     )  
+}
+
+func SubReceiver() {
+    std.Emit(
+        EventReceiver,
+        "bar", "baz",
+    )
+}
+
+func Receiver() {
+    std.Emit(
+        EventReceiver,
+        "foo", "bar",
+    )
 }

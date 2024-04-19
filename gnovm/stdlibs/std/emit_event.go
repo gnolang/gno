@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
 func X_emit(m *gno.Machine, typ string, attrs []string) {
@@ -20,19 +20,19 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 	timestamp := getTimestamp(m)
 
-	event := NewGnoEvent(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
+	evtstr := NewGnoEventString(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
 	ctx := m.Context.(ExecContext)
-	ctx.EventLogger.EmitEvent(event)
+	ctx.EventLogger.EmitEvent(evtstr)
 }
 
-func attrKeysAndValues(attrs []string) ([]GnoEventAttribute, error) {
+func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
 		return nil, errors.New("odd number of attributes. cannot create key-value pairs")
 	}
-	eventAttrs := make([]GnoEventAttribute, attrLen/2)
+	eventAttrs := make([]gnoEventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
-		eventAttrs[i/2] = GnoEventAttribute{
+		eventAttrs[i/2] = gnoEventAttribute{
 			Key:   attrs[i],
 			Value: attrs[i+1],
 		}
@@ -40,16 +40,29 @@ func attrKeysAndValues(attrs []string) ([]GnoEventAttribute, error) {
 	return eventAttrs, nil
 }
 
-type GnoEvent struct {
-	Type       string              `json:"type"`
+type temp gnoEvent
+
+func NewGnoEventString(eventType, pkgPath, ident string, timestamp int64, attrs ...gnoEventAttribute) abci.EventString {
+	evt := newGnoEvent(eventType, pkgPath, ident, timestamp, attrs...)
+
+	jsonRes, err := json.Marshal(map[string]temp{evt.Type: temp(*evt)})
+	if err != nil {
+		panic(err)
+	}
+
+	return abci.EventString(jsonRes)
+}
+
+type gnoEvent struct {
+	Type       string              `json:"-"`
 	PkgPath    string              `json:"pkg_path"`
 	Identifier string              `json:"identifier"`
 	Timestamp  int64               `json:"timestamp"`
-	Attributes []GnoEventAttribute `json:"attributes"`
+	Attributes []gnoEventAttribute `json:"attributes"`
 }
 
-func NewGnoEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...GnoEventAttribute) sdk.Event {
-	return GnoEvent{
+func newGnoEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...gnoEventAttribute) *gnoEvent {
+	return &gnoEvent{
 		Type:       eventType,
 		PkgPath:    pkgPath,
 		Identifier: ident,
@@ -58,19 +71,7 @@ func NewGnoEvent(eventType string, pkgPath string, ident string, timestamp int64
 	}
 }
 
-func (e GnoEvent) AssertABCIEvent() {}
-
-type temp GnoEvent
-
-func (e GnoEvent) MarshalJSON() ([]byte, error) {
-	res, err := json.Marshal(temp(e))
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-type GnoEventAttribute struct {
+type gnoEventAttribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
