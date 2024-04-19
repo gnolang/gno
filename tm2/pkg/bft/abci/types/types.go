@@ -234,10 +234,6 @@ func (err EventString) Event() string {
 	return string(err)
 }
 
-func (err EventString) String() string {
-	return string(err)
-}
-
 // ----------------------------------------
 // Misc
 
