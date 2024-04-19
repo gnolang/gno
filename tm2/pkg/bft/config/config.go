@@ -194,22 +194,6 @@ func (cfg *Config) ValidateBasic() error {
 }
 
 // -----------------------------------------------------------------------------
-// BaseConfig
-
-// Base node data structure:
-// .
-// ├── genesis.json (required)
-// └── my-node-dir/
-// ├── data/
-// │   ├── blockstore.db (folder)
-// │   ├── gnolang.db (folder)
-// │   ├── state.db (folder)
-// │   └── cs.wal
-// ├── secrets/
-// │   ├── priv_validator_state.json
-// │   ├── node_key.json
-// │   └── priv_validator_key.json
-// └── config.toml (optional)
 
 var (
 	defaultDataDir    = "data"
@@ -226,13 +210,24 @@ var (
 	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
 )
 
-// BaseConfig defines the base configuration for a Tendermint node
+// BaseConfig defines the base configuration for a Tendermint node.
 type BaseConfig struct {
 	// chainID is unexposed and immutable but here for convenience
 	chainID string
 
 	// The root directory for all data.
-	// This should be set in viper so it can unmarshal into this struct
+	// The node directory contains:
+	//
+	//	┌── db/
+	//	│   ├── blockstore.db (folder)
+	//	│   ├── gnolang.db (folder)
+	//	│   ├── state.db (folder)
+	//	│   └── cs.wal
+	//	├── secrets/
+	//	│   ├── priv_validator_state.json
+	//	│   ├── node_key.json
+	//	│   └── priv_validator_key.json
+	//	└── config.toml (optional)
 	RootDir string `toml:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,
