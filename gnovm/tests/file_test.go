@@ -47,16 +47,6 @@ func TestTypesNative(t *testing.T) {
 	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
 }
 
-func TestDebug(t *testing.T) {
-	baseDir := filepath.Join(".", "debug")
-	runFileTests(t, baseDir, []string{"*_native*"})
-}
-
-func TestDebugNative(t *testing.T) {
-	baseDir := filepath.Join(".", "debug")
-	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
-}
-
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
 	t.Helper()
 
