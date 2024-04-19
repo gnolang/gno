@@ -110,6 +110,7 @@ func NewTestTxWithMemo(
 			Sequence:      seqs[i],
 			Fee:           fee,
 			Msgs:          msgs,
+			Memo:          memo,
 		})
 		require.NoError(t, err)
 
