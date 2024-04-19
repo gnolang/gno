@@ -32,16 +32,18 @@ func GetHeight(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Height
 }
 
-func GetTimestamp(m *gno.Machine) int64 {
+func getTimestamp(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Timestamp
 }
 
-// GetFuncNameFromCallStack returns the last called function name (identifier) from the call stack.
-func GetFuncNameFromCallStack(m *gno.Machine) string {
-	if len(m.Frames) == 0 {
-		return ""
+// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	for i := 0; i < len(m.Frames); i++ {
+		if m.Frames[i].Func.Name == gno.Name(targetFunc) && i > 0 {
+			return string(m.Frames[i-1].Func.Name)
+		}
 	}
-	return string(m.Frames[0].Func.Name)
+	return ""
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {

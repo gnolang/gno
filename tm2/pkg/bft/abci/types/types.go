@@ -1,7 +1,6 @@
 package abci
 
 import (
-	"bytes"
 	"encoding/json"
 	"time"
 
@@ -118,27 +117,12 @@ func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
 }
 
-func (r ResponseBase) String() string {
-	levts := len(r.Events)
-	if levts == 0 {
-		return `""`
+func (r ResponseBase) EncodeEvent() []byte {
+	res, err := json.Marshal(r.Events)
+	if err != nil {
+		return nil
 	}
-
-	var buf bytes.Buffer
-
-	for _, event := range r.Events {
-		json, err := event.MarshalJSON()
-		if err != nil {
-			return err.Error()
-		}
-		buf.Write(json)
-	}
-
-	if !json.Valid(buf.Bytes()) {
-		return "invalid JSON"
-	}
-
-	return buf.String()
+	return res
 }
 
 // nondeterministic
@@ -218,7 +202,6 @@ type Error interface {
 }
 
 type Event interface {
-	MarshalJSON() ([]byte, error)
 	AssertABCIEvent()
 }
 
@@ -246,10 +229,6 @@ func (err StringError) Error() string {
 type EventString string
 
 func (EventString) AssertABCIEvent() {}
-
-func (EventString) MarshalJSON() ([]byte, error) {
-	return nil, nil
-}
 
 func (err EventString) Event() string {
 	return string(err)
