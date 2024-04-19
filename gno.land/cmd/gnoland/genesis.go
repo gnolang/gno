@@ -1,25 +1,18 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-func main() {
-	io := commands.NewDefaultIO()
-	cmd := newRootCmd(io)
-
-	cmd.Execute(context.Background(), os.Args[1:])
-}
-
-func newRootCmd(io commands.IO) *commands.Command {
+func newGenesisCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Gno Genesis manipulation suite",
+			Name:       "genesis",
+			ShortUsage: "genesis <subcommand> [flags] [<arg>...]",
+			ShortHelp:  "gno genesis manipulation suite",
+			LongHelp:   "Gno genesis.json manipulation suite, for managing genesis parameters",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
