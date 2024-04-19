@@ -19,6 +19,10 @@ genesis.json
 # Build leftovers
 build
 
+# Legacy .gitignore
+data/*
+testdir
+
 # Log + generation leftovers
 *.tx
 *.log.*
@@ -34,4 +38,3 @@ pbbindings.go
 # Test coverage leftovers
 cover.out
 coverage.out
-

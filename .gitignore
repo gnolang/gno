@@ -10,6 +10,10 @@ genesis.json
 # Build leftovers
 build
 
+# Legacy .gitignore
+data/*
+testdir
+
 # Log + generation leftovers
 *.tx
 *.log.*
