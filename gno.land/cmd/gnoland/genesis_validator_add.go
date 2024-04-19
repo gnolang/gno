@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	errInvalidPower      = errors.New("invalid validator power")
-	errInvalidName       = errors.New("invalid validator name")
-	errPublicKeyMismatch = errors.New("provided public key and address do not match")
-	errAddressPresent    = errors.New("validator with same address already present in genesis.json")
+	errInvalidPower             = errors.New("invalid validator power")
+	errInvalidName              = errors.New("invalid validator name")
+	errPublicKeyAddressMismatch = errors.New("provided public key and address do not match")
+	errAddressPresent           = errors.New("validator with same address already present in genesis.json")
 )
 
 type validatorAddCfg struct {
@@ -89,7 +89,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 
 	// Check the name
 	if cfg.name == "" {
-		return errors.New("invalid validator name")
+		return errInvalidName
 	}
 
 	// Check the public key
@@ -100,7 +100,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 
 	// Check the public key matches the address
 	if pubKey.Address() != address {
-		return errors.New("provided public key and address do not match")
+		return errPublicKeyAddressMismatch
 	}
 
 	validator := types.GenesisValidator{

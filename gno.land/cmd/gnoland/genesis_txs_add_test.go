@@ -71,6 +71,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
@@ -94,6 +95,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
@@ -118,6 +120,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
@@ -141,6 +144,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
@@ -180,6 +184,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
@@ -238,6 +243,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"txs",
 			"add",
 			"--genesis-path",
