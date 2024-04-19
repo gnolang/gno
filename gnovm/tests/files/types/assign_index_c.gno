@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_index_1.gno:7: cannot use int as string
+// main/files/types/assign_index_c.gno:7: cannot use int as string

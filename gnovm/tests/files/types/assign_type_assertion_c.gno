@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_c.gno:23: cannot assign to assertedErr<VPBlock(1,1)>
+// main/files/types/assign_type_assertion_c.gno:23: interface{IsSet func()(bool)} does not implement interface{IsNotSet func()(bool)}

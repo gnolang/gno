@@ -1691,6 +1691,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
 				// NOTE: k,v already defined @ TRANS_BLOCK.
+				n.AssertCompatible(store, last)
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
