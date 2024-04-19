@@ -9,7 +9,7 @@ import (
 	"time"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 

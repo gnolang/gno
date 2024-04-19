@@ -36,7 +36,6 @@ require (
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/gotuna/gotuna v0.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
-	github.com/jaekwon/testify v1.6.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect

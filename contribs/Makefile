@@ -29,7 +29,7 @@ install: install.gnomd install.gnodev install.gnofaucet
 
 install.gnomd:;  cd gnomd && go install .
 install.gnodev:; $(MAKE) -C ./gnodev install
-install.gnofaucet:;  cd gnofaucet && go install .
+install.gnofaucet:; $(MAKE) -C ./gnofaucet install
 
 .PHONY: clean
 clean:
