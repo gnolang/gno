@@ -8,27 +8,29 @@ import (
 
 type AddressSet interface {
 	Size() int
-	AddAddress(Address) error
+	AddAddress(Address) bool
 	HasAddress(Address) bool
 }
 
-type AddressList avl.Tree
+type AddressList struct {
+	list *avl.Tree
+}
 
 func NewAddressList() *AddressList {
-	return avl.NewTree()
+	return &AddressList{list: avl.NewTree()}
 }
 
 func (alist AddressList) Size() int {
-	return alist.Size()
+	return alist.list.Size()
 }
 
 func (alist *AddressList) AddAddress(newAddr Address) error {
-	if alist.Set(newAddr, newAddr) {
+	if alist.list.Set(newAddr.String(), newAddr) {
 		return errors.New("address already exists")
 	}
 	return nil
 }
 
 func (alist AddressList) HasAddress(newAddr Address) bool {
-	return alist.Has(newAddr)
+	return alist.list.Has(newAddr.String())
 }
