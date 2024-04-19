@@ -78,7 +78,9 @@ jobs:
       - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/p
       - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/demo
       - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/gnoland
-      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/system
+      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/sys
+      # - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/gov
+      # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
   mod-tidy:
     strategy:
