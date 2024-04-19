@@ -55,6 +55,7 @@ func TestGenesis_Verify(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"verify",
 			"--genesis-path",
 			tempFile.Name(),
@@ -85,6 +86,7 @@ func TestGenesis_Verify(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"verify",
 			"--genesis-path",
 			tempFile.Name(),
@@ -112,6 +114,7 @@ func TestGenesis_Verify(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"verify",
 			"--genesis-path",
 			tempFile.Name(),
@@ -134,6 +137,7 @@ func TestGenesis_Verify(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"verify",
 			"--genesis-path",
 			tempFile.Name(),
@@ -157,6 +161,7 @@ func TestGenesis_Verify(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"verify",
 			"--genesis-path",
 			tempFile.Name(),
