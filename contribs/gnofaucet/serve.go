@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/faucet"
-	faucetClient "github.com/gnolang/faucet/client/http"
+	tm2Client "github.com/gnolang/faucet/client/http"
 	"github.com/gnolang/faucet/config"
 	"github.com/gnolang/faucet/estimate/static"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -174,7 +174,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	}
 
 	// Create the client (HTTP)
-	cli := faucetClient.NewClient(cfg.remote)
+	cli := tm2Client.NewClient(cfg.remote)
 
 	// Set up the logger
 	logger := log.ZapLoggerToSlog(
