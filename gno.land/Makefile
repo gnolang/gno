@@ -31,11 +31,10 @@ start.gnoland:; go run ./cmd/gnoland start
 start.gnoweb:; go run ./cmd/gnoweb
 
 .PHONY: build
-build: build.gnoland build.gnokey build.gnoweb build.gnofaucet build.genesis
+build: build.gnoland build.gnokey build.gnoweb build.genesis
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
-build.gnofaucet:;  go build -o build/gnofaucet ./cmd/gnofaucet
 build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
 build.genesis:;    go build -o build/genesis  ./cmd/genesis
 
