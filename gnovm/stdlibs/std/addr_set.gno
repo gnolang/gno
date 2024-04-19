@@ -8,7 +8,7 @@ import (
 
 type AddressSet interface {
 	Size() int
-	AddAddress(Address) bool
+	AddAddress(Address) error
 	HasAddress(Address) bool
 }
 
