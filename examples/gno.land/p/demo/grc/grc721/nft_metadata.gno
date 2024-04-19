@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 )
 
 // metadataNFT represents an NFT with metadata extensions.
