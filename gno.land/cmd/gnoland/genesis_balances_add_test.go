@@ -27,6 +27,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -50,6 +51,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -67,6 +69,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -92,6 +95,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -181,6 +185,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -280,6 +285,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
@@ -353,6 +359,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"balances",
 			"add",
 			"--genesis-path",
