@@ -13,13 +13,7 @@ import (
 	"gno.land/r/sys/validators"
 )
 
-var done bool
-
-func CreateProposal() {
-	if done {
-		panic("already done")
-	}
-
+func init() {
 	// Create the validators change proposal.
 	changesFn := func() []validators.Change {
 		return []validators.Change{
