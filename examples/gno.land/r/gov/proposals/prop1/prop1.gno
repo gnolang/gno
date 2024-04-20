@@ -1,7 +1,10 @@
-// Package prop1 is an example of proposal creation using a contract. In
-// practice, it could be done with a `maketx run` with a similar code.
+// Package prop1 is an example of proposal creation using a contract.
 //
-// For the specific case of validators, a r/gnoland/validators will be used to
+// Please note that this package is intended for demonstration purposes only.
+// You could execute this code by running a `maketx run` command or by uploading
+// a similar package to a personal namespace.
+//
+// For the specific case of validators, a `r/gnoland/valopers` will be used to
 // organize the lifecycle of validators (register, etc), and this more complex
 // contract will be responsible to generate proposals.
 package prop1
@@ -32,5 +35,4 @@ func init() {
 		Comment:  "manual valset changes proposal example",
 		Executor: executor,
 	})
-	done = true
 }
