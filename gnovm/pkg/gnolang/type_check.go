@@ -691,11 +691,13 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 							"%d variables but %s returns %d values",
 						len(as.Lhs), cx.Func.String(), len(cft.Results)))
 				}
-				// check assignable
-				for i, lx := range as.Lhs {
-					if !isBlankIdentifier(lx) { // see composite3.gno
-						lxt := evalStaticTypeOf(store, last, lx)
-						checkAssignableTo(cft.Results[i].Type, lxt, false)
+				if as.Op == ASSIGN {
+					// check assignable
+					for i, lx := range as.Lhs {
+						if !isBlankIdentifier(lx) { // see composite3.gno
+							lxt := evalStaticTypeOf(store, last, lx)
+							checkAssignableTo(cft.Results[i].Type, lxt, false)
+						}
 					}
 				}
 			case *TypeAssertExpr:
@@ -703,53 +705,57 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if len(as.Lhs) != 2 {
 					panic("should not happen")
 				}
-				// check assignable to first value
-				if !isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
-					dt := evalStaticTypeOf(store, last, as.Lhs[0])
-					ift := evalStaticTypeOf(store, last, cx)
-					checkAssignableTo(ift, dt, false)
-				}
-				if !isBlankIdentifier(as.Lhs[1]) { // see composite3.gno
-					dt := evalStaticTypeOf(store, last, as.Lhs[1])
-					if dt != nil && dt.Kind() != BoolKind { // typed, not bool
-						panic(fmt.Sprintf("want bool type got %v", dt))
+				if as.Op == ASSIGN {
+					// check assignable to first value
+					if !isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
+						dt := evalStaticTypeOf(store, last, as.Lhs[0])
+						ift := evalStaticTypeOf(store, last, cx)
+						checkAssignableTo(ift, dt, false)
+					}
+					if !isBlankIdentifier(as.Lhs[1]) { // see composite3.gno
+						dt := evalStaticTypeOf(store, last, as.Lhs[1])
+						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
+							panic(fmt.Sprintf("want bool type got %v", dt))
+						}
 					}
 				}
-
 				cx.HasOK = true
 			case *IndexExpr: // must be with map type when len(Lhs) > len(Rhs)
 				if len(as.Lhs) != 2 {
 					panic("should not happen")
 				}
-				// check first value
-				if !isBlankIdentifier(as.Lhs[0]) {
-					lt := evalStaticTypeOf(store, last, as.Lhs[0])
-					if nx, ok := cx.X.(*NameExpr); ok {
-						rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
-						if mt, ok := rx.T.(*MapType); ok {
-							checkAssignableTo(mt.Value, lt, false)
-						}
-					} else if _, ok := cx.X.(*CompositeLitExpr); ok {
-						cpt := evalStaticTypeOf(store, last, cx.X)
-						if mt, ok := cpt.(*MapType); ok {
-							checkAssignableTo(mt.Value, lt, false)
-						} else {
-							panic("should not happen")
+				if as.Op == ASSIGN {
+					// check first value
+					if !isBlankIdentifier(as.Lhs[0]) {
+						lt := evalStaticTypeOf(store, last, as.Lhs[0])
+						if nx, ok := cx.X.(*NameExpr); ok {
+							rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
+							if mt, ok := rx.T.(*MapType); ok {
+								checkAssignableTo(mt.Value, lt, false)
+							}
+						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
+							cpt := evalStaticTypeOf(store, last, cx.X)
+							if mt, ok := cpt.(*MapType); ok {
+								checkAssignableTo(mt.Value, lt, false)
+							} else {
+								panic("should not happen")
+							}
 						}
 					}
-				}
-				if !isBlankIdentifier(as.Lhs[1]) {
-					dt := evalStaticTypeOf(store, last, as.Lhs[1])
-					if dt != nil && dt.Kind() != BoolKind { // typed, not bool
-						panic(fmt.Sprintf("want bool type got %v", dt))
+					if !isBlankIdentifier(as.Lhs[1]) {
+						dt := evalStaticTypeOf(store, last, as.Lhs[1])
+						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
+							panic(fmt.Sprintf("want bool type got %v", dt))
+						}
 					}
 				}
 				cx.HasOK = true
 			default:
 				panic("should not happen")
 			}
-		} else {
+		} else { // len(Lhs) == len(Rhs)
 			if as.Op == ASSIGN {
+				// check lhs
 				for i, lx := range as.Lhs {
 					rt := evalStaticTypeOf(store, last, as.Rhs[i])
 
@@ -790,7 +796,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 			}
 		}
-	} else {
+	} else { // else op other than assign and define
 		// TODO: check length of expression
 		for i, lx := range as.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
