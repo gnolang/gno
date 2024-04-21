@@ -1,7 +1,6 @@
 package main
 
 var f1 func()
-var f2 func()
 
 func main() {
 	println(f1 == nil)
