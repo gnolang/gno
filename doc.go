@@ -9,9 +9,9 @@
 // Then came Gno upon Cosmos and there spring forth Gnoland,
 // simulated by the Gnomes of the Greater Resistance.
 //
-//  |                            __             __
-//  |          ___ ____  ___    / /__ ____  ___/ /
-//  |         / _ `/ _ \/ _ \_ / / _ `/ _ \/ _  /
-//  |         \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
-//  |        /___/
+//	|                            __             __
+//	|          ___ ____  ___    / /__ ____  ___/ /
+//	|         / _ `/ _ \/ _ \_ / / _ `/ _ \/ _  /
+//	|         \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+//	|        /___/
 package readme
