@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/telemetry"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -27,6 +29,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var startGraphic = fmt.Sprintf(`
+                      __                __
+   ____ _____  ____  / /___ _____  ____/ /
+  / __ %c/ __ \/ __ \/ / __ %c/ __ \/ __  / 
+ / /_/ / / / / /_/ / / /_/ / / / / /_/ /  
+ \__, /_/ /_/\____/_/\__,_/_/ /_/\__,_/   
+/____/                                    
+`, '`', '`')
+
 type startCfg struct {
 	gnoRootDir            string
 	skipFailingGenesisTxs bool
@@ -36,6 +47,7 @@ type startCfg struct {
 	chainID               string
 	genesisRemote         string
 	dataDir               string
+	genesisMaxVMCycles    int64
 	config                string
 
 	txEventStoreType string
@@ -124,6 +136,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"replacement for '%%REMOTE%%' in genesis",
 	)
 
+	fs.Int64Var(
+		&c.genesisMaxVMCycles,
+		"genesis-max-vm-cycles",
+		10_000_000,
+		"set maximum allowed vm cycles per operation. Zero means no limit.",
+	)
+
 	fs.StringVar(
 		&c.config,
 		flagConfigFlag,
@@ -192,6 +211,12 @@ func execStart(c *startCfg, io commands.IO) error {
 		loadCfgErr error
 	)
 
+	// Attempt to initialize telemetry. If the environment variables required to initialize
+	// telemetry are not set, then the initialization will do nothing.
+	if err := initTelemetry(); err != nil {
+		return fmt.Errorf("error initializing telemetry: %w", err)
+	}
+
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
 		// Load the node configuration
@@ -246,18 +271,20 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger)
+	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
 	cfg.LocalApp = gnoApp
 
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -363,4 +390,20 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func initTelemetry() error {
+	var options []telemetry.Option
+
+	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
+		options = append(options, telemetry.WithOptionMetricsEnabled())
+	}
+
+	// The string options can be added by default. Their absence would yield the same result
+	// as if the option were excluded altogether.
+	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
+	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
+	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
+
+	return telemetry.Init(options...)
 }
