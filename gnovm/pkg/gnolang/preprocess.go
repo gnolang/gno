@@ -622,7 +622,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
-			case *NameExpr: // e.g. var a int, a is NameExpr
+			case *NameExpr:
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -750,7 +750,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// check LHS type compatibility
 					n.checkShiftLhs(lt)
 					// checkOrConvert RHS
-					if baseOf(rt) != UintType { // convert rhs of shift expr to uint
+					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
 						// reset/create n2 to preprocess right child.
@@ -763,20 +763,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return resn, TRANS_CONTINUE
 					}
 				} else {
-					n.AssertCompatible(lt, rt)
+					n.AssertCompatible(lt, rt) // check compatibility against binaryExpr other ths shift expr
 				}
 				// General case.
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 				if debug {
-					debug.Printf("---BinaryExpr---, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
+					debug.Printf("Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
 				if lic {
 					if ric {
 						// Left const, Right const ----------------------
 						// Replace with *ConstExpr if const operands.
 						// First, convert untyped as necessary.
-						// refer to 0a0_filetest
 						if !isShift { // rhs of shift expr has already been converted to uint
 							cmp := cmpSpecificity(lcx.T, rcx.T)
 							if cmp < 0 {
@@ -1624,7 +1623,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if len(n.Lhs) > len(n.Rhs) {
 						// check is done in assertCompatible
 					} else {
-						debug.Println("---assignStmt, assign")
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
 								panic("should not happen")
@@ -2354,9 +2352,6 @@ func convertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) 
 		convertConst(store, last, cx, t)
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
-		if debug {
-			debug.Printf("else expr, xt not nil,x: %v, xt: %v, t: %v, isUntyped: %v \n", *x, xt, t, isUntyped(xt))
-		}
 		if isUntyped(xt) {
 			if t == nil {
 				t = defaultTypeOf(xt)

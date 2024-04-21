@@ -266,9 +266,6 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func printNilOrValue(tv *TypedValue, valueType interface{}) string {
-	if debug {
-		debug.Printf("printNilOrValue: tv: %v, T:%v, V:%v \n", *tv, (*tv).T, (*tv).V)
-	}
 	if tv.V == nil {
 		return nilStr + " " + tv.T.String()
 	}

@@ -63,9 +63,10 @@ _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' 
 # NOTE: challenges are current GnoVM bugs which are supposed to fail.
 # If any of these tests pass, it should be moved to a normal test.
 _test.gnolang.challenges:;      go test tests/*.go -test.short -run 'TestChallenges$$/' $(GOTEST_FLAGS)
-_test.gnolang.types:;      go test tests/*.go -test.short -run 'TestTypes$$/' --update-golden-tests $(GOTEST_FLAGS)
-_test.gnolang.types.native:;      go test tests/*.go -test.short -run 'TestTypesNative$$/' --update-golden-tests $(GOTEST_FLAGS)
+_test.gnolang.types:;      go test tests/*.go -test.short -run 'TestTypes$$/' $(GOTEST_FLAGS)
+_test.gnolang.types.native:;      go test tests/*.go -test.short -run 'TestTypesNative$$/' $(GOTEST_FLAGS)
 
+_test.gnolang.debug:;      go test tests/*.go -test.short -run 'TestDebug$$/' $(GOTEST_FLAGS)
 ########################################
 # Code gen
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer

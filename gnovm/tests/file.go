@@ -422,7 +422,6 @@ func readComments(cg *ast.CommentGroup) string {
 
 // Replace comment in file with given output given directive.
 func replaceWantedInPlace(path string, directive string, output string) {
-	fmt.Println("---replace...: ", directive, output)
 	bz := osm.MustReadFile(path)
 	body := string(bz)
 	lines := strings.Split(body, "\n")

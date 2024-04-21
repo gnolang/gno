@@ -882,7 +882,7 @@ GNO_CASE:
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
 		defer func() {
-			debug.Printf("---after ConvertUntypedTo---, tv:%v \n", tv)
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
 		}()
 	}
 	if debug {
