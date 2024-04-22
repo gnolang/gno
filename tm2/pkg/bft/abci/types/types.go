@@ -117,7 +117,7 @@ func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
 }
 
-func (r ResponseBase) EncodeEvent() []byte {
+func (r ResponseBase) EncodeEvents() []byte {
 	res, err := json.Marshal(r.Events)
 	if err != nil {
 		return nil
