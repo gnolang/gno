@@ -910,7 +910,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 								// check assignable, if pass, convert right to gno first
 								// XXX, can we just check on native type?
-								checkAssignableTo(lpt, rpt, false) // both primitive types
+								assertAssignableTo(lpt, rpt, false) // both primitive types
 								rn = Expr(Call(rpt.String(), n.Right))
 								// checkOrCovertType should happen in future when both sides to be gno'd
 							} else { // rt not native
@@ -986,7 +986,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									checkOrConvertType(store, last, &n.Left, rt, false)
 								} else if cmp == 1 {
 									checkOrConvertType(store, last, &n.Right, lt, false)
-								} else { // cmp 0, both typed, checkAssignableTo
+								} else { // cmp 0, both typed, assertAssignableTo
 									checkOrConvertType(store, last, &n.Left, rt, false)
 								}
 							}
@@ -1048,7 +1048,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
-				// In general, a string is not assignableTo to []bytes
+				// In general, a string is not assignable to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
@@ -1177,16 +1177,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, tv := range argTVs {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
-								checkAssignableTo(tv.T, spts[len(spts)-1].Type.Elem(), true)
+								assertAssignableTo(tv.T, spts[len(spts)-1].Type.Elem(), true)
 							} else {
-								checkAssignableTo(tv.T, spts[i].Type, true)
+								assertAssignableTo(tv.T, spts[i].Type, true)
 							}
 						} else {
-							checkAssignableTo(tv.T, spts[i].Type, true)
+							assertAssignableTo(tv.T, spts[i].Type, true)
 						}
 					}
 				} else {
-					for i := range n.Args { // iterate args
+					for i := range n.Args {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
 								if isVarg {
@@ -1301,13 +1301,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *ArrayType:
 					for i := 0; i < len(n.Elts); i++ {
-						// bypass check as a special case
 						convertType(store, last, &n.Elts[i].Key, IntType, false)
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := 0; i < len(n.Elts); i++ {
-						// bypass check as a special case
 						convertType(store, last, &n.Elts[i].Key, IntType, false)
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
@@ -1549,9 +1547,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
+				n.AssertCompatible(store, last)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
-					n.AssertCompatible(store, last)
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
@@ -1606,19 +1604,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else { // ASSIGN.
 					// NOTE: Keep in sync with DEFINE above.
-					n.AssertCompatible(store, last)
 					if len(n.Lhs) > len(n.Rhs) {
 						// check is done in assertCompatible
-					} else {
+					} else { // len(Lhs) == len(Rhs)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
 								panic("should not happen")
 							}
 							// Special case if shift assign <<= or >>=.
-							convertType(store, last, &n.Rhs[0], UintType, false) // bypass check
+							convertType(store, last, &n.Rhs[0], UintType, false)
 						} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
 							// e.g. a += b, single value for lhs and rhs,
-							// TODO: assert length
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
 							checkOrConvertType(store, last, &n.Rhs[0], lt, true)
 						} else { // all else, like BAND_ASSIGN, etc
@@ -2311,7 +2307,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	if cx, ok := (*x).(*ConstExpr); ok {
 		if _, ok := t.(*NativeType); !ok { // not native type, refer to time4_native.gno.
 			// e.g. int(1) == int8(1)
-			checkAssignableTo(cx.T, t, autoNative) // refer to 22a17a
+			assertAssignableTo(cx.T, t, autoNative)
 		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		// "push" expected type into shift binary's left operand. recursively.
@@ -2319,7 +2315,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
-			checkAssignableTo(xt, t, autoNative)
+			assertAssignableTo(xt, t, autoNative)
 		}
 	}
 	convertType(store, last, x, t, autoNative)

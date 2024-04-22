@@ -2228,7 +2228,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
-// TODO: empty interface? refer to checkAssignableTo
+// TODO: empty interface? refer to assertAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
@@ -2363,7 +2363,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkAssignableTo(spec, match.Elem(), false)
+					assertAssignableTo(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2377,7 +2377,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkAssignableTo(spec, match, false)
+					assertAssignableTo(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {

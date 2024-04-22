@@ -211,8 +211,8 @@ func maybeNil(t Type) bool {
 	}
 }
 
-func checkAssignableTo(xt, dt Type, autoNative bool) {
-	err := tryCheckAssignableTo(xt, dt, autoNative)
+func assertAssignableTo(xt, dt Type, autoNative bool) {
+	err := checkAssignableTo(xt, dt, autoNative)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -221,9 +221,9 @@ func checkAssignableTo(xt, dt Type, autoNative bool) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
+func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	if debug {
-		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
+		debug.Printf("assertAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
 	if xt == nil { // see test/files/types/0f18
@@ -439,7 +439,7 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			checkAssignableTo(pt.Elt, cdt.Elt, false)
+			assertAssignableTo(pt.Elt, cdt.Elt, false)
 		}
 		return nil
 	case *ArrayType:
@@ -450,18 +450,18 @@ func tryCheckAssignableTo(xt, dt Type, autoNative bool) error {
 					at.String(),
 					cdt.String())
 			}
-			checkAssignableTo(at.Elt, cdt.Elt, false)
+			assertAssignableTo(at.Elt, cdt.Elt, false)
 			return nil
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			checkAssignableTo(st.Elt, cdt.Elt, false)
+			assertAssignableTo(st.Elt, cdt.Elt, false)
 			return nil
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			checkAssignableTo(mt.Key, cdt.Key, false)
-			checkAssignableTo(mt.Value, cdt.Value, false)
+			assertAssignableTo(mt.Key, cdt.Key, false)
+			assertAssignableTo(mt.Value, cdt.Value, false)
 			return nil
 		}
 	case *FuncType:
@@ -595,7 +595,7 @@ func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool,
 
 	// e.g. 1%1e9
 	if !checker(xt) {
-		err := tryCheckAssignableTo(xt, dt, false) // XXX, cache this?
+		err := checkAssignableTo(xt, dt, false) // XXX, cache this?
 		if err != nil {
 			panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(xt)))
 		}
@@ -644,18 +644,18 @@ func (rs *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 			xt := evalStaticTypeOf(store, last, rs.X)
 			switch cxt := xt.(type) {
 			case *MapType:
-				checkAssignableTo(cxt.Key, kt, false)
-				checkAssignableTo(cxt.Value, vt, false)
+				assertAssignableTo(cxt.Key, kt, false)
+				assertAssignableTo(cxt.Value, vt, false)
 			case *SliceType:
 				if kt.Kind() != IntKind {
 					panic(fmt.Sprintf("index type should be int, but got %v", kt))
 				}
-				checkAssignableTo(cxt.Elt, vt, false)
+				assertAssignableTo(cxt.Elt, vt, false)
 			case *ArrayType:
 				if kt.Kind() != IntKind {
 					panic(fmt.Sprintf("index type should be int, but got %v", kt))
 				}
-				checkAssignableTo(cxt.Elt, vt, false)
+				assertAssignableTo(cxt.Elt, vt, false)
 			case PrimitiveType:
 				if cxt.Kind() == StringKind {
 					if kt != nil && kt.Kind() != IntKind {
@@ -693,7 +693,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					for i, lx := range as.Lhs {
 						if !isBlankIdentifier(lx) { // see composite3.gno
 							lxt := evalStaticTypeOf(store, last, lx)
-							checkAssignableTo(cft.Results[i].Type, lxt, false)
+							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
 					}
 				}
@@ -707,7 +707,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					if !isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
 						dt := evalStaticTypeOf(store, last, as.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
-						checkAssignableTo(ift, dt, false)
+						assertAssignableTo(ift, dt, false)
 					}
 					if !isBlankIdentifier(as.Lhs[1]) { // see composite3.gno
 						dt := evalStaticTypeOf(store, last, as.Lhs[1])
@@ -728,12 +728,12 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						if nx, ok := cx.X.(*NameExpr); ok {
 							rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
 							if mt, ok := rx.T.(*MapType); ok {
-								checkAssignableTo(mt.Value, lt, false)
+								assertAssignableTo(mt.Value, lt, false)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
 							cpt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := cpt.(*MapType); ok {
-								checkAssignableTo(mt.Value, lt, false)
+								assertAssignableTo(mt.Value, lt, false)
 							} else {
 								panic("should not happen")
 							}
@@ -794,7 +794,9 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			}
 		}
 	} else { // else op other than assign and define
-		// TODO: check length of expression
+		if len(as.Lhs) != 1 || len(as.Rhs) != 1 {
+			panic("length of lhs and rhs should not > 1")
+		}
 		for i, lx := range as.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
 			rt := evalStaticTypeOf(store, last, as.Rhs[i])
