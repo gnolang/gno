@@ -66,8 +66,8 @@ func newGnoEvent(eventType string, pkgPath string, ident string, timestamp int64
 		Type:       eventType,
 		PkgPath:    pkgPath,
 		Identifier: ident,
-		Attributes: attrs,
 		Timestamp:  timestamp,
+		Attributes: attrs,
 	}
 }
 
