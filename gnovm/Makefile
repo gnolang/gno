@@ -66,7 +66,6 @@ _test.gnolang.challenges:;      go test tests/*.go -test.short -run 'TestChallen
 _test.gnolang.types:;      go test tests/*.go -test.short -run 'TestTypes$$/' $(GOTEST_FLAGS)
 _test.gnolang.types.native:;      go test tests/*.go -test.short -run 'TestTypesNative$$/' $(GOTEST_FLAGS)
 
-_test.gnolang.debug:;      go test tests/*.go -test.short -run 'TestDebug$$/' $(GOTEST_FLAGS)
 ########################################
 # Code gen
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer

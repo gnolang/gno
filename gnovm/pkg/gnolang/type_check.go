@@ -602,19 +602,16 @@ func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool,
 	}
 }
 
-func (ux *UnaryExpr) AssertCompatible(xt, dt Type) {
-	if nt, ok := xt.(*NativeType); ok {
+func (ux *UnaryExpr) AssertCompatible(t Type) {
+	if nt, ok := t.(*NativeType); ok {
 		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
 	// check compatible
 	if checker, ok := unaryChecker[ux.Op]; ok {
-		if dt == nil {
-			dt = xt
-		}
-		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", ux.Op.TokenString(), kindString(dt)))
+		if !checker(t) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", ux.Op.TokenString(), kindString(t)))
 		}
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", ux.Op))
