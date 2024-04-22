@@ -49,8 +49,8 @@ in the `master` branch in the Gno monorepo. At this point, Portal Loop archives
 on-chain data using the [tx-archive](https://github.com/gnolang/tx-archive)
 tool, saving all transactions that happened on it thus far.
 
-It then pulls the latest changes from the `master` branch, and starts up again
-by inserting all previously archived transactions into the genesis of the chain.
+It then pulls the latest changes from the `master` branch, and inserts all 
+previously archived transactions into the genesis of the newly deployed chain.
 After genesis has been replayed, the chain continues working as normal.
 
 ## Using the Portal Loop
