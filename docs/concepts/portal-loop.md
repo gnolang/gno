@@ -44,7 +44,7 @@ Below is a diagram demonstrating how the Portal Loop works:
                     +----------------------------------+
 ```
 
-Specifically, Portal Loop behaves like a normal network until there is a detected
+Specifically, Portal Loop behaves like a normal network until a change is detected
 change in the `master` branch in the Gno monorepo. At this point, Portal Loop
 archives on-chain data using the [tx-archive](https://github.com/gnolang/tx-archive)
 tool, saving all transactions that happened on it thus far.
