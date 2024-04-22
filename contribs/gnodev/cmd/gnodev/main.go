@@ -128,7 +128,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.additionalAccounts,
 		"add-account",
-		"add and set account(s) in the form `<bech32>[:<amount>]`, can be use multiple time",
+		"add and set account(s) in the form `<bech32>[:<amount>]`, can be used multiple time",
 	)
 
 	fs.StringVar(
