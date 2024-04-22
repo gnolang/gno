@@ -8,15 +8,18 @@ import (
 	"gno.land/p/demo/users"
 )
 
-func TestSetExtension(t *testing.T) {
+func TestSetMetadata(t *testing.T) {
+	// Create a new dummy NFT with metadata
 	dummy := NewNFTWithMetadata(dummyNFTName, dummyNFTSymbol)
 	if dummy == nil {
 		t.Errorf("should not be nil")
 	}
 
+	// Define addresses for testing purposes
 	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
+	// Define metadata attributes
 	name := "test"
 	description := "test"
 	image := "test"
@@ -27,104 +30,105 @@ func TestSetExtension(t *testing.T) {
 	animationURL := "test"
 	youtubeURL := "test"
 
+	// Set the original caller to addr1
 	std.TestSetOrigCaller(std.Address(addr1)) // addr1
 
+	// Mint a new token for addr1
 	dummy.mint(addr1, TokenID("1"))
 
-	_, derr := dummy.SetExtension(TokenID("1"), Metadata{
-		Name : name,
-		Description: description,
-		Image: image,
-		ImageData: imageData,
-		ExternalURL: externalURL,
-		Attributes: attributes,
+	// Set metadata for token 1
+	_, derr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+		Name:           name,
+		Description:    description,
+		Image:          image,
+		ImageData:      imageData,
+		ExternalURL:    externalURL,
+		Attributes:     attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL: animationURL,
-		YoutubeURL: youtubeURL,
+		AnimationURL:   animationURL,
+		YoutubeURL:     youtubeURL,
 	})
 
+	// Check if there was an error setting metadata
 	if derr != nil {
 		t.Errorf("Should not result in error ", derr.Error())
 	}
 
 	// Test case: Invalid token ID
-	_, err := dummy.SetExtension(TokenID("3"), Metadata{
-		Name : name,
-		Description: description,
-		Image: image,
-		ImageData: imageData,
-		ExternalURL: externalURL,
-		Attributes: attributes,
+	_, err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
+		Name:           name,
+		Description:    description,
+		Image:          image,
+		ImageData:      imageData,
+		ExternalURL:    externalURL,
+		Attributes:     attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL: animationURL,
-		YoutubeURL: youtubeURL,
+		AnimationURL:   animationURL,
+		YoutubeURL:     youtubeURL,
 	})
+
+	// Check if the error returned matches the expected error
 	if err != ErrInvalidTokenId {
 		t.Errorf("Expected error %v, got %v", ErrInvalidTokenId, err)
 	}
 
+	// Set the original caller to addr2
 	std.TestSetOrigCaller(std.Address(addr2)) // addr2
 
-	_, cerr := dummy.SetExtension(TokenID("1"), Metadata{
-		Name : name,
-		Description: description,
-		Image: image,
-		ImageData: imageData,
-		ExternalURL: externalURL,
-		Attributes: attributes,
+	// Try to set metadata for token 1 from addr2 (should fail)
+	_, cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+		Name:           name,
+		Description:    description,
+		Image:          image,
+		ImageData:      imageData,
+		ExternalURL:    externalURL,
+		Attributes:     attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL: animationURL,
-		YoutubeURL: youtubeURL,
-	}) // addr2 trying to set Extension for token 1
+		AnimationURL:   animationURL,
+		YoutubeURL:     youtubeURL,
+	})
+
+	// Check if the error returned matches the expected error
 	if cerr != ErrCallerIsNotOwner {
 		t.Errorf("Expected error %v, got %v", ErrCallerIsNotOwner, cerr)
 	}
 
-	// Test case: Retrieving Extension
+	// Set the original caller back to addr1
 	std.TestSetOrigCaller(std.Address(addr1)) // addr1
 
-	dummyExtension, err := dummy.Extension(TokenID("1"))
+	// Retrieve metadata for token 1
+	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))
 	if err != nil {
-		t.Errorf("Extension error: %v, ", err.Error())
-
+		t.Errorf("Metadata error: %v", err.Error())
 	} else {
-		if dummyExtension.Image != image {
-			t.Errorf("Expected Extension's image %v, got %v", image, dummyExtension.Image)
+		// Check if metadata attributes match expected values
+		if dummyMetadata.Image != image {
+			t.Errorf("Expected Metadata's image %s, got %s", image, dummyMetadata.Image)
 		}
-		
-		if dummyExtension.ImageData != imageData {
-			t.Errorf("Expected Extension's imageData %v, got %v", imageData, dummyExtension.ImageData)
+		if dummyMetadata.ImageData != imageData {
+			t.Errorf("Expected Metadata's imageData %s, got %s", imageData, dummyMetadata.ImageData)
 		}
-		
-		if dummyExtension.ExternalURL != externalURL {
-			t.Errorf("Expected Extension's externalURL %v, got %v", externalURL, dummyExtension.ExternalURL)
+		if dummyMetadata.ExternalURL != externalURL {
+			t.Errorf("Expected Metadata's externalURL %s, got %s", externalURL, dummyMetadata.ExternalURL)
 		}
-		
-		if dummyExtension.Description != description {
-			t.Errorf("Expected Extension's description %v, got %v", description, dummyExtension.Description)
+		if dummyMetadata.Description != description {
+			t.Errorf("Expected Metadata's description %s, got %s", description, dummyMetadata.Description)
 		}
-	
-		if dummyExtension.Name != name {
-			t.Errorf("Expected Extension's name %v, got %v", name, dummyExtension.Name)
+		if dummyMetadata.Name != name {
+			t.Errorf("Expected Metadata's name %s, got %s", name, dummyMetadata.Name)
 		}
-		
-		if len(dummyExtension.Attributes) != len(attributes) {
-			t.Errorf("Expected %d Extension's attributes %v, got %v", len(attributes), len(dummyExtension.Attributes))
+		if len(dummyMetadata.Attributes) != len(attributes) {
+			t.Errorf("Expected %d Metadata's attributes, got %d", len(attributes), len(dummyMetadata.Attributes))
 		}
-		 
-		if dummyExtension.BackgroundColor != backgroundColor {
-			t.Errorf("Expected Extension's backgroundColor %v, got %v", backgroundColor, dummyExtension.BackgroundColor)
+		if dummyMetadata.BackgroundColor != backgroundColor {
+			t.Errorf("Expected Metadata's backgroundColor %s, got %s", backgroundColor, dummyMetadata.BackgroundColor)
 		}
-		
-		if dummyExtension.AnimationURL != animationURL {
-			t.Errorf("Expected Extension's animationURL %v, got %v", animationURL, dummyExtension.AnimationURL)
+		if dummyMetadata.AnimationURL != animationURL {
+			t.Errorf("Expected Metadata's animationURL %s, got %s", animationURL, dummyMetadata.AnimationURL)
 		}
-		
-		if dummyExtension.YoutubeURL != youtubeURL {
-			t.Errorf("Expected Extension's youtubeURL %v, got %v", youtubeURL, dummyExtension.YoutubeURL)
+		if dummyMetadata.YoutubeURL != youtubeURL {
+			t.Errorf("Expected Metadata's youtubeURL %s, got %s", youtubeURL, dummyMetadata.YoutubeURL)
 		}
 	}
-	
-	
 }
 
