@@ -257,6 +257,13 @@ input {
   max-width: 100%;x
 }
 
+.container img {
+  margin: auto;
+  display: block;
+  border-radius: 0.5rem;
+  margin-block: 3rem;
+}
+
 blockquote {
   background-color: var(--quote-background, #ddd);
 }
