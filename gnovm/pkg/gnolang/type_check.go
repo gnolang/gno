@@ -8,7 +8,7 @@ import (
 
 // here are a range of rules predefined for preprocessor to check the compatibility between operands and operators
 // e,g. for binary expr x + y, x, y can only be numeric or string, 1+2, "a" + "b"
-// this is used in checkOperandWithOp().
+// this is used in assertCompatible()s.
 var (
 	binaryChecker = map[Word]func(t Type) bool{
 		ADD:      isNumericOrString,
@@ -639,6 +639,8 @@ func (rs *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		if isBlankIdentifier(rs.Key) && isBlankIdentifier(rs.Value) {
 			// both "_"
 		} else {
+			assertValidLeftValue(store, last, rs.Key)
+			// if is valid left value
 			kt := evalStaticTypeOf(store, last, rs.Key)
 			vt := evalStaticTypeOf(store, last, rs.Value)
 			xt := evalStaticTypeOf(store, last, rs.X)
@@ -753,18 +755,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			if as.Op == ASSIGN {
 				// assert valid left value
 				for _, lx := range as.Lhs {
-					shouldPanic := true
-					switch clx := lx.(type) {
-					case *NameExpr, *StarExpr, *SelectorExpr:
-						shouldPanic = false
-					case *IndexExpr:
-						xt := evalStaticTypeOf(store, last, clx.X)
-						shouldPanic = xt != nil && xt.Kind() == StringKind
-					default:
-					}
-					if shouldPanic {
-						panic(fmt.Sprintf("cannot assign to %v", lx))
-					}
+					assertValidLeftValue(store, last, lx)
 				}
 			}
 		}
@@ -801,6 +792,21 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 }
 
 // misc
+func assertValidLeftValue(store Store, last BlockNode, lx Expr) {
+	shouldPanic := true
+	switch clx := lx.(type) {
+	case *NameExpr, *StarExpr, *SelectorExpr:
+		shouldPanic = false
+	case *IndexExpr:
+		xt := evalStaticTypeOf(store, last, clx.X)
+		shouldPanic = xt != nil && xt.Kind() == StringKind
+	default:
+	}
+	if shouldPanic {
+		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
 func kindString(xt Type) string {
 	if xt != nil {
 		return xt.Kind().String()
