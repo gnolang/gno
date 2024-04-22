@@ -5,7 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAnyWellKnownNative(t *testing.T) {
@@ -20,7 +20,7 @@ func TestAnyWellKnownNative(t *testing.T) {
 
 	bz, err := cdc.Marshal(s1)
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x1a --> field #3 Typ3ByteLength (F3)
 		//           0x2a --> length prefix (42 bytes)
 		//                 0x0a --> field #1 Typ3ByteLength (Any TypeURL)
@@ -41,6 +41,7 @@ func TestAnyWellKnownNative(t *testing.T) {
 			//                           0x2f, ... 0x65 --> "/google.protobuf.Int64Value"
 			/**/ 0x22, 0x1d, 0x0a, 0x1b, 0x2f, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x49, 0x6e, 0x74, 0x36, 0x34, 0x56, 0x61, 0x6c, 0x75, 0x65,
 		},
+		bz,
 		"InterfaceFieldsStruct incorrectly serialized")
 
 	var s2 tests.InterfaceFieldsStruct
@@ -51,5 +52,5 @@ func TestAnyWellKnownNative(t *testing.T) {
 		F3: string("dontcare"),
 		F4: int64(0), // ints get decoded as int64.
 	}
-	assert.Equal(t, s2, s3)
+	assert.Equal(t, s3, s2)
 }
