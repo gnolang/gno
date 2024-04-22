@@ -6,6 +6,7 @@ package pagination
 import (
 	"std"
 	"strconv"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
@@ -14,10 +15,12 @@ import (
 
 var list []string     // keep a slice of signed up addresses efficient pagination
 var tracker *avl.Tree // keep track of who signed up
+const pageSize = 1
 
 func init() {
 	tracker = avl.NewTree()
 	SignUp()
+
 }
 
 func SignUp() string {
@@ -70,20 +73,39 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 		page = 1 // render first page on bad input
 	}
 
-	addresses := GetSignedUpInRange(page, 20)
-	if len(addresses) == 0 {
+	if len(list) == 0 {
 		res.Write("No users are signed up currently.")
+		return
+	}
+
+	addresses := GetSignedUpInRange(page, pageSize)
+	if len(addresses) == 0 {
+		res.Write("No users on this page\n\n")
 	}
 
 	for i, addr := range addresses {
-		out := ufmt.Sprintf("#### User #%d - %s\n", i, addr)
+		out := ufmt.Sprintf("#### User #%d - %s - %s\n", (i+page)*pageSize, addr, time.Now().Format(time.RFC3339))
 		res.Write(out)
 	}
 
 	res.Write("---\n\n")
 	res.Write(ufmt.Sprintf("You're viewing page #%d\n\n", page))
 
-	nextPage := ufmt.Sprintf("[Next page](page/%d)", page+1)
+	var prevPage string
+	var nextPage string
+	if page < 2 {
+		prevPage = ""
+	} else {
+		prevPage = ufmt.Sprintf("[Previous page](/r/demo/pagination:page/%d)\n\n", page-1)
+	}
+
+	if len(addresses) >= pageSize {
+		nextPage = ufmt.Sprintf("[Next page](/r/demo/pagination:page/%d)\n\n", page+1)
+	} else {
+		nextPage = ""
+	}
+
+	res.Write(prevPage)
 	res.Write(nextPage)
 }
 
