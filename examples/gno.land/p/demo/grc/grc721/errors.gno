@@ -18,4 +18,5 @@ var (
 	// ERC721Royalty
 	ErrInvalidRoyaltyPercentage = errors.New("invalid royalty percentage")
 	ErrInvalidRoyaltyPaymentAddress = errors.New("invalid royalty paymentAddress")
+	ErrCannotCalculateRoyaltyAmount = errors.New("cannot calculate royalty amount")
 )

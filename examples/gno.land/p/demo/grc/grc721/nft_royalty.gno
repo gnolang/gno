@@ -6,39 +6,65 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-
+// royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
 type royaltyNFT struct {
-	*metadataNFT
-
-	tokenRoyaltyInfo avl.Tree
+	*metadataNFT          // Embedding metadataNFT for NFT functionality
+	tokenRoyaltyInfo avl.Tree  // AVL tree to store royalty information for each token
+	calculator      RoyaltyCalculator  // Interface for calculating royalty amount
 }
 
+type royaltyCalculator struct {}
 
-var _ IGRC721Royalty = (*royaltyNFT)(nil)
+func NewDefaultRoyaltyCalculator() *royaltyCalculator {
+	return &royaltyCalculator{}
+}
 
+func (r *royaltyCalculator) RoyaltyAmount(salePrice, percentage uint64) (uint64, error) {
+	royaltyAmount := (salePrice * percentage) / 100
+	return royaltyAmount, nil
+}
 
-func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
+type Option func(*royaltyNFT)
 
+func WithCalculator(c RoyaltyCalculator) Option {
+	return func(r *royaltyNFT) {
+		r.calculator = c
+	}
+}
+
+// NewNFTWithRoyalty creates a new royalty NFT with the specified name, symbol, and royalty calculator.
+func NewNFTWithRoyalty(name string, symbol string, opts ...Option) *royaltyNFT {
+	// Create a new NFT with metadata
 	nft := NewNFTWithMetadata(name, symbol)
 
-	return &royaltyNFT{
-		metadataNFT:   nft,
-		tokenRoyaltyInfo: avl.Tree{},
+	r := &royaltyNFT{
+		metadataNFT:        nft,
+		tokenRoyaltyInfo:   avl.Tree{},
+		calculator:         NewDefaultRoyaltyCalculator(),
 	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(r)
+		}
+	}
+
+	return r
 }
 
-// SetTokenRoyalty sets the royalty information for a specific token ID
+// SetTokenRoyalty sets the royalty information for a specific token ID.
 func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) (bool, error) {
+	// Validate the payment address
 	if err := isValidAddress(royaltyInfo.PaymentAddress); err != nil {
-		return false, ErrInvalidRoyaltyPaymentAddress 
+		return false, ErrInvalidRoyaltyPaymentAddress
 	}
 
-	// RoyaltyAmount will exceed the sale price
+	// Check if royalty percentage exceeds 100%
 	if royaltyInfo.Percentage > 100 {
 		return false, ErrInvalidRoyaltyPercentage
 	}
 
-	// Check for the right owner
+	// Check if the caller is the owner of the token
 	owner, err := r.metadataNFT.OwnerOf(tid)
 	if err != nil {
 		return false, err
@@ -47,13 +73,15 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) (bool
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
+
+	// Set royalty information for the token
 	r.tokenRoyaltyInfo.Set(string(tid), royaltyInfo)
 	return true, nil
 }
 
-
-// RoyaltyInfo returns the royalty information for the given token ID and sale price
+// RoyaltyInfo returns the royalty information for the given token ID and sale price.
 func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice uint64) (std.Address, uint64, error) {
+	// Retrieve royalty information for the token
 	val, found := r.tokenRoyaltyInfo.Get(string(tid))
 	if !found {
 		return "", 0, ErrInvalidTokenId
@@ -61,8 +89,11 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice uint64) (std.Address, ui
 
 	royaltyInfo := val.(RoyaltyInfo)
 
-	royaltyAmount := (salePrice * royaltyInfo.Percentage) / 100
+	// Calculate royalty amount using the provided calculator
+	royaltyAmount, err := r.calculator.RoyaltyAmount(salePrice, royaltyInfo.Percentage)
+	if err != nil {
+		return "", 0, ErrCannotCalculateRoyaltyAmount
+	}
 
 	return royaltyInfo.PaymentAddress, royaltyAmount, nil
 }
-
