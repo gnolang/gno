@@ -89,39 +89,39 @@ func TestSetExtension(t *testing.T) {
 
 	} else {
 		if dummyExtension.Image != image {
-			t.Errorf("Expected Extension's image %v, got %v", image, dummyExtension.Image)
+			t.Errorf("Expected Extension's image %s, got %s", image, dummyExtension.Image)
 		}
 		
 		if dummyExtension.ImageData != imageData {
-			t.Errorf("Expected Extension's imageData %v, got %v", imageData, dummyExtension.ImageData)
+			t.Errorf("Expected Extension's imageData %s, got %s", imageData, dummyExtension.ImageData)
 		}
 		
 		if dummyExtension.ExternalURL != externalURL {
-			t.Errorf("Expected Extension's externalURL %v, got %v", externalURL, dummyExtension.ExternalURL)
+			t.Errorf("Expected Extension's externalURL %s, got %s", externalURL, dummyExtension.ExternalURL)
 		}
 		
 		if dummyExtension.Description != description {
-			t.Errorf("Expected Extension's description %v, got %v", description, dummyExtension.Description)
+			t.Errorf("Expected Extension's description %s, got %s", description, dummyExtension.Description)
 		}
 	
 		if dummyExtension.Name != name {
-			t.Errorf("Expected Extension's name %v, got %v", name, dummyExtension.Name)
+			t.Errorf("Expected Extension's name %s, got %s", name, dummyExtension.Name)
 		}
 		
 		if len(dummyExtension.Attributes) != len(attributes) {
-			t.Errorf("Expected %d Extension's attributes %v, got %v", len(attributes), len(dummyExtension.Attributes))
+			t.Errorf("Expected %d Extension's attributes, got %d", len(attributes), len(dummyExtension.Attributes))
 		}
 		 
 		if dummyExtension.BackgroundColor != backgroundColor {
-			t.Errorf("Expected Extension's backgroundColor %v, got %v", backgroundColor, dummyExtension.BackgroundColor)
+			t.Errorf("Expected Extension's backgroundColor %s, got %s", backgroundColor, dummyExtension.BackgroundColor)
 		}
 		
 		if dummyExtension.AnimationURL != animationURL {
-			t.Errorf("Expected Extension's animationURL %v, got %v", animationURL, dummyExtension.AnimationURL)
+			t.Errorf("Expected Extension's animationURL %s, got %s", animationURL, dummyExtension.AnimationURL)
 		}
 		
 		if dummyExtension.YoutubeURL != youtubeURL {
-			t.Errorf("Expected Extension's youtubeURL %v, got %v", youtubeURL, dummyExtension.YoutubeURL)
+			t.Errorf("Expected Extension's youtubeURL %s, got %s", youtubeURL, dummyExtension.YoutubeURL)
 		}
 	}
 	

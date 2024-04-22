@@ -10,46 +10,18 @@ import (
 type royaltyNFT struct {
 	*metadataNFT          // Embedding metadataNFT for NFT functionality
 	tokenRoyaltyInfo avl.Tree  // AVL tree to store royalty information for each token
-	calculator      RoyaltyCalculator  // Interface for calculating royalty amount
 }
 
-type royaltyCalculator struct {}
-
-func NewDefaultRoyaltyCalculator() *royaltyCalculator {
-	return &royaltyCalculator{}
-}
-
-func (r *royaltyCalculator) RoyaltyAmount(salePrice, percentage uint64) (uint64, error) {
-	royaltyAmount := (salePrice * percentage) / 100
-	return royaltyAmount, nil
-}
-
-type Option func(*royaltyNFT)
-
-func WithCalculator(c RoyaltyCalculator) Option {
-	return func(r *royaltyNFT) {
-		r.calculator = c
-	}
-}
 
 // NewNFTWithRoyalty creates a new royalty NFT with the specified name, symbol, and royalty calculator.
-func NewNFTWithRoyalty(name string, symbol string, opts ...Option) *royaltyNFT {
+func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 	// Create a new NFT with metadata
 	nft := NewNFTWithMetadata(name, symbol)
 
-	r := &royaltyNFT{
+	return &royaltyNFT{
 		metadataNFT:        nft,
 		tokenRoyaltyInfo:   avl.Tree{},
-		calculator:         NewDefaultRoyaltyCalculator(),
 	}
-
-	for _, opt := range opts {
-		if opt != nil {
-			opt(r)
-		}
-	}
-
-	return r
 }
 
 // SetTokenRoyalty sets the royalty information for a specific token ID.
@@ -90,10 +62,15 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice uint64) (std.Address, ui
 	royaltyInfo := val.(RoyaltyInfo)
 
 	// Calculate royalty amount using the provided calculator
-	royaltyAmount, err := r.calculator.RoyaltyAmount(salePrice, royaltyInfo.Percentage)
+	royaltyAmount, err := r.calculateRoyaltyAmount(salePrice, royaltyInfo.Percentage)
 	if err != nil {
 		return "", 0, ErrCannotCalculateRoyaltyAmount
 	}
 
 	return royaltyInfo.PaymentAddress, royaltyAmount, nil
+}
+
+func (r *royaltyNFT) calculateRoyaltyAmount(salePrice, percentage uint64) (uint64, error) {
+	royaltyAmount := (salePrice * percentage) / 100
+	return royaltyAmount, nil
 }
