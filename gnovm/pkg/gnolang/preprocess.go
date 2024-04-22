@@ -1899,6 +1899,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// wrap body with {}
 						nn := BlockS(stmts)
+						// set loc and line
+						loc := n.GetLocation()
+						loc.Line = stmts[0].GetLine()
+						nn.SetLocation(loc)
+						nn.SetLine(stmts[0].GetLine())
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
 						debug.Println("---n final: ", n)
@@ -1938,6 +1943,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						// wrap body with {}
 						nn := BlockS(body)
+						// set loc and line
+						loc := n.GetLocation()
+						loc.Line = body[0].GetLine()
+						nn.SetLocation(loc)
+						nn.SetLine(body[0].GetLine())
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
 						debug.Println("---n final: ", n)
@@ -3891,8 +3901,9 @@ func resetStaticBlock(bn BlockNode) {
 }
 
 // wrap goto loop into block stmt
-func rebuildBody(b Body, gloop *LoopInfo) Body {
+func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 	debug.Println("---rebuildBody, body: ", b)
+	debug.Println("---rebuildBody, loc: ", loc.PkgPath, loc.File, loc.Line, loc.Nonce)
 	preBody := []Stmt{}
 	loopBody := []Stmt{}
 	postBody := []Stmt{}
@@ -3914,7 +3925,15 @@ func rebuildBody(b Body, gloop *LoopInfo) Body {
 
 	nn := BlockS(loopBody)
 	nn.SetLabel(gloop.label)
+
+	loc.Line = loopBody[0].GetLine()
+
+	debug.Println("---new loc: ", loc.PkgPath, loc.File, loc.Line, loc.Nonce)
+	nn.SetLocation(loc)
+	//SetNodeLocations(loc.PkgPath, loc.File, nn, loopBody[0].GetLine())
+	nn.SetLine(loopBody[0].GetLine())
 	debug.Println("---wrapped loop Body: ", nn)
+	debug.Println("---wrapped loop Body attr: ", nn.Attributes)
 
 	nBody := append(preBody, nn)
 	nBody = append(nBody, postBody...)
@@ -3922,7 +3941,7 @@ func rebuildBody(b Body, gloop *LoopInfo) Body {
 	return nBody
 }
 
-func checkAndRebuildBody(body Body, loops []*LoopInfo) Body {
+func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 	for _, loop := range loops {
 		if loop.isGotoLoop { // for/range has built new body in trans_leave
 			// find labeled stmt
@@ -3932,7 +3951,7 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo) Body {
 			} else {
 				// clear origin label, set this label on blockStmt in future
 				body[idx].SetLabel("")
-				nBody := rebuildBody(body, loop)
+				nBody := rebuildBody(body, loop, loc)
 				body = nBody
 			}
 		}
@@ -3943,6 +3962,7 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo) Body {
 // traverse from root node, find goto loop and its parent block, wrap body and re-process,
 // to rebuild value path.
 func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
+	debug.Println("---transform")
 	reProcessing = true
 	defer func() {
 		reProcessing = false
@@ -3967,25 +3987,25 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				if currentFn == "" {
 					return cn, TRANS_CONTINUE // no match func
 				}
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *BlockStmt:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *FuncLitExpr:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *ForStmt:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *IfCaseStmt:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *RangeStmt:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *SwitchClauseStmt:
-				cn.Body = checkAndRebuildBody(cn.GetBody(), loops)
+				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			default:
 				return cn, TRANS_CONTINUE
@@ -4069,7 +4089,6 @@ func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
 // ----------------------------------------
 // SaveBlockNodes
 
-// TODO: fix this
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
 func SaveBlockNodes(store Store, fn *FileNode) {
@@ -4089,21 +4108,22 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
 			debug.Printf("---bn is %v \n", bn)
+			debug.Printf("---bn.getLine %v \n", bn.GetLine())
 			// Location must exist already.
-			//loc := bn.GetLocation()
-			//debug.Printf("---loc of bn is %v \n", loc)
-			//if loc.IsZero() {
-			//	panic("unexpected zero block node location")
-			//}
-			//if loc.PkgPath != pkgPath {
-			//	panic("unexpected pkg path in node location")
-			//}
-			//if loc.File != fileName {
-			//	panic("unexpected file name in node location")
-			//}
-			//if loc.Line != bn.GetLine() {
-			//	panic("wrong line in block node location")
-			//}
+			loc := bn.GetLocation()
+			debug.Printf("---loc of bn is %v \n", loc)
+			if loc.IsZero() {
+				panic("unexpected zero block node location")
+			}
+			if loc.PkgPath != pkgPath {
+				panic("unexpected pkg path in node location")
+			}
+			if loc.File != fileName {
+				panic("unexpected file name in node location")
+			}
+			if loc.Line != bn.GetLine() {
+				panic("wrong line in block node location")
+			}
 			// save blocknode.
 			store.SetBlockNode(bn)
 		}
