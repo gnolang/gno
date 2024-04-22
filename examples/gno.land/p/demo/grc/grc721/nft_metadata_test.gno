@@ -51,7 +51,7 @@ func TestSetMetadata(t *testing.T) {
 
 	// Check if there was an error setting metadata
 	if derr != nil {
-		t.Errorf("Should not result in error ", derr.Error())
+		t.Errorf("Should not result in error : %s", derr.Error())
 	}
 
 	// Test case: Invalid token ID
@@ -69,7 +69,7 @@ func TestSetMetadata(t *testing.T) {
 
 	// Check if the error returned matches the expected error
 	if err != ErrInvalidTokenId {
-		t.Errorf("Expected error %v, got %v", ErrInvalidTokenId, err)
+		t.Errorf("Expected error %s, got %s", ErrInvalidTokenId, err)
 	}
 
 	// Set the original caller to addr2
@@ -90,7 +90,7 @@ func TestSetMetadata(t *testing.T) {
 
 	// Check if the error returned matches the expected error
 	if cerr != ErrCallerIsNotOwner {
-		t.Errorf("Expected error %v, got %v", ErrCallerIsNotOwner, cerr)
+		t.Errorf("Expected error %s, got %s", ErrCallerIsNotOwner, cerr)
 	}
 
 	// Set the original caller back to addr1
@@ -99,7 +99,7 @@ func TestSetMetadata(t *testing.T) {
 	// Retrieve metadata for token 1
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))
 	if err != nil {
-		t.Errorf("Metadata error: %v", err.Error())
+		t.Errorf("Metadata error: %s", err.Error())
 	} else {
 		// Check if metadata attributes match expected values
 		if dummyMetadata.Image != image {
