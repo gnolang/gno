@@ -80,7 +80,7 @@ func displayAddressMD(addr std.Address) string {
 	if user == nil {
 		return "[" + addr.String() + "](/r/users:" + addr.String() + ")"
 	}
-	return "[@" + user.Name() + "](/r/users:" + user.Name() + ")"
+	return "[@" + user.Name + "](/r/users:" + user.Name + ")"
 }
 
 func usernameOf(addr std.Address) string {
@@ -88,7 +88,7 @@ func usernameOf(addr std.Address) string {
 	if user == nil {
 		panic("user not found")
 	}
-	return user.Name()
+	return user.Name
 }
 
 func isValidPermission(perm Permission) bool {

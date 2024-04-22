@@ -12,7 +12,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -71,9 +71,10 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator: pv,
-		Genesis:       genesis,
-		TMConfig:      tmconfig,
+		PrivValidator:    pv,
+		Genesis:          genesis,
+		TMConfig:         tmconfig,
+		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
 	}
 }
 
@@ -132,7 +133,7 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
 func LoadDefaultGenesisTXsFile(t TestingTS, chainid string, gnoroot string) []std.Tx {
-	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	txsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	// NOTE: We dont care about giving a correct address here, as it's only for display
 	// XXX: Do we care loading this TXs for testing ?
@@ -147,6 +148,7 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	const defaultListner = "tcp://127.0.0.1:0"
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
+	tmconfig.Consensus.WALDisabled = true
 	tmconfig.Consensus.CreateEmptyBlocks = true
 	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Duration(0)
 	tmconfig.RPC.ListenAddress = defaultListner

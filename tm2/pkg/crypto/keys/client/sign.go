@@ -35,7 +35,7 @@ func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "sign",
 			ShortUsage: "sign [flags] <key-name or address>",
-			ShortHelp:  "Signs the document",
+			ShortHelp:  "signs the document",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

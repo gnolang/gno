@@ -1,4 +1,4 @@
-# load a package from the example packages directory.
+# load a package from the 'examples' directory.
 loadpkg gno.land/p/demo/ufmt
 
 ## start a new node

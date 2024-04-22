@@ -32,7 +32,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "broadcast",
 			ShortUsage: "broadcast [flags] <file-name>",
-			ShortHelp:  "Broadcasts a signed document",
+			ShortHelp:  "broadcasts a signed document",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
