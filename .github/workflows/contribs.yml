@@ -20,11 +20,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: # two latest versions
+        goversion:
           - "1.22.x"
         program:
           - "gnomd"
           - "gnodev"
+          - "gnofaucet"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
