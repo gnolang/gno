@@ -142,7 +142,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Override `foo.gno` file with bar content
-	err = os.WriteFile(filepath.Join(foopkg, "foo.gno"), []byte(barFile), 0700)
+	err = os.WriteFile(filepath.Join(foopkg, "foo.gno"), []byte(barFile), 0o700)
 	require.NoError(t, err)
 
 	err = node.Reload(context.Background())
@@ -259,7 +259,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) string {
 		name := nameFile[i]
 		content := nameFile[i+1]
 
-		err := os.WriteFile(filepath.Join(workdir, name), []byte(content), 0700)
+		err := os.WriteFile(filepath.Join(workdir, name), []byte(content), 0o700)
 		require.NoError(t, err)
 	}
 

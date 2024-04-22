@@ -10,7 +10,7 @@ type customEvent struct {
 // If the name is empty, it will panic.
 func Custom(name string) Event {
 	if name == "" {
-		panic("custom event cannot have an emtpy name")
+		panic("custom event cannot have an empty name")
 	}
 
 	return &customEvent{name: fmt.Sprintf("CUSTOM_%s", name)}

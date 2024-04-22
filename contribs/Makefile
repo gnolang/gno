@@ -58,3 +58,10 @@ tidy:
 test: test.gnodev
 test.gnodev:
 	$(MAKE) -C ./gnodev test
+
+########################################
+# Lint
+.PHONY: test
+lint: lint.gnodev
+lint.gnodev:
+	$(MAKE) -C ./gnodev test

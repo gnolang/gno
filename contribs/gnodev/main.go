@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
@@ -45,7 +43,6 @@ type devCfg struct {
 
 	minimal    bool
 	verbose    bool
-	hotreload  bool
 	noWatch    bool
 	noReplay   bool
 	maxGas     int64
@@ -117,7 +114,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		defaultDevOptions.verbose,
 		"verbose output when deving",
 	)
@@ -204,8 +201,9 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Create server
 	mux := http.NewServeMux()
 	server := http.Server{
-		Handler: mux,
-		Addr:    cfg.webListenerAddr,
+		Handler:           mux,
+		Addr:              cfg.webListenerAddr,
+		ReadHeaderTimeout: time.Second * 60,
 	}
 	defer server.Close()
 
@@ -256,10 +254,9 @@ func runEventLoop(
 	ctx context.Context,
 	logger *slog.Logger,
 	rt *rawterm.RawTerm,
-	dnode *dev.Node,
+	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
-
 	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
@@ -300,7 +297,6 @@ func runEventLoop(
 				if err = dnode.ReloadAll(ctx); err != nil {
 					logger.WithGroup(NodeLogName).
 						Error("unable to reload node", "err", err)
-
 				}
 
 			case rawterm.KeyCtrlR:
@@ -320,51 +316,6 @@ func runEventLoop(
 
 			// Reset listen for the next keypress
 			keyPressCh = listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
-		}
-	}
-}
-
-func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changedPathsCh chan<- []string) error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return fmt.Errorf("unable to watch files: %w", err)
-	}
-
-	if cfg.noWatch {
-		// Noop watcher, wait until context has been cancel
-		<-ctx.Done()
-		return ctx.Err()
-	}
-
-	for _, pkg := range pkgs {
-		if err := watcher.Add(pkg.Dir); err != nil {
-			return fmt.Errorf("unable to watch %q: %w", pkg.Dir, err)
-		}
-	}
-
-	const timeout = time.Millisecond * 500
-
-	var debounceTimer <-chan time.Time
-	pathList := []string{}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case watchErr := <-watcher.Errors:
-			return fmt.Errorf("watch error: %w", watchErr)
-		case <-debounceTimer:
-			changedPathsCh <- pathList
-			// Reset pathList and debounceTimer
-			pathList = []string{}
-			debounceTimer = nil
-		case evt := <-watcher.Events:
-			if evt.Op != fsnotify.Write {
-				continue
-			}
-
-			pathList = append(pathList, evt.Name)
-			debounceTimer = time.After(timeout)
 		}
 	}
 }
