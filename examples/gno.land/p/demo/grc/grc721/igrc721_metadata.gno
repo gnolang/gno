@@ -1,10 +1,15 @@
-
 package grc721
 
+// Base metadata interface
 type IGRC721Metadata interface {
 	Name() string
 	Symbol() string
 	TokenURI(tid TokenID) (string, error)
+}
+
+// see: https://docs.opensea.io/docs/metadata-standards
+type IGRC721MetadataOnchain interface {
+	IGRC721Metadata
 	TokenMetadata(tid TokenID) (Metadata, error)
 }
 

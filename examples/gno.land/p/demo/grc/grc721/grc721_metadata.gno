@@ -12,12 +12,11 @@ type metadataNFT struct {
 	extensions  avl.Tree // AVL tree for storing metadata extensions
 }
 
-// Ensure that metadataNFT implements the IGRC721Metadata interface.
-var _ IGRC721Metadata = (*metadataNFT)(nil)
+// Ensure that metadataNFT implements the IGRC721MetadataOnchain interface.
+var _ IGRC721MetadataOnchain = (*metadataNFT)(nil)
 
 // NewNFTWithMetadata creates a new basic NFT with metadata extensions.
 func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
-
 	// Create a new basic NFT
 	nft := NewBasicNFT(name, symbol)
 

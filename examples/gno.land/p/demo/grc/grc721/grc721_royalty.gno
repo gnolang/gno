@@ -12,6 +12,8 @@ type royaltyNFT struct {
 	tokenRoyaltyInfo avl.Tree  // AVL tree to store royalty information for each token
 }
 
+// Ensure that royaltyNFT implements the IGRC2981 interface.
+var _ IGRC2981 = (*royaltyNFT)(nil)
 
 // NewNFTWithRoyalty creates a new royalty NFT with the specified name, symbol, and royalty calculator.
 func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {

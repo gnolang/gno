@@ -4,7 +4,8 @@ import (
 	"std"
 )
 
-type IGRC721Royalty interface {	
+// Base grc2981 interface
+type IGRC2981 interface {	
 	RoyaltyInfo(tokenID TokenID, salePrice uint64) (std.Address, uint64, error)
 }
 

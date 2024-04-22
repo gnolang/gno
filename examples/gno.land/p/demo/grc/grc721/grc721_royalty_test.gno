@@ -48,7 +48,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	std.TestSetOrigCaller(std.Address(addr2)) // addr2
 
-	_, cerr := dummy.SetTokenRoyalty(TokenID("1"),RoyaltyInfo{
+	_, cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage: percentage,
 	}) 
