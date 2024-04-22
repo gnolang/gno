@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -14,7 +13,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenesis_Txs_Export(t *testing.T) {
+// getDummyBalances generates dummy balance lines
+func getDummyBalances(t *testing.T, count int) []gnoland.Balance {
+	t.Helper()
+
+	dummyKeys := getDummyKeys(t, count)
+	amount := std.NewCoins(std.NewCoin("ugnot", 10))
+
+	balances := make([]gnoland.Balance, len(dummyKeys))
+
+	for index, key := range dummyKeys {
+		balances[index] = gnoland.Balance{
+			Address: key.Address(),
+			Amount:  amount,
+		}
+	}
+
+	return balances
+}
+
+func TestGenesis_Balances_Export(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis file", func(t *testing.T) {
@@ -23,7 +41,8 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"export",
 			"--genesis-path",
 			"dummy-path",
@@ -47,7 +66,8 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -66,14 +86,15 @@ func TestGenesis_Txs_Export(t *testing.T) {
 
 		genesis := getDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: generateDummyTxs(t, 1),
+			Balances: getDummyBalances(t, 1),
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -84,18 +105,18 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		assert.ErrorContains(t, cmdErr, errNoOutputFile.Error())
 	})
 
-	t.Run("valid txs export", func(t *testing.T) {
+	t.Run("valid balances export", func(t *testing.T) {
 		t.Parallel()
 
-		// Generate dummy txs
-		txs := generateDummyTxs(t, 10)
+		// Generate dummy balances
+		balances := getDummyBalances(t, 10)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
 		genesis := getDefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: txs,
+			Balances: balances,
 		}
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -106,7 +127,8 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"export",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -120,21 +142,21 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		// Validate the transactions were written down
 		scanner := bufio.NewScanner(outputFile)
 
-		outputTxs := make([]std.Tx, 0)
+		outputBalances := make([]gnoland.Balance, 0)
 		for scanner.Scan() {
-			var tx std.Tx
+			var balance gnoland.Balance
+			err := balance.Parse(scanner.Text())
+			require.NoError(t, err)
 
-			require.NoError(t, amino.UnmarshalJSON(scanner.Bytes(), &tx))
-
-			outputTxs = append(outputTxs, tx)
+			outputBalances = append(outputBalances, balance)
 		}
 
 		require.NoError(t, scanner.Err())
 
-		assert.Len(t, outputTxs, len(txs))
+		assert.Len(t, outputBalances, len(balances))
 
-		for index, tx := range outputTxs {
-			assert.Equal(t, txs[index], tx)
+		for index, balance := range outputBalances {
+			assert.Equal(t, balances[index], balance)
 		}
 	})
 }

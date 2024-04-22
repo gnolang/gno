@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 // NewTestingLogger returns a new testing logger

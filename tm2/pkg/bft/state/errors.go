@@ -43,6 +43,10 @@ type (
 	NoABCIResponsesForHeightError struct {
 		Height int64
 	}
+
+	NoTxResultForHashError struct {
+		Hash []byte
+	}
 )
 
 func (e UnknownBlockError) Error() string {
@@ -75,4 +79,8 @@ func (e NoConsensusParamsForHeightError) Error() string {
 
 func (e NoABCIResponsesForHeightError) Error() string {
 	return fmt.Sprintf("Could not find results for height #%d", e.Height)
+}
+
+func (e NoTxResultForHashError) Error() string {
+	return fmt.Sprintf("Could not find tx result for hash #%X", e.Hash)
 }
