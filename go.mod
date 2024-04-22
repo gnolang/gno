@@ -11,7 +11,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gdamore/tcell/v2 v2.7.4
-	github.com/gnolang/faucet v0.2.0
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216
 	github.com/golang/protobuf v1.5.4
 	github.com/google/gofuzz v1.2.0
@@ -43,7 +42,6 @@ require (
 	golang.org/x/mod v0.16.0
 	golang.org/x/net v0.23.0
 	golang.org/x/term v0.18.0
-	golang.org/x/time v0.5.0
 	golang.org/x/tools v0.19.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -62,7 +60,6 @@ require (
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3
 	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/go-chi/chi/v5 v5.0.12 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect

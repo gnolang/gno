@@ -40,7 +40,6 @@ jobs:
           - gnoland
           - gnokey
           - gnoweb
-          - gnofaucet
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
