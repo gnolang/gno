@@ -691,7 +691,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if as.Op == ASSIGN {
 					// check assignable
 					for i, lx := range as.Lhs {
-						if !isBlankIdentifier(lx) { // see composite3.gno
+						if !isBlankIdentifier(lx) {
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
@@ -722,12 +722,11 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if as.Op == ASSIGN {
-					// check first value
 					if !isBlankIdentifier(as.Lhs[0]) {
 						lt := evalStaticTypeOf(store, last, as.Lhs[0])
-						if nx, ok := cx.X.(*NameExpr); ok {
-							rx := last.GetStaticBlock().GetBlock().GetPointerTo(store, nx.Path).Deref()
-							if mt, ok := rx.T.(*MapType); ok {
+						if _, ok := cx.X.(*NameExpr); ok {
+							rt := evalStaticTypeOf(store, last, cx.X)
+							if mt, ok := rt.(*MapType); ok {
 								assertAssignableTo(mt.Value, lt, false)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
@@ -752,17 +751,8 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			}
 		} else { // len(Lhs) == len(Rhs)
 			if as.Op == ASSIGN {
-				// check lhs
-				for i, lx := range as.Lhs {
-					rt := evalStaticTypeOf(store, last, as.Rhs[i])
-
-					// check native cases
-					if rnt, ok := rt.(*NativeType); ok {
-						if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-							return
-						}
-					}
-
+				// assert valid left value
+				for _, lx := range as.Lhs {
 					shouldPanic := true
 					switch clx := lx.(type) {
 					case *NameExpr, *StarExpr, *SelectorExpr:
@@ -776,41 +766,15 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						panic(fmt.Sprintf("cannot assign to %v", lx))
 					}
 				}
-			} else { // define
-				// NOTE: this is already checked while parsing file
-				for i, lx := range as.Lhs {
-					rt := evalStaticTypeOf(store, last, as.Rhs[i])
-					if rnt, ok := rt.(*NativeType); ok {
-						if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-							return
-						}
-					}
-					switch lx.(type) {
-					case *NameExpr:
-					default:
-						panic(fmt.Sprintf("non-name %v on left side of :=", lx))
-					}
-				}
 			}
 		}
-	} else { // else op other than assign and define
+	} else { // Ops other than assign and define
 		if len(as.Lhs) != 1 || len(as.Rhs) != 1 {
 			panic("length of lhs and rhs should not > 1")
 		}
 		for i, lx := range as.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
 			rt := evalStaticTypeOf(store, last, as.Rhs[i])
-
-			if lnt, ok := lt.(*NativeType); ok {
-				if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
-					return
-				}
-			}
-			if rnt, ok := rt.(*NativeType); ok {
-				if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-					return
-				}
-			}
 
 			if checker, ok := AssignStmtChecker[as.Op]; ok {
 				if !checker(lt) {
