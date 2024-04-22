@@ -85,7 +85,6 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	nextPage := ufmt.Sprintf("[Next page](page/%d)", page+1)
 	res.Write(nextPage)
-
 }
 
 func Render(path string) string {
