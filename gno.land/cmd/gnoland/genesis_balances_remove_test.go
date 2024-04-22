@@ -7,21 +7,21 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenesis_Txs_Remove(t *testing.T) {
+func TestGenesis_Balances_Remove(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid genesis file", func(t *testing.T) {
-		t.Parallel()
-
+	t.Run("invalid genesis", func(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"remove",
 			"--genesis-path",
 			"dummy-path",
@@ -29,108 +29,116 @@ func TestGenesis_Txs_Remove(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
+		require.ErrorContains(t, cmdErr, errUnableToLoadGenesis.Error())
 	})
 
-	t.Run("invalid genesis app state", func(t *testing.T) {
+	t.Run("genesis app state not set", func(t *testing.T) {
 		t.Parallel()
+
+		dummyKey := getDummyKey(t)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
 		genesis := getDefaultGenesis()
-		genesis.AppState = nil // no app state
+		genesis.AppState = nil // not set
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
+			"--address",
+			dummyKey.Address().String(),
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errAppStateNotSet.Error())
+		require.ErrorContains(t, cmdErr, errAppStateNotSet.Error())
 	})
-	t.Run("no transaction hash specified", func(t *testing.T) {
+
+	t.Run("address is present", func(t *testing.T) {
 		t.Parallel()
+
+		dummyKey := getDummyKey(t)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		// Generate dummy txs
-		txs := generateDummyTxs(t, 10)
-
 		genesis := getDefaultGenesis()
-		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: txs,
+		state := gnoland.GnoGenesisState{
+			// Set an initial balance value
+			Balances: []gnoland.Balance{
+				{
+					Address: dummyKey.Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100)),
+				},
+			},
 		}
+		genesis.AppState = state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
-			"txs",
+			"genesis",
+			"balances",
 			"remove",
 			"--genesis-path",
 			tempGenesis.Name(),
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errNoTxHashSpecified.Error())
-	})
-
-	t.Run("transaction removed", func(t *testing.T) {
-		t.Parallel()
-
-		tempGenesis, cleanup := testutils.NewTestFile(t)
-		t.Cleanup(cleanup)
-
-		// Generate dummy txs
-		txs := generateDummyTxs(t, 10)
-
-		genesis := getDefaultGenesis()
-		genesis.AppState = gnoland.GnoGenesisState{
-			Txs: txs,
-		}
-		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
-
-		txHash, err := getTxHash(txs[0])
-		require.NoError(t, err)
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"txs",
-			"remove",
-			"--genesis-path",
-			tempGenesis.Name(),
-			txHash,
+			"--address",
+			dummyKey.Address().String(),
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 
-		// Validate the transaction was removed
-		updatedGenesis, err := types.GenesisDocFromFile(tempGenesis.Name())
-		require.NoError(t, err)
-		require.NotNil(t, updatedGenesis.AppState)
+		// Validate the genesis was updated
+		genesis, loadErr := types.GenesisDocFromFile(tempGenesis.Name())
+		require.NoError(t, loadErr)
 
-		// Fetch the state
-		state := updatedGenesis.AppState.(gnoland.GnoGenesisState)
+		require.NotNil(t, genesis.AppState)
 
-		assert.Len(t, state.Txs, len(txs)-1)
+		state, ok := genesis.AppState.(gnoland.GnoGenesisState)
+		require.True(t, ok)
 
-		for _, tx := range state.Txs {
-			genesisTxHash, err := getTxHash(tx)
-			require.NoError(t, err)
+		assert.Len(t, state.Balances, 0)
+	})
 
-			assert.NotEqual(t, txHash, genesisTxHash)
+	t.Run("address not present", func(t *testing.T) {
+		t.Parallel()
+
+		dummyKey := getDummyKey(t)
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := getDefaultGenesis()
+		state := gnoland.GnoGenesisState{
+			Balances: []gnoland.Balance{}, // Empty initial balance
 		}
+		genesis.AppState = state
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"genesis",
+			"balances",
+			"remove",
+			"--genesis-path",
+			tempGenesis.Name(),
+			"--address",
+			dummyKey.Address().String(),
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.ErrorContains(t, cmdErr, errBalanceNotFound.Error())
 	})
 }
