@@ -1,7 +1,10 @@
 
 package grc721
 
-type IGRC721Metadata interface {	
+type IGRC721Metadata interface {
+	Name() string
+	Symbol() string
+	TokenURI(tid TokenID) (string, error)
 	TokenMetadata(tid TokenID) (Metadata, error)
 }
 
