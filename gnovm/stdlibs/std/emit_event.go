@@ -28,7 +28,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
-		return nil, errors.New("odd number of attributes. cannot create key-value pairs")
+		return nil, errors.New("cannot pair attributes due to odd count")
 	}
 	eventAttrs := make([]gnoEventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
@@ -40,21 +40,19 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	return eventAttrs, nil
 }
 
-type temp gnoEvent
-
 func NewGnoEventString(eventType, pkgPath, ident string, timestamp int64, attrs ...gnoEventAttribute) abci.EventString {
 	evt := newGnoEvent(eventType, pkgPath, ident, timestamp, attrs...)
 
-	jsonRes, err := json.Marshal(map[string]temp{evt.Type: temp(*evt)})
+	res, err := json.Marshal(evt)
 	if err != nil {
 		panic(err)
 	}
 
-	return abci.EventString(jsonRes)
+	return abci.EventString(res)
 }
 
 type gnoEvent struct {
-	Type       string              `json:"-"`
+	Type       string              `json:"type"`
 	PkgPath    string              `json:"pkg_path"`
 	Identifier string              `json:"identifier"`
 	Timestamp  int64               `json:"timestamp"`

@@ -118,6 +118,9 @@ func (r ResponseBase) IsErr() bool {
 }
 
 func (r ResponseBase) EncodeEvents() []byte {
+	if len(r.Events) == 0 {
+		return []byte("[]")
+	}
 	res, err := json.Marshal(r.Events)
 	if err != nil {
 		return nil
