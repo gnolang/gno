@@ -4,12 +4,15 @@ import (
 	"std"
 )
 
-// Base grc2981 interface
+// IGRC2981 follows the Ethereum standard 
 type IGRC2981 interface {	
+	// RoyaltyInfo retrieves royalty information for a tokenID and salePrice.
+	// It returns the payment address, royalty amount, and an error if any.
 	RoyaltyInfo(tokenID TokenID, salePrice uint64) (std.Address, uint64, error)
 }
 
+// RoyaltyInfo represents royalty information for a token.
 type RoyaltyInfo struct {
-	PaymentAddress std.Address
-	Percentage uint64
+	PaymentAddress std.Address // PaymentAddress is the address where royalty payment should be sent.
+	Percentage     uint64      // Percentage is the royalty percentage.
 }
