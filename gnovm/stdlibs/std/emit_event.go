@@ -1,6 +1,6 @@
 package std
 
-// ref: https://github.com/gnolang/gno/pull/853
+// ref: https://github.com/gnolang/gno/pull/575
 
 import (
 	"encoding/json"
