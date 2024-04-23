@@ -1,6 +1,9 @@
 package main
 
-import "math"
+import (
+	"math"
+	"math/overflow"
+)
 
 func main() {
 	ctr := int64(0)
@@ -19,7 +22,7 @@ func main() {
 				r64 := a64 + b64
 
 				// now the verification
-				result, ok := math.Add8(a8, b8)
+				result, ok := overflow.Add8(a8, b8)
 				if int64(math.MinInt8) <= r64 && r64 <= int64(math.MaxInt8) {
 					if !ok || int64(result) != r64 {
 						println("add", a8, b8, result, r64)
@@ -37,7 +40,7 @@ func main() {
 				r64 := a64 - b64
 
 				// now the verification
-				result, ok := math.Sub8(a8, b8)
+				result, ok := overflow.Sub8(a8, b8)
 				if int64(math.MinInt8) <= r64 && r64 <= int64(math.MaxInt8) {
 					if !ok || int64(result) != r64 {
 						println("sub", a8, b8, result, r64)
@@ -55,7 +58,7 @@ func main() {
 				r64 := a64 * b64
 
 				// now the verification
-				result, ok := math.Mul8(a8, b8)
+				result, ok := overflow.Mul8(a8, b8)
 				if int64(math.MinInt8) <= r64 && r64 <= int64(math.MaxInt8) {
 					if !ok || int64(result) != r64 {
 						println("mul", a8, b8, result, r64)
@@ -73,7 +76,7 @@ func main() {
 				r64 := a64 / b64
 
 				// now the verification
-				result, _, ok := math.Quo8(a8, b8)
+				result, _, ok := overflow.Quo8(a8, b8)
 				if int64(math.MinInt8) <= r64 && r64 <= int64(math.MaxInt8) {
 					if !ok || int64(result) != r64 {
 						panic("incorrect result for non-overflow")
