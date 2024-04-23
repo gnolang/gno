@@ -200,7 +200,6 @@ var (
 	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
-	defaultGenesisJSONName  = "genesis.json"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
@@ -264,9 +263,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
-
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
 	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
@@ -294,7 +290,6 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONName,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -321,11 +316,6 @@ func testBaseConfig() BaseConfig {
 
 func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
-}
-
-// GenesisFile returns the full path to the genesis.json file
-func (cfg BaseConfig) GenesisFile() string {
-	return filepath.Join(cfg.RootDir, "../", defaultGenesisJSONName)
 }
 
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
@@ -378,11 +368,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the genesis path is set
-	if cfg.Genesis == "" {
-		return errInvalidGenesisPath
 	}
 
 	// Verify the validator private key path is set

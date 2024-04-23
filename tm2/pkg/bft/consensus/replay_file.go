@@ -34,8 +34,8 @@ const (
 // replay messages interactively or all at once
 
 // replay the wal file
-func RunReplayFile(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig, console bool) {
-	consensusState := newConsensusStateForReplay(config, csConfig)
+func RunReplayFile(config cfg.BaseConfig, genesisFile string, csConfig *cnscfg.ConsensusConfig, console bool) {
+	consensusState := newConsensusStateForReplay(config, genesisFile, csConfig)
 
 	if err := consensusState.ReplayFile(csConfig.WalFile(), console); err != nil {
 		osm.Exit(fmt.Sprintf("Error during consensus replay: %v", err))
@@ -270,7 +270,7 @@ func (pb *playback) replayConsoleLoop() int {
 // --------------------------------------------------------------------------------
 
 // convenience for replay mode
-func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig) *ConsensusState {
+func newConsensusStateForReplay(config cfg.BaseConfig, genesisFile string, csConfig *cnscfg.ConsensusConfig) *ConsensusState {
 	dbType := dbm.BackendType(config.DBBackend)
 	// Get BlockStore
 	blockStoreDB, err := dbm.NewDB("blockstore", dbType, config.DBDir())
@@ -286,7 +286,7 @@ func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.Consensu
 		osm.Exit(err.Error())
 	}
 
-	gdoc, err := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	gdoc, err := sm.MakeGenesisDocFromFile(genesisFile)
 	if err != nil {
 		osm.Exit(err.Error())
 	}

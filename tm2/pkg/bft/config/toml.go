@@ -78,7 +78,7 @@ func ResetTestRoot(testName string) *Config {
 
 	baseConfig := DefaultBaseConfig()
 	configFilePath := filepath.Join(rootDir, defaultConfigFileName)
-	genesisFilePath := filepath.Join(rootDir, "../", baseConfig.Genesis)
+	genesisFilePath := filepath.Join(rootDir, "../config.json")
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 

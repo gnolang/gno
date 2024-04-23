@@ -23,12 +23,14 @@ import (
 type Options struct {
 	suppressStdout bool
 	recreateConfig bool
+	genesisPath    string
 }
 
 var (
 	globalConfig   *cfg.Config
 	defaultOptions = Options{
 		recreateConfig: false,
+		genesisPath:    "genesis.json",
 	}
 )
 
@@ -85,7 +87,7 @@ func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 	for _, opt := range opts {
 		opt(&nodeOpts)
 	}
-	node := NewTendermint(app, &nodeOpts)
+	node := newTendermint(app, &nodeOpts)
 	err := node.Start()
 	if err != nil {
 		panic(err)
@@ -109,8 +111,8 @@ func StopTendermint(node *nm.Node) {
 	os.RemoveAll(node.Config().RootDir)
 }
 
-// NewTendermint creates a new tendermint server and sleeps forever
-func NewTendermint(app abci.Application, opts *Options) *nm.Node {
+// newTendermint creates a new tendermint server and sleeps forever
+func newTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config := GetConfig(opts.recreateConfig)
 
@@ -122,8 +124,12 @@ func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	if err != nil {
 		panic(err)
 	}
+	genesisPath, err := filepath.Abs(opts.genesisPath)
+	if err != nil {
+		panic(err)
+	}
 	node, err := nm.NewNode(config, pv, nodeKey, papp,
-		nm.DefaultGenesisDocProviderFunc(config),
+		nm.DefaultGenesisDocProviderFunc(genesisPath),
 		nm.DefaultDBProvider,
 		log.NewNoopLogger())
 	if err != nil {
@@ -142,4 +148,12 @@ func SuppressStdout(o *Options) {
 // time, instead of treating it as a global singleton.
 func RecreateConfig(o *Options) {
 	o.recreateConfig = true
+}
+
+// WithGenesisPath sets the given path to the genesis file.
+// The default is "genesis.json".
+func WithGenesisPath(genesisPath string) func(o *Options) {
+	return func(o *Options) {
+		o.genesisPath = genesisPath
+	}
 }
