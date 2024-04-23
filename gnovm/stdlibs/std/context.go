@@ -1,6 +1,7 @@
 package std
 
 import (
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -18,4 +19,5 @@ type ExecContext struct {
 	OrigSendSpent *std.Coins // mutable
 	Banker        BankerInterface
 	EventLogger   *sdk.EventLogger
+	EventString   abci.EventString
 }

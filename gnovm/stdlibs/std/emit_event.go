@@ -11,7 +11,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
-func X_emit(m *gno.Machine, typ string, attrs []string) abci.EventString {
+func X_emit(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
 		m.Panic(typedString(err.Error()))
@@ -24,12 +24,12 @@ func X_emit(m *gno.Machine, typ string, attrs []string) abci.EventString {
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(evt)
 
-	bb, err := json.Marshal(ctx.EventLogger.Events())
+	str, err := json.Marshal(evt)
 	if err != nil {
 		m.Panic(typedString(err.Error()))
 	}
 
-	return abci.EventString(bb)
+	ctx.EventString = abci.EventString(str)
 }
 
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
