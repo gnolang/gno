@@ -115,7 +115,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	var prevPage string
 	var nextPage string
-	if page > 2 {
+	if page >= 2 {
 		prevPage = ufmt.Sprintf("[Previous page](/r/demo/pagination:page/%d)\n\n", page-1)
 	}
 
