@@ -54,7 +54,7 @@ func WriteConfigFile(configFilePath string, config *Config) error {
 
 /****** these are for test settings ***********/
 
-func ResetTestRoot(testName string) *Config {
+func ResetTestRoot(testName string) (cfg *Config, genesisFile string) {
 	chainID := "test-chain"
 
 	// create a unique, concurrency-safe test directory under os.TempDir()
@@ -78,7 +78,11 @@ func ResetTestRoot(testName string) *Config {
 
 	baseConfig := DefaultBaseConfig()
 	configFilePath := filepath.Join(rootDir, defaultConfigFileName)
-	genesisFilePath := filepath.Join(rootDir, "../config.json")
+	// NOTE: this does not match the behaviour of the TM2 node.
+	// However, many tests rely on the fact that they can cleanup the directory
+	// by doing RemoveAll on the rootDir; so to keep compatibility with that
+	// behaviour, we place genesis.json in the rootDir.
+	genesisFilePath := filepath.Join(rootDir, "genesis.json")
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 
@@ -98,7 +102,7 @@ func ResetTestRoot(testName string) *Config {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
-	return config
+	return config, genesisFilePath
 }
 
 var testGenesisFmt = `{

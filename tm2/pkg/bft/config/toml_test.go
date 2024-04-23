@@ -53,7 +53,7 @@ func TestEnsureTestRoot(t *testing.T) {
 	testName := "ensureTestRoot"
 
 	// create root dir
-	cfg := ResetTestRoot(testName)
+	cfg, genesisFile := ResetTestRoot(testName)
 	defer os.RemoveAll(cfg.RootDir)
 	rootDir := cfg.RootDir
 
@@ -76,7 +76,7 @@ func TestEnsureTestRoot(t *testing.T) {
 	ensureFiles(
 		t,
 		filepath.Join(rootDir, ".."),
-		baseConfig.Genesis,
+		genesisFile,
 	)
 }
 

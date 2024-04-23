@@ -63,7 +63,7 @@ func makePathname() string {
 
 func createConfig() *cfg.Config {
 	pathname := makePathname()
-	c := cfg.ResetTestRoot(pathname)
+	c, _ := cfg.ResetTestRoot(pathname)
 
 	// and we use random ports to run in parallel
 	c.P2P.ListenAddress = "tcp://127.0.0.1:0"

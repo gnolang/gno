@@ -39,11 +39,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	config = ResetConfig("consensus_reactor_test")
-	consensusReplayConfig = ResetConfig("consensus_replay_test")
-	configStateTest := ResetConfig("consensus_state_test")
-	configMempoolTest := ResetConfig("consensus_mempool_test")
-	configByzantineTest := ResetConfig("consensus_byzantine_test")
+	config, _ = ResetConfig("consensus_reactor_test")
+	consensusReplayConfig, _ = ResetConfig("consensus_replay_test")
+	configStateTest, _ := ResetConfig("consensus_state_test")
+	configMempoolTest, _ := ResetConfig("consensus_mempool_test")
+	configByzantineTest, _ := ResetConfig("consensus_byzantine_test")
 	code := m.Run()
 	os.RemoveAll(config.RootDir)
 	os.RemoveAll(consensusReplayConfig.RootDir)
@@ -68,13 +68,14 @@ func TestMain(m *testing.M) {
 // and which ones we need the wal for - then we'd also be able to only flush the
 // wal writer when we need to, instead of with every message.
 
-func startNewConsensusStateAndWaitForBlock(t *testing.T, consensusReplayConfig *cfg.Config,
+func startNewConsensusStateAndWaitForBlock(t *testing.T,
+	consensusReplayConfig *cfg.Config, consensusReplayGenesisFile string,
 	lastBlockHeight int64, blockDB dbm.DB, stateDB dbm.DB,
 ) {
 	t.Helper()
 
 	logger := log.NewTestingLogger(t)
-	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
+	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayGenesisFile)
 	privValidator := loadPrivValidator(consensusReplayConfig)
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 	cs.SetLogger(logger)
@@ -149,16 +150,18 @@ func TestWALCrash(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		consensusReplayConfig := ResetConfig(fmt.Sprintf("%s_%d", t.Name(), i))
+		consensusReplayConfig, consensusReplayGenesisFile := ResetConfig(fmt.Sprintf("%s_%d", t.Name(), i))
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			crashWALandCheckLiveness(t, consensusReplayConfig, tc.initFn, tc.lastBlockHeight)
+			crashWALandCheckLiveness(t, consensusReplayConfig, consensusReplayGenesisFile,
+				tc.initFn, tc.lastBlockHeight)
 		})
 	}
 }
 
-func crashWALandCheckLiveness(t *testing.T, consensusReplayConfig *cfg.Config,
+func crashWALandCheckLiveness(t *testing.T,
+	consensusReplayConfig *cfg.Config, consensusReplayGenesisFile string,
 	initFn func(dbm.DB, *ConsensusState, context.Context), lastBlockHeight int64,
 ) {
 	t.Helper()
@@ -175,7 +178,7 @@ LOOP:
 		logger := log.NewTestingLogger(t)
 		blockDB := memdb.NewMemDB()
 		stateDB := blockDB
-		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
+		state, _ := sm.MakeGenesisStateFromFile(consensusReplayGenesisFile)
 		privValidator := loadPrivValidator(consensusReplayConfig)
 		cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 		cs.SetLogger(logger)
@@ -207,7 +210,7 @@ LOOP:
 			t.Logf("WAL crashed: %v", err)
 
 			// make sure we can make blocks after a crash
-			startNewConsensusStateAndWaitForBlock(t, consensusReplayConfig, cs.Height, blockDB, stateDB)
+			startNewConsensusStateAndWaitForBlock(t, consensusReplayConfig, consensusReplayGenesisFile, cs.Height, blockDB, stateDB)
 
 			// stop consensus state and transactions sender (initFn)
 			cs.Stop()
@@ -643,8 +646,9 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	var store *mockBlockStore
 	var stateDB dbm.DB
 	var genesisState sm.State
+	var genesisFile string
 	if sim != nil {
-		testConfig := ResetConfig(fmt.Sprintf("%s_%v_m", t.Name(), mode))
+		testConfig, gf := ResetConfig(fmt.Sprintf("%s_%v_m", t.Name(), mode))
 		defer os.RemoveAll(testConfig.RootDir)
 		stateDB = memdb.NewMemDB()
 		defer stateDB.Close()
@@ -653,8 +657,9 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 		chain = sim.Chain
 		commits = sim.Commits
 		store = newMockBlockStore(config, genesisState.ConsensusParams)
+		genesisFile = gf
 	} else { // test single node
-		testConfig := ResetConfig(fmt.Sprintf("%s_%v_s", t.Name(), mode))
+		testConfig, gf := ResetConfig(fmt.Sprintf("%s_%v_s", t.Name(), mode))
 		defer os.RemoveAll(testConfig.RootDir)
 		walBody, err := WALWithNBlocks(t, numBlocks)
 		require.NoError(t, err)
@@ -672,8 +677,9 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 		chain, commits, err = makeBlockchainFromWAL(wal)
 		require.NoError(t, err)
-		stateDB, genesisState, store = makeStateAndStore(config, privVal.GetPubKey(), kvstore.AppVersion)
+		stateDB, genesisState, store = makeStateAndStore(config, gf, privVal.GetPubKey(), kvstore.AppVersion)
 		defer stateDB.Close()
+		genesisFile = gf
 	}
 	store.chain = chain
 	store.commits = commits
@@ -699,7 +705,7 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 
 	// now start the app using the handshake - it should sync
 	evsw := events.NewEventSwitch()
-	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	handshaker.SetEventSwitch(evsw)
 	proxyApp := appconn.NewAppConns(clientCreator2)
@@ -833,12 +839,12 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- 0x01
 	//		- 0x02
 	//		- 0x03
-	config := ResetConfig("handshake_test_")
+	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
 	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
 	const appVersion = "v0.0.0-test"
-	stateDB, state, store := makeStateAndStore(config, privVal.GetPubKey(), appVersion)
-	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	stateDB, state, store := makeStateAndStore(config, genesisFile, privVal.GetPubKey(), appVersion)
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	state.LastValidators = state.Validators.Copy()
 	// mode = 0 for committing all the blocks
 	blocks := makeBlocks(3, &state, privVal)
@@ -1059,9 +1065,9 @@ func readPieceFromWAL(msg *walm.TimedWALMessage) interface{} {
 }
 
 // fresh state and mock store
-func makeStateAndStore(config *cfg.Config, pubKey crypto.PubKey, appVersion string) (dbm.DB, sm.State, *mockBlockStore) {
+func makeStateAndStore(config *cfg.Config, genesisFile string, pubKey crypto.PubKey, appVersion string) (dbm.DB, sm.State, *mockBlockStore) {
 	stateDB := memdb.NewMemDB()
-	state, _ := sm.MakeGenesisStateFromFile(config.GenesisFile())
+	state, _ := sm.MakeGenesisStateFromFile(genesisFile)
 	state.AppVersion = appVersion
 	store := newMockBlockStore(config, state.ConsensusParams)
 	sm.SaveState(stateDB, state)
@@ -1115,15 +1121,15 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
-	config := ResetConfig("handshake_test_")
+	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
 	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
-	stateDB, state, store := makeStateAndStore(config, privVal.GetPubKey(), "v0.0.0-test")
+	stateDB, state, store := makeStateAndStore(config, genesisFile, privVal.GetPubKey(), "v0.0.0-test")
 
 	oldValAddr := state.Validators.Validators[0].Address
 
 	// now start the app using the handshake - it should sync
-	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	if err := proxyApp.Start(); err != nil {

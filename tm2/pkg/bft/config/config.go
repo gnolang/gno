@@ -22,7 +22,6 @@ var (
 	errInvalidMoniker                    = errors.New("moniker not set")
 	errInvalidDBBackend                  = errors.New("invalid DB backend")
 	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidGenesisPath                = errors.New("invalid genesis path")
 	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
 	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
 	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")

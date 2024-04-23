@@ -128,15 +128,6 @@ func TestConfig_ValidateBaseConfig(t *testing.T) {
 		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidDBPath)
 	})
 
-	t.Run("genesis path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.Genesis = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidGenesisPath)
-	})
-
 	t.Run("priv validator key path not set", func(t *testing.T) {
 		t.Parallel()
 
