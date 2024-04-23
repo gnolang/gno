@@ -11,6 +11,8 @@ import (
 )
 
 func TestResolvePackagePathQuery(t *testing.T) {
+	t.Parallel()
+
 	var (
 		testingName    = "testAccount"
 		testingAddress = crypto.MustAddressFromString("g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na")
