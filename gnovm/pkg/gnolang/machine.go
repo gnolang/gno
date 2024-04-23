@@ -1945,15 +1945,15 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			// A star expression on the lefthand side of an assign statement is a bit of a
 			// special case and needs to be handled. The value pushed for it is always a
 			// reference to the actual value, so first dereference it by assigning it to
-			// innerPtr. If the pointer value has no base, use the base of its parent.
+			// valuePtr. If the pointer value has no base, use the base of its parent.
 			// Assigning a non-nil base ensures the parent gets marked as dirty and the
 			// updated value is persisted during realm finalization.
-			innerPtr := ptr.TV.V.(PointerValue)
-			if innerPtr.Base == nil {
-				innerPtr.Base = ptr.Base
+			valuePtr := ptr.TV.V.(PointerValue)
+			if valuePtr.Base == nil {
+				valuePtr.Base = ptr.Base
 			}
 
-			ptr = innerPtr
+			ptr = valuePtr
 		}
 
 		return ptr
