@@ -1080,6 +1080,37 @@ func TestAddPackageErrors(t *testing.T) {
 	}
 }
 
+func TestBlock(t *testing.T) {
+	t.Parallel()
+
+	height := int64(5)
+
+	client := &Client{
+		Signer: &mockSigner{},
+		RPCClient: &mockRPCClient{
+			block: func(height *int64) (*ctypes.ResultBlock, error) {
+				return &ctypes.ResultBlock{
+					BlockMeta: &types.BlockMeta{
+						BlockID: types.BlockID{},
+						Header:  types.Header{},
+					},
+					Block: &types.Block{
+						Header: types.Header{
+							Height: *height,
+						},
+						Data:       types.Data{},
+						LastCommit: nil,
+					},
+				}, nil
+			},
+		},
+	}
+
+	block, err := client.Block(height)
+	require.NoError(t, err)
+	assert.Equal(t, height, block.Block.GetHeight())
+}
+
 // Block tests
 func TestBlockErrors(t *testing.T) {
 	t.Parallel()

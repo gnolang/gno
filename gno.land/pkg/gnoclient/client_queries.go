@@ -137,12 +137,12 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
 		return nil, ErrInvalidBlockHeight
 	}
 
-	blockResults, err := c.RPCClient.Block(&height)
+	block, err := c.RPCClient.Block(&height)
 	if err != nil {
 		return nil, fmt.Errorf("block query failed: %w", err)
 	}
 
-	return blockResults, nil
+	return block, nil
 }
 
 // BlockResult gets the latest block results at height, if any
