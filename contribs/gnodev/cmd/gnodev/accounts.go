@@ -11,14 +11,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type varAccounts map[string]std.Coins // name or bech32 to coins.
+type varPremineAccounts map[string]std.Coins // name or bech32 to coins.
 
-func (va *varAccounts) Set(value string) error {
+func (va *varPremineAccounts) Set(value string) error {
 	if *va == nil {
 		*va = map[string]std.Coins{}
 	}
@@ -40,7 +39,7 @@ func (va *varAccounts) Set(value string) error {
 	return nil
 }
 
-func (va varAccounts) String() string {
+func (va varPremineAccounts) String() string {
 	accs := make([]string, 0, len(va))
 	for user, balance := range va {
 		accs = append(accs, fmt.Sprintf("%s(%s)", user, balance.String()))
@@ -129,24 +128,4 @@ func logAccounts(logger *slog.Logger, kb keys.Keybase, _ *dev.Node) error {
 	headline := fmt.Sprintf("(%d) known accounts", len(keys))
 	logger.Info(headline, "table", tab.String())
 	return nil
-}
-
-// CreateAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(kb keys.Keybase, accountName string) (keys.Info, string, error) {
-	entropy, err := bip39.NewEntropy(256)
-	if err != nil {
-		return nil, "", fmt.Errorf("error creating entropy: %w", err)
-	}
-
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return nil, "", fmt.Errorf("error generating mnemonic: %w", err)
-	}
-
-	key, err := kb.CreateAccount(accountName, mnemonic, "", "", 0, 0)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return key, mnemonic, nil
 }

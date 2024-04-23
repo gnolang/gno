@@ -47,7 +47,7 @@ type devCfg struct {
 	deployKey          string
 	home               string
 	root               string
-	additionalAccounts varAccounts
+	additionalAccounts varPremineAccounts
 	balancesFile       string
 
 	// Node Configuration
