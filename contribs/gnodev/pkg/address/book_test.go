@@ -40,6 +40,8 @@ func TestAdd(t *testing.T) {
 	bk.Add(testAddr, "testname")
 
 	t.Run("get by address", func(t *testing.T) {
+		t.Parallel()
+
 		names, ok := bk.GetByAddress(testAddr)
 		require.True(t, ok)
 		require.Equal(t, 1, len(names))
@@ -47,6 +49,8 @@ func TestAdd(t *testing.T) {
 	})
 
 	t.Run("get by name", func(t *testing.T) {
+		t.Parallel()
+
 		addrFromName, ok := bk.GetByName("testname")
 		assert.True(t, ok)
 		assert.True(t, addrFromName.Compare(testAddr) == 0)
@@ -56,6 +60,8 @@ func TestAdd(t *testing.T) {
 	bk.Add(testAddr, "testname2")
 
 	t.Run("get two names with same address", func(t *testing.T) {
+		t.Parallel()
+
 		// Get by name
 		addr1, ok := bk.GetByName("testname")
 		require.True(t, ok)
@@ -88,7 +94,9 @@ func TestGetFromNameOrAddress(t *testing.T) {
 	bk := NewBook()
 
 	t.Run("failure", func(t *testing.T) {
-		resultAddr, names, ok := bk.GetFromNameOrAddress("unkown_key")
+		t.Parallel()
+
+		resultAddr, names, ok := bk.GetFromNameOrAddress("unknown_key")
 		assert.False(t, ok)
 		assert.True(t, resultAddr.IsZero())
 		assert.Len(t, names, 0)

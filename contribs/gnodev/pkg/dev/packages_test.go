@@ -3,8 +3,8 @@ package dev
 import (
 	"testing"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,13 +12,12 @@ import (
 
 func TestResolvePackagePathQuery(t *testing.T) {
 	var (
-		testingName     = "testAccount"
-		testingMnemonic = `special hip mail knife manual boy essay certain broccoli group token exchange problem subject garbage chaos program monitor happy magic upgrade kingdom cluster enemy`
-		testingAddress  = crypto.MustAddressFromString("g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na")
+		testingName    = "testAccount"
+		testingAddress = crypto.MustAddressFromString("g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na")
 	)
 
-	kb := keys.NewInMemory()
-	kb.CreateAccount(testingName, testingMnemonic, "", "", 0, 0)
+	book := address.NewBook()
+	book.Add(testingAddress, testingName)
 
 	cases := []struct {
 		Path                string
@@ -56,7 +55,7 @@ func TestResolvePackagePathQuery(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Path, func(t *testing.T) {
-			result, err := ResolvePackagePathQuery(kb, tc.Path)
+			result, err := ResolvePackagePathQuery(book, tc.Path)
 			if tc.ShouldFail {
 				assert.Error(t, err)
 				return

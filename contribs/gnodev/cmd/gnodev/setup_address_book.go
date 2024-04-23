@@ -31,7 +31,7 @@ func setupAddressBook(logger *slog.Logger, cfg *devCfg) (*address.Book, error) {
 		// Check if we have a valid bech32 address instead
 		addr, err := crypto.AddressFromBech32(acc)
 		if err != nil {
-			return nil, fmt.Errorf("invalid bech32 address or unkown keyname %q", acc)
+			return nil, fmt.Errorf("invalid bech32 address or unknown keyname %q", acc)
 		}
 
 		book.Add(addr, "") // add addr to the book with no name

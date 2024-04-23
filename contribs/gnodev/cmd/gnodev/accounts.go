@@ -73,7 +73,6 @@ func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
 				found = preDefinedFound
 				break
 			}
-
 		}
 
 		bls[address] = gnoland.Balance{Amount: found, Address: address}
