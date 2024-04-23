@@ -10,7 +10,6 @@ import (
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
 // setupDevNode initializes and returns a new DevNode.
@@ -19,15 +18,9 @@ func setupDevNode(
 	logger *slog.Logger,
 	cfg *devCfg,
 	remitter emitter.Emitter,
-	kb keys.Keybase,
+	balances gnoland.Balances,
 	pkgspath []gnodev.PackagePath,
 ) (*gnodev.Node, error) {
-	balances, err := generateBalances(kb, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate balances: %w", err)
-	}
-	logger.Debug("balances loaded", "list", balances.List())
-
 	config := setupDevNodeConfig(cfg, balances, pkgspath)
 	return gnodev.NewDevNode(ctx, logger, remitter, config)
 }

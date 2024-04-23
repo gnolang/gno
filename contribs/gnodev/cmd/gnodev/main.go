@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -18,7 +19,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -44,11 +44,11 @@ type devCfg struct {
 	nodeProxyAppListenerAddr string
 
 	// Users default
-	deployKey          string
-	home               string
-	root               string
-	additionalAccounts varPremineAccounts
-	balancesFile       string
+	deployKey       string
+	home            string
+	root            string
+	premineAccounts varPremineAccounts
+	balancesFile    string
 
 	// Node Configuration
 	minimal    bool
@@ -126,9 +126,9 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.Var(
-		&c.additionalAccounts,
+		&c.premineAccounts,
 		"add-account",
-		"add and set account(s) in the form `<bech32>[:<amount>]`, can be used multiple time",
+		"add (or set) a premine account in the form `<bech32|name>[:<amount>]`, can be used multiple time",
 	)
 
 	fs.StringVar(
@@ -217,21 +217,28 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	emitterServer := emitter.NewServer(loggerEvents)
 
 	// load keybase
-	kb, err := setupKeybase(logger.WithGroup(AccountsLogName), cfg)
+	book, err := setupAddressBook(logger.WithGroup(AccountsLogName), cfg)
 	if err != nil {
 		return fmt.Errorf("unable to load keybase: %w", err)
 	}
 
 	// Check and Parse packages
-	pkgpaths, err := resolvePackagesPathFromArgs(cfg, kb, args)
+	pkgpaths, err := resolvePackagesPathFromArgs(cfg, book, args)
 	if err != nil {
 		return fmt.Errorf("unable to parse package paths: %w", err)
 	}
 
+	// generate balances
+	balances, err := generateBalances(book, cfg)
+	if err != nil {
+		return fmt.Errorf("unable to generate balances: %w", err)
+	}
+	logger.Debug("balances loaded", "list", balances.List())
+
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
-	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, kb, pkgpaths)
+	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths)
 	if err != nil {
 		return err
 	}
@@ -283,7 +290,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 
 	// Run the main event loop
-	return runEventLoop(ctx, logger, kb, rt, devNode, watcher)
+	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
 var helper string = `
@@ -297,7 +304,7 @@ Ctrl+C      Exit - Exit the application
 func runEventLoop(
 	ctx context.Context,
 	logger *slog.Logger,
-	kb keys.Keybase,
+	bk *address.Book,
 	rt *rawterm.RawTerm,
 	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
@@ -338,7 +345,7 @@ func runEventLoop(
 			case rawterm.KeyH: // Helper
 				logger.Info("Gno Dev Helper", "helper", helper)
 			case rawterm.KeyA: // Accounts
-				logAccounts(logger.WithGroup(AccountsLogName), kb, dnode)
+				logAccounts(logger.WithGroup(AccountsLogName), bk, dnode)
 			case rawterm.KeyR: // Reload
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {
@@ -380,27 +387,27 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	return cc
 }
 
-func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([]gnodev.PackagePath, error) {
+func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackagePath, error) {
 	paths := make([]gnodev.PackagePath, 0, len(args))
 
 	if cfg.deployKey == "" {
 		return nil, fmt.Errorf("default deploy key cannot be empty")
 	}
 
-	defaultKey, err := kb.GetByNameOrAddress(cfg.deployKey)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get deploy key %q: %w", cfg.deployKey, err)
+	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
 	}
 
 	for _, arg := range args {
-		path, err := gnodev.ResolvePackagePathQuery(kb, arg)
+		path, err := gnodev.ResolvePackagePathQuery(bk, arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
 		}
 
 		// Assign a default creator if user haven't specified it.
 		if path.Creator.IsZero() {
-			path.Creator = defaultKey.GetAddress()
+			path.Creator = defaultKey
 		}
 
 		paths = append(paths, path)
@@ -410,7 +417,7 @@ func resolvePackagesPathFromArgs(cfg *devCfg, kb keys.Keybase, args []string) ([
 	if !cfg.minimal {
 		paths = append(paths, gnodev.PackagePath{
 			Path:    filepath.Join(cfg.root, "examples"),
-			Creator: defaultKey.GetAddress(),
+			Creator: defaultKey,
 			Deposit: nil,
 		})
 	}

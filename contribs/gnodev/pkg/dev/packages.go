@@ -6,11 +6,11 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -20,7 +20,7 @@ type PackagePath struct {
 	Deposit std.Coins
 }
 
-func ResolvePackagePathQuery(kb keys.Keybase, path string) (PackagePath, error) {
+func ResolvePackagePathQuery(bk *address.Book, path string) (PackagePath, error) {
 	var ppath PackagePath
 
 	upath, err := url.Parse(path)
@@ -34,12 +34,11 @@ func ResolvePackagePathQuery(kb keys.Keybase, path string) (PackagePath, error) 
 	if creator != "" {
 		address, err := crypto.AddressFromBech32(creator)
 		if err != nil {
-			info, nameErr := kb.GetByName(creator)
-			if nameErr != nil {
+			var ok bool
+			address, ok = bk.GetByName(creator)
+			if !ok {
 				return ppath, fmt.Errorf("invalid name or address for creator %q", creator)
 			}
-
-			address = info.GetAddress()
 		}
 
 		ppath.Creator = address

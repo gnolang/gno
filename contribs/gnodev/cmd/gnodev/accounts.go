@@ -7,11 +7,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -23,7 +23,7 @@ func (va *varPremineAccounts) Set(value string) error {
 	}
 	accounts := *va
 
-	user, amount, found := strings.Cut(value, ":")
+	user, amount, found := strings.Cut(value, "=")
 	accounts[user] = nil
 	if !found {
 		return nil
@@ -48,25 +48,32 @@ func (va varPremineAccounts) String() string {
 	return strings.Join(accs, ",")
 }
 
-func generateBalances(kb keys.Keybase, cfg *devCfg) (gnoland.Balances, error) {
+func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
 	bls := gnoland.NewBalances()
 	unlimitedFund := std.Coins{std.NewCoin("ugnot", 10e12)}
 
-	keys, err := kb.List()
-	if err != nil {
-		return nil, fmt.Errorf("unable to list keys from keybase: %w", err)
-	}
+	entries := bk.List()
 
 	// Automatically set every key from keybase to unlimited fund.
-	for _, key := range keys {
-		address := key.GetAddress()
+	for _, entry := range entries {
+		address := entry.Address
 
 		// Check if a predefined amount has been set for this key.
+
+		// Check for address
+		if preDefinedFound, ok := cfg.premineAccounts[address.String()]; ok && preDefinedFound != nil {
+			bls[address] = gnoland.Balance{Amount: preDefinedFound, Address: address}
+			continue
+		}
+
+		// Check for name
 		found := unlimitedFund
-		if preDefinedFound, ok := cfg.additionalAccounts[key.GetName()]; ok && preDefinedFound != nil {
-			found = preDefinedFound
-		} else if preDefinedFound, ok := cfg.additionalAccounts[address.String()]; ok && preDefinedFound != nil {
-			found = preDefinedFound
+		for _, name := range entry.Names {
+			if preDefinedFound, ok := cfg.premineAccounts[name]; ok && preDefinedFound != nil {
+				found = preDefinedFound
+				break
+			}
+
 		}
 
 		bls[address] = gnoland.Balance{Amount: found, Address: address}
@@ -75,6 +82,8 @@ func generateBalances(kb keys.Keybase, cfg *devCfg) (gnoland.Balances, error) {
 	if cfg.balancesFile == "" {
 		return bls, nil
 	}
+
+	// Load balance file
 
 	file, err := os.Open(cfg.balancesFile)
 	if err != nil {
@@ -86,30 +95,30 @@ func generateBalances(kb keys.Keybase, cfg *devCfg) (gnoland.Balances, error) {
 		return nil, fmt.Errorf("unable to read balances file %q: %w", cfg.balancesFile, err)
 	}
 
+	// Add balance address to AddressBook
+	for addr := range blsFile {
+		bk.Add(addr, "")
+	}
+
 	// Left merge keybase balance into loaded file balance.
+	// TL;DR: balance file override every balance at the end
 	blsFile.LeftMerge(bls)
 	return blsFile, nil
 }
 
-func logAccounts(logger *slog.Logger, kb keys.Keybase, _ *dev.Node) error {
-	keys, err := kb.List()
-	if err != nil {
-		return fmt.Errorf("unable to get keybase keys list: %w", err)
-	}
-
+func logAccounts(logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
 
-	fmt.Fprintln(tabw, "KeyName\tAddress\tBalance") // Table header.
-	for _, key := range keys {
-		if key.GetName() == "" {
-			continue // Skip empty key name.
-		}
+	entries := book.List()
 
-		address := key.GetAddress()
-		qres, err := client.NewLocal().ABCIQuery("auth/accounts/"+address.String(), []byte{})
+	fmt.Fprintln(tabw, "KeyName\tAddress\tBalance") // Table header.
+
+	for _, entry := range entries {
+		address := entry.Address.String()
+		qres, err := client.NewLocal().ABCIQuery("auth/accounts/"+address, []byte{})
 		if err != nil {
-			return fmt.Errorf("unable to query account %q: %w", address.String(), err)
+			return fmt.Errorf("unable to query account %q: %w", address, err)
 		}
 
 		var qret struct{ BaseAccount std.BaseAccount }
@@ -117,15 +126,24 @@ func logAccounts(logger *slog.Logger, kb keys.Keybase, _ *dev.Node) error {
 			return fmt.Errorf("unable to unmarshal query response: %w", err)
 		}
 
-		// Insert row with name, address, and balance amount.
-		fmt.Fprintf(tabw, "%s\t%s\t%s\n", key.GetName(),
-			address.String(),
-			qret.BaseAccount.GetCoins().String())
+		if len(entry.Names) == 0 {
+			// Insert row with name, address, and balance amount.
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", "_", address, qret.BaseAccount.GetCoins().String())
+			continue
+		}
+
+		for _, name := range entry.Names {
+			// Insert row with name, address, and balance amount.
+			fmt.Fprintf(tabw, "%s\t%s\t%s\n", name,
+				address,
+				qret.BaseAccount.GetCoins().String())
+		}
 	}
+
 	// Flush table.
 	tabw.Flush()
 
-	headline := fmt.Sprintf("(%d) known accounts", len(keys))
+	headline := fmt.Sprintf("(%d) known keys", len(entries))
 	logger.Info(headline, "table", tab.String())
 	return nil
 }
