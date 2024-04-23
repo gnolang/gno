@@ -3,9 +3,6 @@
 // testing method. These have been fixed here, and tests ported to
 // tests/files/maths_int*.go respectively.
 // Note: moved over from p/demo/maths.
-package overflow
-
-import "math"
 
 /*
 Package overflow offers overflow-checked integer arithmetic operations
@@ -26,7 +23,11 @@ overflow.Add(math.MaxInt64,1) -> (0, false)
 Add, Sub, Mul, Div are for int.  Add64, Add32, etc. are specifically sized.
 
 If anybody wishes an unsigned version, submit a pull request for code
-and new tests. */
+and new tests.
+*/
+package overflow
+
+import "math"
 
 //go:generate ./overflow_template.sh
 
