@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -94,7 +94,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`, res)
 	// t.Log("result:", res)
 }
 
@@ -147,7 +147,7 @@ func GetAdmin() string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
-	assert.Equal(t, res, "")
+	assert.Equal(t, "", res)
 	fmt.Println(err.Error())
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
 }
@@ -237,7 +237,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`, res)
 }
 
 // Sending too much realm package coins fails.
@@ -335,7 +335,7 @@ func GetAdmin() string {
 	res, err := env.vmk.Call(ctx, msg2)
 	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
 	assert.NoError(t, err)
-	assert.Equal(t, res, addrString)
+	assert.Equal(t, addrString, res)
 }
 
 // Call Run without imports, without variables.
@@ -362,7 +362,7 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, "hello world!\n")
+	assert.Equal(t, "hello world!\n", res)
 }
 
 // Call Run with stdlibs.
@@ -393,7 +393,7 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
-	assert.Equal(t, res, expectedString)
+	assert.Equal(t, expectedString, res)
 }
 
 func TestNumberOfArgsError(t *testing.T) {
@@ -430,9 +430,9 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
 	assert.PanicsWithValue(
 		t,
+		"wrong number of arguments in call to Echo: want 1 got 2",
 		func() {
 			env.vmk.Call(ctx, msg2)
 		},
-		"wrong number of arguments in call to Echo: want 1 got 2",
 	)
 }

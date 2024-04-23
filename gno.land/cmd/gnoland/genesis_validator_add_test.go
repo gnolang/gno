@@ -65,6 +65,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -88,6 +89,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -115,6 +117,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -144,6 +147,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -173,6 +177,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -204,6 +209,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -218,7 +224,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errPublicKeyMismatch.Error())
+		assert.ErrorContains(t, cmdErr, errPublicKeyAddressMismatch.Error())
 	})
 
 	t.Run("validator with same address exists", func(t *testing.T) {
@@ -243,6 +249,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
@@ -274,6 +281,7 @@ func TestGenesis_Validator_Add(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
+			"genesis",
 			"validator",
 			"add",
 			"--genesis-path",
