@@ -56,7 +56,7 @@ func GetSignedUpInRange(page, pageSize int) []Signup {
 	}
 
 	if pageSize < 1 || pageSize > 50 {
-		panic("page size must be between 1 and 50")
+		panic("page size must be from 1 to 50")
 	}
 
 	// Pagination
