@@ -104,7 +104,8 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	defer m.Release()
 
 	// run files
-	m.RunFiles(files...)
+	initFuncs := m.RunFiles(files...)
+	initFuncs.Run(m)
 	runExpr(m, cfg.expr)
 
 	return nil

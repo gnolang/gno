@@ -129,7 +129,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				}
 			}
 
-			tm.RunFiles(testfiles.Files...)
+			initFuncs := tm.RunFiles(testfiles.Files...)
+			initFuncs.Run(tm)
 		})
 
 		// TODO: Add more checkers

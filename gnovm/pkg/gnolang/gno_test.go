@@ -97,7 +97,8 @@ func TestRunInvalidLabels(t *testing.T) {
 
 			m := NewMachine("test", nil)
 			nn := MustParseFile("main.go", s.code)
-			m.RunFiles(nn)
+			initFuncs := m.RunFiles(nn)
+			initFuncs.Run(m)
 			m.RunMain()
 		})
 	}
@@ -184,7 +185,8 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 
 			m := NewMachine("test", nil)
 			nn := MustParseFile("main.go", s)
-			m.RunFiles(nn)
+			initFuncs := m.RunFiles(nn)
+			initFuncs.Run(m)
 			m.RunMain()
 		})
 	}
@@ -216,7 +218,8 @@ func main() {
 	}
 }`
 	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
+	initFuncs := m.RunFiles(n)
+	initFuncs.Run(m)
 	m.RunMain()
 }
 
@@ -298,7 +301,8 @@ func next(i int) int {
 	return i+1
 }`
 	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
+	initFuncs := m.RunFiles(n)
+	initFuncs.Run(m)
 	res := m.Eval(Call("next", "1"))
 	fmt.Println(res)
 }
@@ -312,7 +316,8 @@ func assertOutput(t *testing.T, input string, output string) {
 		Output:  buf,
 	})
 	n := MustParseFile("main.go", input)
-	m.RunFiles(n)
+	initFuncs := m.RunFiles(n)
+	initFuncs.Run(m)
 	m.RunMain()
 	assert.Equal(t, output, string(buf.Bytes()))
 	err := m.CheckEmpty()
@@ -443,7 +448,8 @@ func BenchmarkBenchdata(b *testing.B) {
 					Output:  io.Discard,
 				})
 				n := MustParseFile("main.go", buf.String())
-				m.RunFiles(n)
+				initFuncs := m.RunFiles(n)
+				initFuncs.Run(m)
 
 				b.ResetTimer()
 				m.RunMain()

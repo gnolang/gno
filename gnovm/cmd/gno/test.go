@@ -496,7 +496,8 @@ func runTestFiles(
 		log.Fatal(err)
 	}
 
-	m.RunFiles(files.Files...)
+	initFuncs := m.RunFiles(files.Files...)
+	initFuncs.Run(m)
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 

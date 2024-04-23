@@ -169,7 +169,8 @@ func TestStaticAnalysisShouldPanic(t *testing.T) {
 				m := NewMachine("test", nil)
 
 				n := MustParseFile("main.go", tc.code)
-				m.RunFiles(n)
+				initFuncs := m.RunFiles(n)
+				initFuncs.Run(m)
 				m.RunMain()
 			}
 
@@ -410,7 +411,8 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewMachine("test", nil)
 			n := MustParseFile("main.go", tc.code)
-			m.RunFiles(n)
+			initFuncs := m.RunFiles(n)
+			initFuncs.Run(m)
 			m.RunMain()
 		})
 	}

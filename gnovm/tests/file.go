@@ -156,7 +156,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				store.SetCachePackage(pv)
 				m.SetActivePackage(pv)
 				n := gno.MustParseFile(path, string(bz)) // "main.gno", string(bz))
-				m.RunFiles(n)
+				initFuncs := m.RunFiles(n)
+				initFuncs.Run(m)
 				if f.logger != nil {
 					f.logger("========================================")
 					f.logger("RUN MAIN")

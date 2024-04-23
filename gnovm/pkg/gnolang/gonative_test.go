@@ -88,7 +88,8 @@ func main() {
 	println("D:", f.D)
 }`
 	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
+	initFuncs := m.RunFiles(n)
+	initFuncs.Run(m)
 	m.RunMain()
 	assert.Equal(t, `A: 1
 B: 0
@@ -127,7 +128,8 @@ func main() {
 	foo.PrintFoo(f)
 }`
 	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
+	initFuncs := m.RunFiles(n)
+	initFuncs.Run(m)
 	m.RunMain()
 	assert.Equal(t, `A: 1
 B: 0

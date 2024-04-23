@@ -273,6 +273,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	m.SetActivePackage(pv)
 
 	initFuncs := m.RunFiles(files.Files...)
+	initFuncs.Run(m)
 
 	// Save package values and types so they are finalized before
 	// the init functions are run.
@@ -281,6 +282,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 
 	// Run init functions.
+	fmt.Println("running init func ")
 	for _, f := range initFuncs {
 		fb := m.Package.GetFileBlock(m.Store, f.fileName)
 		m.PushBlock(fb)
@@ -364,7 +366,8 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		pvSize := len(pvBlock.Values)
 		m.SetActivePackage(pv)
 		// run test files.
-		m.RunFiles(tfiles.Files...)
+		initFuncs := m.RunFiles(tfiles.Files...)
+		initFuncs.Run(m)
 		// run all tests in test files.
 		for i := pvSize; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
@@ -378,7 +381,8 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		m.Store.SetCachePackage(pv)
 		pvBlock := pv.GetBlock(m.Store)
 		m.SetActivePackage(pv)
-		m.RunFiles(itfiles.Files...)
+		initFuncs := m.RunFiles(itfiles.Files...)
+		initFuncs.Run(m)
 		pn.PrepareNewValues(pv)
 		EnableDebug()
 		fmt.Println("DEBUG ENABLED")
@@ -497,9 +501,20 @@ type initFunc struct {
 	funcName Name
 }
 
+type InitFuncs []initFunc
+
+func (f InitFuncs) Run(m *Machine) {
+	for _, fn := range f {
+		fb := m.Package.GetFileBlock(m.Store, fn.fileName)
+		m.PushBlock(fb)
+		m.RunFunc(fn.funcName)
+		m.PopBlock()
+	}
+}
+
 // Add files to the package's *FileSet and run them.
 // This will also run each init function encountered.
-func (m *Machine) RunFiles(fns ...*FileNode) []initFunc {
+func (m *Machine) RunFiles(fns ...*FileNode) InitFuncs {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -633,7 +648,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) []initFunc {
 	// behavior, build systems are encouraged to present
 	// multiple files belonging to the same package in
 	// lexical file name order to a compiler."
-	var inits []initFunc
+	var inits InitFuncs
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
