@@ -282,7 +282,6 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 
 	// Run init functions.
-	fmt.Println("running init func ")
 	for _, f := range initFuncs {
 		fb := m.Package.GetFileBlock(m.Store, f.fileName)
 		m.PushBlock(fb)
