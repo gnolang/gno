@@ -1,14 +1,14 @@
 // This realm demonstrates a pagination system working with gnoweb
 // It keeps a slice of signed up addresses for efficient pagination
-
 package pagination
 
 import (
+	"std"
+	"strconv"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
-	"std"
-	"strconv"
 )
 
 type Signup struct {
@@ -16,9 +16,12 @@ type Signup struct {
 	height  int64
 }
 
-var signups []Signup // keep a slice of signed up addresses efficient pagination
+// signups - keep a slice of signed up addresses efficient pagination
+var signups []Signup
 
-var tracker *avl.Tree // keep track of who signed up
+// tracker - keep track of who signed up
+var tracker *avl.Tree
+
 const pageSize = 20
 
 func init() {
@@ -124,7 +127,6 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(prevPage)
 	res.Write(nextPage)
-
 }
 
 func Render(path string) string {
