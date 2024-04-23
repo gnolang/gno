@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/telemetry"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -26,8 +25,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
 )
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
 	gnoRootDir            string
@@ -268,12 +276,14 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 	cfg.LocalApp = gnoApp
 
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")

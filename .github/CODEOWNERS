@@ -18,7 +18,11 @@
 
 # Gno examples and default contracts.
 /examples/                    @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/p/demo/    @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/r/demo/    @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/r/gnoland/ @moul
+/examples/gno.land/p/gov/     @moul
+/examples/gno.land/p/sys/     @moul
 /examples/gno.land/r/gov/     @moul
 /examples/gno.land/r/sys/     @moul
 /examples/gno.land/r/worx/    @moul
