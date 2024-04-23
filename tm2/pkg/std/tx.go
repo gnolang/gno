@@ -45,9 +45,6 @@ func (tx Tx) ValidateBasic() error {
 	if len(stdSigs) == 0 {
 		return ErrNoSignatures("no signers")
 	}
-	if len(stdSigs) != len(tx.GetSigners()) {
-		return ErrUnauthorized("wrong number of signers")
-	}
 
 	return nil
 }
@@ -103,7 +100,7 @@ func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64)
 	return SignBytes(chainID, accountNumber, sequence, tx.Fee, tx.Msgs, tx.Memo)
 }
 
-//__________________________________________________________
+// __________________________________________________________
 
 // Fee includes the amount of coins paid in fees and the maximum
 // gas to be used by the transaction. The ratio yields an effective "gasprice",
