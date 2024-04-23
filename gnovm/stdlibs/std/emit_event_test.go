@@ -2,7 +2,9 @@ package std
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -12,9 +14,10 @@ import (
 
 func TestEmit_SimpleValid(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
+	timestamp := time.Now().Unix()
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = ExecContext{EventLogger: elgs, Timestamp: timestamp}
 
 	attrs := []string{"key1", "value1", "key2", "value2"}
 	X_emit(m, "test", attrs)
@@ -26,10 +29,11 @@ func TestEmit_SimpleValid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, `["{\"type\":\"test\",\"pkg_path\":\"\",\"identifier\":\"\",\"timestamp\":0,\"attributes\":[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}]}"]`, string(res))
+	assert.Equal(t, fmt.Sprintf(`["{\"type\":\"test\",\"pkg_path\":\"\",\"identifier\":\"\",\"timestamp\":%d,\"attributes\":[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}]}"]`, timestamp), string(res))
 }
 
-func TestEmit_OddNumberAttrs(t *testing.T) {
+func TestEmit_OddNumberAttrs_ShouldPanic(t *testing.T) {
+	t.Parallel()
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
@@ -43,41 +47,65 @@ func TestEmit_OddNumberAttrs(t *testing.T) {
 }
 
 func TestNewGnoEventString(t *testing.T) {
-	eventType := "test"
-	pkgPath := "p/demo/foo"
-	ident := "Receiver"
-	timestamp := int64(0)
-	attrs := []gnoEventAttribute{
+	t.Parallel()
+
+	now := time.Now().Unix()
+
+	tests := []struct {
+		name      string
+		eventType string
+		pkgPath   string
+		ident     string
+		timestamp int64
+		attrs     []gnoEventAttribute
+	}{
 		{
-			Key:   "key1",
-			Value: "value1",
+			name:      "empty attributes",
+			eventType: "empty",
+			pkgPath:   "p/demo/emptyAttrs",
+			ident:     "Foo",
+			timestamp: now,
+			attrs:     []gnoEventAttribute{},
 		},
 		{
-			Key:   "key2",
-			Value: "value2",
+			name:      "valid event",
+			eventType: "test",
+			pkgPath:   "p/demo/foo",
+			ident:     "Receiver",
+			timestamp: now,
+			attrs: []gnoEventAttribute{
+				{
+					Key:   "key1",
+					Value: "value1",
+				},
+				{
+					Key:   "key2",
+					Value: "value2",
+				},
+			},
 		},
 	}
 
-	expectedEvent := gnoEvent{
-		Type:       eventType,
-		PkgPath:    pkgPath,
-		Identifier: ident,
-		Timestamp:  timestamp,
-		Attributes: attrs,
-	}
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := NewGnoEventString(tc.eventType, tc.pkgPath, tc.ident, tc.timestamp, tc.attrs...)
+			expectedEvent := newGnoEvent(tc.eventType, tc.pkgPath, tc.ident, tc.timestamp, tc.attrs...)
 
-	expected, err := json.Marshal(expectedEvent)
-	if err != nil {
-		t.Fatal(err)
-	}
+			expected, err := json.Marshal(expectedEvent)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	result := NewGnoEventString(eventType, pkgPath, ident, timestamp, attrs...)
-	assert.Equal(t, abci.EventString(expected), result)
+			assert.Equal(t, abci.EventString(expected), result)
+		})
+	}
 }
 
 const (
-	sender   = "sender"
-	receiver = "receiver"
+	testSender   = "sender"
+	testReceiver = "receiver"
 )
 
 type contractA struct{}
@@ -88,16 +116,17 @@ func (c *contractA) sender(m *gno.Machine, cb func()) {
 }
 
 func subSender(m *gno.Machine) {
-	X_emit(m, sender, []string{"k1", "v1", "k2", "v2"})
+	X_emit(m, testSender, []string{"k1", "v1", "k2", "v2"})
 }
 
 type contractB struct{}
 
 func (c *contractB) subReceiver(m *gno.Machine) {
-	X_emit(m, receiver, []string{"bar", "baz"})
+	X_emit(m, testReceiver, []string{"bar", "baz"})
 }
 
 func TestEmit_ContractInteration(t *testing.T) {
+	t.Parallel()
 	m := gno.NewMachine("emit", nil)
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}
