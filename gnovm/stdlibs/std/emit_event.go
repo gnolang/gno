@@ -11,7 +11,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
 
-func X_emit(m *gno.Machine, typ string, attrs []string) {
+func X_emit(m *gno.Machine, typ string, attrs []string) abci.EventString {
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
 		m.Panic(typedString(err.Error()))
@@ -19,11 +19,17 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 
 	pkgPath := CurrentRealmPath(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
-	timestamp := getTimestamp(m)
 
-	evtstr := NewGnoEventString(typ, pkgPath, fnIdent, timestamp, eventAttrs...)
+	evt := NewGnoEvent(typ, pkgPath, fnIdent, eventAttrs...)
 	ctx := m.Context.(ExecContext)
-	ctx.EventLogger.EmitEvent(evtstr)
+	ctx.EventLogger.EmitEvent(evt)
+
+	bb, err := json.Marshal(ctx.EventLogger.Events())
+	if err != nil {
+		m.Panic(typedString(err.Error()))
+	}
+
+	return abci.EventString(bb)
 }
 
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
@@ -41,31 +47,24 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	return eventAttrs, nil
 }
 
-func NewGnoEventString(eventType, pkgPath, ident string, timestamp int64, attrs ...gnoEventAttribute) abci.EventString {
-	evt := newGnoEvent(eventType, pkgPath, ident, timestamp, attrs...)
-
-	res, err := json.Marshal(evt)
-	if err != nil {
-		panic(err)
-	}
-
-	return abci.EventString(res)
+func NewGnoEvent(eventType, pkgPath, ident string, attrs ...gnoEventAttribute) *gnoEvent {
+	return newGnoEvent(eventType, pkgPath, ident, attrs...)
 }
 
 type gnoEvent struct {
 	Type       string              `json:"type"`
 	PkgPath    string              `json:"pkg_path"`
 	Identifier string              `json:"identifier"`
-	Timestamp  int64               `json:"timestamp"`
 	Attributes []gnoEventAttribute `json:"attributes"`
 }
 
-func newGnoEvent(eventType string, pkgPath string, ident string, timestamp int64, attrs ...gnoEventAttribute) *gnoEvent {
+func (e gnoEvent) AssertABCIEvent() {}
+
+func newGnoEvent(eventType string, pkgPath string, ident string, attrs ...gnoEventAttribute) *gnoEvent {
 	return &gnoEvent{
 		Type:       eventType,
 		PkgPath:    pkgPath,
 		Identifier: ident,
-		Timestamp:  timestamp,
 		Attributes: attrs,
 	}
 }

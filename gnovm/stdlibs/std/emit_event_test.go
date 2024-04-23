@@ -2,110 +2,179 @@ package std
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
-	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEmit_SimpleValid(t *testing.T) {
+func TestEmit(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
-	timestamp := time.Now().Unix()
-
-	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs, Timestamp: timestamp}
-
-	attrs := []string{"key1", "value1", "key2", "value2"}
-	X_emit(m, "test", attrs)
-
-	assert.Equal(t, 1, len(elgs.Events()))
-
-	res, err := json.Marshal(elgs.Events())
-	if err != nil {
-		t.Fatal(err)
+	pkgPath := CurrentRealmPath(m)
+	tests := []struct {
+		name           string
+		eventType      string
+		attrs          []string
+		expectedEvents []gnoEvent
+		expectPanic    bool
+	}{
+		{
+			name:      "SimpleValid",
+			eventType: "test",
+			attrs:     []string{"key1", "value1", "key2", "value2"},
+			expectedEvents: []gnoEvent{
+				{
+					Type:       "test",
+					PkgPath:    pkgPath,
+					Identifier: "",
+					Attributes: []gnoEventAttribute{
+						{Key: "key1", Value: "value1"},
+						{Key: "key2", Value: "value2"},
+					},
+				},
+			},
+			expectPanic: false,
+		},
+		{
+			name:        "InvalidAttributes",
+			eventType:   "test",
+			attrs:       []string{"key1", "value1", "key2"},
+			expectPanic: true,
+		},
+		{
+			name:      "EmptyAttribute",
+			eventType: "test",
+			attrs:     []string{"key1", "", "key2", "value2"},
+			expectedEvents: []gnoEvent{
+				{
+					Type:       "test",
+					PkgPath:    pkgPath,
+					Identifier: "",
+					Attributes: []gnoEventAttribute{
+						{Key: "key1", Value: ""},
+						{Key: "key2", Value: "value2"},
+					},
+				},
+			},
+			expectPanic: false,
+		},
+		{
+			name:      "EmptyType",
+			eventType: "",
+			attrs:     []string{"key1", "value1", "key2", "value2"},
+			expectedEvents: []gnoEvent{
+				{
+					Type:       "",
+					PkgPath:    pkgPath,
+					Identifier: "",
+					Attributes: []gnoEventAttribute{
+						{Key: "key1", Value: "value1"},
+						{Key: "key2", Value: "value2"},
+					},
+				},
+			},
+			expectPanic: false,
+		},
+		{
+			name:      "EmptyAttributeKey",
+			eventType: "test",
+			attrs:     []string{"", "value1", "key2", "value2"},
+			expectedEvents: []gnoEvent{
+				{
+					Type:       "test",
+					PkgPath:    pkgPath,
+					Identifier: "",
+					Attributes: []gnoEventAttribute{
+						{Key: "", Value: "value1"},
+						{Key: "key2", Value: "value2"},
+					},
+				},
+			},
+			expectPanic: false,
+		},
 	}
 
-	assert.Equal(t, fmt.Sprintf(`["{\"type\":\"test\",\"pkg_path\":\"\",\"identifier\":\"\",\"timestamp\":%d,\"attributes\":[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}]}"]`, timestamp), string(res))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elgs := sdk.NewEventLogger()
+			m.Context = ExecContext{EventLogger: elgs}
+
+			if tt.expectPanic {
+				assert.Panics(t, func() {
+					X_emit(m, tt.eventType, tt.attrs)
+				})
+			} else {
+				X_emit(m, tt.eventType, tt.attrs)
+				assert.Equal(t, len(tt.expectedEvents), len(elgs.Events()))
+
+				res, err := json.Marshal(elgs.Events())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				expectRes, err := json.Marshal(tt.expectedEvents)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				assert.Equal(t, string(expectRes), string(res))
+			}
+		})
+	}
 }
 
-func TestEmit_OddNumberAttrs_ShouldPanic(t *testing.T) {
+func TestEmit_MultipleEvents(t *testing.T) {
 	t.Parallel()
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}
 
-	attrs := []string{"key1", "value1", "key2"}
+	attrs1 := []string{"key1", "value1", "key2", "value2"}
+	attrs2 := []string{"key3", "value3", "key4", "value4"}
+	X_emit(m, "test1", attrs1)
+	X_emit(m, "test2", attrs2)
 
-	assert.Panics(t, func() {
-		X_emit(m, "test", attrs)
-	})
-}
+	assert.Equal(t, 2, len(elgs.Events()))
 
-func TestNewGnoEventString(t *testing.T) {
-	t.Parallel()
+	res, err := json.Marshal(elgs.Events())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	now := time.Now().Unix()
-
-	tests := []struct {
-		name      string
-		eventType string
-		pkgPath   string
-		ident     string
-		timestamp int64
-		attrs     []gnoEventAttribute
-	}{
+	expect := []gnoEvent{
 		{
-			name:      "empty attributes",
-			eventType: "empty",
-			pkgPath:   "p/demo/emptyAttrs",
-			ident:     "Foo",
-			timestamp: now,
-			attrs:     []gnoEventAttribute{},
+			Type:       "test1",
+			PkgPath:    "",
+			Identifier: "",
+			Attributes: []gnoEventAttribute{
+				{Key: "key1", Value: "value1"},
+				{Key: "key2", Value: "value2"},
+			},
 		},
 		{
-			name:      "valid event",
-			eventType: "test",
-			pkgPath:   "p/demo/foo",
-			ident:     "Receiver",
-			timestamp: now,
-			attrs: []gnoEventAttribute{
-				{
-					Key:   "key1",
-					Value: "value1",
-				},
-				{
-					Key:   "key2",
-					Value: "value2",
-				},
+			Type:       "test2",
+			PkgPath:    "",
+			Identifier: "",
+			Attributes: []gnoEventAttribute{
+				{Key: "key3", Value: "value3"},
+				{Key: "key4", Value: "value4"},
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := NewGnoEventString(tc.eventType, tc.pkgPath, tc.ident, tc.timestamp, tc.attrs...)
-			expectedEvent := newGnoEvent(tc.eventType, tc.pkgPath, tc.ident, tc.timestamp, tc.attrs...)
-
-			expected, err := json.Marshal(expectedEvent)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			assert.Equal(t, abci.EventString(expected), result)
-		})
+	expectRes, err := json.Marshal(expect)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	assert.Equal(t, string(expectRes), string(res))
 }
 
 const (
-	testSender   = "sender"
-	testReceiver = "receiver"
+	testFoo = "foo"
+	testBar = "bar"
 )
 
 type contractA struct{}
@@ -116,13 +185,13 @@ func (c *contractA) sender(m *gno.Machine, cb func()) {
 }
 
 func subSender(m *gno.Machine) {
-	X_emit(m, testSender, []string{"k1", "v1", "k2", "v2"})
+	X_emit(m, testFoo, []string{"k1", "v1", "k2", "v2"})
 }
 
 type contractB struct{}
 
 func (c *contractB) subReceiver(m *gno.Machine) {
-	X_emit(m, testReceiver, []string{"bar", "baz"})
+	X_emit(m, testBar, []string{"bar", "baz"})
 }
 
 func TestEmit_ContractInteration(t *testing.T) {
@@ -145,5 +214,5 @@ func TestEmit_ContractInteration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, `["{\"type\":\"sender\",\"pkg_path\":\"\",\"identifier\":\"\",\"timestamp\":0,\"attributes\":[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}]}","{\"type\":\"receiver\",\"pkg_path\":\"\",\"identifier\":\"\",\"timestamp\":0,\"attributes\":[{\"key\":\"bar\",\"value\":\"baz\"}]}"]`, string(res))
+	assert.Equal(t, `[{"type":"foo","pkg_path":"","identifier":"","attributes":[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}]},{"type":"bar","pkg_path":"","identifier":"","attributes":[{"key":"bar","value":"baz"}]}]`, string(res))
 }

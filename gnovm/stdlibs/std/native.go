@@ -32,10 +32,6 @@ func GetHeight(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Height
 }
 
-func getTimestamp(m *gno.Machine) int64 {
-	return m.Context.(ExecContext).Timestamp
-}
-
 // getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
 func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
 	targetIndex := findTargetFuncIndex(m, targetFunc)
