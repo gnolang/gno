@@ -37,11 +37,9 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const rePathPart = `[a-z][a-z0-9_]*`
-
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
+	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 

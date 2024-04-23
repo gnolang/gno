@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/telemetry"
-	"github.com/gnolang/gno/telemetry/metrics"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -27,6 +25,8 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // -----------------------------------------------------------------------------
@@ -947,8 +947,15 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			part := blockParts.GetPart(i)
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, ""})
 		}
-		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
-		cs.Logger.Debug(fmt.Sprintf("Signed proposal block: %v", block))
+
+		cs.Logger.Info(
+			"Signed proposal",
+			"height", height,
+			"round", round,
+			"proposal block ID", proposal.BlockID.String(),
+			"proposal round", proposal.POLRound,
+			"proposal timestamp", proposal.Timestamp.Unix(),
+		)
 	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
@@ -1310,9 +1317,13 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 
-	cs.Logger.Info(fmt.Sprintf("Finalizing commit of block with %d txs", block.NumTxs),
-		"height", block.Height, "hash", block.Hash(), "root", block.AppHash)
-	cs.Logger.Info(fmt.Sprintf("%v", block))
+	cs.Logger.Info(
+		"Finalizing commit of block",
+		"root", block.AppHash,
+		"height", block.Height,
+		"hash", block.Hash(),
+		"num txs", block.NumTxs,
+	)
 
 	fail.Fail() // XXX
 
@@ -1415,7 +1426,16 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 	if cs.ProposalBlockParts == nil {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartsHeader)
 	}
-	cs.Logger.Info("Received proposal", "proposal", proposal)
+
+	cs.Logger.Info(
+		"Received proposal",
+		"height", proposal.Height,
+		"round", proposal.Round,
+		"proposal block ID", proposal.BlockID.String(),
+		"proposal round", proposal.POLRound,
+		"proposal timestamp", proposal.Timestamp.Unix(),
+	)
+
 	return nil
 }
 
@@ -1573,7 +1593,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	switch vote.Type {
 	case types.PrevoteType:
 		prevotes := cs.Votes.Prevotes(vote.Round)
-		cs.Logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
+		cs.Logger.Debug(
+			"Added to prevote",
+			"type", vote.Type,
+			"vote height", vote.Height,
+			"vote round", vote.Round,
+			"prevotes", prevotes.StringShort(),
+		)
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
@@ -1638,7 +1664,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 
 	case types.PrecommitType:
 		precommits := cs.Votes.Precommits(vote.Round)
-		cs.Logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
+		cs.Logger.Debug(
+			"Added to precommit",
+			"type", vote.Type,
+			"vote height", vote.Height,
+			"vote round", vote.Round,
+			"precommits", precommits.StringShort(),
+		)
 
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -1713,7 +1745,19 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
-		cs.Logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+
+		cs.Logger.Info(
+			"Signed and pushed vote",
+			"height", cs.Height,
+			"round", cs.Round,
+			"type", vote.Type,
+			"timestamp", vote.Timestamp.String(),
+			"height", vote.Height,
+			"round", vote.Round,
+			"validator address", vote.ValidatorAddress,
+			"validator index", vote.ValidatorIndex,
+		)
+
 		return vote
 	}
 	// if !cs.replayMode {

@@ -8,7 +8,7 @@ Use [`gnokey`](./cmd/gnokey) to interact with Gno.land's testnets, localnet, and
 
 For localnet setup, use [`gnoland`](./cmd/gnoland).
 
-To add a web interface and faucet to your localnet, use [`gnoweb`](./cmd/gnoweb) and [`gnofaucet`](./cmd/gnofaucet).
+To add a web interface and faucet to your localnet, use [`gnoweb`](./cmd/gnoweb) and [`gnofaucet`](../contribs/gnofaucet).
 
 ## Interchain
 
