@@ -272,11 +272,25 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 	m.SetActivePackage(pv)
 
-	// run files.
+	initFuncs := m.RunFiles(files.Files...)
+
+	// Save package values and types so they are finalized before
+	// the init functions are run.
 	if save {
-		m.RunFilesWithMemPkg(memPkg, files.Files...)
-	} else {
-		m.RunFiles(files.Files...)
+		m.savePackageValuesAndTypes()
+	}
+
+	// Run init functions.
+	for _, f := range initFuncs {
+		fb := m.Package.GetFileBlock(m.Store, f.fileName)
+		m.PushBlock(fb)
+		m.RunFunc(f.funcName)
+		m.PopBlock()
+	}
+
+	// Finish saving the package state.
+	if save {
+		m.Store.AddMemPackage(memPkg)
 	}
 
 	return pn, pv
@@ -477,19 +491,14 @@ func (m *Machine) injectLocOnPanic() {
 	}
 }
 
+type initFunc struct {
+	fileName Name
+	funcName Name
+}
+
 // Add files to the package's *FileSet and run them.
 // This will also run each init function encountered.
-func (m *Machine) RunFiles(fns ...*FileNode) {
-	m.runFiles(nil, fns...)
-}
-
-// RunFilesWithMemPkg is almost the same as RunFiles; the difference is that it
-// saves the mempackage to the store.
-func (m *Machine) RunFilesWithMemPkg(memPkg *std.MemPackage, fns ...*FileNode) {
-	m.runFiles(memPkg, fns...)
-}
-
-func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
+func (m *Machine) RunFiles(fns ...*FileNode) []initFunc {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -498,6 +507,7 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 				m.Package.PkgName, fn.PkgName))
 		}
 	}
+
 	// Add files to *PackageNode.FileSet.
 	pv := m.Package
 	pb := pv.GetBlock(m.Store)
@@ -617,21 +627,12 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 		}
 	}
 
-	// Save the realm mempackage if provided. We do this here so that it occurs before
-	// the init functions are run. This avoids any realm object ownership issues that may arise
-	// when passing around unpersisted realm object pointers to other realms during initialization.
-	if memPkg != nil && IsRealmPath(memPkg.Path) {
-		// store package values and types
-		m.savePackageValuesAndTypes()
-		// store mempackage
-		m.Store.AddMemPackage(memPkg)
-	}
-
 	// Run new init functions.
 	// Go spec: "To ensure reproducible initialization
 	// behavior, build systems are encouraged to present
 	// multiple files belonging to the same package in
 	// lexical file name order to a compiler."
+	var inits []initFunc
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -639,25 +640,12 @@ func (m *Machine) runFiles(memPkg *std.MemPackage, fns ...*FileNode) {
 				continue // skip native functions.
 			}
 			if strings.HasPrefix(string(fv.Name), "init.") {
-				fb := pv.GetFileBlock(m.Store, fv.FileName)
-				m.PushBlock(fb)
-				m.RunFunc(fv.Name)
-				m.PopBlock()
+				inits = append(inits, initFunc{fileName: fv.FileName, funcName: fv.Name})
 			}
 		}
 	}
 
-	// If this is a package, we can save it after the init function because init is the
-	// only way stateful realm variables can be dynamically set in a package. We don't need to
-	// worry about pointer ownership issues for packages because they (eventually) will only be
-	// able to import other packages and those packages won't be able to persist any pointers
-	// to their own state that they receive from other packages.
-	if memPkg != nil && !IsRealmPath(memPkg.Path) {
-		// store package values and types
-		m.savePackageValuesAndTypes()
-		// store mempackage
-		m.Store.AddMemPackage(memPkg)
-	}
+	return inits
 }
 
 // Save the machine's package using realm finalization deep crawl.
