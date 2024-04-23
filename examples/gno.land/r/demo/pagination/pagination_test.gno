@@ -4,9 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/ufmt"
-
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/ufmt"
 )
 
 func TestRenderHome(t *testing.T) {
