@@ -142,9 +142,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		}
 
 		balanceMap, err := GetBalancesFromEntries(entries...)
-		require.NoError(t, err)
-
-		assert.Nil(t, balanceMap)
+		assert.Len(t, balanceMap, 0)
 		assert.Contains(t, err.Error(), "malformed entry")
 	})
 
@@ -156,10 +154,8 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		}
 
 		balanceMap, err := GetBalancesFromEntries(balances...)
-		require.NoError(t, err)
-
-		assert.Nil(t, balanceMap)
-		assert.Contains(t, err.Error(), "invalid address")
+		assert.Len(t, balanceMap, 0)
+		assert.ErrorContains(t, err, "invalid address")
 	})
 
 	t.Run("malformed balance, invalid amount", func(t *testing.T) {
@@ -176,9 +172,8 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		}
 
 		balanceMap, err := GetBalancesFromEntries(balances...)
-
-		assert.Nil(t, balanceMap)
-		assert.Contains(t, err.Error(), "invalid amount")
+		assert.Len(t, balanceMap, 0)
+		assert.ErrorContains(t, err, "invalid amount")
 	})
 }
 
@@ -230,7 +225,7 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 
 		balanceMap, err := GetBalancesFromSheet(reader)
 
-		assert.Nil(t, balanceMap)
+		assert.Len(t, balanceMap, 0)
 		assert.Contains(t, err.Error(), "invalid amount")
 	})
 }
