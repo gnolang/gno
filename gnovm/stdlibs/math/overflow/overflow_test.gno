@@ -1,7 +1,6 @@
 package overflow
 
 import (
-	"github.com/gnolang/overflow"
 	"math"
 	"testing"
 )
@@ -125,7 +124,7 @@ func TestLong(t *testing.T) {
 				r64 := a64 + b64
 
 				// now the verification
-				result, ok := overflow.Add16(a16, b16)
+				result, ok := Add16(a16, b16)
 				if int64(math.MinInt16) <= r64 && r64 <= int64(math.MaxInt16) {
 					if !ok || int64(result) != r64 {
 						println("add", a16, b16, result, r64)
@@ -144,7 +143,7 @@ func TestLong(t *testing.T) {
 				r64 := a64 - b64
 
 				// now the verification
-				result, ok := overflow.Sub16(a16, b16)
+				result, ok := Sub16(a16, b16)
 				if int64(math.MinInt16) <= r64 && r64 <= int64(math.MaxInt16) {
 					if !ok || int64(result) != r64 {
 						println("sub", a16, b16, result, r64)
@@ -163,7 +162,7 @@ func TestLong(t *testing.T) {
 				r64 := a64 * b64
 
 				// now the verification
-				result, ok := overflow.Mul16(a16, b16)
+				result, ok := Mul16(a16, b16)
 				if int64(math.MinInt16) <= r64 && r64 <= int64(math.MaxInt16) {
 					if !ok || int64(result) != r64 {
 						println("mul", a16, b16, result, r64)
@@ -182,7 +181,7 @@ func TestLong(t *testing.T) {
 				r64 := a64 / b64
 
 				// now the verification
-				result, _, ok := overflow.Quo16(a16, b16)
+				result, _, ok := Quo16(a16, b16)
 				if int64(math.MinInt16) <= r64 && r64 <= int64(math.MaxInt16) {
 					if !ok || int64(result) != r64 {
 						println("quo", a16, b16, result, r64)
