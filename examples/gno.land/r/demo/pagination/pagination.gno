@@ -118,8 +118,6 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	if len(fetchedSignups) >= pageSize {
 		nextPage = ufmt.Sprintf("[Next page](/r/demo/pagination:page/%d)\n\n", page+1)
-	} else {
-		nextPage = ""
 	}
 
 	res.Write(prevPage)
