@@ -4,18 +4,22 @@
 package pagination
 
 import (
-	"std"
-	"strconv"
-	"time"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"std"
+	"strconv"
 )
 
-var list []string     // keep a slice of signed up addresses efficient pagination
+type Signup struct {
+	account string
+	height  int64
+}
+
+var signups []Signup // keep a slice of signed up addresses efficient pagination
+
 var tracker *avl.Tree // keep track of who signed up
-const pageSize = 1
+const pageSize = 20
 
 func init() {
 	tracker = avl.NewTree()
@@ -25,6 +29,7 @@ func init() {
 
 func SignUp() string {
 	caller := std.GetOrigCaller().String()
+	height := std.GetHeight()
 
 	_, exists := tracker.Get(caller)
 	if exists {
@@ -32,12 +37,16 @@ func SignUp() string {
 	}
 
 	tracker.Set(caller, struct{}{})
-	list = append(list, caller)
+	signup := Signup{
+		caller,
+		height,
+	}
 
-	return caller + " signed up!"
+	signups = append(signups, signup)
+	return ufmt.Sprintf("%s signed up at block #%d!", signup.account, signup.height)
 }
 
-func GetSignedUpInRange(page, pageSize int) []string {
+func GetSignedUpInRange(page, pageSize int) []Signup {
 	if page < 1 {
 		panic("page number cannot be less than 1")
 	}
@@ -52,39 +61,42 @@ func GetSignedUpInRange(page, pageSize int) []string {
 	endIndex := startIndex + pageSize
 
 	// If page does not contain any posts
-	if startIndex >= len(list) {
+	if startIndex >= len(signups) {
 		return nil
 	}
 
 	// If page contains fewer posts than the page size
-	if endIndex > len(list) {
-		endIndex = len(list)
+	if endIndex > len(signups) {
+		endIndex = len(signups)
 	}
 
-	return list[startIndex:endIndex]
+	return signups[startIndex:endIndex]
 }
 
 func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
+	totalSignups := len(signups)
+
 	res.Write("# Welcome to Gno.land!\n\n")
-	res.Write("## Signed up users:\n\n")
+	res.Write(ufmt.Sprintf("## Signed up users (%d):\n\n", totalSignups))
 
 	page, err := strconv.Atoi(req.GetVar("number"))
 	if err != nil {
 		page = 1 // render first page on bad input
 	}
 
-	if len(list) == 0 {
+	if totalSignups == 0 {
 		res.Write("No users are signed up currently.")
 		return
 	}
 
-	addresses := GetSignedUpInRange(page, pageSize)
-	if len(addresses) == 0 {
+	fetchedSignups := GetSignedUpInRange(page, pageSize)
+	if totalSignups == 0 {
 		res.Write("No users on this page\n\n")
 	}
 
-	for i, addr := range addresses {
-		out := ufmt.Sprintf("#### User #%d - %s - %s\n", (i+page)*pageSize, addr, time.Now().Format(time.RFC3339))
+	pageStartIndex := pageSize * (page - 1)
+	for i, signup := range fetchedSignups {
+		out := ufmt.Sprintf("#### User #%d - %s - signed up at block #%d\n", pageStartIndex+i, signup.account, signup.height)
 		res.Write(out)
 	}
 
@@ -99,7 +111,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 		prevPage = ufmt.Sprintf("[Previous page](/r/demo/pagination:page/%d)\n\n", page-1)
 	}
 
-	if len(addresses) >= pageSize {
+	if len(fetchedSignups) >= pageSize {
 		nextPage = ufmt.Sprintf("[Next page](/r/demo/pagination:page/%d)\n\n", page+1)
 	} else {
 		nextPage = ""
