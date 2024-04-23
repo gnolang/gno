@@ -83,7 +83,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("# Welcome to Gno.land!\n\n")
 	res.Write(ufmt.Sprintf("## Signed up users (%d):\n\n", totalSignups))
 
-	page, err := strconv.Atoi(req.GetVar("number"))
+	page, err := strconv.Atoi(req.GetVar(pathArgument))
 	if err != nil {
 		page = 1 // render first page on bad input
 	}
