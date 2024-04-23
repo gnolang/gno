@@ -31,10 +31,8 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		lhsExpr := s.Lhs[i]
-
 		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(lhsExpr)
+		lv := m.PopAsPointer(s.Lhs[i])
 
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
