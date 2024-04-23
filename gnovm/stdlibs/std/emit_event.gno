@@ -6,7 +6,7 @@ package std
 //
 // The function takes type and attribute strings. typ (or type) is a string that represents
 // the type of the event. It plays a role of indexing what kind of event occurred. For example,
-// a name like "Sender" or "Receiver" can be used to indicating the purpose (nature) of the event.
+// a name like "Foo" or "Bar" can be used to indicating the purpose (nature) of the event.
 //
 // And the attrs (attributes) accpets an even number of strings and sets them as key-value pairs
 // according to the order they are received. For example, if the attr strings "key1", "value1" are
