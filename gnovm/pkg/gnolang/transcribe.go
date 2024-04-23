@@ -361,7 +361,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
-			if starExpr, ok := cnn.Lhs[idx].(*StarExpr); ok {
+			if starExpr, ok := cnn.Lhs[idx].(*StarExpr); ok && cnn.Op == ASSIGN {
 				starExpr.IsLHS = true
 			}
 			if isBreak(c) {
