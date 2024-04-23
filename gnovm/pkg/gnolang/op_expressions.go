@@ -147,7 +147,7 @@ func (m *Machine) doOpStar() {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
@@ -163,7 +163,7 @@ func (m *Machine) doOpStar() {
 		t := xv.GetType()
 		var pt Type
 		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
+			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}

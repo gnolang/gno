@@ -22,11 +22,6 @@ import (
 const (
 	maxAllocTx    = 500 * 1000 * 1000
 	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
-
-	// maxVMCycles is the maximum number of cycles allowed while executing a single VM
-	// message. Ideally this should not be needed, as execution should halt when out of
-	// gas. The worst case scenario is that this value is used as a fallback.
-	maxVMCycles = 10_000_000
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -60,6 +55,7 @@ func NewVMKeeper(
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	stdlibsDir string,
+	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
@@ -68,7 +64,7 @@ func NewVMKeeper(
 		acck:       acck,
 		bank:       bank,
 		stdlibsDir: stdlibsDir,
-		maxCycles:  maxVMCycles,
+		maxCycles:  maxCycles,
 	}
 	return vmk
 }
@@ -204,7 +200,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
 
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m2.Cycles)
 	return nil
 }
 
@@ -289,7 +284,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
+
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -353,7 +348,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		})
 	defer m.Release()
 	_, pv := m.RunMemPackage(memPkg, false)
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -374,9 +368,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		m2.Release()
 	}()
 	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call",
-		"cycles", m2.Cycles,
-	)
+
 	res = buf.String()
 	return res, nil
 }
