@@ -32,22 +32,9 @@ func (m *Machine) doOpAssign() {
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		lhsExpr := s.Lhs[i]
-		_, lhsIsStarExpr := lhsExpr.(*StarExpr)
 
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(lhsExpr)
-
-		// A star expression on the lefthand side of an assign statement is a bit of a
-		// special case and needs to be handled.
-		if lhsIsStarExpr {
-
-			lvPtrValue := lv.TV.V.(PointerValue)
-			if lvPtrValue.Base == nil {
-				lvPtrValue.Base = lv.Base
-			}
-
-			lv = lvPtrValue
-		}
 
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {

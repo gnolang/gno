@@ -1935,6 +1935,17 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
+		if lx.IsLHS {
+			// A star expression on the lefthand side of an assign statement is a bit of a
+			// special case and needs to be handled.
+			innerPtr := ptr.TV.V.(PointerValue)
+			if innerPtr.Base == nil {
+				innerPtr.Base = ptr.Base
+			}
+
+			ptr = innerPtr
+		}
+
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
