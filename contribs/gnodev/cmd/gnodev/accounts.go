@@ -50,7 +50,7 @@ func (va varPremineAccounts) String() string {
 
 func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
 	bls := gnoland.NewBalances()
-	unlimitedFund := std.Coins{std.NewCoin("ugnot", 10e12)}
+	premineBalance := std.Coins{std.NewCoin("ugnot", 10e12)}
 
 	entries := bk.List()
 
@@ -67,7 +67,7 @@ func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
 		}
 
 		// Check for name
-		found := unlimitedFund
+		found := premineBalance
 		for _, name := range entry.Names {
 			if preDefinedFound, ok := cfg.premineAccounts[name]; ok && preDefinedFound != nil {
 				found = preDefinedFound
