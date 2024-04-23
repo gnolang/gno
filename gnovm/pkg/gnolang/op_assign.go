@@ -33,7 +33,6 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := lv.Base.(Object); ok {

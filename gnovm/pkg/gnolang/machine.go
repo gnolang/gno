@@ -1905,6 +1905,12 @@ func (m *Machine) PushForPointer(lx Expr) {
 	case *StarExpr:
 		// evaluate X (a reference)
 		if lx.IsLHS {
+			// If the star expression is on the LHS, evaluate the expression as
+			// a reference. This ensures the value that is pushed is a pointer to
+			// the pointer value represented by the lx.X expression. This will be
+			// helpful if the underlying pointer value dos not have a base;
+			// the base of the reference to the pointer value can be used instead,
+			// to properly mark the owning object as dirty.
 			m.PushExpr(&RefExpr{X: lx.X})
 		} else {
 			m.PushExpr(lx.X)
@@ -1937,7 +1943,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		ptr := m.PopValue().V.(PointerValue)
 		if lx.IsLHS {
 			// A star expression on the lefthand side of an assign statement is a bit of a
-			// special case and needs to be handled.
+			// special case and needs to be handled. The value pushed for it is always a
+			// reference to the actual value, so first dereference it by assigning it to
+			// innerPtr. If the pointer value has no base, use the base of its parent.
+			// Assigning a non-nil base ensures the parent gets marked as dirty and the
+			// updated value is persisted during realm finalization.
 			innerPtr := ptr.TV.V.(PointerValue)
 			if innerPtr.Base == nil {
 				innerPtr.Base = ptr.Base
