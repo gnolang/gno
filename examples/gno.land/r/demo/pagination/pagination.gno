@@ -33,8 +33,7 @@ func SignUp() string {
 	caller := std.GetOrigCaller().String()
 	height := std.GetHeight()
 
-	_, exists := tracker.Get(caller)
-	if exists {
+	if _, exists := tracker.Get(caller); exists {
 		panic(caller + " is already signed up!")
 	}
 
