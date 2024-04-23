@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/jaekwon/testify/require"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testAddr = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
