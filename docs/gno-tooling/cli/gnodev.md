@@ -109,7 +109,7 @@ While `gnodev` is running, the following shortcuts are available:
 |---------------------|------------------------------------------------------------|
 | --minimal           | Start `gnodev` without loading the examples folder.        |
 | --no-watch          | Disable hot reload.                                        |
-| --add-account       | Pre-add account(s) in the form `<bech32>[:<amount>]`       |
+| --add-account       | Pre-add account(s) in the form `<bech32>[=<amount>]`       |
 | --balances-file     | Load a balance for the user(s) from a balance file.        |
 | --chain-id          | Set node ChainID                                           |
 | --deploy-key        | Default key name or Bech32 address for uploading packages. |

@@ -128,7 +128,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.premineAccounts,
 		"add-account",
-		"add (or set) a premine account in the form `<bech32|name>[:<amount>]`, can be used multiple time",
+		"add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time",
 	)
 
 	fs.StringVar(
