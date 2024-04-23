@@ -1,0 +1,32 @@
+name: Markdown Lint
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+  push:
+    paths:
+      - "**/*.md"
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+
+      - name: Install dependencies
+        run: |
+          npm install -g write-good markdownlint-cli
+
+      - name: Check English syntax
+        run: write-good '**/*.md'
+
+      - name: Run markdownlint
+        run: markdownlint '**/*.md'
