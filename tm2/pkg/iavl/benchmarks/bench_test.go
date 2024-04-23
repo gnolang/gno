@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/_all"

@@ -12,7 +12,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 const (

@@ -29,6 +29,14 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
+
 type startCfg struct {
 	gnoRootDir            string
 	skipFailingGenesisTxs bool
@@ -268,12 +276,14 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 	cfg.LocalApp = gnoApp
 
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
