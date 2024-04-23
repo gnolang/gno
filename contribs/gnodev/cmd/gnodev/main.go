@@ -132,6 +132,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.balancesFile,
+		"balance-file",
+		defaultDevOptions.balancesFile,
+		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
 		&c.deployKey,
 		"deploy-key",
 		defaultDevOptions.deployKey,

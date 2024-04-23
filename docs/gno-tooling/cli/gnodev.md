@@ -59,6 +59,19 @@ gnodev --add-account <bech32/name1>[:<amount1>] --add-account <bech32/name2>[:<a
 Please note: If the address exists in your local Keybase, the `--add-account` flag will only update its amount,
 instead of creating a duplicate.
 
+### Balance file
+
+You can specify a balance file using `--balance-file`. The file should contain a
+list of Bech32 addresses with their respective amounts:
+
+```
+# Accounts:
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000000ugnot # test1
+g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
+
+# ...
+```
+
 ### Deploy
 
 All realms and packages will be deployed to the in-memory node by the address passed in with the
