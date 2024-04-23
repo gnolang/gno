@@ -24,7 +24,6 @@ const pageSize = 20
 func init() {
 	tracker = avl.NewTree()
 	SignUp()
-
 }
 
 func SignUp() string {
@@ -96,11 +95,17 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	pageStartIndex := pageSize * (page - 1)
 	for i, signup := range fetchedSignups {
-		out := ufmt.Sprintf("#### User #%d - %s - signed up at block #%d\n", pageStartIndex+i, signup.account, signup.height)
+		out := ufmt.Sprintf("#### User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
 		res.Write(out)
 	}
 
 	res.Write("---\n\n")
+
+	latestSignup := signups[totalSignups-1]
+	res.Write(ufmt.Sprintf("Latest signup: %s at Block #%d\n\n", latestSignup.account, latestSignup.height))
+
+	res.Write("---\n\n")
+
 	res.Write(ufmt.Sprintf("You're viewing page #%d\n\n", page))
 
 	var prevPage string
@@ -119,6 +124,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(prevPage)
 	res.Write(nextPage)
+
 }
 
 func Render(path string) string {
