@@ -290,6 +290,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 
 	// Finish saving the package state.
 	if save {
+		m.savePackageValues()
 		m.Store.AddMemPackage(memPkg)
 	}
 
@@ -648,9 +649,14 @@ func (m *Machine) RunFiles(fns ...*FileNode) []initFunc {
 	return inits
 }
 
+func (m *Machine) savePackageValuesAndTypes() {
+	m.savePackageValues()
+	m.savePackageTypes()
+}
+
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackageValuesAndTypes() {
+func (m *Machine) savePackageValues() {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -664,8 +670,11 @@ func (m *Machine) savePackageValuesAndTypes() {
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 	}
+}
+
+func (m *Machine) savePackageTypes() {
 	// save declared types.
-	if bv, ok := pv.Block.(*Block); ok {
+	if bv, ok := m.Package.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
 				if dt, ok := tvv.Type.(*DeclaredType); ok {
