@@ -22,7 +22,10 @@ var signups []Signup
 // tracker - keep track of who signed up
 var tracker *avl.Tree
 
-const pageSize = 20
+const (
+	pageSize     = 20
+	pathArgument = "number"
+)
 
 func init() {
 	tracker = avl.NewTree()
@@ -124,9 +127,10 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(nextPage)
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHelper)
-	router.HandleFunc("page/{number}", renderHelper)
+	path := ufmt.Sprintf("page/{%s}", pathArgument)
+	router.HandleFunc(path, renderHelper)
 	return router.Render(path)
 }
