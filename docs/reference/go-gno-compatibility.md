@@ -124,7 +124,7 @@ Legend:
 | crypto/dsa                                  | `tbd`    |
 | crypto/ecdh                                 | `tbd`    |
 | crypto/ecdsa                                | `tbd`    |
-| crypto/ed25519                              | `tbd`    |
+| crypto/ed25519                              | `part`[^8] |
 | crypto/elliptic                             | `tbd`    |
 | crypto/hmac                                 | `todo`   |
 | crypto/md5                                  | `test`[^2] |
@@ -289,6 +289,8 @@ Legend:
   bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`!
 [^7]: `time.Now` returns the block time rather than the system time, for
   determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
+[^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
+  still cover a majority of use cases. A full implementation is welcome.
 
 ## Tooling (`gno` binary)
 

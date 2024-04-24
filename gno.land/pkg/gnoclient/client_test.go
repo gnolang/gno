@@ -888,3 +888,194 @@ func TestRunErrors(t *testing.T) {
 		})
 	}
 }
+
+// AddPackage tests
+func TestAddPackageErrors(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		client        Client
+		cfg           BaseTxCfg
+		msgs          []MsgAddPackage
+		expectedError error
+	}{
+		{
+			name: "Invalid Signer",
+			client: Client{
+				Signer:    nil,
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgAddPackage{
+				{
+					Package: &std.MemPackage{
+						Name: "",
+						Path: "",
+						Files: []*std.MemFile{
+							{
+								Name: "file1.gno",
+								Body: "",
+							},
+						},
+					},
+					Deposit: "",
+				},
+			},
+			expectedError: ErrMissingSigner,
+		},
+		{
+			name: "Invalid RPCClient",
+			client: Client{
+				&mockSigner{},
+				nil,
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs:          []MsgAddPackage{},
+			expectedError: ErrMissingRPCClient,
+		},
+		{
+			name: "Invalid Gas Fee",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgAddPackage{
+				{
+					Package: &std.MemPackage{
+						Name: "",
+						Path: "",
+						Files: []*std.MemFile{
+							{
+								Name: "file1.gno",
+								Body: "",
+							},
+						},
+					},
+					Deposit: "",
+				},
+			},
+			expectedError: ErrInvalidGasFee,
+		},
+		{
+			name: "Negative Gas Wanted",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      -1,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgAddPackage{
+				{
+					Package: &std.MemPackage{
+						Name: "",
+						Path: "",
+						Files: []*std.MemFile{
+							{
+								Name: "file1.gno",
+								Body: "",
+							},
+						},
+					},
+					Deposit: "",
+				},
+			},
+			expectedError: ErrInvalidGasWanted,
+		},
+		{
+			name: "0 Gas Wanted",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      0,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgAddPackage{
+				{
+					Package: &std.MemPackage{
+						Name: "",
+						Path: "",
+						Files: []*std.MemFile{
+							{
+								Name: "file1.gno",
+								Body: "",
+							},
+						},
+					},
+					Deposit: "",
+				},
+			},
+			expectedError: ErrInvalidGasWanted,
+		},
+		{
+			name: "Invalid Empty Package",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: BaseTxCfg{
+				GasWanted:      100000,
+				GasFee:         "10000ugnot",
+				AccountNumber:  1,
+				SequenceNumber: 1,
+				Memo:           "Test memo",
+			},
+			msgs: []MsgAddPackage{
+				{
+					Package: nil,
+					Deposit: "",
+				},
+			},
+			expectedError: ErrEmptyPackage,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.client.AddPackage(tc.cfg, tc.msgs...)
+			assert.Nil(t, res)
+			assert.ErrorIs(t, err, tc.expectedError)
+		})
+	}
+}
