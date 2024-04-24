@@ -1688,12 +1688,6 @@ func isLoopNode(store Store, bn BlockNode) bool {
 	return false
 }
 
-// Get the containing block node for node with path relative to this containing block.
-//func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
-//
-//	return bn
-//}
-
 // Returns whether a name defined here in in ancestry is a const.
 // This is not the same as whether a name's static type is
 // untyped -- as in c := a == b, a name may be an untyped non-const.

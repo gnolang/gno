@@ -2,9 +2,10 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // In the case of a *FileSet, some declaration steps have to happen
@@ -14,7 +15,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn) // TODO: fix this
+		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
