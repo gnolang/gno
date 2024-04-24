@@ -179,7 +179,7 @@ const (
 
 type contractA struct{}
 
-func (c *contractA) sender(m *gno.Machine, cb func()) {
+func (c *contractA) foo(m *gno.Machine, cb func()) {
 	subSender(m)
 	cb()
 }
