@@ -102,8 +102,8 @@ type LoopInfo struct {
 	sealed     bool // new body built, avoiding reenter {{{...}}}
 }
 
+// record loop externs info while preprocess
 var loopInfos map[Name][]*LoopInfo
-
 var reProcessing bool
 
 // This counter ensures (during testing) that certain functions
