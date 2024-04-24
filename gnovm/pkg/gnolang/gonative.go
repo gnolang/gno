@@ -862,12 +862,31 @@ func gno2GoType(t Type) reflect.Type {
 	case *InterfaceType:
 		if ct.IsEmptyInterface() {
 			// XXX move out
-			rt := reflect.TypeOf((*interface{})(nil)).Elem()
-			return rt
-		} else {
-			// NOTE: can this be implemented in go1.15? i think not.
-			panic("not yet supported")
+			return createEmptyInterfaceType()
 		}
+
+		if ct == nil {
+			panic("nil interface type")
+		}
+
+		methods, err := collectInterfaceMethods(ct)
+		if err != nil {
+			panic(fmt.Sprintf("failed to collect interface methods: %v", err))
+		}
+
+		// NOTE: The reason of using struct types to represent interface types:
+		// 1. does not support directly create interface types and adding methods at runtime.
+		// 2. using struct allows the interface methods to be defined at compile time, making it simpler and more stable.
+		// 3. callers can use these struct types to perform necessary operations.
+		structFields := make([]reflect.StructField, len(methods))
+		for i, method := range methods {
+			structFields[i] = reflect.StructField{
+				Name: method.Name,
+				Type: method.Type,
+			}
+		}
+		structType := reflect.StructOf(structFields)
+		return structType
 	case *TypeType:
 		panic("should not happen")
 	case *DeclaredType:
@@ -886,6 +905,59 @@ func gno2GoType(t Type) reflect.Type {
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", t, baseOf(t)))
 	}
+}
+
+// createEmptyInterfaceType returns the reflect.Type representing an empty interface.
+func createEmptyInterfaceType() reflect.Type {
+	return reflect.TypeOf((*interface{})(nil)).Elem()
+}
+
+// collectInterfaceMethods collects the method information from the given InterfaceType
+// and returns a slice of reflect.Method representing the methods of the interface.
+//
+// The function iterates over the methods of the InterfaceType and extracts the method identifier (name),
+// parameter types, and return types. it converts the Gno type to their corresponding Go types
+// via gno2GoType function.
+//
+// If any unexpected type is encountered, it returns an error.
+//
+// The resulting slice if reflect.Method contains the method information, including the method name
+// and the function type with the parameter and return types.
+func collectInterfaceMethods(ift *InterfaceType) ([]reflect.Method, error) {
+	methods := make([]reflect.Method, 0, len(ift.Methods))
+
+	for _, fld := range ift.Methods {
+		name := string(fld.Name)
+		typ := fld.Type
+
+		var paramTypes, returnTypes []reflect.Type
+
+		switch ft := typ.(type) {
+		case *FuncType:
+			// extract parameter types
+			for _, param := range ft.Params {
+				pType := gno2GoType(param.Type)
+				paramTypes = append(paramTypes, pType)
+			}
+
+			// extract return types
+			for _, ret := range ft.Results {
+				rTyp := gno2GoType(ret.Type)
+				returnTypes = append(returnTypes, rTyp)
+			}
+		default:
+			return nil, fmt.Errorf("unexpected type %v", typ)
+		}
+
+		method := reflect.Method{
+			Name: name,
+			Type: reflect.FuncOf(paramTypes, returnTypes, false),
+		}
+
+		methods = append(methods, method)
+	}
+
+	return methods, nil
 }
 
 // If gno2GoTypeMatches(t, rt) is true, a t value can
@@ -1010,10 +1082,32 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		}
 		if ct.IsEmptyInterface() {
 			return rt.NumMethod() == 0
-		} else {
-			// NOTE: can this be implemented in go1.15? i think not.
-			panic("not yet supported")
 		}
+
+		gnoMethods, err := collectInterfaceMethods(ct)
+		if err != nil {
+			panic(fmt.Sprintf("failed to collect interface methods: %v", err))
+		}
+
+		if rt.NumMethod() != len(gnoMethods) {
+			return false
+		}
+
+		for i := 0; i < rt.NumMethod(); i++ {
+			goMethod := rt.Method(i)
+			gnoMethod := gnoMethods[i]
+
+			if goMethod.Name != gnoMethod.Name {
+				return false
+			}
+
+			// check if the method types match
+			if goMethod.Type != gnoMethod.Type {
+				return false
+			}
+		}
+
+		return true
 	case *TypeType:
 		panic("should not happen")
 	case *DeclaredType:
