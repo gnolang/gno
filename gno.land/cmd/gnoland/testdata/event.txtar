@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	EventSender = "sender"
-	EventReceiver = "receiver"
+	EventFoo = "foo"
+	EventBar = "bar"
 )
 
 func Sender(){
