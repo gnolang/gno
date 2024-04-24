@@ -361,7 +361,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc
+	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -369,6 +369,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
+
 	return PointerValue{
 		TV:    bv,
 		Base:  av,
@@ -1024,6 +1025,28 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	default:
 		cp = tv
 	}
+	return
+}
+
+// unrefCopy makes a copy of the underlying value in the case of reference values.
+// It copies other values as expected using the normal Copy method.
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	switch tv.V.(type) {
+	case RefValue:
+		cp.T = tv.T
+		refObject := tv.GetFirstObject(store)
+		switch refObjectValue := refObject.(type) {
+		case *ArrayValue:
+			cp.V = refObjectValue.Copy(alloc)
+		case *StructValue:
+			cp.V = refObjectValue.Copy(alloc)
+		default:
+			cp = tv
+		}
+	default:
+		cp = tv.Copy(alloc)
+	}
+
 	return
 }
 
@@ -2511,7 +2534,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
-				et := baseOf(tv.T).(*ArrayType).Elt
+				et := baseOf(tv.T).(*PointerType).Elt
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:

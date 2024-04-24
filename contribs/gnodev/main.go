@@ -5,40 +5,64 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	zaplog "github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/muesli/termenv"
 )
 
 const (
-	NodeLogName      = "Node"
-	WebLogName       = "GnoWeb"
-	KeyPressLogName  = "KeyPress"
-	HotReloadLogName = "HotReload"
+	NodeLogName        = "Node"
+	WebLogName         = "GnoWeb"
+	KeyPressLogName    = "KeyPress"
+	EventServerLogName = "Event"
 )
 
 type devCfg struct {
-	webListenerAddr string
-	minimal         bool
-	verbose         bool
-	noWatch         bool
+	webListenerAddr          string
+	nodeRPCListenerAddr      string
+	nodeP2PListenerAddr      string
+	nodeProxyAppListenerAddr string
+
+	minimal    bool
+	verbose    bool
+	hotreload  bool
+	noWatch    bool
+	noReplay   bool
+	maxGas     int64
+	chainId    string
+	serverMode bool
 }
 
 var defaultDevOptions = &devCfg{
-	webListenerAddr: "127.0.0.1:8888",
+	chainId:             "dev",
+	maxGas:              10_000_000_000,
+	webListenerAddr:     "127.0.0.1:8888",
+	nodeRPCListenerAddr: "127.0.0.1:36657",
+
+	// As we have no reason to configure this yet, set this to random port
+	// to avoid potential conflict with other app
+	nodeP2PListenerAddr:      "tcp://127.0.0.1:0",
+	nodeProxyAppListenerAddr: "tcp://127.0.0.1:0",
 }
 
 func main() {
@@ -49,9 +73,9 @@ func main() {
 		commands.Metadata{
 			Name:       "gnodev",
 			ShortUsage: "gnodev [flags] [path ...]",
-			ShortHelp:  "Runs an in-memory node and gno.land web server for development purposes.",
+			ShortHelp:  "runs an in-memory node and gno.land web server for development purposes.",
 			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
-primarily for realm package development. It automatically loads the example folder and any
+primarily for realm package development. It automatically loads the 'examples' directory and any
 additional specified paths.`,
 		},
 		cfg,
@@ -59,11 +83,9 @@ additional specified paths.`,
 			return execDev(cfg, args, stdio)
 		})
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
+
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.webListenerAddr,
@@ -72,11 +94,25 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"web server listening address",
 	)
 
+	fs.StringVar(
+		&c.nodeRPCListenerAddr,
+		"node-rpc-listener",
+		defaultDevOptions.nodeRPCListenerAddr,
+		"gnoland rpc node listening address",
+	)
+
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
-		defaultDevOptions.verbose,
-		"do not load example folder packages",
+		defaultDevOptions.minimal,
+		"do not load packages from examples directory",
+	)
+
+	fs.BoolVar(
+		&c.serverMode,
+		"server-mode",
+		defaultDevOptions.serverMode,
+		"disable interaction, and adjust logging for server use.",
 	)
 
 	fs.BoolVar(
@@ -86,6 +122,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose output when deving",
 	)
 
+	fs.StringVar(
+		&c.chainId,
+		"chain-id",
+		defaultDevOptions.chainId,
+		"set node ChainID",
+	)
+
 	fs.BoolVar(
 		&c.noWatch,
 		"no-watch",
@@ -93,13 +136,26 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"do not watch for files change",
 	)
 
+	fs.BoolVar(
+		&c.noReplay,
+		"no-replay",
+		defaultDevOptions.noReplay,
+		"do not replay previous transactions on reload",
+	)
+
+	fs.Int64Var(
+		&c.maxGas,
+		"max-gas",
+		defaultDevOptions.maxGas,
+		"set the maximum gas by block",
+	)
 }
 
-func execDev(cfg *devCfg, args []string, io commands.IO) error {
+func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
-	// guess root dir
+	// Guess root dir
 	gnoroot := gnoenv.RootDir()
 
 	// Check and Parse packages
@@ -114,7 +170,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 	}
 
 	// Setup Raw Terminal
-	rt, restore, err := setupRawTerm(io)
+	rt, restore, err := setupRawTerm(cfg, io)
 	if err != nil {
 		return fmt.Errorf("unable to init raw term: %w", err)
 	}
@@ -122,123 +178,148 @@ func execDev(cfg *devCfg, args []string, io commands.IO) error {
 
 	// Setup trap signal
 	osm.TrapSignal(func() {
-		restore()
 		cancel(nil)
+		restore()
 	})
+
+	logger := setuplogger(cfg, rt)
+	loggerEvents := logger.WithGroup(EventServerLogName)
+	emitterServer := emitter.NewServer(loggerEvents)
 
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, rt, pkgpaths, gnoroot)
+	devNode, err := setupDevNode(ctx, logger, cfg, emitterServer, pkgpaths)
 	if err != nil {
 		return err
 	}
 	defer devNode.Close()
 
-	rt.Taskf(NodeLogName, "Listener: %s\n", devNode.GetRemoteAddress())
-	rt.Taskf(NodeLogName, "Default Address: %s\n", gnodev.DefaultCreator.String())
-	rt.Taskf(NodeLogName, "Chain ID: %s\n", devNode.Config().ChainID())
+	logger.WithGroup(NodeLogName).
+		Info("node started",
+			"lisn", devNode.GetRemoteAddress(),
+			"addr", gnodev.DefaultCreator.String(),
+			"chainID", cfg.chainId,
+		)
 
-	// Setup packages watcher
-	pathChangeCh := make(chan []string, 1)
-	go func() {
-		defer close(pathChangeCh)
-
-		cancel(runPkgsWatcher(ctx, cfg, devNode.ListPkgs(), pathChangeCh))
-	}()
-
-	// Setup GnoWeb listener
-	l, err := net.Listen("tcp", cfg.webListenerAddr)
-	if err != nil {
-		return fmt.Errorf("unable to listen to %q: %w", cfg.webListenerAddr, err)
+	// Create server
+	mux := http.NewServeMux()
+	server := http.Server{
+		Handler: mux,
+		Addr:    cfg.webListenerAddr,
 	}
-	defer l.Close()
+	defer server.Close()
 
-	// Run GnoWeb server
+	// Setup gnoweb
+	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
+
+	// Setup HotReload if needed
+	if !cfg.noWatch {
+		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
+		mux.Handle("/_events", emitterServer)
+		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+	} else {
+		mux.Handle("/", webhandler)
+	}
+
 	go func() {
-		cancel(serveGnoWebServer(l, devNode, rt))
+		err := server.ListenAndServe()
+		cancel(err)
 	}()
 
-	rt.Taskf(WebLogName, "Listener: http://%s\n", l.Addr())
+	logger.WithGroup(WebLogName).
+		Info("gnoweb started",
+			"lisn", fmt.Sprintf("http://%s", server.Addr))
 
-	// GnoDev should be ready, run event loop
-	rt.Taskf("[Ready]", "for commands and help, press `h`")
+	watcher, err := watcher.NewPackageWatcher(loggerEvents, emitterServer)
+	if err != nil {
+		return fmt.Errorf("unable to setup packages watcher: %w", err)
+	}
+	defer watcher.Stop()
+
+	// Add node pkgs to watcher
+	watcher.AddPackages(devNode.ListPkgs()...)
+
+	logger.WithGroup("--- READY").Info("for commands and help, press `h`")
 
 	// Run the main event loop
-	return runEventLoop(ctx, cfg, rt, devNode, pathChangeCh)
+	return runEventLoop(ctx, logger, rt, devNode, watcher)
 }
 
-// XXX: Automatize this the same way command does
-func printHelper(rt *rawterm.RawTerm) {
-	rt.Taskf("Helper", `
-Gno Dev Helper:
-  h, H        Help - display this message
-  r, R        Reload - Reload all packages to take change into account.
-  Ctrl+R      Reset - Reset application state.
-  Ctrl+C      Exit - Exit the application
-`)
-}
+var helper string = `
+H           Help - display this message
+R           Reload - Reload all packages to take change into account.
+Ctrl+R      Reset - Reset application state.
+Ctrl+C      Exit - Exit the application
+`
 
-func runEventLoop(ctx context.Context,
-	cfg *devCfg,
+func runEventLoop(
+	ctx context.Context,
+	logger *slog.Logger,
 	rt *rawterm.RawTerm,
 	dnode *dev.Node,
-	pathsCh <-chan []string,
+	watch *watcher.PackageWatcher,
 ) error {
-	nodeOut := rt.NamespacedWriter(NodeLogName)
-	keyOut := rt.NamespacedWriter(KeyPressLogName)
 
-	keyPressCh := listenForKeyPress(keyOut, rt)
+	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
 
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case paths, ok := <-pathsCh:
+		case pkgs, ok := <-watch.PackagesUpdate:
 			if !ok {
 				return nil
 			}
 
-			if cfg.verbose {
-				for _, path := range paths {
-					rt.Taskf(HotReloadLogName, "path %q has been modified", path)
-				}
+			// fmt.Fprintln(nodeOut, "Loading package updates...")
+			if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
+				return fmt.Errorf("unable to update packages: %w", err)
 			}
 
-			fmt.Fprintln(nodeOut, "Loading package updates...")
-			if err = dnode.UpdatePackages(paths...); err != nil {
-				checkForError(rt, err)
-				continue
+			logger.WithGroup(NodeLogName).Info("reloading...")
+			if err = dnode.Reload(ctx); err != nil {
+				logger.WithGroup(NodeLogName).
+					Error("unable to reload node", "err", err)
 			}
 
-			fmt.Fprintln(nodeOut, "Reloading...")
-			err = dnode.Reload(ctx)
-			checkForError(rt, err)
 		case key, ok := <-keyPressCh:
 			if !ok {
 				return nil
 			}
 
-			if cfg.verbose {
-				fmt.Fprintf(keyOut, "<%s>\n", key.String())
-			}
+			logger.WithGroup(KeyPressLogName).Debug(
+				fmt.Sprintf("<%s>", key.String()),
+			)
 
 			switch key.Upper() {
 			case rawterm.KeyH:
-				printHelper(rt)
+				logger.Info("Gno Dev Helper", "helper", helper)
 			case rawterm.KeyR:
-				fmt.Fprintln(nodeOut, "Reloading all packages...")
-				checkForError(nodeOut, dnode.ReloadAll(ctx))
+				logger.WithGroup(NodeLogName).Info("reloading...")
+				if err = dnode.ReloadAll(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to reload node", "err", err)
+
+				}
+
 			case rawterm.KeyCtrlR:
-				fmt.Fprintln(nodeOut, "Reseting state...")
-				checkForError(nodeOut, dnode.Reset(ctx))
+				logger.WithGroup(NodeLogName).Info("reseting node state...")
+				if err = dnode.Reset(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to reset node state", "err", err)
+				}
+
 			case rawterm.KeyCtrlC:
+				return nil
+			case rawterm.KeyCtrlE:
+				panic("NOOOO")
 				return nil
 			default:
 			}
 
-			// Listen for the next keypress
-			keyPressCh = listenForKeyPress(keyOut, rt)
+			// Reset listen for the next keypress
+			keyPressCh = listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 		}
 	}
 }
@@ -250,7 +331,7 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 
 	if cfg.noWatch {
-		// noop watcher, wait until context has been cancel
+		// Noop watcher, wait until context has been cancel
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -288,49 +369,60 @@ func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changed
 	}
 }
 
-func setupRawTerm(io commands.IO) (rt *rawterm.RawTerm, restore func() error, err error) {
-	rt = rawterm.NewRawTerm()
+var noopRestore = func() error { return nil }
 
-	restore, err = rt.Init()
-	if err != nil {
-		return nil, nil, err
+func setupRawTerm(cfg *devCfg, io commands.IO) (*rawterm.RawTerm, func() error, error) {
+	rt := rawterm.NewRawTerm()
+	restore := noopRestore
+	if !cfg.serverMode {
+		var err error
+		restore, err = rt.Init()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// correctly format output for terminal
 	io.SetOut(commands.WriteNopCloser(rt))
-
 	return rt, restore, nil
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, rt *rawterm.RawTerm, pkgspath []string, gnoroot string) (*gnodev.Node, error) {
-	nodeOut := rt.NamespacedWriter("Node")
+func setupDevNode(
+	ctx context.Context,
+	logger *slog.Logger,
+	cfg *devCfg,
+	remitter emitter.Emitter,
+	pkgspath []string,
+) (*gnodev.Node, error) {
+	nodeLogger := logger.WithGroup(NodeLogName)
 
-	logger := tmlog.NewTMLogger(nodeOut)
-	logger.SetLevel(tmlog.LevelError)
-	return gnodev.NewDevNode(ctx, logger, pkgspath)
+	gnoroot := gnoenv.RootDir()
+
+	// configure gnoland node
+	config := gnodev.DefaultNodeConfig(gnoroot)
+	config.PackagesPathList = pkgspath
+	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
+	config.NoReplay = cfg.noReplay
+	config.MaxGasPerBlock = cfg.maxGas
+	config.ChainID = cfg.chainId
+
+	// other listeners
+	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
+	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
+
+	return gnodev.NewDevNode(ctx, nodeLogger, remitter, config)
 }
 
 // setupGnowebServer initializes and starts the Gnoweb server.
-func serveGnoWebServer(l net.Listener, dnode *gnodev.Node, rt *rawterm.RawTerm) error {
-	var server http.Server
-
+func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) http.Handler {
 	webConfig := gnoweb.NewDefaultConfig()
 	webConfig.RemoteAddr = dnode.GetRemoteAddress()
+	webConfig.HelpRemote = dnode.GetRemoteAddress()
+	webConfig.HelpChainID = cfg.chainId
 
-	loggerweb := tmlog.NewTMLogger(rt.NamespacedWriter("GnoWeb"))
-	loggerweb.SetLevel(tmlog.LevelDebug)
-
-	app := gnoweb.MakeApp(loggerweb, webConfig)
-
-	server.ReadHeaderTimeout = 60 * time.Second
-	server.Handler = app.Router
-
-	if err := server.Serve(l); err != nil {
-		return fmt.Errorf("unable to serve GnoWeb: %w", err)
-	}
-
-	return nil
+	app := gnoweb.MakeApp(logger, webConfig)
+	return app.Router
 }
 
 func parseArgsPackages(args []string) (paths []string, err error) {
@@ -352,13 +444,13 @@ func parseArgsPackages(args []string) (paths []string, err error) {
 	return paths, nil
 }
 
-func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
+func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
 	cc := make(chan rawterm.KeyPress, 1)
 	go func() {
 		defer close(cc)
 		key, err := rt.ReadKeyPress()
 		if err != nil {
-			fmt.Fprintf(w, "unable to read keypress: %s\n", err.Error())
+			logger.Error("unable to read keypress", "err", err)
 			return
 		}
 
@@ -368,11 +460,49 @@ func listenForKeyPress(w io.Writer, rt *rawterm.RawTerm) <-chan rawterm.KeyPress
 	return cc
 }
 
-func checkForError(w io.Writer, err error) {
-	if err != nil {
-		fmt.Fprintf(w, "[ERROR] - %s\n", err.Error())
-		return
+func resolveUnixOrTCPAddr(in string) (out string) {
+	var err error
+	var addr net.Addr
+
+	if strings.HasPrefix(in, "unix://") {
+		in = strings.TrimPrefix(in, "unix://")
+		if addr, err := net.ResolveUnixAddr("unix", in); err == nil {
+			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		}
+
+		err = fmt.Errorf("unable to resolve unix address `unix://%s`: %w", in, err)
+	} else { // don't bother to checking prefix
+		in = strings.TrimPrefix(in, "tcp://")
+		if addr, err = net.ResolveTCPAddr("tcp", in); err == nil {
+			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		}
+
+		err = fmt.Errorf("unable to resolve tcp address `tcp://%s`: %w", in, err)
 	}
 
-	fmt.Fprintln(w, "[DONE]")
+	panic(err)
+}
+
+func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
+	level := slog.LevelInfo
+	if cfg.verbose {
+		level = slog.LevelDebug
+	}
+
+	if cfg.serverMode {
+		zaplogger := logger.NewZapLogger(out, level)
+		return zaplog.ZapLoggerToSlog(zaplogger)
+	}
+
+	// Detect term color profile
+	colorProfile := termenv.DefaultOutput().Profile
+	clogger := logger.NewColumnLogger(out, level, colorProfile)
+
+	// Register well known group color with system colors
+	clogger.RegisterGroupColor(NodeLogName, lipgloss.Color("3"))
+	clogger.RegisterGroupColor(WebLogName, lipgloss.Color("4"))
+	clogger.RegisterGroupColor(KeyPressLogName, lipgloss.Color("5"))
+	clogger.RegisterGroupColor(EventServerLogName, lipgloss.Color("6"))
+
+	return slog.New(clogger)
 }

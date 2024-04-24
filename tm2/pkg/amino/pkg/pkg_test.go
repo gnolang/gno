@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 type Foo struct {
@@ -50,11 +50,11 @@ func TestFullNameForType(t *testing.T) {
 	gopkg := reflect.TypeOf(Foo{}).PkgPath()
 	pkg := NewPackage(gopkg, "some.path", "").WithTypes(Foo{})
 
-	assert.Equal(t, pkg.FullNameForType(reflect.TypeOf(Foo{})), "some.path.Foo")
+	assert.Equal(t, "some.path.Foo", pkg.FullNameForType(reflect.TypeOf(Foo{})))
 
 	typeURL := pkg.TypeURLForType(reflect.TypeOf(Foo{}))
 	assert.False(t, strings.Contains(typeURL[1:], "/"))
-	assert.Equal(t, string(typeURL[0]), "/")
+	assert.Equal(t, "/", string(typeURL[0]))
 }
 
 // If the struct wasn't registered, you can't get a name or type_url for it.

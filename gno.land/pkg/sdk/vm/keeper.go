@@ -131,9 +131,7 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-const (
-	reReservedPath = `gno\.land/r/g[a-z0-9]+/run`
-)
+var reRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
@@ -158,7 +156,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
 
-	if ok, _ := regexp.MatchString(reReservedPath, pkgPath); ok {
+	if reRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
@@ -176,6 +174,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err != nil {
 		return err
 	}
+
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
@@ -201,7 +200,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	defer m2.Release()
 	m2.RunMemPackage(memPkg, true)
 
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m2.Cycles)
 	return nil
 }
 
@@ -241,6 +239,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
 		panic("variadic calls not yet supported")
+	}
+	if len(msg.Args) != len(ft.Params) {
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
 	}
 	for i, arg := range msg.Args {
 		argType := ft.Params[i].Type
@@ -283,7 +284,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call: ", m.Cycles)
+
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
@@ -301,6 +302,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	store := vm.getGnoStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
+
+	// coerce path to right one.
+	// the path in the message must be "" or the following path.
+	// this is already checked in MsgRun.ValidateBasic
+	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -342,7 +348,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		})
 	defer m.Release()
 	_, pv := m.RunMemPackage(memPkg, false)
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -363,7 +368,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		m2.Release()
 	}()
 	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call: ", m2.Cycles)
+
 	res = buf.String()
 	return res, nil
 }
