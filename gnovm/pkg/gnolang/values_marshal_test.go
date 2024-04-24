@@ -1,0 +1,207 @@
+package gnolang
+
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/stretchr/testify/require"
+)
+
+const testMaxAlloc = 1500 * 1000 * 1000
+
+func TestTypedValueMarshal_Primitive(t *testing.T) {
+	cases := []struct {
+		ValueRep any    // Go  representation
+		ArgRep   string // string representation
+	}{
+		// Boolean
+		{true, `true`},
+		{false, `false`},
+
+		// // int types
+		// {int(42), "42"},
+		// {int8(42), "42"},
+		// {int16(42), "42"},
+		// {int32(42), "42"},
+		// {int64(42), "42"},
+
+		// // uint types
+		// {uint(42), "42"},
+		// {uint8(42), "42"},
+		// {uint16(42), "42"},
+		// {uint32(42), "42"},
+		// {uint64(42), "42"},
+
+		// // Float types
+		// {float32(3.14), "3.14"},
+		// {float64(3.14), "3.14"},
+
+		// // String type
+		// {"hello world", `hello world`},
+	}
+
+	store := setupStore()
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.ArgRep, func(t *testing.T) {
+			rv := reflect.ValueOf(tc.ValueRep)
+			tvIn := Go2GnoValue(store.GetAllocator(), store, rv)
+
+			atv := AminoTypedValue{
+				TypedValue: tvIn,
+				Store:      store,
+				Allocator:  store.GetAllocator(),
+			}
+			fmt.Printf("origin type: %+v\n", tvIn.T)
+
+			err := amino.UnmarshalJSON([]byte(tc.ArgRep), &atv)
+			require.NoError(t, err)
+			fmt.Println(atv.TypedValue.String())
+
+			raw, err := amino.MarshalJSON(&atv)
+			require.NoError(t, err)
+			fmt.Println(string(raw))
+		})
+	}
+}
+
+func TestConvertArg2Gno_Array(t *testing.T) {
+	cases := []struct {
+		ValueRep any    // Go representation
+		ArgRep   string // string representation
+	}{
+		{[]bool{true, false}, "[true,false]"},
+		{[]int{1, 2, 3, 4, 5}, `["1","2","3","4","5"]`},
+		{[]uint{1, 2, 3, 4, 5}, `["1","2","3","4","5"]`},
+		// {[]float32{1.1, 2.2, 3.3}, `["1.1","2.2","3.3"]`},
+		{[]string{"hello", "world"}, `["hello","world"]`},
+
+		// XXX: base64 encoded data byte
+	}
+
+	store := setupStore()
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.ArgRep, func(t *testing.T) {
+			rv := reflect.ValueOf(tc.ValueRep)
+			tvIn := Go2GnoValue(store.GetAllocator(), store, rv)
+
+			atv := AminoTypedValue{
+				TypedValue: tvIn,
+				Store:      store,
+				Allocator:  store.GetAllocator(),
+			}
+			// atv.SetType(tvIn.T)
+			fmt.Printf("origin type: %+v\n", tvIn.T)
+
+			err := amino.UnmarshalJSON([]byte(tc.ArgRep), &atv)
+			require.NoError(t, err)
+			fmt.Println(atv.TypedValue.String())
+
+			raw, err := amino.MarshalJSON(&atv)
+			require.NoError(t, err)
+			fmt.Println(string(raw))
+		})
+	}
+}
+
+func TestConvertArg2Gno_Struct(t *testing.T) {
+	// Basic struct
+	type SimpleStruct struct {
+		A bool
+		B int
+		C string
+	}
+
+	// Struct with unexported field
+	type UnexportedStruct struct {
+		A int
+		b string
+	}
+
+	// Nested struct
+	type NestedStruct struct {
+		A int
+		B *SimpleStruct
+	}
+
+	cases := []struct {
+		ValueRep any    // Go representation
+		ArgRep   string // string representation
+	}{
+		// Struct with various field values.
+		{SimpleStruct{A: true, B: 42, C: "hello"}, `{"A":true,"B":"42","C":"hello"}`},
+		{SimpleStruct{A: false, B: 0, C: ""}, `{"A":false,"B":"0","C":""}`},
+		{SimpleStruct{A: false, B: 0, C: ""}, `{"A":false,"B":"0","C":""}`},
+
+		// Struct with unexported field
+		{UnexportedStruct{A: 42, b: "hidden"}, `{"A":"42"}`},
+
+		// Struct with nested struct
+		{
+			NestedStruct{A: 42, B: &SimpleStruct{A: true, B: 43}},
+			`{"A":"42","B":{"A":true,"B":"43","C":""}}`,
+		},
+
+		// XXX(FIXME): Interface arn't supported yet
+		// {struct{ C any }{C: "hello"}, "hello"},
+
+		// XXX(FIXME): Recursive struct is currently causing a stack overflow in the `Go2GnoValue` function.
+	}
+
+	store := setupStore()
+	store.SetStrictGo2GnoMapping(false)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.ArgRep, func(t *testing.T) {
+			rv := reflect.ValueOf(tc.ValueRep)
+			tvIn := Go2GnoValue(store.GetAllocator(), store, rv)
+
+			atv := AminoTypedValue{
+				TypedValue: tvIn,
+				Store:      store,
+				Allocator:  store.GetAllocator(),
+			}
+			// atv.SetType(tvIn.T)
+			fmt.Printf("origin type: %+v\n", tvIn.T)
+
+			err := amino.UnmarshalJSON([]byte(tc.ArgRep), &atv)
+			require.NoError(t, err)
+			// fmt.Println(atv.TypedValue.String())
+
+			raw, err := amino.MarshalJSON(&atv)
+			require.NoError(t, err)
+			fmt.Println(string(raw))
+		})
+	}
+}
+
+// // Prepares the store for testing
+func setupStore() Store {
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	alloc := NewAllocator(testMaxAlloc)
+	return NewStore(alloc, baseStore, iavlStore)
+}
+
+// Checks if the given byte array is enclosed in quotes
+func isQuotedBytes(raw []byte) bool {
+	return len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"'
+}
+
+// Removes the quotes from the given byte array, if present
+func unquoteBytes(t *testing.T, raw []byte) []byte {
+	t.Helper()
+
+	unquoteRaw, err := strconv.Unquote(string(raw))
+	require.NoError(t, err)
+	return []byte(unquoteRaw)
+}
