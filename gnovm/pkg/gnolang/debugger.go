@@ -369,8 +369,8 @@ const (
 )
 
 func debugContinue(m *Machine, arg string) error {
-	m.Debugger.tate = DebugAtRun
-	m.Debugger.rameLevel = 0
+	m.Debugger.state = DebugAtRun
+	m.Debugger.frameLevel = 0
 	return nil
 }
 
@@ -402,8 +402,8 @@ func debugDown(m *Machine, arg string) (err error) {
 			return err
 		}
 	}
-	if level := m.Debugger.rameLevel - n; level >= 0 && level < len(m.Debugger.call) {
-		m.Debugger.rameLevel = level
+	if level := m.Debugger.frameLevel - n; level >= 0 && level < len(m.Debugger.call) {
+		m.Debugger.frameLevel = level
 	}
 	debugList(m, "")
 	return nil
@@ -751,7 +751,7 @@ func debugUp(m *Machine, arg string) (err error) {
 		}
 	}
 	if level := m.Debugger.frameLevel + n; level >= 0 && level < len(m.Debugger.call) {
-		m.Debugger.rameLevel = level
+		m.Debugger.frameLevel = level
 	}
 	debugList(m, "")
 	return nil
