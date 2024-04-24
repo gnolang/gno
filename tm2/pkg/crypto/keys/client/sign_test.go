@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -341,6 +342,14 @@ func TestSign_SignTx(t *testing.T) {
 		info, err := kb.CreateAccount(keyName, mnemonic, "", encryptPassword, 0, 0)
 		require.NoError(t, err)
 
+		// We need to prepare the message signer as well
+		// for validation to complete
+		tx.Msgs = []std.Msg{
+			bank.MsgSend{
+				FromAddress: info.GetAddress(),
+			},
+		}
+
 		// Create an empty tx file
 		txFile, err := os.CreateTemp("", "")
 		require.NoError(t, err)
@@ -445,6 +454,17 @@ func TestSign_SignTx(t *testing.T) {
 			},
 		}
 
+		// We need to prepare the message signers as well
+		// for validation to complete
+		tx.Msgs = []std.Msg{
+			bank.MsgSend{
+				FromAddress: info.GetAddress(),
+			},
+			bank.MsgSend{
+				FromAddress: anotherKeyInfo.GetAddress(),
+			},
+		}
+
 		// Create an empty tx file
 		txFile, err := os.CreateTemp("", "")
 		require.NoError(t, err)
@@ -541,6 +561,14 @@ func TestSign_SignTx(t *testing.T) {
 			{
 				PubKey:    pubKey,
 				Signature: signature,
+			},
+		}
+
+		// We need to prepare the message signer as well
+		// for validation to complete
+		tx.Msgs = []std.Msg{
+			bank.MsgSend{
+				FromAddress: info.GetAddress(),
 			},
 		}
 

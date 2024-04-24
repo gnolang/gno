@@ -45,6 +45,9 @@ func (tx Tx) ValidateBasic() error {
 	if len(stdSigs) == 0 {
 		return ErrNoSignatures("no signers")
 	}
+	if len(stdSigs) != len(tx.GetSigners()) {
+		return ErrUnauthorized("wrong number of signers")
+	}
 
 	return nil
 }
