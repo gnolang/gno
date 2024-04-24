@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"io"
 	"net"
@@ -525,29 +526,16 @@ func debugPrint(m *Machine, arg string) (err error) {
 	if arg == "" {
 		return errors.New("missing argument")
 	}
-	// /*
-	expr, err := ParseExpr(arg)
+	// Use the Go parser to get the AST representation of print argument as a Go expresssion.
+	ast, err := parser.ParseExpr(arg)
 	if err != nil {
 		return err
 	}
-	m.Debugger.enabled = false
-	defer func() { m.Debugger.enabled = true }()
-
-	res := m.Eval(expr)
-	fmt.Fprintln(m.Debugger.out, res[0])
-	// */
-	/*
-		// Use the Go parser to get the AST representation of print argument as a Go expresssion.
-		ast, err := parser.ParseExpr(arg)
-		if err != nil {
-			return err
-		}
-		tv, err := debugEvalExpr(m, ast)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(m.Debugger.out, tv)
-	*/
+	tv, err := debugEvalExpr(m, ast)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(m.Debugger.out, tv)
 	return nil
 }
 
