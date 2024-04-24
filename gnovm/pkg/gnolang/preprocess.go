@@ -98,8 +98,6 @@ type LoopInfo struct {
 	labelLine  int
 	gotoLine   int
 	label      Name
-	index      int
-	sealed     bool // new body built, avoiding reenter {{{...}}}
 }
 
 // record loop externs info while preprocess
@@ -639,12 +637,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
 				// POP BLOCK YOURSELF.
 				case BlockNode:
-					if len(loopInfos) != 0 { // goto loop exist, transform new body
-						if _, ok := n.(*FileNode); ok { // TODO: consider this
-							reProcess(store, last, loopInfos)
-							loopInfos = nil
-						}
-					}
 					// Pop block.
 					stack = stack[:len(stack)-1]
 					last = stack[len(stack)-1]
@@ -2096,9 +2088,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
-				// TODO make note of constance in static block for
-				// future use, or consider "const paths".  set as
-				// preprocessed.
+			// TODO make note of constance in static block for
+			// future use, or consider "const paths".  set as
+			// preprocessed.
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
@@ -2153,6 +2145,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Replace the type with *constTypeExpr{},
 				// otherwise methods would be un at runtime.
 				n.Type = constType(n.Type, dst)
+
+				// TRANS_LEAVE -----------------------
+			case *FileNode:
+				if len(loopInfos) != 0 {
+					reProcess(store, last, loopInfos)
+					loopInfos = nil
+				}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------

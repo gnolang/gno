@@ -663,7 +663,6 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			debug.Println("---exec goto")
 			for i := uint8(0); i < cs.Depth; i++ {
 				m.PopBlock()
 			}
@@ -770,9 +769,6 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		debug.Println("---op_exec, blockStmt")
-		debug.Println("---cs.Source: ", cs.Source)
-		debug.Println("---cs blockNames: ", cs.GetBlockNames())
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 		m.PushOp(OpPopBlock)
