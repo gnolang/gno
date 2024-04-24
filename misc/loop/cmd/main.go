@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/peterbourgon/ff/v3"
 )
 
 type service struct {
@@ -22,6 +23,9 @@ func main() {
 			Name:       "portalloopd",
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Portalloop commands interactions",
+			Options: []ff.Option{
+				ff.WithEnvVars(),
+			},
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
