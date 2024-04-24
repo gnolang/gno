@@ -4,6 +4,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -208,6 +209,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	store := vm.getGnoStore(ctx)
+
 	// Get the package and function type.
 	pv := store.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
@@ -217,16 +219,34 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
-	// Parse expression.
+
+	if len(msg.Args) != len(ft.Params) {
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d",
+			fnc, len(ft.Params), len(msg.Args)))
+	}
+
+	request := make([]gno.TypedValue, len(ft.Params))
+	for i, arg := range msg.Args {
+		pt := ft.Params[i].Type
+		arg = strings.TrimSpace(arg)
+
+		if request[i], err = convertArgToGno(store, arg, pt); err != nil {
+			panic(fmt.Sprintf("unable to convert arg[%d] to gno type: %s", i, err))
+		}
+	}
+
+	// Create expresion
 	argslist := ""
-	for i := range msg.Args {
+	for i := range ft.Params {
 		if i > 0 {
 			argslist += ","
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
+
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
+
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	caller := msg.Caller
@@ -235,21 +255,19 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+
 	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if len(msg.Args) != len(ft.Params) {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
-	}
-	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
-		atv := convertArgToGno(arg, argType)
+
+	for i, arg := range request {
 		cx.Args[i] = &gno.ConstExpr{
-			TypedValue: atv,
+			TypedValue: arg,
 		}
 	}
+
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
@@ -274,6 +292,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Alloc:     store.GetAllocator(),
 			MaxCycles: vm.maxCycles,
 		})
+
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
@@ -283,16 +302,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		m.Release()
 	}()
-	rtvs := m.Eval(xn)
 
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
+	rtvs := m.Eval(xn)
+	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
+
+	// Marshal return values to json
+	rawRtvs, err := marshalReturnValuesJSON(rtvs)
+	if err != nil {
+		return "", fmt.Errorf("unable to process return values: %w", err)
 	}
-	return res, nil
+
 	// TODO pay for gas? TODO see context?
+	return rawRtvs, nil
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
@@ -481,15 +502,17 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		}
 		m.Release()
 	}()
+
 	rtvs := m.Eval(xx)
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
+
+	// Marshal return values to json
+	rawRtvs, err := marshalReturnValuesJSON(rtvs)
+	if err != nil {
+		return "", fmt.Errorf("unable to precess return values: %w", err)
 	}
-	return res, nil
+
+	// TODO pay for gas? TODO see context?
+	return rawRtvs, nil
 }
 
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
@@ -570,4 +593,22 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+func marshalReturnValuesJSON(rtvs []gno.TypedValue) (string, error) {
+	var err error
+	ret := make([]json.RawMessage, len(rtvs))
+	for i := 0; i < len(rtvs); i++ {
+		rtv := rtvs[i]
+		if ret[i], err = MarshalTypedValueJSON(&rtv); err != nil {
+			return "", fmt.Errorf("unable to marshal return value[%d]: %w", i, err)
+		}
+	}
+
+	rawRes, err := json.Marshal(ret)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal return values: %w", err)
+	}
+
+	return string(rawRes), nil
 }

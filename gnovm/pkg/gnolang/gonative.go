@@ -1180,6 +1180,16 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			if ftv.IsUndefined() {
 				continue
 			}
+
+			// Skip unexported fields.
+			// NOTE: Reflect package would panic when attempting to
+			// set a value on an unexported field. To prevent this
+			// panic, we intentionally skip these fields during
+			// transformation between Gno and Go values.
+			if !rt.Field(i).IsExported() {
+				continue
+			}
+
 			gno2GoValue(ftv, rv.Field(i))
 		}
 	case *MapType:

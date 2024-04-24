@@ -3,12 +3,14 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -94,7 +96,13 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`, res)
+
+	var evalRes []string
+	err = json.Unmarshal([]byte(res), &evalRes)
+	require.NoError(t, err)
+	require.Len(t, evalRes, 1)
+
+	assert.Equal(t, `["echo:hello world"]`, res)
 	// t.Log("result:", res)
 }
 
@@ -237,7 +245,8 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`, res)
+
+	assert.Equal(t, `["echo:hello world"]`, res)
 }
 
 // Sending too much realm package coins fails.
@@ -333,7 +342,7 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf(`["%s"]`, addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, addrString, res)
 }
@@ -394,6 +403,60 @@ func main() {
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
 	assert.Equal(t, expectedString, res)
+}
+
+// Sending realm package coins succeeds.
+func TestVMKeeperQueryEvalResult(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+import "strings"
+
+type Infos struct {
+  LinesCount  int
+  Lines       []string
+}
+
+func ReadMe(msg string) *Infos {
+        msgs := strings.Split(msg, "\n")
+	return &Infos{LinesCount: len(msgs), Lines: msgs}
+}`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	input := []string{"hello", "gno", "land"}
+	expr := fmt.Sprintf("ReadMe(%q)", strings.Join(input, "\n"))
+	res, err := env.vmk.QueryEval(ctx, "gno.land/r/test", expr)
+	require.NoError(t, err)
+
+	info := struct {
+		Lines      []string
+		LinesCount int
+	}{}
+	infos := []any{&info}
+
+	fmt.Println(res)
+	err = json.Unmarshal([]byte(res), &infos)
+	require.NoError(t, err)
+	require.Len(t, infos, 1)
+
+	assert.EqualValues(t, info.Lines, input)
+	assert.Equal(t, info.LinesCount, len(input))
 }
 
 func TestNumberOfArgsError(t *testing.T) {

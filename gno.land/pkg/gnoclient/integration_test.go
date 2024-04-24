@@ -1,6 +1,8 @@
 package gnoclient
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -52,12 +54,13 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
 
-	expected := "(\"hi test argument\" string)"
-	got := string(res.DeliverTx.Data)
-
-	assert.Nil(t, err)
-	assert.Equal(t, expected, got)
+	var ret []string
+	err = json.Unmarshal(res.DeliverTx.Data, &ret)
+	require.NoError(t, err)
+	require.Len(t, ret, 1)
+	assert.Equal(t, "hi test argument", ret[0])
 }
 
 func TestCallMultiple_Integration(t *testing.T) {
@@ -101,14 +104,21 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Send:     "",
 	}
 
-	expected := "(\"it works!\" string)(\"hi test argument\" string)"
-
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
 
-	got := string(res.DeliverTx.Data)
-	assert.Nil(t, err)
-	assert.Equal(t, expected, got)
+	datas := bytes.Split(res.DeliverTx.Data, []byte("\n"))
+	require.Len(t, datas, 2)
+	res1, res2 := datas[0], datas[1]
+
+	var ret []string
+	err = json.Unmarshal(res1, &ret)
+	require.NoError(t, err)
+	assert.Equal(t, "it works!", ret[0])
+
+	err = json.Unmarshal(res2, &ret)
+	require.NoError(t, err)
+	assert.Equal(t, "hi test argument", ret[0])
 }
 
 func TestSendSingle_Integration(t *testing.T) {
@@ -202,7 +212,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	// Execute send
 	res, err := client.Send(baseCfg, msg1, msg2)
 	assert.Nil(t, err)
-	assert.Equal(t, "", string(res.DeliverTx.Data))
+	assert.Equal(t, "\n", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
@@ -345,7 +355,7 @@ func main() {
 		Send: "",
 	}
 
-	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
+	expected := "- before: 0\n- after: 10\n\nhi gnoclient!\n"
 
 	res, err := client.Run(baseCfg, msg1, msg2)
 	assert.NoError(t, err)

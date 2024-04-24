@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
@@ -626,7 +627,7 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Result) {
 	msgLogs := make([]string, 0, len(msgs))
 
-	data := make([]byte, 0, len(msgs))
+	data := make([][]byte, 0, len(msgs))
 	err := error(nil)
 	events := []Event{}
 
@@ -649,9 +650,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 			msgResult = handler.Process(ctx, msg)
 		}
 
-		// Each message result's Data must be length prefixed in order to separate
-		// each result.
-		data = append(data, msgResult.Data...)
+		data = append(data, msgResult.Data)
 		events = append(events, msgResult.Events...)
 		// TODO append msgevent from ctx. XXX XXX
 
@@ -670,7 +669,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	}
 
 	result.Error = ABCIError(err)
-	result.Data = data
+	result.Data = bytes.Join(data, []byte("\n"))
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	result.Events = events
