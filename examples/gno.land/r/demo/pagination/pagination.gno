@@ -94,7 +94,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	fetchedSignups := GetSignedUpInRange(page, pageSize)
-	if totalSignups == 0 {
+	if len(fetchedSignups) == 0 {
 		res.Write("No users on this page\n\n")
 	}
 
