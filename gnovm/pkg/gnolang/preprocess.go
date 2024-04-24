@@ -858,7 +858,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							ln.LoopVars = lvs
 						}
 
-						lastFn := findLastFn(n)
 						// loopInfo
 						loop := &LoopInfo{}
 						// maybe initialized by other cases, or not
@@ -866,7 +865,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							loopInfos = make(map[Name][]*LoopInfo)
 						}
 
-						loopInfos[lastFn.Name] = append(loopInfos[lastFn.Name], loop)
+						lastFn := findLastFn(n)
+						loopInfos[lastFn] = append(loopInfos[lastFn], loop)
 					}
 				}
 				return n, TRANS_CONTINUE
@@ -1797,28 +1797,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 					if !reProcessing {
 						gotoLine := n.GetLine()
-
 						if labelLine < gotoLine {
-							for i := len(closureStack) - 1; i >= 0; i-- {
+							for i := len(closureStack) - 1; i >= 0; i-- { // outermost one
 								if fx, ok := closureStack[i].(*FuncLitExpr); ok {
 									if labelLine < fx.GetLine() && fx.GetLine() < gotoLine {
 										// mutate body when this node end transcribed
 										loop := &LoopInfo{
-											labelLine: labelLine,
-											gotoLine:  gotoLine,
-											label:     n.Label,
-											index:     n.BodyIndex,
+											labelLine:  labelLine,
+											gotoLine:   gotoLine,
+											label:      n.Label,
+											isGotoLoop: true,
 										}
 
-										lastFn := findLastFn(last)
-
-										loop.isGotoLoop = true
 										// nodes in one funcDecl
 										if loopInfos == nil {
 											loopInfos = make(map[Name][]*LoopInfo)
 										}
 
-										loopInfos[lastFn.Name] = append(loopInfos[lastFn.Name], loop)
+										lastFn := findLastFn(last)
+										loopInfos[lastFn] = append(loopInfos[lastFn], loop)
 										break
 									}
 								}
@@ -2439,16 +2436,16 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findLastFn(last BlockNode) (fd *FuncDecl) {
+func findLastFn(last BlockNode) Name {
 	for last != nil {
 		switch n := last.(type) {
 		case *FuncDecl:
-			return n
+			return n.Name
 		default:
 			last = last.GetParentNode(nil)
 		}
 	}
-	return nil
+	panic("should not happen")
 }
 
 func findGotoLabel(last BlockNode, label Name) (
@@ -3895,26 +3892,26 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	}()
 
 	var (
-		loops     []*LoopInfo // per funcDecl
-		currentFn Name
+		loops    []*LoopInfo // per funcDecl
+		targetFn Name        // outer function that contains the loop node
 	)
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
-		case TRANS_ENTER:
+		case TRANS_ENTER: // find target goto loop, and rebuild body
 			switch cn := n.(type) {
 			case *FuncDecl:
 				for name, lfs := range loopInfos {
 					if cn.Name == name {
 						loops = lfs
-						currentFn = name
+						targetFn = name
 					} else {
 						continue
 					}
 				}
 				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
-			case *BlockStmt:
+			case *BlockStmt: // target goto loop may be embedded in multi kind of block
 				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
 			case *FuncLitExpr:
@@ -3938,10 +3935,13 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		case TRANS_LEAVE:
 			switch cn := n.(type) {
 			case *FuncDecl: // all reProcess happens in the root funcDecl
-				if cn.Name == currentFn {
+				if cn.Name == targetFn {
 					cn = doReProcess(store, bn, cn).(*FuncDecl)
 				}
-				// TODO: check termination condition and exit
+				delete(loopInfos, targetFn)
+				if len(loopInfos) == 0 {
+					return cn, TRANS_EXIT
+				}
 				return cn, TRANS_CONTINUE
 			default:
 				return cn, TRANS_CONTINUE
