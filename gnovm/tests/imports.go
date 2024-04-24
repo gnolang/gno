@@ -255,7 +255,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
 				pkg.DefineGoNativeValue("MaxUint32", math.MaxUint32)
-				pkg.DefineGoNativeValue("MaxUint64", math.MaxUint64)
+				pkg.DefineGoNativeValue("MaxUint64", uint64(math.MaxUint64))
 				pkg.DefineGoNativeValue("MinInt8", math.MinInt8)
 				pkg.DefineGoNativeValue("MinInt16", math.MinInt16)
 				pkg.DefineGoNativeValue("MinInt32", math.MinInt32)
