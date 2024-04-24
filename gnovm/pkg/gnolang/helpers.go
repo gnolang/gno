@@ -801,6 +801,18 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 	}
 }
 
+func InjectStmts(lvs *CapturedLoopVariables) []Stmt {
+	stmts := []Stmt{}
+	for _, lv := range lvs.loopVars {
+		lhs := Nx(lv)
+		rhs := Nx(lv)
+		as := A(lhs, ":=", rhs)
+		debug.Printf("as: %v \n", as)
+		stmts = append(stmts, as)
+	}
+	return stmts
+}
+
 // ----------------------------------------
 // chop functions
 

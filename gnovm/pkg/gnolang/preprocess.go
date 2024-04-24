@@ -14,7 +14,7 @@ import (
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn, -1) // TODO: fix this
+		SetNodeLocations(pn.PkgPath, string(fn.Name), fn) // TODO: fix this
 		fn.InitStaticBlock(fn, pn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -100,7 +100,6 @@ type LoopInfo struct {
 	label      Name
 	index      int
 	sealed     bool // new body built, avoiding reenter {{{...}}}
-	fn         *FuncDecl
 }
 
 var loopInfos map[Name][]*LoopInfo
@@ -148,7 +147,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn, -1)
+		SetNodeLocations(pkgPath, fileName, fn)
 	}
 
 	var closureStack []BlockNode = make([]BlockNode, 0, 32)
@@ -642,7 +641,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BlockNode:
 					if len(loopInfos) != 0 { // goto loop exist, transform new body
 						if _, ok := n.(*FileNode); ok { // TODO: consider this
-							transform(store, last, loopInfos)
+							reProcess(store, last, loopInfos)
 							loopInfos = nil
 						}
 					}
@@ -861,9 +860,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 						lastFn := findLastFn(n)
 						// loopInfo
-						loop := &LoopInfo{
-							fn: lastFn,
-						}
+						loop := &LoopInfo{}
 						// maybe initialized by other cases, or not
 						if loopInfos == nil {
 							loopInfos = make(map[Name][]*LoopInfo)
@@ -1815,7 +1812,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 										lastFn := findLastFn(last)
 
-										loop.fn = lastFn
 										loop.isGotoLoop = true
 										// nodes in one funcDecl
 										if loopInfos == nil {
@@ -1854,19 +1850,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					lvs := n.LoopVars
 					if lvs != nil {
 						debug.Println("---trans_leave, lvs: ", lvs)
-						stmts := []Stmt{}
 						// step2. inject i := 1 for loop extern
-						if lvs.loopVars != nil {
-							for _, lv := range lvs.loopVars {
-								lhs := Nx(lv)
-								rhs := Nx(lv)
-								as := A(lhs, ":=", rhs)
-								debug.Printf("as: %v \n", as)
-								stmts = append([]Stmt{as}, n.Body...)
-							}
-						} else {
-							stmts = n.Body
-						}
+						stmts := []Stmt{}
+						stmts = append(InjectStmts(lvs), n.Body...)
 						// wrap body with {}
 						nn := BlockS(stmts)
 						// set loc and line
@@ -1896,28 +1882,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					lvs := n.LoopVars
 					if lvs != nil {
 						debug.Println("---trans_leave, clo: ", lvs)
-						body := []Stmt{}
-						injectStmt := []Stmt{}
-						if lvs.loopVars != nil {
-							for _, lv := range lvs.loopVars {
-								// step2. inject i := 1 for loop extern
-								lhs := Nx(lv)
-								rhs := Nx(lv)
-								as := A(lhs, ":=", rhs)
-								debug.Printf("as: %v \n", as)
-								injectStmt = append(injectStmt, as)
-							}
-							body = append(injectStmt, n.Body...)
-						} else {
-							body = n.Body
-						}
+						stmts := []Stmt{}
+						stmts = append(InjectStmts(lvs), n.Body...)
 						// wrap body with {}
-						nn := BlockS(body)
+						nn := BlockS(stmts)
 						// set loc and line
 						loc := n.GetLocation()
-						loc.Line = body[0].GetLine()
+						loc.Line = stmts[0].GetLine()
 						nn.SetLocation(loc)
-						nn.SetLine(body[0].GetLine())
+						nn.SetLine(stmts[0].GetLine())
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
 						debug.Println("---n final: ", n)
@@ -3860,7 +3833,6 @@ func resetStaticBlock(bn BlockNode) {
 // wrap goto loop into block stmt
 func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 	debug.Println("---rebuildBody, body: ", b)
-	debug.Println("---rebuildBody, loc: ", loc.PkgPath, loc.File, loc.Line, loc.Nonce)
 	preBody := []Stmt{}
 	loopBody := []Stmt{}
 	postBody := []Stmt{}
@@ -3883,14 +3855,10 @@ func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 	nn := BlockS(loopBody)
 	nn.SetLabel(gloop.label)
 
-	loc.Line = loopBody[0].GetLine()
-
-	debug.Println("---new loc: ", loc.PkgPath, loc.File, loc.Line, loc.Nonce)
-	nn.SetLocation(loc)
-	//SetNodeLocations(loc.PkgPath, loc.File, nn, loopBody[0].GetLine())
+	nLoc := loc
+	nLoc.Line = loopBody[0].GetLine()
+	nn.SetLocation(nLoc)
 	nn.SetLine(loopBody[0].GetLine())
-	debug.Println("---wrapped loop Body: ", nn)
-	debug.Println("---wrapped loop Body attr: ", nn.Attributes)
 
 	nBody := append(preBody, nn)
 	nBody = append(nBody, postBody...)
@@ -3898,15 +3866,16 @@ func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 	return nBody
 }
 
+// this is only for loop formed by goto...
 func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 	for _, loop := range loops {
 		if loop.isGotoLoop { // for/range has built new body in trans_leave
 			// find labeled stmt
 			lblstmt, idx := body.GetLabeledStmt(loop.label)
 			if lblstmt == nil {
-				continue // drain
+				continue
 			} else {
-				// clear origin label, set this label on blockStmt in future
+				// clear origin label, set this label on blockStmt later
 				body[idx].SetLabel("")
 				nBody := rebuildBody(body, loop, loc)
 				body = nBody
@@ -3918,31 +3887,30 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 
 // traverse from root node, find goto loop and its parent block, wrap body and re-process,
 // to rebuild value path.
-func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
-	debug.Println("---transform")
+func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
+	debug.Println("---reProcess")
 	reProcessing = true
 	defer func() {
 		reProcessing = false
 	}()
 
-	var loops []*LoopInfo // per funcDecl
-	var currentFn Name
+	var (
+		loops     []*LoopInfo // per funcDecl
+		currentFn Name
+	)
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			switch cn := n.(type) {
 			case *FuncDecl:
-				for name, lfs := range loopInfos { // loop map
+				for name, lfs := range loopInfos {
 					if cn.Name == name {
 						loops = lfs
 						currentFn = name
 					} else {
 						continue
 					}
-				}
-				if currentFn == "" {
-					return cn, TRANS_CONTINUE // no match func
 				}
 				cn.Body = checkAndRebuildBody(cn.GetBody(), loops, cn.GetLocation())
 				return cn, TRANS_CONTINUE
@@ -3971,7 +3939,7 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 			switch cn := n.(type) {
 			case *FuncDecl: // all reProcess happens in the root funcDecl
 				if cn.Name == currentFn {
-					cn = reProcess(store, bn, cn).(*FuncDecl)
+					cn = doReProcess(store, bn, cn).(*FuncDecl)
 				}
 				// TODO: check termination condition and exit
 				return cn, TRANS_CONTINUE
@@ -3987,7 +3955,7 @@ func transform(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	return
 }
 
-func reProcess(store Store, last BlockNode, bn BlockNode) Node {
+func doReProcess(store Store, last BlockNode, bn BlockNode) Node {
 	resetStaticBlock(bn)
 	debug.Println("---node after reset is: ", bn)
 	nn := Preprocess(store, last, bn)
@@ -4001,10 +3969,7 @@ func reProcess(store Store, last BlockNode, bn BlockNode) Node {
 // Iterate over all block nodes recursively and sets location information
 // based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-// TODO: fix this
-func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
-	debug.Printf("---SetNodeLocations: %v \n", n)
-
+func SetNodeLocations(pkgPath string, fileName string, n Node) {
 	if n.GetAttribute(ATTR_LOCATIONED) == true {
 		return // locations already set (typically n is a filenode).
 	}
@@ -4026,17 +3991,12 @@ func SetNodeLocations(pkgPath string, fileName string, n Node, theLine int) {
 				lastLine = line
 				nextNonce = 0
 			}
-			if theLine != -1 {
-				line = theLine
-			}
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
 				Line:    line,
 				Nonce:   nextNonce,
 			}
-			debug.Printf("---loc line: %d, nonce: %d \n", line, loc.Nonce)
-			debug.Printf("---loc: %v \n", loc)
 			bn.SetLocation(loc)
 		}
 		return n, TRANS_CONTINUE
