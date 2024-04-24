@@ -4,7 +4,7 @@ package std
 // It then forwards this event to the event logger. Each emitted event carries metadata
 // such as the event type, the initializing realm, and the provided attributes.
 //
-// The function takes type and attribute strings. typ (or type) is a string that represents
+// The function takes type and attribute strings. typ (or type) is an arbitrary string that represents
 // the type of the event. It plays a role of indexing what kind of event occurred. For example,
 // a name like "Foo" or "Bar" can be used to indicating the purpose (nature) of the event.
 //
