@@ -281,14 +281,6 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		m.savePackageValuesAndTypes()
 	}
 
-	// Run init functions.
-	for _, f := range initFuncs {
-		fb := m.Package.GetFileBlock(m.Store, f.fileName)
-		m.PushBlock(fb)
-		m.RunFunc(f.funcName)
-		m.PopBlock()
-	}
-
 	// Finish saving the package state.
 	if save {
 		m.savePackageValues()
