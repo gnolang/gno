@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"io"
 	"net"
@@ -14,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // DebugState is the state of the machine debugger, defined by a finite state
@@ -168,9 +168,14 @@ func debugCmd(m *Machine) error {
 	if !m.Debugger.scanner.Scan() {
 		return debugDetach(m, arg) // Clean close of debugger, the target program resumes.
 	}
-	line := m.Debugger.scanner.Text()
-	n, _ := fmt.Sscan(line, &cmd, &arg)
-	if n == 0 {
+	line := trimLeftSpace(m.Debugger.scanner.Text())
+	if i := indexSpace(line); i >= 0 {
+		cmd = line[:i]
+		arg = trimLeftSpace(line[i:])
+	} else {
+		cmd = line
+	}
+	if cmd == "" {
 		if m.Debugger.lastCmd == "" {
 			return nil
 		}
@@ -185,6 +190,9 @@ func debugCmd(m *Machine) error {
 	m.Debugger.lastCmd, m.Debugger.lastArg = cmd, arg
 	return c.debugFunc(m, arg)
 }
+
+func trimLeftSpace(s string) string { return strings.TrimLeftFunc(s, unicode.IsSpace) }
+func indexSpace(s string) int       { return strings.IndexFunc(s, unicode.IsSpace) }
 
 // initDebugIO initializes the debugger standard input and output streams.
 // If no debug address was specified at program start, the debugger will inherit its
@@ -268,8 +276,13 @@ func debugBreak(m *Machine, arg string) error {
 		return err
 	}
 	m.breakpoints = append(m.breakpoints, loc)
-	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", len(m.breakpoints)-1, loc.PkgPath, loc.File, loc.Line)
+	printBreakpoint(m, len(m.breakpoints)-1)
 	return nil
+}
+
+func printBreakpoint(m *Machine, i int) {
+	b := m.Debugger.breakpoints[i]
+	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
 }
 
 func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
@@ -314,8 +327,8 @@ const (
 )
 
 func debugBreakpoints(m *Machine, arg string) error {
-	for i, b := range m.breakpoints {
-		fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
+	for i := range m.breakpoints {
+		printBreakpoint(m, i)
 	}
 	return nil
 }
@@ -356,8 +369,8 @@ const (
 )
 
 func debugContinue(m *Machine, arg string) error {
-	m.state = DebugAtRun
-	m.frameLevel = 0
+	m.Debugger.tate = DebugAtRun
+	m.Debugger.rameLevel = 0
 	return nil
 }
 
@@ -389,8 +402,8 @@ func debugDown(m *Machine, arg string) (err error) {
 			return err
 		}
 	}
-	if level := m.frameLevel - n; level >= 0 && level < len(m.Debugger.call) {
-		m.frameLevel = level
+	if level := m.Debugger.rameLevel - n; level >= 0 && level < len(m.Debugger.call) {
+		m.Debugger.rameLevel = level
 	}
 	debugList(m, "")
 	return nil
@@ -450,8 +463,8 @@ func debugList(m *Machine, arg string) (err error) {
 	if arg == "" {
 		debugLineInfo(m)
 		if m.Debugger.lastCmd == "up" || m.Debugger.lastCmd == "down" {
-			loc = debugFrameLoc(m, m.frameLevel)
-			fmt.Fprintf(m.Debugger.out, "Frame %d: %s:%d\n", m.frameLevel, loc.File, loc.Line)
+			loc = debugFrameLoc(m, m.Debugger.frameLevel)
+			fmt.Fprintf(m.Debugger.out, "Frame %d: %s:%d\n", m.Debugger.frameLevel, loc.File, loc.Line)
 		}
 	} else {
 		if loc, err = parseLocSpec(m, arg); err != nil {
@@ -512,16 +525,29 @@ func debugPrint(m *Machine, arg string) (err error) {
 	if arg == "" {
 		return errors.New("missing argument")
 	}
-	// Use the Go parser to get the AST representation of print argument as a Go expresssion.
-	ast, err := parser.ParseExpr(arg)
+	// /*
+	expr, err := ParseExpr(arg)
 	if err != nil {
 		return err
 	}
-	tv, err := debugEvalExpr(m, ast)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(m.Debugger.out, tv)
+	m.Debugger.enabled = false
+	defer func() { m.Debugger.enabled = true }()
+
+	res := m.Eval(expr)
+	fmt.Fprintln(m.Debugger.out, res[0])
+	// */
+	/*
+		// Use the Go parser to get the AST representation of print argument as a Go expresssion.
+		ast, err := parser.ParseExpr(arg)
+		if err != nil {
+			return err
+		}
+		tv, err := debugEvalExpr(m, ast)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(m.Debugger.out, tv)
+	*/
 	return nil
 }
 
@@ -543,9 +569,17 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			}
 			return typedInt(int(i)), nil
 		case token.CHAR:
-			return typedRune(([]rune(n.Value))[0]), nil
+			r, _, _, err := strconv.UnquoteChar(n.Value[1:len(n.Value)-1], 0)
+			if err != nil {
+				return tv, err
+			}
+			return typedRune(r), nil
 		case token.STRING:
-			return typedString(n.Value), nil
+			s, err := strconv.Unquote(n.Value)
+			if err != nil {
+				return tv, err
+			}
+			return typedString(s), nil
 		}
 		return tv, fmt.Errorf("invalid basic literal value: %s", n.Value)
 	case *ast.Ident:
@@ -608,7 +642,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		if m.Frames[i].Func != nil {
 			funBlock = m.Frames[i].Func.Source
 		}
-		if ncall == m.frameLevel {
+		if ncall == m.Debugger.frameLevel {
 			break
 		}
 		if m.Frames[i].Func != nil {
@@ -716,8 +750,8 @@ func debugUp(m *Machine, arg string) (err error) {
 			return err
 		}
 	}
-	if level := m.frameLevel + n; level >= 0 && level < len(m.Debugger.call) {
-		m.frameLevel = level
+	if level := m.Debugger.frameLevel + n; level >= 0 && level < len(m.Debugger.call) {
+		m.Debugger.rameLevel = level
 	}
 	debugList(m, "")
 	return nil
