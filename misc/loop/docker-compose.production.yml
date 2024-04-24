@@ -119,7 +119,6 @@ services:
 
   autocounterd:
     image: ghcr.io/gnolang/gno/autocounterd
-    image: ghcr.io/albttx/gno/autocounterd
     restart: unless-stopped
     env_file: ".env"
     command:
