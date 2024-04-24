@@ -19,5 +19,5 @@ type ExecContext struct {
 	OrigSendSpent *std.Coins // mutable
 	Banker        BankerInterface
 	EventLogger   *sdk.EventLogger
-	EventString   abci.EventString
+	EmittedEvents   abci.EventString
 }
