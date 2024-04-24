@@ -2,9 +2,10 @@ version: "3"
 
 services:
   docusaurus:
-    image: ghcr.io/gnolang/docs.gno.land:latest-dev
+    image: ghcr.io/gnolang/docs.gno.land:dev
     volumes:
-      - .:/app/docusaurus/docs
+      - .:/app/docs
+      - ./sidebars.js:/app/docusaurus/sidebar.js
     ports:
       - 3000:3000
     environment:
@@ -25,4 +26,3 @@ services:
       - 7700:7700
     #volumes:
     #  - ./data.ms:/data.ms
-
