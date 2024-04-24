@@ -19,6 +19,7 @@
 
 # Gno examples and default contracts.
 /examples/                            @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/p/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/p/demo/avl/        @jaekwon
 /examples/gno.land/p/demo/bf/         @moul
 /examples/gno.land/p/demo/blog/       @gnolang/devrels
@@ -26,6 +27,7 @@
 /examples/gno.land/p/demo/memeland/   @leohhhn
 /examples/gno.land/p/demo/seqid/      @thehowl
 # TODO
+/examples/gno.land/r/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/r/demo/art         @moul
 /examples/gno.land/r/gnoland/         @moul
 /examples/gno.land/r/system/          @moul

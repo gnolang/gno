@@ -3,6 +3,8 @@ package gnoclient
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -349,6 +351,179 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+}
+
+func TestAddPackageSingle_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	body := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	fileName := "echo.gno"
+	deploymentPath := "gno.land/p/demo/integration/test/echo"
+	deposit := "100ugnot"
+
+	// Make Msg config
+	msg := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath,
+			Files: []*std.MemFile{
+				{
+					Name: fileName,
+					Body: body,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err := client.AddPackage(baseCfg, msg)
+	assert.Nil(t, err)
+
+	// Check for deployed file on the node
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), fileName)
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+}
+
+func TestAddPackageMultiple_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	deposit := "100ugnot"
+	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
+
+	body1 := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	deploymentPath2 := "gno.land/p/demo/integration/test/hello"
+	body2 := `package hello
+
+func Hello(str string) string {
+	return "Hello " + str + "!" 
+}`
+
+	msg1 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath1,
+			Files: []*std.MemFile{
+				{
+					Name: "echo.gno",
+					Body: body1,
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	msg2 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: deploymentPath2,
+			Files: []*std.MemFile{
+				{
+					Name: "gno.mod",
+					Body: "module gno.land/p/demo/integration/test/hello",
+				},
+				{
+					Name: "hello.gno",
+					Body: body2,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err := client.AddPackage(baseCfg, msg1, msg2)
+	assert.Nil(t, err)
+
+	// Check Package #1
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), "")
+
+	// Check Package #2
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
+
+	// Query balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 }
 
 // todo add more integration tests:

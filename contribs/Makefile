@@ -25,10 +25,11 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnomd install.gnodev
+install: install.gnomd install.gnodev install.gnofaucet
 
 install.gnomd:;  cd gnomd && go install .
 install.gnodev:; $(MAKE) -C ./gnodev install
+install.gnofaucet:; $(MAKE) -C ./gnofaucet install
 
 .PHONY: clean
 clean:

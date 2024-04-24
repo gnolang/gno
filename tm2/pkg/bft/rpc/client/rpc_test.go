@@ -14,7 +14,6 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client"
 	rpctest "github.com/gnolang/gno/tm2/pkg/bft/rpc/test"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 func getHTTPClient() *client.HTTP {
@@ -366,130 +365,62 @@ func TestNumUnconfirmedTxs(t *testing.T) {
 	mempool.Flush()
 }
 
-/*
 func TestTx(t *testing.T) {
-	t.Parallel()
-
-	// first we broadcast a tx
+	// Prepare the transaction
+	// by broadcasting it to the chain
 	c := getHTTPClient()
 	_, _, tx := MakeTxKV()
-	bres, err := c.BroadcastTxCommit(tx)
-	require.Nil(t, err, "%+v", err)
 
-	txHeight := bres.Height
-	txHash := bres.Hash
+	response, err := c.BroadcastTxCommit(tx)
+	require.NoError(t, err)
+	require.NotNil(t, response)
 
-	anotherTxHash := types.Tx("a different tx").Hash()
+	var (
+		txHeight = response.Height
+		txHash   = response.Hash
+	)
 
 	cases := []struct {
+		name  string
 		valid bool
 		hash  []byte
-		prove bool
 	}{
-		// only valid if correct hash provided
-		{true, txHash, false},
-		{true, txHash, true},
-		{false, anotherTxHash, false},
-		{false, anotherTxHash, true},
-		{false, nil, false},
-		{false, nil, true},
+		{
+			"tx result found",
+			true,
+			txHash,
+		},
+		{
+			"tx result not found",
+			false,
+			types.Tx("a different tx").Hash(),
+		},
 	}
 
-	for i, c := range GetClients() {
-		for j, tc := range cases {
-			t.Logf("client %d, case %d", i, j)
+	for _, c := range GetClients() {
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				// now we query for the tx.
+				// since there's only one tx, we know index=0.
+				ptx, err := c.Tx(tc.hash)
 
-			// now we query for the tx.
-			// since there's only one tx, we know index=0.
-			ptx, err := c.Tx(tc.hash, tc.prove)
+				if !tc.valid {
+					require.Error(t, err)
 
-			if !tc.valid {
-				require.NotNil(t, err)
-			} else {
-				require.Nil(t, err, "%+v", err)
+					return
+				}
+
+				require.NoError(t, err)
+
 				assert.EqualValues(t, txHeight, ptx.Height)
 				assert.EqualValues(t, tx, ptx.Tx)
 				assert.Zero(t, ptx.Index)
 				assert.True(t, ptx.TxResult.IsOK())
 				assert.EqualValues(t, txHash, ptx.Hash)
-
-				// time to verify the proof
-				proof := ptx.Proof
-				if tc.prove && assert.EqualValues(t, tx, proof.Data) {
-					assert.NoError(t, proof.Proof.Verify(proof.RootHash, txHash))
-				}
-			}
+			})
 		}
 	}
 }
-
-func TestTxSearch(t *testing.T) {
-	t.Parallel()
-
-	// first we broadcast a tx
-	c := getHTTPClient()
-	_, _, tx := MakeTxKV()
-	bres, err := c.BroadcastTxCommit(tx)
-	require.Nil(t, err, "%+v", err)
-
-	txHeight := bres.Height
-	txHash := bres.Hash
-
-	anotherTxHash := types.Tx("a different tx").Hash()
-
-	for i, c := range GetClients() {
-		t.Logf("client %d", i)
-
-		// now we query for the tx.
-		// since there's only one tx, we know index=0.
-		result, err := c.TxSearch(fmt.Sprintf("tx.hash='%v'", txHash), true, 1, 30)
-		require.Nil(t, err, "%+v", err)
-		require.Len(t, result.Txs, 1)
-
-		ptx := result.Txs[0]
-		assert.EqualValues(t, txHeight, ptx.Height)
-		assert.EqualValues(t, tx, ptx.Tx)
-		assert.Zero(t, ptx.Index)
-		assert.True(t, ptx.TxResult.IsOK())
-		assert.EqualValues(t, txHash, ptx.Hash)
-
-		// time to verify the proof
-		proof := ptx.Proof
-		if assert.EqualValues(t, tx, proof.Data) {
-			assert.NoError(t, proof.Proof.Verify(proof.RootHash, txHash))
-		}
-
-		// query by height
-		result, err = c.TxSearch(fmt.Sprintf("tx.height=%d", txHeight), true, 1, 30)
-		require.Nil(t, err, "%+v", err)
-		require.Len(t, result.Txs, 1)
-
-		// query for non existing tx
-		result, err = c.TxSearch(fmt.Sprintf("tx.hash='%X'", anotherTxHash), false, 1, 30)
-		require.Nil(t, err, "%+v", err)
-		require.Len(t, result.Txs, 0)
-
-		// query using a tag (see kvstore application)
-		result, err = c.TxSearch("app.creator='Cosmoshi Netowoko'", false, 1, 30)
-		require.Nil(t, err, "%+v", err)
-		if len(result.Txs) == 0 {
-			t.Fatal("expected a lot of transactions")
-		}
-
-		// query using a tag (see kvstore application) and height
-		result, err = c.TxSearch("app.creator='Cosmoshi Netowoko' AND tx.height<10000", true, 1, 30)
-		require.Nil(t, err, "%+v", err)
-		if len(result.Txs) == 0 {
-			t.Fatal("expected a lot of transactions")
-		}
-
-		// query a non existing tx with page 1 and txsPerPage 1
-		result, err = c.TxSearch("app.creator='Cosmoshi Neetowoko'", true, 1, 1)
-		require.Nil(t, err, "%+v", err)
-		require.Len(t, result.Txs, 0)
-	}
-}
-*/
 
 func TestBatchedJSONRPCCalls(t *testing.T) {
 	c := getHTTPClient()
@@ -519,7 +450,7 @@ func testBatchedJSONRPCCalls(t *testing.T, c *client.HTTP) {
 	bresult2, ok := bresults[1].(*ctypes.ResultBroadcastTxCommit)
 	require.True(t, ok)
 	require.Equal(t, *bresult2, *r2)
-	apph := maths.MaxInt64(bresult1.Height, bresult2.Height) + 1
+	apph := max(bresult1.Height, bresult2.Height) + 1
 
 	client.WaitForHeight(c, apph, nil)
 

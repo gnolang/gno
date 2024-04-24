@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,8 +25,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
 )
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
 	gnoRootDir            string
@@ -134,14 +144,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)
@@ -199,6 +209,12 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg        *config.Config
 		loadCfgErr error
 	)
+
+	// Attempt to initialize telemetry. If the environment variables required to initialize
+	// telemetry are not set, then the initialization will do nothing.
+	if err := initTelemetry(); err != nil {
+		return fmt.Errorf("error initializing telemetry: %w", err)
+	}
 
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
@@ -260,12 +276,14 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 	cfg.LocalApp = gnoApp
 
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
 	gnoNode, err := node.DefaultNewNode(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -371,4 +389,20 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func initTelemetry() error {
+	var options []telemetry.Option
+
+	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
+		options = append(options, telemetry.WithOptionMetricsEnabled())
+	}
+
+	// The string options can be added by default. Their absence would yield the same result
+	// as if the option were excluded altogether.
+	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
+	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
+	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
+
+	return telemetry.Init(options...)
 }

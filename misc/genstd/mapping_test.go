@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testdataDir = "github.com/gnolang/gno/misc/genstd/testdata/"
@@ -64,18 +64,18 @@ func Test_linkFunctions(t *testing.T) {
 
 	for i, v := range mappings {
 		exp := str(i)
-		assert.Equal(t, v.GnoFunc, exp)
-		assert.Equal(t, v.GoFunc, exp)
-		assert.Equal(t, v.GnoImportPath, "std")
-		assert.Equal(t, v.GoImportPath, testdataDir+"linkFunctions/std")
+		assert.Equal(t, exp, v.GnoFunc)
+		assert.Equal(t, exp, v.GoFunc)
+		assert.Equal(t, "std", v.GnoImportPath)
+		assert.Equal(t, testdataDir+"linkFunctions/std", v.GoImportPath)
 
-		assert.Equal(t, v.MachineParam, i&machine != 0, "MachineParam should match expected value")
+		assert.Equal(t, i&machine != 0, v.MachineParam, "MachineParam should match expected value")
 		if i&param != 0 {
 			// require, otherwise the following would panic
 			require.Len(t, v.Params, 1)
 			p := v.Params[0]
-			assert.Equal(t, p.GnoType(), "int")
-			assert.Equal(t, p.GoQualifiedName(), "int")
+			assert.Equal(t, "int", p.GnoType())
+			assert.Equal(t, "int", p.GoQualifiedName())
 			assert.False(t, p.IsTypedValue)
 		} else {
 			assert.Len(t, v.Params, 0)
@@ -84,8 +84,8 @@ func Test_linkFunctions(t *testing.T) {
 			// require, otherwise the following would panic
 			require.Len(t, v.Results, 1)
 			p := v.Results[0]
-			assert.Equal(t, p.GnoType(), "int")
-			assert.Equal(t, p.GoQualifiedName(), "int")
+			assert.Equal(t, "int", p.GnoType())
+			assert.Equal(t, "int", p.GoQualifiedName())
 			assert.False(t, p.IsTypedValue)
 		} else {
 			assert.Len(t, v.Results, 0)
@@ -102,13 +102,13 @@ func Test_linkFunctions_unexp(t *testing.T) {
 	mappings := linkFunctions(pkgs)
 	require.Len(t, mappings, 2)
 
-	assert.Equal(t, mappings[0].MachineParam, false)
-	assert.Equal(t, mappings[0].GnoFunc, "t1")
-	assert.Equal(t, mappings[0].GoFunc, "X_t1")
+	assert.Equal(t, false, mappings[0].MachineParam)
+	assert.Equal(t, "t1", mappings[0].GnoFunc)
+	assert.Equal(t, "X_t1", mappings[0].GoFunc)
 
-	assert.Equal(t, mappings[1].MachineParam, true)
-	assert.Equal(t, mappings[1].GnoFunc, "t2")
-	assert.Equal(t, mappings[1].GoFunc, "X_t2")
+	assert.Equal(t, true, mappings[1].MachineParam)
+	assert.Equal(t, "t2", mappings[1].GnoFunc)
+	assert.Equal(t, "X_t2", mappings[1].GoFunc)
 }
 
 func Test_linkFunctions_TypedValue(t *testing.T) {
@@ -120,25 +120,25 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	mappings := linkFunctions(pkgs)
 	require.Len(t, mappings, 3)
 
-	assert.Equal(t, mappings[0].MachineParam, false)
-	assert.Equal(t, mappings[0].GnoFunc, "TVParam")
-	assert.Equal(t, mappings[0].GoFunc, "TVParam")
+	assert.Equal(t, false, mappings[0].MachineParam)
+	assert.Equal(t, "TVParam", mappings[0].GnoFunc)
+	assert.Equal(t, "TVParam", mappings[0].GoFunc)
 	assert.Len(t, mappings[0].Results, 0)
 	_ = assert.Len(t, mappings[0].Params, 1) &&
-		assert.Equal(t, mappings[0].Params[0].IsTypedValue, true) &&
-		assert.Equal(t, mappings[0].Params[0].GnoType(), "struct{m1 map[string]interface{}}")
+		assert.Equal(t, true, mappings[0].Params[0].IsTypedValue) &&
+		assert.Equal(t, "struct{m1 map[string]interface{}}", mappings[0].Params[0].GnoType())
 
-	assert.Equal(t, mappings[1].MachineParam, false)
-	assert.Equal(t, mappings[1].GnoFunc, "TVResult")
-	assert.Equal(t, mappings[1].GoFunc, "TVResult")
+	assert.Equal(t, false, mappings[1].MachineParam)
+	assert.Equal(t, "TVResult", mappings[1].GnoFunc)
+	assert.Equal(t, "TVResult", mappings[1].GoFunc)
 	assert.Len(t, mappings[1].Params, 0)
 	_ = assert.Len(t, mappings[1].Results, 1) &&
-		assert.Equal(t, mappings[1].Results[0].IsTypedValue, true) &&
-		assert.Equal(t, mappings[1].Results[0].GnoType(), "interface{S() map[int]Banker}")
+		assert.Equal(t, true, mappings[1].Results[0].IsTypedValue) &&
+		assert.Equal(t, "interface{S() map[int]Banker}", mappings[1].Results[0].GnoType())
 
-	assert.Equal(t, mappings[2].MachineParam, true)
-	assert.Equal(t, mappings[2].GnoFunc, "TVFull")
-	assert.Equal(t, mappings[2].GoFunc, "TVFull")
+	assert.Equal(t, true, mappings[2].MachineParam)
+	assert.Equal(t, "TVFull", mappings[2].GnoFunc)
+	assert.Equal(t, "TVFull", mappings[2].GoFunc)
 	assert.Len(t, mappings[2].Params, 1)
 	assert.Len(t, mappings[2].Results, 1)
 }
@@ -173,9 +173,9 @@ func Test_linkFunctions_noMatchSig(t *testing.T) {
 	linkFunctions(pkgs)
 }
 
-// mergeTypes - separate tests.
+// typesEqual - separate tests.
 
-var mergeTypesMapping = &mapping{
+var typesEqualMapping = &mapping{
 	GnoImportPath: "std",
 	GnoFunc:       "Fn",
 	GoImportPath:  "github.com/gnolang/gno/gnovm/stdlibs/std",
@@ -191,7 +191,6 @@ var mergeTypesMapping = &mapping{
 	},
 	gnoImports: []*ast.ImportSpec{
 		{
-			// cheating a bit -- but we currently only have linked types in `std`.
 			Path: &ast.BasicLit{Value: `"std"`},
 		},
 		{
@@ -200,75 +199,60 @@ var mergeTypesMapping = &mapping{
 	},
 }
 
-func Test_mergeTypes(t *testing.T) {
+func Test_typesEqual(t *testing.T) {
 	tt := []struct {
-		gnoe, goe string
-		result    ast.Expr
+		gnoe, goe   string
+		errContains string
 	}{
-		{"int", "int", &ast.Ident{Name: "int"}},
-		{"*[11][]rune", "*[11][]rune", &ast.StarExpr{
-			X: &ast.ArrayType{Len: &ast.BasicLit{Value: "11"}, Elt: &ast.ArrayType{
-				Elt: &ast.Ident{Name: "rune"},
-			}},
-		}},
+		{"int", "int", ""},
+		{"*[11][]rune", "*[11][ ]rune", ""},
 
-		{"Address", "crypto.Bech32Address", &linkedIdent{lt: linkedType{
-			gnoPackage: "std",
-			gnoName:    "Address",
-			goPackage:  "github.com/gnolang/gno/tm2/pkg/crypto",
-			goName:     "Bech32Address",
-		}}},
-		{"std.Realm", "Realm", &linkedIdent{lt: linkedType{
-			gnoPackage: "std",
-			gnoName:    "Realm",
-			goPackage:  "github.com/gnolang/gno/gnovm/stdlibs/std",
-			goName:     "Realm",
-		}}},
+		{"madeup", "madeup", "non-builtin type"},
+
+		{"int", "string", "does not match"},
+		{"*int", "int", "does not match"},
+		{"string", "*string", "does not match"},
+		{"*string", "*int", "does not match"},
+
+		{"[]int", "[1]int", "does not match"},
+		{"[1]int", "[]int", "does not match"},
+		{"[2]int", "[2]string", "does not match"},
+		// valid, but unsupported (only BasicLits)
+		{"[(11)]int", "[(11)]string", "does not match"},
+
+		// even though mathematically equal, for simplicity we don't implement
+		// "true" basic lit equivalence
+		{"[8]int", "[0x8]int", "does not match"},
 	}
 
-	for _, tv := range tt {
-		t.Run(tv.gnoe, func(t *testing.T) {
+	for idx, tv := range tt {
+		t.Run(fmt.Sprintf("%02d_%s", idx, tv.gnoe), func(t *testing.T) {
 			gnoe, err := parser.ParseExpr(tv.gnoe)
 			require.NoError(t, err)
 			goe, err := parser.ParseExpr(tv.goe)
 			require.NoError(t, err)
 
-			result := mergeTypesMapping.mergeTypes(gnoe, goe)
-			assert.Equal(t, result, tv.result)
+			err = typesEqualMapping.typesEqual(gnoe, goe)
+			if tv.errContains == "" {
+				assert.NoError(t, err)
+			} else {
+				_ = assert.Error(t, err) &&
+					assert.Contains(t, err.Error(), tv.errContains)
+			}
 		})
 	}
 }
 
-func Test_mergeTypes_invalid(t *testing.T) {
+func Test_typesEqual_panic(t *testing.T) {
 	tt := []struct {
 		gnoe, goe string
 		panic     string
 	}{
-		{"int", "string", ""},
-
-		{"*int", "int", ""},
-		{"string", "*string", ""},
-		{"*string", "*int", ""},
-
-		{"[]int", "[1]int", ""},
-		{"[1]int", "[]int", ""},
-		{"[2]int", "[2]string", ""},
-		// valid, but unsupported (only BasicLits)
-		{"[(11)]int", "[(11)]string", ""},
-
-		{"Address", "string", ""},
-		{"math.X", "X", ""},
-
 		{"map[string]string", "map[string]string", "not implemented"},
 		{"func(s string)", "func(s string)", "not implemented"},
 		{"interface{}", "interface{}", "not implemented"},
 		{"struct{}", "struct{}", "not implemented"},
-
 		{"1 + 2", "1 + 2", "invalid expression"},
-
-		// even though semantically equal, for simplicity we don't implement
-		// "true" basic lit equivalence
-		{"[8]int", "[0x8]int", ""},
 	}
 
 	for _, tv := range tt {
@@ -287,7 +271,7 @@ func Test_mergeTypes_invalid(t *testing.T) {
 				}
 			}()
 
-			result := mergeTypesMapping.mergeTypes(gnoe, goe)
+			result := typesEqualMapping.typesEqual(gnoe, goe)
 			assert.Nil(t, result)
 		})
 	}
