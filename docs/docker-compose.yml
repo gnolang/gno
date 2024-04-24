@@ -1,6 +1,5 @@
 version: "3"
 
-# gnolang/gno
 services:
   docusaurus:
     image: ghcr.io/gnolang/docs.gno.land:latest-dev
@@ -8,12 +7,16 @@ services:
       - .:/app/docusaurus/docs
     ports:
       - 3000:3000
+    environment:
+      - MEILISEARCH_URL="localhost:7700"
+      - MEILISEARCH_API_KEY="masterKey"
+      - MEILISEARCH_INDEX_UID="dev"
 
   meilisearch:
-    image: getmeili/meilisearch
+    image: getmeili/meilisearch:latest
     restart: unless-stopped
     environment:
-      - MEILI_MASTER_KEY=xxx
+      - MEILI_MASTER_KEY=masterKey
       - MEILI_NO_ANALYTICS=true
       - MEILI_ENV=development
       - MEILI_LOG_LEVEL=info
@@ -22,3 +25,4 @@ services:
       - 7700:7700
     #volumes:
     #  - ./data.ms:/data.ms
+
