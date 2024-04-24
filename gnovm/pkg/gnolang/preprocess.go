@@ -2,11 +2,9 @@ package gnolang
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
-	"slices"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // In the case of a *FileSet, some declaration steps have to happen
@@ -775,132 +773,104 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *FuncLitExpr:
 				debug.Println("---trans_leave, funcLitExpr, n: ", n)
-				names := n.GetExternNames()
-				debug.Println("---names: ", names)
 
-				debug.Printf("static block of n is: %v \n", n.Source.GetStaticBlock())
-				debug.Println("---names of staticBlock is: ", n.Source.GetStaticBlock().GetBlockNames())
+				if !reProcessing {
+					// quick check to identify no closure
+					_, inLoop := isBlockNodeInLoop(store, n)
+					if !inLoop {
+						return n, TRANS_CONTINUE
+					}
 
-				// quick check to identify no closure
-				_, inLoop := isBlockNodeInLoop(store, n)
-				if !inLoop {
-					return n, TRANS_CONTINUE
-				}
+					// Step 2: gather all extern names declared in for-loops.
+					var (
+						leNames  []Name
+						loopNode BlockNode
+					)
 
-				// Step 2: gather all extern names declared in for-loops.
-				leNames := []Name{}
+					// outer first order
+					externNames := n.GetExternNames()
+					debug.Println("---externNames: ", externNames)
+					//slices.Reverse(externNames)
+					//debug.Println("---reverse externNames: ", externNames)
 
-				isExternName := func(nn Name) bool {
-					for _, name := range n.GetExternNames() {
-						if nn == name {
-							return true
+					for _, name := range externNames {
+						loopNode = n.GetLoopNodeForName(store, name)
+						debug.Printf("loopNode for name %v is %v \n", name, loopNode)
+						if loopNode == nil {
+							continue
 						}
-					}
-					return false
-				}
 
-				var targetBlockNode BlockNode
-				// outer first order
-				externNames := n.GetExternNames()
-				slices.Reverse(externNames)
-				for _, name := range externNames {
-					loopVars := []Name{}
+						leNames = append(leNames, name)
+						loopVars := []Name{} // per loop
 
-					path, bn := n.GetExternPathForName(store, name, isExternName)
-					debug.Printf("---extern nx: %v,  path: %v \n", name, path)
-					debug.Printf("bn: %v \n", bn)
-
-					if path.Type != VPBlock {
-						continue // not a loop block path
-					}
-
-					if !isLoopNode(store, bn) {
-						continue
-					}
-					targetBlockNode = bn
-					// name is loop extern
-					// closure exist
-					leNames = append(leNames, name) // all extern Nxs
-					// end loop
-
-					// check loop var and check if it's captured
-					if fs, ok := targetBlockNode.(*ForStmt); ok {
-						if as, ok := fs.Init.(*AssignStmt); ok {
-							if as.Op == DEFINE {
-								if len(as.Lhs) != 1 {
-									panic("incorrect len of lhs in for init stmt")
+						// check loop var
+						if fs, ok := loopNode.(*ForStmt); ok {
+							if as, ok := fs.Init.(*AssignStmt); ok {
+								if as.Op == DEFINE {
+									if len(as.Lhs) != 1 {
+										panic("incorrect length of lhs in for init stmt")
+									}
+									if nx, ok := as.Lhs[0].(*NameExpr); ok {
+										if nx.Name != "_" {
+											loopVars = append(loopVars, nx.Name)
+										}
+									}
 								}
-								if nx, ok := as.Lhs[0].(*NameExpr); ok { // should only one lhs
+							}
+						}
+						// check range case
+						if rs, ok := loopNode.(*RangeStmt); ok {
+							if nx, ok := rs.Key.(*NameExpr); ok {
+								if nx.Name != "_" {
+									loopVars = append(loopVars, nx.Name)
+								}
+							}
+							if nx, ok := rs.Value.(*NameExpr); ok {
+								if nx.Name != "_" {
 									loopVars = append(loopVars, nx.Name)
 								}
 							}
 						}
-					}
-					// check range case
-					if rs, ok := targetBlockNode.(*RangeStmt); ok {
-						if nx, ok := rs.Key.(*NameExpr); ok {
-							if nx.Name != "_" {
-								loopVars = append(loopVars, nx.Name)
-							}
-						}
-						if nx, ok := rs.Value.(*NameExpr); ok {
-							if nx.Name != "_" {
-								loopVars = append(loopVars, nx.Name)
-							}
-						}
-					}
 
-					clo := &Closure{}
-
-					// check if loopVar is captured
-				Loop:
-					for _, ln := range leNames {
+						// prepare to pack closure(with captured names)
+						lvs := &CapturedLoopVariables{}
+						// check if loopVar is captured
 						for _, lv := range loopVars {
-							if ln == lv {
-								clo.loopVars = loopVars
-								break Loop
+							for _, ln := range leNames {
+								if lv == ln {
+									lvs.loopVars = append(lvs.loopVars, lv)
+									break
+								}
 							}
 						}
-					}
 
-					if debug {
-						debug.Println("---dump names---")
-						for _, name := range leNames {
-							debug.Println("name: ", name)
+						if debug {
+							debug.Println("---dump loopvar names---")
+							for _, name := range lvs.loopVars {
+								debug.Println("name: ", name)
+							}
+							debug.Println("------end------")
 						}
-						debug.Println("---end---")
 
-						debug.Println("---dump loopVars---")
-						for _, lv := range loopVars {
-							debug.Println("loopVar: ", lv)
-						}
-						debug.Println("---end---")
-					}
-
-					if targetBlockNode != nil { // outer loop block node
-						debug.Println("---target bn: ", targetBlockNode)
-						switch ctn := targetBlockNode.(type) {
+						switch ln := loopNode.(type) {
 						case *ForStmt:
-							ctn.closure = clo
+							ln.LoopVars = lvs
 						case *RangeStmt:
-							ctn.closure = clo
-						default:
-							// do nothing
+							ln.LoopVars = lvs
 						}
+
+						lastFn := findLastFn(n)
+						// loopInfo
+						loop := &LoopInfo{
+							fn: lastFn,
+						}
+						// maybe initialized by other cases, or not
+						if loopInfos == nil {
+							loopInfos = make(map[Name][]*LoopInfo)
+						}
+
+						loopInfos[lastFn.Name] = append(loopInfos[lastFn.Name], loop)
 					}
-
-					lastFn := findLastFn(n)
-					// loopInfo
-					loop := &LoopInfo{
-						fn: lastFn,
-					}
-
-					if loopInfos == nil {
-						loopInfos = make(map[Name][]*LoopInfo)
-					}
-
-					loopInfos[lastFn.Name] = append(loopInfos[lastFn.Name], loop)
-
 				}
 				return n, TRANS_CONTINUE
 
@@ -1612,7 +1582,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
 					}
-					n.Path, _ = pn.GetPathForName(store, n.Sel)
+					n.Path = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
@@ -1881,13 +1851,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *ForStmt:
 				debug.Println("---trans_leave, for stmt: ", n)
 				if !reProcessing {
-					clo := n.closure
-					if clo != nil {
-						debug.Println("---trans_leave, clo: ", clo)
+					lvs := n.LoopVars
+					if lvs != nil {
+						debug.Println("---trans_leave, lvs: ", lvs)
 						stmts := []Stmt{}
 						// step2. inject i := 1 for loop extern
-						if clo.loopVars != nil {
-							for _, lv := range clo.loopVars {
+						if lvs.loopVars != nil {
+							for _, lv := range lvs.loopVars {
 								lhs := Nx(lv)
 								rhs := Nx(lv)
 								as := A(lhs, ":=", rhs)
@@ -1923,13 +1893,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				debug.Printf("---trans_leave, range stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 				if !reProcessing {
-					clo := n.closure
-					if clo != nil {
-						debug.Println("---trans_leave, clo: ", clo)
+					lvs := n.LoopVars
+					if lvs != nil {
+						debug.Println("---trans_leave, clo: ", lvs)
 						body := []Stmt{}
 						injectStmt := []Stmt{}
-						if clo.loopVars != nil {
-							for _, lv := range clo.loopVars {
+						if lvs.loopVars != nil {
+							for _, lv := range lvs.loopVars {
 								// step2. inject i := 1 for loop extern
 								lhs := Nx(lv)
 								rhs := Nx(lv)
@@ -2142,7 +2112,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path, _ = last.GetPathForName(nil, nx.Name)
+							nx.Path = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				} else {
@@ -2152,7 +2122,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							nx.Path = NewValuePathBlock(0, 0, "_")
 						} else {
 							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
-							nx.Path, _ = last.GetPathForName(nil, nx.Name)
+							nx.Path = last.GetPathForName(nil, nx.Name)
 						}
 					}
 				}
@@ -2498,11 +2468,11 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 
 func findLastFn(last BlockNode) (fd *FuncDecl) {
 	for last != nil {
-		switch cbn := last.(type) {
+		switch n := last.(type) {
 		case *FuncDecl:
-			return cbn
+			return n
 		default:
-			last = cbn.GetParentNode(nil)
+			last = last.GetParentNode(nil)
 		}
 	}
 	return nil
@@ -3321,7 +3291,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			T: gPackageType,
 			V: pv,
 		})
-		d.Path, _ = last.GetPathForName(store, d.Name)
+		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
@@ -3340,7 +3310,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			} else {
 				last2 := skipFile(last)
 				last2.Predefine(d.Const, nx.Name)
-				nx.Path, _ = last.GetPathForName(store, nx.Name)
+				nx.Path = last.GetPathForName(store, nx.Name)
 			}
 		}
 	case *TypeDecl:
@@ -3406,7 +3376,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				}
 				// check package node for name.
 				pn := pv.GetPackageNode(store)
-				tx.Path, _ = pn.GetPathForName(store, tx.Sel)
+				tx.Path = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.T
 			default:
@@ -3423,7 +3393,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// fill in later.
 			last2.Define(d.Name, asValue(t))
-			d.Path, _ = last.GetPathForName(store, d.Name)
+			d.Path = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
 		un = findUndefined(store, last, d.Type)
@@ -3486,7 +3456,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			if d.Name == "init" {
 				// init functions can't be referenced.
 			} else {
-				d.Path, _ = last.GetPathForName(store, d.Name)
+				d.Path = last.GetPathForName(store, d.Name)
 			}
 		}
 	default:
@@ -3553,7 +3523,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					debug.Println("---type nil, continue")
 					continue
 				} else {
-					path, _ = last.GetPathForName(nil, nx.Name)
+					path = last.GetPathForName(nil, nx.Name)
 					debug.Println("---path: ", path)
 					if path.Type != VPBlock {
 						panic("expected block value path type")
@@ -3570,7 +3540,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
-	nx.Path, _ = last.GetPathForName(nil, nx.Name)
+	nx.Path = last.GetPathForName(nil, nx.Name)
 }
 
 func isFile(n BlockNode) bool {
@@ -3858,19 +3828,6 @@ func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
 		}
 	}
 	return 0, false
-}
-
-func isLoopNode(store Store, bn BlockNode) bool {
-	if bn != nil {
-		switch bn.(type) {
-		case *ForStmt:
-			return true
-		case *RangeStmt:
-			return true
-		default:
-		}
-	}
-	return false
 }
 
 // reset value path, static block, etc

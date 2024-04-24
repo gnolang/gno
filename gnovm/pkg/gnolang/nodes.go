@@ -776,7 +776,7 @@ type ForStmt struct {
 	Cond Expr // condition; or nil
 	Post Stmt // post iteration (simple) statement; or nil
 	Body
-	closure *Closure
+	LoopVars *CapturedLoopVariables
 }
 
 type GoStmt struct {
@@ -815,10 +815,10 @@ type RangeStmt struct {
 	Key, Value Expr // Key, Value may be nil
 	Op         Word // ASSIGN or DEFINE
 	Body
-	closure    *Closure
 	IsMap      bool // if X is map type
 	IsString   bool // if X is string type
 	IsArrayPtr bool // if X is array-pointer type
+	LoopVars   *CapturedLoopVariables
 }
 
 type ReturnStmt struct {
@@ -872,7 +872,7 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
-type Closure struct {
+type CapturedLoopVariables struct {
 	loopVars []Name
 }
 
@@ -1464,9 +1464,9 @@ type BlockNode interface {
 	GetExternNames() []Name
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
-	GetPathForName(Store, Name) (ValuePath, BlockNode)
-	GetExternPathForName(Store, Name, func(n Name) bool) (ValuePath, BlockNode)
-	GetBlockNodeForPath(Store, ValuePath) BlockNode
+	GetPathForName(Store, Name) ValuePath
+	GetLoopNodeForName(Store, Name) BlockNode
+	//GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name) *TypedValue
@@ -1609,14 +1609,14 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
-func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode) { // TODO: revert this
+func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == "_" {
-		return NewValuePathBlock(0, 0, "_"), nil
+		return NewValuePathBlock(0, 0, "_")
 	}
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		return NewValuePathBlock(uint8(gen), idx, n), sb.Source
+		return NewValuePathBlock(uint8(gen), idx, n)
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
@@ -1630,7 +1630,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode
 	bp := sb.GetParentNode(store)
 	for bp != nil {
 		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n), bp
+			return NewValuePathBlock(uint8(gen), idx, n)
 		} else {
 			if !isFile(bp) {
 				bp.GetStaticBlock().addExternName(n)
@@ -1644,7 +1644,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode
 	}
 	// Finally, check uverse.
 	if idx, ok := UverseNode().GetLocalIndex(n); ok {
-		return NewValuePathUverse(idx, n), nil
+		return NewValuePathUverse(idx, n)
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
@@ -1652,33 +1652,47 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) (ValuePath, BlockNode
 
 // Like GetPathForName, but always returns the path of the extern name.
 // This is relevant for when a name is declared later in the block.
-func (sb *StaticBlock) GetExternPathForName(store Store, n Name, isExtern func(nn Name) bool) (ValuePath, BlockNode) {
+func (sb *StaticBlock) GetLoopNodeForName(store Store, n Name) BlockNode {
 	if n == "_" {
-		return NewValuePathBlock(0, 0, "_"), nil
+		return nil
 	}
 	parent := sb.GetParentNode(store)
-	path, bn := parent.GetPathForName(store, n)
-	debug.Printf("---got ExternPathForName, n: %v, path: %v, bn: %v \n", n, path, bn)
-
-	path.Depth += 1 // 1 count for the funcLitBlock
-
-	return path, bn
-}
-
-// Get the containing block node for node with path relative to this containing block.
-func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	path := parent.GetPathForName(store, n)
 	if path.Type != VPBlock {
-		panic("expected block type value path but got something else")
+		return nil
 	}
 
 	// NOTE: path.Depth == 1 means it's in bn.
 	var bn = sb.GetSource(store)
-	for i := 1; i < int(path.Depth); i++ {
+	for i := 1; i <= int(path.Depth); i++ {
 		bn = bn.GetParentNode(store)
+	}
+
+	if !isLoopNode(store, bn) {
+		return nil
 	}
 
 	return bn
 }
+
+func isLoopNode(store Store, bn BlockNode) bool {
+	if bn != nil {
+		switch bn.(type) {
+		case *ForStmt:
+			return true
+		case *RangeStmt:
+			return true
+		default:
+		}
+	}
+	return false
+}
+
+// Get the containing block node for node with path relative to this containing block.
+//func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+//
+//	return bn
+//}
 
 // Returns whether a name defined here in in ancestry is a const.
 // This is not the same as whether a name's static type is
