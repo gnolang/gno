@@ -93,12 +93,8 @@ func (e *errorString) Error() string {
 //	    ...
 //	}
 func Is(err, target error) bool {
-	if target == nil {
+        if target == nil || err == nil {
 		return err == target
-	}
-
-	if err == nil {
-		return false
 	}
 
 	for {
