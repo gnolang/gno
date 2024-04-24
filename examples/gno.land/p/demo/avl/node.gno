@@ -333,7 +333,6 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	if node == nil {
 		return false
 	}
-
 	afterStart := (start == "" || start < node.key)
 	startOrAfter := (start == "" || start <= node.key)
 	beforeEnd := false
@@ -344,36 +343,43 @@ func (node *Node) TraverseInRange(start, end string, ascending bool, leavesOnly 
 	}
 
 	// Run callback per inner/leaf node.
+	stop := false
 	if (!node.IsLeaf() && !leavesOnly) ||
 		(node.IsLeaf() && startOrAfter && beforeEnd) {
-		if cb(node) {
-			return true
+		stop = cb(node)
+		if stop {
+			return stop
 		}
 	}
-
 	if node.IsLeaf() {
-		return false
+		return stop
 	}
 
 	if ascending {
 		// check lower nodes, then higher
-		if afterStart && node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
-			return true
+		if afterStart {
+			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
-		if beforeEnd && node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
-			return true
+		if stop {
+			return stop
+		}
+		if beforeEnd {
+			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 	} else {
 		// check the higher nodes first
-		if beforeEnd && node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
-			return true
+		if beforeEnd {
+			stop = node.getRightNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
-		if afterStart && node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb) {
-			return true
+		if stop {
+			return stop
+		}
+		if afterStart {
+			stop = node.getLeftNode().TraverseInRange(start, end, ascending, leavesOnly, cb)
 		}
 	}
 
-	return false
+	return stop
 }
 
 // TraverseByOffset traverses all nodes, including inner nodes.
