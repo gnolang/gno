@@ -33,10 +33,7 @@ type SignCfg struct {
 	ChainID       string
 	AccountNumber uint64
 	Sequence      uint64
-	ShowSignBytes bool
 	NameOrBech32  string
-	TxJSON        []byte
-	Pass          string
 }
 
 func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -85,13 +82,6 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		0,
 		"account sequence to sign with",
 	)
-
-	fs.BoolVar(
-		&c.ShowSignBytes,
-		"show",
-		false,
-		"display the sign bytes",
-	)
 }
 
 func execSign(cfg *SignCfg, args []string, io commands.IO) error {
@@ -124,6 +114,12 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to load keybase, %w", err)
 	}
 
+	// Fetch the key info from the keybase
+	info, err := kb.GetByNameOrAddress(args[0])
+	if err != nil {
+		return fmt.Errorf("unable to get key from keybase, %w", err)
+	}
+
 	// Get the transaction bytes
 	txRaw, err := os.ReadFile(cfg.TxPath)
 	if err != nil {
@@ -138,23 +134,30 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	// Make sure the tx is valid Amino JSON
 	var tx std.Tx
 	if err := amino.UnmarshalJSON(txRaw, &tx); err != nil {
-		return fmt.Errorf("unable to unmarshal tx, %w", err)
+		return fmt.Errorf("unable to unmarshal transaction, %w", err)
 	}
 
-	// Get the keybase decryption password
-	prompt := "Enter password to decrypt key"
-	if cfg.RootCfg.Quiet {
-		prompt = "" // No prompt
+	var password string
+
+	// Check if we need to get a decryption password.
+	// This is only required for local keys
+	if info.GetType() != keys.TypeLedger {
+		// Get the keybase decryption password
+		prompt := "Enter password to decrypt key"
+		if cfg.RootCfg.Quiet {
+			prompt = "" // No prompt
+		}
+
+		password, err = io.GetPassword(
+			prompt,
+			cfg.RootCfg.InsecurePasswordStdin,
+		)
+		if err != nil {
+			return fmt.Errorf("unable to get decryption key, %w", err)
+		}
 	}
 
-	password, err := io.GetPassword(
-		prompt,
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to get decryption key, %w", err)
-	}
-
+	// Prepare the signature ops
 	sOpts := signOpts{
 		chainID:         cfg.ChainID,
 		accountSequence: cfg.Sequence,
@@ -174,6 +177,8 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	return saveTx(&tx, cfg.TxPath)
 }
 
+// signTx generates the transaction signature,
+// and saves it to the given transaction
 func signTx(
 	tx *std.Tx,
 	kb keys.Keybase,
@@ -221,6 +226,11 @@ func signTx(
 			Signature: sig,
 		},
 	)
+
+	// Validate the tx after signing
+	if err := tx.ValidateBasic(); err != nil {
+		return fmt.Errorf("unable to validate transaction, %w", err)
+	}
 
 	return nil
 }
