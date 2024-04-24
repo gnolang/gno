@@ -1,4 +1,4 @@
-package maths
+package rat
 
 const (
 	intSize = 32 << (^uint(0) >> 63) // 32 or 64
