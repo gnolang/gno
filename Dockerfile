@@ -1,14 +1,17 @@
 # build gno
 FROM        golang:1.22 AS build-gno
-RUN         mkdir -p /opt/gno/src /opt/build
+RUN         mkdir -p /opt/gno/src /opt/build /opt/build/contribs/gnodev
 WORKDIR     /opt/build
-ADD         go.mod go.sum .
+ADD         go.mod go.sum ./
 RUN         go mod download
+ADD         contribs/gnodev/go.mod contribs/gnodev/go.sum ./contribs/gnodev/
+RUN         cd ./contribs/gnodev && go mod download
 ADD         . ./
 RUN         go build -o ./build/gnoland   ./gno.land/cmd/gnoland
 RUN         go build -o ./build/gnokey    ./gno.land/cmd/gnokey
 RUN         go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
 RUN         go build -o ./build/gno       ./gnovm/cmd/gno
+RUN         cd ./contribs/gnodev && go build -o /opt/build/build/gnodev ./cmd/gnodev
 RUN         ls -la ./build
 ADD         . /opt/gno/src/
 RUN         rm -rf /opt/gno/src/.git
@@ -17,11 +20,10 @@ RUN         rm -rf /opt/gno/src/.git
 FROM        golang:1.22 AS build-faucet
 RUN         mkdir -p /opt/gno/src /opt/build
 WORKDIR     /opt/build
-ADD         contribs/gnofaucet/go.mod contribs/gnofaucet/go.sum .
+ADD         contribs/gnofaucet/go.mod contribs/gnofaucet/go.sum ./
 RUN         go mod download
 ADD         contribs/gnofaucet ./
 RUN         go build -o ./build/gnofaucet .
-
 
 # runtime-base + runtime-tls
 FROM        debian:stable-slim AS runtime-base
@@ -50,6 +52,11 @@ FROM        runtime-tls AS gnofaucet-slim
 COPY        --from=build-faucet /opt/build/build/gnofaucet /opt/gno/bin/
 ENTRYPOINT  ["gnofaucet"]
 EXPOSE      5050
+
+FROM        runtime-tls AS gnodev-slim
+COPY        --from=build-gno /opt/build/build/gnodev /opt/gno/bin/
+ENTRYPOINT  ["gnodev"]
+EXPOSE      36657
 
 FROM        runtime-tls AS gnoweb-slim
 COPY        --from=build-gno /opt/build/build/gnoweb /opt/gno/bin/
