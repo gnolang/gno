@@ -31,6 +31,7 @@ type NodeConfig struct {
 	DefaultDeployer       crypto.Address
 	BalancesList          []gnoland.Balance
 	PackagesPathList      []PackagePath
+	InitialTxs            []std.Tx
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
 	NoReplay              bool
@@ -55,6 +56,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
 		PackagesPathList:      []PackagePath{},
+		InitialTxs:            []std.Tx{},
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -73,6 +75,11 @@ type Node struct {
 
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
+
+	// state
+	initialState  []std.Tx
+	previousState []std.Tx
+	stateIndex    int
 }
 
 var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
@@ -87,13 +94,15 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
-
 	logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
+
+	// add initials txs
+	txs := append(pkgsTxs, cfg.InitialTxs...)
 
 	// generate genesis state
 	genesis := gnoland.GnoGenesisState{
 		Balances: cfg.BalancesList,
-		Txs:      pkgsTxs,
+		Txs:      txs,
 	}
 
 	devnode := &Node{
@@ -102,7 +111,9 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		client:         client.NewLocal(),
 		pkgs:           mpkgs,
 		logger:         logger,
+		initialState:   cfg.InitialTxs,
 		loadedPackages: len(pkgsTxs),
+		stateIndex:     len(cfg.InitialTxs),
 	}
 
 	if err := devnode.reset(ctx, genesis); err != nil {
@@ -186,10 +197,13 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	// Generate a new genesis state based on the current packages
-	txs, err := n.pkgs.Load(DefaultFee)
+	pkgsTxs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
+
+	// Append initialTxs
+	txs := append(pkgsTxs, n.initialState...)
 
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
@@ -202,6 +216,9 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
+	n.loadedPackages = len(pkgsTxs)
+	n.stateIndex = len(n.initialState)
+	n.previousState = nil
 	n.emitter.Emit(&events.Reset{})
 	return nil
 }
@@ -261,7 +278,8 @@ func (n *Node) Reload(ctx context.Context) error {
 
 	// Update node infos
 	n.loadedPackages = len(pkgsTxs)
-
+	n.stateIndex = len(state) - 1
+	n.previousState = nil
 	n.emitter.Emit(&events.Reload{})
 	return nil
 }
@@ -398,6 +416,7 @@ func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err 
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxHandler = n.genesisTxHandler
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
+	nodeConfig.TMConfig.Consensus.CreateEmptyBlocks = false
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {

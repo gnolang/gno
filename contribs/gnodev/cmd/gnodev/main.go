@@ -309,6 +309,21 @@ func runEventLoop(
 	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
+
+	// XXX: move this in above, but we need to have a proper struct first
+	// XXX: make this configurable
+	exported := 0
+	path, err := os.MkdirTemp("", "gnodev-export")
+	if err != nil {
+		return fmt.Errorf("unable to create `export` directory: ", err)
+	}
+
+	defer func() {
+		if exported == 0 {
+			_ = os.RemoveAll(path)
+		}
+	}()
+
 	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
@@ -359,6 +374,67 @@ func runEventLoop(
 					logger.WithGroup(NodeLogName).
 						Error("unable to reset node state", "err", err)
 				}
+
+			case rawterm.KeyCtrlS: // Save
+				logger.WithGroup(NodeLogName).Info("saving state...")
+				if err := dnode.SaveCurrentState(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to save node state", "err", err)
+				}
+
+			case rawterm.KeyCtrlE: // Export
+				logger.WithGroup(NodeLogName).Info("exporting state...")
+				doc, err := dnode.ExportStateAsGenesis(ctx)
+				if err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to export node state", "err", err)
+					continue
+				}
+
+				docfile := filepath.Join(path, fmt.Sprintf("export_%d.jsonl", exported))
+				if err := doc.SaveAs(docfile); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to save genesis", "err", err)
+				}
+				exported++
+
+				logger.WithGroup(NodeLogName).Info("node state exported", "file", docfile)
+			case rawterm.KeyN: // Next tx
+				logger.Info("moving forward...")
+				if err := dnode.MoveToNextTX(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to move forward", "err", err)
+				}
+
+			case rawterm.KeyP: // Next tx
+				logger.Info("moving backward...")
+				if err := dnode.MoveToPreviousTX(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to move backward", "err", err)
+				}
+
+			// case rawterm.KeyI: // Info
+			// 	index := dnode.CurrentTXIndex()
+			// 	var s strings.Builder
+			// 	tab := tabwriter.NewWriter(&s, 5, 0, 2, ':', 0)
+			// 	fmt.Fprintf(tab, "Index\t%d", index)
+			// 	tab.Flush()
+			// 	logger.WithGroup(NodeLogName).Info("node status", "state", s.String())
+			// 	// doc, err := dnode.ExportStateAsGenesis(ctx)
+			// if err != nil {
+			// 	logger.WithGroup(NodeLogName).
+			// 		Error("unable to export node state", "err", err)
+			// 	continue
+			// }
+
+			// docfile := filepath.Join(path, fmt.Sprintf("export_%d.jsonl", exported))
+			// if err := doc.SaveAs(docfile); err != nil {
+			// 	logger.WithGroup(NodeLogName).
+			// 		Error("unable to save genesis", "err", err)
+			// }
+			// exported++
+
+			// logger.WithGroup(NodeLogName).Info("", "index", docfile)
 
 			case rawterm.KeyCtrlC: // Exit
 				return nil
