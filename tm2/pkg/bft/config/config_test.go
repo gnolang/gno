@@ -16,7 +16,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		// Create a default config
 		cfg := DefaultConfig()
@@ -43,7 +43,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		cfg, err := LoadOrMakeConfigWithOptions(cfgDir)
 		require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := filepath.Join(cfgDir, defaultConfigFileName)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		cfg, err := LoadOrMakeConfigWithOptions(
 			cfgDir,

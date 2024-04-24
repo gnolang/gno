@@ -69,6 +69,9 @@ func ResetTestRoot(testName string) *Config {
 	}
 
 	// ensure config and data subdirs are created
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+		panic(err)
+	}
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
@@ -77,7 +80,7 @@ func ResetTestRoot(testName string) *Config {
 	}
 
 	baseConfig := DefaultBaseConfig()
-	configFilePath := filepath.Join(rootDir, defaultConfigFileName)
+	configFilePath := filepath.Join(rootDir, defaultConfigPath)
 	genesisFilePath := filepath.Join(rootDir, "../", baseConfig.Genesis)
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)

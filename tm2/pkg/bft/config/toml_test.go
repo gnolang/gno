@@ -35,11 +35,11 @@ func TestEnsureRoot(t *testing.T) {
 	throwaway.SetRootDir(tmpDir)
 	require.NoError(t, throwaway.EnsureDirs())
 
-	configPath := filepath.Join(tmpDir, defaultConfigFileName)
+	configPath := filepath.Join(tmpDir, defaultConfigPath)
 	require.NoError(t, WriteConfigFile(configPath, throwaway))
 
 	// make sure config is set properly
-	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigFileName))
+	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigPath))
 	require.Nil(t, err)
 
 	require.True(t, checkConfig(string(data)))
@@ -58,7 +58,7 @@ func TestEnsureTestRoot(t *testing.T) {
 	rootDir := cfg.RootDir
 
 	// make sure config is set properly
-	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigFileName))
+	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigPath))
 	require.Nil(t, err)
 
 	require.True(t, checkConfig(string(data)))
