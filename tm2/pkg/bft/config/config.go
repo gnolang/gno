@@ -330,11 +330,6 @@ func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
 }
 
-// GenesisFile returns the full path to the genesis.json file
-func (cfg BaseConfig) GenesisFile() string {
-	return filepath.Join(cfg.RootDir, "../", defaultGenesisJSONName)
-}
-
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
 	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)

@@ -243,7 +243,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Write genesis file if missing.
 	// NOTE: this will be dropped in a PR that resolves issue #1883:
 	// https://github.com/gnolang/gno/issues/1883
-	genesisFilePath := filepath.Join(nodeDir, "../", cfg.Genesis)
+	genesisFilePath := filepath.Join(nodeDir, "../", "genesis.json")
 
 	if !osm.FileExists(genesisFilePath) {
 		// Create priv validator first.
@@ -277,7 +277,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		io.Println(startGraphic)
 	}
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, genesisFilePath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}

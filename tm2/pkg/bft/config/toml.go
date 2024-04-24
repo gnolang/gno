@@ -54,7 +54,7 @@ func WriteConfigFile(configFilePath string, config *Config) error {
 
 /****** these are for test settings ***********/
 
-func ResetTestRoot(testName string) *Config {
+func ResetTestRoot(testName string) (*Config, string) {
 	chainID := "test-chain"
 
 	// create a unique, concurrency-safe test directory under os.TempDir()
@@ -81,7 +81,7 @@ func ResetTestRoot(testName string) *Config {
 
 	baseConfig := DefaultBaseConfig()
 	configFilePath := filepath.Join(rootDir, defaultConfigPath)
-	genesisFilePath := filepath.Join(rootDir, "../", baseConfig.Genesis)
+	genesisFilePath := filepath.Join(rootDir, defaultGenesisJSONName)
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 
@@ -101,7 +101,8 @@ func ResetTestRoot(testName string) *Config {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
-	return config
+
+	return config, genesisFilePath
 }
 
 var testGenesisFmt = `{
