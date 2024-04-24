@@ -272,14 +272,14 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 	m.SetActivePackage(pv)
 
-	initFuncs := m.RunFiles(files.Files...)
-	initFuncs.Run(m)
-
 	// Save package values and types so they are finalized before
 	// the init functions are run.
 	if save {
 		m.savePackageValuesAndTypes()
 	}
+
+	initFuncs := m.RunFiles(files.Files...)
+	initFuncs.Run(m)
 
 	// Finish saving the package state.
 	if save {
