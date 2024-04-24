@@ -1,0 +1,24 @@
+version: "3"
+
+# gnolang/gno
+services:
+  docusaurus:
+    image: ghcr.io/gnolang/docs.gno.land:latest-dev
+    volumes:
+      - .:/app/docusaurus/docs
+    ports:
+      - 3000:3000
+
+  meilisearch:
+    image: getmeili/meilisearch
+    restart: unless-stopped
+    environment:
+      - MEILI_MASTER_KEY=xxx
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=development
+      - MEILI_LOG_LEVEL=info
+      - MEILI_DB_PATH=/data.ms
+    ports:
+      - 7700:7700
+    #volumes:
+    #  - ./data.ms:/data.ms
