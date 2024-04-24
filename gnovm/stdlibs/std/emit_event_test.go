@@ -203,7 +203,7 @@ func TestEmit_ContractInteration(t *testing.T) {
 	a := &contractA{}
 	b := &contractB{}
 
-	a.sender(m, func() {
+	a.foo(m, func() {
 		b.subReceiver(m)
 	})
 

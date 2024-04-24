@@ -29,7 +29,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		m.Panic(typedString(err.Error()))
 	}
 
-	ctx.EventString = abci.EventString(str)
+	ctx.EmittedEvents = abci.EventString(str)
 }
 
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {

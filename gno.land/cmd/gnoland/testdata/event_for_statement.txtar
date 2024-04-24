@@ -4,23 +4,23 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/foree -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2500000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\]'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[\]'
 
 gnokey maketx call -pkgpath gno.land/r/demo/foree -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\}(?:,\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\})*\]'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","identifier":"Foo","attributes":\[{"key":"foo","value":"bar"}\]}\]'
 
 gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\}(?:,\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\})*\]'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{"type":"Foo","pkg_path":"gno.land\/r\/demo\/foree","identifier":"subFoo","attributes":\[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}\]},{"type":"Bar","pkg_path":"gno.land\/r\/demo\/foree","identifier":"subBar","attributes":\[{"key":"bar","value":"baz"}\]},{"type":"Foo","pkg_path":"gno.land\/r\/demo\/foree","identifier":"subFoo","attributes":\[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}\]},{"type":"Bar","pkg_path":"gno.land\/r\/demo\/foree","identifier":"subBar","attributes":\[{"key":"bar","value":"baz"}\]}\]'
 
 
 -- foree.gno --
@@ -36,33 +36,33 @@ func Foo() {
 }
 
 const (
-	sender = "sender"
-	receiver = "receiver"
+	eventFoo = "Foo"
+	eventBar = "Bar"
 )
 
 type contractA struct{}
 
-func (c *contractA) sender(cb func()) {
-	subSender()
+func (c *contractA) Foo(cb func()) {
+	subFoo()
 	cb()
 }
 
-func subSender() {
-	std.Emit(sender, "k1", "v1", "k2", "v2")
+func subFoo() {
+	std.Emit(eventFoo, "k1", "v1", "k2", "v2")
 }
 
 type contractB struct{}
 
-func (c *contractB) subReceiver() {
-	std.Emit(receiver, "bar", "baz")
+func (c *contractB) subBar() {
+	std.Emit(eventBar, "bar", "baz")
 }
 
 func Bar() {
     a := &contractA{}
 	b := &contractB{}
 	for i := 0; i < 2; i++ {
-		a.sender(func() {
-			b.subReceiver()
+		a.Foo(func() {
+			b.subBar()
 		})
 	}
 }

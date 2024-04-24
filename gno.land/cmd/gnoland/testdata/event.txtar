@@ -4,23 +4,23 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/ee -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2500000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\]'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
 
-gnokey maketx call -pkgpath gno.land/r/demo/ee -func Sender -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\}(?:,\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\})*\]'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[{\"type\":\"foo\",\"pkg_path\":\"gno.land\/r\/demo\/ee\",\"identifier\":\"SubFoo\",\"attributes\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"},{\"key\":\"key3\",\"value\":\"value3\"}\]},{\"type\":\"bar\",\"pkg_path\":\"gno.land\/r\/demo\/ee\",\"identifier\":\"SubBar\",\"attributes\":\[{\"key\":\"bar\",\"value\":\"baz\"}\]}\]'
 
-gnokey maketx call -pkgpath gno.land/r/demo/ee -func Receiver -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ee -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED: [0-9]+'
-stdout 'HEIGHT: [0-9]+'
-stdout 'EVENTS: \[\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\}(?:,\{("type":"\w+","pkg_path":".*?","identifier":"\w+","attributes":\[(?:\{"key":"\w+","value":"\w+"\}(?:,)?)*\])\})*\]'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[{\"type\":\"bar\",\"pkg_path\":\"gno.land\/r\/demo\/ee\",\"identifier\":\"Bar\",\"attributes\":\[{\"key\":\"foo\",\"value\":\"bar\"}\]}\]'
 
 -- ee.gno --
 package ee
@@ -34,30 +34,30 @@ const (
 	EventBar = "bar"
 )
 
-func Sender(){
-    SubSender()
-    SubReceiver()
+func Foo(){
+    SubFoo()
+    SubBar()
 }
 
-func SubSender() {
+func SubFoo() {
     std.Emit(
-        EventSender,
+        EventFoo,
 		"key1", "value1",
 		"key2", "value2",
 		"key3", "value3",
     )  
 }
 
-func SubReceiver() {
+func SubBar() {
     std.Emit(
-        EventReceiver,
+        EventBar,
         "bar", "baz",
     )
 }
 
-func Receiver() {
+func Bar() {
     std.Emit(
-        EventReceiver,
+        EventBar,
         "foo", "bar",
     )
 }
