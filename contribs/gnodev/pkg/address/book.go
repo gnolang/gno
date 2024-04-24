@@ -8,11 +8,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-type Entry struct {
-	crypto.Address
-	Names []string
-}
-
+// Book reference a list of addresses optionally associated with a name
+// It is not thread safe.
 type Book struct {
 	addrsToNames map[crypto.Address][]string // address -> []names
 	namesToAddrs map[string]crypto.Address   // name -> address
@@ -25,12 +22,16 @@ func NewBook() *Book {
 	}
 }
 
-func remove(s []string, i int) []string {
-	s[len(s)-1], s[i] = s[i], s[len(s)-1]
-	return s[:len(s)-1]
-}
-
+// Add inserts a new address into the address book linked to the specified name.
+// An address can be associated with multiple names, yet each name can only
+// belong to one address. Hence, if a name is reused, it will replace the
+// reference to the previous address.
+// Adding an address without a name is permissible.
 func (bk *Book) Add(addr crypto.Address, name string) {
+	if addr.IsZero() {
+		panic("empty address not allowed")
+	}
+
 	// Check and register address if it wasn't existing
 	names, ok := bk.addrsToNames[addr]
 	if !ok {
@@ -66,6 +67,11 @@ func (bk *Book) Add(addr crypto.Address, name string) {
 	// Add the new association
 	bk.namesToAddrs[name] = addr
 	bk.addrsToNames[addr] = append(names, name)
+}
+
+type Entry struct {
+	crypto.Address
+	Names []string
 }
 
 func (bk Book) List() []Entry {
@@ -130,4 +136,9 @@ func (bk Book) ImportKeybase(path string) error {
 	}
 
 	return nil
+}
+
+func remove(s []string, i int) []string {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
 }
