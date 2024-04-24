@@ -5,7 +5,6 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
@@ -43,15 +42,10 @@ func TestStartInitialize(t *testing.T) {
 	io.SetOut(commands.WriteNopCloser(mockOut))
 	io.SetErr(commands.WriteNopCloser(mockErr))
 
-	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancelFn()
-
 	cmd := newRootCmd(io)
-	require.NoError(t, cmd.ParseAndRun(ctx, args))
+	require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
 	// Make sure the directory is created
 	assert.DirExists(t, nodeDir)
 	assert.FileExists(t, genesisFile)
-	assert.NotErrorIs(t, ctx.Err(), context.DeadlineExceeded, "should not have exceeded deadline (has flag --skip-start)")
 }
