@@ -888,6 +888,45 @@ func gno2GoType(t Type) reflect.Type {
 	}
 }
 
+func collectInterfaceMethods(ift *InterfaceType) []reflect.Method {
+	var methods []reflect.Method
+
+	for _, fld := range ift.Methods {
+		name := string(fld.Name)
+		typ := fld.Type
+
+		var (
+			paramTypes, returnTypes []reflect.Type
+		)
+
+		switch ft := typ.(type) {
+		case *FuncType:
+			//extract parameter types
+			for _, param := range ft.Params {
+				pType := gno2GoType(param.Type)
+				paramTypes = append(paramTypes, pType)
+			}
+
+			// extract return types
+			for _, ret := range ft.Results {
+				rTyp := gno2GoType(ret.Type)
+				returnTypes = append(returnTypes, rTyp)
+			}
+		default:
+			panic(fmt.Sprintf("unexpected type %v", typ))
+		}
+
+		method := reflect.Method{
+			Name: name,
+			Type: reflect.FuncOf(paramTypes, returnTypes, false),
+		}
+
+		methods = append(methods, method)
+	}
+
+	return methods
+}
+
 // If gno2GoTypeMatches(t, rt) is true, a t value can
 // be converted to an rt native value using gno2GoValue(v, rv).
 // This is called when autoNative is true in checkType().

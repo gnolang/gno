@@ -145,3 +145,58 @@ func TestCrypto(t *testing.T) {
 	assert.Equal(t, tv.String(),
 		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/tm2/pkg/crypto.Address)`)
 }
+
+func TestCollectInterfaceMethods(t *testing.T) {
+	ift := &InterfaceType{
+		Methods: []FieldType{
+			{
+				Name: "Foo",
+				Type: &FuncType{
+					Params: nil,
+					Results: nil,
+				},
+			},
+			{
+				Name: "Bar",
+				Type: &FuncType{
+					Params: []FieldType{
+						{Type: IntType},
+						{Type: StringType},
+					},
+					Results: []FieldType{
+						{Type: BoolType},
+					},
+				},
+			},
+		},
+	}
+
+	methods := collectInterfaceMethods(ift)
+
+	if len(methods) != 2 {
+		t.Fatalf("expected 1 method, got %d", len(methods))
+	}
+
+	// check method names
+	if methods[0].Name != "Foo" {
+		t.Fatalf("expected method name Bar, got %s", methods[0].Name)
+	}
+	if methods[1].Name != "Bar" {
+		t.Fatalf("expected method name Foo, got %s", methods[1].Name)
+	}
+
+	// check method types
+	if methods[0].Type.NumIn() != 0 {
+		t.Fatalf("expected 0 input arguments, got %d", methods[0].Type.NumIn())
+	}
+	if methods[0].Type.NumOut() != 0 {
+		t.Fatalf("expected 0 output arguments, got %d", methods[0].Type.NumOut())
+	}
+
+	if methods[1].Type.NumIn() != 2 {
+		t.Fatalf("expected 2 input arguments, got %d", methods[1].Type.NumIn())
+	}
+	if methods[1].Type.NumOut() != 1 {
+		t.Fatalf("expected 1 output arguments, got %d", methods[1].Type.NumOut())
+	}
+}
