@@ -74,7 +74,6 @@ func GetSignupsInRange(page, pageSize int) ([]Signup, int) {
 	// Pagination
 	// Calculate indexes
 	startIndex := (page - 1) * pageSize
-
 	endIndex := startIndex + pageSize
 
 	// If page does not contain any users
