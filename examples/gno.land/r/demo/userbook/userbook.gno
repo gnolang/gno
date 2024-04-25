@@ -19,13 +19,15 @@ type Signup struct {
 var signups []Signup
 
 // tracker - keep track of who signed up
-var tracker *avl.Tree
-var router *mux.Router
+var (
+	tracker *avl.Tree
+	router  *mux.Router
+)
 
 const (
 	pageSize     = 20
 	pathArgument = "number"
-	path         = "page/{" + pathArgument + "}"
+	subPath      = "page/{" + pathArgument + "}"
 )
 
 func init() {
@@ -35,7 +37,7 @@ func init() {
 	// Set up route handling
 	router = mux.NewRouter()
 	router.HandleFunc("", renderHelper)
-	router.HandleFunc(path, renderHelper)
+	router.HandleFunc(subPath, renderHelper)
 
 	// Sign up the deployer
 	SignUp()
@@ -89,10 +91,10 @@ func GetSignedUpInRange(page, pageSize int) []Signup {
 func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	totalSignups := len(signups)
 
-	res.Write("# Welcome to Gno.land!\n\n")
-	res.Write(ufmt.Sprintf("## Users in userbook (%d):\n\n", totalSignups))
+	res.Write("# Welcome to UserBook!\n\n")
+	res.Write(ufmt.Sprintf("## Users currently in UserBook (%d):\n\n", totalSignups))
 
-	page, err := strconv.Atoi(req.GetVar(pathArgument))
+	page, err := strconv.Atoi(req.GetVar("number"))
 	if err != nil {
 		page = 1 // render first page on bad input
 	}
@@ -103,13 +105,18 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	fetchedSignups := GetSignedUpInRange(page, pageSize)
-	if len(fetchedSignups) == 0 {
-		res.Write("No users on this page\n\n")
+	numSingups := len(fetchedSignups)
+
+	if numSingups == 0 {
+		res.Write("No users on this page!\n\n")
+		res.Write("---\n\n")
+		res.Write("[Back to Page #1](/r/demo/userbook:page/1)\n\n")
+		return
 	}
 
 	pageStartIndex := pageSize * (page - 1)
 	for i, signup := range fetchedSignups {
-		out := ufmt.Sprintf("#### User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
+		out := ufmt.Sprintf("User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
 		res.Write(out)
 	}
 
@@ -120,22 +127,23 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("---\n\n")
 
-	res.Write(ufmt.Sprintf("You're viewing page #%d\n\n", page))
+	res.Write(ufmt.Sprintf("You're viewing page #%d", page))
 
 	var prevPage string
 	var nextPage string
+
 	if page >= 2 {
-		prevPage = ufmt.Sprintf("[Previous page](/r/demo/pagination:page/%d)\n\n", page-1)
+		prevPage = ufmt.Sprintf(" - [Previous page](/r/demo/userbook:page/%d)", page-1)
 	}
 
-	if len(fetchedSignups) > pageSize {
-		nextPage = ufmt.Sprintf("[Next page](/r/demo/pagination:page/%d)\n\n", page+1)
+	if numSingups > pageSize {
+		nextPage = ufmt.Sprintf(" - [Next page](/r/demo/userbook:page/%d)\n\n", page+1)
 	}
 
 	res.Write(prevPage)
 	res.Write(nextPage)
 }
 
-func Render(_ string) string {
+func Render(path string) string {
 	return router.Render(path)
 }
