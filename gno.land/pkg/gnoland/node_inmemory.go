@@ -59,34 +59,6 @@ func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
 	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
-	tm := NewDefaultTMConfig(rootdir)
-
-	// Create Mocked Identity
-	pv := NewMockedPrivValidator()
-	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
-
-	// Add self as validator
-	self := pv.GetPubKey()
-	genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: self.Address(),
-			PubKey:  self,
-			Power:   10,
-			Name:    "self",
-		},
-	}
-
-	return &InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tm,
-		Genesis:            genesis,
-		GenesisTxHandler:   PanicOnFailingTxHandler,
-		GenesisMaxVMCycles: 10_000_000,
-	}
-}
-
 func (cfg *InMemoryNodeConfig) validate() error {
 	if cfg.PrivValidator == nil {
 		return fmt.Errorf("`PrivValidator` is required but not provided")
