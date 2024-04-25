@@ -17,7 +17,8 @@ func ExampleHTTP_simple() {
 	defer rpctest.StopTendermint(node)
 
 	// Create our RPC client
-	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
+	cfg, _ := rpctest.GetConfig()
+	rpcAddr := cfg.RPC.ListenAddress
 	c := client.NewHTTP(rpcAddr, "/websocket")
 
 	// Create a transaction
@@ -63,11 +64,12 @@ func ExampleHTTP_simple() {
 func ExampleHTTP_batching() {
 	// Start a tendermint node (and kvstore) in the background to test against
 	app := kvstore.NewKVStoreApplication()
-	node := rpctest.StartTendermint(app, rpctest.SuppressStdout, rpctest.RecreateConfig)
+	node := rpctest.StartTendermint(app, rpctest.RecreateConfig)
 	defer rpctest.StopTendermint(node)
 
 	// Create our RPC client
-	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
+	cfg, _ := rpctest.GetConfig()
+	rpcAddr := cfg.RPC.ListenAddress
 	c := client.NewHTTP(rpcAddr, "/websocket")
 
 	// Create our two transactions

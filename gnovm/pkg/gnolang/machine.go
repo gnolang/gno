@@ -16,6 +16,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	Frame *Frame
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
 //----------------------------------------
 // Machine
 
@@ -28,13 +41,13 @@ type Machine struct {
 	Exprs      []Expr        // pending expressions
 	Stmts      []Stmt        // pending statements
 	Blocks     []*Block      // block (scope) stack
-	Frames     []Frame       // func call stack
+	Frames     []*Frame      // func call stack
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exceptions []*TypedValue // if panic'd unless recovered
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles
+	Exceptions []Exception
+	NumResults int   // number of results returned
+	Cycles     int64 // number of "cpu" cycles
 
 	// Configuration
 	CheckTypes bool // not yet used
@@ -44,16 +57,25 @@ type Machine struct {
 	Output  io.Writer
 	Store   Store
 	Context interface{}
+
+	// PanicScope is incremented each time a panic occurs and is reset to
+	// zero when it is recovered.
+	PanicScope uint
+	// DeferPanicScope is set to the value of the defer's panic scope before
+	// it is executed. It is reset to zero after the defer functions in the current
+	// scope have finished executing.
+	DeferPanicScope uint
 }
 
-// machine.Release() must be called on objects
-// created via this constructor
-// Machine with new package of given path.
-// Creates a new MemRealmer for any new realms.
-// Looks in store for package of pkgPath; if not found,
-// creates new instances as necessary.
-// If pkgPath is zero, the machine has no active package
-// and one must be set prior to usage.
+// NewMachine initializes a new gno virtual machine, acting as a shorthand
+// for [NewMachineWithOptions], setting the given options PkgPath and Store.
+//
+// The machine will run on the package at the given path, which will be
+// retrieved through the given store. If it is not set, the machine has no
+// active package, and one must be set prior to usage.
+//
+// Like for [NewMachineWithOptions], Machines initialized through this
+// constructor must be finalized with [Machine.Release].
 func NewMachine(pkgPath string, store Store) *Machine {
 	return NewMachineWithOptions(
 		MachineOptions{
@@ -62,12 +84,14 @@ func NewMachine(pkgPath string, store Store) *Machine {
 		})
 }
 
+// MachineOptions is used to pass options to [NewMachineWithOptions].
 type MachineOptions struct {
+	// Active package of the given machine; must be set before execution.
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
-	Output        io.Writer
-	Store         Store
+	Output        io.Writer // default os.Stdout
+	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
@@ -87,6 +111,11 @@ var machinePool = sync.Pool{
 	},
 }
 
+// NewMachineWithOptions initializes a new gno virtual machine with the given
+// options.
+//
+// Machines initialized through this constructor must be finalized with
+// [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
@@ -141,11 +170,10 @@ var (
 	valueZeroed [VMSliceSize]TypedValue
 )
 
-// m should not be used after this call
-// if m is nil, this will panic
-// this is on purpose, to discourage misuse
-// and prevent objects that were not taken from
-// the pool, to call Release
+// Release resets some of the values of *Machine and puts back m into the
+// machine pool; for this reason, Release() should be called as a finalizer,
+// and m should not be used after this call. Only Machines initialized with this
+// package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
 	m.NumOps = 0
@@ -175,6 +203,9 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 
 // Upon restart, preprocess all MemPackage and save blocknodes.
 // This is a temporary measure until we optimize/make-lazy.
+//
+// NOTE: package paths not beginning with gno.land will be allowed to override,
+// to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
@@ -209,8 +240,23 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, false)
+}
+
+// RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
+// declarations are filtered removing duplicate declarations.
+// To control which declaration overrides which, use [ReadMemPackageFromList],
+// putting the overrides at the top of the list.
+func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(memPkg, save, true)
+}
+
+func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
+	if !overrides && checkDuplicates(files) {
+		panic(fmt.Errorf("running package %q: duplicate declarations not allowed", memPkg.Path))
+	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -235,6 +281,56 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 		m.Store.AddMemPackage(memPkg)
 	}
 	return pn, pv
+}
+
+// checkDuplicates returns true if there duplicate declarations in the fset.
+func checkDuplicates(fset *FileSet) bool {
+	defined := make(map[Name]struct{}, 128)
+	for _, f := range fset.Files {
+		for _, d := range f.Decls {
+			var name Name
+			switch d := d.(type) {
+			case *FuncDecl:
+				if d.Name == "init" { //nolint:goconst
+					continue
+				}
+				name = d.Name
+				if d.IsMethod {
+					name = Name(destar(d.Recv.Type).String()) + "." + name
+				}
+			case *TypeDecl:
+				name = d.Name
+			case *ValueDecl:
+				for _, nx := range d.NameExprs {
+					if nx.Name == "_" {
+						continue
+					}
+					if _, ok := defined[nx.Name]; ok {
+						return true
+					}
+					defined[nx.Name] = struct{}{}
+				}
+				continue
+			default:
+				continue
+			}
+			if name == "_" {
+				continue
+			}
+			if _, ok := defined[name]; ok {
+				return true
+			}
+			defined[name] = struct{}{}
+		}
+	}
+	return false
+}
+
+func destar(x Expr) Expr {
+	if x, ok := x.(*StarExpr); ok {
+		return x.X
+	}
+	return x
 }
 
 // Tests all test files in a mempackage.
@@ -316,12 +412,8 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 
 		// mirror of stdlibs/testing.Report
 		var report struct {
-			Name     string
-			Verbose  bool
-			Failed   bool
-			Skipped  bool
-			Filtered bool
-			Output   string
+			Skipped bool
+			Failed  bool
 		}
 		err := json.Unmarshal([]byte(ret), &report)
 		if err != nil {
@@ -330,16 +422,10 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 		}
 
 		switch {
-		case report.Filtered:
-			// noop
 		case report.Skipped:
 			t.SkipNow()
 		case report.Failed:
 			t.Fail()
-		}
-
-		if report.Output != "" && (report.Verbose || report.Failed) {
-			t.Log(report.Output)
 		}
 	})
 }
@@ -500,7 +586,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
 				}
 			}
-			// run dependecy declaration
+			// run dependency declaration
 			loopfindr = append(loopfindr, dep)
 			runDeclarationFor(fn, *depdecl)
 			loopfindr = loopfindr[:len(loopfindr)-1]
@@ -1360,6 +1446,7 @@ func (m *Machine) PushOp(op Op) {
 		copy(newOps, m.Ops)
 		m.Ops = newOps
 	}
+
 	m.Ops[m.NumOps] = op
 	m.NumOps++
 }
@@ -1577,7 +1664,7 @@ func (m *Machine) LastBlock() *Block {
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
 	label := s.GetLabel()
-	fr := Frame{
+	fr := &Frame{
 		Label:     label,
 		Source:    s,
 		NumOps:    m.NumOps,
@@ -1596,7 +1683,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	fr := Frame{
+	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
 		NumValues:   m.NumValues - cx.NumArgs - 1,
@@ -1633,7 +1720,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := Frame{
+	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
 		NumValues:   m.NumValues - cx.NumArgs - 1,
@@ -1659,15 +1746,17 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
+	f.Popped = true
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
-	return f
+	return *f
 }
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
+	fr.Popped = true
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues
 	m.Exprs = m.Exprs[:fr.NumExprs]
@@ -1679,6 +1768,7 @@ func (m *Machine) PopFrameAndReset() {
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
+	fr.Popped = true
 	if debug {
 		// TODO: optimize with fr.IsCall
 		if fr.Func == nil && fr.GoFunc == nil {
@@ -1734,18 +1824,29 @@ func (m *Machine) NumFrames() int {
 }
 
 func (m *Machine) LastFrame() *Frame {
-	return &m.Frames[len(m.Frames)-1]
+	return m.Frames[len(m.Frames)-1]
+}
+
+// MustLastCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
+func (m *Machine) MustLastCallFrame(n int) *Frame {
+	return m.lastCallFrame(n, true)
+}
+
+// LastCallFrame behaves the same as MustLastCallFrame, but rather than panicking,
+// returns nil if the frame is not found.
+func (m *Machine) LastCallFrame(n int) *Frame {
+	return m.lastCallFrame(n, false)
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
-func (m *Machine) LastCallFrame(n int) *Frame {
+func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
+		fr := m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			if n == 1 {
@@ -1755,20 +1856,34 @@ func (m *Machine) LastCallFrame(n int) *Frame {
 			}
 		}
 	}
-	panic("frame not found")
+
+	if mustBeFound {
+		panic("frame not found")
+	}
+
+	return nil
 }
 
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
+		fr := m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
+
+		fr.Popped = true
 	}
+
+	// No frames are popped, so revert all the frames' popped flag.
+	// This is expected to happen infrequently.
+	for _, frame := range m.Frames {
+		frame.Popped = false
+	}
+
 	return nil
 }
 
@@ -1861,7 +1976,15 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	m.Exceptions = append(m.Exceptions, &ex)
+	m.Exceptions = append(
+		m.Exceptions,
+		Exception{
+			Value: ex,
+			Frame: m.MustLastCallFrame(1),
+		},
+	)
+
+	m.PanicScope++
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)

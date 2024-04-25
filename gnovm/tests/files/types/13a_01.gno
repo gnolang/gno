@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/13a_01.gno:6: length of lhs and rhs should not > 1
+// main/files/types/13a_01.gno:6: assignment operator += requires only one expression on lhs and rhs

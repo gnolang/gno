@@ -760,8 +760,11 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			}
 		}
 	} else { // Ops other than assign and define
+		// If this is an assignment operation, ensure there's only 1
+		// expr on lhs/rhs.
 		if len(as.Lhs) != 1 || len(as.Rhs) != 1 {
-			panic("length of lhs and rhs should not > 1")
+			panic("assignment operator " + as.Op.TokenString() +
+				" requires only one expression on lhs and rhs")
 		}
 		for i, lx := range as.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
