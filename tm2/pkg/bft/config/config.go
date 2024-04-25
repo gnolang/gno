@@ -160,11 +160,11 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no secrets directory, %w", err)
 	}
 
@@ -200,18 +200,18 @@ func (cfg *Config) ValidateBasic() error {
 
 var (
 	DefaultDBDir      = "db"
-	defaultConfigDir  = "config"
-	defaultSecretsDir = "secrets"
+	DefaultConfigDir  = "config"
+	DefaultSecretsDir = "secrets"
 
-	defaultConfigFileName   = "config.toml"
+	DefaultConfigFileName   = "config.toml"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigPath       = filepath.Join(defaultConfigDir, defaultConfigFileName)
-	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
+	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node.

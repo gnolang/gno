@@ -29,6 +29,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const defaultNodeDir = "gnoland-data"
+
 var startGraphic = strings.ReplaceAll(`
                     __             __
   ___ ____  ___    / /__ ____  ___/ /
@@ -131,7 +133,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"gnoland-data",
+		defaultNodeDir,
 		"the path to the node's data directory",
 	)
 
