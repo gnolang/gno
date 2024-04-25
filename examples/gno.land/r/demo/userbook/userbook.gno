@@ -25,9 +25,9 @@ var (
 )
 
 const (
-	pageSize     = 2
-	pathArgument = "number"
-	subPath      = "page/{" + pathArgument + "}"
+	defaultPageSize = 20
+	pathArgument    = "number"
+	subPath         = "page/{" + pathArgument + "}"
 )
 
 func init() {
@@ -100,7 +100,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Fetch paginated signups
-	fetchedSignups, endIndex := GetSignupsInRange(page, pageSize)
+	fetchedSignups, endIndex := GetSignupsInRange(page, defaultPageSize)
 	// Handle empty page case
 	if len(fetchedSignups) == 0 {
 		res.Write("No users on this page!\n\n")
@@ -113,7 +113,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("## UserBook - Page #%d:\n\n", page))
 
 	// Write signups
-	pageStartIndex := pageSize * (page - 1)
+	pageStartIndex := defaultPageSize * (page - 1)
 	for i, signup := range fetchedSignups {
 		out := ufmt.Sprintf("#### User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
 		res.Write(out)
