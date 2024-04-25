@@ -13,6 +13,7 @@ cmp stdout stdout.addpkg.success
 ## execute SayHello
 gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000  -broadcast -chainid=tendermint_test test1
 
+
 ## compare SayHello
 cmp stdout stdout.call.success
 

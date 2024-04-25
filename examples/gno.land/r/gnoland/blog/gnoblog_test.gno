@@ -24,24 +24,22 @@ No posts.
 
 	// create two posts, list post.
 	{
-		ModAddPost("slug1", "title1", "body1", "tag1,tag2")
-		ModAddPost("slug2", "title2", "body2", "tag1,tag3")
+		ModAddPost("slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-# Gnoland's Blog
+	# Gnoland's Blog
 
 <div class='columns-3'><div>
 
-## [title1](/r/gnoland/blog:p/slug1)
-**[Learn More](/r/gnoland/blog:p/slug1)**
-
+### [title2](/r/gnoland/blog:p/slug2)
+ 20 May 2022
 </div><div>
 
-## [title2](/r/gnoland/blog:p/slug2)
-**[Learn More](/r/gnoland/blog:p/slug2)**
-
+### [title1](/r/gnoland/blog:p/slug1)
+ 20 May 2022
 </div></div>
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -49,14 +47,24 @@ No posts.
 	{
 		got := Render("p/slug2")
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
+# title2
 
 body2
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-`
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+
+Written by moul on 20 May 2022
+
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+
+---
+<details><summary>Comment section</summary>
+
+</details>
+
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -72,11 +80,10 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 
 <div>
 
-## [title1](/r/gnoland/blog:p/slug1)
-**[Learn More](/r/gnoland/blog:p/slug1)**
-
+### [title1](/r/gnoland/blog:p/slug1)
+ 20 May 2022
 </div>
-`
+	`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -89,42 +96,72 @@ by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2
+# title2
 
 body2
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-comment4
+Written by moul on 20 May 2022
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-comment2
-`
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+
+---
+<details><summary>Comment section</summary>
+
+<h5>comment4
+
+</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+
+---
+
+<h5>comment2
+
+</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+
+---
+
+</details>
+	`
 		assertMDEquals(t, got, expected)
 	}
 
 	// edit post.
 	{
-		ModEditPost("slug2", "title2++", "body2++", "tag1,tag4")
+		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `
-# [Gnoland's Blog](/r/gnoland/blog:) / p / title2++
+# title2++
 
 body2++
 
-[#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
+---
 
-by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-comment4
+Written by manfred on 10 Nov 2009
 
-#### by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
-comment2
-`
+Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+
+---
+<details><summary>Comment section</summary>
+
+<h5>comment4
+
+</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+
+---
+
+<h5>comment2
+
+</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+
+---
+
+</details>
+	`
 		assertMDEquals(t, got, expected)
 	}
 
