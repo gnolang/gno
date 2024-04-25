@@ -8,8 +8,32 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+func TestGetSignupsInRange(t *testing.T) {
+	// Sign up 20 users + deployer
+	for i := 0; i < 20; i++ {
+		addrName := ufmt.Sprintf("test%d", i)
+		caller := testutils.TestAddress(addrName)
+		std.TestSetOrigCaller(caller)
+		SignUp()
+	}
+
+	testCases := []struct {
+		name                  string
+		page                  int
+		pageSize              int
+		expectedNumberOfUsers int
+	}{}
+
+	for _, tc := range testCases {
+		t.Run("", func(t *testing.T) {
+
+		})
+	}
+}
+
 func TestRenderHome(t *testing.T) {
-	// Sign up 50 users + deployer?
+	t.Skip()
+	// Sign up 50 users + deployer
 	for i := 0; i < 50; i++ {
 		addrName := ufmt.Sprintf("test%d", i)
 		caller := testutils.TestAddress(addrName)

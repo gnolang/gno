@@ -25,7 +25,7 @@ var (
 )
 
 const (
-	pageSize     = 20
+	pageSize     = 2
 	pathArgument = "number"
 	subPath      = "page/{" + pathArgument + "}"
 )
@@ -61,7 +61,7 @@ func SignUp() string {
 	return ufmt.Sprintf("%s added to userbook up at block #%d!", signup.account, signup.height)
 }
 
-func GetSignedUpInRange(page, pageSize int) []Signup {
+func GetSignupsInRange(page, pageSize int) ([]Signup, int) {
 	if page < 1 {
 		panic("page number cannot be less than 1")
 	}
@@ -73,19 +73,20 @@ func GetSignedUpInRange(page, pageSize int) []Signup {
 	// Pagination
 	// Calculate indexes
 	startIndex := (page - 1) * pageSize
+
 	endIndex := startIndex + pageSize
 
-	// If page does not contain any posts
+	// If page does not contain any users
 	if startIndex >= len(signups) {
-		return nil
+		return nil, -1
 	}
 
-	// If page contains fewer posts than the page size
+	// If page contains fewer users than the page size
 	if endIndex > len(signups) {
 		endIndex = len(signups)
 	}
 
-	return signups[startIndex:endIndex]
+	return signups[startIndex:endIndex], endIndex
 }
 
 func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
@@ -104,10 +105,8 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	fetchedSignups := GetSignedUpInRange(page, pageSize)
-	numSingups := len(fetchedSignups)
-
-	if numSingups == 0 {
+	fetchedSignups, endIndex := GetSignupsInRange(page, pageSize)
+	if len(fetchedSignups) == 0 {
 		res.Write("No users on this page!\n\n")
 		res.Write("---\n\n")
 		res.Write("[Back to Page #1](/r/demo/userbook:page/1)\n\n")
@@ -116,7 +115,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	pageStartIndex := pageSize * (page - 1)
 	for i, signup := range fetchedSignups {
-		out := ufmt.Sprintf("User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
+		out := ufmt.Sprintf("#### User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
 		res.Write(out)
 	}
 
@@ -131,12 +130,13 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	var prevPage string
 	var nextPage string
-
-	if page >= 2 {
+	// If we are on any page that is not the first page
+	if page > 1 {
 		prevPage = ufmt.Sprintf(" - [Previous page](/r/demo/userbook:page/%d)", page-1)
 	}
 
-	if numSingups > pageSize {
+	// If there are more pages after the current one
+	if endIndex < totalSignups {
 		nextPage = ufmt.Sprintf(" - [Next page](/r/demo/userbook:page/%d)\n\n", page+1)
 	}
 
