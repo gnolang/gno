@@ -44,7 +44,8 @@ func init() {
 }
 
 func SignUp() string {
-	caller := std.GetOrigCaller().String()
+	// Get transaction caller
+	caller := std.PrevRealm().Addr().String()
 	height := std.GetHeight()
 
 	if _, exists := tracker.Get(caller); exists {
@@ -91,16 +92,17 @@ func GetSignupsInRange(page, pageSize int) ([]Signup, int) {
 
 func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	totalSignups := len(signups)
-
 	res.Write("# Welcome to UserBook!\n\n")
-	res.Write(ufmt.Sprintf("## Users currently in UserBook (%d):\n\n", totalSignups))
 
+	// Get URL parameter
 	page, err := strconv.Atoi(req.GetVar("number"))
 	if err != nil {
 		page = 1 // render first page on bad input
 	}
 
+	// Fetch paginated signups
 	fetchedSignups, endIndex := GetSignupsInRange(page, pageSize)
+	// Handle empty page case
 	if len(fetchedSignups) == 0 {
 		res.Write("No users on this page!\n\n")
 		res.Write("---\n\n")
@@ -108,6 +110,10 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	// Write page title
+	res.Write(ufmt.Sprintf("## UserBook - Page #%d:\n\n", page))
+
+	// Write signups
 	pageStartIndex := pageSize * (page - 1)
 	for i, signup := range fetchedSignups {
 		out := ufmt.Sprintf("#### User #%d - %s - signed up at Block #%d\n", pageStartIndex+i, signup.account, signup.height)
@@ -116,13 +122,17 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("---\n\n")
 
-	latestSignup := signups[totalSignups-1]
-	res.Write(ufmt.Sprintf("Latest signup: %s at Block #%d\n\n", latestSignup.account, latestSignup.height))
+	// Write UserBook info
+	latestSignupIndex := totalSignups - 1
+	res.Write(ufmt.Sprintf("#### Total users: %d\n", totalSignups))
+	res.Write(ufmt.Sprintf("#### Latest signup: User #%d at Block #%d\n", latestSignupIndex, signups[latestSignupIndex].height))
 
 	res.Write("---\n\n")
 
+	// Write page number
 	res.Write(ufmt.Sprintf("You're viewing page #%d", page))
 
+	// Write navigation buttons
 	var prevPage string
 	var nextPage string
 	// If we are on any page that is not the first page
