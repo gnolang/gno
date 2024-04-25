@@ -100,7 +100,7 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		Txs:      pkgsTxs,
 	}
 
-	if err := devnode.reset(ctx, genesis); err != nil {
+	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
 
@@ -152,24 +152,16 @@ func (n *Node) UpdatePackages(paths ...string) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	var pkgCounter int
-	for _, path := range paths {
-		// List all packages from target path
-		pkgslist, err := gnomod.ListPkgs(path)
-		if err != nil {
-			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
+	npkgs, err := n.pkgs.Updates(paths...)
+	if err != nil {
+		if npkgs > 0 {
+			n.logger.Warn("partially updated packages", "pkgs", npkgs)
 		}
 
-		// Update or add package in the current known list.
-		for _, pkg := range pkgslist {
-			n.pkgs[pkg.Dir] = pkg
-			n.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
-		}
-
-		pkgCounter += len(pkgslist)
+		return fmt.Errorf("unable to fully update packages: %w", err)
 	}
 
-	n.logger.Info(fmt.Sprintf("updated %d pacakges", pkgCounter))
+	n.logger.Info("updated pacakges", "pkgs", npkgs)
 	return nil
 }
 
@@ -196,7 +188,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.reset(ctx, genesis)
+	err = n.rebuildNode(ctx, genesis)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
@@ -210,17 +202,19 @@ func (n *Node) ReloadAll(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	pkgs := n.ListPkgs()
+	pkgs := n.pkgs.toList()
 	paths := make([]string, len(pkgs))
 	for i, pkg := range pkgs {
 		paths[i] = pkg.Dir
 	}
 
-	if err := n.UpdatePackages(paths...); err != nil {
-		return fmt.Errorf("unable to reload packages: %w", err)
+	npkgs, err := n.pkgs.Updates(paths...)
+	if err != nil {
+		return fmt.Errorf("unable to fully reload packages: %w", err)
 	}
+	n.logger.Info("updated pacakges", "pkgs", npkgs)
 
-	return n.Reload(ctx)
+	return n.rebuildNodeFromState(ctx)
 }
 
 // Reload saves the current state, stops the node if running, starts a new node,
@@ -228,76 +222,41 @@ func (n *Node) ReloadAll(ctx context.Context) error {
 // If any transaction, including 'addpkg', fails, it will be ignored.
 // Use 'Reset' to completely reset the node's state in case of persistent errors.
 func (n *Node) Reload(ctx context.Context) error {
-	if n.config.NoReplay {
-		// If NoReplay is true, reload as the same effect as reset
-		n.logger.Warn("replay disable")
-		return n.Reset(ctx)
-	}
-
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	// Get current blockstore state
-	state, err := n.getBlockStoreState(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to save state: %s", err.Error())
-	}
-
-	// Stop the node if it's currently running.
-	if err := n.stopIfRunning(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
-	}
-
-	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultCreator, DefaultFee, nil)
-	if err != nil {
-		return fmt.Errorf("unable to load pkgs: %w", err)
-	}
-
-	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
-		Balances: DefaultBalance,
-		Txs:      append(pkgsTxs, state...),
-	}
-
-	// Reset the node with the new genesis state.
-	err = n.reset(ctx, genesis)
-	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
-
-	// Update node infos
-	n.loadedPackages = len(pkgsTxs)
-
-	n.emitter.Emit(&events.Reload{})
-	return nil
+	return n.rebuildNodeFromState(ctx)
 }
 
 func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
-	if res.IsErr() {
-		// XXX: for now, this is only way to catch the error
-		before, after, found := strings.Cut(res.Log, "\n")
-		if !found {
-			n.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
-			return
-		}
-
-		var attrs []slog.Attr
-
-		// Add error
-		attrs = append(attrs, slog.Any("err", res.Error))
-
-		// Fetch first line as error message
-		msg := strings.TrimFunc(before, func(r rune) bool {
-			return unicode.IsSpace(r) || r == ':'
-		})
-		attrs = append(attrs, slog.String("err", msg))
-
-		// If debug is enable, also append stack
-		if n.logger.Enabled(context.Background(), slog.LevelDebug) {
-			attrs = append(attrs, slog.String("stack", after))
-		}
-
-		n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
+	if !res.IsErr() {
+		return
 	}
+
+	// XXX: for now, this is only way to catch the error
+	before, after, found := strings.Cut(res.Log, "\n")
+	if !found {
+		n.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
+		return
+	}
+
+	var attrs []slog.Attr
+
+	// Add error
+	attrs = append(attrs, slog.Any("err", res.Error))
+
+	// Fetch first line as error message
+	msg := strings.TrimFunc(before, func(r rune) bool {
+		return unicode.IsSpace(r) || r == ':'
+	})
+	attrs = append(attrs, slog.String("err", msg))
+
+	// If debug is enable, also append stack
+	if n.logger.Enabled(context.Background(), slog.LevelDebug) {
+		attrs = append(attrs, slog.String("stack", after))
+	}
+
+	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 }
 
 // GetBlockTransactions returns the transactions contained
@@ -397,6 +356,48 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
 	return state, nil
 }
 
+func (n *Node) rebuildNodeFromState(ctx context.Context) error {
+	if n.config.NoReplay {
+		n.logger.Warn("replay disable")
+
+		// If NoReplay is true, reload as the same effect as reset
+		txs, err := n.pkgs.Load(DefaultCreator, DefaultFee, nil)
+		if err != nil {
+			return fmt.Errorf("unable to load pkgs: %w", err)
+		}
+
+		return n.rebuildNode(ctx, gnoland.GnoGenesisState{Balances: DefaultBalance, Txs: txs})
+	}
+
+	// Get current blockstore state
+	state, err := n.getBlockStoreState(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to save state: %s", err.Error())
+	}
+
+	// Load genesis packages
+	pkgsTxs, err := n.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
+	}
+
+	// Create genesis with loaded pkgs + previous state
+	genesis := gnoland.GnoGenesisState{
+		Balances: DefaultBalance,
+		Txs:      append(pkgsTxs, state...),
+	}
+
+	// Reset the node with the new genesis state.
+	err = n.rebuildNode(ctx, genesis)
+	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+
+	// Update node infos
+	n.loadedPackages = len(pkgsTxs)
+
+	n.emitter.Emit(&events.Reload{})
+	return nil
+}
+
 func (n *Node) stopIfRunning() error {
 	if n.Node != nil && n.Node.IsRunning() {
 		if err := n.Node.Stop(); err != nil {
@@ -407,7 +408,12 @@ func (n *Node) stopIfRunning() error {
 	return nil
 }
 
-func (n *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
+func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
+	// Stop the node if it's currently running.
+	if err := n.stopIfRunning(); err != nil {
+		return fmt.Errorf("unable to stop the node: %w", err)
+	}
+
 	// Setup node config
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxHandler = n.genesisTxHandler

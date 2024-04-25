@@ -80,3 +80,23 @@ func (pm PkgsMap) Load(creator bft.Address, fee std.Fee, deposit std.Coins) ([]s
 
 	return txs, nil
 }
+
+func (pm PkgsMap) Updates(paths ...string) (int, error) {
+	var pkgCounter int
+	for _, path := range paths {
+		// List all packages from target path
+		pkgslist, err := gnomod.ListPkgs(path)
+		if err != nil {
+			return pkgCounter, fmt.Errorf("failed to list gno packages for %q: %w", path, err)
+		}
+
+		// Update or add package in the current known list.
+		for _, pkg := range pkgslist {
+			pm[pkg.Dir] = pkg
+		}
+
+		pkgCounter += len(pkgslist)
+	}
+
+	return pkgCounter, nil
+}
