@@ -104,7 +104,7 @@ func (p *PreprocessError) Stack() string {
 // the actual error followed by its associated preprocessing stack.
 func (p *PreprocessError) Error() string {
 	var err strings.Builder
-	fmt.Fprintf(&err, "%s\n", p.Unwrap())
+	fmt.Fprintf(&err, "%s:\n", p.Unwrap())
 	fmt.Fprintln(&err, "--- preprocess stack ---")
 	fmt.Fprint(&err, p.Stack())
 	fmt.Fprintf(&err, "------------------------")

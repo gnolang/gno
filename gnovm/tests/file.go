@@ -252,7 +252,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 
-					parts := strings.SplitN(errstr, "\n--- preprocess stack ---", 2)
+					parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
 					if len(parts) == 2 {
 						fmt.Println(parts[0])
 						errstr = parts[0]
@@ -272,6 +272,11 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 							errstr = tv.Sprint(m)
 						} else {
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
+						}
+						parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
+						if len(parts) == 2 {
+							fmt.Println(parts[0])
+							errstr = parts[0]
 						}
 						// check tip line, write to file
 						ctl := errstr +
