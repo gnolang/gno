@@ -270,7 +270,9 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
+
 	m.SetActivePackage(pv)
+	initFuncs := m.RunFiles(files.Files...)
 
 	// Save package values and types so they are finalized before
 	// the init functions are run.
@@ -278,7 +280,6 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 		m.savePackageValuesAndTypes()
 	}
 
-	initFuncs := m.RunFiles(files.Files...)
 	initFuncs.Run(m)
 
 	// Finish saving the package state.
