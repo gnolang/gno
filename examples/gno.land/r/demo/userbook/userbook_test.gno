@@ -1,11 +1,9 @@
 package userbook
 
 import (
-	"std"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"testing"
-
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestRenderHome(t *testing.T) {
