@@ -225,10 +225,6 @@ func initDebugIO(m *Machine) {
 func debugUpdateLocation(m *Machine) {
 	loc := m.LastBlock().Source.GetLocation()
 
-	if strings.Contains(loc.File, "/") {
-		loc.PkgPath = "" // Path is already included in file.
-	}
-
 	if m.Debugger.loc.PkgPath == "" ||
 		loc.PkgPath != "" && loc.PkgPath != m.Debugger.loc.PkgPath ||
 		loc.File != "" && loc.File != m.Debugger.loc.File {
@@ -282,7 +278,7 @@ func debugBreak(m *Machine, arg string) error {
 
 func printBreakpoint(m *Machine, i int) {
 	b := m.Debugger.breakpoints[i]
-	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s:%d\n", i, b.PkgPath, b.File, b.Line)
+	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s\n", i, b.PkgPath, b)
 }
 
 func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
