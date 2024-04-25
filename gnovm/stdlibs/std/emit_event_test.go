@@ -2,8 +2,8 @@ package std
 
 import (
 	"encoding/json"
-	"strings"
 	"strconv"
+	"strings"
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
