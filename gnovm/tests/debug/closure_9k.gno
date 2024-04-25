@@ -1,7 +1,5 @@
 package main
 
-// the vp of the arg of the outer closure should be (1,0), 1 is loopDepth
-// the vp of the x of inner closure should be (2,0)
 func main() {
 	var y int
 	var f []func()
