@@ -111,7 +111,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.genesisFile,
 		"genesis",
 		"genesis.json",
-		"path to genesis file",
+		"the path to the genesis.json",
 	)
 
 	fs.StringVar(
@@ -208,6 +208,12 @@ func execStart(c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
 	}
 
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
+
 	var (
 		cfg        *config.Config
 		loadCfgErr error
@@ -251,7 +257,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Write genesis file if missing.
 	// NOTE: this will be dropped in a PR that resolves issue #1886:
 	// https://github.com/gnolang/gno/issues/1886
-	if !osm.FileExists(c.genesisFile) {
+	if !osm.FileExists(genesisPath) {
 		// Create priv validator first.
 		// Need it to generate genesis.json
 		newPrivValKey := cfg.PrivValidatorKeyFile()
@@ -260,7 +266,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		pk := priv.GetPubKey()
 
 		// Generate genesis.json file
-		if err := generateGenesisFile(c.genesisFile, pk, c); err != nil {
+		if err := generateGenesisFile(genesisPath, pk, c); err != nil {
 			return fmt.Errorf("unable to generate genesis file: %w", err)
 		}
 	}
@@ -283,7 +289,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		io.Println(startGraphic)
 	}
 
-	gnoNode, err := node.DefaultNewNode(cfg, c.genesisFile, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
