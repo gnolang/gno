@@ -55,13 +55,10 @@ type Machine struct {
 	CheckTypes bool // not yet used
 	ReadOnly   bool
 	MaxCycles  int64
-	Output   io.Writer
-	Store    Store
-	Context  interface{}
-	GasMeter store.GasMeter
-}
-
-
+	Output     io.Writer
+	Store      Store
+	Context    interface{}
+	GasMeter   store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
 	PanicScope uint
