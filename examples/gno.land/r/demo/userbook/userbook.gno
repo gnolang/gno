@@ -29,11 +29,15 @@ const (
 )
 
 func init() {
+	// Set up tracker tree
 	tracker = avl.NewTree()
+
+	// Set up route handling
 	router = mux.NewRouter()
 	router.HandleFunc("", renderHelper)
 	router.HandleFunc(path, renderHelper)
 
+	// Sign up the deployer
 	SignUp()
 }
 
