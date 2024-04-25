@@ -20,7 +20,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	pkgPath := CurrentRealmPath(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
-	evt := NewGnoEvent(typ, pkgPath, fnIdent, eventAttrs...)
+	evt := newGnoEvent(typ, pkgPath, fnIdent, eventAttrs...)
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(evt)
 
@@ -45,10 +45,6 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 		}
 	}
 	return eventAttrs, nil
-}
-
-func NewGnoEvent(eventType, pkgPath, ident string, attrs ...gnoEventAttribute) *gnoEvent {
-	return newGnoEvent(eventType, pkgPath, ident, attrs...)
 }
 
 type gnoEvent struct {
