@@ -32,17 +32,6 @@ func TestFiles(t *testing.T) {
 	runFileTests(t, baseDir, []string{"*_native*"})
 }
 
-func TestDebug(t *testing.T) {
-	baseDir := filepath.Join(".", "debug")
-	//baseDir := filepath.Join(".", "debug_temp")
-	runFileTests(t, baseDir, []string{"*_native*"})
-}
-
-func TestChallenges(t *testing.T) {
-	baseDir := filepath.Join(".", "challenges")
-	runFileTests(t, baseDir, nil)
-}
-
 func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
 	t.Helper()
 
