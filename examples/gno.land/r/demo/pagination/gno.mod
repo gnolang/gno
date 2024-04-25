@@ -1,4 +1,4 @@
-module gno.land/r/demo/pagination
+module gno.land/r/demo/userbook
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest

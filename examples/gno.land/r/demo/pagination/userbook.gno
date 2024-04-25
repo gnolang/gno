@@ -1,6 +1,5 @@
-// This realm demonstrates a pagination system working with gnoweb
-// It keeps a slice of signed up addresses for efficient pagination
-package pagination
+// This realm demonstrates a small userbook system working with gnoweb
+package userbook
 
 import (
 	"std"
