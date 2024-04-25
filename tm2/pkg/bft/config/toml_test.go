@@ -68,8 +68,8 @@ func TestEnsureTestRoot(t *testing.T) {
 	ensureFiles(
 		t,
 		rootDir,
+		"genesis.json",
 		DefaultDBDir,
-		baseConfig.Genesis,
 		baseConfig.PrivValidatorKey,
 		baseConfig.PrivValidatorState,
 	)
@@ -93,7 +93,6 @@ func checkConfig(configFile string) bool {
 		"wal",
 		"propose",
 		"max",
-		"genesis",
 	}
 	for _, e := range elems {
 		if !strings.Contains(configFile, e) {

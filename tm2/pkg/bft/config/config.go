@@ -22,7 +22,6 @@ var (
 	errInvalidMoniker                    = errors.New("moniker not set")
 	errInvalidDBBackend                  = errors.New("invalid DB backend")
 	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidGenesisPath                = errors.New("invalid genesis path")
 	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
 	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
 	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
@@ -205,7 +204,6 @@ var (
 	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
-	defaultGenesisJSONName  = "genesis.json"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
@@ -271,9 +269,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
-
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
 	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
@@ -301,7 +296,6 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONName,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -380,11 +374,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the genesis path is set
-	if cfg.Genesis == "" {
-		return errInvalidGenesisPath
 	}
 
 	// Verify the validator private key path is set

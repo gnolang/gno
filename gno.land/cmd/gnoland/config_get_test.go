@@ -130,13 +130,6 @@ func TestConfig_Get_Base(t *testing.T) {
 			},
 		},
 		{
-			"genesis path fetched",
-			"genesis_file",
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, loadedCfg.Genesis, value)
-			},
-		},
-		{
 			"validator key fetched",
 			"priv_validator_key_file",
 			func(loadedCfg *config.Config, value string) {

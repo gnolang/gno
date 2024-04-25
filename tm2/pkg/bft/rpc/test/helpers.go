@@ -92,7 +92,7 @@ func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 	for _, opt := range opts {
 		opt(&nodeOpts)
 	}
-	node := NewTendermint(app, &nodeOpts)
+	node := newTendermint(app, &nodeOpts)
 	err := node.Start()
 	if err != nil {
 		panic(err)
@@ -112,8 +112,8 @@ func StopTendermint(node *nm.Node) {
 	os.RemoveAll(node.Config().RootDir)
 }
 
-// NewTendermint creates a new tendermint server and sleeps forever
-func NewTendermint(app abci.Application, opts *Options) *nm.Node {
+// newTendermint creates a new tendermint server and sleeps forever
+func newTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config, genesisFile := GetConfig(opts.recreateConfig)
 
