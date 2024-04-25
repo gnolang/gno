@@ -782,8 +782,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// outer first order
 					externNames := n.GetExternNames()
 					debug.Println("---externNames: ", externNames)
-					//slices.Reverse(externNames)
-					//debug.Println("---reverse externNames: ", externNames)
 
 					for _, name := range externNames {
 						loopNode = n.GetLoopNodeForName(store, name)
@@ -2451,7 +2449,6 @@ func findLastFn(last BlockNode) Name {
 func findGotoLabel(last BlockNode, label Name) (
 	bn BlockNode, depth uint8, bodyIdx int, line int,
 ) {
-	debug.Println("---find goto label: ", label)
 	var ls Stmt // label stmt
 	for {
 		switch cbn := last.(type) {
@@ -3116,7 +3113,6 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 }
 
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
-	debug.Println("---predefineNow2")
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -3166,7 +3162,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				dt = rt.(*DeclaredType)
 			}
-			debug.Println("---cd.Name: ", cd.Name)
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
@@ -3406,7 +3401,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				Closure:    nil, // set lazily.
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
-				body:       d.Body, // TODO: body of main would be mutated in some case like goto with closure, here should be a pointer
+				body:       d.Body,
 				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
@@ -3454,8 +3449,6 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
-	debug.Println("---fillNameExprPath")
-	debug.Println("---fillNameExprPath, last: ", last)
 	if nx.Name == "_" {
 		// Blank name has no path; caller error.
 		panic("should not happen")
@@ -3474,7 +3467,6 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			var i int = 0
 			for {
 				i++
-				debug.Println("---fillNameExprPath, round i: ", i)
 				last = last.GetParentNode(nil)
 				if last == nil {
 					if isUverseName(nx.Name) {
@@ -3490,19 +3482,15 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					}
 				}
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
-					debug.Println("---type nil, continue")
 					continue
 				} else {
 					path = last.GetPathForName(nil, nx.Name)
-					debug.Println("---path: ", path)
 					if path.Type != VPBlock {
 						panic("expected block value path type")
 					}
 					break
 				}
 			}
-			debug.Println("---path.Depth: ", path.Depth)
-			debug.Println("---end i: ", i)
 			path.Depth += uint8(i)
 			nx.Path = path
 			return
@@ -4009,7 +3997,6 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
 func SaveBlockNodes(store Store, fn *FileNode) {
-	debug.Println("---SaveBlockNodes")
 	// First, get the package and file names.
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)

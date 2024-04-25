@@ -586,6 +586,7 @@ func (fv *FuncValue) GetType(store Store) *FuncType {
 }
 
 func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
+	// XXX, always get body from source that the origin body might be modified
 	source := fv.GetSource(store)
 	fv.body = source.GetBody()
 	return fv.body
