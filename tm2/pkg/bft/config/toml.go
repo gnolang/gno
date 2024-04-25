@@ -54,7 +54,7 @@ func WriteConfigFile(configFilePath string, config *Config) error {
 
 /****** these are for test settings ***********/
 
-func ResetTestRoot(testName string) (cfg *Config, genesisFile string) {
+func ResetTestRoot(testName string) (*Config, string) {
 	chainID := "test-chain"
 
 	// create a unique, concurrency-safe test directory under os.TempDir()
@@ -69,6 +69,9 @@ func ResetTestRoot(testName string) (cfg *Config, genesisFile string) {
 	}
 
 	// ensure config and data subdirs are created
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+		panic(err)
+	}
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
@@ -77,7 +80,7 @@ func ResetTestRoot(testName string) (cfg *Config, genesisFile string) {
 	}
 
 	baseConfig := DefaultBaseConfig()
-	configFilePath := filepath.Join(rootDir, defaultConfigFileName)
+	configFilePath := filepath.Join(rootDir, defaultConfigPath)
 	// NOTE: this does not match the behaviour of the Gno.land node.
 	// However, many tests rely on the fact that they can cleanup the directory
 	// by doing RemoveAll on the rootDir; so to keep compatibility with that
@@ -102,6 +105,7 @@ func ResetTestRoot(testName string) (cfg *Config, genesisFile string) {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
+
 	return config, genesisFilePath
 }
 

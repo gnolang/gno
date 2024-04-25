@@ -67,7 +67,7 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 type GenesisDocProvider func() (*types.GenesisDoc, error)
 
 // DefaultGenesisDocProviderFunc returns a GenesisDocProvider that loads
-// the GenesisDoc from the config.GenesisFile() on the filesystem.
+// the GenesisDoc from the genesis path on the filesystem.
 func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 	return func() (*types.GenesisDoc, error) {
 		return types.GenesisDocFromFile(genesisFile)

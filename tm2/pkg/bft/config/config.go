@@ -76,7 +76,7 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	// Initialize the config as default
 	var (
 		cfg        = DefaultConfig()
-		configPath = filepath.Join(root, defaultConfigFileName)
+		configPath = filepath.Join(root, defaultConfigPath)
 	)
 
 	// Config doesn't exist, create it
@@ -160,12 +160,16 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+		return fmt.Errorf("no secrets directory, %w", err)
+	}
+
 	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
-		return fmt.Errorf("no data directory, %w", err)
+		return fmt.Errorf("no DB directory, %w", err)
 	}
 
 	return nil
@@ -196,6 +200,7 @@ func (cfg *Config) ValidateBasic() error {
 
 var (
 	DefaultDBDir      = "db"
+	defaultConfigDir  = "config"
 	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
@@ -203,6 +208,7 @@ var (
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
+	defaultConfigPath       = filepath.Join(defaultConfigDir, defaultConfigFileName)
 	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
 	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
 	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
@@ -226,7 +232,8 @@ type BaseConfig struct {
 	//	│   ├── priv_validator_state.json
 	//	│   ├── node_key.json
 	//	│   └── priv_validator_key.json
-	//	└── config.toml (optional)
+	//	└── config/
+	//	    └── config.toml (optional)
 	RootDir string `toml:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,

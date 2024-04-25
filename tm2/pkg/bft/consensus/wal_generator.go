@@ -36,6 +36,7 @@ func getConfig(t *testing.T) (*cfg.Config, string) {
 	c.P2P.ListenAddress = tm
 	c.RPC.ListenAddress = rpc
 	c.RPC.GRPCListenAddress = grpc
+
 	return c, genesisFile
 }
 

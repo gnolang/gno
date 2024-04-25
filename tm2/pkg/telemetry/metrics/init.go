@@ -3,8 +3,8 @@ package metrics
 import (
 	"context"
 
-	"github.com/gnolang/gno/telemetry/exporter"
-	"github.com/gnolang/gno/telemetry/options"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/exporter"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/options"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"

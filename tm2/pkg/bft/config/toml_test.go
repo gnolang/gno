@@ -35,11 +35,11 @@ func TestEnsureRoot(t *testing.T) {
 	throwaway.SetRootDir(tmpDir)
 	require.NoError(t, throwaway.EnsureDirs())
 
-	configPath := filepath.Join(tmpDir, defaultConfigFileName)
+	configPath := filepath.Join(tmpDir, defaultConfigPath)
 	require.NoError(t, WriteConfigFile(configPath, throwaway))
 
 	// make sure config is set properly
-	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigFileName))
+	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigPath))
 	require.Nil(t, err)
 
 	require.True(t, checkConfig(string(data)))
@@ -53,12 +53,12 @@ func TestEnsureTestRoot(t *testing.T) {
 	testName := "ensureTestRoot"
 
 	// create root dir
-	cfg, genesisFile := ResetTestRoot(testName)
+	cfg, _ := ResetTestRoot(testName)
 	defer os.RemoveAll(cfg.RootDir)
 	rootDir := cfg.RootDir
 
 	// make sure config is set properly
-	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigFileName))
+	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigPath))
 	require.Nil(t, err)
 
 	require.True(t, checkConfig(string(data)))
@@ -68,15 +68,10 @@ func TestEnsureTestRoot(t *testing.T) {
 	ensureFiles(
 		t,
 		rootDir,
+		"genesis.json",
 		DefaultDBDir,
 		baseConfig.PrivValidatorKey,
 		baseConfig.PrivValidatorState,
-	)
-
-	ensureFiles(
-		t,
-		filepath.Join(rootDir, ".."),
-		genesisFile,
 	)
 }
 
@@ -98,7 +93,6 @@ func checkConfig(configFile string) bool {
 		"wal",
 		"propose",
 		"max",
-		"genesis",
 	}
 	for _, e := range elems {
 		if !strings.Contains(configFile, e) {
