@@ -29,9 +29,9 @@ func SayHello() string {
 
 OK!
 GAS WANTED: 2000000
-GAS USED:   117354
+GAS USED:   119829
 -- stdout.call.success --
 ("hello world!" string)
 OK!
 GAS WANTED: 2000000
-GAS USED:   52909
+GAS USED:   52801
