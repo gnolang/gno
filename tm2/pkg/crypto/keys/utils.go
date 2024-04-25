@@ -14,9 +14,6 @@ func NewKeyBaseFromDir(rootDir string) (Keybase, error) {
 	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, config.DefaultDBDir)), nil
 }
 
-// NewInMemoryKeyBase returns a storage-less keybase.
-func NewInMemoryKeyBase() Keybase { return NewInMemory() }
-
 func ValidateMultisigThreshold(k, nKeys int) error {
 	if k <= 0 {
 		return fmt.Errorf("threshold must be a positive integer")

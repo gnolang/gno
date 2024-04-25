@@ -116,7 +116,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.maxSendAmount,
 		"max-send-amount",
-		"1000000ugnot",
+		"10000000ugnot",
 		"the static max send amount (native currency)",
 	)
 
