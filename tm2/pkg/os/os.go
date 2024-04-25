@@ -38,23 +38,12 @@ func Exit(s string) {
 }
 
 func EnsureDir(dir string, mode os.FileMode) error {
-	// Stat the path
-	_, err := os.Stat(dir)
-
-	// Check if the directory exists
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, mode); err != nil {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, mode)
+		if err != nil {
 			return fmt.Errorf("could not create directory %v. %w", dir, err)
 		}
-
-		return nil
 	}
-
-	// Check if it's a different stat error
-	if err != nil {
-		return fmt.Errorf("unable to stat path, %w", err)
-	}
-
 	return nil
 }
 
