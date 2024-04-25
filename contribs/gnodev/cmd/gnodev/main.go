@@ -4,30 +4,22 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/logger"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	zaplog "github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/muesli/termenv"
 )
 
 const (
@@ -35,17 +27,32 @@ const (
 	WebLogName         = "GnoWeb"
 	KeyPressLogName    = "KeyPress"
 	EventServerLogName = "Event"
+	AccountsLogName    = "Accounts"
+)
+
+var (
+	DefaultDeployerName    = integration.DefaultAccount_Name
+	DefaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
+	DefaultDeployerSeed    = integration.DefaultAccount_Seed
 )
 
 type devCfg struct {
+	// Listeners
 	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
 
+	// Users default
+	deployKey       string
+	home            string
+	root            string
+	premineAccounts varPremineAccounts
+	balancesFile    string
+
+	// Node Configuration
 	minimal    bool
 	verbose    bool
-	hotreload  bool
 	noWatch    bool
 	noReplay   bool
 	maxGas     int64
@@ -58,6 +65,9 @@ var defaultDevOptions = &devCfg{
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
 	nodeRPCListenerAddr: "127.0.0.1:36657",
+	deployKey:           DefaultDeployerAddress.String(),
+	home:                gnoenv.HomeDir(),
+	root:                gnoenv.RootDir(),
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
@@ -88,6 +98,20 @@ additional specified paths.`,
 
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
+		&c.home,
+		"home",
+		defaultDevOptions.home,
+		"user's local directory for keys",
+	)
+
+	fs.StringVar(
+		&c.root,
+		"root",
+		defaultDevOptions.root,
+		"gno root directory",
+	)
+
+	fs.StringVar(
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
@@ -98,14 +122,34 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.nodeRPCListenerAddr,
 		"node-rpc-listener",
 		defaultDevOptions.nodeRPCListenerAddr,
-		"gnoland rpc node listening address",
+		"listening address for GnoLand RPC node",
+	)
+
+	fs.Var(
+		&c.premineAccounts,
+		"add-account",
+		"add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time",
+	)
+
+	fs.StringVar(
+		&c.balancesFile,
+		"balance-file",
+		defaultDevOptions.balancesFile,
+		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.deployKey,
+		"deploy-key",
+		defaultDevOptions.deployKey,
+		"default key name or Bech32 address for deploying packages",
 	)
 
 	fs.BoolVar(
 		&c.minimal,
 		"minimal",
 		defaultDevOptions.minimal,
-		"do not load packages from examples directory",
+		"do not load packages from the examples directory",
 	)
 
 	fs.BoolVar(
@@ -119,7 +163,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.verbose,
 		"verbose",
 		defaultDevOptions.verbose,
-		"verbose output when deving",
+		"enable verbose output for development",
 	)
 
 	fs.StringVar(
@@ -133,41 +177,27 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noWatch,
 		"no-watch",
 		defaultDevOptions.noWatch,
-		"do not watch for files change",
+		"do not watch for file changes",
 	)
 
 	fs.BoolVar(
 		&c.noReplay,
 		"no-replay",
 		defaultDevOptions.noReplay,
-		"do not replay previous transactions on reload",
+		"do not replay previous transactions upon reload",
 	)
 
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
 		defaultDevOptions.maxGas,
-		"set the maximum gas by block",
+		"set the maximum gas per block",
 	)
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
-
-	// Guess root dir
-	gnoroot := gnoenv.RootDir()
-
-	// Check and Parse packages
-	pkgpaths, err := parseArgsPackages(args)
-	if err != nil {
-		return fmt.Errorf("unable to parse package paths: %w", err)
-	}
-
-	if !cfg.minimal {
-		examplesDir := filepath.Join(gnoroot, "examples")
-		pkgpaths = append(pkgpaths, examplesDir)
-	}
 
 	// Setup Raw Terminal
 	rt, restore, err := setupRawTerm(cfg, io)
@@ -186,26 +216,42 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	loggerEvents := logger.WithGroup(EventServerLogName)
 	emitterServer := emitter.NewServer(loggerEvents)
 
+	// load keybase
+	book, err := setupAddressBook(logger.WithGroup(AccountsLogName), cfg)
+	if err != nil {
+		return fmt.Errorf("unable to load keybase: %w", err)
+	}
+
+	// Check and Parse packages
+	pkgpaths, err := resolvePackagesPathFromArgs(cfg, book, args)
+	if err != nil {
+		return fmt.Errorf("unable to parse package paths: %w", err)
+	}
+
+	// generate balances
+	balances, err := generateBalances(book, cfg)
+	if err != nil {
+		return fmt.Errorf("unable to generate balances: %w", err)
+	}
+	logger.Debug("balances loaded", "list", balances.List())
+
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
-	devNode, err := setupDevNode(ctx, logger, cfg, emitterServer, pkgpaths)
+	nodeLogger := logger.WithGroup(NodeLogName)
+	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths)
 	if err != nil {
 		return err
 	}
 	defer devNode.Close()
 
-	logger.WithGroup(NodeLogName).
-		Info("node started",
-			"lisn", devNode.GetRemoteAddress(),
-			"addr", gnodev.DefaultCreator.String(),
-			"chainID", cfg.chainId,
-		)
+	nodeLogger.Info("node started", "lisn", devNode.GetRemoteAddress(), "chainID", cfg.chainId)
 
 	// Create server
 	mux := http.NewServeMux()
 	server := http.Server{
-		Handler: mux,
-		Addr:    cfg.webListenerAddr,
+		Handler:           mux,
+		Addr:              cfg.webListenerAddr,
+		ReadHeaderTimeout: time.Minute,
 	}
 	defer server.Close()
 
@@ -239,14 +285,17 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Add node pkgs to watcher
 	watcher.AddPackages(devNode.ListPkgs()...)
 
-	logger.WithGroup("--- READY").Info("for commands and help, press `h`")
+	if !cfg.serverMode {
+		logger.WithGroup("--- READY").Info("for commands and help, press `h`")
+	}
 
 	// Run the main event loop
-	return runEventLoop(ctx, logger, rt, devNode, watcher)
+	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
 var helper string = `
-H           Help - display this message
+A           Accounts - Display known accounts and balances
+H           Help - Display this message
 R           Reload - Reload all packages to take change into account.
 Ctrl+R      Reset - Reset application state.
 Ctrl+C      Exit - Exit the application
@@ -255,11 +304,11 @@ Ctrl+C      Exit - Exit the application
 func runEventLoop(
 	ctx context.Context,
 	logger *slog.Logger,
+	bk *address.Book,
 	rt *rawterm.RawTerm,
-	dnode *dev.Node,
+	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
-
 	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
@@ -293,27 +342,25 @@ func runEventLoop(
 			)
 
 			switch key.Upper() {
-			case rawterm.KeyH:
+			case rawterm.KeyH: // Helper
 				logger.Info("Gno Dev Helper", "helper", helper)
-			case rawterm.KeyR:
+			case rawterm.KeyA: // Accounts
+				logAccounts(logger.WithGroup(AccountsLogName), bk, dnode)
+			case rawterm.KeyR: // Reload
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {
 					logger.WithGroup(NodeLogName).
 						Error("unable to reload node", "err", err)
-
 				}
 
-			case rawterm.KeyCtrlR:
+			case rawterm.KeyCtrlR: // Reset
 				logger.WithGroup(NodeLogName).Info("reseting node state...")
 				if err = dnode.Reset(ctx); err != nil {
 					logger.WithGroup(NodeLogName).
 						Error("unable to reset node state", "err", err)
 				}
 
-			case rawterm.KeyCtrlC:
-				return nil
-			case rawterm.KeyCtrlE:
-				panic("NOOOO")
+			case rawterm.KeyCtrlC: // Exit
 				return nil
 			default:
 			}
@@ -322,126 +369,6 @@ func runEventLoop(
 			keyPressCh = listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 		}
 	}
-}
-
-func runPkgsWatcher(ctx context.Context, cfg *devCfg, pkgs []gnomod.Pkg, changedPathsCh chan<- []string) error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return fmt.Errorf("unable to watch files: %w", err)
-	}
-
-	if cfg.noWatch {
-		// Noop watcher, wait until context has been cancel
-		<-ctx.Done()
-		return ctx.Err()
-	}
-
-	for _, pkg := range pkgs {
-		if err := watcher.Add(pkg.Dir); err != nil {
-			return fmt.Errorf("unable to watch %q: %w", pkg.Dir, err)
-		}
-	}
-
-	const timeout = time.Millisecond * 500
-
-	var debounceTimer <-chan time.Time
-	pathList := []string{}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case watchErr := <-watcher.Errors:
-			return fmt.Errorf("watch error: %w", watchErr)
-		case <-debounceTimer:
-			changedPathsCh <- pathList
-			// Reset pathList and debounceTimer
-			pathList = []string{}
-			debounceTimer = nil
-		case evt := <-watcher.Events:
-			if evt.Op != fsnotify.Write {
-				continue
-			}
-
-			pathList = append(pathList, evt.Name)
-			debounceTimer = time.After(timeout)
-		}
-	}
-}
-
-var noopRestore = func() error { return nil }
-
-func setupRawTerm(cfg *devCfg, io commands.IO) (*rawterm.RawTerm, func() error, error) {
-	rt := rawterm.NewRawTerm()
-	restore := noopRestore
-	if !cfg.serverMode {
-		var err error
-		restore, err = rt.Init()
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	// correctly format output for terminal
-	io.SetOut(commands.WriteNopCloser(rt))
-	return rt, restore, nil
-}
-
-// setupDevNode initializes and returns a new DevNode.
-func setupDevNode(
-	ctx context.Context,
-	logger *slog.Logger,
-	cfg *devCfg,
-	remitter emitter.Emitter,
-	pkgspath []string,
-) (*gnodev.Node, error) {
-	nodeLogger := logger.WithGroup(NodeLogName)
-
-	gnoroot := gnoenv.RootDir()
-
-	// configure gnoland node
-	config := gnodev.DefaultNodeConfig(gnoroot)
-	config.PackagesPathList = pkgspath
-	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
-	config.NoReplay = cfg.noReplay
-	config.MaxGasPerBlock = cfg.maxGas
-	config.ChainID = cfg.chainId
-
-	// other listeners
-	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
-	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
-
-	return gnodev.NewDevNode(ctx, nodeLogger, remitter, config)
-}
-
-// setupGnowebServer initializes and starts the Gnoweb server.
-func setupGnoWebServer(logger *slog.Logger, cfg *devCfg, dnode *gnodev.Node) http.Handler {
-	webConfig := gnoweb.NewDefaultConfig()
-	webConfig.RemoteAddr = dnode.GetRemoteAddress()
-	webConfig.HelpRemote = dnode.GetRemoteAddress()
-	webConfig.HelpChainID = cfg.chainId
-
-	app := gnoweb.MakeApp(logger, webConfig)
-	return app.Router
-}
-
-func parseArgsPackages(args []string) (paths []string, err error) {
-	paths = make([]string, len(args))
-	for i, arg := range args {
-		abspath, err := filepath.Abs(arg)
-		if err != nil {
-			return nil, fmt.Errorf("invalid path %q: %w", arg, err)
-		}
-
-		ppath, err := gnomod.FindRootDir(abspath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to find root dir of %q: %w", abspath, err)
-		}
-
-		paths[i] = ppath
-	}
-
-	return paths, nil
 }
 
 func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
@@ -460,49 +387,40 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	return cc
 }
 
-func resolveUnixOrTCPAddr(in string) (out string) {
-	var err error
-	var addr net.Addr
+func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackagePath, error) {
+	paths := make([]gnodev.PackagePath, 0, len(args))
 
-	if strings.HasPrefix(in, "unix://") {
-		in = strings.TrimPrefix(in, "unix://")
-		if addr, err := net.ResolveUnixAddr("unix", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+	if cfg.deployKey == "" {
+		return nil, fmt.Errorf("default deploy key cannot be empty")
+	}
+
+	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+	}
+
+	for _, arg := range args {
+		path, err := gnodev.ResolvePackagePathQuery(bk, arg)
+		if err != nil {
+			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
 		}
 
-		err = fmt.Errorf("unable to resolve unix address `unix://%s`: %w", in, err)
-	} else { // don't bother to checking prefix
-		in = strings.TrimPrefix(in, "tcp://")
-		if addr, err = net.ResolveTCPAddr("tcp", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
+		// Assign a default creator if user haven't specified it.
+		if path.Creator.IsZero() {
+			path.Creator = defaultKey
 		}
 
-		err = fmt.Errorf("unable to resolve tcp address `tcp://%s`: %w", in, err)
+		paths = append(paths, path)
 	}
 
-	panic(err)
-}
-
-func setuplogger(cfg *devCfg, out io.Writer) *slog.Logger {
-	level := slog.LevelInfo
-	if cfg.verbose {
-		level = slog.LevelDebug
+	// Add examples folder if minimal is set to false
+	if !cfg.minimal {
+		paths = append(paths, gnodev.PackagePath{
+			Path:    filepath.Join(cfg.root, "examples"),
+			Creator: defaultKey,
+			Deposit: nil,
+		})
 	}
 
-	if cfg.serverMode {
-		zaplogger := logger.NewZapLogger(out, level)
-		return zaplog.ZapLoggerToSlog(zaplogger)
-	}
-
-	// Detect term color profile
-	colorProfile := termenv.DefaultOutput().Profile
-	clogger := logger.NewColumnLogger(out, level, colorProfile)
-
-	// Register well known group color with system colors
-	clogger.RegisterGroupColor(NodeLogName, lipgloss.Color("3"))
-	clogger.RegisterGroupColor(WebLogName, lipgloss.Color("4"))
-	clogger.RegisterGroupColor(KeyPressLogName, lipgloss.Color("5"))
-	clogger.RegisterGroupColor(EventServerLogName, lipgloss.Color("6"))
-
-	return slog.New(clogger)
+	return paths, nil
 }
