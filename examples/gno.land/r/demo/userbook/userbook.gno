@@ -25,7 +25,7 @@ var router *mux.Router
 const (
 	pageSize     = 20
 	pathArgument = "number"
-	path         = ufmt.Sprintf("page/{%s}", pathArgument)
+	path         = "page/{" + pathArgument + "}"
 )
 
 func init() {
@@ -56,7 +56,7 @@ func SignUp() string {
 	}
 
 	signups = append(signups, signup)
-	return ufmt.Sprintf("%s signed up at block #%d!", signup.account, signup.height)
+	return ufmt.Sprintf("%s added to userbook up at block #%d!", signup.account, signup.height)
 }
 
 func GetSignedUpInRange(page, pageSize int) []Signup {
@@ -90,7 +90,7 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 	totalSignups := len(signups)
 
 	res.Write("# Welcome to Gno.land!\n\n")
-	res.Write(ufmt.Sprintf("## Signed up users (%d):\n\n", totalSignups))
+	res.Write(ufmt.Sprintf("## Users in userbook (%d):\n\n", totalSignups))
 
 	page, err := strconv.Atoi(req.GetVar(pathArgument))
 	if err != nil {
