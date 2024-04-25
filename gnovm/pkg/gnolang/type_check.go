@@ -509,17 +509,17 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 }
 
 // ===========================================================
-func (bx *BinaryExpr) checkShiftLhs(dt Type) {
+func (x *BinaryExpr) checkShiftLhs(dt Type) {
 	var destKind interface{}
 	if dt != nil {
 		destKind = dt.Kind()
 	}
-	if checker, ok := binaryChecker[bx.Op]; ok {
+	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", bx.Op.TokenString(), destKind))
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), destKind))
 		}
 	} else {
-		panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
 }
 
@@ -528,7 +528,7 @@ func (bx *BinaryExpr) checkShiftLhs(dt Type) {
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
-func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
+func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	// native type will be converted to gno in latter logic,
 	// this check logic will be conduct again
 	if lnt, ok := lt.(*NativeType); ok {
@@ -544,7 +544,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	}
 
-	OpStr := bx.Op.TokenString()
+	OpStr := x.Op.TokenString()
 
 	xt, dt := lt, rt
 	cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
@@ -552,31 +552,31 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 		xt, dt = dt, xt
 	}
 
-	if isComparison(bx.Op) {
-		switch bx.Op {
+	if isComparison(x.Op) {
+		switch x.Op {
 		case EQL, NEQ:
 			assertComparable(xt, dt)
 		case LSS, LEQ, GTR, GEQ:
-			if checker, ok := binaryChecker[bx.Op]; ok {
-				bx.checkCompatibility(xt, dt, checker, OpStr)
+			if checker, ok := binaryChecker[x.Op]; ok {
+				x.checkCompatibility(xt, dt, checker, OpStr)
 			} else {
-				panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
+				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
 		default:
 			panic("invalid comparison operator")
 		}
 	} else {
-		if checker, ok := binaryChecker[bx.Op]; ok {
-			bx.checkCompatibility(xt, dt, checker, OpStr)
+		if checker, ok := binaryChecker[x.Op]; ok {
+			x.checkCompatibility(xt, dt, checker, OpStr)
 		} else {
-			panic(fmt.Sprintf("checker for %s does not exist", bx.Op))
+			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
 
-		switch bx.Op {
+		switch x.Op {
 		case QUO, REM:
 			// special case of zero divisor
-			if isQuoOrRem(bx.Op) {
-				if rcx, ok := bx.Right.(*ConstExpr); ok {
+			if isQuoOrRem(x.Op) {
+				if rcx, ok := x.Right.(*ConstExpr); ok {
 					if rcx.TypedValue.isZero() {
 						panic("invalid operation: division by zero")
 					}
@@ -588,7 +588,7 @@ func (bx *BinaryExpr) AssertCompatible(lt, rt Type) {
 	}
 }
 
-func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
+func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
@@ -602,48 +602,48 @@ func (bx *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool,
 	}
 }
 
-func (ux *UnaryExpr) AssertCompatible(t Type) {
+func (x *UnaryExpr) AssertCompatible(t Type) {
 	if nt, ok := t.(*NativeType); ok {
 		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
 	// check compatible
-	if checker, ok := unaryChecker[ux.Op]; ok {
+	if checker, ok := unaryChecker[x.Op]; ok {
 		if !checker(t) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", ux.Op.TokenString(), kindString(t)))
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
 		}
 	} else {
-		panic(fmt.Sprintf("checker for %s does not exist", ux.Op))
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
 }
 
-func (idst *IncDecStmt) AssertCompatible(t Type) {
+func (x *IncDecStmt) AssertCompatible(t Type) {
 	if nt, ok := t.(*NativeType); ok {
 		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
 	// check compatible
-	if checker, ok := IncDecStmtChecker[idst.Op]; ok {
+	if checker, ok := IncDecStmtChecker[x.Op]; ok {
 		if !checker(t) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", idst.Op.TokenString(), kindString(t)))
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
 		}
 	} else {
-		panic(fmt.Sprintf("checker for %s does not exist", idst.Op))
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
 }
 
-func (rs *RangeStmt) AssertCompatible(store Store, last BlockNode) {
-	if rs.Op == ASSIGN {
-		if isBlankIdentifier(rs.Key) && isBlankIdentifier(rs.Value) {
+func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
+	if x.Op == ASSIGN {
+		if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
 			// both "_"
 		} else {
-			assertValidLeftValue(store, last, rs.Key)
+			assertValidLeftValue(store, last, x.Key)
 			// if is valid left value
-			kt := evalStaticTypeOf(store, last, rs.Key)
-			vt := evalStaticTypeOf(store, last, rs.Value)
-			xt := evalStaticTypeOf(store, last, rs.X)
+			kt := evalStaticTypeOf(store, last, x.Key)
+			vt := evalStaticTypeOf(store, last, x.Value)
+			xt := evalStaticTypeOf(store, last, x.X)
 			switch cxt := xt.(type) {
 			case *MapType:
 				assertAssignableTo(cxt.Key, kt, false)
@@ -672,27 +672,27 @@ func (rs *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
-func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
-	Opstr := as.Op.TokenString()
-	if as.Op == ASSIGN || as.Op == DEFINE {
-		if len(as.Lhs) > len(as.Rhs) {
-			if len(as.Rhs) != 1 {
+func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
+	Opstr := x.Op.TokenString()
+	if x.Op == ASSIGN || x.Op == DEFINE {
+		if len(x.Lhs) > len(x.Rhs) {
+			if len(x.Rhs) != 1 {
 				panic("should not happen")
 			}
-			switch cx := as.Rhs[0].(type) {
+			switch cx := x.Rhs[0].(type) {
 			case *CallExpr:
 				// Call case: a, b = x(...)
 				ift := evalStaticTypeOf(store, last, cx.Func)
 				cft := getGnoFuncTypeOf(store, ift)
-				if len(as.Lhs) != len(cft.Results) {
+				if len(x.Lhs) != len(cft.Results) {
 					panic(fmt.Sprintf(
 						"assignment mismatch: "+
 							"%d variables but %s returns %d values",
-						len(as.Lhs), cx.Func.String(), len(cft.Results)))
+						len(x.Lhs), cx.Func.String(), len(cft.Results)))
 				}
-				if as.Op == ASSIGN {
+				if x.Op == ASSIGN {
 					// check assignable
-					for i, lx := range as.Lhs {
+					for i, lx := range x.Lhs {
 						if !isBlankIdentifier(lx) {
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
@@ -701,18 +701,18 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 			case *TypeAssertExpr:
 				// Type-assert case: a, ok := x.(type)
-				if len(as.Lhs) != 2 {
+				if len(x.Lhs) != 2 {
 					panic("should not happen")
 				}
-				if as.Op == ASSIGN {
+				if x.Op == ASSIGN {
 					// check assignable to first value
-					if !isBlankIdentifier(as.Lhs[0]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, as.Lhs[0])
+					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
+						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
 						assertAssignableTo(ift, dt, false)
 					}
-					if !isBlankIdentifier(as.Lhs[1]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, as.Lhs[1])
+					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
+						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -720,12 +720,12 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				cx.HasOK = true
 			case *IndexExpr: // must be with map type when len(Lhs) > len(Rhs)
-				if len(as.Lhs) != 2 {
+				if len(x.Lhs) != 2 {
 					panic("should not happen")
 				}
-				if as.Op == ASSIGN {
-					if !isBlankIdentifier(as.Lhs[0]) {
-						lt := evalStaticTypeOf(store, last, as.Lhs[0])
+				if x.Op == ASSIGN {
+					if !isBlankIdentifier(x.Lhs[0]) {
+						lt := evalStaticTypeOf(store, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := rt.(*MapType); ok {
@@ -740,8 +740,8 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 							}
 						}
 					}
-					if !isBlankIdentifier(as.Lhs[1]) {
-						dt := evalStaticTypeOf(store, last, as.Lhs[1])
+					if !isBlankIdentifier(x.Lhs[1]) {
+						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -752,9 +752,9 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				panic("should not happen")
 			}
 		} else { // len(Lhs) == len(Rhs)
-			if as.Op == ASSIGN {
+			if x.Op == ASSIGN {
 				// assert valid left value
-				for _, lx := range as.Lhs {
+				for _, lx := range x.Lhs {
 					assertValidLeftValue(store, last, lx)
 				}
 			}
@@ -762,19 +762,19 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	} else { // Ops other than assign and define
 		// If this is an assignment operation, ensure there's only 1
 		// expr on lhs/rhs.
-		if len(as.Lhs) != 1 || len(as.Rhs) != 1 {
-			panic("assignment operator " + as.Op.TokenString() +
+		if len(x.Lhs) != 1 || len(x.Rhs) != 1 {
+			panic("assignment operator " + x.Op.TokenString() +
 				" requires only one expression on lhs and rhs")
 		}
-		for i, lx := range as.Lhs {
+		for i, lx := range x.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
-			rt := evalStaticTypeOf(store, last, as.Rhs[i])
+			rt := evalStaticTypeOf(store, last, x.Rhs[i])
 
-			if checker, ok := AssignStmtChecker[as.Op]; ok {
+			if checker, ok := AssignStmtChecker[x.Op]; ok {
 				if !checker(lt) {
 					panic(fmt.Sprintf("operator %s not defined on: %v", Opstr, kindString(lt)))
 				}
-				switch as.Op {
+				switch x.Op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
 					// check when both typed
 					if !isUntyped(lt) && !isUntyped(rt) { // in this stage, lt or rt maybe untyped, not converted yet
@@ -788,7 +788,7 @@ func (as *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// do nothing
 				}
 			} else {
-				panic(fmt.Sprintf("checker for %s does not exist", as.Op))
+				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
 		}
 	}
