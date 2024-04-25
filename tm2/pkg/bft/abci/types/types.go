@@ -123,7 +123,7 @@ func (r ResponseBase) EncodeEvents() []byte {
 	}
 	res, err := json.Marshal(r.Events)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	return res
 }
