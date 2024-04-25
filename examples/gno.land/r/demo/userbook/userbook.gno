@@ -100,11 +100,6 @@ func renderHelper(res *mux.ResponseWriter, req *mux.Request) {
 		page = 1 // render first page on bad input
 	}
 
-	if totalSignups == 0 {
-		res.Write("No users are signed up currently.")
-		return
-	}
-
 	fetchedSignups, endIndex := GetSignupsInRange(page, pageSize)
 	if len(fetchedSignups) == 0 {
 		res.Write("No users on this page!\n\n")
