@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // Gas for entire tx is consumed in both CheckTx and DeliverTx.
@@ -42,7 +42,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, gasCheck, int64(3231))
+			assert.Equal(t, int64(3231), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -67,7 +67,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.True(t, res.IsOK())
-	assert.Equal(t, gasDeliver, int64(87809))
+	assert.Equal(t, int64(87809), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -86,7 +86,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, gasDeliver, int64(17989))
+	assert.Equal(t, int64(17989), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
@@ -116,7 +116,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, gasCheck, int64(17989))
+			assert.Equal(t, int64(17989), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
