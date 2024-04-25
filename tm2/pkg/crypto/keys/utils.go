@@ -3,15 +3,16 @@ package keys
 import (
 	"fmt"
 	"path/filepath"
-
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 )
 
-const defaultKeyDBName = "keys"
+const (
+	defaultKeyDBName = "keys"
+	defaultKeyDBDir  = "data"
+)
 
 // NewKeyBaseFromDir initializes a keybase at a particular dir.
 func NewKeyBaseFromDir(rootDir string) (Keybase, error) {
-	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, config.DefaultDBDir)), nil
+	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, defaultKeyDBDir)), nil
 }
 
 func ValidateMultisigThreshold(k, nKeys int) error {
