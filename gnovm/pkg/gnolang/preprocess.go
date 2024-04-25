@@ -3886,7 +3886,7 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
-		case TRANS_ENTER: // find target goto loop, and rebuild body
+		case TRANS_ENTER: // find target goto loop, and rebuild body, for/range no need this stage, TODO: optimize
 			switch cn := n.(type) {
 			case *FuncDecl:
 				for name, lfs := range loopInfos {
