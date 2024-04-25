@@ -126,7 +126,7 @@ loop:
 				m.Debugger.state = DebugAtCmd
 				debugLineInfo(m)
 			case "s", "step":
-				if m.Debugger.loc != m.Debugger.prevLoc {
+				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
 					debugList(m, "")
@@ -225,9 +225,8 @@ func initDebugIO(m *Machine) {
 func debugUpdateLocation(m *Machine) {
 	loc := m.LastBlock().Source.GetLocation()
 
-	// File must have an unambiguous absolute path.
-	if loc.File != "" && !filepath.IsAbs(loc.File) {
-		loc.File, _ = filepath.Abs(loc.File)
+	if strings.Contains(loc.File, "/") {
+		loc.PkgPath = "" // Path is already included in file.
 	}
 
 	if m.Debugger.loc.PkgPath == "" ||
@@ -304,6 +303,10 @@ func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
 		}
 		loc.Line = line
 		return loc, nil
+	}
+	// Location is in the current file.
+	if loc.File == "" {
+		return loc, errors.New("unknown source file")
 	}
 	if strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-") {
 		// Location is specified as a line offset from the current line.
@@ -465,23 +468,26 @@ func debugList(m *Machine, arg string) (err error) {
 		debugLineInfo(m)
 		if m.Debugger.lastCmd == "up" || m.Debugger.lastCmd == "down" {
 			loc = debugFrameLoc(m, m.Debugger.frameLevel)
-			fmt.Fprintf(m.Debugger.out, "Frame %d: %s:%d\n", m.Debugger.frameLevel, loc.File, loc.Line)
+			fmt.Fprintf(m.Debugger.out, "Frame %d: %s\n", m.Debugger.frameLevel, loc)
 		}
 	} else {
 		if loc, err = parseLocSpec(m, arg); err != nil {
 			return err
 		}
 		hideCursor = true
-		fmt.Fprintf(m.Debugger.out, "Showing %s:%d\n", loc.File, loc.Line)
+		fmt.Fprintf(m.Debugger.out, "Showing %s\n", loc)
 	}
-	file, line := loc.File, loc.Line
-	lines, offset, err := sourceLines(file, line)
+	if loc.File == "" && (m.Debugger.lastCmd == "list" || m.Debugger.lastCmd == "l") {
+		return errors.New("unknown source file")
+	}
+	src, err := fileContent(m.Store, loc.PkgPath, loc.File)
 	if err != nil {
 		return err
 	}
+	lines, offset := linesAround(src, loc.Line, 10)
 	for i, l := range lines {
 		cursor := ""
-		if !hideCursor && file == loc.File && loc.Line == i+offset {
+		if !hideCursor && loc.Line == i+offset {
 			cursor = "=>"
 		}
 		fmt.Fprintf(m.Debugger.out, "%2s %4d: %s\n", cursor, i+offset, l)
@@ -490,6 +496,9 @@ func debugList(m *Machine, arg string) (err error) {
 }
 
 func debugLineInfo(m *Machine) {
+	if m.Debugger.loc.File == "" {
+		return
+	}
 	line := string(m.Package.PkgName)
 	if len(m.Frames) > 0 {
 		f := m.Frames[len(m.Frames)-1]
@@ -497,23 +506,30 @@ func debugLineInfo(m *Machine) {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-	fmt.Fprintf(m.Debugger.out, "> %s %s:%d\n", line, m.Debugger.loc.File, m.Debugger.loc.Line)
+	fmt.Fprintf(m.Debugger.out, "> %s %s\n", line, m.Debugger.loc)
 }
 
-const listLength = 10 // number of lines to display
+func isMemPackage(st Store, pkgPath string) bool {
+	ds, ok := st.(*defaultStore)
+	return ok && ds.iavlStore.Has([]byte(backendPackagePathKey(pkgPath)))
+}
 
-func sourceLines(name string, n int) ([]string, int, error) {
+func fileContent(st Store, pkgPath, name string) (string, error) {
+	if isMemPackage(st, pkgPath) {
+		return st.GetMemFile(pkgPath, name).Body, nil
+	}
 	buf, err := os.ReadFile(name)
-	if err != nil {
-		return nil, 1, err
-	}
-	lines := strings.Split(string(buf), "\n")
-	start := max(1, n-listLength/2) - 1
-	end := min(start+listLength, len(lines))
+	return string(buf), err
+}
+
+func linesAround(src string, index, n int) ([]string, int) {
+	lines := strings.Split(src, "\n")
+	start := max(1, index-n/2) - 1
+	end := min(start+n, len(lines))
 	if start >= end {
-		start = max(1, end-listLength)
+		start = max(1, end-n)
 	}
-	return lines[start:end], start + 1, nil
+	return lines[start:end], start + 1
 }
 
 // ---------------------------------------
@@ -698,7 +714,7 @@ func debugStack(m *Machine, arg string) error {
 		} else {
 			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
 		}
-		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s:%d\n", i, fname, loc.File, loc.Line)
+		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n", i, fname, loc)
 		i++
 	}
 	return nil
