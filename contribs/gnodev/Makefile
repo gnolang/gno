@@ -6,13 +6,14 @@ rundep := go run -modfile ../../misc/devdeps/go.mod
 golangci_lint := $(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint
 
 install:
-	go install $(GOBUILD_FLAGS) .
+	go install $(GOBUILD_FLAGS) ./cmd/gnodev
 
 build:
-	go build $(GOBUILD_FLAGS) -o build/gnodev .
+	go build $(GOBUILD_FLAGS) -o build/gnodev ./cmd/gnodev
 
 lint:
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...
 
 test:
 	go test $(GOTEST_FLAGS) -v ./...
+

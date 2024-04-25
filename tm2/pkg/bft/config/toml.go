@@ -54,27 +54,34 @@ func WriteConfigFile(configFilePath string, config *Config) error {
 
 /****** these are for test settings ***********/
 
-func ResetTestRoot(testName string) *Config {
-	return ResetTestRootWithChainID(testName, "")
-}
+func ResetTestRoot(testName string) (*Config, string) {
+	chainID := "test-chain"
 
-func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	// create a unique, concurrency-safe test directory under os.TempDir()
-	rootDir, err := os.MkdirTemp("", fmt.Sprintf("%s-%s_", chainID, testName))
+	testDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		panic(err)
 	}
+
+	rootDir, err := os.MkdirTemp(testDir, fmt.Sprintf("%s-%s_", chainID, testName))
+	if err != nil {
+		panic(err)
+	}
+
 	// ensure config and data subdirs are created
 	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+		panic(err)
+	}
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
 
 	baseConfig := DefaultBaseConfig()
-	configFilePath := filepath.Join(rootDir, defaultConfigFilePath)
-	genesisFilePath := filepath.Join(rootDir, baseConfig.Genesis)
+	configFilePath := filepath.Join(rootDir, defaultConfigPath)
+	genesisFilePath := filepath.Join(rootDir, defaultGenesisJSONName)
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 
@@ -94,7 +101,8 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
-	return config
+
+	return config, genesisFilePath
 }
 
 var testGenesisFmt = `{

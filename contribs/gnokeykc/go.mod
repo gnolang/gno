@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	dario.cat/mergo v1.0.0 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect

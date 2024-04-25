@@ -247,7 +247,7 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*cor
 	return cli.Call(txcfg, msgs...)
 }
 
-func generateTestingPackage(t *testing.T, nameFile ...string) string {
+func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 	t.Helper()
 	workdir := t.TempDir()
 
@@ -266,7 +266,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) string {
 	return workdir
 }
 
-func newTestingDevNode(t *testing.T, pkgslist ...string) (*Node, *emitter.ServerMock) {
+func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *emitter.ServerMock) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
