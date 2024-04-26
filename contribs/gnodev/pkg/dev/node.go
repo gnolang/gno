@@ -368,7 +368,8 @@ func (n *Node) stopIfRunning() error {
 func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	if n.config.NoReplay {
 		// If NoReplay is true, simply reset the node to its initial state
-		n.logger.Warn("replay disable")
+		n.logger.Warn("replay disabled")
+
 		txs, err := n.pkgs.Load(DefaultFee)
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)

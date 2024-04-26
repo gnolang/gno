@@ -19,18 +19,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// XXX: We should probably use txtar to test this package
+// XXX: We should probably use txtar to test this package.
 
 var nodeTestingAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-// TestNewEmptyDevNode tests the NewDevNode method with no package
+// TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger := log.NewTestingLogger(t)
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	require.NoError(t, node.Close())
 }
 
-// TestNodeWithPackage tests the NewDevNode with a single package.
+// TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_WithPackage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -57,7 +57,7 @@ func Render(_ string) string { return "foo" }
 	pkgpath := generateTestingPackage(t, "gno.mod", testGnoMod, "foobar.gno", testFile)
 	logger := log.NewTestingLogger(t)
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = []PackagePath{pkgpath}
 	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
@@ -90,7 +90,7 @@ func Render(_ string) string { return "bar" }
 	// Generate package foo
 	foopkg := generateTestingPackage(t, "gno.mod", fooGnoMod, "foo.gno", fooFile)
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -105,7 +105,7 @@ func Render(_ string) string { return "bar" }
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 2)
 
-	// Render should failed as the node havn't reload
+	// Render should fail as the node hasn't reloaded
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
@@ -135,7 +135,7 @@ func Render(_ string) string { return "bar" }
 	// Generate package foo
 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -168,7 +168,7 @@ func TestNodeReset(t *testing.T) {
 		foobarGnoMod = "module gno.land/r/dev/foo\n"
 		fooFile      = `package foo
 var str string = "foo"
-func UpdateStr(newStr string) { str = newStr } // method to update 'str' var
+func UpdateStr(newStr string) { str = newStr } // method to update 'str' variable
 func Render(_ string) string { return str }
 `
 	)
@@ -176,7 +176,7 @@ func Render(_ string) string { return str }
 	// Generate package foo
 	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, foopkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -255,7 +255,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 	workdir := t.TempDir()
 
 	if len(nameFile)%2 != 0 {
-		require.FailNow(t, "Generate testing packages require pair arguments.")
+		require.FailNow(t, "Generate testing packages require paired arguments.")
 	}
 
 	for i := 0; i < len(nameFile); i += 2 {
@@ -281,7 +281,7 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *emitter.S
 
 	emitter := &emitter.ServerMock{}
 
-	// Call NewDevNode with no package should works
+	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = pkgslist
 	node, err := NewDevNode(ctx, logger, emitter, cfg)
@@ -304,8 +304,8 @@ func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybas
 	require.NoError(t, err)
 
 	return &gnoclient.SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
-		Account:  name,    // Account name or bech32 format
+		Keybase:  kb,      // Stores keys in memory
+		Account:  name,    // Account name
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
