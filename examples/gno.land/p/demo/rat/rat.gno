@@ -1,4 +1,4 @@
-package maths
+package rat
 
 //----------------------------------------
 // Rat fractions

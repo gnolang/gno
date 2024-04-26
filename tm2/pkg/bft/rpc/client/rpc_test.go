@@ -17,7 +17,8 @@ import (
 )
 
 func getHTTPClient() *client.HTTP {
-	rpcAddr := rpctest.GetConfig().RPC.ListenAddress
+	cfg, _ := rpctest.GetConfig()
+	rpcAddr := cfg.RPC.ListenAddress
 	return client.NewHTTP(rpcAddr, "/websocket")
 }
 
@@ -47,7 +48,8 @@ func TestNilCustomHTTPClient(t *testing.T) {
 func TestCustomHTTPClient(t *testing.T) {
 	t.Parallel()
 
-	remote := rpctest.GetConfig().RPC.ListenAddress
+	cfg, _ := rpctest.GetConfig()
+	remote := cfg.RPC.ListenAddress
 	c := client.NewHTTPWithClient(remote, "/websocket", http.DefaultClient)
 	status, err := c.Status()
 	require.NoError(t, err)
@@ -57,8 +59,9 @@ func TestCustomHTTPClient(t *testing.T) {
 func TestCorsEnabled(t *testing.T) {
 	t.Parallel()
 
-	origin := rpctest.GetConfig().RPC.CORSAllowedOrigins[0]
-	remote := strings.Replace(rpctest.GetConfig().RPC.ListenAddress, "tcp", "http", -1)
+	cfg, _ := rpctest.GetConfig()
+	origin := cfg.RPC.CORSAllowedOrigins[0]
+	remote := strings.Replace(cfg.RPC.ListenAddress, "tcp", "http", -1)
 
 	req, err := http.NewRequest("GET", remote, nil)
 	require.Nil(t, err, "%+v", err)
@@ -76,7 +79,8 @@ func TestStatus(t *testing.T) {
 	t.Parallel()
 
 	for i, c := range GetClients() {
-		moniker := rpctest.GetConfig().Moniker
+		cfg, _ := rpctest.GetConfig()
+		moniker := cfg.Moniker
 		status, err := c.Status()
 		require.Nil(t, err, "%d: %+v", i, err)
 		assert.Equal(t, moniker, status.NodeInfo.Moniker)
