@@ -13,17 +13,19 @@ type ServerMock struct {
 
 func (m *ServerMock) Emit(evt events.Event) {
 	m.muEvents.Lock()
+	defer m.muEvents.Unlock()
+
 	m.events = append(m.events, evt)
-	m.muEvents.Unlock()
 }
 
 func (m *ServerMock) NextEvent() (evt events.Event) {
 	m.muEvents.Lock()
+	defer m.muEvents.Unlock()
+
 	if len(m.events) > 0 {
 		// pull next event from the list
 		evt, m.events = m.events[0], m.events[1:]
 	}
-	m.muEvents.Unlock()
 
 	return evt
 }
