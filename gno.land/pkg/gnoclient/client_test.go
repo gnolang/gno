@@ -1080,11 +1080,11 @@ func TestAddPackageErrors(t *testing.T) {
 	}
 }
 
+// Block tests
 func TestBlock(t *testing.T) {
 	t.Parallel()
 
 	height := int64(5)
-
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
@@ -1111,7 +1111,27 @@ func TestBlock(t *testing.T) {
 	assert.Equal(t, height, block.Block.GetHeight())
 }
 
-// Block tests
+func TestBlockResults(t *testing.T) {
+	t.Parallel()
+
+	height := int64(5)
+	client := &Client{
+		Signer: &mockSigner{},
+		RPCClient: &mockRPCClient{
+			blockResults: func(height *int64) (*ctypes.ResultBlockResults, error) {
+				return &ctypes.ResultBlockResults{
+					Height:  *height,
+					Results: nil,
+				}, nil
+			},
+		},
+	}
+
+	blockResult, err := client.BlockResult(height)
+	require.NoError(t, err)
+	assert.Equal(t, height, blockResult.Height)
+}
+
 func TestBlockErrors(t *testing.T) {
 	t.Parallel()
 
