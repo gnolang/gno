@@ -45,7 +45,7 @@ func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Bl
 	return block
 }
 
-func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
+func makeStateAndBlockStore(_ *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
 	config, genesisFile := cfg.ResetTestRoot("blockchain_reactor_test")
 	// blockDB := dbm.NewDebugDB("blockDB", memdb.NewMemDB())
 	// stateDB := dbm.NewDebugDB("stateDB", memdb.NewMemDB())

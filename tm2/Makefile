@@ -20,7 +20,7 @@ GOFMT_FLAGS ?= -w
 # flags for `make imports`.
 GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
-GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m -tags='ledger_suite'
 
 ########################################
 # Dev tools
