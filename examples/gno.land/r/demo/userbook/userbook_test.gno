@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func TestGetSignupsInRange(t *testing.T) {
+func TestRender(t *testing.T) {
 	// Sign up 20 users + deployer
 	for i := 0; i < 20; i++ {
 		addrName := ufmt.Sprintf("test%d", i)
@@ -26,16 +26,37 @@ func TestGetSignupsInRange(t *testing.T) {
 		expectedNumberOfUsers int
 	}{
 		{
-			name:                  "Normal render",
+			name:                  "1st page render",
 			nextPage:              true,
 			prevPage:              false,
 			path:                  "page/1",
 			expectedNumberOfUsers: 20,
 		},
+		{
+			name:                  "2nd page render",
+			nextPage:              false,
+			prevPage:              true,
+			path:                  "page/2",
+			expectedNumberOfUsers: 1,
+		},
+		{
+			name:                  "Invalid path render",
+			nextPage:              true,
+			prevPage:              false,
+			path:                  "page/invalidtext",
+			expectedNumberOfUsers: 20,
+		},
+		{
+			name:                  "Empty Page",
+			nextPage:              false,
+			prevPage:              false,
+			path:                  "page/1000",
+			expectedNumberOfUsers: 0,
+		},
 	}
 
 	for _, tc := range testCases {
-		t.Run("", func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			got := Render(tc.path)
 			numUsers := countUsers(got)
 
