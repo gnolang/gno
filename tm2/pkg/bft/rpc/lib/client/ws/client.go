@@ -24,8 +24,8 @@ type responseCh chan<- types.RPCResponses
 
 // Client is a WebSocket client implementation
 type Client struct {
-	ctx      context.Context
-	cancelFn context.CancelFunc
+	ctx           context.Context
+	cancelCauseFn context.CancelCauseFunc
 
 	conn *websocket.Conn
 
@@ -51,9 +51,9 @@ func NewClient(rpcURL string, opts ...Option) (*Client, error) {
 		logger:     log.NewNoopLogger(),
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
+	ctx, cancelFn := context.WithCancelCause(context.Background())
 	c.ctx = ctx
-	c.cancelFn = cancelFn
+	c.cancelCauseFn = cancelFn
 
 	// Apply the options
 	for _, opt := range opts {
@@ -83,7 +83,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	case <-ctx.Done():
 		return nil, ErrTimedOut
 	case <-c.ctx.Done():
-		return nil, ErrTimedOut
+		return nil, context.Cause(c.ctx)
 	case c.backlog <- request:
 	}
 
@@ -92,7 +92,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	case <-ctx.Done():
 		return nil, ErrTimedOut
 	case <-c.ctx.Done():
-		return nil, ErrTimedOut
+		return nil, context.Cause(c.ctx)
 	case response := <-responseCh:
 		// Make sure the ID matches
 		if response[0].ID != request.ID {
@@ -126,7 +126,7 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	case <-ctx.Done():
 		return nil, ErrTimedOut
 	case <-c.ctx.Done():
-		return nil, ErrTimedOut
+		return nil, context.Cause(c.ctx)
 	case c.backlog <- requests:
 	}
 
@@ -135,7 +135,7 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	case <-ctx.Done():
 		return nil, ErrTimedOut
 	case <-c.ctx.Done():
-		return nil, ErrTimedOut
+		return nil, context.Cause(c.ctx)
 	case responses := <-responseCh:
 		// Make sure the length matches
 		if len(responses) != len(requests) {
@@ -202,6 +202,13 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
 				c.logger.Error("failed to read response", "err", err)
 
+				// Server dropped the connection, stop the client
+				if err = c.closeWithCause(
+					fmt.Errorf("server closed connection, %w", err),
+				); err != nil {
+					c.logger.Error("unable to gracefully close client", "err", err)
+				}
+
 				return
 			}
 
@@ -266,7 +273,13 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 
 // Close closes the WS client
 func (c *Client) Close() error {
-	c.cancelFn()
+	return c.closeWithCause(nil)
+}
+
+// closeWithCause closes the client (and any open connection)
+// with the given cause
+func (c *Client) closeWithCause(err error) error {
+	c.cancelCauseFn(err)
 
 	return c.conn.Close()
 }
