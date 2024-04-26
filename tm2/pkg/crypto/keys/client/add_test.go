@@ -9,24 +9,10 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// generateTestMnemonic generates a random mnemonic
-func generateTestMnemonic(t *testing.T) string {
-	t.Helper()
-
-	entropy, entropyErr := bip39.NewEntropy(256)
-	require.NoError(t, entropyErr)
-
-	mnemonic, mnemonicErr := bip39.NewMnemonic(entropy)
-	require.NoError(t, mnemonicErr)
-
-	return mnemonic
-}
 
 func TestAdd_Base_Add(t *testing.T) {
 	t.Parallel()
