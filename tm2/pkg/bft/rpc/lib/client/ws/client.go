@@ -82,12 +82,16 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	select {
 	case <-ctx.Done():
 		return nil, ErrTimedOut
+	case <-c.ctx.Done():
+		return nil, ErrTimedOut
 	case c.backlog <- request:
 	}
 
 	// Wait for the response
 	select {
 	case <-ctx.Done():
+		return nil, ErrTimedOut
+	case <-c.ctx.Done():
 		return nil, ErrTimedOut
 	case response := <-responseCh:
 		// Make sure the ID matches
@@ -121,12 +125,16 @@ func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (typ
 	select {
 	case <-ctx.Done():
 		return nil, ErrTimedOut
+	case <-c.ctx.Done():
+		return nil, ErrTimedOut
 	case c.backlog <- requests:
 	}
 
 	// Wait for the response
 	select {
 	case <-ctx.Done():
+		return nil, ErrTimedOut
+	case <-c.ctx.Done():
 		return nil, ErrTimedOut
 	case responses := <-responseCh:
 		// Make sure the length matches
