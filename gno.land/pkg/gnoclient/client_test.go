@@ -1132,6 +1132,29 @@ func TestBlockResults(t *testing.T) {
 	assert.Equal(t, height, blockResult.Height)
 }
 
+func TestHead(t *testing.T) {
+	t.Parallel()
+
+	latestHeight := int64(5)
+
+	client := &Client{
+		Signer: &mockSigner{},
+		RPCClient: &mockRPCClient{
+			status: func() (*ctypes.ResultStatus, error) {
+				return &ctypes.ResultStatus{
+					SyncInfo: ctypes.SyncInfo{
+						LatestBlockHeight: latestHeight,
+					},
+				}, nil
+			},
+		},
+	}
+
+	head, err := client.Head()
+	require.NoError(t, err)
+	assert.Equal(t, latestHeight, head)
+}
+
 func TestBlockErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1214,7 +1237,7 @@ func TestBlockResultErrors(t *testing.T) {
 	}
 }
 
-func TestBlockNumberErrors(t *testing.T) {
+func TestHeadErrors(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -1237,7 +1260,7 @@ func TestBlockNumberErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := tc.client.BlockNumber()
+			res, err := tc.client.Head()
 			assert.Equal(t, int64(0), res)
 			assert.ErrorIs(t, err, tc.expectedError)
 		})
