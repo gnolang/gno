@@ -4,8 +4,7 @@ services:
   docusaurus:
     image: ghcr.io/gnolang/docs.gno.land:dev
     volumes:
-      - .:/app/docs
-      - ./sidebars.js:/app/docusaurus/sidebar.js
+      - ../../docs:/app/docs
     ports:
       - 3000:3000
     environment:
