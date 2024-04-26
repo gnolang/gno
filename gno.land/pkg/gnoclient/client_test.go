@@ -1132,7 +1132,7 @@ func TestBlockResults(t *testing.T) {
 	assert.Equal(t, height, blockResult.Height)
 }
 
-func TestHead(t *testing.T) {
+func TestLatestBlockHeight(t *testing.T) {
 	t.Parallel()
 
 	latestHeight := int64(5)
@@ -1150,7 +1150,7 @@ func TestHead(t *testing.T) {
 		},
 	}
 
-	head, err := client.Head()
+	head, err := client.LatestBlockHeight()
 	require.NoError(t, err)
 	assert.Equal(t, latestHeight, head)
 }
@@ -1237,7 +1237,7 @@ func TestBlockResultErrors(t *testing.T) {
 	}
 }
 
-func TestHeadErrors(t *testing.T) {
+func TestLatestBlockHeightErrors(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -1260,7 +1260,7 @@ func TestHeadErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := tc.client.Head()
+			res, err := tc.client.LatestBlockHeight()
 			assert.Equal(t, int64(0), res)
 			assert.ErrorIs(t, err, tc.expectedError)
 		})

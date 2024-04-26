@@ -164,8 +164,8 @@ func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
 	return blockResults, nil
 }
 
-// Head gets the head of the chain (latest block height)
-func (c *Client) Head() (int64, error) {
+// LatestBlockHeight gets the latest block height on the chain
+func (c *Client) LatestBlockHeight() (int64, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return 0, ErrMissingRPCClient
 	}
