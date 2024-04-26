@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -19,9 +20,10 @@ type Signer interface {
 // SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
 	Keybase  keys.Keybase // Stores keys in memory or on disk
-	Account  string       // Account name or bech32 format
+	Account  string       // Account name
 	Password string       // Password for encryption
 	ChainID  string       // Chain ID for transaction signing
+	Address  crypto.Address
 }
 
 // Validate checks if the signer is properly configured.

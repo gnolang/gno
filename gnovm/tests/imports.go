@@ -190,6 +190,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 							ctx.Timestamp += 1
 							ctx.TimestampNano -= int64(time.Second)
 						}
+
 						m.Context = ctx
 					},
 				)

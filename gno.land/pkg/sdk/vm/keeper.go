@@ -180,6 +180,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
+		TimestampNano: int64(ctx.BlockTime().Nanosecond()),
 		Msg:           msg,
 		OrigCaller:    creator.Bech32(),
 		OrigSend:      deposit,
@@ -269,6 +270,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
+		TimestampNano: int64(ctx.BlockTime().Nanosecond()),
 		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
@@ -345,6 +347,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
+		TimestampNano: int64(ctx.BlockTime().Nanosecond()),
 		Msg:           msg,
 		OrigCaller:    caller.Bech32(),
 		OrigSend:      send,
@@ -491,9 +494,10 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		TimestampNano: int64(ctx.BlockTime().Nanosecond()),
 		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      send,
@@ -557,9 +561,10 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	}
 	// Construct new machine.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:   ctx.ChainID(),
-		Height:    ctx.BlockHeight(),
-		Timestamp: ctx.BlockTime().Unix(),
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		TimestampNano: int64(ctx.BlockTime().Nanosecond()),
 		// Msg:           msg,
 		// OrigCaller:    caller,
 		// OrigSend:      jsend,
