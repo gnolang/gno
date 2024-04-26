@@ -14,14 +14,16 @@ import (
 )
 
 func TestServer_New(t *testing.T) {
-	logger := log.NewTestingLogger(t)
-	svr := NewServer(logger)
+	t.Parallel()
+
+	svr := NewServer(log.NewTestingLogger(t))
 	assert.Len(t, svr.clients, 0)
 }
 
 func TestServer_ServeHTTP(t *testing.T) {
-	logger := log.NewTestingLogger(t)
-	svr := NewServer(logger)
+	t.Parallel()
+
+	svr := NewServer(log.NewTestingLogger(t))
 
 	s := httptest.NewServer(http.HandlerFunc(svr.ServeHTTP))
 	defer s.Close()
