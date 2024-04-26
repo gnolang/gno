@@ -186,71 +186,72 @@ func (c *Client) runReadRoutine(ctx context.Context) {
 
 			return
 		default:
-			// Read the message from the active connection
-			_, data, err := c.conn.ReadMessage()
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
-					c.logger.Error("failed to read response", "err", err)
+		}
 
-					return
-				}
+		// Read the message from the active connection
+		_, data, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
+				c.logger.Error("failed to read response", "err", err)
+
+				return
+			}
+
+			continue
+		}
+
+		var (
+			responses    types.RPCResponses
+			responseHash string
+		)
+
+		// Try to unmarshal as a batch of responses first
+		if err := json.Unmarshal(data, &responses); err != nil {
+			// Try to unmarshal as a single response
+			var response types.RPCResponse
+
+			if err := json.Unmarshal(data, &response); err != nil {
+				c.logger.Error("failed to parse response", "err", err, "data", string(data))
 
 				continue
 			}
 
-			var (
-				responses    types.RPCResponses
-				responseHash string
-			)
+			// This is a single response, generate the unique ID
+			responseHash = generateIDHash(response.ID.String())
+			responses = types.RPCResponses{response}
+		} else {
+			// This is a batch response, generate the unique ID
+			// from the combined IDs
+			ids := make([]string, 0, len(responses))
 
-			// Try to unmarshal as a batch of responses first
-			if err := json.Unmarshal(data, &responses); err != nil {
-				// Try to unmarshal as a single response
-				var response types.RPCResponse
-
-				if err := json.Unmarshal(data, &response); err != nil {
-					c.logger.Error("failed to parse response", "err", err, "data", string(data))
-
-					continue
-				}
-
-				// This is a single response, generate the unique ID
-				responseHash = generateIDHash(response.ID.String())
-				responses = types.RPCResponses{response}
-			} else {
-				// This is a batch response, generate the unique ID
-				// from the combined IDs
-				ids := make([]string, 0, len(responses))
-
-				for _, response := range responses {
-					ids = append(ids, response.ID.String())
-				}
-
-				responseHash = generateIDHash(ids...)
+			for _, response := range responses {
+				ids = append(ids, response.ID.String())
 			}
 
-			// Grab the response channel
-			c.requestMapMux.Lock()
-			ch := c.requestMap[responseHash]
-			if ch == nil {
-				c.requestMapMux.Unlock()
-				c.logger.Error("response listener not set", "hash", responseHash, "responses", responses)
+			responseHash = generateIDHash(ids...)
+		}
 
-				continue
-			}
-
-			// Clear the entry for this ID
-			delete(c.requestMap, responseHash)
+		// Grab the response channel
+		c.requestMapMux.Lock()
+		ch := c.requestMap[responseHash]
+		if ch == nil {
 			c.requestMapMux.Unlock()
+			c.logger.Error("response listener not set", "hash", responseHash, "responses", responses)
 
-			c.logger.Debug("received response", "hash", responseHash)
+			continue
+		}
 
-			// Alert the listener of the response
-			select {
-			case ch <- responses:
-			default:
-				c.logger.Warn("response listener timed out", "hash", responseHash)
-			}
+		// Clear the entry for this ID
+		delete(c.requestMap, responseHash)
+		c.requestMapMux.Unlock()
+
+		c.logger.Debug("received response", "hash", responseHash)
+
+		// Alert the listener of the response
+		select {
+		case ch <- responses:
+		default:
+			c.logger.Warn("response listener timed out", "hash", responseHash)
 		}
 	}
 }
