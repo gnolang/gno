@@ -134,19 +134,53 @@ func (n *Node) Client() client.Client {
 	return n.client
 }
 
-func (n *Node) Ready() <-chan struct{} {
+func (n *Node) GetRemoteAddress() string {
+	return n.Node.Config().RPC.ListenAddress
+}
+
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any
+func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
-	return n.Ready()
+	return n.getBlockTransactions(blockNum)
 }
 
-func (n *Node) GetNodeReadiness() <-chan struct{} {
-	return gnoland.GetNodeReadiness(n.Node)
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any
+func (n *Node) getBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+	int64BlockNum := int64(blockNum)
+	b, err := n.client.Block(&int64BlockNum)
+	if err != nil {
+		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
+	}
+
+	txs := make([]std.Tx, len(b.Block.Data.Txs))
+	for i, encodedTx := range b.Block.Data.Txs {
+		var tx std.Tx
+		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
+			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
+		}
+
+		txs[i] = tx
+	}
+
+	return txs, nil
 }
 
-func (n *Node) GetRemoteAddress() string {
-	return n.Node.Config().RPC.ListenAddress
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any
+// GetLatestBlockNumber returns the latest block height from the chain
+func (n *Node) GetLatestBlockNumber() (uint64, error) {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.getLatestBlockNumber(), nil
+}
+
+func (n *Node) getLatestBlockNumber() uint64 {
+	return uint64(n.Node.BlockStore().Height())
 }
 
 // UpdatePackages updates the currently known packages. It will be taken into
@@ -265,57 +299,6 @@ func (n *Node) Reload(ctx context.Context) error {
 	return n.rebuildNodeFromState(ctx)
 }
 
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getBlockTransactions(blockNum)
-}
-
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-func (n *Node) getBlockTransactions(blockNum uint64) ([]std.Tx, error) {
-	int64BlockNum := int64(blockNum)
-	b, err := n.client.Block(&int64BlockNum)
-	if err != nil {
-		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
-	}
-
-	txs := make([]std.Tx, len(b.Block.Data.Txs))
-	for i, encodedTx := range b.Block.Data.Txs {
-		var tx std.Tx
-		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
-			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
-		}
-
-		txs[i] = tx
-	}
-
-	return txs, nil
-}
-
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-func (n *Node) CurrentBalances(blockNum uint64) ([]std.Tx, error) {
-	return nil, nil
-}
-
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-// GetLatestBlockNumber returns the latest block height from the chain
-func (n *Node) GetLatestBlockNumber() (uint64, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getLatestBlockNumber(), nil
-}
-
-func (n *Node) getLatestBlockNumber() uint64 {
-	return uint64(n.Node.BlockStore().Height())
-}
-
 // SendTransaction executes a broadcast commit send
 // of the specified transaction to the chain
 func (n *Node) SendTransaction(tx *std.Tx) error {
@@ -401,11 +384,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		return fmt.Errorf("unable to save state: %s", err.Error())
 	}
 
-	// Stop the node if it's currently running.
-	if err := n.stopIfRunning(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
-	}
-
 	// Load genesis packages
 	pkgsTxs, err := n.pkgs.Load(DefaultFee)
 	if err != nil {
@@ -464,7 +442,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 
 	// Wait for the node to be ready
 	select {
-	case <-gnoland.GetNodeReadiness(node): // Ok
+	case <-node.Ready(): // Ok
 		n.Node = node
 	case <-ctx.Done():
 		return ctx.Err()

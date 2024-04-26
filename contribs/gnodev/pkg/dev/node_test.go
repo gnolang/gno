@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,8 @@ import (
 )
 
 // XXX: We should probably use txtar to test this package
+
+var nodeTestingAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
 // TestNewEmptyDevNode tests the NewDevNode method with no package
 func TestNewNode_NoPackages(t *testing.T) {
@@ -56,7 +59,7 @@ func Render(_ string) string { return "foo" }
 
 	// Call NewDevNode with no package should works
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	cfg.PackagesPathList = []string{pkgpath}
+	cfg.PackagesPathList = []PackagePath{pkgpath}
 	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
@@ -98,7 +101,7 @@ func Render(_ string) string { return "bar" }
 
 	// Generate package bar
 	barpkg := generateTestingPackage(t, "gno.mod", barGnoMod, "bar.gno", barFile)
-	err = node.UpdatePackages(barpkg)
+	err = node.UpdatePackages(barpkg.Path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 2)
 
@@ -142,7 +145,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Override `foo.gno` file with bar content
-	err = os.WriteFile(filepath.Join(foopkg, "foo.gno"), []byte(barFile), 0o700)
+	err = os.WriteFile(filepath.Join(foopkg.Path, "foo.gno"), []byte(barFile), 0o700)
 	require.NoError(t, err)
 
 	err = node.Reload(context.Background())
@@ -263,7 +266,10 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 		require.NoError(t, err)
 	}
 
-	return workdir
+	return PackagePath{
+		Path:    workdir,
+		Creator: nodeTestingAddress,
+	}
 }
 
 func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *emitter.ServerMock) {
