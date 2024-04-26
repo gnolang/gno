@@ -81,7 +81,11 @@ func ResetTestRoot(testName string) (*Config, string) {
 
 	baseConfig := DefaultBaseConfig()
 	configFilePath := filepath.Join(rootDir, defaultConfigPath)
-	genesisFilePath := filepath.Join(rootDir, defaultGenesisJSONName)
+	// NOTE: this does not match the behaviour of the Gno.land node.
+	// However, many tests rely on the fact that they can cleanup the directory
+	// by doing RemoveAll on the rootDir; so to keep compatibility with that
+	// behaviour, we place genesis.json in the rootDir.
+	genesisFilePath := filepath.Join(rootDir, "genesis.json")
 	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
 	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 
