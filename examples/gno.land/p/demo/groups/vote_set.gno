@@ -4,7 +4,7 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/maths"
+	"gno.land/p/demo/rat"
 )
 
 //----------------------------------------
@@ -71,8 +71,8 @@ func (vlist *VoteList) CountVotes(target string) int {
 // Committee
 
 type Committee struct {
-	Quorum    maths.Rat
-	Threshold maths.Rat
+	Quorum    rat.Rat
+	Threshold rat.Rat
 	Addresses std.AddressSet
 }
 

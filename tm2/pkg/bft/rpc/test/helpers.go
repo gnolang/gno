@@ -23,17 +23,24 @@ import (
 type Options struct {
 	suppressStdout bool
 	recreateConfig bool
+	genesisPath    string
 }
 
 var (
-	globalConfig   *cfg.Config
+	// This entire testing insanity is removed in:
+	// https://github.com/gnolang/gno/pull/1498
+	globalConfig  *cfg.Config
+	globalGenesis string
+
 	defaultOptions = Options{
 		recreateConfig: false,
+		genesisPath:    "genesis.json",
 	}
 )
 
 func waitForRPC() {
-	laddr := GetConfig().RPC.ListenAddress
+	cfg, _ := GetConfig()
+	laddr := cfg.RPC.ListenAddress
 	client := rpcclient.NewJSONRPCClient(laddr)
 	result := new(ctypes.ResultStatus)
 	for {
@@ -59,24 +66,24 @@ func makePathname() string {
 	return strings.Replace(p, sep, "_", -1)
 }
 
-func createConfig() *cfg.Config {
+func createConfig() (*cfg.Config, string) {
 	pathname := makePathname()
-	c := cfg.ResetTestRoot(pathname)
+	c, genesisFile := cfg.ResetTestRoot(pathname)
 
 	// and we use random ports to run in parallel
 	c.P2P.ListenAddress = "tcp://127.0.0.1:0"
 	c.RPC.ListenAddress = "tcp://127.0.0.1:0"
 	c.RPC.CORSAllowedOrigins = []string{"https://tendermint.com/"}
 	// c.TxIndex.IndexTags = "app.creator,tx.height" // see kvstore application
-	return c
+	return c, genesisFile
 }
 
 // GetConfig returns a config for the test cases as a singleton
-func GetConfig(forceCreate ...bool) *cfg.Config {
-	if globalConfig == nil || (len(forceCreate) > 0 && forceCreate[0]) {
-		globalConfig = createConfig()
+func GetConfig(forceCreate ...bool) (*cfg.Config, string) {
+	if globalConfig == nil || globalGenesis == "" || (len(forceCreate) > 0 && forceCreate[0]) {
+		globalConfig, globalGenesis = createConfig()
 	}
-	return globalConfig
+	return globalConfig, globalGenesis
 }
 
 // StartTendermint starts a test tendermint server in a go routine and returns when it is initialized
@@ -85,7 +92,7 @@ func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 	for _, opt := range opts {
 		opt(&nodeOpts)
 	}
-	node := NewTendermint(app, &nodeOpts)
+	node := newTendermint(app, &nodeOpts)
 	err := node.Start()
 	if err != nil {
 		panic(err)
@@ -93,10 +100,6 @@ func StartTendermint(app abci.Application, opts ...func(*Options)) *nm.Node {
 
 	// wait for rpc
 	waitForRPC()
-
-	if !nodeOpts.suppressStdout {
-		fmt.Println("Tendermint running!")
-	}
 
 	return node
 }
@@ -109,10 +112,10 @@ func StopTendermint(node *nm.Node) {
 	os.RemoveAll(node.Config().RootDir)
 }
 
-// NewTendermint creates a new tendermint server and sleeps forever
-func NewTendermint(app abci.Application, opts *Options) *nm.Node {
+// newTendermint creates a new tendermint server and sleeps forever
+func newTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
-	config := GetConfig(opts.recreateConfig)
+	config, genesisFile := GetConfig(opts.recreateConfig)
 
 	pvKeyFile := config.PrivValidatorKeyFile()
 	pvKeyStateFile := config.PrivValidatorStateFile()
@@ -123,7 +126,7 @@ func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 		panic(err)
 	}
 	node, err := nm.NewNode(config, pv, nodeKey, papp,
-		nm.DefaultGenesisDocProviderFunc(config),
+		nm.DefaultGenesisDocProviderFunc(genesisFile),
 		nm.DefaultDBProvider,
 		log.NewNoopLogger())
 	if err != nil {

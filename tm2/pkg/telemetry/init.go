@@ -4,8 +4,8 @@ package telemetry
 // https://github.com/open-telemetry/opentelemetry-go/blob/main/example/prometheus/main.go
 
 import (
-	"github.com/gnolang/gno/telemetry/metrics"
-	"github.com/gnolang/gno/telemetry/options"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/options"
 )
 
 const (

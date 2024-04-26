@@ -1,6 +1,6 @@
 package telemetry
 
-import "github.com/gnolang/gno/telemetry/options"
+import "github.com/gnolang/gno/tm2/pkg/telemetry/options"
 
 type Option func(*options.Config)
 
