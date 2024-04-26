@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -272,14 +274,14 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 	}
 }
 
-func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *emitter.ServerMock) {
+func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger := log.NewTestingLogger(t)
 
-	emitter := &emitter.ServerMock{}
+	emitter := &mock.ServerEmitter{}
 
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())

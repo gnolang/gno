@@ -3,22 +3,26 @@ package emitter
 import (
 	"sync"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 )
 
-type ServerMock struct {
+// ServerEmitter is an `emitter.Emitter`
+var _ emitter.Emitter = (*ServerEmitter)(nil)
+
+type ServerEmitter struct {
 	events   []events.Event
 	muEvents sync.Mutex
 }
 
-func (m *ServerMock) Emit(evt events.Event) {
+func (m *ServerEmitter) Emit(evt events.Event) {
 	m.muEvents.Lock()
 	defer m.muEvents.Unlock()
 
 	m.events = append(m.events, evt)
 }
 
-func (m *ServerMock) NextEvent() (evt events.Event) {
+func (m *ServerEmitter) NextEvent() (evt events.Event) {
 	m.muEvents.Lock()
 	defer m.muEvents.Unlock()
 
