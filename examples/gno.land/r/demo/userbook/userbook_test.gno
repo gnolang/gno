@@ -26,7 +26,6 @@ func TestGetSignupsInRange(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
-
 		})
 	}
 }
