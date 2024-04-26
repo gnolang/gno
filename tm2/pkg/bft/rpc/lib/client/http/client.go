@@ -230,16 +230,13 @@ func toClientAddress(remoteAddr string) (string, error) {
 func parseRemoteAddr(remoteAddr string) (network string, s string, err error) {
 	parts := strings.SplitN(remoteAddr, "://", 2)
 	var protocol, address string
-	switch {
-	case len(parts) == 1:
+	switch len(parts) {
+	case 1:
 		// default to tcp if nothing specified
 		protocol, address = protoTCP, remoteAddr
-	case len(parts) == 2:
+	case 2:
 		protocol, address = parts[0], parts[1]
-	default:
-		return "", "", fmt.Errorf("invalid addr: %s", remoteAddr)
 	}
-
 	return protocol, address, nil
 }
 
