@@ -8,8 +8,8 @@ package std
 // the type of the event. It plays a role of indexing what kind of event occurred. For example,
 // a name like "Foo" or "Bar" can be used to indicating the purpose (nature) of the event.
 //
-// And the attrs (attributes) accpets an even number of strings and sets them as key-value pairs
-// according to the order they are received. For example, if the attr strings "key1", "value1" are
+// And the attrs (attributes) accepts an even number of strings and sets them as key-value pairs
+// according to the order they are passed. For example, if the attr strings "key1", "value1" are
 // passed in, the key is set to "key1" and the value is set to "value1".
 //
 // The event is dispatched to the EventLogger, which resides in the tm2/pkg/sdk/events.go file.
