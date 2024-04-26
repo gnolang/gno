@@ -86,11 +86,15 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
-	// list all packages from target path
-	pkgs, err := gnomod.ListPkgs(dir)
-	if err != nil {
-		return nil, fmt.Errorf("listing gno packages: %w", err)
+func LoadPackagesFromDirs(dirs []string, creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	// list all packages from target paths
+	var pkgs gnomod.PkgList
+	for _, dir := range dirs {
+		var err error
+		pkgs, err = gnomod.ListPkgs(dir)
+		if err != nil {
+			return nil, fmt.Errorf("listing gno packages: %w", err)
+		}
 	}
 
 	// Sort packages by dependencies.
