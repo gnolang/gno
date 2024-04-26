@@ -23,6 +23,7 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 		newValidatorCmd(io),
 		newVerifyCmd(io),
 		newBalancesCmd(io),
+		newPackagesCmd(io),
 		newTxsCmd(io),
 	)
 
