@@ -27,6 +27,7 @@ func newPackagesCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newPackagesAddCmd(cfg, io),
+		newPackagesClearCmd(cfg, io),
 	)
 
 	return cmd

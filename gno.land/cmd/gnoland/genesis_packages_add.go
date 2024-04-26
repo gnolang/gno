@@ -58,7 +58,7 @@ func execPackagesAdd(ctx context.Context, cfg *packagesAddCfg, args []string, io
 	}
 
 	state := genesis.AppState.(gnoland.GnoGenesisState)
-	state.Txs = txs
+	state.Txs = append(state.Txs, txs...)
 
 	// Save the txs
 	genesis.AppState = state
@@ -82,7 +82,7 @@ func execPackagesAdd(ctx context.Context, cfg *packagesAddCfg, args []string, io
 	io.Println()
 
 	io.Printfln(
-		"%d txs saved!",
+		"%d txs added!",
 		len(txs),
 	)
 
