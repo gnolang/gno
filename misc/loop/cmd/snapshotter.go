@@ -162,7 +162,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		Binds: []string{
 			fmt.Sprintf("%s/scripts:/scripts", s.cfg.hostPWD),
 			fmt.Sprintf("%s/backups:/backups", s.cfg.hostPWD),
-			fmt.Sprintf("%s:/opt/gno/src/testdir", s.containerName),
+			fmt.Sprintf("%s:/opt/gno/src/gnoland-data", s.containerName),
 		},
 	}, nil, nil, s.containerName)
 	if err != nil {
