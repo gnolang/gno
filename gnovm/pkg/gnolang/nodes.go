@@ -872,6 +872,8 @@ type SwitchClauseStmt struct {
 // ----------------------------------------
 // bodyStmt (persistent)
 
+// loopVar of for/range-loop can be captured or not,
+// recored the captured ones.
 type CapturedLoopVariables struct {
 	loopVars []Name
 }
@@ -1649,8 +1651,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	panic(fmt.Sprintf("name %s not declared", n))
 }
 
-// Like GetPathForName, but always returns the path of the extern name.
-// This is relevant for when a name is declared later in the block.
+// Get loop blockNode where a name is declared, return nil if not exist.
 func (sb *StaticBlock) GetLoopNodeForName(store Store, n Name) BlockNode {
 	if n == "_" {
 		return nil

@@ -95,14 +95,19 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 }
 
 type LoopInfo struct {
-	isGotoLoop bool // goto loop or for/range loop
+	isGotoLoop bool
 	labelLine  int
 	gotoLine   int
 	label      Name
 }
 
-// record loop externs info while preprocess
+// record loop extern infos while preprocess.
+// loopInfo is aggregated according to their host funcDecl,
+// to make it convenient for the following up handling.
 var loopInfos map[Name][]*LoopInfo
+
+// flag of Reprocess
+// XXX, cumbersome, better way?
 var reProcessing bool
 
 // This counter ensures (during testing) that certain functions
@@ -149,8 +154,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		SetNodeLocations(pkgPath, fileName, fn)
 	}
 
+	// record closure infos
 	var closureStack []BlockNode = make([]BlockNode, 0, 32)
-
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -376,7 +381,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
-				// collect
+				// record, mostly used by goto... that with funcLit embedded within.
 				closureStack = append(closureStack, last)
 
 			// TRANS_BLOCK -----------------------
@@ -764,36 +769,37 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *FuncLitExpr:
-				debug.Println("---trans_leave, funcLitExpr, n: ", n)
-
+				// XXX, cumbersome, better way?
 				if !reProcessing {
-					// quick check to identify no closure
-					_, inLoop := isBlockNodeInLoop(store, n)
+					// Step 1: quick check to identify no closure
+					inLoop := isBlockNodeInLoop(store, n)
 					if !inLoop {
 						return n, TRANS_CONTINUE
 					}
 
-					// Step 2: gather all extern names declared in for-loops.
+					// Step 2: gather all extern names declared in for/range-loops.
 					var (
 						leNames  []Name
 						loopNode BlockNode
 					)
 
-					// outer first order
+					// outer first order by default
 					externNames := n.GetExternNames()
-					debug.Println("---externNames: ", externNames)
-
 					for _, name := range externNames {
 						loopNode = n.GetLoopNodeForName(store, name)
-						debug.Printf("loopNode for name %v is %v \n", name, loopNode)
 						if loopNode == nil {
 							continue
 						}
-
+						// if an extern name if defined in a for/range loop, it probably
+						// escaped the loop, but it's not a sufficient condition. one
+						// counter case is that is this funcLit is called before the loop
+						// ends, the extern does not escape.
+						// NOTE: this logic is missing now.
+						// TODO: add this check.
 						leNames = append(leNames, name)
 						loopVars := []Name{} // per loop
 
-						// check loop var
+						// find loop var of for-loop
 						if fs, ok := loopNode.(*ForStmt); ok {
 							if as, ok := fs.Init.(*AssignStmt); ok {
 								if as.Op == DEFINE {
@@ -808,16 +814,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 							}
 						}
-						// check range case
+						// find loopVars for range-loop
 						if rs, ok := loopNode.(*RangeStmt); ok {
-							if nx, ok := rs.Key.(*NameExpr); ok {
-								if nx.Name != "_" {
-									loopVars = append(loopVars, nx.Name)
+							if rs.Op == DEFINE {
+								if nx, ok := rs.Key.(*NameExpr); ok {
+									if nx.Name != "_" {
+										loopVars = append(loopVars, nx.Name)
+									}
 								}
-							}
-							if nx, ok := rs.Value.(*NameExpr); ok {
-								if nx.Name != "_" {
-									loopVars = append(loopVars, nx.Name)
+								if nx, ok := rs.Value.(*NameExpr); ok {
+									if nx.Name != "_" {
+										loopVars = append(loopVars, nx.Name)
+									}
 								}
 							}
 						}
@@ -835,28 +843,26 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 
 						if debug {
-							debug.Println("---dump loopvar names---")
 							for _, name := range lvs.loopVars {
-								debug.Println("name: ", name)
+								debug.Println("loopVar: ", name)
 							}
-							debug.Println("------end------")
 						}
 
 						switch ln := loopNode.(type) {
 						case *ForStmt:
-							ln.LoopVars = lvs
+							ln.LoopVars = lvs // attach it to the host for further handling
 						case *RangeStmt:
 							ln.LoopVars = lvs
 						}
 
 						// loopInfo
 						loop := &LoopInfo{}
-						// maybe initialized by other cases, or not
-						if loopInfos == nil {
-							loopInfos = make(map[Name][]*LoopInfo)
-						}
+						// maybe initialized by other places, or not
+						loopInfos = getLoopInfos()
 
 						lastFn := findLastFn(n)
+						// global loop infos recorded. fileNode-wise.
+						// will be handled while trans_leave FileNode.
 						loopInfos[lastFn] = append(loopInfos[lastFn], loop)
 					}
 				}
@@ -1780,19 +1786,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case BREAK:
 				case CONTINUE:
 				case GOTO:
-					// here needed for init and reProcess to rebuild goto
-					debug.Println("---Goto, n: ", n)
 					_, depth, index, labelLine := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
-
+					// identify closure pattern
 					if !reProcessing {
 						gotoLine := n.GetLine()
 						if labelLine < gotoLine {
 							for i := len(closureStack) - 1; i >= 0; i-- { // outermost one
 								if fx, ok := closureStack[i].(*FuncLitExpr); ok {
 									if labelLine < fx.GetLine() && fx.GetLine() < gotoLine {
-										// mutate body when this node end transcribed
 										loop := &LoopInfo{
 											labelLine:  labelLine,
 											gotoLine:   gotoLine,
@@ -1800,12 +1803,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 											isGotoLoop: true,
 										}
 
-										// nodes in one funcDecl
-										if loopInfos == nil {
-											loopInfos = make(map[Name][]*LoopInfo)
-										}
-
-										lastFn := findLastFn(last)
+										loopInfos = getLoopInfos()
+										lastFn := findLastFn(last) // the host Fn
 										loopInfos[lastFn] = append(loopInfos[lastFn], loop)
 										break
 									}
@@ -1833,24 +1832,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
-				debug.Println("---trans_leave, for stmt: ", n)
 				if !reProcessing {
 					lvs := n.LoopVars
 					if lvs != nil {
-						debug.Println("---trans_leave, lvs: ", lvs)
-						// step2. inject i := 1 for loop extern
-						stmts := []Stmt{}
-						stmts = append(InjectStmts(lvs), n.Body...)
+						// inject i := i for loop extern
+						stmts := append(InjectStmts(lvs), n.Body...)
 						// wrap body with {}
 						nn := BlockS(stmts)
-						// set loc and line
+						// set loc info
 						loc := n.GetLocation()
 						loc.Line = stmts[0].GetLine()
 						nn.SetLocation(loc)
+						// set standalone line info
 						nn.SetLine(stmts[0].GetLine())
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
-						debug.Println("---n final: ", n)
 					}
 					// preprocess n
 					// Cond consts become bool *ConstExprs.
@@ -1864,24 +1860,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
-				debug.Printf("---trans_leave, range stmt, numNames: %v \n, names: %v \n", n.GetNumNames(), n.GetBlockNames())
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 				if !reProcessing {
 					lvs := n.LoopVars
 					if lvs != nil {
-						debug.Println("---trans_leave, clo: ", lvs)
-						stmts := []Stmt{}
-						stmts = append(InjectStmts(lvs), n.Body...)
+						stmts := append(InjectStmts(lvs), n.Body...)
 						// wrap body with {}
 						nn := BlockS(stmts)
 						// set loc and line
 						loc := n.GetLocation()
 						loc.Line = stmts[0].GetLine()
 						nn.SetLocation(loc)
+						// set line
 						nn.SetLine(stmts[0].GetLine())
 						// replace with wrapped blockStmt
 						n.Body = []Stmt{nn}
-						debug.Println("---n final: ", n)
 					}
 				}
 
@@ -3769,39 +3762,34 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	}
 }
 
-func isBlockNodeInLoop(store Store, bn BlockNode) (int, bool) {
-	depthOffset := 0
+func isBlockNodeInLoop(store Store, bn BlockNode) bool {
 	for bn != nil {
-		depthOffset += 1
 		bn = bn.GetParentNode(store)
 		switch bn.(type) {
 		case *FuncLitExpr:
-			return 0, false
+			return false
 		case *ForStmt:
-			return depthOffset, true
+			return true
 		case *RangeStmt:
-			return depthOffset, true
+			return true
 		default:
 			continue
 		}
 	}
-	return 0, false
+	return false
 }
 
-// reset value path, static block, etc
+// reset value path, static block, preprocessed attr, etc.
 func resetStaticBlock(bn BlockNode) {
-	debug.Println("---reset VP: ", bn)
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			switch cn := n.(type) {
 			case *NameExpr:
-				debug.Println("---trans_enter, nx: ", cn)
 				cn.Path = NewValuePath(VPUverse, 0, 0, cn.Name)
 				cn.SetAttribute(ATTR_PREPROCESSED, false)
 				return cn, TRANS_CONTINUE
 			case BlockNode:
-				debug.Println("---blockNode")
 				cn.GetStaticBlock().reset()
 				cn.SetAttribute(ATTR_PREPROCESSED, false)
 				return cn, TRANS_CONTINUE
@@ -3815,16 +3803,14 @@ func resetStaticBlock(bn BlockNode) {
 	})
 }
 
-// wrap goto loop into block stmt
+// mostly for goto...
+// wrap goto loop into block stmt.
 func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
-	debug.Println("---rebuildBody, body: ", b)
 	preBody := []Stmt{}
 	loopBody := []Stmt{}
 	postBody := []Stmt{}
 
-	debug.Println("---rebuildBody, gloop: ", gloop.labelLine, gloop.gotoLine)
-	for i, s := range b {
-		debug.Printf("---body[%d] is: %v, at line: %d \n", i, s, s.GetLine())
+	for _, s := range b {
 		if s.GetLine() < gloop.labelLine {
 			preBody = append(preBody, s)
 		} else if s.GetLine() >= gloop.labelLine && s.GetLine() <= gloop.gotoLine {
@@ -3833,13 +3819,11 @@ func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 			postBody = append(postBody, s)
 		}
 	}
-	debug.Println("---preBody: ", preBody)
-	debug.Println("---loopBody: ", loopBody)
-	debug.Println("---postBody: ", postBody)
 
 	nn := BlockS(loopBody)
-	nn.SetLabel(gloop.label)
+	nn.SetLabel(gloop.label) // set label on wrapper block stmt
 
+	// some loc info inherit from parent block
 	nLoc := loc
 	nLoc.Line = loopBody[0].GetLine()
 	nn.SetLocation(nLoc)
@@ -3847,15 +3831,14 @@ func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 
 	nBody := append(preBody, nn)
 	nBody = append(nBody, postBody...)
-	debug.Println("---nBody: ", nBody)
 	return nBody
 }
 
-// this is only for loop formed by goto...
+// this is only for loops formed by goto...
 func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 	for _, loop := range loops {
-		if loop.isGotoLoop { // for/range has built new body in trans_leave
-			// find labeled stmt
+		if loop.isGotoLoop { // for/range has done the work
+			// find label stmt
 			lblstmt, idx := body.GetLabeledStmt(loop.label)
 			if lblstmt == nil {
 				continue
@@ -3870,10 +3853,11 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 	return body
 }
 
-// traverse from root node, find goto loop and its parent block, wrap body and re-process,
-// to rebuild value path.
+// core reprocess logic, this is handled per fileNode.
+// traverse from root node, find goto loop, rebuild body.
+// (for/range-loop body has already been rebuilt before)
+// finally get all work done on trans_leave funcDecl.
 func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
-	debug.Println("---reProcess")
 	reProcessing = true
 	defer func() {
 		reProcessing = false
@@ -3885,8 +3869,9 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	)
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		// XXX, if there's no goto loop exist, no need for the trans_enter stage, TODO: optimize.
 		switch stage {
-		case TRANS_ENTER: // find target goto loop, and rebuild body, for/range no need this stage, TODO: optimize
+		case TRANS_ENTER: // find target goto loop, and rebuild body, for/range no need this stage.
 			switch cn := n.(type) {
 			case *FuncDecl:
 				for name, lfs := range loopInfos {
@@ -3922,7 +3907,7 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 			}
 		case TRANS_LEAVE:
 			switch cn := n.(type) {
-			case *FuncDecl: // all reProcess happens in the root funcDecl
+			case *FuncDecl: // all reProcess happens in the root funcDecl, for convenience
 				if cn.Name == targetFn {
 					cn = doReProcess(store, bn, cn).(*FuncDecl)
 				}
@@ -3939,16 +3924,20 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		}
 	})
 
-	debug.Println("---end of transform, bn: ", bn)
 	return
 }
 
 func doReProcess(store Store, last BlockNode, bn BlockNode) Node {
 	resetStaticBlock(bn)
-	debug.Println("---node after reset is: ", bn)
 	nn := Preprocess(store, last, bn)
-	debug.Println("---node after reProcess is: ", nn)
 	return nn
+}
+
+func getLoopInfos() map[Name][]*LoopInfo {
+	if loopInfos == nil {
+		loopInfos = make(map[Name][]*LoopInfo)
+	}
+	return loopInfos
 }
 
 // ----------------------------------------
@@ -4011,11 +4000,8 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		// save node to store if blocknode.
 		if bn, ok := n.(BlockNode); ok {
-			debug.Printf("---bn is %v \n", bn)
-			debug.Printf("---bn.getLine %v \n", bn.GetLine())
 			// Location must exist already.
 			loc := bn.GetLocation()
-			debug.Printf("---loc of bn is %v \n", loc)
 			if loc.IsZero() {
 				panic("unexpected zero block node location")
 			}

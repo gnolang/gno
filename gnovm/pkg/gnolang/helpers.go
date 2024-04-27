@@ -807,7 +807,6 @@ func InjectStmts(lvs *CapturedLoopVariables) []Stmt {
 		lhs := Nx(lv)
 		rhs := Nx(lv)
 		as := A(lhs, ":=", rhs)
-		debug.Printf("as: %v \n", as)
 		stmts = append(stmts, as)
 	}
 	return stmts
