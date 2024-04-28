@@ -3,20 +3,22 @@ package boards
 import (
 	"std"
 	"strconv"
+
+	"gno.land/p/demo/boards"
 )
 
 //----------------------------------------
 // Public facing functions
 
-func GetBoardIDFromName(name string) (BoardID, bool) {
+func GetBoardIDFromName(name string) (boards.BoardID, bool) {
 	boardI, exists := gBoardsByName.Get(name)
 	if !exists {
 		return 0, false
 	}
-	return boardI.(*Board).id, true
+	return boardI.(*boards.Board).Id(), true
 }
 
-func CreateBoard(name string) BoardID {
+func CreateBoard(name string) boards.BoardID {
 	std.AssertOriginCall()
 	bid := incGetBoardID()
 	caller := std.GetOrigCaller()
@@ -24,11 +26,18 @@ func CreateBoard(name string) BoardID {
 		panic("unauthorized")
 	}
 	url := "/r/demo/boards:" + name
-	board := newBoard(bid, url, name, caller)
-	bidkey := boardIDKey(bid)
+	if !reName.MatchString(name) {
+		panic("invalid name: " + name)
+	}
+	exists := gBoardsByName.Has(name)
+	if exists {
+		panic("board already exists")
+	}
+	board := boards.NewBoard(bid, url, name, caller)
+	bidkey := boards.BoardIDKey(bid)
 	gBoards.Set(bidkey, board)
 	gBoardsByName.Set(name, board)
-	return board.id
+	return board.Id()
 }
 
 func checkAnonFee() bool {
@@ -40,7 +49,7 @@ func checkAnonFee() bool {
 	return false
 }
 
-func CreateThread(bid BoardID, title string, body string) PostID {
+func CreateThread(bid boards.BoardID, title string, body string) boards.PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
@@ -53,10 +62,10 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 		panic("board not exist")
 	}
 	thread := board.AddThread(caller, title, body)
-	return thread.id
+	return thread.Id()
 }
 
-func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
+func CreateReply(bid boards.BoardID, threadid, postid boards.PostID, body string) boards.PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
@@ -74,17 +83,17 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 	}
 	if postid == threadid {
 		reply := thread.AddReply(caller, body)
-		return reply.id
+		return reply.Id()
 	} else {
 		post := thread.GetReply(postid)
 		reply := post.AddReply(caller, body)
-		return reply.id
+		return reply.Id()
 	}
 }
 
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
-func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
+func CreateRepost(bid boards.BoardID, postid boards.PostID, title string, body string, dstBoardID boards.BoardID) boards.PostID {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	if usernameOf(caller) == "" {
@@ -109,10 +118,10 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 		panic("thread not exist")
 	}
 	repost := thread.AddRepostTo(caller, title, body, dst)
-	return repost.id
+	return repost.Id()
 }
 
-func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
+func DeletePost(bid boards.BoardID, threadid, postid boards.PostID, reason string) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
@@ -125,7 +134,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	}
 	if postid == threadid {
 		// delete thread
-		if !thread.HasPermission(caller, DeletePermission) {
+		if !thread.HasPermission(caller, boards.DeletePermission) {
 			panic("unauthorized")
 		}
 		board.DeleteThread(threadid)
@@ -135,14 +144,14 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 		if post == nil {
 			panic("post not exist")
 		}
-		if !post.HasPermission(caller, DeletePermission) {
+		if !post.HasPermission(caller, boards.DeletePermission) {
 			panic("unauthorized")
 		}
 		thread.DeletePost(postid)
 	}
 }
 
-func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
+func EditPost(bid boards.BoardID, threadid, postid boards.PostID, title, body string) {
 	std.AssertOriginCall()
 	caller := std.GetOrigCaller()
 	board := getBoard(bid)
@@ -155,7 +164,7 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 	}
 	if postid == threadid {
 		// edit thread
-		if !thread.HasPermission(caller, EditPermission) {
+		if !thread.HasPermission(caller, boards.EditPermission) {
 			panic("unauthorized")
 		}
 		thread.Update(title, body)
@@ -165,7 +174,7 @@ func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
 		if post == nil {
 			panic("post not exist")
 		}
-		if !post.HasPermission(caller, EditPermission) {
+		if !post.HasPermission(caller, boards.EditPermission) {
 			panic("unauthorized")
 		}
 		post.Update(title, body)
