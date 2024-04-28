@@ -22,7 +22,7 @@ func newInitCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "init",
 			ShortUsage: "init [flags]",
-			ShortHelp:  "initializes the default node secrets / configuration",
+			ShortHelp:  "initializes config files and secrets",
 			LongHelp:   "initializes the node directory containing the secrets and configuration files",
 		},
 		cfg,
