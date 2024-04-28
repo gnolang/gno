@@ -6,11 +6,12 @@ package boards_test
 import (
 	"strconv"
 
+	pboards "gno.land/p/demo/boards"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
 
-var dstBoard boards.BoardID
+var dstBoard pboards.BoardID
 
 func init() {
 	users.Register("", "gnouser", "my profile")

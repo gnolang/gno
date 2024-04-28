@@ -15,7 +15,7 @@ func RenderBoardById(bid boards.BoardID) string {
 	if board == nil {
 		return "missing board"
 	}
-	return RenderBoarddddddd(board)
+	return RenderBoard(board)
 }
 
 func Render(path string) string {
@@ -36,7 +36,7 @@ func Render(path string) string {
 		if !exists {
 			return "board does not exist: " + name
 		}
-		return RenderBoarddddddd(boardI.(*boards.Board))
+		return RenderBoard(boardI.(*boards.Board))
 	} else if len(parts) == 2 {
 		// /r/demo/boards:BOARD_NAME/THREAD_ID
 		name := parts[0]

@@ -4,14 +4,15 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
+	pboards "gno.land/p/demo/boards"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
 
 var (
-	bid1 boards.BoardID
-	bid2 boards.BoardID
-	pid  boards.PostID
+	bid1 pboards.BoardID
+	bid2 pboards.BoardID
+	pid  pboards.PostID
 )
 
 func init() {

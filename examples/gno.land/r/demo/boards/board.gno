@@ -7,7 +7,7 @@ import (
 // Renders the board for display suitable as plaintext in
 // console.  This is suitable for demonstration or tests,
 // but not for prod.
-func RenderBoarddddddd(board *boards.Board) string {
+func RenderBoard(board *boards.Board) string {
 	str := ""
 	str += "\\[[post](" + GetPostFormURL(board) + ")]\n\n"
 	threads := board.Threads()

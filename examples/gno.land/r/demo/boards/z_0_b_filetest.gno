@@ -4,11 +4,12 @@ package boards_test
 // SEND: 199000000ugnot
 
 import (
+	pboards "gno.land/p/demo/boards"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
 
-var bid boards.BoardID
+var bid pboards.BoardID
 
 func init() {
 	users.Register("", "gnouser", "my profile")

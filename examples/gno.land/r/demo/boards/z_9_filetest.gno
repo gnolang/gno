@@ -6,14 +6,15 @@ package boards_test
 import (
 	"strconv"
 
+	pboards "gno.land/p/demo/boards"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
 
 var (
-	firstBoard  boards.BoardID
-	secondBoard boards.BoardID
-	pid         boards.PostID
+	firstBoard  pboards.BoardID
+	secondBoard pboards.BoardID
+	pid         pboards.PostID
 )
 
 func init() {
