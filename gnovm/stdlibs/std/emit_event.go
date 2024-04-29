@@ -4,12 +4,12 @@ package std
 // ref: https://github.com/gnolang/gno/pull/1833
 
 import (
-	"encoding/json"
 	"errors"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 )
+
+var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd count")
 
 func X_emit(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs, err := attrKeysAndValues(attrs)
@@ -20,22 +20,20 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	pkgPath := CurrentRealmPath(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
-	evt := newGnoEvent(typ, pkgPath, fnIdent, eventAttrs...)
+	evt := gnoEvent{
+		Type:       typ,
+		PkgPath:    pkgPath,
+		Func:       fnIdent,
+		Attributes: eventAttrs,
+	}
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(evt)
-
-	str, err := json.Marshal(evt)
-	if err != nil {
-		m.Panic(typedString(err.Error()))
-	}
-
-	ctx.EmittedEvents = abci.EventString(str)
 }
 
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
-		return nil, errors.New("cannot pair attributes due to odd count")
+		return nil, errInvalidGnoEventAttrs
 	}
 	eventAttrs := make([]gnoEventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
@@ -50,20 +48,11 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 type gnoEvent struct {
 	Type       string              `json:"type"`
 	PkgPath    string              `json:"pkg_path"`
-	Identifier string              `json:"identifier"`
+	Func       string              `json:"func"`
 	Attributes []gnoEventAttribute `json:"attributes"`
 }
 
 func (e gnoEvent) AssertABCIEvent() {}
-
-func newGnoEvent(eventType string, pkgPath string, ident string, attrs ...gnoEventAttribute) *gnoEvent {
-	return &gnoEvent{
-		Type:       eventType,
-		PkgPath:    pkgPath,
-		Identifier: ident,
-		Attributes: attrs,
-	}
-}
 
 type gnoEventAttribute struct {
 	Key   string `json:"key"`
