@@ -194,7 +194,7 @@ func TestRPCNotificationInBatch(t *testing.T) {
 			continue
 		}
 
-		var responses []types.RPCResponse
+		var responses types.RPCResponses
 		// try to unmarshal an array first
 		err = json.Unmarshal(blob, &responses)
 		if err != nil {
@@ -211,7 +211,7 @@ func TestRPCNotificationInBatch(t *testing.T) {
 					continue
 				}
 				// have a single-element result
-				responses = []types.RPCResponse{response}
+				responses = types.RPCResponses{response}
 			}
 		}
 		if tt.expectCount != len(responses) {

@@ -61,7 +61,7 @@ func (p *PackageWatcher) startWatching() {
 		defer close(pkgsUpdateChan)
 
 		var debounceTimer <-chan time.Time
-		var pathList = []string{}
+		pathList := []string{}
 		var err error
 
 		for err == nil {

@@ -54,7 +54,7 @@ func ensureDir(dir string, mode os.FileMode) {
 	}
 }
 
-func ResetConfig(name string) *cfg.Config {
+func ResetConfig(name string) (*cfg.Config, string) {
 	return cfg.ResetTestRoot(name)
 }
 
@@ -262,7 +262,7 @@ func subscribeToVoter(cs *ConsensusState, addr crypto.Address) <-chan events.Eve
 // consensus states
 
 func newConsensusState(state sm.State, pv types.PrivValidator, app abci.Application) *ConsensusState {
-	config := cfg.ResetTestRoot("consensus_state_test")
+	config, _ := cfg.ResetTestRoot("consensus_state_test")
 	return newConsensusStateWithConfig(config, state, pv, app)
 }
 
@@ -595,7 +595,7 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 	for i := 0; i < nValidators; i++ {
 		stateDB := memdb.NewMemDB() // each state needs its own db
 		state, _ := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
-		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		thisConfig, _ := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		for _, opt := range configOpts {
 			opt(thisConfig)
@@ -635,7 +635,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 	for i := 0; i < nPeers; i++ {
 		stateDB := memdb.NewMemDB() // each state needs its own db
 		state, _ := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
-		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		thisConfig, _ := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		if i == 0 {

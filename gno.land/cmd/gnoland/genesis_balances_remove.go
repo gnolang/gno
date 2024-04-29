@@ -86,7 +86,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	delete(genesisBalances, address)
 
 	// Save the balances
-	state.Balances = genesisBalances.toList()
+	state.Balances = genesisBalances.List()
 	genesis.AppState = state
 
 	// Save the updated genesis
