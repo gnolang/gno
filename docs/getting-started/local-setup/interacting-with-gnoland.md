@@ -20,14 +20,16 @@ For interacting with any Gno.land chain, you will need a certain amount of GNOTs
 to pay gas fees with. 
 
 For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
-testnet. We can access the Portal Loop faucet by visiting the
-[Gno Faucet Hub](https://faucet.gno.land). Users can requst
+testnet. We can access the Portal Loop faucet through the
+[Gno Faucet Hub](https://faucet.gno.land), or by accessing the faucet directly at
+[gno.land/faucet](https://gno.land/faucet). 
 
 
 ## 2. Visit a realm
-For this example, we will use the GNOT wrapper realm. This realm can be found on
-[gno.land/r/demo/wugnot](https://gno.land/r/demo/wugnot), and serves the purpose
-of wrapping native GNOTs into a GRC20 standard token.
+For this example, we will use the UserBook. This realm can be found on
+[gno.land/r/demo/userbook](https://gno.land/r/demo/userbook).
+
+The UserBgook realm
 
 
 
