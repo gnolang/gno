@@ -23,7 +23,11 @@
 //   - Must be run before `gnoland start`.
 //   - Creates a new user in the default keybase directory.
 //
-// 4. `loadpkg`:
+// 4. `adduserfrom`:
+//   - Must be run before `gnoland start`.
+//   - Creates a new user in the default keybase directory from a given seed. ( Optionally, account and index can be provided )
+//
+// 5. `loadpkg`:
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.

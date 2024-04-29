@@ -89,7 +89,6 @@ func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				events.EvtReload, events.EvtReset, events.EvtTxResult,
 			},
 		})
-
 		if err != nil {
 			panic("unable to execute template: " + err.Error())
 		}
