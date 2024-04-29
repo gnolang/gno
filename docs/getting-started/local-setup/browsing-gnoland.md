@@ -93,3 +93,12 @@ be able to see the user-facing API of the realm.
 
 This page will allow you to easily generate `gnokey` commands for interacting 
 with the realm in question. 
+
+## Conclusion
+
+That's it 🎉
+
+You have successfully inspected the source code of a package and realm, and seen
+the on-chain state of the blog app. You have also learned about the `[help]` page
+that `gnoweb` provides.
+
