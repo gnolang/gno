@@ -57,6 +57,8 @@ func execPackagesClear(ctx context.Context, cfg *packagesClearCfg, args []string
 			if msg.Type() == "add_package" {
 				removed++
 				include = false
+
+				break
 			}
 		}
 		if include {

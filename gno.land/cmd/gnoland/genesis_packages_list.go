@@ -54,11 +54,14 @@ func execPackagesList(ctx context.Context, cfg *packagesListCfg, args []string, 
 	var pkgList []string
 	for _, tx := range state.Txs {
 		for _, msg := range tx.Msgs {
-			if msg.Type() == "add_package" {
-				count++
-				msgAddPkg := msg.(vmm.MsgAddPackage)
-				pkgList = append(pkgList, msgAddPkg.Package.Path)
+			if msg.Type() != "add_package" {
+				continue
 			}
+
+			count++
+
+			msgAddPkg := msg.(vmm.MsgAddPackage)
+			pkgList = append(pkgList, msgAddPkg.Package.Path)
 		}
 	}
 
