@@ -14,9 +14,9 @@ jobs:
         with:
           github-token: ${{ secrets.DOCS_DEPLOY_PAT }}
           script: |
-          await github.rest.actions.createworkflowDispatch({
-              owner: 'gnolang',
-              repo: 'docs.gno.land',
-              workflow_id: 'netlify.yml',
-              ref: 'main'
-          })
+            await github.rest.actions.createworkflowDispatch({
+                owner: 'gnolang',
+                repo: 'docs.gno.land',
+                workflow_id: 'netlify.yml',
+                ref: 'main'
+            })
