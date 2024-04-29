@@ -41,8 +41,7 @@ packages do not contain state, only their source code can be viewed on-chain. To
 learn more about packages, check out the [Packages](../../concepts/packages.md) 
 concept page.
 
-Let's take a specific example: the `avl` package, deployed at `gno.land/p/demo/avl`.
-
+Let's take a specific example: the `avl` package, deployed at `gno.land/p/demo/avl`. 
 To access the source code of the `avl` package, we can append the `/p/demo/avl`
 to our browser URL (from the homepage).
 
