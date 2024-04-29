@@ -26,18 +26,18 @@ func newPackagesGetCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "get",
 			ShortUsage: "packages get [flags] <pkgpath> [<pkgpath>...]",
-			LongHelp:   "Get the addpkg transactions for given package path",
+			ShortHelp:  "get the addpkg transactions for given package path",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execPackagesGet(ctx, cfg, args, io)
+			return execPackagesGet(cfg, args, io)
 		},
 	)
 }
 
 func (c *packagesGetCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execPackagesGet(ctx context.Context, cfg *packagesGetCfg, args []string, io commands.IO) error {
+func execPackagesGet(cfg *packagesGetCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}

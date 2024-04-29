@@ -26,18 +26,18 @@ func newPackagesListCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command 
 		commands.Metadata{
 			Name:       "list",
 			ShortUsage: "packages list [flags]",
-			LongHelp:   "List all the addpkg transactions",
+			ShortHelp:  "list all the addpkg transactions",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execPackagesList(ctx, cfg, args, io)
+			return execPackagesList(cfg, args, io)
 		},
 	)
 }
 
 func (c *packagesListCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execPackagesList(ctx context.Context, cfg *packagesListCfg, args []string, io commands.IO) error {
+func execPackagesList(cfg *packagesListCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}

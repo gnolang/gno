@@ -28,18 +28,18 @@ func newPackagesAddCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "packages add [flags] <path> [<path>...]",
-			LongHelp:   "Adds new package(s) to the genesis.json",
+			ShortHelp:  "adds new package(s) to the genesis.json",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execPackagesAdd(ctx, cfg, args, io)
+			return execPackagesAdd(cfg, args, io)
 		},
 	)
 }
 
 func (c *packagesAddCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execPackagesAdd(ctx context.Context, cfg *packagesAddCfg, args []string, io commands.IO) error {
+func execPackagesAdd(cfg *packagesAddCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}

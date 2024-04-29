@@ -25,18 +25,18 @@ func newPackagesClearCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command
 		commands.Metadata{
 			Name:       "clear",
 			ShortUsage: "packages clear [flags]",
-			LongHelp:   "Clears all the addpkg transactions",
+			ShortHelp:  "clears all the addpkg transactions",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execPackagesClear(ctx, cfg, args, io)
+			return execPackagesClear(cfg, args, io)
 		},
 	)
 }
 
 func (c *packagesClearCfg) RegisterFlags(fs *flag.FlagSet) {}
 
-func execPackagesClear(ctx context.Context, cfg *packagesClearCfg, args []string, io commands.IO) error {
+func execPackagesClear(cfg *packagesClearCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
