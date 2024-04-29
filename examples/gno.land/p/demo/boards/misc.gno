@@ -5,14 +5,6 @@ import (
 	"strings"
 )
 
-func padLeft(str string, length int) string {
-	if len(str) >= length {
-		return str
-	} else {
-		return strings.Repeat(" ", length-len(str)) + str
-	}
-}
-
 func postIDKey(pid PostID) string {
 	return padZero(uint64(pid), 10)
 }
