@@ -38,7 +38,7 @@ func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
 	if targetIndex == -1 {
 		return ""
 	}
-	return findPreviousFuncName(m, targetIndex)
+	return findPrevFuncName(m, targetIndex)
 }
 
 // findTargetFuncIndex finds and returns the index of the target function in the call stack.
@@ -52,8 +52,8 @@ func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
 	return -1
 }
 
-// findPreviousFuncName returns the function name before the given index in the call stack.
-func findPreviousFuncName(m *gno.Machine, targetIndex int) string {
+// findPrevFuncName returns the function name before the given index in the call stack.
+func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 	for i := targetIndex - 1; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil {
