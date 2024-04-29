@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTranspile(t *testing.T) {
@@ -284,8 +284,8 @@ func foo() { _ = regexp.MatchString }
 			}
 			require.NoError(t, err)
 			expectedOutput := strings.TrimPrefix(c.expectedOutput, "\n")
-			assert.Equal(t, res.Translated, expectedOutput, "wrong output")
-			assert.Equal(t, res.Imports, c.expectedImports, "wrong imports")
+			assert.Equal(t, expectedOutput, res.Translated, "wrong output")
+			assert.Equal(t, c.expectedImports, res.Imports, "wrong imports")
 		})
 	}
 }
@@ -335,7 +335,7 @@ pkg/file.gno:60:20: ugly error`,
 		t.Run(tt.name, func(t *testing.T) {
 			err := parseGoBuildErrors(tt.output)
 
-			assert.Equal(t, err, tt.expectedError)
+			assert.Equal(t, tt.expectedError, err)
 		})
 	}
 }

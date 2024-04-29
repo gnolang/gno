@@ -1,8 +1,6 @@
 package tapas
 
-import (
-	"gno.land/p/demo/rand"
-)
+import "std"
 
 // List of tapas suggestions
 var listOfTapas = []string{
@@ -27,14 +25,13 @@ var listOfTapas = []string{
 }
 
 // GetTapaSuggestion randomly selects and returns a tapa suggestion
-func GetTapaSuggestion() string {
-	// Create a new instance of the random number generator.
-	// Notice that this is from an imported Gno library
-	generator := rand.New()
+func GetTapaSuggestion(userInput string) string {
 
-	// Generate a random index
-	randomIndex := generator.Intn(len(listOfTapas))
+	// Create a random number depending on the block height.
+	// We get the block height using std.GetHeight(), which is from an imported Gno library, "std"
+	// Note: this value is not fully random and is easily guessable
+	randomNumber := int(std.GetHeight()) % len(listOfTapas)
 
 	// Return the random suggestion
-	return listOfTapas[randomIndex]
+	return listOfTapas[randomNumber]
 }

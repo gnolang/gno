@@ -14,6 +14,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -55,11 +57,10 @@ type Machine struct {
 	CheckTypes bool // not yet used
 	ReadOnly   bool
 	MaxCycles  int64
-
-	Output  io.Writer
-	Store   Store
-	Context interface{}
-
+	Output     io.Writer
+	Store      Store
+	Context    interface{}
+	GasMeter   store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
 	PanicScope uint
@@ -101,6 +102,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+	GasMeter      store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -125,6 +127,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
+	vmGasMeter := opts.GasMeter
+
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -159,6 +163,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
+	mm.GasMeter = vmGasMeter
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.addr = opts.DebugAddr
 	mm.Debugger.in = opts.Input
@@ -976,10 +981,17 @@ const (
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
+const GasFactorCPU int64 = 1
+
 //----------------------------------------
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
+	if m.GasMeter != nil {
+		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+	}
+
 	m.Cycles += cycles
 	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
 		panic("CPU cycle overrun")
