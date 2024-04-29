@@ -16,3 +16,5 @@ func NewSafe(name string) *FooSafe {
 
 // XXX: external realm that calls the factory and store the pointer
 // XXX: demo with maketx run registering on a directory
+// XXX: update docs/ and effective-gno; consider dediacated "safe object" doc page
+// XXX: std.addresseable 
