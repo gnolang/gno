@@ -30,18 +30,23 @@ GitHub repository somewhere on disk:
 git clone https://github.com/gnolang/gno.git
 ```
 
-## 2. Installing the `gno` development toolkit
-Next, we are going to build and install the `gno` development toolkit.
-`gno` provides ample functionality to the user, among which is running,
-transpiling, testing and building `.gno` files.
+## 2. Installing the required tools 
 
-To install the toolkit, navigate to the `gnovm` folder from the repository root,
-and run the `install` make directive:
+There are three tools that should be used for getting started with Gno development:
+- `gno` - the GnoVM binary
+- `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
+- `gnokey` - the Gno [keypair manager](working-with-key-pairs.md)
 
+To install all three  tools, simply run the following in the root of the repo:
 ```bash
-cd gnovm
 make install
 ```
+
+## Verify installation 
+
+### `gno`
+`gno` provides ample functionality to the user, among which is running,
+transpiling, testing and building `.gno` files.
 
 To verify the `gno` binary is installed system-wide, you can run:
 
@@ -56,21 +61,12 @@ You should get the help output from the command:
 Alternatively, if you don't want to have the binary callable system-wide, you can run the binary directly:
 
 ```bash
+cd gnovm
 go run ./cmd/gno --help
 ```
 
-## 3. Installing other `gno` tools
-The next step is to install two other tools that are required for the Gno 
-development environment:
-
-- `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
-- `gnokey` - the Gno [private key manager](working-with-key-pairs.md)
-
-To build these tools, navigate to the root folder, and run the following:
-
-```bash
-make install.gnodev install.gnokey
-```
+### `gnodev`
+gnodev
 
 To verify that the `gnodev` binary is installed system-wide, you can run:
 
@@ -81,6 +77,8 @@ gnodev
 You should get the following output:
 ![gnodev](../../assets/getting-started/local-setup/local-setup/gnodev.gif)
 
+
+### 
 Finally, to verify that the `gnokey` binary is installed system-wide, you can run:
 
 ```bash
