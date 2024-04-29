@@ -12,7 +12,7 @@ Gno.
 
 ## Prerequisites
 - **`gnokey` installed.** Reference the 
-[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
+[Local Setup](installation.md#2-installing-the-required-tools-) guide for steps
 
 ## Listing available keys
 `gnokey` works by creating a local directory in the filesystem for storing 

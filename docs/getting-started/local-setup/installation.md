@@ -42,11 +42,12 @@ To install all three  tools, simply run the following in the root of the repo:
 make install
 ```
 
-## Verify installation 
+## 3. Verifying installation 
 
 ### `gno`
 `gno` provides ample functionality to the user, among which is running,
-transpiling, testing and building `.gno` files.
+transpiling, testing and building `.gno` files. Read more
+about `gnokey` [here](../../gno-tooling/cli/gno.md).
 
 To verify the `gno` binary is installed system-wide, you can run:
 
@@ -58,7 +59,8 @@ You should get the help output from the command:
 
 ![gno help](../../assets/getting-started/local-setup/local-setup/gno-help.gif)
 
-Alternatively, if you don't want to have the binary callable system-wide, you can run the binary directly:
+Alternatively, if you don't want to have the binary callable system-wide, you 
+can run the binary directly:
 
 ```bash
 cd gnovm
@@ -66,7 +68,10 @@ go run ./cmd/gno --help
 ```
 
 ### `gnodev`
-gnodev
+`gnodev` is the go-to Gno development helper tool - it comes with a built in 
+Gno.land node, a `gnoweb` server to display the state of your smart contracts 
+(realms), and a watcher system to actively track changes in your code. Read more
+about `gnodev` [here](../../gno-tooling/cli/gnodev.md).
 
 To verify that the `gnodev` binary is installed system-wide, you can run:
 
@@ -78,8 +83,13 @@ You should get the following output:
 ![gnodev](../../assets/getting-started/local-setup/local-setup/gnodev.gif)
 
 
-### 
-Finally, to verify that the `gnokey` binary is installed system-wide, you can run:
+### `gnokey`
+
+`gnokey` is the Gno.land keypair management CLI tool. It allows you to create
+keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
+about `gnokey` [here](../../gno-tooling/cli/gnokey.md).
+
+To verify that the `gnokey` binary is installed system-wide, you can run:
 
 ```bash
 gnokey --help
@@ -93,6 +103,8 @@ You should get the help output from the command:
 
 That's it 🎉
 
-You have successfully built out and installed the necessary tools for Gno development!
+You have successfully built out and installed the necessary tools for Gno
+development!
 
-In further documents, you will gain a better understanding on how they are used to make Gno work.
+In further documents, you will gain a better understanding on how they are used
+to make Gno work.
