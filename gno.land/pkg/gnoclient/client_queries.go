@@ -145,7 +145,7 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
 	return block, nil
 }
 
-// BlockResult gets the latest block results at height, if any
+// BlockResult gets the block results at height, if any
 // Height must be larger than 0
 func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
 	if err := c.validateRPCClient(); err != nil {

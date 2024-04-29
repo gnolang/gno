@@ -39,7 +39,7 @@ func (c *Client) Block(height int64) (*ctypes.ResultBlock, error)
 func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error)
 ```
 
-`BlockResult` gets the latest block results at height, if any. Height must be larger than 0.
+`BlockResult` gets the block results at height, if any. Height must be larger than 0.
 
 ### func \(\*Client\) [LatestBlockHeight](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L168>)
 
