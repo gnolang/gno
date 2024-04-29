@@ -26,10 +26,14 @@ testnet. We can access the Portal Loop faucet through the
 
 
 ## 2. Visit a realm
-For this example, we will use the UserBook. This realm can be found on
-[gno.land/r/demo/userbook](https://gno.land/r/demo/userbook).
+For this example, we will use the Userbook. This realm can be found on
+[gno.land/r/demo/userbook](https://gno.land/r/demo/userbook). The Userbook realm is a simple realm that will
+allow a non-registered Gno address to sign up to the realm. By default, it shows
+all of the signed-up users, along with the block height at which they signed up.
 
-The UserBgook realm
+
+
+
 
 
 
