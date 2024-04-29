@@ -2,16 +2,6 @@ package main
 
 import "errors"
 
-//func p(s interface{}) {
-//	fmt.Printf("%T \n", s)
-//	if v, ok := s.(string); ok {
-//		println(v)
-//		panic(v)
-//	} else {
-//		println("---")
-//	}
-//}
-
 type error interface {
 	Error() string
 }

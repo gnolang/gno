@@ -1,6 +1,5 @@
 package main
 
-// this is a fix, intuitive, same with go loopVar experiment feature.
 func main() {
 	var fns []func() int
 	for i := 0; i < 5; i++ {

@@ -5,7 +5,7 @@ func main() {
 
 	println("start for loop")
 	for i := 0; i < 2; i++ {
-		defer func() { // possible resource leak?
+		defer func() {
 			println("defer")
 			for _, fn := range fns {
 				println(fn())

@@ -1,7 +1,5 @@
 package main
 
-// the vp of the arg of the outer closure should be (1,0)
-// the vp of the x of inner closure should be (4,0)
 func main() {
 	var fns []func() int
 

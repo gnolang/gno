@@ -5,6 +5,7 @@ func Search(n int, f func(int) bool) int {
 	return 0
 }
 
+// TODO: exclude this pattern
 func main() {
 	for x := 0; x < 2; x++ {
 		count := 0

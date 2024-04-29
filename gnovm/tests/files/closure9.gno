@@ -1,6 +1,5 @@
 package main
 
-// this is a fix, intuitive, and same with Go
 func main() {
 	var fns []func() int
 	for i := 0; i < 3; i++ {

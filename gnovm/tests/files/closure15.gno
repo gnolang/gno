@@ -4,7 +4,6 @@ import "fmt"
 
 // recursive closure does not capture
 func main() {
-
 	var fns []func(int) int
 	var recursiveFunc func(int) int
 
@@ -17,7 +16,6 @@ func main() {
 			}
 			return num * recursiveFunc(num-1)
 		}
-
 		fns = append(fns, recursiveFunc)
 	}
 
