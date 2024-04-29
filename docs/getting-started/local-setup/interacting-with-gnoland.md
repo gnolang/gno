@@ -92,6 +92,6 @@ That's it! Congratulations on executing your first transaction on a Gno network!
 If the previous transaction was successful, you should be able
 to see your address on the main page of the Userbook realm. 
 
-This concludes the Local setup tutorial. For next steps, see the 
+This concludes the "Local Setup" tutorial. For next steps, see the 
 [How-to guides section](../../how-to-guides/how-to-guides.md), where you will 
 learn how to write your first realm, package, and much more.

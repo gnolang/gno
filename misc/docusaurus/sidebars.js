@@ -9,7 +9,6 @@ const sidebars = {
             label: 'Getting Started',
             link: {type: 'doc', id: 'getting-started/getting-started'},
             items: [
-                'getting-started/playground-start',
                 {
                  type: 'category',
                  label: 'Local Setup',
@@ -21,6 +20,7 @@ const sidebars = {
                         'getting-started/local-setup/interacting-with-gnoland',
                     ]
                 },
+                'getting-started/playground-start',
             ],
         },
         {
