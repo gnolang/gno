@@ -174,7 +174,10 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	}
 
 	// Create the client (HTTP)
-	cli := tm2Client.NewClient(cfg.remote)
+	cli, err := tm2Client.NewClient(cfg.remote)
+	if err != nil {
+		return fmt.Errorf("unable to create TM2 client, %w", err)
+	}
 
 	// Set up the logger
 	logger := log.ZapLoggerToSlog(
