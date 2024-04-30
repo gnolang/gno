@@ -1,10 +1,12 @@
 package pcg
 
+import "encoding/binary"
+
 // ref: https://gist.github.com/ivan-pi/060e38d5f9a86c57923a61fbf18d095c
 const (
 	defaultState  = 0x853c49e6748fea9b //  9600629759793949339
 	multiplier    = 0x5851f42d4c957f2d //  6364136223846793005
-	incrementStep = 0xda3e39cb94b95bdb // 15726070495360670683
+	incrementStep = 0x9e3779b97f4a7c15 //  https://www.pcg-random.org/posts/bugs-in-splitmix.html
 )
 
 // PCG32 is a 32-bit pseudorandom number generator based on the PCG family of algorithms.
@@ -27,7 +29,7 @@ func (p *PCG32) Seed(state, sequence uint64) *PCG32 {
 	return p
 }
 
-// neg_mask is a mask to extract the lower 5 bits of a number.
+// neg_mask is a constant used in the rotation operation to calculate the left rotation amount.
 const neg_mask = 31
 
 // Uint32 generates a pseudorandom 32-bit unsigned integer using the PCG32 algorithm.
@@ -53,6 +55,16 @@ func (p *PCG32) Uint32() uint32 {
 }
 
 // Uintn32 generates a pseudorandom number in the range [0, bound) using the PCG32 algorithm.
+// If bound is 0, it returns 0.
+//
+// Parameters:
+//   - bound: The upper bound (exclusive) of the desired range.
+//
+// Return value:
+//   - A pseudorandom number in the range [0, bound).
+//
+// The function calculates a threshold value to ensure a uniform distribution of the generated numbers.
+// It repeatedly generates random numbers using the Uint32 function until a number within the desired range is obtained.
 func (p *PCG32) Uintn32(bound uint32) uint32 {
 	if bound == 0 {
 		return 0
@@ -70,9 +82,9 @@ func (p *PCG32) Uintn32(bound uint32) uint32 {
 // Uint63 generates a pseudorandom 63-bit integer using two 32-bit numbers.
 // The function ensures that the returned number is within the range of 0 to 2^63-1.
 func (p *PCG32) Uint63() int64 {
-	upper := int64(p.Uint32()) & 0x7FFFFFFF // use only the lower 31 bits of the upper half
-	lower := int64(p.Uint32())              // use all 32 bits of the lower half
-	return (upper << 32) | lower            // combine the two halves to form a 63-bit integer
+	upper := int64(p.Uint32()) & 0x7FFFFFFF // Use only the lower 31 bits of the upper half
+	lower := int64(p.Uint32())              // Use all 32 bits of the lower half
+	return (upper << 32) | lower            // Combine the two halves to form a 63-bit integer
 }
 
 // advancedLCG64 is an implementation of a 64-bit linear congruential generator (LCG).
@@ -139,23 +151,18 @@ func (p *PCG32) Retreat(delta uint64) *PCG32 {
 	return p.Advance(safeDelta)
 }
 
-// Shuffle shuffles the elements of a slice in place using the Fisher-Yates shuffle algorithm.
-// It takes the following parameters:
+// Shuffle shuffles the elements of a slice in-place using the Fisher-Yates shuffle algorithm.
+//
+// Parameters:
 //   - n: The number of elements to shuffle.
-//   - swap: A function that swaps the elements at indices i and j.
+//   - swap: A function that swaps the elements at indices i and j in the slice.
 //
-// The function shuffles the elements by iterating from n-1 down to 1. In each iteration:
-//   1. Generate a random index j between 0 and the current index i (inclusive).
-//   2. Call the `swap` function to swap the elements at indices i and j.
+// Panics:
+//   - If n is negative.
 //
-// This process ensures that each element has an equal probability of ending up at any position
-// in the shuffled slice.
-//
-// The time complexity of this function is O(n), where n is the number of elements to shuffle.
-// The space complexity is O(1), as it shuffles the elements in place and uses only a constant
-// amount of additional memory.
-//
-// Note: The function panics if n is negative.
+// The function uses the Fisher-Yates shuffle algorithm to randomly permute the elements of the slice.
+// It starts from the last element and iteratively swaps it with a randomly selected element from the remaining unshuffled portion of the slice.
+// The random selection is performed using the Uintn32 function to generate a random index within the range [0, i+1).
 func (p *PCG32) Shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
 		panic("invalid argument to shuffle")
@@ -170,7 +177,17 @@ func (p *PCG32) Shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// Perm returns a slice of n integers. The slice is a random permutation of the integers [0, n).
+// Perm returns a slice of n integers representing a random permutation of the integers in the range [0, n).
+//
+// Parameters:
+//   - n: The number of integers to include in the permutation.
+//
+// Return value:
+//   - A slice of n integers representing a random permutation of the integers [0, n).
+//
+// The function initializes a slice with the integers [0, n) in ascending order.
+// It then applies the Fisher-Yates shuffle algorithm to the slice, swapping elements at random positions.
+// The resulting shuffled slice represents a random permutation of the integers [0, n).
 func (p *PCG32) Perm(n int) []int {
 	res := make([]int, n)
 	for i := 0; i < n; i++ {
@@ -181,4 +198,45 @@ func (p *PCG32) Perm(n int) []int {
 		res[i], res[j] = res[j], res[i]
 	}
 	return res
+}
+
+// Read generates and fills the given byte slice with random bytes using the PCG32 random number generator.
+//
+// This function repeatedly generates 32-bit unsigned integers using the Uint32 function,
+// and uses binary.LittleEndian.PutUint32 to split these integers into bytes and store them in the slice.
+// This approach efficiently copies memory in accordance with the CPU's endian configuration, thereby enhancing performance.
+//
+// Parameters:
+//   - buf: The byte slice to be filled with random bytes.
+//
+// Return values:
+//   - n: The number of bytes generated and stored in the byte slice. It is always equal to len(buf).
+//   - err: Always returns nil, indicating no error occurred.
+func (p *PCG32) Read(buf []byte) (int, error) {
+	n := len(buf)
+	i := 0
+
+	// loop unrolling: process 8 bytes in each iteration
+	for ; i <= n-8; i += 8 {
+		val1 := p.Uint32()
+		val2 := p.Uint32()
+		binary.LittleEndian.PutUint32(buf[i:], val1)
+		binary.LittleEndian.PutUint32(buf[i+4:], val2)
+	}
+
+	// handle remaining bytes (less than 8 bytes)
+	if i < n {
+		remaining := buf[i:]
+		for j := 0; j < len(remaining); j += 4 {
+			if i+j < n {
+				val := p.Uint32()
+				// handle remaining bytes (less than 4 bytes)
+				for k := 0; k < 4 && (j+k) < len(remaining); k++ {
+					remaining[j+k] = byte(val >> (8 * k))
+				}
+			}
+		}
+	}
+
+	return n, nil
 }

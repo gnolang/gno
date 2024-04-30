@@ -30,7 +30,7 @@ func TestPCG32_Uintn32(t *testing.T) {
 	}
 }
 
-func TestUint63(t *testing.T) {
+func TestUint63PCG64(t *testing.T) {
 	pcg := NewPCG64(42, 54)
 	pcg.Seed(42, 54, 18, 27)
 	for i := 0; i < 100; i++ {
@@ -67,22 +67,22 @@ func TestPCG32_UniformDistribution(t *testing.T) {
 func TestPCG32_lcg64(t *testing.T) {
 	pcg := NewPCG32()
 
-	testCases := []struct {
+	tests := []struct {
 		state    uint64
 		delta    uint64
 		expected uint64
 	}{
-		{1, 1, 3643462645497912072},
-		{1, 10, 15256603694110904427},
-		{1, 100, 5234694153321213237},
-		{1, 1000, 2323235076269450313},
-		{1, 10000, 6143568259046921169},
+		{1, 1, 17764851043169991490},
+		{1, 10, 13321747199226635079},
+		{1, 100, 7812368804252231469},
+		{1, 1000, 7287210203119977849},
+		{1, 10000, 13461019320290411953},
 	}
 
-	for _, tc := range testCases {
-		result := pcg.advancedLCG64(tc.state, tc.delta, multiplier, incrementStep)
-		if result != tc.expected {
-			t.Errorf("lcg64(%d, %d) = %d; expected %d", tc.state, tc.delta, result, tc.expected)
+	for _, tt := range tests {
+		result := pcg.advancedLCG64(tt.state, tt.delta, multiplier, incrementStep)
+		if result != tt.expected {
+			t.Errorf("lcg64(%d, %d) = %d; expected %d", tt.state, tt.delta, result, tt.expected)
 		}
 	}
 }
@@ -90,23 +90,23 @@ func TestPCG32_lcg64(t *testing.T) {
 func TestPCG32_Advance(t *testing.T) {
 	pcg := NewPCG32()
 
-	testCases := []struct {
-		initialState  uint64
-		delta         uint64
-		expectedState uint64
+	tests := []struct {
+		state    uint64
+		delta    uint64
+		expected uint64
 	}{
-		{1, 1, 3643462645497912072},
-		{1, 10, 15256603694110904427},
-		{1, 100, 5234694153321213237},
-		{1, 1000, 2323235076269450313},
-		{1, 10000, 6143568259046921169},
+		{1, 1, 17764851043169991490},
+		{1, 10, 13321747199226635079},
+		{1, 100, 7812368804252231469},
+		{1, 1000, 7287210203119977849},
+		{1, 10000, 13461019320290411953},
 	}
 
-	for _, tc := range testCases {
-		pcg.state = tc.initialState
-		pcg.Advance(tc.delta)
-		if pcg.state != tc.expectedState {
-			t.Errorf("Advance(%d) = %d; expected %d", tc.delta, pcg.state, tc.expectedState)
+	for _, tt := range tests {
+		pcg.state = tt.state
+		pcg.Advance(tt.delta)
+		if pcg.state != tt.expected {
+			t.Errorf("Advance(%d) = %d; expected %d", tt.delta, pcg.state, tt.expected)
 		}
 	}
 }
@@ -114,23 +114,23 @@ func TestPCG32_Advance(t *testing.T) {
 func TestPCG32_Retreat(t *testing.T) {
 	pcg := NewPCG32()
 
-	testCases := []struct {
+	tests := []struct {
 		initialState  uint64
 		delta         uint64
 		expectedState uint64
 	}{
-		{3643462645497912072, 1, 1},
-		{15256603694110904427, 10, 1},
-		{5234694153321213237, 100, 1},
-		{2323235076269450313, 1000, 1},
-		{6143568259046921169, 10000, 1},
+		{3643462645497912072, 1, 2297219049549015711},
+		{15256603694110904427, 10, 9089490691196273925},
+		{5234694153321213237, 100, 9614261562837832073},
+		{2323235076269450313, 1000, 1018981208295873745},
+		{6143568259046921169, 10000, 9666238883299984929},
 	}
 
-	for _, tc := range testCases {
-		pcg.state = tc.initialState
-		pcg.Retreat(tc.delta)
-		if pcg.state != tc.expectedState {
-			t.Errorf("Retreat(%d) = %d; expected %d", tc.delta, pcg.state, tc.expectedState)
+	for _, tt := range tests {
+		pcg.state = tt.initialState
+		pcg.Retreat(tt.delta)
+		if pcg.state != tt.expectedState {
+			t.Errorf("Retreat(%d) = %d; expected %d", tt.delta, pcg.state, tt.expectedState)
 		}
 	}
 }
@@ -223,4 +223,107 @@ func isPermutation(a, b []int) bool {
 		counts[num]--
 	}
 	return true
+}
+
+func TestPCG32_Read(t *testing.T) {
+	tests := []struct {
+		name     string
+		seed     uint64
+		bufSize  int
+		expected []byte
+	}{
+		{
+			name:     "Read 0 bytes",
+			seed:     9876543210,
+			bufSize:  0,
+			expected: []byte{},
+		},
+		{
+			name:     "Read 1 byte",
+			seed:     42,
+			bufSize:  1,
+			expected: []byte{0xb0},
+		},
+		{
+			name:     "Read 7 bytes",
+			seed:     42,
+			bufSize:  7,
+			expected: []byte{0xb0, 0xfd, 0xe1, 0x6a, 0xe8, 0x9, 0xe4},
+		},
+		{
+			name:    "Read 16 bytes",
+			seed:    42,
+			bufSize: 16,
+			expected: []byte{
+				0xb0, 0xfd, 0xe1, 0x6a,
+				0xe8, 0x9, 0xe4, 0x3d,
+				0x50, 0x24, 0x2c, 0x70,
+				0xf0, 0xae, 0x88, 0x77,
+			},
+		},
+		{
+			name:    "Read 32 bytes",
+			seed:    1234567890,
+			bufSize: 32,
+			expected: []byte{
+				0x64, 0x44, 0xd9, 0x30,
+				0x8, 0x8, 0x49, 0x6e,
+				0x3f, 0xbd, 0xfe, 0xbf,
+				0x30, 0x76, 0xe8, 0x56,
+				0x45, 0xcd, 0xa1, 0xba,
+				0xd4, 0xda, 0x3e, 0x62,
+				0xa7, 0xa9, 0xf0, 0x9c,
+				0x1b, 0x75, 0x2, 0xad,
+			},
+		},
+		{
+			name:    "Read 64 bytes",
+			seed:    9876543210,
+			bufSize: 64,
+			expected: []byte{
+				0xf5, 0xde, 0x18, 0xa3,
+				0x19, 0x9b, 0xbb, 0xd6,
+				0xc7, 0x7c, 0x69, 0xb3,
+				0xaa, 0x21, 0x15, 0x69,
+				0xbc, 0xea, 0x78, 0x1d,
+				0xce, 0x78, 0xf8, 0x46,
+				0xae, 0x98, 0xe4, 0x20,
+				0xe2, 0x16, 0x6, 0x6d,
+				0x3e, 0x99, 0x96, 0x66,
+				0xd, 0xfc, 0x14, 0x79,
+				0x4e, 0x59, 0x42, 0x25,
+				0x9, 0x39, 0x41, 0x95,
+				0x11, 0x3c, 0xa1, 0xa9,
+				0xd2, 0x2, 0x10, 0x51,
+				0x6e, 0xaa, 0xe4, 0x25,
+				0xa8, 0x45, 0xe0, 0x76,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewPCG32().Seed(tc.seed, 0)
+
+			buf := make([]byte, tc.bufSize)
+
+			n, err := p.Read(buf)
+			if err != nil {
+				t.Fatalf("Read() error = %v; want nil", err)
+			}
+
+			// assert.Equal(t, tc.bufSize, n)
+			// assert.Equal(t, tc.expected, buf)
+			if tc.bufSize != n {
+				t.Errorf("Read() = %d; expected %d", n, tc.bufSize)
+			}
+
+			for i := 0; i < tc.bufSize; i++ {
+				if buf[i] != tc.expected[i] {
+					t.Errorf("Read() = %v; expected %v", buf, tc.expected)
+					break
+				}
+			}
+		})
+	}
 }

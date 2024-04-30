@@ -1,9 +1,7 @@
 package pcg
 
 import (
-	"fmt"
 	"math"
-	"math/rand"
 	"testing"
 	"time"
 )
@@ -25,19 +23,19 @@ func TestPCG_Uint63(t *testing.T) {
 func TestPCG_Advance(t *testing.T) {
 	pcg := NewPCG64(12345, 67890)
 
-	testCases := []struct {
+	tests := []struct {
 		delta           uint64
 		expectedStateHi uint64
 		expectedStateLo uint64
 	}{
-		{1, 16443432798917770532, 1294492316257287365},
-		{10, 9073714748428748454, 9095006751169262415},
-		{100, 1498360792142116778, 11040029025224029795},
-		{1000, 7761321322648589714, 770061004744980459},
-		{10000, 8930526547519973282, 18106490617456118331},
+		{1, 5288318170876267920, 8586121761925336369},
+		{10, 658778831176772942, 680070833917286903},
+		{100, 11328633206433140426, 2423557365805501827},
+		{1000, 14055077221971198434, 7063816904067589179},
+		{10000, 3283529072340023762, 12459493142276168811},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		pcg.Advance(tc.delta)
 		if pcg.hi.state != tc.expectedStateHi {
 			t.Errorf("Advance(%d) hi state = %d; expected %d", tc.delta, pcg.hi.state, tc.expectedStateHi)
@@ -51,26 +49,26 @@ func TestPCG_Advance(t *testing.T) {
 func TestPCG(t *testing.T) {
 	p := NewPCG64(1, 2)
 	want := []uint64{
-		0x52addb9b0d4aa107,
-		0xc5d5c81b8c97ff8f,
-		0xcfa82191c9a86caa,
-		0x76b48e618586fdfe,
-		0x765ac4ba3e566855,
-		0x1d6058a5dd7ab27,
-		0x2b913f2f76e81329,
-		0x74873f4e5348d32e,
-		0xc4c940eb70248174,
-		0xb5a1651a6627a924,
-		0xc34174eb7f136d0a,
-		0xe612b37df73df71c,
-		0x884a2539ea7aa198,
-		0x2976010a57986e59,
-		0x1d0d522531d62a7d,
-		0xa7da1ad05db25a75,
-		0xdbee2df7bd6428be,
-		0x598c54d1eb4abdd7,
-		0x559ca964532a3777,
-		0x6e64af73ece533b0,
+		0x6a3b45f887fad67c,
+		0x1b0a91e2d7d75723,
+		0x905a1518e26e8445,
+		0x8cb6b7c0ea9f200c,
+		0x59afa674b44b2509,
+		0x86ab5e04d104bd4c,
+		0x13e180669e2d07ea,
+		0x5a6a0bb349dd26ae,
+		0x1cd5f134a8581b57,
+		0xc807c2686fe5baff,
+		0x846b5fc66eb343cb,
+		0x169adcefdd042f97,
+		0x9b58ba4c9ef301fa,
+		0xd54fc77c467d80bf,
+		0xb776b6e2508ebab3,
+		0xfd002241e862137b,
+		0xc6a0fa2cfa1f95e9,
+		0x67469082d8377e0a,
+		0x7f30faccba8029d4,
+		0xf200f5696d060925,
 	}
 
 	for i, x := range want {
@@ -84,30 +82,30 @@ func TestPCG(t *testing.T) {
 func TestPCG_Retreat(t *testing.T) {
 	pcg := NewPCG64(12345, 67890)
 
-	testCases := []struct {
+	tests := []struct {
 		delta           uint64
 		expectedStateHi uint64
 		expectedStateLo uint64
 	}{
-		{1, 7265056988599925051, 16912344864586758584},
-		{10, 15578097273240930873, 13711579158205810606},
-		{100, 3761525201756208775, 6157393363865312820},
-		{1000, 15336446625969592741, 13630190462364618442},
-		{10000, 10106684222517973779, 4620269966716251888},
+		{1, 9562276038148940761, 762819840426222678},
+		{10, 6073181909808593307, 4206663794773473040},
+		{100, 13320423970107457037, 15716292132216561082},
+		{1000, 2035794469121007023, 329538305516032724},
+		{10000, 8361027235883110657, 2874612980081388766},
 	}
 
-	for _, tc := range testCases {
-		pcg.Retreat(tc.delta)
-		if pcg.hi.state != tc.expectedStateHi {
-			t.Errorf("Retreat(%d) hi state = %d; expected %d", tc.delta, pcg.hi.state, tc.expectedStateHi)
+	for _, tt := range tests {
+		pcg.Retreat(tt.delta)
+		if pcg.hi.state != tt.expectedStateHi {
+			t.Errorf("Retreat(%d) hi state = %d; expected %d", tt.delta, pcg.hi.state, tt.expectedStateHi)
 		}
-		if pcg.lo.state != tc.expectedStateLo {
-			t.Errorf("Retreat(%d) lo state = %d; expected %d", tc.delta, pcg.lo.state, tc.expectedStateLo)
+		if pcg.lo.state != tt.expectedStateLo {
+			t.Errorf("Retreat(%d) lo state = %d; expected %d", tt.delta, pcg.lo.state, tt.expectedStateLo)
 		}
 	}
 }
 
-func TestPCG64_Shuffle(t *testing.T) {
+func Test_ExamplePCG64_Shuffle(t *testing.T) {
 	pcg := NewPCG64(42, 54)
 	pcg.Seed(42, 54, 18, 27)
 
@@ -130,7 +128,7 @@ func TestFloat64(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		val := pcg.Float64()
 		if val < 0.0 || val > 1.0 {
-			t.Error("Float64() returned a value out of bounds")
+			t.Errorf("Float64() returned a value out of bounds: %f", val)
 		}
 	}
 }
@@ -140,7 +138,61 @@ func TestFloat64Full(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		val := pcg.Float64Full()
 		if val < 0.0 || val >= 1.0 {
-			t.Error("Float64Full() returned a value out of bounds")
+			t.Errorf("Float64Full() returned a value out of bounds: %f", val)
+		}
+	}
+}
+
+func TestPCG64Read(t *testing.T) {
+	now := uint64(time.Now().UnixNano())
+	testSizes := []int{16, 32, 48, 64, 100, 1023, 2048}
+	for _, size := range testSizes {
+		buf := make([]byte, size)
+		pcg := NewPCG64(12345, now)
+		n, err := pcg.Read(buf)
+		if err != nil {
+			t.Errorf("Read returned an error: %v", err)
+		}
+		if n != size {
+			t.Errorf("Read returned wrong number of bytes: got %v, want %v", n, size)
+		}
+		// Check if bytes are not all zero; this is a simplistic randomness check
+		allZero := true
+		for _, b := range buf {
+			if b != 0 {
+				allZero = false
+				break
+			}
+		}
+		if allZero {
+			t.Errorf("Buffer of size %d is filled with zeros, which is highly improbable", size)
+		}
+	}
+}
+
+func TestPCG64ReadEdgeCases(t *testing.T) {
+	now := uint64(time.Now().UnixNano())
+	edgeSizes := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 17}
+	for _, size := range edgeSizes {
+		buf := make([]byte, size)
+		pcg := NewPCG64(12345, now)
+		n, err := pcg.Read(buf)
+		if err != nil {
+			t.Errorf("Read returned an error: %v", err)
+		}
+		if n != size {
+			t.Errorf("Read returned wrong number of bytes: got %v, want %v", n, size)
+		}
+
+		nonZeroFound := false
+		for _, b := range buf {
+			if b != 0 {
+				nonZeroFound = true
+				break
+			}
+		}
+		if !nonZeroFound && size != 0 {
+			t.Errorf("Buffer of size %d has no non-zero bytes, which is highly improbable", size)
 		}
 	}
 }

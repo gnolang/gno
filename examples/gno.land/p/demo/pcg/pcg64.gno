@@ -1,9 +1,15 @@
 package pcg
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
 	"math/bits"
+)
+
+const (
+	inv52 = 1.0 / (1 << 52)
+	// inv64 = 1.0 / float64(math.MaxUint64)
 )
 
 // A PCG64 is a PCG64 generator with 128 bits of internal state.
@@ -12,7 +18,7 @@ type PCG64 struct {
 	hi, lo *PCG32
 }
 
-// NewPCG64 returns a new PCG64 generator seeded with the given values.
+// NewPCG64 returns a new PCG64 generator seeded with thr given values.
 // seed1 and seed2 are the initial state values for the generator.
 func NewPCG64(seed1, seed2 uint64) *PCG64 {
 	return &PCG64{
@@ -56,41 +62,13 @@ func (p *PCG64) Uint64n(bound uint64) uint64 {
 	}
 }
 
-// Float64 returns a random float64 value in the range [0.0, 1.0).
-//
-// The function generates a 63-bit unsigned integer using Uint63() and then:
-//   1. Shifts the generated number 11 bits to the right to obtain a 52-bit mantissa.
-//   2. Multiplies the mantissa by 2^(-52) to scale it to the range [0.0, 1.0).
-//
-// This method produces a double-precision floating-point number with 52 bits of precision,
-// which is the standard precision for float64 values.
-//
-// The time complexity of this function is O(1), as it performs a constant number of operations.
-// The space complexity is O(1), as it uses only a constant amount of additional memory.
-//
-// Note: This method does not use all 64 bits of the generated number, which may result in
-// a slight loss of precision compared to Float64Full(). However, it is faster and sufficient
-// for most use cases.
+// Float64 returns a random float64 in the range [0.0, 1.0).
 func (p *PCG64) Float64() float64 {
-	return float64(p.Uint63()>>11) * (1.0 / (1 << 52))
+	return float64(p.Uint63()>>11) * inv52
 }
 
-// Float64Full returns a random float64 value in the range [0.0, 1.0).
-//
-// The function generates a 64-bit unsigned integer using Uint64() and then:
-//   1. Masks the generated number to obtain the lower 64 bits.
-//   2. Divides the masked number by the maximum 64-bit unsigned integer value (math.MaxUint64)
-//      to scale it to the range [0.0, 1.0).
-//
-// This method utilizes the full 64 bits of the generated number, providing slightly higher
-// precision compared to Float64(). However, it is slower due to the additional masking and
-// division operations.
-//
-// The time complexity of this function is O(1), as it performs a constant number of operations.
-// The space complexity is O(1), as it uses only a constant amount of additional memory.
-//
-// Note: While this method provides higher precision, it may not be necessary for most use cases.
-// Float64() is generally faster and sufficient for generating random float64 values.
+// Float64Full uses the full 64 bits of the generated number to produce a random float64.
+// slightly more precise than Float64() but slower.
 func (p *PCG64) Float64Full() float64 {
 	return float64(p.Uint64()&0xFFFFFFFFFFFFFF) / math.MaxUint64
 }
@@ -104,28 +82,13 @@ func (p *PCG64) Advance(delta uint64) *PCG64 {
 }
 
 // Retreat moves the PCG64 generator backward by `delta` steps.
-// It updates the initial state of the generator.
+// it updates the initial state of the generator.
 func (p *PCG64) Retreat(delta uint64) *PCG64 {
 	safeDelta := ^uint64(0) - 1
 	p.Advance(safeDelta)
 	return p
 }
 
-// Shuffle shuffles the elements of a slice in place using the Fisher-Yates shuffle algorithm.
-// It takes the following parameters:
-//   - n: The number of elements to shuffle.
-//   - swap: A function that swaps the elements at indices i and j.
-//
-// The function shuffles the elements by iterating from n-1 down to 1. In each iteration:
-//   1. Generate a random index j between 0 and the current index i (inclusive) using Uint64n.
-//   2. Call the `swap` function to swap the elements at indices i and j.
-//
-// This process ensures that each element has an equal probability of ending up at any position
-// in the shuffled slice.
-//
-// The time complexity of this function is O(n), where n is the number of elements to shuffle.
-// The space complexity is O(1), as it shuffles the elements in place and uses only a constant
-// amount of additional memory.
 func (p *PCG64) Shuffle(n int, swap func(i, j int)) {
 	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
 	for i := n - 1; i > 0; i-- {
@@ -134,7 +97,6 @@ func (p *PCG64) Shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// Perm returns a random permutation of the integers in the range [0, n).
 func (p *PCG64) Perm(n int) []int {
 	res := make([]int, n)
 	for i := range res {
@@ -144,6 +106,78 @@ func (p *PCG64) Perm(n int) []int {
 		res[i], res[j] = res[j], res[i]
 	})
 	return res
+}
+
+// Read generates random bytes in the provided byte slice using the PCG64 random number generator.
+// It employs loop unrolling to process 16 bytes at a time for performance enhancement.
+func (p *PCG64) Read(buf []byte) (int, error) {
+	n := len(buf)
+	i := 0
+
+	// Loop unrolling: processing 16 bytes per iteration
+	for ; i <= n-16; i += 16 {
+		val1 := p.Uint64()
+		val2 := p.Uint64()
+		binary.LittleEndian.PutUint64(buf[i:], val1)
+		binary.LittleEndian.PutUint64(buf[i+8:], val2)
+	}
+
+	// Handle any remaining bytes that were not processed in the main loop
+	if i < n {
+		remaining := buf[i:]
+		for j := 0; j < len(remaining); j += 8 {
+			if i+j < n {
+				val := p.Uint64()
+				// Only write the necessary bytes
+				for k := 0; k < 8 && (j+k) < len(remaining); k++ {
+					remaining[j+k] = byte(val >> (8 * k))
+				}
+			}
+		}
+	}
+
+	return n, nil
+}
+
+func beUint64(b []byte) uint64 {
+	_ = b[7]
+	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+}
+
+func bePutUint64(b []byte, v uint64) {
+	_ = b[7]
+	b[0] = byte(v >> 56)
+	b[1] = byte(v >> 48)
+	b[2] = byte(v >> 40)
+	b[3] = byte(v >> 32)
+	b[4] = byte(v >> 24)
+	b[5] = byte(v >> 16)
+	b[6] = byte(v >> 8)
+	b[7] = byte(v)
+}
+
+// MarshalBinaryPCG64 serializes the state of the PCG64 generator to a binary format.
+// It returns the serialized state as a byte slice.
+func (p *PCG64) MarshalBinaryPCG64() ([]byte, error) {
+	b := make([]byte, 20)
+	copy(b, "pcg:")
+	bePutUint64(b[4:], p.hi.state)
+	bePutUint64(b[4+8:], p.lo.state)
+	return b, nil
+}
+
+var errUnmarshalPCG = errors.New("invalid PCG encoding")
+
+// UnmarshalBinaryPCG64 deserializes the state of the PCG64 generator from a binary format.
+// It takes the serialized state as a byte slice and updates the generator's state.
+func (p *PCG64) UnmarshalBinary(b []byte) error {
+	if len(b) != 20 || string(b[:4]) != "pcg:" {
+		return errUnmarshalPCG
+	}
+	p.hi.state = beUint64(b[4:])
+	p.lo.state = beUint64(b[4+8:])
+	return nil
 }
 
 func (p *PCG64) next() (uint64, uint64) {
@@ -167,30 +201,8 @@ func (p *PCG64) next() (uint64, uint64) {
 	return hi, lo
 }
 
-// Uint64nWithMCG generates a pseudorandom 64-bit unsigned integer using the PCG64 algorithm
-// with a Multiplicative Congruential Generator (MCG) as the output function.
-//
-// The function updates the internal state of the generator using the PCG64 transition function:
-//   state = state * multiplier + increment
-//
-// It then applies a series of bitwise operations to the updated state to produce the random number:
-//   1. XOR the high 64 bits of the state with the high 64 bits right-shifted by 22 bits.
-//   2. Multiply the result by a cheap multiplier (0xda942042e4dd58b5).
-//   3. XOR the result with the result right-shifted by 48 bits.
-//   4. Multiply the result by (low 64 bits of the state | 1).
-//
-// The resulting value is returned as the random 64-bit unsigned integer.
-//
-// The MCG output function used in this implementation is based on the one described in the PCG
-// random number generator family, specifically the 128-bit MCG with 64-bit output.
-// It provides good statistical properties and passes various randomness tests, including PractRand.
-//
-// The time complexity of this function is O(1), as it performs a constant number of bitwise operations.
-// The space complexity is O(1), as it uses only a constant amount of additional memory.
-//
-// Note: The Uint64nWithMCG function is deterministic for a given state of the PCG64 generator.
-// If you need different random numbers across multiple calls, make sure to advance the state of the
-// generator using Advance() or reseed it using Seed() between calls.
+// NextUInt64WithMCG generates a pseudorandom 64-bit unsigned integer using the PCG64 algorithm with Multiplier Congruential Generator (MCG).
+// It updates the internal state of the generator and returns the generated value.
 func (p *PCG64) Uint64nWithMCG() uint64 {
 	hi, lo := p.next()
 
