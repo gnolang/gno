@@ -27,6 +27,7 @@ RUN         go build -o ./build/gnofaucet .
 
 # runtime-base + runtime-tls
 FROM        debian:stable-slim AS runtime-base
+RUN         apt-get update && apt-get install -y curl
 ENV         PATH="${PATH}:/opt/gno/bin" \
             GNOROOT="/opt/gno/src"
 WORKDIR     /opt/gno/src
