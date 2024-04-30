@@ -15,11 +15,12 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/mock"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 func TestValidatorSetBasic(t *testing.T) {
+	t.Parallel()
+
 	// empty or nil validator lists are allowed,
 	// but attempting to IncrementProposerPriority on them will panic.
 	vset := NewValidatorSet([]*Validator{})
@@ -76,6 +77,8 @@ func TestValidatorSetBasic(t *testing.T) {
 }
 
 func TestCopy(t *testing.T) {
+	t.Parallel()
+
 	vset := randValidatorSet(10)
 	vsetHash := vset.Hash()
 	if len(vsetHash) == 0 {
@@ -92,6 +95,8 @@ func TestCopy(t *testing.T) {
 
 // Test that IncrementProposerPriority requires positive times.
 func TestIncrementProposerPriorityPositiveTimes(t *testing.T) {
+	t.Parallel()
+
 	vset := NewValidatorSet([]*Validator{
 		newValidator([]byte("foo"), 1000),
 		newValidator([]byte("bar"), 300),
@@ -122,9 +127,11 @@ func BenchmarkValidatorSetCopy(b *testing.B) {
 	}
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 func TestProposerSelection1(t *testing.T) {
+	t.Parallel()
+
 	vset := NewValidatorSet([]*Validator{
 		newValidator([]byte("foo"), 1000),
 		newValidator([]byte("bar"), 300),
@@ -143,6 +150,8 @@ func TestProposerSelection1(t *testing.T) {
 }
 
 func TestProposerSelection2(t *testing.T) {
+	t.Parallel()
+
 	addr0 := []byte{1}
 	addr1 := []byte{2}
 	addr2 := []byte{3}
@@ -217,6 +226,8 @@ func TestProposerSelection2(t *testing.T) {
 }
 
 func TestProposerSelection3(t *testing.T) {
+	t.Parallel()
+
 	vset := NewValidatorSet([]*Validator{
 		newValidator([]byte("a"), 1),
 		newValidator([]byte("b"), 1),
@@ -321,9 +332,11 @@ func (vals *ValidatorSet) fromBytes(b []byte) {
 	}
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 func TestValidatorSetTotalVotingPowerPanicsOnOverflow(t *testing.T) {
+	t.Parallel()
+
 	// NewValidatorSet calls IncrementProposerPriority which calls TotalVotingPower()
 	// which should panic on overflows:
 	shouldPanic := func() {
@@ -338,6 +351,8 @@ func TestValidatorSetTotalVotingPowerPanicsOnOverflow(t *testing.T) {
 }
 
 func TestAvgProposerPriority(t *testing.T) {
+	t.Parallel()
+
 	// Create Validator set without calling IncrementProposerPriority:
 	tcs := []struct {
 		vs   ValidatorSet
@@ -356,6 +371,8 @@ func TestAvgProposerPriority(t *testing.T) {
 }
 
 func TestAveragingInIncrementProposerPriority(t *testing.T) {
+	t.Parallel()
+
 	// Test that the averaging works as expected inside of IncrementProposerPriority.
 	// Each validator comes with zero voting power which simplifies reasoning about
 	// the expected ProposerPriority.
@@ -408,6 +425,8 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 }
 
 func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
+	t.Parallel()
+
 	// Other than TestAveragingInIncrementProposerPriority this is a more complete test showing
 	// how each ProposerPriority changes in relation to the validator's voting power respectively.
 	// average is zero in each round:
@@ -558,6 +577,8 @@ func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 }
 
 func TestSafeAdd(t *testing.T) {
+	t.Parallel()
+
 	f := func(a, b int64) bool {
 		c, overflow := safeAdd(a, b)
 		return overflow || (!overflow && c == a+b)
@@ -568,21 +589,27 @@ func TestSafeAdd(t *testing.T) {
 }
 
 func TestSafeAddClip(t *testing.T) {
+	t.Parallel()
+
 	assert.EqualValues(t, math.MaxInt64, safeAddClip(math.MaxInt64, 10))
 	assert.EqualValues(t, math.MaxInt64, safeAddClip(math.MaxInt64, math.MaxInt64))
 	assert.EqualValues(t, math.MinInt64, safeAddClip(math.MinInt64, -10))
 }
 
 func TestSafeSubClip(t *testing.T) {
+	t.Parallel()
+
 	assert.EqualValues(t, math.MinInt64, safeSubClip(math.MinInt64, 10))
 	assert.EqualValues(t, 0, safeSubClip(math.MinInt64, math.MinInt64))
 	assert.EqualValues(t, math.MinInt64, safeSubClip(math.MinInt64, math.MaxInt64))
 	assert.EqualValues(t, math.MaxInt64, safeSubClip(math.MaxInt64, -10))
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 func TestValidatorSetVerifyCommit(t *testing.T) {
+	t.Parallel()
+
 	privKey := mock.GenPrivKey()
 	pubKey := privKey.PubKey()
 	v1 := NewValidator(pubKey, 1000)
@@ -635,6 +662,8 @@ func TestValidatorSetVerifyCommit(t *testing.T) {
 }
 
 func TestEmptySet(t *testing.T) {
+	t.Parallel()
+
 	var valList []*Validator
 	valSet := NewValidatorSet(valList)
 	assert.Panics(t, func() { valSet.IncrementProposerPriority(1) })
@@ -661,6 +690,8 @@ func TestEmptySet(t *testing.T) {
 }
 
 func TestUpdatesForNewValidatorSet(t *testing.T) {
+	t.Parallel()
+
 	v1 := newValidator([]byte("v1"), 100)
 	v2 := newValidator([]byte("v2"), 100)
 	valList := []*Validator{v1, v2}
@@ -793,6 +824,8 @@ func executeValSetErrTestCase(t *testing.T, idx int, tt valSetErrTestCase) {
 }
 
 func TestValSetUpdatesDuplicateEntries(t *testing.T) {
+	t.Parallel()
+
 	testCases := []valSetErrTestCase{
 		// Duplicate entries in changes
 		{ // first entry is duplicated change
@@ -850,6 +883,8 @@ func TestValSetUpdatesDuplicateEntries(t *testing.T) {
 }
 
 func TestValSetUpdatesOverflows(t *testing.T) {
+	t.Parallel()
+
 	maxVP := MaxTotalVotingPower
 	testCases := []valSetErrTestCase{
 		{ // single update leading to overflow
@@ -884,6 +919,8 @@ func TestValSetUpdatesOverflows(t *testing.T) {
 }
 
 func TestValSetUpdatesOtherErrors(t *testing.T) {
+	t.Parallel()
+
 	testCases := []valSetErrTestCase{
 		{ // update with negative voting power
 			testValSet(2, 10),
@@ -909,6 +946,8 @@ func TestValSetUpdatesOtherErrors(t *testing.T) {
 }
 
 func TestValSetUpdatesBasicTestsExecute(t *testing.T) {
+	t.Parallel()
+
 	valSetUpdatesBasicTests := []struct {
 		startVals    []testVal
 		updateVals   []testVal
@@ -970,6 +1009,8 @@ func TestValSetUpdatesBasicTestsExecute(t *testing.T) {
 
 // Test that different permutations of an update give the same result.
 func TestValSetUpdatesOrderIndependenceTestsExecute(t *testing.T) {
+	t.Parallel()
+
 	// startVals - initial validators to create the set with
 	// updateVals - a sequence of updates to be applied to the set.
 	// updateVals is shuffled a number of times during testing to check for same resulting validator set.
@@ -1010,7 +1051,7 @@ func TestValSetUpdatesOrderIndependenceTestsExecute(t *testing.T) {
 
 		// perform at most 20 permutations on the updates and call UpdateWithChangeSet()
 		n := len(tt.updateVals)
-		maxNumPerms := maths.MinInt(20, n*n)
+		maxNumPerms := min(20, n*n)
 		for j := 0; j < maxNumPerms; j++ {
 			// create a copy of original set and apply a random permutation of updates
 			valSetCopy := valSet.Copy()
@@ -1031,6 +1072,8 @@ func TestValSetUpdatesOrderIndependenceTestsExecute(t *testing.T) {
 // This tests the private function validator_set.go:applyUpdates() function, used only for additions and changes.
 // Should perform a proper merge of updatedVals and startVals
 func TestValSetApplyUpdatesTestsExecute(t *testing.T) {
+	t.Parallel()
+
 	valSetUpdatesBasicTests := []struct {
 		startVals    []testVal
 		updateVals   []testVal
@@ -1174,6 +1217,8 @@ func applyChangesToValSet(t *testing.T, valSet *ValidatorSet, valsLists ...[]tes
 }
 
 func TestValSetUpdatePriorityOrderTests(t *testing.T) {
+	t.Parallel()
+
 	const nMaxElections = 5000
 
 	testCases := []testVSetCfg{

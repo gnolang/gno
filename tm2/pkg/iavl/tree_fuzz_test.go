@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -105,13 +105,15 @@ func genRandomProgram(size int) *program {
 
 // Generate many programs and run them.
 func TestMutableTreeFuzz(t *testing.T) {
+	t.Parallel()
+
 	maxIterations := testFuzzIterations
 	progsPerIteration := 100000
 	iterations := 0
 
 	for size := 5; iterations < maxIterations; size++ {
 		for i := 0; i < progsPerIteration/size; i++ {
-			tree := NewMutableTree(db.NewMemDB(), 0)
+			tree := NewMutableTree(memdb.NewMemDB(), 0)
 			program := genRandomProgram(size)
 			err := program.Execute(tree)
 			if err != nil {

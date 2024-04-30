@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
@@ -15,7 +16,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -55,8 +56,10 @@ func newTxCounter(txInt int64, msgInts ...int64) std.Tx {
 	return tx
 }
 
-func defaultLogger() log.Logger {
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "sdk/app")
+func defaultLogger() *slog.Logger {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	return logger.With("module", "sdk/app")
 }
 
 func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
@@ -71,7 +74,7 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
 	t.Helper()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
 	err := app.LoadLatestVersion()
@@ -80,6 +83,8 @@ func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
 }
 
 func TestMountStores(t *testing.T) {
+	t.Parallel()
+
 	app := setupBaseApp(t)
 
 	// check both stores
@@ -92,9 +97,11 @@ func TestMountStores(t *testing.T) {
 // Test that we can make commits and then reload old versions.
 // Test that LoadLatestVersion actually does.
 func TestLoadVersion(t *testing.T) {
+	t.Parallel()
+
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	// make a cap key and mount the store
@@ -139,9 +146,11 @@ func TestLoadVersion(t *testing.T) {
 }
 
 func TestAppVersionSetterGetter(t *testing.T) {
+	t.Parallel()
+
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	require.Equal(t, "", app.AppVersion())
@@ -158,9 +167,11 @@ func TestAppVersionSetterGetter(t *testing.T) {
 }
 
 func TestLoadVersionInvalid(t *testing.T) {
+	t.Parallel()
+
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	err := app.LoadLatestVersion()
@@ -198,7 +209,9 @@ func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, exp
 }
 
 func TestOptionFunction(t *testing.T) {
-	db := dbm.NewMemDB()
+	t.Parallel()
+
+	db := memdb.NewMemDB()
 	bap := newBaseApp("starting name", db, testChangeNameHelper("new name"))
 	require.Equal(t, bap.name, "new name", "BaseApp should have had name changed via option function")
 }
@@ -211,7 +224,9 @@ func testChangeNameHelper(name string) func(*BaseApp) {
 
 // Test that Info returns the latest committed state.
 func TestInfo(t *testing.T) {
-	db := dbm.NewMemDB()
+	t.Parallel()
+
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db)
 
 	// ----- test an empty response -------
@@ -229,6 +244,8 @@ func TestInfo(t *testing.T) {
 }
 
 func TestBaseAppOptionSeal(t *testing.T) {
+	t.Parallel()
+
 	app := setupBaseApp(t)
 
 	require.Panics(t, func() {
@@ -258,18 +275,22 @@ func TestBaseAppOptionSeal(t *testing.T) {
 }
 
 func TestSetMinGasPrices(t *testing.T) {
+	t.Parallel()
+
 	minGasPrices, err := ParseGasPrices("5000stake/10gas")
 	require.Nil(t, err)
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, SetMinGasPrices("5000stake/10gas"))
 	require.Equal(t, minGasPrices, app.minGasPrices)
 }
 
 func TestInitChainer(t *testing.T) {
+	t.Parallel()
+
 	name := t.Name()
 	// keep the db and logger ourselves so
 	// we can reload the same  app later
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db)
 
 	// set a value in the store on init chain
@@ -444,10 +465,6 @@ func (mch msgCounterHandler) Query(ctx Context, req abci.RequestQuery) abci.Resp
 	panic("should not happen")
 }
 
-func i2b(i int64) []byte {
-	return []byte{byte(i)}
-}
-
 func getIntFromStore(store store.Store, key []byte) int64 {
 	bz := store.Get(key)
 	if len(bz) == 0 {
@@ -477,7 +494,7 @@ func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, cou
 	return
 }
 
-//---------------------------------------------------------------------
+// ---------------------------------------------------------------------
 // Tx processing - CheckTx, DeliverTx, SimulateTx.
 // These tests use the serialized tx as input, while most others will use the
 // Check(), Deliver(), Simulate() methods directly.
@@ -487,6 +504,8 @@ func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, cou
 // on the store within a block, and that the CheckTx state
 // gets reset to the latest committed state during Commit
 func TestCheckTx(t *testing.T) {
+	t.Parallel()
+
 	// This ante handler reads the key and checks that the value matches the current counter.
 	// This ensures changes to the kvstore persist across successive CheckTx.
 	counterKey := []byte("counter-key")
@@ -530,6 +549,8 @@ func TestCheckTx(t *testing.T) {
 // Test that successive DeliverTx can see each others' effects
 // on the store, both within and across blocks.
 func TestDeliverTx(t *testing.T) {
+	t.Parallel()
+
 	// test increments in the ante
 	anteKey := []byte("ante-key")
 	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
@@ -566,14 +587,10 @@ func TestDeliverTx(t *testing.T) {
 	}
 }
 
-// Number of messages doesn't matter to CheckTx.
-func TestMultiMsgCheckTx(t *testing.T) {
-	// TODO: ensure we get the same results
-	// with one message or many
-}
-
 // One call to DeliverTx should process all the messages, in order.
 func TestMultiMsgDeliverTx(t *testing.T) {
+	t.Parallel()
+
 	// increment the tx counter
 	anteKey := []byte("ante-key")
 	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
@@ -633,17 +650,12 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	require.Equal(t, int64(2), msgCounter2)
 }
 
-// Interleave calls to Check and Deliver and ensure
-// that there is no cross-talk. Check sees results of the previous Check calls
-// and Deliver sees that of the previous Deliver calls, but they don't see eachother.
-func TestConcurrentCheckDeliver(t *testing.T) {
-	// TODO
-}
-
 // Simulate a transaction that uses gas to compute the gas.
 // Simulate() and Query(".app/simulate", txBytes) should give
 // the same results.
 func TestSimulateTx(t *testing.T) {
+	t.Parallel()
+
 	gasConsumed := int64(5)
 
 	anteOpt := func(bapp *BaseApp) {
@@ -704,6 +716,8 @@ func TestSimulateTx(t *testing.T) {
 }
 
 func TestRunInvalidTransaction(t *testing.T) {
+	t.Parallel()
+
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			newCtx = ctx
@@ -779,6 +793,8 @@ func TestRunInvalidTransaction(t *testing.T) {
 
 // Test that transactions exceeding gas limits fail
 func TestTxGasLimits(t *testing.T) {
+	t.Parallel()
+
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
@@ -853,6 +869,8 @@ func TestTxGasLimits(t *testing.T) {
 
 // Test that transactions exceeding gas limits fail
 func TestMaxBlockGasLimits(t *testing.T) {
+	t.Parallel()
+
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
@@ -942,6 +960,8 @@ func TestMaxBlockGasLimits(t *testing.T) {
 }
 
 func TestBaseAppAnteHandler(t *testing.T) {
+	t.Parallel()
+
 	anteKey := []byte("ante-key")
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey))
@@ -1011,6 +1031,8 @@ func TestBaseAppAnteHandler(t *testing.T) {
 }
 
 func TestGasConsumptionBadTx(t *testing.T) {
+	t.Parallel()
+
 	gasWanted := int64(5)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
@@ -1074,6 +1096,8 @@ func TestGasConsumptionBadTx(t *testing.T) {
 
 // Test that we can only query from the latest committed state.
 func TestQuery(t *testing.T) {
+	t.Parallel()
+
 	key, value := []byte("hello"), []byte("goodbye")
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {

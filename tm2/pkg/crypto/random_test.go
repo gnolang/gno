@@ -11,6 +11,8 @@ import (
 // the purpose of this test is primarily to ensure that the randomness
 // generation won't error.
 func TestRandomConsistency(t *testing.T) {
+	t.Parallel()
+
 	x1 := crypto.CRandBytes(256)
 	x2 := crypto.CRandBytes(256)
 	x3 := crypto.CRandBytes(256)

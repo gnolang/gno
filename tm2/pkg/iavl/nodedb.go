@@ -117,14 +117,6 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 // Has checks if a hash exists in the database.
 func (ndb *nodeDB) Has(hash []byte) bool {
 	key := ndb.nodeKey(hash)
-
-	if ldb, ok := ndb.db.(*dbm.GoLevelDB); ok {
-		exists, err := ldb.DB().Has(key, nil)
-		if err != nil {
-			panic("Got error from leveldb: " + err.Error())
-		}
-		return exists
-	}
 	return ndb.db.Get(key) != nil
 }
 
@@ -393,7 +385,7 @@ func (ndb *nodeDB) saveRoot(hash []byte, version int64) error {
 	return nil
 }
 
-////////////////// Utility and test functions /////////////////////////////////
+// ----------- Utility and test functions // -----------
 
 func (ndb *nodeDB) leafNodes() []*Node {
 	leaves := []*Node{}

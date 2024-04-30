@@ -2,20 +2,18 @@ package core
 
 import (
 	"fmt"
+	"log/slog"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/consensus"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/txindex"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -25,7 +23,7 @@ const (
 	maxPerPage     = 100
 )
 
-//----------------------------------------------
+// ----------------------------------------------
 // These interfaces are used by RPC and must be thread safe
 
 type Consensus interface {
@@ -50,13 +48,13 @@ type peers interface {
 	Peers() p2p.IPeerSet
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // These package level globals come with setters
 // that are expected to be called only once, on startup
 
 var (
 	// external, thread safe interfaces
-	proxyAppQuery proxy.AppConnQuery
+	proxyAppQuery appconn.Query
 
 	// interfaces defined in types and above
 	stateDB        dbm.DB
@@ -66,15 +64,14 @@ var (
 	p2pTransport   transport
 
 	// objects
-	pubKey           crypto.PubKey
-	genDoc           *types.GenesisDoc // cache the genesis structure
-	txIndexer        txindex.TxIndexer
-	consensusReactor *consensus.ConsensusReactor
-	evsw             events.EventSwitch
-	gTxDispatcher    *txDispatcher
-	mempool          mempl.Mempool
+	pubKey        crypto.PubKey
+	genDoc        *types.GenesisDoc // cache the genesis structure
+	evsw          events.EventSwitch
+	gTxDispatcher *txDispatcher
+	mempool       mempl.Mempool
+	getFastSync   func() bool // avoids dependency on consensus pkg
 
-	logger log.Logger
+	logger *slog.Logger
 
 	config cfg.RPCConfig
 )
@@ -111,19 +108,15 @@ func SetGenesisDoc(doc *types.GenesisDoc) {
 	genDoc = doc
 }
 
-func SetProxyAppQuery(appConn proxy.AppConnQuery) {
+func SetProxyAppQuery(appConn appconn.Query) {
 	proxyAppQuery = appConn
 }
 
-func SetTxIndexer(indexer txindex.TxIndexer) {
-	txIndexer = indexer
+func SetGetFastSync(v func() bool) {
+	getFastSync = v
 }
 
-func SetConsensusReactor(conR *consensus.ConsensusReactor) {
-	consensusReactor = conR
-}
-
-func SetLogger(l log.Logger) {
+func SetLogger(l *slog.Logger) {
 	logger = l
 }
 
@@ -168,13 +161,4 @@ func validatePerPage(perPage int) int {
 		return maxPerPage
 	}
 	return perPage
-}
-
-func validateSkipCount(page, perPage int) int {
-	skipCount := (page - 1) * perPage
-	if skipCount < 0 {
-		return 0
-	}
-
-	return skipCount
 }

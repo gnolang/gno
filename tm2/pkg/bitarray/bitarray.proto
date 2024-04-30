@@ -5,6 +5,6 @@ option go_package = "github.com/gnolang/gno/tm2/pkg/bitarray/pb";
 
 // messages
 message BitArray {
-	sint64 Bits = 1;
-	repeated uint64 Elems = 2;
+	sint64 bits = 1;
+	repeated uint64 elems = 2;
 }

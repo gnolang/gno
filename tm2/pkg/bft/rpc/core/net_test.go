@@ -13,13 +13,15 @@ import (
 )
 
 func TestUnsafeDialSeeds(t *testing.T) {
+	t.Parallel()
+
 	sw := p2p.MakeSwitch(p2pcfg.DefaultP2PConfig(), 1, "testing", "123.123.123",
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	err := sw.Start()
 	require.NoError(t, err)
 	defer sw.Stop()
 
-	logger = log.TestingLogger()
+	logger = log.NewNoopLogger()
 	p2pPeers = sw
 
 	testCases := []struct {
@@ -43,13 +45,15 @@ func TestUnsafeDialSeeds(t *testing.T) {
 }
 
 func TestUnsafeDialPeers(t *testing.T) {
+	t.Parallel()
+
 	sw := p2p.MakeSwitch(p2pcfg.DefaultP2PConfig(), 1, "testing", "123.123.123",
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	err := sw.Start()
 	require.NoError(t, err)
 	defer sw.Stop()
 
-	logger = log.TestingLogger()
+	logger = log.NewNoopLogger()
 	p2pPeers = sw
 
 	testCases := []struct {

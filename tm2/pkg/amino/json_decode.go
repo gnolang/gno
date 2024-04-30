@@ -188,7 +188,7 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 	}
 
 	// Extract the value bytes.
-	if cinfo.IsJSONAnyValueType {
+	if cinfo.IsJSONAnyValueType || (cinfo.IsAminoMarshaler && cinfo.ReprType.IsJSONAnyValueType) {
 		bz = value
 	} else {
 		bz, err = deriveJSONObject(bz, typeURL)

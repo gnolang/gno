@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseForLoop(t *testing.T) {
+	t.Parallel()
+
 	gocode := `package main
 func main(){
 	for i:=0; i<10; i++ {

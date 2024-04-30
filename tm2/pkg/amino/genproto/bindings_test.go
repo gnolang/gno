@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateProtoBindings(t *testing.T) {
+	t.Parallel()
+
 	file, err := GenerateProtoBindingsForTypes(tests.Package, tests.Package.ReflectTypes()...)
 	assert.NoError(t, err)
 	t.Logf("%v", file)

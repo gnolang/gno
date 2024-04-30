@@ -1,0 +1,50 @@
+name: Dependency License Scanning
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/.fossa.yml"
+      - ".github/workflows/fossa.yml"
+  schedule:
+    - cron: '0 0 * * 6' # At 00:00 on saturdays
+
+permissions:
+  contents: read
+
+jobs:
+  fossa:
+    name: Fossa
+    runs-on: ubuntu-latest
+    if: github.repository == 'gnolang/gno'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # we don't know what commit the last tag was it's safer to get entire repo so previousStableVersion resolves
+          fetch-depth: 0
+
+      - name: Move .fossa.yml to root dir
+        run: mv .github/.fossa.yml .
+
+      - name: Cache Coursier cache
+        uses: coursier/cache-action@v6.4.5
+
+      - name: Set up JDK 17
+        uses: coursier/setup-action@v1.3.5
+        with:
+          jvm: temurin:1.17
+
+      - name: Set up fossa CLI
+        run: "curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | bash"
+
+      - name: FOSSA analyze
+        run: fossa analyze
+        env:
+          FOSSA_API_KEY: "${{secrets.FOSSA_API_KEY}}"
+
+      - name: FOSSA test
+        run: fossa test
+        env:
+          FOSSA_API_KEY: "${{secrets.FOSSA_API_KEY}}"
+

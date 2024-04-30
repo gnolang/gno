@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// 3
+// (3 main.T1)

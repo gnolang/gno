@@ -65,7 +65,7 @@ func main() {
 		},
 		{
 			callStackAdd: " -> r/demo/tests -> r/demo/tests/subtests",
-			callerFn:     rtests.GetPSubtestsPrevRealm,
+			callerFn:     rtests.GetRSubtestsPrevRealm,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> r/demo/tests",

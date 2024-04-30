@@ -8,4 +8,4 @@ func main() {
 }
 
 // Output:
-// 0
+// (0 main.newInt)

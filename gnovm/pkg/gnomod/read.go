@@ -3,9 +3,10 @@
 // license that can be found in here[1].
 //
 // [1]: https://cs.opensource.google/go/x/mod/+/master:LICENSE
-// Original Filepath: golang.org/x/mod/modfile/read.go
 //
-// Note: This file may contain some modifications.
+// Mostly copied and modified from:
+// - golang.org/x/mod/modfile/read.go
+// - golang.org/x/mod/modfile/rule.go
 
 package gnomod
 
@@ -773,7 +774,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 			if strings.Contains(ns, "@") {
 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
 			}
-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
 		}
 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
@@ -795,6 +796,8 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 	}, nil
 }
 
+var reDeprecation = regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
+
 // parseDeprecation extracts the text of comments on a "module" directive and
 // extracts a deprecation message from that.
 //
@@ -805,8 +808,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 // parseDeprecation returns the message from the first.
 func parseDeprecation(block *modfile.LineBlock, line *modfile.Line) string {
 	text := parseDirectiveComment(block, line)
-	rx := regexp.MustCompile(`(?s)(?:^|\n\n)Deprecated: *(.*?)(?:$|\n\n)`)
-	m := rx.FindStringSubmatch(text)
+	m := reDeprecation.FindStringSubmatch(text)
 	if m == nil {
 		return ""
 	}
@@ -844,4 +846,208 @@ func parseDraft(block *modfile.CommentBlock) bool {
 		return false
 	}
 	return true
+}
+
+// markLineAsRemoved modifies line so that it (and its end-of-line comment, if any)
+// will be dropped by (*FileSyntax).Cleanup.
+func markLineAsRemoved(line *modfile.Line) {
+	line.Token = nil
+	line.Comments.Suffix = nil
+}
+
+func updateLine(line *modfile.Line, tokens ...string) {
+	if line.InBlock {
+		tokens = tokens[1:]
+	}
+	line.Token = tokens
+}
+
+// setIndirect sets line to have (or not have) a "// indirect" comment.
+func setIndirect(r *modfile.Require, indirect bool) {
+	r.Indirect = indirect
+	line := r.Syntax
+	if isIndirect(line) == indirect {
+		return
+	}
+	if indirect {
+		// Adding comment.
+		if len(line.Suffix) == 0 {
+			// New comment.
+			line.Suffix = []modfile.Comment{{Token: "// indirect", Suffix: true}}
+			return
+		}
+
+		com := &line.Suffix[0]
+		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
+		if text == "" {
+			// Empty comment.
+			com.Token = "// indirect"
+			return
+		}
+
+		// Insert at beginning of existing comment.
+		com.Token = "// indirect; " + text
+		return
+	}
+
+	// Removing comment.
+	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
+	if f == "indirect" {
+		// Remove whole comment.
+		line.Suffix = nil
+		return
+	}
+
+	// Remove comment prefix.
+	com := &line.Suffix[0]
+	i := strings.Index(com.Token, "indirect;")
+	com.Token = "//" + com.Token[i+len("indirect;"):]
+}
+
+// isIndirect reports whether line has a "// indirect" comment,
+// meaning it is in go.mod only for its effect on indirect dependencies,
+// so that it can be dropped entirely once the effective version of the
+// indirect dependency reaches the given minimum version.
+func isIndirect(line *modfile.Line) bool {
+	if len(line.Suffix) == 0 {
+		return false
+	}
+	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
+	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
+}
+
+// addLine adds a line containing the given tokens to the file.
+//
+// If the first token of the hint matches the first token of the
+// line, the new line is added at the end of the block containing hint,
+// extracting hint into a new block if it is not yet in one.
+//
+// If the hint is non-nil buts its first token does not match,
+// the new line is added after the block containing hint
+// (or hint itself, if not in a block).
+//
+// If no hint is provided, addLine appends the line to the end of
+// the last block with a matching first token,
+// or to the end of the file if no such block exists.
+func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfile.Line {
+	if hint == nil {
+		// If no hint given, add to the last statement of the given type.
+	Loop:
+		for i := len(x.Stmt) - 1; i >= 0; i-- {
+			stmt := x.Stmt[i]
+			switch stmt := stmt.(type) {
+			case *modfile.Line:
+				if stmt.Token != nil && stmt.Token[0] == tokens[0] {
+					hint = stmt
+					break Loop
+				}
+			case *modfile.LineBlock:
+				if stmt.Token[0] == tokens[0] {
+					hint = stmt
+					break Loop
+				}
+			}
+		}
+	}
+
+	newLineAfter := func(i int) *modfile.Line {
+		newl := &modfile.Line{Token: tokens}
+		if i == len(x.Stmt) {
+			x.Stmt = append(x.Stmt, newl)
+		} else {
+			x.Stmt = append(x.Stmt, nil)
+			copy(x.Stmt[i+2:], x.Stmt[i+1:])
+			x.Stmt[i+1] = newl
+		}
+		return newl
+	}
+
+	if hint != nil {
+		for i, stmt := range x.Stmt {
+			switch stmt := stmt.(type) {
+			case *modfile.Line:
+				if stmt == hint {
+					if stmt.Token == nil || stmt.Token[0] != tokens[0] {
+						return newLineAfter(i)
+					}
+
+					// Convert line to line block.
+					stmt.InBlock = true
+					block := &modfile.LineBlock{Token: stmt.Token[:1], Line: []*modfile.Line{stmt}}
+					stmt.Token = stmt.Token[1:]
+					x.Stmt[i] = block
+					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+					block.Line = append(block.Line, newl)
+					return newl
+				}
+
+			case *modfile.LineBlock:
+				if stmt == hint {
+					if stmt.Token[0] != tokens[0] {
+						return newLineAfter(i)
+					}
+
+					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+					stmt.Line = append(stmt.Line, newl)
+					return newl
+				}
+
+				for j, line := range stmt.Line {
+					if line == hint {
+						if stmt.Token[0] != tokens[0] {
+							return newLineAfter(i)
+						}
+
+						// Add new line after hint within the block.
+						stmt.Line = append(stmt.Line, nil)
+						copy(stmt.Line[j+2:], stmt.Line[j+1:])
+						newl := &modfile.Line{Token: tokens[1:], InBlock: true}
+						stmt.Line[j+1] = newl
+						return newl
+					}
+				}
+			}
+		}
+	}
+
+	newl := &modfile.Line{Token: tokens}
+	x.Stmt = append(x.Stmt, newl)
+	return newl
+}
+
+func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) error {
+	need := true
+	oldv := module.Version{Path: oldPath, Version: oldVers}
+	newv := module.Version{Path: newPath, Version: newVers}
+	tokens := []string{"replace", modfile.AutoQuote(oldPath)}
+	if oldVers != "" {
+		tokens = append(tokens, oldVers)
+	}
+	tokens = append(tokens, "=>", modfile.AutoQuote(newPath))
+	if newVers != "" {
+		tokens = append(tokens, newVers)
+	}
+
+	var hint *modfile.Line
+	for _, r := range *replace {
+		if r.Old.Path == oldPath && (oldVers == "" || r.Old.Version == oldVers) {
+			if need {
+				// Found replacement for old; update to use new.
+				r.New = newv
+				updateLine(r.Syntax, tokens...)
+				need = false
+				continue
+			}
+			// Already added; delete other replacements for same.
+			markLineAsRemoved(r.Syntax)
+			*r = modfile.Replace{}
+		}
+		if r.Old.Path == oldPath {
+			hint = r.Syntax
+		}
+	}
+	if need {
+		*replace = append(*replace, &modfile.Replace{Old: oldv, New: newv, Syntax: addLine(syntax, hint, tokens...)})
+	}
+	return nil
 }

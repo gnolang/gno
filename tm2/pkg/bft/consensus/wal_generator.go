@@ -1,127 +1,16 @@
 package consensus
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io"
-	"path/filepath"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
-	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/store"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
-	db "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
-
-// WALGenerateNBlocks generates a consensus WAL. It does this by spinning up a
-// stripped down version of node (proxy app, event bus, consensus state) with a
-// persistent kvstore application and special consensus wal instance
-// (heightStopWAL) and waits until numBlocks are created. If the node fails to produce given numBlocks, it returns an error.
-func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
-	t.Helper()
-
-	config := getConfig(t)
-
-	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
-	defer app.Close()
-
-	logger := log.TestingLogger().With("wal_generator", "wal_generator")
-	logger.Info("generating WAL (last height msg excluded)", "numBlocks", numBlocks)
-
-	/////////////////////////////////////////////////////////////////////////////
-	// COPY PASTE FROM node.go WITH A FEW MODIFICATIONS
-	// NOTE: we can't import node package because of circular dependency.
-	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
-	privValidatorKeyFile := config.PrivValidatorKeyFile()
-	privValidatorStateFile := config.PrivValidatorStateFile()
-	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
-	if err != nil {
-		return errors.Wrap(err, "failed to read genesis file")
-	}
-	blockStoreDB := db.NewMemDB()
-	stateDB := blockStoreDB
-	state, err := sm.MakeGenesisState(genDoc)
-	if err != nil {
-		return errors.Wrap(err, "failed to make genesis state")
-	}
-	state.AppVersion = kvstore.AppVersion
-	sm.SaveState(stateDB, state)
-	blockStore := store.NewBlockStore(blockStoreDB)
-
-	proxyApp := proxy.NewAppConns(proxy.NewLocalClientCreator(app))
-	proxyApp.SetLogger(logger.With("module", "proxy"))
-	if err := proxyApp.Start(); err != nil {
-		return errors.Wrap(err, "failed to start proxy app connections")
-	}
-	defer proxyApp.Stop()
-
-	evsw := events.NewEventSwitch()
-	evsw.SetLogger(logger.With("module", "events"))
-	if err := evsw.Start(); err != nil {
-		return errors.Wrap(err, "failed to start event bus")
-	}
-	defer evsw.Stop()
-	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool)
-	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
-	consensusState.SetLogger(logger)
-	consensusState.SetEventSwitch(evsw)
-	if privValidator != nil {
-		consensusState.SetPrivValidator(privValidator)
-	}
-	// END OF COPY PASTE
-	/////////////////////////////////////////////////////////////////////////////
-
-	// set consensus wal to buffered WAL, which will write all incoming msgs to buffer
-	numBlocksWritten := make(chan struct{})
-	wal := newHeightStopWAL(logger, walm.NewWALWriter(wr, maxMsgSize), int64(numBlocks)+1, numBlocksWritten)
-	// See wal.go OnStart().
-	// Since we separate the WALWriter from the WAL, we need to
-	// initialize ourself.
-	wal.WriteMetaSync(walm.MetaMessage{Height: 1})
-	consensusState.wal = wal
-
-	if err := consensusState.Start(); err != nil {
-		return errors.Wrap(err, "failed to start consensus state")
-	}
-
-	select {
-	case <-numBlocksWritten:
-		consensusState.Stop()
-		return nil
-	case <-time.After(2 * time.Minute):
-		consensusState.Stop()
-		return fmt.Errorf("waited too long for tendermint to produce %d blocks (grep logs for `wal_generator`)", numBlocks)
-	}
-}
-
-// WALWithNBlocks returns a WAL content with numBlocks.
-func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
-	t.Helper()
-
-	var b bytes.Buffer
-	wr := bufio.NewWriter(&b)
-
-	if err := WALGenerateNBlocks(t, wr, numBlocks); err != nil {
-		return []byte{}, err
-	}
-
-	wr.Flush()
-	return b.Bytes(), nil
-}
 
 func randPort() int {
 	// returns between base and base + spread
@@ -136,18 +25,19 @@ func makeAddrs() (string, string, string) {
 		fmt.Sprintf("tcp://0.0.0.0:%d", start+2)
 }
 
-// getConfig returns a config for test cases
-func getConfig(t *testing.T) *cfg.Config {
+// getConfig returns a config and genesis file for test cases
+func getConfig(t *testing.T) (*cfg.Config, string) {
 	t.Helper()
 
-	c := cfg.ResetTestRoot(t.Name())
+	c, genesisFile := cfg.ResetTestRoot(t.Name())
 
 	// and we use random ports to run in parallel
 	tm, rpc, grpc := makeAddrs()
 	c.P2P.ListenAddress = tm
 	c.RPC.ListenAddress = rpc
 	c.RPC.GRPCListenAddress = grpc
-	return c
+
+	return c, genesisFile
 }
 
 // heightStopWAL is a WAL which writes all msgs to underlying WALWriter.
@@ -159,13 +49,13 @@ type heightStopWAL struct {
 	heightToStop      int64
 	signalWhenStopsTo chan<- struct{}
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 // needed for determinism
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
 
-func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
+func newHeightStopWAL(logger *slog.Logger, enc *walm.WALWriter, nBlocks int64, signalStop chan<- struct{}) *heightStopWAL {
 	return &heightStopWAL{
 		enc:               enc,
 		heightToStop:      nBlocks,
@@ -174,7 +64,7 @@ func newHeightStopWAL(logger log.Logger, enc *walm.WALWriter, nBlocks int64, sig
 	}
 }
 
-func (w *heightStopWAL) SetLogger(logger log.Logger) {
+func (w *heightStopWAL) SetLogger(logger *slog.Logger) {
 	w.logger = logger
 }
 

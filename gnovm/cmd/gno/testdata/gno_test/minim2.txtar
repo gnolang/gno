@@ -1,0 +1,12 @@
+# Test minimalist 2
+
+gno test .
+
+! stdout .+ 
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- minim.gno --
+package minim
+
+-- minim_test.gno --
+package minim

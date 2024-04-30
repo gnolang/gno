@@ -3,6 +3,7 @@ package kvstore
 import (
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -10,7 +11,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -18,6 +20,8 @@ const (
 	ValidatorUpdatePrefix string = "val:"
 	ValidatorKeyPrefix    string = "/val/"
 )
+
+const dbBackend = db.GoLevelDBBackend
 
 // -----------------------------------------
 
@@ -29,12 +33,12 @@ type PersistentKVStoreApplication struct {
 	// validator set
 	ValSetChanges []abci.ValidatorUpdate
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication {
 	name := "kvstore"
-	db, err := dbm.NewGoLevelDB(name, dbDir)
+	db, err := db.NewDB(name, dbBackend, dbDir)
 	if err != nil {
 		panic(err)
 	}
@@ -43,11 +47,11 @@ func NewPersistentKVStoreApplication(dbDir string) *PersistentKVStoreApplication
 
 	return &PersistentKVStoreApplication{
 		app:    &KVStoreApplication{state: state},
-		logger: log.NewNopLogger(),
+		logger: log.NewNoopLogger(),
 	}
 }
 
-func (app *PersistentKVStoreApplication) SetLogger(l log.Logger) {
+func (app *PersistentKVStoreApplication) SetLogger(l *slog.Logger) {
 	app.logger = l
 }
 

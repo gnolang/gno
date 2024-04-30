@@ -4,8 +4,8 @@ import (
 	"std"
 )
 
-func CurrentRealmPath() string {
-	return std.CurrentRealmPath()
+func GetCurrentRealm() std.Realm {
+	return std.CurrentRealm()
 }
 
 func GetPrevRealm() std.Realm {

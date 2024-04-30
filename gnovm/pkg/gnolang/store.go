@@ -11,13 +11,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-const iavlCacheSize = 1024 * 1024 // TODO increase and parameterize.
-
 // return nil if package doesn't exist.
 type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
 type PackageInjector func(store Store, pn *PackageNode)
+
+// NativeStore is a function which can retrieve native bodies of native functions.
+type NativeStore func(pkgName string, name Name) func(m *Machine)
 
 type Store interface {
 	// STABLE
@@ -39,7 +40,6 @@ type Store interface {
 	SetBlockNode(BlockNode)
 	// UNSTABLE
 	SetStrictGo2GnoMapping(bool)
-	AddGo2GnoMapping(rt reflect.Type, pkgPath string, name string)
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
@@ -50,10 +50,12 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	IterMemPackage() <-chan *std.MemPackage
-	ClearObjectCache()                           // for each delivertx.
-	Fork() Store                                 // for checktx, simulate, and queries.
-	SwapStores(baseStore, iavlStore store.Store) // for gas wrappers.
-	SetPackageInjector(PackageInjector)          // for natives
+	ClearObjectCache()                                    // for each delivertx.
+	Fork() Store                                          // for checktx, simulate, and queries.
+	SwapStores(baseStore, iavlStore store.Store)          // for gas wrappers.
+	SetPackageInjector(PackageInjector)                   // for natives
+	SetNativeStore(NativeStore)                           // for "new" natives XXX
+	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
@@ -72,7 +74,7 @@ type defaultStore struct {
 	baseStore        store.Store           // for objects, types, nodes
 	iavlStore        store.Store           // for escaped object hashes
 	pkgInjector      PackageInjector       // for injecting natives
-	go2gnoMap        map[string]string     // go pkgpath.name -> gno pkgpath.name
+	nativeStore      NativeStore           // for injecting natives
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
@@ -90,7 +92,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		baseStore:        baseStore,
 		iavlStore:        iavlStore,
-		go2gnoMap:        make(map[string]string),
 		go2gnoStrict:     true,
 		current:          make(map[string]struct{}),
 	}
@@ -603,7 +604,7 @@ func (ds *defaultStore) Fork() Store {
 		baseStore:        ds.baseStore,
 		iavlStore:        ds.iavlStore,
 		pkgInjector:      ds.pkgInjector,
-		go2gnoMap:        ds.go2gnoMap,
+		nativeStore:      ds.nativeStore,
 		go2gnoStrict:     ds.go2gnoStrict,
 		opslog:           nil, // new ops log.
 		current:          make(map[string]struct{}),
@@ -622,11 +623,22 @@ func (ds *defaultStore) SetPackageInjector(inj PackageInjector) {
 	ds.pkgInjector = inj
 }
 
+func (ds *defaultStore) SetNativeStore(ns NativeStore) {
+	ds.nativeStore = ns
+}
+
+func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
+	if ds.nativeStore != nil {
+		return ds.nativeStore(pkgPath, name)
+	}
+	return nil
+}
+
 func (ds *defaultStore) Flush() {
 	// XXX
 }
 
-//----------------------------------------
+// ----------------------------------------
 // StoreOp
 
 type StoreOpType uint8
@@ -723,7 +735,7 @@ func (ds *defaultStore) Print() {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // backend keys
 
 func backendObjectKey(oid ObjectID) string {
@@ -755,7 +767,7 @@ func backendPackagePathKey(path string) string {
 	return fmt.Sprintf("pkg:" + path)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // builtin types and packages
 
 func InitStoreCaches(store Store) {

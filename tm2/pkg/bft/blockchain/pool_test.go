@@ -72,12 +72,14 @@ func makePeers(numPeers int, minHeight, maxHeight int64) testPeers {
 }
 
 func TestBlockPoolBasic(t *testing.T) {
+	t.Parallel()
+
 	start := int64(42)
 	peers := makePeers(10, start+1, 1000)
 	errorsCh := make(chan peerError, 1000)
 	requestsCh := make(chan BlockRequest, 1000)
 	pool := NewBlockPool(start, requestsCh, errorsCh)
-	pool.SetLogger(log.TestingLogger())
+	pool.SetLogger(log.NewNoopLogger())
 
 	err := pool.Start()
 	if err != nil {
@@ -128,12 +130,14 @@ func TestBlockPoolBasic(t *testing.T) {
 }
 
 func TestBlockPoolTimeout(t *testing.T) {
+	t.Parallel()
+
 	start := int64(42)
 	peers := makePeers(10, start+1, 1000)
 	errorsCh := make(chan peerError, 1000)
 	requestsCh := make(chan BlockRequest, 1000)
 	pool := NewBlockPool(start, requestsCh, errorsCh)
-	pool.SetLogger(log.TestingLogger())
+	pool.SetLogger(log.NewTestingLogger(t))
 	err := pool.Start()
 	if err != nil {
 		t.Error(err)
@@ -187,6 +191,8 @@ func TestBlockPoolTimeout(t *testing.T) {
 }
 
 func TestBlockPoolRemovePeer(t *testing.T) {
+	t.Parallel()
+
 	peers := make(testPeers, 10)
 	for i := 0; i < 10; i++ {
 		peerID := p2p.ID(fmt.Sprintf("%d", i+1))
@@ -197,7 +203,7 @@ func TestBlockPoolRemovePeer(t *testing.T) {
 	errorsCh := make(chan peerError)
 
 	pool := NewBlockPool(1, requestsCh, errorsCh)
-	pool.SetLogger(log.TestingLogger())
+	pool.SetLogger(log.NewTestingLogger(t))
 	err := pool.Start()
 	require.NoError(t, err)
 	defer pool.Stop()

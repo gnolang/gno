@@ -26,6 +26,8 @@ func (c *mockConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func TestCommandParseAndRun(t *testing.T) {
+	t.Parallel()
+
 	type flags struct {
 		b bool
 		s string
@@ -215,7 +217,10 @@ func TestCommandParseAndRun(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				invokedCmd string
 				args       []string
@@ -416,21 +421,22 @@ func TestCommand_AddSubCommands(t *testing.T) {
 
 // Forked from peterbourgon/ff/ffcli
 func TestHelpUsage(t *testing.T) {
-	fs, _ := fftest.Pair()
-	var buf bytes.Buffer
-	fs.SetOutput(&buf)
+	t.Parallel()
 
-	command := &Command{
-		name:       "TestHelpUsage",
-		shortUsage: "TestHelpUsage [flags] <args>",
-		shortHelp:  "Some short help.",
-		longHelp:   "Some long help.",
-		flagSet:    fs,
-	}
-
-	err := command.ParseAndRun(context.Background(), []string{"-h"})
-	assert.ErrorIs(t, err, flag.ErrHelp)
-	expectedOutput := strings.TrimSpace(`
+	tests := []struct {
+		name           string
+		command        *Command
+		expectedOutput string
+	}{
+		{
+			name: "normal case",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+				shortHelp:  "some short help",
+				longHelp:   "Some long help.",
+			},
+			expectedOutput: strings.TrimSpace(`
 USAGE
   TestHelpUsage [flags] <args>
 
@@ -443,12 +449,73 @@ FLAGS
   -i 0      int
   -s ...    string
   -x ...    collection of strings (repeatable)
-`) + "\n\n"
-	assert.Equal(t, expectedOutput, buf.String())
+`) + "\n\n",
+		},
+		{
+			name: "no long help",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+				shortHelp:  "some short help",
+			},
+			expectedOutput: strings.TrimSpace(`
+USAGE
+  TestHelpUsage [flags] <args>
+
+some short help.
+
+FLAGS
+  -b=false  bool
+  -d 0s     time.Duration
+  -f 0      float64
+  -i 0      int
+  -s ...    string
+  -x ...    collection of strings (repeatable)
+`) + "\n\n",
+		},
+		{
+			name: "no short and no long help",
+			command: &Command{
+				name:       "TestHelpUsage",
+				shortUsage: "TestHelpUsage [flags] <args>",
+			},
+			expectedOutput: strings.TrimSpace(`
+USAGE
+  TestHelpUsage [flags] <args>
+
+FLAGS
+  -b=false  bool
+  -d 0s     time.Duration
+  -f 0      float64
+  -i 0      int
+  -s ...    string
+  -x ...    collection of strings (repeatable)
+`) + "\n\n",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fs, _ := fftest.Pair()
+			var buf bytes.Buffer
+			fs.SetOutput(&buf)
+
+			tt.command.flagSet = fs
+
+			err := tt.command.ParseAndRun(context.Background(), []string{"-h"})
+
+			assert.ErrorIs(t, err, flag.ErrHelp)
+			assert.Equal(t, tt.expectedOutput, buf.String())
+		})
+	}
 }
 
 // Forked from peterbourgon/ff/ffcli
 func TestNestedOutput(t *testing.T) {
+	t.Parallel()
+
 	var (
 		rootHelpOutput = "USAGE\n  \n\nSUBCOMMANDS\n  foo\n\n"
 		fooHelpOutput  = "USAGE\n  foo\n\nSUBCOMMANDS\n  bar\n\n"
@@ -514,6 +581,8 @@ func TestNestedOutput(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				rootfs = flag.NewFlagSet("root", flag.ContinueOnError)
 				foofs  = flag.NewFlagSet("foo", flag.ContinueOnError)

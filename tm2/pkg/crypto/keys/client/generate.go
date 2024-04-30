@@ -10,41 +10,41 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 )
 
-type generateCfg struct {
-	rootCfg *baseCfg
+type GenerateCfg struct {
+	RootCfg *BaseCfg
 
-	customEntropy bool
+	CustomEntropy bool
 }
 
-func newGenerateCmd(rootCfg *baseCfg) *commands.Command {
-	cfg := &generateCfg{
-		rootCfg: rootCfg,
+func NewGenerateCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &GenerateCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "generate",
 			ShortUsage: "generate [flags]",
-			ShortHelp:  "Generates a bip39 mnemonic",
+			ShortHelp:  "generates a bip39 mnemonic",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execGenerate(cfg, args, commands.NewDefaultIO())
+			return execGenerate(cfg, args, io)
 		},
 	)
 }
 
-func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *GenerateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
-		&c.customEntropy,
+		&c.CustomEntropy,
 		"entropy",
 		false,
 		"supply custom entropy",
 	)
 }
 
-func execGenerate(cfg *generateCfg, args []string, io *commands.IO) error {
-	customEntropy := cfg.customEntropy
+func execGenerate(cfg *GenerateCfg, args []string, io commands.IO) error {
+	customEntropy := cfg.CustomEntropy
 
 	if len(args) != 0 {
 		return flag.ErrHelp

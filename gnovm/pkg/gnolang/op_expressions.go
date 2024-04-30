@@ -78,8 +78,12 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path)
-	*xv = res.Deref() // reuse as result
+	res := xv.GetPointerTo(m.Alloc, m.Store, sx.Path).Deref()
+	if debug {
+		m.Printf("-v[S] %v\n", xv)
+		m.Printf("+v[S] %v\n", res)
+	}
+	*xv = res // reuse as result
 }
 
 func (m *Machine) doOpSlice() {
@@ -143,7 +147,7 @@ func (m *Machine) doOpStar() {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
@@ -159,7 +163,7 @@ func (m *Machine) doOpStar() {
 		t := xv.GetType()
 		var pt Type
 		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
+			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}

@@ -1,9 +1,14 @@
-package db
+package db_test
 
-import "testing"
+import (
+	"testing"
 
-func mockDBWithStuff() DB {
-	db := NewMemDB()
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+)
+
+func mockDBWithStuff() dbm.DB {
+	db := memdb.NewMemDB()
 	// Under "key" prefix
 	db.Set(bz("key"), bz("value"))
 	db.Set(bz("key1"), bz("value1"))
@@ -18,8 +23,10 @@ func mockDBWithStuff() DB {
 }
 
 func TestPrefixDBSimple(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	checkValue(t, pdb, bz("key"), nil)
 	checkValue(t, pdb, bz(""), bz("value"))
@@ -36,8 +43,10 @@ func TestPrefixDBSimple(t *testing.T) {
 }
 
 func TestPrefixDBIterator1(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.Iterator(nil, nil)
 	checkDomain(t, itr, nil, nil)
@@ -54,8 +63,10 @@ func TestPrefixDBIterator1(t *testing.T) {
 }
 
 func TestPrefixDBIterator2(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.Iterator(nil, bz(""))
 	checkDomain(t, itr, nil, bz(""))
@@ -64,8 +75,10 @@ func TestPrefixDBIterator2(t *testing.T) {
 }
 
 func TestPrefixDBIterator3(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.Iterator(bz(""), nil)
 	checkDomain(t, itr, bz(""), nil)
@@ -82,8 +95,10 @@ func TestPrefixDBIterator3(t *testing.T) {
 }
 
 func TestPrefixDBIterator4(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.Iterator(bz(""), bz(""))
 	checkDomain(t, itr, bz(""), bz(""))
@@ -92,8 +107,10 @@ func TestPrefixDBIterator4(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator1(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(nil, nil)
 	checkDomain(t, itr, nil, nil)
@@ -110,8 +127,10 @@ func TestPrefixDBReverseIterator1(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator2(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(bz(""), nil)
 	checkDomain(t, itr, bz(""), nil)
@@ -128,8 +147,10 @@ func TestPrefixDBReverseIterator2(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator3(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(nil, bz(""))
 	checkDomain(t, itr, nil, bz(""))
@@ -138,8 +159,10 @@ func TestPrefixDBReverseIterator3(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator4(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(bz(""), bz(""))
 	checkDomain(t, itr, bz(""), bz(""))
@@ -148,8 +171,10 @@ func TestPrefixDBReverseIterator4(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator5(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(bz("1"), nil)
 	checkDomain(t, itr, bz("1"), nil)
@@ -164,8 +189,10 @@ func TestPrefixDBReverseIterator5(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator6(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(bz("2"), nil)
 	checkDomain(t, itr, bz("2"), nil)
@@ -178,8 +205,10 @@ func TestPrefixDBReverseIterator6(t *testing.T) {
 }
 
 func TestPrefixDBReverseIterator7(t *testing.T) {
+	t.Parallel()
+
 	db := mockDBWithStuff()
-	pdb := NewPrefixDB(db, bz("key"))
+	pdb := dbm.NewPrefixDB(db, bz("key"))
 
 	itr := pdb.ReverseIterator(nil, bz("2"))
 	checkDomain(t, itr, nil, bz("2"))

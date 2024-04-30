@@ -1,0 +1,41 @@
+name: Dependabot Tidy Go Mods
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '**/go.mod'
+      - '**/go.sum'
+
+jobs:
+  tidy_go_mods:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+
+      - name: Tidy all Go mods
+        env:
+          VERIFY_MOD_SUMS: false
+        run: |
+          # Ensure Make is installed
+          make --version
+          
+          # Run the tidy target
+          make tidy
+
+      - name: Commit changes, if any
+        uses: stefanzweifel/git-auto-commit-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          skip_dirty_check: false # Enable dirty check, and skip unnecessary committing
+          commit_message: "Run 'go mod tidy' via GitHub Actions"

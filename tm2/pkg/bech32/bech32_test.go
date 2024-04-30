@@ -8,10 +8,12 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeAndDecode(t *testing.T) {
+	t.Parallel()
+
 	sum := sha256.Sum256([]byte("hello world\n"))
 
 	bech, err := bech32.ConvertAndEncode("shasum", sum[:])
@@ -39,20 +41,24 @@ var (
 )
 
 func TestEncode(t *testing.T) {
+	t.Parallel()
+
 	bz, err := hex.DecodeString(pubkeyBytes)
 
 	assert.NoError(t, err)
 
 	p, err := bech32.Encode(pubkeyPrefix, bz)
 
-	assert.Equal(t, p, pubkeyBech32)
+	assert.Equal(t, pubkeyBech32, p)
 }
 
 func TestDecode(t *testing.T) {
+	t.Parallel()
+
 	hrp, b1, err := bech32.Decode(pubkeyBech32)
 
 	assert.NoError(t, err)
-	assert.Equal(t, hrp, pubkeyPrefix)
+	assert.Equal(t, pubkeyPrefix, hrp)
 
 	b2, err := hex.DecodeString(pubkeyBytes)
 
