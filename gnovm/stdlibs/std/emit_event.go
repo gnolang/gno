@@ -49,7 +49,7 @@ type gnoEvent struct {
 	Type       string              `json:"type"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
-	Attributes []gnoEventAttribute `json:"attributes"`
+	Attributes []gnoEventAttribute `json:"attrs"`
 }
 
 func (e gnoEvent) AssertABCIEvent() {}
