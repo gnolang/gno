@@ -2090,6 +2090,11 @@ func (m *Machine) String() string {
 
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
+
+		if b == nil || b.Source == nil {
+			continue
+		}
+
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
@@ -2107,7 +2112,9 @@ func (m *Machine) String() string {
 		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
 	}
 
-	builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
+	if m.Realm != nil {
+		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
+	}
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
