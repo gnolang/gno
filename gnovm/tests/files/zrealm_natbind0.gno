@@ -8,20 +8,23 @@ import (
 var node interface{}
 
 func init() {
-	node = std.GetOrigCaller
+	node = std.GetHeight
 }
 
 func main() {
-	f := node.(func() std.Address)
+	// NOTE: this test uses GetHeight and CurrentRealmPath, which are "pure"
+	// natively bound functions (ie. not indirections through a wrapper fn,
+	// to convert the types to builtin go/gno identifiers).
+	f := node.(func() int64)
 	println(f())
-	node = std.DerivePkgAddr
-	g := node.(func(path string) std.Address)
-	println(g("x"))
+	node = std.CurrentRealmPath
+	g := node.(func() string)
+	println(g())
 }
 
 // Output:
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// g19kt9e22k34ny5jf5plrjdltmws0jc0qqd2cwky
+// 123
+// gno.land/r/test
 
 // Realm:
 // switchrealm["gno.land/r/test"]
@@ -120,25 +123,15 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
-//                 "Params": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "pkgPath",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ],
+//                 "Params": [],
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
 //                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "std.Address"
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "16"
 //                         }
 //                     }
 //                 ]
@@ -148,12 +141,12 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:5"
+//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:6"
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
-//                 "Name": "DerivePkgAddr",
-//                 "NativeName": "DerivePkgAddr",
+//                 "Name": "CurrentRealmPath",
+//                 "NativeName": "CurrentRealmPath",
 //                 "NativePkg": "std",
 //                 "PkgPath": "std",
 //                 "Source": {
@@ -161,32 +154,22 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "native.gno",
-//                         "Line": "15",
+//                         "Line": "5",
 //                         "Nonce": "0",
 //                         "PkgPath": "std"
 //                     }
 //                 },
 //                 "Type": {
 //                     "@type": "/gno.FuncType",
-//                     "Params": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "pkgPath",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
-//                             }
-//                         }
-//                     ],
+//                     "Params": [],
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
 //                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "std.Address"
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
 //                             }
 //                         }
 //                     ]

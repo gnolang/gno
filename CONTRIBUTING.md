@@ -290,7 +290,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-    gno test <path-to-dir> --verbose
+    gno test <path-to-dir> -v
 
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available

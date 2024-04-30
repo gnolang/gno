@@ -3,9 +3,8 @@ package std
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type MemFile struct {
@@ -38,11 +37,9 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const rePathPart = `[a-z][a-z0-9_]*`
-
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath = regexp.MustCompile(`gno\.land/(?:p|r)(?:/` + rePathPart + `)+`)
+	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
@@ -50,22 +47,39 @@ var (
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
 func (mempkg *MemPackage) Validate() error {
+	// add assertion that MemPkg contains at least 1 file
+	if len(mempkg.Files) <= 0 {
+		return fmt.Errorf("no files found within package %q", mempkg.Name)
+	}
+
 	if !rePkgName.MatchString(mempkg.Name) {
-		return errors.New(fmt.Sprintf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName))
+		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return errors.New(fmt.Sprintf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath))
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
-	fnames := map[string]struct{}{}
-	for _, memfile := range mempkg.Files {
-		if !reFileName.MatchString(memfile.Name) {
-			return errors.New(fmt.Sprintf("invalid file name %q, failed to match %q", memfile.Name, reFileName))
-		}
-		if _, exists := fnames[memfile.Name]; exists {
-			return errors.New(fmt.Sprintf("duplicate file name %q", memfile.Name))
-		}
-		fnames[memfile.Name] = struct{}{}
+	// enforce sorting files based on Go conventions for predictability
+	sorted := sort.SliceIsSorted(
+		mempkg.Files,
+		func(i, j int) bool {
+			return mempkg.Files[i].Name < mempkg.Files[j].Name
+		},
+	)
+	if !sorted {
+		return fmt.Errorf("mempackage %q has unsorted files", mempkg.Path)
 	}
+
+	var prev string
+	for i, file := range mempkg.Files {
+		if !reFileName.MatchString(file.Name) {
+			return fmt.Errorf("invalid file name %q, failed to match %q", file.Name, reFileName)
+		}
+		if i > 0 && prev == file.Name {
+			return fmt.Errorf("duplicate file name %q", file.Name)
+		}
+		prev = file.Name
+	}
+
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
+	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
@@ -31,14 +32,8 @@ var (
 )
 
 const (
-	levelDBName  = "goleveldb"
-	clevelDBName = "cleveldb"
-	boltDBName   = "boltdb"
-)
-
-const (
-	localABCI  = "local"
-	socketABCI = "socket"
+	LocalABCI  = "local"
+	SocketABCI = "socket"
 )
 
 // Regular expression for TCP or UNIX socket address
@@ -233,7 +228,7 @@ type BaseConfig struct {
 	ProxyApp string `toml:"proxy_app" comment:"TCP or UNIX socket address of the ABCI application, \n or the name of an ABCI application compiled in with the Tendermint binary"`
 
 	// Local application instance in lieu of remote app.
-	LocalApp abci.Application
+	LocalApp abci.Application `toml:"-"`
 
 	// A custom human readable name for this node
 	Moniker string `toml:"moniker" comment:"A custom human readable name for this node"`
@@ -244,7 +239,7 @@ type BaseConfig struct {
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
 	// Database backend: goleveldb | cleveldb | boltdb
-	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
+	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
 	// * cleveldb (uses levigo wrapper)
@@ -255,7 +250,7 @@ type BaseConfig struct {
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
@@ -296,11 +291,11 @@ func DefaultBaseConfig() BaseConfig {
 		NodeKey:            defaultNodeKeyPath,
 		Moniker:            defaultMoniker,
 		ProxyApp:           "tcp://127.0.0.1:26658",
-		ABCI:               "socket",
+		ABCI:               SocketABCI,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
 		FilterPeers:        false,
-		DBBackend:          "goleveldb",
+		DBBackend:          db.GoLevelDBBackend.String(),
 		DBPath:             "data",
 	}
 }
@@ -365,9 +360,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != levelDBName &&
-		cfg.DBBackend != clevelDBName &&
-		cfg.DBBackend != boltDBName {
+	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
+		cfg.DBBackend != db.CLevelDBBackend.String() &&
+		cfg.DBBackend != db.BoltDBBackend.String() {
 		return errInvalidDBBackend
 	}
 
@@ -403,8 +398,8 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the correct ABCI mechanism is set
-	if cfg.ABCI != localABCI &&
-		cfg.ABCI != socketABCI {
+	if cfg.ABCI != LocalABCI &&
+		cfg.ABCI != SocketABCI {
 		return errInvalidABCIMechanism
 	}
 

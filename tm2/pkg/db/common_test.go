@@ -1,35 +1,35 @@
-package db
+package db_test
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"sync"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // ----------------------------------------
-// Helper functions.
+// Test Helper functions.
 
-func checkValue(t *testing.T, db DB, key []byte, valueWanted []byte) {
+func checkValue(t *testing.T, db db.DB, key []byte, valueWanted []byte) {
 	t.Helper()
 
 	valueGot := db.Get(key)
 	assert.Equal(t, valueWanted, valueGot)
 }
 
-func checkValid(t *testing.T, itr Iterator, expected bool) {
+func checkValid(t *testing.T, itr db.Iterator, expected bool) {
 	t.Helper()
 
 	valid := itr.Valid()
 	require.Equal(t, expected, valid)
 }
 
-func checkNext(t *testing.T, itr Iterator, expected bool) {
+func checkNext(t *testing.T, itr db.Iterator, expected bool) {
 	t.Helper()
 
 	itr.Next()
@@ -37,13 +37,13 @@ func checkNext(t *testing.T, itr Iterator, expected bool) {
 	require.Equal(t, expected, valid)
 }
 
-func checkNextPanics(t *testing.T, itr Iterator) {
+func checkNextPanics(t *testing.T, itr db.Iterator) {
 	t.Helper()
 
 	assert.Panics(t, func() { itr.Next() }, "checkNextPanics expected panic but didn't")
 }
 
-func checkDomain(t *testing.T, itr Iterator, start, end []byte) {
+func checkDomain(t *testing.T, itr db.Iterator, start, end []byte) {
 	t.Helper()
 
 	ds, de := itr.Domain()
@@ -51,7 +51,7 @@ func checkDomain(t *testing.T, itr Iterator, start, end []byte) {
 	assert.Equal(t, end, de, "checkDomain domain end incorrect")
 }
 
-func checkItem(t *testing.T, itr Iterator, key []byte, value []byte) {
+func checkItem(t *testing.T, itr db.Iterator, key []byte, value []byte) {
 	t.Helper()
 
 	k, v := itr.Key(), itr.Value()
@@ -59,7 +59,7 @@ func checkItem(t *testing.T, itr Iterator, key []byte, value []byte) {
 	assert.Exactly(t, value, v)
 }
 
-func checkInvalid(t *testing.T, itr Iterator) {
+func checkInvalid(t *testing.T, itr db.Iterator) {
 	t.Helper()
 
 	checkValid(t, itr, false)
@@ -68,25 +68,16 @@ func checkInvalid(t *testing.T, itr Iterator) {
 	checkNextPanics(t, itr)
 }
 
-func checkKeyPanics(t *testing.T, itr Iterator) {
+func checkKeyPanics(t *testing.T, itr db.Iterator) {
 	t.Helper()
 
 	assert.Panics(t, func() { itr.Key() }, "checkKeyPanics expected panic but didn't")
 }
 
-func checkValuePanics(t *testing.T, itr Iterator) {
+func checkValuePanics(t *testing.T, itr db.Iterator) {
 	t.Helper()
 
 	assert.Panics(t, func() { itr.Value() }, "checkValuePanics expected panic but didn't")
-}
-
-func newTempDB(t *testing.T, backend BackendType) (db DB) {
-	t.Helper()
-
-	db, err := NewDB("testdb", backend, t.TempDir())
-	require.NoError(t, err)
-
-	return db
 }
 
 // ----------------------------------------
@@ -151,23 +142,23 @@ func (mdb *mockDB) DeleteNoLockSync([]byte) {
 	mdb.calls["DeleteNoLockSync"]++
 }
 
-func (mdb *mockDB) Iterator(start, end []byte) Iterator {
+func (mdb *mockDB) Iterator(start, end []byte) db.Iterator {
 	mdb.calls["Iterator"]++
-	return &mockIterator{}
+	return &internal.MockIterator{}
 }
 
-func (mdb *mockDB) ReverseIterator(start, end []byte) Iterator {
+func (mdb *mockDB) ReverseIterator(start, end []byte) db.Iterator {
 	mdb.calls["ReverseIterator"]++
-	return &mockIterator{}
+	return &internal.MockIterator{}
 }
 
 func (mdb *mockDB) Close() {
 	mdb.calls["Close"]++
 }
 
-func (mdb *mockDB) NewBatch() Batch {
+func (mdb *mockDB) NewBatch() db.Batch {
 	mdb.calls["NewBatch"]++
-	return &memBatch{db: mdb}
+	return &internal.MemBatch{DB: mdb}
 }
 
 func (mdb *mockDB) Print() {
@@ -185,87 +176,6 @@ func (mdb *mockDB) Stats() map[string]string {
 	return res
 }
 
-// ----------------------------------------
-// mockIterator
-
-type mockIterator struct{}
-
-func (mockIterator) Domain() (start []byte, end []byte) {
-	return nil, nil
-}
-
-func (mockIterator) Valid() bool {
-	return false
-}
-
-func (mockIterator) Next() {
-}
-
-func (mockIterator) Key() []byte {
-	return nil
-}
-
-func (mockIterator) Value() []byte {
-	return nil
-}
-
-func (mockIterator) Close() {
-}
-
-func benchmarkRandomReadsWrites(b *testing.B, db DB) {
-	b.Helper()
-
-	b.StopTimer()
-
-	// create dummy data
-	const numItems = int64(1000000)
-	internal := map[int64]int64{}
-	for i := 0; i < int(numItems); i++ {
-		internal[int64(i)] = int64(0)
-	}
-
-	// fmt.Println("ok, starting")
-	b.StartTimer()
-
-	for i := 0; i < b.N; i++ {
-		// Write something
-		{
-			idx := int64(rand.Int()) % numItems
-			internal[idx]++
-			val := internal[idx]
-			idxBytes := int642Bytes(idx)
-			valBytes := int642Bytes(val)
-			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
-			db.Set(idxBytes, valBytes)
-		}
-
-		// Read something
-		{
-			idx := int64(rand.Int()) % numItems
-			valExp := internal[idx]
-			idxBytes := int642Bytes(idx)
-			valBytes := db.Get(idxBytes)
-			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
-			if valExp == 0 {
-				if !bytes.Equal(valBytes, nil) {
-					b.Errorf("Expected %v for %v, got %X", nil, idx, valBytes)
-					break
-				}
-			} else {
-				if len(valBytes) != 8 {
-					b.Errorf("Expected length 8 for %v, got %X", idx, valBytes)
-					break
-				}
-				valGot := bytes2Int64(valBytes)
-				if valExp != valGot {
-					b.Errorf("Expected %v for %v, got %v", valExp, idx, valGot)
-					break
-				}
-			}
-		}
-	}
-}
-
 func int642Bytes(i int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
@@ -274,4 +184,9 @@ func int642Bytes(i int64) []byte {
 
 func bytes2Int64(buf []byte) int64 {
 	return int64(binary.BigEndian.Uint64(buf))
+}
+
+// For testing convenience.
+func bz(s string) []byte {
+	return []byte(s)
 }

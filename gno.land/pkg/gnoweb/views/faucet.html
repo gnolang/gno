@@ -9,25 +9,85 @@
     <div id="root">
       <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
       <div id="home" class="container">
-        This is the Gno.land (test) faucet. {{ if .Data.captchaSite }}
+        This is the Gno.land (test) {{ if .Data.Config.CaptchaSite }}
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         {{ end }}
         <script type="text/javascript">
-           {{ if .Data.captchaSite }}
+           {{ if .Data.Config.CaptchaSite }}
           function recaptchaCallback() {
               document.getElementById("submitBtn").disabled = false;
           };
           {{ end }}
         </script>
 
-        <form method="POST" action="{{ .Data.Faucet.faucetURL }}">
-          <label for="toaddr">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br />
-          <div><input type="text" id="toaddr" name="toaddr" required /></div>
-          {{ if .Data.captchaSite }}
-          <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.captchaSite }}"></div>
+        <script type="text/javascript">
+          const defaultResponseWaitingText = "waiting on faucet response"
+          const defaultResponseErrorText = "unable to execute faucet request"
+
+          window.onload = () => {
+            const responseWrapper = document.getElementById("responseWrapper")
+            const responseText = document.getElementById("faucetResponse")
+
+            const displayResponse = (text) => {
+              responseWrapper.style.display = 'block'
+              responseText.textContent = text
+            }
+
+            document.getElementById("faucet").addEventListener("submit", async (event) => {
+              event.preventDefault(); // Prevent the form from submitting normally
+
+              // Set the default waiting text
+              displayResponse(defaultResponseWaitingText)
+
+              // Extract the form data
+              const formData = new FormData(event.target);
+              const address = formData.get('to');
+              const secret = formData.get('g-recaptcha-response');
+
+              // Send POST request with JSON body
+              try {
+                const response = await fetch("{{ .Data.Config.FaucetURL }}", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    to: address,
+                    captcha: secret
+                  })
+                })
+
+                // Check the faucet response
+                if (!response.ok) {
+                  displayResponse(defaultResponseErrorText)
+
+                  return
+                }
+
+                // Parse the faucet response
+                const faucetResponse = await response.json()
+
+                displayResponse(faucetResponse.result)
+              } catch(e) {
+                displayResponse(defaultResponseErrorText)
+              }
+
+              // Reset the captcha
+              grecaptcha.reset();
+            })
+          };
+        </script>
+
+        <form action="" id="faucet">
+          <label for="to">GNO.land address (e.g. g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5):</label><br />
+          <div><input type="text" id="to" name="to" required /></div>
+          {{ if .Data.Config.CaptchaSite }}
+          <div class="g-recaptcha" data-callback="recaptchaCallback" data-sitekey="{{ .Data.Config.CaptchaSite }}"></div>
           {{ end }}
-          <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.captchaSite }}disabled{{ end }} /></div>
+          <div><input type="submit" value="GO" id="submitBtn" {{ if .Data.Config.CaptchaSite }}disabled{{ end }} /></div>
         </form>
+        <br />
+        <div style="display:none;" id="responseWrapper">Faucet Response: <span id="faucetResponse"></span></div>
       </div>
       {{ template "footer" }}
     </div>

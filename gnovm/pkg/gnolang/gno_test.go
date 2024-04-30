@@ -13,9 +13,182 @@ import (
 	"unsafe"
 
 	// "github.com/davecgh/go-spew/spew"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestRunInvalidLabels(t *testing.T) {
+	tests := []struct {
+		code   string
+		output string
+	}{
+		{
+			code: `
+		package test
+		func main(){}
+		func invalidLabel() {
+			FirstLoop:
+				for i := 0; i < 10; i++ {
+				}
+				for i := 0; i < 10; i++ {
+					break FirstLoop
+				}
+		}
+`,
+			output: `cannot find branch label "FirstLoop"`,
+		},
+		{
+			code: `
+		package test
+		func main(){}
+
+		func undefinedLabel() {
+			for i := 0; i < 10; i++ {
+				break UndefinedLabel
+			}
+		}
+`,
+			output: `label UndefinedLabel undefined`,
+		},
+		{
+			code: `
+		package test
+		func main(){}
+
+		func labelOutsideScope() {
+			for i := 0; i < 10; i++ {
+				continue FirstLoop
+			}
+			FirstLoop:
+			for i := 0; i < 10; i++ {
+			}
+		}
+`,
+			output: `cannot find branch label "FirstLoop"`,
+		},
+		{
+			code: `
+		package test
+		func main(){}
+		
+		func invalidLabelStatement() {
+			if true {
+				break InvalidLabel
+			}
+		}
+`,
+			output: `label InvalidLabel undefined`,
+		},
+	}
+
+	for n, s := range tests {
+		n := n
+		t.Run(fmt.Sprintf("%v\n", n), func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					es := fmt.Sprintf("%v\n", r)
+					if !strings.Contains(es, s.output) {
+						t.Fatalf("invalid label test: `%v` missing expected error: %+v got: %v\n", n, s.output, es)
+					}
+				} else {
+					t.Fatalf("invalid label test: `%v` should have failed but didn't\n", n)
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			nn := MustParseFile("main.go", s.code)
+			m.RunFiles(nn)
+			m.RunMain()
+		})
+	}
+}
+
+func TestBuiltinIdentifiersShadowing(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{}
+
+	uverseNames := []string{
+		"iota",
+		"append",
+		"cap",
+		"close",
+		"complex",
+		"copy",
+		"delete",
+		"len",
+		"make",
+		"new",
+		"panic",
+		"print",
+		"println",
+		"recover",
+		"nil",
+		"bigint",
+		"bool",
+		"byte",
+		"float32",
+		"float64",
+		"int",
+		"int8",
+		"int16",
+		"int32",
+		"int64",
+		"rune",
+		"string",
+		"uint",
+		"uint8",
+		"uint16",
+		"uint32",
+		"uint64",
+		"typeval",
+		"error",
+		"true",
+		"false",
+	}
+
+	for _, name := range uverseNames {
+		tests[("struct builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			type %v struct {}
+
+			func main() {}
+		`, name)
+
+		tests[("var builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				%v := 1
+			}
+		`, name)
+
+		tests[("var declr builtin " + name)] = fmt.Sprintf(`
+			package test
+
+			func main() {
+				var %v int
+			}
+		`, name)
+	}
+
+	for n, s := range tests {
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("shadowing test: `%s` should have failed but didn't\n", n)
+				}
+			}()
+
+			m := NewMachine("test", nil)
+			nn := MustParseFile("main.go", s)
+			m.RunFiles(nn)
+			m.RunMain()
+		})
+	}
+}
 
 // run empty main().
 func TestRunEmptyMain(t *testing.T) {
@@ -111,7 +284,7 @@ func TestDoOpEvalBaseConversion(t *testing.T) {
 		} else {
 			m.doOpEval()
 			v := m.PopValue()
-			assert.Equal(t, v.V.String(), tc.expect)
+			assert.Equal(t, tc.expect, v.V.String())
 		}
 	}
 }
@@ -141,7 +314,7 @@ func assertOutput(t *testing.T, input string, output string) {
 	n := MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(buf.Bytes()), output)
+	assert.Equal(t, output, string(buf.Bytes()))
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }
@@ -296,9 +469,9 @@ func TestModifyTypeAsserted(t *testing.T) {
 	x2.A = 2
 
 	// only x2 is changed.
-	assert.Equal(t, x.A, 1)
-	assert.Equal(t, v.(Struct1).A, 1)
-	assert.Equal(t, x2.A, 2)
+	assert.Equal(t, 1, x.A)
+	assert.Equal(t, 1, v.(Struct1).A)
+	assert.Equal(t, 2, x2.A)
 }
 
 type Interface1 interface {
@@ -495,7 +668,7 @@ func TestCallLHS(t *testing.T) {
 		return &x
 	}
 	*xptr() = 2
-	assert.Equal(t, x, 2)
+	assert.Equal(t, 2, x)
 }
 
 // XXX is there a way to test in Go as well as Gno?
@@ -511,6 +684,6 @@ func TestCallFieldLHS(t *testing.T) {
 	}
 	y := 0
 	xptr().X, y = 2, 3
-	assert.Equal(t, x.X, 2)
-	assert.Equal(t, y, 3)
+	assert.Equal(t, 2, x.X)
+	assert.Equal(t, 3, y)
 }
