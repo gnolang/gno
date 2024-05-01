@@ -11,14 +11,14 @@
 # ...
 
 # Docs & Content.
-/docs/                        @gnolang/devrels
-!/docs/**.md                  @moul
-!/docs/**.gif                 @moul
-!/docs/**.tape                @moul
-/misc/docusaurus/             @gnolang/devrels
-/README.md                    @gnolang/devrels
+/docs/                        @moul
+/docs/**.md                   @gnolang/devrels
+/docs/**.gif                  @gnolang/devrels
+/docs/**.tape                 @gnolang/devrels
+/docs/Makefile                @gnolang/devrels
+/README.md                    @moul @gnolang/devrels
+/**/README.md                 @gnolang/devrels
 /.gitpod.yml                  @gnolang/devrels
-/docs/
 
 # Gno examples and default contracts.
 /examples/                    @gnolang/tech-staff @gnolang/devrels
