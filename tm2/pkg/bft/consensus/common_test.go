@@ -798,9 +798,12 @@ func ensureDrainedChannels(t *testing.T, channels ...any) {
 			panic(chVal.Type().Name() + " not a channel")
 		}
 
+		maxExp := time.After(time.Second * 5)
+
 		// Use a select statement with reflection
 		cases := []reflect.SelectCase{
 			{Dir: reflect.SelectRecv, Chan: chVal},
+			{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(maxExp)},
 			{Dir: reflect.SelectDefault},
 		}
 
