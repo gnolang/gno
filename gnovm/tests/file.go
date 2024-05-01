@@ -183,6 +183,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						},
 					},
 				}
+				// run decls and init functions.
 				m.RunMemPackage(memPkg, true)
 				// reconstruct machine and clear store cache.
 				// whether package is realm or not, since non-realm
@@ -240,15 +241,20 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					if pnc == nil {
 						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
 					}
+
 					errstr := ""
-					if tv, ok := pnc.(*gno.TypedValue); ok {
-						errstr = tv.Sprint(m)
-					} else {
+					switch v := pnc.(type) {
+					case *gno.TypedValue:
+						errstr = v.Sprint(m)
+					case *gno.PreprocessError:
+						errstr = v.Unwrap().Error()
+					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 					if errstr != errWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
+
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
 					return nil // nothing more to do.

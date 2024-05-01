@@ -3,14 +3,14 @@ package logos
 import (
 	"testing"
 
-	require "github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPage1(t *testing.T) {
 	page := NewPage("this is a new string", 40, false, nil)
 	require.NotNil(t, page)
 	size := page.Size
-	require.Equal(t, size, Size{Width: 20, Height: 1})
+	require.Equal(t, Size{Width: 20, Height: 1}, size)
 }
 
 func TestNewPage2(t *testing.T) {
@@ -22,13 +22,13 @@ func TestNewPage2(t *testing.T) {
 		this is a
 		new string
 	*/
-	require.Equal(t, size, Size{Width: 10, Height: 2})
-	require.Equal(t, page.Elems[0].GetCoord(), Coord{0, 0})
-	require.Equal(t, page.Elems[1].GetCoord(), Coord{5, 0})
-	require.Equal(t, page.Elems[2].GetCoord(), Coord{8, 0})
-	require.Equal(t, page.Elems[3].GetCoord(), Coord{0, 1})
-	require.Equal(t, page.Elems[4].GetCoord(), Coord{4, 1})
-	require.Equal(t, len(page.Elems), 5)
+	require.Equal(t, Size{Width: 10, Height: 2}, size)
+	require.Equal(t, Coord{0, 0}, page.Elems[0].GetCoord())
+	require.Equal(t, Coord{5, 0}, page.Elems[1].GetCoord())
+	require.Equal(t, Coord{8, 0}, page.Elems[2].GetCoord())
+	require.Equal(t, Coord{0, 1}, page.Elems[3].GetCoord())
+	require.Equal(t, Coord{4, 1}, page.Elems[4].GetCoord())
+	require.Equal(t, 5, len(page.Elems))
 }
 
 func TestNewPageSprint(t *testing.T) {
@@ -42,5 +42,5 @@ func TestNewPageSprint(t *testing.T) {
 	bpv := NewBufferedElemView(page, Size{})
 	bpv.Render()
 	out := bpv.Sprint()
-	require.Equal(t, out, "this is a \nnew string")
+	require.Equal(t, "this is a \nnew string", out)
 }

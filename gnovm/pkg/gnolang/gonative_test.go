@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // args is an even number of elements,
@@ -42,13 +42,13 @@ func TestGoNativeDefine(t *testing.T) {
 	rt := reflect.TypeOf(Foo{})
 	pkg.DefineGoNativeType(rt)
 	nt := pkg.GetValueRef(nil, Name("Foo")).GetType().(*NativeType)
-	assert.Equal(t, nt.Type, rt)
+	assert.Equal(t, rt, nt.Type)
 	path := pkg.GetPathForName(nil, Name("Foo"))
-	assert.Equal(t, path.Depth, uint8(1))
-	assert.Equal(t, path.Index, uint16(0))
+	assert.Equal(t, uint8(1), path.Depth)
+	assert.Equal(t, uint16(0), path.Index)
 	pv := pkg.NewPackage()
 	nt = pv.GetBlock(nil).GetPointerTo(nil, path).TV.GetType().(*NativeType)
-	assert.Equal(t, nt.Type, rt)
+	assert.Equal(t, rt, nt.Type)
 	store := gonativeTestStore(pkg, pv)
 
 	// Import above package and evaluate foo.Foo.
@@ -58,8 +58,8 @@ func TestGoNativeDefine(t *testing.T) {
 	})
 	m.RunDeclaration(ImportD("foo", "test.foo"))
 	tvs := m.Eval(Sel(Nx("foo"), "Foo"))
-	assert.Equal(t, len(tvs), 1)
-	assert.Equal(t, tvs[0].V.(TypeValue).Type, nt)
+	assert.Equal(t, 1, len(tvs))
+	assert.Equal(t, nt, tvs[0].V.(TypeValue).Type)
 }
 
 func TestGoNativeDefine2(t *testing.T) {
@@ -90,11 +90,11 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(out.Bytes()), `A: 1
+	assert.Equal(t, `A: 1
 B: 0
 C: 0
 D: 
-`)
+`, out.String())
 }
 
 func TestGoNativeDefine3(t *testing.T) {
@@ -129,11 +129,11 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, string(out.Bytes()), `A: 1
+	assert.Equal(t, `A: 1
 B: 0
 C: 0
 D: 
-`)
+`, out.String())
 }
 
 func TestCrypto(t *testing.T) {
@@ -142,6 +142,7 @@ func TestCrypto(t *testing.T) {
 	addr := crypto.Address{}
 	store := gonativeTestStore()
 	tv := Go2GnoValue(nilAllocator, store, reflect.ValueOf(addr))
-	assert.Equal(t, tv.String(),
-		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/tm2/pkg/crypto.Address)`)
+	assert.Equal(t,
+		`(array[0x0000000000000000000000000000000000000000] github.com/gnolang/gno/tm2/pkg/crypto.Address)`,
+		tv.String())
 }

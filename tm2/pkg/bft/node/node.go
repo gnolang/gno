@@ -5,12 +5,14 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
-	_ "net/http/pprof" //nolint:gosec
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
 
@@ -36,7 +38,6 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -66,20 +67,20 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 type GenesisDocProvider func() (*types.GenesisDoc, error)
 
 // DefaultGenesisDocProviderFunc returns a GenesisDocProvider that loads
-// the GenesisDoc from the config.GenesisFile() on the filesystem.
-func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
+// the GenesisDoc from the genesis path on the filesystem.
+func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 	return func() (*types.GenesisDoc, error) {
-		return types.GenesisDocFromFile(config.GenesisFile())
+		return types.GenesisDocFromFile(genesisFile)
 	}
 }
 
 // NodeProvider takes a config and a logger and returns a ready to go Node.
-type NodeProvider func(*cfg.Config, log.Logger) (*Node, error)
+type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
+func DefaultNewNode(config *cfg.Config, genesisFile string, logger *slog.Logger) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -102,7 +103,7 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
 		nodeKey,
 		appClientCreator,
-		DefaultGenesisDocProviderFunc(config),
+		DefaultGenesisDocProviderFunc(genesisFile),
 		DefaultDBProvider,
 		logger,
 	)
@@ -163,10 +164,11 @@ type Node struct {
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
-	proxyApp          proxy.AppConns       // connection to the application
+	proxyApp          appconn.AppConns     // connection to the application
 	rpcListeners      []net.Listener       // rpc servers
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
+	firstBlockSignal  <-chan struct{}
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -185,8 +187,8 @@ func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.Block
 	return
 }
 
-func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.Logger) (proxy.AppConns, error) {
-	proxyApp := proxy.NewAppConns(clientCreator)
+func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (appconn.AppConns, error) {
+	proxyApp := appconn.NewAppConns(clientCreator)
 	proxyApp.SetLogger(logger.With("module", "proxy"))
 	if err := proxyApp.Start(); err != nil {
 		return nil, fmt.Errorf("error starting proxy app connections: %w", err)
@@ -197,7 +199,7 @@ func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger log.L
 func createAndStartEventStoreService(
 	cfg *cfg.Config,
 	evsw events.EventSwitch,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (*eventstore.Service, eventstore.TxEventStore, error) {
 	var (
 		err          error
@@ -227,7 +229,7 @@ func createAndStartEventStoreService(
 }
 
 func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
-	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp proxy.AppConns, consensusLogger log.Logger,
+	genDoc *types.GenesisDoc, evsw events.EventSwitch, proxyApp appconn.AppConns, consensusLogger *slog.Logger,
 ) error {
 	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
 	handshaker.SetLogger(consensusLogger)
@@ -238,7 +240,7 @@ func doHandshake(stateDB dbm.DB, state sm.State, blockStore sm.BlockStore,
 	return nil
 }
 
-func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger log.Logger) {
+func logNodeStartupInfo(state sm.State, pubKey crypto.PubKey, logger, consensusLogger *slog.Logger) {
 	// Log the version info.
 	logger.Info("Version info",
 		"version", version.Version,
@@ -261,8 +263,8 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 	return privVal.GetPubKey().Address() == addr
 }
 
-func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, logger log.Logger,
+func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
+	state sm.State, logger *slog.Logger,
 ) (*mempl.Reactor, *mempl.CListMempool) {
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
@@ -286,7 +288,7 @@ func createBlockchainReactor(config *cfg.Config,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (bcReactor p2p.Reactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 
@@ -302,7 +304,7 @@ func createConsensusReactor(config *cfg.Config,
 	privValidator types.PrivValidator,
 	fastSync bool,
 	evsw events.EventSwitch,
-	consensusLogger log.Logger,
+	consensusLogger *slog.Logger,
 ) (*cs.ConsensusReactor, *cs.ConsensusState) {
 	consensusState := cs.NewConsensusState(
 		config.Consensus,
@@ -323,7 +325,7 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp proxy.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
+func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
 	var (
 		mConnConfig = p2p.MConnConfig(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
@@ -387,7 +389,7 @@ func createSwitch(config *cfg.Config,
 	consensusReactor *cs.ConsensusReactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger,
+	p2pLogger *slog.Logger,
 ) *p2p.Switch {
 	sw := p2p.NewSwitch(
 		config.P2P,
@@ -410,10 +412,10 @@ func createSwitch(config *cfg.Config,
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
 	nodeKey *p2p.NodeKey,
-	clientCreator proxy.ClientCreator,
+	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
-	logger log.Logger,
+	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
 	blockStore, stateDB, err := initDBs(config, dbProvider)
@@ -437,6 +439,20 @@ func NewNode(config *cfg.Config,
 	// when the node stopped last time (i.e. the node stopped after it saved the block
 	// but before it indexed the txs, or, endblocker panicked)
 	evsw := events.NewEventSwitch()
+
+	// Signal readiness when receiving the first block.
+	const readinessListenerID = "first_block_listener"
+
+	cFirstBlock := make(chan struct{})
+	var once sync.Once
+	evsw.AddListener(readinessListenerID, func(ev events.Event) {
+		if _, ok := ev.(types.EventNewBlock); ok {
+			once.Do(func() {
+				close(cFirstBlock)
+				evsw.RemoveListener(readinessListenerID)
+			})
+		}
+	})
 
 	// Transaction event storing
 	eventStoreService, txEventStore, err := createAndStartEventStoreService(config, evsw, logger)
@@ -553,6 +569,7 @@ func NewNode(config *cfg.Config,
 		proxyApp:          proxyApp,
 		txEventStore:      txEventStore,
 		eventStoreService: eventStoreService,
+		firstBlockSignal:  cFirstBlock,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -571,6 +588,16 @@ func (n *Node) OnStart() error {
 		n.Logger.Info("Genesis time is in the future. Sleeping until then...", "genTime", genTime)
 		time.Sleep(genTime.Sub(now))
 	}
+
+	// Set up the GLOBAL variables in rpc/core which refer to this node.
+	// This is done separately from startRPC(), as the values in rpc/core are used,
+	// for instance, to set up Local clients (rpc/client) which work without
+	// a network connection.
+	n.configureRPC()
+	if n.config.RPC.Unsafe {
+		rpccore.AddUnsafeRoutes()
+	}
+	rpccore.Start()
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -652,9 +679,14 @@ func (n *Node) OnStop() {
 	}
 }
 
-// ConfigureRPC sets all variables in rpccore so they will serve
+// Ready signals that the node is ready by returning a blocking channel. This channel is closed when the node receives its first block.
+func (n *Node) Ready() <-chan struct{} {
+	return n.firstBlockSignal
+}
+
+// configureRPC sets all variables in rpccore so they will serve
 // rpc calls from this node
-func (n *Node) ConfigureRPC() {
+func (n *Node) configureRPC() {
 	rpccore.SetStateDB(n.stateDB)
 	rpccore.SetBlockStore(n.blockStore)
 	rpccore.SetConsensusState(n.consensusState)
@@ -665,19 +697,13 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetConsensusReactor(n.consensusReactor)
+	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetEventSwitch(n.evsw)
 	rpccore.SetConfig(*n.config.RPC)
 }
 
 func (n *Node) startRPC() ([]net.Listener, error) {
-	n.ConfigureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
-	}
-	rpccore.Start()
-
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -810,7 +836,7 @@ func (n *Node) GenesisDoc() *types.GenesisDoc {
 }
 
 // ProxyApp returns the Node's AppConns, representing its connections to the ABCI application.
-func (n *Node) ProxyApp() proxy.AppConns {
+func (n *Node) ProxyApp() appconn.AppConns {
 	return n.proxyApp
 }
 
@@ -937,7 +963,7 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 
 func createAndStartPrivValidatorSocketClient(
 	listenAddr string,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (types.PrivValidator, error) {
 	pve, err := privval.NewSignerListener(listenAddr, logger)
 	if err != nil {

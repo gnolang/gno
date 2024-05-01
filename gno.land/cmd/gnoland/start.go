@@ -5,11 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -21,10 +23,19 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"go.uber.org/zap/zapcore"
 )
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
 	gnoRootDir            string
@@ -32,6 +43,7 @@ type startCfg struct {
 	skipStart             bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
+	genesisFile           string
 	chainID               string
 	genesisRemote         string
 	dataDir               string
@@ -41,6 +53,9 @@ type startCfg struct {
 	txEventStoreType string
 	txEventStorePath string
 	nodeConfigPath   string
+
+	logLevel  string
+	logFormat string
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
@@ -50,7 +65,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Run the full node",
+			ShortHelp:  "run the full node",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -62,7 +77,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -93,6 +108,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		"genesis.json",
+		"the path to the genesis.json",
+	)
+
+	fs.StringVar(
 		&c.chainID,
 		"chainid",
 		"dev",
@@ -106,12 +128,11 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the root directory of the gno repository",
 	)
 
-	// XXX: Use home directory for this
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"testdir",
-		"directory for config and data",
+		"gnoland-data",
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -130,14 +151,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
 		&c.nodeConfigPath,
-		"tm2-node-config",
+		"config-path",
 		"",
 		"the node TOML config file path (optional)",
 	)
@@ -165,23 +186,44 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 
-	// XXX(deprecated): use data-dir instead
 	fs.StringVar(
-		&c.dataDir,
-		"root-dir",
-		"testdir",
-		"deprecated: use data-dir instead - directory for config and data",
+		&c.logLevel,
+		"log-level",
+		zapcore.DebugLevel.String(),
+		"log level for the gnoland node,",
+	)
+
+	fs.StringVar(
+		&c.logFormat,
+		"log-format",
+		log.ConsoleFormat.String(),
+		"log format for the gnoland node",
 	)
 }
 
 func execStart(c *startCfg, io commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out()))
-	dataDir := c.dataDir
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
+
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
 	var (
 		cfg        *config.Config
 		loadCfgErr error
 	)
+
+	// Attempt to initialize telemetry. If the environment variables required to initialize
+	// telemetry are not set, then the initialization will do nothing.
+	if err := initTelemetry(); err != nil {
+		return fmt.Errorf("error initializing telemetry: %w", err)
+	}
 
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
@@ -190,17 +232,32 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir, nil)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(nodeDir)
 	}
 
 	if loadCfgErr != nil {
 		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
 	}
 
-	// Write genesis file if missing.
-	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
+	// Initialize the log level
+	logLevel, err := zapcore.ParseLevel(c.logLevel)
+	if err != nil {
+		return fmt.Errorf("unable to parse log level, %w", err)
+	}
 
-	if !osm.FileExists(genesisFilePath) {
+	// Initialize the log format
+	logFormat := log.Format(strings.ToLower(c.logFormat))
+
+	// Initialize the zap logger
+	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
+
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
+
+	// Write genesis file if missing.
+	// NOTE: this will be dropped in a PR that resolves issue #1886:
+	// https://github.com/gnolang/gno/issues/1886
+	if !osm.FileExists(genesisPath) {
 		// Create priv validator first.
 		// Need it to generate genesis.json
 		newPrivValKey := cfg.PrivValidatorKeyFile()
@@ -209,7 +266,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		pk := priv.GetPubKey()
 
 		// Generate genesis.json file
-		if err := generateGenesisFile(genesisFilePath, pk, c); err != nil {
+		if err := generateGenesisFile(genesisPath, pk, c); err != nil {
 			return fmt.Errorf("unable to generate genesis file: %w", err)
 		}
 	}
@@ -222,18 +279,20 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
 	cfg.LocalApp = gnoApp
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")
@@ -248,6 +307,9 @@ func execStart(c *startCfg, io commands.IO) error {
 		if gnoNode.IsRunning() {
 			_ = gnoNode.Stop()
 		}
+
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
 	})
 
 	// Run forever
@@ -336,4 +398,20 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func initTelemetry() error {
+	var options []telemetry.Option
+
+	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
+		options = append(options, telemetry.WithOptionMetricsEnabled())
+	}
+
+	// The string options can be added by default. Their absence would yield the same result
+	// as if the option were excluded altogether.
+	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
+	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
+	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
+
+	return telemetry.Init(options...)
 }

@@ -3,13 +3,35 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-.PHONY: install
-install: install.gnomd install.gnotray install.gnokeykc install.gnodev
+# command to run dependency utilities, like goimports.
+rundep=go run -modfile ../misc/devdeps/go.mod
 
+########################################
+# Environment variables
+# You can overwrite any of the following by passing a different value on the
+# command line, ie. `CGO_ENABLED=1 make test`.
+
+# disable cgo by default. cgo requires some additional dependencies in some
+# cases, and is not strictly required by any tm2 code.
+CGO_ENABLED ?= 0
+export CGO_ENABLED
+# flags for `make fmt`. -w will write the result to the destination files.
+GOFMT_FLAGS ?= -w
+# flags for `make imports`.
+GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
+# test suite flags.
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+
+########################################
+# Dev tools
+.PHONY: install
+install: install.gnomd install.gnodev install.gnofaucet install.gnotray install.gnokeykc
+
+install.gnomd:;     cd gnomd && go install .
 install.gnodev:;    $(MAKE) -C ./gnodev install
+install.gnofaucet:; $(MAKE) -C ./gnofaucet install
 install.gnokeykc:;  cd gnokeykc && go install .
 install.gnotray:;   cd gnotray && go install .
-install.gnomd:;     cd gnomd && go install .
 
 .PHONY: clean
 clean:
@@ -20,7 +42,6 @@ clean:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: fmt
-GOFMT_FLAGS ?= -w
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
@@ -35,8 +56,14 @@ tidy:
 
 ########################################
 # Test suite
-GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-
 .PHONY: test
-test:
-	@echo "nothing to do."
+test: test.gnodev
+test.gnodev:
+	$(MAKE) -C ./gnodev test
+
+########################################
+# Lint
+.PHONY: test
+lint: lint.gnodev
+lint.gnodev:
+	$(MAKE) -C ./gnodev test
