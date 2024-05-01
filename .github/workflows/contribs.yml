@@ -26,6 +26,7 @@ jobs:
         run: echo "::set-output name=programs::$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')"
 
   install:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +45,7 @@ jobs:
         working-directory: contribs
 
   test:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -62,12 +64,13 @@ jobs:
         working-directory: contribs
 
   lint:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
         goversion:
           - "1.22.x"
-        program: ${{ steps.data.outputs.programs }}
+        program: ${{ steps.setup.outputs.programs }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
