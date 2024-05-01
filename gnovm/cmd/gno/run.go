@@ -160,7 +160,7 @@ func parseFiles(fnames []string, issueAdder *issueAdder) ([]*gno.FileNode, error
 		})
 	}
 
-	if issueAdder.inError {
+	if issueAdder.hasError() {
 		os.Exit(1)
 	}
 	return files, nil

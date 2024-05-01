@@ -332,7 +332,7 @@ func gnoTestPkg(
 			tfiles, ifiles = parseMemPackageTests(memPkg)
 		})
 
-		if issueAdder.inError {
+		if issueAdder.hasError() {
 			os.Exit(1)
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)

@@ -132,7 +132,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// TODO: Add more checkers
 	}
 
-	if issueAdder.inError && cfg.setExitStatus != 0 {
+	if issueAdder.hasError() && cfg.setExitStatus != 0 {
 		os.Exit(cfg.setExitStatus)
 	}
 
