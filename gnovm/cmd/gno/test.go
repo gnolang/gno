@@ -325,7 +325,16 @@ func gnoTestPkg(
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
-		tfiles, ifiles := parseMemPackageTests(memPkg)
+		issueAdder := newIssueAdder(stderr)
+		var tfiles, ifiles *gno.FileSet
+
+		catchRuntimeError(gnoPkgPath, issueAdder, func() {
+			tfiles, ifiles = parseMemPackageTests(memPkg)
+		})
+
+		if issueAdder.inError {
+			os.Exit(1)
+		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg

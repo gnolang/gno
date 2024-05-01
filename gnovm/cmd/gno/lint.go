@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -67,11 +68,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
-	hasError := false
-	addIssue := func(issue lintIssue) {
-		hasError = true
-		fmt.Fprint(io.Err(), issue.String()+"\n")
-	}
+	issueAdder := newIssueAdder(io.Err())
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
@@ -81,7 +78,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Check if 'gno.mod' exists
 		gnoModPath := filepath.Join(pkgPath, "gno.mod")
 		if !osm.FileExists(gnoModPath) {
-			addIssue(lintIssue{
+			issueAdder.addIssue(lintIssue{
 				Code:       lintNoGnoMod,
 				Confidence: 1,
 				Location:   pkgPath,
@@ -90,7 +87,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		catchRuntimeError(pkgPath, addIssue, func() {
+		catchRuntimeError(pkgPath, issueAdder, func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
 				rootDir, "",
@@ -135,7 +132,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// TODO: Add more checkers
 	}
 
-	if hasError && cfg.setExitStatus != 0 {
+	if issueAdder.inError && cfg.setExitStatus != 0 {
 		os.Exit(cfg.setExitStatus)
 	}
 
@@ -164,7 +161,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action func()) {
+func catchRuntimeError(pkgPath string, issueAdder *issueAdder, action func()) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -172,36 +169,20 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 			return
 		}
 
-		var err error
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
-			err = verr.Unwrap()
+			issueAdder.addError(pkgPath, verr)
+		case scanner.ErrorList:
+			for _, err := range verr {
+				issueAdder.addError(pkgPath, err)
+			}
 		case error:
-			err = verr
+			issueAdder.addError(pkgPath, verr)
 		case string:
-			err = errors.New(verr)
+			issueAdder.addError(pkgPath, errors.New(verr))
 		default:
 			panic(r)
 		}
-
-		var issue lintIssue
-		issue.Confidence = 1
-		issue.Code = lintGnoError
-
-		parsedError := strings.TrimSpace(err.Error())
-		parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-
-		matches := reParseRecover.FindStringSubmatch(parsedError)
-		if len(matches) == 4 {
-			sourcepath := guessSourcePath(pkgPath, matches[1])
-			issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
-			issue.Msg = strings.TrimSpace(matches[3])
-		} else {
-			issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
-			issue.Msg = err.Error()
-		}
-
-		addIssue(issue)
 	}()
 
 	action()

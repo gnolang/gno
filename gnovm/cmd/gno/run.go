@@ -102,7 +102,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	}
 
 	// read files
-	files, err := parseFiles(args)
+	files, err := parseFiles(args, newIssueAdder(stderr))
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func parseFiles(fnames []string) ([]*gno.FileNode, error) {
+func parseFiles(fnames []string, issueAdder *issueAdder) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fnames))
 	for _, fname := range fnames {
 		if s, err := os.Stat(fname); err == nil && s.IsDir() {
@@ -143,7 +143,7 @@ func parseFiles(fnames []string) ([]*gno.FileNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(subFns)
+			subFiles, err := parseFiles(subFns, issueAdder)
 			if err != nil {
 				return nil, err
 			}
@@ -154,7 +154,14 @@ func parseFiles(fnames []string) ([]*gno.FileNode, error) {
 			// in either case not a file we can parse.
 			return nil, err
 		}
-		files = append(files, gno.MustReadFile(fname))
+
+		catchRuntimeError(fname, issueAdder, func() {
+			files = append(files, gno.MustReadFile(fname))
+		})
+	}
+
+	if issueAdder.inError {
+		os.Exit(1)
 	}
 	return files, nil
 }
