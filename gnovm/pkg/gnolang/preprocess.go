@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -2431,14 +2432,18 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// "push" expected type into shift binary's left operand.
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
+		var convertable bool
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
 			checkType(xt, t, autoNative)
+			convertable = xt.TypeID() != t.TypeID() && !isNative(t) && !isNative(xt)
+			convertable = convertable && !strings.HasPrefix(string(t.TypeID()), uversePkgPath)
+			convertable = convertable && !strings.HasPrefix(string(xt.TypeID()), uversePkgPath)
 		}
 
 		// If untyped or xt and t are compatible types, convert x to an expression that
 		// yields type t.
-		if isUntyped(xt) || (t != nil && xt.TypeID() != t.TypeID() && !isNative(t) && !isNative(xt)) {
+		if isUntyped(xt) || convertable {
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
