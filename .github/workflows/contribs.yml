@@ -33,7 +33,7 @@ jobs:
         goversion:
           - "1.21.x"
           - "1.22.x"
-        program: ${{ fromJson(needs.setup.outputs.programs }}
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -52,7 +52,7 @@ jobs:
         goversion: # two latest versions
           - "1.21.x"
           - "1.22.x"
-        program: ${{ fromJson(needs.setup.outputs.programs }}
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -70,7 +70,7 @@ jobs:
       matrix:
         goversion:
           - "1.22.x"
-        program: ${{ fromJson(needs.setup.outputs.programs }}
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
