@@ -16,7 +16,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      programs: ${{ steps.set-matrix.outputs.programs }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        run: echo "::set-output name=programs::$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')"
+
   install:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -27,13 +37,7 @@ jobs:
         goversion: # two latest versions
           - "1.21.x"
           - "1.22.x"
-        program:
-          # keep alphabetically sorted
-          - "gnodev"
-          - "gnofaucet"
-          - "gnokeykc"
-          - "gnomd"
-          - "gnotray"
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
@@ -41,10 +45,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make install.${{ matrix.program }}
-        working-directory: contribs
+      - run: make install
+        working-directory: contribs/${{ matrix.program }}
 
   test:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -55,12 +60,7 @@ jobs:
         goversion: # two latest versions
           - "1.21.x"
           - "1.22.x"
-        program:
-          - "gnodev"
-          - "gnofaucet"
-          - "gnomd"
-          - "gnokeykc"
-          - "gnotray"
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
@@ -68,17 +68,17 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make test.${{ matrix.program }}
-        working-directory: contribs
+      - run: make test
+        working-directory: contribs/${{ matrix.program }}
 
   lint:
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
         goversion:
           - "1.22.x"
-        program:
-          - "gnodev"
+        program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -86,6 +86,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make lint.${{ matrix.program }}
-        working-directory: contribs
+      - run: make lint
+        working-directory: contribs/${{ matrix.program }}
 
