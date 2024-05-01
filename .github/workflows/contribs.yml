@@ -40,8 +40,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make install.${{ matrix.program }}
-        working-directory: contribs
+      - run: make install
+        working-directory: contribs/${{ matrix.program }}
 
   test:
     needs: setup
@@ -59,8 +59,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make test.${{ matrix.program }}
-        working-directory: contribs
+      - run: make test
+        working-directory: contribs/${{ matrix.program }}
 
   lint:
     needs: setup
@@ -77,6 +77,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make lint.${{ matrix.program }}
-        working-directory: contribs
+      - run: make lint
+        working-directory: contribs/${{ matrix.program }}
 
