@@ -25,7 +25,8 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -68,7 +69,8 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -119,7 +121,8 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -167,7 +170,8 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -223,7 +227,8 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	client := Client{
 		Signer:    signer,
@@ -281,7 +286,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	client := Client{
 		Signer:    signer,
@@ -361,7 +367,8 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -404,7 +411,7 @@ func Echo(str string) string {
 	}
 
 	// Execute AddPackage
-	_, err := client.AddPackage(baseCfg, msg)
+	_, err = client.AddPackage(baseCfg, msg)
 	assert.Nil(t, err)
 
 	// Check for deployed file on the node
@@ -429,7 +436,8 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -495,7 +503,7 @@ func Hello(str string) string {
 	}
 
 	// Execute AddPackage
-	_, err := client.AddPackage(baseCfg, msg1, msg2)
+	_, err = client.AddPackage(baseCfg, msg1, msg2)
 	assert.Nil(t, err)
 
 	// Check Package #1

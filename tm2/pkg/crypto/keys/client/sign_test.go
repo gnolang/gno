@@ -444,7 +444,10 @@ func TestSign_SignTx(t *testing.T) {
 		require.NoError(t, err)
 
 		// Generate the signature
-		signature, pubKey, err := kb.Sign(anotherKey, encryptPassword, tx.GetSignBytes("id", 1, 0))
+		signBytes, err := tx.GetSignBytes("id", 1, 0)
+		require.NoError(t, err)
+
+		signature, pubKey, err := kb.Sign(anotherKey, encryptPassword, signBytes)
 		require.NoError(t, err)
 
 		tx.Signatures = []std.Signature{
@@ -554,7 +557,10 @@ func TestSign_SignTx(t *testing.T) {
 		require.NoError(t, err)
 
 		// Generate the signature
-		signature, pubKey, err := kb.Sign(keyName, encryptPassword, tx.GetSignBytes("id", 0, 0))
+		signBytes, err := tx.GetSignBytes("id", 0, 0)
+		require.NoError(t, err)
+
+		signature, pubKey, err := kb.Sign(keyName, encryptPassword, signBytes)
 		require.NoError(t, err)
 
 		tx.Signatures = []std.Signature{

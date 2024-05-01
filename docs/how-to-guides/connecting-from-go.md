@@ -109,7 +109,7 @@ A few things to note:
 You can initialize the RPC Client used to connect to the Gno.land network with
 the following line:
 ```go
-rpc := rpcclient.NewHTTP("<gno_chain_endpoint>", "")
+rpc := rpcclient.NewHTTP("<gno_chain_endpoint>")
 ```
 
 A list of Gno.land network endpoints & chain IDs can be found in the [Gno RPC 
@@ -138,7 +138,7 @@ func main() {
 	}
 
 	// Initialize the RPC client
-	rpc := rpcclient.NewHTTP("<gno.land_remote_endpoint>", "")
+	rpc := rpcclient.NewHTTP("<gno.land_remote_endpoint>")
 	
 	// Initialize the gnoclient
 	client := gnoclient.Client{
