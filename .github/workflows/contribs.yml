@@ -31,7 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.21.x"
           - "1.22.x"
         program: ${{ fromJson(needs.setup.outputs.programs) }}
     runs-on: ubuntu-latest
