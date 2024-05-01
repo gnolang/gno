@@ -30,6 +30,7 @@ jobs:
         program:
           # keep alphabetically sorted
           - "gnodev"
+          - "gnofaucet"
           - "gnokeykc"
           - "gnomd"
           #- "gnotray" # TODO: fix it on CI
@@ -56,6 +57,10 @@ jobs:
           - "1.22.x"
         program:
           - "gnodev"
+          - "gnofaucet"
+          - "gnomd"
+          - "gnokeykc"
+          - "gnotray"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
