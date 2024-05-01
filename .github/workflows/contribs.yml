@@ -33,7 +33,7 @@ jobs:
           - "gnofaucet"
           - "gnokeykc"
           - "gnomd"
-          #- "gnotray" # TODO: fix it on CI
+          - "gnotray"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     steps:
