@@ -13,6 +13,8 @@
 # Docs & Content.
 /docs/                        @gnolang/devrels
 !/docs/**.md                  @moul
+!/docs/**.gif                 @moul
+!/docs/**.tape                @moul
 /misc/docusaurus/             @gnolang/devrels
 /README.md                    @gnolang/devrels
 /.gitpod.yml                  @gnolang/devrels
