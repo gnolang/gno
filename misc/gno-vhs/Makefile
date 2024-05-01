@@ -1,13 +1,15 @@
 # Generate GIFs using VHS
 
-# Current Makefile path
-CPATH := $(PWD)
+# Makefile directory
+CPATH := $(abspath $(lastword $(MAKEFILE_LIST)/../))
+
+# GnoRoot path
+GNOROOT_DIR ?= $(abspath $(CPATH)/../../)
 
 # Specify on which directory to run
 TAPES_DIR ?= $(GNOROOT_DIR)
 
 # Other overwritable variables
-GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../../)
 BUILD_DIR ?= $(CPATH)/.build
 IMAGE_NAME ?= charmbracelet/vhs:local
 
@@ -19,8 +21,9 @@ gif:
 	find $(TAPES_DIR) -iname '*.tape' -execdir vhs {} \; -print
 
 ## Nix
+
 gif.nix:
-	nix-shell -p ffmpeg ttyd vhs --run 'make gif'
+	nix-shell -p ffmpeg ttyd vhs --run 'TAPES_DIR=$(TAPES_DIR) make gif'
 
 ## Docker
 
@@ -36,6 +39,7 @@ gif.docker: bins .dockerfile.build
 
 ## Extra rules to run vhs+gno in Docker
 bins: gnodev gno gnokey gnoland	
+.PHONY: bins
 
 # Build binaries for Linux Docker container
 gnodev: | $(BUILD_DIR)
@@ -46,10 +50,7 @@ gnokey: | $(BUILD_DIR)
 	GOOS=linux go -C $(GNOROOT_DIR)/gno.land/cmd/gnokey build -v -o $(BUILD_DIR)/gnokey .
 gnoland: | $(BUILD_DIR)
 	GOOS=linux go -C $(GNOROOT_DIR)/gno.land/cmd/gnoland build -v -o $(BUILD_DIR)/gnoland .
-
-# Force rebuild binaries
-.PHONY: $(BUILD_DIR)/gnodev $(BUILD_DIR)/gnokey $(BUILD_DIR)/gno $(BUILD_DIR)/gnoland
-.PHONY: bins
+.PHONY: gnodev gnokey gno gnoland
 
 # Create build directory
 $(BUILD_DIR):
@@ -59,6 +60,7 @@ $(BUILD_DIR):
 	docker build -t $(IMAGE_NAME) . && touch $@
 
 ## Cleanup
+
 clean:
 	rm -rf $(BUILD_DIR)
 

@@ -84,6 +84,3 @@ lint:
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
-
-gif:
-	TAPES_DIR=$(PWD)/docs $(MAKE) -C ./misc/gno-vhs gif.docker
