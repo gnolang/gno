@@ -16,16 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      programs: ${{ steps.set-matrix.outputs.programs }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: set-matrix
+        run: echo "::set-output name=programs::$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')"
+
   install:
     strategy:
       fail-fast: false
       matrix:
         goversion:
+          - "1.21.x"
           - "1.22.x"
-        program:
-          - "gnomd"
-          - "gnodev"
-          - "gnofaucet"
+        program: ${{ steps.setup.outputs.programs }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -43,13 +50,12 @@ jobs:
         goversion: # two latest versions
           - "1.21.x"
           - "1.22.x"
-        program:
-          - "gnodev"
+        program: ${{ steps.setup.outputs.programs }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - run: make test.${{ matrix.program }}
@@ -61,13 +67,12 @@ jobs:
       matrix:
         goversion:
           - "1.22.x"
-        program:
-          - "gnodev"
+        program: ${{ steps.data.outputs.programs }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
       - run: make lint.${{ matrix.program }}
