@@ -2438,7 +2438,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 
 		// If untyped or xt and t are compatible types, convert x to an expression that
 		// yields type t.
-		if isUntyped(xt) || (t != nil && xt.TypeID() != t.TypeID() && !isNative(t)) {
+		if isUntyped(xt) || (t != nil && xt.TypeID() != t.TypeID() && !isNative(t) && !isNative(xt)) {
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
