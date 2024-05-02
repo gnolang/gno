@@ -1,6 +1,6 @@
 # build gno
 FROM        golang:1.22 AS build-gno
-RUN         mkdir -p /opt/gno/src /opt/build /opt/build/contribs/gnodev
+RUN         mkdir -p /opt/gno/src /opt/build
 WORKDIR     /opt/build
 ADD         go.mod go.sum ./
 RUN         go mod download
