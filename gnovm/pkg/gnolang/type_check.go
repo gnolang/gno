@@ -614,6 +614,12 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 	}
 }
 
+func assertIndexTypeIsInt(kt Type) {
+	if kt.Kind() != IntKind {
+		panic(fmt.Sprintf("index type should be int, but got %v", kt))
+	}
+}
+
 func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
@@ -623,32 +629,40 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		return
 	}
 	assertValidLeftValue(store, last, x.Key)
-	assertValidLeftValue(store, last, x.Value)
 	// if is valid left value
+
 	kt := evalStaticTypeOf(store, last, x.Key)
-	vt := evalStaticTypeOf(store, last, x.Value)
+	var vt Type
+	if x.Value != nil {
+		vt = evalStaticTypeOf(store, last, x.Value)
+	}
+
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
 		assertAssignableTo(cxt.Key, kt, false)
-		assertAssignableTo(cxt.Value, vt, false)
+		if vt != nil {
+			assertAssignableTo(cxt.Value, vt, false)
+		}
 	case *SliceType:
-		if kt.Kind() != IntKind {
-			panic(fmt.Sprintf("index type should be int, but got %v", kt))
+		assertIndexTypeIsInt(kt)
+		if vt != nil {
+			assertAssignableTo(cxt.Elt, vt, false)
 		}
-		assertAssignableTo(cxt.Elt, vt, false)
 	case *ArrayType:
-		if kt.Kind() != IntKind {
-			panic(fmt.Sprintf("index type should be int, but got %v", kt))
+		assertIndexTypeIsInt(kt)
+		if vt != nil {
+			assertAssignableTo(cxt.Elt, vt, false)
 		}
-		assertAssignableTo(cxt.Elt, vt, false)
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
 			if kt != nil && kt.Kind() != IntKind {
 				panic(fmt.Sprintf("index type should be int, but got %v", kt))
 			}
-			if vt != nil && vt.Kind() != Int32Kind { // rune
-				panic(fmt.Sprintf("value type should be int32, but got %v", kt))
+			if vt != nil {
+				if vt.Kind() != Int32Kind { // rune
+					panic(fmt.Sprintf("value type should be int32, but got %v", kt))
+				}
 			}
 		}
 	}
