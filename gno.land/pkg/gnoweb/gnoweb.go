@@ -421,7 +421,11 @@ func makeRequest(log *slog.Logger, cfg *Config, qpath string, data []byte) (res 
 		// Prove: false, XXX
 	}
 	remote := cfg.RemoteAddr
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client, %w", err)
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {
