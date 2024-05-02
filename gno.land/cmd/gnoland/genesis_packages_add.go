@@ -17,9 +17,7 @@ type packagesAddCfg struct {
 	rootCfg *packagesCfg
 }
 
-var (
-	errUnableToLoadPackages = errors.New("unable to load packages")
-)
+var errUnableToLoadPackages = errors.New("unable to load packages")
 
 // newPackagesAddCmd creates the genesis packages add subcommand
 func newPackagesAddCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command {
