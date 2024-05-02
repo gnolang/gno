@@ -10,11 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
-const (
-	defaultMeterName   = "gno.land"
-	defaultServiceName = "gno.land"
-)
-
 var (
 	globalConfig    config.Config
 	globalConfigSet atomic.Bool
