@@ -15,7 +15,7 @@ import (
 var withSync = flag.Bool("update-golden-tests", false, "rewrite tests updating Realm: and Output: with new values where changed")
 
 func TestFileStr(t *testing.T) {
-	filePath := filepath.Join(".", "dylan", "c.gno")
+	filePath := filepath.Join(".", "files", "str.gno")
 	runFileTest(t, filePath, WithNativeLibs())
 }
 
