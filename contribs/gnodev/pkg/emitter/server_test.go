@@ -22,8 +22,6 @@ func TestServer_New(t *testing.T) {
 }
 
 func TestServer_ServeHTTP(t *testing.T) {
-	t.Parallel()
-
 	svr := NewServer(log.NewTestingLogger(t))
 
 	s := httptest.NewServer(http.HandlerFunc(svr.ServeHTTP))
