@@ -123,6 +123,7 @@ package main
 import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
 func main() {
