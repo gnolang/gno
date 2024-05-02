@@ -2213,7 +2213,7 @@ func defaultTypeOf(t Type, v Value) Type {
 	case UntypedBigintType:
 		typeVal := IntType
 		if bigintValue, ok := v.(BigintValue); ok {
-			if bigintValue.V.Sign() == 1 && !bigintValue.V.IsInt64() {
+			if bigintValue.V != nil && bigintValue.V.Sign() == 1 && !bigintValue.V.IsInt64() {
 				// Use an unsigned type if the value is positive and we know
 				// it won't fit in an int64.
 				typeVal = Uint64Type
