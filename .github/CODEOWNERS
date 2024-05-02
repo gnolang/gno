@@ -12,9 +12,12 @@
 # ...
 
 # Docs & Content.
-/docs/                        @gnolang/devrels
-/misc/docusaurus/             @gnolang/devrels
-/README.md                    @gnolang/devrels
+/docs/                        @moul
+/docs/**.md                   @gnolang/devrels
+/docs/**.gif                  @gnolang/devrels
+/docs/Makefile                @gnolang/devrels
+/README.md                    @moul @gnolang/devrels
+/**/README.md                 @gnolang/devrels
 /.gitpod.yml                  @gnolang/devrels
 
 # Gno examples and default contracts.
@@ -89,3 +92,4 @@
 /LICENSE.md                   @jaekwon
 /.github/                     @moul @gnolang/tech-staff
 /.github/CODEOWNERS           @jaekwon @moul
+/go.mod                       @gnolang/tech-staff # no unnecessary dependencies
