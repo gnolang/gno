@@ -16,6 +16,8 @@ func TestJSONSnakeCase(t *testing.T) {
 }
 
 func assertJSONSnakeCase(t *testing.T, typ reflect.Type) {
+	t.Helper()
+
 	switch typ.Kind() {
 	case reflect.Array, reflect.Slice, reflect.Pointer:
 		assertJSONSnakeCase(t, typ.Elem())
