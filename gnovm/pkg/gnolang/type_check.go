@@ -834,12 +834,8 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 		if it1.IsEmptyInterface() {
 			return true // left empty interface
 		} else {
-			if it2, ok := baseOf(t2).(*InterfaceType); ok {
-				if it2.IsEmptyInterface() { // right empty interface
-					return false
-				} else {
-					return false // both non-empty interface
-				}
+			if _, ok := baseOf(t2).(*InterfaceType); ok {
+				return false
 			} else {
 				return true // right not interface
 			}
@@ -859,8 +855,6 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 	if t1s < t2s {
 		// NOTE: higher specificity has lower value, so backwards.
 		return true
-	} else if t1s == t2s {
-		return false
 	} else {
 		return false
 	}
