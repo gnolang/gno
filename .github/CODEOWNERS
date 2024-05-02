@@ -14,7 +14,6 @@
 /docs/                        @moul
 /docs/**.md                   @gnolang/devrels
 /docs/**.gif                  @gnolang/devrels
-/docs/**.tape                 @gnolang/devrels
 /docs/Makefile                @gnolang/devrels
 /README.md                    @moul @gnolang/devrels
 /**/README.md                 @gnolang/devrels
