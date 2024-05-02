@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 
@@ -10,13 +11,15 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type packagesAddCfg struct {
 	rootCfg *packagesCfg
 }
+
+var (
+	errUnableToLoadPackages = errors.New("unable to load packages")
+)
 
 // newPackagesAddCmd creates the genesis packages add subcommand
 func newPackagesAddCmd(rootCfg *packagesCfg, io commands.IO) *commands.Command {
@@ -50,11 +53,14 @@ func execPackagesAdd(cfg *packagesAddCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to load genesis, %w", err)
 	}
 
-	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // TODO(hariom): flags?
-	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))                // TODO(hariom): flags?
 	txs, err := gnoland.LoadPackagesFromDirs(args, test1, defaultFee, nil)
 	if err != nil {
-		return fmt.Errorf("unable to load packages: %w", err)
+		return fmt.Errorf("%w: %w", errUnableToLoadPackages, err)
+	}
+
+	// Initialize genesis app state if it is not initialized already
+	if genesis.AppState == nil {
+		genesis.AppState = gnoland.GnoGenesisState{}
 	}
 
 	state := genesis.AppState.(gnoland.GnoGenesisState)

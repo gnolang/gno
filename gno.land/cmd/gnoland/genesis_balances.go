@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
+
+var errBalanceNotFound = errors.New("genesis balances entry does not exist")
 
 type balancesCfg struct {
 	commonCfg

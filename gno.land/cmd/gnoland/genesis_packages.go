@@ -4,7 +4,16 @@ import (
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var (
+	test1      = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	defaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+)
+
+const msgAddPkg = "add_package"
 
 type packagesCfg struct {
 	commonCfg

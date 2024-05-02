@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 
@@ -10,11 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-)
-
-var (
-	errUnableToLoadGenesis = errors.New("unable to load genesis")
-	errBalanceNotFound     = errors.New("genesis balances entry does not exist")
 )
 
 type balancesRemoveCfg struct {

@@ -62,7 +62,7 @@ func execPackagesDel(cfg *packagesDelCfg, args []string, io commands.IO) error {
 	for _, tx := range state.Txs {
 		include := true
 		for _, msg := range tx.Msgs {
-			if msg.Type() != "add_package" {
+			if msg.Type() != msgAddPkg {
 				continue
 			}
 			msgAddPkg := msg.(vmm.MsgAddPackage)

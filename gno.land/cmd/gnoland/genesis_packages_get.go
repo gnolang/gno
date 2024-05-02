@@ -59,7 +59,7 @@ func execPackagesGet(cfg *packagesGetCfg, args []string, io commands.IO) error {
 	count := 0
 	for _, tx := range state.Txs {
 		for _, msg := range tx.Msgs {
-			if msg.Type() != "add_package" {
+			if msg.Type() != msgAddPkg {
 				continue
 			}
 			msgAddPkg := msg.(vmm.MsgAddPackage)

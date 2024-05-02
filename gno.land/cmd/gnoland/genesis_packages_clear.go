@@ -54,7 +54,7 @@ func execPackagesClear(cfg *packagesClearCfg, args []string, io commands.IO) err
 	for _, tx := range state.Txs {
 		include := true
 		for _, msg := range tx.Msgs {
-			if msg.Type() == "add_package" {
+			if msg.Type() == msgAddPkg {
 				removed++
 				include = false
 

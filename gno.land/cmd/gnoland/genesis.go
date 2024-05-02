@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
+
+var errUnableToLoadGenesis = errors.New("unable to load genesis")
 
 func newGenesisCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
