@@ -1166,8 +1166,8 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 					continue
 				} else if vargt == nil {
 					vargt = varg.T
-				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T).TypeID() {
-					vargt = defaultTypeOf(varg.T)
+				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T, varg.V).TypeID() {
+					vargt = defaultTypeOf(varg.T, varg.V)
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
 						"incompatible varg types: expected %v, got %s",
@@ -2204,14 +2204,23 @@ func isDataByte(t Type) bool {
 
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
-func defaultTypeOf(t Type) Type {
+func defaultTypeOf(t Type, v Value) Type {
 	switch t {
 	case UntypedBoolType:
 		return BoolType
 	case UntypedRuneType:
 		return Int32Type
 	case UntypedBigintType:
-		return IntType
+		typeVal := IntType
+		if bigintValue, ok := v.(BigintValue); ok {
+			if bigintValue.V.Sign() == 1 && !bigintValue.V.IsInt64() {
+				// Use an unsigned type if the value is positive and we know
+				// it won't fit in an int64.
+				typeVal = Uint64Type
+			}
+		}
+
+		return typeVal
 	case UntypedBigdecType:
 		return Float64Type
 	case UntypedStringType:
@@ -2437,7 +2446,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 					return // ok
 				} else {
 					if isUntyped(spec) {
-						spec = defaultTypeOf(spec)
+						spec = defaultTypeOf(spec, nil)
 					}
 					lookup[ct.Generic] = spec
 					return // ok
