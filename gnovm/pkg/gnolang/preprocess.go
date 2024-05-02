@@ -790,11 +790,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// Left const, Right const ----------------------
 							// Replace with *ConstExpr if const operands.
 							// First, convert untyped as necessary.
-							cmp := cmpSpecificity(lcx.T, rcx.T)
-							if cmp < 0 {
+							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
 								// convert n.Left to right type.
-								checkOrConvertType(store, last, &n.Left, rcx.T, false)
-							} else if cmp == 0 {
 								checkOrConvertType(store, last, &n.Left, rcx.T, false)
 							} else {
 								// convert n.Right to left type.
@@ -989,13 +986,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else if riu { // left typed, right untyped
 								checkOrConvertType(store, last, &n.Right, lt, false)
 							} else { // both typed, refer to 0a1g.gno
-								cmp := cmpSpecificity(lt, rt)
-								if cmp == -1 {
+								if !shouldSwapOnSpecificity(lt, rt) {
 									checkOrConvertType(store, last, &n.Left, rt, false)
-								} else if cmp == 1 {
+								} else {
 									checkOrConvertType(store, last, &n.Right, lt, false)
-								} else { // cmp 0, both typed, assertAssignableTo
-									checkOrConvertType(store, last, &n.Left, rt, false)
 								}
 							}
 						}

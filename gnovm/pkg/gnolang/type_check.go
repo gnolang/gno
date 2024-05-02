@@ -91,10 +91,7 @@ func (pt PrimitiveType) category() category {
 func isOrdered(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.category()&IsOrdered != 0 {
-			return true
-		}
-		return false
+		return t.category()&IsOrdered != 0
 	default:
 		return false
 	}
@@ -103,10 +100,7 @@ func isOrdered(t Type) bool {
 func isBoolean(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.category()&IsBoolean != 0 {
-			return true
-		}
-		return false
+		return t.category()&IsBoolean != 0
 	default:
 		return false
 	}
@@ -116,10 +110,7 @@ func isBoolean(t Type) bool {
 func isNumeric(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.category()&IsNumeric != 0 {
-			return true
-		}
-		return false
+		return t.category()&IsNumeric != 0
 	default:
 		return false
 	}
@@ -128,10 +119,7 @@ func isNumeric(t Type) bool {
 func isIntNum(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.category()&IsInteger != 0 || t.category()&IsBigInt != 0 {
-			return true
-		}
-		return false
+		return t.category()&IsInteger != 0 || t.category()&IsBigInt != 0
 	default:
 		return false
 	}
@@ -140,10 +128,7 @@ func isIntNum(t Type) bool {
 func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
-		if t.category()&IsNumeric != 0 || t.category()&IsString != 0 {
-			return true
-		}
-		return false
+		return t.category()&IsNumeric != 0 || t.category()&IsString != 0
 	default:
 		return false
 	}
@@ -393,7 +378,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		// XXX, this is a loose check, we don't have the context
 		// to check if it is an exact integer, e.g. 1.2 or 1.0(1.0 can be converted to int).
 		// this ensure expr like (a % 1.0) pass check, while
-		// expr like (a % 1.2) panic at ConvertUntypedTo, which is a delayed assertion when const evaluated.
+		// expr like (a % 1.2) panic at ConvertUntypedTo, which is a delayed assertion after const evaluated.
 		// assignable does not guarantee convertible.
 		case UntypedBigdecType:
 			switch dt.Kind() {
@@ -510,13 +495,9 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 
 // ===========================================================
 func (x *BinaryExpr) checkShiftLhs(dt Type) {
-	var destKind interface{}
-	if dt != nil {
-		destKind = dt.Kind()
-	}
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), destKind))
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
 		}
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
@@ -544,11 +525,8 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	}
 
-	OpStr := x.Op.TokenString()
-
 	xt, dt := lt, rt
-	cmp := cmpSpecificity(lt, rt) // check potential direction of type conversion
-	if cmp > 0 {
+	if shouldSwapOnSpecificity(lt, rt) { // check potential direction of type conversion
 		xt, dt = dt, xt
 	}
 
@@ -558,7 +536,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 			assertComparable(xt, dt)
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
-				x.checkCompatibility(xt, dt, checker, OpStr)
+				x.checkCompatibility(xt, dt, checker, x.Op.TokenString())
 			} else {
 				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
@@ -567,7 +545,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[x.Op]; ok {
-			x.checkCompatibility(xt, dt, checker, OpStr)
+			x.checkCompatibility(xt, dt, checker, x.Op.TokenString())
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
@@ -593,7 +571,9 @@ func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, 
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
 
-	// e.g. 1%1e9
+	// e.g. int(1) % 1e9. 1e9 is untyped bigDec, that is not compatible with operator `%`,
+	// but it is assignable and convertible to int as it's an exact number,
+	// so this expression is compatible.
 	if !checker(xt) {
 		err := checkAssignableTo(xt, dt, false) // XXX, cache this?
 		if err != nil {
@@ -635,49 +615,50 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 }
 
 func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
-	if x.Op == ASSIGN {
-		if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
-			// both "_"
-		} else {
-			assertValidLeftValue(store, last, x.Key)
-			// if is valid left value
-			kt := evalStaticTypeOf(store, last, x.Key)
-			vt := evalStaticTypeOf(store, last, x.Value)
-			xt := evalStaticTypeOf(store, last, x.X)
-			switch cxt := xt.(type) {
-			case *MapType:
-				assertAssignableTo(cxt.Key, kt, false)
-				assertAssignableTo(cxt.Value, vt, false)
-			case *SliceType:
-				if kt.Kind() != IntKind {
-					panic(fmt.Sprintf("index type should be int, but got %v", kt))
-				}
-				assertAssignableTo(cxt.Elt, vt, false)
-			case *ArrayType:
-				if kt.Kind() != IntKind {
-					panic(fmt.Sprintf("index type should be int, but got %v", kt))
-				}
-				assertAssignableTo(cxt.Elt, vt, false)
-			case PrimitiveType:
-				if cxt.Kind() == StringKind {
-					if kt != nil && kt.Kind() != IntKind {
-						panic(fmt.Sprintf("index type should be int, but got %v", kt))
-					}
-					if vt != nil && vt.Kind() != Int32Kind { // rune
-						panic(fmt.Sprintf("value type should be int32, but got %v", kt))
-					}
-				}
+	if x.Op != ASSIGN {
+		return
+	}
+	if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
+		// both "_"
+		return
+	}
+	assertValidLeftValue(store, last, x.Key)
+	assertValidLeftValue(store, last, x.Value)
+	// if is valid left value
+	kt := evalStaticTypeOf(store, last, x.Key)
+	vt := evalStaticTypeOf(store, last, x.Value)
+	xt := evalStaticTypeOf(store, last, x.X)
+	switch cxt := xt.(type) {
+	case *MapType:
+		assertAssignableTo(cxt.Key, kt, false)
+		assertAssignableTo(cxt.Value, vt, false)
+	case *SliceType:
+		if kt.Kind() != IntKind {
+			panic(fmt.Sprintf("index type should be int, but got %v", kt))
+		}
+		assertAssignableTo(cxt.Elt, vt, false)
+	case *ArrayType:
+		if kt.Kind() != IntKind {
+			panic(fmt.Sprintf("index type should be int, but got %v", kt))
+		}
+		assertAssignableTo(cxt.Elt, vt, false)
+	case PrimitiveType:
+		if cxt.Kind() == StringKind {
+			if kt != nil && kt.Kind() != IntKind {
+				panic(fmt.Sprintf("index type should be int, but got %v", kt))
+			}
+			if vt != nil && vt.Kind() != Int32Kind { // rune
+				panic(fmt.Sprintf("value type should be int32, but got %v", kt))
 			}
 		}
 	}
 }
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
-	Opstr := x.Op.TokenString()
 	if x.Op == ASSIGN || x.Op == DEFINE {
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
-				panic("should not happen")
+				panic("length of Rhs should be 1")
 			}
 			switch cx := x.Rhs[0].(type) {
 			case *CallExpr:
@@ -694,6 +675,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// check assignable
 					for i, lx := range x.Lhs {
 						if !isBlankIdentifier(lx) {
+							assertValidLeftValue(store, last, lx)
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
@@ -707,13 +689,15 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable to first value
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
+						assertValidLeftValue(store, last, x.Lhs[0])
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
 						assertAssignableTo(ift, dt, false)
 					}
 					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
+						assertValidLeftValue(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
-						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
+						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
 					}
@@ -725,6 +709,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				if x.Op == ASSIGN {
 					if !isBlankIdentifier(x.Lhs[0]) {
+						assertValidLeftValue(store, last, x.Lhs[0])
 						lt := evalStaticTypeOf(store, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
@@ -741,6 +726,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						}
 					}
 					if !isBlankIdentifier(x.Lhs[1]) {
+						assertValidLeftValue(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -749,7 +735,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				cx.HasOK = true
 			default:
-				panic("should not happen")
+				panic(fmt.Sprintf("RHS should not be %v when len(Lhs) > len(Rhs)", cx))
 			}
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
@@ -772,7 +758,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 
 			if checker, ok := AssignStmtChecker[x.Op]; ok {
 				if !checker(lt) {
-					panic(fmt.Sprintf("operator %s not defined on: %v", Opstr, kindString(lt)))
+					panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 				}
 				switch x.Op {
 				case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN, BAND_ASSIGN, BOR_ASSIGN, BAND_NOT_ASSIGN, XOR_ASSIGN:
@@ -835,31 +821,31 @@ func isComparison(op Word) bool {
 	}
 }
 
-func cmpSpecificity(t1, t2 Type) int {
+func shouldSwapOnSpecificity(t1, t2 Type) bool {
 	// check nil
 	if t1 == nil { // see test file 0f46
-		return -1 // also with both nil
+		return false // also with both nil
 	} else if t2 == nil {
-		return 1
+		return true
 	}
 
 	// check interface
 	if it1, ok := baseOf(t1).(*InterfaceType); ok {
 		if it1.IsEmptyInterface() {
-			return 1 // left empty interface
+			return true // left empty interface
 		} else {
 			if it2, ok := baseOf(t2).(*InterfaceType); ok {
 				if it2.IsEmptyInterface() { // right empty interface
-					return -1
+					return false
 				} else {
-					return 0 // both non-empty interface
+					return false // both non-empty interface
 				}
 			} else {
-				return 1 // right not interface
+				return true // right not interface
 			}
 		}
 	} else if _, ok := t2.(*InterfaceType); ok {
-		return -1 // left not interface, right is interface
+		return false // left not interface, right is interface
 	}
 
 	// primitive types
@@ -872,19 +858,17 @@ func cmpSpecificity(t1, t2 Type) int {
 	}
 	if t1s < t2s {
 		// NOTE: higher specificity has lower value, so backwards.
-		return 1
+		return true
 	} else if t1s == t2s {
-		return 0
+		return false
 	} else {
-		return -1
+		return false
 	}
 }
 
 func isBlankIdentifier(x Expr) bool {
 	if nx, ok := x.(*NameExpr); ok {
-		if nx.Path.Depth == 0 && nx.Path.Index == 0 && nx.Name == "_" {
-			return true
-		}
+		return nx.Name == "_"
 	}
 	return false
 }

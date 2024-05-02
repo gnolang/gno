@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_f.gno:19: cannot use main.Dog as <untyped> bigint without explicit conversion
+// main/files/types/assign_type_assertion_f.gno:19: cannot assign to (const (1 <untyped> bigint))

@@ -5,7 +5,7 @@ func main() {
 
 	var index float32
 	var value rune
-	for index, rune = range s {
+	for index, value = range s {
 		println(index)
 	}
 }
