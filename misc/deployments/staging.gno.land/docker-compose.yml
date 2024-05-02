@@ -65,7 +65,7 @@ services:
       - --captcha-site=$CAPTCHA_SITE_KEY
       - --with-analytics
       - --help-chainid=staging
-      - --help-remote=https://rpc.gno.land:443
+      - --help-remote=https://rpc.staging.gno.land:443
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
