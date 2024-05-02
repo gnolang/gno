@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
 var (
@@ -51,6 +52,7 @@ type Config struct {
 	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -62,6 +64,7 @@ func DefaultConfig() *Config {
 		Mempool:      mem.DefaultMempoolConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -138,6 +141,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.TestTelemetryConfig(),
 	}
 }
 
