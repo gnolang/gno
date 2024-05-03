@@ -710,7 +710,12 @@ func UverseNode() *PackageNode {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
 				mv.DeleteForKey(m.Store, &itv)
-				m.Realm.DidUpdate(mv, nil, nil)
+				if m.Realm != nil {
+					// delete value and mark it deleted if it's a object
+					oo1 := itv.GetFirstObject(m.Store)
+					m.Realm.DidUpdate(mv, oo1, nil)
+				}
+
 				return
 			case *NativeType:
 				krv := reflect.New(cbt.Type.Key()).Elem()
