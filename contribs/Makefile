@@ -28,9 +28,13 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # Dev tools
 .PHONY: install
 install:
+	@echo 'To install a tool, go to the subdirectory, then run `make install`. To do a full installation, run `make install_all`.'
+
+.PHONY: install_all
+install_all:
 	@set -e; for program in $(programs); do ( set -e; \
 	  echo "[+] make -C $$program install"; \
-	  $(MAKE) -C $$program install; \
+	  $(MAKE) --no-print-directory -C $$program install; \
 	); done
 
 ########################################
@@ -39,7 +43,7 @@ install:
 test:
 	@set -e; for program in $(programs); do ( set -e; \
 	  echo "[+] make -C $$program test"; \
-	  $(MAKE) -C $$program test; \
+	  $(MAKE) --no-print-directory -C $$program test; \
 	); done
 
 ########################################
@@ -48,7 +52,7 @@ test:
 lint:
 	@set -e; for program in $(programs); do ( set -e; \
 	  echo "[+] make -C $$program lint"; \
-	  $(MAKE) -C $$program lint; \
+	  $(MAKE) --no-print-directory -C $$program lint; \
 	); done
 
 ########################################
