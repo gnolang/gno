@@ -77,13 +77,21 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 	case message.FuncTypeIngest:
 		// Autocommit the ingester's value if it's a single value ingester
 		// because this is a static feed and this is the only value it will ever have.
-		if canAutoCommit := f.ingester.Ingest(msg, providerAddress); canAutoCommit {
-			f.ingester.CommitValue(f.storage, providerAddress)
+		if canAutoCommit, err := f.ingester.Ingest(msg, providerAddress); canAutoCommit && err == nil {
+			if err := f.ingester.CommitValue(f.storage, providerAddress); err != nil {
+				return err
+			}
+
 			f.isLocked = true
+		} else if err != nil {
+			return err
 		}
 
 	case message.FuncTypeCommit:
-		f.ingester.CommitValue(f.storage, providerAddress)
+		if err := f.ingester.CommitValue(f.storage, providerAddress); err != nil {
+			return err
+		}
+
 		f.isLocked = true
 
 	default:

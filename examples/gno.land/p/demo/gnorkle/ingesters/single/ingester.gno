@@ -16,12 +16,20 @@ func (i *ValueIngester) Type() ingester.Type {
 }
 
 // Ingest ingests a value provided by the given agent address.
-func (i *ValueIngester) Ingest(value, providerAddress string) bool {
+func (i *ValueIngester) Ingest(value, providerAddress string) (bool, error) {
+	if i == nil {
+		return false, ingester.ErrUndefined
+	}
+
 	i.value = value
-	return true
+	return true, nil
 }
 
 // CommitValue commits the ingested value to the given storage instance.
-func (i *ValueIngester) CommitValue(valueStorer gnorkle.Storage, providerAddress string) {
-	valueStorer.Put(i.value)
+func (i *ValueIngester) CommitValue(valueStorer gnorkle.Storage, providerAddress string) error {
+	if i == nil {
+		return ingester.ErrUndefined
+	}
+
+	return valueStorer.Put(i.value)
 }
