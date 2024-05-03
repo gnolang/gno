@@ -6,31 +6,63 @@ package telemetry
 import (
 	"sync/atomic"
 
-	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	opentlmConfig "github.com/gnolang/gno/tm2/pkg/telemetry/opentlm/config"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/opentlm/metrics"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/prom"
 )
 
 var (
-	globalConfig    config.Config
-	globalConfigSet atomic.Bool
+	isConfigSet atomic.Bool
+
+	promCollector    Collector
+	opentlmCollector Collector
 )
+
+type Config struct {
+	OpenTelemetry *opentlmConfig.Config `toml:"opentelemetry"`
+	Prometheus    *prom.Config          `toml:"prometheus"`
+}
+
+func DefaultTelemetryConfig() *Config {
+	return &Config{
+		OpenTelemetry: opentlmConfig.DefaultConfig(),
+		Prometheus:    prom.DefaultConfig(),
+	}
+}
+
+func TestTelemetryConfig() *Config {
+	return DefaultTelemetryConfig()
+}
 
 // MetricsEnabled returns true if metrics have been initialized.
 func MetricsEnabled() bool {
-	return globalConfig.MetricsEnabled
+	return promCollector != nil || opentlmCollector != nil
 }
 
 // Init sets the configuration for telemetry to c, and if telemetry is enabled,
 // starts tracking.
 // Init may only be called once. Multiple calls to Init will panic.
-func Init(c config.Config) error {
-	if !globalConfigSet.CompareAndSwap(false, true) {
+func Init(c Config) error {
+	if !isConfigSet.CompareAndSwap(false, true) {
 		panic("telemetry configuration has already been set and initialised")
 	}
-	globalConfig = c
-	// Initialize metrics to be collected.
-	if c.MetricsEnabled {
-		return metrics.Init(c)
+
+	var err error
+
+	// Initialize opentelemetry metrics to be collected.
+	if c.OpenTelemetry.MetricsEnabled {
+		opentlmCollector, err = metrics.Init(c.OpenTelemetry)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Initialize prometheus metrics to be collected
+	if c.Prometheus.MetricsEnabled {
+		promCollector, err = prom.Init(c.Prometheus)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

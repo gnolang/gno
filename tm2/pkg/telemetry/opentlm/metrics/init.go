@@ -2,9 +2,10 @@ package metrics
 
 import (
 	"context"
+	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/exporter"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/opentlm/config"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/opentlm/exporter"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -13,16 +14,33 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
-var (
-	// Metrics.
-	BroadcastTxTimer metric.Int64Histogram
-	BuildBlockTimer  metric.Int64Histogram
-)
+// var (
+// 	// Metrics.
+// 	BroadcastTxTimer metric.Int64Histogram
+// 	BuildBlockTimer  metric.Int64Histogram
+// )
 
-func Init(config config.Config) error {
+// Collector is complient with the telemetry.Collector interface
+type Collector struct {
+	broadcastTxTimer metric.Int64Histogram
+	buildBlockTimer  metric.Int64Histogram
+}
+
+// Collector is complient with the telemetry.Collector interface
+func (c *Collector) RecordBroadcastTxTimer(data time.Duration) {
+	c.broadcastTxTimer.Record(context.Background(), data.Milliseconds())
+}
+
+func (c *Collector) RecordBuildBlockTimer(data time.Duration) {
+	c.buildBlockTimer.Record(context.Background(), data.Milliseconds())
+}
+
+func Init(config *config.Config) (*Collector, error) {
 	if config.ExporterEndpoint == "" {
-		return exporter.ErrEndpointNotSet
+		return nil, exporter.ErrEndpointNotSet
 	}
+
+	collector := &Collector{}
 
 	// Use oltp metric exporter.
 	exporter, err := otlpmetricgrpc.New(
@@ -31,7 +49,7 @@ func Init(config config.Config) error {
 		otlpmetricgrpc.WithInsecure(), // TODO: enable security
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	provider := sdkMetric.NewMeterProvider(
@@ -49,21 +67,21 @@ func Init(config config.Config) error {
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
-	if BroadcastTxTimer, err = meter.Int64Histogram(
+	if collector.broadcastTxTimer, err = meter.Int64Histogram(
 		"broadcast_tx_hist",
 		metric.WithDescription("broadcast tx duration"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return err
+		return nil, err
 	}
 
-	if BuildBlockTimer, err = meter.Int64Histogram(
+	if collector.buildBlockTimer, err = meter.Int64Histogram(
 		"build_block_hist",
 		metric.WithDescription("block build duration"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return collector, nil
 }

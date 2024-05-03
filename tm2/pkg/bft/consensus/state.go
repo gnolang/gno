@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"bytes"
-	"context"
 	goerrors "errors"
 	"fmt"
 	"log/slog"
@@ -26,7 +25,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // -----------------------------------------------------------------------------
@@ -1000,7 +998,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 	if telemetry.MetricsEnabled() {
 		startTime := time.Now()
 		defer func(t time.Time) {
-			metrics.BuildBlockTimer.Record(context.Background(), time.Since(t).Milliseconds())
+			telemetry.RecordBuildBlockTimer(time.Since(t))
 		}(startTime)
 	}
 

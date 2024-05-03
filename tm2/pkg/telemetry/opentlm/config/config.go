@@ -11,7 +11,7 @@ type Config struct {
 }
 
 // DefaultTelemetryConfig is the default configuration used for the node.
-func DefaultTelemetryConfig() *Config {
+func DefaultConfig() *Config {
 	return &Config{
 		MetricsEnabled:   false,
 		MeterName:        "gno.land",
@@ -23,5 +23,5 @@ func DefaultTelemetryConfig() *Config {
 // TestTelemetryConfig is the test configuration. Currently it is an alias for
 // [DefaultTelemetryConfig].
 func TestTelemetryConfig() *Config {
-	return DefaultTelemetryConfig()
+	return DefaultConfig()
 }

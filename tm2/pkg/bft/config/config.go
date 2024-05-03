@@ -16,7 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
-	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 )
 
 var (
