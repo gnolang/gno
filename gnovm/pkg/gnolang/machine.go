@@ -2026,15 +2026,17 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 func (m *Machine) String() string {
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
-	vsLength := m.NumValues * 32
-	ssLength := len(m.Stmts) * 32
-	xsLength := len(m.Exprs) * 32
-	bsLength := 1024
-	obsLength := len(m.Blocks) * 32
-	fsLength := len(m.Frames) * 32
-	exceptionsLength := len(m.Exceptions)
+	var (
+		vsLength         = m.NumValues * 32
+		ssLength         = len(m.Stmts) * 32
+		xsLength         = len(m.Exprs) * 32
+		bsLength         = 1024
+		obsLength        = len(m.Blocks) * 32
+		fsLength         = len(m.Frames) * 32
+		exceptionsLength = len(m.Exceptions)
 
-	totalLength := vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+	)
 
 	var builder strings.Builder
 	builder.Grow(totalLength)
