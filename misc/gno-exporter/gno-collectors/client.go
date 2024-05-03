@@ -20,19 +20,30 @@ type GnoCollectorOpts struct {
 	Collectors []Collector
 }
 
-func NewGnoCollector(opts GnoCollectorOpts) *GnoCollector {
-	client := rpcClient.NewHTTP(opts.RPCURL, "")
+func NewGnoCollector(opts GnoCollectorOpts) (*GnoCollector, error) {
+	client, err := rpcClient.NewHTTPClient(opts.RPCURL)
+	if err != nil {
+		return nil, err
+	}
 
+	_, err = client.Status()
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE(albttx): This could be update to read plugins in .so
 	opts.Collectors = append(opts.Collectors,
 		AccountCollector{client: client},
 		RealmCollector{client: client},
 		RDemoUsers{client: client},
+		TM2Collector{client: client},
 	)
 
-	return &GnoCollector{
+	collector := &GnoCollector{
 		client: client,
 		opts:   opts,
 	}
+	return collector, nil
 }
 
 func (c GnoCollector) GetClient() rpcClient.Client {

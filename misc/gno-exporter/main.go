@@ -19,10 +19,14 @@ func main() {
 		return
 	}
 
-	c := gnocollectors.NewGnoCollector(gnocollectors.GnoCollectorOpts{
+	c, err := gnocollectors.NewGnoCollector(gnocollectors.GnoCollectorOpts{
 		RPCURL:     *rpcURL,
 		Collectors: []gnocollectors.Collector{},
 	})
+	if err != nil {
+		fmt.Printf("ERROR: %w\n", err)
+		return
+	}
 	c.AddCollectors()
 
 	if err := c.Start(":8080"); err != nil {
