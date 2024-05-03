@@ -57,18 +57,22 @@ func NewSingleValueFeed(
 }
 
 // ID returns the feed's ID.
-func (f *Feed) ID() string {
+func (f Feed) ID() string {
 	return f.id
 }
 
 // Type returns the feed's type.
-func (f *Feed) Type() feed.Type {
+func (f Feed) Type() feed.Type {
 	return feed.TypeStatic
 }
 
 // Ingest ingests a message into the feed. It either adds the value to the ingester's
 // pending values or commits the value to the storage.
 func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) error {
+	if f == nil {
+		return feed.ErrUndefined
+	}
+
 	if f.isLocked {
 		return errors.New("feed locked")
 	}
@@ -105,13 +109,13 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 // be safely consumed. In this case it uses `f.isLocked` because, this being a static
 // feed, it will only ever have one value; once that value is committed the feed is locked
 // and there is a valid, non-empty value to consume.
-func (f *Feed) Value() (feed.Value, string, bool) {
+func (f Feed) Value() (feed.Value, string, bool) {
 	return f.storage.GetLatest(), f.valueDataType, f.isLocked
 }
 
 // MarshalJSON marshals the components of the feed that are needed for
 // an agent to execute tasks and send values for ingestion.
-func (f *Feed) MarshalJSON() ([]byte, error) {
+func (f Feed) MarshalJSON() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
 
@@ -145,11 +149,11 @@ func (f *Feed) MarshalJSON() ([]byte, error) {
 
 // Tasks returns the feed's tasks. This allows task consumers to extract task
 // contents without having to marshal the entire feed.
-func (f *Feed) Tasks() []feed.Task {
+func (f Feed) Tasks() []feed.Task {
 	return f.tasks
 }
 
 // IsActive returns true if the feed is accepting ingestion requests from agents.
-func (f *Feed) IsActive() bool {
+func (f Feed) IsActive() bool {
 	return !f.isLocked
 }

@@ -91,6 +91,6 @@ func addressIsWhitelisted(instanceWhitelist, feedWhitelist Whitelist, address st
 		return true
 	}
 
-	// The instance whitelist is defined so it the address is present then it is allowed.
+	// The instance whitelist is defined so if the address is present then it is allowed.
 	return instanceWhitelist.HasAddress(address)
 }
