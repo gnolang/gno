@@ -652,11 +652,9 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
 		data = append(data, msgResult.Data...)
-		events = append(events, msgResult.Events...)
-		defer func() {
-			events = append(events, ctx.EventLogger().Events()...)
-			result.Events = events
-		}()
+		events = append(events, ctx.EventLogger().Events()...)
+		result.Events = events
+
 		// TODO append msgevent from ctx. XXX XXX
 
 		// stop execution and return on first failed message
