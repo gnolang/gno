@@ -614,6 +614,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		}
 	}
 
+	// Check if this type implement `TypeAmino` so it can descript is own type
 	var reflectType = reflect.TypeOf(new(reflect.Type)).Elem()
 	if rm, ok := rt.MethodByName("TypeAmino"); ok {
 		if rm.Type.NumOut() != 2 {
@@ -628,7 +629,6 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 			panic(fmt.Sprintf("TypeAmino should have second output parameter of error type, got %v", out))
 		}
 
-		fmt.Println("Hello this is an amino type yeaaa")
 		info.InterfaceInfo.HasTypeDescription = true
 	}
 
