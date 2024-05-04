@@ -17,7 +17,7 @@ type Server struct {
 	logger    *slog.Logger
 	upgrader  websocket.Upgrader
 	clients   map[*websocket.Conn]struct{}
-	muClients sync.Mutex
+	muClients sync.RWMutex
 }
 
 func NewServer(logger *slog.Logger) *Server {
@@ -84,4 +84,15 @@ func (s *Server) emit(evt events.Event) {
 			delete(s.clients, conn)
 		}
 	}
+}
+
+func (s *Server) conns() []*websocket.Conn {
+	s.muClients.RLock()
+	conns := make([]*websocket.Conn, 0, len(s.clients))
+	for conn := range s.clients {
+		conns = append(conns, conn)
+	}
+	s.muClients.RUnlock()
+
+	return conns
 }
