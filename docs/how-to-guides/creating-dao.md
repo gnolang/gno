@@ -6,7 +6,7 @@ id: creating-dao
 
 ## Overview
 
-This guide will show you how to write a simple [**DAO**](https://en.wikipedia.org/wiki/Decentralized_autonomous_organization) [Realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
+This guide will show you how to write a simple [**DAO**](https://en.wikipedia.org/wiki/Decentralized_autonomous_organization) [realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
 [deployment](deploy.md) guide.
 
 We'll cover the core components that make up a DAO, walk you through the process of creating your first DAO, and provide code examples to help you get started.
@@ -56,7 +56,7 @@ type IVotingModule interface {
 }
 ```
 
-There is only one implementation currently, `gno.land/p/demo/teritori/dao_voting_group`, providing a membership-based voting power definition
+There is only one implementation currently, `gno.land/p/demo/teritori/dao_voting_group`, providing a membership-based voting power definition.
 
 ### Proposal Modules
 
@@ -81,7 +81,7 @@ type IProposalModule interface {
 }
 ```
 
-There is only one implementation currently, `gno.land/p/demo/teritori/dao_proposal_single`, providing a yes/no/abstain vote model with quorum and threshold
+There is only one implementation currently, `gno.land/p/demo/teritori/dao_proposal_single`, providing a yes/no/abstain vote model with quorum and threshold.
 
 ### Message handlers
 
