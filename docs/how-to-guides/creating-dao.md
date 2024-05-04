@@ -85,7 +85,7 @@ There is only one implementation currently, `gno.land/p/demo/teritori/dao_propos
 
 ### Message handlers
 
-Proposals actions are encoded as objects implementing `gno.land/p/demo/teritori/dao_interfaces.ExecutableMessage`
+Proposals actions are encoded as objects implementing `gno.land/p/demo/teritori/dao_interfaces.ExecutableMessage`.
 ```go
 type ExecutableMessage interface {
 	ToJSON() *json.Node
@@ -96,7 +96,7 @@ type ExecutableMessage interface {
 }
 ```
 
-They are deserialized and executed by message handlers implementing `gno.land/p/demo/teritori/dao_interfaces.MessageHandler`
+They are deserialized and executed by message handlers implementing `gno.land/p/demo/teritori/dao_interfaces.MessageHandler`.
 ```go
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
@@ -105,29 +105,30 @@ type MessageHandler interface {
 }
 ```
 
-Message handlers are registered at core creation and new message handlers can be registered via proposals to extend the DAO capabilities
+Message handlers are registered at core creation and new message handlers can be registered via proposals to extend the DAO capabilities.
 
 ## Practical Implementation
 
 ### Setting Up Your Workspace
 
-Sooo, let's create a new realm
+#### Setup the Tooling
 
-```
-git clone https://github.com/TERITORI/gno.git gno-dao-tutorial
-cd gno-dao-tutorial
-mkdir examples/gno.land/r/demo/my_dao
-```
+To setup your tooling, see [Getting Started: Local Setup](../getting-started/local-setup.md)
+
+#### Create a new Gno module
+
+- Create a new directory and move into it: `mkdir my-gno-dao && cd my-gno-dao`
+- Initialize the gno module: `gno mod init gno.land/r/demo/my_dao`
 
 ### Creating the Voting Module
 
-We will start by instantiating a voting module
+We will start by instantiating a voting module.
 
 1. **Initialize the Factory**
 
-Modules instantiation uses the factory pattern in case the module needs to access the core
+Modules instantiation uses the factory pattern in case the module needs to access the core.
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 package my_dao
 
@@ -144,7 +145,7 @@ func init() {
 
 2. **Instantiate the module**
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 package my_dao
 
@@ -162,11 +163,11 @@ func init() {
 }
 ```
 
-We need to keep a reference to the module to instantiate it's message handlers later
+We need to keep a reference to the module to instantiate its message handlers later.
 
 3. **Add Initial Members and return the module**
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 func init() {
     votingModuleFactory := func(core dao_interfaces.IDAOCore) {
@@ -178,13 +179,13 @@ func init() {
 }
 ```
 
-Now let's create a proposal module
+Now let's create a proposal module.
 
 ### Creating the proposal module
 
 1. **Initialize the Factory**
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 func init() {
     votingModuleFactory := func(core dao_interfaces.IDAOCore) {
@@ -200,7 +201,7 @@ func init() {
 
 2. **Configure and instantiate the Proposal Module**
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 package my_dao
 
@@ -230,13 +231,13 @@ func init() {
 }
 ```
 
-We also need to keep a reference to the module to instantiate it's message handlers later
+We also need to keep a reference to the module to instantiate it's message handlers later.
 
 ### Registering Message Handlers
 
 Add message handlers to allow your DAO to perform specific actions when proposals are executed.
 
-`examples/gno.land/r/demo/my_dao/my_dao.gno`
+`my_dao.gno`
 ```go
 package my_dao
 
@@ -263,7 +264,7 @@ func init() {
 
 ### Creating the DAO Core
 
-Now we can create the actual DAO
+Now we can create the actual DAO.
 
 ```go
 package my_dao
@@ -288,7 +289,7 @@ func init() {
 }
 ```
 
-We also need to expose the DAO methods in the realm
+We also need to expose the DAO methods in the realm.
 
 ```go
 func init() {
@@ -304,6 +305,7 @@ func VoteJSON(moduleIndex int, proposalID int, voteJSON string) {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	module.Module.VoteJSON(proposalID, voteJSON)
 }
 
@@ -312,6 +314,7 @@ func Execute(moduleIndex int, proposalID int) {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	module.Module.Execute(proposalID)
 }
 
@@ -320,6 +323,7 @@ func ProposeJSON(moduleIndex int, proposalJSON string) int {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	return module.Module.ProposeJSON(proposalJSON)
 }
 
@@ -334,4 +338,6 @@ func getProposalJSON(moduleIndex int, proposalIndex int) string {
 }
 ```
 
-That's it! You've successfully created your first DAO using the Gno DAO framework. To expand its capabilities, you can register additional message handlers or even create new modules if you feel bold
+## Conclusion
+
+That's it! You've successfully created your first DAO using the Gno DAO framework. To expand its capabilities, you can register additional message handlers or even create new modules if you feel bold.
