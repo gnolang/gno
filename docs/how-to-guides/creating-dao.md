@@ -113,7 +113,7 @@ Message handlers are registered at core creation and new message handlers can be
 
 #### Setup the Tooling
 
-To setup your tooling, see [Getting Started: Local Setup](../getting-started/local-setup.md)
+To setup your tooling, see [Getting Started: Local Setup](../getting-started/local-setup.md).
 
 #### Create a new Gno module
 
