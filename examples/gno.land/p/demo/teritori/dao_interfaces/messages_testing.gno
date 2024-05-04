@@ -32,6 +32,7 @@ func NewCopyMessageHandler(ptr *string) *CopyMessageHandler {
 	if ptr == nil {
 		panic("ptr cannot be nil")
 	}
+
 	return &CopyMessageHandler{ptr}
 }
 
@@ -40,6 +41,7 @@ func (h *CopyMessageHandler) Execute(imsg ExecutableMessage) {
 	if !ok {
 		panic("Wrong message type")
 	}
+
 	*h.ptr = msg.Value
 }
 

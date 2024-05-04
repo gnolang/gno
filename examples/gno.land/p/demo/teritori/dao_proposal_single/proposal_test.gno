@@ -58,6 +58,7 @@ func TestThresholdFromJSON(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected Percent in threshold")
 	}
+
 	if *tt != 1 {
 		t.Fatalf("expected 1, got %d", *tt)
 	}
@@ -66,6 +67,7 @@ func TestThresholdFromJSON(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected Percent in quorum")
 	}
+
 	if *tq != 1 {
 		t.Fatalf("expected 1, got %d", *tq)
 	}
@@ -96,11 +98,13 @@ func TestProposalJSON(t *testing.T) {
 			Messages:    []dao_interfaces.ExecutableMessage{NoopMessage{}, NoopMessage{}, NoopMessage{}},
 		},
 	}
+
 	props[0].Ballots.Set("0x1234567890", Ballot{Power: 1, Vote: VoteYes, Rationale: "test"})
 	iSlice := make([]*json.Node, len(props))
 	for i, p := range props {
 		iSlice[i] = p.ToJSON()
 	}
+
 	str := json.ArrayNode("", iSlice).String()
 	expected := `[{"id":"0","title":"Prop #0","description":"Wolol0\n\t\r","proposer":"0x1234567890","startHeight":"0","totalPower":"0","messages":[],"status":"Open","votes":{"yes":"7","no":"21","abstain":"42"},"allowRevoting":false,"ballots":{"0x1234567890":{"power":"1","vote":"Yes","rationale":"test"}},"expiration":{"atHeight":"1000"}},{"id":"1","title":"Prop #1","description":"Wolol1\\\"","proposer":"0x1234567890","startHeight":"0","totalPower":"0","messages":[{"type":"noop-type","payload":"noop"},{"type":"noop-type","payload":"noop"},{"type":"noop-type","payload":"noop"}],"status":"Executed","votes":{"yes":"0","no":"0","abstain":"0"},"allowRevoting":false,"ballots":{},"expiration":{"atHeight":"2000"}}]`
 	if expected != str {

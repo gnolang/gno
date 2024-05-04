@@ -26,7 +26,7 @@ var (
 	byPkgPath   = avl.NewTree()
 )
 
-// TODO: use profile for info
+// TODO: use profile realm for info
 
 type DAOGetter func() dao_interfaces.IDAOCore
 
@@ -36,6 +36,7 @@ func Register(getter DAOGetter, name string, description string, imageURI string
 	if pkgPath == "" {
 		panic("caller is not a realm")
 	}
+
 	doRegister(getter, pkgPath, realm.Addr(), name, description, imageURI)
 }
 
@@ -44,6 +45,7 @@ func doRegister(getter DAOGetter, pkgPath string, addr std.Address, name string,
 	if byPkgPath.Has(pkgPath) {
 		panic("already registered")
 	}
+
 	registration := &Registration{
 		PkgPath:     pkgPath,
 		Addr:        addr,
@@ -67,6 +69,7 @@ func GetCore(pkgPath string) dao_interfaces.IDAOCore {
 	if !ok {
 		panic("not found")
 	}
+
 	return r.(*Registration).Getter()
 }
 
@@ -75,6 +78,7 @@ func GetJSON(pkgPath string) string {
 	if !ok {
 		panic("not found")
 	}
+
 	return r.(*Registration).ToJSON().String()
 }
 
@@ -87,11 +91,13 @@ func List(start string, end string, limit int, reverse bool) []Registration {
 		}
 		return len(regs) >= limit
 	}
+
 	if reverse {
 		byCreatedAt.ReverseIterate(start, end, cb)
 	} else {
 		byCreatedAt.Iterate(start, end, cb)
 	}
+
 	return regs
 }
 
@@ -101,6 +107,7 @@ func ListJSON(start string, end string, limit int, reverse bool) string {
 	for i, v := range regs {
 		iSlice[i] = v.ToJSON()
 	}
+
 	return json.ArrayNode("", iSlice).String()
 }
 

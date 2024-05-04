@@ -24,6 +24,7 @@ func TestJSONNever(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	expected := `{"never":{}}`
 	if string(b) != expected {
 		t.Errorf("expected %v, got %v", expected, string(b))
@@ -37,6 +38,7 @@ func TestJSONAtTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	expected := `{"atTime":"2024-04-11T10:22:08Z"}`
 	if string(b) != expected {
 		t.Errorf("expected %v, got %v", expected, string(b))
@@ -50,6 +52,7 @@ func TestJSONAtHeight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	expected := `{"atHeight":"123456"}`
 	if string(b) != expected {
 		t.Errorf("expected %v, got %v", expected, string(b))

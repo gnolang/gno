@@ -114,6 +114,7 @@ func formatMessages(messages []dao_interfaces.ExecutableMessage) []*json.Node {
 		}
 		out[i] = mt.ToJSON()
 	}
+
 	return out
 }
 
@@ -131,15 +132,19 @@ func (p Proposal) ToJSON() *json.Node {
 		"allowRevoting": json.BoolNode("", p.AllowRevoting),
 		"ballots":       jsonutil.AVLTreeNode(p.Ballots, func(v interface{}) *json.Node { return v.(Ballot).ToJSON() }),
 	}
+
 	if p.MinVotingPeriod != nil {
 		fields["minVotingPeriod"] = p.MinVotingPeriod.ToJSON()
 	}
+
 	if p.Expiration != nil {
 		fields["expiration"] = p.Expiration.ToJSON()
 	}
+
 	if p.Threshold != nil {
 		fields["threshold"] = p.Threshold.ToJSON()
 	}
+
 	return json.ObjectNode("", fields)
 }
 

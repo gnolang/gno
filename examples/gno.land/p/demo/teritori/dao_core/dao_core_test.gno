@@ -100,6 +100,7 @@ func TestDAOCore(t *testing.T) {
 	if core == nil {
 		t.Fatal("core is nil")
 	}
+
 	if core.ActiveProposalModuleCount() != 1 {
 		t.Fatal("expected 1 active proposal module")
 	}
@@ -108,6 +109,7 @@ func TestDAOCore(t *testing.T) {
 	if votingMod == nil {
 		t.Fatal("voting module is nil")
 	}
+
 	if votingMod.Info().Kind != "TestVoting" {
 		t.Fatal("voting module has wrong kind")
 	}
@@ -121,9 +123,11 @@ func TestDAOCore(t *testing.T) {
 	if !propMod.Enabled {
 		t.Fatal("proposal module is not enabled")
 	}
+
 	if propMod.Module == nil {
 		t.Fatal("proposal module is nil")
 	}
+
 	if propMod.Module.Info().Kind != "TestProposal" {
 		t.Fatal("proposal module has wrong kind")
 	}
@@ -132,6 +136,7 @@ func TestDAOCore(t *testing.T) {
 	if registry == nil {
 		t.Fatal("registry is nil")
 	}
+
 	msg := &dao_interfaces.CopyMessage{Value: "test"}
 	registry.Execute(msg)
 	if testValue != "test" {
@@ -163,6 +168,7 @@ func TestDAOCore(t *testing.T) {
 	if !propMod.Enabled {
 		t.Errorf("new proposal module is not enabled")
 	}
+
 	if propMod.Module != newProposalModule {
 		t.Errorf("new proposal module is not the same as the one added")
 	}
@@ -171,6 +177,7 @@ func TestDAOCore(t *testing.T) {
 	updateVotingModMsg := &UpdateVotingModuleExecutableMessage{
 		Module: newVotingModule,
 	}
+
 	registry.Execute(updateVotingModMsg)
 
 	votingMod = core.VotingModule()

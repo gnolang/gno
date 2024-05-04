@@ -50,6 +50,7 @@ func NewDAOCore(
 		if mod == nil {
 			panic("proposal module factory returned nil")
 		}
+
 		core.proposalModules[i] = dao_interfaces.ActivableProposalModule{
 			Enabled: true,
 			Module:  mod,
@@ -64,6 +65,7 @@ func NewDAOCore(
 		if handler == nil {
 			panic("message handler factory returned nil")
 		}
+
 		core.registry.Register(handler)
 	}
 
@@ -95,6 +97,7 @@ func (d *daoCore) UpdateProposalModules(toAdd []dao_interfaces.IProposalModule, 
 		if !module.Enabled {
 			panic(ErrModuleAlreadyDisabled)
 		}
+
 		module.Enabled = false
 
 		d.activeProposalModuleCount--
@@ -132,11 +135,13 @@ func (d *daoCore) Render(path string) string {
 	sb.WriteString(d.votingModule.Render(""))
 	sb.WriteString("## Supported Messages:\n")
 	sb.WriteString(d.registry.Render())
+
 	sb.WriteString("## Proposal Modules:\n")
 	for i, propMod := range d.proposalModules {
 		if !propMod.Enabled {
 			continue
 		}
+
 		info := propMod.Module.Info()
 		sb.WriteString("### #")
 		sb.WriteString(strconv.Itoa(i))
@@ -145,6 +150,7 @@ func (d *daoCore) Render(path string) string {
 		sb.WriteRune('\n')
 		sb.WriteString(propMod.Module.Render(""))
 	}
+
 	sb.WriteRune('\n')
 	return sb.String()
 }
@@ -159,10 +165,12 @@ func GetProposalModule(core dao_interfaces.IDAOCore, moduleIndex int) *dao_inter
 	if moduleIndex < 0 {
 		panic("module index must be >= 0")
 	}
+
 	mods := core.ProposalModules()
 	if moduleIndex >= len(mods) {
 		panic("invalid module index")
 	}
+
 	return &mods[moduleIndex]
 }
 
@@ -183,6 +191,7 @@ func (d *daoCore) addProposalModule(proposalMod dao_interfaces.IProposalModule) 
 		if mod.Enabled {
 			panic(ErrModuleAlreadyAdded)
 		}
+
 		mod.Enabled = true
 		d.activeProposalModuleCount++
 		return

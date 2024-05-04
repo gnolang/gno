@@ -24,6 +24,7 @@ func (m *UpdateMembersExecutableMessage) ToJSON() *json.Node {
 	for i, change := range *m {
 		changes[i] = change.ToJSON()
 	}
+
 	return json.ArrayNode("", changes)
 }
 
@@ -50,6 +51,7 @@ func (h *updateMembersHandler) Execute(msg dao_interfaces.ExecutableMessage) {
 	if !ok {
 		panic("unexpected message type")
 	}
+
 	for _, change := range *m {
 		h.vg.SetMemberPower(change.Address, change.Power)
 	}

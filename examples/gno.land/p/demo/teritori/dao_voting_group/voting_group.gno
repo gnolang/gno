@@ -64,6 +64,7 @@ func (v *VotingGroup) VotingPowerAtHeight(addr std.Address, height int64) uint64
 	if !ok {
 		return 0
 	}
+
 	return p.(uint64)
 }
 
@@ -72,6 +73,7 @@ func (v *VotingGroup) TotalPowerAtHeight(height int64) uint64 {
 	if !ok {
 		return 0
 	}
+
 	return p.(uint64)
 }
 
@@ -85,13 +87,16 @@ func (g *VotingGroup) SetMemberPower(addr std.Address, power uint64) {
 	if !ok {
 		g.memberCount.Set("", g.MemberCount(havl.Latest)+1)
 	}
+
 	previous := uint64(0)
 	if ok {
 		previous = iprevious.(uint64)
 	}
+
 	if power == previous {
 		return
 	}
+
 	g.powerByAddr.Set(addr.String(), power)
 
 	ipreviousTotal, ok := g.totalPower.Get("", havl.Latest)
@@ -99,6 +104,7 @@ func (g *VotingGroup) SetMemberPower(addr std.Address, power uint64) {
 	if ok {
 		previousTotal = ipreviousTotal.(uint64)
 	}
+
 	g.totalPower.Set("", (previousTotal+power)-previous)
 }
 
@@ -107,6 +113,7 @@ func (g *VotingGroup) RemoveMember(addr std.Address) (uint64, bool) {
 	if !removed {
 		return 0, false
 	}
+
 	g.memberCount.Set("", g.MemberCount(havl.Latest)-1)
 	power := p.(uint64)
 	g.totalPower.Set("", g.TotalPowerAtHeight(havl.Latest)-power)
@@ -122,6 +129,7 @@ func (g *VotingGroup) MemberCount(height int64) uint32 {
 	if !ok {
 		return 0
 	}
+
 	return val.(uint32)
 }
 
@@ -131,10 +139,12 @@ func (g *VotingGroup) GetMembers(start, end string, limit uint64, height int64) 
 		if limit > 0 && uint64(len(members)) >= limit {
 			return true
 		}
+
 		members = append(members, Member{
 			Address: std.Address(k),
 			Power:   v.(uint64),
 		})
+
 		return false
 	})
 	return members
@@ -157,6 +167,7 @@ func (v *VotingGroup) Render(path string) string {
 		sb.WriteRune('\n')
 		return false
 	})
+
 	sb.WriteRune('\n')
 	return sb.String()
 }

@@ -35,10 +35,12 @@ func (r *MessagesRegistry) MessagesFromJSON(slice []*json.Node) []ExecutableMess
 		if !ok {
 			panic("invalid ExecutableMessage: invalid message type")
 		}
+
 		instance := h.(MessageHandler).Instantiate()
 		instance.FromJSON(payload)
 		msgs[i] = instance
 	}
+
 	return msgs
 }
 
@@ -47,6 +49,7 @@ func (r *MessagesRegistry) Execute(msg ExecutableMessage) {
 	if !ok {
 		panic("invalid ExecutableMessage: invalid message type")
 	}
+
 	h.(MessageHandler).Execute(msg)
 }
 
@@ -64,6 +67,7 @@ func (r *MessagesRegistry) Render() string {
 		sb.WriteRune('\n')
 		return false
 	})
+
 	return sb.String()
 }
 

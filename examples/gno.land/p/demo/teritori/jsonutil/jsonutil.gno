@@ -21,7 +21,8 @@ func MustUnion(value *json.Node) (string, *json.Node) {
 	for key, value := range obj {
 		return key, value
 	}
-	panic("no or more than one variant in union")
+
+	panic("no variant in union")
 }
 
 func TimeNode(value time.Time) *json.Node {
@@ -29,6 +30,7 @@ func TimeNode(value time.Time) *json.Node {
 	if err != nil {
 		panic(err)
 	}
+
 	return json.StringNode("", string(j[1:len(j)-1]))
 }
 
@@ -38,6 +40,7 @@ func MustTime(value *json.Node) time.Time {
 	if err != nil {
 		panic(err)
 	}
+
 	return t
 }
 
@@ -59,6 +62,7 @@ func MustInt(value *json.Node) int {
 	if err != nil {
 		panic(err)
 	}
+
 	return i
 }
 
@@ -90,11 +94,13 @@ func AVLTreeNode(root *avl.Tree, transform func(elem interface{}) *json.Node) *j
 	if root == nil {
 		return EmptyObjectNode()
 	}
+
 	fields := make(map[string]*json.Node)
 	root.Iterate("", "", func(key string, val interface{}) bool {
 		fields[key] = transform(val)
 		return false
 	})
+
 	return json.ObjectNode("", fields)
 }
 
@@ -107,6 +113,7 @@ func MustAddress(value *json.Node) std.Address {
 	if !addr.IsValid() {
 		panic("invalid address")
 	}
+
 	return addr
 }
 
@@ -119,5 +126,6 @@ func MustAddressOrName(value *json.Node) users.AddressOrName {
 	if !aon.IsValid() {
 		panic("invalid address or name")
 	}
+
 	return aon
 }

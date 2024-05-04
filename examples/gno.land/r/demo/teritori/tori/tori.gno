@@ -93,10 +93,12 @@ func Render(path string) string {
 	switch {
 	case path == "":
 		return tori.RenderHome()
+
 	case c == 2 && parts[0] == "balance":
 		owner := users.AddressOrName(parts[1])
 		balance, _ := tori.BalanceOf(rusers.Resolve(owner))
 		return ufmt.Sprintf("%d\n", balance)
+
 	default:
 		return "404\n"
 	}

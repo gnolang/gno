@@ -21,6 +21,7 @@ func TestRegistry(t *testing.T) {
 	if len(msgs) != 1 {
 		t.Errorf("Expected 1 message, got %d", len(msgs))
 	}
+
 	registry.Execute(msgs[0])
 	if value != "Hello" {
 		t.Errorf("Expected value to be 'Hello', got '%s'", value)

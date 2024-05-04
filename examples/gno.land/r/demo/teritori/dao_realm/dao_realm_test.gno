@@ -29,6 +29,7 @@ func TestInit(t *testing.T) {
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
+
 		membersJSON := json.ArrayNode("", iSlice).String()
 		expected := `[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
 		if membersJSON != expected {
@@ -49,11 +50,13 @@ func TestUpdateMembers(t *testing.T) {
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
+
 		membersJSON = json.ArrayNode("", iSlice).String()
 		expected := fmt.Sprintf(`[{"address":"g108cszmcvs4r3k67k7h5zuhm4el3qhlrxzhshtv","power":"1"},{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`)
 		if membersJSON != expected {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
+
 		totalPower := group.TotalPowerAtHeight(havl.Latest)
 		if totalPower != 7 {
 			t.Errorf("Expected total power to be 6, got %d", totalPower)
@@ -65,6 +68,7 @@ func TestUpdateMembers(t *testing.T) {
 		if len(children) != 6 {
 			t.Errorf("Expected 6 members, got %d", len(children))
 		}
+
 		var member dao_voting_group.Member
 		member.FromJSON(children[0])
 
@@ -76,11 +80,13 @@ func TestUpdateMembers(t *testing.T) {
 		for i, v := range members {
 			iSlice[i] = v.ToJSON()
 		}
+
 		membersJSON := json.ArrayNode("", iSlice).String()
 		expected := `[{"address":"g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a","power":"1"},{"address":"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c","power":"1"},{"address":"g18syxa0vh0vmne90mwhtynjet0zgeqf6prh3ryy","power":"2"},{"address":"g1ckn395mpttp0vupgtratyufdaakgh8jgkmr3ym","power":"1"},{"address":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","power":"1"}]`
 		if membersJSON != expected {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, membersJSON)
 		}
+
 		totalPower := group.TotalPowerAtHeight(havl.Latest)
 		if totalPower != 6 {
 			t.Errorf("Expected total power to be 6, got %d", totalPower)

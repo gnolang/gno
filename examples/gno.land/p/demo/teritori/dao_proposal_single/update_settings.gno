@@ -24,9 +24,12 @@ func (usm *UpdateSettingsMessage) String() string {
 	switch usm.Threshold.(type) {
 	case *ThresholdThresholdQuorum:
 		ss = append(ss, "Threshold type: ThresholdQuorum\n\nThreshold: "+usm.Threshold.(*ThresholdThresholdQuorum).Threshold.String()+"\n\nQuorum: "+usm.Threshold.(*ThresholdThresholdQuorum).Quorum.String())
+
 	default:
 		ss = append(ss, "Threshold type: unknown")
+
 	}
+
 	return strings.Join(ss, "\n--\n")
 }
 
@@ -61,6 +64,7 @@ func (h *updateSettingsHandler) Execute(message dao_interfaces.ExecutableMessage
 		// FIXME: validate better
 		h.mod.opts.Threshold = usm.Threshold.(*ThresholdThresholdQuorum)
 		return
+
 	default:
 		panic("unsupported threshold type")
 	}

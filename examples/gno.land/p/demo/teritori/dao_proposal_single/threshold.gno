@@ -21,11 +21,13 @@ func PercentageThresholdFromJSON(ast *json.Node) PercentageThreshold {
 	switch variant {
 	case "majority":
 		return &PercentageThresholdMajority{}
+
 	case "percent":
 		p := PercentageThresholdPercent(0)
 		p.FromJSON(valueNode)
 		return &p
 	}
+
 	panic("unknown PercentageThreshold variant")
 }
 
@@ -53,6 +55,7 @@ func (p *PercentageThresholdPercent) String() string {
 		sb.WriteRune('.')
 		sb.WriteString(strconv.FormatUint(decPart, 10))
 	}
+
 	sb.WriteRune('%')
 	return sb.String()
 }
@@ -81,15 +84,18 @@ func ThresholdFromJSON(ast *json.Node) Threshold {
 	switch variant {
 	case "absolutePercentage":
 		panic("not implemented")
+
 	case "thresholdQuorum":
 		t := &ThresholdThresholdQuorum{}
 		t.FromJSON(valueNode)
 		return t
+
 	case "absoluteCount":
 		val := valueNode.MustNumeric()
 		ac := ThresholdAbsoluteCount(val)
 		return &ac
 	}
+
 	panic("unknown Threshold variant")
 }
 

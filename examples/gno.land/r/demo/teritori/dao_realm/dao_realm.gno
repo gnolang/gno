@@ -79,6 +79,7 @@ func RegisterSelf() {
 	if registered {
 		panic("already registered")
 	}
+
 	dao_registry.Register(func() dao_interfaces.IDAOCore { return daoCore }, "DAO Realm", "Default testing DAO", "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1080&fit=max")
 	registered = true
 }
@@ -93,6 +94,7 @@ func VoteJSON(moduleIndex int, proposalID int, voteJSON string) {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	module.Module.VoteJSON(proposalID, voteJSON)
 }
 
@@ -102,6 +104,7 @@ func Execute(moduleIndex int, proposalID int) {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	module.Module.Execute(proposalID)
 }
 
@@ -111,6 +114,7 @@ func ProposeJSON(moduleIndex int, proposalJSON string) int {
 	if !module.Enabled {
 		panic("proposal module is not enabled")
 	}
+
 	return module.Module.ProposeJSON(proposalJSON)
 }
 
