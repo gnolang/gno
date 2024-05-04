@@ -16,13 +16,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
 var (
 	errInvalidMoniker                    = errors.New("moniker not set")
 	errInvalidDBBackend                  = errors.New("invalid DB backend")
 	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidGenesisPath                = errors.New("invalid genesis path")
 	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
 	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
 	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
@@ -52,6 +52,7 @@ type Config struct {
 	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -63,6 +64,7 @@ func DefaultConfig() *Config {
 		Mempool:      mem.DefaultMempoolConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -77,7 +79,7 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	// Initialize the config as default
 	var (
 		cfg        = DefaultConfig()
-		configPath = join(root, defaultConfigFilePath)
+		configPath = filepath.Join(root, defaultConfigPath)
 	)
 
 	// Config doesn't exist, create it
@@ -139,6 +141,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.TestTelemetryConfig(),
 	}
 }
 
@@ -165,8 +168,12 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
-		return fmt.Errorf("no data directory, %w", err)
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+		return fmt.Errorf("no secrets directory, %w", err)
+	}
+
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
+		return fmt.Errorf("no DB directory, %w", err)
 	}
 
 	return nil
@@ -194,32 +201,43 @@ func (cfg *Config) ValidateBasic() error {
 }
 
 // -----------------------------------------------------------------------------
-// BaseConfig
 
 var (
-	defaultConfigDir = "config"
-	defaultDataDir   = "data"
+	DefaultDBDir      = "db"
+	defaultConfigDir  = "config"
+	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
-	defaultGenesisJSONName  = "genesis.json"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigFilePath   = filepath.Join(defaultConfigDir, defaultConfigFileName)
-	defaultGenesisJSONPath  = filepath.Join(defaultConfigDir, defaultGenesisJSONName)
-	defaultPrivValKeyPath   = filepath.Join(defaultConfigDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(defaultDataDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(defaultConfigDir, defaultNodeKeyName)
+	defaultConfigPath       = filepath.Join(defaultConfigDir, defaultConfigFileName)
+	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
 )
 
-// BaseConfig defines the base configuration for a Tendermint node
+// BaseConfig defines the base configuration for a Tendermint node.
 type BaseConfig struct {
 	// chainID is unexposed and immutable but here for convenience
 	chainID string
 
 	// The root directory for all data.
-	// This should be set in viper so it can unmarshal into this struct
+	// The node directory contains:
+	//
+	//	┌── db/
+	//	│   ├── blockstore.db (folder)
+	//	│   ├── gnolang.db (folder)
+	//	│   └── state.db (folder)
+	//	├── wal/
+	//	│   └── cs.wal (folder)
+	//	├── secrets/
+	//	│   ├── priv_validator_state.json
+	//	│   ├── node_key.json
+	//	│   └── priv_validator_key.json
+	//	└── config/
+	//	    └── config.toml (optional)
 	RootDir string `toml:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,
@@ -255,9 +273,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
-
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
 	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
@@ -285,7 +300,6 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONPath,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -296,7 +310,7 @@ func DefaultBaseConfig() BaseConfig {
 		FastSyncMode:       true,
 		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             "data",
+		DBPath:             DefaultDBDir,
 	}
 }
 
@@ -314,29 +328,24 @@ func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
 }
 
-// GenesisFile returns the full path to the genesis.json file
-func (cfg BaseConfig) GenesisFile() string {
-	return join(cfg.RootDir, cfg.Genesis)
-}
-
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorKey)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)
 }
 
-// PrivValidatorFile returns the full path to the priv_validator_state.json file
+// PrivValidatorStateFile returns the full path to the priv_validator_state.json file
 func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorState)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
 func (cfg BaseConfig) NodeKeyFile() string {
-	return join(cfg.RootDir, cfg.NodeKey)
+	return filepath.Join(cfg.RootDir, cfg.NodeKey)
 }
 
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
-	return join(cfg.RootDir, cfg.DBPath)
+	return filepath.Join(cfg.RootDir, cfg.DBPath)
 }
 
 var defaultMoniker = getDefaultMoniker()
@@ -369,11 +378,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the genesis path is set
-	if cfg.Genesis == "" {
-		return errInvalidGenesisPath
 	}
 
 	// Verify the validator private key path is set
