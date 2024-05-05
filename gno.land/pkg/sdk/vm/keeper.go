@@ -95,60 +95,62 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 	}
 }
 
-func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+func (vm *VMKeeper) getGnoStore(_ sdk.Context) gno.Store {
 	// construct main store if nil.
 	if vm.gnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
-	switch ctx.Mode() {
-	case sdk.RunTxModeDeliver:
-		// swap sdk store of existing store.
-		// this is needed due to e.g. gas wrappers.
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
-		// clear object cache for every transaction.
-		// NOTE: this is inefficient, but simple.
-		// in the future, replace with more advanced caching strategy.
-		vm.gnoStore.ClearObjectCache()
-		return vm.gnoStore
-	case sdk.RunTxModeCheck:
-		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-		return simStore
-	case sdk.RunTxModeSimulate:
-		// always make a new store for simulate for isolation.
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-		return simStore
-	default:
-		panic("should not happen")
-	}
+
+	return vm.gnoStore
+	// switch ctx.Mode() {
+	// case sdk.RunTxModeDeliver:
+	// 	// swap sdk store of existing store.
+	// 	// this is needed due to e.g. gas wrappers.
+	// 	baseSDKStore := ctx.Store(vm.baseKey)
+	// 	iavlSDKStore := ctx.Store(vm.iavlKey)
+	// 	vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+	// 	// clear object cache for every transaction.
+	// 	// NOTE: this is inefficient, but simple.
+	// 	// in the future, replace with more advanced caching strategy.
+	// 	vm.gnoStore.ClearObjectCache()
+	// 	return vm.gnoStore
+	// case sdk.RunTxModeCheck:
+	// 	// For query??? XXX Why not RunTxModeQuery?
+	// 	simStore := vm.gnoStore.Fork()
+	// 	baseSDKStore := ctx.Store(vm.baseKey)
+	// 	iavlSDKStore := ctx.Store(vm.iavlKey)
+	// 	simStore.SwapStores(baseSDKStore, iavlSDKStore)
+	// 	return simStore
+	// case sdk.RunTxModeSimulate:
+	// 	// always make a new store for simulate for isolation.
+	// 	simStore := vm.gnoStore.Fork()
+	// 	baseSDKStore := ctx.Store(vm.baseKey)
+	// 	iavlSDKStore := ctx.Store(vm.iavlKey)
+	// 	simStore.SwapStores(baseSDKStore, iavlSDKStore)
+	// 	return simStore
+	// default:
+	// 	panic("should not happen")
+	// }
 }
 
 var reRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
-	creator := msg.Creator
+	// creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
-	deposit := msg.Deposit
+	// deposit := msg.Deposit
 	gnostore := vm.getGnoStore(ctx)
 
 	// Validate arguments.
-	if creator.IsZero() {
-		return std.ErrInvalidAddress("missing creator address")
-	}
-	creatorAcc := vm.acck.GetAccount(ctx, creator)
-	if creatorAcc == nil {
-		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
-	}
+	// if creator.IsZero() {
+	// 	return std.ErrInvalidAddress("missing creator address")
+	// }
+	// creatorAcc := vm.acck.GetAccount(ctx, creator)
+	// if creatorAcc == nil {
+	// 	return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
+	// }
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
@@ -161,7 +163,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Pay deposit from creator.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	// pkgAddr := gno.DerivePkgAddr(pkgPath)
 
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
@@ -170,24 +172,24 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - check if caller is in Admins or Editors.
 	// - check if namespace is not in pause.
 
-	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
-	if err != nil {
-		return err
-	}
+	// err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// Parse and run the files, construct *PV.
-	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    creator.Bech32(),
-		OrigSend:      deposit,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
-	}
+	// msgCtx := stdlibs.ExecContext{
+	// 	ChainID:       ctx.ChainID(),
+	// 	Height:        ctx.BlockHeight(),
+	// 	Timestamp:     ctx.BlockTime().Unix(),
+	// 	Msg:           msg,
+	// 	OrigCaller:    creator.Bech32(),
+	// 	OrigSend:      deposit,
+	// 	OrigSendSpent: new(std.Coins),
+	// 	// OrigPkgAddr:   pkgAddr.Bech32(),
+	// 	Banker:      NewSDKBanker(vm, ctx),
+	// 	EventLogger: ctx.EventLogger(),
+	// }
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -195,9 +197,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			Output:    os.Stdout, // XXX
 			Store:     gnostore,
 			Alloc:     gnostore.GetAllocator(),
-			Context:   msgCtx,
+			Context:   stdlibs.ExecContext{},
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	defer m2.Release()
 	defer func() {
@@ -241,10 +243,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	caller := msg.Caller
-	send := msg.Send
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	// pkgAddr := gno.DerivePkgAddr(pkgPath)
+	// caller := msg.Caller
+	// send := msg.Send
+	// err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
 		return "", err
 	}
@@ -267,16 +269,16 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID: ctx.ChainID(),
+		// Height:    ctx.BlockHeight(),
+		// Timestamp: ctx.BlockTime().Unix(),
+		Msg: msg,
+		// OrigCaller:    caller.Bech32(),
+		// OrigSend:      send,
+		// OrigSendSpent: new(std.Coins),
+		// OrigPkgAddr:   pkgAddr.Bech32(),
+		// Banker:        NewSDKBanker(vm, ctx),
+		// EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -287,7 +289,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Context:   msgCtx,
 			Alloc:     gnostore.GetAllocator(),
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	defer m.Release()
 	m.SetActivePackage(mpv)
@@ -328,10 +330,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
-	callerAcc := vm.acck.GetAccount(ctx, caller)
-	if callerAcc == nil {
-		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
-	}
+	// callerAcc := vm.acck.GetAccount(ctx, caller)
+	// if callerAcc == nil {
+	// 	return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
+	// }
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
@@ -365,7 +367,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Alloc:     gnostore.GetAllocator(),
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	// XXX MsgRun does not have pkgPath. How do we find it on chain?
 	defer m.Release()
@@ -392,7 +394,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			Alloc:     gnostore.GetAllocator(),
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	defer m2.Release()
 	m2.SetActivePackage(pv)
@@ -513,7 +515,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	defer m.Release()
 	defer func() {
@@ -580,7 +582,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: vm.maxCycles,
-			GasMeter:  ctx.GasMeter(),
+			// GasMeter:  ctx.GasMeter(),
 		})
 	defer m.Release()
 	defer func() {

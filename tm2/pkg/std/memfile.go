@@ -55,6 +55,8 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
+
+	// DMB: remove dependency on this.
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
