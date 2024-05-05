@@ -3,19 +3,10 @@ package tests
 import (
 	"std"
 
-	psubtests "gno.land/p/demo/tests/subtests"
-	"gno.land/r/demo/tests"
-	rtests "gno.land/r/demo/tests"
+	"gno.land/p/demo/tests/subtests"
 )
 
 const World = "world"
-
-// IncCounter demonstrates that it's possible to call a realm function from
-// a package. So a package can potentially write into the store, by calling
-// an other realm.
-func IncCounter() {
-	tests.IncCounter()
-}
 
 func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
@@ -61,11 +52,7 @@ func GetPrevRealm() std.Realm {
 }
 
 func GetPSubtestsPrevRealm() std.Realm {
-	return psubtests.GetPrevRealm()
-}
-
-func GetRTestsGetPrevRealm() std.Realm {
-	return rtests.GetPrevRealm()
+	return subtests.GetPrevRealm()
 }
 
 // Warning: unsafe pattern.
