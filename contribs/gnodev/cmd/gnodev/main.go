@@ -161,7 +161,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		defaultDevOptions.verbose,
 		"enable verbose output for development",
 	)
@@ -251,7 +251,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	server := http.Server{
 		Handler:           mux,
 		Addr:              cfg.webListenerAddr,
-		ReadHeaderTimeout: time.Minute,
+		ReadHeaderTimeout: time.Second * 60,
 	}
 	defer server.Close()
 

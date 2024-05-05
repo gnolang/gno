@@ -185,15 +185,21 @@ func signTx(
 	signOpts signOpts,
 	keyOpts keyOpts,
 ) error {
+	signBytes, err := tx.GetSignBytes(
+		signOpts.chainID,
+		signOpts.accountNumber,
+		signOpts.accountSequence,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to get signature bytes, %w", err)
+	}
+
 	// Sign the transaction data
 	sig, pub, err := kb.Sign(
 		keyOpts.keyName,
 		keyOpts.decryptPass,
-		tx.GetSignBytes(
-			signOpts.chainID,
-			signOpts.accountNumber,
-			signOpts.accountSequence,
-		))
+		signBytes,
+	)
 	if err != nil {
 		return fmt.Errorf("unable to sign transaction bytes, %w", err)
 	}

@@ -182,6 +182,8 @@ func ExecSignAndBroadcast(
 	io.Println("OK!")
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+	io.Println("HEIGHT:    ", bres.Height)
+	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 
 	return nil
 }
