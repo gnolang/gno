@@ -1,4 +1,4 @@
-name: gnomod
+name: gnomd
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   pull_request: 
     paths:
-      - "contribs/gnomod/**"
+      - "contribs/gnomd/**"
       - ".github/**"
 
 jobs:
@@ -15,4 +15,4 @@ jobs:
     name: Run Main
     uses: ./.github/workflows/main_template.yml
     with:
-      modulepath: "contribs/gnomod"
+      modulepath: "contribs/gnomd"
