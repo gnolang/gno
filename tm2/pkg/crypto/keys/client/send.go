@@ -30,7 +30,7 @@ func NewMakeSendCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "send",
 			ShortUsage: "send [flags] <key-name or address>",
-			ShortHelp:  "Sends native currency",
+			ShortHelp:  "sends native currency",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

@@ -32,7 +32,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "broadcast",
 			ShortUsage: "broadcast [flags] <file-name>",
-			ShortHelp:  "Broadcasts a signed document",
+			ShortHelp:  "broadcasts a signed document",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -100,7 +100,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, err
+	}
 
 	if cfg.DryRun {
 		return SimulateTx(cli, bz)

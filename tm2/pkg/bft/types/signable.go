@@ -2,13 +2,12 @@ package types
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 // MaxSignatureSize is a maximum allowed signature size for the Proposal
 // and Vote.
 // XXX: secp256k1 does not have Size nor MaxSize defined.
-var MaxSignatureSize = maths.MaxInt(ed25519.SignatureSize, 64)
+const MaxSignatureSize = max(ed25519.SignatureSize, 64)
 
 // Signable is an interface for all signable things.
 // It typically removes signatures before serializing.

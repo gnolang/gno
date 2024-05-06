@@ -29,7 +29,7 @@ func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "query",
 			ShortUsage: "query [flags] <path>",
-			ShortHelp:  "Makes an ABCI query",
+			ShortHelp:  "makes an ABCI query",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -100,7 +100,11 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "new http client")
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -19,10 +20,10 @@ type paramsChangeTestCase struct {
 	params abci.ConsensusParams
 }
 
-func newTestApp() proxy.AppConns {
+func newTestApp() appconn.AppConns {
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	return proxy.NewAppConns(cc)
+	return appconn.NewAppConns(cc)
 }
 
 func makeAndCommitGoodBlock(

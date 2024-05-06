@@ -1,13 +1,13 @@
 # Test recovering
 
-gno test -verbose -run 'TestRecover$' .
+gno test -v -run 'TestRecover$' .
 
 ! stdout .+
 stderr 'recovered bad panic!'
 stderr '--- PASS'
 stderr 'ok  '
 
-gno test -verbose -run 'TestRecoverSkip$' .
+gno test -v -run 'TestRecoverSkip$' .
 
 ! stdout .+
 stderr 'skipped'
@@ -15,7 +15,7 @@ stderr 'skipped'
 stderr '--- SKIP'
 stderr 'ok  '
 
-gno test -verbose -run 'TestBadRecoverSkip$' .
+gno test -v -run 'TestBadRecoverSkip$' .
 
 ! stdout .+
 # should contain warning about using testing.Recover
@@ -32,20 +32,30 @@ package recov
 
 import "testing"
 
+type RecoverySetter struct {
+	value interface{}
+}
+
+func (s *RecoverySetter) Set(v interface{}) {
+	s.value = v
+}
+
 func TestRecover(t *testing.T) {
+	var setter RecoverySetter
 	defer func() {
-		err := testing.Recover()
-		t.Log("recovered", err)
+		t.Log("recovered", setter.value)
 	}()
+	defer testing.Recover(&setter)
 
 	panic("bad panic!")
 }
 
 func TestRecoverSkip(t *testing.T) {
+	var setter RecoverySetter
 	defer func() {
-		err := testing.Recover()
-		t.Log("recovered", err)
+		t.Log("recovered", setter.value)
 	}()
+	defer testing.Recover(&setter)
 
 	t.Skip("skipped")
 	panic("bad panic!")

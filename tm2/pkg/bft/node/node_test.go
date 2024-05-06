@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -30,11 +31,11 @@ import (
 )
 
 func TestNodeStartStop(t *testing.T) {
-	config := cfg.ResetTestRoot("node_node_test")
+	config, genesisFile := cfg.ResetTestRoot("node_node_test")
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, genesisFile, log.NewNoopLogger())
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
@@ -92,12 +93,12 @@ func TestSplitAndTrimEmpty(t *testing.T) {
 }
 
 func TestNodeDelayedStart(t *testing.T) {
-	config := cfg.ResetTestRoot("node_delayed_start_test")
+	config, genesisFile := cfg.ResetTestRoot("node_delayed_start_test")
 	defer os.RemoveAll(config.RootDir)
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	n.GenesisDoc().GenesisTime = now.Add(2 * time.Second)
 	require.NoError(t, err)
 
@@ -110,11 +111,11 @@ func TestNodeDelayedStart(t *testing.T) {
 }
 
 func TestNodeReady(t *testing.T) {
-	config := cfg.ResetTestRoot("node_node_test")
+	config, genesisFile := cfg.ResetTestRoot("node_node_test")
 	defer os.RemoveAll(config.RootDir)
 
 	// Create & start node
-	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// Assert that blockstore has zero block before waiting for the first block
@@ -143,11 +144,11 @@ func TestNodeReady(t *testing.T) {
 }
 
 func TestNodeSetAppVersion(t *testing.T) {
-	config := cfg.ResetTestRoot("node_app_version_test")
+	config, genesisFile := cfg.ResetTestRoot("node_app_version_test")
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// default config uses the kvstore app
@@ -166,7 +167,7 @@ func TestNodeSetAppVersion(t *testing.T) {
 func TestNodeSetPrivValTCP(t *testing.T) {
 	addr := "tcp://" + testFreeAddr(t)
 
-	config := cfg.ResetTestRoot("node_priv_val_tcp_test")
+	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = addr
 
@@ -191,7 +192,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	}()
 	defer signerServer.Stop()
 
-	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -200,11 +201,11 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
 	addrNoPrefix := testFreeAddr(t)
 
-	config := cfg.ResetTestRoot("node_priv_val_tcp_test")
+	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
 
-	_, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	_, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	assert.Error(t, err)
 }
 
@@ -212,7 +213,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	tmpfile := "/tmp/kms." + random.RandStr(6) + ".sock"
 	defer os.Remove(tmpfile) // clean up
 
-	config := cfg.ResetTestRoot("node_priv_val_tcp_test")
+	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = "unix://" + tmpfile
 
@@ -235,7 +236,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	}()
 	defer pvsc.Stop()
 
-	n, err := DefaultNewNode(config, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -254,10 +255,10 @@ func testFreeAddr(t *testing.T) string {
 // create a proposal block using real and full
 // mempool pool and validate it.
 func TestCreateProposalBlock(t *testing.T) {
-	config := cfg.ResetTestRoot("node_create_proposal")
+	config, _ := cfg.ResetTestRoot("node_create_proposal")
 	defer os.RemoveAll(config.RootDir)
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
@@ -308,7 +309,7 @@ func TestCreateProposalBlock(t *testing.T) {
 }
 
 func TestNodeNewNodeCustomReactors(t *testing.T) {
-	config := cfg.ResetTestRoot("node_new_node_custom_reactors_test")
+	config, genesisFile := cfg.ResetTestRoot("node_new_node_custom_reactors_test")
 	defer os.RemoveAll(config.RootDir)
 
 	cr := p2pmock.NewReactor()
@@ -321,7 +322,7 @@ func TestNodeNewNodeCustomReactors(t *testing.T) {
 		privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
 		nodeKey,
 		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
-		DefaultGenesisDocProviderFunc(config),
+		DefaultGenesisDocProviderFunc(genesisFile),
 		DefaultDBProvider,
 		log.NewTestingLogger(t),
 		CustomReactors(map[string]p2p.Reactor{"FOO": cr, "BLOCKCHAIN": customBlockchainReactor}),

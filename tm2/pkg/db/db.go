@@ -9,6 +9,10 @@ import (
 
 type BackendType string
 
+func (b BackendType) String() string {
+	return string(b)
+}
+
 // These are valid backend types.
 //
 // The backends themselves must be imported to be used (ie. using the blank
@@ -31,7 +35,7 @@ type BackendType string
 //		db.NewDB("mydb", db.BackendType(userProvidedBackend), "./data")
 //	}
 const (
-	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most
+	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
 	// popular implementation)
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"

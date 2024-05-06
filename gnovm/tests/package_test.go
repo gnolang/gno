@@ -14,7 +14,7 @@ import (
 	// "go/build"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPackages(t *testing.T) {

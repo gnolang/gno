@@ -16,7 +16,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -24,12 +26,12 @@ import (
 func setupTestCase(t *testing.T) (func(t *testing.T), dbm.DB, sm.State) {
 	t.Helper()
 
-	config := cfg.ResetTestRoot("state_")
+	config, genesisFile := cfg.ResetTestRoot("state_")
 	dbType := dbm.BackendType(config.DBBackend)
 	stateDB, err := dbm.NewDB("state", dbType, config.DBDir())
 	require.NoError(t, err)
 
-	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
+	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, genesisFile)
 	assert.NoError(t, err, "expected no error on LoadStateFromDBOrGenesisFile")
 
 	tearDown := func(t *testing.T) {

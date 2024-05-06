@@ -466,7 +466,7 @@ other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
 
 The goal of this approach is to allow a contract to own assets (like grc20 or
-native tokens), so that you can create contracts that can be called by another
+coins), so that you can create contracts that can be called by another
 contract, reducing the risk of stealing money from the original caller. This is
 the behavior of the default grc20 implementation.
 
@@ -596,22 +596,23 @@ func init() {
 // the object.
 ```
 
-### Choosing between native tokens and GRC20 tokens
+### Choosing between Coins and GRC20 tokens
 
-In Gno, you've got two main choices for tokens: Native or GRC20. Each has its
-own pros and cons, and the best fit depends on your needs.
+In Gno, you've got two primary options: Coins or GRC20. Each option
+has its unique advantages and disadvantages, and the ideal choice varies based
+on individual requirements.
 
-#### Native tokens
+#### Coins
 
-Native tokens are managed by the banker module, separate from GnoVM. They're
+Coins are managed by the banker module, separate from GnoVM. They're
 simple, strict, and secure. You can create, transfer, and check balances with an
 RPC call, no GnoVM needed.
 
-For example, if you're creating a coin for cross-chain transfers, native tokens
+For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](../concepts/standard-library/banker).
+Read about how to use the Banker module [here](stdlibs/banker).
 
 #### GRC20 tokens
 
@@ -627,9 +628,8 @@ Remember, GRC20 tokens are more gas-intensive and aren't IBC-ready yet. They
 also come with shared ownership, meaning the contract retains some control.
 
 In the end, your choice depends on your needs: simplicity and security with
-Native tokens, or flexibility and control with GRC20 tokens. And if you want the
-best of both worlds, you can wrap a native token into a GRC20 compatible
-token.
+Coins, or flexibility and control with GRC20 tokens. And if you want the
+best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
 import "gno.land/p/demo/grc/grc20"
@@ -645,11 +645,11 @@ func MyBalance() uint64 {
 
 See also: https://gno.land/r/demo/foo20
 
-#### Wrapping native tokens
+#### Wrapping Coins
 
-Want the best of both worlds? Consider wrapping your Native tokens. This gives
-your tokens the flexibility of GRC20 while keeping the security of Native
-tokens. It's a bit more complex, but it's a powerful option that offers great
+Want the best of both worlds? Consider wrapping your Coins. This gives
+your coins the flexibility of GRC20 while keeping the security of Coins.
+It's a bit more complex, but it's a powerful option that offers great
 versatility.
 
 See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wugnot

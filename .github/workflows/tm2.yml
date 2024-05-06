@@ -79,7 +79,7 @@ jobs:
         working-directory: tm2
         run: |
           export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=20m -coverprofile=coverage.out -covermode=atomic"
+          export GOTEST_FLAGS="-v -p 1 -timeout=20m -coverprofile=coverage.out -covermode=atomic -tags='ledger_suite'"
           make ${{ matrix.args }}
           touch coverage.out
       - uses: actions/upload-artifact@v4
