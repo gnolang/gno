@@ -13,6 +13,6 @@ on:
 jobs:
   main:
     name: Run Main
-    uses: ./.github/workflows/templates/main.yml
+    uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "tm2"
