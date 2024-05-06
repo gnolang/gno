@@ -38,9 +38,17 @@ func Init(cfg *Config) (*Collector, error) {
 			Help:      "block build duration",
 		})
 
+	c.blockIntervalSeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: cfg.Namespace,
+			Name:      "block_interval_seconds",
+			Help:      "block interval in seconds",
+		})
+
 	prometheus.MustRegister(
 		c.broadcastTxTimer,
 		c.buildBlockTimer,
+		c.blockIntervalSeconds,
 	)
 
 	go func() {

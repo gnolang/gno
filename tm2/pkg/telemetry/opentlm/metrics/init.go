@@ -22,8 +22,9 @@ import (
 
 // Collector is complient with the telemetry.Collector interface
 type Collector struct {
-	broadcastTxTimer metric.Int64Histogram
-	buildBlockTimer  metric.Int64Histogram
+	broadcastTxTimer     metric.Int64Histogram
+	buildBlockTimer      metric.Int64Histogram
+	blockIntervalSeconds metric.Int64Histogram
 }
 
 // Collector is complient with the telemetry.Collector interface
@@ -33,6 +34,10 @@ func (c *Collector) RecordBroadcastTxTimer(data time.Duration) {
 
 func (c *Collector) RecordBuildBlockTimer(data time.Duration) {
 	c.buildBlockTimer.Record(context.Background(), data.Milliseconds())
+}
+
+func (c *Collector) RecordBlockIntervalSeconds(data time.Duration) {
+	c.blockIntervalSeconds.Record(context.Background(), data.Milliseconds())
 }
 
 func Init(config *config.Config) (*Collector, error) {
@@ -79,6 +84,14 @@ func Init(config *config.Config) (*Collector, error) {
 		"build_block_hist",
 		metric.WithDescription("block build duration"),
 		metric.WithUnit("ms"),
+	); err != nil {
+		return nil, err
+	}
+
+	if collector.blockIntervalSeconds, err = meter.Int64Histogram(
+		"block_interval_seconds",
+		metric.WithDescription("block interval duration"),
+		metric.WithUnit("s"),
 	); err != nil {
 		return nil, err
 	}

@@ -14,8 +14,8 @@ import (
 var (
 	isConfigSet atomic.Bool
 
-	promCollector    Collector
-	opentlmCollector Collector
+	promCollector    Collector = nil
+	opentlmCollector Collector = nil
 )
 
 type Config struct {
@@ -53,6 +53,8 @@ func Init(c Config) error {
 	if c.OpenTelemetry.MetricsEnabled {
 		opentlmCollector, err = metrics.Init(c.OpenTelemetry)
 		if err != nil {
+			// NOTE(albttx): When endpoint isn't specify, this error is return
+			// and create a CONSENSUS fail error.
 			return err
 		}
 	}

@@ -1377,6 +1377,8 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	fail.Fail() // XXX
 
+	cs.recordMetrics(block)
+
 	// NewHeightStep!
 	cs.updateToState(stateCopy)
 
@@ -1390,6 +1392,15 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	// * cs.Height has been increment to height+1
 	// * cs.Step is now cstypes.RoundStepNewHeight
 	// * cs.StartTime is set to when we will start round0.
+}
+
+func (cs *ConsensusState) recordMetrics(block *types.Block) {
+	if block.Height > 1 {
+		lastBlockMeta := cs.blockStore.LoadBlockMeta(block.Height - 1)
+		if lastBlockMeta != nil {
+			telemetry.RecordBlockIntervalSeconds(block.Time.Sub(lastBlockMeta.Header.Time))
+		}
+	}
 }
 
 // -----------------------------------------------------------------------------
