@@ -2427,9 +2427,6 @@ func cmpSpecificity(t1, t2 Type) int {
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, cx, t)
-		if cx.T != nil && t != nil {
-			checkType(cx.T, t, autoNative)
-		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		// "push" expected type into shift binary's left operand.
 		checkOrConvertType(store, last, &bx.Left, t, autoNative)
@@ -2475,6 +2472,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil && t != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
