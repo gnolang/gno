@@ -49,7 +49,7 @@ services:
       traefik.http.routers.gnoland.tls: "true"
       traefik.http.routers.gnoland.tls.certresolver: "le"
       traefik.http.routers.gnoland-rpc.entrypoints: "rpc"
-      traefik.http.routers.gnoland-rpc.rule: "Host(`rpc.staging.gno.land`)"
+      traefik.http.routers.gnoland-rpc.rule: "PathPrefix(`/`)"
       traefik.http.routers.gnoland-rpc.service: gnoland-rpc
       traefik.http.services.gnoland-rpc.loadbalancer.server.port: 26657
 
@@ -60,7 +60,7 @@ services:
     entrypoint:
       - gnoweb
       - --bind=0.0.0.0:8888
-      - --remote=traefik:26657
+      - --remote=http://traefik:26657
       - --faucet-url=https://faucet-api.staging.gnoteam.com
       - --captcha-site=$CAPTCHA_SITE_KEY
       - --with-analytics
