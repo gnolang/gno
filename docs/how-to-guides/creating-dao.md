@@ -38,11 +38,11 @@ type IDAOCore interface {
 }
 ```
 
-A default implementation is provided in the package `gno.land/p/demo/dao-maker/dao_core`, and custom implementations are generally not required.
+A default implementation is provided in the package `gno.land/p/demo/dao_maker/dao_core`, and custom implementations are generally not required.
 
 ### Voting Module
 
-The `gno.land/p/demo/dao-maker/dao_interfaces.IVotingModule` interface defines how voting power is allocated to addresses within the DAO.
+The `gno.land/p/demo/dao_maker/dao_interfaces.IVotingModule` interface defines how voting power is allocated to addresses within the DAO.
 
 **Interface Definition:**
 
@@ -56,11 +56,11 @@ type IVotingModule interface {
 }
 ```
 
-There is only one implementation currently, `gno.land/p/demo/dao-maker/dao_voting_group`, providing a membership-based voting power definition.
+There is only one implementation currently, `gno.land/p/demo/dao_maker/dao_voting_group`, providing a membership-based voting power definition.
 
 ### Proposal Modules
 
-A proposal module (`gno.land/p/demo/dao-maker/dao_interfaces.IProposalModule`) is responsible for:
+A proposal module (`gno.land/p/demo/dao_maker/dao_interfaces.IProposalModule`) is responsible for:
 - Receiving proposals, the proposal type is defined by the module
 - Managing the proposals lifecycle
 - Tallying votes, the vote type is defined by the module and the associated voting power is queried from the voting module
@@ -81,11 +81,11 @@ type IProposalModule interface {
 }
 ```
 
-There is only one implementation currently, `gno.land/p/demo/dao-maker/dao_proposal_single`, providing a yes/no/abstain vote model with quorum and threshold.
+There is only one implementation currently, `gno.land/p/demo/dao_maker/dao_proposal_single`, providing a yes/no/abstain vote model with quorum and threshold.
 
 ### Message handlers
 
-Proposals actions are encoded as objects implementing `gno.land/p/demo/dao-maker/dao_interfaces.ExecutableMessage`.
+Proposals actions are encoded as objects implementing `gno.land/p/demo/dao_maker/dao_interfaces.ExecutableMessage`.
 ```go
 type ExecutableMessage interface {
 	ToJSON() *json.Node
@@ -96,7 +96,7 @@ type ExecutableMessage interface {
 }
 ```
 
-They are deserialized and executed by message handlers implementing `gno.land/p/demo/dao-maker/dao_interfaces.MessageHandler`.
+They are deserialized and executed by message handlers implementing `gno.land/p/demo/dao_maker/dao_interfaces.MessageHandler`.
 ```go
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
@@ -133,7 +133,7 @@ Modules instantiation uses the factory pattern in case the module needs to acces
 package my_dao
 
 import (
-    "gno.land/p/demo/dao-maker/dao_interfaces"
+    "gno.land/p/demo/dao_maker/dao_interfaces"
 )
 
 func init() {
@@ -150,8 +150,8 @@ func init() {
 package my_dao
 
 import (
-    "gno.land/p/demo/dao-maker/dao_interfaces"
-    "gno.land/p/demo/dao-maker/dao_voting_group" // <- new
+    "gno.land/p/demo/dao_maker/dao_interfaces"
+    "gno.land/p/demo/dao_maker/dao_voting_group" // <- new
 )
 
 func init() {
@@ -206,9 +206,9 @@ func init() {
 package my_dao
 
 import (
-    "gno.land/p/demo/dao-maker/dao_interfaces"
-    "gno.land/p/demo/dao-maker/dao_voting_group"
-    "gno.land/p/demo/dao-maker/dao_proposal_single" // <- new
+    "gno.land/p/demo/dao_maker/dao_interfaces"
+    "gno.land/p/demo/dao_maker/dao_voting_group"
+    "gno.land/p/demo/dao_maker/dao_proposal_single" // <- new
 )
 
 func init() {
@@ -242,9 +242,9 @@ Add message handlers to allow your DAO to perform specific actions when proposal
 package my_dao
 
 import (
-    "gno.land/p/demo/dao-maker/dao_interfaces"
-    "gno.land/p/demo/dao-maker/dao_voting_group"
-    "gno.land/p/demo/dao-maker/dao_proposal_single"
+    "gno.land/p/demo/dao_maker/dao_interfaces"
+    "gno.land/p/demo/dao_maker/dao_voting_group"
+    "gno.land/p/demo/dao_maker/dao_proposal_single"
 )
 
 func init() {
@@ -270,10 +270,10 @@ Now we can create the actual DAO.
 package my_dao
 
 import (
-    "gno.land/p/demo/dao-maker/dao_interfaces"
-    "gno.land/p/demo/dao-maker/dao_voting_group"
-    "gno.land/p/demo/dao-maker/dao_proposal_single"
-    "gno.land/p/demo/dao-maker/dao_core" // <- new
+    "gno.land/p/demo/dao_maker/dao_interfaces"
+    "gno.land/p/demo/dao_maker/dao_voting_group"
+    "gno.land/p/demo/dao_maker/dao_proposal_single"
+    "gno.land/p/demo/dao_maker/dao_core" // <- new
 )
 
 var (

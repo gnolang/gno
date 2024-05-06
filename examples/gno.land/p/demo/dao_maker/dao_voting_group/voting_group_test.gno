@@ -1,0 +1,30 @@
+package dao_voting_group
+
+import (
+	"std"
+	"testing"
+
+	dao_interfaces "gno.land/p/demo/dao_maker/dao_interfaces"
+)
+
+func TestVotingGroup(t *testing.T) {
+	v := NewVotingGroup()
+	var i dao_interfaces.IVotingModule
+	i = v
+
+	{
+		got := i.TotalPowerAtHeight(0)
+		expected := uint64(0)
+		if got != expected {
+			t.Fatalf("expected %s, got %s.", expected, got)
+		}
+	}
+
+	{
+		conf := v.ConfigJSON()
+		expected := `{"totalPower":"0","members":"0"}`
+		if conf != expected {
+			t.Fatalf("expected %s, got %s.", expected, conf)
+		}
+	}
+}
