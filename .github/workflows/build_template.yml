@@ -18,8 +18,9 @@ jobs:
             uses: actions/checkout@v4
     
           - name: Check generated files are up to date
+            working-directory: ${{ inputs.modulepath }}
             run: |
-              go generate -x ${{ inputs.modulepath }}/...
+              go generate -x ./...
               if [ "$(git status -s)" != "" ]; then
                 echo "command 'go generate' creates file that differ from git tree, please run 'go generate' and commit:"
                 git status -s
