@@ -10,17 +10,17 @@ env:
 
 jobs:
     lint:
-        name: Go Linter
+        name: Go Linter ${{ inputs.modulepath }}
         uses: ./.github/workflows/lint_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
     build:
-        name: Go Build
+        name: Go Build ${{ inputs.modulepath }}
         uses: ./.github/workflows/build_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
     test:
-        name: Go Test
+        name: Go Test ${{ inputs.modulepath }}
         uses: ./.github/workflows/test_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
