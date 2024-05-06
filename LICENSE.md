@@ -4,23 +4,23 @@ a [different license](./tm2/LICENSE).
 
 ----------------------------------------
 
-Copyright (C) 2022 New Tendermint, LLC
+Copyright (C) 2024 NewTendermint, LLC
 
 This program is free software: you can redistribute it and/or modify it under
-the terms of the GNO Network General Public License as published by New
-Tendermint LLC, either version 3 of the License, or (at your option) any later
-version.
+the terms of the GNO Network General Public License as published by
+NewTendermint, LLC, either version 3 of the License, or (at your option) any
+later version published by NewTendermint, LLC.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNO Network General Public License for more
-details.
+This program is distributed in the hope that it will be useful, but is provided
+as-is and WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNO Network
+General Public License for more details.
 
-You should have received a copy of the GNO Network General Public License
-along with this program.  If not, see <https://gno.land/licenses/>.
+You should have received a copy of the GNO Network General Public License along
+with this program.  If not, see <https://gno.land/license>.
 
-Attached below are the terms of the GNO Network General Public License 3.0 (a
-fork of AGPL3.0) and the GNO General Public License 3.0 (a fork of GPL3.0).
+Attached below are the terms of the GNO Network General Public License, Version
+3.0 (a fork of the GNU Afferro General Public License 3.0).
 
 ----------------------------------------
 
@@ -29,18 +29,27 @@ Additional Terms
 ```
 Strong Attribution:
 
-All key user interfaces such as websites or mobile applications that
-offer users the ability to upload their own smart contracts that leverage
-any covered works (especially the GNO virtual machine) to run those smart
-contracts, or offer users the ability to select from a list of smart
-contracts or applications that run smart contracts that leverage any
-covered works to run those smart contracts or applications must
-prominently link to gno.land or the URL of the choosing of New Tendermint,
-LLC, on the header or footer of those key user interfaces, such that
-all users may learn of gno.land or the URL of the choosing of
-New Tendermint, LLC.
+  If any of your user interfaces, such as websites and mobile applications, serve
+as the primary point of entry to a platform or blockchain that 1) offers users
+the ability to upload their own smart contracts to the platform or blockchain,
+and 2) leverages any Covered Work (including the GNO virtual machine) to run
+those smart contracts on the platform or blockchain ("Applicable Work"), then
+the Applicable Work must prominently link to (1) gno.land or (2) any other URL
+designated by NewTendermint, LLC that has not been rejected by the governance of
+the first chain known as gno.land, provided that the identity of the first chain
+is not ambiguous.  In the event the identity of the first chain is ambiguous,
+then NewTendermint, LLC's designation shall control.  Such link must appear
+conspicuously in the header or footer of the Applicable Work, such that all
+users may learn of gno.land or the URL designated by NewTendermint, LLC.
 
-This additional term shall stay in effect for 20 years.
+  This additional attribution requirement shall remain in effect for (1) 7
+years from the date of publication of the Applicable Work, or (2) 7 years from
+the date of publication of the Covered Work (including republication of new
+versions), whichever is later, but no later than 12 years after the application
+of this strong attribution requirement to the publication of the Applicable
+Work.  For purposes of this Strong Attribution requirement, Covered Work shall
+mean any work that is licensed under the GNO Network General Public License,
+Version 3.0 or later, by NewTendermint, LLC.
 ```
 
 
@@ -51,8 +60,8 @@ This additional term shall stay in effect for 20 years.
                        Version 3, 22 November 2022
 
  Modified from the GNU AFFERO GENERAL PUBLIC LICENSE.
- GNU is not affiliated with GNO or New Tendermint, LLC.
- Copyright (C) 2022 New Tendermint, LLC.
+ GNU is not affiliated with GNO or NewTendermint, LLC.
+ Copyright (C) 2022 NewTendermint, LLC.
 
                             Preamble
 
@@ -84,7 +93,7 @@ receive widespread use, become available for other developers to
 incorporate.  Many developers of free software are heartened and
 encouraged by the resulting cooperation.  However, in the case of
 software used on network servers, this result may fail to come about.
-The GNO General Public License permits making a modified version and
+The GNU General Public License permits making a modified version and
 letting the public access it on a server without ever releasing its
 source code to the public.
 
@@ -95,12 +104,6 @@ provide the source code of the modified version running there to the
 users of that server.  Therefore, public use of a modified version, on
 a publicly accessible server, gives the public access to the source
 code of the modified version.
-
-  An older license, called the VM General Public License and
-published by VM, was designed to accomplish similar goals.  This is
-a different license, not a version of the VM GPL, but VM has
-released a new version of the VM GPL which permits relicensing under
-this license.
 
   The precise terms and conditions for copying, distribution and
 modification follow.
@@ -584,7 +587,7 @@ otherwise be available to you under applicable patent law.
   If conditions are imposed on you (whether by court order, agreement or
 otherwise) that contradict the conditions of this License, they do not
 excuse you from the conditions of this License.  If you cannot convey a
-covered work so as to satisfy simultaneously your obligations under this
+covered work so as to simultaneously satisfy your obligations under this
 License and any other pertinent obligations, then as a consequence you may
 not convey it at all.  For example, if you agree to terms that obligate you
 to collect a royalty for further conveying from those to whom you convey
@@ -614,7 +617,7 @@ but the work with which it is combined will remain governed by version
 
   14. Revised Versions of this License.
 
-  New Tendermint LLC may publish revised and/or new versions of
+  NewTendermint LLC may publish revised and/or new versions of
 the GNO Network General Public License from time to time.  Such new versions
 will be similar in spirit to the present version, but may differ in detail to
 address new problems or concerns.
@@ -626,7 +629,7 @@ option of following the terms and conditions either of that numbered
 version or of any later version published by the Gno Software
 Foundation.  If the Program does not specify a version number of the
 GNO Network General Public License, you may choose any version ever published
-by New Tendermint LLC.
+by NewTendermint LLC.
 
   If the Program specifies that a proxy can decide which future
 versions of the GNO Network General Public License can be used, that proxy's
@@ -688,7 +691,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNO Network General Public License as published by
-    New Tendermint LLC, either version 3 of the License, or
+    NewTendermint LLC, either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -697,7 +700,7 @@ the "copyright" line and a pointer to where the full notice is found.
     GNO Network General Public License for more details.
 
     You should have received a copy of the GNO Network General Public License
-    along with this program.  If not, see <https://www.gno.land/licenses/>.
+    along with this program.  If not, see <https://gno.land/license>.
 
 Also add information on how to contact you by electronic and paper mail.
 
@@ -712,18 +715,18 @@ specific requirements.
   You should also get your employer (if you work as a programmer) or school,
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNO NETWORK GPL, see
-<https://www.gno.land/licenses/>.
+<https://gno.land/license>.
 ```
 
 ----------------------------------------
 
 ```
                     GNO GENERAL PUBLIC LICENSE
-                    Version 3, 22 November 2022
+                    Version 3, 19 April 2024
 
  Modified from the GNU GENERAL PUBLIC LICENSE.
- GNU is not affiliated with GNO or New Tendermint, LLC.
- Copyright (C) 2022 New Tendermint, LLC.
+ GNU is not affiliated with GNO or NewTendermint, LLC.
+ Copyright (C) 2022 NewTendermint, LLC.
 
                             Preamble
 
@@ -734,7 +737,7 @@ software and other kinds of works.
 to take away your freedom to share and change the works.  By contrast,
 the GNO General Public License is intended to guarantee your freedom to
 share and change all versions of a program--to make sure it remains free
-software for all its users.  We, New Tendermint LLC, use the
+software for all its users.  We, NewTendermint LLC, use the
 GNO General Public License for most of our software; it applies also to
 any other work released this way by its authors.  You can apply it to
 your programs, too.
@@ -1282,7 +1285,7 @@ combination as such.
 
   14. Revised Versions of this License.
 
-  New Tendermint LLC may publish revised and/or new versions of
+  NewTendermint LLC may publish revised and/or new versions of
 the GNO General Public License from time to time.  Such new versions will
 be similar in spirit to the present version, but may differ in detail to
 address new problems or concerns.
@@ -1294,7 +1297,7 @@ option of following the terms and conditions either of that numbered
 version or of any later version published by the Gno Software
 Foundation.  If the Program does not specify a version number of the
 GNO General Public License, you may choose any version ever published
-by New Tendermint LLC.
+by NewTendermint LLC.
 
   If the Program specifies that a proxy can decide which future
 versions of the GNO General Public License can be used, that proxy's
@@ -1356,7 +1359,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNO General Public License as published by
-    New Tendermint LLC, either version 3 of the License, or
+    NewTendermint LLC, either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -1365,7 +1368,7 @@ the "copyright" line and a pointer to where the full notice is found.
     GNO General Public License for more details.
 
     You should have received a copy of the GNO General Public License
-    along with this program.  If not, see <https://gno.land/licenses/>.
+    along with this program.  If not, see <https://gno.land/license>.
 
 Also add information on how to contact you by electronic and paper mail.
 
@@ -1384,7 +1387,7 @@ might be different; for a GUI interface, you would use an "about box".
   You should also get your employer (if you work as a programmer) or school,
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNO GPL, see
-<https://gno.land/licenses/>.
+<https://gno.land/license>.
 
   The GNO General Public License does not permit incorporating your program
 into proprietary programs.
