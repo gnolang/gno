@@ -7,6 +7,9 @@ on:
             tests-timeout:
                 required: true
                 type: string
+        secrets:
+           codecov-token:
+             required: true
 
 jobs:
     test:
@@ -24,9 +27,9 @@ jobs:
           run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
           working-directory:  ${{ inputs.modulepath }}
         - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v3
+          uses: codecov/codecov-action@v4
           with:
-              # token: ${{ secrets.CODECOV_TOKEN }} # TODO: moved to codecov v3 because v4 was causing a ton of problems
+              token: ${{ secrets.codecov-token }}
               verbose: true
               fail_ci_if_error: true
               flags: ${{ inputs.modulepath }}

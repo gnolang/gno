@@ -4,7 +4,9 @@ on:
             modulepath:
               required: true
               type: string
-
+        secrets:
+          codecov-token:
+            required: true
 env:
   GOVERSION: 1.22.x
 
@@ -25,4 +27,6 @@ jobs:
         with:
             modulepath: ${{ inputs.modulepath }}
             tests-timeout: "30m"
+        secrets:
+            codecov-token: ${{ secrets.codecov-token }}
     

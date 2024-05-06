@@ -16,3 +16,5 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "contribs/gnodev"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

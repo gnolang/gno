@@ -16,3 +16,5 @@ jobs:
     uses: ./.github/workflows/main_template.yml
     with:
       modulepath: "contribs/gnofaucet"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
