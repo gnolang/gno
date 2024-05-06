@@ -13,13 +13,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GOVERSION }}
-
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Lint
         uses: golangci/golangci-lint-action@v4
         with:
           working-directory: ${{ inputs.modulepath }}
           args:
-            --config=/.github/golangci.yml
+            --config=${{github.workspace}}/.github/golangci.yml
