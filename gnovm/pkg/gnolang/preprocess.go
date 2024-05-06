@@ -2636,7 +2636,7 @@ func checkType(xt Type, dt Type, autoNative bool) {
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind, BigintKind:
+				Uint32Kind, Uint64Kind:
 				return // ok
 			default:
 				panic(fmt.Sprintf(
