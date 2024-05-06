@@ -25,4 +25,4 @@ jobs:
         uses: golangci/golangci-lint-action@v4
         with:
           args:
-            --config=./.github/golangci.yaml
+            --config=./.github/golangci.yml
