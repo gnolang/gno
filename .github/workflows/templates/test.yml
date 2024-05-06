@@ -1,0 +1,45 @@
+on:
+    workflow_call:
+        inputs:
+            module-path:
+              required: true
+              type: string
+            tests-timeout:
+                required: true
+                type: string
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Install Go
+          uses: actions/setup-go@v5
+          with:
+              go-version: ${{ env.GOVERSION }}
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Go test
+          run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
+          working-directory:  ${{ inputs.module-path }}
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v3
+          with:
+              token: ${{ secrets.CODECOV_TOKEN }}
+              verbose: true
+              flags: ${{ inputs.module-path }}
+    test-with-race:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Install Go
+          uses: actions/setup-go@v5
+          with:
+              go-version: ${{ env.GOVERSION }}
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Go race test
+          run: go test -race -timeout ${{ inputs.tests-timeout }} ./...
+          working-directory:  ${{ inputs.module-path }}

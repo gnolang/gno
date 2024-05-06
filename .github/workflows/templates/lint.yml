@@ -1,0 +1,28 @@
+on:
+  workflow_call:
+      inputs:
+          modulepath:
+            required: true
+            type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+    
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOVERSION }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          args:
+            --config=./.github/golangci.yaml
