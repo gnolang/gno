@@ -565,22 +565,6 @@ func ensureNewEventOnChannel(ch <-chan events.Event) {
 	}
 }
 
-func ensureGetRoundState(to *ConsensusState) (rs *cstypes.RoundState) {
-	time.Sleep(time.Second * 5)
-	crs := make(chan *cstypes.RoundState)
-	go func() {
-		crs <- to.GetRoundState()
-	}()
-
-	select {
-	case <-time.After(ensureTimeout):
-		panic("Timeout expired while waiting for GetRoundState")
-	case rs = <-crs:
-	}
-
-	return
-}
-
 // -------------------------------------------------------------------------------
 // consensus nets
 
