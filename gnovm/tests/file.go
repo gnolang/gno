@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 )
@@ -50,6 +51,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		EventLogger:   sdk.NewEventLogger(),
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
@@ -241,15 +243,20 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					if pnc == nil {
 						panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, errWanted))
 					}
+
 					errstr := ""
-					if tv, ok := pnc.(*gno.TypedValue); ok {
-						errstr = tv.Sprint(m)
-					} else {
+					switch v := pnc.(type) {
+					case *gno.TypedValue:
+						errstr = v.Sprint(m)
+					case *gno.PreprocessError:
+						errstr = v.Unwrap().Error()
+					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 					if errstr != errWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
+
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
 					return nil // nothing more to do.

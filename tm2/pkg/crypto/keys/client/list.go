@@ -8,12 +8,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-func newListCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
+func NewListCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "list",
 			ShortUsage: "list",
-			ShortHelp:  "Lists all keys in the keybase",
+			ShortHelp:  "lists all keys in the keybase",
 		},
 		nil,
 		func(_ context.Context, args []string) error {
@@ -22,7 +22,7 @@ func newListCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func execList(cfg *baseCfg, args []string, io commands.IO) error {
+func execList(cfg *BaseCfg, args []string, io commands.IO) error {
 	if len(args) != 0 {
 		return flag.ErrHelp
 	}

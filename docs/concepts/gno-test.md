@@ -7,13 +7,13 @@ id: gno-test
 There are two methods for testing a realm or package during the development phase:
 
 1. Calling the realm/package after deploying it on a local network (or testnet).
-2. Using the `test` option within the [`gno`](./gno-tooling/cli/gno.md) CLI.
+2. Using the `test` option within the [`gno`](../gno-tooling/cli/gno.md) CLI.
 
 While the first method is recommended for its accuracy and similarity to the actual deployment environment, it is more efficient to initially utilize the second method for composing test cases and then proceed to the first method if no errors are detected.
 
 This section will teach you how to use the second method.
 
-Writing test cases in Gnolang is similar to that of Golang, with general rules as the following:
+Writing test cases in Gno is similar to that of Go, with general rules as the following:
 
 * Test file naming conventions must be adhered to (ex: `xxx_test.gno`).
 * Test functions must start with `Test`.
@@ -44,7 +44,7 @@ package demo
 
 import "testing"
 
-func Test(t *testing.T) {
+func TestHello(t *testing.T) {
   {
   	got := Hello("People")
   	expected := "Hello People!"
@@ -67,7 +67,8 @@ Two conditions exist in the test case above.
 1. "Hello People!" should be returned when calling `Hello("People")`.
 2. "Hello People!" should be returned when calling `Hello("")`.
 
-Upon examination of our realm code and the associated test results, the initial condition exhibited the desired behavior; however, an error was identified in the second condition. Despite the expected outcome of "Hello" being returned, the test case incorrectly specified that the expected output should be "Hello People!" instead.
+Upon examination of our realm code and the associated test results, the initial condition exhibited the desired behavior; however, an error was identified in the second condition.
+Despite the expected outcome of "Hello" being returned, the test case incorrectly specified that the expected output should be "Hello People!" instead.
 
 Replacing the second test case with the following will successfully fix the issue and allow the test to pass.
 
@@ -80,3 +81,11 @@ Replacing the second test case with the following will successfully fix the issu
   	}
   }
 ```
+
+## Blockchain context in tests
+Running `gno test` executes files within the directory that end with `_test.gno` and `_filetest.gno`.
+Internally, a GnoVM instance is initialized to run the test, and, at that moment, 
+a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
+coins, block height, etc. can be mocked.
+
+For detailed information on these functions, refer to their [reference page](../reference/stdlibs/std/testing.md).

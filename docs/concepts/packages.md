@@ -4,21 +4,21 @@ id: packages
 
 # Packages
 
-Packages encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries.
+Packages aim to encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries. As opposed to realms, they are stateless.
 
-The full list of available packages can be found in [the demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
+The full list of pre-deployed available packages can be found under the [demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
 
 ## `avl`
 
-In Golang, the classic key/value data type is represented by the `map` construct. However, while Gnolang also supports the use of `map`, it is not a viable option as it lacks determinism due to its non-sequential nature.
-
-To address this issue, Gnolang implements the [AVL Tree](https://en.wikipedia.org/wiki/AVL\_tree) (Adelson-Velsky-Landis Tree) as a solution. The AVL Tree is a self-balancing binary search tree.
+In Go, the classic key/value data type is represented by the `map` construct. However, while Gno also supports the use of `map`, it is not a viable option as it lacks determinism due to its non-sequential nature.
+ 
+To address this issue, Gno implements the [AVL Tree](https://en.wikipedia.org/wiki/AVL\_tree) (Adelson-Velsky-Landis Tree) as a solution. The AVL Tree is a self-balancing binary search tree.
 
 The `avl` package comprises a set of functions that can manipulate the leaves and nodes of the AVL Tree.
 
 ## `grc20`
 
-Gnolang includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:
+Gno includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:
 
 [embedmd]:# (../assets/explanation/packages/pkg-1.gno go)
 ```go
@@ -50,7 +50,7 @@ Two types of contracts exist in`grc20`:
 
 ## `grc721`
 
-Gnolang includes an implementation of the `erc721` non-fungible token standard referred to as `grc721`. The interfaces of `grc721` are as follows:
+Gno includes an implementation of the `erc721` non-fungible token standard referred to as `grc721`. The interfaces of `grc721` are as follows:
 
 [embedmd]:# (../assets/explanation/packages/pkg-2.gno go)
 ```go

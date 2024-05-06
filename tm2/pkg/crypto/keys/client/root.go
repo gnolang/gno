@@ -14,16 +14,12 @@ const (
 	mnemonicEntropySize = 256
 )
 
-type baseCfg struct {
+type BaseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd(io commands.IO) *commands.Command {
-	return NewRootCmdWithBaseConfig(io, DefaultBaseOptions)
-}
-
 func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Command {
-	cfg := &baseCfg{
+	cfg := &BaseCfg{
 		BaseOptions: base,
 	}
 
@@ -41,23 +37,23 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 	)
 
 	cmd.AddSubCommands(
-		newAddCmd(cfg, io),
-		newDeleteCmd(cfg, io),
-		newGenerateCmd(cfg, io),
-		newExportCmd(cfg, io),
-		newImportCmd(cfg, io),
-		newListCmd(cfg, io),
-		newSignCmd(cfg, io),
-		newVerifyCmd(cfg, io),
-		newQueryCmd(cfg, io),
-		newBroadcastCmd(cfg, io),
-		newMakeTxCmd(cfg, io),
+		NewAddCmd(cfg, io),
+		NewDeleteCmd(cfg, io),
+		NewGenerateCmd(cfg, io),
+		NewExportCmd(cfg, io),
+		NewImportCmd(cfg, io),
+		NewListCmd(cfg, io),
+		NewSignCmd(cfg, io),
+		NewVerifyCmd(cfg, io),
+		NewQueryCmd(cfg, io),
+		NewBroadcastCmd(cfg, io),
+		NewMakeTxCmd(cfg, io),
 	)
 
 	return cmd
 }
 
-func (c *baseCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 	// Base options
 	fs.StringVar(
 		&c.Home,
