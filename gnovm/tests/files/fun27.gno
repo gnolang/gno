@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// main/files/fun27.gno:9: int does not implement test.Foo
+// main/files/fun27.gno:8: <untyped> bigint does not implement main.Foo
