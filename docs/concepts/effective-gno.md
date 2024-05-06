@@ -413,6 +413,43 @@ actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
 
+### Emit Gno events to make life off-chain easier
+
+Gno provides users the ability to log specific occurrences that happened in their 
+on-chain apps. An `event` log is stored in the ABCI results of each block, and
+these logs can be filtered, searched, and indexed by external services, allowing 
+them to monitor the behaviour of on-chain apps.
+
+It is good practice to emit events when any major action in your code is 
+triggered. For example, good times to emit an event is after a balance transfer,
+ownership change, profile created, etc. Alternatively, you can view event emission
+as a way to include data for monitoring purposes, given the indexable nature of 
+events.
+
+Events have a type, and a slice of strings representing `key:value` pairs. They
+are emitted with the `Emit()` function, contained in the `std` package in the 
+Gno standard library:
+
+```go
+package events
+
+import "std"
+
+var usernames map[std.Address]string 
+
+func RegisterUserName(username  string,) {
+	caller := std.PrevRealm().Addr()
+	
+	if usernames[caller] != "" {
+		panic("you have already registered a username!")
+    }
+}
+
+```
+
+
+
+
 ### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
