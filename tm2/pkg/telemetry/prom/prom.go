@@ -2,6 +2,7 @@ package prom
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -53,7 +54,13 @@ func Init(cfg *Config) (*Collector, error) {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(cfg.ListenAddr, nil)
+
+		server := &http.Server{
+			Addr:              cfg.ListenAddr,
+			ReadHeaderTimeout: 3 * time.Second,
+		}
+
+		server.ListenAndServe()
 	}()
 
 	return c, nil
