@@ -459,22 +459,26 @@ If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResu
 of block #43 will contain the following data:
 
 ```json
-"Events": [
+{
+  "Events": [
     {
-       "@type": "/tm.gnoEvent",
-       "type": "OwnershipChange",
-       "pkg_path": "gno.",
-       "func": "ChangeOwner",
-       "attrs": [
-           {
-               "key": "newOwner",
-               "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-           }
-       ]
-    },
+      "@type": "/tm.gnoEvent",
+      "type": "OwnershipChange",
+      "pkg_path": "gno.",
+      "func": "ChangeOwner",
+      "attrs": [
+        {
+          "key": "newOwner",
+          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+        }
+      ]
+    }
     // other events
-]
+  ]
+}
 ```
+
+Read more about events [here](./stdlibs/events.md).
 
 ### Contract-level access control
 
