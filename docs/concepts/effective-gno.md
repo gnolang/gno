@@ -426,29 +426,55 @@ ownership change, profile created, etc. Alternatively, you can view event emissi
 as a way to include data for monitoring purposes, given the indexable nature of 
 events.
 
-Events have a type, and a slice of strings representing `key:value` pairs. They
-are emitted with the `Emit()` function, contained in the `std` package in the 
-Gno standard library:
+Events consist of a type and a slice of strings representing `key:value` pairs.
+They are emitted with the `Emit()` function, contained in the `std` package in 
+the Gno standard library:
 
 ```go
 package events
 
-import "std"
+import (
+	"std"
+)
 
-var usernames map[std.Address]string 
+var owner std.Address
 
-func RegisterUserName(username  string,) {
+func init() {
+	owner = std.PrevRealm().Addr()
+}
+
+func ChangeOwner(newOwner std.Address) {
 	caller := std.PrevRealm().Addr()
+
+	if caller != owner {
+		panic("access denied")
+	}
 	
-	if usernames[caller] != "" {
-		panic("you have already registered a username!")
-    }
+	owner = newOwner
+	std.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
 
 ```
+If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
+of block #43 will contain the following data inside:
 
-
-
+```json
+"Events": [
+    {
+       "@type": "/tm.gnoEvent",
+       "type": "OwnershipChange",
+       "pkg_path": "gno.",
+       "func": "ChangeOwner",
+       "attrs": [
+           {
+               "key": "newOwner",
+               "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+           }
+       ]
+    },
+    // other events
+]
+```
 
 ### Contract-level access control
 
