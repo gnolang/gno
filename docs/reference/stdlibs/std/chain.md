@@ -28,6 +28,20 @@ std.AssertOriginCall()
 ```
 ---
 
+## Emit
+```go
+func Emit(typ string, attrs ...string)
+```
+Emits a Gno event. Takes in a **string** type (event identifier), and an even number of string 
+arguments acting as key-value pairs to be included in the emitted event.
+
+#### Usage
+```go
+std.AssertOriginCall()
+```
+---
+
+
 ## CurrentRealmPath
 ```go
 func CurrentRealmPath() string
@@ -117,7 +131,8 @@ currentRealm := std.CurrentRealm()
 ```go
 func PrevRealm() Realm
 ```
-Returns the previous caller realm (can be realm or EOA). If caller is am EOA, `pkgpath` will be empty.
+Returns the previous caller realm (can be code or user realm). If caller is a
+user realm, `pkgpath` will be empty.
 
 #### Usage
 ```go
