@@ -15,9 +15,7 @@ type Tree struct {
 
 var Latest = int64(0)
 
-// FIXME: don't cast height to int
-
-// this is not optimized at all, we make a full copy on write
+// FIXME: this is not optimized at all, we make a full copy on write
 
 func NewTree() *Tree {
 	return &Tree{initialHeight: std.GetHeight()}
