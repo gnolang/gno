@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   check:
-    uses: ./.github/workflows/templates/benchmark.yml
+    uses: ./.github/workflows/benchmark_template.yml
     secrets: inherit
     with:
       publish: false
