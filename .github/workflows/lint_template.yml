@@ -22,4 +22,4 @@ jobs:
         with:
           working-directory: ${{ inputs.modulepath }}
           args:
-            --config=./.github/golangci.yml
+            --config=/.github/golangci.yml
