@@ -18,6 +18,5 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v4
         with:
-          working-directory: ${{ inputs.modulepath }}
           args:
-            --config=${{github.workspace}}/.github/golangci.yml
+            --config=./.github/golangci.yml --path-prefix=${{ inputs.modulepath }}
