@@ -28,7 +28,7 @@ Read more about events & `Emit()` in
 [Effective Gno](../effective-gno.md#emit-gno-events-to-make-life-off-chain-easier),
 and the `Emit()` reference [here](../../reference/stdlibs/std/chain.md#emit).
 
-## Understanding data in an event
+## Data contained in a Gno Event
 
 An event contained in an ABCI response of a block will include the following
 data:
@@ -49,7 +49,6 @@ data:
             "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
         }
     ]
-}
 }
 ```
 
