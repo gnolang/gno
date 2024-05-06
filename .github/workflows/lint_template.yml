@@ -4,6 +4,10 @@ on:
           modulepath:
             required: true
             type: string
+          go-version:
+            required: true
+            type: string
+
 
 jobs:
   lint:
@@ -12,7 +16,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GOVERSION }}
+          go-version: ${{ inputs.go-version }}
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install database dependencies
