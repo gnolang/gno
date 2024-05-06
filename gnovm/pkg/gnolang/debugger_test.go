@@ -23,7 +23,7 @@ type writeNopCloser struct{ io.Writer }
 
 func (writeNopCloser) Close() error { return nil }
 
-func eval(debugAddr, in, file string) (string, string) {
+func eval(debugAddr, in, file string) (string, string, error) {
 	out := bytes.NewBufferString("")
 	err := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -45,10 +45,16 @@ func eval(debugAddr, in, file string) (string, string) {
 
 	defer m.Release()
 
+	if debugAddr != "" {
+		if err := m.Debugger.Serve(debugAddr); err != nil {
+			return "", "", err
+		}
+	}
+
 	m.RunFiles(f)
 	ex, _ := gnolang.ParseExpr("main()")
 	m.Eval(ex)
-	return out.String(), err.String()
+	return out.String(), err.String(), nil
 }
 
 func runDebugTest(t *testing.T, tests []dtest) {
@@ -56,7 +62,7 @@ func runDebugTest(t *testing.T, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := eval("", test.in, debugTarget)
+			out, err, _ := eval("", test.in, debugTarget)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out)

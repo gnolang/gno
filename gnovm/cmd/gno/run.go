@@ -112,15 +112,21 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	}
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:   string(files[0].PkgName),
-		Input:     stdin,
-		Output:    stdout,
-		Store:     testStore,
-		Debug:     cfg.debug || cfg.debugAddr != "",
-		DebugAddr: cfg.debugAddr,
+		PkgPath: string(files[0].PkgName),
+		Input:   stdin,
+		Output:  stdout,
+		Store:   testStore,
+		Debug:   cfg.debug || cfg.debugAddr != "",
 	})
 
 	defer m.Release()
+
+	// If the debug address is set, the debugger waits for a remote client to connect to it.
+	if cfg.debugAddr != "" {
+		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
+			return err
+		}
+	}
 
 	// run files
 	m.RunFiles(files...)

@@ -39,7 +39,6 @@ const (
 // Debugger describes a machine debugger.
 type Debugger struct {
 	enabled bool           // when true, machine is in step mode
-	addr    string         // optional network address [host]:port for In/Out
 	in      io.Reader      // debugger input, defaults to Stdin
 	out     io.Writer      // debugger output, defaults to Stdout
 	scanner *bufio.Scanner // to parse input per line
@@ -112,9 +111,9 @@ loop:
 	for {
 		switch m.Debugger.state {
 		case DebugAtInit:
-			initDebugIO(m)
 			debugUpdateLocation(m)
 			fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
+			m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
 			m.Debugger.state = DebugAtCmd
 		case DebugAtCmd:
 			if err := debugCmd(m); err != nil {
@@ -195,29 +194,21 @@ func debugCmd(m *Machine) error {
 func trimLeftSpace(s string) string { return strings.TrimLeftFunc(s, unicode.IsSpace) }
 func indexSpace(s string) int       { return strings.IndexFunc(s, unicode.IsSpace) }
 
-// initDebugIO initializes the debugger standard input and output streams.
-// If no debug address was specified at program start, the debugger will inherit its
-// standard input and output from the process, which will be shared with the target program.
-// If the debug address was specified, the program will be blocked until
-// a client connection is established. The debugger will use this connection and
-// not affecting the target program's.
-// An error during connection setting will result in program panic.
-func initDebugIO(m *Machine) {
-	if m.Debugger.addr != "" {
-		l, err := net.Listen("tcp", m.Debugger.addr)
-		if err != nil {
-			panic(err)
-		}
-		print("Waiting for debugger client to connect at ", m.Debugger.addr)
-		conn, err := l.Accept()
-		if err != nil {
-			panic(err)
-		}
-		println(" connected!")
-		m.Debugger.in = conn
-		m.Debugger.out = conn
+// Serve waits for a remote client to connect to addr and use this connection for debugger IO.
+// It returns an error if the connection can not be established, or nil.
+func (d *Debugger) Serve(addr string) error {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
 	}
-	m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
+	print("Waiting for debugger client to connect at ", addr)
+	conn, err := l.Accept()
+	if err != nil {
+		return err
+	}
+	println(" connected!")
+	d.in, d.out = conn, conn
+	return nil
 }
 
 // debugUpdateLocation computes the source code location for the current VM state.
@@ -381,8 +372,8 @@ const (
 )
 
 func debugDetach(m *Machine, arg string) error {
-	m.enabled = false
-	m.state = DebugAtRun
+	m.Debugger.enabled = false
+	m.Debugger.state = DebugAtRun
 	if i, ok := m.Debugger.in.(io.Closer); ok {
 		i.Close()
 	}

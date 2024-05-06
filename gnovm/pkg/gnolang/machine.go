@@ -165,7 +165,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Context = context
 	mm.GasMeter = vmGasMeter
 	mm.Debugger.enabled = opts.Debug
-	mm.Debugger.addr = opts.DebugAddr
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 
