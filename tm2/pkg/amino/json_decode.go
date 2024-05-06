@@ -55,17 +55,9 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 		var rinfo *TypeInfo
 		if info.HasTypeDescription {
 			// XXX: put this in its own method
-			uwrm := rv.Addr().MethodByName("TypeAmino")
+			uwrm := rv.Addr().MethodByName("TypeDesc")
 			uwouts := uwrm.Call([]reflect.Value{})
-			erri := uwouts[1].Interface()
-			if erri != nil {
-				err = erri.(error)
-				return
-			}
-
 			rt := uwouts[0].Interface().(reflect.Type)
-			fmt.Printf("amino type: %+v\n", rt.String())
-			fmt.Printf("rinfo type: %+v\n", info.ReprType.Type.String())
 
 			// rrv = reflect.New(info.ReprType.Type).Elem()
 			rrv = reflect.New(rt).Elem()
@@ -207,11 +199,11 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 		// }
 
 		// Then, decode from repr instance.
-		uwrm := rv.Addr().MethodByName("TypeAmino")
+		uwrm := rv.Addr().MethodByName("TypeDesc")
 		uwouts := uwrm.Call([]reflect.Value{})
 		erri := uwouts[1].Interface()
 		if erri != nil {
-			return fmt.Errorf("TypeAmino call error: %w", erri.(error))
+			return fmt.Errorf("TypeDesc call error: %w", erri.(error))
 		}
 
 		rt, ok := uwouts[0].Interface().(reflect.Type)

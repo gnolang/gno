@@ -4,6 +4,8 @@ import (
 	"reflect"
 )
 
+// XXX: PoC, API will most likely to be change
+
 type AminoTypedValue struct {
 	TypedValue TypedValue
 
@@ -11,21 +13,10 @@ type AminoTypedValue struct {
 	Allocator *Allocator
 }
 
-func (tv AminoTypedValue) Type() Type {
-	return tv.TypedValue.T
-}
-
-func (tv AminoTypedValue) Value() Value {
-	return tv.TypedValue.V
-}
-
-func (tv *AminoTypedValue) SetType(t Type) {
-	tv.TypedValue.T = t
-}
-
-func (tv AminoTypedValue) TypeAmino() (reflect.Type, error) {
+// XXX: tv.TypedValue.T need to be filled in order to be able guess the type
+func (tv AminoTypedValue) TypeDesc() reflect.Type {
 	typ := baseOf(tv.TypedValue.T)
-	return gno2GoType(typ), nil
+	return gno2GoType(typ)
 }
 
 func (tv AminoTypedValue) MarshalAmino() (interface{}, error) {
@@ -36,6 +27,5 @@ func (tv AminoTypedValue) MarshalAmino() (interface{}, error) {
 func (tv *AminoTypedValue) UnmarshalAmino(i interface{}) error {
 	rv := reflect.ValueOf(i)
 	tv.TypedValue = Go2GnoValue(tv.Allocator, tv.Store, rv)
-	// fmt.Printf("the end: %v\n", tv2.String())
 	return nil
 }

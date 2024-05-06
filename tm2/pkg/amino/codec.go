@@ -28,7 +28,7 @@ type TypeInfo struct {
 }
 
 type InterfaceInfo struct {
-	HasTypeDescription bool // Implements TypeAmino() (reflect.Type, error).
+	HasTypeDescription bool // Implements TypeDesc() reflect.Type.
 }
 
 type ConcreteInfo struct {
@@ -614,19 +614,15 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		}
 	}
 
-	// Check if this type implement `TypeAmino` so it can descript is own type
+	// Check if this type implement `TypeDesc` so it can descript is own type
 	var reflectType = reflect.TypeOf(new(reflect.Type)).Elem()
-	if rm, ok := rt.MethodByName("TypeAmino"); ok {
+	if rm, ok := rt.MethodByName("TypeDesc"); ok {
 		if rm.Type.NumOut() != 2 {
-			panic(fmt.Sprintf("TypeAmino should have 2 output parameters; got %v", rm.Type))
+			panic(fmt.Sprintf("TypeDesc should have 2 output parameters; got %v", rm.Type))
 		}
 
 		if out := rm.Type.Out(0); out != reflectType {
-			panic(fmt.Sprintf("TypeAmino should have second output parameter of reflect.Type type, got %v", out))
-		}
-
-		if out := rm.Type.Out(1); out != errorType {
-			panic(fmt.Sprintf("TypeAmino should have second output parameter of error type, got %v", out))
+			panic(fmt.Sprintf("TypeDesc should have second output parameter of reflect.Type type, got %v", out))
 		}
 
 		info.InterfaceInfo.HasTypeDescription = true

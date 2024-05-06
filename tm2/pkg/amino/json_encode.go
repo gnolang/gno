@@ -63,7 +63,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 		var rinfo *TypeInfo
 		if info.HasTypeDescription {
 			// XXX: put this in its own method
-			uwrm := rv.Addr().MethodByName("TypeAmino")
+			uwrm := rv.Addr().MethodByName("TypeDesc")
 			uwouts := uwrm.Call([]reflect.Value{})
 			erri := uwouts[1].Interface()
 			if erri != nil {
