@@ -368,7 +368,7 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB backend
 	// This will reject also any databases that haven't been added with build tags.
 	// always reject memdb, as it shouldn't be used as a real-life database.
-	if cfg.DBBackend == "memdb" &&
+	if cfg.DBBackend == "memdb" ||
 		!slices.Contains(db.BackendList(), db.BackendType(cfg.DBBackend)) {
 		return errInvalidDBBackend
 	}
