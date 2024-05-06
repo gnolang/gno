@@ -256,11 +256,15 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
-	// Database backend: goleveldb
+	// Database backend: goleveldb | boltdb
 	// * goleveldb (github.com/gnolang/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable"`
+	// * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
+	//   - EXPERIMENTAL
+	//   - may be faster is some use-cases (random reads - indexer)
+	//   - use boltdb build tag (go build -tags boltdb)
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | boltdb\n * goleveldb (github.com/gnolang/goleveldb - most popular implementation)\n  - pure go\n  - stable\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`

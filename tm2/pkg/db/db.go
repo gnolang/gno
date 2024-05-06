@@ -42,6 +42,11 @@ const (
 	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
+	// BoltDBBackend represents bolt (uses etcd's fork of bolt -
+	// go.etcd.io/bbolt)
+	//   - EXPERIMENTAL
+	//   - may be faster is some use-cases (random reads - indexer)
+	BoltDBBackend BackendType = "boltdb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)
