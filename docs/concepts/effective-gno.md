@@ -456,7 +456,7 @@ func ChangeOwner(newOwner std.Address) {
 
 ```
 If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
-of block #43 will contain the following data inside:
+of block #43 will contain the following data:
 
 ```json
 "Events": [
