@@ -24,7 +24,7 @@ jobs:
           run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
           working-directory:  ${{ inputs.modulepath }}
         - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v4
+          uses: codecov/codecov-action@v4.3.1
           with:
               token: ${{ secrets.CODECOV_TOKEN }}
               verbose: true
