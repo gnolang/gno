@@ -15,8 +15,10 @@ jobs:
           go-version: ${{ env.GOVERSION }}
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Install database dependencies
+        run: sudo apt-get install -y libleveldb-dev librocksdb-dev
       - name: Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           args:
             --config=./.github/golangci.yml --path-prefix=${{ inputs.modulepath }}
