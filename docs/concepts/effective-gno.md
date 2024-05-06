@@ -417,7 +417,7 @@ checks.
 
 Gno provides users the ability to log specific occurrences that happened in their 
 on-chain apps. An `event` log is stored in the ABCI results of each block, and
-these logs can be filtered, searched, and indexed by external services, allowing 
+these logs can be indexed, filtered, and searched by external services, allowing 
 them to monitor the behaviour of on-chain apps.
 
 It is good practice to emit events when any major action in your code is 
