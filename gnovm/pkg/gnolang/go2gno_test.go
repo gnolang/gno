@@ -51,6 +51,8 @@ func (mpg mockPackageGetterCounts) GetMemPackage(path string) *std.MemPackage {
 }
 
 func TestTypeCheckMemPackage(t *testing.T) {
+	t.Parallel()
+
 	// if len(ss) > 0, then multierr.Errors must decompose it in errors, and
 	// each error in order must contain the associated string.
 	errContains := func(s0 string, ss ...string) func(*testing.T, error) {
@@ -318,7 +320,10 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	})
 
 	for _, tc := range tt {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := TypeCheckMemPackage(tc.pkg, tc.getter)
 			if tc.check == nil {
 				assert.NoError(t, err)
