@@ -99,6 +99,13 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			cfg.NameOrBech32,
 			decryptPassword,
 		)
+
+		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("privk:\n%x\n", privk.Bytes())
 	} else {
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(

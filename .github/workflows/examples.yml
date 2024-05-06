@@ -73,12 +73,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: go install -v ./gnovm/cmd/gno
       # testing official directories, basically examples/ minus examples/.../x/.
-      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/p
-      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/demo
-      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/gnoland
-      - run: go run ./gnovm/cmd/gno lint -v ./examples/gno.land/r/system
+      - run: make lint -C ./examples
+      # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
   mod-tidy:
     strategy:
