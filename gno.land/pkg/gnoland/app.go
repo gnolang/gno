@@ -99,6 +99,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			if evt:= subscribeRealmEvent(valsetRealm) ; evt != nil {
 				applyValsetChange(evt)
 			}
+			varsRealm := cfg.GetGnoSDKCfg("vars-trusted-realm")
+			if evt:= subscribeRealmEvent(varsRealm) ; evt != nil {
+				cfg.SetGnoSDKCfg(evt.Name, evt.Value)
+			}
 			
 			// Override auth params.
 			ctx = ctx.WithValue(
