@@ -51,7 +51,7 @@ Version 4 or later, by NewTendermint, LLC.
 
 # GNO NETWORK GENERAL PUBLIC LICENSE
 
-Version 4, 10 May 2024
+Version 4, 7 May 2024
 
 Modified from the GNU AFFERO GENERAL PUBLIC LICENSE.
 GNU is not affiliated with GNO or NewTendermint, LLC.
