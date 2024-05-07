@@ -94,6 +94,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// XXX: pseudo code
+			valsetRealm := cfg.GetGnoSDKCfg("valset-trusted-realm")
+			if evt:= subscribeRealmEvent(valsetRealm) ; evt != nil {
+				applyValsetChange(evt)
+			}
+			
 			// Override auth params.
 			ctx = ctx.WithValue(
 				auth.AuthParamsContextKey{}, auth.DefaultParams())
@@ -102,6 +108,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			return
 		},
 	)
+
+	
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(EndBlocker(vmKpr))
