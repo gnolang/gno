@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	ownerAddress = string(std.GetOrigCaller())
+	ownerAddress = std.GetOrigCaller()
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -26,7 +26,7 @@ var (
 
 func init() {
 	oracle = gnorkle.NewInstance()
-	oracle.AddToWhitelist("", []string{ownerAddress})
+	oracle.AddToWhitelist("", []string{string(ownerAddress)})
 }
 
 type postGnorkleMessageHandler struct{}
@@ -101,12 +101,12 @@ func SetOwner(owner std.Address) {
 		panic("only the owner can set a new owner")
 	}
 
-	ownerAddress = string(owner)
+	ownerAddress = owner
 
 	// In the context of this contract, the owner is the only one that can
 	// add new feeds to the oracle.
 	oracle.ClearWhitelist("")
-	oracle.AddToWhitelist("", []string{ownerAddress})
+	oracle.AddToWhitelist("", []string{string(ownerAddress)})
 }
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
