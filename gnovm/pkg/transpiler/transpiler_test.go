@@ -119,7 +119,7 @@ func foo() { _ = users.Register }
 						Kind:     9,
 						Value:    `"github.com/gnolang/gno/examples/gno.land/r/demo/users"`,
 					},
-					EndPos: 39,
+					EndPos: 44,
 				},
 			},
 		},
