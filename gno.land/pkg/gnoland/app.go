@@ -137,6 +137,11 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
 	}
 
+	// default gno sdk config
+	cfg.SetGnoSDKCfg("valset-trusted-realm", "r/sys/vals")
+	cfg.SetGnoSDKCfg("cfg-trusted-realm", "r/sys/vars")
+	//
+
 	cfg.Logger = logger
 
 	return NewAppWithOptions(cfg)
