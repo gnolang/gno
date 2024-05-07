@@ -42,11 +42,11 @@ Let's break down the most important default settings:
 - `genesis-balances-file` - the initial premine balances file, which contains initial native currency allocations for
   the chain. By default, the genesis balances file is located in `gno.land/genesis/genesis_balances.txt`, this is also the
   reason why we need to navigate to the `gno.land` sub-folder to run the command with default settings
-- `root-dir` - the working directory for the node configuration and node data (state DB)
+- `data-dir` - the working directory for the node configuration and node data (state DB)
 
 :::info Resetting the chain
 
-As mentioned, the working directory for the node is located in `root-dir`. To reset the chain, you need
+As mentioned, the working directory for the node is located in `data-dir`. To reset the chain, you need
 to delete this directory and start the node up again. If you are using the default node configuration, you can run
 `make fclean` from the `gno.land` sub-folder to delete the `tempdir` working directory.
 

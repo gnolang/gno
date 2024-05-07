@@ -119,7 +119,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 func TestNoBlockResponse(t *testing.T) {
 	t.Parallel()
 
-	config = cfg.ResetTestRoot("blockchain_reactor_test")
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)
 
@@ -182,7 +182,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	testutils.FilterStability(t, testutils.Flappy)
 
-	config = cfg.ResetTestRoot("blockchain_reactor_test")
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)
 
