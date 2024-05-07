@@ -2047,13 +2047,19 @@ func (m *Machine) String() string {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
 	}
 
+	builder.WriteString(`Exprs: `)
+
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
 	}
 
+	builder.WriteString(`Stmts: `)
+
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
 	}
+
+	builder.WriteString(`Blocks: `)
 
 	for b := m.LastBlock(); b != nil; {
 		gen := builder.Len()/3 + 1
@@ -2090,6 +2096,8 @@ func (m *Machine) String() string {
 		}
 	}
 
+	builder.WriteString(`Blocks (other): `)
+
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
 
@@ -2110,6 +2118,8 @@ func (m *Machine) String() string {
 		}
 	}
 
+	builder.WriteString(`Frames: `)
+
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
 	}
@@ -2117,6 +2127,8 @@ func (m *Machine) String() string {
 	if m.Realm != nil {
 		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
 	}
+
+	builder.WriteString(`Exceptions: `)
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
