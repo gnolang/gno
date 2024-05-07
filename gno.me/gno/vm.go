@@ -18,11 +18,13 @@ import (
 type (
 	MsgAddPackage vm.MsgAddPackage
 	MsgCall       vm.MsgCall
+	MsgRun        vm.MsgRun
 )
 
 type VM interface {
 	AddPackage(ctx context.Context, msg MsgAddPackage) error
 	Call(ctx context.Context, msg MsgCall) (res string, err error)
+	Run(ctx context.Context, msg MsgRun) (res string, err error)
 }
 
 type VMKeeper struct {
@@ -35,6 +37,10 @@ func (v VMKeeper) AddPackage(ctx context.Context, msg MsgAddPackage) error {
 
 func (v VMKeeper) Call(ctx context.Context, msg MsgCall) (res string, err error) {
 	return v.instance.Call(sdk.Context{}.WithContext(ctx), vm.MsgCall(msg))
+}
+
+func (v VMKeeper) Run(ctx context.Context, msg MsgRun) (res string, err error) {
+	return v.instance.Run(sdk.Context{}.WithContext(ctx), vm.MsgRun(msg))
 }
 
 func NewVM() VMKeeper {
@@ -150,5 +156,18 @@ func NewMsgCall(name, funcName string, args []string) MsgCall {
 		PkgPath: "gno.land/r/" + name,
 		Func:    funcName,
 		Args:    args,
+	}
+}
+
+func NewMemPkg(name, code string) *std.MemPackage {
+	return &std.MemPackage{
+		Name: name,
+		Path: "gno.land/r/" + name,
+		Files: []*std.MemFile{
+			{
+				Name: name + ".gno",
+				Body: code,
+			},
+		},
 	}
 }

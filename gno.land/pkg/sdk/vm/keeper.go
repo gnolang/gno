@@ -318,16 +318,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
-	caller := msg.Caller
-	pkgAddr := caller
+	// caller := msg.Caller
+	caller := "localuser"
+	// pkgAddr := caller
+	// pkgAddr := "localuser"
 	gnostore := vm.getGnoStore(ctx)
-	send := msg.Send
+	// send := msg.Send
 	memPkg := msg.Package
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = "gno.land/r/" + caller + "/run"
 
 	// Validate arguments.
 	// callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -339,23 +341,23 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Send send-coins to pkg from caller.
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
-	if err != nil {
-		return "", err
-	}
+	// err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	// if err != nil {
+	// 	return "", err
+	// }
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		Msg:           msg,
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID: ctx.ChainID(),
+		// Height:        ctx.BlockHeight(),
+		// Timestamp:     ctx.BlockTime().Unix(),
+		Msg: msg,
+		// OrigCaller:    caller.Bech32(),
+		// OrigSend:      send,
+		// OrigSendSpent: new(std.Coins),
+		// OrigPkgAddr:   pkgAddr.Bech32(),
+		// Banker:        NewSDKBanker(vm, ctx),
+		// EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)

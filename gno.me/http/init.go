@@ -14,6 +14,7 @@ func NewServer(gnoVM gno.VM) gohttp.Server {
 	mux := gohttp.NewServeMux()
 	mux.HandleFunc("/system/install", installApp)
 	mux.HandleFunc("/system/call", callApp)
+	mux.HandleFunc("/system/run", run)
 	mux.HandleFunc("/", renderApp)
 
 	return gohttp.Server{

@@ -68,6 +68,28 @@ func callApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	resp.Write([]byte(res))
 }
 
+func run(resp gohttp.ResponseWriter, req *gohttp.Request) {
+	enableCors(&resp)
+
+	var gnoApp app
+	dec := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+	if err := dec.Decode(&gnoApp); err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusBadRequest)
+		return
+	}
+
+	msgRun := gno.MsgRun{Package: gno.NewMemPkg(gnoApp.Name, gnoApp.Code)}
+	res, err := vm.Run(req.Context(), msgRun)
+	if err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	resp.WriteHeader(gohttp.StatusOK)
+	resp.Write([]byte(res))
+}
+
 func renderApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	enableCors(&resp)
 
