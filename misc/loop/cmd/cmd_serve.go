@@ -20,15 +20,6 @@ type serveCfg struct {
 	hostPWD        string
 }
 
-type serveService struct {
-	cfg serveCfg
-
-	// TODO(albttx): put getter on it with RMutex
-	portalLoop *snapshotter
-
-	portalLoopURL string
-}
-
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	if os.Getenv("HOST_PWD") == "" {
 		os.Setenv("HOST_PWD", os.Getenv("PWD"))
