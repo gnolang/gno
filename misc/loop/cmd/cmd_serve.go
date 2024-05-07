@@ -83,7 +83,7 @@ func execServe(ctx context.Context, cfg *serveCfg, args []string) error {
 		go s.recordMetrics()
 
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(os.Getenv("PROM_ADDR"), nil)
+		http.ListenAndServe(os.Getenv("PROM_ADDR"), nil) //nolint:all
 	}()
 
 	// the loop
