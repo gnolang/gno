@@ -96,12 +96,12 @@ func GnorkleEntrypoint(message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(owner string) {
-	if ownerAddress != string(std.GetOrigCaller()) {
+func SetOwner(owner std.Address) {
+	if ownerAddress != std.GetOrigCaller() {
 		panic("only the owner can set a new owner")
 	}
 
-	ownerAddress = owner
+	ownerAddress = string(owner)
 
 	// In the context of this contract, the owner is the only one that can
 	// add new feeds to the oracle.

@@ -70,7 +70,7 @@ func TestVerificationLifecycle(t *testing.T) {
 
 	// Set the caller back to the whitelisted user and transfer contract ownership.
 	std.TestSetOrigCaller(defaultAddress)
-	SetOwner(string(userAddress))
+	SetOwner(userAddress)
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
 	std.TestSetOrigCaller(userAddress)
