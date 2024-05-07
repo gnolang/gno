@@ -32,11 +32,11 @@ const (
 	SimulateOnly = "only"
 )
 
-func (m *MakeTxCfg) Validate() error {
-	switch m.Simulate {
+func (c *MakeTxCfg) Validate() error {
+	switch c.Simulate {
 	case SimulateTest, SimulateSkip, SimulateOnly:
 	default:
-		return fmt.Errorf("invalid simulate option: %q", m.Simulate)
+		return fmt.Errorf("invalid simulate option: %q", c.Simulate)
 	}
 	return nil
 }
