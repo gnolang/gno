@@ -2481,6 +2481,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
