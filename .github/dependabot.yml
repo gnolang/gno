@@ -8,10 +8,6 @@ updates:
       interval: "daily"
     labels:
       - "github_actions"
-    groups:
-      actions:
-        patterns:
-          - "*"
 
   # Maintain dependencies for top level Go modules
   - package-ecosystem: gomod
