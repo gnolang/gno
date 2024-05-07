@@ -1,7 +1,6 @@
 package millipede
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -34,7 +33,7 @@ func TestRender(t *testing.T) {
    ╚═(███)═╝
   ╚═(███)═╝
  ╚═(███)═╝
-` + "```\n[19](/r/art/millpede:19)<  >[21](/r/art/millipede:21)",
+` + "```\n[19](/r/demo/art/millpede:19)<  >[21](/r/demo/art/millipede:21)",
 		},
 		{
 			path: "4",
@@ -44,7 +43,7 @@ func TestRender(t *testing.T) {
  ╚═(███)═╝
 ╚═(███)═╝
  ╚═(███)═╝
-` + "```\n[3](/r/art/millpede:3)<  >[5](/r/art/millipede:5)",
+` + "```\n[3](/r/demo/art/millpede:3)<  >[5](/r/demo/art/millipede:5)",
 		},
 	}
 

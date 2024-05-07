@@ -27,7 +27,7 @@ func Render(path string) string {
 	}
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
-		// /r/Groups:Group_NAME
+		// /r/demo/groups:Group_NAME
 		name := parts[0]
 		groupI, exists := gGroupsByName.Get(name)
 		if !exists {
