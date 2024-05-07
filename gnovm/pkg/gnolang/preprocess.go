@@ -882,11 +882,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
-					} else if ok, lnt := func() (bool, *NativeType) {
-						lnt, okl := lt.(*NativeType)
-						_, okr := rt.(*NativeType)
-						return okl && okr, lnt
-					}(); ok {
+					} else if lnt, ok := lt.(*NativeType); ok && isNative(rt) {
 						if debug {
 							if !isShift {
 								assertSameTypes(lt, rt)
