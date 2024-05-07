@@ -1,10 +1,13 @@
 package testutils
 
 import (
+	"testing"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/require"
 )
 
 // msg type for testing
@@ -53,10 +56,27 @@ func KeyTestPubAddr() (crypto.PrivKey, crypto.PubKey, crypto.Address) {
 	return key, pub, addr
 }
 
-func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee) std.Tx {
+func NewTestTx(
+	t *testing.T,
+	chainID string,
+	msgs []std.Msg,
+	privs []crypto.PrivKey,
+	accNums []uint64,
+	seqs []uint64,
+	fee std.Fee,
+) std.Tx {
+	t.Helper()
+
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
-		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, "")
+		signBytes, err := std.GetSignaturePayload(std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNums[i],
+			Sequence:      seqs[i],
+			Fee:           fee,
+			Msgs:          msgs,
+		})
+		require.NoError(t, err)
 
 		sig, err := priv.Sign(signBytes)
 		if err != nil {
@@ -70,10 +90,29 @@ func NewTestTx(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums [
 	return tx
 }
 
-func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, memo string) std.Tx {
+func NewTestTxWithMemo(
+	t *testing.T,
+	chainID string,
+	msgs []std.Msg,
+	privs []crypto.PrivKey,
+	accNums []uint64,
+	seqs []uint64,
+	fee std.Fee,
+	memo string,
+) std.Tx {
+	t.Helper()
+
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
-		signBytes := std.SignBytes(chainID, accNums[i], seqs[i], fee, msgs, memo)
+		signBytes, err := std.GetSignaturePayload(std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNums[i],
+			Sequence:      seqs[i],
+			Fee:           fee,
+			Msgs:          msgs,
+			Memo:          memo,
+		})
+		require.NoError(t, err)
 
 		sig, err := priv.Sign(signBytes)
 		if err != nil {
@@ -87,7 +126,7 @@ func NewTestTxWithMemo(chainID string, msgs []std.Msg, privs []crypto.PrivKey, a
 	return tx
 }
 
-func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee std.Fee, signBytes []byte, memo string) std.Tx {
+func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, fee std.Fee, signBytes []byte, memo string) std.Tx {
 	sigs := make([]std.Signature, len(privs))
 	for i, priv := range privs {
 		sig, err := priv.Sign(signBytes)

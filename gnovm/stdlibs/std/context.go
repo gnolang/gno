@@ -16,5 +16,6 @@ type ExecContext struct {
 	OrigPkgAddr   crypto.Bech32Address
 	OrigSend      std.Coins
 	OrigSendSpent *std.Coins // mutable
-	Banker        Banker
+	Banker        BankerInterface
+	EventLogger   *sdk.EventLogger
 }

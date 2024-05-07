@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 )
@@ -50,6 +51,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		EventLogger:   sdk.NewEventLogger(),
 	}
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.

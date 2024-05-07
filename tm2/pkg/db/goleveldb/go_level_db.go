@@ -8,10 +8,10 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/goleveldb/leveldb"
-	"github.com/gnolang/goleveldb/leveldb/errors"
-	"github.com/gnolang/goleveldb/leveldb/iterator"
-	"github.com/gnolang/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb/iterator"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 func init() {
@@ -291,7 +291,7 @@ func (itr *goLevelDBIterator) Valid() bool {
 // Implements Iterator.
 func (itr *goLevelDBIterator) Key() []byte {
 	// Key returns a copy of the current key.
-	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
+	// See https://github.com/syndtr/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
 	return append([]byte{}, itr.source.Key()...)
@@ -300,7 +300,7 @@ func (itr *goLevelDBIterator) Key() []byte {
 // Implements Iterator.
 func (itr *goLevelDBIterator) Value() []byte {
 	// Value returns a copy of the current value.
-	// See https://github.com/gnolang/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
+	// See https://github.com/syndtr/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
 	return append([]byte{}, itr.source.Value()...)

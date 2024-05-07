@@ -361,7 +361,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc
+	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -369,6 +369,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
+
 	return PointerValue{
 		TV:    bv,
 		Base:  av,
@@ -2283,7 +2284,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := []string{}
+	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
 			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.

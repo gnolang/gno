@@ -111,7 +111,7 @@ func TestWALTruncate(t *testing.T) {
 func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	t.Helper()
 
-	config := getConfig(t)
+	config, genesisFile := getConfig(t)
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
 	defer app.Close()
@@ -126,7 +126,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	privValidatorKeyFile := config.PrivValidatorKeyFile()
 	privValidatorStateFile := config.PrivValidatorStateFile()
 	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
+	genDoc, err := types.GenesisDocFromFile(genesisFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to read genesis file")
 	}
