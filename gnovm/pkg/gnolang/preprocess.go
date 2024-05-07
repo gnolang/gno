@@ -1957,9 +1957,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
-					if dependencies == nil {
-						dependencies = make(map[string]*Dependency)
-					}
 					fmt.Println("---type decl: ", n)
 					if st, ok := tmp.(*StructType); ok {
 						// check if fields contains declaredType
@@ -3859,7 +3856,19 @@ func detectCycle(depName string, visited, recStack map[string]bool, cycle *[]str
 func insertDependency(name string, dependenciesList ...*Dependency) {
 	fmt.Println("---insertDependency, name: ", name)
 	fmt.Println("---insertDependency, dependenciesList: ", dependenciesList[0].Name)
-	dependencies[name] = &Dependency{Name: name, Dependencies: dependenciesList}
+	if dependencies == nil {
+		dependencies = make(map[string]*Dependency)
+	}
+	if _, exists := dependencies[name]; !exists {
+		dependencies[name] = &Dependency{Name: name}
+	}
+
+	for _, dep := range dependenciesList {
+		if _, exists := dependencies[dep.Name]; !exists {
+			dependencies[dep.Name] = &Dependency{Name: dep.Name}
+		}
+		dependencies[name].Dependencies = append(dependencies[name].Dependencies, dependencies[dep.Name])
+	}
 }
 
 func dumpDependencies() {
