@@ -1,6 +1,6 @@
 The following copyright notice covers all of the files in this directory and any
-subdirectory, with the exception of the **tm2** subdirectory, which uses
-a [different license](./tm2/LICENSE).
+subdirectory, except where otherwise specified, including the **tm2**
+subdirectory, which uses a [different license](./tm2/LICENSE).
 
 ---
 
