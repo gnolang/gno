@@ -37,6 +37,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -389,6 +390,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p1"), Type: gno.X("[]string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
