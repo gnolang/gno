@@ -17,6 +17,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFrames, numExceptions int) *Machine {
+	b.Helper()
+
+	m := &Machine{
+		Ops:        make([]Op, 100),
+		NumOps:     100,
+		Values:     make([]TypedValue, numValues),
+		NumValues:  numValues,
+		Exprs:      make([]Expr, numExprs),
+		Stmts:      make([]Stmt, numStmts),
+		Blocks:     make([]*Block, numBlocks),
+		Frames:     make([]*Frame, numFrames),
+		Exceptions: make([]Exception, numExceptions),
+	}
+	return m
+}
+
+func BenchmarkStringLargeData(b *testing.B) {
+	m := setupMachine(b, 10000, 5000, 5000, 2000, 3000, 1000)
+
+	for i := 0; i < b.N; i++ {
+		_ = m.String()
+	}
+}
+
 func TestRunInvalidLabels(t *testing.T) {
 	tests := []struct {
 		code   string

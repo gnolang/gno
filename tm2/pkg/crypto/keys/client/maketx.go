@@ -119,25 +119,26 @@ func SignAndBroadcastHandler(
 	// sign tx
 	accountNumber := qret.BaseAccount.AccountNumber
 	sequence := qret.BaseAccount.Sequence
-	sopts := &SignCfg{
-		Pass:          pass,
-		RootCfg:       baseopts,
-		Sequence:      sequence,
-		AccountNumber: accountNumber,
-		ChainID:       txopts.ChainID,
-		NameOrBech32:  nameOrBech32,
-		TxJSON:        amino.MustMarshalJSON(tx),
+
+	sOpts := signOpts{
+		chainID:         txopts.ChainID,
+		accountSequence: sequence,
+		accountNumber:   accountNumber,
 	}
 
-	signedTx, err := SignHandler(sopts)
-	if err != nil {
-		return nil, errors.Wrap(err, "sign tx")
+	kOpts := keyOpts{
+		keyName:     nameOrBech32,
+		decryptPass: pass,
+	}
+
+	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
+		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
-		tx:      signedTx,
+		tx:      &tx,
 	}
 
 	return BroadcastHandler(bopts)
@@ -181,6 +182,8 @@ func ExecSignAndBroadcast(
 	io.Println("OK!")
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+	io.Println("HEIGHT:    ", bres.Height)
+	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 
 	return nil
 }

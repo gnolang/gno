@@ -6,7 +6,6 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -37,15 +36,7 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 // Handle MsgAddPackage.
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Creator, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.AddPackage(ctx, msg)
+	err := vh.vm.AddPackage(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -54,16 +45,7 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	resstr := ""
-	resstr, err = vh.vm.Call(ctx, msg)
+	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -81,16 +63,7 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 
 // Handle MsgRun.
 func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	resstr := ""
-	resstr, err = vh.vm.Run(ctx, msg)
+	resstr, err := vh.vm.Run(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
