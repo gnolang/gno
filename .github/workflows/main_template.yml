@@ -7,8 +7,10 @@ on:
         secrets:
           codecov-token:
             required: true
-env:
-  GOVERSION: 1.22.x
+
+# TODO: environment variables cannot be sent to reusable workflows: https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations
+# env:
+#   GO_VERSION: "1.22.x"
 
 jobs:
     lint:
@@ -16,20 +18,20 @@ jobs:
         uses: ./.github/workflows/lint_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
-            go-version: ${{ env.GOVERSION }}
+            go-version: "1.22.x"
     build:
         name: Go Build
         uses: ./.github/workflows/build_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
-            go-version: ${{ env.GOVERSION }}
+            go-version: "1.22.x"
     test:
         name: Go Test
         uses: ./.github/workflows/test_template.yml
         with:
             modulepath: ${{ inputs.modulepath }}
             tests-timeout: "30m"
-            go-version: ${{ env.GOVERSION }}
+            go-version: "1.22.x"
         secrets:
             codecov-token: ${{ secrets.codecov-token }}
     
