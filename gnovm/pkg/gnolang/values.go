@@ -1541,10 +1541,9 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
-		bzl := FieldTypeList(bt.Fields).Types()
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
-			omitTypes := bzl[i].Kind() != InterfaceKind
+			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
