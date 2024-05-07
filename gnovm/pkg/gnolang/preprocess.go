@@ -1980,7 +1980,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						if maybeRecursive {
 							deps := make(map[Name]struct{})
-							findDependentNames(n, deps, false)
+							findDependentNames(n, deps)
 							fmt.Println("---deps: ", deps)
 							fmt.Println("---names: ", names)
 							for dn := range deps {
@@ -3601,56 +3601,52 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 // This is to be run *after* preprocessing is done,
 // to determine the order of var decl execution
 // (which may include functions which may refer to package vars).
-func findDependentNames(n Node, dst map[Name]struct{}, directOnly bool) {
+func findDependentNames(n Node, dst map[Name]struct{}) {
 	switch cn := n.(type) {
 	case *NameExpr:
 		fmt.Println("---name X, n: ", n)
 		dst[cn.Name] = struct{}{}
 	case *BasicLitExpr:
 	case *BinaryExpr:
-		findDependentNames(cn.Left, dst, directOnly)
-		findDependentNames(cn.Right, dst, directOnly)
+		findDependentNames(cn.Left, dst)
+		findDependentNames(cn.Right, dst)
 	case *SelectorExpr:
-		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.X, dst)
 	case *SliceExpr:
-		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.X, dst)
 		if cn.Low != nil {
-			findDependentNames(cn.Low, dst, directOnly)
+			findDependentNames(cn.Low, dst)
 		}
 		if cn.High != nil {
-			findDependentNames(cn.High, dst, directOnly)
+			findDependentNames(cn.High, dst)
 		}
 		if cn.Max != nil {
-			findDependentNames(cn.Max, dst, directOnly)
+			findDependentNames(cn.Max, dst)
 		}
 	case *StarExpr:
 		fmt.Println("---star X, n: ", n)
-		if directOnly {
-			return
-		} else {
-			findDependentNames(cn.X, dst, directOnly)
-		}
+		findDependentNames(cn.X, dst)
 	case *RefExpr:
-		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.X, dst)
 	case *TypeAssertExpr:
-		findDependentNames(cn.X, dst, directOnly)
-		findDependentNames(cn.Type, dst, directOnly)
+		findDependentNames(cn.X, dst)
+		findDependentNames(cn.Type, dst)
 	case *UnaryExpr:
-		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.X, dst)
 	case *CompositeLitExpr:
-		findDependentNames(cn.Type, dst, directOnly)
+		findDependentNames(cn.Type, dst)
 		ct := getType(cn.Type)
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cn.Elts {
 				if kvx.Key != nil {
-					findDependentNames(kvx.Key, dst, directOnly)
+					findDependentNames(kvx.Key, dst)
 				}
-				findDependentNames(kvx.Value, dst, directOnly)
+				findDependentNames(kvx.Value, dst)
 			}
 		case StructKind:
 			for _, kvx := range cn.Elts {
-				findDependentNames(kvx.Value, dst, directOnly)
+				findDependentNames(kvx.Value, dst)
 			}
 		default:
 			panic(fmt.Sprintf(
@@ -3658,44 +3654,44 @@ func findDependentNames(n Node, dst map[Name]struct{}, directOnly bool) {
 				ct.String()))
 		}
 	case *FieldTypeExpr:
-		findDependentNames(cn.Type, dst, directOnly)
+		findDependentNames(cn.Type, dst)
 	case *ArrayTypeExpr:
-		findDependentNames(cn.Elt, dst, directOnly)
+		findDependentNames(cn.Elt, dst)
 		if cn.Len != nil {
-			findDependentNames(cn.Len, dst, directOnly)
+			findDependentNames(cn.Len, dst)
 		}
 	case *SliceTypeExpr:
-		findDependentNames(cn.Elt, dst, directOnly)
+		findDependentNames(cn.Elt, dst)
 	case *InterfaceTypeExpr:
 		for i := range cn.Methods {
-			findDependentNames(&cn.Methods[i], dst, directOnly)
+			findDependentNames(&cn.Methods[i], dst)
 		}
 	case *ChanTypeExpr:
-		findDependentNames(cn.Value, dst, directOnly)
+		findDependentNames(cn.Value, dst)
 	case *FuncTypeExpr:
 		for i := range cn.Params {
-			findDependentNames(&cn.Params[i], dst, directOnly)
+			findDependentNames(&cn.Params[i], dst)
 		}
 		for i := range cn.Results {
-			findDependentNames(&cn.Results[i], dst, directOnly)
+			findDependentNames(&cn.Results[i], dst)
 		}
 	case *MapTypeExpr:
-		findDependentNames(cn.Key, dst, directOnly)
-		findDependentNames(cn.Value, dst, directOnly)
+		findDependentNames(cn.Key, dst)
+		findDependentNames(cn.Value, dst)
 	case *StructTypeExpr:
 		for i := range cn.Fields {
-			findDependentNames(&cn.Fields[i], dst, directOnly)
+			findDependentNames(&cn.Fields[i], dst)
 		}
 	case *CallExpr:
-		findDependentNames(cn.Func, dst, directOnly)
+		findDependentNames(cn.Func, dst)
 		for i := range cn.Args {
-			findDependentNames(cn.Args[i], dst, directOnly)
+			findDependentNames(cn.Args[i], dst)
 		}
 	case *IndexExpr:
-		findDependentNames(cn.X, dst, directOnly)
-		findDependentNames(cn.Index, dst, directOnly)
+		findDependentNames(cn.X, dst)
+		findDependentNames(cn.Index, dst)
 	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst, directOnly)
+		findDependentNames(&cn.Type, dst)
 		for _, n := range cn.GetExternNames() {
 			dst[n] = struct{}{}
 		}
@@ -3704,17 +3700,17 @@ func findDependentNames(n Node, dst map[Name]struct{}, directOnly bool) {
 	case *ImportDecl:
 	case *ValueDecl:
 		if cn.Type != nil {
-			findDependentNames(cn.Type, dst, directOnly)
+			findDependentNames(cn.Type, dst)
 		}
 		for _, vx := range cn.Values {
-			findDependentNames(vx, dst, directOnly)
+			findDependentNames(vx, dst)
 		}
 	case *TypeDecl:
-		findDependentNames(cn.Type, dst, directOnly)
+		findDependentNames(cn.Type, dst)
 	case *FuncDecl:
-		findDependentNames(&cn.Type, dst, directOnly)
+		findDependentNames(&cn.Type, dst)
 		if cn.IsMethod {
-			findDependentNames(&cn.Recv, dst, directOnly)
+			findDependentNames(&cn.Recv, dst)
 			for _, n := range cn.GetExternNames() {
 				dst[n] = struct{}{}
 			}
