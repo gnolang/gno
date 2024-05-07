@@ -191,8 +191,6 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round)
 	ensureNewProposal(proposalCh, height, round)
 
-	// XXX(FIXME): new round loop block get round state
-
 	// Check that Proposal, ProposalBlock, ProposalBlockParts are set.
 	rs := cs.GetRoundState()
 	if rs.Proposal == nil {
@@ -297,7 +295,6 @@ func TestStateFullRound1(t *testing.T) {
 
 	ensureNewProposal(propCh, height, round)
 
-	// XXX(FIXME): unable to get the proper order to avoid failing
 	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
 
 	ensurePrevote(voteCh, height, round) // wait for prevote
@@ -1266,8 +1263,6 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 	round++ // moving to the next round
 	ensureNewRound(newRoundCh, height, round)
 
-	// XXX(FIXME): this part is flaky
-
 	rs := cs1.GetRoundState()
 	assert.True(t, rs.Step == cstypes.RoundStepPropose) // P0 does not prevote before timeoutPropose expires
 
@@ -1495,7 +1490,6 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	signAddVotes(cs1, types.PrecommitType, theBlockHash, theBlockParts, vs4)
 
-	// XXX(FIXME): this make the test hang indefinitely
 	rs = cs1.GetRoundState()
 	assert.True(t, rs.TriggeredTimeoutPrecommit)
 
