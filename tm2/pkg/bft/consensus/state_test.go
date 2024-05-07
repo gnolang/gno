@@ -81,15 +81,15 @@ func TestStateProposerSelection0(t *testing.T) {
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
 
+	// Wait for complete proposal.
+	ensureNewProposal(proposalCh, height, round)
+
 	// Commit a block and ensure proposer for the next height is correct.
 	prop := cs1.GetRoundState().Validators.GetProposer()
 	address := cs1.privValidator.GetPubKey().Address()
 	if prop.Address != address {
 		t.Fatalf("expected proposer to be validator %d. Got %X", 0, prop.Address)
 	}
-
-	// Wait for complete proposal.
-	ensureNewProposal(proposalCh, height, round)
 
 	rs := cs1.GetRoundState()
 	signAddVotes(cs1, types.PrecommitType, rs.ProposalBlock.Hash(), rs.ProposalBlockParts.Header(), vss[1:]...)
