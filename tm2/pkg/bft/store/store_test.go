@@ -45,13 +45,13 @@ func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Bl
 	return block
 }
 
-func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
-	config := cfg.ResetTestRoot("blockchain_reactor_test")
+func makeStateAndBlockStore(_ *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
+	config, genesisFile := cfg.ResetTestRoot("blockchain_reactor_test")
 	// blockDB := dbm.NewDebugDB("blockDB", memdb.NewMemDB())
 	// stateDB := dbm.NewDebugDB("stateDB", memdb.NewMemDB())
 	blockDB := memdb.NewMemDB()
 	stateDB := memdb.NewMemDB()
-	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
+	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, genesisFile)
 	if err != nil {
 		panic(errors.Wrap(err, "error constructing state from genesis file"))
 	}

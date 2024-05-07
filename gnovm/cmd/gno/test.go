@@ -318,6 +318,7 @@ func gnoTestPkg(
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
+				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
 			}
 		}

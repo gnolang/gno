@@ -153,7 +153,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				if err != nil {
+					return newCtx, res, true
+				}
+
 				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 				if !res.IsOK() {
 					return newCtx, res, true
@@ -393,6 +397,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			if fgd == gpd {
 				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
 				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
+				// This is equivalent to checking
+				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
+				// This approach helps us avoid dealing with configurations where the value of
+				// the minimum gas price is set to 0.00001ugnot/gas.
 				if prod1.Cmp(prod2) >= 0 {
 					return sdk.Result{}
 				} else {
@@ -426,15 +434,22 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) []byte {
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var accNum uint64
 	if !genesis {
 		accNum = acc.GetAccountNumber()
 	}
-	signbz := std.SignBytes(
-		chainID, accNum, acc.GetSequence(), tx.Fee, tx.Msgs, tx.Memo,
+
+	return std.GetSignaturePayload(
+		std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNum,
+			Sequence:      acc.GetSequence(),
+			Fee:           tx.Fee,
+			Msgs:          tx.Msgs,
+			Memo:          tx.Memo,
+		},
 	)
-	return signbz
 }
 
 func abciResult(err error) sdk.Result {
