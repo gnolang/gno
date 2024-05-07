@@ -559,7 +559,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
+		findDependentNames(decl, deps, false)
 		for dep := range deps {
 			// if dep already defined as import, skip.
 			if _, ok := fn.GetLocalIndex(dep); ok {

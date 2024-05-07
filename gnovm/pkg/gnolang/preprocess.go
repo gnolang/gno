@@ -95,6 +95,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
+var dependencies = make(map[string]*Dependency)
+
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
@@ -624,6 +626,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, n.(Expr))
 					// elide composite lit element (nested) composite types.
 					elideCompositeElements(clx, clt)
+				}
+				dumpDependencies()
+				// Check for cyclic dependencies
+				if ok, graph := hasCycle(); ok {
+					dependencies = nil
+					panic(graph)
+				} else {
+					fmt.Println("No cyclic dependency detected.")
+				}
+				switch n.(type) {
+				case *FileNode:
+					dependencies = nil
 				}
 			}()
 
@@ -1943,6 +1957,42 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
+					if dependencies == nil {
+						dependencies = make(map[string]*Dependency)
+					}
+					fmt.Println("---type decl: ", n)
+					if st, ok := tmp.(*StructType); ok {
+						// check if fields contains declaredType
+						maybeRecursive := false
+						names := make([]Name, 0)
+						for _, f := range st.Fields {
+							fmt.Println("---f.Name: ", f.Name)
+							fmt.Println("---f.Type: ", f.Type)
+							if dt, ok := f.Type.(*DeclaredType); ok { // indirect does not count
+								maybeRecursive = true
+								fmt.Println("---dt.Name:", dt.Name)
+								names = append(names, dt.Name)
+							}
+
+							if pt, ok := f.Type.(*PointerType); ok { // indirect does not count
+								fmt.Println("---it is pointer type, pt: ", pt)
+							}
+						}
+						if maybeRecursive {
+							deps := make(map[Name]struct{})
+							findDependentNames(n, deps, false)
+							fmt.Println("---deps: ", deps)
+							fmt.Println("---names: ", names)
+							for dn := range deps {
+								// if dep name is declared type
+								for _, name := range names {
+									if name == dn {
+										insertDependency(string(dst.Name), &Dependency{Name: string(dn)})
+									}
+								}
+							}
+						}
+					}
 					// if store has this type, use that.
 					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
 					exists := false
@@ -3540,53 +3590,67 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
+//func findDependentNames2(n Node, info map[Name]bool) {
+//	dst := make(map[Name]struct{})
+//	indirect := findDependentNames(n, dst)
+//	if !indirect {
+//		info
+//	}
+//}
+
 // This is to be run *after* preprocessing is done,
 // to determine the order of var decl execution
 // (which may include functions which may refer to package vars).
-func findDependentNames(n Node, dst map[Name]struct{}) {
+func findDependentNames(n Node, dst map[Name]struct{}, directOnly bool) {
 	switch cn := n.(type) {
 	case *NameExpr:
+		fmt.Println("---name X, n: ", n)
 		dst[cn.Name] = struct{}{}
 	case *BasicLitExpr:
 	case *BinaryExpr:
-		findDependentNames(cn.Left, dst)
-		findDependentNames(cn.Right, dst)
+		findDependentNames(cn.Left, dst, directOnly)
+		findDependentNames(cn.Right, dst, directOnly)
 	case *SelectorExpr:
-		findDependentNames(cn.X, dst)
+		findDependentNames(cn.X, dst, directOnly)
 	case *SliceExpr:
-		findDependentNames(cn.X, dst)
+		findDependentNames(cn.X, dst, directOnly)
 		if cn.Low != nil {
-			findDependentNames(cn.Low, dst)
+			findDependentNames(cn.Low, dst, directOnly)
 		}
 		if cn.High != nil {
-			findDependentNames(cn.High, dst)
+			findDependentNames(cn.High, dst, directOnly)
 		}
 		if cn.Max != nil {
-			findDependentNames(cn.Max, dst)
+			findDependentNames(cn.Max, dst, directOnly)
 		}
 	case *StarExpr:
-		findDependentNames(cn.X, dst)
+		fmt.Println("---star X, n: ", n)
+		if directOnly {
+			return
+		} else {
+			findDependentNames(cn.X, dst, directOnly)
+		}
 	case *RefExpr:
-		findDependentNames(cn.X, dst)
+		findDependentNames(cn.X, dst, directOnly)
 	case *TypeAssertExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Type, dst)
+		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.Type, dst, directOnly)
 	case *UnaryExpr:
-		findDependentNames(cn.X, dst)
+		findDependentNames(cn.X, dst, directOnly)
 	case *CompositeLitExpr:
-		findDependentNames(cn.Type, dst)
+		findDependentNames(cn.Type, dst, directOnly)
 		ct := getType(cn.Type)
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cn.Elts {
 				if kvx.Key != nil {
-					findDependentNames(kvx.Key, dst)
+					findDependentNames(kvx.Key, dst, directOnly)
 				}
-				findDependentNames(kvx.Value, dst)
+				findDependentNames(kvx.Value, dst, directOnly)
 			}
 		case StructKind:
 			for _, kvx := range cn.Elts {
-				findDependentNames(kvx.Value, dst)
+				findDependentNames(kvx.Value, dst, directOnly)
 			}
 		default:
 			panic(fmt.Sprintf(
@@ -3594,44 +3658,44 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 				ct.String()))
 		}
 	case *FieldTypeExpr:
-		findDependentNames(cn.Type, dst)
+		findDependentNames(cn.Type, dst, directOnly)
 	case *ArrayTypeExpr:
-		findDependentNames(cn.Elt, dst)
+		findDependentNames(cn.Elt, dst, directOnly)
 		if cn.Len != nil {
-			findDependentNames(cn.Len, dst)
+			findDependentNames(cn.Len, dst, directOnly)
 		}
 	case *SliceTypeExpr:
-		findDependentNames(cn.Elt, dst)
+		findDependentNames(cn.Elt, dst, directOnly)
 	case *InterfaceTypeExpr:
 		for i := range cn.Methods {
-			findDependentNames(&cn.Methods[i], dst)
+			findDependentNames(&cn.Methods[i], dst, directOnly)
 		}
 	case *ChanTypeExpr:
-		findDependentNames(cn.Value, dst)
+		findDependentNames(cn.Value, dst, directOnly)
 	case *FuncTypeExpr:
 		for i := range cn.Params {
-			findDependentNames(&cn.Params[i], dst)
+			findDependentNames(&cn.Params[i], dst, directOnly)
 		}
 		for i := range cn.Results {
-			findDependentNames(&cn.Results[i], dst)
+			findDependentNames(&cn.Results[i], dst, directOnly)
 		}
 	case *MapTypeExpr:
-		findDependentNames(cn.Key, dst)
-		findDependentNames(cn.Value, dst)
+		findDependentNames(cn.Key, dst, directOnly)
+		findDependentNames(cn.Value, dst, directOnly)
 	case *StructTypeExpr:
 		for i := range cn.Fields {
-			findDependentNames(&cn.Fields[i], dst)
+			findDependentNames(&cn.Fields[i], dst, directOnly)
 		}
 	case *CallExpr:
-		findDependentNames(cn.Func, dst)
+		findDependentNames(cn.Func, dst, directOnly)
 		for i := range cn.Args {
-			findDependentNames(cn.Args[i], dst)
+			findDependentNames(cn.Args[i], dst, directOnly)
 		}
 	case *IndexExpr:
-		findDependentNames(cn.X, dst)
-		findDependentNames(cn.Index, dst)
+		findDependentNames(cn.X, dst, directOnly)
+		findDependentNames(cn.Index, dst, directOnly)
 	case *FuncLitExpr:
-		findDependentNames(&cn.Type, dst)
+		findDependentNames(&cn.Type, dst, directOnly)
 		for _, n := range cn.GetExternNames() {
 			dst[n] = struct{}{}
 		}
@@ -3640,17 +3704,17 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 	case *ImportDecl:
 	case *ValueDecl:
 		if cn.Type != nil {
-			findDependentNames(cn.Type, dst)
+			findDependentNames(cn.Type, dst, directOnly)
 		}
 		for _, vx := range cn.Values {
-			findDependentNames(vx, dst)
+			findDependentNames(vx, dst, directOnly)
 		}
 	case *TypeDecl:
-		findDependentNames(cn.Type, dst)
+		findDependentNames(cn.Type, dst, directOnly)
 	case *FuncDecl:
-		findDependentNames(&cn.Type, dst)
+		findDependentNames(&cn.Type, dst, directOnly)
 		if cn.IsMethod {
-			findDependentNames(&cn.Recv, dst)
+			findDependentNames(&cn.Recv, dst, directOnly)
 			for _, n := range cn.GetExternNames() {
 				dst[n] = struct{}{}
 			}
@@ -3668,6 +3732,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			"unexpected node: %v (%v)",
 			n, reflect.TypeOf(n)))
 	}
+	return
 }
 
 // ----------------------------------------
@@ -3749,4 +3814,65 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+type Dependency struct {
+	Name         string
+	Dependencies []*Dependency
+}
+
+func hasCycle() (bool, string) {
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+	var cycle []string
+
+	for depName := range dependencies {
+		if !visited[depName] {
+			if detectCycle(depName, visited, recStack, &cycle) {
+				return true, fmt.Sprintf("Cyclic dependency detected: %v\n", cycle)
+			}
+		}
+	}
+	return false, ""
+}
+
+func detectCycle(depName string, visited, recStack map[string]bool, cycle *[]string) bool {
+	if dep, ok := dependencies[depName]; ok && dep != nil {
+		if !visited[depName] {
+			visited[depName] = true
+			recStack[depName] = true
+			*cycle = append(*cycle, depName)
+
+			for _, d := range dep.Dependencies {
+				if !visited[d.Name] && detectCycle(d.Name, visited, recStack, cycle) {
+					return true
+				} else if recStack[d.Name] {
+					*cycle = append(*cycle, d.Name)
+					return true
+				}
+			}
+		}
+	}
+	recStack[depName] = false
+	if len(*cycle) > 0 && (*cycle)[len(*cycle)-1] == depName {
+		*cycle = (*cycle)[:len(*cycle)-1]
+	}
+	return false
+}
+
+func insertDependency(name string, dependenciesList ...*Dependency) {
+	fmt.Println("---insertDependency, name: ", name)
+	fmt.Println("---insertDependency, dependenciesList: ", dependenciesList[0].Name)
+	dependencies[name] = &Dependency{Name: name, Dependencies: dependenciesList}
+}
+
+func dumpDependencies() {
+	fmt.Println("Dependencies:")
+	for name, dep := range dependencies {
+		fmt.Printf("Dependency %s: ", name)
+		for _, d := range dep.Dependencies {
+			fmt.Printf("%s ", d.Name)
+		}
+		fmt.Println()
+	}
 }
