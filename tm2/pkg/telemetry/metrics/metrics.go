@@ -16,6 +16,10 @@ import (
 const (
 	broadcastTxTimerKey = "broadcast_tx_hist"
 	buildBlockTimerKey  = "build_block_hist"
+
+	inboundPeersKey  = "inbound_peers_gauge"
+	outboundPeersKey = "outbound_peers_gauge"
+	dialingPeersKey  = "dialing_peers_gauge"
 )
 
 var (
@@ -24,6 +28,15 @@ var (
 
 	// BuildBlockTimer measures the block build duration
 	BuildBlockTimer metric.Int64Histogram
+
+	// InboundPeers measures the active number of inbound peers
+	InboundPeers *Int64Gauge
+
+	// OutboundPeers measures the active number of outbound peers
+	OutboundPeers *Int64Gauge
+
+	// DialingPeers measures the active number of peers in the dialing state
+	DialingPeers *Int64Gauge
 )
 
 func Init(config config.Config) error {
@@ -66,6 +79,31 @@ func Init(config config.Config) error {
 		metric.WithUnit("ms"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
+	}
+
+	// Networking //
+	if InboundPeers, err = NewInt64Gauge(
+		inboundPeersKey,
+		"inbound peer count",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if OutboundPeers, err = NewInt64Gauge(
+		outboundPeersKey,
+		"outbound peer count",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if DialingPeers, err = NewInt64Gauge(
+		dialingPeersKey,
+		"dialing peer count",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
 	}
 
 	return nil
