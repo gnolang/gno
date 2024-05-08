@@ -36,7 +36,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 	}
 
 	// Check if royalty percentage exceeds 100%
-	if royaltyInfo.Percentage > 100 {
+	if royaltyInfo.Percentage > r.maxRoyaltyPercentage {
 		return ErrInvalidRoyaltyPercentage
 	}
 
@@ -72,6 +72,6 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice uint64) (std.Address, ui
 }
 
 func (r *royaltyNFT) calculateRoyaltyAmount(salePrice, percentage uint64) (uint64, error) {
-	royaltyAmount := (salePrice * percentage) / r.maxRoyaltyPercentage
+	royaltyAmount := (salePrice * percentage) / 100
 	return royaltyAmount, nil
 }
