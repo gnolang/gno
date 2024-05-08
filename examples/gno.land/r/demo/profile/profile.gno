@@ -33,7 +33,7 @@ func CreateProfile(username, avatarurl, age, gender, website, country, city stri
 
 	// Check if a profile already exists for this address
 	if _, exists := profiles.Get(caller.String()); exists {
-		panic("A profile already exists for this address")
+		panic("a profile already exists for this address")
 	}
 
 	// Check if the username is already taken
