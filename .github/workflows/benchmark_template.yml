@@ -9,6 +9,9 @@ on:
         required: true
         type: string
 
+env:
+  CGO_ENABLED: 0
+
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
@@ -21,8 +24,6 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version: "1.22.x"
-    - name: Install database dependencies
-      run: sudo apt-get install -y libleveldb-dev librocksdb-dev
     - name: "gobenchdata publish: ${{ inputs.publish }}"
       run: go run go.bobheadxi.dev/gobenchdata@v1 action
       env:
