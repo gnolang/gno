@@ -9,22 +9,6 @@ id: gno-tooling-gnoland
 `gnoland` is the Gno.land blockchain client binary, which is capable of managing node working files, as well
 as starting the blockchain client itself.
 
-```shell
-gnoland --help
-
-USAGE
-  <subcommand> [flags] [<arg>...]
-
-starts the gnoland blockchain node.
-
-SUBCOMMANDS
-  start    run the full node
-  secrets  gno secrets manipulation suite
-  config   gno config manipulation suite
-  genesis  gno genesis manipulation suite
-  init     initializes the default node secrets / configuration
-```
-
 ## `gnoland init`
 
 `gnoland init` is supposed to initialize the node's working directory in the given path. The node's data directory is
