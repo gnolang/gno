@@ -20,6 +20,9 @@ const (
 	inboundPeersKey  = "inbound_peers_gauge"
 	outboundPeersKey = "outbound_peers_gauge"
 	dialingPeersKey  = "dialing_peers_gauge"
+
+	numMempoolTxsKey = "num_mempool_txs_gauge"
+	numCachedTxsKey  = "num_cached_txs_gauge"
 )
 
 var (
@@ -37,6 +40,12 @@ var (
 
 	// DialingPeers measures the active number of peers in the dialing state
 	DialingPeers *Int64Gauge
+
+	// NumMempoolTxs measures the number of transaction inside the mempool
+	NumMempoolTxs *Int64Gauge
+
+	// NumCachedTxs measures the number of transaction inside the mempool cache
+	NumCachedTxs *Int64Gauge
 )
 
 func Init(config config.Config) error {
@@ -101,6 +110,23 @@ func Init(config config.Config) error {
 	if DialingPeers, err = NewInt64Gauge(
 		dialingPeersKey,
 		"dialing peer count",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	// Mempool //
+	if NumMempoolTxs, err = NewInt64Gauge(
+		numMempoolTxsKey,
+		"valid mempool transaction count",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if NumCachedTxs, err = NewInt64Gauge(
+		numCachedTxsKey,
+		"cached mempool transaction count",
 		meter,
 	); err != nil {
 		return fmt.Errorf("unable to create gauge, %w", err)
