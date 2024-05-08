@@ -35,7 +35,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 		return ErrInvalidRoyaltyPaymentAddress
 	}
 
-	// Check if royalty percentage exceeds 100%
+	// Check if royalty percentage exceeds maxRoyaltyPercentage
 	if royaltyInfo.Percentage > r.maxRoyaltyPercentage {
 		return ErrInvalidRoyaltyPercentage
 	}
