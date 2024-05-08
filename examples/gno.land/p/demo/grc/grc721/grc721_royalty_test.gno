@@ -28,7 +28,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	dummy.mint(addr1, TokenID("1"))
 
-	_, derr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
+	derr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
@@ -38,7 +38,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	}
 
 	// Test case: Invalid token ID
-	_, err := dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
+	err := dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
@@ -48,7 +48,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	std.TestSetOrigCaller(addr2) // addr2
 
-	_, cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
+	cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
@@ -57,7 +57,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	}
 
 	// Test case: Invalid payment address
-	_, aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
+	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
 		PaymentAddress: std.Address("###"),
 		Percentage:     percentage,
 	})
@@ -66,7 +66,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	}
 
 	// Test case: Invalid payment address
-	_, perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
+	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     uint64(10),
 	})

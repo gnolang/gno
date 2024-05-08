@@ -8,8 +8,8 @@ import (
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
-	*basicNFT   // Embedded basicNFT struct for basic NFT functionality
-	extensions  avl.Tree // AVL tree for storing metadata extensions
+	*basicNFT           // Embedded basicNFT struct for basic NFT functionality
+	extensions avl.Tree // AVL tree for storing metadata extensions
 }
 
 // Ensure that metadataNFT implements the IGRC721MetadataOnchain interface.
@@ -28,20 +28,20 @@ func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
 }
 
 // SetTokenMetadata sets metadata for a given token ID.
-func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) (bool, error) {
+func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
 	// Check if the caller is the owner of the token
 	owner, err := s.basicNFT.OwnerOf(tid)
 	if err != nil {
-		return false, err
+		return err
 	}
 	caller := std.PrevRealm().Addr()
 	if caller != owner {
-		return false, ErrCallerIsNotOwner
+		return ErrCallerIsNotOwner
 	}
 
 	// Set the metadata for the token ID in the extensions AVL tree
 	s.extensions.Set(string(tid), metadata)
-	return true, nil
+	return nil
 }
 
 // TokenMetadata retrieves metadata for a given token ID.
@@ -67,7 +67,6 @@ func (s *metadataNFT) mint(to std.Address, tid TokenID) error {
 		return ErrTokenIdAlreadyExists
 	}
 
-
 	s.basicNFT.beforeTokenTransfer(zeroAddress, to, tid, 1)
 
 	// Check if the token ID was minted by beforeTokenTransfer
@@ -89,7 +88,6 @@ func (s *metadataNFT) mint(to std.Address, tid TokenID) error {
 	// Emit transfer event
 	event := TransferEvent{zeroAddress, to, tid}
 	emit(&event)
-
 
 	s.basicNFT.afterTokenTransfer(zeroAddress, to, tid, 1)
 

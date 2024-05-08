@@ -8,8 +8,8 @@ import (
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
 type royaltyNFT struct {
-	*metadataNFT          // Embedding metadataNFT for NFT functionality
-	tokenRoyaltyInfo avl.Tree  // AVL tree to store royalty information for each token
+	*metadataNFT              // Embedding metadataNFT for NFT functionality
+	tokenRoyaltyInfo avl.Tree // AVL tree to store royalty information for each token
 }
 
 // Ensure that royaltyNFT implements the IGRC2981 interface.
@@ -21,36 +21,36 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 	nft := NewNFTWithMetadata(name, symbol)
 
 	return &royaltyNFT{
-		metadataNFT:        nft,
-		tokenRoyaltyInfo:   avl.Tree{},
+		metadataNFT:      nft,
+		tokenRoyaltyInfo: avl.Tree{},
 	}
 }
 
 // SetTokenRoyalty sets the royalty information for a specific token ID.
-func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) (bool, error) {
+func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error {
 	// Validate the payment address
 	if err := isValidAddress(royaltyInfo.PaymentAddress); err != nil {
-		return false, ErrInvalidRoyaltyPaymentAddress
+		return ErrInvalidRoyaltyPaymentAddress
 	}
 
 	// Check if royalty percentage exceeds 100%
 	if royaltyInfo.Percentage > 100 {
-		return false, ErrInvalidRoyaltyPercentage
+		return ErrInvalidRoyaltyPercentage
 	}
 
 	// Check if the caller is the owner of the token
 	owner, err := r.metadataNFT.OwnerOf(tid)
 	if err != nil {
-		return false, err
+		return err
 	}
 	caller := std.PrevRealm().Addr()
 	if caller != owner {
-		return false, ErrCallerIsNotOwner
+		return ErrCallerIsNotOwner
 	}
 
 	// Set royalty information for the token
 	r.tokenRoyaltyInfo.Set(string(tid), royaltyInfo)
-	return true, nil
+	return nil
 }
 
 // RoyaltyInfo returns the royalty information for the given token ID and sale price.

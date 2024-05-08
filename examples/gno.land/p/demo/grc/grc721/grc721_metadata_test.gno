@@ -37,7 +37,7 @@ func TestSetMetadata(t *testing.T) {
 	dummy.mint(addr1, TokenID("1"))
 
 	// Set metadata for token 1
-	_, derr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+	derr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
@@ -55,7 +55,7 @@ func TestSetMetadata(t *testing.T) {
 	}
 
 	// Test case: Invalid token ID
-	_, err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
+	err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
@@ -76,7 +76,7 @@ func TestSetMetadata(t *testing.T) {
 	std.TestSetOrigCaller(addr2) // addr2
 
 	// Try to set metadata for token 1 from addr2 (should fail)
-	_, cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
+	cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
 		Name:            name,
 		Description:     description,
 		Image:           image,
