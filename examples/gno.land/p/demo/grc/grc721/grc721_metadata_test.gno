@@ -100,34 +100,34 @@ func TestSetMetadata(t *testing.T) {
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))
 	if err != nil {
 		t.Errorf("Metadata error: %s", err.Error())
-	} else {
-		// Check if metadata attributes match expected values
-		if dummyMetadata.Image != image {
-			t.Errorf("Expected Metadata's image %s, got %s", image, dummyMetadata.Image)
-		}
-		if dummyMetadata.ImageData != imageData {
-			t.Errorf("Expected Metadata's imageData %s, got %s", imageData, dummyMetadata.ImageData)
-		}
-		if dummyMetadata.ExternalURL != externalURL {
-			t.Errorf("Expected Metadata's externalURL %s, got %s", externalURL, dummyMetadata.ExternalURL)
-		}
-		if dummyMetadata.Description != description {
-			t.Errorf("Expected Metadata's description %s, got %s", description, dummyMetadata.Description)
-		}
-		if dummyMetadata.Name != name {
-			t.Errorf("Expected Metadata's name %s, got %s", name, dummyMetadata.Name)
-		}
-		if len(dummyMetadata.Attributes) != len(attributes) {
-			t.Errorf("Expected %d Metadata's attributes, got %d", len(attributes), len(dummyMetadata.Attributes))
-		}
-		if dummyMetadata.BackgroundColor != backgroundColor {
-			t.Errorf("Expected Metadata's backgroundColor %s, got %s", backgroundColor, dummyMetadata.BackgroundColor)
-		}
-		if dummyMetadata.AnimationURL != animationURL {
-			t.Errorf("Expected Metadata's animationURL %s, got %s", animationURL, dummyMetadata.AnimationURL)
-		}
-		if dummyMetadata.YoutubeURL != youtubeURL {
-			t.Errorf("Expected Metadata's youtubeURL %s, got %s", youtubeURL, dummyMetadata.YoutubeURL)
-		}
+	}
+
+	// Check if metadata attributes match expected values
+	if dummyMetadata.Image != image {
+		t.Errorf("Expected Metadata's image %s, got %s", image, dummyMetadata.Image)
+	}
+	if dummyMetadata.ImageData != imageData {
+		t.Errorf("Expected Metadata's imageData %s, got %s", imageData, dummyMetadata.ImageData)
+	}
+	if dummyMetadata.ExternalURL != externalURL {
+		t.Errorf("Expected Metadata's externalURL %s, got %s", externalURL, dummyMetadata.ExternalURL)
+	}
+	if dummyMetadata.Description != description {
+		t.Errorf("Expected Metadata's description %s, got %s", description, dummyMetadata.Description)
+	}
+	if dummyMetadata.Name != name {
+		t.Errorf("Expected Metadata's name %s, got %s", name, dummyMetadata.Name)
+	}
+	if len(dummyMetadata.Attributes) != len(attributes) {
+		t.Errorf("Expected %d Metadata's attributes, got %d", len(attributes), len(dummyMetadata.Attributes))
+	}
+	if dummyMetadata.BackgroundColor != backgroundColor {
+		t.Errorf("Expected Metadata's backgroundColor %s, got %s", backgroundColor, dummyMetadata.BackgroundColor)
+	}
+	if dummyMetadata.AnimationURL != animationURL {
+		t.Errorf("Expected Metadata's animationURL %s, got %s", animationURL, dummyMetadata.AnimationURL)
+	}
+	if dummyMetadata.YoutubeURL != youtubeURL {
+		t.Errorf("Expected Metadata's youtubeURL %s, got %s", youtubeURL, dummyMetadata.YoutubeURL)
 	}
 }
