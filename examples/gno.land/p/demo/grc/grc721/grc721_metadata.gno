@@ -23,7 +23,7 @@ func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
 	// Return a metadataNFT with basicNFT embedded and an empty AVL tree for extensions
 	return &metadataNFT{
 		basicNFT:   nft,
-		extensions: avl.Tree{},
+		extensions: avl.NewTree(),
 	}
 }
 

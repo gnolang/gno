@@ -23,7 +23,7 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 
 	return &royaltyNFT{
 		metadataNFT:          nft,
-		tokenRoyaltyInfo:     avl.Tree{},
+		tokenRoyaltyInfo:     avl.NewTree(),
 		maxRoyaltyPercentage: 100,
 	}
 }
