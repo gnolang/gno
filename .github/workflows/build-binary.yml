@@ -1,0 +1,69 @@
+name: Build binary
+
+on:
+  workflow_call:
+    inputs:
+      binary: 
+        required: true
+        type: string
+        description: 'The binary name to build'
+      binary_path:
+        required: true
+        type: string
+        description: 'The path to the binary to build (e.g. gno.land/cmd/gnoland)'
+      go_version:
+        required: false
+        type: string
+        description: 'The Go version to use, defaults to latest'
+      os:
+        required: true
+        type: string
+        description: 'The operating system to build for'
+      arch:
+        required: true
+        type: string
+        description: 'The architecture to build for'
+  workflow_dispatch:
+    inputs:
+      binary: 
+        required: true
+        type: string
+        description: 'The binary name to build'
+      binary_path:
+        required: true
+        type: string
+        description: 'The path to the binary to build (e.g. gno.land/cmd/gnoland)'
+      go_version:
+        required: false
+        type: string
+        description: 'The Go version to use, defaults to latest'
+      os:
+        required: true
+        type: string
+        description: 'The operating system to build for'
+      arch:
+        required: true
+        type: string
+        description: 'The architecture to build for'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ github.event.inputs.go_version || null }}
+
+      - name: Build binary
+        run: GOOS=${{ github.event.inputs.os }} GOARCH=${{ github.event.inputs.arch }} go build -o ${{ inputs.binary }} ${{ inputs.binary_path }}
+
+      - name: Archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.binary }}-${{ inputs.os }}-${{ inputs.arch }}
+          path: ${{ inputs.binary }}

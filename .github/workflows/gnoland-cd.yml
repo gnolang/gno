@@ -1,0 +1,102 @@
+name: Gnoland Release
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+        - 'gno.land/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        required: false
+        type: string
+        description: 'The version of the release (e.g. 1.2.3), defaults to commit SHA'
+
+jobs:
+  build:    
+    strategy:
+      matrix:
+        os: [ubuntu, macos]
+        target-arch: [386, amd64, arm]
+        binary: [gnoland, gnokey, gnoweb]
+    
+    uses: ./.github/workflows/build-binary.yml
+    with:
+      binary: ${{ matrix.binary }}
+      binary_path: ./gno.land/cmd/${{ matrix.binary }}
+      os: ${{ matrix.os }}
+      arch: ${{ matrix.target-arch }}
+
+      
+
+  create-release:
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - uses: actions/download-artifact@v4
+
+      # Artifacts downloaded are in the form [artifact-name]/[binary]
+      # This step moves the binaries to the root of the workspace and gives them a unique name
+      - name: extract binaries
+        run: |
+          for a in $ARTIFACTS; do
+            mv $a/* $GITHUB_WORKSPACE/a-bin
+            rm -rf $a
+            mv a-bin $a
+          done
+        env:
+          ARTIFACTS: |
+            gnoland-ubuntu-386
+            gnokey-ubuntu-386
+            gnoweb-ubuntu-386
+            gnoland-ubuntu-amd64
+            gnokey-ubuntu-amd64
+            gnoweb-ubuntu-amd64
+            gnoland-ubuntu-arm
+            gnokey-ubuntu-arm
+            gnoweb-ubuntu-arm
+            gnoland-macos-386
+            gnokey-macos-386
+            gnoweb-macos-386
+            gnoland-macos-amd64
+            gnokey-macos-amd64
+            gnoweb-macos-amd64
+            gnoland-macos-arm
+            gnokey-macos-arm
+            gnoweb-macos-arm
+      
+      - name: release tag
+        id: release_tag
+        run: echo "tag=gnoland-${{ inputs.version != null && 'v' || ''}}${{ inputs.version || '$(date +"%Y.%m.%d")-$(git rev-parse --short HEAD)' }}" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          files: |
+            gnoland-ubuntu-386
+            gnokey-ubuntu-386
+            gnoweb-ubuntu-386
+            gnoland-ubuntu-amd64
+            gnokey-ubuntu-amd64
+            gnoweb-ubuntu-amd64
+            gnoland-ubuntu-arm
+            gnokey-ubuntu-arm
+            gnoweb-ubuntu-arm
+            gnoland-macos-386
+            gnokey-macos-386
+            gnoweb-macos-386
+            gnoland-macos-amd64
+            gnokey-macos-amd64
+            gnoweb-macos-amd64
+            gnoland-macos-arm
+            gnokey-macos-arm
+            gnoweb-macos-arm
