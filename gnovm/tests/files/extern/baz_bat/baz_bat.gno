@@ -1,3 +1,3 @@
 package baz
 
-var Name = "baz-bat"
+var Name = "baz_bat"

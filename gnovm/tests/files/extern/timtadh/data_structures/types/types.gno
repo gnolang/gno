@@ -1,4 +1,4 @@
-// from https://raw.githubusercontent.com/timtadh/data-structures/master/types/types.gno
+// from https://raw.githubusercontent.com/timtadh/data_structures/master/types/types.gno
 
 package types
 

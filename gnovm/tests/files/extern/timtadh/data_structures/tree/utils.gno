@@ -1,9 +1,9 @@
-// from https://raw.githubusercontent.com/timtadh/data-structures/master/tree/util.gno
+// from https://raw.githubusercontent.com/timtadh/data_structures/master/tree/util.gno
 
 package tree
 
 import (
-	"github.com/gnolang/gno/_test/timtadh/data-structures/types"
+	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
 )
 
 func pop(stack []types.TreeNode) ([]types.TreeNode, types.TreeNode) {

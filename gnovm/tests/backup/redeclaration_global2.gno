@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-	"time"
 )
 
 func main() {
@@ -11,4 +10,4 @@ func main() {
 }
 
 // Error:
-// ../_test/redeclaration-global2.gno:5:2: time/redeclaration-global2.gno redeclared in this block
+// ../_test/redeclaration_global2.gno:5:2: time/redeclaration_global2.gno redeclared in this block

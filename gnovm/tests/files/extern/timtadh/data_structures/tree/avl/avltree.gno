@@ -1,12 +1,12 @@
-// modified from https://github.com/timtadh/data-structures
+// modified from https://github.com/timtadh/data_structures
 
 package avl
 
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/timtadh/data-structures/tree"
-	"github.com/gnolang/gno/_test/timtadh/data-structures/types"
+	"github.com/gnolang/gno/_test/timtadh/data_structures/tree"
+	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
 )
 
 func abs(i int) int {
