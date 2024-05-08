@@ -1,0 +1,22 @@
+name: deploy docs on gnolang/docs.gno.land repository
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/**"
+
+jobs:
+  trigger-netlify-docs-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.DOCS_DEPLOY_PAT }}
+          script: |
+            await github.rest.actions.createworkflowDispatch({
+                owner: 'gnolang',
+                repo: 'docs.gno.land',
+                workflow_id: 'netlify.yml',
+                ref: 'main'
+            })

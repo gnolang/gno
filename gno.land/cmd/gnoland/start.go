@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -221,12 +220,6 @@ func execStart(c *startCfg, io commands.IO) error {
 		loadCfgErr error
 	)
 
-	// Attempt to initialize telemetry. If the environment variables required to initialize
-	// telemetry are not set, then the initialization will do nothing.
-	if err := initTelemetry(); err != nil {
-		return fmt.Errorf("error initializing telemetry: %w", err)
-	}
-
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
 		// Load the node configuration
@@ -255,6 +248,9 @@ func execStart(c *startCfg, io commands.IO) error {
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
+
+	// Initialize telemetry
+	telemetry.Init(*cfg.Telemetry)
 
 	// Write genesis file if missing.
 	// NOTE: this will be dropped in a PR that resolves issue #1886:
@@ -400,20 +396,4 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func initTelemetry() error {
-	var options []telemetry.Option
-
-	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
-		options = append(options, telemetry.WithOptionMetricsEnabled())
-	}
-
-	// The string options can be added by default. Their absence would yield the same result
-	// as if the option were excluded altogether.
-	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
-	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
-	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
-
-	return telemetry.Init(options...)
 }
