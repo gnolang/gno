@@ -16,8 +16,8 @@ func TestSetMetadata(t *testing.T) {
 	}
 
 	// Define addresses for testing purposes
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := testutils.TestAddress("alice")
+	addr2 := testutils.TestAddress("bob")
 
 	// Define metadata attributes
 	name := "test"
@@ -31,22 +31,22 @@ func TestSetMetadata(t *testing.T) {
 	youtubeURL := "test"
 
 	// Set the original caller to addr1
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	std.TestSetOrigCaller(addr1) // addr1
 
 	// Mint a new token for addr1
 	dummy.mint(addr1, TokenID("1"))
 
 	// Set metadata for token 1
 	_, derr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
-		Name:           name,
-		Description:    description,
-		Image:          image,
-		ImageData:      imageData,
-		ExternalURL:    externalURL,
-		Attributes:     attributes,
+		Name:            name,
+		Description:     description,
+		Image:           image,
+		ImageData:       imageData,
+		ExternalURL:     externalURL,
+		Attributes:      attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL:   animationURL,
-		YoutubeURL:     youtubeURL,
+		AnimationURL:    animationURL,
+		YoutubeURL:      youtubeURL,
 	})
 
 	// Check if there was an error setting metadata
@@ -56,15 +56,15 @@ func TestSetMetadata(t *testing.T) {
 
 	// Test case: Invalid token ID
 	_, err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
-		Name:           name,
-		Description:    description,
-		Image:          image,
-		ImageData:      imageData,
-		ExternalURL:    externalURL,
-		Attributes:     attributes,
+		Name:            name,
+		Description:     description,
+		Image:           image,
+		ImageData:       imageData,
+		ExternalURL:     externalURL,
+		Attributes:      attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL:   animationURL,
-		YoutubeURL:     youtubeURL,
+		AnimationURL:    animationURL,
+		YoutubeURL:      youtubeURL,
 	})
 
 	// Check if the error returned matches the expected error
@@ -73,19 +73,19 @@ func TestSetMetadata(t *testing.T) {
 	}
 
 	// Set the original caller to addr2
-	std.TestSetOrigCaller(std.Address(addr2)) // addr2
+	std.TestSetOrigCaller(addr2) // addr2
 
 	// Try to set metadata for token 1 from addr2 (should fail)
 	_, cerr := dummy.SetTokenMetadata(TokenID("1"), Metadata{
-		Name:           name,
-		Description:    description,
-		Image:          image,
-		ImageData:      imageData,
-		ExternalURL:    externalURL,
-		Attributes:     attributes,
+		Name:            name,
+		Description:     description,
+		Image:           image,
+		ImageData:       imageData,
+		ExternalURL:     externalURL,
+		Attributes:      attributes,
 		BackgroundColor: backgroundColor,
-		AnimationURL:   animationURL,
-		YoutubeURL:     youtubeURL,
+		AnimationURL:    animationURL,
+		YoutubeURL:      youtubeURL,
 	})
 
 	// Check if the error returned matches the expected error
@@ -94,7 +94,7 @@ func TestSetMetadata(t *testing.T) {
 	}
 
 	// Set the original caller back to addr1
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	std.TestSetOrigCaller(addr1) // addr1
 
 	// Retrieve metadata for token 1
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))
@@ -131,4 +131,3 @@ func TestSetMetadata(t *testing.T) {
 		}
 	}
 }
-
