@@ -100,6 +100,7 @@ func MustParseExpr(expr string) Expr {
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
+	fmt.Println("---ParseFile")
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
@@ -124,17 +125,25 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	// parse with Go2Gno.
 	fn = Go2Gno(fs, f).(*FileNode)
 	fn.Name = Name(filename)
+	for _, d := range fn.Decls {
+		fmt.Println("---decl: ", d)
+	}
 	return fn, nil
 }
 
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
+	fmt.Println("---setLoc, n, type of n: ", n, reflect.TypeOf(n))
+	fmt.Printf("---setLoc, addr of n: %p \n", n)
 	posn := fs.Position(pos)
+	fmt.Println("---setLoc, posn, posn.Line: ", posn, posn.Line)
 	n.SetLine(posn.Line)
+	fmt.Println("---after setLoc, n.line: ", n.GetLine())
 	return n
 }
 
 // If gon is a *ast.File, the name must be filled later.
 func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
+	fmt.Println("---Go2Gno")
 	if gon == nil {
 		return nil
 	}
@@ -447,9 +456,11 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
+		fmt.Println("---go 2 gno, file")
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
+			fmt.Println("---1, d: ", d)
 			if gd, ok := d.(*ast.GenDecl); ok {
 				decls = append(decls, toDecls(fs, gd)...)
 			} else {
@@ -605,6 +616,7 @@ func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
 }
 
 func toDecl(fs *token.FileSet, god ast.Decl) Decl {
+	fmt.Println("---toDecl..., god: ", god)
 	gnod := Go2Gno(fs, god)
 	if gnod == nil {
 		return nil
@@ -614,6 +626,8 @@ func toDecl(fs *token.FileSet, god ast.Decl) Decl {
 }
 
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
+	fmt.Println("---toDecls..., gd: ", gd)
+
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
 		Within a parenthesized const declaration list the
@@ -627,14 +641,22 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	for si, s := range gd.Specs {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
+			fmt.Println("---type spec")
 			name := toName(s.Name)
+			fmt.Println("---type spec, name: ", name)
 			tipe := toExpr(fs, s.Type)
+			fmt.Println("---type spec, tipe: ", tipe)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			fmt.Println("---type spec, td: ", td)
+			posn := fs.Position(gd.Pos())
+			td.SetLine(posn.Line)
+			fmt.Println("---type spec, td.line: ", td.GetLine())
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr

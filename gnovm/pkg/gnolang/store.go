@@ -481,7 +481,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	// save node to backend.
 	if ds.baseStore != nil {
 		// TODO: implement copyValueWithRefs() for Nodes.
-		// key := backendNodeKey(loc)
+		// key := backendNodeKey(Loc)
 		// ds.backend.Set([]byte(key), bz)
 	}
 	// save node to cache.

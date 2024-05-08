@@ -1384,6 +1384,7 @@ type DeclaredType struct {
 // returns an unsealed *DeclaredType.
 // do not use for aliases.
 func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
+	//fmt.Println("---declareWith, pkgPath, name, type: ", pkgPath, name, b)
 	dt := &DeclaredType{
 		PkgPath: pkgPath,
 		Name:    name,
@@ -1428,7 +1429,10 @@ func (dt *DeclaredType) checkSeal() {
 }
 
 func (dt *DeclaredType) TypeID() TypeID {
+	//fmt.Println("---TypeID(), for dt: ", dt)
 	if dt.typeid.IsZero() {
+		//fmt.Println("is 0!!!!!")
+		//panic("is 0!!!!!!!!!!!!!!!1")
 		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
 	}
 	return dt.typeid

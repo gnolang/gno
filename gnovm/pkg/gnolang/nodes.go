@@ -1171,6 +1171,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+	fmt.Println("---parse mem package")
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||

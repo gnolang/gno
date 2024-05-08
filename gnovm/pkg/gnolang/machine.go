@@ -490,6 +490,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 func (m *Machine) runFiles(fns ...*FileNode) {
+	fmt.Println("---runFiles, fns: ", fns)
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -524,6 +525,8 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 	// Preprocess each new file.
 	for _, fn := range fns {
+		fmt.Println("---pn: ", pn)
+		//fmt.Println("---fn: ", fn)
 		// Preprocess file.
 		// NOTE: Most of the declaration is handled by
 		// Preprocess and any constant values set on
@@ -535,6 +538,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
+		//fmt.Printf("PREPROCESSED FILE: %v\n", fn)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
