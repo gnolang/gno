@@ -8,8 +8,9 @@ import (
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
 type royaltyNFT struct {
-	*metadataNFT              // Embedding metadataNFT for NFT functionality
-	tokenRoyaltyInfo avl.Tree // AVL tree to store royalty information for each token
+	*metadataNFT                  // Embedding metadataNFT for NFT functionality
+	tokenRoyaltyInfo     avl.Tree // AVL tree to store royalty information for each token
+	maxRoyaltyPercentage uint64   // maxRoyaltyPercentage represents the maximum royalty percentage that can be charged every sale
 }
 
 // Ensure that royaltyNFT implements the IGRC2981 interface.
@@ -21,8 +22,9 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 	nft := NewNFTWithMetadata(name, symbol)
 
 	return &royaltyNFT{
-		metadataNFT:      nft,
-		tokenRoyaltyInfo: avl.Tree{},
+		metadataNFT:          nft,
+		tokenRoyaltyInfo:     avl.Tree{},
+		maxRoyaltyPercentage: 100,
 	}
 }
 
@@ -63,16 +65,13 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice uint64) (std.Address, ui
 
 	royaltyInfo := val.(RoyaltyInfo)
 
-	// Calculate royalty amount using the provided calculator
-	royaltyAmount, err := r.calculateRoyaltyAmount(salePrice, royaltyInfo.Percentage)
-	if err != nil {
-		return "", 0, ErrCannotCalculateRoyaltyAmount
-	}
+	// Calculate royalty amount
+	royaltyAmount, _ := r.calculateRoyaltyAmount(salePrice, royaltyInfo.Percentage)
 
 	return royaltyInfo.PaymentAddress, royaltyAmount, nil
 }
 
 func (r *royaltyNFT) calculateRoyaltyAmount(salePrice, percentage uint64) (uint64, error) {
-	royaltyAmount := (salePrice * percentage) / 100
+	royaltyAmount := (salePrice * percentage) / r.maxRoyaltyPercentage
 	return royaltyAmount, nil
 }
