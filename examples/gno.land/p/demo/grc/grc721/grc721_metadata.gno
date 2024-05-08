@@ -8,8 +8,8 @@ import (
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
-	*basicNFT           // Embedded basicNFT struct for basic NFT functionality
-	extensions avl.Tree // AVL tree for storing metadata extensions
+	*basicNFT            // Embedded basicNFT struct for basic NFT functionality
+	extensions *avl.Tree // AVL tree for storing metadata extensions
 }
 
 // Ensure that metadataNFT implements the IGRC721MetadataOnchain interface.

@@ -58,21 +58,21 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	// Test case: Invalid payment address
 	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
-		PaymentAddress: std.Address("###"),
+		PaymentAddress: std.Address("###"), // invalid address
 		Percentage:     percentage,
 	})
 	if aerr != ErrInvalidRoyaltyPaymentAddress {
 		t.Errorf("Expected error %s, got %s", ErrInvalidRoyaltyPaymentAddress, aerr)
 	}
 
-	// Test case: Invalid payment address
+	// Test case: Invalid percentage
 	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
-		Percentage:     uint64(10),
+		Percentage:     uint64(200), // over maxRoyaltyPercentage
 	})
 
 	if perr != ErrInvalidRoyaltyPercentage {
-		// t.Errorf("Expected error %s, got %s", ErrInvalidRoyaltyPercentage, perr)
+		t.Errorf("Expected error %s, got %s", ErrInvalidRoyaltyPercentage, perr)
 	}
 
 	// Test case: Retrieving Royalty Info
@@ -81,13 +81,13 @@ func TestSetTokenRoyalty(t *testing.T) {
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
 	if rerr != nil {
 		t.Errorf("RoyaltyInfo error: %s", rerr.Error())
-	} else {
-		if dummyPaymentAddress != paymentAddress {
-			t.Errorf("Expected RoyaltyPaymentAddress %s, got %s", paymentAddress, dummyPaymentAddress)
-		}
+	}
 
-		if dummyRoyaltyAmount != expectRoyaltyAmount {
-			t.Errorf("Expected RoyaltyAmount %d, got %d", expectRoyaltyAmount, dummyRoyaltyAmount)
-		}
+	if dummyPaymentAddress != paymentAddress {
+		t.Errorf("Expected RoyaltyPaymentAddress %s, got %s", paymentAddress, dummyPaymentAddress)
+	}
+
+	if dummyRoyaltyAmount != expectRoyaltyAmount {
+		t.Errorf("Expected RoyaltyAmount %d, got %d", expectRoyaltyAmount, dummyRoyaltyAmount)
 	}
 }

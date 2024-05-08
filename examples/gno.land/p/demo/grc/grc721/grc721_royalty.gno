@@ -8,9 +8,9 @@ import (
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
 type royaltyNFT struct {
-	*metadataNFT                  // Embedding metadataNFT for NFT functionality
-	tokenRoyaltyInfo     avl.Tree // AVL tree to store royalty information for each token
-	maxRoyaltyPercentage uint64   // maxRoyaltyPercentage represents the maximum royalty percentage that can be charged every sale
+	*metadataNFT                   // Embedding metadataNFT for NFT functionality
+	tokenRoyaltyInfo     *avl.Tree // AVL tree to store royalty information for each token
+	maxRoyaltyPercentage uint64    // maxRoyaltyPercentage represents the maximum royalty percentage that can be charged every sale
 }
 
 // Ensure that royaltyNFT implements the IGRC2981 interface.
@@ -52,6 +52,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 
 	// Set royalty information for the token
 	r.tokenRoyaltyInfo.Set(string(tid), royaltyInfo)
+
 	return nil
 }
 
