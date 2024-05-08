@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -21,8 +22,6 @@ func TestServer_New(t *testing.T) {
 }
 
 func TestServer_ServeHTTP(t *testing.T) {
-	t.Parallel()
-
 	svr := NewServer(log.NewTestingLogger(t))
 
 	s := httptest.NewServer(http.HandlerFunc(svr.ServeHTTP))
@@ -30,13 +29,15 @@ func TestServer_ServeHTTP(t *testing.T) {
 
 	u := "ws" + strings.TrimPrefix(s.URL, "http")
 	c, _, err := websocket.DefaultDialer.Dial(u, nil)
-	if err != nil {
-		t.Fatalf("client Dial failed: %v", err)
-	}
+	require.NoError(t, err, "client Dial failed")
+
 	defer c.Close()
 
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Len(c, svr.conns(), 1)
+	}, time.Second, time.Millisecond*100)
+
 	sendEvt := events.Custom("TEST")
-	assert.Len(t, svr.clients, 1)
 	svr.Emit(sendEvt) // simulate reload
 
 	var recvEvt eventJSON
