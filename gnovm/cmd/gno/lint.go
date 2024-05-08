@@ -79,6 +79,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Check if 'gno.mod' exists
 		gnoModPath := filepath.Join(pkgPath, "gno.mod")
 		if !osm.FileExists(gnoModPath) {
+			hasError = true
 			issue := lintIssue{
 				Code:       lintNoGnoMod,
 				Confidence: 1,
@@ -89,7 +90,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
+		hasError = hasError || catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
 				rootDir, "",
