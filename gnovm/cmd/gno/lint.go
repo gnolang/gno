@@ -173,7 +173,8 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 		hasError = true
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
-			fmt.Fprint(stderr, issueWithError(pkgPath, verr).String()+"\n")
+			err := verr.Unwrap()
+			fmt.Fprint(stderr, issueWithError(pkgPath, err).String()+"\n")
 		case scanner.ErrorList:
 			for _, err := range verr {
 				fmt.Fprint(stderr, issueWithError(pkgPath, err).String()+"\n")
