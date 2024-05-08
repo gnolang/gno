@@ -2,9 +2,9 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/exporter"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -13,30 +13,33 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
+const (
+	broadcastTxTimerKey = "broadcast_tx_hist"
+	buildBlockTimerKey  = "build_block_hist"
+)
+
 var (
-	// Metrics.
+	// BroadcastTxTimer measures the transaction broadcast duration
 	BroadcastTxTimer metric.Int64Histogram
-	BuildBlockTimer  metric.Int64Histogram
+
+	// BuildBlockTimer measures the block build duration
+	BuildBlockTimer metric.Int64Histogram
 )
 
 func Init(config config.Config) error {
-	if config.ExporterEndpoint == "" {
-		return exporter.ErrEndpointNotSet
-	}
-
-	// Use oltp metric exporter.
-	exporter, err := otlpmetricgrpc.New(
+	// Use oltp metric exporter
+	exp, err := otlpmetricgrpc.New(
 		context.Background(),
 		otlpmetricgrpc.WithEndpoint(config.ExporterEndpoint),
-		otlpmetricgrpc.WithInsecure(), // TODO: enable security
+		otlpmetricgrpc.WithInsecure(),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create metrics exporter, %w", err)
 	}
 
 	provider := sdkMetric.NewMeterProvider(
-		// Default period is 1m.
-		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exporter)),
+		// Default period is 1m
+		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
 		sdkMetric.WithResource(
 			resource.NewWithAttributes(
 				semconv.SchemaURL,
@@ -50,19 +53,19 @@ func Init(config config.Config) error {
 	meter := provider.Meter(config.MeterName)
 
 	if BroadcastTxTimer, err = meter.Int64Histogram(
-		"broadcast_tx_hist",
+		broadcastTxTimerKey,
 		metric.WithDescription("broadcast tx duration"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return err
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BuildBlockTimer, err = meter.Int64Histogram(
-		"build_block_hist",
+		buildBlockTimerKey,
 		metric.WithDescription("block build duration"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return err
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	return nil

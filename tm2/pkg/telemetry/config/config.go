@@ -1,16 +1,20 @@
-// Package config contains the configuration types and helpers for the telemetry
-// package.
 package config
 
-// Config is the configuration struct for the tm2 telemetry package.
+import (
+	"errors"
+)
+
+var errEndpointNotSet = errors.New("telemetry exporter endpoint not set")
+
+// Config is the configuration struct for the tm2 telemetry package
 type Config struct {
-	MetricsEnabled   bool   `toml:"enabled"`
+	MetricsEnabled   bool   `toml:"metrics_enabled"`
 	MeterName        string `toml:"meter_name"`
 	ServiceName      string `toml:"service_name"`
 	ExporterEndpoint string `toml:"exporter_endpoint" comment:"the endpoint to export metrics to, like a local OpenTelemetry collector"`
 }
 
-// DefaultTelemetryConfig is the default configuration used for the node.
+// DefaultTelemetryConfig is the default configuration used for the node
 func DefaultTelemetryConfig() *Config {
 	return &Config{
 		MetricsEnabled:   false,
@@ -20,8 +24,12 @@ func DefaultTelemetryConfig() *Config {
 	}
 }
 
-// TestTelemetryConfig is the test configuration. Currently it is an alias for
-// [DefaultTelemetryConfig].
-func TestTelemetryConfig() *Config {
-	return DefaultTelemetryConfig()
+// ValidateBasic performs basic telemetry config validation and
+// returns an error if any check fails
+func (cfg *Config) ValidateBasic() error {
+	if cfg.ExporterEndpoint == "" {
+		return errEndpointNotSet
+	}
+
+	return nil
 }
