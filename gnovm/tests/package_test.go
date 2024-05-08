@@ -51,7 +51,7 @@ func TestPackages(t *testing.T) {
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
 		t.Run(pkgPath, func(t *testing.T) {
-			t.Skip("almost any new packag is failing. Ignoring this test for now until we find a solution for this.")
+			t.Skip("almost any new package is failing. Ignoring this test for now until we find a solution for this.")
 
 			if pkgPath == "gno.land/p/demo/avl" {
 				t.Skip("package failing")
