@@ -1,0 +1,34 @@
+services:
+  collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8090"
+    volumes:
+      - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--enable-feature=remote-write-receiver"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  grafana:
+    image: grafana/grafana-enterprise
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./grafana/gno-dashboards.json:/var/lib/grafana/dashboards/gno-dashboards.json
+    ports:
+      - "3000:3000"
+
+volumes:
+  prometheus:
+    driver: local
+  grafana_data:
+    driver: local

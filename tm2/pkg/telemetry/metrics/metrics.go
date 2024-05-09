@@ -48,9 +48,6 @@ var (
 	// BroadcastTxTimer measures the transaction broadcast duration
 	BroadcastTxTimer metric.Int64Histogram
 
-	// BuildBlockTimer measures the block build duration
-	BuildBlockTimer metric.Int64Histogram
-
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers
@@ -88,6 +85,9 @@ var (
 	VMExecMsgFrequency metric.Int64Counter
 
 	// Consensus //
+
+	// BuildBlockTimer measures the block build duration
+	BuildBlockTimer metric.Int64Histogram
 
 	// ValidatorsCount measures the size of the active validator set
 	ValidatorsCount *Int64Gauge
