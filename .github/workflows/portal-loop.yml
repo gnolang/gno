@@ -65,6 +65,6 @@ jobs:
 
           apt install -y curl jq
 
-          while [[ "$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')" -gt 5 ]]; sleep 1; done
+          while [[ "$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')" -gt 5 ]]; do sleep 1; done
 
           kill %1
