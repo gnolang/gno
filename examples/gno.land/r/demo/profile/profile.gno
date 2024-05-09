@@ -20,8 +20,8 @@ type UserProfile struct {
 	ModificationHistory map[string][]string
 }
 
-var profiles *avl.Tree
-var usernameIndex *avl.Tree // Index to quickly find a profile by username
+var profiles *avl.Tree // address -> UserProfile
+var usernameIndex *avl.Tree // username -> address
 
 func init() {
 	profiles = avl.NewTree()
