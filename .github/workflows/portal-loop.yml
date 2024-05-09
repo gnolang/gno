@@ -1,6 +1,7 @@
 name: portal-loop
 
 on:
+  pull_request: {}
   push:
     paths:
       - "misc/loop/**"
