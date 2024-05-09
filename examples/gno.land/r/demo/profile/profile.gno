@@ -103,7 +103,7 @@ func UpdateProfile(username, avatarurl, age, gender, website, country, city stri
 	profiles.Set(caller.String(), existingProfile)
 
 	// Update the username index if the username is changed
-	if username != "" {
+	if username != existingProfile.Username {
 		usernameIndex.Set(username, caller.String())
 	}
 }
