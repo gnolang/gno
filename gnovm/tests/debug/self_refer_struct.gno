@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// debug/self_refer_struct.gno: Cyclic dependency detected: S (Line: 3) -> S (Line: 3)
+// Cyclic dependency detected: S(File: debug/self_refer_struct.gno, Line: 3) -> S(File: debug/self_refer_struct.gno, Line: 3)

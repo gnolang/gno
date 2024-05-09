@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/gno.land/r/demo/recursive/z_0_filetest.gno:1: main.gno: Cyclic dependency detected: A (Line: 3) -> B (Line: 3) -> C (Line: 7) -> A (Line: 3)
+// main/gno.land/r/demo/recursive/z_0_filetest.gno:1: Cyclic dependency detected: A(File: main.gno, Line: 3) -> B(File: foo.gno, Line: 3) -> C(File: foo.gno, Line: 7) -> A(File: main.gno, Line: 3)

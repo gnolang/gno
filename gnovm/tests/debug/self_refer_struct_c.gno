@@ -11,4 +11,5 @@ func main() {
 	println(a == b)
 }
 
-// Error:
+// Output:
+// true
