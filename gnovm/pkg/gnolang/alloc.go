@@ -1,8 +1,6 @@
 package gnolang
 
-import (
-	"reflect"
-)
+import "reflect"
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
