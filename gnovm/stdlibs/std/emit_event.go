@@ -21,6 +21,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
 	evt := gnoEvent{
+		MsgIdx:     0,
 		Type:       typ,
 		PkgPath:    pkgPath,
 		Func:       fnIdent,
@@ -46,13 +47,19 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 }
 
 type gnoEvent struct {
-	Type       string              `json:"type"`
+	MsgIdx     int                 `json:"msg_idx"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
+	Type       string              `json:"type"`
 	Attributes []gnoEventAttribute `json:"attrs"`
 }
 
 func (e gnoEvent) AssertABCIEvent() {}
+
+func (e gnoEvent) SetMsgIdx(msgIdx int) interface{} {
+	e.MsgIdx = msgIdx
+	return e
+}
 
 type gnoEventAttribute struct {
 	Key   string `json:"key"`

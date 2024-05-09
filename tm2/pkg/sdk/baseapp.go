@@ -652,25 +652,34 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
 		data = append(data, msgResult.Data...)
-		events = append(events, msgResult.Events...)
-		defer func() {
-			events = append(events, ctx.EventLogger().Events()...)
-			result.Events = events
-		}()
-		// TODO append msgevent from ctx. XXX XXX
+
+		// each msgs' event
+		var msgEvent []abci.Event
+
+		// handle each msg's ctx event
+		msgCtxEvents := ctx.EventLogger().Events()
+		for _, msgCtxEvent := range msgCtxEvents {
+			overwriteInterface := msgCtxEvent.SetMsgIdx(i)
+			overwrwriteEvent := overwriteInterface.(abci.Event)
+
+			msgEvent = append(msgEvent, overwrwriteEvent)
+		}
+		msgEvent = append(msgEvent, msgResult.Events...)
+
+		events = append(events, msgEvent...)
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
 			msgLogs = append(msgLogs,
 				fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
-					i, false, msgResult.Log, events))
+					i, false, msgResult.Log, msgEvent))
 			err = msgResult.Error
 			break
 		}
 
 		msgLogs = append(msgLogs,
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
-				i, true, msgResult.Log, events))
+				i, true, msgResult.Log, msgEvent))
 	}
 
 	result.Error = ABCIError(err)

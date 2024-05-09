@@ -206,6 +206,7 @@ type Error interface {
 
 type Event interface {
 	AssertABCIEvent()
+	SetMsgIdx(int) interface{}
 }
 
 type Header interface {
@@ -221,6 +222,9 @@ type Header interface {
 type StringError string
 
 func (StringError) AssertABCIError() {}
+func (StringError) SetMsgIdx(i int) interface{} {
+	return nil
+}
 
 func (err StringError) Error() string {
 	return string(err)
@@ -232,6 +236,9 @@ func (err StringError) Error() string {
 type EventString string
 
 func (EventString) AssertABCIEvent() {}
+func (EventString) SetMsgIdx(i int) interface{} {
+	return nil
+}
 
 func (err EventString) Event() string {
 	return string(err)
