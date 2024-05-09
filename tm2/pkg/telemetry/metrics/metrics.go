@@ -29,6 +29,14 @@ const (
 	vmGasUsedKey     = "vm_gas_used_hist"
 	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
 	vmExecMsgKey     = "vm_exec_msg_hist"
+
+	validatorCountKey       = "validator_count_gauge"
+	validatorVotingPowerKey = "validator_vp_gauge"
+	blockIntervalKey        = "block_interval_hist"
+	blockTxsKey             = "block_txs_gauge"
+	blockSizeKey            = "block_size_gauge"
+	totalTxsKey             = "total_txs_counter"
+	latestHeightKey         = "latest_height_counter"
 )
 
 var (
@@ -75,6 +83,29 @@ var (
 
 	// VMExecMsgFrequency measures the frequency of VM operations
 	VMExecMsgFrequency metric.Int64Counter
+
+	// Consensus //
+
+	// ValidatorsCount measures the size of the active validator set
+	ValidatorsCount *Int64Gauge
+
+	// ValidatorsVotingPower measures the total voting power of the active validator set
+	ValidatorsVotingPower *Int64Gauge
+
+	// BlockInterval measures the interval between 2 subsequent blocks
+	BlockInterval metric.Int64Histogram
+
+	// BlockTxs measures the number of transactions within the latest block
+	BlockTxs *Int64Gauge
+
+	// BlockSizeBytes measures the size of the latest block in bytes
+	BlockSizeBytes *Int64Gauge
+
+	// TotalTxs measures the total number of transactions on the network
+	TotalTxs metric.Int64Counter
+
+	// LatestHeight measures the total number of committed network blocks
+	LatestHeight *Int64Gauge
 )
 
 func Init(config config.Config) error {
@@ -195,6 +226,62 @@ func Init(config config.Config) error {
 		metric.WithDescription("vm msg operation call frequency"),
 	); err != nil {
 		return fmt.Errorf("unable to create counter, %w", err)
+	}
+
+	// Consensus //
+	if ValidatorsCount, err = NewInt64Gauge(
+		validatorCountKey,
+		"size of the active validator set",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if ValidatorsVotingPower, err = NewInt64Gauge(
+		validatorVotingPowerKey,
+		"total voting power of the active validator set",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if BlockInterval, err = meter.Int64Histogram(
+		blockIntervalKey,
+		metric.WithDescription("interval between 2 subsequent blocks"),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
+
+	if BlockTxs, err = NewInt64Gauge(
+		blockTxsKey,
+		"number of transactions within the latest block",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if BlockSizeBytes, err = NewInt64Gauge(
+		blockSizeKey,
+		"size of the latest block in bytes",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	if TotalTxs, err = meter.Int64Counter(
+		totalTxsKey,
+		metric.WithDescription("total number of transactions on the network"),
+	); err != nil {
+		return fmt.Errorf("unable to create counter, %w", err)
+	}
+
+	if LatestHeight, err = NewInt64Gauge(
+		latestHeightKey,
+		"total number of committed network blocks",
+		meter,
+	); err != nil {
+		return fmt.Errorf("unable to create gauge, %w", err)
 	}
 
 	return nil
