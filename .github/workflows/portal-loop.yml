@@ -7,7 +7,7 @@ on:
       - ".github/workflows/portal-loop.yml"
     branches:
       - "master"
-      - "ops/portal-loop"
+      - "ci/portal-loop"
     tags:
       - "v*"
 
@@ -46,3 +46,16 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  build-gno:
+    uses: ./.github/workflows/docker.yml
+
+  test-portal-loop:
+    runs-on: ubuntu-latest
+    needs: build-gno
+    container: docker://ghcr.io/${{ github.repository }}:${GITHUB_SHA::8}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: bash ./misc/loop/scripts/start.sh
