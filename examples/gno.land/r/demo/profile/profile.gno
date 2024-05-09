@@ -109,19 +109,21 @@ func UpdateProfile(username, avatarurl, age, gender, website, country, city stri
 }
 
 // Display complete Profile by Address
-func DisplayProfileByAddress(address std.Address) (UserProfile, bool) {
+func DisplayProfileByAddress(address std.Address) UserProfile {
 	if value, exists := profiles.Get(address.String()); exists {
-		return value.(UserProfile), true
+		return value.(UserProfile)
 	}
-	return UserProfile{}, false
+
+	panic("profile not found")
 }
 
 // Get complete profile by username
-func DisplayProfileByUsername(username string) (UserProfile, bool) {
+func DisplayProfileByUsername(username string) UserProfile {
 	if addr, exists := usernameIndex.Get(username); exists {
 		return DisplayProfileByAddress(std.Address(addr.(string)))
 	}
-	return UserProfile{}, false
+	
+	panic("username not found")
 }
 
 // Display username
