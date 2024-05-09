@@ -157,7 +157,8 @@ func DisplayAvatarURL(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+
+	panic("address or username not found")
 }
 
 // Display age from address or username
@@ -173,7 +174,8 @@ func DisplayAge(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+
+	panic("address or username not found")
 }
 
 // Display gender from address or username
@@ -189,7 +191,8 @@ func DisplayGender(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+
+	panic("address or username not found")
 }
 
 // Display website from address or username
@@ -205,7 +208,8 @@ func DisplayWebsite(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+
+	panic("address or username not found")
 }
 
 // Display country from address or username
@@ -221,7 +225,8 @@ func DisplayCountry(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+
+	panic("address or username not found")
 }
 
 // Display city from address or username
@@ -237,7 +242,8 @@ func DisplayCity(address std.Address, username string) string {
 			}
 		}
 	}
-	return "Address or Username not found"
+	
+	panic("address or username not found")
 }
 
 // Display modification history specific to a field from address or username
@@ -269,7 +275,8 @@ func DisplayModificationHistory(address std.Address, username, field string) str
 			}
 		}
 	}
-	return "Address or Username not found or no modifications recorded for the field"
+
+	panic("address or username not found or no modifications recorded for the field")
 }
 
 func Render(path string) string {
