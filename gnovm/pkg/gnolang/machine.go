@@ -14,6 +14,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -53,11 +55,10 @@ type Machine struct {
 	CheckTypes bool // not yet used
 	ReadOnly   bool
 	MaxCycles  int64
-
-	Output  io.Writer
-	Store   Store
-	Context interface{}
-
+	Output     io.Writer
+	Store      Store
+	Context    interface{}
+	GasMeter   store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
 	PanicScope uint
@@ -96,6 +97,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	MaxCycles     int64      // or 0 for no limit.
+	GasMeter      store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -120,6 +122,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	checkTypes := opts.CheckTypes
 	readOnly := opts.ReadOnly
 	maxCycles := opts.MaxCycles
+	vmGasMeter := opts.GasMeter
+
 	output := opts.Output
 	if output == nil {
 		output = os.Stdout
@@ -154,6 +158,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
+	mm.GasMeter = vmGasMeter
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -967,10 +972,17 @@ const (
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
 )
 
+const GasFactorCPU int64 = 1
+
 //----------------------------------------
 // "CPU" steps.
 
 func (m *Machine) incrCPU(cycles int64) {
+	if m.GasMeter != nil {
+		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+	}
+
 	m.Cycles += cycles
 	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
 		panic("CPU cycle overrun")
@@ -2012,117 +2024,117 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 }
 
 func (m *Machine) String() string {
-	vs := []string{}
+	// Calculate some reasonable total length to avoid reallocation
+	// Assuming an average length of 32 characters per string
+	var (
+		vsLength         = m.NumValues * 32
+		ssLength         = len(m.Stmts) * 32
+		xsLength         = len(m.Exprs) * 32
+		bsLength         = 1024
+		obsLength        = len(m.Blocks) * 32
+		fsLength         = len(m.Frames) * 32
+		exceptionsLength = len(m.Exceptions)
+
+		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+	)
+
+	var builder strings.Builder
+	builder.Grow(totalLength)
+
+	builder.WriteString(fmt.Sprintf("Machine:\n    CheckTypes: %v\n    Op: %v\n    Values: (len: %d)\n", m.CheckTypes, m.Ops[:m.NumOps], m.NumValues))
+
 	for i := m.NumValues - 1; i >= 0; i-- {
-		v := m.Values[i]
-		vs = append(vs, fmt.Sprintf("          #%d %v", i, v))
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
 	}
-	ss := []string{}
-	for i := len(m.Stmts) - 1; i >= 0; i-- {
-		s := m.Stmts[i]
-		ss = append(ss, fmt.Sprintf("          #%d %v", i, s))
-	}
-	xs := []string{}
+
+	builder.WriteString(`Exprs: `)
+
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
-		x := m.Exprs[i]
-		xs = append(xs, fmt.Sprintf("          #%d %v", i, x))
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
 	}
-	bs := []string{}
+
+	builder.WriteString(`Stmts: `)
+
+	for i := len(m.Stmts) - 1; i >= 0; i-- {
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
+	}
+
+	builder.WriteString(`Blocks: `)
+
 	for b := m.LastBlock(); b != nil; {
-		gen := len(bs)/3 + 1
+		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
+
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
-			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, pv.PkgPath))
+			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
 		} else {
 			bsi := b.StringIndented("            ")
-			bs = append(bs, fmt.Sprintf("          %s(%d) %s", gens, gen, bsi))
+			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
+
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				bs = append(bs, fmt.Sprintf(" (s vals) %s(%d) %s", gens, gen,
-					sb.StringIndented("            ")))
+				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
+
 				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				bs = append(bs, fmt.Sprintf(" (s typs) %s(%d) %s", gens, gen,
-					sts))
+				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
 			}
 		}
-		// b = b.Parent.(*Block|RefValue)
+
+		// Update b
 		switch bp := b.Parent.(type) {
 		case nil:
 			b = nil
-			break
 		case *Block:
 			b = bp
 		case RefValue:
-			bs = append(bs, fmt.Sprintf("            (block ref %v)", bp.ObjectID))
+			builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
 			b = nil
-			break
 		default:
 			panic("should not happen")
 		}
 	}
-	obs := []string{}
+
+	builder.WriteString(`Blocks (other): `)
+
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
+
+		if b == nil || b.Source == nil {
+			continue
+		}
+
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
-			obs = append(obs, fmt.Sprintf("          #%d %s", i,
+			builder.WriteString(fmt.Sprintf("          #%d %s", i,
 				b.StringIndented("            ")))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				obs = append(obs, fmt.Sprintf(" (static) #%d %s", i,
+				builder.WriteString(fmt.Sprintf(" (static) #%d %s", i,
 					sb.StringIndented("            ")))
 			}
 		}
 	}
-	fs := []string{}
+
+	builder.WriteString(`Frames: `)
+
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
-		fs = append(fs, fmt.Sprintf("          #%d %s", i, fr.String()))
+		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
 	}
-	rlmpath := ""
+
 	if m.Realm != nil {
-		rlmpath = m.Realm.Path
+		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
 	}
-	exceptions := make([]string, len(m.Exceptions))
-	for i, ex := range m.Exceptions {
-		exceptions[i] = ex.Sprint(m)
+
+	builder.WriteString(`Exceptions: `)
+
+	for _, ex := range m.Exceptions {
+		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
 	}
-	return fmt.Sprintf(`Machine:
-    CheckTypes: %v
-	Op: %v
-	Values: (len: %d)
-%s
-	Exprs:
-%s
-	Stmts:
-%s
-	Blocks:
-%s
-	Blocks (other):
-%s
-	Frames:
-%s
-	Realm:
-	  %s
-	Exceptions:
-	  %s
-	  %s`,
-		m.CheckTypes,
-		m.Ops[:m.NumOps],
-		m.NumValues,
-		strings.Join(vs, "\n"),
-		strings.Join(xs, "\n"),
-		strings.Join(ss, "\n"),
-		strings.Join(bs, "\n"),
-		strings.Join(obs, "\n"),
-		strings.Join(fs, "\n"),
-		rlmpath,
-		m.Exceptions,
-		strings.Join(exceptions, "\n"),
-	)
+
+	return builder.String()
 }
 
 //----------------------------------------
