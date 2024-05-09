@@ -122,24 +122,26 @@ func DisplayProfileByUsername(username string) UserProfile {
 	if addr, exists := usernameIndex.Get(username); exists {
 		return DisplayProfileByAddress(std.Address(addr.(string)))
 	}
-	
+
 	panic("username not found")
 }
 
 // Display username
-func DisplayUsername(address std.Address) string {
+func DisplayUsernameByAddress(address std.Address) string {
 	if value, exists := profiles.Get(address.String()); exists {
 		return value.(UserProfile).Username
 	}
-	return "Address not found"
+
+	panic("address not found")
 }
 
 // Display address from username
-func DisplayAddress(username string) string {
+func DisplayAddressByUsername(username string) string {
 	if addr, exists := usernameIndex.Get(username); exists {
 		return addr.(string)
 	}
-	return "Username not found"
+
+	panic("username not found")
 }
 
 // Display avatarurl from address or username
