@@ -15,7 +15,7 @@ import (
 // and the odd index items are corresponding package values.
 func gonativeTestStore(args ...interface{}) Store {
 	store := NewStore(nil, nil, nil)
-	store.SetPackageGetter(func(pkgPath string, _ Store) (*PackageNode, *PackageValue) {
+	store.SetPackageGetter(func(pkgPath string) (*PackageNode, *PackageValue) {
 		for i := 0; i < len(args)/2; i++ {
 			pn := args[i*2].(*PackageNode)
 			pv := args[i*2+1].(*PackageValue)
