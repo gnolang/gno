@@ -36,6 +36,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Go Build Cache for Docker
+        uses: actions/cache@v3
+        with:
+          path: go-build-cache
+          key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
+
+      - name: inject go-build-cache into docker
+        # v1 was composed of two actions: "inject" and "extract".
+        # v2 is unified to a single action.
+        uses: reproducible-containers/buildkit-cache-dance@v2.1.2
+        with:
+          cache-source: go-build-cache
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -75,6 +88,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Go Build Cache for Docker
+        uses: actions/cache@v3
+        with:
+          path: go-build-cache
+          key: ${{ runner.os }}-go-build-cache-${{ hashFiles('**/go.sum') }}
+
+      - name: inject go-build-cache into docker
+        # v1 was composed of two actions: "inject" and "extract".
+        # v2 is unified to a single action.
+        uses: reproducible-containers/buildkit-cache-dance@v2.1.2
+        with:
+          cache-source: go-build-cache
 
       - name: Build and push
         uses: docker/build-push-action@v5
