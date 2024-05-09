@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 // ----------------------------------------
@@ -61,26 +62,24 @@ var gStringerType = &DeclaredType{
 var (
 	uverseNode  *PackageNode
 	uverseValue *PackageValue
+	uverseOnce  sync.Once
 )
 
 const uversePkgPath = ".uverse"
 
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
-	if uverseValue == nil {
-		pn := UverseNode()
-		uverseValue = pn.NewPackage()
-	}
+	uverseOnce.Do(makeUverse)
 	return uverseValue
 }
 
 // Always returns the same instance with possibly differing completeness.
 func UverseNode() *PackageNode {
-	// Global is singleton.
-	if uverseNode != nil {
-		return uverseNode
-	}
+	uverseOnce.Do(makeUverse)
+	return uverseNode
+}
 
+func makeUverse() {
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
 
@@ -998,7 +997,9 @@ func UverseNode() *PackageNode {
 			m.Exceptions = nil
 		},
 	)
-	return uverseNode
+
+	uverseValue = uverseNode.NewPackage()
+	return
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

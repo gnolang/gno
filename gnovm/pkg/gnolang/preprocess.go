@@ -2989,7 +2989,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
-		if isUverseName(dn) {
+		if pkg.PkgPath != uversePkgPath && isUverseName(dn) {
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
@@ -3396,9 +3396,12 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			nx.Path = path
 			return
 		}
-	} else if isUverseName(nx.Name) {
-		panic(fmt.Sprintf(
-			"builtin identifiers cannot be shadowed: %s", nx.Name))
+	} else {
+		pkg := packageOf(last)
+		if pkg.PkgPath != uversePkgPath && isUverseName(nx.Name) {
+			panic(fmt.Sprintf(
+				"builtin identifiers cannot be shadowed: %s", nx.Name))
+		}
 	}
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.

@@ -95,7 +95,7 @@ func TestRunInvalidLabels(t *testing.T) {
 			code: `
 		package test
 		func main(){}
-		
+
 		func invalidLabelStatement() {
 			if true {
 				break InvalidLabel
