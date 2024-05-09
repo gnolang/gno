@@ -333,7 +333,7 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, addrString, res)
 }
