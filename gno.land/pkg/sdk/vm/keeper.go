@@ -4,6 +4,7 @@ package vm
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -213,6 +218,14 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		}
 	}()
 	m2.RunMemPackage(memPkg, true)
+
+	// Log the telemetry
+	logTelemetry(
+		"m_addpkg",
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+	)
+
 	return nil
 }
 
@@ -310,6 +323,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			res += "\n"
 		}
 	}
+
+	// Log the telemetry
+	logTelemetry(
+		"m_call",
+		m.GasMeter.GasConsumed(),
+		m.Cycles,
+	)
+
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
@@ -410,6 +431,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}()
 	m2.RunMain()
 	res = buf.String()
+
+	// Log the telemetry
+	logTelemetry(
+		"m_run",
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+	)
+
 	return res, nil
 }
 
@@ -624,4 +653,33 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+// logTelemetry logs the VM processing telemetry
+func logTelemetry(
+	call string,
+	gasUsed int64,
+	cpuCycles int64,
+) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Record the operation frequency
+	metrics.VMExecMsgFrequency.Add(
+		context.Background(),
+		1,
+		metric.WithAttributes(
+			attribute.KeyValue{
+				Key:   "operation",
+				Value: attribute.StringValue(call),
+			},
+		),
+	)
+
+	// Record the CPU cycles
+	metrics.VMCPUCycles.Record(context.Background(), cpuCycles)
+
+	// Record the gas used
+	metrics.VMGasUsed.Record(context.Background(), gasUsed)
 }

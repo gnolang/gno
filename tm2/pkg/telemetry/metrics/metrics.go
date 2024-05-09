@@ -24,13 +24,11 @@ const (
 	numMempoolTxsKey = "num_mempool_txs_gauge"
 	numCachedTxsKey  = "num_cached_txs_gauge"
 
-	vmQueryPackageCallsKey = "vm_query_package_calls_counter"
-	vmQueryStoreCallsKey   = "vm_query_store_calls_counter"
-	vmQueryRenderCallsKey  = "vm_query_render_calls_counter"
-	vmQueryFuncsCallsKey   = "vm_query_funcs_calls_counter"
-	vmQueryEvalCallsKey    = "vm_query_eval_calls_counter"
-	vmQueryFileCallsKey    = "vm_query_file_calls_counter"
-	vmQueryErrorsKey       = "vm_query_errors_counter"
+	vmQueryCallsKey  = "vm_query_calls_counter"
+	vmQueryErrorsKey = "vm_query_errors_counter"
+	vmGasUsedKey     = "vm_gas_used_hist"
+	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
+	vmExecMsgKey     = "vm_exec_msg_hist"
 )
 
 var (
@@ -63,26 +61,20 @@ var (
 
 	// Runtime //
 
-	// VMQueryPackageCalls measures the frequency of VM query package calls
-	VMQueryPackageCalls metric.Int64Counter
-
-	// VMQueryStoreCalls measures the frequency of VM query store calls
-	VMQueryStoreCalls metric.Int64Counter
-
-	// VMQueryRenderCalls measures the frequency of VM query render calls
-	VMQueryRenderCalls metric.Int64Counter
-
-	// VMQueryFuncsCalls measures the frequency of VM query funcs calls
-	VMQueryFuncsCalls metric.Int64Counter
-
-	// VMQueryEvalCalls measures the frequency of VM query eval calls
-	VMQueryEvalCalls metric.Int64Counter
-
-	// VMQueryFileCalls measures the frequency of VM query file calls
-	VMQueryFileCalls metric.Int64Counter
+	// VMQueryCalls measures the frequency of VM query calls
+	VMQueryCalls metric.Int64Counter
 
 	// VMQueryErrors measures the frequency of VM query errors
 	VMQueryErrors metric.Int64Counter
+
+	// VMGasUsed measures the VM gas usage
+	VMGasUsed metric.Int64Histogram
+
+	// VMCPUCycles measures the VM CPU cycles
+	VMCPUCycles metric.Int64Histogram
+
+	// VMExecMsgFrequency measures the frequency of VM operations
+	VMExecMsgFrequency metric.Int64Counter
 )
 
 func Init(config config.Config) error {
@@ -170,44 +162,9 @@ func Init(config config.Config) error {
 	}
 
 	// Runtime //
-	if VMQueryPackageCalls, err = meter.Int64Counter(
-		vmQueryPackageCallsKey,
-		metric.WithDescription("vm query package call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryStoreCalls, err = meter.Int64Counter(
-		vmQueryStoreCallsKey,
-		metric.WithDescription("vm query store call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryRenderCalls, err = meter.Int64Counter(
-		vmQueryRenderCallsKey,
-		metric.WithDescription("vm query render call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryFuncsCalls, err = meter.Int64Counter(
-		vmQueryFuncsCallsKey,
-		metric.WithDescription("vm query funcs call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryEvalCalls, err = meter.Int64Counter(
-		vmQueryEvalCallsKey,
-		metric.WithDescription("vm query eval call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryFileCalls, err = meter.Int64Counter(
-		vmQueryFileCallsKey,
-		metric.WithDescription("vm query file call frequency"),
+	if VMQueryCalls, err = meter.Int64Counter(
+		vmQueryCallsKey,
+		metric.WithDescription("vm query call frequency"),
 	); err != nil {
 		return fmt.Errorf("unable to create counter, %w", err)
 	}
@@ -215,6 +172,27 @@ func Init(config config.Config) error {
 	if VMQueryErrors, err = meter.Int64Counter(
 		vmQueryErrorsKey,
 		metric.WithDescription("vm query errors call frequency"),
+	); err != nil {
+		return fmt.Errorf("unable to create counter, %w", err)
+	}
+
+	if VMGasUsed, err = meter.Int64Histogram(
+		vmGasUsedKey,
+		metric.WithDescription("VM gas used"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
+
+	if VMCPUCycles, err = meter.Int64Histogram(
+		vmCPUCyclesKey,
+		metric.WithDescription("VM CPU cycles"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
+
+	if VMExecMsgFrequency, err = meter.Int64Counter(
+		vmExecMsgKey,
+		metric.WithDescription("vm msg operation call frequency"),
 	); err != nil {
 		return fmt.Errorf("unable to create counter, %w", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type vmHandler struct {
@@ -106,32 +108,27 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	}
 
 	// Log the telemetry
-	vh.logQueryTelemetry(path, res.IsErr())
+	logQueryTelemetry(path, res.IsErr())
 
 	return res
 }
 
 // logQueryTelemetry logs the relevant VM query telemetry
-func (vh vmHandler) logQueryTelemetry(path string, isErr bool) {
+func logQueryTelemetry(path string, isErr bool) {
 	if !telemetry.MetricsEnabled() {
 		return
 	}
 
-	switch path {
-	case QueryPackage:
-		metrics.VMQueryPackageCalls.Add(context.Background(), 1)
-	case QueryStore:
-		metrics.VMQueryStoreCalls.Add(context.Background(), 1)
-	case QueryRender:
-		metrics.VMQueryRenderCalls.Add(context.Background(), 1)
-	case QueryFuncs:
-		metrics.VMQueryFuncsCalls.Add(context.Background(), 1)
-	case QueryEval:
-		metrics.VMQueryEvalCalls.Add(context.Background(), 1)
-	case QueryFile:
-		metrics.VMQueryFileCalls.Add(context.Background(), 1)
-	default:
-	}
+	metrics.VMQueryCalls.Add(
+		context.Background(),
+		1,
+		metric.WithAttributes(
+			attribute.KeyValue{
+				Key:   "path",
+				Value: attribute.StringValue(path),
+			},
+		),
+	)
 
 	if isErr {
 		metrics.VMQueryErrors.Add(context.Background(), 1)

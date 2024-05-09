@@ -23,12 +23,18 @@ func MetricsEnabled() bool {
 
 // Init initializes the global telemetry
 func Init(c config.Config) error {
+	// Check if the metrics are enabled at all
+	if !c.MetricsEnabled {
+		return nil
+	}
+
 	// Validate the configuration
 	if err := c.ValidateBasic(); err != nil {
 		return fmt.Errorf("unable to validate config, %w", err)
 	}
 
-	if !c.MetricsEnabled || !telemetryInitialized.CompareAndSwap(false, true) {
+	// Check if it's been enabled already
+	if !telemetryInitialized.CompareAndSwap(false, true) {
 		return nil
 	}
 
