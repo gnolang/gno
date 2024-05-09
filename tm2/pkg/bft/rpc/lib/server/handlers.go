@@ -666,6 +666,8 @@ func (wsc *wsConnection) readRoutine() {
 		return wsc.baseConn.SetReadDeadline(time.Now().Add(wsc.readWait))
 	})
 
+	telemetryEnabled := telemetry.MetricsEnabled()
+
 	for {
 		select {
 		case <-wsc.Quit():
@@ -686,6 +688,9 @@ func (wsc *wsConnection) readRoutine() {
 				wsc.Stop()
 				return
 			}
+
+			// Log the request response start time
+			responseStart := time.Now()
 
 			// first try to unmarshal the incoming request as an array of RPC requests
 			var (
@@ -760,6 +765,14 @@ func (wsc *wsConnection) readRoutine() {
 
 				if len(responses) > 0 {
 					wsc.WriteRPCResponses(responses)
+
+					// Log telemetry
+					if telemetryEnabled {
+						metrics.WSRequestTime.Record(
+							context.Background(),
+							time.Since(responseStart).Milliseconds(),
+						)
+					}
 				}
 			}
 		}
