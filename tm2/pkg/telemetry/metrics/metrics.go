@@ -37,6 +37,8 @@ const (
 	blockSizeKey            = "block_size_gauge"
 	totalTxsKey             = "total_txs_counter"
 	latestHeightKey         = "latest_height_counter"
+
+	httpRequestTimeKey = "http_request_time_hist"
 )
 
 var (
@@ -106,6 +108,11 @@ var (
 
 	// LatestHeight measures the total number of committed network blocks
 	LatestHeight *Int64Gauge
+
+	// RPC //
+
+	// HTTPRequestTime measures the HTTP request response time
+	HTTPRequestTime metric.Int64Histogram
 )
 
 func Init(config config.Config) error {
@@ -282,6 +289,16 @@ func Init(config config.Config) error {
 		meter,
 	); err != nil {
 		return fmt.Errorf("unable to create gauge, %w", err)
+	}
+
+	// RPC //
+
+	if HTTPRequestTime, err = meter.Int64Histogram(
+		httpRequestTimeKey,
+		metric.WithDescription("http request response time"),
+		metric.WithUnit("ms"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	return nil
