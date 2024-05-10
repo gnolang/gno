@@ -15,7 +15,9 @@ import (
 // PackageGetter specifies how the store may retrieve packages which are not
 // already in its cache. PackageGetter should return nil when the requested
 // package does not exist. store should be used to run the machine, or otherwise
-// call any methods which may call store.GetPackage, to avoid import cycles.
+// call any methods which may call store.GetPackage; avoid using any "global"
+// store as the one passed to the PackageGetter may be a fork of that (ie.
+// the original is not meant to be written to).
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
