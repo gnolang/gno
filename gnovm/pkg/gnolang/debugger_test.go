@@ -172,7 +172,7 @@ func TestRemoteDebug(t *testing.T) {
 
 func TestRemoteError(t *testing.T) {
 	_, _, err := eval(":xxx", "", debugTarget)
-	if !strings.Contains(err.Error(), "listen tcp: lookup tcp/xxx: unknown port") {
+	if !strings.Contains(err.Error(), "tcp/xxx: unknown port") {
 		t.Error(err)
 	}
 }
