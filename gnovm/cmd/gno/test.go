@@ -20,7 +20,9 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
@@ -36,6 +38,7 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
+	printEvents         bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -149,6 +152,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
+
+	fs.BoolVar(
+		&c.printEvents,
+		"print-events",
+		false,
+		"print emitted events",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -228,6 +238,7 @@ func gnoTestPkg(
 		rootDir             = cfg.rootDir
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
+		printEvents         = cfg.printEvents
 
 		stdin  = io.In()
 		stdout = io.Out()
@@ -295,7 +306,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -329,7 +340,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, printEvents, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -419,6 +430,7 @@ func runTestFiles(
 	pkgName string,
 	verbose bool,
 	printRuntimeMetrics bool,
+	printEvents bool,
 	runFlag string,
 	io commands.IO,
 ) (errs error) {
@@ -450,7 +462,19 @@ func runTestFiles(
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		eval := m.Eval(gno.Call("runtest", testFuncStr))
+		res := gno.Call("runtest", testFuncStr)
+
+		eval := m.Eval(res) // NOTE: verbose prints get here
+		if printEvents {
+			ctx := m.Context.(stdlibs.ExecContext)
+
+			events := ctx.EventLogger.Events()
+			for _, ev := range events {
+				// XXX: print events with better formatting (e.g. JSON)
+				strEv := fmt.Sprint(ev)
+				io.ErrPrintfln("---       event: %s", colors.ColoredBytesOnlyAscii([]byte(strEv), colors.Magenta))
+			}
+		}
 
 		ret := eval[0].GetString()
 		if ret == "" {
