@@ -53,8 +53,5 @@ data:
 ```
 
 You can fetch the ABCI response of a specific block by using the `/block_results` 
-RPC endpoint. 
-
-
-
+RPC endpoint.
 
