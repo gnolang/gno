@@ -550,6 +550,12 @@ func debugPrint(m *Machine, arg string) (err error) {
 // assign operations, type assertions of convertions.
 // This is sufficient for a debugger to perform 'print (*f).S[x][y]' for example.
 func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+
 	switch n := node.(type) {
 	case *ast.BasicLit:
 		switch n.Kind {
@@ -672,6 +678,14 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 
 	// Search value in current frame level blocks, or main scope.
 	for _, b := range sblocks {
+		switch t := b.Source.(type) {
+		case *IfStmt:
+			for i, s := range ifBody(m, t).Source.GetBlockNames() {
+				if string(s) == name {
+					return b.Values[i], true
+				}
+			}
+		}
 		for i, s := range b.Source.GetBlockNames() {
 			if string(s) == name {
 				return b.Values[i], true
@@ -679,6 +693,14 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		}
 	}
 	return tv, false
+}
+
+// ifBody returns the Then or Else body corresponding to the current location.
+func ifBody(m *Machine, ifStmt *IfStmt) IfCaseStmt {
+	if l := ifStmt.Else.GetLocation().Line; l > 0 && debugFrameLoc(m, m.Debugger.frameLevel).Line > l {
+		return ifStmt.Else
+	}
+	return ifStmt.Then
 }
 
 // ---------------------------------------

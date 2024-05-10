@@ -13,11 +13,30 @@ func g(s string, n int) {
 
 var global = "test"
 
+type T struct {
+	A []int
+}
+
+func (t *T) get(i int) int {
+	r := t.A[i]
+	if i == 0 {
+		b := "zero"
+		println(b)
+	} else {
+		b := "!zero"
+		println(b)
+	}
+	return r
+}
+
 func main() {
 	num := 5
 	println("in main")
 	if num > 2 {
-		g("hello", 3)
+		b := 3
+		g("hello", b)
 	}
+	t := T{A: []int{1, 2, 3} }
+	println(t.get(1))
 	println("bye")
 }

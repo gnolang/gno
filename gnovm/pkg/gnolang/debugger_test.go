@@ -57,12 +57,12 @@ func eval(debugAddr, in, file string) (string, string, error) {
 	return out.String(), err.String(), nil
 }
 
-func runDebugTest(t *testing.T, tests []dtest) {
+func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
 	t.Helper()
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err, _ := eval("", test.in, debugTarget)
+			out, err, _ := eval("", test.in, targetPath)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out)
@@ -74,29 +74,36 @@ func runDebugTest(t *testing.T, tests []dtest) {
 func TestDebug(t *testing.T) {
 	brk := "break 7\n"
 	cont := brk + "continue\n"
+	cont2 := "break 21\ncontinue\n"
 
-	runDebugTest(t, []dtest{
+	runDebugTest(t, debugTarget, []dtest{
 		{in: "", out: "Welcome to the Gnovm debugger. Type 'help' for list of commands."},
 		{in: "help\n", out: "The following commands are available"},
 		{in: "h\n", out: "The following commands are available"},
-		{in: "help h\n", out: "Print the help message."},
+		{in: "help b\n", out: "Set a breakpoint."},
+		{in: "help zzz\n", out: "command not available"},
 		{in: "list " + debugTarget + ":1\n", out: "1: // This is a sample target"},
-		{in: "l 40\n", out: "23: }"},
+		{in: "l 55\n", out: "42: }"},
+		{in: "l xxx:0\n", out: "xxx: no such file or directory"},
+		{in: "l :xxx\n", out: `"xxx": invalid syntax`},
 		{in: brk, out: "Breakpoint 0 at main "},
+		{in: "break :zzz\n", out: `"zzz": invalid syntax`},
+		{in: "b +xxx\n", out: `"+xxx": invalid syntax`},
 		{in: cont, out: "=>    7: 	println(name, i)"},
 		{in: cont + "stack\n", out: "2	in main.main"},
 		{in: cont + "up\n", out: "=>   11: 	f(s, n)"},
 		{in: cont + "up\nup\ndown\n", out: "=>   11: 	f(s, n)"},
 		{in: cont + "print name\n", out: `("hello" string)`},
 		{in: cont + "p i\n", out: "(3 int)"},
+		{in: cont + "up\np global\n", out: `("test" string)`},
 		{in: cont + "bp\n", out: "Breakpoint 0 at main "},
 		{in: "p 3\n", out: "(3 int)"},
 		{in: "p 'a'\n", out: "(97 int32)"},
 		{in: "p '界'\n", out: "(30028 int32)"},
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:4"},
-		{in: "s\ns\n", out: "=>   17: 	num := 5"},
-		{in: "s\n\n", out: "=>   17: 	num := 5"},
+		{in: "s\ns\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
@@ -110,6 +117,25 @@ func TestDebug(t *testing.T) {
 		{in: "p 1.2\n", out: "Command failed: invalid basic literal value: 1.2"},
 		{in: "p 31212324222123123232123123123123123123123123123123\n", out: "value out of range"},
 		{in: "p 3)\n", out: "Command failed:"},
+		{in: "p (3)", out: "(3 int)"},
+		{in: cont2 + "bt\n", out: "0	in main.(*main.T).get"},
+		{in: cont2 + "p t.A[2]\n", out: "(3 int)"},
+		{in: cont2 + "p t.A[k]\n", out: "could not find symbol value for k"},
+		{in: cont2 + "p *t\n", out: "(struct{(slice[(1 int),(2 int),(3 int)] []int)} main.T)"},
+		{in: cont2 + "p *i\n", out: "Not a pointer value: (1 int)"},
+		{in: cont2 + "p *a\n", out: "could not find symbol value for a"},
+		{in: cont2 + "p a[1]\n", out: "could not find symbol value for a"},
+		{in: cont2 + "p t.B\n", out: "invalid selector: B"},
+		{in: "down xxx", out: `"xxx": invalid syntax`},
+		{in: "up xxx", out: `"xxx": invalid syntax`},
+		{in: "b 37\nc\np b\n", out: "(3 int)"},
+		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
+		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
+	})
+
+	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
+		{in: "l\n", out: "unknown source file"},
+		{in: "b 5\n", out: "unknown source file"},
 	})
 }
 
@@ -142,4 +168,11 @@ func TestRemoteDebug(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log("resp:", resp)
+}
+
+func TestRemoteError(t *testing.T) {
+	_, _, err := eval(":xxx", "", debugTarget)
+	if !strings.Contains(err.Error(), "listen tcp: lookup tcp/xxx: unknown port") {
+		t.Error(err)
+	}
 }
