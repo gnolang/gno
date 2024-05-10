@@ -37,7 +37,7 @@ func newValidatorAddCmd(validatorCfg *validatorCfg, io commands.IO) *commands.Co
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "validator add [flags]",
-			LongHelp:   "Adds a new validator to the genesis.json",
+			ShortHelp:  "adds a new validator to the genesis.json",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {

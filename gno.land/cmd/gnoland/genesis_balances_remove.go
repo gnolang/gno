@@ -33,7 +33,7 @@ func newBalancesRemoveCmd(rootCfg *balancesCfg, io commands.IO) *commands.Comman
 		commands.Metadata{
 			Name:       "remove",
 			ShortUsage: "balances remove [flags]",
-			LongHelp:   "Removes the balance information of a specific account",
+			ShortHelp:  "removes the balance information of a specific account",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
