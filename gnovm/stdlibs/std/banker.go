@@ -31,10 +31,12 @@ const (
 	btRealmSend
 	// Can issue and remove realm coins.
 	btRealmIssue
-
-	// regexp for denom format
-	denomRegex = "[a-z][a-z0-9]{2,15}"
 )
+
+// regexp for denom format
+const denomRegex = "[a-z][a-z0-9]{2,15}"
+
+var reg = regexp.MustCompile(denomRegex)
 
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
 	coins := m.Context.(ExecContext).Banker.GetCoins(crypto.Bech32Address(addr))
@@ -94,8 +96,8 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 	// gno checks for bt == RealmIssue
 
 	// check origin denom format
-	matched, err := regexp.MatchString(denomRegex, denom)
-	if err != nil || !matched {
+	matched := reg.MatchString(denom)
+	if !matched {
 		m.Panic(typedString("invalid denom format to issue coin, must be " + denomRegex))
 		return
 	}
@@ -110,8 +112,8 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	// gno checks for bt == RealmIssue
 
-	matched, err := regexp.MatchString(denomRegex, denom)
-	if err != nil || !matched {
+	matched := reg.MatchString(denom)
+	if !matched {
 		m.Panic(typedString("invalid denom format to remove coin, must be " + denomRegex))
 		return
 	}
