@@ -33,7 +33,7 @@ and the `Emit()` reference [here](../../reference/stdlibs/std/chain.md#emit).
 An event contained in an ABCI response of a block will include the following
 data:
 
-```
+``` json
 {
     "@type": "/tm.gnoEvent", // TM2 type
     "type": "OwnershipChange", // Type/name of event defined in Gno
