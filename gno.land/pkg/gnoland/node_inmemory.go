@@ -40,10 +40,10 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 		ChainID:     chainid,
 		ConsensusParams: abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,      // 1MB,
-				MaxDataBytes: 2_000_000,      // 2MB,
-				MaxGas:       10_000_000_000, // 10_000M gas
-				TimeIotaMS:   100,            // 100ms
+				MaxTxBytes:   1_000_000,   // 1MB,
+				MaxDataBytes: 2_000_000,   // 2MB,
+				MaxGas:       100_000_000, // 100M gas
+				TimeIotaMS:   100,         // 100ms
 			},
 		},
 		AppState: &GnoGenesisState{
