@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -201,6 +202,10 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(c *startCfg, io commands.IO) error {
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.Init("benchmarks.bin")
+	}
+
 	// Get the absolute path to the node's data directory
 	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {

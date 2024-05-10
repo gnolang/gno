@@ -2,10 +2,12 @@ package gnolang
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -212,6 +214,15 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 
 // Some atomic operation.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
+	var size uint32
+	if bm.StorageEnabled {
+		bm.StartMeasurement(bm.StoreCode(bm.StoreGetPackage))
+		defer func() {
+			bm.StopMeasurement(size)
+			log.Printf("benchmark.StoreGetPackage, %d\n", size)
+		}()
+	}
+
 	oid := ObjectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get([]byte(key))
@@ -230,6 +241,15 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
+	var size uint32
+	if bm.StorageEnabled {
+		bm.StartMeasurement(bm.StoreCode(bm.StoreSetPackage))
+		defer func() {
+			bm.StopMeasurement(size)
+			log.Printf("benchmark.StoreSetPackage, %d\n", size)
+		}()
+	}
+
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)

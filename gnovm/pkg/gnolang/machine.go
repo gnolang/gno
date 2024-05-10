@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -1119,11 +1120,19 @@ const (
 func (m *Machine) Run() {
 	for {
 		op := m.PopOp()
+
+		if bm.OpsEnabled {
+			bm.StartMeasurement(bm.VMOpCode(byte(op)))
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			if bm.OpsEnabled {
+				bm.StopMeasurement(0)
+			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
@@ -1441,6 +1450,10 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+
+		if bm.OpsEnabled {
+			bm.StopMeasurement(0)
 		}
 	}
 }
