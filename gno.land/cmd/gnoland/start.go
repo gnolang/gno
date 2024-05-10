@@ -144,7 +144,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.genesisMaxVMCycles,
 		"genesis-max-vm-cycles",
-		10_000_000_000,
+		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
