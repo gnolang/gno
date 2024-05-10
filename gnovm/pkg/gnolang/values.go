@@ -45,6 +45,7 @@ func (RefValue) assertValue()          {}
 const (
 	nilStr       = "nil"
 	undefinedStr = "undefined"
+	is64Bit      = unsafe.Sizeof(int(0)) == 8
 )
 
 var (
@@ -1132,6 +1133,15 @@ func (tv *TypedValue) SetBool(b bool) {
 	*(*bool)(unsafe.Pointer(&tv.N)) = b
 }
 
+func (tv *TypedValue) SetBoolNew(b bool) {
+	if b {
+		tv.N[0] = 1
+		return
+	}
+
+	tv.N[0] = 0
+}
+
 func (tv *TypedValue) GetBool() bool {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
@@ -1141,6 +1151,10 @@ func (tv *TypedValue) GetBool() bool {
 		}
 	}
 	return *(*bool)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) GetBoolNew() bool {
+	return tv.N[0] == 1
 }
 
 func (tv *TypedValue) SetString(s StringValue) {
@@ -1182,6 +1196,15 @@ func (tv *TypedValue) SetInt(n int) {
 	*(*int)(unsafe.Pointer(&tv.N)) = n
 }
 
+func (tv *TypedValue) SetIntNew(n int) {
+	if is64Bit {
+		binary.LittleEndian.PutUint64(tv.N[:], uint64(n))
+		return
+	}
+
+	binary.LittleEndian.PutUint32(tv.N[:], uint32(n))
+}
+
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
 	ConvertTo(nilAllocator, store, tv, IntType)
@@ -1197,6 +1220,14 @@ func (tv *TypedValue) GetInt() int {
 		}
 	}
 	return *(*int)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) GetIntNew() int {
+	if is64Bit {
+		return int(binary.LittleEndian.Uint64(tv.N[:]))
+	}
+
+	return int(binary.LittleEndian.Uint32(tv.N[:]))
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
@@ -1232,6 +1263,10 @@ func (tv *TypedValue) SetInt16(n int16) {
 	*(*int16)(unsafe.Pointer(&tv.N)) = n
 }
 
+func (tv *TypedValue) SetInt16New(n int16) {
+	binary.LittleEndian.PutUint16(tv.N[:], uint16(n))
+}
+
 func (tv *TypedValue) GetInt16() int16 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Int16Kind {
@@ -1241,6 +1276,17 @@ func (tv *TypedValue) GetInt16() int16 {
 		}
 	}
 	return *(*int16)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) GetInt16New() int16 {
+	if debug {
+		if tv.T != nil && tv.T.Kind() != Int16Kind {
+			panic(fmt.Sprintf(
+				"TypedValue.GetInt16() on type %s",
+				tv.T.String()))
+		}
+	}
+	return int16(binary.LittleEndian.Uint16(tv.N[:]))
 }
 
 func (tv *TypedValue) SetInt32(n int32) {
@@ -1460,6 +1506,10 @@ func (tv *TypedValue) SetFloat64(n float64) {
 	*(*float64)(unsafe.Pointer(&tv.N)) = n
 }
 
+func (tv *TypedValue) SetFloat64New(n float64) {
+	binary.LittleEndian.PutUint64(tv.N[:], math.Float64bits(n))
+}
+
 func (tv *TypedValue) GetFloat64() float64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
@@ -1469,6 +1519,10 @@ func (tv *TypedValue) GetFloat64() float64 {
 		}
 	}
 	return *(*float64)(unsafe.Pointer(&tv.N))
+}
+
+func (tv *TypedValue) GetFloat64New() float64 {
+	return math.Float64frombits(binary.LittleEndian.Uint64(tv.N[:]))
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
