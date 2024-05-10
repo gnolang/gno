@@ -1776,8 +1776,8 @@ func (cs *ConsensusState) logTelemetry(block *types.Block) {
 	}
 
 	// Log the validator telemetry
-	metrics.ValidatorsCount.Observe(int64(cs.Validators.Size()))
-	metrics.ValidatorsVotingPower.Observe(cs.Validators.TotalVotingPower())
+	metrics.ValidatorsCount.Record(context.Background(), int64(cs.Validators.Size()))
+	metrics.ValidatorsVotingPower.Record(context.Background(), cs.Validators.TotalVotingPower())
 
 	// Log the block telemetry
 	if block.Height > 1 {
@@ -1789,12 +1789,8 @@ func (cs *ConsensusState) logTelemetry(block *types.Block) {
 		}
 	}
 
-	metrics.BlockTxs.Observe(block.TotalTxs)
-	metrics.BlockSizeBytes.Observe(int64(block.Size()))
-
-	// Log general network telemetry
-	metrics.TotalTxs.Add(context.Background(), block.TotalTxs)
-	metrics.LatestHeight.Observe(block.Height)
+	metrics.BlockTxs.Record(context.Background(), block.TotalTxs)
+	metrics.BlockSizeBytes.Record(context.Background(), int64(block.Size()))
 }
 
 // ---------------------------------------------------------

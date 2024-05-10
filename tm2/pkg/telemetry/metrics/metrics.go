@@ -17,12 +17,12 @@ const (
 	broadcastTxTimerKey = "broadcast_tx_hist"
 	buildBlockTimerKey  = "build_block_hist"
 
-	inboundPeersKey  = "inbound_peers_gauge"
-	outboundPeersKey = "outbound_peers_gauge"
-	dialingPeersKey  = "dialing_peers_gauge"
+	inboundPeersKey  = "inbound_peers_hist"
+	outboundPeersKey = "outbound_peers_hist"
+	dialingPeersKey  = "dialing_peers_hist"
 
-	numMempoolTxsKey = "num_mempool_txs_gauge"
-	numCachedTxsKey  = "num_cached_txs_gauge"
+	numMempoolTxsKey = "num_mempool_txs_hist"
+	numCachedTxsKey  = "num_cached_txs_hist"
 
 	vmQueryCallsKey  = "vm_query_calls_counter"
 	vmQueryErrorsKey = "vm_query_errors_counter"
@@ -30,13 +30,11 @@ const (
 	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
 	vmExecMsgKey     = "vm_exec_msg_hist"
 
-	validatorCountKey       = "validator_count_gauge"
-	validatorVotingPowerKey = "validator_vp_gauge"
+	validatorCountKey       = "validator_count_hist"
+	validatorVotingPowerKey = "validator_vp_hist"
 	blockIntervalKey        = "block_interval_hist"
-	blockTxsKey             = "block_txs_gauge"
-	blockSizeKey            = "block_size_gauge"
-	totalTxsKey             = "total_txs_counter"
-	latestHeightKey         = "latest_height_counter"
+	blockTxsKey             = "block_txs_hist"
+	blockSizeKey            = "block_size_hist"
 
 	httpRequestTimeKey = "http_request_time_hist"
 	wsRequestTimeKey   = "ws_request_time_hist"
@@ -51,21 +49,21 @@ var (
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers
-	InboundPeers *Int64Gauge
+	InboundPeers metric.Int64Histogram
 
 	// OutboundPeers measures the active number of outbound peers
-	OutboundPeers *Int64Gauge
+	OutboundPeers metric.Int64Histogram
 
 	// DialingPeers measures the active number of peers in the dialing state
-	DialingPeers *Int64Gauge
+	DialingPeers metric.Int64Histogram
 
 	// Mempool //
 
 	// NumMempoolTxs measures the number of transaction inside the mempool
-	NumMempoolTxs *Int64Gauge
+	NumMempoolTxs metric.Int64Histogram
 
 	// NumCachedTxs measures the number of transaction inside the mempool cache
-	NumCachedTxs *Int64Gauge
+	NumCachedTxs metric.Int64Histogram
 
 	// Runtime //
 
@@ -90,25 +88,19 @@ var (
 	BuildBlockTimer metric.Int64Histogram
 
 	// ValidatorsCount measures the size of the active validator set
-	ValidatorsCount *Int64Gauge
+	ValidatorsCount metric.Int64Histogram
 
 	// ValidatorsVotingPower measures the total voting power of the active validator set
-	ValidatorsVotingPower *Int64Gauge
+	ValidatorsVotingPower metric.Int64Histogram
 
 	// BlockInterval measures the interval between 2 subsequent blocks
 	BlockInterval metric.Int64Histogram
 
 	// BlockTxs measures the number of transactions within the latest block
-	BlockTxs *Int64Gauge
+	BlockTxs metric.Int64Histogram
 
 	// BlockSizeBytes measures the size of the latest block in bytes
-	BlockSizeBytes *Int64Gauge
-
-	// TotalTxs measures the total number of transactions on the network
-	TotalTxs metric.Int64Counter
-
-	// LatestHeight measures the total number of committed network blocks
-	LatestHeight *Int64Gauge
+	BlockSizeBytes metric.Int64Histogram
 
 	// RPC //
 
@@ -162,45 +154,40 @@ func Init(config config.Config) error {
 	}
 
 	// Networking //
-	if InboundPeers, err = NewInt64Gauge(
+	if InboundPeers, err = meter.Int64Histogram(
 		inboundPeersKey,
-		"inbound peer count",
-		meter,
+		metric.WithDescription("inbound peer count"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if OutboundPeers, err = NewInt64Gauge(
+	if OutboundPeers, err = meter.Int64Histogram(
 		outboundPeersKey,
-		"outbound peer count",
-		meter,
+		metric.WithDescription("outbound peer count"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if DialingPeers, err = NewInt64Gauge(
+	if DialingPeers, err = meter.Int64Histogram(
 		dialingPeersKey,
-		"dialing peer count",
-		meter,
+		metric.WithDescription("dialing peer count"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Mempool //
-	if NumMempoolTxs, err = NewInt64Gauge(
+	if NumMempoolTxs, err = meter.Int64Histogram(
 		numMempoolTxsKey,
-		"valid mempool transaction count",
-		meter,
+		metric.WithDescription("valid mempool transaction count"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if NumCachedTxs, err = NewInt64Gauge(
+	if NumCachedTxs, err = meter.Int64Histogram(
 		numCachedTxsKey,
-		"cached mempool transaction count",
-		meter,
+		metric.WithDescription("cached mempool transaction count"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Runtime //
@@ -240,20 +227,18 @@ func Init(config config.Config) error {
 	}
 
 	// Consensus //
-	if ValidatorsCount, err = NewInt64Gauge(
+	if ValidatorsCount, err = meter.Int64Histogram(
 		validatorCountKey,
-		"size of the active validator set",
-		meter,
+		metric.WithDescription("size of the active validator set"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if ValidatorsVotingPower, err = NewInt64Gauge(
+	if ValidatorsVotingPower, err = meter.Int64Histogram(
 		validatorVotingPowerKey,
-		"total voting power of the active validator set",
-		meter,
+		metric.WithDescription("total voting power of the active validator set"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BlockInterval, err = meter.Int64Histogram(
@@ -264,35 +249,19 @@ func Init(config config.Config) error {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if BlockTxs, err = NewInt64Gauge(
+	if BlockTxs, err = meter.Int64Histogram(
 		blockTxsKey,
-		"number of transactions within the latest block",
-		meter,
+		metric.WithDescription("number of transactions within the latest block"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if BlockSizeBytes, err = NewInt64Gauge(
+	if BlockSizeBytes, err = meter.Int64Histogram(
 		blockSizeKey,
-		"size of the latest block in bytes",
-		meter,
+		metric.WithDescription("size of the latest block in bytes"),
+		metric.WithUnit("B"),
 	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
-	}
-
-	if TotalTxs, err = meter.Int64Counter(
-		totalTxsKey,
-		metric.WithDescription("total number of transactions on the network"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if LatestHeight, err = NewInt64Gauge(
-		latestHeightKey,
-		"total number of committed network blocks",
-		meter,
-	); err != nil {
-		return fmt.Errorf("unable to create gauge, %w", err)
+		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// RPC //

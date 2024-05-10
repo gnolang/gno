@@ -3,6 +3,7 @@ package mempool
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
@@ -347,10 +348,10 @@ func (mem *CListMempool) logTelemetry() {
 	}
 
 	// Log the total number of mempool transactions
-	metrics.NumMempoolTxs.Observe(int64(mem.txs.Len()))
+	metrics.NumMempoolTxs.Record(context.Background(), int64(mem.txs.Len()))
 
 	// Log the total number of the mempool cache transactions
-	metrics.NumCachedTxs.Observe(int64(mem.cache.Len()))
+	metrics.NumCachedTxs.Record(context.Background(), int64(mem.cache.Len()))
 }
 
 // Called from:

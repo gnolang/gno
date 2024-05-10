@@ -735,11 +735,11 @@ func (sw *Switch) logTelemetry() {
 	outbound, inbound, dialing := sw.NumPeers()
 
 	// Log the outbound peer count
-	metrics.OutboundPeers.Observe(int64(outbound))
+	metrics.OutboundPeers.Record(context.Background(), int64(outbound))
 
 	// Log the inbound peer count
-	metrics.InboundPeers.Observe(int64(inbound))
+	metrics.InboundPeers.Record(context.Background(), int64(inbound))
 
 	// Log the dialing peer count
-	metrics.DialingPeers.Observe(int64(dialing))
+	metrics.DialingPeers.Record(context.Background(), int64(dialing))
 }
