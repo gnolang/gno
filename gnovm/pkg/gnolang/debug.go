@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -23,10 +22,8 @@ type debugging bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
-var debug debugging = false
 
 func init() {
-	debug = os.Getenv("DEBUG") == "1"
 	if debug {
 		go func() {
 			// e.g.
@@ -48,16 +45,16 @@ func init() {
 
 var enabled bool = true
 
-func (d debugging) Println(args ...interface{}) {
-	if d {
+func (debugging) Println(args ...interface{}) {
+	if debug {
 		if enabled {
 			fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
 		}
 	}
 }
 
-func (d debugging) Printf(format string, args ...interface{}) {
-	if d {
+func (debugging) Printf(format string, args ...interface{}) {
+	if debug {
 		if enabled {
 			fmt.Printf("DEBUG: "+format, args...)
 		}
@@ -69,8 +66,8 @@ var derrors []string = nil
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
-func (d debugging) Errorf(format string, args ...interface{}) {
-	if d {
+func (debugging) Errorf(format string, args ...interface{}) {
+	if debug {
 		if enabled {
 			derrors = append(derrors, fmt.Sprintf(format, args...))
 		}
