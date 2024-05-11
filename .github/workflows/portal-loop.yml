@@ -55,23 +55,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - run: |
+      - name: Setup the images
+        run: |
           cd misc/loop
 
           docker compose build
           docker compose pull
           docker compose up -d
 
-          while [[ "$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')" -gt 10 ]]; do sleep 1; done
+      - name: Test1. Portal loop start gnoland
+        run: |
+          while
+            block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            [[ "$block_height" -lt 10 ]]
+          do
+            sleep 1
+          done
 
           curl -s localhost:26657/status | jq
 
-          cd ../..
+      - name: Buid new gnolang/gno image
+        run: |
+          docker ps -a
           docker build -t ghcr.io/gnolang/gno .
 
+      - name: Test2. Wait portalloop start new image
+        run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
-
             [[ "$block_height" -lt 10 && "$block_height" -gt 5 ]]
           do
             sleep 1
