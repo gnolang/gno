@@ -65,8 +65,11 @@ jobs:
 
       - name: Test1. Portal loop start gnoland
         run: |
+          docker ps -a
+
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            echo "Current block height: $block_height"
             [[ "$block_height" -lt 10 ]]
           do
             sleep 1
@@ -76,14 +79,29 @@ jobs:
 
       - name: Buid new gnolang/gno image
         run: |
-          docker ps -a
+          echo "::set-output name=container_id::$(docker ps --filter "name=portal-loop" --format "{{.ID}}")"
           docker build -t ghcr.io/gnolang/gno .
+
+      - name: Wait for new docker image
+        run: |
+          first_id=$(docker ps --filter "ancestor=ghcr.io/gnolang/gno" --format "{{.ID}}")
+          while
+            id=$(docker ps --filter "ancestor=ghcr.io/gnolang/gno" --format "{{.ID}}")
+            echo "${first_id} -> ${id}"
+            docker ps -a
+            [[ "$first_id" == ${id} ]]
+          do
+            sleep 5
+          done
 
       - name: Test2. Wait portalloop start new image
         run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
-            [[ "$block_height" -lt 10 && "$block_height" -gt 5 ]]
+            echo "Current block height: $block_height"
+            [[ "$block_height" -lt 10 ]]
           do
-            sleep 1
+            sleep 5
           done
+          docker ps -a
+          curl -s localhost:26657/status | jq
