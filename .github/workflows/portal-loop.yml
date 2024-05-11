@@ -95,7 +95,7 @@ jobs:
 
       - name: Run test start script from portal loop
         timeout-minutes: 5
-        uses: "docker://ghcr.io/${{ github.repository }}:test-portal-loop"
+        uses: "docker://ghcr.io/gnolang/gno:test-portal-loop"
         with: |
           cat > /ci.sh <<EOF
           bash ./misc/loop/scripts/start.sh &
