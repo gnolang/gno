@@ -50,7 +50,7 @@ jobs:
 
   test-portal-loop-docker-compose:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,8 +65,6 @@ jobs:
 
       - name: Test1. Portal loop start gnoland
         run: |
-          docker ps -a
-
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
             echo "Current block height: $block_height"
@@ -79,17 +77,16 @@ jobs:
 
       - name: Buid new gnolang/gno image
         run: |
-          echo "::set-output name=container_id::$(docker ps --filter "name=portal-loop" --format "{{.ID}}")"
           docker build -t ghcr.io/gnolang/gno .
 
       - name: Wait for new docker image
         run: |
-          first_id=$(docker ps --filter "ancestor=ghcr.io/gnolang/gno" --format "{{.ID}}")
+
+          ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
           while
-            id=$(docker ps --filter "ancestor=ghcr.io/gnolang/gno" --format "{{.ID}}")
-            echo "${first_id} -> ${id}"
-            docker ps -a
-            [[ "$first_id" == ${id} ]]
+            new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+            echo "${ip_addr} -> ${new_ip_addr}"
+            [[ "${ip_addr}" == ${new_ip_addr} ]]
           do
             sleep 5
           done
