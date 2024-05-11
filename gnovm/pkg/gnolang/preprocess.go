@@ -98,12 +98,15 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 							Path:       base.NameExprs[j].Path,
 							Name:       base.NameExprs[j].Name,
 						}}
-						base.Values = Exprs{base.Values[j].Copy().(Expr)}
+
+						if j < len(base.Values) {
+							base.Values = Exprs{base.Values[j].Copy().(Expr)}
+						}
 
 						split[j], _ = predefineNow(store, fn, base)
 					}
 
-					fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
+					fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
 					i += len(vd.NameExprs)
 					lenDecls += len(vd.NameExprs) - 1
 				} else {
