@@ -81,15 +81,37 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
-		for i := 0; i < len(fn.Decls); i++ {
+		lenDecls := len(fn.Decls)
+		for i := 0; i < lenDecls; i++ {
 			d := fn.Decls[i]
 			if d.GetAttribute(ATTR_PREDEFINED) == true {
 				// skip declarations already predefined (e.g.
 				// through recursion for a dependent)
 			} else {
-				// recursively predefine dependencies.
-				d2, _ := predefineNow(store, fn, d)
-				fn.Decls[i] = d2
+				if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 {
+					split := make([]Decl, len(vd.NameExprs))
+
+					for j := 0; j < len(vd.NameExprs); j++ {
+						base := vd.Copy().(*ValueDecl)
+						base.NameExprs = NameExprs{NameExpr{
+							Attributes: base.NameExprs[j].Attributes,
+							Path:       base.NameExprs[j].Path,
+							Name:       base.NameExprs[j].Name,
+						}}
+						base.Values = Exprs{base.Values[j].Copy().(Expr)}
+
+						split[j], _ = predefineNow(store, fn, base)
+					}
+
+					fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
+					i += len(vd.NameExprs)
+					lenDecls += len(vd.NameExprs) - 1
+				} else {
+					// recursively predefine dependencies.
+					d2, _ := predefineNow(store, fn, d)
+
+					fn.Decls[i] = d2
+				}
 			}
 		}
 	}
