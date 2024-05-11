@@ -896,7 +896,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if lt.TypeID() != rt.TypeID() {
 							panic(fmt.Sprintf(
 								"incompatible types in binary expression: %v %v %v",
-								n.Left, n.Op, n.Right))
+								lt.TypeID(), n.Op, rt.TypeID()))
 						}
 						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 						// convert n.Left to (gno) pt type,
@@ -935,7 +935,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							} else {
 								checkOrConvertType(store, last, &n.Left, rt, false)
@@ -948,7 +948,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							}
 						}

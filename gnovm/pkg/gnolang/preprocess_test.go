@@ -30,11 +30,11 @@ func TestPrepocessBinaryExpressionPrimaryAndNative(t *testing.T) {
 	import "time"
 func main() {
 	var a int64 = 2
-	println(a * time.Second)
+	println(time.Second * a)
 	
 }`
 	n := MustParseFile("main.go", c)
-	assert.Panics(t, func() { m.RunFiles(n) }, "should panic: invalid operation: int64 * time.Duration")
+	assert.Panics(t, func() { m.RunFiles(n) })
 }
 
 func TestPrepocessBinaryExpressionNativeAndNative(t *testing.T) {
@@ -62,5 +62,5 @@ func main() {
 	
 }`
 	n := MustParseFile("main.go", c)
-	assert.Panics(t, func() { m.RunFiles(n) }, "should panic: invalid operation: time.Month * time.Weekday")
+	assert.Panics(t, func() { m.RunFiles(n) })
 }
