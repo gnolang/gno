@@ -201,7 +201,7 @@ func addChecksum(data []byte) []byte {
 
 func padByteSlice(slice []byte, length int) []byte {
 	newSlice := make([]byte, length-len(slice))
-	return append(newSlice, slice...) //nolint:makezero
+	return append(newSlice, slice...)
 }
 
 func validateEntropyBitSize(bitSize int) error {

@@ -26,7 +26,6 @@ linters:
     - predeclared # Finds code that shadows one of Go's predeclared identifiers
     - nolintlint # Ill-formed or insufficient nolint directives
     - misspell # Misspelled English words in comments
-    - makezero # Finds slice declarations with non-zero initial length
     - importas # Enforces consistent import aliases
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed

@@ -106,7 +106,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						split[j], _ = predefineNow(store, fn, base)
 					}
 
-					fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
+					fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...)
 					i += len(vd.NameExprs)
 					lenDecls += len(vd.NameExprs) - 1
 				} else {
