@@ -88,7 +88,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				// skip declarations already predefined (e.g.
 				// through recursion for a dependent)
 			} else {
-				if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 {
+				if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 && len(vd.Values) == len(vd.NameExprs) {
 					split := make([]Decl, len(vd.NameExprs))
 
 					for j := 0; j < len(vd.NameExprs); j++ {
