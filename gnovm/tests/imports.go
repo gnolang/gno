@@ -43,6 +43,7 @@ import (
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -78,10 +79,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				send := std.Coins{}
+				ctx := testContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
 					Store:   store,
+					Context: ctx,
 				})
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 				// pv := pkg.NewPackage()
@@ -391,10 +395,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
+			send := std.Coins{}
+			ctx := testContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
 				Store:   store,
+				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
