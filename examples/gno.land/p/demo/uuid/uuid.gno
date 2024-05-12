@@ -14,7 +14,7 @@ const (
 	MachineIDLength uint8  = 10
 	SequenceLength  uint8  = 12
 	MaxSequence     uint16 = 1<<SequenceLength - 1
-	MaxMachineID    uint16 = 1<<MachineIDLength - 1
+	MaxMachineID    uint64 = 1<<MachineIDLength - 1
 
 	machineIDMoveLength = SequenceLength
 	timestampMoveLength = MachineIDLength + SequenceLength
@@ -24,7 +24,7 @@ const (
 // It can run on golang playground.
 // default machineID is 0
 var (
-	MachineID     uint16 = 0
+	MachineID     uint64 = 0
 	sequence      uint16 = 0
 	StartTime            = time.Date(2008, 11, 10, 23, 0, 0, 0, time.UTC)
 	LastTimestamp int64  = 0
@@ -66,7 +66,7 @@ func NextID() (uint64, error) {
 }
 
 // SetMachineID specify the machine ID. It will panic when machined > max limit for 2^10-1.
-func SetMachineID(m uint16) {
+func SetMachineID(m uint64) {
 	if m > MaxMachineID {
 		panic("The machineID cannot be greater than 1023")
 	}
