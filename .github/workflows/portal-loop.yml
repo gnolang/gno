@@ -8,6 +8,7 @@ on:
       - ".github/workflows/portal-loop.yml"
     branches:
       - "master"
+      # NOTE(albttx): branch name to simply tests for this workflow
       - "ci/portal-loop"
     tags:
       - "v*"
