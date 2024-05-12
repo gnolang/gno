@@ -318,7 +318,7 @@ func AirdropBasicFlipNFT(airdropAccount,
 	if err != nil {
 		panic("error in transferring to toPLayer")
 	}
-	return nil
+	return nil, nil
 	res := &nftResult{
 		result: result,
 		nftError: nftError,
